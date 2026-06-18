@@ -27,7 +27,7 @@ class ISettingsManager(ABC):
         Returns:
             Setting value or default if not found
         """
-        pass
+        raise NotImplementedError("ISettingsManager.get_setting must be implemented by subclass")
 
     @abstractmethod
     def set_setting(self, key: str, value: Any, commit: bool = True) -> bool:
@@ -42,7 +42,7 @@ class ISettingsManager(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
+        raise NotImplementedError("ISettingsManager.set_setting must be implemented by subclass")
 
     @abstractmethod
     def get_all_settings(self) -> Dict[str, Any]:
@@ -52,7 +52,7 @@ class ISettingsManager(ABC):
         Returns:
             Dictionary of all settings with metadata
         """
-        pass
+        raise NotImplementedError("ISettingsManager.get_all_settings must be implemented by subclass")
 
     @abstractmethod
     def create_or_update_setting(
@@ -68,7 +68,7 @@ class ISettingsManager(ABC):
         Returns:
             The created or updated Setting model, or None if failed
         """
-        pass
+        raise NotImplementedError("ISettingsManager.create_or_update_setting must be implemented by subclass")
 
     @abstractmethod
     def delete_setting(self, key: str, commit: bool = True) -> bool:
@@ -82,7 +82,7 @@ class ISettingsManager(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
+        raise NotImplementedError("ISettingsManager.delete_setting must be implemented by subclass")
 
     @abstractmethod
     def get_bool_setting(
@@ -99,7 +99,7 @@ class ISettingsManager(ABC):
         Returns:
             Boolean value of the setting
         """
-        pass
+        raise NotImplementedError("ISettingsManager.get_bool_setting must be implemented by subclass")
 
     @abstractmethod
     def get_settings_snapshot(self) -> Dict[str, Any]:
@@ -109,7 +109,7 @@ class ISettingsManager(ABC):
         Returns:
             Dictionary with setting keys mapped to their values
         """
-        pass
+        raise NotImplementedError("ISettingsManager.get_settings_snapshot must be implemented by subclass")
 
     @abstractmethod
     def load_from_defaults_file(
@@ -122,7 +122,7 @@ class ISettingsManager(ABC):
             commit: Whether to commit changes to database
             **kwargs: Additional arguments for import_settings
         """
-        pass
+        raise NotImplementedError("ISettingsManager.load_from_defaults_file must be implemented by subclass")
 
     @abstractmethod
     def import_settings(
@@ -141,4 +141,4 @@ class ISettingsManager(ABC):
             overwrite: If true, overwrite existing settings
             delete_extra: If true, delete settings not in settings_data
         """
-        pass
+        raise NotImplementedError("ISettingsManager.import_settings must be implemented by subclass")

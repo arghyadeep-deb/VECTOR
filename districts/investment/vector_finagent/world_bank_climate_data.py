@@ -4,6 +4,7 @@ World Bank Climate Change Knowledge Portal Data Fetcher
 Temperature projections, precipitation, climate risk by country
 via World Bank Climate Knowledge Portal API (no key required).
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -60,8 +61,7 @@ def get_climate_risk_scores(country: str = "USA") -> Any:
         resp = session.get(risk_url, timeout=30)
         resp.raise_for_status()
         return resp.json()
-    except Exception:
-        logger.debug("[VECTOR][world_bank_climate_data] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][world_bank_climate_data] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     # Fallback: use World Bank main API for climate-related indicators

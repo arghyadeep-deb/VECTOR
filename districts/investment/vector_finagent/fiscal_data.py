@@ -14,6 +14,7 @@ Usage:
     python fiscaldata_data.py datasets
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -153,8 +154,7 @@ def _make_request(endpoint: str, params: Dict[str, Any] = None) -> Dict[str, Any
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][fiscal_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][fiscal_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][fiscal_data] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {

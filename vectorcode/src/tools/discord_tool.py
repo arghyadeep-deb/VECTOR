@@ -94,7 +94,7 @@ def _discord_request(
         try:
             error_body = e.read().decode("utf-8", errors="replace")
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.discord_tool] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.discord_tool] suppressed Exception: %s", e)
         raise DiscordAPIError(e.code, error_body) from e
 
 

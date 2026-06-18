@@ -399,8 +399,7 @@ class HedgeFundAnalyzer(AlternativeInvestmentBase):
             return exposures
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.alternateInvestment.hedge_funds] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.alternateInvestment.hedge_funds] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.hedge_funds] caught Exception: %s", e)
             logger.error(f"Error in multi-factor regression: {str(e)}")
             return {}
 

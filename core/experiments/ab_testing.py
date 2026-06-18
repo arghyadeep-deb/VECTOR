@@ -23,6 +23,7 @@ Usage:
     # Get stats
     stats = exp.stats()  # → {variant: {mean, n, p_value}}
 """
+from core.memory.db_utils import apply_pragmas
 import hashlib
 
 __all__ = [
@@ -40,9 +41,9 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
-from core.config import CONFIG
+from core.memory.db_utils import configured_db_path
 
-_DB_PATH = Path(str(CONFIG.get("db_path", Path(__file__).parent.parent.parent / "vector_memory.db")))
+_DB_PATH = configured_db_path()
 
 
 @dataclass
@@ -64,8 +65,7 @@ class Experiment:
                metadata: dict | None = None) -> None:
         """Record a metric observation for a variant."""
         conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         try:
             conn.execute("""
                 INSERT INTO experiment_results
@@ -81,8 +81,7 @@ class Experiment:
     def stats(self, metric: str = "reward") -> dict[str, dict]:
         """Return per-variant stats: mean, n, std, and Welch's t-test p-value vs first variant."""
         conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         try:
             rows = conn.execute("""
                 SELECT variant, value FROM experiment_results
@@ -165,8 +164,7 @@ class ExperimentRegistry:
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         return conn
 

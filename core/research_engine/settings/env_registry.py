@@ -5,6 +5,7 @@ This module creates the global registry and registers all environment settings
 defined in the env_definitions subfolder.
 """
 
+from loguru import logger
 from typing import Optional, Any
 
 from .env_settings import SettingsRegistry

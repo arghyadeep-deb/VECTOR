@@ -10,6 +10,7 @@ Usage:
     .venv/bin/python scripts/discord-voice-doctor.py
 """
 
+from loguru import logger
 import os
 import shutil
 from pathlib import Path

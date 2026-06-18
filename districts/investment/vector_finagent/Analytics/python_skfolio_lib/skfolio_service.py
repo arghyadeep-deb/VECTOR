@@ -17,6 +17,7 @@ Operations:
   scenario_analysis  - Scenario analysis
   generate_report    - Full portfolio report
 """
+from loguru import logger
 import sys
 import os
 import json
@@ -277,7 +278,7 @@ def op_efficient_frontier(data):
             frontier_volatility.append(port_vol)
             frontier_sharpe.append(sharpe)
             frontier_weights.append(w.tolist())
-        except Exception:
+        except Exception as _sve:
             logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_service] caught Exception: %s", _sve)
             continue
 

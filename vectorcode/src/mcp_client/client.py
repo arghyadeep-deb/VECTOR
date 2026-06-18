@@ -231,7 +231,7 @@ class StdioMCPClient:
             try:
                 self._proc.terminate()
                 self._proc.wait(timeout=3)
-            except Exception:
+            except Exception as _sve:
                 try:
                     self._proc.kill()
                 except Exception as _sve:

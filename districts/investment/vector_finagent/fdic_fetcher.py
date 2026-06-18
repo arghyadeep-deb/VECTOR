@@ -5,6 +5,7 @@ Location: fincept-cpp/scripts/
 Description: Robust, auto-paginated wrapper for the FDIC Bank Data API.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -89,8 +90,7 @@ class FDICWrapper:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][fdic_fetcher] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][fdic_fetcher] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][fdic_fetcher] caught Exception: %s", e)
             # Task #4: Improved Error Messaging for the Desktop UI
             return {
                 "success": False, 

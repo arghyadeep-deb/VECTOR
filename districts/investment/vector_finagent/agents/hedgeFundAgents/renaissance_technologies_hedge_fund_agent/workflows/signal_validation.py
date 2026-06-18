@@ -14,6 +14,7 @@ Steps:
 4. Research Lead Final Review
 """
 
+from loguru import logger
 from typing import Optional, Dict, Any
 from datetime import datetime
 import uuid
@@ -298,8 +299,7 @@ Provide comprehensive review for IC decision.
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_validation] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_validation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_validation] caught Exception: %s", e)
             return RunResponse(
                 content=f"Signal validation workflow failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

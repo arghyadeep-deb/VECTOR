@@ -244,8 +244,7 @@ class AuditLoggingHook(Hook):
             with open(self.log_to_file, "a") as f:
                 f.write(json.dumps(entry, default=str) + "\n")
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.modules.hooks_module] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.modules.hooks_module] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.modules.hooks_module] caught Exception: %s", e)
             logger.error(f"Failed to write audit log: {e}")
 
     def _log_to_db(self, entry: Dict) -> None:

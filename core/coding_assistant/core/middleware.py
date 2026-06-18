@@ -78,7 +78,7 @@ class TurnLimitMiddleware:
         return MiddlewareResult()
 
     def reset(self, reset_reason: ResetReason = ResetReason.STOP) -> None:
-        pass
+        raise NotImplementedError("TurnLimitMiddleware.reset must be implemented by subclass")
 
 
 class PriceLimitMiddleware:
@@ -94,7 +94,7 @@ class PriceLimitMiddleware:
         return MiddlewareResult()
 
     def reset(self, reset_reason: ResetReason = ResetReason.STOP) -> None:
-        pass
+        raise NotImplementedError("PriceLimitMiddleware.reset must be implemented by subclass")
 
 
 class AutoCompactMiddleware:
@@ -112,7 +112,7 @@ class AutoCompactMiddleware:
         return MiddlewareResult()
 
     def reset(self, reset_reason: ResetReason = ResetReason.STOP) -> None:
-        pass
+        raise NotImplementedError("AutoCompactMiddleware.reset must be implemented by subclass")
 
 
 class ContextWarningMiddleware:

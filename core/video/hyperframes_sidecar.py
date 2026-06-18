@@ -22,7 +22,6 @@ def get_hyperframes_dir() -> Path | None:
     """Find the hyperframes repo directory."""
     candidates = [
         Path(__file__).parent.parent.parent.parent / "GitHub" / "hyperframes-main",
-        Path(r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\GitHub\hyperframes-main"),
     ]
     return next((p for p in candidates if p.exists()), None)
 

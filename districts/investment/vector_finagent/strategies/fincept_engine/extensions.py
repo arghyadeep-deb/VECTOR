@@ -141,8 +141,7 @@ class Extensions:
         try:
             with open(file_path, 'r') as f:
                 return f.readlines()
-        except Exception:
-            logger.debug("[VECTOR][strategies.fincept_engine.extensions] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][strategies.fincept_engine.extensions] caught Exception: %s", _sve)
             return []
 

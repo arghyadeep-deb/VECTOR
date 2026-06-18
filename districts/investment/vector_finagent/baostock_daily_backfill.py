@@ -5,6 +5,7 @@ BaoStock Daily Backfill
 Incremental daily OHLCV backfill for all BaoStock symbols.
 """
 
+from loguru import logger
 import io
 import json
 import sys
@@ -80,8 +81,7 @@ class BaoStockDailyBackfill:
             }
         try:
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            logger.debug("[VECTOR][baostock_daily_backfill] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][baostock_daily_backfill] caught Exception: %s", _sve)
             return {
                 "last_trade_date": "",

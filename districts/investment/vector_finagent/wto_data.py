@@ -23,6 +23,7 @@ Usage:
     python wto_data.py tfad_data --countries 840,124
 """
 
+from loguru import logger
 import sys
 import json
 import asyncio
@@ -65,7 +66,6 @@ class WTODataWrapper:
                                 import json
                                 return json.loads(data)
                             except Exception as _sve:
-                                logger.debug("[VECTOR][wto_data] caught Exception: %s", _sve)
                                 logger.debug("[VECTOR][wto_data] caught Exception: %s", _sve)
                                 return data
                         return data

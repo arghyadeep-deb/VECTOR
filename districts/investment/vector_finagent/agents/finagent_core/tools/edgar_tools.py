@@ -53,8 +53,7 @@ def _call(command: str, *args) -> str:
     except ImportError:
         return json.dumps({"error": "edgartools library not installed. Run: pip install edgartools"})
     except Exception as e:
-        logger.debug("[VECTOR][agents.finagent_core.tools.edgar_tools] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.finagent_core.tools.edgar_tools] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.tools.edgar_tools] caught Exception: %s", e)
         return json.dumps({"error": str(e)})
 
 

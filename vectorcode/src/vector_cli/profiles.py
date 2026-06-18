@@ -20,6 +20,7 @@ Usage::
     vector profile delete coder          # remove profile + alias + service
 """
 
+from loguru import logger
 import json
 import os
 import re

@@ -9,6 +9,7 @@ Labels:
   -1: Price hit lower barrier (stop-loss) first -> Bearish
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Tuple, Dict, List
@@ -135,8 +136,7 @@ class TripleBarrierPredictor:
                     "min_return": float(returns.min()) * 100,
                     "final_return": float(returns.iloc[-1]) * 100 if len(returns) > 0 else 0,
                 })
-            except Exception:
-                logger.debug("[VECTOR][vision_quant.models.triple_barrier] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][vision_quant.models.triple_barrier] caught Exception: %s", _sve)
                 continue
 

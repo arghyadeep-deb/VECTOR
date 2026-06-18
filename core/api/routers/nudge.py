@@ -10,7 +10,6 @@ __all__ = [
 
 
 from fastapi import APIRouter
-from loguru import logger
 
 router = APIRouter(prefix="/nudge", tags=["nudge"])
 

@@ -16,6 +16,7 @@ type-converted using the schema if available, otherwise treated as strings.
 Based on VLLM's Qwen3CoderToolParser.extract_tool_calls()
 """
 
+from loguru import logger
 import ast
 import json
 import re

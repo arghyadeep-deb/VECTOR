@@ -1,5 +1,6 @@
-from loguru import logger
 """CLI shim for _tool_names."""
+
+from loguru import logger
 try:
     from vectorcode.src.vector_cli._tool_names import *
 except ImportError:

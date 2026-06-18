@@ -4,6 +4,7 @@ Stooq Data Fetcher
 OHLCV historical data for 21000+ global stocks (US, Japan, Poland, Germany, Hungary)
 via the Stooq CSV download endpoint. Parses CSV responses and converts to JSON.
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -46,8 +47,7 @@ def _parse_csv(csv_text: str) -> Any:
             cleaned.append({k.strip(): v.strip() for k, v in row.items()})
         return {"data": cleaned, "count": len(cleaned)}
     except Exception as e:
-        logger.debug("[VECTOR][stooq_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][stooq_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][stooq_data] caught Exception: %s", e)
         return {"error": f"CSV parse error: {str(e)}"}
 
 

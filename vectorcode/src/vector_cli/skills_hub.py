@@ -11,6 +11,7 @@ All logic lives in shared do_* functions. The CLI entry point and slash command
 handler are thin wrappers that parse args and delegate.
 """
 
+from loguru import logger
 import json
 import re
 import shutil
@@ -727,7 +728,8 @@ def inspect_skill(identifier: str) -> Optional[dict]:
 
     class _Q:
         def print(self, *a, **k):
-            pass
+            from loguru import logger
+            logger.debug("[VECTOR][skills_hub] print called (no-op)")
 
     c = _Q()
     auth = GitHubAuth()

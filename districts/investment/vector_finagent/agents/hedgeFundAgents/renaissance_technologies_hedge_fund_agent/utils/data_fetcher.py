@@ -6,6 +6,7 @@ Unified data fetching for Renaissance Technologies agent.
 Supports multiple data sources with fallbacks.
 """
 
+from loguru import logger
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 import json
@@ -99,8 +100,7 @@ def fetch_stock_data_yfinance(ticker: str, period: str = "1y") -> StockData:
                     revenues = financials.loc['Total Revenue'].tolist()
                 if 'Net Income' in financials.index:
                     earnings = financials.loc['Net Income'].tolist()
-        except Exception:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.data_fetcher] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.utils.data_fetcher] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

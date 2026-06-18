@@ -30,6 +30,7 @@ Extended Stats:
   - Deflated Sharpe Ratio, Common Sense Ratio
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional, List

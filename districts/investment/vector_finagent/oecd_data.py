@@ -15,6 +15,7 @@ Each endpoint works independently with isolated error handling and automatic v1/
 Updated to use proper SDMX dataflow structure based on OECD API documentation.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -271,8 +272,7 @@ class OECDWrapper:
                 try:
                     return {"success": True, "data": response.text, "format": "json"}
                 except Exception as e:
-                    logger.debug("[VECTOR][oecd_data] caught Exception: %s", _sve)
-                    logger.debug("[VECTOR][oecd_data] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][oecd_data] caught Exception: %s", e)
                     return {"error": f"JSON parsing error: {str(e)}", "json_error": True}
             elif 'xml' in content_type or format_type == 'xml':
                 try:

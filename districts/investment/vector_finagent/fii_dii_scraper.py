@@ -31,6 +31,7 @@ array `[]` so the caller has a clean parse path. Errors are logged to
 stderr (which PythonRunner captures separately).
 """
 
+from loguru import logger
 import json
 import re
 import sys
@@ -56,8 +57,7 @@ def _make_session():
     try:
         s.get("https://www.nseindia.com/", timeout=8)
     except Exception as e:
-        logger.debug("[VECTOR][fii_dii_scraper] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][fii_dii_scraper] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][fii_dii_scraper] caught Exception: %s", e)
         print(f"warn: homepage visit failed: {e}", file=sys.stderr)
     return s
 

@@ -11,6 +11,7 @@ Extract institutional holdings data from 13F-HR filings including:
 - Total portfolio value
 """
 
+from loguru import logger
 from typing import Dict, Any, Optional
 import traceback
 
@@ -83,8 +84,7 @@ def get_13f_holdings(ticker: str, quarters: int = 2) -> Dict[str, Any]:
                 count += 1
 
             except Exception as e:
-                logger.debug("[VECTOR][mcp.edgar.forms_13f] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][mcp.edgar.forms_13f] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][mcp.edgar.forms_13f] caught Exception: %s", e)
                 continue
 
         return {

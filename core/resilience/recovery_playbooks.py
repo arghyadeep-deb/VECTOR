@@ -229,14 +229,12 @@ class DBCorruptionPlaybook(RecoveryPlaybook):
 
     async def run(self) -> PlaybookResult:
         import time
-        from pathlib import Path
-
-        from core.config import CONFIG
+        from core.memory.db_utils import configured_db_path
 
         start = time.time()
         actions = []
 
-        db_path = Path(str(CONFIG.get("db_path", "vector_memory.db")))
+        db_path = configured_db_path()
         if db_path.exists():
             try:
                 # MUST use the SQLCipher-aware singleton — plain sqlite3 reads

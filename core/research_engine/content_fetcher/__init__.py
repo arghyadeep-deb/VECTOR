@@ -17,6 +17,5 @@ Usage:
 
 from .fetcher import ContentFetcher
 from .url_classifier import URLClassifier, URLType
-from loguru import logger
 
 __all__ = ["ContentFetcher", "URLClassifier", "URLType"]

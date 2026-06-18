@@ -36,7 +36,7 @@ def add_brain_vault_tools(mcp) -> None:
     @mcp.tool
     def list_skills() -> str:
         """List available brain skills from brain/.claude/skills/."""
-        brain = r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\.claude\skills"
+        brain = str(Path.home() / "V.E.C.T.O.R Brain" / ".claude" / "skills")
         fallback = str(Path(__file__).parent.parent / "brain" / ".claude" / "skills")
         for skills_dir in [brain, fallback]:
             if _os.path.exists(skills_dir):

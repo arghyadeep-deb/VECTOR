@@ -21,6 +21,7 @@ Each output line is a JSON object:
   {"type":"error",  "broker":"zerodha", "message":"..."}
 """
 
+from loguru import logger
 import json
 import os
 import sys
@@ -35,8 +36,7 @@ def emit(obj):
     """Write JSON line to stdout, flush immediately."""
     try:
         print(json.dumps(obj, default=str), flush=True)
-    except Exception:
-        logger.debug("[VECTOR][exchange.broker_ws_bridge] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][exchange.broker_ws_bridge] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

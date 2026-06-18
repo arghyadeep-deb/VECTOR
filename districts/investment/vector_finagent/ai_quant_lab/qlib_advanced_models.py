@@ -5,6 +5,7 @@ Time-Series Neural Networks and Advanced Architectures
 Supports LSTM, GRU, Transformer, and hybrid models for financial time-series
 """
 
+from loguru import logger
 import json
 import sys
 import os

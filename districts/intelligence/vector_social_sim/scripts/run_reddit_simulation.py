@@ -13,6 +13,7 @@ OASIS Reddit模拟预设脚本
     python run_reddit_simulation.py --config /path/to/simulation_config.json --no-wait  # 完成后立即关闭
 """
 
+from loguru import logger
 import argparse
 import asyncio
 import json

@@ -232,7 +232,8 @@ class ByteRoverMemoryProvider(MemoryProvider):
 
     def queue_prefetch(self, query: str, *, session_id: str = "") -> None:
         """No-op: prefetch() now runs synchronously at turn start."""
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][__init__] queue_prefetch called (no-op)")
 
     def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
         """Curate the conversation turn in background (non-blocking)."""

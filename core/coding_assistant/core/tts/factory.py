@@ -27,7 +27,8 @@ class MistralTTSClient(TTSClientPort):
         return TTSResult(audio_data=b"")
 
     async def close(self) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][factory] close called (no-op)")
 
 
 TTS_CLIENT_MAP: dict[TTSClient, type[TTSClientPort]] = {

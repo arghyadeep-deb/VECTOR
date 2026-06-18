@@ -145,7 +145,6 @@ class SECDataWrapper:
 
         except Exception as _sve:
             logger.debug("[VECTOR][sec_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][sec_data] caught Exception: %s", _sve)
             return date_str
 
     def _get_company_tickers(self) -> Dict[str, Any]:

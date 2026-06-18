@@ -382,7 +382,7 @@ class LocalEnvironment(BaseEnvironment):
                     proc.wait(timeout=1.0)
                 except subprocess.TimeoutExpired:
                     os.killpg(pgid, signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
+        except (ProcessLookupError, PermissionError) as _sve:
             try:
                 proc.kill()
             except Exception as _sve:

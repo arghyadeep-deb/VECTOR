@@ -9,6 +9,7 @@ Evaluates the quality and performance of trading signals:
 - Signal decay analysis
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import statistics
@@ -233,7 +234,6 @@ class SignalEvaluator(Evaluator):
                     warning_threshold=0.02,
                 ))
             except Exception as _sve:
-                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.signal_evaluation] caught Exception: %s", _sve)
                 logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.signal_evaluation] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

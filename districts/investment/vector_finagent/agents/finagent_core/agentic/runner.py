@@ -20,6 +20,7 @@ Control signalling protocol (between subprocesses):
     it updates the status to `paused` / `cancelled`, emits the matching
     event, and returns.
 """
+from loguru import logger
 from typing import Any, Callable, Dict, List, Optional
 
 from .agentic.archival_memory import ArchivalMemoryStore
@@ -236,8 +237,7 @@ class AgenticRunner(ResumableTaskRunner):
                             decision=decision.decision, reason=decision.reason,
                             replan_hint=decision.replan_hint, question=decision.question,
                         )
-                    except Exception:
-                        logger.debug("[VECTOR][agents.finagent_core.agentic.runner] caught Exception: %s", _sve)
+                    except Exception as _sve:
                         logger.debug("[VECTOR][agents.finagent_core.agentic.runner] caught Exception: %s", _sve)
                         logger.debug("[VECTOR] suppressed exception", exc_info=True)
                     self._emit(

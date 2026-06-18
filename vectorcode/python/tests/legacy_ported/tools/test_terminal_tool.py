@@ -4,11 +4,13 @@ import tools.terminal_tool as terminal_tool
 
 
 def setup_function():
-    terminal_tool._cached_sudo_password = ""
+    if hasattr(terminal_tool._sudo_tls, "password"):
+        delattr(terminal_tool._sudo_tls, "password")
 
 
 def teardown_function():
-    terminal_tool._cached_sudo_password = ""
+    if hasattr(terminal_tool._sudo_tls, "password"):
+        delattr(terminal_tool._sudo_tls, "password")
 
 
 def test_searching_for_sudo_does_not_trigger_rewrite(monkeypatch):
@@ -79,10 +81,10 @@ def test_explicit_empty_sudo_password_tries_empty_without_prompt(monkeypatch):
     assert sudo_stdin == "\n"
 
 
-def test_cached_sudo_password_is_used_when_env_is_unset(monkeypatch):
+def test_thread_local_sudo_password_is_used_when_env_is_unset(monkeypatch):
     monkeypatch.delenv("SUDO_PASSWORD", raising=False)
     monkeypatch.delenv("VECTOR_INTERACTIVE", raising=False)
-    terminal_tool._cached_sudo_password = "cached-pass"
+    terminal_tool._sudo_tls.password = "cached-pass"
 
     transformed, sudo_stdin = terminal_tool._transform_sudo_command("echo ok && sudo whoami")
 

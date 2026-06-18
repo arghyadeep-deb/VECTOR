@@ -8,6 +8,7 @@ Uses Nominatim (OpenStreetMap) - no API key required
 Rate Limit: 1 request per second (handled with delays)
 """
 
+from loguru import logger
 import sys
 import json
 from typing import Dict, List, Optional, Any
@@ -68,8 +69,7 @@ def search_location(query: str, limit: int = 5) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][geocoding_service] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][geocoding_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][geocoding_service] caught Exception: %s", e)
         return {
             "success": False,
             "error": str(e),

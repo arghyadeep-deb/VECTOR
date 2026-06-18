@@ -147,7 +147,7 @@ class CodexAppServerClient:
         try:
             self._proc.terminate()
             self._proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
+        except subprocess.TimeoutExpired as _sve:
             try:
                 self._proc.kill()
                 self._proc.wait(timeout=1.0)
@@ -296,7 +296,7 @@ class CodexAppServerClient:
             if pending is not None:
                 try:
                     pending.queue.put_nowait(msg)
-                except queue.Full:  # pragma: no cover - defensive
+                except queue.Full as _sve:  # pragma: no cover - defensive
                     logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed queue.Full: %s", _sve)
             return
         # Server-initiated request (has id + method)
@@ -321,7 +321,7 @@ class CodexAppServerClient:
                     # Bound memory: keep last 500 lines.
                     if len(self._stderr_lines) > 500:
                         self._stderr_lines = self._stderr_lines[-500:]
-        except Exception:  # pragma: no cover
+        except Exception as _sve:  # pragma: no cover
             logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: %s", _sve)
 
 

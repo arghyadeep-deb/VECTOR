@@ -120,7 +120,7 @@ def record_nous_rate_limit(
             with os.fdopen(fd, "w") as f:
                 json.dump(state, f)
             os.replace(tmp_path, path)
-        except Exception:
+        except Exception as _sve:
             # Clean up temp file on failure
             try:
                 os.unlink(tmp_path)

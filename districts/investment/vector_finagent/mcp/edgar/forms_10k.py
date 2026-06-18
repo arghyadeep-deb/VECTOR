@@ -16,6 +16,7 @@ Complete extraction of 10-K annual reports including:
 - Full text search and extraction
 """
 
+from loguru import logger
 from typing import Dict, Any, Optional, List
 import traceback
 
@@ -64,8 +65,7 @@ def get_latest_10k(ticker: str) -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        logger.debug("[VECTOR][mcp.edgar.forms_10k] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][mcp.edgar.forms_10k] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.forms_10k] caught Exception: %s", e)
         return {"error": EdgarError("get_latest_10k", str(e), traceback.format_exc()).to_dict()}
 
 

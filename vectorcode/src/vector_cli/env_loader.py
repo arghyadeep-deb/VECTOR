@@ -135,7 +135,7 @@ def _sanitize_env_file_if_needed(path: Path) -> None:
                     f.flush()
                     os.fsync(f.fileno())
                 atomic_replace(tmp, path)
-            except BaseException:
+            except BaseException as _sve:
                 try:
                     os.unlink(tmp)
                 except OSError as _sve:

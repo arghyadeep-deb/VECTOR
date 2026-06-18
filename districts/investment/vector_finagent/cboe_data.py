@@ -108,8 +108,7 @@ class CBOEDataAPI:
         except json.JSONDecodeError as e:
             return CBOEError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][cboe_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][cboe_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][cboe_data] caught Exception: %s", e)
             return CBOEError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _parse_dataframe_response(self, data: Dict) -> pd.DataFrame:

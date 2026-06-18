@@ -19,6 +19,7 @@ Coverage: 365+ instrument classes
 Authentication: Most instrument creation works offline, pricing requires API
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Union, Tuple, Any
@@ -155,8 +156,7 @@ class InstrumentFactory:
                 )
                 specs['gs_instrument'] = equity
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.instrument_wrapper] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.instrument_wrapper] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.instrument_wrapper] caught Exception: %s", e)
                 specs['note'] = f"GS creation requires API: {str(e)}"
 
         return specs

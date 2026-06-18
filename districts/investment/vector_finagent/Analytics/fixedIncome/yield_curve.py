@@ -262,7 +262,6 @@ class YieldCurveBuilder:
             b0, b1, b2, tau = result.x
         except Exception as _sve:
             logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.fixedIncome.yield_curve] caught Exception: %s", _sve)
             return {'error': 'Failed to fit Nelson-Siegel model'}
 
         # Generate fitted curve

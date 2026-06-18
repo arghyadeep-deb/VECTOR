@@ -1,5 +1,6 @@
 """Usage pricing — track and display token cost per session."""
 
+from loguru import logger
 import json
 from pathlib import Path
 from typing import Optional

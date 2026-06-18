@@ -1,5 +1,6 @@
-from loguru import logger
 """CLI shim for scan_cmd."""
+
+from loguru import logger
 try:
     from vectorcode.src.vector_cli.scan_cmd import *
 except ImportError:

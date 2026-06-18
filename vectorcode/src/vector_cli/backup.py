@@ -825,7 +825,7 @@ def create_pre_update_backup(
         try:
             out_path.unlink(missing_ok=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][vector_cli.backup] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][vector_cli.backup] suppressed OSError: %s", exc)
         return None
 
     _prune_pre_update_backups(backup_dir, keep=keep)

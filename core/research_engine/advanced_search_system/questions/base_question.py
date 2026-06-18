@@ -38,7 +38,7 @@ class BaseQuestionGenerator(ABC):
         Returns:
             list[str]: Generated questions
         """
-        pass
+        raise NotImplementedError("BaseQuestionGenerator.generate_questions must be implemented by subclass")
 
     def _format_previous_questions(
         self, questions_by_iteration: dict[int, list[str]]

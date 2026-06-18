@@ -13,6 +13,7 @@ Output (stdout JSON): {
 }
 All monetary/return values are in percent (multiplied by 100).
 """
+from loguru import logger
 import sys
 import json
 import numpy as np
@@ -180,8 +181,7 @@ def main():
         print(json.dumps(convert_numpy(result)))
 
     except Exception as exc:
-        logger.debug("[VECTOR][quantstats_monte_carlo] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][quantstats_monte_carlo] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][quantstats_monte_carlo] caught Exception: %s", exc)
         print(json.dumps({"error": str(exc)}))
 
 

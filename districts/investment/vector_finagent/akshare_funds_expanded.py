@@ -7,6 +7,7 @@ Returns JSON output for Qt/C++ integration
 NOTE: Refactored to contain only VALID akshare fund functions (70 total).
 """
 
+from loguru import logger
 import sys
 import json
 import pandas as pd
@@ -57,7 +58,6 @@ class ExpandedFundsWrapper:
                 try:
                     df_copy[col] = df_copy[col].apply(lambda x: str(x) if hasattr(x, 'strftime') else x)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][akshare_funds_expanded] caught Exception: %s", _sve)
                     logger.debug("[VECTOR][akshare_funds_expanded] caught Exception: %s", _sve)
                     logger.debug("[VECTOR] suppressed exception", exc_info=True)
         return df_copy.to_dict('records')

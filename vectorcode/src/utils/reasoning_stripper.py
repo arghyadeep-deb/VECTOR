@@ -10,7 +10,6 @@ try:
 except Exception:
     CONFIG = {}
 
-from loguru import logger
 
 # ── Compiled patterns ─────────────────────────────────────────────────────────
 

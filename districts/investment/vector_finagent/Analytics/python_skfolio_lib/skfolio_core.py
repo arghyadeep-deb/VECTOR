@@ -649,8 +649,7 @@ class ProgressTracker:
             try:
                 callback(progress_data)
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_core] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_core] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_core] caught Exception: %s", e)
                 logger.error(f"Error in progress callback: {e}")
 
 class SkfolioCore:

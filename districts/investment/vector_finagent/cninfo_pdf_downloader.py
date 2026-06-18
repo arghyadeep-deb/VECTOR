@@ -5,6 +5,7 @@ CNINFO PDF Downloader
 Downloads announcement PDFs with retry, checksum, and dedupe index.
 """
 
+from loguru import logger
 import hashlib
 import io
 import json
@@ -71,8 +72,7 @@ class CNInfoPdfDownloader:
             return {"entries": {}, "updated_at": _now_ts()}
         try:
             return json.loads(INDEX_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            logger.debug("[VECTOR][cninfo_pdf_downloader] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][cninfo_pdf_downloader] caught Exception: %s", _sve)
             return {"entries": {}, "updated_at": _now_ts()}
 

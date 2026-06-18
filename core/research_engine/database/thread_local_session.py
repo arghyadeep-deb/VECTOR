@@ -354,4 +354,4 @@ class ThreadSessionContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Don't cleanup here - let the thread keep its session
         # Only cleanup when thread ends
-        pass
+        raise NotImplementedError("ThreadSessionContext.__exit__ must be implemented by subclass")

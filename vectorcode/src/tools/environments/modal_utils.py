@@ -146,7 +146,8 @@ class BaseModalExecutionEnvironment(BaseEnvironment):
 
     def _before_execute(self) -> None:
         """Hook for backends that need pre-exec sync or validation."""
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][modal_utils] _before_execute called (no-op)")
 
     def _prepare_modal_exec(
         self,

@@ -6,6 +6,7 @@ Handles exchange instantiation, credential loading, and error normalization.
 Called by C++ python_runner as subprocess — outputs JSON to stdout.
 """
 
+from loguru import logger
 import os
 import sys
 import json
@@ -33,8 +34,7 @@ def load_cached_markets(exchange_id: str) -> dict | None:
             if age < _MARKETS_CACHE_TTL:
                 with open(path, "r", encoding="utf-8") as f:
                     return json.load(f)
-    except Exception:
-        logger.debug("[VECTOR][exchange.exchange_client] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][exchange.exchange_client] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return None

@@ -280,8 +280,7 @@ class EmbedderRegistry:
         except ImportError as e:
             raise ImportError(f"Failed to import embedder '{provider}': {e}")
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.registries.embedder_registry] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.registries.embedder_registry] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.registries.embedder_registry] caught Exception: %s", e)
             raise RuntimeError(f"Failed to create embedder '{provider}': {e}")
 
     @classmethod

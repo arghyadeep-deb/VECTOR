@@ -32,7 +32,7 @@ if new_content:
     except py_compile.PyCompileError as e:
         print(f"[VECTOR HOOK] Syntax error blocked write to {file_path}:\n{e}")
         sys.exit(2)
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[VECTOR HOOK] syntax check skipped for {file_path}: {exc}", file=sys.stderr)
 
 sys.exit(0)

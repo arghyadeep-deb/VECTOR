@@ -32,7 +32,7 @@ class BaseKnowledgeGenerator(ABC):
 
         Returns:
         """
-        pass
+        raise NotImplementedError("BaseKnowledgeGenerator.generate must be implemented by subclass")
 
     @abstractmethod
     def generate_knowledge(
@@ -54,7 +54,7 @@ class BaseKnowledgeGenerator(ABC):
         Returns:
             str: Generated knowledge
         """
-        pass
+        raise NotImplementedError("BaseKnowledgeGenerator.generate_knowledge must be implemented by subclass")
 
     @abstractmethod
     def generate_sub_knowledge(self, sub_query: str, context: str = "") -> str:
@@ -68,7 +68,7 @@ class BaseKnowledgeGenerator(ABC):
         Returns:
             str: Generated knowledge for the sub-question
         """
-        pass
+        raise NotImplementedError("BaseKnowledgeGenerator.generate_sub_knowledge must be implemented by subclass")
 
     @abstractmethod
     def compress_knowledge(
@@ -86,7 +86,7 @@ class BaseKnowledgeGenerator(ABC):
         Returns:
             str: Compressed knowledge
         """
-        pass
+        raise NotImplementedError("BaseKnowledgeGenerator.compress_knowledge must be implemented by subclass")
 
     @abstractmethod
     def format_citations(self, links: List[str]) -> str:
@@ -99,7 +99,7 @@ class BaseKnowledgeGenerator(ABC):
         Returns:
             str: Formatted citations
         """
-        pass
+        raise NotImplementedError("BaseKnowledgeGenerator.format_citations must be implemented by subclass")
 
     def _validate_knowledge(self, knowledge: str) -> bool:
         """

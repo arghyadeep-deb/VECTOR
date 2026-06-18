@@ -335,8 +335,7 @@ class ProviderClient:
             if not result:
                 raise RuntimeError(f"[VECTOR][ssrf] blocked provider URL: {result.reason}")
         except ImportError:
-            pass
-
+            __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
     async def _call_openai_compat(
         self,
         prov: LLMProvider,

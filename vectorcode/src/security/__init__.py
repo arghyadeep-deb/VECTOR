@@ -1,3 +1,3 @@
-from vectorcode.src.vc_security import *
+"""Compatibility re-export for the canonical vc_security package."""
 
-def setup_security(): pass
+from vectorcode.src.vc_security import *  # noqa: F401,F403

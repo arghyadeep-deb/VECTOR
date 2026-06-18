@@ -6,6 +6,7 @@ Core reasoning engine for Renaissance Technologies multi-agent system.
 Implements multi-step reasoning with chain-of-thought capabilities.
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -235,8 +236,7 @@ class ReasoningEngine:
             })
             self._model_available = True
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.base] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.base] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.base] caught Exception: %s", e)
             print(f"Warning: Could not initialize reasoning model: {e}")
             self._model_available = False
 

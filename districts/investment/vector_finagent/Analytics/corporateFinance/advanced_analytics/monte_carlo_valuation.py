@@ -165,7 +165,6 @@ class MonteCarloValuation:
                     irrs.append(irr)
             except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.corporateFinance.advanced_analytics.monte_carlo_valuation] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.corporateFinance.advanced_analytics.monte_carlo_valuation] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
         npvs = np.array(npvs)

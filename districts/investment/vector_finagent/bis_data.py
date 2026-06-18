@@ -14,6 +14,7 @@ Key Features:
 - Global economic and financial statistics
 """
 
+from loguru import logger
 import asyncio
 import json
 import sys
@@ -121,7 +122,6 @@ class BISAPI:
                             data = await response.json()
                             return self._format_response(data, endpoint)
                         except Exception as _sve:
-                            logger.debug("[VECTOR][bis_data] caught Exception: %s", _sve)
                             logger.debug("[VECTOR][bis_data] caught Exception: %s", _sve)
                             text_data = await response.text()
                             return {

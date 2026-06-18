@@ -9,6 +9,7 @@ Complete implementation of factor and model evaluation including:
 - Factor Combination and Selection
 """
 
+from loguru import logger
 import json
 import sys
 from typing import Dict, List, Any, Optional, Union, Tuple
@@ -138,8 +139,7 @@ class EvaluationService:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][ai_quant_lab.qlib_evaluation] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][ai_quant_lab.qlib_evaluation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_evaluation] caught Exception: %s", e)
             return {"success": False, "error": f"IC calculation failed: {str(e)}"}
 
     def calculate_rank_ic(self,

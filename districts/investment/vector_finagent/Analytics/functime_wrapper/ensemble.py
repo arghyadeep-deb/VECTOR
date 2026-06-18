@@ -13,6 +13,7 @@ Provides ensemble forecasting capabilities:
 Combines forecasts from multiple models for improved accuracy.
 """
 
+from loguru import logger
 import polars as pl
 import numpy as np
 from typing import Dict, List, Optional, Union, Any, Callable
@@ -299,8 +300,7 @@ def ensemble_stacking(
                 if 'forecast' in forecast_result:
                     preds = [f['value'] for f in forecast_result['forecast']]
                     base_preds.append(preds)
-            except Exception:
-                logger.debug("[VECTOR][Analytics.functime_wrapper.ensemble] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.functime_wrapper.ensemble] caught Exception: %s", _sve)
                 continue
 

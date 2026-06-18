@@ -164,7 +164,7 @@ def _post_json(
         try:
             detail = exc.read().decode("utf-8", errors="replace")
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.google_code_assist] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.google_code_assist] suppressed Exception: %s", exc)
         # Special case: VPC-SC violation should be distinguishable
         if _is_vpc_sc_violation(detail):
             raise CodeAssistError(

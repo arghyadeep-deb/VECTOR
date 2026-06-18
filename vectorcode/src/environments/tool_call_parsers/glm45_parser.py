@@ -13,6 +13,7 @@ Values are deserialized using json.loads -> ast.literal_eval -> raw string fallb
 Based on VLLM's Glm4MoeModelToolParser.extract_tool_calls()
 """
 
+from loguru import logger
 import ast
 import json
 import re

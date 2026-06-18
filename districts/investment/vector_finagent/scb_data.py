@@ -21,6 +21,7 @@ Supported Categories:
 - And many more categories covering all aspects of Swedish society
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -158,8 +159,7 @@ class SCBDataAPI:
         except requests.exceptions.RequestException as e:
             return SCBError(url, f"Network error: {str(e)}", getattr(e.response, 'status_code', None)).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][scb_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][scb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][scb_data] caught Exception: %s", e)
             return SCBError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def get_categories(self) -> Dict[str, Any]:

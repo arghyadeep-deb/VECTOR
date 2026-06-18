@@ -39,4 +39,5 @@ class SignalBot:
             await client.post(f"{self.http_url}/api/v1/rpc", json=payload)
 
     async def stop(self):
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][signal_bot] stop called (no-op)")

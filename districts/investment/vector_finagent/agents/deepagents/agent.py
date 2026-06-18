@@ -286,8 +286,7 @@ def _build_response_format(config: dict[str, Any]) -> Any:
             return ToolStrategy(schema=AnalysisReport)
 
     except Exception as exc:
-        logger.debug("[VECTOR][agents.deepagents.agent] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.deepagents.agent] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.deepagents.agent] caught Exception: %s", exc)
         logger.warning("Could not build response_format for '%s': %s", schema_name, exc)
 
     return None

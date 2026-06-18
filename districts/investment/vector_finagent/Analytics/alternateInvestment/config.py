@@ -8,6 +8,7 @@ IMPORTANT: This module provides GLOBAL configurations. For market-specific param
 (tax rates, trading days, etc.), use market_config.py
 """
 
+from loguru import logger
 from decimal import Decimal, getcontext
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass

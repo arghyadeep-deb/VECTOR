@@ -177,7 +177,7 @@ def _safe_json_loads(text: str) -> Any:
     if _json5 is not None:
         try:
             return _json5.loads(text)
-        except Exception:  # noqa: BLE001
+        except Exception as _sve:  # noqa: BLE001
             logger.debug("[VECTOR][evals.scorers.liveresearch] suppressed Exception: %s", _sve)
     return json.loads(_escape_newlines_inside_strings(text))
 

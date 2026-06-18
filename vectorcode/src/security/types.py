@@ -1,29 +1,15 @@
-"""Security types shim."""
-from vectorcode.src.vc_security import *
-from typing import Any, List
-class ThreatLevel:
-    LOW = "low"; MEDIUM = "medium"; HIGH = "high"; CRITICAL = "critical"
-class SecurityContext:
-    pass
+"""Compatibility re-export for canonical security data types."""
+
 from dataclasses import dataclass, field
 from typing import List
 
-@dataclass
-class ScanFinding:
-    rule: str = ""
-    severity: str = "medium"
-    description: str = ""
-    line: int = 0
-    column: int = 0
+from vectorcode.src.vc_security.types import *  # noqa: F401,F403
 
-@dataclass
-class ScanResult:
-    findings: List[ScanFinding] = field(default_factory=list)
-    scanned_bytes: int = 0
-    is_safe: bool = True
 
 @dataclass
 class InjectionScanResult:
+    """Legacy result shape used by older injection-scanner callers."""
+
     detected: bool = False
     patterns: List[str] = field(default_factory=list)
     confidence: float = 0.0

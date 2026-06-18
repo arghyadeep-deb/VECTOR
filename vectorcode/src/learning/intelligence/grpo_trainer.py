@@ -361,7 +361,7 @@ class _GRPOLearningPolicy(IntelligenceLearningPolicy):
     """Wrapper to register GRPOTrainer in the LearningRegistry."""
 
     def __init__(self, **kwargs: object) -> None:
-        pass
+        raise NotImplementedError("_GRPOLearningPolicy.__init__ must be implemented by subclass")
 
     def update(self, trace_store: Any, **kwargs: object) -> Dict[str, Any]:
         from vectorcode.src.vc_core.config import GRPOConfig

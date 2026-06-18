@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from loguru import logger
 
 from core.config import CONFIG
 from core.mcp_tools.error_handling import safe_json as _safe_json

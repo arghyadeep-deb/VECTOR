@@ -14,6 +14,7 @@ Usage (Termux):
 Config: ~/.vector/phone_config.env
 """
 
+from loguru import logger
 import os
 import sys
 import json

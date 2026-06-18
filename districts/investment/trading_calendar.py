@@ -4,7 +4,6 @@ from datetime import date, timedelta
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
 
-from loguru import logger
 
 # NSE/BSE holidays 2026 (approximate — update annually)
 NSE_HOLIDAYS_2026 = {

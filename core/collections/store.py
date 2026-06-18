@@ -14,6 +14,7 @@ The 5 sacred memory tables are never touched — collections live in their own n
 
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import sys
 
 __all__ = [
@@ -506,7 +507,7 @@ if __name__ == "__main__":
     # Use an isolated temp DB so the self-test never touches vector_memory.db.
     tmp = tempfile.mkdtemp()
     conn = sqlite3.connect(os.path.join(tmp, "t.db"))
-    conn.execute("PRAGMA journal_mode=WAL")
+    apply_pragmas(conn)
 
     eng = CollectionEngine(conn)
     eng.create_collection(Collection(

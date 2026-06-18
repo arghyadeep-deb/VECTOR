@@ -5,6 +5,7 @@ AKShare Currency/Forex Data Wrapper
 Provides access to forex data: exchange rates, currency pairs, historical data
 """
 
+from loguru import logger
 import sys
 import json
 import time
@@ -44,8 +45,7 @@ def safe_call(func, *args, **kwargs):
             else:
                 return {"success": True, "data": str(result), "count": 1}
         except Exception as e:
-            logger.debug("[VECTOR][akshare_currency] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][akshare_currency] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][akshare_currency] caught Exception: %s", e)
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue

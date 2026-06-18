@@ -133,7 +133,7 @@ def _truncate_output(output: str, max_chars: int = 25000, head_ratio: float = 0.
             f.write(output)
             spill_path = f.name
     except Exception:
-        pass
+        logger.warning("temp spill file creation failed")
     head_budget = int(max_chars * head_ratio)
     tail_budget = max_chars - head_budget
     head = output[:head_budget]

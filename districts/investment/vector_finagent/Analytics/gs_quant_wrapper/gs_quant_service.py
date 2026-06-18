@@ -14,6 +14,7 @@ Response contract (all ops):
     traceback: str | None     (only on uncaught exceptions)
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -706,8 +707,7 @@ def dispatch(operation, data):
             "error_kind": "validation",
         }
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.gs_quant_service] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.gs_quant_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.gs_quant_service] caught Exception: %s", e)
         return {
             "success": False,
             "operation": operation,

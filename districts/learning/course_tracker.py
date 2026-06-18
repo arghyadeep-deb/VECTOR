@@ -3,6 +3,7 @@ Module: agents/learning/course_tracker.py
 District: learning | Focus: Track online courses, lessons, and learning progress
 """
 
+from core.memory.db_utils import apply_pragmas
 import sys
 from pathlib import Path
 from core.config import CONFIG
@@ -34,8 +35,7 @@ class CourseTracker(AgentBase):
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         return conn
 
     def _init_db(self):

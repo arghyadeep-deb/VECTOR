@@ -20,6 +20,7 @@ Usage (governor):
 
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import asyncio
 import datetime
 import os
@@ -50,8 +51,7 @@ _DB_LOCK = threading.RLock()
 def _get_job_conn() -> sqlite3.Connection:
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(_DB_PATH), check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    apply_pragmas(conn)
     return conn
 
 def _init_db() -> None:

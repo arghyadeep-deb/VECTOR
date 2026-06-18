@@ -176,8 +176,7 @@ class TeamModule:
         except ImportError as e:
             raise ImportError(f"Agno Team not available: {e}")
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.modules.team_module] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.modules.team_module] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.modules.team_module] caught Exception: %s", e)
             raise RuntimeError(f"Failed to build team: {e}")
 
     def _register_event_handlers(self) -> None:

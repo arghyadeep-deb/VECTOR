@@ -28,6 +28,7 @@ OUTPUT:
   - Financing structure analysis
 """
 
+from loguru import logger
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
@@ -932,8 +933,7 @@ def main():
             print(json.dumps({"error": f"Unknown command: {command}"}))
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.equityInvestment.market_analysis.equity_securities] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.equityInvestment.market_analysis.equity_securities] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.equityInvestment.market_analysis.equity_securities] caught Exception: %s", e)
         print(json.dumps({"error": str(e)}))
 
 

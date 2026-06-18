@@ -452,7 +452,7 @@ class AgenticRunner:
                     try:
                         agent_bus.unsubscribe(etype, cb)
                     except Exception as _sve:
-                        logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: %s", _sve)
+                        logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: %s", exc)
             return QueryTrace(
                 query_id=query_id,
                 workload_type=str(workload_type),

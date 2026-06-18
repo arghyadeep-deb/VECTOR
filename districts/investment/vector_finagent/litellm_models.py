@@ -7,6 +7,7 @@ No external dependencies required - uses pre-extracted data from LiteLLM.
 Supports 52+ providers and 1700+ models.
 """
 
+from loguru import logger
 import json
 import sys
 from pathlib import Path
@@ -67,8 +68,7 @@ def get_all_providers() -> list[dict[str, Any]]:
 
         return providers
     except Exception as e:
-        logger.debug("[VECTOR][litellm_models] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][litellm_models] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][litellm_models] caught Exception: %s", e)
         return [{"error": str(e)}]
 
 

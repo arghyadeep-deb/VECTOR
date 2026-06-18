@@ -6,6 +6,7 @@ Core guardrail system for Renaissance Technologies multi-agent architecture.
 Implements validation, enforcement, and monitoring of trading constraints.
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any, Callable, Type
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -105,7 +106,7 @@ class Guardrail(ABC):
         Returns:
             GuardrailResult indicating pass/fail and any actions
         """
-        pass
+        raise NotImplementedError("Guardrail.check must be implemented by subclass")
 
     def execute(self, context: Dict[str, Any]) -> GuardrailResult:
         """
@@ -131,8 +132,7 @@ class Guardrail(ABC):
             return result
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.guardrails.base] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.guardrails.base] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.guardrails.base] caught Exception: %s", e)
             self.violations += 1
             return GuardrailResult(
                 guardrail_name=self.name,

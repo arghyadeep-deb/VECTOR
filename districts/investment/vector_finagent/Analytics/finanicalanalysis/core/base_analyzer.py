@@ -181,12 +181,12 @@ class BaseAnalyzer(ABC):
         Returns:
             List of analysis results
         """
-        pass
+        raise NotImplementedError("BaseAnalyzer.analyze must be implemented by subclass")
 
     @abstractmethod
     def get_key_metrics(self, statements: FinancialStatements) -> Dict[str, float]:
         """Return key metrics calculated by this analyzer"""
-        pass
+        raise NotImplementedError("BaseAnalyzer.get_key_metrics must be implemented by subclass")
 
     def validate_data_sufficiency(self, statements: FinancialStatements,
                                   required_fields: List[str]) -> Tuple[bool, List[str]]:

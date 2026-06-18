@@ -1027,7 +1027,7 @@ class BaseSearchEngine(ABC):
         Returns:
             List of preview dictionaries with at least 'id', 'title', and 'snippet' keys
         """
-        pass
+        raise NotImplementedError("BaseSearchEngine._get_previews must be implemented by subclass")
 
     def close(self) -> None:
         """

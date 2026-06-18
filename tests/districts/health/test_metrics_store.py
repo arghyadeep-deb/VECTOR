@@ -5,7 +5,6 @@ import tempfile
 from pathlib import Path
 
 import pytest
-from loguru import logger
 
 from districts.health.metrics_store import MetricsStore
 

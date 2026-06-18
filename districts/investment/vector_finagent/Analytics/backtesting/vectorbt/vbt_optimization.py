@@ -13,6 +13,7 @@ Features:
 - Results Analysis: Heatmaps, parameter sensitivity, robustness checks
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, List, Optional, Tuple
@@ -303,7 +304,6 @@ def _run_vectorized_optimization(
                     v = float(stats.get(key, default))
                     return v if np.isfinite(v) else default
                 except Exception as _sve:
-                    logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_optimization] caught Exception: %s", _sve)
                     logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_optimization] caught Exception: %s", _sve)
                     return default
 

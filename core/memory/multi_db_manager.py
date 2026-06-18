@@ -651,8 +651,8 @@ class MultiDBManager:
             ts = int(_time.time())
             backup_path = str(_Path(__file__).parent.parent.parent / f"vector_backup_{ts}.json")
 
-        from core.config import CONFIG as _CONFIG
-        db_path = _Path(str(_CONFIG.get("db_path", _Path(__file__).parent.parent.parent / "vector_memory.db")))
+        from core.memory.db_utils import configured_db_path
+        db_path = configured_db_path()
         if not db_path.exists():
             raise FileNotFoundError(f"Local SQLite not found: {db_path}")
 
@@ -699,8 +699,8 @@ class MultiDBManager:
         if dump.get("version") != 1:
             raise ValueError(f"Unsupported backup version: {dump.get('version')}")
 
-        from core.config import CONFIG as _CONFIG
-        db_path = _Path(str(_CONFIG.get("db_path", _Path(__file__).parent.parent.parent / "vector_memory.db")))
+        from core.memory.db_utils import configured_db_path
+        db_path = configured_db_path()
         conn = sqlite3.connect(str(db_path), timeout=10, check_same_thread=False)
         try:
             tables_restored = 0

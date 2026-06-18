@@ -17,6 +17,7 @@ Commands:
   update <deploy_id> <params_json> --db <path>
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -214,8 +215,7 @@ def cmd_deploy(deploy_id: str, strategy_id: str, params_json: str, db_path: str,
         algo.initialize()
 
     except Exception as e:
-        logger.debug("[VECTOR][strategies.live_runner] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][strategies.live_runner] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][strategies.live_runner] caught Exception: %s", e)
         _update_status(conn, deploy_id, "error", str(e))
         conn.close()
         return

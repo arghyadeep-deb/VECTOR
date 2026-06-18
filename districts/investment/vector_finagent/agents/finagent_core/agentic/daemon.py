@@ -30,6 +30,7 @@ The C++ AgentService.start_daemon() launches one process per app session.
 """
 from __future__ import annotations
 
+from loguru import logger
 import asyncio
 import json
 import os
@@ -98,8 +99,7 @@ class Daemon:
             else:
                 emit("error", {"corr_id": corr_id, "error": f"unknown op: {kind!r}"})
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.agentic.daemon] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.agentic.daemon] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.agentic.daemon] caught Exception: %s", e)
             emit("error", {"corr_id": corr_id, "error": f"{type(e).__name__}: {e}",
                            "trace": traceback.format_exc()[:1000]})
 

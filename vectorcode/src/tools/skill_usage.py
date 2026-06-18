@@ -352,7 +352,7 @@ def save_usage(data: Dict[str, Dict[str, Any]]) -> None:
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp_path, path)
-        except BaseException:
+        except BaseException as _sve:
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:

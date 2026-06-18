@@ -6,6 +6,7 @@ Sources: TreasuryDirect.gov official APIs
 Each endpoint works independently with isolated error handling
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -79,8 +80,7 @@ class GovernmentUSWrapper:
         except requests.exceptions.RequestException as e:
             return {"error": f"Request error: {e}", "request_error": True, "status_code": None}
         except Exception as e:
-            logger.debug("[VECTOR][government_us_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][government_us_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][government_us_data] caught Exception: %s", e)
             return {"error": f"Unexpected error: {e}", "general_error": True, "status_code": None}
 
     def _parse_csv_response(self, content: str) -> pd.DataFrame:

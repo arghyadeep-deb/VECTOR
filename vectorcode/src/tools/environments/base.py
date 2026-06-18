@@ -706,7 +706,8 @@ class BaseEnvironment(ABC):
         and Local don't need file sync — the host filesystem is directly
         visible inside the container/process.
         """
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][base] _before_execute called (no-op)")
 
     # ------------------------------------------------------------------
     # Unified execute()

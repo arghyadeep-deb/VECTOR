@@ -6,6 +6,7 @@ Fetches data via yfinance and converts to pandas DataFrames suitable for
 bt.Backtest(). Falls back to synthetic GBM data when yfinance unavailable.
 """
 
+from loguru import logger
 import sys
 import os
 import numpy as np

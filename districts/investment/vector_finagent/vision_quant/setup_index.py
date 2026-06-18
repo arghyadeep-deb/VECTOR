@@ -10,6 +10,7 @@ CLI Protocol:
 Progress is streamed as JSON lines to stdout.
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -81,8 +82,7 @@ def build_index(symbols=None, start_date="2020-01-01", stride=5, window=60, epoc
                 df.to_csv(csv_path)
                 all_data[sym] = df
         except Exception as e:
-            logger.debug("[VECTOR][vision_quant.setup_index] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][vision_quant.setup_index] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][vision_quant.setup_index] caught Exception: %s", e)
             output_progress(f"Warning: Failed to download {sym}: {e}")
             continue
 

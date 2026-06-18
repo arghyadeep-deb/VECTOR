@@ -23,7 +23,6 @@ import re
 from dataclasses import dataclass, field as dc_field
 from enum import Enum
 
-from loguru import logger
 from core.config import CONFIG  # noqa: F401
 
 from core.collections.fields import Field, FieldType, build_field, ValidationError

@@ -62,7 +62,7 @@ class BaseFollowUpQuestionGenerator(BaseQuestionGenerator):
         Returns:
             str: A contextualized query that includes previous context
         """
-        pass
+        raise NotImplementedError("BaseFollowUpQuestionGenerator.generate_contextualized_query must be implemented by subclass")
 
     def generate_questions(
         self,

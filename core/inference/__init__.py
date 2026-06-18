@@ -25,7 +25,6 @@ from core.inference.llm_providers import (
     get_provider, configured_providers, route_for_tier, list_free,
 )
 from core.inference.provider_client import ProviderClient, CompletionResult, get_client
-from loguru import logger
 
 __all__ = [
     "LLMProvider", "PROVIDERS", "TIER_ROUTING",

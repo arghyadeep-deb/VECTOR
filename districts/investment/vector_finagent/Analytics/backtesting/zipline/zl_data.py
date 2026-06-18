@@ -7,6 +7,7 @@ Zipline's run_algorithm(). Uses a custom data source approach to avoid
 bcolz bundle ingestion.
 """
 
+from loguru import logger
 import sys
 import os
 import numpy as np

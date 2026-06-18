@@ -5,6 +5,7 @@ CNINFO Entity Resolver
 Builds/maintains stock_code -> org_id/sec_name/market master mapping.
 """
 
+from loguru import logger
 import io
 import json
 import re
@@ -18,8 +19,7 @@ import requests
 
 try:
     import baostock as bs
-except Exception:
-    logger.debug("[VECTOR][cninfo_entity_resolver] caught Exception: %s", _sve)
+except Exception as _sve:
     logger.debug("[VECTOR][cninfo_entity_resolver] caught Exception: %s", _sve)
     bs = None
 

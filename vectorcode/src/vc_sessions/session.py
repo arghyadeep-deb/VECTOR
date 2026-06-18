@@ -10,6 +10,7 @@ Supports consolidation and decay.
 
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import json
 import sqlite3
 import threading
@@ -78,8 +79,7 @@ class SessionStore:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         self._max_age_hours = max_age_hours
         self._consolidation_threshold = consolidation_threshold
         self._create_tables()

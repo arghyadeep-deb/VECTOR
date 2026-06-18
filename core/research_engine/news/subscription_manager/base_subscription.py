@@ -99,7 +99,7 @@ class BaseSubscription(ABC):
         Returns:
             str: The search query to execute
         """
-        pass
+        raise NotImplementedError("BaseSubscription.generate_search_query must be implemented by subclass")
 
     @abstractmethod
     def get_subscription_type(self) -> str:
@@ -109,7 +109,7 @@ class BaseSubscription(ABC):
         Returns:
             str: Subscription type identifier
         """
-        pass
+        raise NotImplementedError("BaseSubscription.get_subscription_type must be implemented by subclass")
 
     def on_refresh_start(self) -> None:
         """Called when a refresh begins."""

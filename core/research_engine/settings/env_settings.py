@@ -64,7 +64,7 @@ class EnvSetting(ABC, Generic[T]):
     @abstractmethod
     def _convert_value(self, raw: str) -> T:
         """Convert raw string value to the appropriate type."""
-        pass
+        raise NotImplementedError("EnvSetting._convert_value must be implemented by subclass")
 
     def _get_raw_value(self) -> Optional[str]:
         """Get raw string value from environment.

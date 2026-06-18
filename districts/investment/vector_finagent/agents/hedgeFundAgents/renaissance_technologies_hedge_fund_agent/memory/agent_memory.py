@@ -9,6 +9,7 @@ Unified memory management for individual agents:
 - Memory lifecycle management
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from dataclasses import dataclass
@@ -159,8 +160,7 @@ class AgentMemoryManager:
                 create_session_summary=True,
             )
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.agent_memory] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.agent_memory] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.agent_memory] caught Exception: %s", e)
             print(f"Warning: Could not create Agno memory for {agent_id}: {e}")
             return None
 

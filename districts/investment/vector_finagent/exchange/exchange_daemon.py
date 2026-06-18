@@ -72,8 +72,7 @@ def _respond(req_id, success, data=None, error=None, code=None):
         _stdout_write(_dumps(resp))
         _stdout_write("\n")
         _stdout_flush()
-    except Exception:
-        logger.debug("[VECTOR][exchange.exchange_daemon] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][exchange.exchange_daemon] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

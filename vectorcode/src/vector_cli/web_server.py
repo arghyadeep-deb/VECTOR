@@ -10,6 +10,7 @@ Usage:
     python -m vector_cli.main web --port 8080
 """
 
+from loguru import logger
 import asyncio
 import hmac
 import importlib.util

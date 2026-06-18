@@ -33,13 +33,16 @@ class RecordingStartError(Exception):
 
 class VoiceManagerListener:
     def on_transcribe_state_change(self, state: TranscribeState) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][voice_manager_port] on_transcribe_state_change called (no-op)")
 
     def on_voice_mode_change(self, enabled: bool) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][voice_manager_port] on_voice_mode_change called (no-op)")
 
     def on_transcribe_text(self, text: str) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][voice_manager_port] on_transcribe_text called (no-op)")
 
 
 class VoiceManagerPort(Protocol):

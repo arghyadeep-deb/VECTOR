@@ -4,6 +4,7 @@ This module provides a single thread-local storage instance that can be
 shared across different modules to maintain settings context in threads.
 """
 
+from loguru import logger
 import threading
 
 __all__ = [

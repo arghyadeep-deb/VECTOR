@@ -10,6 +10,7 @@ Ported from the agent OS memory/knowledge.rs KnowledgeStore.
 """
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 __all__ = [
     "Entity",
     "get_knowledge_graph",
@@ -104,7 +105,6 @@ class KnowledgeGraph:
     @contextmanager
     def _conn(self):
         conn = sqlite3.connect(str(self._path), check_same_thread=False)
-        from core.memory.db_utils import apply_pragmas
         apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         try:

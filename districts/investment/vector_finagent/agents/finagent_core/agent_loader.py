@@ -200,8 +200,7 @@ class AgentLoader:
         else:
             try:
                 self.config_dir.mkdir(exist_ok=True)
-            except Exception:
-                logger.debug("[VECTOR][agents.finagent_core.agent_loader] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][agents.finagent_core.agent_loader] caught Exception: %s", _sve)
                 pass  # Ignore if can't create
 

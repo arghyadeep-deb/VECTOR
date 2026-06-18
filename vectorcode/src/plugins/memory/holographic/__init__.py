@@ -222,7 +222,8 @@ class HolographicMemoryProvider(MemoryProvider):
     def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
         # Holographic memory stores explicit facts via tools, not auto-sync.
         # The on_session_end hook handles auto-extraction if configured.
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][__init__] sync_turn called (no-op)")
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         return [FACT_STORE_SCHEMA, FACT_FEEDBACK_SCHEMA]

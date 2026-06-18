@@ -113,7 +113,7 @@ class BaseCitationHandler(ABC):
         self, query: str, search_results: Union[str, List[Dict]]
     ) -> Dict[str, Any]:
         """Process initial analysis with citations."""
-        pass
+        raise NotImplementedError("BaseCitationHandler.analyze_initial must be implemented by subclass")
 
     @abstractmethod
     def analyze_followup(
@@ -124,4 +124,4 @@ class BaseCitationHandler(ABC):
         nr_of_links: int,
     ) -> Dict[str, Any]:
         """Process follow-up analysis with citations."""
-        pass
+        raise NotImplementedError("BaseCitationHandler.analyze_followup must be implemented by subclass")

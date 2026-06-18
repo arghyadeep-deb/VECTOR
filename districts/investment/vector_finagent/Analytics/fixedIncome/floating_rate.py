@@ -181,7 +181,6 @@ class FloatingRateAnalyzer:
             dm = optimize.brentq(price_diff, -0.10, 0.50, xtol=1e-10)
         except Exception as _sve:
             logger.debug("[VECTOR][Analytics.fixedIncome.floating_rate] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.fixedIncome.floating_rate] caught Exception: %s", _sve)
             try:
                 dm = optimize.newton(price_diff, quoted_margin, tol=1e-10)
             except Exception:

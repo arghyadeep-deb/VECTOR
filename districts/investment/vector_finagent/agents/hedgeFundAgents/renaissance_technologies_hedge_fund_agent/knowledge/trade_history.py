@@ -9,6 +9,7 @@ Knowledge base for historical trade data including:
 - Pattern recognition from past trades
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 import uuid
@@ -156,7 +157,6 @@ class TradeHistoryKnowledge:
             days = (exit_dt - entry_dt).days
             return f"{days} days"
         except Exception as _sve:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.trade_history] caught Exception: %s", _sve)
             logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.trade_history] caught Exception: %s", _sve)
             return "Unknown"
 

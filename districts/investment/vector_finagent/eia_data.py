@@ -118,8 +118,7 @@ class EIADataFetcher:
         except requests.exceptions.RequestException as e:
             raise EIAError(f"HTTP request failed for {url}: {str(e)}")
         except Exception as e:
-            logger.debug("[VECTOR][eia_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][eia_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][eia_data] caught Exception: %s", e)
             raise EIAError(f"Unexpected error fetching {url}: {str(e)}")
 
     def _parse_petroleum_excel(self, excel_data: bytes, category: str, tables: List[str]) -> List[Dict]:

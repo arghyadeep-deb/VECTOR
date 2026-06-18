@@ -13,6 +13,7 @@ Complete XBRL financial data extraction including:
 - Company facts
 """
 
+from loguru import logger
 from typing import Dict, Any, Optional
 import traceback
 
@@ -77,8 +78,7 @@ def get_financials(ticker: str, periods: int = 4, annual: bool = True) -> Dict[s
             }
         }
     except Exception as e:
-        logger.debug("[VECTOR][mcp.edgar.financials] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][mcp.edgar.financials] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.financials] caught Exception: %s", e)
         return {"error": EdgarError("get_financials", str(e), traceback.format_exc()).to_dict()}
 
 

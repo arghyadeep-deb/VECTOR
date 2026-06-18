@@ -41,7 +41,8 @@ class MistralTranscribeClient(TranscribeClientPort):  # type: ignore[no-redef]
         yield TranscribeDone()
 
     async def close(self) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][factory] close called (no-op)")
 
 TRANSCRIBE_CLIENT_MAP: dict[TranscribeClient, type[TranscribeClientPort]] = {
     TranscribeClient.MISTRAL: MistralTranscribeClient

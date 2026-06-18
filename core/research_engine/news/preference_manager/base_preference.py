@@ -40,7 +40,7 @@ class BasePreferenceManager(ABC):
         Returns:
             Dictionary of user preferences
         """
-        pass
+        raise NotImplementedError("BasePreferenceManager.get_preferences must be implemented by subclass")
 
     @abstractmethod
     def update_preferences(
@@ -56,7 +56,7 @@ class BasePreferenceManager(ABC):
         Returns:
             Updated preferences
         """
-        pass
+        raise NotImplementedError("BasePreferenceManager.update_preferences must be implemented by subclass")
 
     def add_interest(
         self, user_id: str, interest: str, weight: float = 1.0

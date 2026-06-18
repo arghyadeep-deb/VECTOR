@@ -13,6 +13,7 @@ Usage::
     vector-acp
 """
 
+from loguru import logger
 import asyncio
 import logging
 import sys

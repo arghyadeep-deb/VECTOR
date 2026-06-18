@@ -6,6 +6,7 @@ For spot symbols on exchanges that use unified format, tries the perp equivalent
 
 Usage: python fetch_funding_rate.py <exchange_id> <symbol>
 """
+from loguru import logger
 import sys
 from exchange_client import make_exchange, output_success, run_with_error_handling
 
@@ -59,8 +60,7 @@ def main():
                 "interest_rate": rate.get("interestRate"),
             })
             return
-        except Exception:
-            logger.debug("[VECTOR][exchange.fetch_funding_rate] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][exchange.fetch_funding_rate] caught Exception: %s", _sve)
             continue
 

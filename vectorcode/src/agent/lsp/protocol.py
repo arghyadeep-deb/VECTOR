@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from loguru import logger
 from typing import Any, Optional, Tuple
 
 # LSP error codes we care about.  Full list in

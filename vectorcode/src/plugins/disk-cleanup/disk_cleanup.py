@@ -112,7 +112,7 @@ def load_tracked() -> List[Dict[str, Any]]:
 
     try:
         return json.loads(tf.read_text())
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as _sve:
         bak = tf.with_suffix(".json.bak")
         if bak.exists():
             try:

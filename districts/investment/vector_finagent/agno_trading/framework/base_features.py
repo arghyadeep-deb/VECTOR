@@ -21,7 +21,7 @@ class BaseFeaturesPipeline(ABC):
         Returns:
             FeaturesResult with computed features
         """
-        pass
+        raise NotImplementedError("BaseFeaturesPipeline.build must be implemented by subclass")
 
     @abstractmethod
     async def update_symbols(self, symbols: list[str]) -> None:
@@ -31,4 +31,4 @@ class BaseFeaturesPipeline(ABC):
         Args:
             symbols: List of trading symbols
         """
-        pass
+        raise NotImplementedError("BaseFeaturesPipeline.update_symbols must be implemented by subclass")

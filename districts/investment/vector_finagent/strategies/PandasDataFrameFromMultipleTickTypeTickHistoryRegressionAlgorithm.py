@@ -32,8 +32,7 @@ class PandasDataFrameFromMultipleTickTypeTickHistoryRegressionAlgorithm(QCAlgori
         try:
             history = self.history(Tick, spy, timedelta(days=1), Resolution.TICK)
         except Exception as e:
-            logger.debug("[VECTOR][strategies.PandasDataFrameFromMultipleTickTypeTickHistoryRegressionAlgorithm] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][strategies.PandasDataFrameFromMultipleTickTypeTickHistoryRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.PandasDataFrameFromMultipleTickTypeTickHistoryRegressionAlgorithm] caught Exception: %s", e)
             raise Exception(f"History call failed: {e}")
 
         if history.shape[0] == 0:

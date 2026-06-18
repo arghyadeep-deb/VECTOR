@@ -33,6 +33,7 @@ PARAMETERS:
   - min_periods: Minimum data points required (default: period)
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import Union, Tuple, Optional
@@ -68,8 +69,7 @@ class TechnicalIndicators:
             
             return data.rolling(window=period, min_periods=period).mean()
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.technical_indicators] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.technical_indicators] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.technical_indicators] caught Exception: %s", e)
             print(f"Error calculating SMA: {e}")
             return pd.Series(dtype=float)
 

@@ -25,7 +25,6 @@ from typing import Any, Dict, List, Optional
 
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
 
-from loguru import logger
 
 try:
     from core.config import CONFIG  # type: ignore

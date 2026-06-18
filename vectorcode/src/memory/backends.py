@@ -1,5 +1,6 @@
 """VectorCode v3 Memory backends — SQLite, Hybrid, AgentDB persistence."""
 
+from core.memory.db_utils import apply_pragmas
 import json
 import sqlite3
 import threading
@@ -14,8 +15,7 @@ class SQLiteBackend:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         self._conn.execute("""
             CREATE TABLE IF NOT EXISTS memories (
                 id TEXT PRIMARY KEY, namespace TEXT, key TEXT,
@@ -84,8 +84,7 @@ class AgentDBBackend:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         self._conn.execute("""
             CREATE TABLE IF NOT EXISTS agents (
                 id TEXT PRIMARY KEY, type TEXT, status TEXT,

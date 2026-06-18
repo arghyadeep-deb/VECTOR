@@ -34,4 +34,5 @@ class SMSBot:
         self._client.messages.create(body=text, from_=self.from_number, to=to)
 
     async def stop(self):
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][sms_bot] stop called (no-op)")

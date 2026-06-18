@@ -11,8 +11,7 @@ for _pkg in ("mcp", "fastmcp"):
     try:
         __import__(_pkg)
     except ImportError:
-        pass
-
+        __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 if "mcp" in sys.modules and not hasattr(sys.modules["mcp"], "server"):
     logger.warning("[VECTOR] mcp module may be shadowed by vectorcode/src/mcp/")
 

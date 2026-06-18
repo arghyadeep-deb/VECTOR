@@ -195,7 +195,6 @@ class IMFDataWrapper:
             return date.strftime("%Y-%m-%d")
         except Exception as _sve:
             logger.debug("[VECTOR][imf_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][imf_data] caught Exception: %s", _sve)
             return date_str
 
     def get_economic_indicators(self, countries: Optional[str] = None, symbols: Optional[str] = None,

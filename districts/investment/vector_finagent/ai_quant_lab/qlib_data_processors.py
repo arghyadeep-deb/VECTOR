@@ -10,6 +10,7 @@ Features:
 - Pipeline Processing
 """
 
+from loguru import logger
 import json
 import sys
 from typing import Dict, List, Any, Optional, Union, Callable
@@ -453,8 +454,7 @@ class DataProcessingService:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][ai_quant_lab.qlib_data_processors] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][ai_quant_lab.qlib_data_processors] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_data_processors] caught Exception: %s", e)
             return {
                 "success": False,
                 "error": f"Pipeline creation failed: {str(e)}"

@@ -18,6 +18,7 @@ spec §8.1 / brainstorming Q8). The two SQLite files live side-by-side in
 """
 
 from __future__ import annotations
+from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 import json
@@ -125,8 +126,7 @@ class SessionStore:
         self._db_path = str(db_path)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         with self._lock:
             self._conn.execute("PRAGMA foreign_keys=ON")
             self._conn.execute(_CREATE_SESSIONS)

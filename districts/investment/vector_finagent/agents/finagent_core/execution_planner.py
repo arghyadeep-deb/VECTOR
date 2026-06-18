@@ -369,8 +369,7 @@ class ExecutionPlanner:
             return result
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.execution_planner] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.execution_planner] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.execution_planner] caught Exception: %s", e)
             step.status = StepStatus.FAILED
             step.error = str(e)
             logger.error(f"Step {step.id} failed: {e}")

@@ -25,6 +25,7 @@ Usage:
 
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 __all__ = ["PostJob", "PostJobTracker", "JobStatus"]
 
 import json
@@ -111,8 +112,7 @@ class PostJobTracker:
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         return conn
 

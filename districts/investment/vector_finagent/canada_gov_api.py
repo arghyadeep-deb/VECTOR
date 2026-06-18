@@ -10,6 +10,7 @@ Fetches Canadian government data using hierarchical structure:
 Usage: python canada_gov_api.py <command> [args]
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -107,8 +108,7 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
             "error": "Invalid JSON response from Government of Canada API"
         }
     except Exception as e:
-        logger.debug("[VECTOR][canada_gov_api] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][canada_gov_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][canada_gov_api] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {},

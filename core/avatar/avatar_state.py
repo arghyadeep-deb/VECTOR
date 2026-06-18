@@ -14,9 +14,10 @@ from typing import Optional
 
 from loguru import logger
 from core.config import CONFIG
+from core.memory.db_utils import configured_db_path
 
 
-_DB_PATH: Path = CONFIG.get("db_path", Path("vector_memory.db"))
+_DB_PATH: Path = configured_db_path()
 _PRESENCE = CONFIG.get("presence", {})
 
 
@@ -69,7 +70,7 @@ class AvatarState:
         """Returns (conn, private). The main DB may be SQLCipher-encrypted so it
         must go through episodic's singleton (never closed here); a redirected
         _DB_PATH (tests) gets a private plain connection the caller closes."""
-        main_db = str(CONFIG.get("db_path", "vector_memory.db"))
+        main_db = str(configured_db_path())
         if str(_DB_PATH) != main_db:
             conn, private = sqlite3.connect(str(_DB_PATH), check_same_thread=False), True
         else:

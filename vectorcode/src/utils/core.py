@@ -81,7 +81,7 @@ def atomic_json_write(
             os.fsync(f.fileno())
         os.replace(tmp_path, path)
         _restore_file_mode(path, original_mode)
-    except BaseException:
+    except BaseException as _sve:
         try:
             os.unlink(tmp_path)
         except OSError as _sve:

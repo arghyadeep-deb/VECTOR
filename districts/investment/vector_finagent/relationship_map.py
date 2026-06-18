@@ -10,6 +10,7 @@ Usage: python relationship_map.py <TICKER>
 Output: JSON to stdout
 """
 
+from loguru import logger
 import json
 import sys
 
@@ -185,8 +186,7 @@ def fetch_company_data(ticker: str) -> dict:
                     "mean": _safe_float(apt.get("mean")),
                     "median": _safe_float(apt.get("median")),
                 }
-        except Exception:
-            logger.debug("[VECTOR][relationship_map] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][relationship_map] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

@@ -10,6 +10,8 @@ Usage:
         --provider <prov> --mode paper|live --timeframe <tf> --quantity <qty> --db <path>
 """
 
+from core.memory.db_utils import apply_pragmas
+from loguru import logger
 import json
 import sys
 import argparse
@@ -74,8 +76,7 @@ def _db_execute_with_retry(conn, sql, params=(), retries=3, commit=True):
 def open_db_connection(db_path: str):
     """Open a shared DB connection with WAL mode for concurrent access."""
     conn = sqlite3.connect(db_path, timeout=10, check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    apply_pragmas(conn)
     return conn
 
 
@@ -309,8 +310,7 @@ def main():
                         prices = conn.execute("SELECT symbol, price, updated_at FROM strategy_price_cache ORDER BY updated_at DESC LIMIT 10").fetchall()
                         log.warning(f"  strategy_price_cache recent entries: {prices}")
                     except Exception as dbg_e:
-                        logger.debug("[VECTOR][algo_trading.algo_live_runner] caught Exception: %s", _sve)
-                        logger.debug("[VECTOR][algo_trading.algo_live_runner] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][algo_trading.algo_live_runner] caught Exception: %s", dbg_e)
                         log.warning(f"  could not read cache tables: {dbg_e}")
                 time.sleep(check_interval)
                 continue

@@ -4,6 +4,7 @@ GlobalPetrolPrices Data Fetcher
 Retail fuel prices (gasoline, diesel, LPG) by country — weekly updates
 from GlobalPetrolPrices public data (no key required).
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -66,8 +67,7 @@ def _fetch_json_data(fuel_slug: str) -> Any:
             match2 = re.search(r'"prices"\s*:\s*(\[.*?\])', text, re.DOTALL)
             if match2:
                 return json.loads(match2.group(1))
-        except Exception:
-            logger.debug("[VECTOR][global_petrol_prices_data] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][global_petrol_prices_data] caught Exception: %s", _sve)
             continue
     return {"error": "Unable to fetch chart data from GlobalPetrolPrices. The site may require browser access."}

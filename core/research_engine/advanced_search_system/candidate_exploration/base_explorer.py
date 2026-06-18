@@ -100,7 +100,7 @@ class BaseCandidateExplorer(ABC):
         Returns:
             ExplorationResult: Complete exploration results
         """
-        pass
+        raise NotImplementedError("BaseCandidateExplorer.explore must be implemented by subclass")
 
     @abstractmethod
     def generate_exploration_queries(
@@ -120,7 +120,7 @@ class BaseCandidateExplorer(ABC):
         Returns:
             List[str]: New queries to explore
         """
-        pass
+        raise NotImplementedError("BaseCandidateExplorer.generate_exploration_queries must be implemented by subclass")
 
     def _execute_search(self, query: str) -> dict[str, Any]:
         """Execute a search query."""

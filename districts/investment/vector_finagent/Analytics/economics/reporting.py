@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Economic Reporting Module
 =============================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - seasonal_adjustment: Seasonal adjustment method (default: true)
   - lookback_period: Historical analysis period (default: 10 years)
 """
+from loguru import logger
 
 
 
@@ -414,7 +413,6 @@ class ExportManager(EconomicsBase):
                                 sheet_name = section_name.replace('_', ' ').title()[:31]
                                 df.to_excel(writer, sheet_name=sheet_name, index=True)
                         except Exception as _sve:
-                            logger.debug("[VECTOR][Analytics.economics.reporting] caught Exception: %s", _sve)
                             logger.debug("[VECTOR][Analytics.economics.reporting] caught Exception: %s", _sve)
                             continue
 

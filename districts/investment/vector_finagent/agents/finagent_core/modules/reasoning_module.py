@@ -119,8 +119,7 @@ class ReasoningModule:
             try:
                 handler(data)
             except Exception as e:
-                logger.debug("[VECTOR][agents.finagent_core.modules.reasoning_module] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agents.finagent_core.modules.reasoning_module] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.finagent_core.modules.reasoning_module] caught Exception: %s", e)
                 logger.warning(f"Event handler error: {e}")
 
     def get_reasoning_prompt(self) -> str:

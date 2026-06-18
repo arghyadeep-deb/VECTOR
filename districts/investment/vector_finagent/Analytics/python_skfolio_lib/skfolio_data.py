@@ -147,8 +147,7 @@ class DataManager:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_data] caught Exception: %s", e)
             logger.error(f"Failed to register data source '{name}': {e}")
             return {
                 "status": "error",

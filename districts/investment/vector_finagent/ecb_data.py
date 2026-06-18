@@ -19,6 +19,7 @@ Usage:
     python ecb_data.py balance_of_payments --country US --frequency monthly
 """
 
+from loguru import logger
 import sys
 import json
 import asyncio
@@ -89,8 +90,7 @@ class ECBDataWrapper:
         except aiohttp.ClientError as e:
             raise ECBError(f"Network error: {str(e)}")
         except Exception as e:
-            logger.debug("[VECTOR][ecb_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][ecb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ecb_data] caught Exception: %s", e)
             raise ECBError(f"Unexpected error: {str(e)}")
 
     def get_yield_curve_series_id(self, maturity: str, rating: str = "aaa", yield_curve_type: str = "spot_rate") -> str:

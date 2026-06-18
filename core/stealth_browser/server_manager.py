@@ -263,7 +263,7 @@ class StealthBrowserServer:
 
     async def __aexit__(self, *_):
         # Don't stop on context exit — server runs as long-lived service
-        pass
+        raise NotImplementedError("StealthBrowserServer.__aexit__ must be implemented by subclass")
 
 
 def get_server() -> StealthBrowserServer:

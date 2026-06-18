@@ -15,6 +15,7 @@ Response contract (all ops):
     traceback: str | None     (only on uncaught exceptions)
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -249,8 +250,7 @@ def op_forecast(data):
         try:
             mdl = ExponentialSmoothing(arr, **kwargs).fit(optimized=True)
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service] caught Exception: %s", e)
             raise ValidationError(f"holt_winters fit failed: {e}")
         in_sample[:] = mdl.fittedvalues
         forecast = [float(v) for v in mdl.forecast(horizon)]

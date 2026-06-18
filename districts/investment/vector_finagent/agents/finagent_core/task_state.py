@@ -25,6 +25,7 @@ Storage format (SQLite):
     updated_at  TEXT
 """
 
+from loguru import logger
 import json
 import sqlite3
 import uuid
@@ -290,8 +291,7 @@ class ResumableTaskRunner:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.task_state] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.task_state] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.task_state] caught Exception: %s", e)
             self.state_mgr.fail_task(task_id, str(e))
             return {"success": False, "task_id": task_id, "error": str(e)}
 

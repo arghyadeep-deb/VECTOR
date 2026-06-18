@@ -8,6 +8,7 @@ Commands:
   single <text> [source_lang] [target_lang]
   detect <text>
 """
+from loguru import logger
 import sys
 import json
 
@@ -93,8 +94,7 @@ def translate_single(text, source="auto", target="en"):
             return {"original": text, "translated": text, "detected_lang": detected,
                     "note": "No translation library installed (pip install deep-translator)"}
     except Exception as e:
-        logger.debug("[VECTOR][translate_text] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][translate_text] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][translate_text] caught Exception: %s", e)
         return {"original": text, "translated": text, "detected_lang": detected,
                 "error": str(e)}
 

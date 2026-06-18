@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Equity Investment Calculations Module
 ======================================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - earnings_multiple: Target earnings multiple (default: 15.0)
   - reporting_currency: Reporting currency (default: 'USD')
 """
+from loguru import logger
 
 
 
@@ -542,7 +541,6 @@ class OptionCalculations:
             return implied_vol
 
         except Exception as _sve:
-            logger.debug("[VECTOR][Analytics.equityInvestment.utils.calculations] caught Exception: %s", _sve)
             logger.debug("[VECTOR][Analytics.equityInvestment.utils.calculations] caught Exception: %s", _sve)
             return np.nan
 

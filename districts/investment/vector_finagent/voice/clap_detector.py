@@ -25,6 +25,7 @@ Environment variables (set by ClapDetectorService in C++):
     FINCEPT_STT_DEVICE        same key as STT — input device name substring.
 """
 
+from loguru import logger
 import json
 import math
 import os
@@ -57,8 +58,7 @@ def list_input_devices(pa) -> List[dict]:
     try:
         host = pa.get_default_host_api_info()
         default_input_index = host.get("defaultInputDevice", -1)
-    except Exception:
-        logger.debug("[VECTOR][voice.clap_detector] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][voice.clap_detector] caught Exception: %s", _sve)
         default_input_index = -1
     for i in range(pa.get_device_count()):

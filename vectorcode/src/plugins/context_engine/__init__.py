@@ -208,13 +208,13 @@ class _EngineCollector:
 
     # No-op for other registration methods
     def register_tool(self, *args, **kwargs):
-        pass
+        raise NotImplementedError("_EngineCollector.register_tool must be implemented by subclass")
 
     def register_hook(self, *args, **kwargs):
-        pass
+        raise NotImplementedError("_EngineCollector.register_hook must be implemented by subclass")
 
     def register_cli_command(self, *args, **kwargs):
-        pass
+        raise NotImplementedError("_EngineCollector.register_cli_command must be implemented by subclass")
 
     def register_memory_provider(self, *args, **kwargs):
-        pass
+        raise NotImplementedError("_EngineCollector.register_memory_provider must be implemented by subclass")

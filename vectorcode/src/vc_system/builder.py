@@ -126,8 +126,7 @@ class SystemBuilder:
                     prefer_vendor=config.telemetry.energy_vendor or None,
                 )
             except ImportError:
-                pass
-
+                __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
             if energy_monitor is None:
                 try:
                     from core.telemetry.gpu_monitor import GpuMonitor
@@ -137,8 +136,7 @@ class SystemBuilder:
                             poll_interval_ms=config.telemetry.gpu_poll_interval_ms,
                         )
                 except ImportError:
-                    pass
-
+                    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
         from vectorcode.src.vc_security import setup_security
 
         sec = setup_security(config, engine, bus)

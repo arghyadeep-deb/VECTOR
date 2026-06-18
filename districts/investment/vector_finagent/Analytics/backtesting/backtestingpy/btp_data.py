@@ -6,6 +6,7 @@ Data helpers: random_ohlc_data, resample_apply, OHLCV_AGG, TRADES_AGG,
 FractionalBacktest, MultiBacktest wrappers.
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional
@@ -93,8 +94,7 @@ def load_yfinance_data(symbol: str, start_date: str = None,
                 if col in data.columns:
                     data[col] = data[col].round(4)
             return data
-    except Exception:
-        logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.btp_data] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.btp_data] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     return None

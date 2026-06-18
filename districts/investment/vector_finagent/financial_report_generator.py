@@ -5,6 +5,7 @@ Financial Report Generator using Jinja2
 Generates professional PDF reports from JSON templates
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -544,8 +545,7 @@ class FinancialReportGenerator:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][financial_report_generator] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][financial_report_generator] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][financial_report_generator] caught Exception: %s", e)
             return {
                 "success": False,
                 "error": str(e),

@@ -3,6 +3,7 @@ Simple folder manager for subscription organization.
 Handles folder CRUD operations for the API routes.
 """
 
+from loguru import logger
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session

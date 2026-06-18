@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import json
 import sqlite3
 import threading
@@ -60,8 +61,7 @@ class SchedulerStore:
     def __init__(self, db_path: str | Path) -> None:
         self._db_path = str(db_path)
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         self._lock = threading.RLock()
         self._conn.row_factory = sqlite3.Row
         with self._lock:

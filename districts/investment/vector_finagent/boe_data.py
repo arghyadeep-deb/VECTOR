@@ -35,6 +35,7 @@ Usage:
     python boe_data.py overview
 """
 
+from loguru import logger
 import sys
 import json
 import io
@@ -1447,8 +1448,7 @@ def main(args: Optional[List[str]] = None) -> None:
     except KeyboardInterrupt:
         sys.exit(0)
     except Exception as exc:
-        logger.debug("[VECTOR][boe_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][boe_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][boe_data] caught Exception: %s", exc)
         print(json.dumps({"success": False, "error": str(exc)}, indent=2))
         sys.exit(1)
 

@@ -5,6 +5,7 @@ Location: fincept-cpp/scripts/
 Description: Standardized PxWeb API wrapper for Statistics Finland.
 """
 
+from loguru import logger
 import sys
 import json
 import time
@@ -71,8 +72,7 @@ class PxWebWrapper:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][pxweb_fetcher] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][pxweb_fetcher] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][pxweb_fetcher] caught Exception: %s", e)
             return {
                 "success": False,
                 "error": f"PxWeb API Error: {str(e)}",

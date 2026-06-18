@@ -1,7 +1,6 @@
 """Integration tests for MCP tool injection into the tool registry (Phase 3)."""
 
 from __future__ import annotations
-from loguru import logger
 
 import logging
 from typing import Any

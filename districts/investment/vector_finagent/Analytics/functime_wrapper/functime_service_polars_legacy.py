@@ -9,6 +9,7 @@ Note: This service provides local-only forecasting when functime cloud is not co
 Uses sklearn-based implementations as fallback for cloud API.
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -56,7 +57,6 @@ try:
             if config.get('token_id') and config.get('token_secret'):
                 FUNCTIME_CLOUD_AVAILABLE = True
 except Exception as _sve:
-    logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service_polars_legacy] caught Exception: %s", _sve)
     logger.debug("[VECTOR][Analytics.functime_wrapper.functime_service_polars_legacy] caught Exception: %s", _sve)
     logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

@@ -449,22 +449,26 @@ class SlackAdapter(BasePlatformAdapter):
             # channels, so this is intentionally a no-op to avoid duplicates.
             @self._app.event("app_mention")
             async def handle_app_mention(event, say):
-                pass
+                from loguru import logger
+                logger.debug("[VECTOR][slack] handle_app_mention called (no-op)")
 
             # File lifecycle events can arrive around snippet uploads even when
             # the actual user message is what we care about. Ack them so Slack
             # doesn't log noisy 404 "unhandled request" warnings.
             @self._app.event("file_shared")
             async def handle_file_shared(event, say):
-                pass
+                from loguru import logger
+                logger.debug("[VECTOR][slack] handle_file_shared called (no-op)")
 
             @self._app.event("file_created")
             async def handle_file_created(event, say):
-                pass
+                from loguru import logger
+                logger.debug("[VECTOR][slack] handle_file_created called (no-op)")
 
             @self._app.event("file_change")
             async def handle_file_change(event, say):
-                pass
+                from loguru import logger
+                logger.debug("[VECTOR][slack] handle_file_change called (no-op)")
 
             @self._app.event("assistant_thread_started")
             async def handle_assistant_thread_started(event, say):

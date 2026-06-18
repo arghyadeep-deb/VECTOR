@@ -14,6 +14,7 @@ goes to stderr so the C++ host's `extract_json` never picks up a leading '['
 from a log line like "[Fincept Engine] Executing...".
 """
 
+from loguru import logger
 import sys
 import json
 import math
@@ -345,8 +346,7 @@ class FinAgentProvider:
             return self._execute_one(strategy_id, symbols, start_date, end_date,
                                      initial_capital, strategy_params)
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.backtesting.fincept.fincept_provider] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.backtesting.fincept.fincept_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.fincept.fincept_provider] caught Exception: %s", e)
             import traceback
             tb = traceback.format_exc()
             print(f'[Fincept Engine] Error: {e}', file=sys.stderr)

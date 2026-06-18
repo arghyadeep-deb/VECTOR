@@ -348,7 +348,7 @@ class CopilotACPClient:
         try:
             proc.terminate()
             proc.wait(timeout=2)
-        except Exception:
+        except Exception as _sve:
             try:
                 proc.kill()
             except Exception as _sve:

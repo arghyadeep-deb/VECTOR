@@ -95,7 +95,7 @@ def _parse_wkt_point(raw_point: str) -> tuple[float | None, float | None]:
 
 def init_db():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     cursor = conn.cursor()
     cursor.execute(
         """
@@ -126,7 +126,7 @@ class BaseCCTVIngestor(ABC):
         pass
 
     def ingest(self):
-        conn = sqlite3.connect(str(DB_PATH))
+        conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
         try:
             cameras = self.fetch_data()
             cursor = conn.cursor()
@@ -1126,7 +1126,7 @@ def run_all_ingestors():
 
 
 def get_all_cameras() -> List[Dict[str, Any]]:
-    conn = sqlite3.connect(str(DB_PATH))
+    conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM cameras")

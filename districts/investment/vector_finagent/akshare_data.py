@@ -9,6 +9,7 @@ All endpoints are FREE - no API keys required
 Coverage: 95%+ of available AKShare endpoints across all data categories
 """
 
+from loguru import logger
 import sys
 import json
 import pandas as pd
@@ -135,8 +136,7 @@ class AKShareDataWrapper:
                     "timestamp": int(datetime.now().timestamp())
                 }
         except Exception as e:
-            logger.debug("[VECTOR][akshare_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][akshare_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][akshare_data] caught Exception: %s", e)
             error_obj = AKShareError(
                 endpoint=func.__name__,
                 error=str(e),

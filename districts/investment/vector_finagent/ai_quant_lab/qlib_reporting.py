@@ -19,6 +19,7 @@ Response contract (all ops):
     traceback: str | None     (only on uncaught exceptions)
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -132,8 +133,7 @@ def _correlation(x, y):
     if SCIPY_OK:
         try:
             pr, pp = pearsonr(x_arr, y_arr)
-        except Exception:
-            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][ai_quant_lab.qlib_reporting] caught Exception: %s", _sve)
             pr, pp = float("nan"), 1.0
         try:

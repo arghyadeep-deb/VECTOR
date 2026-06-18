@@ -9,7 +9,6 @@ Categories:
   BULK      — research_engine bulk upgrade to logger.warning
 """
 
-from loguru import logger
 import ast
 import csv
 import sys

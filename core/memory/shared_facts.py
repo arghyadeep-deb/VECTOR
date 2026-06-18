@@ -11,14 +11,15 @@ Usage:
     val = sf.get("tax_deadline")   # → "April 15"
     sf.vote("tax_deadline", "April 15", voter="calendar_agent")
 """
+from core.memory.db_utils import apply_pragmas
 import sqlite3
 import json
 import time
 from pathlib import Path
 from loguru import logger
-from core.config import CONFIG
+from core.memory.db_utils import configured_db_path
 
-_DB_PATH = Path(str(CONFIG.get("db_path", Path(__file__).parent.parent.parent / "vector_memory.db")))
+_DB_PATH = configured_db_path()
 
 
 class SharedFacts:
@@ -36,7 +37,6 @@ class SharedFacts:
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        from core.memory.db_utils import apply_pragmas
         apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         return conn

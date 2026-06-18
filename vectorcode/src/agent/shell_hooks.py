@@ -570,7 +570,7 @@ def save_allowlist(data: Dict[str, Any]) -> None:
             with os.fdopen(fd, "w") as fh:
                 fh.write(json.dumps(data, indent=2, sort_keys=True))
             os.replace(tmp_path, p)
-        except Exception:
+        except Exception as _sve:
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:

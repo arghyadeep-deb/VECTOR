@@ -12,6 +12,7 @@ Portal URL: https://www.govdata.de/
 Usage: python govdata_de_api_complete.py <command> [args]
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -138,8 +139,7 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
             "error": "Invalid JSON response from GovData.de API."
         }
     except Exception as e:
-        logger.debug("[VECTOR][govdata_de_api_complete] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][govdata_de_api_complete] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][govdata_de_api_complete] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {

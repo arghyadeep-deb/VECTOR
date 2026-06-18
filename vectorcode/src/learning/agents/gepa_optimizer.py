@@ -317,7 +317,7 @@ class _GEPALearningPolicy(AgentLearningPolicy):
     """Wrapper to register GEPAAgentOptimizer in the LearningRegistry."""
 
     def __init__(self, **kwargs: object) -> None:
-        pass
+        raise NotImplementedError("_GEPALearningPolicy.__init__ must be implemented by subclass")
 
     def update(self, trace_store: Any, **kwargs: object) -> Dict[str, Any]:
         config = GEPAOptimizerConfig()

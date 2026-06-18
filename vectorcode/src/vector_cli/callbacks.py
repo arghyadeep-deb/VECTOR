@@ -7,6 +7,7 @@ as its first argument and uses its state (queues, app reference) to coordinate
 with the TUI.
 """
 
+from loguru import logger
 import queue
 import time as _time
 import getpass

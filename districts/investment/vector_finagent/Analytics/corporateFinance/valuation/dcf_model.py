@@ -644,8 +644,7 @@ def main():
             sys.exit(1)
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.corporateFinance.valuation.dcf_model] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.corporateFinance.valuation.dcf_model] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.valuation.dcf_model] caught Exception: %s", e)
         result = {
             "success": False,
             "error": str(e),

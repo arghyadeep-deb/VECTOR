@@ -6,7 +6,6 @@ Steps:
   2. Replace all absolute 'from local_deep_research.' with 'from core.ldr.'
   3. Patch Ollama URL to VECTOR's 127.0.0.1
 """
-from loguru import logger
 import re
 import shutil
 from pathlib import Path

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-from loguru import logger
 
 from districts.health.health_advisor import HealthAdvisor
 

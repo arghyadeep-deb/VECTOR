@@ -67,7 +67,8 @@ class BaseSearchStrategy(ABC):
         should also clean up in their own finally blocks (as they already
         do) — this close() is a second line of defense.
         """
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][base_strategy] close called (no-op)")
 
     def get_setting(self, key: str, default=None):
         """Get a setting value from the snapshot."""
@@ -135,7 +136,7 @@ class BaseSearchStrategy(ABC):
             - current_knowledge: Accumulated knowledge
             - error: Optional error message
         """
-        pass
+        raise NotImplementedError("BaseSearchStrategy.analyze_topic must be implemented by subclass")
 
     def _validate_search_engine(self) -> bool:
         """

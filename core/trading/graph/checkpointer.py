@@ -4,6 +4,7 @@ Per-ticker SQLite databases so concurrent tickers don't contend.
 """
 
 from __future__ import annotations
+from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 __all__ = [
@@ -49,8 +50,7 @@ def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver
     """Context manager yielding a SqliteSaver backed by a per-ticker DB."""
     db = _db_path(data_dir, ticker)
     conn = sqlite3.connect(str(db), check_same_thread=False)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    apply_pragmas(conn)
     try:
         saver = SqliteSaver(conn)
         saver.setup()

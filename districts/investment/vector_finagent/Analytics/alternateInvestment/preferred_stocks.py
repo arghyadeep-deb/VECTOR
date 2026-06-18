@@ -92,8 +92,7 @@ class PreferredStockAnalyzer(AlternativeInvestmentBase):
                 'analysis_warning': 'Call feature limits upside - issuer wins, you lose'
             }
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.alternateInvestment.preferred_stocks] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.alternateInvestment.preferred_stocks] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.preferred_stocks] caught Exception: %s", e)
             logger.error(f"Error calculating YTC: {e}")
             return None
 

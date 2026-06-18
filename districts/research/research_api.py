@@ -41,7 +41,7 @@ _OLLAMA_URL = CONFIG.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 _BRAIN_RESEARCH_DIR = Path(
     CONFIG.get("paths", {}).get(
         "brain_research",
-        r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\Research"
+        str(Path.home() / "V.E.C.T.O.R Brain" / "Research")
     )
 )
 

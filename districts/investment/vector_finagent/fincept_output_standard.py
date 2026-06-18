@@ -33,6 +33,7 @@ Usage:
     print_standard_output(data, script_name="my_script")
 """
 
+from loguru import logger
 import json
 import sys
 import traceback
@@ -107,8 +108,7 @@ class FinAgentOutputStandardizer:
             return response
 
         except Exception as e:
-            logger.debug("[VECTOR][fincept_output_standard] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][fincept_output_standard] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][fincept_output_standard] caught Exception: %s", e)
             return self._create_error_response(e)
 
     def _detect_type(self, data: Any) -> OutputType:

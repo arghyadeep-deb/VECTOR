@@ -2,6 +2,7 @@
 VECTOR Social Sim Backend - Flask应用工厂
 """
 
+from loguru import logger
 import os
 import warnings
 

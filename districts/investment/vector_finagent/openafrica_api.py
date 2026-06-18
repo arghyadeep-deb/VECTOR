@@ -15,6 +15,7 @@ Environment Variables:
 - AFRICA_API_KEY: Optional API key for enhanced rate limits (optional)
 """
 
+from loguru import logger
 import os
 import sys
 import json
@@ -172,8 +173,7 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][openafrica_api] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][openafrica_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][openafrica_api] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {

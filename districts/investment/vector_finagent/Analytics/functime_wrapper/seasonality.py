@@ -13,6 +13,7 @@ Provides seasonal decomposition and analysis:
 Essential for understanding time series patterns.
 """
 
+from loguru import logger
 import polars as pl
 import numpy as np
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -216,8 +217,7 @@ def decompose_stl(
                 'seasonal_strength': _calculate_seasonal_strength(result.seasonal, result.resid)
             }
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.functime_wrapper.seasonality] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.functime_wrapper.seasonality] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.functime_wrapper.seasonality] caught Exception: %s", e)
             results[entity_id] = {
                 'error': str(e),
                 'trend': values.tolist(),

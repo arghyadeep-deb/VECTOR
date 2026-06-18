@@ -100,8 +100,7 @@ def _try_inject_mcp(loop: Any, mcp_port: int) -> bool:
             logger.info("MCP tools injected into loop (port=%d)", mcp_port)
         return ok
     except Exception as e:
-        logger.debug("[VECTOR][agents.rdagents.loops] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.rdagents.loops] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.rdagents.loops] caught Exception: %s", e)
         logger.warning("MCP injection failed (non-fatal): %s", e)
         return False
 

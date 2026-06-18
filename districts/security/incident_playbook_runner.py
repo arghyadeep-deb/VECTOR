@@ -1,3 +1,4 @@
+from core.memory.db_utils import apply_pragmas
 import sys
 from pathlib import Path
 
@@ -74,8 +75,7 @@ class IncidentPlaybookRunner:
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         return conn
 
     def _load_playbooks(self) -> None:

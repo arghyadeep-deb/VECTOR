@@ -9,6 +9,7 @@ Complete implementation of portfolio construction strategies including:
 - Mean-Variance Optimization
 """
 
+from loguru import logger
 import json
 import sys
 from typing import Dict, List, Any, Optional, Union
@@ -110,8 +111,7 @@ class StrategyService:
                 "suitable_for": ["Long-only portfolios", "Stock selection", "Momentum strategies"]
             }
         except Exception as e:
-            logger.debug("[VECTOR][ai_quant_lab.qlib_strategy] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][ai_quant_lab.qlib_strategy] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_strategy] caught Exception: %s", e)
             return {"success": False, "error": f"Failed to create TopK strategy: {str(e)}"}
 
     def create_enhanced_indexing_strategy(self,

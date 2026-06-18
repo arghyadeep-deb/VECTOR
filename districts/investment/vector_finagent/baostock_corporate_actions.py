@@ -5,6 +5,7 @@ BaoStock Corporate Actions
 Collects dividend and adjust-factor datasets incrementally.
 """
 
+from loguru import logger
 import io
 import json
 import sys
@@ -78,8 +79,7 @@ class BaoStockCorporateActions:
             return {"runs": [], "updated_at": _now_ts()}
         try:
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            logger.debug("[VECTOR][baostock_corporate_actions] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][baostock_corporate_actions] caught Exception: %s", _sve)
             return {"runs": [], "updated_at": _now_ts()}
 

@@ -583,8 +583,7 @@ class ManualDataInput(DataProvider):
                 raise ValidationError(f"Unknown data type: {data_type}")
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.economics.data_handler] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.economics.data_handler] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.economics.data_handler] caught Exception: %s", e)
             raise DataError(f"Error loading CSV file {file_path}: {e}")
 
     def _load_fx_from_csv(self, df: pd.DataFrame, date_column: str = 'date', **kwargs):

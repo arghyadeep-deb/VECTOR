@@ -11,6 +11,7 @@ Functions:
 - extract_error_messages(): Format error messages from validation
 """
 
+from loguru import logger
 from typing import Dict, Any, List, Tuple, Optional
 
 
@@ -62,8 +63,7 @@ def evaluate_rules(
                 else:
                     failed.append(rule)
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_evaluate] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_evaluate] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_evaluate] caught Exception: %s", e)
                 errors.append(f"Rule {rule}: {str(e)}")
                 failed.append(rule)
 

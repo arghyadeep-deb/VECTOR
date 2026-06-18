@@ -5,6 +5,7 @@ CNINFO PDF Text Extractor
 Extracts text from downloaded CNINFO PDFs with dedupe/checkpoint state.
 """
 
+from loguru import logger
 import hashlib
 import io
 import json
@@ -48,8 +49,7 @@ def _load_reader() -> Tuple[str, Any]:
         from pypdf import PdfReader  # type: ignore
 
         return "pypdf", PdfReader
-    except Exception:
-        logger.debug("[VECTOR][cninfo_pdf_text_extractor] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][cninfo_pdf_text_extractor] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     try:

@@ -109,9 +109,9 @@ class CredentialStoreBase(ABC):
     @abstractmethod
     def store(self, *args, **kwargs):
         """Store credentials - to be implemented by subclasses."""
-        pass
+        raise NotImplementedError("CredentialStoreBase.store must be implemented by subclass")
 
     @abstractmethod
     def retrieve(self, *args, **kwargs):
         """Retrieve credentials - to be implemented by subclasses."""
-        pass
+        raise NotImplementedError("CredentialStoreBase.retrieve must be implemented by subclass")

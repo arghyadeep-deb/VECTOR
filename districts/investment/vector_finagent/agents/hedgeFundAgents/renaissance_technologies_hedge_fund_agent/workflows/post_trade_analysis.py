@@ -11,6 +11,7 @@ Steps:
 4. Learning Summary (Research Lead)
 """
 
+from loguru import logger
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import uuid
@@ -327,8 +328,7 @@ Provide concise learning summary for organizational memory.
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.post_trade_analysis] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.post_trade_analysis] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.post_trade_analysis] caught Exception: %s", e)
             return RunResponse(
                 content=f"Post-trade analysis failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

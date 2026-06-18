@@ -30,6 +30,7 @@ Verified dataflows:
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import csv
@@ -214,8 +215,7 @@ class NorgesBankWrapper:
             sc = e.response.status_code if e.response is not None else None
             return NorgesBankError(flow, str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][norges_bank_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][norges_bank_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][norges_bank_data] caught Exception: %s", e)
             return NorgesBankError(flow, str(e)).to_dict()
 
     # ------------------------------------------------------------------

@@ -17,6 +17,7 @@ intentionally conservative — under-bills slightly so we never block at the
 """
 from __future__ import annotations
 
+from loguru import logger
 import time
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Tuple
@@ -108,7 +109,7 @@ class BudgetGuard:
             content = ""
             try:
                 content = getattr(response_obj, "content", "") or ""
-            except Exception:
+            except Exception as _sve:
                 logger.debug("[VECTOR][agents.finagent_core.agentic.budget] caught Exception: %s", _sve)
                 content = ""
             in_tok = _estimate_tokens(prompt_text)

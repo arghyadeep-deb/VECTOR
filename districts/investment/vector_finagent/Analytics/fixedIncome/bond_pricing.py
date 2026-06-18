@@ -222,12 +222,11 @@ class BondPricer:
 
         try:
             ytm = optimize.brentq(price_diff, -0.99, 2.0, xtol=1e-10)
-        except ValueError:
+        except ValueError as _sve:
             # Fallback to Newton method
             try:
                 ytm = optimize.newton(price_diff, coupon_rate, tol=1e-10)
             except Exception as _sve:
-                logger.debug("[VECTOR][Analytics.fixedIncome.bond_pricing] caught Exception: %s", _sve)
                 logger.debug("[VECTOR][Analytics.fixedIncome.bond_pricing] caught Exception: %s", _sve)
                 ytm = None
 

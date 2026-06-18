@@ -122,6 +122,7 @@ class TerminalBenchNativeBackend(InferenceBackend):
         return {"content": "", "usage": {}, "model": model, "latency_seconds": 0.0}
 
     def close(self) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][terminalbench_native] close called (no-op)")
 
 __all__ = ["TerminalBenchNativeBackend"]

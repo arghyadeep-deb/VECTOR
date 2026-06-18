@@ -1,0 +1,9 @@
+{
+  "doc-d7f922584bda5cedeb2104dca753625f": {
+    "content": "---\ndescription: \"Vault entry point — embedded dashboards, quick links, current focus\"\ntags:\n  - index\n---\n\n# Home\n\n## Current Focus\n\n![[North Star#Current Focus]]\n\n## Active Work\n\n![[Work Dashboard.base#Active Work]]\n\n## Incidents\n\n![[Incidents.base#All Incidents]]\n\n## Quick Links\n\n- [[Index|Work Notes]] | [[People & Context]] | [[Brag Doc]]\n- [[Memories]] | [[North Star]] | [[Skills]]\n\n## Recent 1:1s\n\n![[1-1 History.base#All 1:1s]]\n\n## People\n\n![[People Directory.base#By Team]]",
+    "file_path": "unknown_source",
+    "create_time": 1781719326,
+    "update_time": 1781719326,
+    "_id": "doc-d7f922584bda5cedeb2104dca753625f"
+  }
+}

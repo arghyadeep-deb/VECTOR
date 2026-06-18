@@ -15,7 +15,7 @@ def build_entrypoint_metadata(*args, **kwargs) -> dict:  # type: ignore[misc]
     return {}
 
 class ClientMetadata:  # stub
-    def __init__(self, name: str = "", version: str = ""): pass
+    raise NotImplementedError("ClientMetadata.__init__ must be implemented by subclass")
 # [VECTOR] removed: from core.coding_assistant.core.teleport.types import (
 # [VECTOR] removed:     TeleportPushRequiredEvent,
 # [VECTOR] removed:     TeleportPushResponseEvent,

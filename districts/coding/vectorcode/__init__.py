@@ -9,12 +9,11 @@ from pathlib import Path
 try:
     import mcp  # noqa: F401
 except ImportError:
-    pass
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 try:
     import fastmcp  # noqa: F401
 except ImportError:
-    pass
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 from vectorcode.src.bootstrap import ensure_paths
 
 ensure_paths()

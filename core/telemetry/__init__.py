@@ -76,13 +76,11 @@ except ImportError:
 try:
     from core.telemetry.phase_metrics import compute_phase_metrics, split_at_ttft
 except ImportError:
-    pass
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 try:
     from core.telemetry.itl import compute_itl_stats
 except ImportError:
-    pass
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 # FLOPs / MFU estimation
 try:
     from core.telemetry.flops import (

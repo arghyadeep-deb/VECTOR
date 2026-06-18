@@ -20,6 +20,7 @@ Response contract (all ops):
     traceback: str | None     (only on uncaught exceptions)
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -184,8 +185,7 @@ def _normalize_returns_input(data):
             df = pd.DataFrame(returns)
             try:
                 df.index = pd.to_datetime(df.index)
-            except Exception:
-                logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
         else:

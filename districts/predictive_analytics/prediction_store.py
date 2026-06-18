@@ -1,3 +1,4 @@
+from core.memory.db_utils import apply_pragmas
 from pathlib import Path
 
 import sqlite3
@@ -32,8 +33,7 @@ class PredictionStore:
 
     def _create_tables(self):
         with self._lock:
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA busy_timeout=5000")
+            apply_pragmas(self._conn)
             cur = self._conn.cursor()
             cur.executescript("""
             CREATE TABLE IF NOT EXISTS forecasts (

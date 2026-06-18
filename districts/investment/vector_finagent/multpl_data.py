@@ -98,8 +98,7 @@ class MULTPLDataFetcher:
         except requests.exceptions.RequestException as e:
             raise MULTPLError(f"HTTP request failed for {url}: {str(e)}")
         except Exception as e:
-            logger.debug("[VECTOR][multpl_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][multpl_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][multpl_data] caught Exception: %s", e)
             raise MULTPLError(f"Unexpected error fetching {url}: {str(e)}")
 
     def _parse_html_table(self, html_content: str, series_name: str) -> pd.DataFrame:

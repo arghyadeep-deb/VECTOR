@@ -7,6 +7,7 @@ Returns JSON output for Qt/C++ integration
 NOTE: Cleaned to contain only VALID akshare option functions (46 total).
 """
 
+from loguru import logger
 import sys
 import json
 import pandas as pd
@@ -110,8 +111,7 @@ class DerivativesWrapper:
                     time.sleep(self.retry_delay * 2)
                 continue
             except Exception as e:
-                logger.debug("[VECTOR][akshare_derivatives] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][akshare_derivatives] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_derivatives] caught Exception: %s", e)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     import time

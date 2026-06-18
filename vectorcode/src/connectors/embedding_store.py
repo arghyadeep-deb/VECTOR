@@ -16,6 +16,7 @@ public method returns ``None`` or ``False`` instead of raising.
 """
 
 from __future__ import annotations
+from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 import logging
@@ -68,8 +69,7 @@ class EmbeddingStore:
         db_path = self._store_dir / "index.db"
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.execute("PRAGMA busy_timeout=5000;")
+        apply_pragmas(self._conn)
         with self._lock:
             self._conn.executescript(_CREATE_INDEX_TABLE)
             self._conn.commit()

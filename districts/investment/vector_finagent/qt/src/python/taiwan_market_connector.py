@@ -18,6 +18,7 @@ Upstream: https://github.com/Fincept-Corporation/FinceptTerminal
 
 from __future__ import annotations
 
+from loguru import logger
 import time
 from datetime import date, datetime
 from typing import Optional
@@ -230,8 +231,7 @@ def get_tw_top_movers(top_n: int = 10) -> pd.DataFrame:
     try:
         df["change_pct_num"] = pd.to_numeric(df["change_pct"], errors="coerce")
         df = df.sort_values("change_pct_num", ascending=False)
-    except Exception:
-        logger.debug("[VECTOR][qt.src.python.taiwan_market_connector] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][qt.src.python.taiwan_market_connector] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

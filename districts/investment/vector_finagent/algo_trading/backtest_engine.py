@@ -23,6 +23,8 @@ Output:
     JSON with trades, equity curve, and performance metrics
 """
 
+from core.memory.db_utils import apply_pragmas
+from loguru import logger
 import json
 import sys
 import argparse
@@ -101,8 +103,7 @@ def fetch_from_yfinance(symbol: str, period: str, interval: str):
         debug(f"yfinance ImportError: {e}")
         return None, "yfinance not installed. Install with: pip install yfinance"
     except Exception as e:
-        logger.debug("[VECTOR][algo_trading.backtest_engine] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][algo_trading.backtest_engine] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][algo_trading.backtest_engine] caught Exception: %s", e)
         debug(f"yfinance Exception: {e}\n{traceback.format_exc()}")
         return None, f"yfinance error: {e}"
 
@@ -437,8 +438,7 @@ def get_db_path(arg_db: str) -> str:
 def open_db(db_path: str):
     conn = sqlite3.connect(db_path, timeout=10, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    apply_pragmas(conn)
     return conn
 
 

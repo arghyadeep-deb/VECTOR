@@ -245,7 +245,7 @@ class _SlashWorker:
             if self.proc.poll() is None:
                 self.proc.terminate()
                 self.proc.wait(timeout=1)
-        except Exception:
+        except Exception as _sve:
             try:
                 self.proc.kill()
             except Exception as _sve:
@@ -2594,7 +2594,7 @@ def _(rid, params: dict) -> dict:
                     )
                     f.write(trace)
             except Exception as _sve:
-                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", e)
             print(
                 f"[gateway-turn] {type(e).__name__}: {e}", file=sys.stderr, flush=True
             )
@@ -4306,7 +4306,7 @@ def _(rid, params: dict) -> dict:
         try:
             worker.close()
         except Exception as _sve:
-            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", e)
         session["slash_worker"] = None
         return _err(rid, 5030, str(e))
 
@@ -4988,7 +4988,8 @@ def _(rid, params: dict) -> dict:
 
             class _Q:
                 def print(self, *a, **k):
-                    pass
+                    from loguru import logger
+                    logger.debug("[VECTOR][server] print called (no-op)")
 
             do_install(query, skip_confirm=True, console=_Q())
             return _ok(rid, {"installed": True, "name": query})

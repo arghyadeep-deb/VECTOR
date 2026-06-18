@@ -13,6 +13,7 @@ This wrapper converts French content to English where possible.
 Usage: python french_gov_api.py <command> [args]
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -250,7 +251,6 @@ def _make_request(url: str, headers: Optional[Dict[str, str]] = None,
             try:
                 data = response.json()
             except Exception as _sve:
-                logger.debug("[VECTOR][french_gov_api] caught Exception: %s", _sve)
                 logger.debug("[VECTOR][french_gov_api] caught Exception: %s", _sve)
                 data = {"raw_response": response.text}
 

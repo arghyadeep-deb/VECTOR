@@ -6,6 +6,7 @@ Core memory system for Renaissance Technologies multi-agent architecture.
 Implements multi-layer memory with vector storage for semantic search.
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -190,8 +191,7 @@ class RenTechMemory:
             )
             self._backend_available = True
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.base] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.base] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.memory.base] caught Exception: %s", e)
             print(f"Warning: Could not initialize memory backend: {e}")
             self._backend_available = False
 

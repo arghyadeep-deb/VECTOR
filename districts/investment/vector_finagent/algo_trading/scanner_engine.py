@@ -18,6 +18,7 @@ JSON params:
     }
 """
 
+from loguru import logger
 import json
 import sys
 import argparse
@@ -84,8 +85,7 @@ def main():
         debug_log.append(f'[scanner] candle_cache rows for tf={timeframe}: {total_rows}')
         conn_check.close()
     except Exception as e:
-        logger.debug("[VECTOR][algo_trading.scanner_engine] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][algo_trading.scanner_engine] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][algo_trading.scanner_engine] caught Exception: %s", e)
         debug_log.append(f'[scanner] DB check skipped: {e}')
 
     for symbol in symbols:

@@ -100,7 +100,7 @@ def _write_manifest(entries: Dict[str, str]):
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp_path, MANIFEST_FILE)
-        except BaseException:
+        except BaseException as _sve:
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:

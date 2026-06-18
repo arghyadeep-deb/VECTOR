@@ -72,7 +72,6 @@ class CustomImpliedVolatility(ImpliedVolatility):
             return brentq(self.f, 1e-7, 2.0, args=(time_till_expiry), xtol=1e-4, maxiter=100)
         except Exception as _sve:
             logger.debug("[VECTOR][strategies.OptionIndicatorsMirrorContractsRegressionAlgorithm] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][strategies.OptionIndicatorsMirrorContractsRegressionAlgorithm] caught Exception: %s", _sve)
             print("ImpliedVolatility.calculate_i_v(): Fail to converge, returning 0.")
             return 0.0
 

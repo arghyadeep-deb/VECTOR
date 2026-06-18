@@ -490,17 +490,17 @@ class AlternativeInvestmentBase(ABC):
     @abstractmethod
     def calculate_nav(self) -> Decimal:
         """Calculate Net Asset Value - must be implemented by subclasses"""
-        pass
+        raise NotImplementedError("AlternativeInvestmentBase.calculate_nav must be implemented by subclass")
 
     @abstractmethod
     def calculate_key_metrics(self) -> Dict[str, Any]:
         """Calculate key performance metrics - must be implemented by subclasses"""
-        pass
+        raise NotImplementedError("AlternativeInvestmentBase.calculate_key_metrics must be implemented by subclass")
 
     @abstractmethod
     def valuation_summary(self) -> Dict[str, Any]:
         """Provide valuation summary - must be implemented by subclasses"""
-        pass
+        raise NotImplementedError("AlternativeInvestmentBase.valuation_summary must be implemented by subclass")
 
     def get_performance_summary(self) -> Dict[str, Any]:
         """Get comprehensive performance summary"""

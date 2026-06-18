@@ -74,7 +74,7 @@ class BaseRecommender(ABC):
         Returns:
             List of NewsCard objects representing recommendations
         """
-        pass
+        raise NotImplementedError("BaseRecommender.generate_recommendations must be implemented by subclass")
 
     def _get_user_preferences(self, user_id: str) -> Dict[str, Any]:
         """Get user preferences if preference manager is available."""

@@ -23,6 +23,7 @@ Main Service Groups:
 - Related Service: Find related documents (bills, laws, reports, etc.)
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -172,8 +173,7 @@ class GovInfoWrapper:
         except json.JSONDecodeError as e:
             return GovInfoError(path, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][govinfo_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][govinfo_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][govinfo_data] caught Exception: %s", e)
             return GovInfoError(path, f"Unexpected error: {str(e)}").to_dict()
 
     def _extract_list(self, result: Dict[str, Any], list_key: str) -> Dict[str, Any]:

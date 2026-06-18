@@ -66,7 +66,8 @@ class AddToolToAgentApplier(EditApplier):
         return ApplyResult(changed_files=[str(config_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][tools] rollback called (no-op)")
 
 class RemoveToolFromAgentApplier(EditApplier):
     """Remove a tool from an agent's tool list in config."""
@@ -109,7 +110,8 @@ class RemoveToolFromAgentApplier(EditApplier):
         return ApplyResult(changed_files=[str(config_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][tools] rollback called (no-op)")
 
 class EditToolDescriptionApplier(EditApplier):
     """Update a tool's LM-facing description in descriptions.toml."""
@@ -158,4 +160,5 @@ class EditToolDescriptionApplier(EditApplier):
         return ApplyResult(changed_files=[str(desc_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][tools] rollback called (no-op)")

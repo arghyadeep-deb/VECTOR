@@ -147,8 +147,7 @@ class BLSDataAPI:
         except json.JSONDecodeError as e:
             return BLSError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][bls_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][bls_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bls_data] caught Exception: %s", e)
             return BLSError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _make_request(self, url: str, method: str = "GET",

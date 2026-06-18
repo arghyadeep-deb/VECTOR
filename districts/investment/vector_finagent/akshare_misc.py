@@ -7,6 +7,7 @@ Covers 129 remaining functions from akshare library (version 1.18.20)
 Categories: get, spot, amac, stock, article, fx, air, car, sw, fund, movie, qdii, fred, migration, nlp, qhkc, repo, rv, sunrise, video, and others
 """
 
+from loguru import logger
 import akshare as ak
 import json
 import sys
@@ -58,8 +59,7 @@ class MiscWrapper:
                 return {"success": True, "data": data, "error": None}
 
             except Exception as e:
-                logger.debug("[VECTOR][akshare_misc] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][akshare_misc] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_misc] caught Exception: %s", e)
                 if attempt == max_retries - 1:
                     return {"success": False, "error": str(e), "data": None}
                 continue

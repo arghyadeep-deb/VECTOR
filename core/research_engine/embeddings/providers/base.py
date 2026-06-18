@@ -45,7 +45,7 @@ class BaseEmbeddingProvider(ABC):
             ValueError: If required configuration is missing
             ImportError: If required dependencies are not installed
         """
-        pass
+        raise NotImplementedError("BaseEmbeddingProvider.create_embeddings must be implemented by subclass")
 
     @classmethod
     @abstractmethod
@@ -61,7 +61,7 @@ class BaseEmbeddingProvider(ABC):
         Returns:
             True if the provider can be used, False otherwise
         """
-        pass
+        raise NotImplementedError("BaseEmbeddingProvider.is_available must be implemented by subclass")
 
     @classmethod
     def get_available_models(

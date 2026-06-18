@@ -10,6 +10,7 @@ Usage:
     python advanced.py
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 import json
@@ -336,8 +337,7 @@ def plot_volatility_surface(
             'save_path': save_path
         }
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.advanced] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.advanced] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.advanced] caught Exception: %s", e)
         return {
             'error': str(e),
             'scenario_index': scenario_index

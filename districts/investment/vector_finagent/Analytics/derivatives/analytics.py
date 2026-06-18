@@ -190,8 +190,7 @@ class DerivativesPortfolio:
                 total_value += position.current_value
 
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.derivatives.analytics] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.derivatives.analytics] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.derivatives.analytics] caught Exception: %s", e)
                 logger.error(f"Error pricing position {position.instrument}: {e}")
                 # Use entry price as fallback
                 position.current_value = position.entry_price * position.quantity

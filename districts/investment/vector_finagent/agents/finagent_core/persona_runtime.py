@@ -37,8 +37,7 @@ def _build_memory_backend(db_path: str, table_name: str = "agent_memory",
         logger.warning(f"Memory backend unavailable: {e}")
         return None
     except Exception as e:
-        logger.debug("[VECTOR][agents.finagent_core.persona_runtime] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.finagent_core.persona_runtime] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.persona_runtime] caught Exception: %s", e)
         logger.error(f"Memory backend build failed: {e}")
         return None
 

@@ -421,7 +421,7 @@ class ChunkedUploader:
                 body_preview = ""
                 try:
                     body_preview = getattr(resp, "text", "")[:200]
-                except Exception:  # pragma: no cover — defensive
+                except Exception as _sve:  # pragma: no cover — defensive
                     logger.debug("[VECTOR][gateway.platforms.qqbot.chunked_upload] suppressed Exception: %s", _sve)
                 raise RuntimeError(
                     f"COS PUT returned {status}: {body_preview}"

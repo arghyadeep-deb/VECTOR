@@ -5,6 +5,7 @@ Qlib RL integration for portfolio management and trading strategy optimization
 Supports DQN, PPO, A2C, SAC algorithms for automated trading
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -45,9 +46,7 @@ try:
     from stable_baselines3.common.monitor import Monitor
     STABLE_BASELINES_AVAILABLE = True
 except ImportError:
-    pass
-
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 if STABLE_BASELINES_AVAILABLE:
     class ProgressCallback(BaseCallback):
         """Emits newline-delimited JSON progress events during SB3 training."""
@@ -71,8 +70,7 @@ if STABLE_BASELINES_AVAILABLE:
                     if rewards:
                         reward_mean = float(sum(rewards) / len(rewards))
                 loss = float(self.logger.name_to_value.get("train/loss", 0.0))
-            except Exception:
-                logger.debug("[VECTOR][ai_quant_lab.qlib_rl] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][ai_quant_lab.qlib_rl] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
             print(json.dumps({

@@ -36,6 +36,7 @@ Synthetic Data:
 - generate_synthetic_ohlcv(): Generate random OHLCV data for testing
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, Optional, List, Union, Tuple
@@ -741,8 +742,7 @@ def load_yfinance_data(
 
         return pd.DataFrame()
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_data] caught Exception: %s", e)
         print(f"yfinance error for {symbol}: {e}")
         return pd.DataFrame()
 

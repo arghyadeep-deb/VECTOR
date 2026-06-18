@@ -18,6 +18,7 @@ This file provides the TimeseriesAnalytics class as a unified interface.
 All functions work offline. No GS API required.
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Union, Tuple, Any
@@ -93,8 +94,7 @@ class TimeseriesAnalytics:
                 else:
                     return prices.pct_change()
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.timeseries_analytics] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.timeseries_analytics] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.timeseries_analytics] caught Exception: %s", e)
             # Fallback
             if method == 'log':
                 return np.log(prices / prices.shift(1))

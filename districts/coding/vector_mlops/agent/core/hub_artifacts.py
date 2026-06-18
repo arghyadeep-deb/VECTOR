@@ -557,7 +557,7 @@ def build_hub_artifact_sitecustomize(session: Any) -> str:
                         collection_slug = cached_slug
                         return collection_slug
                 except Exception:
-                    pass
+                    _log.warning("cache read failed", exc_info=True)
                 collection = api.create_collection(
                     title=collection_title,
                     description=(
@@ -575,7 +575,7 @@ def build_hub_artifact_sitecustomize(session: Any) -> str:
                         cache_path.parent.mkdir(parents=True, exist_ok=True)
                         cache_path.write_text(collection_slug, encoding="utf-8")
                     except Exception:
-                        pass
+                        _log.warning("cache write failed", exc_info=True)
                 return collection_slug
 
             def _register(
@@ -618,7 +618,7 @@ def build_hub_artifact_sitecustomize(session: Any) -> str:
                             )
                         card_updated = True
                     except Exception:
-                        pass
+                        _log.warning("card metadata update failed", exc_info=True)
                     collection_updated = False
                     try:
                         slug = _ensure_collection(api, token_value)
@@ -636,7 +636,7 @@ def build_hub_artifact_sitecustomize(session: Any) -> str:
                             )
                             collection_updated = True
                     except Exception:
-                        pass
+                        _log.warning("collection item add failed", exc_info=True)
                     if card_updated and collection_updated:
                         registered.add(key)
                 finally:
@@ -732,7 +732,7 @@ def build_hub_artifact_sitecustomize(session: Any) -> str:
         try:
             _install_ml_intern_artifact_hooks()
         except Exception:
-            pass
+            _log.warning("artifact hooks install failed", exc_info=True)
         """
         ).strip()
         + "\n"

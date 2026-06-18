@@ -39,7 +39,7 @@ except Exception:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"[VECTOR NOTIFY] skipped: {exc}", file=sys.stderr)
 
 sys.exit(0)

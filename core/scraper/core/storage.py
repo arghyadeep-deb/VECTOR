@@ -1,3 +1,4 @@
+from core.memory.db_utils import apply_pragmas
 from hashlib import sha256
 
 __all__ = [
@@ -95,7 +96,7 @@ class SQLiteStorageSystem(StorageSystemMixin):
         # `check_same_thread=False` to allow it to be used across different threads.
         self.connection = db_connect(self.storage_file, check_same_thread=False)
         # WAL (Write-Ahead Logging) allows for better concurrency.
-        self.connection.execute("PRAGMA journal_mode=WAL")
+        apply_pragmas(self.connection)
         self.cursor = self.connection.cursor()
         self._setup_database()
         log.debug(f'Storage system loaded with arguments (storage_file="{storage_file}", url="{url}")')

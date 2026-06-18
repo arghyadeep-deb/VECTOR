@@ -397,11 +397,11 @@ class PearlDockerLauncher:
             return
         try:
             container.stop(timeout=timeout)
-        except Exception:  # noqa: BLE001 - best-effort
+        except Exception as _sve:  # noqa: BLE001 - best-effort
             logger.debug("[VECTOR][mining._docker] suppressed Exception: %s", _sve)
         try:
             container.remove()
-        except Exception:  # noqa: BLE001 - best-effort
+        except Exception as _sve:  # noqa: BLE001 - best-effort
             logger.debug("[VECTOR][mining._docker] suppressed Exception: %s", _sve)
         self._container = None
 

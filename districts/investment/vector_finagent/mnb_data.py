@@ -33,6 +33,7 @@ Published currencies (31):
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import html
 import json
@@ -179,8 +180,7 @@ class MNBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return MNBError("GetCurrentExchangeRates", str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][mnb_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][mnb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][mnb_data] caught Exception: %s", e)
             return MNBError("GetCurrentExchangeRates", str(e)).to_dict()
 
     def get_range(self, start_date: str, end_date: Optional[str] = None,

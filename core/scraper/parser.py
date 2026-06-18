@@ -1214,11 +1214,11 @@ class Selectors(List[Selector]):
 
     @overload
     def __getitem__(self, pos: SupportsIndex) -> Selector:
-        pass
+        raise NotImplementedError("Selectors.__getitem__ must be implemented by subclass")
 
     @overload
     def __getitem__(self, pos: slice) -> "Selectors":
-        pass
+        raise NotImplementedError("Selectors.__getitem__ must be implemented by subclass")
 
     def __getitem__(self, pos: SupportsIndex | slice) -> Union[Selector, "Selectors"]:
         lst = super().__getitem__(pos)

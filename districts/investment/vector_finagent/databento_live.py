@@ -15,6 +15,7 @@ Output format (JSON lines):
     {"type": "error", "message": "..."}
 """
 
+from loguru import logger
 import sys
 import json
 import signal
@@ -161,8 +162,7 @@ class LiveStreamManager:
             self._emit("data", {"record": data})
 
         except Exception as e:
-            logger.debug("[VECTOR][databento_live] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][databento_live] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][databento_live] caught Exception: %s", e)
             self._emit("error", {"message": f"Error processing record: {str(e)}"})
 
     def _on_reconnect(self):

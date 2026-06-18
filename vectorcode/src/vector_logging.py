@@ -24,6 +24,7 @@ Session context:
     that thread will include ``[session_id]`` for filtering/correlation.
 """
 
+from loguru import logger
 import logging
 import os
 import threading

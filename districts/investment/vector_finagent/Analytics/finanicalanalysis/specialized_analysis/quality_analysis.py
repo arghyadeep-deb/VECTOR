@@ -1,5 +1,3 @@
-from loguru import logger
-
 """
 Financial Reporting Quality Analysis Module
 ============================================
@@ -28,6 +26,7 @@ OUTPUT:
   - Red flag identification
   - Manipulation risk assessment
 """
+from loguru import logger
 
 
 import numpy as np
@@ -402,7 +401,6 @@ class FinancialReportingQualityAnalyzer(BaseAnalyzer):
                             methodology="Autocorrelation of earnings over time"
                         ))
                     except Exception as _sve:
-                        logger.debug("[VECTOR][Analytics.finanicalanalysis.specialized_analysis.quality_analysis] caught Exception: %s", _sve)
                         logger.debug("[VECTOR][Analytics.finanicalanalysis.specialized_analysis.quality_analysis] caught Exception: %s", _sve)
                         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

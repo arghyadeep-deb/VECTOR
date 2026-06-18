@@ -3,6 +3,7 @@ from loguru import logger
 Features pipeline for computing technical indicators.
 """
 
+from loguru import logger
 import time
 import numpy as np
 from typing import List, Dict, Optional
@@ -142,8 +143,7 @@ class TechnicalFeaturesPipeline(BaseFeaturesPipeline):
             indicators['volatility_24h'] = float(np.std(closes[-24:]) if len(closes) >= 24 else 0.0)
 
         except Exception as e:
-            logger.debug("[VECTOR][agno_trading.framework.features_pipeline] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agno_trading.framework.features_pipeline] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.framework.features_pipeline] caught Exception: %s", e)
             print(f"Error computing indicators: {e}", flush=True)
 
         return indicators

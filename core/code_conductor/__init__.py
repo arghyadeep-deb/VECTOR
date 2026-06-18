@@ -44,7 +44,6 @@ from core.code_conductor.code_map import CodeMap, Symbol
 from core.code_conductor.agent_steps import run_steps, StepResult, bash_steps, read_and_edit_steps
 from core.code_conductor.orchestrator import CodingOrchestrator
 from core.code_conductor.git_eval import GitEvalRunner
-from loguru import logger
 
 __all__ = [
     # Precision editing tools

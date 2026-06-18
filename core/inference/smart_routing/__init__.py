@@ -57,7 +57,6 @@ from core.inference.smart_routing.stats import RequestJournal, UsageStats, get_j
 from core.inference.smart_routing.response_store import ResponseStore, StoredResponse
 from core.inference.smart_routing.partners import PartnerRegistry, get_registry
 from core.inference.smart_routing.proxy import SmartRoutingProxy
-from loguru import logger
 
 __all__ = [
     # Classifier

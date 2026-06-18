@@ -1,5 +1,5 @@
-from loguru import logger
 """VectorCode context management — VECTOR.md, 5-stage compaction, session memory, references."""
+from loguru import logger
 
 try:
     from vectorcode.context.references import (

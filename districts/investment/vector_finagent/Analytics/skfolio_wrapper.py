@@ -36,6 +36,7 @@ PARAMETERS:
   - l2_coef: L2 regularization strength (default: 0.0)
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -538,8 +539,7 @@ class PortfolioAnalyticsEngine:
                 backtest_dates.extend(forward_returns.index)
 
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.skfolio_wrapper] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.skfolio_wrapper] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.skfolio_wrapper] caught Exception: %s", e)
                 print(f"Error at period {i}: {e}")
                 continue
 

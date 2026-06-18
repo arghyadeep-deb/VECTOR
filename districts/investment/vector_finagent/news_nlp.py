@@ -8,6 +8,7 @@ Commands:
   cluster_semantic <json_headlines>
   analyze_sentiment_batch <json_headlines>
 """
+from loguru import logger
 import sys
 import json
 import re
@@ -429,8 +430,7 @@ def resolve_arg(arg):
             try:
                 import os
                 os.remove(path)
-            except Exception:
-                logger.debug("[VECTOR][news_nlp] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][news_nlp] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
             return data

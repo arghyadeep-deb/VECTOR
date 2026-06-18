@@ -18,6 +18,7 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
+from core.memory.db_utils import configured_db_path
 from core.memory.obsidian_sync import ObsidianSync
 from core.inference.vectorcode_llm import chat
 
@@ -30,7 +31,7 @@ class DatabaseOptimizer(AgentBase):
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._root = Path(__file__).parent.parent.parent.parent
-        self._db_path = Path(str(CONFIG.get("db_path", self._root / "vector_memory.db")))
+        self._db_path = configured_db_path()
         logger.info("[VECTOR][db_optimizer] initialized — db={}", self._db_path)
 
     def _get_memory(self):

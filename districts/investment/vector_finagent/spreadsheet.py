@@ -19,6 +19,7 @@ The JSON args object supports:
 Outputs a single JSON object to stdout.
 """
 
+from loguru import logger
 import sys
 import json
 import argparse
@@ -44,8 +45,7 @@ def parse_range(range_str):
         r1, c1 = parse_cell(parts[0].strip())
         r2, c2 = parse_cell(parts[1].strip())
         return r1, c1, r2, c2
-    except Exception:
-        logger.debug("[VECTOR][spreadsheet] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][spreadsheet] caught Exception: %s", _sve)
         return None
 

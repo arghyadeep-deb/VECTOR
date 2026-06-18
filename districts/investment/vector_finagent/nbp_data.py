@@ -32,6 +32,7 @@ NBP interest rates are published at:
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -127,8 +128,7 @@ class NBPWrapper:
             sc = e.response.status_code if e.response is not None else None
             return NBPError(label, str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][nbp_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][nbp_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][nbp_data] caught Exception: %s", e)
             return NBPError(label, str(e)).to_dict()
 
     def _flatten_table(self, raw: Any) -> Dict[str, Any]:

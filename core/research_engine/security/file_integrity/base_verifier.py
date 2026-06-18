@@ -46,7 +46,7 @@ class BaseFileVerifier(ABC):
         Returns:
             True if this verifier should handle this file type
         """
-        pass
+        raise NotImplementedError("BaseFileVerifier.should_verify must be implemented by subclass")
 
     @abstractmethod
     def get_file_type(self) -> FileType:
@@ -56,7 +56,7 @@ class BaseFileVerifier(ABC):
         Returns:
             FileType enum value
         """
-        pass
+        raise NotImplementedError("BaseFileVerifier.get_file_type must be implemented by subclass")
 
     @abstractmethod
     def allows_modifications(self) -> bool:
@@ -67,7 +67,7 @@ class BaseFileVerifier(ABC):
             True if users can modify files (e.g., PDFs with annotations)
             False if files should never be manually modified (e.g., FAISS indexes)
         """
-        pass
+        raise NotImplementedError("BaseFileVerifier.allows_modifications must be implemented by subclass")
 
     def calculate_checksum(self, file_path: Path) -> str:
         """

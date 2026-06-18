@@ -11,6 +11,7 @@ Features:
 - Feature Selection Tools
 """
 
+from loguru import logger
 import json
 import sys
 import re
@@ -513,8 +514,7 @@ def main():
         print(json.dumps(result))
 
     except Exception as e:
-        logger.debug("[VECTOR][ai_quant_lab.qlib_feature_engineering] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][ai_quant_lab.qlib_feature_engineering] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][ai_quant_lab.qlib_feature_engineering] caught Exception: %s", e)
         print(json.dumps({"success": False, "error": str(e)}))
         sys.exit(1)
 

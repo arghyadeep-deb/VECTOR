@@ -71,7 +71,7 @@ class SyncSession:
         self._is_alive = False
 
     def start(self) -> None:
-        pass
+        raise NotImplementedError("SyncSession.start must be implemented by subclass")
 
     def close(self):  # pragma: no cover
         """Close all resources"""
@@ -242,7 +242,7 @@ class AsyncSession:
         self._lock = Lock()
 
     async def start(self) -> None:
-        pass
+        raise NotImplementedError("AsyncSession.start must be implemented by subclass")
 
     async def close(self):
         """Close all resources"""

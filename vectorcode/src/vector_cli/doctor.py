@@ -5,6 +5,7 @@ Doctor command for vector CLI.
 Diagnoses issues with VectorCode setup.
 """
 
+from loguru import logger
 import os
 import sys
 import subprocess

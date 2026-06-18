@@ -21,6 +21,7 @@ Usage (CLI):
     python finrl_plot.py --action full_report --data_file results/account_values.csv --output results/full_report.json
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -207,8 +208,7 @@ def _calc_monthly_returns(values: np.ndarray, dates: list = None) -> dict:
                 "return_pct": round(float(row["value"]), 2),
             })
         return {"title": "Monthly Returns Heatmap", "data": data}
-    except Exception:
-        logger.debug("[VECTOR][Analytics.finrl.finrl_plot] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][Analytics.finrl.finrl_plot] caught Exception: %s", _sve)
         return {"data": []}
 

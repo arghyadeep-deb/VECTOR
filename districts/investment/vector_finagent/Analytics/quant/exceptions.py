@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Quantitative Exceptions Module
 =================================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - universe_size: Investment universe size (default: 1000)
   - risk_model: Risk model for portfolio construction (default: 'barra')
 """
+from loguru import logger
 
 
 from typing import Optional, Any
@@ -144,8 +143,7 @@ def handle_calculation_error(func):
         except ModelFitError:
             raise
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.quant.exceptions] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.quant.exceptions] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.quant.exceptions] caught Exception: %s", e)
             func_name = getattr(func, '__name__', 'unknown')
             raise CalculationError(
                 message=str(e),

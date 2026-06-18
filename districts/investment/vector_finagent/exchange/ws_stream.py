@@ -16,6 +16,7 @@ Each line is a JSON object with a "type" field:
   {"type":"status",    "connected":true, "exchange":"binance", "symbols":[...]}
 """
 
+from loguru import logger
 import asyncio
 import json
 import os
@@ -49,8 +50,7 @@ def emit(obj):
     try:
         _stdout_write(_dumps(obj) + "\n")
         _stdout_flush()
-    except Exception:
-        logger.debug("[VECTOR][exchange.ws_stream] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][exchange.ws_stream] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

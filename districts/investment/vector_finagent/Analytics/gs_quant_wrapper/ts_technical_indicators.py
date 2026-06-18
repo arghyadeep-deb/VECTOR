@@ -12,6 +12,7 @@ Functions (10):
   apply_ramp, smooth_spikes, seasonally_adjusted
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Union, Optional, Dict
@@ -166,7 +167,6 @@ def trend(x: Series, w: int = 20) -> Series:
             slope = np.polyfit(t, y, 1)[0]
             return slope
         except Exception as _sve:
-            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.ts_technical_indicators] caught Exception: %s", _sve)
             logger.debug("[VECTOR][Analytics.gs_quant_wrapper.ts_technical_indicators] caught Exception: %s", _sve)
             return 0.0
 

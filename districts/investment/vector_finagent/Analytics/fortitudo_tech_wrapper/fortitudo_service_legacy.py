@@ -10,6 +10,7 @@ Supports Python 3.14+ via pure NumPy/SciPy fallback implementations when fortitu
 is not available (requires Python <3.14).
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -251,8 +252,7 @@ def portfolio_metrics(params: Dict[str, Any]) -> Dict[str, Any]:
             "n_assets": len(weights)
         }
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service_legacy] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service_legacy] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fortitudo_tech_wrapper.fortitudo_service_legacy] caught Exception: %s", e)
         return {"success": False, "error": str(e)}
 
 

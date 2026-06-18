@@ -21,7 +21,8 @@ class NarratorState(StrEnum):
 
 class NarratorManagerListener:
     def on_narrator_state_change(self, state: NarratorState) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][narrator_manager_port] on_narrator_state_change called (no-op)")
 
 
 class NarratorManagerPort(Protocol):

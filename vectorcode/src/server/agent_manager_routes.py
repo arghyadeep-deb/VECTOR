@@ -1410,7 +1410,7 @@ def create_agent_manager_router(
                 try:
                     manager.end_tick(agent_id)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", exc)
                 manager.update_agent(agent_id, status="error")
                 manager.update_summary_memory(
                     agent_id,
@@ -1772,7 +1772,7 @@ def create_agent_manager_router(
                     try:
                         manager.end_tick(agent_id)
                     except Exception as _sve:
-                        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", _sve)
+                        logger.debug("[VECTOR][server.agent_manager_routes] suppressed Exception: %s", exc)
                     manager.update_agent(agent_id, status="error")
                     manager.update_summary_memory(
                         agent_id,

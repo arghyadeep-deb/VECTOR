@@ -4,6 +4,7 @@ Historical Data Fetcher
 Fetches historical price data for stocks using yfinance
 """
 
+from loguru import logger
 import sys
 import json
 import yfinance as yf
@@ -42,8 +43,7 @@ def main():
         print(json.dumps(result))
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.equityInvestment.get_historical_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.equityInvestment.get_historical_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.equityInvestment.get_historical_data] caught Exception: %s", e)
         error_msg = {'error': str(e)}
         print(json.dumps(error_msg))
         sys.exit(1)

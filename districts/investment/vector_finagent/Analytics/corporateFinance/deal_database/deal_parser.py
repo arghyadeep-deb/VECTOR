@@ -113,8 +113,7 @@ class MADealParser:
                 return deal_data
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_parser] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_parser] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_parser] caught Exception: %s", e)
             print(f"Error parsing {accession_number}: {e}", file=sys.stderr)
 
         return None

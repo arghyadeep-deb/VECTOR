@@ -4,6 +4,7 @@ Freightos Baltic Index (FBX) Data Fetcher
 Global container freight rates for 12 tradelanes — fetch from public data sources
 and Freightos public chart endpoints.
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -61,8 +62,7 @@ def _fetch_fbx_chart_data(index_id: str = "FBX01") -> Any:
         resp = session.get(url, timeout=30)
         resp.raise_for_status()
         return resp.json()
-    except Exception:
-        logger.debug("[VECTOR][freightos_fbx_data] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][freightos_fbx_data] caught Exception: %s", _sve)
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
     # Fallback: try public data endpoint

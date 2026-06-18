@@ -12,6 +12,7 @@ symbols  : one row per function/class/method in each file
 calls    : directed edge caller_symbol → callee_name (intra-file for now)
 """
 
+from core.memory.db_utils import apply_pragmas
 import ast
 import sqlite3
 import threading
@@ -120,8 +121,7 @@ class CodeGraph:
         self.db_path = db_path
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         self._conn.row_factory = sqlite3.Row
         self._init_schema()
         logger.info(f"[VECTOR][code_graph] Opened index at {db_path} (root={repo_root})")

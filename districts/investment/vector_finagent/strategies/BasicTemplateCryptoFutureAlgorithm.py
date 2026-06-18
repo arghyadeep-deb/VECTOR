@@ -30,7 +30,6 @@ class BasicTemplateCryptoFutureAlgorithm(QCAlgorithm):
             self.set_brokerage_model(BrokerageName.BINANCE_FUTURES, AccountType.CASH)
         except Exception as _sve:
             logger.debug("[VECTOR][strategies.BasicTemplateCryptoFutureAlgorithm] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][strategies.BasicTemplateCryptoFutureAlgorithm] caught Exception: %s", _sve)
             # expected, we don't allow cash account type
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

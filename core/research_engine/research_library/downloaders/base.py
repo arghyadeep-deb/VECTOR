@@ -101,7 +101,7 @@ class BaseDownloader(ABC):
         Returns:
             True if this downloader can handle the URL
         """
-        pass
+        raise NotImplementedError("BaseDownloader.can_handle must be implemented by subclass")
 
     @abstractmethod
     def download(
@@ -118,7 +118,7 @@ class BaseDownloader(ABC):
             Content as bytes, or None if download failed
             For TEXT type, returns UTF-8 encoded text as bytes
         """
-        pass
+        raise NotImplementedError("BaseDownloader.download must be implemented by subclass")
 
     def download_pdf(self, url: str) -> Optional[bytes]:
         """

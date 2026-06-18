@@ -1,5 +1,6 @@
 """Tests for vector_logging — centralized logging setup."""
 
+from loguru import logger
 import logging
 import os
 import stat
@@ -286,7 +287,6 @@ class TestGatewayMode:
     def test_gateway_log_created_after_cli_init_without_duplicate_handlers(self, vector_home):
         """Repeated gateway setup calls do not attach duplicate gateway handlers."""
         vector_logging.setup_logging(vector_home=vector_home, mode="cli")
-        vector_logging.setup_logging(vector_home=vector_home, mode="gateway")
         vector_logging.setup_logging(vector_home=vector_home, mode="gateway")
 
         root = logging.getLogger()

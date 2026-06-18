@@ -6,6 +6,7 @@ Provides tools for agents to fetch real-time and historical market data.
 Integrates with existing VECTOR Financial Terminal data sources.
 """
 
+from loguru import logger
 import json
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timedelta
@@ -76,8 +77,7 @@ def get_current_price(symbol: str, exchange: str = "binance") -> Dict[str, Any]:
             return {"error": "No market data library available. Install yfinance or ccxt."}
 
     except Exception as e:
-        logger.debug("[VECTOR][agno_trading.tools.market_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agno_trading.tools.market_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agno_trading.tools.market_data] caught Exception: %s", e)
         return {"error": f"Failed to fetch price: {str(e)}"}
 
 

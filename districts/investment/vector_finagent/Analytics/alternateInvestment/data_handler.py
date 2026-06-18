@@ -55,8 +55,7 @@ class DataHandler:
                 raise DataValidationError(f"Unsupported data type: {type(data)}")
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.alternateInvestment.data_handler] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.alternateInvestment.data_handler] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.data_handler] caught Exception: %s", e)
             logger.error(f"Error standardizing price data: {str(e)}")
             raise DataValidationError(f"Failed to standardize price data: {str(e)}")
 

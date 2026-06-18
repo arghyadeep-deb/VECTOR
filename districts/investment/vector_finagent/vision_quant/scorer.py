@@ -14,6 +14,7 @@ Score breakdown:
 Total: 0-10 -> BUY (>=7) / WAIT (>=5) / SELL (<5)
 """
 
+from loguru import logger
 import sys
 import json
 import numpy as np
@@ -81,8 +82,7 @@ def compute_fundamental_score(symbol: str, config: dict | None = None) -> dict:
         ticker = yf.Ticker(symbol)
         info = ticker.info or {}
     except Exception as e:
-        logger.debug("[VECTOR][vision_quant.scorer] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][vision_quant.scorer] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][vision_quant.scorer] caught Exception: %s", e)
         return {
             "score": 2.0,  # neutral default
             "max": 4,

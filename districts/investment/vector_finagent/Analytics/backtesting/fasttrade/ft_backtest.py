@@ -19,6 +19,7 @@ Error Classes:
 - MissingData: No data provided or data is empty
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional, Tuple, Union
@@ -101,8 +102,7 @@ def validate_backtest(backtest: Dict[str, Any]) -> Dict[str, Any]:
             }
         return {'valid': True, 'errors': [], 'warnings': []}
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_backtest] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_backtest] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.backtesting.fasttrade.ft_backtest] caught Exception: %s", e)
         return {'valid': False, 'errors': [str(e)], 'warnings': []}
 
 

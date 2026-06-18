@@ -52,9 +52,8 @@ try:
     print(f"[VECTOR SCREENSHOT] {img_path.name} — Claude can now review the UI.")
 
 except ImportError:
-    # Pillow not installed — silent skip
-    pass
+    print("[VECTOR SCREENSHOT] skipped: Pillow not installed", file=sys.stderr)
 except Exception:
-    pass
+    print("[VECTOR SCREENSHOT] skipped: screenshot capture failed", file=sys.stderr)
 
 sys.exit(0)

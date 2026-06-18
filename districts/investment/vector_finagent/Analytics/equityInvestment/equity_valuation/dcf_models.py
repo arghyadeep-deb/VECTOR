@@ -28,6 +28,7 @@ PARAMETERS:
   - reporting_currency: Reporting currency (default: 'USD')
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple, Union
@@ -403,7 +404,6 @@ class DCFSensitivityAnalyzer:
                     'per_share_value': per_share_value
                 })
             except Exception as _sve:
-                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dcf_models] caught Exception: %s", _sve)
                 logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dcf_models] caught Exception: %s", _sve)
                 continue
 

@@ -105,7 +105,6 @@ class FixedAnnuityAnalyzer(AlternativeInvestmentBase):
             return irr
         except Exception as _sve:
             logger.debug("[VECTOR][Analytics.alternateInvestment.fixed_annuities] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.alternateInvestment.fixed_annuities] caught Exception: %s", _sve)
             # Fallback: approximate IRR
             return self.annuity_rate
 

@@ -28,7 +28,7 @@ class BaseComposer(ABC):
         Returns:
             ComposeResult with trade instructions
         """
-        pass
+        raise NotImplementedError("BaseComposer.compose must be implemented by subclass")
 
     async def validate_instructions(self, result: ComposeResult) -> ComposeResult:
         """

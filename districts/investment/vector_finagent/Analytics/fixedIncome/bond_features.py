@@ -769,8 +769,7 @@ def run_bond_features_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
             return {'error': f'Unknown analysis type: {analysis_type}'}
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.fixedIncome.bond_features] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.fixedIncome.bond_features] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fixedIncome.bond_features] caught Exception: %s", e)
         logger.error(f"Bond features analysis error: {str(e)}")
         return {'error': str(e)}
 

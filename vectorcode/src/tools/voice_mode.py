@@ -557,7 +557,7 @@ class AudioRecorder:
                 try:
                     stream.close()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][tools.voice_mode] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][tools.voice_mode] suppressed Exception: %s", e)
             raise RuntimeError(
                 f"Failed to open audio input stream: {e}. "
                 "Check that a microphone is connected and accessible."

@@ -25,6 +25,7 @@ Product Catalog: https://gibs.earthdata.nasa.gov/product-catalog/
 Colormap API: https://gibs.earthdata.nasa.gov/colormaps/v1.3/
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -214,8 +215,7 @@ def _make_request(url: str, headers: Optional[Dict[str, str]] = None, return_byt
                 }
 
     except Exception as e:
-        logger.debug("[VECTOR][nasa_gibs_api] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][nasa_gibs_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][nasa_gibs_api] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {"source": "NASA GIBS"},

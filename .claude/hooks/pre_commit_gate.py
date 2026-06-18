@@ -57,7 +57,7 @@ if os.path.exists(_gate):
             print("[VECTOR GATE] BLOCKED: syntax gate failed:")
             print((r.stdout or "") + (r.stderr or ""))
             sys.exit(2)
-    except Exception:
-        pass  # gate unavailable must never block legitimate commits
+    except Exception as exc:
+        print(f"[VECTOR GATE] syntax gate skipped: {exc}", file=sys.stderr)
 
 sys.exit(0)

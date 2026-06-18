@@ -16,6 +16,7 @@ Features:
 - Rich metadata and response formatting
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -146,8 +147,7 @@ class DataGovHKWrapper:
                 "error": "Invalid JSON response from API."
             }
         except Exception as e:
-            logger.debug("[VECTOR][data_gov_hk_api] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][data_gov_hk_api] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][data_gov_hk_api] caught Exception: %s", e)
             return {
                 "data": [],
                 "metadata": {"source": "Data.gov.hk CKAN API", "endpoint": endpoint},

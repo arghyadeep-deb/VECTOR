@@ -24,7 +24,6 @@ __all__ = [
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from loguru import logger
 
 router = APIRouter(prefix="/intelligence", tags=["intelligence"])
 

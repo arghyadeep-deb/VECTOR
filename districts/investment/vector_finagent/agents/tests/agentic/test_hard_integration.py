@@ -23,6 +23,7 @@ Total suite cost on MiniMax was ~$1-3 depending on which scenarios actually run.
 """
 from __future__ import annotations
 
+from loguru import logger
 import json
 import os
 import sqlite3
@@ -82,8 +83,7 @@ def section(name: str):
         print(f"✗ FAIL  ({dt:.1f}s)  {name}  →  {e}")
         RESULTS.append((name, False, dt, str(e)))
     except Exception as e:
-        logger.debug("[VECTOR][agents.tests.agentic.test_hard_integration] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.tests.agentic.test_hard_integration] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.tests.agentic.test_hard_integration] caught Exception: %s", e)
         dt = time.time() - t
         print(f"✗ ERROR ({dt:.1f}s)  {name}  →  {type(e).__name__}: {e}")
         traceback.print_exc()

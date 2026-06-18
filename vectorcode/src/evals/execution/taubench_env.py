@@ -221,11 +221,13 @@ class VectorHalfDuplexAgent:
         return cls.STOP in content
 
     def set_seed(self, seed: int) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][taubench_env] set_seed called (no-op)")
 
     def stop(self, *args, **kwargs) -> None:
         """Cleanup hook called by orchestrator."""
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][taubench_env] stop called (no-op)")
 
 # ---------------------------------------------------------------------------
 # Task environment

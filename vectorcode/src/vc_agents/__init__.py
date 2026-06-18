@@ -62,18 +62,15 @@ except ImportError:
 try:
     import vectorcode.src.vc_agents.operative  # noqa: F401
 except ImportError:
-    pass
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 try:
     import vectorcode.src.vc_agents.monitor  # noqa: F401
 except ImportError:
-    pass
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 try:
     import vectorcode.src.vc_agents.monitor_operative  # noqa: F401
 except ImportError:
-    pass
-
+    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
 try:
     import vectorcode.src.vc_agents.deep_research  # noqa: F401
 except ImportError:

@@ -21,7 +21,6 @@ from typing import Any, Dict, List, Optional
 
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
 
-from loguru import logger
 from transports.base import ProviderTransport            # type: ignore[import]
 from transports.types import (                           # type: ignore[import]
     NormalizedResponse, ToolCall, Usage, build_tool_call,

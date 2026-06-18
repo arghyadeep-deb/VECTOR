@@ -13,6 +13,7 @@ Requires appId registration: https://www.e-stat.go.jp/api/en/api-info/user-guide
 Usage: python estat_japan_api.py <command> [args]
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -152,8 +153,7 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dic
             "error": "Invalid JSON response from e-Stat API."
         }
     except Exception as e:
-        logger.debug("[VECTOR][estat_japan_api] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][estat_japan_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][estat_japan_api] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {

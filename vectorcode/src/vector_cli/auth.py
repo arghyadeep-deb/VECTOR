@@ -782,7 +782,7 @@ def _load_auth_store(auth_file: Optional[Path] = None) -> Dict[str, Any]:
             import shutil
             shutil.copy2(auth_file, corrupt_path)
         except Exception as _sve:
-            logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][vector_cli.auth] suppressed Exception: %s", exc)
         logger.warning(
             "auth: failed to parse %s (%s) — starting with empty store. "
             "Corrupt file preserved at %s",

@@ -29,6 +29,7 @@ Supported Portals:
 API Documentation: https://docs.ckan.org/en/2.9/api/
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -240,8 +241,7 @@ def _make_request(country_code: str, action: str, params: Optional[Dict[str, Any
                 }
 
     except Exception as e:
-        logger.debug("[VECTOR][universal_ckan_api] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][universal_ckan_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][universal_ckan_api] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {},

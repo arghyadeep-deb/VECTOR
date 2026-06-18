@@ -11,6 +11,7 @@ Core shared functionality for all Edgar MCP modules:
 - Error handling
 """
 
+from loguru import logger
 import os
 import json
 from typing import Dict, Any, Optional
@@ -96,8 +97,7 @@ def set_user_identity(identity: str) -> Dict[str, Any]:
             "message": "Identity set successfully"
         }
     except Exception as e:
-        logger.debug("[VECTOR][mcp.edgar.base] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][mcp.edgar.base] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.base] caught Exception: %s", e)
         return {"error": EdgarError("set_identity", str(e)).to_dict()}
 
 

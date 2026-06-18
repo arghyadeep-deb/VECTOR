@@ -18,6 +18,7 @@ Complete extraction of 10-Q quarterly reports including:
 - Full text and search capabilities
 """
 
+from loguru import logger
 from typing import Dict, Any, Optional, List
 import traceback
 
@@ -66,8 +67,7 @@ def get_latest_10q(ticker: str) -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        logger.debug("[VECTOR][mcp.edgar.forms_10q] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][mcp.edgar.forms_10q] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.forms_10q] caught Exception: %s", e)
         return {"error": EdgarError("get_latest_10q", str(e), traceback.format_exc()).to_dict()}
 
 

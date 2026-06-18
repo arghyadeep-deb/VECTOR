@@ -34,6 +34,8 @@ from typing import Dict, Optional, Any, List
 
 from agent.account_usage import fetch_account_usage, render_account_usage_lines
 
+logger = logging.getLogger(__name__)
+
 # --- Agent cache tuning ---------------------------------------------------
 # Bounds the per-session AIAgent cache to prevent unbounded growth in
 # long-lived gateways (each AIAgent holds LLM clients, tool schemas,
@@ -5265,7 +5267,7 @@ class GatewayRunner:
                 if _err_adapter and hasattr(_err_adapter, "stop_typing"):
                     await _err_adapter.stop_typing(source.chat_id)
             except Exception as _sve:
-                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", e)
             logger.exception("Agent error in session %s", session_key)
             error_type = type(e).__name__
             error_detail = str(e)[:300] if str(e) else "no details available"
@@ -5284,7 +5286,7 @@ class GatewayRunner:
                     if _err_body is not None:
                         _err_json = _err_body.json().get("error", {})
                 except Exception as _sve:
-                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", e)
                 if _err_json.get("type") == "usage_limit_reached":
                     _resets_in = _err_json.get("resets_in_seconds")
                     if _resets_in and _resets_in > 0:
@@ -7060,7 +7062,7 @@ class GatewayRunner:
                     metadata=_thread_metadata,
                 )
             except Exception as _sve:
-                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][gateway.run] suppressed Exception: %s", e)
 
     async def _handle_reasoning_command(self, event: MessageEvent) -> str:
         """Handle /reasoning command — manage reasoning effort and display toggle.
@@ -9980,7 +9982,7 @@ class GatewayRunner:
 
                 except queue.Empty:
                     await asyncio.sleep(0.3)
-                except asyncio.CancelledError:
+                except asyncio.CancelledError as _sve:
                     # Drain remaining queued messages
                     while not progress_queue.empty():
                         try:
@@ -11469,7 +11471,7 @@ async def start_gateway(config: Optional[GatewayConfig] = None, replace: bool = 
                 terminate_pid(existing_pid, force=False)
             except ProcessLookupError:
                 pass  # Already gone
-            except (PermissionError, OSError):
+            except (PermissionError, OSError) as _sve:
                 logger.error(
                     "Permission denied killing PID %d. Cannot replace.",
                     existing_pid,

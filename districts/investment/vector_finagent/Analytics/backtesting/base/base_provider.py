@@ -196,13 +196,13 @@ class BacktestingProviderBase(ABC):
     @abstractmethod
     def name(self) -> str:
         """Provider name (e.g., "QuantConnect Lean", "Backtrader")"""
-        pass
+        raise NotImplementedError("BacktestingProviderBase.name must be implemented by subclass")
 
     @property
     @abstractmethod
     def version(self) -> str:
         """Provider version"""
-        pass
+        raise NotImplementedError("BacktestingProviderBase.version must be implemented by subclass")
 
     @property
     @abstractmethod
@@ -221,7 +221,7 @@ class BacktestingProviderBase(ABC):
             'maxConcurrentBacktests': 5
         }
         """
-        pass
+        raise NotImplementedError("BacktestingProviderBase.capabilities must be implemented by subclass")
 
     # ========================================================================
     # Abstract Methods (must be implemented by all providers)
@@ -238,7 +238,7 @@ class BacktestingProviderBase(ABC):
         Returns:
             Dictionary with {'success': bool, 'message': str, 'error': Optional[str]}
         """
-        pass
+        raise NotImplementedError("BacktestingProviderBase.initialize must be implemented by subclass")
 
     @abstractmethod
     def test_connection(self) -> Dict[str, Any]:
@@ -248,7 +248,8 @@ class BacktestingProviderBase(ABC):
         Returns:
             Dictionary with {'success': bool, 'message': str, 'error': Optional[str]}
         """
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][base_provider] test_connection called (no-op)")
 
     @abstractmethod
     def run_backtest(self, request: Dict[str, Any]) -> Dict[str, Any]:
@@ -268,7 +269,7 @@ class BacktestingProviderBase(ABC):
         Returns:
             Dictionary representation of BacktestResult
         """
-        pass
+        raise NotImplementedError("BacktestingProviderBase.run_backtest must be implemented by subclass")
 
     @abstractmethod
     def get_historical_data(self, request: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -285,7 +286,7 @@ class BacktestingProviderBase(ABC):
         Returns:
             List of HistoricalData dictionaries
         """
-        pass
+        raise NotImplementedError("BacktestingProviderBase.get_historical_data must be implemented by subclass")
 
     @abstractmethod
     def calculate_indicator(self, indicator_type: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -299,7 +300,7 @@ class BacktestingProviderBase(ABC):
         Returns:
             Dictionary representation of IndicatorResult
         """
-        pass
+        raise NotImplementedError("BacktestingProviderBase.calculate_indicator must be implemented by subclass")
 
     # ========================================================================
     # Optional Methods (providers can override if supported)
@@ -322,7 +323,8 @@ class BacktestingProviderBase(ABC):
 
     def disconnect(self) -> None:
         """Clean up resources (no-op for subprocess-based providers)"""
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][base_provider] disconnect called (no-op)")
 
     def validate_strategy(self, strategy: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -364,11 +366,11 @@ class BacktestingProviderBase(ABC):
 
     def _ensure_initialized(self) -> None:
         """No-op: Each subprocess is fresh, no persistent state needed"""
-        pass
+        raise NotImplementedError("BacktestingProviderBase._ensure_initialized must be implemented by subclass")
 
     def _ensure_connected(self) -> None:
         """No-op: Each subprocess is fresh, no persistent state needed"""
-        pass
+        raise NotImplementedError("BacktestingProviderBase._ensure_connected must be implemented by subclass")
 
     def _create_success_result(self, message: str) -> Dict[str, Any]:
         """Create success result dictionary"""

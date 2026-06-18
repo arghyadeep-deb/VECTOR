@@ -5,6 +5,7 @@ Portfolio Management Tools
 Provides tools for portfolio analysis and management.
 """
 
+from loguru import logger
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import math
@@ -67,8 +68,7 @@ def calculate_portfolio_metrics(
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][agno_trading.tools.portfolio_tools] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agno_trading.tools.portfolio_tools] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agno_trading.tools.portfolio_tools] caught Exception: %s", e)
         return {"error": f"Portfolio metrics calculation failed: {str(e)}"}
 
 

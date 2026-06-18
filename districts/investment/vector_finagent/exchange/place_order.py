@@ -127,8 +127,7 @@ def main():
     if cached is not None:
         try:
             exchange.set_markets(cached)
-        except Exception:
-            logger.debug("[VECTOR][exchange.place_order] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][exchange.place_order] caught Exception: %s", _sve)
             exchange.load_markets()
             save_markets_cache(exchange_id, exchange.markets)

@@ -8,7 +8,6 @@ ensure_paths()
 import asyncio
 import json
 import httpx
-from loguru import logger
 from core.config import CONFIG
 
 PLAYWRIGHT_MCP_URL = "http://127.0.0.1:8931"

@@ -12,6 +12,7 @@ Steps:
 4. Initial Assessment (Research Lead)
 """
 
+from loguru import logger
 from typing import Optional, Dict, Any
 from datetime import datetime
 import uuid
@@ -272,8 +273,7 @@ Include your reasoning and any conditions.
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_discovery] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_discovery] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.signal_discovery] caught Exception: %s", e)
             end_time = datetime.utcnow()
             return RunResponse(
                 content=f"Signal discovery workflow failed: {str(e)}",

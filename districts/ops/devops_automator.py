@@ -21,6 +21,7 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
+from core.memory.db_utils import configured_db_path
 from core.memory.obsidian_sync import ObsidianSync
 
 _FOCUS = CONFIG.get("models", {}).get("focus", "vector-focus")
@@ -32,7 +33,7 @@ _CF_WORKER_URL: str = CONFIG.get("cf_worker_url", "https://vector-api.arghyadeep
 # Paths
 _BASE_DIR = Path(__file__).parent.parent.parent.parent
 _BACKUP_DIR = _BASE_DIR / "data" / "raw"
-_DB_PATH = Path(str(CONFIG.get("db_path", _BASE_DIR / "vector_memory.db")))
+_DB_PATH = configured_db_path()
 
 # Log-size threshold for cleanup
 _LOG_SIZE_LIMIT_BYTES: int = 50 * 1024 * 1024  # 50 MB

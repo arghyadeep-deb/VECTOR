@@ -4,6 +4,7 @@ UN Statistics Division Data Fetcher
 Fetches national accounts, environment accounts, demographic statistics, and gender
 statistics for all countries from the UN Statistics Division SDG and SNA APIs.
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -121,8 +122,7 @@ def _get_wb_indicator(country: str, wb_indicator: str, year: str = "") -> Dict:
                 if obs.get("value") is not None
             ]
         return []
-    except Exception:
-        logger.debug("[VECTOR][un_stats_data] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][un_stats_data] caught Exception: %s", _sve)
         return []
 

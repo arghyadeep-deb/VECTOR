@@ -6,6 +6,7 @@ Provides access to financial statements, analysis, and reports
 ~50 endpoints
 """
 
+from loguru import logger
 import sys
 import json
 import time
@@ -45,8 +46,7 @@ def safe_call(func, *args, **kwargs):
             else:
                 return {"success": True, "data": str(result), "count": 1}
         except Exception as e:
-            logger.debug("[VECTOR][akshare_stocks_financial] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][akshare_stocks_financial] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][akshare_stocks_financial] caught Exception: %s", e)
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue

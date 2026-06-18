@@ -191,7 +191,7 @@ class _NullSampler(_Sampler):
     method = "unavailable"
 
     def start(self) -> None:
-        pass  # nothing to do
+        raise NotImplementedError("_NullSampler.start must be implemented by subclass")
 
     def stop(self) -> List[EnergySample]:
         return []

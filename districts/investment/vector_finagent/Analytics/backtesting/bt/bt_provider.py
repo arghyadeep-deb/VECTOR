@@ -9,6 +9,7 @@ risk parity, momentum selection, and standard technical strategies.
 Falls back to pure-numpy simulation when bt is not installed.
 """
 
+from loguru import logger
 import sys
 import io
 import json
@@ -137,8 +138,7 @@ class BtProvider(BacktestingProviderBase):
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_provider] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_provider] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.backtesting.bt.bt_provider] caught Exception: %s", e)
             return {
                 'success': False,
                 'error': str(e),

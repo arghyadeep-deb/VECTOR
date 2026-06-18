@@ -20,7 +20,6 @@ from dataclasses import dataclass
 from typing import Any, Optional
 
 from core.config import CONFIG
-from loguru import logger
 
 # ── Element type priority ──────────────────────────────────────────────────
 

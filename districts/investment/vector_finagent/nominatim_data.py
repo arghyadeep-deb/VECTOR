@@ -4,6 +4,7 @@ OpenStreetMap Nominatim Data Fetcher
 Global geocoding, reverse geocoding, place search, address lookup
 via Nominatim public API (no key, 1 req/sec policy).
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -82,8 +83,7 @@ def get_status() -> Any:
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
-        logger.debug("[VECTOR][nominatim_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][nominatim_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][nominatim_data] caught Exception: %s", e)
         return {"error": f"Status check failed: {str(e)}"}
 
 

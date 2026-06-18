@@ -15,6 +15,7 @@ Pure Python ``sqlite3`` (no Rust extension required).
 """
 
 from __future__ import annotations
+from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 import hashlib
@@ -24,7 +25,6 @@ import threading
 import time
 from pathlib import Path
 from typing import Dict, List, Optional
-from core.memory.db_utils import apply_pragmas
 
 # ---------------------------------------------------------------------------
 # DDL

@@ -30,4 +30,5 @@ class BlueBubblesBot:
             await c.post(f"{self.server_url}/api/private/chat/send-message", params={"password": self.password}, json={"chatGuid": chat_guid, "text": text})
 
     async def stop(self):
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][bluebubbles_bot] stop called (no-op)")

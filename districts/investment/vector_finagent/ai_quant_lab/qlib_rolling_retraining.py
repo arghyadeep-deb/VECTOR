@@ -26,8 +26,7 @@ try:
 
     QLIB_AVAILABLE = True
 except Exception as e:
-    logger.debug("[VECTOR][ai_quant_lab.qlib_rolling_retraining] caught Exception: %s", _sve)
-    logger.debug("[VECTOR][ai_quant_lab.qlib_rolling_retraining] caught Exception: %s", _sve)
+    logger.debug("[VECTOR][ai_quant_lab.qlib_rolling_retraining] caught Exception: %s", e)
     QLIB_AVAILABLE = False
     QLIB_ERROR = str(e)
 

@@ -562,8 +562,7 @@ class PortfolioManager:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_portfolio] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_portfolio] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_portfolio] caught Exception: %s", e)
             logger.error(f"Portfolio construction failed: {e}")
             return {
                 "status": "error",

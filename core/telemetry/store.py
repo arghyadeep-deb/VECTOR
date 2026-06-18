@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import json
 import logging
 import sqlite3
@@ -143,8 +144,7 @@ class TelemetryStore:
     def __init__(self, db_path: str | Path) -> None:
         self._db_path = str(db_path)
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         self._lock = threading.RLock()
         with self._lock:
             self._conn.execute(_CREATE_TABLE)

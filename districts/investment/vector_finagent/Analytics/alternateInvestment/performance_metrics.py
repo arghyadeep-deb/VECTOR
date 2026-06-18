@@ -369,8 +369,7 @@ class PerformanceAnalyzer:
             return exposures
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.alternateInvestment.performance_metrics] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.alternateInvestment.performance_metrics] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.alternateInvestment.performance_metrics] caught Exception: %s", e)
             logger.error(f"Error calculating factor exposures: {str(e)}")
             return {}
 

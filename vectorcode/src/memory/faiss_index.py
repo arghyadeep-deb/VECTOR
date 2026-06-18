@@ -7,6 +7,7 @@ similarity if faiss is not installed.
 RULE 11: no Claude API. Local inference only.
 RULE 8:  patterns → reasoning_chains via EpisodicMemory (handled in PatternStore).
 """
+from core.memory.db_utils import apply_pragmas
 import sys
 import json
 import math
@@ -104,8 +105,7 @@ class FAISSIndex:
 
     def _init_meta_db(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._meta_path, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS vectors (
                 id       TEXT PRIMARY KEY,

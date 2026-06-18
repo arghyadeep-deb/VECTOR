@@ -13,6 +13,7 @@ Categories:
 - Nonparametric: KDE, LOWESS
 """
 
+from loguru import logger
 import sys
 import os
 
@@ -813,8 +814,7 @@ class StatsmodelsEngine:
         try:
             return handler(params)
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.statsmodels_cli] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.statsmodels_cli] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.statsmodels_cli] caught Exception: %s", e)
             import traceback
             return {
                 "error": str(e),

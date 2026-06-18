@@ -22,6 +22,7 @@ Response contract (all ops):
     traceback: str | None     (only on uncaught exceptions)
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -348,8 +349,7 @@ def op_distribution_fit(data):
             # KS test against fitted distribution
             ks_stat, ks_p = scstats.kstest(arr, dist.cdf, args=params)
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.gluonts_wrapper.gluonts_service] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.gluonts_wrapper.gluonts_service] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.gluonts_wrapper.gluonts_service] caught Exception: %s", e)
             params = ()
             log_lik = float("nan")
             aic = float("inf")

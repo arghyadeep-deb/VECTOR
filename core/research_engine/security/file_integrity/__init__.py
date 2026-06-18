@@ -34,7 +34,6 @@ from ...database.models.file_integrity import (
 from .base_verifier import BaseFileVerifier
 from .integrity_manager import FileIntegrityManager
 from .verifiers import FAISSIndexVerifier
-from loguru import logger
 
 __all__ = [
     # Models

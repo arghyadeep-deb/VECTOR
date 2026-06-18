@@ -41,6 +41,7 @@ STRATEGIES (method field):
   target_return     — Efficient portfolio at 10% target return
   black_litterman   — BL with equal-weight market prior
 """
+from loguru import logger
 import sys
 import json
 import numpy as np
@@ -198,8 +199,7 @@ def run_strategy(strategy, mean_ret, cov, n, extra=None):
         return _build_result(res.x, mean_ret, cov, strategy)
 
     except Exception as exc:
-        logger.debug("[VECTOR][optimize_portfolio_weights] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][optimize_portfolio_weights] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][optimize_portfolio_weights] caught Exception: %s", exc)
         return {"error": str(exc)}
 
 

@@ -16,6 +16,7 @@ This script removes:
 - Content-Type overrides for deleted files
 """
 
+from loguru import logger
 import sys
 from pathlib import Path
 

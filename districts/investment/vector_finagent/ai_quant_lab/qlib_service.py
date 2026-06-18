@@ -5,6 +5,7 @@ Microsoft Qlib integration for quantitative research, model training, backtestin
 Full-featured implementation with all Qlib capabilities
 """
 
+from loguru import logger
 import json
 import sys
 import os

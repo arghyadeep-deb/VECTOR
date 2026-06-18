@@ -41,6 +41,7 @@ Key series IDs (verified):
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -217,8 +218,7 @@ class BCBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BCBError(series_key, str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][bcb_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][bcb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bcb_data] caught Exception: %s", e)
             return BCBError(series_key, str(e)).to_dict()
 
     def _get_by_id(self, series_id: int, name: str, start_date: Optional[str] = None,

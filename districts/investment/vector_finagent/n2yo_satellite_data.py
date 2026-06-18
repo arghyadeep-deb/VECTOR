@@ -23,6 +23,7 @@ RATE LIMITS (per 60 minutes):
 Usage: python n2yo_satellite_data.py <command> [args]
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -254,8 +255,7 @@ def _make_request(endpoint: str, params: Optional[Dict[str, str]] = None,
             "error": "Failed to decode API response"
         }
     except Exception as e:
-        logger.debug("[VECTOR][n2yo_satellite_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][n2yo_satellite_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][n2yo_satellite_data] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {"source": "N2YO"},

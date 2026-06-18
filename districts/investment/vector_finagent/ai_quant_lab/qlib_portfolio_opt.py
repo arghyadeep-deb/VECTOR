@@ -11,6 +11,7 @@ Advanced portfolio optimization algorithms including:
 - Maximum Diversification
 """
 
+from loguru import logger
 import json
 import sys
 from typing import Dict, List, Any, Optional, Union, Tuple
@@ -156,8 +157,7 @@ class PortfolioOptimizationService:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][ai_quant_lab.qlib_portfolio_opt] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][ai_quant_lab.qlib_portfolio_opt] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_portfolio_opt] caught Exception: %s", e)
             return {"success": False, "error": f"Black-Litterman failed: {str(e)}"}
 
     def hierarchical_risk_parity(self,

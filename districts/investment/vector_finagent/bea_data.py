@@ -24,6 +24,7 @@ Supported Datasets:
 - Regional: Regional Economic Accounts
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -142,8 +143,7 @@ class BEAWrapper:
         except json.JSONDecodeError as e:
             return BEAError(method, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][bea_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][bea_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bea_data] caught Exception: %s", e)
             return BEAError(method, f"Unexpected error: {str(e)}").to_dict()
 
     # ==================== METADATA ENDPOINTS ====================

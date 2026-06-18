@@ -12,6 +12,7 @@ Steps:
 4. Risk Team Decision
 """
 
+from loguru import logger
 from typing import Optional, Dict, Any
 from datetime import datetime
 import uuid
@@ -309,8 +310,7 @@ Provide clear decision for Investment Committee.
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.risk_assessment] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.risk_assessment] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.risk_assessment] caught Exception: %s", e)
             return RunResponse(
                 content=f"Risk assessment workflow failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

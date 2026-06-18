@@ -8,6 +8,7 @@ Catalog Structure:
 - Collections (catalogues) -> Datasets -> Series/Data
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -113,8 +114,7 @@ def get_collections(page: int = 1) -> Dict[str, Any]:
             "error": "Invalid JSON response from collections API"
         }
     except Exception as e:
-        logger.debug("[VECTOR][datagovsg_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][datagovsg_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][datagovsg_data] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {},

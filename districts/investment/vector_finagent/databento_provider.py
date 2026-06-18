@@ -12,6 +12,7 @@ Based on Databento Python SDK documentation:
 NOTE: Databento is a paid service - be mindful of API usage costs.
 """
 
+from loguru import logger
 import sys
 import json
 import time
@@ -89,8 +90,7 @@ def _implied_vol(price, S, K, T, r, is_call=True):
                 else:
                     hi = mid
             return (lo + hi) / 2
-    except Exception:
-        logger.debug("[VECTOR][databento_provider] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][databento_provider] caught Exception: %s", _sve)
         return 0.0
 

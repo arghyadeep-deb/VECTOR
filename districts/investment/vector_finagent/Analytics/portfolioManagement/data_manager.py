@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Portfolio Data Manager Module
 ===============================
 
@@ -28,7 +26,7 @@ PARAMETERS:
   - benchmark: Portfolio benchmark index (default: 'market_index')
 """
 
-
+from loguru import logger
 
 import pandas as pd
 import numpy as np
@@ -37,7 +35,6 @@ from datetime import datetime, timedelta
 import warnings
 from pathlib import Path
 import json
-import pickle
 from abc import ABC, abstractmethod
 
 from config import (
@@ -133,7 +130,6 @@ class DataValidator:
                 try:
                     pd.to_datetime(data[col])
                 except Exception as _sve:
-                    logger.debug("[VECTOR][Analytics.portfolioManagement.data_manager] caught Exception: %s", _sve)
                     logger.debug("[VECTOR][Analytics.portfolioManagement.data_manager] caught Exception: %s", _sve)
                     errors.append(f"Invalid date format in column: {col}")
 
@@ -280,37 +276,63 @@ class DataCache:
 
     def _get_cache_path(self, key: str) -> Path:
         """Generate cache file path"""
-        return self.cache_dir / f"{key}.pkl"
+        return self.cache_dir / f"{key}.json"
 
     def get(self, key: str) -> Optional[Any]:
         """Retrieve data from cache"""
         cache_path = self._get_cache_path(key)
         if cache_path.exists():
             try:
-                with open(cache_path, 'rb') as f:
-                    cached_data = pickle.load(f)
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    cached_data = json.load(f)
 
                 # Check if cache is still valid (24 hours)
                 cache_time = datetime.fromtimestamp(cache_path.stat().st_mtime)
                 if datetime.now() - cache_time < timedelta(hours=24):
-                    return cached_data
-            except Exception:
-                logger.debug("[VECTOR][Analytics.portfolioManagement.data_manager] suppressed Exception in fallback")  # bare except
+                    return self._decode_json_value(cached_data)
+            except Exception as e:
+                logger.debug("Failed to read portfolio cache %s: %s", cache_path, e)
         return None
 
     def set(self, key: str, data: Any) -> None:
         """Store data in cache"""
         cache_path = self._get_cache_path(key)
         try:
-            with open(cache_path, 'wb') as f:
-                pickle.dump(data, f)
+            with open(cache_path, 'w', encoding='utf-8') as f:
+                json.dump(self._encode_json_value(data), f)
         except Exception as e:
             warnings.warn(f"Failed to cache data: {e}")
 
     def clear(self) -> None:
         """Clear all cached data"""
-        for cache_file in self.cache_dir.glob("*.pkl"):
+        for cache_file in self.cache_dir.glob("*.json"):
             cache_file.unlink()
+
+    def _encode_json_value(self, data: Any) -> Any:
+        if isinstance(data, pd.DataFrame):
+            return {"__type__": "dataframe", "data": data.to_json(orient="split", date_format="iso")}
+        if isinstance(data, pd.Series):
+            return {"__type__": "series", "data": data.to_json(orient="split", date_format="iso")}
+        if isinstance(data, dict):
+            return {"__type__": "dict", "data": {str(k): self._encode_json_value(v) for k, v in data.items()}}
+        if isinstance(data, (list, tuple)):
+            return {"__type__": "list", "data": [self._encode_json_value(v) for v in data]}
+        return {"__type__": "plain", "data": data}
+
+    def _decode_json_value(self, payload: Any) -> Any:
+        if not isinstance(payload, dict) or "__type__" not in payload:
+            return payload
+        kind = payload.get("__type__")
+        data = payload.get("data")
+        if kind == "dataframe":
+            return pd.read_json(data, orient="split")
+        if kind == "series":
+            return pd.read_json(data, orient="split", typ="series")
+        if kind == "dict":
+            return {k: self._decode_json_value(v) for k, v in data.items()}
+        if kind == "list":
+            return [self._decode_json_value(v) for v in data]
+        return data
 
 
 class DataManager:

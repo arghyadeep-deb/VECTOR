@@ -859,7 +859,8 @@ class DingTalkAdapter(BasePlatformAdapter):
 
     async def send_typing(self, chat_id: str, metadata=None) -> None:
         """DingTalk does not support typing indicators."""
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][dingtalk] send_typing called (no-op)")
 
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:
         """Return basic info about a DingTalk conversation."""

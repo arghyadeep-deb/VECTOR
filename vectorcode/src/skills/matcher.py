@@ -1,6 +1,7 @@
 """Lightweight skill matcher — loads data/skills_manifest.json, no faiss/vc_tools deps."""
 from __future__ import annotations
 
+from loguru import logger
 import json
 import re
 from pathlib import Path

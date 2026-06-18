@@ -27,6 +27,7 @@ Usage:
     python mini_swe_runner.py --prompts_file prompts.jsonl --output_file trajectories.jsonl --env docker
 """
 
+from loguru import logger
 import json
 import logging
 import os

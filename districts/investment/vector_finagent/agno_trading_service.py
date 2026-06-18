@@ -15,6 +15,7 @@ Commands:
     - get_model_decisions_alpha: Get recent decisions
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -173,8 +174,7 @@ def create_competition_command(args: list) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][agno_trading_service] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agno_trading_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agno_trading_service] caught Exception: %s", e)
         print(f"[ERROR] create_competition failed: {e}", file=sys.stderr)
         import traceback
         traceback.print_exc(file=sys.stderr)

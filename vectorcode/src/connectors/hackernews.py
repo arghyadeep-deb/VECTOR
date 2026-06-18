@@ -48,7 +48,8 @@ class HackerNewsConnector(BaseConnector):
         return True
 
     def disconnect(self) -> None:
-        pass  # No credentials to revoke
+        from loguru import logger
+        logger.debug("[VECTOR][hackernews] disconnect called (no-op)")
 
     def sync(
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None

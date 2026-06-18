@@ -29,6 +29,7 @@ Usage:
         result = apply_v4a_operations(operations, file_ops)
 """
 
+from loguru import logger
 import difflib
 import re
 from dataclasses import dataclass, field

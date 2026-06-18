@@ -33,6 +33,7 @@ IndicatorFactory:
 - run_combs: Combinatorial indicator runs
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional, Tuple, List, Callable
@@ -711,8 +712,7 @@ class IndicatorFactory:
                 output = self.run(*inputs, **params)
                 results.append({'params': params, 'output': output})
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_indicators] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_indicators] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_indicators] caught Exception: %s", e)
                 print(f"[IndicatorFactory.run_combs] Exception for params {params}: {e}")
                 import traceback
                 traceback.print_exc()

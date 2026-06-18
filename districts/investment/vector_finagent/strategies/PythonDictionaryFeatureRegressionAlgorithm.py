@@ -103,8 +103,7 @@ class PythonDictionaryFeatureRegressionAlgorithm(QCAlgorithm):
         try:
             self.portfolio.clear()  # Throws exception
         except Exception as e:
-            logger.debug("[VECTOR][strategies.PythonDictionaryFeatureRegressionAlgorithm] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][strategies.PythonDictionaryFeatureRegressionAlgorithm] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][strategies.PythonDictionaryFeatureRegressionAlgorithm] caught Exception: %s", e)
             self.debug(e)
 
         bar = self.securities.pop("SPY")

@@ -17,6 +17,7 @@ Usage:
     )
 """
 
+from loguru import logger
 from dataclasses import dataclass, field, asdict
 from typing import Optional, List, Dict, Any, Union, Literal
 from enum import Enum
@@ -56,8 +57,7 @@ def _get_default_provider() -> str:
             sys.path.insert(0, parent_dir)
         from utils.model_factory import get_default_model_settings
         return get_default_model_settings()["provider"]
-    except Exception:
-        logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.schemas.agent_config] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.schemas.agent_config] caught Exception: %s", _sve)
         return "openai"  # Final fallback
 

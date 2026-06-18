@@ -64,7 +64,8 @@ class SetModelForQueryClassApplier(EditApplier):
         return ApplyResult(changed_files=[str(config_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass  # Delegated to CheckpointStore.discard_stage() in the execution loop
+        from loguru import logger
+        logger.debug("[VECTOR][intelligence] rollback called (no-op)")
 
 class SetModelParamApplier(EditApplier):
     """Update a model parameter in config."""
@@ -117,4 +118,5 @@ class SetModelParamApplier(EditApplier):
         return ApplyResult(changed_files=[str(config_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass  # Delegated to CheckpointStore.discard_stage()
+        from loguru import logger
+        logger.debug("[VECTOR][intelligence] rollback called (no-op)")

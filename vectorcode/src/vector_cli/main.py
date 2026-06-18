@@ -46,12 +46,15 @@ Usage:
 
 import argparse
 import json
+import logging
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 def _add_accept_hooks_flag(parser) -> None:
     """Attach the ``--accept-hooks`` flag.  Shared across every agent
@@ -213,7 +216,6 @@ except Exception:
     logger.exception("[VECTOR] silent swallow")
     pass  # best-effort — don't crash if config isn't available yet
 
-import logging
 import time as _time
 from datetime import datetime
 

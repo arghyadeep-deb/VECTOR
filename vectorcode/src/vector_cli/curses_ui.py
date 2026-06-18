@@ -5,6 +5,7 @@ Used by `vector tools` and `vector skills` for interactive checklists.
 Provides a curses multi-select with keyboard navigation, plus a
 text-based numbered fallback for terminals without curses support.
 """
+from loguru import logger
 import sys
 from typing import Callable, List, Optional, Set
 

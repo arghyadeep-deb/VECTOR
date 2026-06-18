@@ -53,8 +53,7 @@ class SECDataAdapter:
                 'filing_date': latest_10k.filing_date
             }
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] caught Exception: %s", e)
             raise ValueError(f"Failed to fetch company data: {str(e)}")
 
     def extract_financials_from_10k(self, filing) -> Dict[str, Any]:
@@ -154,21 +153,47 @@ class SECDataAdapter:
         return 0.0
 
     def _extract_nwc_change(self, balance_sheet) -> float:
-        """Calculate change in net working capital"""
+        """Calculate change in net working capital (current period vs prior period).
+
+        Uses edgartools multi-period balance sheet when available. Falls back to
+        a conservative 0.0 change if prior year data is not accessible.
+        """
         try:
-            # Get current and prior year balance sheets
             current_ca = self._get_value_from_stmt(balance_sheet, 'AssetsCurrent')
             current_cl = self._get_value_from_stmt(balance_sheet, 'LiabilitiesCurrent')
 
-            if current_ca is not None and current_cl is not None:
-                current_nwc = float(current_ca - current_cl)
+            if current_ca is None or current_cl is None:
+                return 0.0
 
-                # Try to get prior year (simplified - assumes 0 change if not available)
-                return 0.0  # TODO: Implement prior year comparison
+            current_nwc = float(current_ca - current_cl)
 
+            # Try to get prior period from multi-period statement (edgartools pattern)
+            prior_ca = prior_cl = None
+            if hasattr(balance_sheet, 'periods') and len(getattr(balance_sheet, 'periods', [])) > 1:
+                # Some statement objects expose per-period dicts
+                try:
+                    prior_period = balance_sheet.periods[1]
+                    prior_ca = self._get_value_from_stmt(prior_period, 'AssetsCurrent')
+                    prior_cl = self._get_value_from_stmt(prior_period, 'LiabilitiesCurrent')
+                except Exception as e:
+                    logger.debug("Could not read prior balance-sheet period for NWC: %s", e)
+
+            # Fallback: look for PriorYear prefixed tags
+            if prior_ca is None:
+                prior_ca = self._get_value_from_stmt(balance_sheet, 'PriorYearAssetsCurrent')
+            if prior_cl is None:
+                prior_cl = self._get_value_from_stmt(balance_sheet, 'PriorYearLiabilitiesCurrent')
+
+            if prior_ca is not None and prior_cl is not None:
+                prior_nwc = float(prior_ca - prior_cl)
+                # NWC change = -(increase in NWC) from a free cash flow perspective
+                return -(current_nwc - prior_nwc)
+
+            # No prior year data available: estimate 0 change (conservative DCF assumption)
             return 0.0
         except Exception:
-            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")  # bare except
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.sec_data_adapter] suppressed Exception in fallback")
+            return 0.0
     def _extract_cash(self, balance_sheet) -> float:
         """Extract cash and cash equivalents"""
         tags = [

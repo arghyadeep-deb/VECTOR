@@ -31,7 +31,7 @@ class BaseFindingsRepository(ABC):
             query: The query associated with the finding
             finding: The finding to add
         """
-        pass
+        raise NotImplementedError("BaseFindingsRepository.add_finding must be implemented by subclass")
 
     @abstractmethod
     def get_findings(self, query: str) -> List[str]:
@@ -44,7 +44,7 @@ class BaseFindingsRepository(ABC):
         Returns:
             List[str]: List of findings for the query
         """
-        pass
+        raise NotImplementedError("BaseFindingsRepository.get_findings must be implemented by subclass")
 
     @abstractmethod
     def clear_findings(self, query: str) -> None:
@@ -54,7 +54,7 @@ class BaseFindingsRepository(ABC):
         Args:
             query: The query to clear findings for
         """
-        pass
+        raise NotImplementedError("BaseFindingsRepository.clear_findings must be implemented by subclass")
 
     @abstractmethod
     def synthesize_findings(
@@ -75,4 +75,4 @@ class BaseFindingsRepository(ABC):
         Returns:
             str: Synthesized final answer
         """
-        pass
+        raise NotImplementedError("BaseFindingsRepository.synthesize_findings must be implemented by subclass")

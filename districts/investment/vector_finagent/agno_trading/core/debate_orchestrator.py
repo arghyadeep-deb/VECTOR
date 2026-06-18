@@ -4,6 +4,7 @@ Debate Orchestrator
 Manages Bull/Bear/Analyst debate system for trading decisions
 """
 
+from loguru import logger
 import sys
 import json
 from typing import Dict, Any, List, Optional
@@ -262,8 +263,7 @@ REASONING: [Brief explanation of why you made this decision]
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][agno_trading.core.debate_orchestrator] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agno_trading.core.debate_orchestrator] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.core.debate_orchestrator] caught Exception: %s", e)
             print(f"[Debate] Error: {str(e)}", file=sys.stderr)
             import traceback
             traceback.print_exc(file=sys.stderr)

@@ -1,3 +1,4 @@
+from core.memory.db_utils import apply_pragmas
 import asyncio
 import datetime
 import json
@@ -14,6 +15,7 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
+from core.memory.db_utils import configured_db_path
 from core.inference.vectorcode_llm import chat
 
 class DataEngineer(AgentBase):
@@ -39,7 +41,7 @@ class DataEngineer(AgentBase):
     ]
 
     # Path to VECTOR's primary SQLite DB (same as CONFIG['db_path'])
-    VECTOR_DB_PATH: Path = Path(CONFIG.get("db_path", Path.home() / ".vector" / "vector_memory.db"))
+    VECTOR_DB_PATH: Path = configured_db_path()
 
     def __init__(self, generation: int = 1, ghost: dict | None = None):
         super().__init__(
@@ -67,8 +69,7 @@ class DataEngineer(AgentBase):
             return None
         try:
             conn = sqlite3.connect(str(self.VECTOR_DB_PATH), check_same_thread=False)
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA busy_timeout=5000")
+            apply_pragmas(conn)
             conn.row_factory = sqlite3.Row
             return conn
         except Exception as e:

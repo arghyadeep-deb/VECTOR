@@ -9,6 +9,7 @@ CLI Protocol:
     python engine.py encode '{"image_path":"/path/to/img.png"}'
 """
 
+from loguru import logger
 import os
 import sys
 import json
@@ -56,8 +57,7 @@ def _dtw_distance(s1, s2, window=5):
                 cost = abs(s1[i - 1] - s2[j - 1])
                 dtw[i, j] = cost + min(dtw[i - 1, j], dtw[i, j - 1], dtw[i - 1, j - 1])
         return dtw[n, m] / max(n, m)
-    except Exception:
-        logger.debug("[VECTOR][vision_quant.engine] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][vision_quant.engine] caught Exception: %s", _sve)
         return float("inf")
 

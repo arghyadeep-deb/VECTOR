@@ -1,5 +1,3 @@
-from loguru import logger
-
 """
 Financial Statement Data Processor Module
 ========================================
@@ -28,6 +26,7 @@ PARAMETERS:
   - growth_assumption: Growth rate assumption (default: 0.05)
   - currency: Reporting currency (default: 'USD')
 """
+from loguru import logger
 
 
 import pandas as pd
@@ -278,8 +277,7 @@ class DataProcessor:
             return statements
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.finanicalanalysis.core.data_processor] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.finanicalanalysis.core.data_processor] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.finanicalanalysis.core.data_processor] caught Exception: %s", e)
             self.logger.error(f"Error processing data: {str(e)}")
             raise
 

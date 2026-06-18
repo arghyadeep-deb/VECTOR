@@ -27,7 +27,9 @@ import os
 import subprocess
 from pathlib import Path
 
-_BRAIN_DIR = Path(r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain")
+from core.config import CONFIG
+
+_BRAIN_DIR = Path(CONFIG["VECTOR_VAULT_PATH"]) if "VECTOR_VAULT_PATH" in CONFIG else Path.home() / "V.E.C.T.O.R Brain"
 _HOOKS_DIR = Path(__file__).parent / "scripts"
 
 

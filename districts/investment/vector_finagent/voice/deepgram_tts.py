@@ -21,6 +21,7 @@ Environment variables (set by DeepgramTtsProvider in C++):
     FINCEPT_TTS_RATE      pyttsx3 leftover, ignored here
 """
 
+from loguru import logger
 import json
 import os
 import sys
@@ -54,8 +55,7 @@ def play_stream(audio_iter, pyaudio_mod) -> None:
             output=True,
         )
     except Exception as ex:
-        logger.debug("[VECTOR][voice.deepgram_tts] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][voice.deepgram_tts] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][voice.deepgram_tts] caught Exception: %s", ex)
         pa.terminate()
         raise RuntimeError(f"pyaudio open output failed: {ex}") from ex
 

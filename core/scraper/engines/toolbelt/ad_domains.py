@@ -1,4 +1,3 @@
-from loguru import logger
 """
 Built-in ad/tracker domain list for use with block_ads=True.
 

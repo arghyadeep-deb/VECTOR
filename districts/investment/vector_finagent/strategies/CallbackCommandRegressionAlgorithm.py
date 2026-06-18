@@ -67,7 +67,6 @@ class CallbackCommandRegressionAlgorithm(QCAlgorithm):
             self.add_command(InvalidCommand)
         except Exception as _sve:
             logger.debug("[VECTOR][strategies.CallbackCommandRegressionAlgorithm] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][strategies.CallbackCommandRegressionAlgorithm] caught Exception: %s", _sve)
             threw_exception = True
         if not threw_exception:
             raise ValueError('InvalidCommand did not throw!')

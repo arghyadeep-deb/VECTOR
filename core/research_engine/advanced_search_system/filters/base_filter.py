@@ -36,4 +36,4 @@ class BaseFilter(ABC):
         Returns:
             Filtered list of search results
         """
-        pass
+        raise NotImplementedError("BaseFilter.filter_results must be implemented by subclass")

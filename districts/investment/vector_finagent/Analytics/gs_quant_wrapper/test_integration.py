@@ -6,6 +6,7 @@ GS-Quant Wrapper - Integration Test
 Tests all wrapper modules working together in a realistic workflow.
 """
 
+from loguru import logger
 import sys
 import os
 import importlib.util
@@ -317,8 +318,7 @@ if __name__ == "__main__":
         print("\n✅ Integration test completed successfully!")
         sys.exit(0)
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.test_integration] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.test_integration] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.gs_quant_wrapper.test_integration] caught Exception: %s", e)
         print(f"\n❌ Integration test failed: {e}")
         import traceback
         traceback.print_exc()

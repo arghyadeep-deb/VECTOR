@@ -223,11 +223,11 @@ class TextHandlers(List[TextHandler]):
 
     @overload
     def __getitem__(self, pos: SupportsIndex) -> TextHandler:  # pragma: no cover
-        pass
+        raise NotImplementedError("TextHandlers.__getitem__ must be implemented by subclass")
 
     @overload
     def __getitem__(self, pos: slice) -> "TextHandlers":  # pragma: no cover
-        pass
+        raise NotImplementedError("TextHandlers.__getitem__ must be implemented by subclass")
 
     def __getitem__(self, pos: SupportsIndex | slice) -> Union[TextHandler, "TextHandlers"]:
         lst = super().__getitem__(pos)

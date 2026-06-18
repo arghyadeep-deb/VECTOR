@@ -12,6 +12,7 @@ API Documentation:
 - Base URL: https://services.sentinel-hub.com/
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -172,8 +173,7 @@ def get_access_token() -> Dict[str, Any]:
         return {"error": "Connection error during authentication"}
 
     except Exception as e:
-        logger.debug("[VECTOR][sentinelhub_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][sentinelhub_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][sentinelhub_data] caught Exception: %s", e)
         return {"error": f"Authentication error: {str(e)}"}
 
 def _make_catalog_request(search_params: Dict[str, Any]) -> Dict[str, Any]:

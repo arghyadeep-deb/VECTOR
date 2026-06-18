@@ -4,6 +4,7 @@ Global Price Index Data Fetcher
 Various global price indices: Big Mac Index, Economist commodity indices,
 CPI comparisons, PPP rates — fetched from public sources.
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -55,8 +56,7 @@ def _fetch_csv_as_records(url: str, limit: int = 500) -> Any:
                 records.append(row)
         return records
     except Exception as e:
-        logger.debug("[VECTOR][global_price_index_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][global_price_index_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][global_price_index_data] caught Exception: %s", e)
         return {"error": f"CSV fetch failed: {str(e)}"}
 
 

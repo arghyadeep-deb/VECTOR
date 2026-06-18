@@ -699,8 +699,7 @@ def run_credit_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
             return {'error': f'Unknown analysis type: {analysis_type}'}
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.fixedIncome.credit_analysis] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.fixedIncome.credit_analysis] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fixedIncome.credit_analysis] caught Exception: %s", e)
         logger.error(f"Credit analysis error: {str(e)}")
         return {'error': str(e)}
 

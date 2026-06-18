@@ -16,6 +16,7 @@ Commands:
     analyze_comprehensive <json_data> - Full comprehensive analysis
     get_key_metrics <json_data>     - Quick key metrics summary
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -176,8 +177,7 @@ def main(args: list) -> str:
         else:
             return json.dumps({"success": False, "error": f"Unknown command: {command}"})
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.financial_analysis_cli] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.financial_analysis_cli] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.financial_analysis_cli] caught Exception: %s", e)
         import traceback
         return json.dumps({"success": False, "error": str(e), "traceback": traceback.format_exc()})
 

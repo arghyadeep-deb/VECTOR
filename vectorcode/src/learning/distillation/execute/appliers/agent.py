@@ -61,7 +61,8 @@ class ReplaceSystemPromptApplier(EditApplier):
         return ApplyResult(changed_files=[str(prompt_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][agent] rollback called (no-op)")
 
 class PatchSystemPromptApplier(EditApplier):
     """Apply a unified diff to an agent's system prompt."""
@@ -96,7 +97,8 @@ class PatchSystemPromptApplier(EditApplier):
         return ApplyResult(changed_files=[str(prompt_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][agent] rollback called (no-op)")
 
 class SetAgentClassApplier(EditApplier):
     """Change which agent class is used."""
@@ -144,7 +146,8 @@ class SetAgentClassApplier(EditApplier):
         return ApplyResult(changed_files=[str(config_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][agent] rollback called (no-op)")
 
 class SetAgentParamApplier(EditApplier):
     """Update an agent parameter."""
@@ -193,7 +196,8 @@ class SetAgentParamApplier(EditApplier):
         return ApplyResult(changed_files=[str(config_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][agent] rollback called (no-op)")
 
 class EditFewShotExemplarsApplier(EditApplier):
     """Write few-shot exemplars to an agent's directory."""
@@ -221,4 +225,5 @@ class EditFewShotExemplarsApplier(EditApplier):
         return ApplyResult(changed_files=[str(fs_path)])
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][agent] rollback called (no-op)")

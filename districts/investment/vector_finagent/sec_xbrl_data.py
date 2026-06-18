@@ -4,6 +4,7 @@ SEC EDGAR XBRL Data Fetcher
 SEC EDGAR XBRL Company Facts: structured financial data — revenue, EPS,
 balance sheet for all public US companies (no API key required).
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -70,8 +71,7 @@ def get_company_tickers() -> Any:
             })
         return {"count": len(result), "tickers": result}
     except Exception as e:
-        logger.debug("[VECTOR][sec_xbrl_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][sec_xbrl_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][sec_xbrl_data] caught Exception: %s", e)
         return {"error": f"Failed to fetch tickers: {str(e)}"}
 
 

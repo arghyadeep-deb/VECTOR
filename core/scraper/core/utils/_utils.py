@@ -1,3 +1,4 @@
+from loguru import logger
 import logging
 
 __all__ = [

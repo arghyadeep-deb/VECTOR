@@ -3587,7 +3587,7 @@ def sanitize_env_file() -> int:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_path, env_path)
-    except BaseException:
+    except BaseException as _sve:
         try:
             os.unlink(tmp_path)
         except OSError as _sve:
@@ -3696,7 +3696,7 @@ def save_env_value(key: str, value: str):
                 os.chmod(env_path, original_mode)
             except OSError as _sve:
                 logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
-    except BaseException:
+    except BaseException as _sve:
         try:
             os.unlink(tmp_path)
         except OSError as _sve:
@@ -3751,7 +3751,7 @@ def remove_env_value(key: str) -> bool:
                     os.chmod(env_path, original_mode)
                 except OSError as _sve:
                     logger.warning("[VECTOR][vector_cli.config] suppressed OSError: %s", _sve)
-        except BaseException:
+        except BaseException as _sve:
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:

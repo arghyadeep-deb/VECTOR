@@ -15,6 +15,7 @@ Phases:
 5. Post-Market (Analysis & Learning)
 """
 
+from loguru import logger
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import uuid
@@ -345,8 +346,7 @@ Provide your decision with full rationale.
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.daily_cycle] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.daily_cycle] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.workflows.daily_cycle] caught Exception: %s", e)
             return RunResponse(
                 content=f"Daily trading cycle failed: {str(e)}",
                 extra_data={"status": "failed", "error": str(e)},

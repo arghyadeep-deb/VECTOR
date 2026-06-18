@@ -109,7 +109,7 @@ class _VCAgentRegistry:
         """Load all brain/.claude/agents/*.md as callable agent definitions."""
         if not hasattr(self, '_brain_agents_cache'):
             brain_agents: dict[str, dict] = {}
-            brain_dir = Path(r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\.claude\agents")
+            brain_dir = Path.home() / "V.E.C.T.O.R Brain" / ".claude" / "agents"
             fallback_dir = Path(__file__).parent.parent.parent.parent / "brain" / ".claude" / "agents"
 
             for agents_dir in [brain_dir, fallback_dir]:

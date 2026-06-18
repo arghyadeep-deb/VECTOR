@@ -22,7 +22,7 @@ class BasePortfolioService(ABC):
         Args:
             tx: Transaction result from execution gateway
         """
-        pass
+        raise NotImplementedError("BasePortfolioService.apply_trade must be implemented by subclass")
 
     @abstractmethod
     async def mark_to_market(self, prices: Dict[str, float]) -> None:
@@ -32,7 +32,7 @@ class BasePortfolioService(ABC):
         Args:
             prices: Dict of symbol -> current price
         """
-        pass
+        raise NotImplementedError("BasePortfolioService.mark_to_market must be implemented by subclass")
 
     @abstractmethod
     async def get_portfolio_view(self) -> PortfolioView:
@@ -42,7 +42,7 @@ class BasePortfolioService(ABC):
         Returns:
             PortfolioView with cash, positions, and P&L
         """
-        pass
+        raise NotImplementedError("BasePortfolioService.get_portfolio_view must be implemented by subclass")
 
     @abstractmethod
     async def reset(self, initial_capital: float) -> None:
@@ -52,4 +52,4 @@ class BasePortfolioService(ABC):
         Args:
             initial_capital: Starting cash balance
         """
-        pass
+        raise NotImplementedError("BasePortfolioService.reset must be implemented by subclass")

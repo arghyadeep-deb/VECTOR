@@ -16,6 +16,7 @@ Features:
 Coverage: 21 items (12 functions + 9 classes)
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Union, Tuple, Any
@@ -93,8 +94,7 @@ class DateTimeUtils:
         try:
             cal = calendar or self.config.calendar
             return business_day_count(start_date, end_date, cal)
-        except Exception:
-            logger.debug("[VECTOR][Analytics.gs_quant_wrapper.datetime_utils] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][Analytics.gs_quant_wrapper.datetime_utils] caught Exception: %s", _sve)
             # Fallback to pandas if GS session not available
             return pd.bdate_range(start_date, end_date).size

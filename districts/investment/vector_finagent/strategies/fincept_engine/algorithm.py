@@ -1430,8 +1430,7 @@ class QCAlgorithm:
                                     single_results.append(obj)
                     if single_results:
                         return single_results
-            except Exception:
-                logger.debug("[VECTOR][strategies.fincept_engine.algorithm] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][strategies.fincept_engine.algorithm] caught Exception: %s", _sve)
                 pass  # Fall through to standard generation
 

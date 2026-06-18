@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Portfolio Risk Management Module
 ===============================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - max_weight: Maximum single asset weight (default: 0.10)
   - benchmark: Portfolio benchmark index (default: 'market_index')
 """
+from loguru import logger
 
 
 
@@ -745,8 +744,7 @@ if __name__ == "__main__":
             sys.exit(1)
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.portfolioManagement.risk_management] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.portfolioManagement.risk_management] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.portfolioManagement.risk_management] caught Exception: %s", e)
         import traceback
         print(json.dumps({"error": str(e), "traceback": traceback.format_exc()}))
         sys.exit(1)

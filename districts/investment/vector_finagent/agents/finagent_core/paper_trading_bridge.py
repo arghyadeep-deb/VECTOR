@@ -486,8 +486,7 @@ def execute_trade(
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][agents.finagent_core.paper_trading_bridge] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.finagent_core.paper_trading_bridge] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.paper_trading_bridge] caught Exception: %s", e)
         return {
             "success": False,
             "error": str(e),

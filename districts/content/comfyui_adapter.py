@@ -103,7 +103,7 @@ class ComfyUIAdapter(AgentBase):
         self._base_url: str  = comfy_cfg.get("url", "http://127.0.0.1:8188")
         self._output_dir     = Path(comfy_cfg.get(
             "output_dir",
-            "C:/Users/Arghyadeep/Desktop/V.E.C.T.O.R/ComfyUI/output",
+            str(Path(__file__).parent.parent.parent.parent / "ComfyUI" / "output"),
         ))
         self._timeout: float = comfy_cfg.get("timeout", 120.0)
         self._poll_interval  = comfy_cfg.get("poll_interval", 1.5)

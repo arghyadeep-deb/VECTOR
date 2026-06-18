@@ -5,6 +5,7 @@ Script to explore and analyze the raw data saved in databento_raw_data.bin
 Shows data structure, sample records, and statistics
 """
 
+from loguru import logger
 import sys
 import json
 from datetime import datetime
@@ -148,8 +149,7 @@ def explore_raw_data():
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][explore_databento_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][explore_databento_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][explore_databento_data] caught Exception: %s", e)
         return {
             "success": False,
             "error": str(e),

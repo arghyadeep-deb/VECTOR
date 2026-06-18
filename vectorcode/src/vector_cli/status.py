@@ -5,6 +5,7 @@ Status command for vector CLI.
 Shows the status of all VectorCode components.
 """
 
+from loguru import logger
 import os
 import sys
 import subprocess

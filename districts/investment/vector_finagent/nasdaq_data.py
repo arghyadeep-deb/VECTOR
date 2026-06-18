@@ -126,8 +126,7 @@ class NASDAQDataAPI:
         except json.JSONDecodeError as e:
             return NASDAQError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][nasdaq_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][nasdaq_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][nasdaq_data] caught Exception: %s", e)
             return NASDAQError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _make_request(self, url: str, headers: Optional[Dict] = None) -> Dict[str, Any]:

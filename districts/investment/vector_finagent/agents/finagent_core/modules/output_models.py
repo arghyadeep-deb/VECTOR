@@ -397,8 +397,7 @@ class OutputValidator:
                 return {"valid": True, "data": data}
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.modules.output_models] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.modules.output_models] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.modules.output_models] caught Exception: %s", e)
             return {"valid": False, "error": str(e)}
 
     @staticmethod

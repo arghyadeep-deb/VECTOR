@@ -28,6 +28,7 @@ PARAMETERS:
   - reporting_currency: Reporting currency (default: 'USD')
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
@@ -438,8 +439,7 @@ class ResidualIncomeAnalyzer:
                     quality_score -= 10
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.residual_income] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.residual_income] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.residual_income] caught Exception: %s", e)
             quality_issues.append(f"Error in accounting quality assessment: {str(e)}")
             quality_score -= 30
 

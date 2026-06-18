@@ -296,13 +296,13 @@ class _ProviderCollector:
 
     # No-op for other registration methods
     def register_tool(self, *args, **kwargs):
-        pass
+        raise NotImplementedError("_ProviderCollector.register_tool must be implemented by subclass")
 
     def register_hook(self, *args, **kwargs):
-        pass
+        raise NotImplementedError("_ProviderCollector.register_hook must be implemented by subclass")
 
     def register_cli_command(self, *args, **kwargs):
-        pass  # CLI registration happens via discover_plugin_cli_commands()
+        raise NotImplementedError("_ProviderCollector.register_cli_command must be implemented by subclass")
 
 
 def _get_active_memory_provider() -> Optional[str]:

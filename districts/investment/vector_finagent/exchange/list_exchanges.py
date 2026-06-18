@@ -29,6 +29,7 @@ Output JSON:
 }
 """
 
+from loguru import logger
 import ccxt
 from exchange_client import output_success, run_with_error_handling
 
@@ -56,8 +57,7 @@ def main():
                 "has_fetch_positions": bool(has.get("fetchPositions")),
                 "has_set_leverage": bool(has.get("setLeverage")),
             })
-        except Exception:
-            logger.debug("[VECTOR][exchange.list_exchanges] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][exchange.list_exchanges] caught Exception: %s", _sve)
             exchanges.append({"id": exchange_id, "name": exchange_id, "error": True})
 

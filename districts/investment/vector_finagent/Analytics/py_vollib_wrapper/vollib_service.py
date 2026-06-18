@@ -7,6 +7,7 @@ Covers all 3 models: Black, Black-Scholes, Black-Scholes-Merton.
 Each model supports: price, greeks, implied_volatility.
 """
 
+from loguru import logger
 import json
 import sys
 
@@ -51,8 +52,7 @@ def main(args):
         return handler(data)
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.py_vollib_wrapper.vollib_service] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.py_vollib_wrapper.vollib_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.py_vollib_wrapper.vollib_service] caught Exception: %s", e)
         import traceback
         return json.dumps({
             "error": f"py_vollib error: {str(e)}",

@@ -190,7 +190,7 @@ class BaseCard(ABC):
     @abstractmethod
     def get_card_type(self) -> str:
         """Return the card type (news, research, update, overview)"""
-        pass
+        raise NotImplementedError("BaseCard.get_card_type must be implemented by subclass")
 
     @abstractmethod
     def to_dict(self) -> Dict[str, Any]:
@@ -198,7 +198,7 @@ class BaseCard(ABC):
         Convert card to dictionary representation.
         Must be implemented by subclasses.
         """
-        pass
+        raise NotImplementedError("BaseCard.to_dict must be implemented by subclass")
 
     # Helper methods for extracting data from research results
     def _extract_headline(self, result: Dict[str, Any]) -> str:

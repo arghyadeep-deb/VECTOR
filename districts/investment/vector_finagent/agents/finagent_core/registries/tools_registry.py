@@ -322,9 +322,8 @@ class ToolsRegistry:
                 cls._loaded_tools[cache_key] = tool_instance
                 logger.debug(f"Loaded tool (no args): {tool_name}")
                 return tool_instance
-            except Exception:
-                logger.debug("[VECTOR][agents.finagent_core.registries.tools_registry] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agents.finagent_core.registries.tools_registry] caught Exception: %s", _sve)
+            except Exception as e:
+                logger.debug("[VECTOR][agents.finagent_core.registries.tools_registry] caught Exception: %s", e)
                 logger.warning(f"Tool '{tool_name}' initialization failed: {e}")
                 return None
         except Exception as e:

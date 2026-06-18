@@ -14,6 +14,7 @@ Commands (all accept JSON as second argv):
 All commands output a single JSON object to stdout.
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -279,8 +280,7 @@ def cmd_fetch_orderbook(p: dict) -> None:
         ex = make_exchange(exchange_id)
         ob = ex.fetch_order_book(symbol, limit=depth)
     except Exception as e:
-        logger.debug("[VECTOR][ai_quant_lab.qlib_high_frequency] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][ai_quant_lab.qlib_high_frequency] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][ai_quant_lab.qlib_high_frequency] caught Exception: %s", e)
         _err(str(e))
         return
     latency_ms = round((time.monotonic() - t0) * 1000, 1)

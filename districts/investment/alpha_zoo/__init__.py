@@ -8,7 +8,6 @@ from pathlib import Path
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
 
-from loguru import logger
 
 ALPHA_ZOO_DIR = Path(__file__).parent
 

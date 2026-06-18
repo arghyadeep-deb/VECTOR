@@ -35,6 +35,7 @@ PARAMETERS:
 """
 
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -606,8 +607,7 @@ class PyPortfolioOptAnalyticsEngine:
                 frontier_volatility.append(vol)
                 frontier_sharpe.append(sharpe)
 
-            except Exception:
-                logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.core] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.core] caught Exception: %s", _sve)
                 continue
 

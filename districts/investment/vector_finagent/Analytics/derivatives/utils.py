@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Derivatives Utils Module
 =================================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - time_steps: Number of time steps for simulation (default: 100)
   - confidence_level: Confidence level for risk metrics (default: 0.95)
 """
+from loguru import logger
 
 
 
@@ -344,8 +343,7 @@ class OptimizationSolver:
                 x = x_new
 
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.derivatives.utils] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.derivatives.utils] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.derivatives.utils] caught Exception: %s", e)
                 return {"success": False, "message": str(e), "iterations": i}
 
         return {"success": False, "message": "Max iterations reached", "iterations": max_iterations}

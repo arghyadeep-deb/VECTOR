@@ -492,7 +492,7 @@ else:
     class _NullToolExecutor:  # type: ignore[no-redef]
         """Stub when vc_tools is not available."""
         def __init__(self) -> None:
-            pass
+            raise NotImplementedError("_NullToolExecutor.__init__ must be implemented by subclass")
 
 
 __all__ = ["SkillManager", "SkillMatcher"]

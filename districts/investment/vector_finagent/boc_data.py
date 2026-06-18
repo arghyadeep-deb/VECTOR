@@ -33,6 +33,7 @@ Key series IDs:
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -183,8 +184,7 @@ class BoCWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BoCError(series_ids, str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][boc_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][boc_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][boc_data] caught Exception: %s", e)
             return BoCError(series_ids, str(e)).to_dict()
 
     # ------------------------------------------------------------------

@@ -6,6 +6,7 @@ Currently supports:
                           paste service and print a shareable URL.
 """
 
+from loguru import logger
 import io
 import json
 import os

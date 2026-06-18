@@ -32,6 +32,7 @@ The wrapper pivots these to wide format: date → {d0_d1: value}.
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import io
@@ -268,8 +269,7 @@ class SNBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return SNBError(cube_id, str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][snb_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][snb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][snb_data] caught Exception: %s", e)
             return SNBError(cube_id, str(e)).to_dict()
 
     # ------------------------------------------------------------------

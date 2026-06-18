@@ -24,6 +24,7 @@ Prints a summary and returns non-zero on any failure.
 """
 from __future__ import annotations
 
+from loguru import logger
 import json
 import logging
 import sys
@@ -84,8 +85,7 @@ def _iter_all_raw_entries():
         try:
             d = json.loads(p.read_text(encoding="utf-8"))
         except Exception as e:
-            logger.debug("[VECTOR][agents._tools.verify_all_agents] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents._tools.verify_all_agents] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents._tools.verify_all_agents] caught Exception: %s", e)
             yield (p, {"__parse_error__": str(e)})
             continue
         if isinstance(d, dict) and "id" in d:

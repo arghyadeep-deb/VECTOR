@@ -65,6 +65,7 @@ LIMITATIONS:
 - Results depend on data quality
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -152,7 +153,6 @@ class FastTradeProvider(BacktestingProviderBase):
             import fast_trade
             return fast_trade.__version__
         except Exception as _sve:
-            logger.debug("[VECTOR][Analytics.backtesting.fasttrade.fasttrade_provider] caught Exception: %s", _sve)
             logger.debug("[VECTOR][Analytics.backtesting.fasttrade.fasttrade_provider] caught Exception: %s", _sve)
             return "0.4.0"
 

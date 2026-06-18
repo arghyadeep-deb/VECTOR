@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from loguru import logger
 __all__ = [
     "build_ssl_context",
     "get_server_url_from_api_base",

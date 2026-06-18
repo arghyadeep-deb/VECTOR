@@ -60,7 +60,7 @@ def atomic_json_write(path: Path, data: dict) -> None:
     try:
         tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
         os.replace(tmp, path)
-    except Exception:
+    except Exception as _sve:
         # If temp write failed, clean up leftover .tmp
         try:
             tmp.unlink(missing_ok=True)

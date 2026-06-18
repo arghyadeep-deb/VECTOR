@@ -12,6 +12,7 @@ Extract corporate events from 8-K filings including:
 - Full text and categorized events
 """
 
+from loguru import logger
 from typing import Dict, Any, Optional, List
 import traceback
 
@@ -52,8 +53,7 @@ def get_latest_8k(ticker: str) -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        logger.debug("[VECTOR][mcp.edgar.forms_8k] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][mcp.edgar.forms_8k] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][mcp.edgar.forms_8k] caught Exception: %s", e)
         return {"error": EdgarError("get_latest_8k", str(e), traceback.format_exc()).to_dict()}
 
 

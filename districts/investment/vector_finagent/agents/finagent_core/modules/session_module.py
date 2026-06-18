@@ -234,8 +234,7 @@ class SessionModule:
             except ImportError:
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
             except Exception as e:
-                logger.debug("[VECTOR][agents.finagent_core.modules.session_module] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agents.finagent_core.modules.session_module] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.finagent_core.modules.session_module] caught Exception: %s", e)
                 logger.warning(f"Failed to create summary: {e}")
 
         # Fallback: simple summary

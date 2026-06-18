@@ -73,7 +73,7 @@ class BaseConstraintChecker(ABC):
         Returns:
             ConstraintCheckResult: Complete evaluation result
         """
-        pass
+        raise NotImplementedError("BaseConstraintChecker.check_candidate must be implemented by subclass")
 
     @abstractmethod
     def should_reject_candidate(
@@ -90,7 +90,7 @@ class BaseConstraintChecker(ABC):
         Returns:
             Tuple[bool, str]: (should_reject, reason)
         """
-        pass
+        raise NotImplementedError("BaseConstraintChecker.should_reject_candidate must be implemented by subclass")
 
     def _gather_evidence_for_constraint(
         self, candidate: Candidate, constraint: Constraint

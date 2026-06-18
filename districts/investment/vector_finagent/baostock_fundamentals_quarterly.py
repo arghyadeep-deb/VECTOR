@@ -5,6 +5,7 @@ BaoStock Fundamentals Quarterly
 Incremental quarterly fetch for profit/growth/balance/cashflow/dupont/operation.
 """
 
+from loguru import logger
 import io
 import json
 import sys
@@ -98,8 +99,7 @@ class BaoStockFundamentalsQuarterly:
             return {"completed": {}, "updated_at": _now_ts()}
         try:
             return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            logger.debug("[VECTOR][baostock_fundamentals_quarterly] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][baostock_fundamentals_quarterly] caught Exception: %s", _sve)
             return {"completed": {}, "updated_at": _now_ts()}
 

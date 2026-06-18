@@ -83,8 +83,7 @@ def scrape_forex_calendar(date_str="oct15.2026"):
                     events.append(event)
 
             except Exception as e:
-                logger.debug("[VECTOR][economic_calendar] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][economic_calendar] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][economic_calendar] caught Exception: %s", e)
                 continue
 
     finally:

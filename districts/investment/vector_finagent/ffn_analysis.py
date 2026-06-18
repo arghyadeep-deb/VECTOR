@@ -5,6 +5,7 @@ Input:  JSON via stdin: {"symbols": ["AAPL","MSFT"], "weights": {"AAPL": 0.6, "M
 Output: JSON to stdout with per-symbol stats, rebased series, drawdown series,
         rolling correlations, and portfolio optimisation weights.
 """
+from loguru import logger
 import sys
 import json
 import numpy as np
@@ -160,8 +161,7 @@ def compute_ffn(symbols, weights, period="1y"):
                     for idx, v in series.items()
                     if not (isinstance(v, float) and (np.isnan(v) or np.isinf(v)))
                 }
-    except Exception:
-        logger.debug("[VECTOR][ffn_analysis] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][ffn_analysis] caught Exception: %s", _sve)
         # ffn not available — compute manually
         try:

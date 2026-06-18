@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Equity Investment Data Providers Module
 ======================================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - earnings_multiple: Target earnings multiple (default: 15.0)
   - reporting_currency: Reporting currency (default: 'USD')
 """
+from loguru import logger
 
 
 
@@ -118,8 +117,7 @@ class YahooFinanceProvider(DataProvider):
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.equityInvestment.base.data_providers] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.equityInvestment.base.data_providers] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.equityInvestment.base.data_providers] caught Exception: %s", e)
             raise DataProviderError(f"Failed to retrieve company data for {symbol}: {str(e)}")
 
     def get_market_data(self, symbol: str) -> MarketData:

@@ -16,6 +16,7 @@ Features:
 Usage: python swiss_gov_api.py <command> [args]
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -428,8 +429,7 @@ def _make_request(action: str, params: Optional[Dict[str, Any]] = None) -> Dict[
             "error": "Invalid JSON response from opendata.swiss API"
         }
     except Exception as e:
-        logger.debug("[VECTOR][swiss_gov_api] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][swiss_gov_api] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][swiss_gov_api] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {},

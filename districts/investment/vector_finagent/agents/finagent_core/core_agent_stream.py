@@ -226,8 +226,7 @@ class StreamingCoreAgent:
             yield {"type": "done", "content": clean_content}
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.core_agent_stream] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.core_agent_stream] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.core_agent_stream] caught Exception: %s", e)
             self.emit("error", str(e))
             yield {"type": "error", "content": str(e)}
 

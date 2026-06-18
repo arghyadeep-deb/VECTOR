@@ -63,6 +63,7 @@ LIMITATIONS:
 - Results depend on data quality
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -114,7 +115,6 @@ class BacktestingPyProvider(BacktestingProviderBase):
             import backtesting
             return backtesting.__version__
         except Exception as _sve:
-            logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.backtestingpy_provider] caught Exception: %s", _sve)
             logger.debug("[VECTOR][Analytics.backtesting.backtestingpy.backtestingpy_provider] caught Exception: %s", _sve)
             return "0.3.3"
 

@@ -12,6 +12,7 @@ Config stored in ~/.vectorcode/config.yaml under:
       telegram: [skill-c]
       cli: []
 """
+from loguru import logger
 from typing import List, Optional, Set
 
 from vector_cli.config import load_config, save_config

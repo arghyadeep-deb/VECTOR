@@ -5,6 +5,7 @@ Fetches sovereign credit ratings and government bond yields from the Trading Eco
 Returns JSON output for Qt/C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -236,8 +237,7 @@ def get_country_financial_data(country: str) -> Dict[str, Any]:
 
         return result
     except Exception as e:
-        logger.debug("[VECTOR][trading_economics_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][trading_economics_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][trading_economics_data] caught Exception: %s", e)
         return {"error": f"Failed to get comprehensive data for {country}: {str(e)}"}
 
 def get_global_summary() -> Dict[str, Any]:

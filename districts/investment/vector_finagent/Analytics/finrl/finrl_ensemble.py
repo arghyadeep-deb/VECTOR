@@ -18,6 +18,7 @@ Usage (CLI):
     python finrl_ensemble.py --action compare_single_vs_ensemble --data_file test.csv --model_dir trained_models --tickers AAPL MSFT
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -177,8 +178,7 @@ def train_ensemble(
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.finrl.finrl_ensemble] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.finrl.finrl_ensemble] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.finrl.finrl_ensemble] caught Exception: %s", e)
         return {"error": str(e), "status": "failed"}
 
 

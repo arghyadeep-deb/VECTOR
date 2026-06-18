@@ -66,8 +66,7 @@ class PersonaRegistry:
             try:
                 evicted_rt.close()
             except Exception as e:
-                logger.debug("[VECTOR][agents.finagent_core.persona_registry] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agents.finagent_core.persona_registry] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.finagent_core.persona_registry] caught Exception: %s", e)
                 logger.warning(f"Evicting {evicted_key}: close() raised {e}")
 
         return runtime

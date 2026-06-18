@@ -28,6 +28,7 @@ PARAMETERS:
   - reporting_currency: Reporting currency (default: 'USD')
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple
@@ -909,8 +910,7 @@ class PrivateCompanyValuator:
                 'growth_rate': growth_rate
             }
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.private_valuation] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.private_valuation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.private_valuation] caught Exception: %s", e)
             income_valuations['capitalized_earnings'] = {'error': str(e)}
 
         # DCF Method

@@ -34,6 +34,7 @@ Key exchange rate series:
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import csv
 import io
@@ -194,8 +195,7 @@ class BOIWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BOIError("GetExchangeRates", str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][boi_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][boi_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][boi_data] caught Exception: %s", e)
             return BOIError("GetExchangeRates", str(e)).to_dict()
 
     def get_exchange_rate_history(self, currencies: Optional[List[str]] = None,

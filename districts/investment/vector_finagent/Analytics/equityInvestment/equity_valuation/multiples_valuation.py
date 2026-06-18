@@ -28,6 +28,7 @@ PARAMETERS:
   - reporting_currency: Reporting currency (default: 'USD')
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Optional, Tuple, Union
@@ -440,8 +441,7 @@ class MultiplesValuationSuite:
                 )
 
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.multiples_valuation] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.multiples_valuation] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.multiples_valuation] caught Exception: %s", e)
                 results[multiple_type] = f"Error: {str(e)}"
 
         return results

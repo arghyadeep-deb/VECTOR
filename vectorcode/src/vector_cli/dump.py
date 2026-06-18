@@ -7,6 +7,7 @@ that can be copy-pasted into Discord/GitHub/Telegram for support context.
 No ANSI colors, no checkmarks — just data.
 """
 
+from loguru import logger
 import json
 import os
 import platform

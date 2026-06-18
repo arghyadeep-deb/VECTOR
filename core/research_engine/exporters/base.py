@@ -76,19 +76,19 @@ class BaseExporter(ABC):
 
         This is used to look up the exporter in the registry.
         """
-        pass
+        raise NotImplementedError("BaseExporter.format_name must be implemented by subclass")
 
     @property
     @abstractmethod
     def file_extension(self) -> str:
         """Return the file extension including the dot (e.g., '.pdf', '.odt')."""
-        pass
+        raise NotImplementedError("BaseExporter.file_extension must be implemented by subclass")
 
     @property
     @abstractmethod
     def mimetype(self) -> str:
         """Return the MIME type for the exported file."""
-        pass
+        raise NotImplementedError("BaseExporter.mimetype must be implemented by subclass")
 
     def _validate_content_size(self, content: str) -> None:
         """Validate that content does not exceed the maximum size limit.
@@ -120,7 +120,7 @@ class BaseExporter(ABC):
         Returns:
             ExportResult with content bytes, filename, and mimetype
         """
-        pass
+        raise NotImplementedError("BaseExporter.export must be implemented by subclass")
 
     def _generate_safe_filename(self, title: Optional[str]) -> str:
         """Generate a safe filename from the title.

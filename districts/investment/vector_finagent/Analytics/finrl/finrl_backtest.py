@@ -18,6 +18,7 @@ Usage (CLI):
     python finrl_backtest.py --action metrics --account_values_file results/account_values.csv
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -343,8 +344,7 @@ def compare_algorithms(
             )
             results[algo] = metrics
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.finrl.finrl_backtest] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.finrl.finrl_backtest] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.finrl.finrl_backtest] caught Exception: %s", e)
             results[algo] = {"error": str(e)}
 
     # Ranking

@@ -8,6 +8,7 @@ NOTE: This file has been cleaned to contain only VALID akshare functions.
 Many placeholder functions were removed as they don't exist in akshare 1.18.20.
 """
 
+from loguru import logger
 import sys
 import json
 import time
@@ -135,8 +136,7 @@ class AlternativeDataWrapper:
                     time.sleep(self.retry_delay * 2)
                 continue
             except Exception as e:
-                logger.debug("[VECTOR][akshare_alternative] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][akshare_alternative] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_alternative] caught Exception: %s", e)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     time.sleep(self.retry_delay)

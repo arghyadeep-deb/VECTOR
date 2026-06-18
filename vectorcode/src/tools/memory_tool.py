@@ -450,7 +450,7 @@ class MemoryStore:
                     f.flush()
                     os.fsync(f.fileno())
                 os.replace(tmp_path, str(path))  # Atomic on same filesystem
-            except BaseException:
+            except BaseException as _sve:
                 # Clean up temp file on any failure
                 try:
                     os.unlink(tmp_path)

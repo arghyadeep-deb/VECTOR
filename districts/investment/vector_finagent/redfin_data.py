@@ -4,6 +4,7 @@ Redfin Data Center Fetcher
 Redfin Data Center: US housing market metrics — median sale price, days on market,
 sale-to-list ratio, new listings by metro via public S3 bucket.
 """
+from loguru import logger
 import sys
 import json
 import os
@@ -70,8 +71,7 @@ def _parse_tsv_gz(response_obj, region_filter: str = None, region_col: str = "re
             records.append(row)
         return records
     except Exception as e:
-        logger.debug("[VECTOR][redfin_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][redfin_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][redfin_data] caught Exception: %s", e)
         return {"error": f"Parse error: {str(e)}"}
 
 

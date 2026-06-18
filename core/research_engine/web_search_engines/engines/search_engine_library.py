@@ -359,4 +359,5 @@ class LibraryRAGSearchEngine(BaseSearchEngine):
 
     def close(self):
         """Clean up resources."""
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][search_engine_library] close called (no-op)")

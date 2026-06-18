@@ -16,6 +16,7 @@ Resolution strategy (in order):
   4. Same base, any /USD-stable quote (USDC, USDT)
   5. Same base, any quote (lowest-volume tiebreaker by alphabetical)
 """
+from loguru import logger
 import json
 import sys
 
@@ -82,8 +83,7 @@ def main() -> None:
         kraken = ccxt.kraken({"enableRateLimit": True})
         kraken.load_markets()
     except Exception as e:
-        logger.debug("[VECTOR][exchange.resolve_kraken_symbols] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][exchange.resolve_kraken_symbols] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][exchange.resolve_kraken_symbols] caught Exception: %s", e)
         print(json.dumps({"error": f"load_markets failed: {e}"}))
         sys.exit(3)
 

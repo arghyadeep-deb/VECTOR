@@ -134,7 +134,7 @@ class BaseAnalyticalModel(ABC):
     @abstractmethod
     def calculate(self, **kwargs) -> ValuationResult:
         """Perform the main calculation"""
-        pass
+        raise NotImplementedError("BaseAnalyticalModel.calculate must be implemented by subclass")
 
     def get_assumptions(self) -> Dict[str, Any]:
         """Return current model assumptions"""
@@ -155,7 +155,7 @@ class BaseValuationModel(BaseAnalyticalModel):
     @abstractmethod
     def calculate_intrinsic_value(self, company_data: CompanyData, market_data: MarketData) -> float:
         """Calculate intrinsic value of the security"""
-        pass
+        raise NotImplementedError("BaseValuationModel.calculate_intrinsic_value must be implemented by subclass")
 
     def generate_recommendation(self, intrinsic_value: float, current_price: float) -> str:
         """Generate buy/hold/sell recommendation"""
@@ -182,7 +182,7 @@ class BaseMarketAnalysisModel(BaseAnalyticalModel):
     @abstractmethod
     def analyze_market_data(self, market_data: pd.DataFrame) -> Dict[str, Any]:
         """Analyze market data and return insights"""
-        pass
+        raise NotImplementedError("BaseMarketAnalysisModel.analyze_market_data must be implemented by subclass")
 
 
 class BaseCompanyAnalysisModel(BaseAnalyticalModel):
@@ -194,7 +194,7 @@ class BaseCompanyAnalysisModel(BaseAnalyticalModel):
     @abstractmethod
     def analyze_company(self, company_data: CompanyData) -> Dict[str, Any]:
         """Analyze company fundamentals"""
-        pass
+        raise NotImplementedError("BaseCompanyAnalysisModel.analyze_company must be implemented by subclass")
 
 
 class DataProvider(ABC):
@@ -203,22 +203,22 @@ class DataProvider(ABC):
     @abstractmethod
     def get_company_data(self, symbol: str) -> CompanyData:
         """Retrieve company data"""
-        pass
+        raise NotImplementedError("DataProvider.get_company_data must be implemented by subclass")
 
     @abstractmethod
     def get_market_data(self, symbol: str) -> MarketData:
         """Retrieve market data"""
-        pass
+        raise NotImplementedError("DataProvider.get_market_data must be implemented by subclass")
 
     @abstractmethod
     def get_financial_statements(self, symbol: str, period: str = "annual") -> Dict[str, pd.DataFrame]:
         """Retrieve financial statements"""
-        pass
+        raise NotImplementedError("DataProvider.get_financial_statements must be implemented by subclass")
 
     @abstractmethod
     def get_price_data(self, symbol: str, start_date: str, end_date: str) -> pd.DataFrame:
         """Retrieve historical price data"""
-        pass
+        raise NotImplementedError("DataProvider.get_price_data must be implemented by subclass")
 
 
 class CalculationEngine:

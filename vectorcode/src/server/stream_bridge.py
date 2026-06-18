@@ -7,6 +7,7 @@ from the queue for consumption by FastAPI's StreamingResponse.
 
 from __future__ import annotations
 
+from loguru import logger
 import asyncio
 import json
 import uuid

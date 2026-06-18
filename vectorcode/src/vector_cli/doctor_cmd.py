@@ -285,12 +285,14 @@ def check_certs() -> CheckResult:
 
 def check_db() -> list[CheckResult]:
     out: list[CheckResult] = []
-    main_db = ROOT / "vector_memory.db"
+    from core.memory.db_utils import configured_db_path
+
+    main_db = configured_db_path()
     if main_db.exists():
         try:
-            con = sqlite3.connect(main_db, timeout=2.0, check_same_thread=False)
+            from core.memory.episodic import get_db_connection
+            con = get_db_connection()
             con.execute("SELECT 1").fetchone()
-            con.close()
             mb = main_db.stat().st_size / 1024 / 1024
             out.append(CheckResult("vector_memory.db", "ok", f"{mb:.1f} MB"))
         except Exception as e:

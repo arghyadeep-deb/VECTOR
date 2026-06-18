@@ -4,6 +4,7 @@ Compute all technical indicators from historical data
 This script receives historical OHLCV data as JSON and returns all computed technicals
 """
 
+from loguru import logger
 import sys
 import json
 import pandas as pd
@@ -103,8 +104,7 @@ def compute_all_technicals(historical_data_json):
         })
 
     except Exception as e:
-        logger.debug("[VECTOR][compute_technicals] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][compute_technicals] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][compute_technicals] caught Exception: %s", e)
         return json.dumps({
             "success": False,
             "error": str(e)

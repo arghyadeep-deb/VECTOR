@@ -5,6 +5,7 @@ Command-line interface for calculating technical indicators
 Supports multiple data sources: yfinance, CSV files, and JSON data
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -64,8 +65,7 @@ def load_data_from_yfinance(symbol, period="1y", start_date=None, end_date=None)
 
         return df
     except Exception as e:
-        logger.debug("[VECTOR][technicals.technical_analysis] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][technicals.technical_analysis] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][technicals.technical_analysis] caught Exception: %s", e)
         raise Exception(f"Error loading data from yfinance: {str(e)}")
 
 

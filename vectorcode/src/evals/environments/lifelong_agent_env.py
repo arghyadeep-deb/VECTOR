@@ -825,7 +825,8 @@ class KGEnvironment(TaskEnvironment):
         return exact_match, meta
 
     def close(self) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][lifelong_agent_env] close called (no-op)")
 
 # ====================================================================
 # OS Environment

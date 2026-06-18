@@ -67,8 +67,7 @@ def _require_crypto():
         import requests  # noqa: F401
         return True
     except Exception as exc:
-        logger.debug("[VECTOR][prediction_kalshi] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][prediction_kalshi] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][prediction_kalshi] caught Exception: %s", exc)
         _fail("cryptography / requests is not installed", detail=str(exc))
         return False
 

@@ -26,6 +26,7 @@ Key Concepts:
   - reporterCode / partnerCode: UN numeric country codes (e.g. 842=USA, 156=China, 356=India)
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -202,8 +203,7 @@ class UNComtradeWrapper:
         except json.JSONDecodeError as e:
             return ComtradeError(url, f"JSON decode error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][un_comtrade_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][un_comtrade_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][un_comtrade_data] caught Exception: %s", e)
             return ComtradeError(url, f"Unexpected error: {str(e)}").to_dict()
 
     def _trade_url(self, endpoint: str, type_code: str, freq_code: str, cl_code: str) -> str:

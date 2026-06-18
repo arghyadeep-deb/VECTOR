@@ -273,8 +273,7 @@ class MADatabase:
         for col_name, col_type in xbrl_columns:
             try:
                 cursor.execute(f"ALTER TABLE ma_deals ADD COLUMN {col_name} {col_type}")
-            except Exception:
-                logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.database_schema] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.database_schema] caught Exception: %s", _sve)
                 pass  # Column already exists
 

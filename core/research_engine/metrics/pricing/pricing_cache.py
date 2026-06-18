@@ -29,11 +29,11 @@ class PricingCache:
 
     def _load_cache(self):
         """DEPRECATED: No longer loads from disk."""
-        pass
+        raise NotImplementedError("PricingCache._load_cache must be implemented by subclass")
 
     def _save_cache(self):
         """DEPRECATED: No longer saves to disk."""
-        pass
+        raise NotImplementedError("PricingCache._save_cache must be implemented by subclass")
 
     def get(self, key: str) -> Optional[Any]:
         """Get cached pricing data. TTLCache handles expiration automatically."""

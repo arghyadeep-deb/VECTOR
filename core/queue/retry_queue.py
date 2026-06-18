@@ -5,6 +5,7 @@ SQLite-backed. Exponential backoff: 1s → 5s → 30s → 5min → 30min.
 After 5 attempts the action moves to the dead-letter table.
 The scheduler_loop (every 30s) calls RetryQueue.get().pop_due() to drain it.
 """
+from core.memory.db_utils import apply_pragmas
 import sqlite3
 
 __all__ = [
@@ -18,9 +19,9 @@ import datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 from loguru import logger
-from core.config import CONFIG
+from core.memory.db_utils import configured_db_path
 
-_DB_PATH = Path(str(CONFIG.get("db_path", Path(__file__).parent.parent.parent / "vector_memory.db")))
+_DB_PATH = configured_db_path()
 _BACKOFF = [1, 5, 30, 300, 1800]   # seconds per attempt (0-indexed)
 _MAX_ATTEMPTS = len(_BACKOFF)
 
@@ -52,8 +53,7 @@ class RetryQueue:
 
     def _conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         return conn
 

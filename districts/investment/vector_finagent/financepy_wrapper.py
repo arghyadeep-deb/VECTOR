@@ -6,6 +6,7 @@ Comprehensive wrapper for FinancePy library covering all major modules
 Usage: python financepy_wrapper.py <command> [args...]
 """
 
+from loguru import logger
 import sys
 import json
 from datetime import datetime, date
@@ -97,8 +98,7 @@ def utils_create_date(args: List[str]) -> Dict[str, Any]:
             "is_eom": fp_date.is_eom()
         }
     except Exception as e:
-        logger.debug("[VECTOR][financepy_wrapper] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][financepy_wrapper] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][financepy_wrapper] caught Exception: %s", e)
         return {"error": str(e)}
 
 

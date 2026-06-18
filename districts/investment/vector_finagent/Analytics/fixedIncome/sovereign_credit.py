@@ -10,6 +10,7 @@ Covers:
 - Country risk assessment frameworks
 """
 
+from loguru import logger
 import json
 import sys
 from dataclasses import dataclass, asdict
@@ -962,8 +963,7 @@ def main():
             print(json.dumps({"error": f"Unknown command: {command}"}))
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.fixedIncome.sovereign_credit] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.fixedIncome.sovereign_credit] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fixedIncome.sovereign_credit] caught Exception: %s", e)
         print(json.dumps({"error": str(e)}))
 
 

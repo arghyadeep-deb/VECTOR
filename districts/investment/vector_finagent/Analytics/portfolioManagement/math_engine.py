@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Portfolio Math Engine Module
 ===============================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - max_weight: Maximum single asset weight (default: 0.10)
   - benchmark: Portfolio benchmark index (default: 'market_index')
 """
+from loguru import logger
 
 
 
@@ -440,7 +439,6 @@ class OptimizationEngine:
                     frontier_sharpe.append(sharpe)
 
             except Exception as _sve:
-                logger.debug("[VECTOR][Analytics.portfolioManagement.math_engine] caught Exception: %s", _sve)
                 logger.debug("[VECTOR][Analytics.portfolioManagement.math_engine] caught Exception: %s", _sve)
                 continue
 

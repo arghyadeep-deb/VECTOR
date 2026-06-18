@@ -19,6 +19,7 @@ Security features (based on OWASP + NIST SP 800-63-4 guidance):
 Storage: ~/.vectorcode/pairing/
 """
 
+from loguru import logger
 import json
 import os
 import secrets
@@ -65,7 +66,7 @@ def _secure_write(path: Path, data: str) -> None:
             os.chmod(path, 0o600)
         except OSError:
             pass  # Windows doesn't support chmod the same way
-    except BaseException:
+    except BaseException as _sve:
         try:
             os.unlink(tmp_path)
         except OSError as _sve:

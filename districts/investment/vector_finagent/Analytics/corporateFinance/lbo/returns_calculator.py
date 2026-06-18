@@ -21,7 +21,6 @@ class ReturnsCalculator:
             return float(irr) if irr is not None and not np.isnan(irr) else 0
         except Exception as _sve:
             logger.debug("[VECTOR][Analytics.corporateFinance.lbo.returns_calculator] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.corporateFinance.lbo.returns_calculator] caught Exception: %s", _sve)
             return 0
 
     @staticmethod

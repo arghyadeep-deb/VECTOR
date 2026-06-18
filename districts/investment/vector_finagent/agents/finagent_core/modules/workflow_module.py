@@ -75,8 +75,7 @@ def _load_workflow_tools(api_keys: Dict[str, str],
         tools.extend(financial_tools)
         logger.debug(f"WorkflowTools: loaded {len(financial_tools)} financial tools")
     except Exception as e:
-        logger.debug("[VECTOR][agents.finagent_core.modules.workflow_module] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.finagent_core.modules.workflow_module] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.modules.workflow_module] caught Exception: %s", e)
         logger.warning(f"WorkflowTools: ToolsRegistry load failed: {e}")
 
     # Terminal MCP bridge tools (get_quote, portfolio, navigation, etc.)

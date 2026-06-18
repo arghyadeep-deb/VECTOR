@@ -9,6 +9,7 @@ Intercepts all MCP tool calls from district agents to:
 """
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 __all__ = [
     "AUDIT_DB_PATH",
     "get_mcp_security",
@@ -74,8 +75,7 @@ class MCPSecurityMiddleware:
             if self._conn is not None:
                 return self._conn
             self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA busy_timeout=5000")
+            apply_pragmas(self._conn)
             return self._conn
 
     def _init_db(self) -> None:

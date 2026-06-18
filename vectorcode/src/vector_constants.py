@@ -5,6 +5,7 @@ Import-safe module with no dependencies — can be imported from anywhere
 without risk of circular imports.
 """
 
+from loguru import logger
 import os
 from pathlib import Path
 

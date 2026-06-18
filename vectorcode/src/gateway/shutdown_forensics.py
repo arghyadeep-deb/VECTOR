@@ -189,7 +189,7 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
                     ctx["planned_stop_marker"] = raw[:300]
                 except OSError as _sve:
                     logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
-    except Exception:  # noqa: BLE001 — never raise from a signal handler
+    except Exception as _sve:  # noqa: BLE001 — never raise from a signal handler
         logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed Exception: %s", _sve)
 
     return ctx
@@ -263,7 +263,7 @@ def spawn_async_diagnostic(
             start_new_session=True,
             close_fds=True,
         )
-    except (FileNotFoundError, OSError):
+    except (FileNotFoundError, OSError) as _sve:
         try:
             os.close(fd)
         except OSError as _sve:

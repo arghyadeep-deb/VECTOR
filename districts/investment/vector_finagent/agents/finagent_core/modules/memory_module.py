@@ -103,8 +103,7 @@ class MemoryModule:
         except ImportError as e:
             logger.warning(f"Memory module initialization failed: {e}")
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.modules.memory_module] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.modules.memory_module] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.modules.memory_module] caught Exception: %s", e)
             logger.error(f"Memory module error: {e}")
 
     def _create_optimization_strategy(self) -> Optional[Any]:

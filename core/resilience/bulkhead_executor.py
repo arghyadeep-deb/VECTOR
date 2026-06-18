@@ -14,7 +14,6 @@ import asyncio
 import time
 from typing import Any, Callable
 
-from loguru import logger
 
 
 class BulkheadConfig:

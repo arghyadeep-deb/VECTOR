@@ -81,10 +81,10 @@ class XPathExpr(OriginalXPathExpr):
 # e.g. cssselect.GenericTranslator, cssselect.HTMLTranslator
 class TranslatorProtocol(Protocol):
     def xpath_element(self, selector: Element) -> OriginalXPathExpr:  # pyright: ignore # pragma: no cover
-        pass
+        raise NotImplementedError("TranslatorProtocol.xpath_element must be implemented by subclass")
 
     def css_to_xpath(self, css: str, prefix: str = ...) -> str:  # pyright: ignore # pragma: no cover
-        pass
+        raise NotImplementedError("TranslatorProtocol.css_to_xpath must be implemented by subclass")
 
 
 class TranslatorMixin:

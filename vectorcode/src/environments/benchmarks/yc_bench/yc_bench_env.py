@@ -247,7 +247,7 @@ def _read_final_score(db_path: str) -> Dict[str, Any]:
 
     conn = None
     try:
-        conn = sqlite3.connect(db_path)
+        conn = sqlite3.connect(db_path, check_same_thread=False)
         cur = conn.cursor()
 
         # Read final funds from the 'companies' table
@@ -703,7 +703,7 @@ class YCBenchEvalEnv(VectorAgentBaseEnv):
                 )
                 pbar.update(1)
 
-        except (KeyboardInterrupt, asyncio.CancelledError):
+        except (KeyboardInterrupt, asyncio.CancelledError) as _sve:
             tqdm.write("\n[INTERRUPTED] Stopping evaluation...")
             pbar.close()
             try:

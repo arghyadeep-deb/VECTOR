@@ -889,8 +889,7 @@ class ArbitrageScanner:
                 all_opportunities.extend(calendar_opportunities)
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.derivatives.arbitrage] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.derivatives.arbitrage] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.derivatives.arbitrage] caught Exception: %s", e)
             logger.error(f"Error in arbitrage scan: {e}")
 
         self.detected_opportunities = all_opportunities

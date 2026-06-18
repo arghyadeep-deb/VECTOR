@@ -1,5 +1,6 @@
-from loguru import logger
 """iMessage daemon channel shim."""
+
+from loguru import logger
 try:
     from vectorcode.src.comms.imessage_daemon import *
 except ImportError as exc:

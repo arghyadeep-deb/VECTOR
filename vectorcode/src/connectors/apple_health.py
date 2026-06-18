@@ -103,7 +103,8 @@ class AppleHealthConnector(BaseConnector):
 
     def disconnect(self) -> None:
         # Local connector -- nothing to revoke.
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][apple_health] disconnect called (no-op)")
 
     def sync(
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None

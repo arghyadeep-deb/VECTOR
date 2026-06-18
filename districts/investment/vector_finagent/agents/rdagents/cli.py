@@ -79,8 +79,7 @@ def cmd_check_status(_params: dict[str, Any]) -> dict[str, Any]:
     try:
         import importlib.metadata
         rdagent_version = importlib.metadata.version("rdagent")
-    except Exception:
-        logger.debug("[VECTOR][agents.rdagents.cli] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][agents.rdagents.cli] caught Exception: %s", _sve)
         rdagent_version = "unknown"
 

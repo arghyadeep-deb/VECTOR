@@ -7,6 +7,7 @@ This is a comprehensive utility for accessing the full range of CoinGecko's data
 Usage: python coingecko_complete_wrapper.py <command> [args]
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -177,8 +178,7 @@ def main(args=None):
     except IndexError:
         result = {"error": f"Missing arguments for command '{cmd}'."}
     except Exception as e:
-        logger.debug("[VECTOR][coingecko] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][coingecko] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][coingecko] caught Exception: %s", e)
         result = {"error": f"An unexpected error occurred: {e}"}
 
     print(json.dumps(result, indent=2))

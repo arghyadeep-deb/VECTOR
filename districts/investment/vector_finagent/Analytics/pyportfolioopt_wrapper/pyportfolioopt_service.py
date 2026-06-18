@@ -6,6 +6,7 @@ Provides a main() function interface for worker pool execution.
 Covers 100% of pyportfolioopt_wrapper: core, additional_optimizers, advanced_objectives.
 """
 
+from loguru import logger
 import json
 import sys
 import numpy as np
@@ -106,8 +107,7 @@ def main(args):
         return handler(request_data)
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.pyportfolioopt_service] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.pyportfolioopt_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.pyportfolioopt_wrapper.pyportfolioopt_service] caught Exception: %s", e)
         import traceback
         return json.dumps({
             "error": f"PyPortfolioOpt error: {str(e)}",

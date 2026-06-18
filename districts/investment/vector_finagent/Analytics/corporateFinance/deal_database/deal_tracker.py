@@ -58,8 +58,7 @@ class MADealTracker:
                     'contains_ma_flag': filing.get('contains_ma_flag', 1),
                     'parsed_flag': 0,
                 })
-            except Exception:
-                logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_tracker] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_tracker] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

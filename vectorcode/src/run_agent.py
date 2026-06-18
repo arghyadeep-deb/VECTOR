@@ -4433,7 +4433,7 @@ class AIAgent:
             for child in children:
                 try:
                     child.release_clients()
-                except Exception:
+                except Exception as _sve:
                     # Fall back to full close on children; they're per-turn.
                     try:
                         child.close()
@@ -6696,7 +6696,7 @@ class AIAgent:
                                     "reconnecting…\n\n"
                                 )
                             except Exception as _sve:
-                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", e)
                             # Reset the streamed-text buffer so the retry's
                             # fresh preamble doesn't get double-recorded in
                             # _current_streamed_assistant_text (which would
@@ -6704,7 +6704,7 @@ class AIAgent:
                             try:
                                 self._reset_stream_delivery_tracking()
                             except Exception as _sve:
-                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", e)
                             # Reset in-memory accumulators so the next
                             # attempt's chunks don't concat onto the dead
                             # stream's partial JSON.
@@ -6731,7 +6731,7 @@ class AIAgent:
                                     reason="stream_mid_tool_retry_pool_cleanup"
                                 )
                             except Exception as _sve:
-                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+                                logger.debug("[VECTOR][run_agent] suppressed Exception: %s", e)
                             self._emit_status("🔄 Reconnected — resuming…")
                             continue
 
@@ -6800,7 +6800,7 @@ class AIAgent:
                                         reason="stream_retry_pool_cleanup"
                                     )
                                 except Exception as _sve:
-                                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+                                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", e)
                                 self._emit_status("🔄 Reconnected — resuming…")
                                 continue
                             self._emit_status(
@@ -11283,7 +11283,7 @@ class AIAgent:
                             if _body is not None:
                                 _body_text = str(_body)[:200]
                         except Exception as _sve:
-                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", api_error)
                         print(f"{self.log_prefix}🔐 Nous 401 — Portal authentication failed.")
                         if _body_text:
                             print(f"{self.log_prefix}   Response: {_body_text}")
@@ -11568,7 +11568,7 @@ class AIAgent:
                                     "cross-session breaker."
                                 )
                         except Exception as _sve:
-                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+                            logger.debug("[VECTOR][run_agent] suppressed Exception: %s", api_error)
                         if _genuine_nous_rate_limit:
                             # Skip straight to max_retries -- the
                             # top-of-loop guard will handle fallback or
@@ -11983,7 +11983,7 @@ class AIAgent:
                                 try:
                                     _retry_after = min(int(_ra_raw), 120)  # Cap at 2 minutes
                                 except (TypeError, ValueError) as _sve:
-                                    logger.debug("[VECTOR][run_agent] suppressed (TypeError, ValueError): %s", _sve)
+                                    logger.debug("[VECTOR][run_agent] suppressed (TypeError, ValueError): %s", api_error)
                     wait_time = _retry_after if _retry_after else jittered_backoff(retry_count, base_delay=2.0, max_delay=60.0)
                     if is_rate_limited:
                         self._emit_status(f"⏱️ Rate limited. Waiting {wait_time:.1f}s (attempt {retry_count + 1}/{max_retries})...")

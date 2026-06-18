@@ -360,8 +360,7 @@ class RiskAnalyzer:
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_risk] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_risk] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_risk] caught Exception: %s", e)
             logger.error(f"Error calculating risk metrics: {e}")
             raise
 

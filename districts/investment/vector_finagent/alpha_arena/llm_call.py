@@ -30,6 +30,7 @@ Wire protocol (output — JSON on stdout):
 Failure modes are non-fatal — caller logs and treats as a no-op tick.
 """
 
+from loguru import logger
 import json
 import os
 import socket
@@ -95,8 +96,7 @@ def redeem_secret(pipe_name: str, handle: str) -> str:
             raise RuntimeError(reply["error"])
         return reply.get("api_key", "")
     except Exception as exc:
-        logger.debug("[VECTOR][alpha_arena.llm_call] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][alpha_arena.llm_call] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][alpha_arena.llm_call] caught Exception: %s", exc)
         raise RuntimeError(f"secret redemption failed: {exc}") from exc
 
 

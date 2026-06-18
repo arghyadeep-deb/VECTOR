@@ -197,7 +197,7 @@ class Spider(ABC):
 
         Override for custom error handling.
         """
-        pass
+        raise NotImplementedError("Spider.on_error must be implemented by subclass")
 
     async def on_scraped_item(self, item: Dict[str, Any]) -> Dict[str, Any] | None:
         """A hook to be overridden by users to do some processing on scraped items, return `None` to drop the item silently."""

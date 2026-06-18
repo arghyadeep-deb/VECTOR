@@ -7,6 +7,7 @@ from loguru import logger
     result = transport.normalize_response(raw_response)
 """
 
+from loguru import logger
 from agent.transports.types import NormalizedResponse, ToolCall, Usage, build_tool_call, map_finish_reason  # noqa: F401
 
 _REGISTRY: dict = {}

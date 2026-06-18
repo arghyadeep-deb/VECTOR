@@ -166,8 +166,7 @@ class FinAgentTerminalLauncher:
             logger.info("[VECTOR][terminal] launched PID={}", self._proc.pid)
             return True
         except Exception as e:
-            logger.debug("[VECTOR][terminal_launcher] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][terminal_launcher] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][terminal_launcher] caught Exception: %s", e)
             logger.error("[VECTOR][terminal] launch failed: {}", e)
             return False
 

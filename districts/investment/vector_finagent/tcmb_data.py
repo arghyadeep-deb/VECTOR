@@ -29,6 +29,7 @@ Currencies available (22):
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -161,8 +162,7 @@ class TCMBWrapper:
                 content = self._fetch(self._date_url(d))
                 ET.fromstring(content)   # verify it's valid XML
                 return d
-            except Exception:
-                logger.debug("[VECTOR][tcmb_data] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][tcmb_data] caught Exception: %s", _sve)
                 continue
         return None

@@ -9,6 +9,7 @@ Structured reasoning for IC decisions:
 - Final approval/rejection decision
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -532,8 +533,7 @@ CONDITIONS (if CONDITIONAL):
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.ic_deliberation] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.ic_deliberation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.reasoning.ic_deliberation] caught Exception: %s", e)
             # Fallback if agent fails
             return ICMemberOpinion(
                 member_role=role,

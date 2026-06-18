@@ -555,8 +555,7 @@ def main():
             sys.exit(1)
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.corporateFinance.industry_metrics.financial_services] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.corporateFinance.industry_metrics.financial_services] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.industry_metrics.financial_services] caught Exception: %s", e)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

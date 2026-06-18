@@ -10,6 +10,7 @@ Absorbed:
   - get_swarm_history() — full timeline for a swarm
   - purge_old_records() — TTL-based cleanup (reference cleanup strategy)
 """
+from core.memory.db_utils import apply_pragmas
 import sqlite3
 import json
 import time
@@ -26,8 +27,7 @@ def _conn(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(db_path), check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    apply_pragmas(conn)
     return conn
 
 

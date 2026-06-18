@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
 
-from loguru import logger
 
 @dataclass
 class Alert:

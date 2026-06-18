@@ -100,13 +100,13 @@ def _run_tests(code: str, test_cases: str) -> Tuple[int, int, str]:
                 try:
                     exec(line, namespace)  # noqa: S102
                 except Exception as _sve:
-                    logger.debug("[VECTOR][evals.scorers.coding_task] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][evals.scorers.coding_task] suppressed Exception: %s", exc)
                 continue
             try:
                 exec(line, namespace)  # noqa: S102
                 passed += 1
             except (AssertionError, Exception) as _sve:
-                logger.debug("[VECTOR][evals.scorers.coding_task] suppressed (AssertionError, Exception): %s", _sve)
+                logger.debug("[VECTOR][evals.scorers.coding_task] suppressed (AssertionError, Exception): %s", exc)
         return passed, total, str(exc)
     except Exception as exc:
         total = sum(1 for line in test_lines if "assert " in line)

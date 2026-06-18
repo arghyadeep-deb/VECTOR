@@ -39,4 +39,5 @@ class MattermostBot:
             return r.json() if r.status_code == 200 else []
 
     async def stop(self):
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][mattermost_bot] stop called (no-op)")

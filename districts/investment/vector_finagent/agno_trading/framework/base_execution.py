@@ -31,7 +31,7 @@ class BaseExecutionGateway(ABC):
         Returns:
             List of transaction results
         """
-        pass
+        raise NotImplementedError("BaseExecutionGateway.execute must be implemented by subclass")
 
     @abstractmethod
     async def test_connection(self) -> bool:
@@ -41,11 +41,13 @@ class BaseExecutionGateway(ABC):
         Returns:
             True if connected, False otherwise
         """
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][base_execution] test_connection called (no-op)")
 
     @abstractmethod
     async def close(self) -> None:
         """
         Close connection and clean up resources.
         """
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][base_execution] close called (no-op)")

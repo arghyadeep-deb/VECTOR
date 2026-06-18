@@ -29,6 +29,7 @@ Commands:
     validate_data          - Validate financial data
 """
 
+from loguru import logger
 import sys
 import os
 
@@ -497,8 +498,7 @@ class CFAQuantEngine:
                 arr = self._parse_data(raw, **self._data_kwargs(params))
                 data = pd.Series(arr)
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.quant_analytics_cli] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.quant_analytics_cli] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.quant_analytics_cli] caught Exception: %s", e)
                 return {'success': False, 'error': f'Could not parse data: {e}'}
         elif isinstance(raw, list):
             data = pd.Series(raw)

@@ -5,6 +5,7 @@ AutoML, Model Selection, Hyperparameter Tuning, and Ensemble Methods
 Supports multiple ML frameworks: scikit-learn, LightGBM, XGBoost, CatBoost
 """
 
+from loguru import logger
 import json
 import sys
 import os

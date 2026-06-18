@@ -228,7 +228,7 @@ def _credentials_lock(timeout_seconds: float = LOCK_TIMEOUT_SECONDS):
                     import fcntl
 
                     fcntl.flock(fd, fcntl.LOCK_UN)
-                except ImportError:
+                except ImportError as _sve:
                     try:
                         import msvcrt  # type: ignore[import-not-found]
 
@@ -547,7 +547,7 @@ def _post_form(url: str, data: Dict[str, str], timeout: float) -> Dict[str, Any]
         try:
             detail = exc.read().decode("utf-8", errors="replace")
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", exc)
         # Detect invalid_grant to signal credential revocation
         code = "google_oauth_token_http_error"
         if "invalid_grant" in detail.lower():

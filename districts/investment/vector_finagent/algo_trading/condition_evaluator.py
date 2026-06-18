@@ -24,6 +24,7 @@ Output:
     {"success": true, "result": true/false, "details": [...]}
 """
 
+from loguru import logger
 import json
 import sys
 import argparse
@@ -80,8 +81,7 @@ def load_candles_from_db(db_path: str, symbol: str, timeframe: str, limit: int =
                     log.debug(f"  Normalized/prefix match found: '{cached_sym}' => {len(df)} rows")
                     break
         except Exception as e:
-            logger.debug("[VECTOR][algo_trading.condition_evaluator] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][algo_trading.condition_evaluator] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][algo_trading.condition_evaluator] caught Exception: %s", e)
             log.warning(f"  Fallback symbol search failed: {e}")
 
     conn.close()

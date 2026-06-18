@@ -272,7 +272,7 @@ def snapshot_skills(reason: str = "manual") -> Optional[Path]:
         try:
             shutil.rmtree(dest, ignore_errors=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
         return None
 
     _prune_old(keep=get_keep())
@@ -591,11 +591,11 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
             try:
                 shutil.move(str(dest), str(orig))
             except OSError as _sve:
-                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
         try:
             shutil.rmtree(staged, ignore_errors=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
         return (False, f"failed to stage current skills: {e}", None)
 
     # Step 4: extract the snapshot into skills/
@@ -621,11 +621,11 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
             try:
                 shutil.move(str(dest), str(orig))
             except OSError as _sve:
-                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
         try:
             shutil.rmtree(staged, ignore_errors=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
         return (False, f"snapshot extract failed (state restored): {e}", None)
 
     # Extract succeeded — the staging dir has served its purpose. The

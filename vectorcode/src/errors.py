@@ -8,7 +8,6 @@ import enum
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-from loguru import logger
 
 
 class FailoverReason(enum.Enum):

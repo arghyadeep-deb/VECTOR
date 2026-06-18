@@ -17,6 +17,7 @@ All classes support:
 - get(symbol) -> pd.DataFrame
 """
 
+from loguru import logger
 import numpy as np
 import pandas as pd
 from typing import Dict, Any, Optional, List, Union
@@ -180,8 +181,7 @@ class YFData(Data):
                         if col in df.columns:
                             df[col] = df[col].round(4)
                     data[sym] = df
-            except Exception:
-                logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_data] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.backtesting.vectorbt.vbt_data] caught Exception: %s", _sve)
                 continue
 

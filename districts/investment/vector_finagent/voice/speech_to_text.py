@@ -13,6 +13,7 @@ Protocol (one JSON object per line on stdout):
 The process runs until stdin is closed or it receives SIGTERM.
 """
 
+from loguru import logger
 import json
 import sys
 import signal
@@ -67,8 +68,7 @@ def main() -> None:
         with mic as source:
             recognizer.adjust_for_ambient_noise(source, duration=1)
     except Exception as e:
-        logger.debug("[VECTOR][voice.speech_to_text] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][voice.speech_to_text] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][voice.speech_to_text] caught Exception: %s", e)
         emit({"fatal": f"Microphone calibration failed: {e}"})
         sys.exit(1)
 

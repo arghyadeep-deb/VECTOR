@@ -8,6 +8,7 @@ API Documentation: https://kidb.adb.org/api
 Rate Limit: 30 queries per minute
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -170,8 +171,7 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None, format
             "error": "Invalid JSON response from ADB API."
         }
     except Exception as e:
-        logger.debug("[VECTOR][adb_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][adb_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][adb_data] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {

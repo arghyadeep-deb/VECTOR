@@ -120,8 +120,7 @@ class TerminalToolkit:
                     self.functions.append(agno_fn)
                     continue
                 except Exception as e:
-                    logger.debug("[VECTOR][agents.finagent_core.tools.terminal_toolkit] caught Exception: %s", _sve)
-                    logger.debug("[VECTOR][agents.finagent_core.tools.terminal_toolkit] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][agents.finagent_core.tools.terminal_toolkit] caught Exception: %s", e)
                     logger.debug(f"Agno Function wrapping failed for {name}: {e}, using raw callable")
 
             # Fallback: raw callable (Agno can sometimes infer tools from callables)

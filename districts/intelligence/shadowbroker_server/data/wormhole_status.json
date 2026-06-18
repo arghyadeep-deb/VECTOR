@@ -1,5 +1,5 @@
 {
-  "last_start": 1781423804,
+  "last_start": 1781765077,
   "last_restart": 0,
   "reason": "startup",
   "transport": "direct",
@@ -10,8 +10,8 @@
   "configured": true,
   "running": true,
   "ready": false,
-  "pid": 76740,
-  "started_at": 1781423804,
+  "pid": 43968,
+  "started_at": 1781765077,
   "last_error": "",
   "privacy_level_effective": "default"
 }

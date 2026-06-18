@@ -3,6 +3,7 @@ from loguru import logger
 LLM-based composer for multi-model trading competitions.
 """
 
+from loguru import logger
 import json
 import asyncio
 import time
@@ -308,8 +309,7 @@ If you decide to HOLD or WAIT, set quantity to 0.
                 decision_type="WAIT"
             )
         except Exception as e:
-            logger.debug("[VECTOR][agno_trading.framework.llm_composer] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agno_trading.framework.llm_composer] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.framework.llm_composer] caught Exception: %s", e)
             print(f"[LLMComposer] ERROR in {model_config.name}: {type(e).__name__}: {e}", flush=True, file=sys.stderr)
             import traceback
             traceback.print_exc(file=sys.stderr)

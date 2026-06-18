@@ -31,6 +31,7 @@ DEPRECATED (1): API structure changed in AkShare library
 swap_rate
 """
 
+from loguru import logger
 import sys
 import json
 import pandas as pd
@@ -121,8 +122,7 @@ class ChinaEconomicsWrapper:
                     time.sleep(self.retry_delay * 2)
                 continue
             except Exception as e:
-                logger.debug("[VECTOR][akshare_economics_china] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][akshare_economics_china] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_economics_china] caught Exception: %s", e)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     time.sleep(self.retry_delay)

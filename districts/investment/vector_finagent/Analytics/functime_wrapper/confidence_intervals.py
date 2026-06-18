@@ -13,6 +13,7 @@ Provides uncertainty quantification for forecasts:
 Essential for risk management in financial forecasting.
 """
 
+from loguru import logger
 import polars as pl
 import numpy as np
 from typing import Dict, List, Optional, Union, Any, Tuple, Callable
@@ -78,8 +79,7 @@ def bootstrap_prediction_intervals(
                     fc_values = [f['value'] for f in fc_result['forecast']]
                     fc_times = [f['time'] for f in fc_result['forecast']]
                     bootstrap_forecasts.append(fc_values)
-            except Exception:
-                logger.debug("[VECTOR][Analytics.functime_wrapper.confidence_intervals] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.functime_wrapper.confidence_intervals] caught Exception: %s", _sve)
                 continue
 

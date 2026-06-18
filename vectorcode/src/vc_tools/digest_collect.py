@@ -337,7 +337,7 @@ def _format_doc(source: str, doc: Document) -> str:
     if formatter:
         try:
             return formatter(doc)
-        except Exception:  # noqa: BLE001
+        except Exception as _sve:  # noqa: BLE001
             logger.debug("[VECTOR][vc_tools.digest_collect] suppressed Exception: %s", _sve)
     # Fallback: connector name + title
     return f"[{source}] {doc.title}"

@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Quantitative Data Validator Module
 =================================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - universe_size: Investment universe size (default: 1000)
   - risk_model: Risk model for portfolio construction (default: 'barra')
 """
+from loguru import logger
 
 
 
@@ -187,8 +186,7 @@ class DataValidator:
             return cleaned_data, report
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.quant.data_validator] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.quant.data_validator] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.quant.data_validator] caught Exception: %s", e)
             report.add_issue('validation_error', f"Validation failed: {str(e)}", 'critical')
             if self.strict_mode:
                 raise

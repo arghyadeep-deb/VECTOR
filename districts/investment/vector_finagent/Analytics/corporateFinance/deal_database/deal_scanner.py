@@ -9,6 +9,7 @@ Real data sources (no mocks, no demo data):
 The scanner works without any third-party library such as edgartools.
 All HTTP calls use the standard library (urllib) so there are zero extra deps.
 """
+from loguru import logger
 import sys
 import json
 import re
@@ -61,8 +62,7 @@ def _get_text(url: str, timeout: int = 20) -> str:
                 return raw.decode("utf-8")[:80000]
             except UnicodeDecodeError:
                 return raw.decode("latin-1")[:80000]
-    except Exception:
-        logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_scanner] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][Analytics.corporateFinance.deal_database.deal_scanner] caught Exception: %s", _sve)
         return ""
 

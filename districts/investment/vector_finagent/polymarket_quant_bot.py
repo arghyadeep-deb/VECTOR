@@ -17,6 +17,7 @@ Author: VECTOR
 License: AGPL-3.0-or-later
 """
 
+from loguru import logger
 import time
 import json
 import sys
@@ -119,8 +120,7 @@ def fetch_active_markets(limit: int = 20) -> list[dict]:
             })
         return result
     except Exception as e:
-        logger.debug("[VECTOR][polymarket_quant_bot] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][polymarket_quant_bot] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][polymarket_quant_bot] caught Exception: %s", e)
         print(f"  [ERROR] Failed to fetch markets: {e}")
         return []
 

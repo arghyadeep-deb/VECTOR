@@ -30,8 +30,7 @@ def _should_override(name):
             return True
         if mod and hasattr(mod, '__loader__') and 'clr' in str(type(mod.__loader__)):
             return True
-    except Exception:
-        logger.debug("[VECTOR][strategies.fincept_engine.algorithm_imports] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][strategies.fincept_engine.algorithm_imports] caught Exception: %s", _sve)
         return True
     return False

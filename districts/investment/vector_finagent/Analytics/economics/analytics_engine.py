@@ -505,8 +505,7 @@ class StatisticalAnalyzer(EconomicsBase):
                 'interpretation': 'Stationary' if result[1] < 0.05 else 'Non-stationary'
             }
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.economics.analytics_engine] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.economics.analytics_engine] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.economics.analytics_engine] caught Exception: %s", e)
             logger.warning(f"Could not perform ADF test: {e}")
             return {'error': 'Could not perform stationarity test'}
 

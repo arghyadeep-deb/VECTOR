@@ -37,11 +37,11 @@ class OutputFormatter(ABC):
 
     @abstractmethod
     def on_message_added(self, message: LLMMessage) -> None:
-        pass
+        raise NotImplementedError("OutputFormatter.on_message_added must be implemented by subclass")
 
     @abstractmethod
     def on_event(self, event: BaseEvent) -> None:
-        pass
+        raise NotImplementedError("OutputFormatter.on_event must be implemented by subclass")
 
     @abstractmethod
     def finalize(self) -> str | None:
@@ -50,7 +50,7 @@ class OutputFormatter(ABC):
         Returns:
             String to print, or None if formatter handles its own output
         """
-        pass
+        raise NotImplementedError("OutputFormatter.finalize must be implemented by subclass")
 
 
 class TextOutputFormatter(OutputFormatter):
@@ -77,7 +77,7 @@ class JsonOutputFormatter(OutputFormatter):
         self._messages.append(message)
 
     def on_event(self, event: BaseEvent) -> None:
-        pass
+        raise NotImplementedError("JsonOutputFormatter.on_event must be implemented by subclass")
 
     def finalize(self) -> str | None:
         messages_data = [msg.model_dump(mode="json") for msg in self._messages]
@@ -94,7 +94,7 @@ class StreamingJsonOutputFormatter(OutputFormatter):
         self.stream.flush()
 
     def on_event(self, event: BaseEvent) -> None:
-        pass
+        raise NotImplementedError("StreamingJsonOutputFormatter.on_event must be implemented by subclass")
 
     def finalize(self) -> str | None:
         return None

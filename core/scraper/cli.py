@@ -212,7 +212,7 @@ def shell(code, level):
 )
 def extract():
     """Extract content from web pages and save to files"""
-    pass
+    raise NotImplementedError("extract must be implemented by subclass")
 
 
 ####
@@ -669,7 +669,7 @@ def stealthy_fetch(
 
 @group()
 def main():
-    pass
+    raise NotImplementedError("main must be implemented by subclass")
 
 
 # Adding commands

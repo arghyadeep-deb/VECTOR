@@ -9,6 +9,7 @@ This module manages the lifecycle of trading agents:
 - Agent performance monitoring
 """
 
+from loguru import logger
 import json
 from typing import Dict, List, Optional, Any
 from datetime import datetime
@@ -72,8 +73,7 @@ class AgentManager:
             return agent_id
 
         except Exception as e:
-            logger.debug("[VECTOR][agno_trading.core.agent_manager] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agno_trading.core.agent_manager] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.core.agent_manager] caught Exception: %s", e)
             raise ValueError(f"Failed to create agent: {str(e)}")
 
     def get_agent(self, agent_id: str) -> Optional[BaseAgent]:

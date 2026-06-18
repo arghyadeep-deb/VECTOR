@@ -4,6 +4,7 @@ Fetch historical price data for symbols using yfinance.
 Input: JSON via stdin: {"symbols": ["AAPL", "MSFT"], "period": "6mo", "interval": "1d"}
 Output: JSON to stdout: {"AAPL": [{"date": "2024-01-01", "close": 150.0}, ...], ...}
 """
+from loguru import logger
 import sys
 import json
 
@@ -39,8 +40,7 @@ def main():
                         "close": float(close_val)
                     })
                 result[sym] = records
-        except Exception:
-            logger.debug("[VECTOR][Analytics.portfolioManagement.fetch_historical] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][Analytics.portfolioManagement.fetch_historical] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

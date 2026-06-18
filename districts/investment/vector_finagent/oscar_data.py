@@ -22,6 +22,7 @@ Data Coverage:
 - Historical and planned satellite missions
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -99,8 +100,7 @@ class OSCARWrapper:
         except requests.exceptions.RequestException as e:
             return OSCARError(endpoint, f"Network error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][oscar_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][oscar_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][oscar_data] caught Exception: %s", e)
             return OSCARError(endpoint, f"Unexpected error: {str(e)}").to_dict()
 
     # ==================== INSTRUMENTS ENDPOINTS ====================

@@ -205,8 +205,7 @@ class CoreAgent:
                 "valid": validation.get("valid", True)
             }
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.core_agent] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.core_agent] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.core_agent] caught Exception: %s", e)
             return {
                 "success": False,
                 "model": output_model,

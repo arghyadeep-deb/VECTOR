@@ -7,6 +7,7 @@ Main analytics engine for FFN-based financial performance analysis.
 Provides comprehensive performance statistics, risk metrics, and portfolio analysis.
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -184,8 +185,7 @@ class FFNAnalyticsEngine:
             try:
                 result = func(*args, **kwargs)
                 return safe_float(result)
-            except Exception:
-                logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_analytics] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_analytics] caught Exception: %s", _sve)
                 return None
 

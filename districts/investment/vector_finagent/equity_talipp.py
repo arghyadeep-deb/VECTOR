@@ -19,6 +19,7 @@ Output (stdout):
     JSON object: {"indicator": str, "values": [float], "timestamps": [int], "success": bool}
 """
 
+from loguru import logger
 import sys
 import json
 import math
@@ -552,8 +553,7 @@ def main():
         }))
 
     except Exception as e:
-        logger.debug("[VECTOR][equity_talipp] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][equity_talipp] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][equity_talipp] caught Exception: %s", e)
         print(json.dumps({"success": False, "error": str(e), "indicator": indicator}))
         sys.exit(1)
 

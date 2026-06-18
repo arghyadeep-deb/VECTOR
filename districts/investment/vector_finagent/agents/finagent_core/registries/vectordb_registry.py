@@ -191,8 +191,7 @@ class VectorDBRegistry:
         except ImportError as e:
             raise ImportError(f"Failed to import vectordb '{db_type}': {e}")
         except Exception as e:
-            logger.debug("[VECTOR][agents.finagent_core.registries.vectordb_registry] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.finagent_core.registries.vectordb_registry] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.finagent_core.registries.vectordb_registry] caught Exception: %s", e)
             raise RuntimeError(f"Failed to create vectordb '{db_type}': {e}")
 
     @classmethod

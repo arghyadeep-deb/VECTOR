@@ -7,6 +7,7 @@ Modular, fault-tolerant design - each endpoint works independently
 All endpoints are FREE - no API keys required
 """
 
+from loguru import logger
 import sys
 import json
 import pandas as pd
@@ -139,8 +140,7 @@ class StockAnalysisWrapper:
                 else:
                     break
             except Exception as e:
-                logger.debug("[VECTOR][akshare_analysis] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][akshare_analysis] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_analysis] caught Exception: %s", e)
                 last_error = str(e)
                 if attempt < max_retries - 1:
                     time.sleep(self.retry_delay ** attempt)

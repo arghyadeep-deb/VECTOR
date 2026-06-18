@@ -14,6 +14,7 @@ Response contract (all ops):
     traceback: str | None     (only on uncaught exceptions)
 """
 
+from loguru import logger
 import sys
 import os
 import json
@@ -198,8 +199,7 @@ def op_ols(data):
     dw = _safe_float(durbin_watson(model.resid))
     try:
         bp_lm, bp_lm_p, _, _ = het_breuschpagan(model.resid, X_mat)
-    except Exception:
-        logger.debug("[VECTOR][Analytics.statsmodels_wrapper.statsmodels_service] caught Exception: %s", _sve)
+    except Exception as _sve:
         logger.debug("[VECTOR][Analytics.statsmodels_wrapper.statsmodels_service] caught Exception: %s", _sve)
         bp_lm, bp_lm_p = float("nan"), float("nan")
 

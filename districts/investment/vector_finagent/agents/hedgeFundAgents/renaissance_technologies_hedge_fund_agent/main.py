@@ -1,5 +1,4 @@
 """
-from loguru import logger
 Renaissance Technologies Hedge Fund System
 
 Main orchestrator for the multi-agent Renaissance Technologies system.
@@ -70,6 +69,7 @@ from .models.schemas import MedallionDecision, RenaissancePortfolioAnalysis, Sig
 from .utils import (
     fetch_stock_data_yfinance,
     fetch_market_benchmark,
+    fetch_peer_prices,
     validate_data,
     prepare_analysis_inputs,
 )
@@ -212,11 +212,17 @@ class RenaissanceTechnologiesSystem:
         )
 
         logger.info("Running statistical arbitrage analysis...")
+        peer_prices = None
+        if config.include_peers and config.peer_ticker:
+            peer_prices = fetch_peer_prices(config.peer_ticker, config.period)
+            if not peer_prices:
+                logger.warning("Peer data unavailable for %s; skipping pairs analysis", config.peer_ticker)
+
         stat_arb_analysis = run_stat_arb_analysis(
             ticker=ticker,
             prices=inputs["prices"],
             intrinsic_estimates=None,  # TODO: Integrate analyst estimates API
-            peer_prices=None,  # TODO: Integrate peer/sector data API
+            peer_prices=peer_prices,
             metrics=inputs["metrics"]
         )
 
@@ -255,9 +261,7 @@ class RenaissanceTechnologiesSystem:
                 decision = self.analyze(ticker, config)
                 decisions[ticker] = decision
             except Exception as e:
-                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.main] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.main] caught Exception: %s", _sve)
-                logger.error(f"Error analyzing {ticker}: {e}")
+                logger.exception("Error analyzing %s", ticker)
                 decisions[ticker] = self._create_error_decision(ticker, [str(e)])
 
         # Calculate portfolio-level metrics

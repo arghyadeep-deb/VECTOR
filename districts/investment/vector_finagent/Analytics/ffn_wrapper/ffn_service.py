@@ -6,6 +6,7 @@ FFN Service - Python backend for analytics
 Provides JSON-RPC interface for C++ to call FFN analytics functions.
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -171,8 +172,7 @@ def calculate_performance(params: Dict[str, Any]) -> Dict[str, Any]:
             }
         }
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_service] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_service] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.ffn_wrapper.ffn_service] caught Exception: %s", e)
         return {"success": False, "error": str(e)}
 
 

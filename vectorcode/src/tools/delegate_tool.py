@@ -1435,7 +1435,7 @@ def _run_single_child(
                 elif hasattr(child, "_interrupt_requested"):
                     child._interrupt_requested = True
             except Exception as _sve:
-                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _timeout_exc)
 
             is_timeout = isinstance(_timeout_exc, (FuturesTimeoutError, TimeoutError))
             duration = round(time.monotonic() - child_start, 2)
@@ -1455,7 +1455,7 @@ def _run_single_child(
                 _summary = child.get_activity_summary()
                 child_api_calls = int(_summary.get("api_call_count", 0) or 0)
             except Exception as _sve:
-                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _timeout_exc)
             if is_timeout and child_api_calls == 0:
                 diagnostic_path = _dump_subagent_timeout_diagnostic(
                     child=child,
@@ -1486,7 +1486,7 @@ def _run_single_child(
                         summary="",
                     )
                 except Exception as _sve:
-                    logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][tools.delegate_tool] suppressed Exception: %s", _timeout_exc)
 
             if is_timeout:
                 if child_api_calls == 0:

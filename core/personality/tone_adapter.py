@@ -12,7 +12,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
 from pydantic import BaseModel, Field
 
 from core.personality.character_card import CharacterCard

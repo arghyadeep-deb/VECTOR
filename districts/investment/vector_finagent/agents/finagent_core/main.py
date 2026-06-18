@@ -10,6 +10,7 @@ Performance notes:
 - Uses optimized agent loader to avoid slow file scanning
 """
 
+from loguru import logger
 import sys
 import json
 import logging
@@ -236,8 +237,7 @@ def main(args=None):
             stream_print("error", f"Invalid JSON: {str(e)}")
         return json.dumps({"success": False, "error": f"Invalid JSON: {str(e)}"})
     except Exception as e:
-        logger.debug("[VECTOR][agents.finagent_core.main] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.finagent_core.main] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.finagent_core.main] caught Exception: %s", e)
         if streaming:
             stream_print("error", str(e))
         return json.dumps({"success": False, "error": str(e)})

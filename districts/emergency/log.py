@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import hashlib
 import json
 import sqlite3
@@ -33,8 +34,8 @@ class EmergencyLogEntry:
 
 class EmergencyLog:
     def __init__(self, db_path: str | None = None):
-        from core.config import CONFIG
-        self._db_path = db_path or str(CONFIG.get("db_path", "vector_memory.db"))
+        from core.memory.db_utils import configured_db_path
+        self._db_path = db_path or str(configured_db_path())
         self._lock = threading.RLock()
         self._conn = self._open_conn(self._db_path)
         self._conn.row_factory = self._row_class(self._conn)
@@ -67,8 +68,7 @@ class EmergencyLog:
     def _enable_wal(self) -> None:
         try:
             with self._lock:
-                self._conn.execute("PRAGMA journal_mode=WAL")
-                self._conn.execute("PRAGMA busy_timeout=5000")
+                apply_pragmas(self._conn)
         except Exception as e:
             logger.warning("[EmergencyLog] WAL mode not available: {}", e)
 

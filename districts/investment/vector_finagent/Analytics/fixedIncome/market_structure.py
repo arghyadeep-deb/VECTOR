@@ -675,8 +675,7 @@ def run_market_structure_analysis(params: Dict[str, Any]) -> Dict[str, Any]:
             return {'error': f'Unknown analysis type: {analysis_type}'}
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.fixedIncome.market_structure] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.fixedIncome.market_structure] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.fixedIncome.market_structure] caught Exception: %s", e)
         logger.error(f"Market structure analysis error: {str(e)}")
         return {'error': str(e)}
 

@@ -23,6 +23,7 @@ Data Coverage:
 - 100,000+ indicators
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -95,8 +96,7 @@ class UISWrapper:
         except requests.exceptions.RequestException as e:
             return UISError(endpoint, f"Network error: {str(e)}").to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][unesco_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][unesco_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][unesco_data] caught Exception: %s", e)
             return UISError(endpoint, f"Unexpected error: {str(e)}").to_dict()
 
     def _make_export_request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:

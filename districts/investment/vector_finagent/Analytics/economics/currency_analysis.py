@@ -40,6 +40,7 @@ PARAMETERS:
   - market_conditions: Market volatility and volume data
 """
 
+from loguru import logger
 from decimal import Decimal
 from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime, timedelta
@@ -282,8 +283,7 @@ class ArbitrageDetector(EconomicsBase):
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.economics.currency_analysis] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.economics.currency_analysis] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.economics.currency_analysis] caught Exception: %s", e)
             raise CalculationError(f"Error calculating triangular arbitrage: {e}")
 
     def calculate_arbitrage_profit(self, opportunity: Dict[str, Any],

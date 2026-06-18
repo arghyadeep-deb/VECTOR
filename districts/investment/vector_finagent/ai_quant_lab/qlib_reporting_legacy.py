@@ -12,6 +12,7 @@ Features:
 - Factor Analysis Visualization
 """
 
+from loguru import logger
 import json
 import sys
 from typing import Dict, List, Any, Optional, Union, Tuple
@@ -129,8 +130,7 @@ class ReportingService:
             return report
 
         except Exception as e:
-            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting_legacy] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting_legacy] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ai_quant_lab.qlib_reporting_legacy] caught Exception: %s", e)
             return {"success": False, "error": f"Report generation failed: {str(e)}"}
 
     def generate_ic_analysis_report(self,

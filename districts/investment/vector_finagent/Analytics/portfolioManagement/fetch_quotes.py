@@ -4,6 +4,7 @@ Fetch current quotes for a list of symbols using yfinance.
 Input: JSON via stdin: {"symbols": ["AAPL", "MSFT", ...]}
 Output: JSON to stdout: {"AAPL": {"price": 150.0, "prev_close": 148.0}, ...}
 """
+from loguru import logger
 import sys
 import json
 
@@ -30,8 +31,7 @@ def main():
             prev = float(getattr(info, "previous_close", 0) or 0)
             if price > 0:
                 result[sym] = {"price": price, "prev_close": prev if prev > 0 else price}
-        except Exception:
-            logger.debug("[VECTOR][Analytics.portfolioManagement.fetch_quotes] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][Analytics.portfolioManagement.fetch_quotes] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

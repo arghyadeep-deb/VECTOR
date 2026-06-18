@@ -171,8 +171,7 @@ class KnowledgeModule:
                         self._documents.append(docs)
                     logger.debug(f"Added document from: {src}")
                 except Exception as e:
-                    logger.debug("[VECTOR][agents.finagent_core.modules.knowledge_module] caught Exception: %s", _sve)
-                    logger.debug("[VECTOR][agents.finagent_core.modules.knowledge_module] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][agents.finagent_core.modules.knowledge_module] caught Exception: %s", e)
                     logger.error(f"Failed to read document {src}: {e}")
 
         except Exception as e:

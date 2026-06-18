@@ -19,6 +19,7 @@ from typing import Any
 from loguru import logger
 
 from core.config import CONFIG
+from core.memory.db_utils import configured_db_path
 
 
 @dataclass
@@ -54,7 +55,7 @@ class MemoryPersona:
         # go through episodic's singleton connector (plain sqlite3.connect
         # fails with "file is not a database").
         self._private_db_path = db_path
-        self._db_path = db_path or str(CONFIG.get("db_path", "vector_memory.db"))
+        self._db_path = db_path or str(configured_db_path())
         self._ensure_table()
         self._enabled = CONFIG.get("personality", {}).get("learning_enabled", True)
         logger.info("[MemoryPersona] initialized (enabled={})", self._enabled)

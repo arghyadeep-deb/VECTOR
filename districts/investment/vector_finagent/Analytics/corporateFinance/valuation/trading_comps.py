@@ -126,8 +126,7 @@ class TradingCompsAnalyzer:
             )
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.trading_comps] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.trading_comps] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.corporateFinance.valuation.trading_comps] caught Exception: %s", e)
             print(f"Error fetching {ticker}: {e}")
             return None
 

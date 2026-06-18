@@ -364,13 +364,13 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
         dest = os.path.join(_vector_bin_dir(), "tirith")
         try:
             shutil.move(src, dest)
-        except OSError:
+        except OSError as _sve:
             # Cross-device move (common in Docker, NFS): shutil.move() falls
             # back to copy2 + unlink, but copy2's metadata step can raise
             # PermissionError.  Use plain copy + manual chmod instead.
             try:
                 shutil.copy(src, dest)
-            except OSError:
+            except OSError as _sve:
                 # Clean up partial dest to prevent a non-executable retry loop
                 try:
                     os.unlink(dest)

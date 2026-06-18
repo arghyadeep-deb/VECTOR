@@ -7,6 +7,7 @@ Covers 96 macroeconomic functions from akshare library (version 1.18.20)
 Organized by region: Australia, Brazil, India, Russia, New Zealand, Canada, Euro, Germany, Japan, China, Switzerland, UK, USA
 """
 
+from loguru import logger
 import akshare as ak
 import json
 import sys
@@ -79,8 +80,7 @@ class MacroEconomicWrapper:
                 }
 
             except Exception as e:
-                logger.debug("[VECTOR][akshare_macro] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][akshare_macro] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][akshare_macro] caught Exception: %s", e)
                 if attempt == max_retries - 1:
                     return {
                         "success": False,

@@ -22,6 +22,7 @@ Requires:
 - aiohttp (already available in the gateway)
 """
 
+from core.memory.db_utils import apply_pragmas
 import asyncio
 import hashlib
 import hmac
@@ -304,8 +305,7 @@ class ResponseStore:
             self._conn = sqlite3.connect(db_path, check_same_thread=False)
         except Exception:
             self._conn = sqlite3.connect(":memory:", check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         with self._lock:
             self._conn.execute(
                 """CREATE TABLE IF NOT EXISTS responses (
@@ -1162,7 +1162,7 @@ class APIServerAdapter(BasePlatformAdapter):
             }
             await response.write(f"data: {json.dumps(finish_chunk)}\n\n".encode())
             await response.write(b"data: [DONE]\n\n")
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError) as _sve:
             # Client disconnected mid-stream.  Interrupt the agent so it
             # stops making LLM API calls at the next loop iteration, then
             # cancel the asyncio task wrapper.
@@ -1646,7 +1646,7 @@ class APIServerAdapter(BasePlatformAdapter):
                     "response": completed_env,
                 })
 
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError):
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError, OSError) as _sve:
             _persist_incomplete_if_needed()
             # Client disconnected — interrupt the agent so it stops
             # making upstream LLM calls, then cancel the task.
@@ -1663,7 +1663,7 @@ class APIServerAdapter(BasePlatformAdapter):
                 except (asyncio.CancelledError, Exception):
                     raise  # must propagate for asyncio to work
             logger.info("SSE client disconnected; interrupted agent task %s", response_id)
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as _sve:
             # Server-side cancellation (e.g. shutdown, request timeout) —
             # persist an incomplete snapshot so GET /v1/responses/{id} and
             # previous_response_id chaining still work, then re-raise so the
@@ -2489,7 +2489,7 @@ class APIServerAdapter(BasePlatformAdapter):
                         "error": str(exc),
                     })
                 except Exception as _sve:
-                    logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][gateway.platforms.api_server] suppressed Exception: %s", exc)
             finally:
                 # Sentinel: signal SSE stream to close
                 try:

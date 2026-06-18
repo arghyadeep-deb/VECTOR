@@ -699,8 +699,6 @@ def _transform_sudo_command(command: str | None) -> tuple[str | None, str | None
     If SUDO_PASSWORD is not set and NOT interactive:
       Command runs as-is (fails gracefully with "sudo: a password is required").
     """
-    global _cached_sudo_password
-
     if command is None:
         return None, None
     transformed, has_real_sudo = _rewrite_real_sudo_invocations(command)

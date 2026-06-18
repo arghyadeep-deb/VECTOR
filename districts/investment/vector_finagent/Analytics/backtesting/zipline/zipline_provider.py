@@ -22,6 +22,7 @@ Comprehensive implementation covering Zipline's full API surface:
 - Datetime: get_datetime
 """
 
+from loguru import logger
 import sys
 import io
 import json
@@ -861,8 +862,7 @@ class ZiplineProvider(BacktestingProviderBase):
         try:
             import zipline
             return zipline.__version__
-        except Exception:
-            logger.debug("[VECTOR][Analytics.backtesting.zipline.zipline_provider] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][Analytics.backtesting.zipline.zipline_provider] caught Exception: %s", _sve)
             return "pure-numpy"
 

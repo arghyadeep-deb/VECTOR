@@ -124,8 +124,7 @@ class BOJWrapper:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][boj_fetcher] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][boj_fetcher] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][boj_fetcher] caught Exception: %s", e)
             return {
                 "success": False,
                 "error": str(e),

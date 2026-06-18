@@ -131,6 +131,10 @@ def main():
     parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args()
 
+    if args.transport == "sse" and args.host not in ("127.0.0.1", "::1", "localhost"):
+        logger.warning(f"[VECTOR][mcp] SSE binding to {args.host} — NOT localhost! "
+                       "Set VECTOR_MCP_API_KEY env var for auth, or use 127.0.0.1 for safety.")
+
     mcp = _make_server()
     logger.info(f"[VECTOR][mcp] starting transport={args.transport}")
 

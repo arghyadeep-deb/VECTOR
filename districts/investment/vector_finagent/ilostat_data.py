@@ -30,6 +30,7 @@ SDMX Key dimension order (dot-separated):
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import io
@@ -344,8 +345,7 @@ class ILOStatWrapper:
         except requests.exceptions.HTTPError as e:
             return {"error": ILOStatError("list_dataflows", str(e), e.response.status_code).to_dict()}
         except Exception as e:
-            logger.debug("[VECTOR][ilostat_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][ilostat_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][ilostat_data] caught Exception: %s", e)
             return {"error": ILOStatError("list_dataflows", str(e)).to_dict()}
 
     def get_codelist(self, codelist_id: str, agency: str = "ILO") -> Dict[str, Any]:

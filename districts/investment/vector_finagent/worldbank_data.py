@@ -12,6 +12,7 @@ API Documentation:
 - No API key required for public data
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -151,8 +152,7 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dic
             "error": "Invalid JSON response from World Bank API"
         }
     except Exception as e:
-        logger.debug("[VECTOR][worldbank_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][worldbank_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][worldbank_data] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {},

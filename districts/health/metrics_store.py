@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import datetime
 import json
 import sqlite3
@@ -27,8 +28,7 @@ class MetricsStore:
     def _ensure_conn(self) -> sqlite3.Connection:
         if self._conn is None:
             self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA busy_timeout=5000")
+            apply_pragmas(self._conn)
             self._conn.row_factory = sqlite3.Row
         return self._conn
 

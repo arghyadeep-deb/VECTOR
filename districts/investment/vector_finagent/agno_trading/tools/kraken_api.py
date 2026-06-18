@@ -4,6 +4,7 @@ Kraken REST API Integration
 Fetches market data from Kraken exchange (NO WebSocket - REST only)
 """
 
+from loguru import logger
 import requests
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -82,8 +83,7 @@ class KrakenAPI:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][agno_trading.tools.kraken_api] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agno_trading.tools.kraken_api] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.tools.kraken_api] caught Exception: %s", e)
             return {"error": f"Failed to fetch ticker: {str(e)}"}
 
     def get_ohlc(self, pair: str = "XBTUSD", interval: int = 60) -> Dict[str, Any]:

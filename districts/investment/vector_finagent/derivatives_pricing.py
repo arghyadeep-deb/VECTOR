@@ -19,6 +19,7 @@ Commands:
     forward_price       - Forward/futures pricing
 """
 
+from loguru import logger
 import sys
 import json
 import argparse
@@ -492,8 +493,7 @@ def main():
         print(json.dumps(result))
 
     except Exception as e:
-        logger.debug("[VECTOR][derivatives_pricing] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][derivatives_pricing] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][derivatives_pricing] caught Exception: %s", e)
         print(json.dumps({"error": str(e)}))
         sys.exit(1)
 

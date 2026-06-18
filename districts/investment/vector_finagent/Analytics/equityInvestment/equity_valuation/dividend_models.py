@@ -34,6 +34,7 @@ PARAMETERS:
   - stages: Number of growth stages for multi-stage models
 """
 
+from loguru import logger
 import numpy as np
 from typing import List, Dict, Any, Optional, Tuple
 from dataclasses import dataclass
@@ -238,7 +239,6 @@ class GordonGrowthModel:
                         )
                         row.append(round(result.intrinsic_value, 2))
                     except Exception as _sve:
-                        logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dividend_models] caught Exception: %s", _sve)
                         logger.debug("[VECTOR][Analytics.equityInvestment.equity_valuation.dividend_models] caught Exception: %s", _sve)
                         row.append(None)
                 else:

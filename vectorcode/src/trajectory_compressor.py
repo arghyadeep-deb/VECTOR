@@ -31,6 +31,7 @@ Usage:
     python trajectory_compressor.py --input=data/my_run --sample_percent=10
 """
 
+from loguru import logger
 import json
 import os
 import time

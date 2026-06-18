@@ -46,6 +46,7 @@ Data Source: China National Bureau of Statistics (http://www.stats.gov.cn/)
 Library: cnstats (https://github.com/songjian/cnstats)
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -157,8 +158,7 @@ def easyquery(m: str = 'QueryData', dbcode: str = 'hgyd', rowcode: str = 'zb',
         return response.json()
 
     except Exception as e:
-        logger.debug("[VECTOR][cnstats_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][cnstats_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][cnstats_data] caught Exception: %s", e)
         return {"returncode": 500, "returndata": {}, "error": str(e)}
 
 # --- 3. EXACT CNSTATS CORE FUNCTIONS ---

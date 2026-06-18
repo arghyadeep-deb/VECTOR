@@ -465,7 +465,7 @@ class GatewayStreamConsumer:
 
                 await asyncio.sleep(0.05)  # Small yield to not busy-loop
 
-        except asyncio.CancelledError:
+        except asyncio.CancelledError as _sve:
             # Best-effort final edit on cancellation
             _best_effort_ok = False
             if self._accumulated and self._message_id:

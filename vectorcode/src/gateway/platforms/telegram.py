@@ -554,7 +554,7 @@ class TelegramAdapter(BasePlatformAdapter):
                         f.flush()
                         os.fsync(f.fileno())
                     os.replace(tmp_path, config_path)
-                except BaseException:
+                except BaseException as _sve:
                     try:
                         os.unlink(tmp_path)
                     except OSError as _sve:
@@ -1565,7 +1565,7 @@ class TelegramAdapter(BasePlatformAdapter):
                     parse_mode=ParseMode.MARKDOWN,
                     reply_markup=None,
                 )
-            except Exception:
+            except Exception as _sve:
                 # Markdown parse failure — retry as plain text
                 try:
                     await query.edit_message_text(

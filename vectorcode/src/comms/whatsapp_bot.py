@@ -36,4 +36,5 @@ class WhatsAppBot:
             )
 
     async def stop(self):
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][whatsapp_bot] stop called (no-op)")

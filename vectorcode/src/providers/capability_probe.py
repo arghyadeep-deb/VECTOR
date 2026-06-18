@@ -29,7 +29,7 @@ except ImportError:
         def set(self, model_id, caps):
             self._data[model_id] = caps
         def save(self):
-            pass
+            raise NotImplementedError("ModelRegistry.save must be implemented by subclass")
 
 try:
     from core.config import CONFIG

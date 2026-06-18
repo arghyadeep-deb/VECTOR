@@ -321,8 +321,7 @@ class TradeExecutor:
             }
 
         except Exception as e:
-            logger.debug("[VECTOR][agno_trading.core.trade_executor] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agno_trading.core.trade_executor] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agno_trading.core.trade_executor] caught Exception: %s", e)
             return {
                 'success': False,
                 'error': f"Trade execution failed: {str(e)}"

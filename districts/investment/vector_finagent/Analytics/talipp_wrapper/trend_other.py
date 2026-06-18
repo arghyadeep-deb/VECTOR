@@ -139,8 +139,7 @@ def main():
         print("Last ADX:", result['last'])
         print("Test 1: PASSED")
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.talipp_wrapper.trend_other] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.talipp_wrapper.trend_other] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.talipp_wrapper.trend_other] caught Exception: %s", e)
         print("Test 1: SKIPPED (ADX requires more data points)")
         print("Error:", str(e))
 

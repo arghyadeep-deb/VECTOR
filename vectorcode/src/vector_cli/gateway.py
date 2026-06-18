@@ -5,6 +5,7 @@ Gateway subcommand for vector CLI.
 Handles: vector gateway [run|start|stop|restart|status|install|uninstall|setup]
 """
 
+from loguru import logger
 import asyncio
 import os
 import shutil

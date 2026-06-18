@@ -11,6 +11,7 @@ Extract insider trading data from Form 4 filings including:
 - Derivative vs non-derivative securities
 """
 
+from loguru import logger
 from typing import Dict, Any, Optional
 import traceback
 
@@ -66,7 +67,6 @@ def get_insider_transactions(ticker: str, limit: int = 25) -> Dict[str, Any]:
                     })
                     count += 1
             except Exception as _sve:
-                logger.debug("[VECTOR][mcp.edgar.forms_insider] caught Exception: %s", _sve)
                 logger.debug("[VECTOR][mcp.edgar.forms_insider] caught Exception: %s", _sve)
                 # Skip if can't parse
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)

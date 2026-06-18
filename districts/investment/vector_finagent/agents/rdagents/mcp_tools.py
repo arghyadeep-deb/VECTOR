@@ -160,8 +160,7 @@ def start_mcp_server_process(
         )
         _mcp_processes[port] = proc
     except Exception as e:
-        logger.debug("[VECTOR][agents.rdagents.mcp_tools] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][agents.rdagents.mcp_tools] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][agents.rdagents.mcp_tools] caught Exception: %s", e)
         logger.error("Failed to start MCP server: %s", e)
         return None, None
 

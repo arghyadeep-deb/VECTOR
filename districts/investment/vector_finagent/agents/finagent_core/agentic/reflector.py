@@ -16,6 +16,7 @@ Decisions:
 """
 from __future__ import annotations
 
+from loguru import logger
 import json
 import re
 from dataclasses import dataclass
@@ -159,8 +160,7 @@ class Reflector:
             response = agent.run(prompt, critic_config)
             raw = (agent.get_response_content(response) or "").strip()
             return _parse_decision(raw)  # source="llm-critic" baked in
-        except Exception:
-            logger.debug("[VECTOR][agents.finagent_core.agentic.reflector] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][agents.finagent_core.agentic.reflector] caught Exception: %s", _sve)
             # Reflector failures must NOT break the task. Default to continue.
             return ReflectorDecision(decision="continue", reason="reflector_error",

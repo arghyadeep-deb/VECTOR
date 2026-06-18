@@ -866,4 +866,5 @@ class LangGraphAgentStrategy(BaseSearchStrategy):
 
     def close(self):
         """No persistent resources to clean up."""
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][langgraph_agent_strategy] close called (no-op)")

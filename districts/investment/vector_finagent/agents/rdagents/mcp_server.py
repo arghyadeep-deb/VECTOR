@@ -157,8 +157,7 @@ def build_mcp_server() -> Any:
             return result
 
         except Exception as e:
-            logger.debug("[VECTOR][agents.rdagents.mcp_server] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.rdagents.mcp_server] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.rdagents.mcp_server] caught Exception: %s", e)
             logger.exception("market_data(%s) failed", symbol)
             return {"error": str(e), "symbol": symbol}
 

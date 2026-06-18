@@ -23,7 +23,6 @@ from dataclasses import dataclass, field as dc_field
 from datetime import datetime, date
 from enum import Enum
 
-from loguru import logger
 from core.config import CONFIG  # noqa: F401  (kept per VECTOR file convention)
 
 

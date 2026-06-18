@@ -60,9 +60,9 @@ class BaseLLMClient(ABC):
     @abstractmethod
     def get_llm(self) -> Any:
         """Return the configured LLM instance."""
-        pass
+        raise NotImplementedError("BaseLLMClient.get_llm must be implemented by subclass")
 
     @abstractmethod
     def validate_model(self) -> bool:
         """Validate that the model is supported by this client."""
-        pass
+        raise NotImplementedError("BaseLLMClient.validate_model must be implemented by subclass")

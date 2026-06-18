@@ -21,6 +21,7 @@ Full Coverage:
 Authentication: Most calculations work offline. Market data requires GS API.
 """
 
+from loguru import logger
 import pandas as pd
 import numpy as np
 from typing import Dict, List, Optional, Union, Tuple, Any, Callable
@@ -1010,7 +1011,6 @@ class RiskAnalytics:
                 )
                 return {'gs_scenario': scenario, 'type': 'carry'}
             except Exception as _sve:
-                logger.debug("[VECTOR][Analytics.gs_quant_wrapper.risk_analytics] caught Exception: %s", _sve)
                 logger.debug("[VECTOR][Analytics.gs_quant_wrapper.risk_analytics] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

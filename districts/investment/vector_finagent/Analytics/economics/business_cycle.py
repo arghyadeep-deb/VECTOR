@@ -4,6 +4,7 @@ Business Cycle Indicators — Fetch key economic indicators via yfinance/FRED pr
 Input: JSON via stdin (can be empty {})
 Output: JSON with current economic indicators
 """
+from loguru import logger
 import sys
 import json
 import numpy as np
@@ -57,8 +58,7 @@ def get_indicators():
                 change_pct = ((price - prev) / prev * 100) if prev > 0 else 0
                 indicators[name] = price
                 indicators[f"{name}_change_pct"] = round(change_pct, 4)
-        except Exception:
-            logger.debug("[VECTOR][Analytics.economics.business_cycle] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][Analytics.economics.business_cycle] caught Exception: %s", _sve)
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

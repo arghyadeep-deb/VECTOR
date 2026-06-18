@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import json
 import sqlite3
 import threading
@@ -97,8 +98,7 @@ class TraceStore:
         # a different thread than the one that opened the connection.
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(self._conn)
         with self._lock:
             self._conn.execute(_CREATE_TRACES)
             self._conn.execute(_CREATE_STEPS)

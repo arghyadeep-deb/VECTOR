@@ -5,6 +5,7 @@ Real-time model updates, incremental learning, and online prediction for live tr
 Supports rolling updates, concept drift detection, and adaptive retraining
 """
 
+from loguru import logger
 import json
 import sys
 import os

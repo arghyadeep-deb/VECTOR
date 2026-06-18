@@ -30,7 +30,6 @@ class CoarseFineAsyncUniverseRegressionAlgorithm(QCAlgorithm):
             self.add_universe(self.coarse_selection_function, self.fine_selection_function)
         except Exception as _sve:
             logger.debug("[VECTOR][strategies.CoarseFineAsyncUniverseRegressionAlgorithm] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][strategies.CoarseFineAsyncUniverseRegressionAlgorithm] caught Exception: %s", _sve)
             # expected
             threw_exception = True
             pass

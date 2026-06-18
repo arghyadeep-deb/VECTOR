@@ -144,8 +144,7 @@ class TaskExecutor:
         try:
             self._aio_loop.run_until_complete(self._execute())
         except Exception as exc:
-            logger.debug("[VECTOR][agents.rdagents.task_manager] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][agents.rdagents.task_manager] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][agents.rdagents.task_manager] caught Exception: %s", exc)
             logger.error("Task %s failed: %s", self._task_id, exc)
             self._tm.update(self._task_id, {
                 "status":       "failed",

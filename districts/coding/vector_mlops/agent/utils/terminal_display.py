@@ -411,7 +411,8 @@ def print_error(message: str) -> None:
 
 
 def print_turn_complete() -> None:
-    pass  # no separator — clean output
+    from loguru import logger
+    logger.debug("[VECTOR][terminal_display] print_turn_complete called (no-op)")
 
 
 def print_interrupted() -> None:

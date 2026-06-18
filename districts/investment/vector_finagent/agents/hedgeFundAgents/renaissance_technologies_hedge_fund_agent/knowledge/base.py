@@ -6,6 +6,7 @@ Provides the core knowledge management system for Renaissance Technologies agent
 Uses Agno's Knowledge and VectorDB capabilities for semantic search.
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any, Union
 from dataclasses import dataclass, field
 from enum import Enum
@@ -220,8 +221,7 @@ class RenTechKnowledge:
                             "metadata": result.meta_data if hasattr(result, 'meta_data') else {},
                         })
                 except Exception as e:
-                    logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.base] caught Exception: %s", _sve)
-                    logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.base] caught Exception: %s", _sve)
+                    logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.knowledge.base] caught Exception: %s", e)
                     # Knowledge base might be empty
                     logger.debug("[VECTOR] suppressed exception", exc_info=True)
 

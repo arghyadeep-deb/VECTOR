@@ -7,6 +7,7 @@ Commands:
   extract_and_geocode <json_articles>
   nearby_infrastructure <lat> <lon> <radius_km>
 """
+from loguru import logger
 import sys
 import json
 import re
@@ -206,8 +207,7 @@ def nearby_infrastructure(lat, lon, radius_km):
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][news_geolocation] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][news_geolocation] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][news_geolocation] caught Exception: %s", e)
         return {"success": False, "error": f"Overpass API error: {str(e)}"}
 
 

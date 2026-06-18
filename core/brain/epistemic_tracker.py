@@ -5,6 +5,7 @@ SQLite-backed so confidence values survive restarts (A8).
 """
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 __all__ = ["EpistemicTracker"]
 
 import sqlite3
@@ -41,7 +42,6 @@ class EpistemicTracker:
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        from core.memory.db_utils import apply_pragmas
         apply_pragmas(conn)
         conn.execute("""
             CREATE TABLE IF NOT EXISTS claims (

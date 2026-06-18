@@ -40,6 +40,7 @@ PARAMETERS:
   - ask_rate: Ask price for currency pair
 """
 
+from loguru import logger
 from decimal import Decimal
 from typing import Dict, List, Tuple, Optional, Any
 from datetime import datetime, timedelta
@@ -243,8 +244,7 @@ class CrossRateCalculator(EconomicsBase):
                             'calculation': result['calculation_method']
                         }
                     except Exception as e:
-                        logger.debug("[VECTOR][Analytics.economics.exchange_calculations] caught Exception: %s", _sve)
-                        logger.debug("[VECTOR][Analytics.economics.exchange_calculations] caught Exception: %s", _sve)
+                        logger.debug("[VECTOR][Analytics.economics.exchange_calculations] caught Exception: %s", e)
                         cross_rates[pair] = {'error': str(e)}
 
         return {

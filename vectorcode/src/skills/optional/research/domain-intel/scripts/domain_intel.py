@@ -15,6 +15,7 @@ All output is structured JSON. No dependencies beyond Python stdlib.
 Works on Linux, macOS, and Windows.
 """
 
+from loguru import logger
 import json
 import re
 import socket

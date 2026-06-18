@@ -430,7 +430,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
                 timeout=_STOP_TIMEOUT,
                 poll_interval=_STOP_POLL_INTERVAL,
             )
-        except TypeError:
+        except TypeError as _sve:
             try:
                 sandbox.stop()
             except Exception as _sve:

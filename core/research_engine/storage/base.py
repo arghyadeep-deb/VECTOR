@@ -26,7 +26,7 @@ class ReportStorage(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
+        raise NotImplementedError("ReportStorage.save_report must be implemented by subclass")
 
     @abstractmethod
     def get_report(
@@ -41,7 +41,7 @@ class ReportStorage(ABC):
         Returns:
             Report content if found, None otherwise
         """
-        pass
+        raise NotImplementedError("ReportStorage.get_report must be implemented by subclass")
 
     @abstractmethod
     def get_report_with_metadata(
@@ -56,7 +56,7 @@ class ReportStorage(ABC):
         Returns:
             Dictionary with 'content' and 'metadata' keys if found, None otherwise
         """
-        pass
+        raise NotImplementedError("ReportStorage.get_report_with_metadata must be implemented by subclass")
 
     @abstractmethod
     def delete_report(
@@ -71,7 +71,7 @@ class ReportStorage(ABC):
         Returns:
             True if successful, False otherwise
         """
-        pass
+        raise NotImplementedError("ReportStorage.delete_report must be implemented by subclass")
 
     @abstractmethod
     def list_reports(
@@ -85,7 +85,7 @@ class ReportStorage(ABC):
         Returns:
             List of report summaries with 'id', 'query', 'mode', 'created_at', 'completed_at' keys
         """
-        pass
+        raise NotImplementedError("ReportStorage.list_reports must be implemented by subclass")
 
     @abstractmethod
     def report_exists(
@@ -100,4 +100,4 @@ class ReportStorage(ABC):
         Returns:
             True if report exists, False otherwise
         """
-        pass
+        raise NotImplementedError("ReportStorage.report_exists must be implemented by subclass")

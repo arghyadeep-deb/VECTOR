@@ -351,8 +351,7 @@ class SkfolioAPI:
                     "result": result
                 }
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_api] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_api] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_api] caught Exception: %s", e)
                 return {
                     "status": "error",
                     "error": str(e)

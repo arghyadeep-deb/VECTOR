@@ -10,6 +10,7 @@ Commands:
   detect_deviations <json_current_counts> <json_baseline>
   focal_points <json_geolocated_articles>
 """
+from loguru import logger
 import sys
 import json
 import math
@@ -372,8 +373,7 @@ def resolve_arg(arg):
             try:
                 import os
                 os.remove(path)
-            except Exception:
-                logger.debug("[VECTOR][news_correlation] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][news_correlation] caught Exception: %s", _sve)
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
             return data

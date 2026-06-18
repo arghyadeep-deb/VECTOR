@@ -5,6 +5,7 @@ China Data Quality Checks
 Runs integrity/coverage checks on unified China data store.
 """
 
+from loguru import logger
 import io
 import json
 import sqlite3
@@ -273,8 +274,7 @@ def main() -> None:
         result = method()
         _json(result)
     except Exception as e:  # pragma: no cover - defensive
-        logger.debug("[VECTOR][china_data_quality_checks] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][china_data_quality_checks] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][china_data_quality_checks] caught Exception: %s", e)
         _json({"success": False, "error": str(e), "data": [], "timestamp": _now_ts()})
 
 

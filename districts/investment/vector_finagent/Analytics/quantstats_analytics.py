@@ -17,6 +17,7 @@ Actions:
     html_report     - Full HTML tearsheet as base64
 """
 
+from loguru import logger
 import sys
 import json
 import warnings
@@ -77,8 +78,7 @@ def _resolve_ticker(ticker: str) -> str:
             t = yf.Ticker(symbol)
             hist = t.history(period='5d')
             return hist is not None and len(hist) > 1
-        except Exception:
-            logger.debug("[VECTOR][Analytics.quantstats_analytics] caught Exception: %s", _sve)
+        except Exception as _sve:
             logger.debug("[VECTOR][Analytics.quantstats_analytics] caught Exception: %s", _sve)
             return False
 

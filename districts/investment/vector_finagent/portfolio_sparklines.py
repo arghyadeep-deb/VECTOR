@@ -5,6 +5,7 @@ Input (argv[1]): JSON string {"symbols": ["AAPL", "MSFT", ...]}
 Output (stdout): JSON {"AAPL": [170.1, 171.3, ...], "MSFT": [375.0, ...], ...}
 Each list is chronological close prices (up to ~35 data points, 5d x 7h).
 """
+from loguru import logger
 import sys
 import json
 import yfinance as yf
@@ -18,8 +19,7 @@ def main():
     try:
         params = json.loads(sys.argv[1])
     except Exception as e:
-        logger.debug("[VECTOR][portfolio_sparklines] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][portfolio_sparklines] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][portfolio_sparklines] caught Exception: %s", e)
         print(json.dumps({"error": f"JSON parse error: {e}"}))
         return
 

@@ -12,6 +12,7 @@ that will be useful when we add named profiles (multiple agents running
 concurrently under distinct configurations).
 """
 
+from loguru import logger
 import hashlib
 import json
 import os
@@ -382,7 +383,7 @@ def write_pid_file() -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(record)
-    except Exception:
+    except Exception as _sve:
         try:
             path.unlink(missing_ok=True)
         except OSError as _sve:
@@ -543,7 +544,7 @@ def acquire_scoped_lock(scope: str, identity: str, metadata: Optional[dict[str, 
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(record, handle)
-    except Exception:
+    except Exception as _sve:
         try:
             lock_path.unlink(missing_ok=True)
         except OSError as _sve:
@@ -688,7 +689,7 @@ def consume_takeover_marker_for_self() -> bool:
         target_pid = int(record["target_pid"])
         target_start_time = record.get("target_start_time")
         written_at = record.get("written_at") or ""
-    except (KeyError, TypeError, ValueError):
+    except (KeyError, TypeError, ValueError) as _sve:
         try:
             path.unlink(missing_ok=True)
         except OSError as _sve:

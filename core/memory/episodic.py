@@ -1,3 +1,4 @@
+from core.memory.db_utils import apply_pragmas
 import sys
 
 __all__ = [
@@ -127,7 +128,7 @@ def _backup_path(path) -> str:
 
 
 def _copy_plaintext_rows(plain_path: str, encrypted_conn) -> None:
-    plain_conn = sqlite3.connect(plain_path)
+    plain_conn = sqlite3.connect(plain_path, check_same_thread=False)
     try:
         existing = {
             row[0]
@@ -290,8 +291,9 @@ _write_lock = threading.RLock()
 
 def _memory_db_path() -> str:
     """Resolve the memory DB path with a safe fallback for partial configs."""
-    configured = os.environ.get("VECTOR_DB_PATH") or CONFIG.get("db_path", "vector_memory.db")
-    path = Path(configured)
+    from core.memory.db_utils import configured_db_path
+
+    path = configured_db_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     return str(path)
 
@@ -360,7 +362,7 @@ def diagnose_memory_db() -> dict:
         return report
     report["plain_sqlite_header"] = _looks_like_plain_sqlite(db_path)
     try:
-        conn = _open_sqlcipher_connection(db_path) if _USE_SQLCIPHER else sqlite3.connect(db_path)
+        conn = _open_sqlcipher_connection(db_path) if _USE_SQLCIPHER else sqlite3.connect(db_path, check_same_thread=False)
         try:
             conn.execute("SELECT count(*) FROM sqlite_master").fetchone()
         finally:
@@ -432,20 +434,18 @@ def get_db_connection():
                         if not _looks_like_plain_sqlite(db_path):
                             raise MemoryDatabaseUnavailable(_unavailable_message(db_path)) from exc
                         try:
-                            plain_conn = sqlite3.connect(db_path)
+                            plain_conn = sqlite3.connect(db_path, check_same_thread=False)
                             plain_conn.execute("SELECT count(*) FROM sqlite_master")
                             plain_conn.close()
                             _db_connection = _migrate_plaintext_db_to_sqlcipher(db_path)
-                        except Exception:
+                        except Exception as exc:
                             logger.error("[VECTOR][memory] SQLCipher migration failed: {}", exc)
                             raise
                     else:
                         raise
             else:
                 _db_connection = sqlite3.connect(_memory_db_path(), check_same_thread=False)
-            _db_connection.execute("PRAGMA journal_mode=WAL")
-            _db_connection.execute("PRAGMA busy_timeout=5000")
-            _db_connection.execute("PRAGMA synchronous=NORMAL")
+            apply_pragmas(_db_connection)
             _create_tables(_db_connection)
             logger.info("[VECTOR][memory] Episodic memory DB connection established")
         return _db_connection

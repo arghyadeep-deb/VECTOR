@@ -79,7 +79,7 @@ class BaseRatingSystem(ABC):
         Returns:
             Dict containing rating confirmation and any updates
         """
-        pass
+        raise NotImplementedError("BaseRatingSystem.rate must be implemented by subclass")
 
     @abstractmethod
     def get_rating(
@@ -95,7 +95,7 @@ class BaseRatingSystem(ABC):
         Returns:
             Rating information or None if not rated
         """
-        pass
+        raise NotImplementedError("BaseRatingSystem.get_rating must be implemented by subclass")
 
     @abstractmethod
     def get_rating_type(self) -> str:
@@ -105,7 +105,7 @@ class BaseRatingSystem(ABC):
         Returns:
             str: Rating type identifier
         """
-        pass
+        raise NotImplementedError("BaseRatingSystem.get_rating_type must be implemented by subclass")
 
     def get_recent_ratings(
         self, user_id: str, limit: int = 50

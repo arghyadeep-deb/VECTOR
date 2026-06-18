@@ -8,6 +8,7 @@ Based on OpenBB FRED provider
 Optimized with concurrent fetching for multiple series
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -122,8 +123,7 @@ def get_series(series_id: str, start_date: Optional[str] = None, end_date: Optio
             'observation_count': len(observations)
         }
     except Exception as e:
-        logger.debug("[VECTOR][fred_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][fred_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][fred_data] caught Exception: %s", e)
         return {"error": str(e), "series_id": series_id}
 
 

@@ -27,6 +27,7 @@ isn't reachable.
 """
 from __future__ import annotations
 
+from loguru import logger
 import asyncio
 import json
 import logging

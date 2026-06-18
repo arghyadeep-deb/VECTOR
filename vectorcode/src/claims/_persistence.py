@@ -4,6 +4,7 @@ SQLite-backed persistence for VECTOR task claims.
 """
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import json
 import sqlite3
 import threading
@@ -32,8 +33,7 @@ class ClaimRepository:
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        apply_pragmas(conn)
         conn.row_factory = sqlite3.Row
         return conn
 

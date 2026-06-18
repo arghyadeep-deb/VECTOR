@@ -80,11 +80,13 @@ class SheetsTracker(ResultTracker):
         self._credentials_path = credentials_path
 
     def on_run_start(self, config: RunConfig) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][sheets_tracker] on_run_start called (no-op)")
 
     def on_result(self, result: EvalResult, config: RunConfig) -> None:
         # No-op: summary-only to avoid excessive API calls.
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][sheets_tracker] on_result called (no-op)")
 
     def on_summary(self, summary: RunSummary) -> None:
         row = self._build_row(summary)
@@ -109,7 +111,8 @@ class SheetsTracker(ResultTracker):
             LOGGER.warning("SheetsTracker.on_summary failed: %s", exc)
 
     def on_run_end(self) -> None:
-        pass
+        from loguru import logger
+        logger.debug("[VECTOR][sheets_tracker] on_run_end called (no-op)")
 
     def _authorize(self):
         """Authenticate with Google Sheets API."""

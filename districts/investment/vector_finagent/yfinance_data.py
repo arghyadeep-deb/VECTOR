@@ -5,6 +5,7 @@ Fetches real-time stock quotes and historical data using yfinance
 Returns JSON output for Qt/C++ integration
 """
 
+from loguru import logger
 import sys
 import json
 import yfinance as yf
@@ -45,8 +46,7 @@ def get_quote(symbol):
 
         return quote_data
     except Exception as e:
-        logger.debug("[VECTOR][yfinance_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][yfinance_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][yfinance_data] caught Exception: %s", e)
         return {"error": str(e), "symbol": symbol}
 
 def get_historical(symbol, start_date, end_date, interval='1d'):

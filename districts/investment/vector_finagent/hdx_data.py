@@ -5,6 +5,7 @@ Direct CKAN API implementation - no external dependencies required
 Based on HDX CKAN API Cookbook
 """
 
+from loguru import logger
 import sys
 import json
 import urllib.request
@@ -55,8 +56,7 @@ def make_api_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> 
     except urllib.error.URLError as e:
         raise Exception(f"URL Error: {e.reason}")
     except Exception as e:
-        logger.debug("[VECTOR][hdx_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][hdx_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][hdx_data] caught Exception: %s", e)
         raise Exception(f"Request failed: {str(e)}")
 
 

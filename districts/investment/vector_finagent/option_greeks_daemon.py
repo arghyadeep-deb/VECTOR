@@ -60,6 +60,7 @@ so the daemon multiplies vega and rho by 100 before returning. Theta is
 already per-day and is returned unscaled.
 """
 
+from loguru import logger
 import json
 import os
 import sys
@@ -193,8 +194,7 @@ def _compute_one(c):
             "valid": True,
         }
     except Exception as e:
-        logger.debug("[VECTOR][option_greeks_daemon] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][option_greeks_daemon] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][option_greeks_daemon] caught Exception: %s", e)
         return {
             "token": token,
             "iv": 0.0,

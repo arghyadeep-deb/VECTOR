@@ -44,7 +44,7 @@ try:
             ["git", "commit", "-m", msg, "--no-verify"],
             capture_output=True, timeout=15
         )
-except Exception:
-    pass
+except Exception as exc:
+    print(f"[VECTOR AUTO-COMMIT] skipped: {exc}", file=sys.stderr)
 
 sys.exit(0)

@@ -142,8 +142,7 @@ class FinAgentStrategyRunner:
                 historical_data[symbol] = bars
 
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.backtesting.base.fincept_strategy_runner] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.backtesting.base.fincept_strategy_runner] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.backtesting.base.fincept_strategy_runner] caught Exception: %s", e)
                 print(f"Error fetching data for {symbol}: {e}", file=sys.stderr)
 
         return historical_data

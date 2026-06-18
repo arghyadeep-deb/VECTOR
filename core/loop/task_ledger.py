@@ -14,6 +14,7 @@ Follows the audit #17 concurrency rule: RLock + WAL + busy_timeout.
 """
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import json
 import sqlite3
 import threading
@@ -50,7 +51,6 @@ class TaskLedger:
         Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        from core.memory.db_utils import apply_pragmas
         apply_pragmas(self._conn)
         with self._lock:
             self._conn.execute(_SCHEMA)

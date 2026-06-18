@@ -15,6 +15,7 @@ Usage:
     python wits_trade_data.py catalog
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -238,8 +239,7 @@ def _make_request(url: str, params: Dict[str, Any] = None) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        logger.debug("[VECTOR][wits_trade_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][wits_trade_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][wits_trade_data] caught Exception: %s", e)
         return {
             "data": [],
             "metadata": {

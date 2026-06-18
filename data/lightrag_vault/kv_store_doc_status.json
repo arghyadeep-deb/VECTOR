@@ -1,0 +1,86 @@
+{
+  "doc-d7f922584bda5cedeb2104dca753625f": {
+    "status": "processing",
+    "chunks_count": 1,
+    "chunks_list": [
+      "chunk-d7f922584bda5cedeb2104dca753625f"
+    ],
+    "content_summary": "---\ndescription: \"Vault entry point — embedded dashboards, quick links, current focus\"\ntags:\n  - index\n---\n\n# Home\n\n## Current Focus\n\n![[North Star#Current Focus]]\n\n## Active Work\n\n![[Work Dashboard.base#Active Work]]\n\n## Incidents\n\n![[Incidents.base...",
+    "content_length": 484,
+    "created_at": "2026-06-17T18:02:06.578025+00:00",
+    "updated_at": "2026-06-18T06:44:46.271360+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260617_233206_7b86a822",
+    "metadata": {
+      "processing_start_time": 1781765086
+    }
+  },
+  "dup-ab721cadb3066961bfbfdf794ff85fbd": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-d7f922584bda5cedeb2104dca753625f",
+    "content_length": 484,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-06-17T18:03:48.543409+00:00",
+    "updated_at": "2026-06-17T18:03:48.543412+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260617_233348_056b128b",
+    "error_msg": "Content already exists. Original doc_id: doc-d7f922584bda5cedeb2104dca753625f, Status: processing",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-d7f922584bda5cedeb2104dca753625f",
+      "original_track_id": "insert_20260617_233206_7b86a822"
+    }
+  },
+  "dup-a59e43f4a70a30f59d898d1cd93adf8c": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-d7f922584bda5cedeb2104dca753625f",
+    "content_length": 484,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-06-18T06:42:19.457978+00:00",
+    "updated_at": "2026-06-18T06:42:19.457980+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260618_121219_06f6168a",
+    "error_msg": "Content already exists. Original doc_id: doc-d7f922584bda5cedeb2104dca753625f, Status: processing",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-d7f922584bda5cedeb2104dca753625f",
+      "original_track_id": "insert_20260617_233206_7b86a822"
+    }
+  },
+  "dup-8d6bfd5679e3eb601a7f5bfafc6b50d9": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-d7f922584bda5cedeb2104dca753625f",
+    "content_length": 484,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-06-18T06:43:03.723810+00:00",
+    "updated_at": "2026-06-18T06:43:03.723813+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260618_121303_3e27491b",
+    "error_msg": "Content already exists. Original doc_id: doc-d7f922584bda5cedeb2104dca753625f, Status: processing",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-d7f922584bda5cedeb2104dca753625f",
+      "original_track_id": "insert_20260617_233206_7b86a822"
+    }
+  },
+  "dup-5a9652d6e2bd76b5b9d1cb17455b805a": {
+    "status": "failed",
+    "content_summary": "[DUPLICATE] Original document: doc-d7f922584bda5cedeb2104dca753625f",
+    "content_length": 484,
+    "chunks_count": 0,
+    "chunks_list": [],
+    "created_at": "2026-06-18T06:44:46.267365+00:00",
+    "updated_at": "2026-06-18T06:44:46.267371+00:00",
+    "file_path": "unknown_source",
+    "track_id": "insert_20260618_121446_6934cf32",
+    "error_msg": "Content already exists. Original doc_id: doc-d7f922584bda5cedeb2104dca753625f, Status: processing",
+    "metadata": {
+      "is_duplicate": true,
+      "original_doc_id": "doc-d7f922584bda5cedeb2104dca753625f",
+      "original_track_id": "insert_20260617_233206_7b86a822"
+    }
+  }
+}

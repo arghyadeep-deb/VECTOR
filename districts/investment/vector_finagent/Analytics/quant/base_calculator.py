@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Quantitative Base Calculator Module
 =================================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - universe_size: Investment universe size (default: 1000)
   - risk_model: Risk model for portfolio construction (default: 'barra')
 """
+from loguru import logger
 
 
 
@@ -122,8 +121,7 @@ class BaseCalculator(ABC):
                 if numeric_data.empty:
                     raise ValueError(f"{name} DataFrame has no numeric columns")
                 return numeric_data.astype(float)
-            except Exception:
-                logger.debug("[VECTOR][Analytics.quant.base_calculator] caught Exception: %s", _sve)
+            except Exception as _sve:
                 logger.debug("[VECTOR][Analytics.quant.base_calculator] caught Exception: %s", _sve)
                 raise ValueError(f"{name} DataFrame cannot be converted to numeric")
 
@@ -349,7 +347,7 @@ class BaseCalculator(ABC):
         Abstract method for main calculation.
         Must be implemented by all subclasses.
         """
-        pass
+        raise NotImplementedError("BaseCalculator.calculate must be implemented by subclass")
 
     def get_supported_methods(self) -> List[str]:
         """

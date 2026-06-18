@@ -20,6 +20,7 @@ Typical usage::
 """
 
 from __future__ import annotations
+from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 import sqlite3
@@ -75,8 +76,7 @@ class SyncEngine:
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL;")
-        self._conn.execute("PRAGMA busy_timeout=5000;")
+        apply_pragmas(self._conn)
         with self._lock:
             self._conn.execute(_CREATE_STATE_TABLE)
             self._conn.commit()

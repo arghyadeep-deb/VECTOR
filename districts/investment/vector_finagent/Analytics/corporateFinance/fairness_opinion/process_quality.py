@@ -465,8 +465,7 @@ def main():
             sys.exit(1)
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.corporateFinance.fairness_opinion.process_quality] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.corporateFinance.fairness_opinion.process_quality] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.corporateFinance.fairness_opinion.process_quality] caught Exception: %s", e)
         result = {"success": False, "error": str(e)}
         print(json.dumps(result))
         sys.exit(1)

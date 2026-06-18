@@ -26,6 +26,7 @@ Usage:
     result = file_ops.search("TODO", path=".", file_glob="*.py")
 """
 
+from loguru import logger
 import os
 import re
 import difflib

@@ -7,6 +7,7 @@ and detecting adversarial seesaw patterns.
 """
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 __all__ = [
     "CROSS_VALIDATE_THRESHOLD",
     "EMA_ALPHA",
@@ -71,8 +72,7 @@ class HPValidator:
             if self._conn is not None:
                 return self._conn
             self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-            self._conn.execute("PRAGMA journal_mode=WAL")
-            self._conn.execute("PRAGMA busy_timeout=5000")
+            apply_pragmas(self._conn)
             return self._conn
 
     def _init_db(self) -> None:

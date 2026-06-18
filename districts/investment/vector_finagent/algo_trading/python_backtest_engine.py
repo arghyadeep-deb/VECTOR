@@ -382,8 +382,7 @@ def run_backtest(
     try:
         algo.initialize()
     except Exception as e:
-        logger.debug("[VECTOR][algo_trading.python_backtest_engine] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][algo_trading.python_backtest_engine] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][algo_trading.python_backtest_engine] caught Exception: %s", e)
         debug(f"initialize() error: {e}\n{traceback.format_exc()}")
         return {
             'success': False,

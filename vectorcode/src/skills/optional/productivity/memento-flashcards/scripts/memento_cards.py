@@ -6,6 +6,7 @@ Stdlib-only. All output is JSON for agent parsing.
 Data file: $VECTOR_HOME/skills/productivity/memento-flashcards/data/cards.json
 """
 
+from loguru import logger
 import argparse
 import csv
 import json
@@ -54,7 +55,7 @@ def _save(data: dict) -> None:
             json.dump(data, f, indent=2, ensure_ascii=False)
             f.write("\n")
         os.replace(tmp, CARDS_FILE)
-    except BaseException:
+    except BaseException as _sve:
         try:
             os.unlink(tmp)
         except OSError as _sve:

@@ -17,6 +17,7 @@ Usage (CLI):
     python finrl_trading.py --action crypto_config --pairs BTC/USDT ETH/USDT
 """
 
+from loguru import logger
 import json
 import sys
 import os
@@ -192,8 +193,7 @@ def start_paper_trading(
         return {"status": "trading_session_ended"}
 
     except Exception as e:
-        logger.debug("[VECTOR][Analytics.finrl.finrl_trading] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][Analytics.finrl.finrl_trading] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][Analytics.finrl.finrl_trading] caught Exception: %s", e)
         return {"error": str(e), "status": "failed"}
 
 

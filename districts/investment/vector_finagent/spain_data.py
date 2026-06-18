@@ -5,6 +5,7 @@ Access to Spanish government datasets through hierarchical catalogue → dataset
 Returns JSON output for Qt/C++ integration
 """
 
+from loguru import logger
 import sys
 import json
 import os
@@ -241,8 +242,7 @@ def _make_request(endpoint: str, params: Optional[Dict[str, Any]] = None) -> Dic
     except json.JSONDecodeError:
         return {"error": "Invalid JSON response"}
     except Exception as e:
-        logger.debug("[VECTOR][spain_data] caught Exception: %s", _sve)
-        logger.debug("[VECTOR][spain_data] caught Exception: %s", _sve)
+        logger.debug("[VECTOR][spain_data] caught Exception: %s", e)
         return {"error": f"Unexpected error: {str(e)}"}
 
 def _extract_id_from_uri(uri: str) -> str:

@@ -849,8 +849,7 @@ def _run_agentic(
                 interval_ms=100,
             )
     except ImportError:
-        pass
-
+        __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
     # Set up run directory
     model_slug = config.model.replace("/", "-").replace(":", "-")
     if config.output_path:
@@ -925,8 +924,7 @@ def _run_agentic(
         export_hf_dataset(traces, hf_path)
         console.print(f"  [green]HF Arrow:[/green]  {hf_path}")
     except ImportError:
-        pass
-
+        __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
     # Print summary table
     print_section(console, "Agentic Results")
     _print_agentic_summary(console, traces, config)

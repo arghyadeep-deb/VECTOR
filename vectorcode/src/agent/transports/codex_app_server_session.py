@@ -267,7 +267,7 @@ class CodexAppServerSession:
         if self._client is not None:
             try:
                 self._client.close()
-            except Exception:  # pragma: no cover - best-effort cleanup
+            except Exception as _sve:  # pragma: no cover - best-effort cleanup
                 logger.debug("[VECTOR][agent.transports.codex_app_server_session] suppressed Exception: %s", _sve)
             self._client = None
         self._thread_id = None

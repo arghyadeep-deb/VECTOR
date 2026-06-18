@@ -1,5 +1,3 @@
-from loguru import logger
-
 """Quantitative Quant Modules 3042 Module
 =================================
 
@@ -27,6 +25,7 @@ PARAMETERS:
   - universe_size: Investment universe size (default: 1000)
   - risk_model: Risk model for portfolio construction (default: 'barra')
 """
+from loguru import logger
 
 
 
@@ -458,8 +457,7 @@ class AdvancedQuantAnalyzer(BaseCalculator):
                     }
 
             except Exception as e:
-                logger.debug("[VECTOR][Analytics.quant.quant_modules_3042] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][Analytics.quant.quant_modules_3042] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][Analytics.quant.quant_modules_3042] caught Exception: %s", e)
                 results[algorithm] = {'error': str(e)}
 
         return self._create_result_dict(

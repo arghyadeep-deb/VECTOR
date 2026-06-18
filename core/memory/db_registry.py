@@ -19,6 +19,7 @@ Adding a new DB:
 """
 from __future__ import annotations
 
+from core.memory.db_utils import apply_pragmas
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -172,7 +173,6 @@ def get_district_db(key: str, check_same_thread: bool = False) -> sqlite3.Connec
     abs_path.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(str(abs_path), check_same_thread=check_same_thread)
-    from core.memory.db_utils import apply_pragmas
     apply_pragmas(conn, foreign_keys=True)
     logger.debug("[VECTOR][db_registry] opened '{}' (v{}) at {}", key, entry.schema_version, rel_path)
     return conn

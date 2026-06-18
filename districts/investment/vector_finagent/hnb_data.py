@@ -38,6 +38,7 @@ Fields per item:
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -184,8 +185,7 @@ class HNBWrapper:
             sc = e.response.status_code if e.response is not None else None
             return HNBError("tecajn-eur/v3", str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][hnb_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][hnb_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][hnb_data] caught Exception: %s", e)
             return HNBError("tecajn-eur/v3", str(e)).to_dict()
 
     def get_currency(self, currency: str,

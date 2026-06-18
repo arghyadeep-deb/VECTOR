@@ -206,7 +206,7 @@ class GDriveConnector(BaseConnector):
                         scopes=GOOGLE_ALL_SCOPES,
                         credentials_path=self._credentials_path,
                     )
-                except Exception:  # noqa: BLE001
+                except Exception as _sve:  # noqa: BLE001
                     logger.debug("[VECTOR][connectors.gdrive] suppressed Exception: %s", _sve)
 
             threading.Thread(target=_run, daemon=True).start()

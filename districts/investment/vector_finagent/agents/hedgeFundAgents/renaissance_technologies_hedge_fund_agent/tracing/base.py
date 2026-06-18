@@ -6,6 +6,7 @@ Core tracing system for Renaissance Technologies multi-agent architecture.
 Implements distributed tracing, span management, and observability.
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -248,8 +249,7 @@ class Tracer:
             try:
                 exporter(span)
             except Exception as e:
-                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.tracing.base] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.tracing.base] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.tracing.base] caught Exception: %s", e)
                 print(f"Export error: {e}")
 
         # Restore parent span as current

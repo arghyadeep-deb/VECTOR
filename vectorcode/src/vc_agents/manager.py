@@ -10,6 +10,7 @@ to the five existing primitives (Intelligence, Agent, Tools, Engine, Learning).
 """
 
 from __future__ import annotations
+from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 import json
@@ -101,9 +102,7 @@ class AgentManager:
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
-        self._conn.execute("PRAGMA journal_mode=WAL")
-        self._conn.execute("PRAGMA busy_timeout=5000")
-        self._conn.execute("PRAGMA foreign_keys=ON")
+        apply_pragmas(self._conn, foreign_keys=True)
         self._conn.execute(_CREATE_AGENTS)
         self._conn.execute(_CREATE_TASKS)
         self._conn.execute(_CREATE_BINDINGS)

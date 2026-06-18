@@ -3,6 +3,7 @@ from loguru import logger
 Market data source using CCXT for fetching candles and snapshots.
 """
 
+from loguru import logger
 import ccxt
 import time
 import asyncio
@@ -115,8 +116,7 @@ class CCXTMarketDataSource:
                 result[symbol] = candles
 
             except Exception as e:
-                logger.debug("[VECTOR][agno_trading.framework.market_data_source] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agno_trading.framework.market_data_source] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agno_trading.framework.market_data_source] caught Exception: %s", e)
                 print(f"Error fetching candles for {symbol}: {e}", flush=True)
                 result[symbol] = []
 

@@ -262,8 +262,7 @@ class ModelValidator:
             return validation_results
 
         except Exception as e:
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_validation] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_validation] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][Analytics.python_skfolio_lib.skfolio_validation] caught Exception: %s", e)
             logger.error(f"Walk-forward validation failed: {e}")
             raise
 

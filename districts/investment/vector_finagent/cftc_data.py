@@ -187,7 +187,6 @@ class CFTCDataWrapper:
 
         except Exception as _sve:
             logger.debug("[VECTOR][cftc_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][cftc_data] caught Exception: %s", _sve)
             return date_str
 
     def _safe_int(self, value) -> int:

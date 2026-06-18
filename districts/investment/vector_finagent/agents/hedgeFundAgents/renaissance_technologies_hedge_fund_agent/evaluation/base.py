@@ -6,6 +6,7 @@ Core evaluation framework for Renaissance Technologies multi-agent system.
 Implements metrics tracking, performance assessment, and continuous improvement.
 """
 
+from loguru import logger
 from typing import Optional, List, Dict, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -201,7 +202,7 @@ class Evaluator(ABC):
         Returns:
             EvaluationResult with metrics and assessment
         """
-        pass
+        raise NotImplementedError("Evaluator.evaluate must be implemented by subclass")
 
     def get_history(
         self,
@@ -296,8 +297,7 @@ class EvaluationRegistry:
                 result = evaluator.evaluate(context)
                 results.append(result)
             except Exception as e:
-                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.base] caught Exception: %s", _sve)
-                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.base] caught Exception: %s", _sve)
+                logger.debug("[VECTOR][agents.hedgeFundAgents.renaissance_technologies_hedge_fund_agent.evaluation.base] caught Exception: %s", e)
                 # Create error result
                 results.append(EvaluationResult(
                     evaluation_id=f"error_{evaluator.name}",

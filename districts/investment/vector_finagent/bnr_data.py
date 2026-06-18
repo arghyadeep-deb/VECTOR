@@ -25,6 +25,7 @@ Currencies published (36+):
 Returns JSON output for C++ integration.
 """
 
+from loguru import logger
 import sys
 import json
 import requests
@@ -171,8 +172,7 @@ class BNRWrapper:
             sc = e.response.status_code if e.response is not None else None
             return BNRError("today", str(e), sc).to_dict()
         except Exception as e:
-            logger.debug("[VECTOR][bnr_data] caught Exception: %s", _sve)
-            logger.debug("[VECTOR][bnr_data] caught Exception: %s", _sve)
+            logger.debug("[VECTOR][bnr_data] caught Exception: %s", e)
             return BNRError("today", str(e)).to_dict()
 
     def get_date(self, rate_date: str) -> Dict[str, Any]:
