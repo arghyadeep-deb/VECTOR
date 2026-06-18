@@ -1255,8 +1255,8 @@ class AutonomousLoop:
 
         try:
             from core.city.evolution_engine import EvolutionEngine
-            from core.city.agent_registry import AgentRegistry
-            registry = AgentRegistry.instance()
+            from core.city.agent_registry import get_registry
+            registry = get_registry()
             engine   = EvolutionEngine(registry=registry)
             agents   = registry.get_all_agents()
             districts = {getattr(a, "district", None) for a in agents} - {None}
