@@ -1,4 +1,4 @@
-"""
+﻿"""
 VectorCode LLM — unified multi-provider LLM router for VECTOR districts.
 
 Wraps ollama_safe (local) and adds cloud provider tiers via vectorcode's
@@ -370,16 +370,43 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float, tempe
 
 # â”€â”€ Model mapping helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
+# Map Ollama custom model names to provider-specific model IDs
 _GEMINI_MAP = {
-    "vector-reasoning": "gemini-2.0-flash",
-    "vector-chairman":  "gemini-2.0-flash",
-    "vector-deep":      "gemini-2.0-flash",
-    "vector-focus":     "gemini-2.0-flash",
-    "vector-coder":     "gemini-2.0-flash",
-    "vector-fast":      "gemini-2.0-flash",
-    "vector-r1":        "gemini-2.0-flash",
-    "vector-ambient":   "gemini-2.0-flash",
+    "vector-reasoning":    "gemini-2.0-flash",
+    "vector-chairman":     "gemini-2.0-flash",
+    "vector-deep":         "gemini-2.0-flash",
+    "vector-focus":        "gemini-2.0-flash",
+    "vector-coder":        "gemini-2.0-flash",
+    "vector-fast":         "gemini-2.0-flash",
+    "vector-r1":           "gemini-2.0-flash",
+    "vector-ambient":      "gemini-2.0-flash",
+    "vector-multilingual": "gemini-2.0-flash",
+    "vector-dev":          "gemini-2.0-flash",
 }
+
+# Map custom model names to TIER_ROUTING tiers for ProviderClient delegation.
+# This ensures vector-reasoning gets Groq/LLM7/GitHub reasoning models,
+# vector-coder gets GitHub/LLM7 coding models, etc.
+_MODEL_TO_TIER: dict[str, str] = {
+    "vector-reasoning":    "reasoning",
+    "vector-chairman":     "council",
+    "vector-deep":         "reasoning",
+    "vector-r1":           "reasoning",
+    "vector-coder":        "coding",
+    "devstral:24b":        "coding",
+    "qwen3:14b":           "coding",
+    "deepseek-r1:14b":     "reasoning",
+    "vector-focus":        "conversation",
+    "vector-fast":         "fast",
+    "vector-ambient":      "fast",
+    "vector-dev":          "fast",
+    "vector-multilingual": "multilingual",
+}
+
+
+def _model_to_tier(model: str) -> str:
+    """Map an Ollama custom model name to a TIER_ROUTING key."""
+    return _MODEL_TO_TIER.get(model, "fast")
 
 _CLAUDE_MAP = {
     "vector-reasoning": "claude-sonnet-4-6",
@@ -440,41 +467,39 @@ def chat(
     messages: list[dict],
     timeout: float = 30.0,
     *,
-    provider: ProviderName = “auto”,
+    provider: ProviderName = "auto",
     allow_cloud: bool = True,
     district: str | None = None,
     sensitive: bool = False,
     temperature: float = 0.7,
 ) -> str:
-    “””Unified LLM call with multi-provider fallback.
+    """Unified LLM call with multi-provider fallback.
 
-    Same signature as ollama_safe.chat() — drop-in replacement.
+    Same signature as ollama_safe.chat() - drop-in replacement.
 
     Args:
-        model:       Ollama model tag OR cloud model ID (e.g. “claude-sonnet-4-6”)
+        model:       Ollama model tag OR cloud model ID (e.g. "claude-sonnet-4-6")
         messages:    Standard chat messages list
         timeout:     Per-provider HTTP timeout
-        provider:    Force specific provider. “auto” = try local first, cloud as fallback
+        provider:    Force specific provider. "auto" = try local first, cloud as fallback
         allow_cloud: Set False to stay strictly local (same as ollama_safe.chat)
         temperature: Sampling temperature passed to every provider (default 0.7)
 
     Returns:
         Response text, or empty string on total failure (never raises).
-    “””
+    """
     if not messages:
-        return “”
+        return ""
 
-    # Forced provider
-    if provider == “gemini”:
+    if provider == "gemini":
         return _try_gemini(model, messages, timeout, temperature)
-    if provider == “anthropic”:
+    if provider == "anthropic":
         return _try_anthropic(model, messages, timeout, temperature)
-    if provider == “openrouter”:
+    if provider == "openrouter":
         return _try_openrouter(model, messages, timeout, temperature)
-    if provider == “ollama”:
+    if provider == "ollama":
         return _try_ollama(model, messages, timeout, temperature)
 
-    # Auto chain: sensitivity + complexity aware
     local_only = False
     heavy = False
     try:
@@ -482,39 +507,35 @@ def chat(
         _prompt = _messages_to_text(messages)
         _plan = decide_route(_prompt, district=district, sensitive=sensitive)
         local_only = _plan.local_only
-        heavy = _plan.tier == “reasoning”
-        logger.debug(“[VECTOR][vc_llm] route: local_only={} heavy={} ({})”,
-                     local_only, heavy, _plan.reason)
+        heavy = _plan.tier == "reasoning"
+        logger.debug("[VECTOR][vc_llm] route: local_only={} heavy={} ({})", local_only, heavy, _plan.reason)
     except Exception as e:
-        logger.debug(f”[VECTOR][vc_llm] route_policy unavailable: {e}”)
+        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
 
-    # Sensitive or cloud-disabled -> strictly local
     if local_only or not allow_cloud:
         result = _try_ollama(model, messages, timeout, temperature)
         if not result and not local_only:
-            logger.warning(f”[VECTOR][vc_llm] local failed for {model}, cloud disabled”)
+            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
         return result
 
     if heavy:
-        order = [“anthropic”, “openrouter”, “gemini”, “ollama”]
+        order = ["anthropic", "openrouter", "gemini", "ollama"]
     else:
-        order = [“gemini”, “openrouter”, “anthropic”, “ollama”]
+        order = ["gemini", "openrouter", "anthropic", "ollama"]
 
     _try_map = {
-        “ollama”:     lambda m, msgs, t: _try_ollama(m, msgs, t, temperature),
-        “gemini”:     lambda m, msgs, t: _try_gemini(m, msgs, t, temperature),
-        “anthropic”:  lambda m, msgs, t: _try_anthropic(m, msgs, t, temperature),
-        “openrouter”: lambda m, msgs, t: _try_openrouter(m, msgs, t, temperature),
+        "ollama": lambda m, msgs, t: _try_ollama(m, msgs, t, temperature),
+        "gemini": lambda m, msgs, t: _try_gemini(m, msgs, t, temperature),
+        "anthropic": lambda m, msgs, t: _try_anthropic(m, msgs, t, temperature),
+        "openrouter": lambda m, msgs, t: _try_openrouter(m, msgs, t, temperature),
     }
     for slug in order:
         result = _try_map[slug](model, messages, timeout)
         if result:
             return result
 
-    logger.warning(f”[VECTOR][vc_llm] all providers failed for {model}”)
-    return “”
-
-
+    logger.warning(f"[VECTOR][vc_llm] all providers failed for {model}")
+    return ""
 def chat_stream(
     model: str,
     messages: list[dict],
