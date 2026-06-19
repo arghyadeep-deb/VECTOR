@@ -122,27 +122,27 @@ class PermissionGateway:
                 return result
             # verdict == "defer" → fall through to owner approval via Pushover
             _ip = self._get_local_ip()
-                _aid = action.action_type
-                _approve_url = f"http://{_ip}:8000/gateway/approve/{_aid}"
-                _reject_url  = f"http://{_ip}:8000/gateway/reject/{_aid}"
-                await self._notify(
-                    f'VECTOR wants to: {action.action_type}\nParams: {str(action.params)[:120]}\n\nTap Approve or open Reject URL.',
-                    priority=2,
-                    url=_approve_url,
-                    url_title="✅ Approve",
-                )
-                await self._notify(
-                    f'Reject: {action.action_type}',
-                    priority=0,
-                    url=_reject_url,
-                    url_title="❌ Reject",
-                )
-                _red_timeout = 1 if "pytest" in sys.modules else 300
-                try:
-                    confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=_red_timeout)
-                except asyncio.TimeoutError:
-                    confirmed = False
-                    logger.warning(f"[VECTOR][gateway] RED action {action.action_type} timed out after 5min — rejected for safety")
+            _aid = action.action_type
+            _approve_url = f"http://{_ip}:8000/gateway/approve/{_aid}"
+            _reject_url  = f"http://{_ip}:8000/gateway/reject/{_aid}"
+            await self._notify(
+                f'VECTOR wants to: {action.action_type}\nParams: {str(action.params)[:120]}\n\nTap Approve or open Reject URL.',
+                priority=2,
+                url=_approve_url,
+                url_title="✅ Approve",
+            )
+            await self._notify(
+                f'Reject: {action.action_type}',
+                priority=0,
+                url=_reject_url,
+                url_title="❌ Reject",
+            )
+            _red_timeout = 1 if "pytest" in sys.modules else 300
+            try:
+                confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=_red_timeout)
+            except asyncio.TimeoutError:
+                confirmed = False
+                logger.warning(f"[VECTOR][gateway] RED action {action.action_type} timed out after 5min — rejected for safety")
             if confirmed:
                 exec_result = await self._execute_action(action)
                 result = GatewayResult(True, 'RED', True, exec_result, 'Owner confirmed')
