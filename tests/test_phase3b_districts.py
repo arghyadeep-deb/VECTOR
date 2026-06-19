@@ -331,10 +331,11 @@ class TestCourseTracker:
             from districts.learning.course_tracker import CourseTracker
             agent = CourseTracker.__new__(CourseTracker)
             from core.city.agent_base import AgentBase
-            import uuid
+            import uuid, threading
             AgentBase.__init__(agent, str(uuid.uuid4()), "CourseTracker", "learning")
             agent.memory = _make_memory_mock()
             agent.obsidian = _make_obsidian_mock()
+            agent._lock = threading.RLock()
             agent.db_path = Path(tmp_dir) / "test_courses.db"
             agent.db_path.parent.mkdir(parents=True, exist_ok=True)
             agent._init_db()
