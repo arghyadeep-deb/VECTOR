@@ -32,7 +32,12 @@ def _make_mock_memory(recall_return=None):
 
 
 # ─── patch targets ────────────────────────────────────────────────────────────
-_CHAT    = "core.inference.ollama_safe.chat"
+# Agents call `from core.inference.vectorcode_llm import chat` locally inside their
+# _call_ollama() methods — that's the function that must be patched, not ollama_safe.chat
+# (which these agents never call). Patching the wrong target silently no-ops: most tests
+# here use loose assertions (membership/type checks) that happen to pass on real LLM
+# output too, which is how this went undetected.
+_CHAT    = "core.inference.vectorcode_llm.chat"
 _HYDRATE = "core.loop.context_engine.ContextEngine.session_hydration_prompt"
 _OBSIDIAN_WRITE = "core.memory.obsidian_sync.ObsidianSync.write"
 _OBSIDIAN_READ  = "core.memory.obsidian_sync.ObsidianSync.read"
