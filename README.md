@@ -626,7 +626,7 @@ turso>=0.5.0
    # - VECTOR_API_KEY
    # - VECTOR_JWT_SECRET
    # - HUMANLAYER_API_KEY
-   # - VECTOR_COMFYUI_PATH / VECTOR_LIBRECHAT_PATH / VECTOR_UITARS_PATH if using sidecars
+   # - VECTOR_COMFYUI_PATH / VECTOR_LIBRECHAT_PATH if using sidecars
    ```
 
 3. **Service Initialization**
