@@ -353,11 +353,6 @@ class SidecarsConfig(BaseModel):
     #   Override: set VECTOR_COMFYUI_PATH env var.
     comfyui_path: str = ""
     #
-    # UI-TARS: Electron desktop-automation app; must be cloned locally.
-    #   Default: <codebase-parent>/GitHub/UI-TARS-desktop-main
-    #   Override: set VECTOR_UITARS_PATH env var.
-    ui_tars_path: str = ""
-    #
     # hyperframes: local Node media-frame server; must be cloned locally.
     #   Default: <codebase-parent>/GitHub/hyperframes-main
     #   Override: set VECTOR_HYPERFRAMES_PATH env var.
