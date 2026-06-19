@@ -124,7 +124,6 @@ def test_health_production_readiness_reports_503_for_missing_hardening(monkeypat
         "HUMANLAYER_API_KEY",
         "VECTOR_COMFYUI_PATH",
         "VECTOR_LIBRECHAT_PATH",
-        "VECTOR_UITARS_PATH",
     ):
         monkeypatch.delenv(key, raising=False)
 
