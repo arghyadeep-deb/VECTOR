@@ -18,8 +18,18 @@ _VECTORCODE_SRC = Path(__file__).resolve().parent
 
 
 def ensure_paths() -> None:
-    """Add repo root and vectorcode/src to sys.path if not already present."""
-    for p in [str(_REPO_ROOT), str(_VECTORCODE_SRC)]:
+    """Add repo root and vectorcode/src to sys.path if not already present.
+
+    Insertion order matters: vectorcode/src has its own internal core/ package
+    (config.py, credentials.py, events.py, registry.py, types.py — a shim over
+    vc_core, see vectorcode/src/core/__init__.py) that collides by name with
+    VECTOR's real top-level core/ package. Whichever directory sys.path
+    resolves first wins any bare `import core` / `from core.X import Y` for
+    the rest of the process (sys.modules caches the parent package's __path__
+    on first touch). Inserting vectorcode/src LAST keeps it closer to the
+    front but still behind repo root, so the real core/ package always wins.
+    """
+    for p in [str(_VECTORCODE_SRC), str(_REPO_ROOT)]:
         if p not in sys.path:
             sys.path.insert(0, p)
 
