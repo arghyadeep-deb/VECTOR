@@ -120,11 +120,8 @@ class PermissionGateway:
                 result = GatewayResult(False, 'RED', False, {}, 'Council rejected action')
                 self._write_audit(action, result)
                 return result
-            # verdict == "defer" → fall through to owner approval
-            if _HUMANLAYER_AVAILABLE:
-                confirmed = await self._request_humanlayer_approval(action)
-            else:
-                _ip = self._get_local_ip()
+            # verdict == "defer" → fall through to owner approval via Pushover
+            _ip = self._get_local_ip()
                 _aid = action.action_type
                 _approve_url = f"http://{_ip}:8000/gateway/approve/{_aid}"
                 _reject_url  = f"http://{_ip}:8000/gateway/reject/{_aid}"
