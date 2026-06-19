@@ -83,7 +83,7 @@ class GUIAgent:
         on_step: Callable[[dict], None] | None = None,
     ) -> None:
         self._operator      = operator or VisionOperator()
-        self._model         = model or CONFIG.get("models", {}).get("focus", "vector-focus")
+        self._model         = model or CONFIG.get("models", {}).get("vision", "qwen2.5vl:7b")
         self._max_loop      = max_loop
         self._loop_interval = loop_interval
         self._factors       = factors or [1000, 1000]
