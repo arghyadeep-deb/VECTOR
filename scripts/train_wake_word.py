@@ -59,12 +59,33 @@ def _record_sample(idx: int, n_total: int, phrase: str, sample_rate: int,
         return False
 
 
+_SPH_HARM_SHIM = (
+    "import scipy.special as _sp\n"
+    "if not hasattr(_sp, 'sph_harm'):\n"
+    "    def _sph_harm(m, n, theta, phi):\n"
+    "        return _sp.sph_harm_y(n, m, phi, theta)\n"
+    "    _sp.sph_harm = _sph_harm\n"
+    "import runpy, sys\n"
+    "sys.argv = ['openwakeword.train'] + sys.argv[1:]\n"
+    "runpy.run_module('openwakeword.train', run_name='__main__')\n"
+)
+
+
 def _run_training(phrase: str, samples_dir: Path, output_dir: Path) -> bool:
+    """
+    Runs openwakeword.train in a subprocess, via an inline bootstrap that
+    shims scipy.special.sph_harm (removed in scipy>=1.15) before import.
+    The `acoustics` package — an openwakeword dependency for noise
+    augmentation — still imports an unmaintained submodule that references
+    the removed function, even though that submodule is never called here.
+    Shimming in-process (not editing the installed acoustics package) keeps
+    the fix local to VECTOR and survives any future package reinstall.
+    """
     print("\nStarting openWakeWord training (this may take 5-20 minutes)...")
     try:
         result = subprocess.run(
             [
-                sys.executable, "-m", "openwakeword.train",
+                sys.executable, "-c", _SPH_HARM_SHIM,
                 "--positive_reference_clips", str(samples_dir),
                 "--output_dir", str(output_dir),
                 "--model_name", phrase,
