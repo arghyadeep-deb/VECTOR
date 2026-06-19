@@ -755,6 +755,7 @@ class PermissionGateway:
                         _shell = PCController().run_shell_command(
                             _cmd,
                             action.params.get("timeout", 30),
+                            _gateway_approved=True,
                         )
                         result["status"] = "ok" if _shell.get("exit_code", 1) == 0 else "error"
                         result.update(_shell)
@@ -885,17 +886,33 @@ class PermissionGateway:
 
         return warnings
 
-    async def _notify(self, message, priority=0):
+    @staticmethod
+    def _get_local_ip() -> str:
+        import socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+            return ip
+        except Exception:
+            return "localhost"
+
+    async def _notify(self, message, priority=0, url: str = "", url_title: str = ""):
         token = CONFIG["api_keys"].get('pushover_token', '')
         user = CONFIG["api_keys"].get('pushover_user', '')
         if not token or not user:
             logger.info(f'[VECTOR][notify] (no Pushover configured) {message}')
             return
         try:
+            payload: dict = {'token': token, 'user': user, 'message': message, 'priority': priority}
+            if url:
+                payload['url'] = url
+            if url_title:
+                payload['url_title'] = url_title
             async with httpx.AsyncClient() as client:
                 await client.post('https://api.pushover.net/1/messages.json',
-                    data={'token': token, 'user': user, 'message': message, 'priority': priority},
-                    timeout=5)
+                    data=payload, timeout=5)
         except Exception as e:
             logger.warning(f'[VECTOR][gateway] Pushover failed: {e}')
 
