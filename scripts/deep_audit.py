@@ -65,7 +65,7 @@ IGNORE_IMPORTS = frozenset({
     "lightrag", "supabase", "watchdog", "pyautogui", "cv2", "mediapipe",
     "whisper", "sounddevice", "openwakeword", "yt_dlp", "instagrapi",
     "github", "google", "telegram", "discord", "slack", "twilio",
-    "pushover", "mem0ai", "humanlayer", "fastmcp", "rich", "click",
+    "pushover", "mem0ai", "fastmcp", "rich", "click",
     "typer", "aiofiles", "aiohttp", "websockets", "cryptography", "jwt",
     "PIL", "matplotlib", "pandas", "scipy", "sklearn", "lightgbm",
     "optuna", "wandb", "mlflow", "dspy", "lancedb", "faiss", "annoy",
