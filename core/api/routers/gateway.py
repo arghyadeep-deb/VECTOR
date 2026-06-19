@@ -73,6 +73,46 @@ async def reject_action(action_id: str, request: Request):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/approve/{action_id}", response_class=HTMLResponse)
+async def approve_action_get(action_id: str, request: Request):
+    """Tap-to-approve from Pushover notification link (GET)."""
+    try:
+        gw = _get_gw(request)
+        result = gw.approve(action_id) if hasattr(gw, "approve") else {"status": "approved"}
+        status = result.get("status", "approved")
+        if status == "approved":
+            return HTMLResponse(
+                "<html><body style='font-family:sans-serif;text-align:center;padding:40px'>"
+                "<h1 style='color:green'>✅ Approved</h1>"
+                f"<p>Action <b>{action_id}</b> has been approved.</p>"
+                "<p>VECTOR will proceed.</p></body></html>"
+            )
+        return HTMLResponse(
+            "<html><body style='font-family:sans-serif;text-align:center;padding:40px'>"
+            f"<h2>Status: {status}</h2><p>Action: {action_id}</p></body></html>"
+        )
+    except Exception as e:
+        logger.error("[VECTOR][api][gateway] GET approve failed for {}: {}", action_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/reject/{action_id}", response_class=HTMLResponse)
+async def reject_action_get(action_id: str, request: Request):
+    """Tap-to-reject from Pushover notification link (GET)."""
+    try:
+        gw = _get_gw(request)
+        result = gw.reject(action_id) if hasattr(gw, "reject") else {"status": "rejected"}
+        return HTMLResponse(
+            "<html><body style='font-family:sans-serif;text-align:center;padding:40px'>"
+            "<h1 style='color:red'>❌ Rejected</h1>"
+            f"<p>Action <b>{action_id}</b> has been blocked.</p>"
+            "<p>VECTOR will not proceed.</p></body></html>"
+        )
+    except Exception as e:
+        logger.error("[VECTOR][api][gateway] GET reject failed for {}: {}", action_id, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print("OK: gateway.py router")
