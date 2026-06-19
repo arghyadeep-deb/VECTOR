@@ -17,20 +17,7 @@ from loguru import logger
 import asyncio, datetime, httpx, os, shlex
 from dataclasses import dataclass, field
 
-# HumanLayer — RED-tier enforcement (RULE 3, VECTOR_FIT.md: critical)
-try:
-    from humanlayer import HumanLayer as _HumanLayer
-    _hl = _HumanLayer()
-    _HUMANLAYER_AVAILABLE = True
-    logger.info("[VECTOR][gateway] HumanLayer active — RED actions routed through approval API")
-except ImportError:
-    _hl = None
-    _HUMANLAYER_AVAILABLE = False
-    logger.info("[VECTOR][gateway] HumanLayer not installed — using asyncio Event fallback for RED")
-except Exception as _hl_err:
-    _hl = None
-    _HUMANLAYER_AVAILABLE = False
-    logger.warning(f"[VECTOR][gateway] HumanLayer init failed: {_hl_err}")
+# RED-tier enforcement: Pushover phone notifications + optional Queen consensus
 
 @dataclass
 class Action:
