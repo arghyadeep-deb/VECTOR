@@ -195,12 +195,85 @@ def _check_launch_secrets() -> Check:
     )
 
 
+def _check_secret_manager() -> Check:
+    required = {
+        "VECTOR_API_KEY": 32,
+        "MCP_KERNEL_SECRET": 32,
+    }
+    optional = {
+        "VECTOR_JWT_SECRET": 48,
+    }
+    try:
+        from core.security.secrets_manager import audit_secret
+    except Exception as exc:
+        return Check("secret_manager", "fail", f"Secret manager unavailable: {exc}")
+
+    audits = {
+        name: audit_secret(name, min_length=min_length).to_dict()
+        for name, min_length in {**required, **optional}.items()
+    }
+    missing = [
+        name for name in required
+        if not audits[name]["configured"]
+    ]
+    weak = [
+        name for name in required
+        if audits[name]["configured"] and not audits[name]["strong"]
+    ]
+    optional_missing = [
+        name for name in optional
+        if not audits[name]["configured"]
+    ]
+    evidence = {
+        "missing": missing,
+        "weak": weak,
+        "optional_missing": optional_missing,
+        "audits": audits,
+    }
+    if missing or weak:
+        status = "fail" if _is_production() else "warn"
+        return Check(
+            "secret_manager",
+            status,
+            "Required launch secrets are missing or weak.",
+            evidence,
+        )
+    if optional_missing:
+        return Check("secret_manager", "warn", "Optional production secrets are not configured.", evidence)
+    return Check("secret_manager", "ok", "Runtime secrets are configured.", evidence)
+
+
+def _check_tls_config() -> Check:
+    try:
+        from core.runtime.tls import load_tls_config
+
+        config = load_tls_config()
+    except Exception as exc:
+        return Check("api_tls", "fail", f"TLS configuration check failed: {exc}")
+
+    evidence = {
+        "enabled": config.enabled,
+        "terminated": config.terminated,
+        "certfile_configured": bool(config.certfile),
+        "keyfile_configured": bool(config.keyfile),
+        "ca_certs_configured": bool(config.ca_certs),
+    }
+    if config.enabled:
+        return Check("api_tls", "ok", config.detail, evidence)
+    if config.terminated:
+        return Check("api_tls", "ok", config.detail, evidence)
+    status = "fail" if _is_production() else "warn"
+    return Check("api_tls", status, config.detail, evidence)
+
+
 def run_production_check() -> dict[str, Any]:
     checks = [
         _check_dependencies(),
         _check_memory_encryption(),
         _check_memory_db_open(),
         _check_launch_secrets(),
+        _check_secret_manager(),
+        _check_tls_config(),
         _scan_config_placeholders(),
         _scan_dynamic_exec(),
     ]
