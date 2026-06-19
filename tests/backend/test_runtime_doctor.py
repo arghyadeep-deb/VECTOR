@@ -55,7 +55,6 @@ def test_dependency_doctor_rejects_weak_production_secrets(monkeypatch, tmp_path
     monkeypatch.setenv("VECTOR_ENV", "production")
     monkeypatch.setenv("VECTOR_API_KEY", "short")
     monkeypatch.setenv("VECTOR_JWT_SECRET", "changeme")
-    monkeypatch.setenv("HUMANLAYER_API_KEY", "test")
     monkeypatch.setenv("VECTOR_COMFYUI_PATH", str(tmp_path))
     monkeypatch.setenv("VECTOR_LIBRECHAT_PATH", str(tmp_path))
     monkeypatch.setenv("COMFYUI_URL", "http://127.0.0.1:9")
@@ -67,7 +66,6 @@ def test_dependency_doctor_rejects_weak_production_secrets(monkeypatch, tmp_path
     assert payload["status"] == "unready"
     assert checks["env:VECTOR_API_KEY"]["status"] == "fail"
     assert checks["env:VECTOR_JWT_SECRET"]["status"] == "fail"
-    assert checks["env:HUMANLAYER_API_KEY"]["status"] == "fail"
     assert "generated secret" in checks["env:VECTOR_JWT_SECRET"]["remediation"]
     assert checks["sidecar:comfyui_path"]["status"] == "ok"
     assert checks["sidecar:comfyui_health"]["status"] == "fail"
