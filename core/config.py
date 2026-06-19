@@ -26,6 +26,7 @@ class ModelsConfig(BaseModel):
     fast: str = "vector-fast"           # mistral-small3.1 — low-latency general fallback
     cloud_coder: str = "vector-dev"     # was phi4:latest — now devstral-based VECTOR model
     cloud_orchestrator: str = "vector-r1"  # was deepseek-r1:14b raw — now VECTOR custom
+    vision: str = "qwen2.5vl:7b"       # GUI automation + screen understanding (dedicated vision model)
 
 
 class ModelRouterConfig(BaseModel):
