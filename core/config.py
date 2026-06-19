@@ -77,6 +77,7 @@ class PermissionConfig(BaseModel):
         "download_file", "set_reminder", "write_note_personal",
         "launch_app", "run_shell_command",
         "pc_screenshot", "pc_type", "pc_click", "pc_launch_app",
+        "vision_task",  # vision-guided GUI automation (VisionController.execute)
         "monthly_report", "finance_report", "journal", "weekly_journal",
         "create_project", "add_deadline", "log_exercise",
         # VectorCode write/execute actions
