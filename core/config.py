@@ -66,8 +66,6 @@ class PermissionConfig(BaseModel):
         "deadline_check", "progress",
         # VectorCode read-only actions
         "code_review_vc", "code_status", "read_code", "analyze_code",
-        # Vision controller — read-only observation of screen
-        "describe_screen", "find_element",
         # VECTOR UI events — purely local dashboard side effects, no real-world impact
         "respond", "open_panel",
         "widget_open", "widget_close", "widget_show_location",
