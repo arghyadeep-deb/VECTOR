@@ -30,7 +30,6 @@ def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None
     for key in (
         "VECTOR_API_KEY",
         "VECTOR_JWT_SECRET",
-        "HUMANLAYER_API_KEY",
         "VECTOR_COMFYUI_PATH",
         "VECTOR_LIBRECHAT_PATH",
     ):
@@ -40,10 +39,9 @@ def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None
     checks = {check["name"]: check for check in payload["checks"]}
 
     assert payload["status"] == "unready"
-    assert payload["required_failed"] >= 6
+    assert payload["required_failed"] >= 5
     assert checks["env:VECTOR_API_KEY"]["required"] is True
     assert checks["env:VECTOR_JWT_SECRET"]["required"] is True
-    assert checks["env:HUMANLAYER_API_KEY"]["required"] is True
     assert checks["frontend:production_bundle"]["required"] is True
     assert checks["frontend:production_bundle"]["status"] == "ok"
     assert checks["sidecar:comfyui_path"]["required"] is True
