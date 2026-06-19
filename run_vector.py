@@ -325,15 +325,8 @@ def _start_sidecars() -> None:
             "health_url": "http://127.0.0.1:8765/api/health",
             "skip_cwd_check": True,
         },
-        {
-            "name": "UI-TARS",
-            "cmd": ["npm", "run", "start"],
-            # No npm package — must be cloned locally.
-            # Configure: set VECTOR_UITARS_PATH env var or CONFIG["sidecars"]["ui_tars_path"]
-            "cwd": str(Path(_sidecar_path("ui_tars_path", "UI-TARS-desktop-main")) / "apps" / "ui-tars"),
-            # Electron app — no HTTP health endpoint; skip health check
-            "health_url": "",
-        },
+        # UI-TARS-desktop (Electron app) sidecar intentionally not used — GUI automation
+        # runs natively via core/vision_control/ (GUIAgent) instead. See districts/coding/gui_automation_agent.py.
     ]
 
     for sidecar in sidecars:
