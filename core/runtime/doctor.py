@@ -354,16 +354,6 @@ def run_dependency_doctor(
                 )
             )
 
-        if sidecar_path_checks.get("sidecar:ui_tars_path", DependencyCheck("", "fail", False)).ok:
-            checks.append(
-                _check(
-                    "sidecar:ui_tars_health",
-                    True,
-                    production_mode,
-                    "UI-TARS desktop has no stable HTTP health endpoint; path certification only",
-                )
-            )
-
     required_failed = sum(1 for check in checks if check.required and not check.ok)
     warnings = sum(1 for check in checks if not check.required and not check.ok)
     status = "ok" if required_failed == 0 else "unready"
