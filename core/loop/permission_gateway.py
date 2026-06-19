@@ -105,7 +105,7 @@ class PermissionGateway:
             return result
 
         if level == 'RED':
-            # A7: CouncilBrain deliberation before HumanLayer/asyncio fallback
+            # A7: CouncilBrain deliberation before Pushover owner approval
             _council_verdict = (
                 "defer"
                 if action.action_type in OWNER_APPROVAL_ONLY
