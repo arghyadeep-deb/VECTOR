@@ -127,7 +127,7 @@ class GUIAutomationAgent(AgentBase):
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{shot['base64']}"}},
                 ]},
             ]
-            prediction = chat(model=CONFIG.get("models", {}).get("focus", "vector-focus"),
+            prediction = chat(model=CONFIG.get("models", {}).get("vision", "qwen2.5vl:7b"),
                               messages=messages, timeout=30.0)
             parsed = action_parser(prediction or "", factors=self._factors, screen_ctx=screen_ctx)
             if parsed and parsed[0].get("start_coords"):
