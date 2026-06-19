@@ -316,7 +316,6 @@ def run_dependency_doctor(
         [
             _check_env_secret("VECTOR_API_KEY", production_mode),
             _check_env_secret("VECTOR_JWT_SECRET", production_mode, min_length=48),
-            _check_env_secret("HUMANLAYER_API_KEY", production_mode),
             # Stable MCP stdio signing secret — required in production so signed
             # requests survive restarts (see core/mcp_server_stdio.py).
             _check_env_secret("MCP_KERNEL_SECRET", production_mode),
