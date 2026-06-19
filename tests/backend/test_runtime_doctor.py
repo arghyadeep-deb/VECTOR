@@ -33,7 +33,6 @@ def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None
         "HUMANLAYER_API_KEY",
         "VECTOR_COMFYUI_PATH",
         "VECTOR_LIBRECHAT_PATH",
-        "VECTOR_UITARS_PATH",
     ):
         monkeypatch.delenv(key, raising=False)
 
