@@ -163,7 +163,7 @@ class PermissionGateway:
     async def _handle_red_tier(self, action: "Action") -> str:
         """Call CouncilBrain.deliberate_action() and persist the result to council_log.jsonl.
         Returns 'proceed', 'reject', or 'defer'.  Always returns 'defer' on any failure
-        so the existing HumanLayer fallback handles it gracefully."""
+        so the Pushover approval flow handles it."""
         import json
         try:
             from core.brain.council import CouncilBrain
