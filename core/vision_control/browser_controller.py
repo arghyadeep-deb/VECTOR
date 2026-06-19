@@ -62,7 +62,7 @@ class BrowserController:
         headless: bool = False,
         factors: list[int] | None = None,
     ) -> None:
-        self._model         = model or CONFIG.get("models", {}).get("focus", "vector-focus")
+        self._model         = model or CONFIG.get("models", {}).get("vision", "qwen2.5vl:7b")
         self._max_loop      = max_loop
         self._loop_interval = loop_interval
         self._headless      = headless
