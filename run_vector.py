@@ -20,6 +20,14 @@ import threading
 import tempfile
 from pathlib import Path
 
+# Load .env before any other import so os.environ is fully populated for
+# the doctor, permission gateway, and all submodule os.environ.get() calls.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(Path(__file__).parent / ".env", override=False)
+except ImportError:
+    pass
+
 from loguru import logger
 
 
