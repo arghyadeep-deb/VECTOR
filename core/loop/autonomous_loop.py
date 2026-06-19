@@ -241,8 +241,8 @@ class AutonomousLoop:
 
     def _record_external_rejection(self, action_type: str, params: dict, reason: str) -> None:
         """Gap 4: feed genuine external rejections (ThreatDetector, RedTeam, council,
-        HumanLayer) into CounterfactualMemory so should_avoid() learns from them —
-        not just from its own auto-blocks."""
+        Pushover owner approval) into CounterfactualMemory so should_avoid() learns
+        from them — not just from its own auto-blocks."""
         try:
             from core.memory.counterfactual import CounterfactualMemory
             proposal = f"{action_type} {json.dumps(params, default=str)}"
