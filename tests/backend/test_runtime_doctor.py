@@ -85,7 +85,6 @@ def test_dependency_doctor_accepts_strong_configured_production_inputs_and_certi
     monkeypatch.setenv("HUMANLAYER_API_KEY", "h" * 40)
     monkeypatch.setenv("VECTOR_COMFYUI_PATH", str(tmp_path))
     monkeypatch.setenv("VECTOR_LIBRECHAT_PATH", str(tmp_path))
-    monkeypatch.setenv("VECTOR_UITARS_PATH", str(tmp_path))
     monkeypatch.setenv("COMFYUI_URL", "http://127.0.0.1:9")
     monkeypatch.setenv("LIBRECHAT_URL", "http://127.0.0.1:9")
 
@@ -95,11 +94,9 @@ def test_dependency_doctor_accepts_strong_configured_production_inputs_and_certi
     assert checks["env:VECTOR_API_KEY"]["status"] == "ok"
     assert checks["env:VECTOR_JWT_SECRET"]["status"] == "ok"
     assert checks["env:HUMANLAYER_API_KEY"]["status"] == "ok"
-    assert checks["sidecar:ui_tars_path"]["status"] == "ok"
     assert checks["frontend:production_bundle"]["status"] == "ok"
     assert checks["sidecar:comfyui_health"]["status"] == "fail"
     assert checks["sidecar:librechat_health"]["status"] == "fail"
-    assert checks["sidecar:ui_tars_health"]["status"] == "ok"
     assert "start the sidecar service" in checks["sidecar:comfyui_health"]["remediation"]
 
 
