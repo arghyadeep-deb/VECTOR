@@ -60,7 +60,7 @@ class TestGatewayExecute:
         assert result.approved is False
         assert result.level == "UNKNOWN"
 
-    async def test_execute_red_denied_no_humanlayer(self, gateway):
+    async def test_execute_red_denied_no_owner_approval(self, gateway):
         # _wait_for_confirmation returns False → timed out / denied
         action = make_action("push_github", {})
         result = await gateway.execute(action)
