@@ -3,11 +3,14 @@ FROM devstral:24b
 # ── Parameters ──────────────────────────────────────────────────────────────
 # Devstral is code-specialist — very low temperature for precision
 # Larger than vector-coder (24B vs 14B) — used for review, refactor, architecture analysis
+# num_ctx capped at 8192: on 12GB VRAM, ctx=65536 demands a ~22.8GB KV-cache buffer
+# alone (verified via CUDA OOM) — model fails to load entirely above this point.
+# 8192 leaves room for the model's 14GB of weights to hybrid-split CPU/GPU and load.
 PARAMETER temperature 0.05
 PARAMETER top_p 0.95
 PARAMETER top_k 10
-PARAMETER num_ctx 65536
-PARAMETER num_predict 8192
+PARAMETER num_ctx 8192
+PARAMETER num_predict 4096
 PARAMETER repeat_penalty 1.05
 PARAMETER num_gpu 99
 PARAMETER num_thread 8
