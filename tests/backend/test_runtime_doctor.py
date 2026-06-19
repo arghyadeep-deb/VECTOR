@@ -60,7 +60,6 @@ def test_dependency_doctor_rejects_weak_production_secrets(monkeypatch, tmp_path
     monkeypatch.setenv("HUMANLAYER_API_KEY", "test")
     monkeypatch.setenv("VECTOR_COMFYUI_PATH", str(tmp_path))
     monkeypatch.setenv("VECTOR_LIBRECHAT_PATH", str(tmp_path))
-    monkeypatch.setenv("VECTOR_UITARS_PATH", str(tmp_path))
     monkeypatch.setenv("COMFYUI_URL", "http://127.0.0.1:9")
     monkeypatch.setenv("LIBRECHAT_URL", "http://127.0.0.1:9")
 
