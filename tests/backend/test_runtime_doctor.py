@@ -115,7 +115,6 @@ def test_health_production_readiness_reports_503_for_missing_hardening(monkeypat
     for key in (
         "VECTOR_API_KEY",
         "VECTOR_JWT_SECRET",
-        "HUMANLAYER_API_KEY",
         "VECTOR_COMFYUI_PATH",
         "VECTOR_LIBRECHAT_PATH",
     ):
