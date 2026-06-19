@@ -14,6 +14,7 @@ import sys
 __all__ = ["router"]
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from loguru import logger
 
 router = APIRouter(prefix="/gateway", tags=["gateway"])
