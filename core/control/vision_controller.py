@@ -5,12 +5,13 @@ Vision-guided GUI automation — VECTOR's native UI-TARS equivalent.
 
 Pipeline per task:
   1. Screenshot current screen
-  2. Send image + task to vector-focus (gemma4:e4b, multimodal)
+  2. Send image + task to qwen2.5vl:7b (dedicated GUI vision model)
   3. Parse model response → structured Action (click/type/scroll/key/done)
   4. Execute via PCController
   5. Re-screenshot and verify; repeat up to max_steps
 
 All processing is local — no data leaves the device (RULE 5).
+Model config: CONFIG["models"]["vision"] (default: qwen2.5vl:7b)
 """
 
 import sys
