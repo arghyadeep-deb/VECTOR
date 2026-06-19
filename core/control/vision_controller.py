@@ -108,7 +108,7 @@ class VisionController:
         step_delay_sec: float = 1.0,
         ollama_host: str | None = None,
     ):
-        self._model = model or CONFIG.get("models", {}).get("focus", "vector-focus")
+        self._model = model or CONFIG.get("models", {}).get("vision", "qwen2.5vl:7b")
         self._max_steps = max_steps
         self._step_delay = step_delay_sec
         self._ollama = (ollama_host or CONFIG.get("ollama_host", "http://127.0.0.1:11434")).rstrip("/")
