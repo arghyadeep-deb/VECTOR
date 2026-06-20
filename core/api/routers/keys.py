@@ -136,24 +136,7 @@ async def rotate_key(request: Request):
 
     # Update running process
     os.environ["VECTOR_API_KEY"] = new_key
-
-    # Write to .env file if it exists
-    env_path = Path(__file__).parent.parent.parent.parent / ".env"
-    env_updated = False
-    if env_path.exists():
-        lines = env_path.read_text(encoding="utf-8").splitlines()
-        updated = False
-        new_lines = []
-        for line in lines:
-            if line.startswith("VECTOR_API_KEY="):
-                new_lines.append(f"VECTOR_API_KEY={new_key}")
-                updated = True
-            else:
-                new_lines.append(line)
-        if not updated:
-            new_lines.append(f"VECTOR_API_KEY={new_key}")
-        env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
-        env_updated = True
+    env_updated = _write_env_var("VECTOR_API_KEY", new_key)
 
     logger.info("[VECTOR][keys] API key rotated via /keys/rotate")
     return {
