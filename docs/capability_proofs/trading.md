@@ -1,46 +1,95 @@
 # Capability Proof — trading
 
-**Verdict: BROKEN (real code bug, NOT the Phase 0 DB-contention issue — that's resolved)**
+**Verdict: LIVE — fixed and verified 2026-06-21**
 
-Run at: 2026-06-20T13:15:45.075547+00:00 — with Task 0.5c's temp-DB isolation
-active and `PID 48532` still running. The original Phase 0 finding (SQLCipher
-contention) is confirmed fully resolved; this is a new, different, genuine
-bug that the DB error was previously masking.
+## Resolution (2026-06-21)
 
-## Output (verbatim)
+The `[WinError 3]` reported below did **not** reproduce in this session —
+not even before the fixes. Reproducing with a full (non-swallowed)
+traceback surfaced two completely different, real bugs that the prior
+session's top-level `str(e)` message had hidden:
+
+1. **`core/config.py` `CONFIG["trading"]["llm_provider"]` was hardcoded to
+   `"openai"`** while `deep_think_llm`/`quick_think_llm` are Ollama custom
+   models (`vector-reasoning`, `vector-focus`). `VectorTradingGraph.__init__`
+   → `create_llm_client(provider="openai", model="vector-reasoning", ...)`
+   → `ChatOpenAI(...)` → `openai.OpenAIError: Missing credentials. Please
+   pass an api_key ... or set the OPENAI_API_KEY ... environment variable.`
+   This is a violation of RULE 11 (Ollama is VECTOR's primary local-first
+   runtime) — the trading module's own `core/trading/llm_clients/openai_client.py`
+   already has full, working `"ollama"` routing (`http://localhost:11434/v1`,
+   no API key required — see `api_key_env.py`: `"ollama": None`), it just
+   was never selected by default.
+   **Fix**: `core/config.py` — `"llm_provider": os.environ.get("TRADING_LLM_PROVIDER", "ollama")`.
+
+2. **`core/trading/graph/setup.py` was missing two imports.** `setup_graph()`
+   calls `create_msg_delete()` (lines 59/70/77/84) and `create_trader()`
+   (line 91), but neither was imported — they exist and are exported from
+   `core.trading.agents` (`agent_utils.py` / `trader/trader.py`
+   respectively) and are even already listed in
+   `core/trading/graph/trading_graph.py`'s own unused import block, just
+   never added to `setup.py`'s `from core.trading.agents import (...)`.
+   This raised `NameError: name 'create_msg_delete' is not defined` the
+   moment `VectorTradingGraph.__init__` called
+   `self.graph_setup.setup_graph(...)`.
+   **Fix**: added `create_msg_delete, create_trader` to the import in
+   `core/trading/graph/setup.py`.
+
+Both bugs were only reachable once a *third*, already-fixed issue (the
+prior session's missing `langgraph-checkpoint-sqlite` dependency) stopped
+masking them — consistent with this capability having several
+layered/masking bugs, each surfaced only after the one in front of it was
+fixed.
+
+The `[WinError 3]` empty-path error from the original investigation below
+is presumed to have been an artifact of that earlier broken-import state
+(very plausibly `Path("").mkdir()`/`sqlite3.connect("")` somewhere in the
+aborted construction path before the dependency fix landed) — it does not
+recur now, and the construction path that could have produced it
+(`os.makedirs(self.config["data_cache_dir"]/["results_dir"])` in
+`trading_graph.py`) was independently re-verified with non-empty,
+correctly-populated config values in this session before either fix above
+was applied.
+
+## Live verification (verbatim)
+
+```python
+agent = TradingConductorAgent()
+graph = agent._get_graph()
+final_state, decision = graph.propagate("AAPL", "2026-06-21")
+```
 
 ```
-{'status': 'error', 'ticker': 'AAPL', 'date': '2026-06-20', 'error': "[WinError 3] The system cannot find the path specified: ''"}
+Reddit fetch failed for r/wallstreetbets · AAPL: HTTP Error 403: Blocked
+Reddit fetch failed for r/stocks · AAPL: HTTP Error 403: Blocked
+Reddit fetch failed for r/investing · AAPL: HTTP Error 403: Blocked
+Portfolio Manager: structured-output invocation failed ('NoneType' object has no attribute 'rating'); retrying once as free text
+PROPAGATE OK
+decision: Overweight
 ```
 
-## Investigation (this far, then stopped — out of scope for Task 0.5c)
+Full 11-node pipeline (4 analysts → bull/bear debate → research manager →
+trader → 3 risk debators → portfolio manager) ran end-to-end through local
+Ollama (`vector-reasoning` + `vector-focus`), no API keys, and returned a
+real decision (`Overweight`). The Reddit 403s are sentiment-analyst data
+source failures (Reddit blocks unauthenticated scraping) — non-fatal,
+already handled gracefully by the analyst's existing fallback. The
+structured-output retry on the Portfolio Manager node is also an existing,
+working fallback path (free-text retry), not a crash.
 
-1. First layer: `ImportError: No module named 'langgraph.checkpoint.sqlite'`
-   — missing pip package. **Fixed**: installed
-   `langgraph-checkpoint-sqlite==2.0.4`, added to `requirements.txt` (this
-   downgraded `aiosqlite` 0.22.1→0.20.0; verified nothing else in
-   `requirements.txt` pins a specific `aiosqlite` version — safe).
-2. After that fix, hit `WinError 3: cannot find the path specified: ''`.
-   Checked `CONFIG["trading"]` — `results_dir`/`cache_dir`/`memory_log_path`
-   are all correctly configured with real, non-empty paths under
-   `~/.vector/trading/...`. Checked disk — none of those directories had
-   ever been created. **Created them** (`logs/`, `cache/`, `memory/`) —
-   error persisted identically. This rules out "missing directory" as the
-   cause; the empty-string path is being constructed somewhere *inside*
-   `core/trading/graph/trading_graph.py` (`VectorTradingGraph`), not from
-   the config dict `trading_conductor_agent.py` passes in.
+## Test suite
 
-**Stopped here** — this is a real, code-level bug inside the absorbed
-trading graph library, distinct from anything Task 0.5a/0.5b/0.5c were
-scoped to fix. Needs its own fix sub-task (trace where `VectorTradingGraph`
-constructs/joins an empty path — likely a config key the agent's `cfg` dict
-doesn't supply but the graph expects, or an internal default that's `""`
-instead of `None`) before `trading` can be scheduled autonomously.
+`core/trading/tests/` — 149 passed, 1 skipped after the fix (no
+regressions). 4 pre-existing failures are unrelated to this bug:
+`test_google_api_key.py` (collection error,
+`langchain_google_genai`/`langchain_core` version mismatch —
+`ContextOverflowError` missing) and `test_api_key_env.py` /
+`test_ticker_symbol_handling.py` / `test_ollama_base_url.py`
+(`ModuleNotFoundError: No module named 'cli'` — a separate absorbed-CLI
+import-path issue, `core/trading/cli` exists but tests import it as a
+top-level `cli` package). Neither touched by this fix; both pre-date it.
 
 ## Triage implication
 
-Phase 0's original finding (DB contention) is fully resolved by Task 0.5c.
-This capability needs ONE more fix sub-task (the empty-path bug above)
-before it's LIVE — scope it in Phase 2 alongside investment's asyncio
-event-loop bug (`investment.md`), since both surfaced only after the DB
-contention stopped masking them.
+`trading` capability is now LIVE. Ready to be scheduled autonomously per
+Phase 2 of `plans/wire-absorbed-repos-autonomy.md`.
