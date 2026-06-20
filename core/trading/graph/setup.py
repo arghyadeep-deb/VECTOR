@@ -10,6 +10,7 @@ from core.trading.agents import (
     create_bull_researcher, create_bear_researcher,
     create_research_manager, create_portfolio_manager,
     create_aggressive_debator, create_conservative_debator, create_neutral_debator,
+    create_msg_delete, create_trader,
 )
 from core.trading.agents.utils.agent_states import AgentState
 
