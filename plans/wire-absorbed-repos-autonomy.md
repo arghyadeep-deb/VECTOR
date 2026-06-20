@@ -80,10 +80,10 @@ Per owner goal: a capability must PRODUCE REAL OUTPUT. These are "not working" f
 - Hands MUST use `get_db_connection()` — **never** instantiate a per-hand `EpisodicMemory()` with its own connection.
 - The "two processes can't share the DB" issue Phase 0 saw is a *test* artifact (separate smoke process vs running server), NOT a production constraint. No multiprocess redesign.
 
-### Task 1.0: DB concurrency hardening (do before 1.1)
-- [ ] Confirm `_open_sqlcipher_connection` sets `PRAGMA busy_timeout` (e.g. 5000ms) and `PRAGMA journal_mode=WAL`; add if missing (grep showed neither explicitly). This makes even accidental cross-process access wait-then-succeed instead of hard-fail.
-- [ ] Failing test: spawn 2 threads each writing an episode via `get_db_connection()` concurrently → both rows land, no "database is locked".
-- [ ] Test PASS · `git commit -m "fix(memory): busy_timeout + WAL + concurrent-write test"`
+### Task 1.0: DB concurrency hardening (do before 1.1) ✅ DONE (2026-06-20)
+- [x] Confirmed neither pragma was set; added both to `_open_sqlcipher_connection` (`core/memory/episodic.py`): `PRAGMA busy_timeout = 5000`, `PRAGMA journal_mode = WAL`. Verified live: `PRAGMA journal_mode` → `wal`, `PRAGMA busy_timeout` → `5000` on the real DB.
+- [x] In-process thread concurrency was already safe (pre-existing `test_concurrent_writes_no_database_locked` passed before this change too — the module-level singleton + lock already serializes that case). Added the test this task actually asked for — `test_second_connection_to_same_file_waits_not_hard_fails`: two separate connection objects to the same encrypted file (standing in for two processes), one holds `BEGIN IMMEDIATE` + sleeps 0.5s, the other's write now waits and succeeds instead of raising immediately. Plus `test_open_sqlcipher_connection_sets_busy_timeout_and_wal` confirming the pragmas directly.
+- [x] All 6 tests in `tests/backend/test_memory_concurrency_safety.py` PASS · committed (auto-hook).
 
 ### Task 1.1: HandResult dataclass + episodic persistence
 - [ ] Failing test `tests/hands/test_hand_runner.py::test_hand_result_persists`
