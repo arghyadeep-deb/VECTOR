@@ -77,16 +77,20 @@ Accurate audit of what genuinely still needs work.
 
 ---
 
-## Honest Assessment (corrected)
+## Honest Assessment (corrected 2026-06-20)
 
 | Dimension | Current |
 |-----------|---------|
 | Security | 85/100 |
 | Code Quality | 80/100 |
-| Feature Completeness | 70/100 |
-| Test Coverage | ~3,839 tests, good core coverage |
-| Production Readiness | 75/100 |
-| JARVIS Closeness | 70% |
+| Feature Completeness | 75/100 — Darwinian death/rebirth now genuinely fires (was completely dead code before today) |
+| Test Coverage | ~3,839 tests, good core coverage, full suite re-verified clean after today's fixes |
+| Production Readiness | 78/100 |
+| JARVIS Closeness | 75% |
 
-**Total code work remaining: ~1 week.** Agent lifecycle is the biggest gap.
-Owner actions (Kokoro, cloud deploy) are 2-4 hrs combined.
+**Total code work remaining: ~3-4 days** (down from ~1 week) — JS bundler,
+ARIA accessibility, and provider-key config UI in frontend polish; the
+ContextEngine→decision-scoring design in agent lifecycle. Both genuine
+death/rebirth wiring and the HUD offline service worker — the two biggest
+"looks done but isn't actually connected" bugs — are fixed and verified.
+Owner actions remaining: phone Termux node setup, wake word training decision.
