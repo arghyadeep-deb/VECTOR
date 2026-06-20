@@ -45,13 +45,41 @@ experiment generates synthetic Gaussian noise with no real signal, so a
 non-significant p-value is exactly right. The point is the pipeline now
 computes and reports real numbers instead of "Insufficient data points (0)".)
 
-## One remaining non-blocking finding
+## Honesty check (added after review feedback) — design_source assertion
 
-`_llm_design()`'s call to the local model (`vector-reasoning`, now wired via
-`CONFIG["models"]["reasoning"]` instead of the upstream project's unmodified
-`llama3.2` default) timed out after 60s on this run — Ollama was up, but a
-9.3GB model had never been loaded into VRAM in this process yet (cold start).
-The code's existing try/except already degrades gracefully to the rule-based
-template, which itself now works correctly (see fix #2). Not fixed further —
-this is expected cold-start latency, not a bug, and the graceful-degradation
-path is exactly the intended design.
+Owner feedback, correctly: "graceful degradation silently becomes permanent
+degradation" if the LLM path never actually succeeds once this is scheduled
+autonomously — a capability could be "LIVE" forever while quietly only ever
+producing rule-based filler. Two actions taken:
+
+1. Confirmed `ollama list` actually has `vector-reasoning` installed (9.3GB,
+   present). The model genuinely exists — this isn't a missing-model issue.
+2. Added `ExperimentDesign.design_source` (`"llm"` or `"rule_based"`) and a
+   new assertion in the live test
+   (`test_research_engine_full_cycle_produces_real_statistics`) that fails
+   loudly if a run's output came from the fallback, not the model. This is
+   the honesty mechanism the feedback asked for.
+
+**That assertion is currently FAILING — for real, currently-true reasons:**
+
+- First measured cold-load (model not in VRAM at all): ~58s for a *trivial*
+  one-word prompt — almost entirely load time, not inference.
+- Bumped `_llm_design()`'s httpx timeout 60s→120s to give real margin.
+- Re-ran moments later, expecting a now-"warm" model (`OLLAMA_KEEP_ALIVE=30m`
+  is configured) — instead measured **133s**, *longer* than the cold load,
+  and the live test's actual run timed out again even at 120s.
+
+**This means the model is not staying warm between calls despite
+`OLLAMA_KEEP_ALIVE=30m`**, which is a real, currently-active problem bigger
+than "tune one timeout." Likely cause: `OLLAMA_MAX_LOADED_MODELS=1` (per
+project config) means any *other* model load on this machine — and a lot
+has been running across this long session — evicts `vector-reasoning`,
+forcing a fresh ~60-130s reload on the next call. Not investigated further
+here (out of scope for this fix pass) — flagging as its own item, separate
+from Task 0.5b, before `research` gets scheduled autonomously in Phase 2:
+a hand that calls this every N minutes while other Ollama traffic exists on
+the same machine will reload constantly and may regularly exceed even a
+generous timeout, falling back to rule-based design every single run —
+exactly the "LIVE but hollow one layer up" failure mode the feedback warned
+about, now caught by a real, currently-failing assertion instead of papered
+over.
