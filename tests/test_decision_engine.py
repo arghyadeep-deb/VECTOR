@@ -81,3 +81,37 @@ async def test_reasoning_string_contains_winner(engine):
     candidates = [make_candidate("search_web"), make_candidate("set_timer")]
     decision = await engine.evaluate(candidates)
     assert decision.winner.action_type in decision.reasoning
+
+
+# RULE 1 — ContextEngine world-state injection before scoring
+
+@pytest.mark.asyncio
+async def test_context_snapshot_populated_on_candidates(engine):
+    c = make_candidate("search_web")
+    await engine.evaluate([c])
+    assert c.context_snapshot != {}
+    assert "presence" in c.context_snapshot
+    assert "fatigue_score" in c.context_snapshot
+    assert "time_of_day" in c.context_snapshot
+
+
+@pytest.mark.asyncio
+async def test_context_snapshot_shared_across_all_candidates(engine):
+    candidates = [make_candidate("a"), make_candidate("b"), make_candidate("c")]
+    await engine.evaluate(candidates)
+    for c in candidates:
+        assert c.context_snapshot.get("timestamp") == candidates[0].context_snapshot.get("timestamp")
+
+
+@pytest.mark.asyncio
+async def test_context_injection_failure_does_not_break_evaluate(engine, monkeypatch):
+    """If ContextEngine itself errors, evaluate() must still return a winner —
+    RULE 1 injection is wrapped in try/except, same pattern as RULE 8."""
+    def _broken(*a, **kw):
+        raise RuntimeError("simulated ContextEngine failure")
+    monkeypatch.setattr(engine, "_get_context_engine", _broken)
+
+    c = make_candidate("search_web")
+    decision = await engine.evaluate([c])
+    assert decision.winner is not None
+    assert c.context_snapshot == {}
