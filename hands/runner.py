@@ -178,6 +178,35 @@ class HandRunner:
 
         return result
 
+    def register_all(self, scheduler) -> int:
+        """Register every scheduled, non-on_demand Hand against the durable
+        scheduler. Reuses core/loop/cron_jobs.py::_try_register (does not
+        invent a new scheduler) — that helper already tries the common
+        APScheduler-style add_job(cron=...) surface and a few fallbacks.
+        Returns the count successfully registered.
+        """
+        from core.loop.cron_jobs import _try_register
+        from hands.registry import HandRegistry
+
+        registered = 0
+        for hand in HandRegistry().scheduled():
+            if hand.on_demand:
+                continue
+
+            def _make_job(h: Hand):
+                async def _job(*_a, **_kw):
+                    return await self.run_hand(h, {})
+                return _job
+
+            job_id = f"hand-{hand.name}"
+            if _try_register(scheduler, job_id, "cron", hand.schedule, _make_job(hand)):
+                registered += 1
+                logger.info("[VECTOR][hands] registered {} ({})", job_id, hand.schedule)
+            else:
+                logger.warning("[VECTOR][hands] could not register {} — scheduler API mismatch", job_id)
+
+        return registered
+
 
 if __name__ == "__main__":
     import asyncio as _asyncio
