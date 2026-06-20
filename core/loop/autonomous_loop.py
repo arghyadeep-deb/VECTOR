@@ -321,24 +321,35 @@ class AutonomousLoop:
             logger.info("[VECTOR][scheduler_loop] OperatorManager available")
         scheduler = self._get_scheduler()
         if scheduler is None:
-            logger.info("[VECTOR][scheduler_loop] scheduler unavailable — loop disabled")
-            return
-        # Register default daily/weekly jobs on first init
-        try:
-            from core.loop.cron_jobs import register_default_jobs
-            n = register_default_jobs(scheduler)
-            logger.info(f"[VECTOR][scheduler_loop] {n} default jobs registered")
-        except Exception as exc:
-            logger.warning(f"[VECTOR][scheduler_loop] cron registration failed: {exc}")
+            logger.info("[VECTOR][scheduler_loop] durable (prompt) scheduler unavailable — continuing with callable scheduler only")
 
-        # Hand Execution Engine — the 9 Hands in hands/registry.py were
-        # orphaned dataclasses (0 refs outside hands/) until this call.
-        try:
-            from hands.runner import HandRunner
-            n_hands = HandRunner().register_all(scheduler)
-            logger.info(f"[VECTOR][scheduler_loop] {n_hands} Hands registered")
-        except Exception as exc:
-            logger.warning(f"[VECTOR][scheduler_loop] hand registration failed: {exc}")
+        # Real callable scheduler (Task 1.6) — TaskScheduler above is
+        # prompt/LLM-agent based and has no add_job/schedule/register/add,
+        # so cron jobs and Hands must register against this one instead.
+        callable_scheduler = self._get_callable_scheduler()
+        if callable_scheduler is None:
+            logger.warning("[VECTOR][scheduler_loop] callable scheduler unavailable — cron jobs and Hands will not fire")
+        else:
+            # Register default daily/weekly jobs on first init
+            try:
+                from core.loop.cron_jobs import register_default_jobs
+                n = register_default_jobs(callable_scheduler)
+                logger.info(f"[VECTOR][scheduler_loop] {n} default jobs registered")
+            except Exception as exc:
+                logger.warning(f"[VECTOR][scheduler_loop] cron registration failed: {exc}")
+
+            # Hand Execution Engine — the 9 Hands in hands/registry.py were
+            # orphaned dataclasses (0 refs outside hands/) until this call.
+            try:
+                from hands.runner import HandRunner
+                n_hands = HandRunner().register_all(callable_scheduler)
+                logger.info(f"[VECTOR][scheduler_loop] {n_hands} Hands registered")
+            except Exception as exc:
+                logger.warning(f"[VECTOR][scheduler_loop] hand registration failed: {exc}")
+
+        if scheduler is None and callable_scheduler is None:
+            logger.info("[VECTOR][scheduler_loop] no scheduler available — loop disabled")
+            return
 
         while self._running:
             try:
