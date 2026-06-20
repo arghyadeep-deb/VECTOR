@@ -85,7 +85,7 @@ def test_alert_and_error_results_notify_pushover_not_routine_success(monkeypatch
 
     notified = []
 
-    async def _fake_notify(message, priority=0):
+    async def _fake_notify(self, message, priority=0):
         notified.append((message, priority))
 
     monkeypatch.setattr("core.loop.permission_gateway.PermissionGateway.notify", _fake_notify)
