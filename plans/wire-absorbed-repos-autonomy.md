@@ -210,6 +210,48 @@ success + failure cases). This is permanent observability, not just
 soak-window plumbing — "which scheduled jobs actually ran" should always
 be answerable from the DB.
 
+### Ollama model-warmth — investigated 2026-06-21, partially fixed, rest deferred to post-soak (owner's call)
+**Root cause confirmed empirically, not guessed:** loaded `vector-focus`, then loaded
+`vector-reasoning` while focus was still resident — `ollama ps` showed ONLY
+`vector-reasoning` afterward. Separately, `nomic-embed-text` (323MB, used
+across 37 files for embeddings/RAG) was found loaded mid-session, evicting
+whatever reasoning/focus model was there — confirming this isn't just
+"the model is big," it's genuine **cross-subsystem contention**: any other
+Ollama consumer in VECTOR (embeddings, voice, council) competes for the
+same single `OLLAMA_MAX_LOADED_MODELS=1` slot.
+
+VRAM math (corrected — `vector-reasoning` is qwen3:14b, GQA with only 8 KV
+heads not 40, `block_count=40`, `key_length=value_length=128`): KV cache at
+the Modelfile's `num_ctx=32768` is ~2.5GB at Q8 quant, not the ~12GB a naive
+full-attention estimate would suggest. Weights at Q4_K_M ≈ 9.25GB. The
+~20GB `ollama ps` figure likely includes additional compute/scratch buffers
+that scale with context length during prefill — not fully resolved
+analytically; would need empirical measurement at a few `num_ctx` values to
+pin down precisely.
+
+**Fixed now (safe, no tradeoff):** `hands/registry.py` — `researcher`
+(08:00→**03:00** daily) and `predictor` (Mon 09:00→**Mon 03:00**) moved
+off-peak. Both are one-shot/non-urgent (deep research, weekly forecast) —
+no reason they needed daytime slots. `collector` (every 4h) and `trader`
+(every 2h) deliberately left alone — their entire value is *frequent*
+monitoring; collapsing them to off-peak-only would defeat their purpose,
+and that's a product-cadence decision, not a bug fix.
+
+**Deliberately NOT done — needs owner sign-off, deferred to post-soak as agreed:**
+1. Reducing `modelfiles/vector-reasoning.modelfile`'s `num_ctx` from 32768.
+   The comment there ("High context for complex chains") was a deliberate
+   choice for Council deliberation quality — `_handle_red_tier()` truncates
+   context to 400 chars in practice, so the large window may be unused
+   headroom, but degrading Council's actual reasoning capability without
+   the owner evaluating that tradeoff isn't a call to make unilaterally.
+2. `OLLAMA_MAX_LOADED_MODELS=1→2` — would let `nomic-embed-text` (323MB)
+   coexist with `vector-focus` (3.6GB) without evicting it, comfortably
+   within the 12GB card. Requires changing a persistent Windows env var
+   AND restarting the `ollama serve` system process — a system-level
+   change outside what should happen unattended.
+The soak (whenever it runs) will show empirically whether off-peak
+scheduling alone is sufficient or whether one of these two is still needed.
+
 ---
 
 ## Pre-flight for executor (Sonnet)
