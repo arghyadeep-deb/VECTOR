@@ -237,7 +237,7 @@ class SREMonitor(AgentBase):
                 source="sre_chaos_probe",
             )
             t0 = time.monotonic()
-            decision = await engine.decide([candidate])
+            decision = await engine.evaluate([candidate])
             latency_ms = round((time.monotonic() - t0) * 1000, 2)
             result = {
                 "latency_ms": latency_ms,
