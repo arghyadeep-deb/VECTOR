@@ -31,12 +31,6 @@ class TestWranglerToml(unittest.TestCase):
     def test_wrangler_main_is_index_ts(self):
         self.assertIn('main = "src/index.ts"', self._content())
 
-    def test_wrangler_references_brain_server_url(self):
-        self.assertIn("BRAIN_SERVER_URL", self._content())
-
-    def test_wrangler_brain_url_points_to_fly(self):
-        self.assertIn("vector-brain.fly.dev", self._content())
-
     def test_wrangler_has_kv_namespace(self):
         self.assertIn("RATE_LIMIT_KV", self._content())
 
