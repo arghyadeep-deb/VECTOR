@@ -1,6 +1,6 @@
 # Capability Proof — research_engine
 
-**Verdict: LIVE (both Phase 0 bugs fixed — report now has real statistical content)**
+**Verdict: LIVE (both Phase 0 bugs fixed) — but see "honesty check" below: the LLM design path is currently unreliable, not the rule-based fallback path**
 
 Run at: 2026-06-20T13:02:02.810806+00:00 (after Task 0.5b fixes)
 
