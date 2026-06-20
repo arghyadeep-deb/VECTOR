@@ -44,6 +44,10 @@ class ExperimentDesign:
     sample_size: int = 30
     procedure: list[str] = field(default_factory=list)
     success_criteria: str = ""
+    # "llm" or "rule_based" — lets callers (and tests) tell a genuine
+    # LLM-designed experiment apart from the static-template fallback, so
+    # "LIVE" doesn't quietly mean "permanently degraded to filler."
+    design_source: str = "unknown"
 
 
 @dataclass
