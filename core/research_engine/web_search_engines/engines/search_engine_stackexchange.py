@@ -122,7 +122,7 @@ class StackExchangeSearchEngine(BaseSearchEngine):
 
         # User-Agent and required headers for API requests
         self.headers = {
-            "User-Agent": "LocalDeepResearch/1.0 (https://github.com/arghyadeep-deb/vector-research-engine)",
+            "User-Agent": "VECTOR-Research-Agent/1.0 (https://github.com/arghyadeep-deb/vector-research-engine)",
             "Accept-Encoding": "gzip, deflate",
         }
 
