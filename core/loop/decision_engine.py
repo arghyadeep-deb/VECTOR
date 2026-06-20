@@ -67,6 +67,7 @@ class DecisionEngine:
         self._goals = None
         self._memory = None
         self._reasoning_bank = None
+        self._context_engine = None
         self._neural_trainer = None
         self._epistemic = None
         self._metacognition = None
