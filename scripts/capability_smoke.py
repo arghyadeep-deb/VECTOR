@@ -303,6 +303,7 @@ def main() -> int:
             print(f"  {repo}: {resolved}/{len(modules)} resolve")
 
     if args.live:
+        _use_isolated_db()
         repos = list(LIVE_PROBES) if args.live == "all" else [args.live]
         for repo in repos:
             print(f"--- live: {repo} ---")
