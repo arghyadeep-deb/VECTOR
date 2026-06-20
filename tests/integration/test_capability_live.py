@@ -32,3 +32,26 @@ def test_scraper_fetch_returns_real_content():
     assert len(result.content) > 100, "content must be real fetched markup, not empty"
     assert "Example Domain" in result.content
     assert len(result.html) > 100
+
+
+@pytest.mark.live
+def test_research_engine_full_cycle_produces_real_statistics():
+    """Regression test for two bugs found in Phase 0:
+    (1) EpisodicMemory.search() doesn't exist (real method is .recall());
+    (2) the sandboxed default experiment used logger.info("STAT:...") for
+    output, but the sandbox's restricted __builtins__ never defines `logger`
+    and SandboxExecutor._extract_stats() only ever reads stdout — so every
+    experiment raised NameError and silently produced 0 data points."""
+    from core.research_engine.auto_research_agent import AutoResearchAgent
+
+    agent = AutoResearchAgent()
+    report = agent.run_full_cycle("test")
+
+    assert report.experiment is not None
+    assert report.analysis is not None
+    # Real computed stats, not "Insufficient data points (0)".
+    stats = report.analysis.statistical_tests
+    assert stats, "experiment must produce at least one statistical test result"
+    first_test = next(iter(stats.values()))
+    assert isinstance(first_test, dict)
+    assert "p_value" in first_test
