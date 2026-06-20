@@ -89,7 +89,7 @@ class ErrorReportGenerator:
                 "- 🐛 **Report bugs or get help:** [GitHub Issues](https://github.com/arghyadeep-deb/vector-research-engine/issues) *(don't hesitate to ask if you're stuck!)*"
             )
             report_parts.append(
-                "- 💭 **Join discussions:** [Reddit r/LocalDeepResearch](https://www.reddit.com/r/LocalDeepResearch/) *(checked less frequently)*"
+                "- 💭 **Join discussions:** [GitHub Discussions](https://github.com/arghyadeep-deb/vector-research-engine/discussions) *(checked less frequently)*"
             )
 
             # Show partial results if available (in expandable section)
