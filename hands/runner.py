@@ -36,12 +36,24 @@ class HandRunner:
     def __init__(self):
         self._model_lock = asyncio.Lock()
 
+    # Phase 2 sub-list (plans/wire-absorbed-repos-autonomy.md): specific
+    # hand -> governor route mappings. Routes confirmed to exist in
+    # core/city/governor.py's _TASK_TYPE_TO_DISTRICT table (added
+    # "osint_collect" and "content_generate" there 2026-06-21 — they were
+    # missing; "deep_research" and "trading_analysis" already existed).
+    _TASK_TYPE_OVERRIDES: dict[str, str] = {
+        "researcher": "deep_research",
+        "collector": "osint_collect",
+        "trader": "trading_analysis",
+        "content": "content_generate",
+    }
+
     def _task_type_for(self, hand: Hand) -> str:
-        """Task type passed to the governor. Phase 2 will map specific
-        hands to specific routes (e.g. researcher -> deep_research); for
-        now this defaults to the hand's own name, which is a valid
-        fallback task_type the governor's route_task() can classify."""
-        return hand.name
+        """Task type passed to the governor. Hands without an explicit
+        override fall back to their own name, which is still a valid
+        task_type the governor's route_task() can classify (or which
+        dispatch() resolves via the explicit district= we already pass)."""
+        return self._TASK_TYPE_OVERRIDES.get(hand.name, hand.name)
 
     def _hydrate(self, hand: Hand, extra_context: dict) -> str:
         try:
