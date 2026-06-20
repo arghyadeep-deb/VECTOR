@@ -27,8 +27,7 @@ from core.memory.obsidian_sync import ObsidianSync
 _FOCUS = CONFIG.get("models", {}).get("focus", "vector-focus")
 
 # Endpoints — configurable via CONFIG
-_FLY_STATUS_URL: str = CONFIG.get("fly_status_url", "https://vector-brain.fly.dev/status")
-_CF_WORKER_URL: str = CONFIG.get("cf_worker_url", "https://vector-api.arghyadeep.workers.dev/health")
+_CF_WORKER_URL: str = CONFIG.get("cf_worker_url", "https://vector-api.arghyadeepdeb020703.workers.dev/health")
 
 # Paths
 _BASE_DIR = Path(__file__).parent.parent.parent.parent
