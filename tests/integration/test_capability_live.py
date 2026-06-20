@@ -52,6 +52,4 @@ def test_research_engine_full_cycle_produces_real_statistics():
     # Real computed stats, not "Insufficient data points (0)".
     stats = report.analysis.statistical_tests
     assert stats, "experiment must produce at least one statistical test result"
-    first_test = next(iter(stats.values()))
-    assert isinstance(first_test, dict)
-    assert "p_value" in first_test
+    assert "p_value" in stats[0]
