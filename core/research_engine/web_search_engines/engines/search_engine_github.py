@@ -73,7 +73,7 @@ class GitHubSearchEngine(BaseSearchEngine):
         # Set up API headers
         self.headers = {
             "Accept": "application/vnd.github.v3+json",
-            "User-Agent": "Local-Deep-Research-Agent",
+            "User-Agent": "VECTOR-Research-Agent",
         }
 
         # Add authentication if API key provided
