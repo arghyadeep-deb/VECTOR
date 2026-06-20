@@ -140,8 +140,8 @@
   function buildDirector(){
     const d=document.getElementById('director');
     d.innerHTML=`
-      <div class="dtab" title="Director (backtick key)">⌘</div>
-      <div class="dh"><span>DIRECTOR</span><b>dev · ~ toggles</b></div>
+      <div class="dtab" title="Director (backtick key)" role="button" tabindex="0" aria-label="Toggle Director dev panel">⌘</div>
+      <div class="dh" role="button" tabindex="0" aria-label="Toggle Director dev panel"><span>DIRECTOR</span><b>dev · ~ toggles</b></div>
       <div class="dbody">
         <div class="dgrp"><div class="dlbl">VOICE FSM</div><div class="dbtns" id="g-fsm"></div></div>
         <div class="dgrp"><div class="dlbl">SECRET HUD · ⌃⇧V</div><div class="dbtns" id="g-hud"></div></div>
