@@ -53,3 +53,13 @@ def test_research_engine_full_cycle_produces_real_statistics():
     stats = report.analysis.statistical_tests
     assert stats, "experiment must produce at least one statistical test result"
     assert "p_value" in stats[0]
+    # "LIVE" must mean the LLM actually designed this experiment, not that
+    # it silently fell back to the static rule-based template forever.
+    # vector-reasoning is confirmed installed (`ollama list`); this fails
+    # loudly if a future change makes the LLM path stop being reachable.
+    assert report.experiment.design_source == "llm", (
+        f"expected an LLM-designed experiment, got design_source="
+        f"{report.experiment.design_source!r} — the model call silently "
+        f"degraded to the rule-based fallback. Check `ollama list` for "
+        f"vector-reasoning and Ollama server health before trusting LIVE."
+    )
