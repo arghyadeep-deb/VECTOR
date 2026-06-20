@@ -148,9 +148,18 @@ Sub-list to execute (confirm/adjust against Phase 0 results):
 
 ---
 
-## PHASE 4 — Prune provably-dead code (optional, owner sign-off required)
-- [ ] Task 4.1: Extend `scripts/capability_smoke.py --deadcode` → static import-graph from each district entrypoint into the absorbed lib; emit `docs/absorbed_reachability.md` (reached vs never-imported modules).
-- [ ] Task 4.2: **Surface list to owner. Delete nothing without sign-off** (memory rule: never delete what you didn't create without surfacing). Quarantine candidates → move to `_attic/` first, run full suite, then delete in a later pass.
+## PHASE 4 — Classify unreached code; WIRE the useful, delete only the dead (owner rule)
+
+**HARD GATE (owner rule 2026-06-20):** This phase runs ONLY after ALL capabilities are LIVE-proven (Phase 5 green). Deletion is the last thing, never before features work.
+
+**"Unreachable" ≠ "deletable."** Unreached code splits into TWO buckets and they are handled OPPOSITELY:
+- **NOT-WIRED-BUT-USEFUL** — a real capability/feature that just isn't connected to VECTOR yet → **WIRE IT (new hand/route/import). NEVER delete it.**
+- **GENUINELY-DEAD** — redundant, superseded, serves no useful function (e.g. Qt desktop packaging, duplicate loaders, vendored test fixtures, demo scripts) → *eligible* for deletion, after sign-off.
+
+- [ ] Task 4.1: Extend `scripts/capability_smoke.py --deadcode` → static import-graph from each district entrypoint into the absorbed lib; emit `docs/absorbed_reachability.md` listing every unreached module.
+- [ ] Task 4.2: **Classify each unreached module** into `WIRE` vs `DEAD` (not "reached/unreached"). For each, one line of justification. A module is `DEAD` only if it has no plausible VECTOR use — being merely disconnected is NOT sufficient. When unsure → default to `WIRE`, never `DEAD`.
+- [ ] Task 4.3: For `WIRE` items — add follow-up wiring tasks (hand/route/trigger), same pattern as Phase 2. These are capabilities to gain, not code to lose.
+- [ ] Task 4.4: For `DEAD` items only — surface the list to owner. **Delete nothing without sign-off** (memory rule: never delete what you didn't create without surfacing). Quarantine to `_attic/` first → run full suite green → delete in a later pass.
 
 ---
 
