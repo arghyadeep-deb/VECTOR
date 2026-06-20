@@ -21,8 +21,20 @@ _DEFAULT_TIMEOUT_SEC = 180
 
 
 class HandRunner:
+    # Hands whose district route does substantive local-LLM reasoning
+    # (deep research synthesis, OSINT analysis, forecasting, crypto
+    # analysis) — these are the ones that actually load a heavy Ollama
+    # model. With OLLAMA_MAX_LOADED_MODELS=1 (confirmed empirically
+    # 2026-06-20 — loading a second model evicts the first, never both
+    # resident), running two of these concurrently means the second load
+    # evicts the first mid-flight, and worse, can evict the interactive
+    # vector-focus model the owner is using for voice, leaving a cold
+    # reload the next "Hey VECTOR". MODEL_HEAVY_HANDS therefore serialize
+    # behind self._model_lock — never two different-model hands at once.
+    MODEL_HEAVY_HANDS = frozenset({"researcher", "collector", "predictor", "trader"})
+
     def __init__(self):
-        pass
+        self._model_lock = asyncio.Lock()
 
     def _task_type_for(self, hand: Hand) -> str:
         """Task type passed to the governor. Phase 2 will map specific
