@@ -37,16 +37,22 @@ Accurate audit of what genuinely still needs work.
 - ContextEngine output not piped to agents at decision time
 - **3-5 days** (needs design first)
 
-### 4. Kokoro TTS / Wake Word (owner action required)
-- `pip install kokoro` + model weights (~300MB)
-- Record 10 "Hey VECTOR" samples → openWakeWord training
-- **~2 hrs owner time**
+### 4. Kokoro TTS ✅ DONE / Wake Word ⚠️ blocked (2026-06-20)
+- Kokoro: model weights + `kokoro-onnx` package already present, confirmed loading on GPU — no action needed.
+- Wake word: 15 real "Hey VECTOR" samples recorded, but `openwakeword`'s training
+  pipeline has since moved to a synthetic-data model (Piper TTS generation +
+  background-noise/RIR datasets) that 15 real clips alone can't satisfy.
+  Owner decision needed: set up the full synthetic pipeline, downgrade
+  `openwakeword` to the version the original simple flow assumed, or skip for now.
 
-### 5. Cloud Deployment (owner action required)
-- `fly launch && fly deploy` in `cloud/brain_server/`
-- `wrangler deploy` in `api/`
-- Android Termux `setup.sh`
-- **~2 hrs owner time**
+### 5. Cloud Deployment — mostly done (2026-06-20)
+- Fly.io: **resolved, not deployed by choice** (requires a card) — `cloud/brain_server/`
+  removed entirely. The Cloudflare Worker has full endpoint parity, confirmed
+  live and working (D1 fully migrated incl. command queue, KV, authenticated
+  endpoints tested).
+- `wrangler deploy`: ✅ done — Worker live at the configured `*.workers.dev` URL.
+- Android Termux `setup.sh`: still pending — needs the physical device.
+- **Remaining owner time: just the phone node setup.**
 
 ---
 
