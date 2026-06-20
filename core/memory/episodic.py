@@ -167,6 +167,16 @@ def _open_sqlcipher_connection(path: str):
     try:
         db_key = _get_db_key()
         conn.execute("PRAGMA key = " + _sql_literal(db_key))
+        # busy_timeout: a second connection to this file (another VECTOR
+        # process, accidental or a future multi-process deployment) waits up
+        # to 5s for the lock instead of failing immediately. journal_mode=WAL
+        # lets readers and a writer proceed concurrently. Neither pragma was
+        # set before — Phase 0 of plans/wire-absorbed-repos-autonomy.md hit
+        # exactly the hard-fail this is meant to soften (a leftover process
+        # holding the file made every other process's open() raise instead
+        # of just waiting).
+        conn.execute("PRAGMA busy_timeout = 5000")
+        conn.execute("PRAGMA journal_mode = WAL")
         conn.execute("SELECT count(*) FROM sqlite_master")
         return conn
     except Exception:
