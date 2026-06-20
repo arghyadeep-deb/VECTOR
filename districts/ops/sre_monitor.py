@@ -31,7 +31,7 @@ _SLO_TARGET: float = 0.995  # 99.5%
 class SREMonitor(AgentBase):
     """
     Site Reliability agent. Monitors VECTOR's own infrastructure:
-      - Fly.io /status ping
+      - Cloudflare Worker (cloud brain) /health ping
       - SQLite write-latency check
       - Ollama availability check
       - Autonomous-loop error rate → SLO calculation
