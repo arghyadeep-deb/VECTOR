@@ -70,6 +70,11 @@ class PermissionConfig(BaseModel):
         "respond", "open_panel",
         "widget_open", "widget_close", "widget_show_location",
         "music_play", "music_pause", "music_next", "music_prev",
+        # Hand Execution Engine — scheduled autonomous Hands with
+        # requires_approval=False (hands/registry.py). GREEN = auto-execute,
+        # no owner gate (matches each Hand's own requires_approval flag).
+        "hand_researcher", "hand_collector", "hand_predictor",
+        "hand_trader", "hand_lead", "hand_vault_sync",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
