@@ -59,7 +59,7 @@ class AutoResearchAgent:
         try:
             from core.memory.episodic import EpisodicMemory
             memory = EpisodicMemory()
-            results = memory.search(topic, limit=5)
+            results = memory.recall(topic, limit=5)
             for r in results:
                 content = r.get("content", "") if isinstance(r, dict) else str(r)
                 if len(content) > 100:
