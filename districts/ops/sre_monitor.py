@@ -273,7 +273,7 @@ class SREMonitor(AgentBase):
             f"## System Health\n"
             f"| Component | Status | Latency |\n"
             f"|-----------|--------|--------|\n"
-            f"| Fly.io | {fly_icon} {health.get('fly_status_code', '?')} | {health.get('fly_latency_ms', '?')}ms |\n"
+            f"| Cloudflare | {cf_icon} {health.get('cf_status_code', '?')} | {health.get('cf_latency_ms', '?')}ms |\n"
             f"| SQLite | {sqlite_icon} | {health.get('sqlite_latency_ms', '?')}ms |\n"
             f"| Ollama | {ollama_icon} | — |\n\n"
             f"## Error Rate (last 100 events)\n"
