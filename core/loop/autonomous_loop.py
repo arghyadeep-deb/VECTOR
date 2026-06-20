@@ -264,7 +264,10 @@ class AutonomousLoop:
         if getattr(self, "_scheduler", None) is None:
             try:
                 from core.scheduler import TaskScheduler  # type: ignore
-                self._scheduler = TaskScheduler()
+                from core.scheduler.store import SchedulerStore
+                from core.runtime_paths import data_path
+                store = SchedulerStore(data_path("scheduler.db"))
+                self._scheduler = TaskScheduler(store=store)
                 logger.info("[VECTOR][autonomous_loop] durable scheduler ready")
             except Exception as e:
                 logger.warning(f"[VECTOR][autonomous_loop] scheduler unavailable: {e}")
