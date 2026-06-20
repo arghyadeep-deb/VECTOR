@@ -34,6 +34,16 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# run_vector.py (the real production entrypoint) loads .env at startup;
+# this standalone script didn't, so env-only fixes (e.g. VECTORINTEL_HOST)
+# looked broken here while actually working fine in production. Match
+# production's behavior so this tool's verdicts are trustworthy.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(Path(__file__).resolve().parent.parent / ".env", override=False)
+except ImportError:
+    pass
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
