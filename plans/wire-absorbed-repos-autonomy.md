@@ -205,7 +205,7 @@ Sub-list to execute (confirm/adjust against Phase 0 results):
 ---
 
 ## PHASE 5 — Autonomy proof (the shipped gate)
-- [ ] Task 5.1: `tests/integration/test_absorbed_autonomy.py::test_scheduler_fires_hands` — fake fast clock, assert ≥1 hand produces a persisted HandResult with closed-loop side effects (episodic row + HP delta), offline.
+- [x] Task 5.1: `tests/integration/test_absorbed_autonomy.py::test_scheduler_fires_hands` ✅ DONE (2026-06-21) — real `AsyncIOScheduler`, `'date'` trigger ~1.5s future, test never calls `run_hand()` directly (only `HandRunner._dispatch` stubbed). Proved: real `kind="hand_run"` episodic row, real HP delta (500→550.0), real `policy_memory` row (`update_from_outcome`, avg_reward=1.0). Full artifact in `docs/capability_proofs/_phase5_autonomy_proof.md`.
 - [ ] Task 5.2: Full suite green: `PYTHONUTF8=1 pytest tests/hands tests/integration -v` + `python scripts/smoke_test.py` + `python scripts/integration_check.py`.
 - [ ] Task 5.3: Confirm every capability has a LIVE verdict in `docs/capability_proofs/` (this is the real definition-of-done — not green stubbed tests).
 - [ ] Task 5.4: Three-question shipped check: (1) hand_run rows appear with no prompt; (2) repeated failure moved policy reward; (3) restart → scheduled hands resume.
