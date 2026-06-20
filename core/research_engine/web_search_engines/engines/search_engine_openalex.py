@@ -102,7 +102,7 @@ class OpenAlexSearchEngine(BaseSearchEngine):
         # API configuration
         self.api_base = "https://api.openalex.org"
         self.headers = {
-            "User-Agent": f"Local-Deep-Research-Agent{f' ({email})' if email else ''}",
+            "User-Agent": f"VECTOR-Research-Agent{f' ({email})' if email else ''}",
             "Accept": "application/json",
         }
 
