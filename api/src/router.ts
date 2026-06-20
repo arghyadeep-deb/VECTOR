@@ -26,6 +26,18 @@ function clampLimit(url: URL, def: number): number {
   return Number.isNaN(n) ? def : Math.min(Math.max(n, 1), 50);
 }
 
+const ALLOWED_PATHS = new Set([
+  "/status",
+  "/health",
+  "/heartbeat",
+  "/command",
+  "/memory/recent",
+  "/council/history",
+  "/security/recent",
+  "/agents",
+  "/goals",
+]);
+
 async function supabaseEpisodic(
   env: Env,
   eventType: string | null,
@@ -53,6 +65,10 @@ export class Router {
   async handle(request: Request, env: Env, url: URL): Promise<Response> {
     const path = url.pathname;
     const method = request.method;
+
+    if (!ALLOWED_PATHS.has(path) && !path.startsWith("/command/")) {
+      return json({ error: "not found", path }, 404);
+    }
 
     if (path === "/status") return json({ status: "online", system: "VECTOR", layer: "cloudflare-worker" });
     if (path === "/health") return json({ status: "healthy" });
