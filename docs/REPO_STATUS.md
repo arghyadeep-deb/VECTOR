@@ -16,7 +16,7 @@ Last refreshed: 2026-06-17.
   - `MCP_KERNEL_SECRET`
   - `VECTOR_API_KEY`
   - `VECTOR_JWT_SECRET`
-  - optional `HUMANLAYER_API_KEY`
+  - optional `PUSHOVER_TOKEN` / `PUSHOVER_USER` (owner approval for RED actions; replaced HumanLayer 2026-06-19)
 - The production check still warns about intentional `eval`/`exec` surfaces in investment/backtesting strategy code. Treat those as disabled or sandbox-only for internet-facing deployment.
 - Long-running soak/load evidence is still needed before calling the system production-grade for multi-user or internet-facing use.
 
