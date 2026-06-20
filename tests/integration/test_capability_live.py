@@ -91,3 +91,72 @@ def test_research_engine_full_cycle_produces_real_statistics():
         f"degraded to the rule-based fallback. Check `ollama list` for "
         f"vector-reasoning and Ollama server health before trusting LIVE."
     )
+
+
+def test_vector_provider_model_sync_call_survives_worker_thread_with_no_loop():
+    """Regression test for the bug found in Phase 0.5c / investment capability:
+    VectorProviderModel._sync_call() called asyncio.get_event_loop() but ran
+    inside a ThreadPoolExecutor worker thread (via finagent_agent.py's
+    loop.run_in_executor(None, _run)). Worker threads never get an event loop
+    set automatically on Python 3.10+, so this raised:
+        RuntimeError: There is no current event loop in thread '...'
+    and _sync_call's except-clause swallowed it into a fake placeholder
+    response: "[VECTOR provider_client error: There is no current event loop
+    in thread '...']" — masquerading as real (degraded) analysis content.
+
+    This test reproduces the exact failure shape (call _sync_call from inside
+    a brand-new worker thread that has never touched asyncio) without needing
+    Ollama/network — it only proves the event-loop crash itself is gone.
+    A separate ProviderClient-level failure (e.g. missing API key / Ollama
+    down) is an acceptable, *different* error and must not be confused with
+    this one.
+    """
+    from districts.investment.vector_finagent.agents.finagent_core.registries.vector_model import (
+        VectorProviderModel,
+    )
+
+    model = VectorProviderModel(id="vector-focus")
+    messages = [{"role": "user", "content": "ping"}]
+
+    def _call_in_fresh_thread() -> str:
+        # Run in a brand-new worker thread (mirrors loop.run_in_executor's
+        # ThreadPoolExecutor workers, which never have asyncio.set_event_loop()
+        # called on them) to reproduce the exact thread-local conditions that
+        # triggered "There is no current event loop in thread '...'".
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            future = ex.submit(model._sync_call, messages)
+            return future.result(timeout=60)
+
+    content = _call_in_fresh_thread()
+
+    assert "no current event loop" not in content, (
+        f"event-loop bug regressed — _sync_call still crashes in worker "
+        f"threads: {content!r}"
+    )
+    assert "There is no current event loop in thread" not in content
+
+
+@pytest.mark.live
+def test_finagent_investor_analysis_does_not_hit_event_loop_error():
+    """Live end-to-end regression test: FinAgentAgent.investor_analysis()
+    dispatches CoreAgent.run_stock_analysis() via loop.run_in_executor(),
+    which (by default, VECTOR-native provider) routes through
+    VectorProviderModel._sync_call(). Before the fix this always degraded to
+    the placeholder "[VECTOR provider_client error: There is no current
+    event loop in thread '...']" regardless of ticker/persona. After the fix,
+    any remaining error (e.g. missing API key, Ollama unavailable) is a
+    legitimate, different failure — this test only asserts the specific
+    event-loop crash is gone."""
+    from districts.investment.finagent_agent import FinAgentAgent
+
+    async def _run():
+        agent = FinAgentAgent()
+        return await agent.run(
+            {"params": {"action": "investor_analysis", "ticker": "AAPL", "persona": "buffett"}}
+        )
+
+    result = asyncio.run(_run())
+    response_text = str(result.get("result", {}).get("response", result))
+    assert "no current event loop" not in response_text, (
+        f"event-loop bug regressed in live investor_analysis call: {result!r}"
+    )
