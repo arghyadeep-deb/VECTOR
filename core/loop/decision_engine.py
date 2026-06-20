@@ -108,6 +108,13 @@ class DecisionEngine:
                 self._reasoning_bank = False  # sentinel: do not retry
         return self._reasoning_bank if self._reasoning_bank is not False else None
 
+    def _get_context_engine(self):
+        """ContextEngine: world-state snapshot injected before scoring (RULE 1)."""
+        if self._context_engine is None:
+            from core.loop.context_engine import ContextEngine
+            self._context_engine = ContextEngine()
+        return self._context_engine
+
     def _get_policy(self):
         if self._policy is None:
             from core.memory.policy import PolicyMemory
