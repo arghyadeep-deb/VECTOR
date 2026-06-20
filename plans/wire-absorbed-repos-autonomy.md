@@ -57,20 +57,20 @@ For EACH of: research_engine, investment(Fincept), trading, scraper, intelligenc
 
 Per owner goal: a capability must PRODUCE REAL OUTPUT. These are "not working" features, not dead code — fix, don't skip.
 
-### Task 0.5a: scraper — public API discards fetched content
-- [ ] Failing live test: `fetch("https://example.com")` returns non-empty body.
-- [ ] Fix `core/scraper/vector_scraper.py:152` — reads `resp.text` (always empty) → use `resp.html_content`. Affects every `fetch()`/`quick_fetch()`.
-- [ ] Live test PASS · capture proof → `docs/capability_proofs/scraper.md` (verdict→LIVE) · `git commit -m "fix(scraper): return real content (html_content not text)"`
+### Task 0.5a: scraper — public API discards fetched content ✅ DONE (2026-06-20)
+- [x] Failing live test: `fetch("https://example.com")` returns non-empty body.
+- [x] Fix `core/scraper/vector_scraper.py:152` — reads `resp.text` (always empty) → use `resp.html_content`. Affects every `fetch()`/`quick_fetch()`. (Fixed all 3 call sites + the matching `html=` assignments.)
+- [x] Live test PASS · capture proof → `docs/capability_proofs/scraper.md` (verdict→LIVE) · committed (auto-hook). Regression test: `tests/integration/test_capability_live.py::test_scraper_fetch_returns_real_content`.
 
-### Task 0.5b: research_engine — pipeline runs but content is hollow
-- [ ] Fix wrong method name: `EpisodicMemory.search()` does not exist — find the real accessor (`grep -n "def search" core/memory/episodic.py`) and call that.
-- [ ] Sandbox experiment fails with 0 data points after Ollama 404 — confirm the model name exists (`ollama list`); fix the model id OR make the sandbox degrade gracefully (skip + log, not silent-empty). This is an owner-action checkpoint if a model needs pulling.
-- [ ] Re-run live smoke → report should contain real findings, not empty sections. Update `docs/capability_proofs/research_engine.md` (verdict→LIVE) · `git commit -m "fix(research): correct episodic method + sandbox model/degrade"`
+### Task 0.5b: research_engine — pipeline runs but content is hollow ✅ DONE (2026-06-20)
+- [x] Fix wrong method name: `EpisodicMemory.search()` → `.recall(topic, limit=5)` (exact same call signature, real accessor).
+- [x] Sandbox experiment failed with 0 data points — root cause was NOT the Ollama 404 (that degrades gracefully to rule-based design as designed); it was `_default_experiment_code()`'s generated script calling `logger.info("STAT:...")`, but the sandbox's restricted `__builtins__` never defines `logger` and `SandboxExecutor._extract_stats()` only ever parses `STAT:` lines from **stdout** — fixed to `print(...)`. Also rewired `ExperimentDesigner`'s model default from the unmodified upstream `llama3.2` (never installed) to `CONFIG["models"]["reasoning"]`.
+- [x] Re-run live smoke → report now contains real computed statistics (t=0.314, p=0.766, r=-0.430), not empty sections. Updated `docs/capability_proofs/research_engine.md` (verdict→LIVE) · committed (auto-hook). Regression test: `tests/integration/test_capability_live.py::test_research_engine_full_cycle_produces_real_statistics`.
 
-### Task 0.5c: test isolation — live smoke must not fight a running server
-- [ ] Make `scripts/capability_smoke.py --live` open a **separate temp DB** (honor a `VECTOR_DB_PATH`/tmp override; confirm the override seam exists in `core/config.py`/`episodic._memory_db_path`). This removes ALL cross-process DB contention — investment/trading/intelligence then prove LIVE with NO process killing required.
-- [ ] Re-run investment/trading/intelligence live smoke against temp DB → update their proof files. The PID-48532 and shadowbroker-port items become moot for testing.
-- [ ] `git commit -m "test: capability smoke uses isolated temp DB"`
+### Task 0.5c: test isolation — live smoke must not fight a running server ✅ DONE (2026-06-20)
+- [x] `scripts/capability_smoke.py --live` now sets `VECTOR_DB_PATH` to a fresh temp file before any VECTOR import, via the existing override seam in `core.memory.db_utils.configured_db_path()`. Proven with the original conflicting process (PID 48532) still running — zero process killing required.
+- [x] Re-ran investment/trading/intelligence against the isolated DB. **Result: the DB-contention finding is fully resolved** — but doing so unmasked 2 separate, real, different bugs (investment: asyncio event-loop error in `VectorProviderModel._sync_call`; trading: missing `langgraph-checkpoint-sqlite` dep (fixed, pinned) + a deeper `WinError 3` empty-path bug inside `VectorTradingGraph`, not yet found). Both flagged for Phase 2, out of scope here. `intelligence`'s port mismatch is confirmed unrelated to DB/test isolation (it never touches `EpisodicMemory`) — still a one-line owner env fix, not code.
+- [x] Committed (auto-hook). New test: `tests/test_capability_smoke.py` (4 tests) + `docs/capability_proofs/_summary.md` rewritten to reflect final state.
 
 ---
 
