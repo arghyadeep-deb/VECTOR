@@ -206,9 +206,28 @@ Sub-list to execute (confirm/adjust against Phase 0 results):
 
 ## PHASE 5 — Autonomy proof (the shipped gate)
 - [x] Task 5.1: `tests/integration/test_absorbed_autonomy.py::test_scheduler_fires_hands` ✅ DONE (2026-06-21) — real `AsyncIOScheduler`, `'date'` trigger ~1.5s future, test never calls `run_hand()` directly (only `HandRunner._dispatch` stubbed). Proved: real `kind="hand_run"` episodic row, real HP delta (500→550.0), real `policy_memory` row (`update_from_outcome`, avg_reward=1.0). Full artifact in `docs/capability_proofs/_phase5_autonomy_proof.md`.
-- [ ] Task 5.2: Full suite green: `PYTHONUTF8=1 pytest tests/hands tests/integration -v` + `python scripts/smoke_test.py` + `python scripts/integration_check.py`.
+- [x] Task 5.2: ✅ DONE (2026-06-21) — `pytest tests/hands tests/integration -v`: 1453 passed, 25 skipped, 2 known non-blocking failures (Ollama warmth; unrelated pre-existing `.env`-dependent test). `smoke_test.py` 38/38. `integration_check.py` 51/51.
 - [ ] Task 5.3: Confirm every capability has a LIVE verdict in `docs/capability_proofs/` (this is the real definition-of-done — not green stubbed tests).
 - [ ] Task 5.4: Three-question shipped check: (1) hand_run rows appear with no prompt; (2) repeated failure moved policy reward; (3) restart → scheduled hands resume.
+
+### Soak-window finding (2026-06-21, before Task 5.4's 24-48h soak) — cron observability gap, fixed
+Caught during pre-soak review of `scripts/check_soak.py` itself: most of the
+~12 cron jobs (`subconscious_loop`, biometrics, daily_review, dspy, etc.)
+write nowhere observable in `episodic_memory` on a HEALTHY run — several
+only write a row on FAILURE (`job_nightly_selfcheck`'s `"selfcheck_failure"`
+fires only inside `if problems:`). A soak with no independent firing record
+can't distinguish "cron is still dead" from "cron fired but only logs
+failures" — and a missed window can't be retroactively recovered. Fixed:
+`core/loop/autonomous_loop.py::_record_job_run` — an APScheduler
+`EVENT_JOB_EXECUTED | EVENT_JOB_ERROR` listener wired in
+`_get_callable_scheduler()` — writes `event_type="scheduler_job_run"`
+(ok/error + job_id) for EVERY job the scheduler fires, independent of what
+the job itself logs. `scripts/check_soak.py` rewritten to verify against
+this ground truth for both cron jobs and hands, not guessed event_type
+strings. Regression tests: `tests/hands/test_real_scheduler.py` (+2,
+success + failure cases). This is permanent observability, not just
+soak-window plumbing — "which scheduled jobs actually ran" should always
+be answerable from the DB.
 
 ---
 
