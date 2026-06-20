@@ -24,10 +24,14 @@ async def real_scheduler():
 
 @pytest.mark.asyncio
 async def test_register_default_jobs_against_real_apscheduler(real_scheduler):
+    """Exact count, not just '>0' — before the fix, only the one interval
+    job (subconscious-loop) registered; all 12 cron-cadence jobs silently
+    failed with 'scheduler API mismatch'. A weak >0 check would pass for
+    the wrong reason."""
     from core.loop.cron_jobs import register_default_jobs
     n = register_default_jobs(real_scheduler)
-    assert n > 0, "the ~12 pre-existing cron jobs must register against a real AsyncIOScheduler"
-    assert len(real_scheduler.get_jobs()) == n
+    assert n == 13, f"expected 12 cron jobs + 1 interval job = 13, got {n}"
+    assert len(real_scheduler.get_jobs()) == 13
 
 
 @pytest.mark.asyncio
