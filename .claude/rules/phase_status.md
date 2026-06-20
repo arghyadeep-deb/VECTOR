@@ -113,7 +113,7 @@ Verified: `tests/test_collections.py` 55 passed (data CRUD, safe-filter injectio
 | Decision engine (5-factor) | `core/loop/decision_engine.py` | ✅ goal(30%)+conf(25%)+policy(20%)+urgency(15%)+timing(10%)-cost(5%) |
 | Policy memory (RULE 7) | `core/memory/policy.py` | ✅ EMA get_score() BEFORE + update_from_outcome() AFTER |
 | Reasoning memory (RULE 8) | `core/memory/reasoning_memory.py` | ✅ All chains stored, reward>0.7 → training data |
-| Permission gateway (RULE 3) | `core/loop/permission_gateway.py` | ✅ GREEN/YELLOW/RED, HumanLayer, FORBIDDEN list |
+| Permission gateway (RULE 3) | `core/loop/permission_gateway.py` | ✅ GREEN/YELLOW/RED, Pushover owner approval (HumanLayer removed 2026-06-19), FORBIDDEN list |
 | Autonomous loop (RULE 2) | `core/loop/autonomous_loop.py` | ✅ run_forever(), observe→think→act→reflect, never stops |
 | Episodic memory | `core/memory/episodic.py` | ✅ SQLite FTS5, WAL, AES-256 optional (SQLCipher) |
 | Goal system (3 horizons) | `core/brain/goal_system.py` | ✅ LONG/MID/SHORT, 5 pre-seeded goals |
