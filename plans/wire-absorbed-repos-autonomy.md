@@ -53,7 +53,37 @@ For EACH of: research_engine, investment(Fincept), trading, scraper, intelligenc
 
 ---
 
+## PHASE 0.5 — Fix bugs surfaced by triage (before scheduling those capabilities)
+
+Per owner goal: a capability must PRODUCE REAL OUTPUT. These are "not working" features, not dead code — fix, don't skip.
+
+### Task 0.5a: scraper — public API discards fetched content
+- [ ] Failing live test: `fetch("https://example.com")` returns non-empty body.
+- [ ] Fix `core/scraper/vector_scraper.py:152` — reads `resp.text` (always empty) → use `resp.html_content`. Affects every `fetch()`/`quick_fetch()`.
+- [ ] Live test PASS · capture proof → `docs/capability_proofs/scraper.md` (verdict→LIVE) · `git commit -m "fix(scraper): return real content (html_content not text)"`
+
+### Task 0.5b: research_engine — pipeline runs but content is hollow
+- [ ] Fix wrong method name: `EpisodicMemory.search()` does not exist — find the real accessor (`grep -n "def search" core/memory/episodic.py`) and call that.
+- [ ] Sandbox experiment fails with 0 data points after Ollama 404 — confirm the model name exists (`ollama list`); fix the model id OR make the sandbox degrade gracefully (skip + log, not silent-empty). This is an owner-action checkpoint if a model needs pulling.
+- [ ] Re-run live smoke → report should contain real findings, not empty sections. Update `docs/capability_proofs/research_engine.md` (verdict→LIVE) · `git commit -m "fix(research): correct episodic method + sandbox model/degrade"`
+
+### Task 0.5c: test isolation — live smoke must not fight a running server
+- [ ] Make `scripts/capability_smoke.py --live` open a **separate temp DB** (honor a `VECTOR_DB_PATH`/tmp override; confirm the override seam exists in `core/config.py`/`episodic._memory_db_path`). This removes ALL cross-process DB contention — investment/trading/intelligence then prove LIVE with NO process killing required.
+- [ ] Re-run investment/trading/intelligence live smoke against temp DB → update their proof files. The PID-48532 and shadowbroker-port items become moot for testing.
+- [ ] `git commit -m "test: capability smoke uses isolated temp DB"`
+
+---
+
 ## PHASE 1 — Hand Execution Engine (orchestration foundation)
+
+**ARCHITECTURE DECISION (resolved 2026-06-20, verified in code):** Hands run IN-PROCESS as scheduled coroutines inside the autonomous loop. `core/memory/episodic.py` already exposes a **module-level singleton connection** (`_db_connection`, `_db_lock`, `check_same_thread=False`). Therefore:
+- Hands MUST use `get_db_connection()` — **never** instantiate a per-hand `EpisodicMemory()` with its own connection.
+- The "two processes can't share the DB" issue Phase 0 saw is a *test* artifact (separate smoke process vs running server), NOT a production constraint. No multiprocess redesign.
+
+### Task 1.0: DB concurrency hardening (do before 1.1)
+- [ ] Confirm `_open_sqlcipher_connection` sets `PRAGMA busy_timeout` (e.g. 5000ms) and `PRAGMA journal_mode=WAL`; add if missing (grep showed neither explicitly). This makes even accidental cross-process access wait-then-succeed instead of hard-fail.
+- [ ] Failing test: spawn 2 threads each writing an episode via `get_db_connection()` concurrently → both rows land, no "database is locked".
+- [ ] Test PASS · `git commit -m "fix(memory): busy_timeout + WAL + concurrent-write test"`
 
 ### Task 1.1: HandResult dataclass + episodic persistence
 - [ ] Failing test `tests/hands/test_hand_runner.py::test_hand_result_persists`
