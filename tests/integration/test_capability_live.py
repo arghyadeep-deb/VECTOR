@@ -105,35 +105,62 @@ def test_vector_provider_model_sync_call_survives_worker_thread_with_no_loop():
     in thread '...']" — masquerading as real (degraded) analysis content.
 
     This test reproduces the exact failure shape (call _sync_call from inside
-    a brand-new worker thread that has never touched asyncio) without needing
-    Ollama/network — it only proves the event-loop crash itself is gone.
-    A separate ProviderClient-level failure (e.g. missing API key / Ollama
-    down) is an acceptable, *different* error and must not be confused with
-    this one.
+    a brand-new worker thread that has never touched asyncio) WITHOUT a real
+    network/Ollama round trip — ProviderClient.chat() is stubbed to return
+    instantly so this stays a fast, deterministic unit test. It still
+    exercises the exact code path that crashed: _sync_call's own
+    asyncio.get_event_loop()/loop.run_until_complete() machinery, executed
+    inside a brand-new worker thread, awaiting a real coroutine. The
+    end-to-end real-LLM proof lives in
+    test_finagent_investor_analysis_does_not_hit_event_loop_error below.
     """
+    from districts.investment.vector_finagent.agents.finagent_core.registries import (
+        vector_model as vector_model_module,
+    )
     from districts.investment.vector_finagent.agents.finagent_core.registries.vector_model import (
         VectorProviderModel,
     )
 
-    model = VectorProviderModel(id="vector-focus")
-    messages = [{"role": "user", "content": "ping"}]
+    class _FakeResult:
+        content = "pong"
 
-    def _call_in_fresh_thread() -> str:
-        # Run in a brand-new worker thread (mirrors loop.run_in_executor's
-        # ThreadPoolExecutor workers, which never have asyncio.set_event_loop()
-        # called on them) to reproduce the exact thread-local conditions that
-        # triggered "There is no current event loop in thread '...'".
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-            future = ex.submit(model._sync_call, messages)
-            return future.result(timeout=60)
+    class _FakeProviderClient:
+        async def chat(self, *args, **kwargs):
+            return _FakeResult()
 
-    content = _call_in_fresh_thread()
+    original_provider_client = vector_model_module.ProviderClient
+    # Patch the name _sync_call imports inside its own function body
+    # (`from core.inference.provider_client import ProviderClient`) by
+    # pre-seeding sys.modules-level attribute lookup is unnecessary here —
+    # _sync_call does a fresh local import each call, so monkeypatch the
+    # real module's ProviderClient class directly.
+    import core.inference.provider_client as provider_client_module
+    monkeypatched = provider_client_module.ProviderClient
+    provider_client_module.ProviderClient = _FakeProviderClient
+    try:
+        model = VectorProviderModel(id="vector-focus")
+        messages = [{"role": "user", "content": "ping"}]
+
+        def _call_in_fresh_thread() -> str:
+            # Run in a brand-new worker thread (mirrors loop.run_in_executor's
+            # ThreadPoolExecutor workers, which never have
+            # asyncio.set_event_loop() called on them) to reproduce the exact
+            # thread-local conditions that triggered "There is no current
+            # event loop in thread '...'".
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                future = ex.submit(model._sync_call, messages)
+                return future.result(timeout=10)
+
+        content = _call_in_fresh_thread()
+    finally:
+        provider_client_module.ProviderClient = monkeypatched
 
     assert "no current event loop" not in content, (
         f"event-loop bug regressed — _sync_call still crashes in worker "
         f"threads: {content!r}"
     )
     assert "There is no current event loop in thread" not in content
+    assert content == "pong", f"expected the stubbed response, got: {content!r}"
 
 
 @pytest.mark.live
