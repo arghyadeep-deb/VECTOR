@@ -31,7 +31,7 @@ from core.memory.episodic import EpisodicMemory
 
 # Federation peer registry — add peer nodes here or via VECTOR_PEERS env var
 _DEFAULT_PEERS = {
-    "cloud_brain": os.environ.get("VECTOR_FLY_URL", "https://vector-brain.fly.dev"),
+    "cloud_brain": os.environ.get("VECTOR_BRAIN_URL", "https://vector-api.arghyadeepdeb020703.workers.dev"),
     "phone_node": os.environ.get("VECTOR_PHONE_URL", "http://192.168.1.100:8765"),
 }
 
