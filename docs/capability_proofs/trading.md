@@ -1,52 +1,46 @@
 # Capability Proof — trading
 
-**Verdict: NEEDS-CONFIG (same environmental DB contention as `investment.md` — NOT a code defect)**
+**Verdict: BROKEN (real code bug, NOT the Phase 0 DB-contention issue — that's resolved)**
 
-See `investment.md` for the full root-cause analysis: a leftover process from
-earlier in this session (PID 48532, `run_vector.py api`) held a concurrent
-connection to `vector_memory.db`, and `TradingConductorAgent` hit the exact
-same SQLCipher contention as `FinAgentAgent` did moments earlier — on a
-completely different class/module, which is what confirms this is
-process-level contention, not a `trading_conductor_agent.py` defect.
-Re-run after closing concurrent VECTOR processes for a clean verdict.
-**Confirmed deterministic** (PID 48532 still alive at time of writing — I was
-blocked from killing it; it needs explicit owner action) — not a flaky
-timing window. `intelligence`'s probe succeeded throughout this whole
-investigation, but only because `VectorIntelAgent` never calls
-`EpisodicMemory()` at all, so it was never exposed to the same contention.
+Run at: 2026-06-20T13:15:45.075547+00:00 — with Task 0.5c's temp-DB isolation
+active and `PID 48532` still running. The original Phase 0 finding (SQLCipher
+contention) is confirmed fully resolved; this is a new, different, genuine
+bug that the DB error was previously masking.
 
-Run at: 2026-06-20T12:42:29.594890+00:00
-
-## Error
-
-`core.memory.episodic.MemoryDatabaseUnavailable: [VECTOR][memory] Local SQLCipher memory DB is unreadable: C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\vector_memory.db. The file appears encrypted or corrupted and cannot be opened with the current DB key. If this DB has memories you need, restore the original VECTOR_DB_KEY/keyring entry. To start fresh without deleting the old file, run: python run_vector.py memory-repair`
-
-## Traceback
+## Output (verbatim)
 
 ```
-Traceback (most recent call last):
-  File "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\core\memory\episodic.py", line 431, in get_db_connection
-    _db_connection = _open_sqlcipher_connection(db_path)
-  File "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\core\memory\episodic.py", line 170, in _open_sqlcipher_connection
-    conn.execute("SELECT count(*) FROM sqlite_master")
-    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-sqlcipher3.dbapi2.DatabaseError: file is not a database
-
-The above exception was the direct cause of the following exception:
-
-Traceback (most recent call last):
-  File "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\scripts\capability_smoke.py", line 238, in run_live
-    output = await probe()
-             ^^^^^^^^^^^^^
-  File "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\scripts\capability_smoke.py", line 155, in _live_trading
-    agent = TradingConductorAgent()
-  File "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\districts\investment\trading_conductor_agent.py", line 56, in __init__
-    self._memory  = EpisodicMemory()
-                    ~~~~~~~~~~~~~~^^
-  File "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\core\memory\episodic.py", line 553, in __init__
-    self.conn = get_db_connection()
-                ~~~~~~~~~~~~~~~~~^^
-  File "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\core\memory\episodic.py", line 435, in get_db_connection
-    raise MemoryDatabaseUnavailable(_unavailable_message(db_path)) from exc
-core.memory.episodic.MemoryDatabaseUnavailable: [VECTOR][memory] Local SQLCipher memory DB is unreadable: C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\vector_memory.db. The file appears encrypted or corrupted and cannot be opened with the current DB key. If this DB has memories you need, restore the original VECTOR_DB_KEY/keyring entry. To start fresh without deleting the old file, run: python run_vector.py memory-repair
+{'status': 'error', 'ticker': 'AAPL', 'date': '2026-06-20', 'error': "[WinError 3] The system cannot find the path specified: ''"}
 ```
+
+## Investigation (this far, then stopped — out of scope for Task 0.5c)
+
+1. First layer: `ImportError: No module named 'langgraph.checkpoint.sqlite'`
+   — missing pip package. **Fixed**: installed
+   `langgraph-checkpoint-sqlite==2.0.4`, added to `requirements.txt` (this
+   downgraded `aiosqlite` 0.22.1→0.20.0; verified nothing else in
+   `requirements.txt` pins a specific `aiosqlite` version — safe).
+2. After that fix, hit `WinError 3: cannot find the path specified: ''`.
+   Checked `CONFIG["trading"]` — `results_dir`/`cache_dir`/`memory_log_path`
+   are all correctly configured with real, non-empty paths under
+   `~/.vector/trading/...`. Checked disk — none of those directories had
+   ever been created. **Created them** (`logs/`, `cache/`, `memory/`) —
+   error persisted identically. This rules out "missing directory" as the
+   cause; the empty-string path is being constructed somewhere *inside*
+   `core/trading/graph/trading_graph.py` (`VectorTradingGraph`), not from
+   the config dict `trading_conductor_agent.py` passes in.
+
+**Stopped here** — this is a real, code-level bug inside the absorbed
+trading graph library, distinct from anything Task 0.5a/0.5b/0.5c were
+scoped to fix. Needs its own fix sub-task (trace where `VectorTradingGraph`
+constructs/joins an empty path — likely a config key the agent's `cfg` dict
+doesn't supply but the graph expects, or an internal default that's `""`
+instead of `None`) before `trading` can be scheduled autonomously.
+
+## Triage implication
+
+Phase 0's original finding (DB contention) is fully resolved by Task 0.5c.
+This capability needs ONE more fix sub-task (the empty-path bug above)
+before it's LIVE — scope it in Phase 2 alongside investment's asyncio
+event-loop bug (`investment.md`), since both surfaced only after the DB
+contention stopped masking them.
