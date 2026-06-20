@@ -40,9 +40,16 @@
   function shell(id, title, bodyEl, extraClass){
     const w = el('div', 'widget '+(extraClass||''));
     w.dataset.id = id;
+    w.setAttribute('role', 'dialog');
+    w.setAttribute('aria-label', title);
+    w.setAttribute('tabindex', '-1'); // programmatic focus target on open
     const head = el('div','w-head',
-      `<span class="dotled"></span><span class="w-title">${title}</span><span class="spacer"></span><span class="w-x">✕</span>`);
-    head.querySelector('.w-x').addEventListener('click', e=>{ e.stopPropagation(); V.closeWidget(id); });
+      `<span class="dotled"></span><span class="w-title">${title}</span><span class="spacer"></span><button type="button" class="w-x" aria-label="Close ${title}">✕</button>`);
+    const closeBtn = head.querySelector('.w-x');
+    closeBtn.addEventListener('click', e=>{ e.stopPropagation(); V.closeWidget(id); });
+    w.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){ e.stopPropagation(); V.closeWidget(id); }
+    });
     const body = el('div','w-body'); body.appendChild(bodyEl);
     w.appendChild(head); w.appendChild(body);
     w.appendChild(el('div','w-corner tr')); w.appendChild(el('div','w-corner bl'));
