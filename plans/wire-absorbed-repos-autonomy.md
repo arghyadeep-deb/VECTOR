@@ -116,7 +116,8 @@ Per owner goal: a capability must PRODUCE REAL OUTPUT. These are "not working" f
 ### Task 1.4: register_all into the durable scheduler
 - [ ] Failing test (FakeScheduler) asserts 7 scheduled hands registered (2 are on-demand).
 - [ ] Implement `register_all(scheduler)` reusing `core/loop/cron_jobs.py::_try_register` (do NOT invent a scheduler). Skip hands with `on_demand=True` (add this field in Task 3.2), not by empty-string.
-- [ ] Test PASS · `git commit -m "feat(hands): register scheduled hands"`
+- [ ] **Model-residency awareness (surfaced by Phase 0.5 eviction finding).** With `OLLAMA_MAX_LOADED_MODELS=1` (confirm — models.md says 1, architecture.md says 2; resolve the discrepancy), every model-heavy hand both eats a ~58s cold-load AND evicts the resident interactive model (`vector-focus`), degrading voice latency. Therefore the runner MUST serialize model-heavy hand execution behind a single asyncio lock (`self._model_lock`) — never run two different-model hands concurrently — and SHOULD bias their cron times off-peak. Failing test: two model-heavy hands triggered together do not run concurrently (the second waits). This is a scheduler design constraint, not an afterthought.
+- [ ] Test PASS · `git commit -m "feat(hands): register scheduled hands + model-residency serialization"`
 
 ### Task 1.5: Start in autonomous loop
 - [ ] Failing test: `inspect.getsource(autonomous_loop)` contains `HandRunner` + `register_all`.
