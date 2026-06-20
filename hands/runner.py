@@ -149,8 +149,13 @@ class HandRunner:
                     raw = await raw
                 return raw
 
-            async with asyncio.timeout(_DEFAULT_TIMEOUT_SEC):
-                output = await _do_dispatch()
+            if hand.name in self.MODEL_HEAVY_HANDS:
+                async with self._model_lock:
+                    async with asyncio.timeout(_DEFAULT_TIMEOUT_SEC):
+                        output = await _do_dispatch()
+            else:
+                async with asyncio.timeout(_DEFAULT_TIMEOUT_SEC):
+                    output = await _do_dispatch()
 
             result = HandResult(
                 hand=hand.name, district=hand.district,
