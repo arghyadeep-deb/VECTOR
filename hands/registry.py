@@ -616,7 +616,7 @@ if __name__ == "__main__":
     assert len(hands) == 9
 
     researcher = reg.get("researcher")
-    assert researcher and researcher.schedule == "0 8 * * *"
+    assert researcher and researcher.schedule == "0 3 * * *"
     assert "CRAAP" in researcher.system_prompt
 
     trader = reg.get("trader")
