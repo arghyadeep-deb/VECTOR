@@ -148,7 +148,7 @@ Sources: ...
     Hand(
         name="predictor",
         description="Superforecasting engine — makes calibrated probability predictions with confidence intervals and tracks accuracy via Brier scores.",
-        schedule="0 9 * * 1",   # Monday 09:00 (weekly)
+        schedule="0 3 * * 1",   # Monday 03:00 IST (weekly) — off-peak; moved from 09:00 2026-06-21
         district="research",
         tools=["web_search", "web_fetch", "memory_query", "memory_write"],
         requires_approval=False,
