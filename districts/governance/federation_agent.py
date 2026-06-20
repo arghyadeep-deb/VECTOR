@@ -31,7 +31,7 @@ from core.memory.episodic import EpisodicMemory
 
 # Federation peer registry — add peer nodes here or via VECTOR_PEERS env var
 _DEFAULT_PEERS = {
-    "fly_brain": os.environ.get("VECTOR_FLY_URL", "https://vector-brain.fly.dev"),
+    "cloud_brain": os.environ.get("VECTOR_FLY_URL", "https://vector-brain.fly.dev"),
     "phone_node": os.environ.get("VECTOR_PHONE_URL", "http://192.168.1.100:8765"),
 }
 
@@ -175,7 +175,7 @@ class FederationAgent(AgentBase):
         try:
             if task_type == "delegate":
                 result = await self.delegate_task(
-                    task.get("peer", "fly_brain"), task.get("task", {}), task.get("timeout", 30.0)
+                    task.get("peer", "cloud_brain"), task.get("task", {}), task.get("timeout", 30.0)
                 )
                 self.award_points(15, "task_delegated")
                 return {"status": "ok", "result": result}
