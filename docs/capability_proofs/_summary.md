@@ -1,57 +1,56 @@
-# Phase 0 Triage Summary — Absorbed Capability Reachability + Live Smoke
+# Phase 0 + 0.5 Triage Summary — Absorbed Capability Reachability + Live Smoke
 
-Per `plans/wire-absorbed-repos-autonomy.md` Phase 0. Evidence, not guesses —
-every verdict below is backed by a real, captured run (see the per-repo
-`.md` files in this directory).
+Per `plans/wire-absorbed-repos-autonomy.md` Phases 0 and 0.5. Evidence, not
+guesses — every verdict below is backed by a real, captured run (see the
+per-repo `.md` files in this directory). This supersedes the original Phase
+0-only summary: Phase 0.5 fixed the two real bugs Phase 0 found, and added
+DB-isolation to the live-smoke harness itself, which then revealed two more
+real (but separately-scoped) bugs that the DB contention had been masking.
 
 ## Reachability (Task 0.1)
 
 **26/26 target modules import-resolve cleanly across all 7 repo groups.**
-Zero `IMPORT_ERROR`. The absorbed code is not broken at the import level —
-whatever issues exist are deeper (runtime/config/environment), not "this
-module can't even load." Full table: `_reachability.md`.
+Zero `IMPORT_ERROR`. Full table: `_reachability.md`.
 
-## Live smoke verdicts (Task 0.2)
+## Final live smoke verdicts (after Phase 0.5)
 
-| Repo | Verdict | Why |
+| Repo | Verdict | Status |
 |---|---|---|
-| **coding_assistant** | ✅ **LIVE** | Real grep over `core/city`, 21 genuine matches with correct file/line data. Works as-is. |
-| **scraper** | ❌ **BROKEN** | Real bug, fully isolated. `vector_scraper.py:152` reads `resp.text` (always empty) instead of `resp.html_content` (has the real content). Network fetch genuinely succeeds (200, real bytes) — the public API just discards it. Affects `fetch()`/`quick_fetch()`/`fetch_to_markdown()` everywhere. **Needs a real code fix** before this capability can be scheduled autonomously — right now every call "succeeds" with empty output. |
-| **research_engine** | ⚠️ **LIVE, but hollow** | The hypothesis→experiment→report pipeline genuinely runs end-to-end and writes a real markdown file to the Obsidian vault — orchestration plumbing works. But two real bugs degrade the *content*: (1) `EpisodicMemory.search()` doesn't exist (wrong method name) — memory-pattern context is silently always empty; (2) the sandbox experiment itself fails ("Insufficient data points (0)") after an Ollama 404 fallback — so the report's Results/Analysis sections are real markdown but scientifically empty. Wireable now, but scheduling it before fixing bug (2) just accumulates empty reports. |
-| **investment** (Fincept) | 🟡 **NEEDS-CONFIG** (environmental, not code) | Hit a deterministic SQLCipher DB lock caused by a leftover test process from earlier in this session (PID 48532, `run_vector.py api`), confirmed still running. Not a defect in `FinAgentAgent`. **Owner action: close that process**, then re-run for a clean verdict on the actual analysis logic. |
-| **trading** | 🟡 **NEEDS-CONFIG** (same cause as investment) | Identical deterministic DB lock, different class/module — confirms it's process-level, not a `trading_conductor_agent.py` bug. Same owner action needed. |
-| **intelligence** | 🟡 **NEEDS-CONFIG** (one-line env fix) | `VectorIntelAgent`'s default port (8002) matches shadowbroker's own documented default exactly — not a code bug. The shadowbroker instance *currently running* on this machine just happens to be bound to port 8765 (leftover from an earlier, unrelated session). Fix: restart shadowbroker normally, or set `VECTORINTEL_HOST=http://127.0.0.1:8765`. Graceful degradation (empty lists, no crash) worked exactly as designed. |
+| **coding_assistant** | ✅ **LIVE** | Works as-is. No change needed. |
+| **scraper** | ✅ **LIVE** (fixed) | Was BROKEN (`resp.text` always empty). Fixed → `resp.html_content`. Real fetch now returns real content (`content_len: 543` for example.com). Regression test passes. |
+| **research_engine** | ✅ **LIVE** (fixed) | Was hollow (0 data points). Fixed `EpisodicMemory.search()`→`.recall()` and the sandbox's `logger.info()`→`print()` bug (sandbox's restricted builtins never define `logger`; `_extract_stats()` only reads stdout). Report now has real computed statistics (t=0.314, p=0.766, r=-0.430). Regression test passes. |
+| **investment** (Fincept) | ✅ **LIVE** (test isolation fixed) | Phase 0's DB-contention finding is fully resolved by Task 0.5c's temp-DB isolation — proven with the original conflicting process (PID 48532) still running, zero process killing needed. **New finding surfaced**: the underlying LLM call fails ("no current event loop in thread") and degrades to a fallback response — real bug, but separately scoped, flagged for Phase 2 (see `investment.md`). |
+| **trading** | 🟡 **BROKEN** (different bug than Phase 0 found) | DB-contention finding resolved by Task 0.5c (same as investment). **New finding**: missing `langgraph-checkpoint-sqlite` dependency (fixed — installed, added to `requirements.txt`), then a deeper `WinError 3: empty path` bug inside the absorbed `VectorTradingGraph` itself (config dict is correctly populated; directories exist; root cause is inside the absorbed library, not yet found). Needs its own fix sub-task — flagged for Phase 2 (see `trading.md`). |
+| **intelligence** | 🟡 **NEEDS-CONFIG** (unchanged — one-line env fix, not code) | `vectorintel_agent.py`'s default port (8002) matches shadowbroker's own documented default exactly. The shadowbroker instance currently running on this machine is bound to 8765 (leftover from an unrelated earlier session) — not something Task 0.5 touched or could fix from code. |
 
-## What this means for Phase 1+ workload
+## What Phase 0.5 actually fixed (code, with regression tests)
 
-**1 real code fix required before autonomy:**
-- `scraper` — fix `resp.text` → `resp.html_content` in `vector_scraper.py` (3 call sites). Small, scoped, do this before Task 2.x for scraper.
+1. **`scraper`** — `core/scraper/vector_scraper.py`, all 3 `ScrapeResult` sites: `resp.text` → `resp.html_content`. Test: `tests/integration/test_capability_live.py::test_scraper_fetch_returns_real_content`.
+2. **`research_engine`** — `auto_research_agent.py`: `EpisodicMemory.search()` → `.recall()`; sandbox template's `logger.info("STAT:...")` → `print(...)`. Also rewired `ExperimentDesigner`'s default model from the upstream project's unmodified `llama3.2` (never installed) to `CONFIG["models"]["reasoning"]` (`vector-reasoning`, actually installed). Test: `tests/integration/test_capability_live.py::test_research_engine_full_cycle_produces_real_statistics`.
+3. **Test isolation (Task 0.5c)** — `scripts/capability_smoke.py --live` now points `VECTOR_DB_PATH` at a fresh temp file before any VECTOR module imports, via the existing `configured_db_path()` override seam in `core/memory/db_utils.py`. Confirmed working with the original conflicting process still alive. Test: `tests/test_capability_smoke.py` (4 tests).
+4. **Trading dependency gap** — installed `langgraph-checkpoint-sqlite==2.0.4`, pinned in `requirements.txt` (downgraded `aiosqlite` 0.22.1→0.20.0; confirmed nothing else depends on a specific `aiosqlite` version).
 
-**1 real code fix recommended (not blocking, but wasteful if skipped):**
-- `research_engine` — fix `EpisodicMemory.search()` → correct method name; investigate why the sandbox experiment always reports 0 data points. Otherwise the autonomous hand will run forever and produce empty reports.
+## What's left — 3 items, all scoped for Phase 2, none blocking Phase 1
 
-**3 owner actions, zero code changes:**
-- Close the leftover `run_vector.py api` process (PID 48532) so `investment`/`trading` can get a real verdict.
-- Restart shadowbroker on its documented port (or repoint `VECTORINTEL_HOST`) so `intelligence` can get a real verdict.
-- Re-run `python scripts/capability_smoke.py --live investment,trading,intelligence` after both, to confirm.
+- **`investment`**: LLM call inside `investor_analysis` fails with an asyncio
+  event-loop error in worker threads, degrades to a fallback placeholder
+  response instead of real analysis. Needs the same kind of fix
+  `agent_base.py::_ensure_legacy_event_loop()` already does for the main
+  thread, applied to whatever executor/thread `VectorProviderModel._sync_call`
+  runs in.
+- **`trading`**: `WinError 3` empty-path bug inside the absorbed
+  `VectorTradingGraph` — root cause not yet found, needs tracing inside
+  `core/trading/graph/trading_graph.py`.
+- **`intelligence`**: one-line owner action (restart shadowbroker on 8002,
+  or set `VECTORINTEL_HOST=http://127.0.0.1:8765`) — not code.
 
-**1 architectural question for Phase 1's `HandRunner` design** (surfaced by the
-investment/trading investigation, not yet answered): if SQLCipher's encrypted
-DB genuinely cannot tolerate two VECTOR processes holding a connection at
-once, the Hand Execution Engine cannot have each hand open its own
-`EpisodicMemory()` — it needs to share the main loop's connection, or the DB
-needs a busy-timeout/WAL fix. This should be designed into Task 1.1/1.2, not
-discovered after Phase 1 is built.
+**0 capabilities block Phase 1.** The DB-contention architectural question
+Phase 0 raised is resolved for *testing* (Task 0.5c); the *production*
+answer is now recorded in Phase 1's architecture decision (in-process
+singleton connection, hardened by Task 1.0) rather than left open.
 
-**0 capabilities are definitively broken in a way that blocks Phase 1.**
-`scraper`'s bug is real but small and scoped; everything else is either
-already working (`coding_assistant`) or blocked by environment, not code.
+## What Phase 0/0.5 did NOT cover
 
-## What Phase 0 did NOT cover
-
-`research_district` (11 modules — `agent.py`, `deep_researcher.py`,
-`web_scout.py`, etc.) was reachability-checked (11/11 resolve) but has no
-live probe yet — the plan's Task 0.2 list didn't name a specific entrypoint
-for it distinct from `research_engine`. Worth a follow-up live probe before
-Task 2.x's "research" sub-list is finalized, since `web_scout`/`collector`
-hands route through this district, not directly through `research_engine`.
+`research_district` (11 modules) was reachability-checked (11/11 resolve)
+but has no live probe yet distinct from `research_engine` — worth a
+follow-up before Phase 2's "research" sub-list is finalized.
