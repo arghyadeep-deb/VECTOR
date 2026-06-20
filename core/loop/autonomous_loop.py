@@ -274,6 +274,31 @@ class AutonomousLoop:
                 self._scheduler = None
         return self._scheduler
 
+    def _get_callable_scheduler(self):
+        """Real callable scheduler — APScheduler's AsyncIOScheduler.
+
+        Task 1.6 of plans/wire-absorbed-repos-autonomy.md: _get_scheduler()
+        (above) wraps core/scheduler/TaskScheduler, which is prompt/LLM-agent
+        based (create_task -> _execute_task -> system.ask) and has no
+        add_job/schedule/register/add — _try_register silently no-ops
+        against it. That meant neither the ~12 pre-existing cron jobs nor
+        the Hand Execution Engine ever actually fired. This is the real,
+        callable-function scheduler register_default_jobs() and
+        HandRunner().register_all() need; TaskScheduler is left untouched
+        for its original prompt-task purpose.
+        """
+        if getattr(self, "_callable_scheduler", None) is None:
+            try:
+                from apscheduler.schedulers.asyncio import AsyncIOScheduler
+                sched = AsyncIOScheduler()
+                sched.start()
+                self._callable_scheduler = sched
+                logger.info("[VECTOR][autonomous_loop] callable scheduler (APScheduler) ready")
+            except Exception as e:
+                logger.warning(f"[VECTOR][autonomous_loop] callable scheduler unavailable: {e}")
+                self._callable_scheduler = None
+        return self._callable_scheduler
+
     def _get_workflow_runner(self):
         """DAG workflow runner. Districts can trigger multi-step workflows
         via runner.run(workflow_dict) — returns WorkflowResult.
