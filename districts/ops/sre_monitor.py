@@ -21,8 +21,8 @@ from core.memory.obsidian_sync import ObsidianSync
 
 _FOCUS = CONFIG.get("models", {}).get("focus", "vector-focus")
 
-# Fly.io status endpoint — configurable via CONFIG or env
-_FLY_STATUS_URL: str = CONFIG.get("fly_status_url", "https://vector-brain.fly.dev/status")
+# Cloudflare Worker (cloud brain) health endpoint — configurable via CONFIG or env
+_CF_HEALTH_URL: str = CONFIG.get("cf_worker_url", "https://vector-api.arghyadeepdeb020703.workers.dev/health")
 # Ollama availability check
 _OLLAMA_HOST: str = CONFIG.get("ollama_host", "http://127.0.0.1:11434")
 # SLO target
