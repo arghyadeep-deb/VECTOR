@@ -406,7 +406,7 @@ if __name__ == "__main__":
         agent = SREMonitor()
         assert agent.health_points == 500
 
-        # Check SQLite and Ollama (Fly.io may not be deployed yet)
+        # Check SQLite and Ollama (Cloudflare check may fail offline — that's expected)
         health = await agent.check_system_health()
         print(f"sqlite_ok={health.get('sqlite_ok')} ollama_ok={health.get('ollama_ok')} "
               f"error_rate={health.get('error_rate')}")
