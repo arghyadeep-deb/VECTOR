@@ -263,7 +263,7 @@ class SREMonitor(AgentBase):
         date_str = datetime.date.today().isoformat()
         title = f"SLO Report — {date_str}"
 
-        fly_icon = "✅" if health.get("fly_ok") else "❌"
+        cf_icon = "✅" if health.get("cf_ok") else "❌"
         sqlite_icon = "✅" if health.get("sqlite_ok") else "❌"
         ollama_icon = "✅" if health.get("ollama_ok") else "❌"
         slo_icon = "✅" if slo.get("meets_target") else "⚠️"
