@@ -14,11 +14,13 @@
   // ── Build the DOM ──────────────────────────────────────────────────────────
   const bar = document.createElement('div');
   bar.id = 'cmd-bar';
+  bar.setAttribute('role', 'region');
+  bar.setAttribute('aria-label', 'Command bar');
   bar.innerHTML =
     '<input id="cmd-bar-input" type="text" autocomplete="off" spellcheck="false"' +
-    ' placeholder="tell VECTOR…" maxlength="500" />' +
+    ' placeholder="tell VECTOR…" maxlength="500" aria-label="Tell VECTOR" />' +
     '<button id="cmd-bar-send" aria-label="Send">▶</button>' +
-    '<div id="cmd-bar-toast"></div>';
+    '<div id="cmd-bar-toast" role="status" aria-live="polite"></div>';
   document.getElementById('stage').appendChild(bar);
 
   const input  = document.getElementById('cmd-bar-input');
