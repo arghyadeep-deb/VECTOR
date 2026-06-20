@@ -29,6 +29,10 @@ class Candidate:
     # RULE 8 — past reasoning injected before scoring
     reasoning_steps: list[str] = field(default_factory=list)
     reasoning_chain: list[dict] = field(default_factory=list)
+    # RULE 1 — world-state snapshot injected before scoring (ContextEngine).
+    # Available to scoring/audit, but does NOT currently change the score
+    # formula itself — see DecisionEngine.evaluate() docstring.
+    context_snapshot: dict = field(default_factory=dict)
 
 
 @dataclass
