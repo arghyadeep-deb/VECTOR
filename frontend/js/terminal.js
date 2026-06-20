@@ -126,9 +126,14 @@
       el.style.left=(e.clientX-s.dx)+'px'; el.style.top=(e.clientY-s.dy)+'px'; el.style.bottom='auto'; });
     handle.addEventListener('pointerup',()=>s=null); }
 
-  let open=false;
-  function toggle(force){ if(!box) build(); open = force!=null?force:!open;
-    box.classList.toggle('open', open); if(open) setTimeout(()=>input.focus(),30); }
+  let open=false, returnFocus=null;
+  function toggle(force){ if(!box) build(); const next = force!=null?force:!open;
+    if(next && !open) returnFocus = document.activeElement;
+    open = next;
+    box.classList.toggle('open', open);
+    if(open) setTimeout(()=>input.focus(),30);
+    else if(returnFocus && document.contains(returnFocus) && typeof returnFocus.focus==='function'){ returnFocus.focus(); returnFocus=null; }
+  }
 
   addEventListener('keydown', e=>{
     if(e.ctrlKey && e.shiftKey && (e.key==='H'||e.key==='h')){ toggle(); e.preventDefault(); }
