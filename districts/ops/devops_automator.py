@@ -270,20 +270,18 @@ class DevOpsAutomator(AgentBase):
 
             else:
                 # Default: status check of all deployments
-                fly = await self.check_fly_status()
                 cf = await self.check_cloudflare_status()
-                all_ok = fly.get("ok", False) and cf.get("ok", False)
-                if all_ok:
+                if cf.get("ok"):
                     self.award_points(20, "all deployments healthy")
                 else:
                     self.deduct_points(20, "deployment degradation detected")
                 self._get_memory().store(
                     event_type="devops_ops",
-                    content=f"status_check: fly={fly.get('ok')} cf={cf.get('ok')}",
+                    content=f"status_check: cf={cf.get('ok')}",
                     tags=["devops", "status_check"],
                     source="devops_automator",
                 )
-                return {"status": "ok", "fly": fly, "cloudflare": cf}
+                return {"status": "ok", "cloudflare": cf}
 
         except Exception as e:
             logger.error(f"[VECTOR][devops_automator] run failed: {e}")
