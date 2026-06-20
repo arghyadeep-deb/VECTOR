@@ -51,6 +51,36 @@ def _capture_loop_error(exc: Exception, context: str, district: str = "") -> Non
     logger.error("[VECTOR][{}] {}: {}", context, type(exc).__name__, exc)
 
 
+def _record_job_run(event) -> None:
+    """APScheduler EVENT_JOB_EXECUTED/EVENT_JOB_ERROR listener — ground-truth
+    "did this scheduled job actually fire" log, independent of whether the
+    job itself writes anything to episodic memory.
+
+    Without this, most of the ~12 cron jobs (subconscious_loop, biometrics,
+    daily_review, dspy, etc.) write nowhere observable on a HEALTHY run —
+    several only write an episodic row on FAILURE (e.g.
+    job_nightly_selfcheck's "selfcheck_failure"). A 24h soak with no
+    independent firing record can't tell "cron is still dead" from "cron
+    fired but only logs failures" — this closes that gap permanently, not
+    just for one soak window.
+    """
+    try:
+        from core.memory.episodic import EpisodicMemory
+        status = "error" if event.exception else "ok"
+        content = f"job {event.job_id} {status}"
+        if event.exception:
+            content += f": {event.exception}"
+        EpisodicMemory().store(
+            event_type="scheduler_job_run",
+            content=content,
+            tags=["scheduler_job_run", event.job_id, status],
+            source=event.job_id,
+        )
+    except Exception as e:
+        logger.warning("[VECTOR][autonomous_loop] _record_job_run failed for {}: {}",
+                        getattr(event, "job_id", "?"), e)
+
+
 class AutonomousLoop:
     """
     RULE 2 — THE LOOP NEVER STOPS.
