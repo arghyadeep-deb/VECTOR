@@ -41,8 +41,7 @@ Zero `IMPORT_ERROR`. Full table: `_reachability.md`.
 - **`trading`**: `WinError 3` empty-path bug inside the absorbed
   `VectorTradingGraph` — root cause not yet found, needs tracing inside
   `core/trading/graph/trading_graph.py`.
-- **`intelligence`**: one-line owner action (restart shadowbroker on 8002,
-  or set `VECTORINTEL_HOST=http://127.0.0.1:8765`) — not code.
+- **`intelligence`**: ✅ DONE (2026-06-21) — see above, now LIVE.
 
 **0 capabilities block Phase 1.** The DB-contention architectural question
 Phase 0 raised is resolved for *testing* (Task 0.5c); the *production*
