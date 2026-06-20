@@ -9,6 +9,7 @@ docs/capability_proofs/<repo>.md.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import pathlib
 import re
 
