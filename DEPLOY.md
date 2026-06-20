@@ -76,7 +76,7 @@ VECTOR_BRAIN_URL=https://vector-api.<you>.workers.dev
 ```
 Then verify + run:
 ```powershell
-$env:VECTOR_ENV="production"; python run_vector.py doctor   # all 4 secrets must be ✅
+$env:VECTOR_ENV="production"; python run_vector.py doctor   # all secrets must be ✅
 python run_vector.py                                         # or install the service (below)
 ```
 Always-on (Admin PowerShell): `powershell -File scripts/install_service.ps1`
