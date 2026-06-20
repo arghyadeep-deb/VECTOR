@@ -17,7 +17,9 @@ python -c "import secrets; print('VECTOR_API_KEY=' + secrets.token_urlsafe(32))"
 python -c "import secrets; print('VECTOR_JWT_SECRET=' + secrets.token_urlsafe(48))"
 python -c "import secrets; print('MCP_KERNEL_SECRET=' + secrets.token_urlsafe(32))"
 ```
-Put these 3 lines in `.env`, plus `HUMANLAYER_API_KEY=<from humanlayer.dev>`.
+Put these 3 lines in `.env`, plus `PUSHOVER_TOKEN=<from pushover.net>` and
+`PUSHOVER_USER=<your pushover user key>` (owner approval for RED actions —
+HumanLayer was removed in favor of this).
 Keep `VECTOR_API_KEY` handy — the **same value** is used by the laptop, the Worker, and the phone.
 
 ## Step 1 — Supabase (memory DB #1 + what the Worker reads)
