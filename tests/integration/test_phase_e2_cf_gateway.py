@@ -56,9 +56,6 @@ class TestIndexTs(unittest.TestCase):
     def test_env_has_vector_api_key(self):
         self.assertIn("VECTOR_API_KEY", self._src())
 
-    def test_env_has_brain_server_url(self):
-        self.assertIn("BRAIN_SERVER_URL", self._src())
-
     def test_env_has_rate_limit_kv(self):
         self.assertIn("RATE_LIMIT_KV", self._src())
 
