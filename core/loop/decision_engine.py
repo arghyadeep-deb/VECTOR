@@ -328,6 +328,20 @@ class DecisionEngine:
             noop = Candidate("noop", {}, source="fallback")
             return Decision(winner=noop, all_candidates=[], reasoning="No candidates", evaluated=0)
 
+        # RULE 1 — inject world-state context before scoring. Was previously
+        # only used to hydrate LLM calls made *after* a winner was already
+        # picked; candidate scoring itself never saw it. Available on every
+        # candidate (context_snapshot) for scoring/audit/training-data, same
+        # as RULE 8's reasoning injection below. Does NOT change the score
+        # formula itself — that's a deliberate, separate decision (see
+        # docs/REMAINING_ISSUES.md).
+        try:
+            world_state = self._get_context_engine().get_world_state()
+            for c in candidates:
+                c.context_snapshot = world_state
+        except Exception as _ctx_err:
+            logger.warning("[VECTOR][decision_engine] RULE 1 context inject failed: {}", _ctx_err)
+
         # RULE 8 — inject past reasoning before scoring
         bank = self._get_reasoning_bank()
         if bank is not None:
