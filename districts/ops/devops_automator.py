@@ -71,31 +71,6 @@ class DevOpsAutomator(AgentBase):
 
     # ── Deployment status checks ────────────────────────────────────────────────
 
-    async def check_fly_status(self) -> dict:
-        """
-        HTTP GET to Fly.io deployment /status endpoint.
-        Returns: {ok, status_code, latency_ms, url}.
-        """
-        try:
-            import httpx
-            import time
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                t0 = time.monotonic()
-                resp = await client.get(_FLY_STATUS_URL)
-                latency_ms = round((time.monotonic() - t0) * 1000, 1)
-            result = {
-                "ok": resp.status_code == 200,
-                "status_code": resp.status_code,
-                "latency_ms": latency_ms,
-                "url": _FLY_STATUS_URL,
-            }
-            status_icon = "UP" if result["ok"] else "DOWN"
-            logger.info(f"[VECTOR][devops_automator] Fly.io {status_icon} ({resp.status_code}) {latency_ms}ms")
-            return result
-        except Exception as e:
-            logger.warning(f"[VECTOR][devops_automator] Fly.io check failed: {e}")
-            return {"ok": False, "status_code": -1, "latency_ms": -1, "url": _FLY_STATUS_URL, "error": str(e)}
-
     async def check_cloudflare_status(self) -> dict:
         """
         HTTP GET to Cloudflare Worker health endpoint.
