@@ -160,3 +160,24 @@ def test_finagent_investor_analysis_does_not_hit_event_loop_error():
     assert "no current event loop" not in response_text, (
         f"event-loop bug regressed in live investor_analysis call: {result!r}"
     )
+
+
+@pytest.mark.live
+def test_web_scout_reaches_vector_scraper_and_returns_real_data():
+    """Phase 2 scraper sub-task: 'scraper -> NO standalone hand; add a live
+    test proving web_scout/collector reach vector_scraper and return real
+    scraped data (it's infrastructure, correct as-is).' WebScout.fetch_page()
+    routes through core.scraper.vector_scraper.get_scraper().smart_fetch(),
+    which itself calls fetch()/fetch_stealth() — both already fixed in Task
+    0.5a (resp.text -> resp.html_content). This proves the full integration
+    path end-to-end, not just vector_scraper in isolation."""
+    from districts.research.web_scout import WebScout
+
+    async def _run():
+        scout = WebScout()
+        return await scout.fetch_page("https://example.com")
+
+    content = asyncio.run(_run())
+    assert content, "web_scout.fetch_page() returned empty content"
+    assert len(content) > 50
+    assert "Example Domain" in content
