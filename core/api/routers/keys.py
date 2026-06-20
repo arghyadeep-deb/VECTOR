@@ -14,6 +14,77 @@ from loguru import logger
 
 router = APIRouter(prefix="/keys", tags=["keys"])
 
+# Third-party provider keys the HUD is allowed to set. Deliberately excludes
+# VECTOR's own internal secrets (VECTOR_DB_KEY, VECTOR_JWT_SECRET,
+# MCP_KERNEL_SECRET, VECTOR_OFP_SECRET, VECTOR_BRAIN_API_KEY) and OAuth client
+# secrets (separate OAuth flow). Without this allowlist, a "set any env var"
+# endpoint would be a remote-code-execution-adjacent footgun.
+_PROVIDER_KEY_ALLOWLIST: dict[str, str] = {
+    "anthropic": "ANTHROPIC_KEY",
+    "gemini": "GEMINI_KEY",
+    "github": "GITHUB_TOKEN",
+    "pushover": "PUSHOVER_TOKEN",
+    "supabase": "SUPABASE_KEY",
+    "virustotal": "VIRUSTOTAL_KEY",
+    "newsapi": "NEWSAPI_KEY",
+    "stripe": "STRIPE_KEY",
+    "instagram": "INSTAGRAM_ACCESS_TOKEN",
+    "elevenlabs": "ELEVENLABS_KEY",
+    "openrouter": "OPENROUTER_KEY",
+    "mistral": "MISTRAL_KEY",
+    "muapi": "MUAPI_API_KEY",
+    "pagespeed": "PAGESPEED_API_KEY",
+    "hass": "HASS_TOKEN",
+    "groq": "GROQ_API_KEY",
+    "xai": "XAI_API_KEY",
+    "minimax": "MINIMAX_API_KEY",
+    "tavily": "TAVILY_API_KEY",
+    "firecrawl": "FIRECRAWL_API_KEY",
+    "honcho": "HONCHO_API_KEY",
+    "deepgram": "DEEPGRAM_API_KEY",
+    "ollama": "OLLAMA_API_KEY",
+    "azure_anthropic": "AZURE_ANTHROPIC_KEY",
+    "azure_foundry": "AZURE_FOUNDRY_API_KEY",
+    "google": "GOOGLE_API_KEY",
+    "openai_codex": "OPENAI_CODEX_API_KEY",
+    "hindsight": "HINDSIGHT_API_KEY",
+    "browserbase": "BROWSERBASE_API_KEY",
+    "turso": "TURSO_TOKEN",
+}
+
+_ENV_PATH = Path(__file__).parent.parent.parent.parent / ".env"
+
+
+def _write_env_var(name: str, value: str) -> bool:
+    """Set/replace a single KEY=value line in .env. Returns True if the file was updated."""
+    if not _ENV_PATH.exists():
+        return False
+    lines = _ENV_PATH.read_text(encoding="utf-8").splitlines()
+    prefix = f"{name}="
+    new_lines = []
+    updated = False
+    for line in lines:
+        if line.startswith(prefix):
+            new_lines.append(f"{name}={value}")
+            updated = True
+        else:
+            new_lines.append(line)
+    if not updated:
+        new_lines.append(f"{name}={value}")
+    _ENV_PATH.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    return True
+
+
+def _remove_env_var(name: str) -> bool:
+    """Remove a KEY=... line from .env entirely. Returns True if the file was updated."""
+    if not _ENV_PATH.exists():
+        return False
+    lines = _ENV_PATH.read_text(encoding="utf-8").splitlines()
+    new_lines = [l for l in lines if not l.startswith(f"{name}=")]
+    _ENV_PATH.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    return True
+
+
 def _require_localhost(request: Request) -> None:
     """Enforce localhost-only access for key management."""
     host = request.client.host if request.client else ""
