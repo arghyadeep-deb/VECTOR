@@ -80,5 +80,15 @@ def test_model_heavy_hands_serialize_not_concurrent():
     assert second_start_idx > first_end_idx, f"hands ran concurrently: {order}"
 
 
+def test_autonomous_loop_starts_hand_runner():
+    """Task 1.5 — the moment this is wired in, the 9 Hands stop being
+    orphaned dataclasses and actually execute on a schedule."""
+    import inspect
+    from core.loop import autonomous_loop
+    src = inspect.getsource(autonomous_loop)
+    assert "HandRunner" in src
+    assert "register_all" in src
+
+
 if __name__ == "__main__":
     print("✅ test_hands_wired.py module loads")
