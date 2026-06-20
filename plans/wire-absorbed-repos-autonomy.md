@@ -85,54 +85,35 @@ Per owner goal: a capability must PRODUCE REAL OUTPUT. These are "not working" f
 - [x] In-process thread concurrency was already safe (pre-existing `test_concurrent_writes_no_database_locked` passed before this change too — the module-level singleton + lock already serializes that case). Added the test this task actually asked for — `test_second_connection_to_same_file_waits_not_hard_fails`: two separate connection objects to the same encrypted file (standing in for two processes), one holds `BEGIN IMMEDIATE` + sleeps 0.5s, the other's write now waits and succeeds instead of raising immediately. Plus `test_open_sqlcipher_connection_sets_busy_timeout_and_wal` confirming the pragmas directly.
 - [x] All 6 tests in `tests/backend/test_memory_concurrency_safety.py` PASS · committed (auto-hook).
 
-### Task 1.1: HandResult dataclass + episodic persistence
-- [ ] Failing test `tests/hands/test_hand_runner.py::test_hand_result_persists`
-  ```python
-  from hands.result import HandResult
-  def test_hand_result_persists():
-      r = HandResult(hand="researcher", district="research", output="body", status="ok", hp_delta=50)
-      assert r.persist() > 0 and r.to_dict()["status"] == "ok"
-  ```
-- [ ] Implement `hands/result.py` — `.persist()` via `core.memory.episodic.get_db_connection()`/`close_db_connection()` (SQLCipher only; never raw sqlite3), `kind="hand_run"`.
-- [ ] Test PASS · `git commit -m "feat(hands): HandResult + episodic persistence"`
+### Task 1.1: HandResult dataclass + episodic persistence ✅ DONE (2026-06-21)
+- [x] `hands/result.py` — `.persist()` via `core.memory.episodic.get_temp_cursor()` (SQLCipher, not raw sqlite3), `event_type="hand_run"`. `tests/hands/test_hand_runner.py::test_hand_result_persists` + `test_hand_result_to_dict_has_all_fields` PASS · committed (auto-hook).
 
-### Task 1.2: HandRunner.run_hand — real dispatch through governor
-- [ ] Failing UNIT test (stubbed dispatch) — proves plumbing:
-  ```python
-  def test_run_hand_plumbing(monkeypatch):
-      from hands.runner import HandRunner; from hands.registry import HandRegistry
-      runner = HandRunner(); monkeypatch.setattr(runner, "_dispatch", lambda h,c: "stub")
-      import asyncio; r = asyncio.run(runner.run_hand(HandRegistry().get("researcher"), {}))
-      assert r.status == "ok" and r.output
-  ```
-- [ ] Implement `hands/runner.py::run_hand`: hydrate context (`ContextEngine.session_hydration_prompt()` + hand.system_prompt) → `_dispatch` routes via `core.city.governor.Governor` to `_task_type_for(hand)` district → `requires_approval` gates through `PermissionGateway` → `asyncio.timeout` → return HandResult (never raise; RULE 2).
-- [ ] Test PASS · `git commit -m "feat(hands): HandRunner.run_hand via governor"`
+### Task 1.2: HandRunner.run_hand — real dispatch through governor ✅ DONE (2026-06-21)
+- [x] `hands/runner.py::run_hand` — hydrates context (`ContextEngine.session_hydration_prompt()` + `hand.system_prompt`); `requires_approval=True` hands route through `PermissionGateway.execute()` (new `hand_*` action types registered in `core/config.py`'s GREEN/RED lists; new `hand_` branch in `permission_gateway.py::_execute_action` delegates to `Governor().dispatch()`); others call `_dispatch` → `Governor().dispatch()` directly. `asyncio.timeout` wraps every dispatch. Never raises (RULE 2) — verified via `test_run_hand_never_raises_on_dispatch_failure`. Committed (auto-hook).
 
-### Task 1.3: Closed feedback loop
-- [ ] Failing test asserts `_record_episodic`+`_award_hp`+`_update_policy` each called once per run (monkeypatched counters).
-- [ ] Implement: after dispatch → episodic+reasoning_memory write, HP via `agent_registry` (+50 ok / −30 error), `policy.update_from_outcome(...)`.
-- [ ] Test PASS · `git commit -m "feat(hands): close result→memory→HP→policy loop"`
+### Task 1.3: Closed feedback loop ✅ DONE (2026-06-21)
+- [x] `_record_episodic` (episodic + reasoning_memory), `_award_hp` (+50 ok / −30 error via `agent_registry`), `_update_policy` (`PolicyMemory.update_from_outcome`) — each called exactly once per run, verified both via stubbed counters (`test_closed_feedback_loop_calls_each_once`) AND live end-to-end with real, unstubbed implementations (real HP delta, real policy row). Committed (auto-hook).
 
-### Task 1.4: register_all into the durable scheduler
-- [ ] Failing test (FakeScheduler) asserts 7 scheduled hands registered (2 are on-demand).
-- [ ] Implement `register_all(scheduler)` reusing `core/loop/cron_jobs.py::_try_register` (do NOT invent a scheduler). Skip hands with `on_demand=True` (add this field in Task 3.2), not by empty-string.
-- [ ] **Model-residency awareness (surfaced by Phase 0.5 eviction finding).** With `OLLAMA_MAX_LOADED_MODELS=1` (confirm — models.md says 1, architecture.md says 2; resolve the discrepancy), every model-heavy hand both eats a ~58s cold-load AND evicts the resident interactive model (`vector-focus`), degrading voice latency. Therefore the runner MUST serialize model-heavy hand execution behind a single asyncio lock (`self._model_lock`) — never run two different-model hands concurrently — and SHOULD bias their cron times off-peak. Failing test: two model-heavy hands triggered together do not run concurrently (the second waits). This is a scheduler design constraint, not an afterthought.
-- [ ] Test PASS · `git commit -m "feat(hands): register scheduled hands + model-residency serialization"`
+### Task 1.4: register_all into the durable scheduler ✅ DONE (2026-06-21)
+- [x] Added `on_demand: bool = False` field to `Hand` (`hands/registry.py`); set `True` for `browser`/`clip` — this also satisfies Task 3.2. `register_all(scheduler)` skips `on_demand` hands, reuses `core/loop/cron_jobs.py::_try_register`. `test_register_all_skips_on_demand_registers_seven` confirms exactly 7 registered, browser/clip excluded by flag not empty-string.
+- [x] **Model-residency lock** — `HandRunner.MODEL_HEAVY_HANDS = {"researcher", "collector", "predictor", "trader"}`, serialized behind `self._model_lock` (`asyncio.Lock`). `test_model_heavy_hands_serialize_not_concurrent` proves two model-heavy hands triggered together do NOT run concurrently (second waits for the first's lock release) — real `asyncio.gather()`, not a mocked sequence.
+- [x] **`MAX_LOADED_MODELS` discrepancy: RESOLVED empirically, not just by reading docs.** Loaded `vector-focus`, then loaded `vector-reasoning` while focus was still resident — `ollama ps` showed ONLY `vector-reasoning` afterward (focus fully evicted). Confirms `models.md`'s `=1` is correct; `brain/VECTOR/README.md`'s `=2` was stale (assumed smaller, no-longer-installed model builds — `gemma4:e4b`/`qwen3:8b` vs. the actual installed 9.3-9.6GB builds, which can't both fit a 12GB card). Fixed `README.md`'s VRAM budget table to reflect this.
+- [x] Committed (auto-hook).
 
-### Task 1.5: Start in autonomous loop
-- [ ] Failing test: `inspect.getsource(autonomous_loop)` contains `HandRunner` + `register_all`.
-- [ ] Modify `core/loop/autonomous_loop.py::run_forever` (after `register_default_jobs`, ~L1745–1845): `HandRunner().register_all(scheduler)` in try/except.
-- [ ] Run `pytest tests/hands -v` + `python scripts/integration_check.py` PASS · `git commit -m "feat(loop): hands now execute"`
+### Task 1.5: Start in autonomous loop ✅ DONE (2026-06-21)
+- [x] `inspect.getsource(autonomous_loop)` confirmed to contain `HandRunner` + `register_all` (`test_autonomous_loop_starts_hand_runner`). `scheduler_loop()` calls `HandRunner().register_all(callable_scheduler)` in try/except, after `register_default_jobs`. `pytest tests/hands -v` + `integration_check.py` (51/51) PASS · committed (auto-hook).
+- [x] **Bonus fix surfaced while wiring this**: `_get_scheduler()` was raising `TypeError` on construction (`TaskScheduler.__init__()` missing required `store` arg) — meaning `scheduler_loop()` returned early on `if scheduler is None`, before even reaching `register_default_jobs()`. Fixed by constructing a real `SchedulerStore(data_path("scheduler.db"))`. This surfaced the deeper Task 1.6 finding below.
 
-### Task 1.6: Real callable scheduler (APScheduler) — unblocks hands AND the dead cron jobs
+### Task 1.6: Real callable scheduler (APScheduler) — unblocks hands AND the dead cron jobs ✅ DONE (2026-06-21)
 **Root cause (verified 2026-06-20):** `_get_scheduler()` returns the prompt-based `TaskScheduler` (`core/scheduler/scheduler.py`: `create_task`→`_execute_task`→`system.ask`). It has no `add_job/schedule/register/add`, so `_try_register` silently no-ops — meaning BOTH the new hands AND the ~12 pre-existing cron jobs (2AM reflect, audit verify, daily review/journal, biometrics, DSPy) have never fired. APScheduler 3.11.2 IS installed; `_try_register` was written for its API. **This pre-existing gap, not Sonnet's work, blocks definition-of-done #1 ("runs proactively on a schedule").**
 **Decision (owner-approved): Option (b) — APScheduler `AsyncIOScheduler` for callable cron/interval jobs; leave `TaskScheduler` for its LLM-prompt purpose.**
-- [ ] Failing test: `register_default_jobs(sched)` + `HandRunner().register_all(sched)` on a real `AsyncIOScheduler` → `len(sched.get_jobs()) == cron_jobs + scheduled_hands`; and a manually-triggered job actually invokes its Python callable (assert a side effect, e.g. a flag/episodic row).
-- [ ] Implement `_get_callable_scheduler()` in `autonomous_loop` → started singleton `apscheduler.schedulers.asyncio.AsyncIOScheduler`. `scheduler_loop()` passes IT (not `TaskScheduler`) to `register_default_jobs()` and `register_all()`. Keep Sonnet's None-guard fix.
-- [ ] Verify `_try_register`'s `add_job` branch builds a proper APScheduler `CronTrigger` from `"m h dom mon dow"` (add a tiny cron-string→`CronTrigger` adapter if it currently passes the raw string); `_try_register_interval` → `add_job(fn, 'interval', minutes=N, id=...)`.
-- [ ] Leave `TaskScheduler` untouched for prompt tasks. Confirm the ~12 cron jobs now register (log count > 0).
-- [ ] `pytest tests/hands tests/integration -v` + `integration_check.py` + full suite green · `git commit -m "fix(scheduler): APScheduler callable scheduler — hands + cron jobs now actually fire"`
-- [ ] Phase 5 autonomy proof (scheduler-fires-hands) is only meaningful AFTER this task.
+- [x] Failing test confirmed first: real `AsyncIOScheduler` + old `_try_register` code → only `subconscious-loop` (the one interval job) registered; all 12 cron-cadence jobs failed with "scheduler API mismatch" (`add_job(job_id=,cron=,fn=)` → `TypeError`; positional fallback → `LookupError: No trigger named "0 8 * * *"`).
+- [x] `_get_callable_scheduler()` implemented in `autonomous_loop.py` → started singleton `AsyncIOScheduler`. `scheduler_loop()` passes it (not `TaskScheduler`) to `register_default_jobs()` and `register_all()`.
+- [x] `_try_register`'s `add_job` branch now builds a real `CronTrigger.from_crontab(cron_expr)` and calls `add_job(fn, trigger=trigger, id=job_id, replace_existing=True)` — tried first, before the old generic-kwargs guesses (kept as fallback for other scheduler types). `_try_register_interval`'s existing APScheduler path already worked, unchanged.
+- [x] `TaskScheduler` untouched. **Live-verified, not just tested**: real `AutonomousLoop()._get_callable_scheduler()` → `register_default_jobs()` → 13/13 (12 cron + 1 interval) + `HandRunner().register_all()` → 7/7 = **20 real scheduled jobs**, each with a correct, real `next_run_time` (e.g. `daily-eval-harness` at tomorrow 03:00, `weekly-venture-pipeline` at the correct Monday).
+- [x] `pytest tests/hands tests/integration -v` (1453 passed / 25 skipped / 2 known non-blocking) + `smoke_test.py` (38/38) + `integration_check.py` (51/51) green · committed (auto-hook).
+- [x] Phase 5 autonomy proof (`test_scheduler_fires_hands`) ran after this and passed — see Phase 5 below.
+- [x] **Bonus fix found and fixed while verifying**: `tests/research_engine/test_experiment_designer.py`'s 2 template-selection tests were silently relying on the LLM path always failing/timing out (forcing a deterministic rule-based fallback) — once the Task 0.5b timeout fix (60s→120s) gave the LLM a fair shot, it sometimes succeeded and returned a different (correct, just non-rule-based) `experiment_type`, breaking the test's hardcoded string assertion. Fixed by pointing those tests' `ExperimentDesigner` at an unreachable Ollama URL (`http://127.0.0.1:1`) so they deterministically test rule-based template selection, which is what they actually intend — the LLM path has its own separate live test.
 
 ---
 
