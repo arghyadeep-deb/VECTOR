@@ -61,7 +61,7 @@ class PubChemSearchEngine(BaseSearchEngine):
 
         # User-Agent header for API requests
         self.headers = {
-            "User-Agent": "LocalDeepResearch/1.0 (https://github.com/arghyadeep-deb/vector-research-engine)"
+            "User-Agent": "VECTOR-Research-Agent/1.0 (https://github.com/arghyadeep-deb/vector-research-engine)"
         }
 
     def _search_compounds(self, query: str) -> List[str]:
