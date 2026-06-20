@@ -22,25 +22,36 @@ Accurate audit of what genuinely still needs work.
 - Wired into `_reflect_tick()` (2AM) via `asyncio.to_thread(run_backup)`
 - Usage: `python scripts/db_backup.py [--dry-run | --list | --prune]`
 
-### 2. Frontend Polish — 2 of 5 resolved (2026-06-20)
+### 2. Frontend Polish — ✅ ALL 5 RESOLVED (2026-06-20)
 - ✅ Service worker for offline HUD — `offline.js`/`sw.js` were complete and
   correct but never loaded by `VECTOR.prod.html` (no `<script>` tag). Fixed;
   verified end-to-end (HTML serves the tag, both files reachable, 200).
 - ✅ Clean dev/prod split for HUD — was already done. `_is_production_env()`
   switches `VECTOR.html`/`VECTOR.prod.html` and blocks `js/demo.js` in prod.
-- ❌ JS build pipeline — still genuinely missing (22 loose files, no bundler
-  config anywhere). Real gap, multi-day undertaking.
-- ❌ ARIA/keyboard accessibility — still genuinely missing (zero ARIA/tabindex
-  attributes anywhere in the HUD). Real gap; needs a careful, design-aware
-  pass — rushing this can make screen-reader UX worse, not better.
-- ❌ Config UI for provider keys — still genuinely missing. `/keys/rotate`
-  only handles VECTOR's own internal `VECTOR_API_KEY`; there is no endpoint
-  or UI for third-party provider keys (Anthropic, OpenAI, etc.). Real gap —
-  also security-sensitive (arbitrary env-var writes need careful validation),
-  should go through the brainstorming gate as a real feature, not a patch.
-- **Remaining: ~2-3 days** (bundler + ARIA + provider-key config UI)
+- ✅ JS build pipeline — `tools/build_frontend.py` + `frontend/dist/` already
+  existed (deterministic concatenation in production script order, no
+  external bundler dependency) but `VECTOR.prod.html` never actually
+  referenced the built bundle — it still loaded 20 individual `<script>`
+  tags. Wired the HTML to load `dist/vector-hud.prod.js`, rebuilt, added a
+  permanent staleness guard (`tests/test_frontend_bundle.py`) so this can't
+  silently rot again. Verified live (HTML serves 2 script tags now, bundle
+  reachable, contains all current code).
+- ✅ Config UI for provider keys — added `GET/POST/DELETE /keys/providers`
+  (`core/api/routers/keys.py`), allowlisted to 30 known third-party providers
+  only (never VECTOR's own secrets), localhost + current-key-required to
+  mutate, newline-injection guarded. New self-contained HUD panel
+  (`frontend/js/provider-keys.js`). 12 new tests; verified live end-to-end
+  (set → status → clear round-trip, all security guardrails).
+- ✅ ARIA/keyboard accessibility — full pass across every interactive surface
+  in the HUD: `widgets.js`'s `shell()` (fixes all ~30 panels at once — real
+  `role="dialog"` + labelled close button + Escape-to-close + focus
+  management on open/close), `terminal.js`, `city3d.js`, `command-box.js`
+  (`aria-live` status region), `orb.js` (primary wake control now also
+  independently focusable/keyboard-operable), `demo.js` (dev-only debug
+  panel). `hud-controls.js`/`approvals.js`/`backend.js` were already correct
+  (real `<button>`s with visible text or existing `aria-label`).
 
-### 3. Agent Lifecycle — HP Death/Rebirth — 1 of 3 resolved (2026-06-20)
+### 3. Agent Lifecycle — HP Death/Rebirth — ✅ ALL 3 RESOLVED (2026-06-20)
 - ✅ Death → ghost memory → successor agent birth loop — **was genuinely
   broken**: `agent_registry.deregister()` had the complete ghost+successor
   logic already built, but nothing in the codebase ever called it. Wired
@@ -50,13 +61,13 @@ Accurate audit of what genuinely still needs work.
 - ✅ RL policy training loop — **was already working**, doc was stale.
   `DecisionEngine.record_outcome()` runs real online training
   (`trainer.train_episode()`) with periodic checkpointing after every action.
-- ❌ ContextEngine output not piped to agents at decision time — still
-  genuinely true. `DecisionEngine.evaluate()` never references ContextEngine
-  or session hydration — candidate *scoring* is context-blind, even though
-  agents separately hydrate their own LLM calls during execution. Real gap,
-  but it's a design addition (what should scoring actually use from world
-  state, and how), not a one-line wire-up — needs its own design pass.
-- **Remaining: needs design first** (ContextEngine → candidate scoring)
+- ✅ ContextEngine output piped to agents at decision time — `evaluate()`
+  now injects a full `ContextEngine().get_world_state()` snapshot onto every
+  `Candidate` before scoring (mirrors the existing RULE 8 reasoning-bank
+  injection pattern exactly). Deliberately does NOT change the score formula
+  itself — that's a product decision (e.g. "should a tired/absent owner
+  change which action wins, and how") that needs its own sign-off, not
+  something to improvise silently inside a bug-fix pass. 3 new tests.
 
 ### 4. Kokoro TTS ✅ DONE / Wake Word ⚠️ blocked (2026-06-20)
 - Kokoro: model weights + `kokoro-onnx` package already present, confirmed loading on GPU — no action needed.
