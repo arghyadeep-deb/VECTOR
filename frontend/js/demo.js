@@ -69,6 +69,7 @@
     items.forEach(it=>{
       if(it[0]==='sep'){ dock.appendChild(Object.assign(document.createElement('div'),{className:'sep'})); return; }
       const b=document.createElement('button'); b.className='d-btn'+(it[3]?' on':''); b.title=it[1];
+      b.setAttribute('aria-label', it[1]);
       b.innerHTML=svg(ico[it[0]]); b.dataset.key=it[0];
       b.addEventListener('click',e=>{ e.stopPropagation(); it[2](); });
       dock.appendChild(b);
