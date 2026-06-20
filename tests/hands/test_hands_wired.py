@@ -80,6 +80,27 @@ def test_model_heavy_hands_serialize_not_concurrent():
     assert second_start_idx > first_end_idx, f"hands ran concurrently: {order}"
 
 
+def test_task_type_overrides_match_governor_routes():
+    """Phase 2 sub-list unit test (plans/wire-absorbed-repos-autonomy.md):
+    HandRunner()._task_type_for(hand) == "<route>" and that route exists in
+    governor.py's task-type table — not just a string HandRunner invented."""
+    from hands.runner import HandRunner
+    from hands.registry import HandRegistry
+    from core.city.governor import _TASK_TYPE_TO_DISTRICT
+
+    runner = HandRunner()
+    expected = {
+        "researcher": "deep_research",
+        "collector": "osint_collect",
+        "trader": "trading_analysis",
+        "content": "content_generate",
+    }
+    for hand_name, route in expected.items():
+        hand = HandRegistry().get(hand_name)
+        assert runner._task_type_for(hand) == route
+        assert route in _TASK_TYPE_TO_DISTRICT, f"route {route!r} missing from governor.py"
+
+
 def test_autonomous_loop_starts_hand_runner():
     """Task 1.5 — the moment this is wired in, the 9 Hands stop being
     orphaned dataclasses and actually execute on a schedule."""
