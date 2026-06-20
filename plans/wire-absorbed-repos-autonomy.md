@@ -117,8 +117,23 @@ For EACH capability (research, investment, intelligence, content, OSINT-collecto
 - [ ] Run `pytest -m live -k <cap>` with keys present → PASS; capture output to `docs/capability_proofs/<repo>.md` (verdict → LIVE).
 - [ ] `git commit -m "feat(hands): <cap> autonomous + live-proven"`
 
+### Task 2.0: Scrub research_engine network provenance leak (BEFORE it goes autonomous)
+A VECTOR web agent must not announce a third-party tool name to every site it hits. This becomes continuous once the research/collector hands are scheduled.
+- [ ] Failing test `tests/integration/test_capability_live.py::test_no_foreign_user_agent`
+  ```python
+  import pathlib, re
+  def test_no_foreign_user_agent():
+      root = pathlib.Path("core/research_engine")
+      bad = [p for p in root.rglob("*.py")
+             if re.search(r"Local-Deep-Research", p.read_text(encoding="utf-8", errors="ignore"))]
+      assert not bad, f"foreign provenance strings survive in: {bad}"
+  ```
+- [ ] Run → expect FAIL (4 hits incl. 3 User-Agent headers)
+- [ ] Fix `search_engine_github.py:76`, `search_engine_nasa_ads.py:110`, `search_engine_openalex.py:105` → `User-Agent: "VECTOR-Research-Agent"`; replace the other hyphenated `Local-Deep-Research` strings. Detection sweep: grep hyphen/underscore/space/PascalCase + `User-Agent`/header/banner strings, not just import idents (the original audit missed this exact way).
+- [ ] Run → expect PASS · `git commit -m "fix(research): scrub foreign User-Agent/provenance — VECTOR-branded"`
+
 Sub-list to execute (confirm/adjust against Phase 0 results):
-- research → `researcher`/`collector` hands → `deep_research`/`osint_collect`
+- research → `researcher`/`collector` hands → `deep_research`/`osint_collect` (do Task 2.0 first)
 - investment → `trader` hand → `trading_analysis` (auto-context: `CONFIG["investment"]["watchlist"]`)
 - intelligence → map the 34 governed task types to at least one scheduled hand OR document shadowbroker as a **standalone service** started by `tools/start_shadowbroker.bat` + add a health-poll loop (it is NOT a hand). **Decide with owner.**
 - content → `content` hand → `content_generate` (`requires_approval=True` — RED, publishing)
