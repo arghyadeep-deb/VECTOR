@@ -19,12 +19,14 @@
   let box=null, logEl=null, input=null, hist=[], hi=0;
 
   function build(){
-    box=document.createElement('div'); box.id='cmd-terminal'; box.innerHTML=`
+    box=document.createElement('div'); box.id='cmd-terminal';
+    box.setAttribute('role','dialog'); box.setAttribute('aria-label','VECTOR command terminal');
+    box.innerHTML=`
       <div class="ct-head"><span class="ct-dot"></span><span class="ct-title">VECTOR ∷ COMMAND</span>
-        <span class="ct-spacer"></span><span class="ct-hint">⌃⇧H</span><span class="ct-x">✕</span></div>
+        <span class="ct-spacer"></span><span class="ct-hint">⌃⇧H</span><button type="button" class="ct-x" aria-label="Close terminal">✕</button></div>
       <div class="ct-log"></div>
       <div class="ct-row"><span class="ct-prompt">vector ❯</span><input class="ct-in" spellcheck="false"
-        autocomplete="off" placeholder="type a command — try: help" /></div>`;
+        autocomplete="off" placeholder="type a command — try: help" aria-label="Command input" /></div>`;
     document.getElementById('stage').appendChild(box);
     logEl=box.querySelector('.ct-log'); input=box.querySelector('.ct-in');
     box.querySelector('.ct-x').addEventListener('click', ()=>toggle(false));
