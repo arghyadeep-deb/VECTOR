@@ -177,6 +177,7 @@ class ExperimentDesigner:
                 sample_size=parsed.get("sample_size", 30),
                 procedure=parsed.get("procedure", []),
                 success_criteria=parsed.get("success_criteria", ""),
+                design_source="llm",
             )
         except Exception as exc:
             logger.warning("LLM design failed: {}", exc)
@@ -185,6 +186,7 @@ class ExperimentDesigner:
     def _rule_design(self, hypothesis: Hypothesis, template_name: str) -> ExperimentDesign:
         tmpl = _RULE_TEMPLATES.get(template_name, _RULE_TEMPLATES["statistical_test"]).copy()
         return ExperimentDesign(
+            design_source="rule_based",
             hypothesis_id=hypothesis.id,
             experiment_type=tmpl["experiment_type"],
             controlled_vars=dict(tmpl["controlled_vars"]),
