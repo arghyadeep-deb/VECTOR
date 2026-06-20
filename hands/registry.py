@@ -222,6 +222,7 @@ Brier score history: ...
         requires_approval=True,   # REQUIRED for purchases and form submissions
         output_format="markdown",
         tags=["browser", "automation", "manual"],
+        on_demand=True,
         system_prompt="""You are VECTOR's Browser Hand — a careful web automation agent.
 
 ## Mission
