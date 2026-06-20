@@ -176,7 +176,7 @@ class HandRunner:
         self._record_episodic(hand, result)
         self._award_hp(hand, result)
         self._update_policy(hand, result)
-        self._maybe_notify(hand, result)
+        await self._maybe_notify(hand, result)
         try:
             result.persist()
         except Exception as e:
@@ -184,24 +184,20 @@ class HandRunner:
 
         return result
 
-    def _maybe_notify(self, hand: Hand, result: HandResult) -> None:
+    async def _maybe_notify(self, hand: Hand, result: HandResult) -> None:
         """Task 3.1 — page the owner for high-signal results (alert/error),
         not routine successes. The plan's literal wording was
         'hp_delta>=50 or status==\"alert\"', but hp_delta is currently a flat
         +50 on every success (see _award_hp) — paging on every ordinary run
         would be spam and defeat the point of 'high-signal' filtering, so
-        this pages on status in (alert, error) instead. Fire-and-forget:
-        notification failure must never affect the hand's own result."""
+        this pages on status in (alert, error) instead. Notification failure
+        must never affect the hand's own result — always swallowed."""
         if result.status not in ("alert", "error"):
             return
         try:
             from core.loop.permission_gateway import PermissionGateway
             message = f"VECTOR hand '{hand.name}' ({hand.district}) -> {result.status}: {result.output[:160]}"
-            coro = PermissionGateway().notify(message, priority=1 if result.status == "alert" else 0)
-            if asyncio.get_event_loop().is_running():
-                asyncio.ensure_future(coro)
-            else:
-                asyncio.run(coro)
+            await PermissionGateway().notify(message, priority=1 if result.status == "alert" else 0)
         except Exception as e:
             logger.warning("[VECTOR][hands] pushover notify failed for {}: {}", hand.name, e)
 
