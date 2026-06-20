@@ -107,6 +107,22 @@ class VectorProviderModel(Model):
     # Core call helper
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _ensure_legacy_event_loop() -> None:
+        """
+        Keep sync orchestration using get_event_loop() compatible with Python 3.10+.
+
+        ``_sync_call`` runs inside a worker thread (via ``loop.run_in_executor`` in
+        the calling district agents). Worker threads never get an event loop set
+        on them automatically — ``asyncio.get_event_loop()`` raises
+        ``RuntimeError: There is no current event loop in thread '...'`` there.
+        Mirrors the established house pattern in core/city/agent_base.py.
+        """
+        try:
+            asyncio.get_event_loop()
+        except RuntimeError:
+            asyncio.set_event_loop(asyncio.new_event_loop())
+
     def _sync_call(self, messages: List[Any]) -> str:
         """Synchronous wrapper around provider_client.chat()."""
         try:
@@ -122,6 +138,7 @@ class VectorProviderModel(Model):
         client = ProviderClient()
 
         try:
+            self._ensure_legacy_event_loop()
             loop = asyncio.get_event_loop()
             if loop.is_running():
                 # Inside an already-running event loop (e.g. Jupyter / Agno async)
