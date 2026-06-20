@@ -235,15 +235,7 @@ class DevOpsAutomator(AgentBase):
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "status_check")
         try:
-            if task_type == "fly_status":
-                result = await self.check_fly_status()
-                if result.get("ok"):
-                    self.award_points(10, "Fly.io healthy")
-                else:
-                    self.deduct_points(20, "Fly.io down")
-                return {"status": "ok", **result}
-
-            elif task_type == "cf_status":
+            if task_type == "cf_status":
                 result = await self.check_cloudflare_status()
                 if result.get("ok"):
                     self.award_points(10, "Cloudflare healthy")
