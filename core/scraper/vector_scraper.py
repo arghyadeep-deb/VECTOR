@@ -149,7 +149,14 @@ class VectorScraper:
             else:
                 resp = await fetcher.get(url, headers=headers)
 
-            content = resp.text if hasattr(resp, 'text') else str(resp)
+            # scrapling's Response exposes the real fetched markup via
+            # html_content; .text is a separate (and here, empty) extracted-
+            # text view. Prefer html_content; fall back for other fetcher types.
+            content = (
+                resp.html_content if hasattr(resp, 'html_content')
+                else resp.text if hasattr(resp, 'text')
+                else str(resp)
+            )
             result = ScrapeResult(
                 url=url,
                 status_code=getattr(resp, 'status', 200),
@@ -211,7 +218,14 @@ class VectorScraper:
             async with StealthyFetcher(**kw) as fetcher:
                 resp = await fetcher.async_fetch(url)
 
-            content = resp.text if hasattr(resp, 'text') else str(resp)
+            # scrapling's Response exposes the real fetched markup via
+            # html_content; .text is a separate (and here, empty) extracted-
+            # text view. Prefer html_content; fall back for other fetcher types.
+            content = (
+                resp.html_content if hasattr(resp, 'html_content')
+                else resp.text if hasattr(resp, 'text')
+                else str(resp)
+            )
             result = ScrapeResult(
                 url=url,
                 status_code=getattr(resp, 'status', 200),
@@ -265,7 +279,14 @@ class VectorScraper:
                 if js:
                     await resp.evaluate(js)
 
-            content = resp.text if hasattr(resp, 'text') else str(resp)
+            # scrapling's Response exposes the real fetched markup via
+            # html_content; .text is a separate (and here, empty) extracted-
+            # text view. Prefer html_content; fall back for other fetcher types.
+            content = (
+                resp.html_content if hasattr(resp, 'html_content')
+                else resp.text if hasattr(resp, 'text')
+                else str(resp)
+            )
             result = ScrapeResult(
                 url=url,
                 status_code=getattr(resp, 'status', 200),
