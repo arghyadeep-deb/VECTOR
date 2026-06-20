@@ -11,6 +11,21 @@
 | Loop mode agent bootstrap | `run_loop()` now calls `bootstrap_agents()` (was: empty registry, every dispatch → no_agents); smoke reports `agents_registered` and fails on 0 |
 | SQLCipher access discipline | Main DB is encrypted; 5 modules were opening it with plain sqlite3 (memory_persona, avatar_state, emergency log, DBCorruptionPlaybook, `_is_connection_closed` driver mismatch) — all fixed; rule: go through `core.memory.episodic.get_db_connection()` / `close_db_connection()` |
 
+## Corrections — Session 2026-06-20 ✅
+
+| Item | Truth |
+|------|-------|
+| "Fly.io brain server... ❌ Run: `fly launch`" (below) | **RESOLVED, not a gap** — Fly.io requires a card; owner declined. `cloud/brain_server/` removed entirely. The Cloudflare Worker (`api/src/router.ts`) has full endpoint parity (`/status`, `/health`, `/heartbeat`, `/command`+queue via D1, `/memory/recent`, `/agents`, `/goals`) and is confirmed live with real authenticated requests. |
+| "Cloudflare Worker API... ❌ Run: wrangler deploy" / "Cloudflare D1/R2/KV... ❌ Provision" (below) | **STALE — already deployed.** Worker live, D1 fully migrated (7 tables incl. `command_queue`), KV active. |
+| "Kokoro model not downloaded" (Day 3, below) | **STALE — already working.** Model files + `kokoro-onnx` package present; confirmed loading on GPU (`kokoro-v1.0.fp16-gpu.onnx`). |
+| "face_recognition pip install pending" (Day 4, below) | **STALE — already installed and working** (`dlib`/`face_recognition` import cleanly; CPU-only by design, no CUDA wheel exists for dlib). |
+| HumanLayer removed | Replaced entirely with Pushover (owner-phone approval) for RED-tier actions, 2026-06-19. All doctor/test/code references to HumanLayer removed. |
+| `sre_monitor.py` chaos probe was silently broken | Called `DecisionEngine.decide()` — method doesn't exist (real name: `.evaluate()`). Fixed; chaos probe now genuinely runs. |
+| `devops_automator.py` had a live false-alarm bug | `all_ok = fly.ok and cf.ok` always failed (Fly never deployed) even when Cloudflare was perfectly healthy, deducting agent HP every run. Fly check removed; now correctly reports Cloudflare-only status. |
+| Multi-DB mesh + quarantine + remote command relay (Phase 1-5 of an earlier internal plan) | **All 5 phases already built and tested** — `core/memory/multi_db_manager.py` (`sync_all()`, quarantine), `core/mcp_tools/db_control.py`, `frontend/js/command-box.js`. Discovered already-complete, not started fresh. |
+| torch was CPU-only despite RTX 5070 Ti | Reinstalled torch+torchvision+torchaudio with CUDA (cu128) — full suite verified zero regressions. ComfyUI, Whisper STT now genuinely GPU-resident (Whisper was silently running on CPU before, no error, just slow). |
+| starlette stuck on old `0.52.1` despite `==1.0.0` pin in requirements.txt | Installed the pinned version; verified FastAPI app + `chatterbox-tts` (which pulls in `gradio`, unused directly) both still work. |
+
 ## Production Hardening — Session 2026-05-29 ✅ COMPLETE
 
 | Fix | File | What changed |
