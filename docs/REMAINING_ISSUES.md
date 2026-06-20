@@ -22,20 +22,41 @@ Accurate audit of what genuinely still needs work.
 - Wired into `_reflect_tick()` (2AM) via `asyncio.to_thread(run_backup)`
 - Usage: `python scripts/db_backup.py [--dry-run | --list | --prune]`
 
-### 2. Frontend Polish (7 items, parallelizable)
-- JS build pipeline (21 loose files, no bundler)
-- ARIA/keyboard accessibility gaps
-- Service worker for offline HUD
-- Config UI (no way to set provider keys from HUD)
-- Clean dev/prod split for HUD
-- **3-4 days** in parallel
+### 2. Frontend Polish — 2 of 5 resolved (2026-06-20)
+- ✅ Service worker for offline HUD — `offline.js`/`sw.js` were complete and
+  correct but never loaded by `VECTOR.prod.html` (no `<script>` tag). Fixed;
+  verified end-to-end (HTML serves the tag, both files reachable, 200).
+- ✅ Clean dev/prod split for HUD — was already done. `_is_production_env()`
+  switches `VECTOR.html`/`VECTOR.prod.html` and blocks `js/demo.js` in prod.
+- ❌ JS build pipeline — still genuinely missing (22 loose files, no bundler
+  config anywhere). Real gap, multi-day undertaking.
+- ❌ ARIA/keyboard accessibility — still genuinely missing (zero ARIA/tabindex
+  attributes anywhere in the HUD). Real gap; needs a careful, design-aware
+  pass — rushing this can make screen-reader UX worse, not better.
+- ❌ Config UI for provider keys — still genuinely missing. `/keys/rotate`
+  only handles VECTOR's own internal `VECTOR_API_KEY`; there is no endpoint
+  or UI for third-party provider keys (Anthropic, OpenAI, etc.). Real gap —
+  also security-sensitive (arbitrary env-var writes need careful validation),
+  should go through the brainstorming gate as a real feature, not a patch.
+- **Remaining: ~2-3 days** (bundler + ARIA + provider-key config UI)
 
-### 3. Agent Lifecycle — HP Death/Rebirth
-- HP system exists in `core/city/agent_base.py`
-- Death → ghost memory → successor agent birth loop not fully wired
-- No RL policy training loop running
-- ContextEngine output not piped to agents at decision time
-- **3-5 days** (needs design first)
+### 3. Agent Lifecycle — HP Death/Rebirth — 1 of 3 resolved (2026-06-20)
+- ✅ Death → ghost memory → successor agent birth loop — **was genuinely
+  broken**: `agent_registry.deregister()` had the complete ghost+successor
+  logic already built, but nothing in the codebase ever called it. Wired
+  `AgentBase.die()` to call it. Verified end-to-end live: killed a registered
+  agent, confirmed gen2 successor spawned with inherited ghost, population
+  count unchanged.
+- ✅ RL policy training loop — **was already working**, doc was stale.
+  `DecisionEngine.record_outcome()` runs real online training
+  (`trainer.train_episode()`) with periodic checkpointing after every action.
+- ❌ ContextEngine output not piped to agents at decision time — still
+  genuinely true. `DecisionEngine.evaluate()` never references ContextEngine
+  or session hydration — candidate *scoring* is context-blind, even though
+  agents separately hydrate their own LLM calls during execution. Real gap,
+  but it's a design addition (what should scoring actually use from world
+  state, and how), not a one-line wire-up — needs its own design pass.
+- **Remaining: needs design first** (ContextEngine → candidate scoring)
 
 ### 4. Kokoro TTS ✅ DONE / Wake Word ⚠️ blocked (2026-06-20)
 - Kokoro: model weights + `kokoro-onnx` package already present, confirmed loading on GPU — no action needed.
