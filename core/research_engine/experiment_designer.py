@@ -158,7 +158,11 @@ class ExperimentDesigner:
             resp = httpx.post(
                 f"{self.ollama_base_url}/api/generate",
                 json={"model": self.model, "prompt": prompt, "stream": False},
-                timeout=60,
+                # Measured cold-load alone (model evicted, OLLAMA_KEEP_ALIVE
+                # expired/swapped) at ~58s for a 9.3GB model on this hardware
+                # — a 60s timeout was failing on cold start, not on inference.
+                # 120s gives real margin for cold load + actual inference.
+                timeout=120,
             )
             resp.raise_for_status()
             data = resp.json()
