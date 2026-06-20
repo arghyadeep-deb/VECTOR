@@ -68,7 +68,7 @@ class OpenLibrarySearchEngine(BaseSearchEngine):
         # User-Agent header is important for Open Library API
         # They may block requests without a proper User-Agent
         self.headers = {
-            "User-Agent": "LocalDeepResearch/1.0 (https://github.com/arghyadeep-deb/vector-research-engine)"
+            "User-Agent": "VECTOR-Research-Agent/1.0 (https://github.com/arghyadeep-deb/vector-research-engine)"
         }
 
     def _build_query_params(self, query: str) -> Dict[str, Any]:
