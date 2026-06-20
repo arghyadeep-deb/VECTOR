@@ -122,5 +122,5 @@ curl -X POST https://vector-api.<you>.workers.dev/command `
 - The 24h memory mesh currently merges **local + Supabase + Turso**. Cloudflare D1 is
   wired as the command queue; using D1 as a third *memory* sync target is a follow-up
   (the laptop's D1 memory-write path is not yet enabled).
-- The old Fly brain (`cloud/brain_server/`) still works and remains as an alternative,
-  but is no longer the deploy target.
+- The old Fly brain (`cloud/brain_server/`) has been removed entirely — the
+  Cloudflare Worker has full endpoint parity and is the only cloud brain now.
