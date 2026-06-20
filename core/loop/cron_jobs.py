@@ -407,7 +407,25 @@ def _try_register(
                 except Exception:
                     continue
 
-    # 2) Generic add_job(cron) interface
+    # 2) APScheduler: add_job(func, trigger=CronTrigger, id=, replace_existing=).
+    # APScheduler's add_job has no cron= or fn= kwarg (TypeError) and its
+    # positional 2nd-arg form expects a trigger TYPE NAME ('cron'/'interval'),
+    # not a crontab string (LookupError) — neither generic attempt below
+    # works against it, so it needs its own real adapter, tried first since
+    # this is the actual scheduler in production (Task 1.6).
+    add_job = getattr(scheduler, "add_job", None)
+    if callable(add_job):
+        try:
+            from apscheduler.triggers.cron import CronTrigger
+            trigger = CronTrigger.from_crontab(cron_expr)
+            add_job(fn, trigger=trigger, id=job_id, replace_existing=True)
+            return True
+        except ImportError:
+            pass  # apscheduler not installed — fall through to generic guesses
+        except Exception as e:
+            logger.debug(f"[VECTOR][cron] APScheduler add_job failed for {job_id}: {e}")
+
+    # 3) Generic add_job(cron) interface — other scheduler implementations
     for name in ("add_job", "schedule", "register", "add"):
         api = getattr(scheduler, name, None)
         if callable(api):
