@@ -510,6 +510,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "index": "coding",
     # deep research engine (core/research_engine/)
     "deep_research": "research",
+    "osint_collect": "research",  # collector Hand (hands/registry.py) — OSINT monitoring
     "research_report": "research",
     "generate_report": "research",
     "research_papers": "research",
