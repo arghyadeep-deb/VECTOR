@@ -2,7 +2,7 @@
 
 The cloud brain runs entirely on the Cloudflare Worker (api/) — see
 api/src/router.ts. The original Fly.io brain_server has been removed
-(superseded; see cloud/_deprecated_brain_server_fly/ if it still exists).
+entirely (superseded — full endpoint parity now lives in the Worker).
 These tests cover what's still real: CONFIG["cloud"] wiring, the generic
 CloudBrainHeartbeat poster used by run_vector.py, and that run_vector.py
 actually starts it. No live network calls.
