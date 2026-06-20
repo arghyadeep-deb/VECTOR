@@ -13,6 +13,30 @@ from fastapi.testclient import TestClient
 from core.api.routers import keys as keys_module
 
 
+class _CsrfClient:
+    """Wraps TestClient so every mutating call automatically carries a valid
+    X-CSRF-Token (core/api/middleware.py enforces this on non-GET requests,
+    independent of the VECTOR_API_KEY bearer auth)."""
+
+    def __init__(self, inner: TestClient):
+        self._inner = inner
+
+    def _csrf_headers(self, headers: dict | None) -> dict:
+        token = self._inner.get("/csrf-token").json()["csrf_token"]
+        merged = dict(headers or {})
+        merged["X-CSRF-Token"] = token
+        return merged
+
+    def get(self, *a, **kw):
+        return self._inner.get(*a, **kw)
+
+    def post(self, url, headers=None, **kw):
+        return self._inner.post(url, headers=self._csrf_headers(headers), **kw)
+
+    def delete(self, url, headers=None, **kw):
+        return self._inner.delete(url, headers=self._csrf_headers(headers), **kw)
+
+
 @pytest.fixture
 def client(monkeypatch, tmp_path):
     monkeypatch.setattr(keys_module, "_ENV_PATH", tmp_path / ".env")
@@ -23,7 +47,7 @@ def client(monkeypatch, tmp_path):
 
     from core.api.app import create_app
 
-    return TestClient(create_app(), client=("127.0.0.1", 50000))
+    return _CsrfClient(TestClient(create_app(), client=("127.0.0.1", 50000)))
 
 
 def test_list_providers_returns_allowlist(client):
