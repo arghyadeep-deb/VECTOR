@@ -25,6 +25,7 @@ class Hand:
     output_format: str       # "markdown" | "json" | "notification"
     tags: list[str] = field(default_factory=list)
     enabled: bool = True
+    on_demand: bool = False  # True = manual trigger only, register_all() skips it
 
     def to_dict(self) -> dict:
         return {
