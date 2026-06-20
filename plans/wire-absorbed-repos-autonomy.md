@@ -145,20 +145,25 @@ For EACH capability (research, investment, intelligence, content, OSINT-collecto
 - [ ] Run `pytest -m live -k <cap>` with keys present → PASS; capture output to `docs/capability_proofs/<repo>.md` (verdict → LIVE).
 - [ ] `git commit -m "feat(hands): <cap> autonomous + live-proven"`
 
-### Task 2.0: Scrub research_engine network provenance leak (BEFORE it goes autonomous)
+### Task 2.0: Scrub research_engine network provenance leak (BEFORE it goes autonomous) ✅ DONE (2026-06-21)
 A VECTOR web agent must not announce a third-party tool name to every site it hits. This becomes continuous once the research/collector hands are scheduled.
-- [ ] Failing test `tests/integration/test_capability_live.py::test_no_foreign_user_agent`
-  ```python
-  import pathlib, re
-  def test_no_foreign_user_agent():
-      root = pathlib.Path("core/research_engine")
-      bad = [p for p in root.rglob("*.py")
-             if re.search(r"Local-Deep-Research", p.read_text(encoding="utf-8", errors="ignore"))]
-      assert not bad, f"foreign provenance strings survive in: {bad}"
-  ```
-- [ ] Run → expect FAIL (4 hits incl. 3 User-Agent headers)
-- [ ] Fix `search_engine_github.py:76`, `search_engine_nasa_ads.py:110`, `search_engine_openalex.py:105` → `User-Agent: "VECTOR-Research-Agent"`; replace the other hyphenated `Local-Deep-Research` strings. Detection sweep: grep hyphen/underscore/space/PascalCase + `User-Agent`/header/banner strings, not just import idents (the original audit missed this exact way).
-- [ ] Run → expect PASS · `git commit -m "fix(research): scrub foreign User-Agent/provenance — VECTOR-branded"`
+- [x] Failing test added: `tests/integration/test_capability_live.py::test_no_foreign_user_agent` (non-`live`-marked — pure static grep, no network needed). Used a broader regex than the plan's literal snippet (`re.compile(r"local[-_ ]?deep[-_ ]?research", re.IGNORECASE)`) specifically because the narrower `Local-Deep-Research` pattern misses the PascalCase-no-hyphen form found below.
+- [x] Ran → **FAILED with 9 files / 10 string occurrences**, not the plan's estimated "4 hits incl. 3 User-Agent headers." The plan's own warning ("the original audit missed this exact way") was correct — a literal-regex/3-file sweep would have left 6 files leaking. Full list found:
+  - `core/research_engine/constants.py:11` — the **centralized `USER_AGENT` constant** (`f"Local-Deep-Research/{__version__} ..."`), consumed via `from ...constants import USER_AGENT` by 6 other files (`safe_requests.py`, `openalex_enrichment.py`, and 4 `research_library/downloaders/*.py`) — this was the single highest-leverage hit, since `safe_requests.py` injects it as the *default* User-Agent for any outbound call that doesn't set its own.
+  - `core/research_engine/web_search_engines/engines/search_engine_github.py:76` — `"User-Agent": "Local-Deep-Research-Agent"` (the plan's known hit)
+  - `core/research_engine/web_search_engines/engines/search_engine_nasa_ads.py:110` — same pattern (known hit)
+  - `core/research_engine/web_search_engines/engines/search_engine_openalex.py:105` — `f"Local-Deep-Research-Agent{f' ({email})' if email else ''}"` (known hit)
+  - `core/research_engine/web_search_engines/engines/search_engine_gutenberg.py:81` — `"LocalDeepResearch/1.0 (https://github.com/...)"` (**PascalCase, no hyphen** — missed by the plan's literal regex)
+  - `core/research_engine/web_search_engines/engines/search_engine_openlibrary.py:71` — same PascalCase pattern (missed)
+  - `core/research_engine/web_search_engines/engines/search_engine_pubchem.py:64` — same PascalCase pattern (missed)
+  - `core/research_engine/web_search_engines/engines/search_engine_stackexchange.py:125` — same PascalCase pattern (missed)
+  - `core/research_engine/web_search_engines/engines/search_engine_zenodo.py:74` — same PascalCase pattern (missed)
+  - `core/research_engine/error_handling/report_generator.py:92` — a dead `[Reddit r/LocalDeepResearch](...)` support link in an error-report template (not a header, but still a provenance leak surfaced to the owner in generated reports; missed by the literal regex)
+- [x] Fixed all 9 files. `constants.py`'s `USER_AGENT` → `f"VECTOR-Research-Agent/{__version__} (Academic Research Tool; https://github.com/arghyadeep-deb/vector-research-engine)"` (kept the existing version+URL format, matching the file's own honest-identification comment). The 3 known files → `"VECTOR-Research-Agent"` (github, nasa_ads) / `f"VECTOR-Research-Agent{...email...}"` (openalex). The 5 PascalCase files → `"VECTOR-Research-Agent/1.0 (https://github.com/arghyadeep-deb/vector-research-engine)"` (kept their existing version+URL format for consistency). `report_generator.py`'s dead Reddit link → replaced with the project's real GitHub Discussions URL (already used elsewhere in the same support-links block).
+- [x] Ran → **PASS**. Re-swept with the broad regex post-fix: zero hits anywhere in `core/research_engine/`.
+- [x] Regression check: `pytest tests/research_engine/ -q` → **44 passed**, 0 failed (only a pre-existing unrelated matplotlib `PendingDeprecationWarning`). `pytest tests/integration/test_capability_live.py -v -m live` → `test_scraper_fetch_returns_real_content` PASS, `test_no_foreign_user_agent` not live-marked (ran separately, PASS), `test_research_engine_full_cycle_produces_real_statistics` **FAILED on an unrelated, pre-documented flake**: the LLM design call to `vector-reasoning` timed out after ~2min under concurrent load from a parallel agent session also active on this machine at the time, and fell back to `design_source="rule_based"` instead of `"llm"` — this is the same class of flake the plan's own Task 5.2 entry calls "known non-blocking (Ollama warmth)"; it is unrelated to this string-only change (the full 5-step research cycle still completed end-to-end, including writing the Obsidian report) and was not introduced by it.
+- [x] No `docs/capability_proofs/research_engine.md` references to this leak existed (checked) — nothing to update there. Committed (auto-hook, one commit per file edited).
+- [x] Unblocks the note left above under "research →": "Live proof still depends on Task 2.0 ... don't trust researcher/collector as fully LIVE until that lands and is re-verified" — Task 2.0 has now landed; re-verification of researcher/collector LIVE status is a follow-up for whoever owns that sub-task next.
 
 Sub-list to execute (confirm/adjust against Phase 0 results):
 - research → ✅ ROUTING DONE (2026-06-21) — `researcher`→`deep_research` (route already existed in `governor.py`'s `DISTRICT_TASK_MAP`), `collector`→`osint_collect` (route was MISSING, added it next to `deep_research`). `HandRunner._TASK_TYPE_OVERRIDES` now maps both. Test: `tests/hands/test_hands_wired.py::test_task_type_overrides_match_governor_routes`. **Live proof still depends on Task 2.0** (the User-Agent scrub, in progress by a parallel agent) — don't trust `researcher`/`collector` as fully LIVE until that lands and is re-verified.
