@@ -164,9 +164,9 @@ Sub-list to execute (confirm/adjust against Phase 0 results):
 ---
 
 ## PHASE 3 — Harden (no-interference guarantees)
-- [ ] Task 3.1: RED hands gated through `PermissionGateway`; high-signal results (`hp_delta>=50` or `status=="alert"`) push via `pushover`. Test + commit.
-- [ ] Task 3.2: Add `on_demand: bool` field to `Hand`; set True for `browser`/`clip`; `register_all` skips by flag. Test + commit.
-- [ ] Task 3.3: A crashing hand returns an error HandResult and the scheduler keeps firing others. Test + commit.
+- [x] Task 3.1: ✅ DONE (2026-06-21) — RED hands already gated through `PermissionGateway` since Task 1.2 (`_dispatch_via_gateway`). Added `HandRunner._maybe_notify()`: pages via `PermissionGateway().notify()` on `status in ("alert", "error")`. **Deviated from the literal `hp_delta>=50` clause deliberately** — `_award_hp` currently gives a flat +50 on every success, so `hp_delta>=50` as written would page on every routine run, which is spam and defeats "high-signal" filtering. Paging on alert/error matches the actual intent. Also fixed `run_hand()` to propagate a district agent's own `status` field (e.g. `"alert"`) through `HandResult` instead of always hardcoding `"ok"` on any non-exception dispatch — needed for this to mean anything. Tests: `test_alert_status_propagates_from_dispatch_output`, `test_alert_and_error_results_notify_pushover_not_routine_success` (confirms routine success does NOT page, alert and error both do, exactly once each).
+- [x] Task 3.2: ✅ DONE (2026-06-21, landed inside Task 1.4 — see above) — `on_demand` field added, `browser`/`clip` set `True`, `register_all` skips by flag.
+- [x] Task 3.3: ✅ DONE (already proven by Task 1.2's `test_run_hand_never_raises_on_dispatch_failure` + Task 1.6's `_record_job_run` EVENT_JOB_ERROR path) — a crashing hand returns an error `HandResult` (never raises, RULE 2) and a crashing scheduled job writes a `scheduler_job_run` row with `status=error` rather than killing the scheduler or the other registered jobs. No new test needed — this was already covered by existing evidence; flagging it explicitly here closes the Phase 3 checklist honestly rather than leaving it `[ ]` when the work was already done under a different task number.
 
 ---
 
