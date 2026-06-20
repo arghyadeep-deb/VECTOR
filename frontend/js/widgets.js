@@ -1563,6 +1563,7 @@
   global.VectorFeatureRegistry = FEATURE_REGISTRY.slice();
 
   // ---- open / close -------------------------------------------------------
+  const _returnFocus = {}; // id -> element to refocus when the widget closes
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
     const make = F[id]; if(!make){ console.warn('no widget', id); return; }
@@ -1572,16 +1573,20 @@
     w.style.setProperty('--fl', (6+Math.random()*4).toFixed(1)+'s');
     w.style.setProperty('--fd', (-Math.random()*5).toFixed(1)+'s');
     ws().appendChild(w); live[id]=w;
+    _returnFocus[id] = document.activeElement;
     // targeting scan-lock flourish converges on the card, then it materialises
     requestAnimationFrame(()=>{
       const r=w.getBoundingClientRect();
       V.emit('widget:lock', { rect:{ left:r.left, top:r.top, width:r.width, height:r.height } });
-      setTimeout(()=>w.classList.add('show'), 130);
+      setTimeout(()=>{ w.classList.add('show'); w.focus(); }, 130);
     });
     return w;
   }
   function closeWidget(id){ const w=live[id]; if(!w) return; w.classList.remove('show');
-    setTimeout(()=>{ w.remove(); delete live[id]; }, 200); }
+    setTimeout(()=>{ w.remove(); delete live[id];
+      const back = _returnFocus[id]; delete _returnFocus[id];
+      if(back && document.contains(back) && typeof back.focus === 'function') back.focus();
+    }, 200); }
   function flash(w){ w.classList.add('grabbed'); setTimeout(()=>w.classList.remove('grabbed'),300); }
 
   // ---- drag (mouse + programmatic for hand cursor) -----------------------
