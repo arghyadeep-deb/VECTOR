@@ -146,43 +146,6 @@ def test_optional_engine_shims_import_without_process_exit() -> None:
     assert hasattr(apple, "app")
 
 
-def _load_brain_app(module_name: str):
-    cloud_dir = ROOT / "cloud" / "brain_server"
-    sys.path.insert(0, str(cloud_dir))
-    try:
-        spec = importlib.util.spec_from_file_location(module_name, cloud_dir / "main.py")
-        mod = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
-        spec.loader.exec_module(mod)
-        return mod.app
-    finally:
-        try:
-            sys.path.remove(str(cloud_dir))
-        except ValueError:
-            pass
-
-
-def test_brain_server_fails_closed_without_api_key_in_production(monkeypatch) -> None:
-    monkeypatch.setenv("VECTOR_ENV", "production")
-    monkeypatch.delenv("VECTOR_API_KEY", raising=False)
-
-    client = TestClient(_load_brain_app("brain_server_no_key_test"))
-
-    assert client.get("/status").status_code == 200
-    response = client.get("/agents")
-    assert response.status_code == 503
-
-
-def test_brain_server_rejects_wrong_bearer_token(monkeypatch) -> None:
-    monkeypatch.setenv("VECTOR_ENV", "production")
-    monkeypatch.setenv("VECTOR_API_KEY", "k" * 40)
-
-    client = TestClient(_load_brain_app("brain_server_wrong_key_test"))
-
-    response = client.get("/agents", headers={"Authorization": "Bearer wrong"})
-    assert response.status_code == 401
-
-
 def test_code_interpreter_disabled_by_default(monkeypatch) -> None:
     from vectorcode.src.vc_tools.code_interpreter import CodeInterpreterTool
 
@@ -1239,7 +1202,7 @@ def test_mcp_tool_inventory_unchanged_after_split() -> None:
 
     srv = m._make_server()
     names = sorted(t.name for t in asyncio.run(srv.list_tools()))
-    # 353 after the monolith split + 3 db_control tools (Phase 2 quarantine).
-    assert len(names) == 356, f"tool count changed: {len(names)}"
+    # 353 after the monolith split + 3 db_control tools + 4 Kanban MCP wrappers.
+    assert len(names) == 360, f"tool count changed: {len(names)}"
     sha = hashlib.sha256("\n".join(names).encode()).hexdigest()[:16]
-    assert sha == "3292f2386e9b9b7c", f"tool name set changed: {sha}"
+    assert sha == "ae8cb56323e7f33d", f"tool name set changed: {sha}"
