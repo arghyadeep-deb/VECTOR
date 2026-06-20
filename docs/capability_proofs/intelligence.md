@@ -1,76 +1,65 @@
 # Capability Proof — intelligence
 
-**Verdict: ✅ LIVE (2026-06-21) — fixed via option (b) below, confirmed with real data**
-
-Fix applied: added `VECTORINTEL_HOST=http://127.0.0.1:8765` to `.env` (option
-(b) from the triage below — the running shadowbroker instance wasn't
-restarted, since it's a long-lived process up since before this session and
-restarting an owner-managed service unilaterally isn't appropriate). Re-ran
-`VectorIntelAgent.get_flights(lat=28.6, lon=77.2, radius_km=500)`:
-
-```
-INFO VectorIntel platform connected at http://127.0.0.1:8765
-```
-
-Returned ~3.5MB of real, structured live aircraft-tracking data — genuine
-callsigns, ICAO24 hex codes, registrations, lat/lng/altitude/heading/speed,
-GPS trails, fuel burn + CO2 emissions estimates. Sample (private jet):
-
-```python
-{'callsign': 'a19d64', 'registration': 'N203CK', 'model': 'GLF4',
- 'icao24': 'a19d64', 'speed_knots': 453.8, 'alt': 12192.0,
- 'emissions': {'fuel_gph': 330, 'co2_kg_per_hour': 3158.1},
- 'trail': [[48.95089, -66.77794, 12184.4, 1781973419], ...]}
-```
-
-This is genuinely real-time OSINT data, not a stub. `intelligence` is LIVE.
-
----
-
-## Original finding (2026-06-20), preserved for context
-
-Run at: 2026-06-20T13:16:28.256420+00:00 — re-confirmed identical after Task
-0.5c's temp-DB isolation (this capability never touched `EpisodicMemory` in
-the first place, so it was never affected by the DB-contention finding).
+**Verdict: ✅ LIVE (2026-06-21) — fixed, confirmed with real data**
 
 ## What this tests
 
 `VectorIntelAgent.get_flights(lat=28.6, lon=77.2, radius_km=500)` — calls out
 to the shadowbroker OSINT backend (a **standalone service**, confirmed via
-`tools/start_shadowbroker.bat` — not loop-governed, matches the plan's own
-note in its "Verified findings" section).
+`tools/start_shadowbroker.bat` — not loop-governed; the plan's "Verified
+findings" section already noted this).
 
-## What happened
+## Fix applied
+
+Root cause (found 2026-06-20): `vectorintel_agent.py` defaults to
+`VECTORINTEL_HOST=http://127.0.0.1:8002`, which matches shadowbroker's own
+documented default exactly (`main.py`: `PORT = os.environ.get("PORT", 8002)`;
+`tools/start_shadowbroker.bat` also sets `PORT=8002`) — the code was never
+buggy. The actual mismatch: a shadowbroker_server process was already
+running (PID 44996, up since before this session) bound to port **8765**,
+not 8002 — started with a `PORT` env override from an earlier, unrelated
+session.
+
+Fix: added `VECTORINTEL_HOST=http://127.0.0.1:8765` to `.env` (matching the
+already-running instance, rather than restarting an owner-managed long-lived
+process unilaterally — chose option (b) from the original triage). Also
+fixed `scripts/capability_smoke.py` to call `load_dotenv()` like the real
+`run_vector.py` entrypoint does — without that, the standalone test tool's
+verdict didn't match production behavior even after the `.env` fix landed.
+
+## Verified live — genuinely real data, not a stub
 
 ```
-WARNING VectorIntel unavailable: [WinError 10061] No connection could be made
-because the target machine actively refused it.
-Start: run tools/start_shadowbroker.bat from VECTOR Codebase root
-```
-(then degraded gracefully to empty-list output, shown below)
-```
-{'military_flights': [], 'commercial_flights': [], 'tracked_flights': [], 'private_jets': []}
+INFO VectorIntel platform connected at http://127.0.0.1:8765
 ```
 
-## Root cause — isolated
+Returned ~3.5MB of real, structured, live aircraft-tracking data — genuine
+callsigns, ICAO24 hex codes, registrations, lat/lng/altitude/heading/speed,
+GPS trails, fuel burn + CO2 emissions estimates. Sample (one private jet,
+truncated):
 
-`vectorintel_agent.py` defaults to `VECTORINTEL_HOST=http://127.0.0.1:8002`,
-which matches shadowbroker's own documented default exactly (`main.py` line
-11698: `PORT = os.environ.get("PORT", 8002)`; `tools/start_shadowbroker.bat`
-also sets `PORT=8002`). **The code and its documented default are internally
-consistent — this is not a code bug.**
+```python
+{'callsign': 'a19d64', 'registration': 'N203CK', 'model': 'GLF4',
+ 'icao24': 'a19d64', 'speed_knots': 453.8, 'alt': 12192.0,
+ 'heading': 236.87, 'aircraft_category': 'plane',
+ 'emissions': {'fuel_gph': 330, 'co2_kg_per_hour': 3158.1},
+ 'trail': [[48.95089, -66.77794, 12184.4, 1781973419],
+           [48.89992, -66.8992, 12192.0, 1781973480],
+           [48.63098, -67.52958, 12192.0, 1781973719]]}
+```
 
-The actual mismatch: a shadowbroker_server process IS already running on
-this machine (PID 44996, confirmed via `Get-CimInstance Win32_Process`), but
-it's bound to port **8765**, not 8002 (confirmed via `netstat -ano`). That
-instance was evidently started with a `PORT` env override from an earlier,
-unrelated session — nothing in this work changed that.
+Re-confirmed via `scripts/capability_smoke.py --live intelligence` →
+`verdict=LIVE` (the full raw payload is too large for this file — ~3.5MB —
+captured separately during manual verification, not committed in full).
 
-## Triage implication
+## Triage decision (made with owner asleep — flagged for review)
 
-Either (a) restart shadowbroker normally via `tools/start_shadowbroker.bat`
-(binds 8002, matches the default `vectorintel_agent.py` expects), or (b) set
-`VECTORINTEL_HOST=http://127.0.0.1:8765` to match the instance that's
-currently running. Either way, this is a one-line environment fix, not a
-code change — `intelligence`'s connector logic and graceful-degradation path
-(empty lists instead of a crash) both worked exactly as designed.
+The Phase 2 sub-list asked: map shadowbroker's 34 governed task types to a
+scheduled hand, OR document it as a standalone service + health-poll loop.
+**Decided: standalone service**, not a hand — it's a long-running,
+always-on OSINT backend, not a "run once, produce a report" task the Hand
+model fits naturally. **Not done, deliberately deferred**: the health-poll
+loop itself, and re-evaluating whether some subset of the 34 task types
+*should* become a scheduled hand on top of (not instead of) the standalone
+service. This is a real product-shape decision, not just a bug fix — owner
+should confirm or override.
