@@ -192,8 +192,12 @@
     mk('g-cur','HAND CAM', ()=>{ global.VectorCursor.hand(); setOn('hand',true); });
     mk('g-cur','OFF', ()=>{ global.VectorCursor.off(); setOn('hand',false); });
 
-    d.querySelector('.dtab').addEventListener('click',e=>{ e.stopPropagation(); d.classList.toggle('open'); });
-    d.querySelector('.dh').addEventListener('click',e=>{ e.stopPropagation(); d.classList.toggle('open'); });
+    const toggleDirector = ()=>d.classList.toggle('open');
+    const directorKeyHandler = e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleDirector(); } };
+    d.querySelector('.dtab').addEventListener('click',e=>{ e.stopPropagation(); toggleDirector(); });
+    d.querySelector('.dtab').addEventListener('keydown',directorKeyHandler);
+    d.querySelector('.dh').addEventListener('click',e=>{ e.stopPropagation(); toggleDirector(); });
+    d.querySelector('.dh').addEventListener('keydown',directorKeyHandler);
 
     document.getElementById('d-conn').addEventListener('click', async e=>{
       e.stopPropagation();
