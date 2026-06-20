@@ -1458,7 +1458,7 @@ class AutonomousLoop:
         commands it returns. No-ops cleanly until the Worker URL is configured."""
         import os
         import httpx
-        brain_url = (CONFIG.get("brain_server_url") or os.environ.get("VECTOR_BRAIN_URL") or "").rstrip("/")
+        brain_url = (CONFIG.get("cloud", {}).get("brain_url") or os.environ.get("VECTOR_BRAIN_URL") or "").rstrip("/")
         if not brain_url:
             return  # cloud relay not configured yet (set VECTOR_BRAIN_URL to the Worker URL)
         api_key = CONFIG.get("api_keys", {}).get("vector_api_key") or CONFIG.get("vector_api_key", "")
