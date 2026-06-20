@@ -92,6 +92,9 @@ class PermissionConfig(BaseModel):
         "send_email", "delete_files", "execute_code",
         "financial_transaction", "push_github", "deploy_production",
         "overwrite_note_personal",
+        # Hand Execution Engine — Hands with requires_approval=True
+        # (browser: purchases/forms; content: publishing; clip: upload).
+        "hand_browser", "hand_content", "hand_clip",
     ])
 
 
