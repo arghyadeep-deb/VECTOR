@@ -1,7 +1,14 @@
 # VECTOR Realtime Conversation Loop — Design
 
-**Status:** Proposed · **Author:** designed with Claude · **Date:** 2026-06-10
+**Status:** ✅ Implemented (verified 2026-06-20 — `core/voice/realtime.py`,
+`RealtimeConversation`, all 5 phases present: streaming response, VAD/FSM
+conversation loop, barge-in, action handoff, proactive nudge speech; wired
+into `core/api/routers/voice_ws.py`) · **Author:** designed with Claude · **Date:** 2026-06-10
 **Goal:** Make talking to VECTOR feel like JARVIS — sub-1.2s voice-to-voice, interruptible, able to speak up on its own.
+
+Kept as architecture reference — explains the design rationale behind
+`realtime.py`'s structure. Not verified end-to-end live (needs a microphone
+session to confirm actual latency numbers match §3's targets).
 
 ---
 
