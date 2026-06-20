@@ -804,7 +804,14 @@ CONFIG: dict = {
         "max_trades_per_day":  10,      # Maximum number of live trades per calendar day
     },
     "trading": {
-        "llm_provider":        "openai",
+        # Ollama is VECTOR's primary local-first runtime (RULE 11). The trading
+        # graph's OpenAI-compatible client routes "ollama" to
+        # http://localhost:11434/v1 with no API key required (see
+        # core/trading/llm_clients/openai_client.py + api_key_env.py). Leaving
+        # this as "openai" broke every analysis with "Missing credentials"
+        # since model names below (vector-reasoning/vector-focus) are Ollama
+        # custom models, not real OpenAI models.
+        "llm_provider":        os.environ.get("TRADING_LLM_PROVIDER", "ollama"),
         "deep_think_llm":      os.environ.get("DEEP_THINK_LLM", "vector-reasoning"),
         "quick_think_llm":     os.environ.get("QUICK_THINK_LLM", "vector-focus"),
         "max_debate_rounds":   1,
