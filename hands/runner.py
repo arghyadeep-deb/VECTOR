@@ -90,7 +90,7 @@ class HandRunner:
             ReasoningMemory().store_chain(
                 situation=f"hand:{hand.name}",
                 goal_ids=[],
-                steps=[{"action": "run_hand", "district": hand.district}],
+                steps=[f"run_hand district={hand.district}"],
                 action=hand.name,
                 outcome=result.status,
                 reward=1.0 if result.status == "ok" else 0.0,
