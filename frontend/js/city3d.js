@@ -223,6 +223,9 @@
     const wrap = document.createElement('div');
     wrap.className = 'widget';
     wrap.dataset.id = CITY_ID;
+    wrap.setAttribute('role', 'dialog');
+    wrap.setAttribute('aria-label', 'District City 3D');
+    wrap.setAttribute('tabindex', '-1');
 
     const pos = (opts && opts.pos) || [26, 20];
     wrap.style.left = pos[0] + '%';
@@ -233,7 +236,7 @@
         <span class="dotled"></span>
         <span class="w-title">DISTRICT CITY · 3D</span>
         <span class="spacer"></span>
-        <span class="w-x">✕</span>
+        <button type="button" class="w-x" aria-label="Close District City 3D">✕</button>
       </div>
       <div class="w-body" style="padding:0;overflow:hidden">
         <canvas id="city3d-canvas" style="display:block;width:420px;height:320px"></canvas>
@@ -241,14 +244,25 @@
       <div class="w-corner tr"></div>
       <div class="w-corner bl"></div>`;
 
-    wrap.querySelector('.w-x').addEventListener('click', e => {
-      e.stopPropagation();
+    const returnFocus = document.activeElement;
+    function closeCity() {
       destroyScene(wrap.querySelector('#city3d-canvas'));
       wrap.classList.remove('show');
-      setTimeout(() => wrap.remove(), 200);
+      setTimeout(() => {
+        wrap.remove();
+        if (returnFocus && document.contains(returnFocus) && typeof returnFocus.focus === 'function') returnFocus.focus();
+      }, 200);
+    }
+    wrap.querySelector('.w-x').addEventListener('click', e => {
+      e.stopPropagation();
+      closeCity();
+    });
+    wrap.addEventListener('keydown', e => {
+      if (e.key === 'Escape') { e.stopPropagation(); closeCity(); }
     });
 
     ws.appendChild(wrap);
+    requestAnimationFrame(() => wrap.focus());
 
     requestAnimationFrame(() => {
       const r = wrap.getBoundingClientRect();
