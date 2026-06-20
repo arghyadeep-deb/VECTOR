@@ -107,7 +107,7 @@ class NasaAdsSearchEngine(BaseSearchEngine):
         # API configuration
         self.api_base = "https://api.adsabs.harvard.edu/v1"
         self.headers = {
-            "User-Agent": "Local-Deep-Research-Agent",
+            "User-Agent": "VECTOR-Research-Agent",
             "Accept": "application/json",
         }
 
