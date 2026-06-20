@@ -166,6 +166,14 @@ class AgentBase:
         }
         self.ghost_memory = ghost
         logger.warning(f'[VECTOR][city] Agent {self.name} gen {self.generation} DIED. Ghost preserved with {len(self.lessons)} lessons.')
+        # RULE 9 — actually remove from the city registry and spawn a successor.
+        # Without this, deregister()'s full ghost->successor pipeline (already
+        # built in agent_registry.py) was never triggered by anything.
+        try:
+            from core.city.agent_registry import get_registry
+            get_registry().deregister(self.id)
+        except Exception as e:
+            logger.error(f'[VECTOR][city] {self.name} deregister/successor-spawn failed: {e}')
         return ghost
 
     def inherit_ghost(self, ghost):
