@@ -1,0 +1,85 @@
+"""Task 1.1-1.3 of plans/wire-absorbed-repos-autonomy.md — Hand Execution
+Engine: HandResult persistence, HandRunner dispatch, and the closed
+result→memory→HP→policy feedback loop.
+"""
+from __future__ import annotations
+
+import asyncio
+
+import pytest
+
+
+@pytest.fixture
+def isolated_db(monkeypatch, tmp_path):
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "hands_test.db"))
+    yield ep
+    try:
+        ep.close_db_connection()
+    except Exception:
+        pass
+
+
+def test_hand_result_persists(isolated_db):
+    from hands.result import HandResult
+    r = HandResult(hand="researcher", district="research", output="body", status="ok", hp_delta=50)
+    assert r.persist() > 0
+    assert r.to_dict()["status"] == "ok"
+
+
+def test_hand_result_to_dict_has_all_fields(isolated_db):
+    from hands.result import HandResult
+    r = HandResult(hand="trader", district="investment", output="x", status="error", hp_delta=-30, error="boom")
+    d = r.to_dict()
+    assert d["hand"] == "trader"
+    assert d["district"] == "investment"
+    assert d["status"] == "error"
+    assert d["hp_delta"] == -30
+    assert d["error"] == "boom"
+
+
+def test_run_hand_plumbing(monkeypatch, isolated_db):
+    from hands.runner import HandRunner
+    from hands.registry import HandRegistry
+    runner = HandRunner()
+    monkeypatch.setattr(runner, "_dispatch", lambda h, c: "stub")
+    r = asyncio.run(runner.run_hand(HandRegistry().get("researcher"), {}))
+    assert r.status == "ok" and r.output
+
+
+def test_run_hand_never_raises_on_dispatch_failure(monkeypatch, isolated_db):
+    from hands.runner import HandRunner
+    from hands.registry import HandRegistry
+
+    async def _boom(h, c):
+        raise RuntimeError("dispatch exploded")
+
+    runner = HandRunner()
+    monkeypatch.setattr(runner, "_dispatch", _boom)
+    r = asyncio.run(runner.run_hand(HandRegistry().get("researcher"), {}))
+    assert r.status == "error"
+    assert "dispatch exploded" in (r.error or "")
+
+
+def test_closed_feedback_loop_calls_each_once(monkeypatch, isolated_db):
+    from hands.runner import HandRunner
+    from hands.registry import HandRegistry
+
+    runner = HandRunner()
+    monkeypatch.setattr(runner, "_dispatch", lambda h, c: "stub output")
+
+    calls = {"episodic": 0, "hp": 0, "policy": 0}
+    monkeypatch.setattr(runner, "_record_episodic", lambda *a, **kw: calls.__setitem__("episodic", calls["episodic"] + 1))
+    monkeypatch.setattr(runner, "_award_hp", lambda *a, **kw: calls.__setitem__("hp", calls["hp"] + 1))
+    monkeypatch.setattr(runner, "_update_policy", lambda *a, **kw: calls.__setitem__("policy", calls["policy"] + 1))
+
+    asyncio.run(runner.run_hand(HandRegistry().get("researcher"), {}))
+
+    assert calls["episodic"] == 1
+    assert calls["hp"] == 1
+    assert calls["policy"] == 1
+
+
+if __name__ == "__main__":
+    print("✅ test_hand_runner.py module loads")
