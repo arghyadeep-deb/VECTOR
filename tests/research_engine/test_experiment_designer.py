@@ -21,7 +21,19 @@ def _make_hypothesis(title: str = "Test hypothesis", description: str = "Testing
 
 class TestExperimentDesigner:
     def setup_method(self):
-        self.designer = ExperimentDesigner()
+        # Deliberately unreachable Ollama URL — these are unit tests for the
+        # deterministic RULE-BASED template-selection logic specifically.
+        # With a real, reachable Ollama (core/research_engine/experiment_designer.py
+        # was fixed in Phase 0.5 to actually get a fair ~120s shot at the LLM
+        # path instead of always timing out at 60s), _llm_design() can now
+        # genuinely succeed and return an LLM-chosen experiment_type like
+        # "between-subjects" instead of the rule template's "benchmark" —
+        # correct LLM behavior, but it broke these tests' implicit assumption
+        # that design() always falls through to _rule_design(). Forcing a
+        # fast, deterministic connection failure here keeps that assumption
+        # true without re-breaking the real fix. The actual LLM path has its
+        # own live test: test_capability_live.py::test_research_engine_full_cycle_produces_real_statistics.
+        self.designer = ExperimentDesigner(ollama_base_url="http://127.0.0.1:1")
 
     def test_design_from_hypothesis(self):
         h = _make_hypothesis()
