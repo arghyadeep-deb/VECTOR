@@ -305,10 +305,9 @@ if __name__ == "__main__":
         cleanup = agent.cleanup_logs()
         print(f"cleanup: removed={cleanup.get('removed')} freed={cleanup.get('total_freed_mb')}MB")
 
-        # Fly.io + CF (may fail in dev — that's expected)
-        fly = await agent.check_fly_status()
+        # Cloudflare (may fail in dev — that's expected)
         cf = await agent.check_cloudflare_status()
-        print(f"fly={fly.get('ok')} ({fly.get('status_code')}) cf={cf.get('ok')} ({cf.get('status_code')})")
+        print(f"cf={cf.get('ok')} ({cf.get('status_code')})")
 
         ok = backup.get("ok", False)
         print(f"{'✅' if ok else '❌'} devops_automator.py HP={agent.health_points}")
