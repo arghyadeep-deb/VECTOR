@@ -27,7 +27,15 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import sys
 from datetime import datetime, timezone
+
+# Windows console defaults to cp1252, which crashes on the ✅/❌/⚠️ verdict
+# glyphs. Force UTF-8 so the check prints cleanly when run directly.
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 from core.memory.episodic import get_temp_cursor
 
