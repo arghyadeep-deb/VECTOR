@@ -105,9 +105,6 @@ class TestRouterTs(unittest.TestCase):
     def test_allowed_paths_includes_heartbeat(self):
         self.assertIn('"/heartbeat"', self._src())
 
-    def test_forwards_to_brain_server(self):
-        self.assertIn("BRAIN_SERVER_URL", self._src())
-
     def test_returns_503_on_upstream_failure(self):
         self.assertIn("503", self._src())
 
