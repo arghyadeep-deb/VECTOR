@@ -86,7 +86,7 @@ def test_task_type_overrides_match_governor_routes():
     governor.py's task-type table — not just a string HandRunner invented."""
     from hands.runner import HandRunner
     from hands.registry import HandRegistry
-    from core.city.governor import _TASK_TYPE_TO_DISTRICT
+    from core.city.governor import DISTRICT_TASK_MAP
 
     runner = HandRunner()
     expected = {
@@ -98,7 +98,7 @@ def test_task_type_overrides_match_governor_routes():
     for hand_name, route in expected.items():
         hand = HandRegistry().get(hand_name)
         assert runner._task_type_for(hand) == route
-        assert route in _TASK_TYPE_TO_DISTRICT, f"route {route!r} missing from governor.py"
+        assert route in DISTRICT_TASK_MAP, f"route {route!r} missing from governor.py"
 
 
 def test_autonomous_loop_starts_hand_runner():
