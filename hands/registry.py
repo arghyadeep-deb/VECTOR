@@ -42,7 +42,7 @@ _HANDS: list[Hand] = [
     Hand(
         name="researcher",
         description="Deep autonomous research — finds, evaluates, and synthesizes information on any topic with credibility scoring and proper citations.",
-        schedule="0 8 * * *",   # 08:00 IST daily
+        schedule="0 3 * * *",   # 03:00 IST daily — off-peak (model-heavy: see hands/runner.py MODEL_HEAVY_HANDS); moved from 08:00 (was peak waking hours) 2026-06-21
         district="research",
         tools=["web_search", "web_fetch", "arxiv_search", "memory_write", "memory_query"],
         requires_approval=False,
