@@ -451,6 +451,7 @@ ALWAYS mark output as "AWAITING_APPROVAL" and do not post autonomously.""",
         requires_approval=True,
         output_format="notification",
         tags=["video", "content", "shorts"],
+        on_demand=True,
         system_prompt="""You are VECTOR's Clip Hand — an autonomous video processing pipeline.
 
 ## Mission
