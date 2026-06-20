@@ -9,8 +9,35 @@ docs/capability_proofs/<repo>.md.
 from __future__ import annotations
 
 import asyncio
+import pathlib
+import re
 
 import pytest
+
+
+def test_no_foreign_user_agent():
+    """core/research_engine/ was absorbed from "local-deep-research" and
+    rebranded, but provenance strings survived in several User-Agent
+    headers (and one dead Reddit link) — meaning VECTOR's research hands
+    announce the original third-party project name to GitHub/NASA
+    ADS/OpenAlex/Zenodo/etc. on every live web request. This must be
+    caught before the researcher/collector hands are scheduled to run
+    autonomously (plans/wire-absorbed-repos-autonomy.md Task 2.0).
+
+    Catches ALL casing/separator variants, not just the literal
+    "Local-Deep-Research" hyphenated form — the first audit pass missed
+    several hits (e.g. "LocalDeepResearch" PascalCase with no hyphen,
+    used as a literal User-Agent value in 6 search engine files) by only
+    grepping one casing style.
+    """
+    root = pathlib.Path("core/research_engine")
+    pattern = re.compile(r"local[-_ ]?deep[-_ ]?research", re.IGNORECASE)
+    bad = [
+        p
+        for p in root.rglob("*.py")
+        if pattern.search(p.read_text(encoding="utf-8", errors="ignore"))
+    ]
+    assert not bad, f"foreign provenance strings survive in: {bad}"
 
 
 @pytest.mark.live
