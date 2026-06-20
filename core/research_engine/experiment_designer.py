@@ -116,10 +116,20 @@ def _guess_template(hypothesis: Hypothesis) -> str:
     return "statistical_test"
 
 
+def _default_design_model() -> str:
+    """VECTOR's own routed reasoning model, not the upstream project's
+    unmodified 'llama3.2' default (never pulled in this VECTOR install)."""
+    try:
+        from core.config import CONFIG
+        return CONFIG["models"]["reasoning"]
+    except Exception:
+        return "vector-reasoning"
+
+
 class ExperimentDesigner:
-    def __init__(self, ollama_base_url: str = "http://localhost:11434", model: str = "llama3.2"):
+    def __init__(self, ollama_base_url: str = "http://localhost:11434", model: str | None = None):
         self.ollama_base_url = ollama_base_url.rstrip("/")
-        self.model = model
+        self.model = model or _default_design_model()
         self._jinja_env: Optional[object] = None
 
     def _load_jinja(self) -> Optional[object]:
