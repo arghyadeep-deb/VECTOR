@@ -157,15 +157,74 @@ async def revoke_key(request: Request):
     _require_current_key_if_configured(request)
 
     os.environ["VECTOR_API_KEY"] = ""
-
-    env_path = Path(__file__).parent.parent.parent.parent / ".env"
-    if env_path.exists():
-        lines = env_path.read_text(encoding="utf-8").splitlines()
-        new_lines = [l for l in lines if not l.startswith("VECTOR_API_KEY=")]
-        env_path.write_text("\n".join(new_lines) + "\n", encoding="utf-8")
+    _remove_env_var("VECTOR_API_KEY")
 
     logger.warning("[VECTOR][keys] API key revoked — server now localhost-only")
     return {"status": "revoked", "message": "Server is now accessible from localhost only"}
+
+
+@router.get("/providers")
+async def list_provider_keys(request: Request):
+    """List allowlisted third-party provider keys and whether each is configured.
+    Never returns the actual values — just a short hint, like /status."""
+    _require_localhost(request)
+    providers = {}
+    for provider, env_name in _PROVIDER_KEY_ALLOWLIST.items():
+        val = os.environ.get(env_name, "")
+        providers[provider] = {
+            "env_name": env_name,
+            "configured": bool(val),
+            "hint": (val[:4] + "...") if len(val) > 4 else ("set" if val else "not set"),
+        }
+    return {"providers": providers}
+
+
+@router.post("/providers/{provider}")
+async def set_provider_key(provider: str, request: Request):
+    """Set or update a third-party provider API key. Body: {"value": "..."}.
+    Allowlisted providers only — this can never write an arbitrary env var."""
+    _require_localhost(request)
+    _require_current_key_if_configured(request)
+
+    env_name = _PROVIDER_KEY_ALLOWLIST.get(provider.lower())
+    if not env_name:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown provider '{provider}'. Allowed: {sorted(_PROVIDER_KEY_ALLOWLIST)}",
+        )
+
+    body = await request.json()
+    value = str(body.get("value", "")).strip()
+    if not value:
+        raise HTTPException(status_code=400, detail="'value' is required and cannot be empty")
+    if "\n" in value or "\r" in value:
+        raise HTTPException(status_code=400, detail="'value' cannot contain newlines")
+
+    os.environ[env_name] = value
+    env_updated = _write_env_var(env_name, value)
+
+    logger.info(f"[VECTOR][keys] provider key set: {provider} ({env_name})")
+    return {"status": "set", "provider": provider, "env_name": env_name, "env_updated": env_updated}
+
+
+@router.delete("/providers/{provider}")
+async def clear_provider_key(provider: str, request: Request):
+    """Clear a third-party provider API key."""
+    _require_localhost(request)
+    _require_current_key_if_configured(request)
+
+    env_name = _PROVIDER_KEY_ALLOWLIST.get(provider.lower())
+    if not env_name:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Unknown provider '{provider}'. Allowed: {sorted(_PROVIDER_KEY_ALLOWLIST)}",
+        )
+
+    os.environ[env_name] = ""
+    env_updated = _remove_env_var(env_name)
+
+    logger.info(f"[VECTOR][keys] provider key cleared: {provider} ({env_name})")
+    return {"status": "cleared", "provider": provider, "env_name": env_name, "env_updated": env_updated}
 
 
 if __name__ == "__main__":
