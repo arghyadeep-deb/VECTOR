@@ -83,27 +83,27 @@ class SREMonitor(AgentBase):
 
     async def check_system_health(self) -> dict:
         """
-        Ping Fly.io /status, check SQLite write latency, check Ollama
-        availability, count errors in last 100 episodic events.
-        Returns dict with keys: fly_ok, sqlite_latency_ms, ollama_ok, error_rate.
+        Ping the Cloudflare Worker /health, check SQLite write latency, check
+        Ollama availability, count errors in last 100 episodic events.
+        Returns dict with keys: cf_ok, sqlite_latency_ms, ollama_ok, error_rate.
         """
         results: dict = {}
 
-        # 1. Fly.io ping
+        # 1. Cloudflare Worker (cloud brain) ping
         try:
             import httpx
             async with httpx.AsyncClient(timeout=10.0) as client:
                 t0 = time.monotonic()
-                resp = await client.get(_FLY_STATUS_URL)
+                resp = await client.get(_CF_HEALTH_URL)
                 latency_ms = (time.monotonic() - t0) * 1000
-                results["fly_ok"] = resp.status_code == 200
-                results["fly_latency_ms"] = round(latency_ms, 1)
-                results["fly_status_code"] = resp.status_code
+                results["cf_ok"] = resp.status_code == 200
+                results["cf_latency_ms"] = round(latency_ms, 1)
+                results["cf_status_code"] = resp.status_code
         except Exception as e:
-            logger.warning(f"[VECTOR][sre_monitor] Fly.io ping failed: {e}")
-            results["fly_ok"] = False
-            results["fly_latency_ms"] = -1
-            results["fly_status_code"] = -1
+            logger.warning(f"[VECTOR][sre_monitor] Cloudflare ping failed: {e}")
+            results["cf_ok"] = False
+            results["cf_latency_ms"] = -1
+            results["cf_status_code"] = -1
 
         # 2. SQLite write latency
         try:
