@@ -10,6 +10,15 @@
   function buildOrb(mount, label){
     const orb = document.createElement('div');
     orb.className = 'orb';
+    // Supplements (does not replace) the existing global stage-click /
+    // window-level Enter-to-wake handlers — lets a keyboard user Tab
+    // directly to the orb and activate it with Enter or Space.
+    orb.setAttribute('role', 'button');
+    orb.setAttribute('tabindex', '0');
+    orb.setAttribute('aria-label', label ? `${label} — click or press Enter to wake` : 'Click or press Enter to wake VECTOR');
+    orb.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); orb.click(); }
+    });
 
     const bloom = document.createElement('div'); bloom.className='orb__bloom'; orb.appendChild(bloom);
 
