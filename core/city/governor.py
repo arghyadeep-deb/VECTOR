@@ -310,6 +310,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "click_screen":    "coding",
     "browser_task":    "coding",
     "web_task":        "coding",
+    "content_generate": "content",  # content Hand (hands/registry.py) — RED, requires_approval
     "schedule_post": "content",
     "publish_post": "content",
     "content_schedule": "content",
