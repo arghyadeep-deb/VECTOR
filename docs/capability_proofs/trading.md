@@ -9,6 +9,11 @@ same SQLCipher contention as `FinAgentAgent` did moments earlier — on a
 completely different class/module, which is what confirms this is
 process-level contention, not a `trading_conductor_agent.py` defect.
 Re-run after closing concurrent VECTOR processes for a clean verdict.
+**Confirmed deterministic** (PID 48532 still alive at time of writing — I was
+blocked from killing it; it needs explicit owner action) — not a flaky
+timing window. `intelligence`'s probe succeeded throughout this whole
+investigation, but only because `VectorIntelAgent` never calls
+`EpisodicMemory()` at all, so it was never exposed to the same contention.
 
 Run at: 2026-06-20T12:42:29.594890+00:00
 
