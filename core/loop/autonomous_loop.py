@@ -290,7 +290,9 @@ class AutonomousLoop:
         if getattr(self, "_callable_scheduler", None) is None:
             try:
                 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+                from apscheduler.events import EVENT_JOB_EXECUTED, EVENT_JOB_ERROR
                 sched = AsyncIOScheduler()
+                sched.add_listener(_record_job_run, EVENT_JOB_EXECUTED | EVENT_JOB_ERROR)
                 sched.start()
                 self._callable_scheduler = sched
                 logger.info("[VECTOR][autonomous_loop] callable scheduler (APScheduler) ready")
