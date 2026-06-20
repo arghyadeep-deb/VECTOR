@@ -157,9 +157,14 @@ class HandRunner:
                 async with asyncio.timeout(_DEFAULT_TIMEOUT_SEC):
                     output = await _do_dispatch()
 
+            # A district agent can signal something beyond plain success
+            # through its own return dict (e.g. collector finding a
+            # HIGH-significance OSINT change) — carry that through instead
+            # of always hardcoding "ok" on any non-exception dispatch.
+            dispatch_status = output.get("status") if isinstance(output, dict) else None
             result = HandResult(
                 hand=hand.name, district=hand.district,
-                output=str(output), status="ok",
+                output=str(output), status=dispatch_status or "ok",
             )
         except Exception as e:
             logger.error("[VECTOR][hands] {} failed: {}", hand.name, e)
@@ -171,12 +176,34 @@ class HandRunner:
         self._record_episodic(hand, result)
         self._award_hp(hand, result)
         self._update_policy(hand, result)
+        self._maybe_notify(hand, result)
         try:
             result.persist()
         except Exception as e:
             logger.warning("[VECTOR][hands] result.persist() failed for {}: {}", hand.name, e)
 
         return result
+
+    def _maybe_notify(self, hand: Hand, result: HandResult) -> None:
+        """Task 3.1 — page the owner for high-signal results (alert/error),
+        not routine successes. The plan's literal wording was
+        'hp_delta>=50 or status==\"alert\"', but hp_delta is currently a flat
+        +50 on every success (see _award_hp) — paging on every ordinary run
+        would be spam and defeat the point of 'high-signal' filtering, so
+        this pages on status in (alert, error) instead. Fire-and-forget:
+        notification failure must never affect the hand's own result."""
+        if result.status not in ("alert", "error"):
+            return
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            message = f"VECTOR hand '{hand.name}' ({hand.district}) -> {result.status}: {result.output[:160]}"
+            coro = PermissionGateway().notify(message, priority=1 if result.status == "alert" else 0)
+            if asyncio.get_event_loop().is_running():
+                asyncio.ensure_future(coro)
+            else:
+                asyncio.run(coro)
+        except Exception as e:
+            logger.warning("[VECTOR][hands] pushover notify failed for {}: {}", hand.name, e)
 
     def register_all(self, scheduler) -> int:
         """Register every scheduled, non-on_demand Hand against the durable
