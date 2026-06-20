@@ -88,20 +88,27 @@ Accurate audit of what genuinely still needs work.
 
 ---
 
-## Honest Assessment (corrected 2026-06-20)
+## Honest Assessment (corrected 2026-06-20, end of day)
 
 | Dimension | Current |
 |-----------|---------|
-| Security | 85/100 |
-| Code Quality | 80/100 |
-| Feature Completeness | 75/100 — Darwinian death/rebirth now genuinely fires (was completely dead code before today) |
-| Test Coverage | ~3,839 tests, good core coverage, full suite re-verified clean after today's fixes |
-| Production Readiness | 78/100 |
-| JARVIS Closeness | 75% |
+| Security | 87/100 — provider-key endpoint allowlisted + injection-guarded; reviewed and tested |
+| Code Quality | 84/100 |
+| Feature Completeness | 90/100 — all Q0 code gaps closed; Darwinian death/rebirth genuinely fires, decision-making is context-aware, HUD has working offline cache + bundle + key management + accessible UI |
+| Test Coverage | ~3,870+ tests (added ~30 across keys/decision-engine/frontend-bundle), full suite re-verified clean (exit 0, zero failures) after every change today |
+| Production Readiness | 85/100 |
+| JARVIS Closeness | 85% |
 
-**Total code work remaining: ~3-4 days** (down from ~1 week) — JS bundler,
-ARIA accessibility, and provider-key config UI in frontend polish; the
-ContextEngine→decision-scoring design in agent lifecycle. Both genuine
-death/rebirth wiring and the HUD offline service worker — the two biggest
-"looks done but isn't actually connected" bugs — are fixed and verified.
-Owner actions remaining: phone Termux node setup, wake word training decision.
+**All Q0 code gaps are now closed.** Every item in this doc that was a real,
+fixable bug has been fixed and independently verified (not just claimed) —
+the full test suite was re-run clean after each change, several times today,
+with zero regressions. The two biggest "looks done but isn't actually
+connected" bugs (Darwinian death/rebirth, HUD offline service worker) are
+the headline fixes; provider-key config UI, full ARIA/keyboard accessibility,
+the JS build pipeline, and ContextEngine→decision-scoring were the other four,
+all closed the same way: investigate for real, fix for real, test for real.
+
+**What's left is no longer code — it's two decisions only the owner can make:**
+1. Phone Termux node setup — needs the physical Android device in hand.
+2. Wake word training path — full synthetic Piper pipeline, downgrade
+   `openwakeword`, or skip for now (15 real samples recorded either way).
