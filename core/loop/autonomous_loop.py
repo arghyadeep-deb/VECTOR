@@ -303,6 +303,15 @@ class AutonomousLoop:
         except Exception as exc:
             logger.warning(f"[VECTOR][scheduler_loop] cron registration failed: {exc}")
 
+        # Hand Execution Engine — the 9 Hands in hands/registry.py were
+        # orphaned dataclasses (0 refs outside hands/) until this call.
+        try:
+            from hands.runner import HandRunner
+            n_hands = HandRunner().register_all(scheduler)
+            logger.info(f"[VECTOR][scheduler_loop] {n_hands} Hands registered")
+        except Exception as exc:
+            logger.warning(f"[VECTOR][scheduler_loop] hand registration failed: {exc}")
+
         while self._running:
             try:
                 # Fire any tasks whose scheduled time has arrived
