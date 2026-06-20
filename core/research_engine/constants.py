@@ -8,7 +8,7 @@ from .__version__ import __version__
 # Honest, identifying User-Agent for APIs that prefer/require identification
 # (e.g., academic APIs like arXiv, PubMed, OpenAlex)
 USER_AGENT = (
-    f"Local-Deep-Research/{__version__} "
+    f"VECTOR-Research-Agent/{__version__} "
     "(Academic Research Tool; https://github.com/arghyadeep-deb/vector-research-engine)"
 )
 
