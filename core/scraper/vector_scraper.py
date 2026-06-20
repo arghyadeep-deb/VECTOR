@@ -161,7 +161,7 @@ class VectorScraper:
                 url=url,
                 status_code=getattr(resp, 'status', 200),
                 content=content,
-                html=getattr(resp, 'html', content),
+                html=getattr(resp, 'html_content', content),
                 fetcher_used="http_tls",
             )
 
@@ -230,7 +230,7 @@ class VectorScraper:
                 url=url,
                 status_code=getattr(resp, 'status', 200),
                 content=content,
-                html=getattr(resp, 'html', content),
+                html=getattr(resp, 'html_content', content),
                 fetcher_used="stealth_browser",
             )
 
@@ -291,7 +291,7 @@ class VectorScraper:
                 url=url,
                 status_code=getattr(resp, 'status', 200),
                 content=content,
-                html=getattr(resp, 'html', content),
+                html=getattr(resp, 'html_content', content),
                 fetcher_used="dynamic_browser",
             )
 
