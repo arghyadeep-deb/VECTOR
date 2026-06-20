@@ -1,6 +1,33 @@
 # Capability Proof — intelligence
 
-**Verdict: NEEDS-CONFIG (port mismatch with the currently-running shadowbroker instance — not a code defect)**
+**Verdict: ✅ LIVE (2026-06-21) — fixed via option (b) below, confirmed with real data**
+
+Fix applied: added `VECTORINTEL_HOST=http://127.0.0.1:8765` to `.env` (option
+(b) from the triage below — the running shadowbroker instance wasn't
+restarted, since it's a long-lived process up since before this session and
+restarting an owner-managed service unilaterally isn't appropriate). Re-ran
+`VectorIntelAgent.get_flights(lat=28.6, lon=77.2, radius_km=500)`:
+
+```
+INFO VectorIntel platform connected at http://127.0.0.1:8765
+```
+
+Returned ~3.5MB of real, structured live aircraft-tracking data — genuine
+callsigns, ICAO24 hex codes, registrations, lat/lng/altitude/heading/speed,
+GPS trails, fuel burn + CO2 emissions estimates. Sample (private jet):
+
+```python
+{'callsign': 'a19d64', 'registration': 'N203CK', 'model': 'GLF4',
+ 'icao24': 'a19d64', 'speed_knots': 453.8, 'alt': 12192.0,
+ 'emissions': {'fuel_gph': 330, 'co2_kg_per_hour': 3158.1},
+ 'trail': [[48.95089, -66.77794, 12184.4, 1781973419], ...]}
+```
+
+This is genuinely real-time OSINT data, not a stub. `intelligence` is LIVE.
+
+---
+
+## Original finding (2026-06-20), preserved for context
 
 Run at: 2026-06-20T13:16:28.256420+00:00 — re-confirmed identical after Task
 0.5c's temp-DB isolation (this capability never touched `EpisodicMemory` in
