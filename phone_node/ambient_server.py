@@ -78,7 +78,7 @@ def _load_cfg() -> dict[str, str]:
 
 _cfg: dict[str, str] = _load_cfg()
 
-BRAIN_URL     = _cfg.get("VECTOR_BRAIN_URL", "https://vector-brain.fly.dev")
+BRAIN_URL     = _cfg.get("VECTOR_BRAIN_URL", "https://vector-api.arghyadeepdeb020703.workers.dev")
 API_KEY       = _cfg.get("VECTOR_API_KEY", "").strip()
 NODE_ID       = _cfg.get("VECTOR_NODE_ID", "phone-ambient")
 HB_INTERVAL   = int(_cfg.get("HEARTBEAT_INTERVAL_SEC", "60"))
