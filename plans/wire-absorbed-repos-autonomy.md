@@ -124,6 +124,16 @@ Per owner goal: a capability must PRODUCE REAL OUTPUT. These are "not working" f
 - [ ] Modify `core/loop/autonomous_loop.py::run_forever` (after `register_default_jobs`, ~L1745–1845): `HandRunner().register_all(scheduler)` in try/except.
 - [ ] Run `pytest tests/hands -v` + `python scripts/integration_check.py` PASS · `git commit -m "feat(loop): hands now execute"`
 
+### Task 1.6: Real callable scheduler (APScheduler) — unblocks hands AND the dead cron jobs
+**Root cause (verified 2026-06-20):** `_get_scheduler()` returns the prompt-based `TaskScheduler` (`core/scheduler/scheduler.py`: `create_task`→`_execute_task`→`system.ask`). It has no `add_job/schedule/register/add`, so `_try_register` silently no-ops — meaning BOTH the new hands AND the ~12 pre-existing cron jobs (2AM reflect, audit verify, daily review/journal, biometrics, DSPy) have never fired. APScheduler 3.11.2 IS installed; `_try_register` was written for its API. **This pre-existing gap, not Sonnet's work, blocks definition-of-done #1 ("runs proactively on a schedule").**
+**Decision (owner-approved): Option (b) — APScheduler `AsyncIOScheduler` for callable cron/interval jobs; leave `TaskScheduler` for its LLM-prompt purpose.**
+- [ ] Failing test: `register_default_jobs(sched)` + `HandRunner().register_all(sched)` on a real `AsyncIOScheduler` → `len(sched.get_jobs()) == cron_jobs + scheduled_hands`; and a manually-triggered job actually invokes its Python callable (assert a side effect, e.g. a flag/episodic row).
+- [ ] Implement `_get_callable_scheduler()` in `autonomous_loop` → started singleton `apscheduler.schedulers.asyncio.AsyncIOScheduler`. `scheduler_loop()` passes IT (not `TaskScheduler`) to `register_default_jobs()` and `register_all()`. Keep Sonnet's None-guard fix.
+- [ ] Verify `_try_register`'s `add_job` branch builds a proper APScheduler `CronTrigger` from `"m h dom mon dow"` (add a tiny cron-string→`CronTrigger` adapter if it currently passes the raw string); `_try_register_interval` → `add_job(fn, 'interval', minutes=N, id=...)`.
+- [ ] Leave `TaskScheduler` untouched for prompt tasks. Confirm the ~12 cron jobs now register (log count > 0).
+- [ ] `pytest tests/hands tests/integration -v` + `integration_check.py` + full suite green · `git commit -m "fix(scheduler): APScheduler callable scheduler — hands + cron jobs now actually fire"`
+- [ ] Phase 5 autonomy proof (scheduler-fires-hands) is only meaningful AFTER this task.
+
 ---
 
 ## PHASE 2 — Make each WORKING capability autonomous + prove live
