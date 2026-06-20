@@ -114,9 +114,6 @@ def test_vector_provider_model_sync_call_survives_worker_thread_with_no_loop():
     end-to-end real-LLM proof lives in
     test_finagent_investor_analysis_does_not_hit_event_loop_error below.
     """
-    from districts.investment.vector_finagent.agents.finagent_core.registries import (
-        vector_model as vector_model_module,
-    )
     from districts.investment.vector_finagent.agents.finagent_core.registries.vector_model import (
         VectorProviderModel,
     )
@@ -128,14 +125,12 @@ def test_vector_provider_model_sync_call_survives_worker_thread_with_no_loop():
         async def chat(self, *args, **kwargs):
             return _FakeResult()
 
-    original_provider_client = vector_model_module.ProviderClient
-    # Patch the name _sync_call imports inside its own function body
-    # (`from core.inference.provider_client import ProviderClient`) by
-    # pre-seeding sys.modules-level attribute lookup is unnecessary here —
-    # _sync_call does a fresh local import each call, so monkeypatch the
-    # real module's ProviderClient class directly.
+    # _sync_call does `from core.inference.provider_client import
+    # ProviderClient` freshly on every call, so monkeypatching the real
+    # module's class attribute (rather than the name inside vector_model)
+    # is what actually takes effect.
     import core.inference.provider_client as provider_client_module
-    monkeypatched = provider_client_module.ProviderClient
+    original_provider_client = provider_client_module.ProviderClient
     provider_client_module.ProviderClient = _FakeProviderClient
     try:
         model = VectorProviderModel(id="vector-focus")
