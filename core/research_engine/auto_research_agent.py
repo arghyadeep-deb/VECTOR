@@ -189,14 +189,15 @@ def run_experiment():
     control = [random.gauss(100, 15) for _ in range(n)]
     treatment = [random.gauss(105, 15) for _ in range(n)]
 
-    logger.info("STAT:control_mean:" + str(statistics.mean(control)))
-
-    logger.info("STAT:treatment_mean:" + str(statistics.mean(treatment)))
-
-    logger.info("STAT:control_std:" + str(statistics.stdev(control)))
-
-    logger.info("STAT:treatment_std:" + str(statistics.stdev(treatment)))
-
+    # SandboxExecutor._extract_stats() parses "STAT:" lines from the
+    # subprocess's stdout, not from a logger — the sandbox's restricted
+    # __builtins__ doesn't define `logger` at all (no imports allowed for
+    # it, and it isn't injected), so logger.info() here would raise
+    # NameError and fail every experiment with 0 data points.
+    print("STAT:control_mean:" + str(statistics.mean(control)))
+    print("STAT:treatment_mean:" + str(statistics.mean(treatment)))
+    print("STAT:control_std:" + str(statistics.stdev(control)))
+    print("STAT:treatment_std:" + str(statistics.stdev(treatment)))
 
     return {{
         "control": {{"mean": statistics.mean(control), "std": statistics.stdev(control), "n": n}},
