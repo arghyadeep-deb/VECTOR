@@ -148,7 +148,7 @@ def test_vector_provider_model_sync_call_survives_worker_thread_with_no_loop():
 
         content = _call_in_fresh_thread()
     finally:
-        provider_client_module.ProviderClient = monkeypatched
+        provider_client_module.ProviderClient = original_provider_client
 
     assert "no current event loop" not in content, (
         f"event-loop bug regressed — _sync_call still crashes in worker "
