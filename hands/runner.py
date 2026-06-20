@@ -19,18 +19,10 @@ from hands.result import HandResult
 # long to fail.
 _DEFAULT_TIMEOUT_SEC = 180
 
-# Task 1.4 will extend this with explicit model tags; for now this is the
-# set of hands whose district route is known to load a local Ollama model
-# heavily enough to need the residency lock.
-MODEL_HEAVY_HANDS = frozenset({"researcher", "collector", "predictor", "trader"})
-
 
 class HandRunner:
     def __init__(self):
-        # Task 1.4 — serializes model-heavy hands so two different-model
-        # hands never load concurrently (OLLAMA_MAX_LOADED_MODELS=1 means
-        # the second load evicts the first instead of running alongside it).
-        self._model_lock = asyncio.Lock()
+        pass
 
     def _task_type_for(self, hand: Hand) -> str:
         """Task type passed to the governor. Phase 2 will map specific
