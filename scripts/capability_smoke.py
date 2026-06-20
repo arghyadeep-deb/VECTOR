@@ -25,7 +25,9 @@ import argparse
 import asyncio
 import importlib
 import inspect
+import os
 import sys
+import tempfile
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +35,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def _use_isolated_db() -> None:
+    """--live must not fight a real, already-running VECTOR process over the
+    shared SQLCipher DB file (Phase 0 hit exactly this: a leftover
+    `run_vector.py api` process held the file, and any second process trying
+    to open it got a deterministic 'hmac check failed' error).
+
+    core.memory.db_utils.configured_db_path() already honors VECTOR_DB_PATH
+    for exactly this purpose ("repair/tests") — point it at a fresh temp file
+    so every --live run gets its own isolated DB. Must run before any VECTOR
+    module is imported (the DB connection is a module-level singleton)."""
+    tmp_dir = Path(tempfile.mkdtemp(prefix="vector_capability_smoke_"))
+    os.environ["VECTOR_DB_PATH"] = str(tmp_dir / "smoke_memory.db")
 PROOFS_DIR = ROOT / "docs" / "capability_proofs"
 
 REACHABILITY_TARGETS: dict[str, list[str]] = {
