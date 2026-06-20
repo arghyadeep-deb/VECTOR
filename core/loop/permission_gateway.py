@@ -711,6 +711,22 @@ class PermissionGateway:
                 except Exception as _pe:
                     result["status"] = "error"
                     result["error"] = str(_pe)
+            elif action.action_type.startswith("hand_"):
+                # Hand Execution Engine (hands/runner.py) — Hand action types
+                # are pre-classified in core/config.py PermissionConfig per
+                # each Hand's own requires_approval flag (GREEN=auto, RED=
+                # owner approval via the flow above). Once that gate has
+                # already decided to execute, the real work routes through
+                # the governor → district agent, same as every other task.
+                task = action.params.get("task", {})
+                try:
+                    from core.city.governor import Governor
+                    dispatch_result = await Governor().dispatch(task)
+                    result["status"] = dispatch_result.get("status", "ok")
+                    result["dispatch_result"] = dispatch_result
+                except Exception as _hd_err:
+                    result["status"] = "error"
+                    result["error"] = str(_hd_err)
             else:
                 # Unknown action — not_implemented prevents phantom RL reward
                 result["status"] = "not_implemented"
