@@ -641,6 +641,37 @@ districts:
       description: Growth loops, viral mechanics, north-star metric analysis
       capabilities: [marketing, growth, analytics]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: ads_orchestrator_agent
+      class: districts.marketing.ads_orchestrator_agent.AdsOrchestratorAgent
+      model: vector-reasoning
+      description: Multi-platform ads intelligence agent
+      capabilities: [ads_orchestration, multi_platform_ads]
+
+    - name: competitor_intel_agent
+      class: districts.marketing.competitor_intel_agent.CompetitorIntelAgent
+      model: vector-reasoning
+      description: Competitive intelligence specialist
+      capabilities: [competitor_intel]
+
+    - name: content_creator
+      class: districts.marketing.content_creator.ContentCreator
+      model: vector-reasoning
+      description: Multi-format content creation and repurposing specialist
+      capabilities: [content_creation, repurposing]
+
+    - name: cro_agent
+      class: districts.marketing.cro_agent.CROAgent
+      model: vector-reasoning
+      description: Conversion Rate Optimization specialist
+      capabilities: [cro, conversion_optimization]
+
+    - name: social_media_strategist
+      class: districts.marketing.social_media_strategist.SocialMediaStrategist
+      model: vector-reasoning
+      description: Cross-platform social media strategy and content generation
+      capabilities: [social_media_strategy]
+
   skills:
     - name: skill_mapper
       class: districts.skills.skill_mapper.SkillMapper
