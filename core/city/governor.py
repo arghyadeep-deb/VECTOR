@@ -953,11 +953,17 @@ class Governor:
                 if task_type in ("bash", "shell", "exec", "run_code"):
                     v = tt.check_sink(tainted, TaintSink.SHELL_EXEC)
                     if v:
-                        logger.warning("[VECTOR][governor] taint violation task={}: {}", task_id, v)
+                        # A taint control that only logs is no control. BLOCK: tainted
+                        # (user-supplied) content must never reach a shell/exec sink.
+                        logger.critical("[VECTOR][governor] taint violation BLOCKED task={}: {}", task_id, v)
+                        return {"status": "blocked", "reason": f"taint violation (shell sink): {v}",
+                                "task_id": task_id, "district": district}
                 elif task_type in ("web_fetch", "scrape", "crawl"):
                     v = tt.check_sink(tainted, TaintSink.NET_FETCH)
                     if v:
-                        logger.warning("[VECTOR][governor] taint violation task={}: {}", task_id, v)
+                        logger.critical("[VECTOR][governor] taint violation BLOCKED task={}: {}", task_id, v)
+                        return {"status": "blocked", "reason": f"taint violation (net sink): {v}",
+                                "task_id": task_id, "district": district}
             except Exception as _tt_err:
                 logger.warning("[VECTOR][governor] taint_tracker unavailable — content not checked for taint: {}", _tt_err)
 
