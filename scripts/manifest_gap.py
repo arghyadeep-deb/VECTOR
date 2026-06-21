@@ -128,8 +128,18 @@ def scan_districts() -> dict[str, list[AgentClass]]:
             continue
         district = district_dir.name
         agents = []
-        for py_file in sorted(district_dir.rglob("*.py")):
-            if "__pycache__" in py_file.parts or py_file.name == "__init__.py":
+        # Top-level files only (district_dir/*.py, not rglob): districts/coding,
+        # districts/intelligence, and districts/investment each vendor a whole
+        # absorbed OSS library in a nested subpackage (vector_mlops/,
+        # vector_social_sim/, vector_finagent+vector_backtest+vector_hedgebot/).
+        # Those internal helper/workflow classes (Daemon, CoreAgent, WorkflowModule,
+        # IndicatorFactory, ...) define `run()` for their own library's purposes,
+        # not as governor-dispatchable district agents — they're already wired
+        # via thin top-level adapter agents (e.g. finagent_agent.py). Recursing
+        # into them produced 140 "unregistered" hits, mostly this noise; VECTOR's
+        # actual convention is one file per agent directly under districts/<d>/.
+        for py_file in sorted(district_dir.glob("*.py")):
+            if py_file.name == "__init__.py":
                 continue
             if "test" in py_file.stem.lower():
                 continue
