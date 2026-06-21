@@ -80,14 +80,19 @@ class TestRetryQueueSharedConnectionBranch(unittest.TestCase):
         import core.queue.retry_queue as mod
         from unittest.mock import patch
 
-        rq = mod.RetryQueue.__new__(mod.RetryQueue)
-        rq._db = "some/other/path.db"  # differs from configured_db_path()
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        tmp.close()
+        try:
+            rq = mod.RetryQueue.__new__(mod.RetryQueue)
+            rq._db = tmp.name  # differs from configured_db_path()
 
-        with patch("core.memory.episodic.get_db_connection") as get_conn:
-            conn, private = rq._conn()
-            get_conn.assert_not_called()
-            self.assertTrue(private)
-            conn.close()
+            with patch("core.memory.episodic.get_db_connection") as get_conn:
+                conn, private = rq._conn()
+                get_conn.assert_not_called()
+                self.assertTrue(private)
+                conn.close()
+        finally:
+            os.unlink(tmp.name)
 
 
 if __name__ == "__main__":
