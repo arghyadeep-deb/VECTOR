@@ -1020,6 +1020,7 @@ class Governor:
 
         result: dict = {}
         agent = None
+        capability_match = False
 
         try:
             # â"€â"€ Council review for RED-tier task types â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
