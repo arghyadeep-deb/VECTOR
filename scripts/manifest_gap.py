@@ -121,6 +121,42 @@ def _scan_file(py_file: Path, district: str) -> list[AgentClass]:
     return results
 
 
+def _swarm_self_loaded_qualified_names(district_dir: Path, district: str) -> set[str]:
+    """Detect the orchestrator self-loading pattern used by coding/, finance/,
+    ops/, qa/, research/ (districts/<d>/agent.py defines a PYTHON_AGENTS list
+    of (module_name, class_name[, role_handle]) tuples and registers each one
+    directly into the shared registry from its own __init__). Those sub-agents
+    are real and reachable the moment the orchestrator is manifest-registered
+    — registering them AGAIN individually in the manifest would just create a
+    second, always-losing (lower HP, no declared capability) dispatch path.
+    Returns their fully-qualified `districts.<d>.<module>.<Class>` paths so
+    the report can exclude them from "unregistered" with an accurate reason.
+    """
+    agent_py = district_dir / "agent.py"
+    if not agent_py.exists():
+        return set()
+    try:
+        tree = ast.parse(agent_py.read_text(encoding="utf-8"), filename=str(agent_py))
+    except (SyntaxError, UnicodeDecodeError):
+        return set()
+
+    qualified: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == "PYTHON_AGENTS" for t in node.targets):
+            continue
+        if not isinstance(node.value, ast.List):
+            continue
+        for elt in node.value.elts:
+            if not isinstance(elt, ast.Tuple) or len(elt.elts) < 2:
+                continue
+            mod_node, cls_node = elt.elts[0], elt.elts[1]
+            if isinstance(mod_node, ast.Constant) and isinstance(cls_node, ast.Constant):
+                qualified.add(f"districts.{district}.{mod_node.value}.{cls_node.value}")
+    return qualified
+
+
 def scan_districts() -> dict[str, list[AgentClass]]:
     by_district: dict[str, list[AgentClass]] = {}
     for district_dir in sorted(DISTRICTS_DIR.iterdir()):
