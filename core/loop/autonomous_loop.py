@@ -2059,6 +2059,29 @@ class AutonomousLoop:
             except Exception as _pe:
                 logger.debug("[VECTOR][sense] phone poll failed: {}", _pe)
 
+        # Task B.3 (governor-wiring-and-ambient-perception.md): wearable
+        # (HR/sleep/steps) observe source. Architecture docs name it as a
+        # core observe source; districts/health/wearable_connector.py
+        # already exists and degrades gracefully (available=False) with no
+        # sources configured — it just was never polled from the loop.
+        # poll_all() is itself async, so call it directly (no to_thread) —
+        # HealthMonitor._get_wearable_data() explicitly defers to this path
+        # for async callers to avoid its own asyncio.run()-in-running-loop guard.
+        wearable_data: dict = {"available": False, "note": "wearable disabled"}
+        if wearable_enabled:
+            try:
+                from districts.health.wearable_connector import WearableConnector
+                connector = WearableConnector()
+                results = await connector.poll_all()
+                wearable_data = (
+                    {"available": True, "data": results}
+                    if results
+                    else {"available": False, "note": "wearable poll returned empty"}
+                )
+            except Exception as _we:
+                logger.debug("[VECTOR][sense] wearable poll failed: {}", _we)
+                wearable_data = {"available": False, "note": "wearable unavailable"}
+
         from core.loop.context_engine import update_sense_cache
         update_sense_cache(
             screen_summary=screen_summary,
@@ -2069,10 +2092,11 @@ class AutonomousLoop:
                 "notification_count": len(phone_notifications),
                 "recent": phone_notifications[:5],
             },
+            wearable=wearable_data,
         )
         logger.debug(
-            "[VECTOR][sense] tick — presence={} screen_chars={} fatigue={} phone_connected={}",
-            presence, len(screen_summary), fatigue_score, phone_connected,
+            "[VECTOR][sense] tick — presence={} screen_chars={} fatigue={} phone_connected={} wearable_available={}",
+            presence, len(screen_summary), fatigue_score, phone_connected, wearable_data.get("available"),
         )
 
         # Vision → action: react to presence changes
