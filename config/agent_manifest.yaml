@@ -283,6 +283,19 @@ districts:
       description: "3-layer malware detection: VT + MIME + LightGBM"
       capabilities: [security, malware, detection]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: data_redactor
+      class: districts.security.data_redactor.DataRedactor
+      model: vector-focus
+      description: PII and secrets redactor for VECTOR's LLM pipeline
+      capabilities: [redact, pii, secrets_redaction]
+
+    - name: threat_detection_engineer
+      class: districts.security.threat_detection_engineer.ThreatDetectionEngineer
+      model: vector-reasoning
+      description: SIEM rule development, MITRE ATT&CK coverage mapping, detection-as-code
+      capabilities: [detection_rule, mitre_attack, siem]
+
   time_calendar:
     - name: kiit_scraper
       class: districts.time_calendar.kiit_scraper.KIITScraper
