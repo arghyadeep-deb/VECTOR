@@ -6,6 +6,20 @@ version: "1.0"
 districts:
 
   coding:
+    # Task A.2 (2026-06-21): CodingSwarm self-loads + internally routes to 9
+    # more specialist agents not otherwise reachable (codebase_onboarding_engineer,
+    # code_conductor_agent, code_intel_agent, database_optimizer, frontend_developer,
+    # gui_automation_agent, minimal_change_engineer, mlops_agent, rapid_prototyper —
+    # see districts/coding/agent.py PYTHON_AGENTS). Same orchestrator pattern already
+    # registered for ops_swarm/qa_swarm; registering only the front door is correct —
+    # registering the sub-agents individually too would just create a second,
+    # always-losing (lower HP, no declared capability) dispatch path for them.
+    - name: coding_swarm
+      class: districts.coding.agent.CodingSwarm
+      model: vector-coder
+      description: Orchestrator that auto-loads and routes across 9 additional coding specialists by task-type keyword match
+      capabilities: [architecture, refactor, test, frontend, bug, onboarding, conductor, code-intel, database-optimizer, gui, minimal-change, mlops, rapid-prototype, code_conductor, db_optimize]
+
     - name: git_bot
       class: districts.coding.git_bot.GitBot
       model: vector-coder
