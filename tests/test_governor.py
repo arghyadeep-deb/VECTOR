@@ -111,15 +111,16 @@ async def test_dispatch_prefers_capability_match_over_raw_hp():
 
 
 @pytest.mark.asyncio
-async def test_dispatch_honest_miss_when_no_agent_declares_capability():
+async def test_dispatch_withholds_hp_when_no_agent_declares_capability():
     """Task A.3 (governor-wiring-and-ambient-perception.md): when a district
     has agents but NONE declare the requested task_type as a capability,
-    governor.dispatch() must NOT silently HP-pick a non-capable agent and
-    fake-succeed — that's the exact bug class (capability-blind dispatch +
-    +50 HP award for an agent that never even looked at the task) this
-    whole effort exists to close, just at the per-task-type granularity
-    instead of per-district. Default to an honest miss: no agent run, no
-    HP awarded, status="no_capable_agent"."""
+    governor.dispatch() should still run the best-HP agent (an "honest miss"
+    that refuses to run was tried and reverted — verified against real
+    core/api/routers/*.py call sites, it broke most of them, since the
+    manifest's `capabilities` tags are descriptive themes, not literal
+    task_type strings) but must NOT award the Darwinian +50 HP for a run
+    that wasn't actually capability-matched — that fake-succeeds and
+    poisons the HP signal exactly like the original audit finding."""
     agent = make_agent("coding")
     agent.health_points = 900
     agent.capabilities = ["unrelated_capability"]
@@ -136,6 +137,6 @@ async def test_dispatch_honest_miss_when_no_agent_declares_capability():
     gov = Governor()
     result = await gov.dispatch({"type": "totally_uncovered_task_type", "district": "coding", "params": {}})
 
-    assert result.get("status") == "no_capable_agent"
-    assert "ran" not in called, "non-capable agent must not be run"
-    assert agent.health_points == hp_before, "no HP should be awarded on an honest miss"
+    assert result.get("status") == "ok"
+    assert called.get("ran") is True, "fallback agent must still run (availability over purity)"
+    assert agent.health_points == hp_before, "no HP should be awarded for a non-capability-matched run"
