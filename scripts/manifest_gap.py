@@ -141,8 +141,12 @@ def scan_districts() -> dict[str, list[AgentClass]]:
         for py_file in sorted(district_dir.glob("*.py")):
             if py_file.name == "__init__.py":
                 continue
-            if "test" in py_file.stem.lower():
-                continue
+            # NOTE: do NOT filter by "test" substring in the filename — qa/
+            # has real, non-test district agents named test_engineer.py,
+            # api_tester.py, test_results_analyzer.py that collide with that
+            # naive heuristic (and even with pytest's own test_*.py discovery
+            # convention). District agent files never live under a tests/
+            # directory, so there's no real ambiguity to filter for here.
             agents.extend(_scan_file(py_file, district))
         by_district[district] = agents
     return by_district
