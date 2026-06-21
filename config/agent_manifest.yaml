@@ -491,3 +491,56 @@ districts:
       model: vector-focus
       description: Skill mastery progression and plateau detection
       capabilities: [skills, mastery, tracking]
+
+  # Audit finding 2026-06-21: ops/qa/personal_growth/chief_of_staff/science had
+  # ZERO manifest entries — governor.dispatch() silently substituted a no-op
+  # AgentBase stub (returning fake status="ok" + awarding +50 HP) for every
+  # task routed to these districts, even though real, well-engineered agent
+  # code already existed in each district's folder. Registered below.
+  ops:
+    - name: ops_swarm
+      class: districts.ops.agent.OpsSwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across DevOpsAutomator, ErrorClassifier, IncidentCommander, SREMonitor by task-type keyword match
+      capabilities: [slo, uptime, incident, deploy, devops, monitor_system, backup, restart, post_mortem, classify_error, error_type, retry_check]
+
+  qa:
+    - name: qa_swarm
+      class: districts.qa.agent.QASwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across all 11 QA specialist agents by task-type keyword match, LLM fallback if none match
+      capabilities: [reality_check, evidence, map_workflow, verify_output, qa_check, test_analysis, api_health, api_test, accessibility, wcag, tool_evaluate, workflow_optimize, model_qa, ml_audit, silent_failure, swallowed_error, write_tests, test_coverage, tdd]
+
+  personal_growth:
+    - name: behavioral_nudge_engine
+      class: districts.personal_growth.behavioral_nudge_engine.BehavioralNudgeEngine
+      model: vector-focus
+      description: Detects procrastination/context, generates cooldown-respecting behavioral nudges
+      capabilities: [nudge, motivation]
+
+    - name: feedback_synthesizer
+      class: districts.personal_growth.feedback_synthesizer.FeedbackSynthesizer
+      model: vector-reasoning
+      description: Synthesizes feedback signals from memory + Obsidian vault notes
+      capabilities: [feedback, synthesize_feedback]
+
+    - name: zk_steward
+      class: districts.personal_growth.zk_steward.ZKSteward
+      model: vector-reasoning
+      description: Zettelkasten vault scan — concept extraction, backlinks, MOC updates
+      capabilities: [zettelkasten, zk, knowledge_links]
+
+  chief_of_staff:
+    - name: chief_of_staff
+      class: districts.chief_of_staff.chief_of_staff.ChiefOfStaff
+      model: vector-reasoning
+      description: Executive briefs, escalation routing, consistency enforcement — real Obsidian writes, real HP economy
+      capabilities: [executive_brief, morning_brief, evening_brief, chief, coordinate, consistency_check]
+      notes: "subconscious_loop.py is a SEPARATE class, already wired directly via core/loop/cron_jobs.py's interval job (every 30min) — not registered here, would be a redundant second invocation path."
+
+  science:
+    - name: science_agent
+      class: districts.science.science_agent.ScienceAgent
+      model: vector-reasoning
+      description: Physics/chemistry simulation, CAD, causal queries, what-if experiments
+      capabilities: [simulate, physics, chemistry, cad, molecule, causal_query, what_if, experiment, science]
