@@ -298,13 +298,27 @@ class VoiceCloner:
                 pass
 
 
-# ── Singleton ─────────────────────────────────────────────────────────────────
+# ── Singleton / engine factory ─────────────────────────────────────────────────
 
 _cloner: VoiceCloner | None = None
+_voxcpm_cloner = None  # type: ignore[assignment]  # lazy-typed to avoid a hard import
 
 
-def get_cloner() -> VoiceCloner:
-    global _cloner
+def get_cloner():
+    """Return the active cloning engine per CONFIG["voice"]["cloning_engine"].
+
+    docs/repo_analysis/VoxCPM.md: callers (core/voice/tts.py's _speak_clone()
+    and synthesize_to_file()) need zero changes — both VoiceCloner and
+    VoxCPMCloner expose the same available()/synthesize()/synthesize_long()
+    shape. Defaults to "chatterbox"; set cloning_engine="voxcpm" to switch.
+    """
+    global _cloner, _voxcpm_cloner
+    engine = (CONFIG.get("voice", {}) or {}).get("cloning_engine", "chatterbox")
+    if engine == "voxcpm":
+        if _voxcpm_cloner is None:
+            from core.voice.voxcpm_cloning import VoxCPMCloner
+            _voxcpm_cloner = VoxCPMCloner()
+        return _voxcpm_cloner
     if _cloner is None:
         _cloner = VoiceCloner()
     return _cloner
