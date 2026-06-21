@@ -454,6 +454,10 @@ class VectorSettings(BaseSettings):
     KIIT_PASSWORD: SecretStr = SecretStr("")
     GOOGLE_CREDENTIALS_PATH: str = ""
     YOUTUBE_CHANNEL_ID: str = ""
+    # Repo integration (docs/repo_analysis/youtube-automation-agent.md):
+    # read-only Data API key for trending/competitor lookups — separate from
+    # GOOGLE_CREDENTIALS_PATH's OAuth flow (uploads only need OAuth).
+    YOUTUBE_DATA_API_KEY: SecretStr = SecretStr("")
     INSTAGRAM_ACCESS_TOKEN: SecretStr = SecretStr("")
     INSTAGRAM_ACCOUNT_ID: str = ""
     ELEVENLABS_KEY: SecretStr = SecretStr("")
