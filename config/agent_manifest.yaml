@@ -239,6 +239,13 @@ districts:
       description: Cross-memory pattern detection and insight surfacing
       capabilities: [memory, patterns, insights]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: context_compressor
+      class: districts.memory_curator.context_compressor.ContextCompressor
+      model: vector-focus
+      description: Smart context window manager — compresses long conversation histories
+      capabilities: [context_compression, window_management]
+
   projects:
     - name: deadline_watcher
       class: districts.projects.deadline_watcher.DeadlineWatcher
