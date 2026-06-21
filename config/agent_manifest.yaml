@@ -118,6 +118,15 @@ districts:
       capabilities: [growth, patterns, analytics]
 
   finance:
+    # Task A.2 (2026-06-21): FinanceSwarm self-loads + routes to fpa_analyst,
+    # llm_cost_tracker, financial_analyst — not otherwise reachable. Same
+    # orchestrator pattern as coding_swarm/research_swarm/ops_swarm/qa_swarm.
+    - name: finance_swarm
+      class: districts.finance.agent.FinanceSwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across fpa_analyst, llm_cost_tracker, financial_analyst by task-type keyword match
+      capabilities: [fpa_analysis, fpa, llm_cost, financial_analysis]
+
     - name: expense_tracker
       class: districts.finance.expense_tracker.ExpenseTracker
       model: vector-focus
