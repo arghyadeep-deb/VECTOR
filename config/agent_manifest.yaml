@@ -711,21 +711,6 @@ districts:
       description: Orchestrator that auto-loads and routes across all 11 QA specialist agents by task-type keyword match, LLM fallback if none match
       capabilities: [reality_check, evidence, map_workflow, verify_output, qa_check, test_analysis, api_health, api_test, accessibility, wcag, tool_evaluate, workflow_optimize, model_qa, ml_audit, silent_failure, swallowed_error, write_tests, test_coverage, tdd]
 
-    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
-    # Not self-loaded by QASwarm (its PYTHON_AGENTS list doesn't include
-    # these two — confirmed via scripts/manifest_gap.py).
-    - name: doc_generator
-      class: districts.qa.doc_generator.DocGenerator
-      model: vector-reasoning
-      description: Creates structured documents — weekly summaries, changelogs, district reports
-      capabilities: [weekly_summary, generate_changelog, district_report]
-
-    - name: technical_writer
-      class: districts.qa.technical_writer.TechnicalWriter
-      model: vector-reasoning
-      description: Auto-generates developer documentation for VECTOR's own modules
-      capabilities: [generate_docs, api_reference, technical_writing]
-
   personal_growth:
     - name: behavioral_nudge_engine
       class: districts.personal_growth.behavioral_nudge_engine.BehavioralNudgeEngine
