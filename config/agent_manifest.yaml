@@ -271,6 +271,13 @@ districts:
       description: Project scaffolding, timeline, and milestone planning
       capabilities: [projects, planning, milestones]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: experiment_tracker
+      class: districts.projects.experiment_tracker.ExperimentTracker
+      model: vector-reasoning
+      description: Designs and tracks controlled experiments on VECTOR's own behaviors
+      capabilities: [track_experiment, experiments]
+
   security:
     - name: threat_scout
       class: districts.security.threat_scout.ThreatScout
