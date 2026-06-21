@@ -51,14 +51,27 @@ class RetryQueue:
             cls._instance = cls()
         return cls._instance
 
-    def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        apply_pragmas(conn)
+    def _conn(self) -> tuple[sqlite3.Connection, bool]:
+        """Returns (conn, private). The main DB may be SQLCipher-encrypted, so
+        a plain sqlite3.connect() against it fails with "file is not a
+        database" — must go through episodic's singleton instead (never
+        closed here). A redirected db_path (tests) gets a private plain
+        connection the caller closes. Same pattern as
+        core/avatar/avatar_state.py::_get_conn()."""
+        main_db = str(configured_db_path())
+        if self._db != main_db:
+            conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
+            apply_pragmas(conn)
+            conn.row_factory = sqlite3.Row
+            return conn, True
+        from core.memory.episodic import get_db_connection
+        conn = get_db_connection()
         conn.row_factory = sqlite3.Row
-        return conn
+        return conn, False
 
     def _init_db(self) -> None:
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS retry_queue (
                     id            INTEGER PRIMARY KEY AUTOINCREMENT,
