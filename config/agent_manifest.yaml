@@ -123,6 +123,37 @@ districts:
       capabilities: [deliberation, voting, high_stakes]
       hp_gate: 700
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: autopilot
+      class: districts.governance.autopilot.Autopilot
+      model: vector-reasoning
+      description: Autonomous agent chainer — reads task output, decides what district handles the next step
+      capabilities: [autopilot_trigger, autonomous_chaining]
+
+    - name: compliance_auditor
+      class: districts.governance.compliance_auditor.ComplianceAuditor
+      model: vector-reasoning
+      description: Compliance checking across SOC2, GDPR, privacy requirements
+      capabilities: [compliance, soc2, gdpr]
+
+    - name: credential_manager
+      class: districts.governance.credential_manager.CredentialManager
+      model: vector-focus
+      description: Manages API credentials for multiple LLM providers
+      capabilities: [credentials, api_keys]
+
+    - name: federation_agent
+      class: districts.governance.federation_agent.FederationAgent
+      model: vector-reasoning
+      description: Cross-machine task delegation — dispatches signed tasks to remote VECTOR nodes
+      capabilities: [delegate_task, cross_machine, federation]
+
+    - name: product_manager
+      class: districts.governance.product_manager.ProductManager
+      model: vector-reasoning
+      description: Product lifecycle management — PRDs, RICE scoring, roadmaps, outcome tracking
+      capabilities: [product_roadmap, prd, rice_scoring]
+
   reflection:
     - name: daily_reviewer
       class: districts.reflection.daily_reviewer.DailyReviewer
