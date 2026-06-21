@@ -50,6 +50,31 @@ districts:
       description: TDD test generation for Python modules
       capabilities: [testing, pytest, tdd]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: addy_code_reviewer
+      class: districts.coding.addy_code_reviewer.AddyCodeReviewer
+      model: vector-coder
+      description: Senior code review across 5 dimensions — correctness, readability, performance, security, maintainability
+      capabilities: [deep_code_review]
+
+    - name: code_explorer
+      class: districts.coding.code_explorer.CodeExplorer
+      model: vector-coder
+      description: Deep code exploration — traces execution paths, maps dependencies
+      capabilities: [code_exploration, dependency_trace]
+
+    - name: developer_advocate
+      class: districts.coding.developer_advocate.DeveloperAdvocate
+      model: vector-coder
+      description: Developer experience engineering — optimizes Time-To-First-Hello-World
+      capabilities: [developer_experience, ttfhw, dx]
+
+    - name: refactor_cleaner
+      class: districts.coding.refactor_cleaner.RefactorCleaner
+      model: vector-coder
+      description: Dead code cleanup — unused imports, duplicate code, dead exports
+      capabilities: [dead_code_cleanup, refactor_clean]
+
   research:
     # Task A.2 (2026-06-21): ResearchSwarm self-loads + routes to deep_researcher,
     # stealth_scout_agent, opencli_adapter — not otherwise reachable. Same
