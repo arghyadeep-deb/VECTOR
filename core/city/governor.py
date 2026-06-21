@@ -1057,23 +1057,34 @@ class Governor:
                 # regardless of task type (e.g. investment's stock_analyst
                 # always beat trading_conductor, silently never running the
                 # real trading_analysis pipeline). Prefer an agent whose
-                # manifest-declared capabilities include this task_type;
-                # only fall back to raw HP when no agent declares a match.
+                # manifest-declared capabilities include this task_type.
                 capable = [
                     a for a in agents
                     if task_type in getattr(a, "capabilities", [])
                 ]
-                agent = max(capable or agents, key=lambda a: a.health_points)
-
-                if hasattr(agent, "run"):
-                    result = await agent.run(task)
+                if not capable:
+                    # Task A.3 (governor-wiring-and-ambient-perception.md):
+                    # do NOT fall back to HP-picking a non-capable agent —
+                    # that fake-succeeds (+50 HP) for an agent that never
+                    # looked at the task, poisoning the Darwinian HP signal.
+                    # Honest miss: no agent run, no HP awarded.
+                    logger.warning(
+                        f"[VECTOR][governor] no agent in {district} declares "
+                        f"capability '{task_type}' — honest miss, no HP awarded"
+                    )
+                    result = {"status": "no_capable_agent", "district": district, "task_type": task_type}
                 else:
-                    result = {
-                        "status": "error",
-                        "reason": "agent_missing_run",
-                        "agent": getattr(agent, "name", ""),
-                        "district": district,
-                    }
+                    agent = max(capable, key=lambda a: a.health_points)
+
+                    if hasattr(agent, "run"):
+                        result = await agent.run(task)
+                    else:
+                        result = {
+                            "status": "error",
+                            "reason": "agent_missing_run",
+                            "agent": getattr(agent, "name", ""),
+                            "district": district,
+                        }
 
             # ── Avatar layer: format raw district output through AvatarVoice ──
             try:
