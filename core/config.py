@@ -95,6 +95,10 @@ class PermissionConfig(BaseModel):
         # Hand Execution Engine — Hands with requires_approval=True
         # (browser: purchases/forms; content: publishing; clip: upload).
         "hand_browser", "hand_content", "hand_clip",
+        # Real money / irreversible outward actions — owner approval ALWAYS
+        # (audit 2026-06-21: these previously bypassed the gateway entirely).
+        # solana_swap_execute: notifies owner with price + reasoning, signs only on approval.
+        "solana_swap_execute", "content_publish",
     ])
 
 
