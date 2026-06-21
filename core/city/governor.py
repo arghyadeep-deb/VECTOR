@@ -20,6 +20,17 @@ _COUNCIL_TASK_TYPES: frozenset[str] = frozenset({
 })
 
 DISTRICT_TASK_MAP: dict[str, str] = {
+    # Task A.2 (2026-06-21): core/api/routers/documentation.py's 4 routes
+    # dispatch with no "district" key, so they fell through to
+    # _llm_classify() — whose candidate list is built from this map's
+    # values, which had ZERO "documentation" entries. doc_generator.py /
+    # technical_writer.py (district="documentation" per their own __init__)
+    # were unreachable from these endpoints no matter how the manifest
+    # registered them.
+    "api_reference": "documentation",
+    "generate_docs": "documentation",
+    "generate_changelog": "documentation",
+    "weekly_summary": "documentation",
     "code": "coding",
     "git": "coding",
     "git_status": "coding",
