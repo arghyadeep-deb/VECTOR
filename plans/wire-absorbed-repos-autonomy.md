@@ -228,6 +228,37 @@ success + failure cases). This is permanent observability, not just
 soak-window plumbing — "which scheduled jobs actually ran" should always
 be answerable from the DB.
 
+### Audit finding (2026-06-21, during the post-Phase-5 codebase audit) — governor dispatch was capability-blind, fixed
+A parallel codebase-audit pass (districts fork) found that `Governor.dispatch()`
+(`core/city/governor.py`) selected the single highest-HP agent in a district
+via `max(agents, key=lambda a: a.health_points)` — it never looked at
+`task["type"]` at all. For districts with >1 manifest-registered agent whose
+`run()` doesn't itself branch on task type (confirmed for
+`investment/stock_analyst.py:779-783` — always returns a basic quote for a
+hardcoded default symbol regardless of task), this meant the **`trader`
+Hand's scheduled `task_type="trading_analysis"` would silently never reach
+`TradingConductorAgent`'s real 11-node LLM pipeline** — it would always land
+on `stock_analyst`/`sentiment_bot` instead (whichever had higher HP), because
+neither of those is task-type-aware and `TradingConductorAgent` wasn't even
+in `config/agent_manifest.yaml`'s `investment` list. This meant tonight's
+"investment/trading is LIVE" finding (Task 0.5d/0.5e) was true for *direct*
+calls to `TradingConductorAgent`/`FinAgentAgent`, but the actual
+scheduler→Hand→Governor autonomy path this whole plan exists to prove almost
+certainly never exercised it.
+
+**Fix** (TDD — failing test written first, confirmed FAIL before the fix):
+- `core/city/agent_base.py` — added `self.capabilities: list[str] = []` to `AgentBase.__init__`.
+- `core/city/declarative_manifest.py` — `instantiate_all()` now sets `instance.capabilities = list(entry.get("capabilities", []))` from the manifest entry (previously discarded after validation).
+- `core/city/governor.py::dispatch()` — agent selection now does `capable = [a for a in agents if task_type in getattr(a, "capabilities", [])]`, then `max(capable or agents, key=...)` — prefers a capability match, falls back to raw HP only when none match. Root-cause fix, benefits every multi-agent district, not just investment.
+- `config/agent_manifest.yaml` — registered `trading_conductor` (`TradingConductorAgent`) under `investment` with `capabilities: [investment, trading_analysis]`.
+
+**Verified, not assumed:**
+- `tests/test_governor.py::test_dispatch_prefers_capability_match_over_raw_hp` — confirmed FAIL before the fix (generic 900-HP agent always won), PASS after.
+- `tests/hands/test_hands_wired.py::test_trader_hand_reaches_trading_conductor_not_stock_analyst` — boots real manifest-driven agents into a real registry, sends the exact task shape `hands/runner.py` sends, asserts the result is NOT `stock_analyst`'s quote shape. **Ran the real, fully-unstubbed 11-node LLM pipeline end-to-end — PASSED in 1067.90s (~18min) under tonight's GPU contention.**
+- Full regression sweep (`tests/hands/ tests/test_governor.py tests/unit/test_governor.py tests/backend/`) — 100% clean, zero new failures.
+
+**Known, deliberately NOT fixed tonight** (same root-cause class, different scope — see the full audit report below): the `researcher` Hand has the identical problem (`research_hub.run()` doesn't branch on `task_type="deep_research"`, falls through to a daily-digest default; the real, verified-live `AutoResearchAgent` isn't even an `AgentBase` subclass, so it can't be manifest-registered without writing a new adapter class first). The `collector` Hand (`task_type="osint_collect"`) has no real handler identified anywhere in the codebase at all — not a wiring gap, a missing capability. The `content` Hand's `ScriptGenerator.run()` has the same "ignores task params, always generates for a hardcoded default topic" pattern as `stock_analyst` did. These three needed either a new adapter class or a deeper design decision than a same-night fix should make solo — flagged for the owner, not patched blind.
+
 ### Ollama model-warmth — investigated 2026-06-21, partially fixed, rest deferred to post-soak (owner's call)
 **Root cause confirmed empirically, not guessed:** loaded `vector-focus`, then loaded
 `vector-reasoning` while focus was still resident — `ollama ps` showed ONLY
