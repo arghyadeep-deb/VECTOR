@@ -1046,7 +1046,18 @@ class Governor:
                 logger.warning(f"[VECTOR][governor] no agents in {district}")
                 result = {"status": "no_agents", "district": district}
             else:
-                agent = max(agents, key=lambda a: a.health_points)
+                # Audit finding 2026-06-21: picking purely by HP let a
+                # district's generic/longest-lived agent win every dispatch
+                # regardless of task type (e.g. investment's stock_analyst
+                # always beat trading_conductor, silently never running the
+                # real trading_analysis pipeline). Prefer an agent whose
+                # manifest-declared capabilities include this task_type;
+                # only fall back to raw HP when no agent declares a match.
+                capable = [
+                    a for a in agents
+                    if task_type in getattr(a, "capabilities", [])
+                ]
+                agent = max(capable or agents, key=lambda a: a.health_points)
 
                 if hasattr(agent, "run"):
                     result = await agent.run(task)
