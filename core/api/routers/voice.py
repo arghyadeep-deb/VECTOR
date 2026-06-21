@@ -280,7 +280,7 @@ async def design_voice_profile(name: str, body: dict):
 
         store = get_profile_store()
         if not store.get(name):
-            store.create(VoiceProfile(name=name, description=description))
+            store.create(VoiceProfile(name=name, engine="voxcpm", personality=description))
         key = store.upload_reference(name, wav_bytes, f"{name}_design.wav")
 
         if body.get("set_default"):
