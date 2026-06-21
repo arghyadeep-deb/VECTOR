@@ -450,6 +450,13 @@ districts:
       description: Benchmark routing, models and system performance
       capabilities: [benchmarking, performance, metrics]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: performance_optimizer
+      class: districts.data_analytics.performance_optimizer.PerformanceOptimizer
+      model: vector-coder
+      description: Performance analysis and optimization — profiles code, identifies bottlenecks
+      capabilities: [performance_optimization, bottleneck_analysis]
+
   learning:
     - name: course_tracker
       class: districts.learning.course_tracker.CourseTracker
