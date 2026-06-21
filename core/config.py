@@ -238,6 +238,11 @@ class SensingConfig(BaseModel):
     fatigue_check_interval_sec: int = Field(30, ge=5, le=3600)
     screen_enabled: bool = False
     camera_enabled: bool = False
+    # Task B.2 (governor-wiring-and-ambient-perception.md): ADB-phone observe
+    # source. Defaults off — owner-hardware-dependent (needs a connected
+    # Android device + adb on PATH). PhoneController already degrades
+    # gracefully (is_connected()=False, get_notifications()=[]) when absent.
+    phone_enabled: bool = False
 
 
 class CodingConfig(BaseModel):
