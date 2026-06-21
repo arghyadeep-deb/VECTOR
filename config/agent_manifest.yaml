@@ -434,6 +434,13 @@ districts:
       description: Market sentiment analysis from news and social data
       capabilities: [investment, sentiment, nlp]
 
+    - name: trading_conductor
+      class: districts.investment.trading_conductor_agent.TradingConductorAgent
+      model: vector-reasoning
+      description: Multi-agent 11-node trading pipeline (analysts -> debate -> risk -> portfolio manager), ANALYSIS ONLY — never executes real trades
+      capabilities: [investment, trading_analysis]
+      notes: "Verified LIVE 2026-06-21 — fixes in core/config.py + core/trading/graph/setup.py. Registered here so the trader Hand's task_type=trading_analysis actually reaches this class instead of stock_analyst/sentiment_bot (governor.dispatch() previously picked by raw HP only, ignoring task type)."
+
   content:
     - name: script_generator
       class: districts.content.script_generator.ScriptGenerator
