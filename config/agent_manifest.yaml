@@ -528,6 +528,13 @@ districts:
       description: Company background research for interview prep
       capabilities: [interview, research, companies]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: recruitment_bot
+      class: districts.interview_prep.recruitment_bot.RecruitmentBot
+      model: vector-reasoning
+      description: Placement and recruitment specialist
+      capabilities: [recruitment, placement]
+
   agency:
     - name: content_strategist
       class: districts.agency.content_strategist.ContentStrategist
