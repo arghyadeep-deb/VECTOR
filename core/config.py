@@ -190,7 +190,7 @@ class VoiceConfig(BaseModel):
     max_concurrent_sessions: int = Field(3, ge=1, le=10)
     streaming_enabled: bool = True
     # Voice cloning (voicebox absorption — chatterbox-tts optional install)
-    cloning_engine: str = "chatterbox"
+    cloning_engine: str = "chatterbox"       # "chatterbox" | "voxcpm"
     cloning_model_dir: str = str(Path(__file__).parent.parent / "models" / "chatterbox")
     cloning_device: str = "cuda"
     cloning_exaggeration: float = Field(0.5, ge=0.0, le=1.0)
@@ -198,6 +198,17 @@ class VoiceConfig(BaseModel):
     default_voice_profile: str = ""          # profile name from voice_profiles collection
     prefer_local_voice: bool = True          # True → local cloning before ElevenLabs cloud
     effects_default: list = Field(default_factory=list)   # default DSP chain for new profiles
+    # VoxCPM2 absorption (docs/repo_analysis/VoxCPM.md) — alternate
+    # cloning_engine, on-demand load (8GB VRAM), never permanent-resident
+    # alongside vector-focus. Apache-2.0, guarded optional install (`pip
+    # install voxcpm`). Kept off Hindi by default — vendor's own WER is weak.
+    voxcpm_model_dir: str = str(Path(__file__).parent.parent / "models" / "voxcpm")
+    voxcpm_inference_timesteps: int = Field(10, ge=1, le=100)
+    voxcpm_cfg_value: float = Field(2.0, ge=0.0, le=10.0)
+    voice_design_description: str = (
+        "A calm, articulate British male voice, mid-30s, measured pace, "
+        "warm but precise — like a trusted technical advisor."
+    )
 
 
 class SecurityCfg(BaseModel):
