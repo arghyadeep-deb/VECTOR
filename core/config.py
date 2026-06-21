@@ -243,6 +243,12 @@ class SensingConfig(BaseModel):
     # Android device + adb on PATH). PhoneController already degrades
     # gracefully (is_connected()=False, get_notifications()=[]) when absent.
     phone_enabled: bool = False
+    # Task B.3: wearable (HR/sleep/steps) observe source. Architecture docs
+    # name it as a core observe source; zero wiring existed before this.
+    # Owner-hardware-dependent (no wearable device/API credentials
+    # configured yet) — defaults off. districts/health/wearable_connector.py
+    # already degrades gracefully to an empty poll with no sources enabled.
+    wearable_enabled: bool = False
 
 
 class CodingConfig(BaseModel):
