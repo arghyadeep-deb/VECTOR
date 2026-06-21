@@ -542,6 +542,19 @@ districts:
       description: Content strategy and editorial calendar planning
       capabilities: [agency, content, strategy]
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    - name: proposal_strategist
+      class: districts.agency.proposal_strategist.ProposalStrategist
+      model: vector-reasoning
+      description: Proposal writing and win strategy specialist
+      capabilities: [proposal, win_strategy, rfp]
+
+    - name: sales_strategist
+      class: districts.agency.sales_strategist.SalesStrategist
+      model: vector-reasoning
+      description: Outbound prospecting, ICE-scored pipeline, deal strategy, outreach sequences
+      capabilities: [sales, outbound, pipeline, deal_strategy]
+
   investment:
     - name: stock_analyst
       class: districts.investment.stock_analyst.StockAnalyst
