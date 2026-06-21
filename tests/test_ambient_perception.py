@@ -73,3 +73,71 @@ def test_sense_tick_calls_health_monitor_and_writes_real_fatigue(monkeypatch):
 
     state = ContextEngine().get_world_state()
     assert state["fatigue_score"] == 8.4
+
+
+def test_sense_tick_polls_phone_when_enabled(monkeypatch):
+    """Task B.2: PhoneController (ADB bridge) exists but was never an
+    observe source — nothing in the loop ever called it. Gated by a new
+    sensing.phone_enabled flag (default off, owner-hardware-dependent)."""
+    from core.loop.autonomous_loop import AutonomousLoop
+    from core.config import CONFIG
+
+    monkeypatch.setitem(CONFIG["sensing"], "camera_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "screen_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "phone_enabled", True)
+
+    class _FakePhoneController:
+        def is_connected(self):
+            return True
+
+        def get_notifications(self):
+            return [{"package": "com.whatsapp", "title": "Mom", "text": "call me", "time": "123"}]
+
+    monkeypatch.setattr("core.control.phone_controller.PhoneController", _FakePhoneController)
+
+    loop = AutonomousLoop()
+    asyncio.run(loop._sense_tick())
+
+    snap = get_sense_cache_snapshot()
+    assert snap["phone"]["connected"] is True
+    assert snap["phone"]["notification_count"] == 1
+    assert snap["phone"]["recent"][0]["package"] == "com.whatsapp"
+
+
+def test_sense_tick_phone_disabled_by_default_no_crash():
+    """phone_enabled defaults False (owner-hardware-dependent) — _sense_tick
+    must not crash or attempt ADB calls when it's off."""
+    from core.loop.autonomous_loop import AutonomousLoop
+    from core.config import CONFIG
+
+    assert CONFIG["sensing"].get("phone_enabled") is False
+    loop = AutonomousLoop()
+    asyncio.run(loop._sense_tick())  # must not raise
+
+
+def test_sense_tick_phone_enabled_no_device_degrades_gracefully(monkeypatch):
+    """Graceful when no device — PhoneController already returns
+    is_connected()=False / get_notifications()=[] without a device; the
+    sense cache should reflect that, not crash or hang."""
+    from core.loop.autonomous_loop import AutonomousLoop
+    from core.config import CONFIG
+
+    monkeypatch.setitem(CONFIG["sensing"], "camera_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "screen_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "phone_enabled", True)
+
+    class _NoDevicePhoneController:
+        def is_connected(self):
+            return False
+
+        def get_notifications(self):
+            return []
+
+    monkeypatch.setattr("core.control.phone_controller.PhoneController", _NoDevicePhoneController)
+
+    loop = AutonomousLoop()
+    asyncio.run(loop._sense_tick())
+
+    snap = get_sense_cache_snapshot()
+    assert snap["phone"]["connected"] is False
+    assert snap["phone"]["notification_count"] == 0
