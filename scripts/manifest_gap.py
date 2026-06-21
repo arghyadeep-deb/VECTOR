@@ -1,0 +1,217 @@
+"""Enumerate every real dispatchable agent class under districts/*/ and diff
+against config/agent_manifest.yaml, so governor-reachability gaps are measured
+instead of guessed. Static AST parse only — never imports district code (some
+districts have heavy/optional deps that would make import-based scanning
+fragile and side-effecting).
+
+A class counts as a "real agent" if either:
+  - it subclasses AgentBase (by name; resolving the import isn't necessary
+    since the codebase convention is consistent), or
+  - it defines a `run` or `async run` method directly in its own body
+    (orchestrator-style classes like OpsSwarm/QASwarm don't subclass
+    AgentBase but are still governor-dispatchable).
+
+For each such class we also heuristically flag whether `run()` appears to
+branch on the task's type (looks for `task[` / `task.get(` / `.get("type"`
+/ `["type"]` patterns in the run method source) vs. a stock_analyst-style
+implementation that ignores its argument.
+"""
+import sys
+import ast
+import yaml
+from pathlib import Path
+from dataclasses import dataclass, field
+
+ROOT = Path(__file__).resolve().parent.parent
+DISTRICTS_DIR = ROOT / "districts"
+MANIFEST_PATH = ROOT / "config" / "agent_manifest.yaml"
+OUT_PATH = ROOT / "docs" / "manifest_gap.md"
+
+
+@dataclass
+class AgentClass:
+    district: str
+    module: str          # e.g. districts.coding.git_bot
+    class_name: str
+    qualified: str        # districts.coding.git_bot.GitBot
+    is_agent_base_subclass: bool
+    has_run_method: bool
+    run_branches_on_type: bool
+    init_requires_args: bool
+
+
+def _load_manifest_class_paths(manifest_path: Path) -> set[str]:
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    registered = set()
+    for district, agents in (data.get("districts") or {}).items():
+        for agent in agents or []:
+            cls = agent.get("class")
+            if cls:
+                registered.add(cls)
+    return registered
+
+
+def _run_method_branches_on_type(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    src = ast.dump(node)
+    markers = ['"type"', "'type'"]
+    return any(m in src for m in markers)
+
+
+def _init_requires_args(class_node: ast.ClassDef) -> bool:
+    for item in class_node.body:
+        if isinstance(item, ast.FunctionDef) and item.name == "__init__":
+            args = item.args
+            # args.args includes 'self' as first; defaults cover the tail
+            positional = args.args[1:]  # drop self
+            required = len(positional) - len(args.defaults)
+            has_required_kwonly = any(
+                kw for kw, default in zip(args.kwonlyargs, args.kw_defaults)
+                if default is None
+            )
+            return required > 0 or has_required_kwonly
+    return False  # no explicit __init__ -> inherits, assume zero-arg safe
+
+
+def _scan_file(py_file: Path, district: str) -> list[AgentClass]:
+    try:
+        source = py_file.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(py_file))
+    except (SyntaxError, UnicodeDecodeError):
+        return []
+
+    module_rel = py_file.relative_to(ROOT).with_suffix("")
+    module_dotted = ".".join(module_rel.parts)
+
+    results = []
+    for node in tree.body:
+        if not isinstance(node, ast.ClassDef):
+            continue
+
+        base_names = []
+        for b in node.bases:
+            if isinstance(b, ast.Name):
+                base_names.append(b.id)
+            elif isinstance(b, ast.Attribute):
+                base_names.append(b.attr)
+        is_agent_base = "AgentBase" in base_names
+
+        run_node = None
+        for item in node.body:
+            if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and item.name == "run":
+                run_node = item
+                break
+        has_run = run_node is not None
+        branches = _run_method_branches_on_type(run_node) if run_node else False
+
+        if not (is_agent_base or has_run):
+            continue
+
+        qualified = f"{module_dotted}.{node.name}"
+        results.append(AgentClass(
+            district=district,
+            module=module_dotted,
+            class_name=node.name,
+            qualified=qualified,
+            is_agent_base_subclass=is_agent_base,
+            has_run_method=has_run,
+            run_branches_on_type=branches,
+            init_requires_args=_init_requires_args(node),
+        ))
+    return results
+
+
+def scan_districts() -> dict[str, list[AgentClass]]:
+    by_district: dict[str, list[AgentClass]] = {}
+    for district_dir in sorted(DISTRICTS_DIR.iterdir()):
+        if not district_dir.is_dir() or district_dir.name.startswith("_") or district_dir.name == "__pycache__":
+            continue
+        district = district_dir.name
+        agents = []
+        for py_file in sorted(district_dir.rglob("*.py")):
+            if "__pycache__" in py_file.parts or py_file.name == "__init__.py":
+                continue
+            if "test" in py_file.stem.lower():
+                continue
+            agents.extend(_scan_file(py_file, district))
+        by_district[district] = agents
+    return by_district
+
+
+def build_report(by_district: dict[str, list[AgentClass]], registered: set[str]) -> str:
+    lines = [
+        "# Manifest Gap Report",
+        "",
+        "Generated by `scripts/manifest_gap.py` — static AST scan of `districts/*/` "
+        "diffed against `config/agent_manifest.yaml`. A class counts as a real agent "
+        "if it subclasses `AgentBase` or defines its own `run`/`async run` method "
+        "(covers orchestrator classes like `OpsSwarm`/`QASwarm` that don't subclass "
+        "`AgentBase`).",
+        "",
+        "`run() branches?` is a heuristic (looks for `\"type\"`/`'type'` literals inside "
+        "the run method's AST) — a hardcoded-output agent (e.g. ignores params) will "
+        "show `no` and should NOT be registered as-is without a follow-up fix; it will "
+        "fake-succeed once dispatched regardless of task type.",
+        "",
+        "`__init__ needs args?` = `yes` means `ManifestLoader.instantiate_all()`'s bare "
+        "`cls()` call will fail; needs an adapter or default args before registering.",
+        "",
+    ]
+
+    total_real = 0
+    total_registered = 0
+    total_unregistered = 0
+
+    for district in sorted(by_district.keys()):
+        agents = by_district[district]
+        if not agents:
+            continue
+        reg = [a for a in agents if a.qualified in registered]
+        unreg = [a for a in agents if a.qualified not in registered]
+        total_real += len(agents)
+        total_registered += len(reg)
+        total_unregistered += len(unreg)
+
+        lines.append(f"## {district}  ({len(reg)} registered / {len(unreg)} unregistered / {len(agents)} total)")
+        lines.append("")
+        if reg:
+            lines.append("**Registered:**")
+            for a in reg:
+                lines.append(f"- `{a.qualified}`")
+            lines.append("")
+        if unreg:
+            lines.append("**Unregistered:**")
+            lines.append("")
+            lines.append("| Class | AgentBase? | has run()? | run() branches? | __init__ needs args? |")
+            lines.append("|---|---|---|---|---|")
+            for a in unreg:
+                lines.append(
+                    f"| `{a.qualified}` | {'yes' if a.is_agent_base_subclass else 'no'} | "
+                    f"{'yes' if a.has_run_method else 'no'} | "
+                    f"{'yes' if a.run_branches_on_type else 'no'} | "
+                    f"{'yes' if a.init_requires_args else 'no'} |"
+                )
+            lines.append("")
+
+    lines.insert(6, f"**Totals: {total_registered} registered / {total_unregistered} unregistered / {total_real} real agent classes found.**\n")
+
+    return "\n".join(lines)
+
+
+def main() -> int:
+    registered = _load_manifest_class_paths(MANIFEST_PATH)
+    by_district = scan_districts()
+    report = build_report(by_district, registered)
+    OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OUT_PATH.write_text(report, encoding="utf-8")
+
+    total_real = sum(len(v) for v in by_district.values())
+    total_unreg = sum(1 for agents in by_district.values() for a in agents if a.qualified not in registered)
+    print(f"Scanned {total_real} real agent classes across {len(by_district)} districts.")
+    print(f"Unregistered: {total_unreg}")
+    print(f"Report written to {OUT_PATH}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
