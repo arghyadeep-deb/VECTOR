@@ -18,7 +18,7 @@ districts:
       class: districts.coding.agent.CodingSwarm
       model: vector-coder
       description: Orchestrator that auto-loads and routes across 9 additional coding specialists by task-type keyword match
-      capabilities: [architecture, refactor, test, frontend, bug, onboarding, conductor, code-intel, database-optimizer, gui, minimal-change, mlops, rapid-prototype, code_conductor, db_optimize]
+      capabilities: [onboarding, code_conductor, code-intel, database-optimizer, db_optimize, frontend_developer, gui, minimal-change, mlops, rapid-prototype, rapid_prototype]
 
     - name: git_bot
       class: districts.coding.git_bot.GitBot
