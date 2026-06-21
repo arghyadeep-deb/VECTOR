@@ -108,3 +108,34 @@ async def test_dispatch_prefers_capability_match_over_raw_hp():
         f"expected the capability-matched agent to be picked over raw HP, "
         f"got: {called}"
     )
+
+
+@pytest.mark.asyncio
+async def test_dispatch_honest_miss_when_no_agent_declares_capability():
+    """Task A.3 (governor-wiring-and-ambient-perception.md): when a district
+    has agents but NONE declare the requested task_type as a capability,
+    governor.dispatch() must NOT silently HP-pick a non-capable agent and
+    fake-succeed — that's the exact bug class (capability-blind dispatch +
+    +50 HP award for an agent that never even looked at the task) this
+    whole effort exists to close, just at the per-task-type granularity
+    instead of per-district. Default to an honest miss: no agent run, no
+    HP awarded, status="no_capable_agent"."""
+    agent = make_agent("coding")
+    agent.health_points = 900
+    agent.capabilities = ["unrelated_capability"]
+
+    called = {}
+
+    async def _run(task):
+        called["ran"] = True
+        return {"status": "ok"}
+
+    agent.run = _run
+    hp_before = agent.health_points
+
+    gov = Governor()
+    result = await gov.dispatch({"type": "totally_uncovered_task_type", "district": "coding", "params": {}})
+
+    assert result.get("status") == "no_capable_agent"
+    assert "ran" not in called, "non-capable agent must not be run"
+    assert agent.health_points == hp_before, "no HP should be awarded on an honest miss"
