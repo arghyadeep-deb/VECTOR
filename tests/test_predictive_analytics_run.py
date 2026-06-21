@@ -12,26 +12,55 @@ branches on task["type"]: forecast / detect_anomalies / simulate / recommend
 (default), persisting results via PredictionStore and returning real status,
 not a hardcoded shape.
 
-Isolated from the real production vector_memory.db via VECTOR_DB_PATH —
-running 5+ tests in this file against the shared SQLCipher singleton
-reproducibly corrupted a LATER test's read of the real DB ("hmac check
-failed for pgno=1"), specifically when a prior test exercised
-CausalSimulator -> CausalGraph -> the same shared connection before a
-later governor.dispatch() test reused it. Confirmed this is a pytest/shared
--singleton interaction, not real data corruption or a bug in this district's
-code: a standalone, non-pytest script ran the exact same governor.dispatch()
-call cleanly every time, and per the project's own testing rule ("SQLite
-episodic_memory — use a test DB, not mocks") and this session's explicit
-instruction to verify behaviorally against isolated temp DBs rather than
-the shared production file, this file gets its own.
+Isolated from the real production vector_memory.db via a module-scoped
+fixture that points VECTOR_DB_PATH at a temp file and resets the
+core.memory.episodic singleton — running 5+ tests in this file against the
+shared SQLCipher singleton reproducibly corrupted a LATER test's read of
+the real DB ("hmac check failed for pgno=1"), specifically when a prior
+test exercised CausalSimulator -> CausalGraph -> the same shared connection
+before a later governor.dispatch() test reused it. Confirmed this is a
+pytest/shared-singleton interaction, not real data corruption or a bug in
+this district's code: a standalone, non-pytest script ran the exact same
+governor.dispatch() call cleanly every time, and the real DB's stats
+(68k+ episodic rows) were confirmed intact and writable afterward.
+
+IMPORTANT: an earlier version of this isolation set `os.environ[...]`
+at module level with no teardown — that leaked into every OTHER test file
+collected in the same `pytest` invocation (pytest imports all test modules
+during collection, before running any test, so a bare module-level env
+mutation here broke test_governor.py/test_investment_router_agent_paths.py/
+etc. when run together). Fixed with an autouse fixture that saves/restores
+the env var and resets the singleton on both setup and teardown, per the
+project's own testing rule ("SQLite episodic_memory — use a test DB, not
+mocks") and this session's instruction to verify against isolated temp DBs
+without polluting shared global state.
 """
 import os
 import tempfile
 from pathlib import Path
 
-os.environ["VECTOR_DB_PATH"] = str(Path(tempfile.gettempdir()) / "vector_test_predictive_analytics.db")
+import pytest
 
-from districts.predictive_analytics.strategy_recommender import StrategyRecommender  # noqa: E402
+from districts.predictive_analytics.strategy_recommender import StrategyRecommender
+
+
+@pytest.fixture(autouse=True)
+def _isolated_episodic_db():
+    import core.memory.episodic as episodic
+
+    original_path = os.environ.get("VECTOR_DB_PATH")
+    temp_path = str(Path(tempfile.gettempdir()) / "vector_test_predictive_analytics.db")
+    os.environ["VECTOR_DB_PATH"] = temp_path
+    episodic.close_db_connection()
+    try:
+        yield
+    finally:
+        episodic.close_db_connection()
+        if original_path is None:
+            os.environ.pop("VECTOR_DB_PATH", None)
+        else:
+            os.environ["VECTOR_DB_PATH"] = original_path
+        episodic.close_db_connection()
 
 
 async def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
