@@ -637,6 +637,14 @@ districts:
       description: ComfyUI workflow adapter for image/video generation
       capabilities: [content, comfyui, image_generation]
 
+    # Repo integration (docs/repo_analysis/youtube-automation-agent.md):
+    # live YouTube trending harvest + competitor channel analysis.
+    - name: youtube_trend_scout
+      class: districts.content.youtube_trends.YouTubeTrendScout
+      model: vector-focus
+      description: Live YouTube trending-topic harvest + competitor channel keyword analysis
+      capabilities: [youtube_trending, fetch_trending, youtube_competitor, analyze_competitor]
+
   marketing:
     - name: seo_specialist
       class: districts.marketing.seo_specialist.SEOSpecialist
