@@ -11,22 +11,24 @@ classes with zero-arg constructors. This composes them behind a real
 branches on task["type"]: forecast / detect_anomalies / simulate / recommend
 (default), persisting results via PredictionStore and returning real status,
 not a hardcoded shape.
-"""
-import asyncio
 
+All tests are `async def` + `await` (pytest-asyncio's session-scoped event
+loop per pytest.ini) rather than plain `def` + `asyncio.run()` — mixing the
+two in the same test file was reproducible-but-only-inside-pytest: each
+`asyncio.run()` call opens and then closes its own throwaway event loop,
+and doing that several times before a later `async def` test reused the
+shared SQLCipher singleton connection corrupted that later test's read of
+vector_memory.db ("hmac check failed for pgno=1") — confirmed NOT a real
+data-corruption issue (a standalone, non-pytest script reproduced the exact
+same dispatch cleanly every time); confirmed gone once every test in this
+file used the loop the same way.
+"""
 from districts.predictive_analytics.strategy_recommender import StrategyRecommender
 
 
 async def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
     """End-to-end: manifest -> registry -> governor.dispatch() reaches the
-    real run(), not just direct instantiation.
-
-    Must be declared `async def` (pytest-asyncio's session-scoped loop per
-    pytest.ini), not a plain `def` calling `asyncio.run()` — the latter
-    creates a second, throwaway event loop that fights the session loop and
-    intermittently broke the SQLCipher singleton connection deep in
-    governor.dispatch()'s call graph (reproducible only inside pytest, never
-    in a standalone script — confirmed by hand before landing this fix)."""
+    real run(), not just direct instantiation."""
     from core.city.declarative_manifest import ManifestLoader
     from core.city.agent_registry import get_registry
     from core.city.governor import Governor
@@ -53,75 +55,66 @@ async def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
                 reg._agents.pop(aid, None)
 
 
-def test_run_does_not_use_the_agentbase_fake_success_stub():
+async def test_run_does_not_use_the_agentbase_fake_success_stub():
     """The smoking-gun regression check: AgentBase's generic run() always
     returns {"status": "ok", "agent": ..., "task": task} verbatim — if
     StrategyRecommender.run() still produces that exact shape, it means our
     override isn't actually being called (or doesn't do real work)."""
     agent = StrategyRecommender()
-    result = asyncio.run(agent.run({"type": "forecast", "params": {
+    result = await agent.run({"type": "forecast", "params": {
         "metric_name": "cpu_usage",
         "historical_data": [10.0, 12.0, 11.0, 13.0, 14.0, 12.5, 15.0],
-    }}))
+    }})
     assert result.get("agent") != agent.name or "task" not in result, (
         "run() returned the unmodified AgentBase stub shape — override not real"
     )
     assert "forecast" in result or result.get("status") == "ok"
 
 
-def test_run_forecast_branch_returns_real_forecast():
+async def test_run_forecast_branch_returns_real_forecast():
     agent = StrategyRecommender()
-    result = asyncio.run(agent.run({
+    result = await agent.run({
         "type": "forecast",
         "params": {
             "metric_name": "cpu_usage",
             "historical_data": [10.0, 12.0, 11.0, 13.0, 14.0, 12.5, 15.0, 16.0, 13.0, 14.0],
             "periods": 3,
         },
-    }))
+    })
     assert result["status"] == "ok"
     assert result["forecast"]["metric_name"] == "cpu_usage"
     assert len(result["forecast"]["values"]) == 3
 
 
-def test_run_detect_anomalies_branch():
+async def test_run_detect_anomalies_branch():
     agent = StrategyRecommender()
-    result = asyncio.run(agent.run({
+    result = await agent.run({
         "type": "detect_anomalies",
         "params": {
             "metric_name": "error_rate",
             "values": [1.0, 1.1, 0.9, 1.0, 50.0, 1.0, 0.95],
         },
-    }))
+    })
     assert result["status"] == "ok"
     assert "anomalies" in result
 
 
-def test_run_simulate_branch():
+async def test_run_simulate_branch():
     agent = StrategyRecommender()
-    result = asyncio.run(agent.run({
+    result = await agent.run({
         "type": "simulate",
         "params": {
             "metric_name": "deadline_risk",
             "scenario_params": {"base_value": 50.0, "parameters": {}},
             "iterations": 50,
         },
-    }))
+    })
     assert result["status"] == "ok"
     assert "simulation" in result
 
 
-def test_run_unknown_type_falls_back_to_pending_recommendations_not_fake_ok():
+async def test_run_unknown_type_falls_back_to_pending_recommendations_not_fake_ok():
     agent = StrategyRecommender()
-    result = asyncio.run(agent.run({"type": "totally_unhandled_type", "params": {}}))
+    result = await agent.run({"type": "totally_unhandled_type", "params": {}})
     assert result["status"] == "ok"
     assert "recommendations" in result
-
-
-if __name__ == "__main__":
-    test_run_does_not_use_the_agentbase_fake_success_stub()
-    test_run_forecast_branch_returns_real_forecast()
-    test_run_detect_anomalies_branch()
-    test_run_simulate_branch()
-    test_run_unknown_type_falls_back_to_pending_recommendations_not_fake_ok()
-    print("[OK] test_predictive_analytics_run")
