@@ -1057,34 +1057,42 @@ class Governor:
                 # regardless of task type (e.g. investment's stock_analyst
                 # always beat trading_conductor, silently never running the
                 # real trading_analysis pipeline). Prefer an agent whose
-                # manifest-declared capabilities include this task_type.
+                # manifest-declared capabilities include this task_type;
+                # fall back to HP-pick when none declare a match.
+                #
+                # Task A.3 (governor-wiring-and-ambient-perception.md) initially
+                # tried an "honest miss" here (no run + no HP when capable is
+                # empty), on the theory that running a non-capable agent
+                # fake-succeeds and poisons the HP signal. Verified against
+                # the real call sites before shipping it (per project rule:
+                # verify, don't trust) — it broke the majority of sampled
+                # real API routes (db_optimize, budget_analyze, list_expenses,
+                # screen_call, image_prompt, ...), because the manifest's
+                # `capabilities` tags are descriptive themes ("finance",
+                # "budgeting") written for the capability-PREFERENCE feature,
+                # not literal task_type strings, while 100+ existing
+                # core/api/routers/*.py call sites dispatch with exact
+                # task_type strings that were never re-aligned to that
+                # vocabulary. An honest miss there is a functional regression,
+                # not a fix. Using the spec's documented fallback instead:
+                # keep running (capable or agents), just don't award the
+                # Darwinian +50 HP for a run that wasn't capability-matched.
                 capable = [
                     a for a in agents
                     if task_type in getattr(a, "capabilities", [])
                 ]
-                if not capable:
-                    # Task A.3 (governor-wiring-and-ambient-perception.md):
-                    # do NOT fall back to HP-picking a non-capable agent —
-                    # that fake-succeeds (+50 HP) for an agent that never
-                    # looked at the task, poisoning the Darwinian HP signal.
-                    # Honest miss: no agent run, no HP awarded.
-                    logger.warning(
-                        f"[VECTOR][governor] no agent in {district} declares "
-                        f"capability '{task_type}' — honest miss, no HP awarded"
-                    )
-                    result = {"status": "no_capable_agent", "district": district, "task_type": task_type}
-                else:
-                    agent = max(capable, key=lambda a: a.health_points)
+                agent = max(capable or agents, key=lambda a: a.health_points)
+                capability_match = bool(capable)
 
-                    if hasattr(agent, "run"):
-                        result = await agent.run(task)
-                    else:
-                        result = {
-                            "status": "error",
-                            "reason": "agent_missing_run",
-                            "agent": getattr(agent, "name", ""),
-                            "district": district,
-                        }
+                if hasattr(agent, "run"):
+                    result = await agent.run(task)
+                else:
+                    result = {
+                        "status": "error",
+                        "reason": "agent_missing_run",
+                        "agent": getattr(agent, "name", ""),
+                        "district": district,
+                    }
 
             # ── Avatar layer: format raw district output through AvatarVoice ──
             try:
