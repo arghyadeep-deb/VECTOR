@@ -45,6 +45,11 @@ class AgentBase:
         self._inbox = deque(maxlen=500)
         self._facts: dict[str, object] = {}
         self._district_llm = None
+        # Populated from config/agent_manifest.yaml by ManifestLoader — lets
+        # governor.dispatch() pick the agent whose declared capability
+        # matches the task type when a district has more than one agent,
+        # instead of always picking whichever has the highest HP.
+        self.capabilities: list[str] = []
         # Per-agent voice style — empty string means "use global personality"
         self.voice_style: str = (
             _AGENT_NAME_VOICE_STYLES.get(name.lower(), "")
