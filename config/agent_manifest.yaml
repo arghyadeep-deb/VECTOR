@@ -759,3 +759,19 @@ districts:
       model: vector-reasoning
       description: Physics/chemistry simulation, CAD, causal queries, what-if experiments
       capabilities: [simulate, physics, chemistry, cad, molecule, causal_query, what_if, experiment, science]
+
+  # Task A.2 (2026-06-21): communications/ had ZERO manifest entries — same
+  # zero-agent-district gap pattern as ops/qa/personal_growth/chief_of_staff/
+  # science were before the earlier 2026-06-21 fix.
+  communications:
+    - name: email_agent
+      class: districts.communications.email_agent.EmailAgent
+      model: vector-focus
+      description: Full email client agent — local SQLite storage + AI drafting
+      capabilities: [email, email_client]
+
+    - name: email_intelligence
+      class: districts.communications.email_intelligence.EmailIntelligence
+      model: vector-reasoning
+      description: Converts raw email threads into structured, reasoning-ready VECTOR context
+      capabilities: [email_intelligence, email_parsing]
