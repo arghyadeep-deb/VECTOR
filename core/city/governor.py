@@ -1107,7 +1107,21 @@ class Governor:
             # RULE 9 — HP wired to actual task outcomes
             if agent is not None:
                 if result.get("status") == "ok":
-                    agent.award_points(50, "task_completed_by_governor")
+                    if capability_match:
+                        agent.award_points(50, "task_completed_by_governor")
+                    else:
+                        # Task A.3: this agent won by raw HP, not because it
+                        # declared this task_type as a capability — withhold
+                        # the Darwinian reward so the HP signal still means
+                        # "this agent is good at what it's actually being
+                        # asked to do," without breaking dispatch for every
+                        # task_type the manifest's capability tags don't
+                        # literally cover yet.
+                        logger.debug(
+                            f"[VECTOR][governor] {getattr(agent, 'name', '?')} ran "
+                            f"'{task_type}' without a declared capability match — "
+                            f"HP withheld"
+                        )
                     await self._publish_district_event(district, task_type, task_id, result)
                 elif result.get("status") in ("error", "failed"):
                     agent.deduct_points(30, "task_failed_by_governor")
