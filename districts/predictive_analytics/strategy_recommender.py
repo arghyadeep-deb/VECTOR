@@ -162,7 +162,7 @@ class StrategyRecommender(AgentBase):
                     },
                 }
 
-            if task_type in ("recommend", "causal_query", "experiment"):
+            if task_type in ("recommend", "causal_query", "experiment", "strategy_recommend"):
                 forecast = None
                 if params.get("metric_name") and params.get("historical_data"):
                     forecast = self._get_forecaster().forecast(
