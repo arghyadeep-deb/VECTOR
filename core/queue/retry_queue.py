@@ -95,13 +95,18 @@ class RetryQueue:
                     failed_at     REAL NOT NULL
                 )
             """)
+            conn.commit()
+        finally:
+            if private:
+                conn.close()
 
     def push(self, action_type: str, params: dict, proposed_by: str = "loop",
              error: str = "", attempt: int = 0) -> int:
         """Enqueue a failed action for retry. Returns the row id."""
         delay = _BACKOFF[min(attempt, len(_BACKOFF) - 1)]
         next_retry = time.time() + delay
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             cur = conn.execute(
                 "INSERT INTO retry_queue (action_type, params, proposed_by, attempt, next_retry_at, error, created_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -109,13 +114,18 @@ class RetryQueue:
                  attempt, next_retry, error[:500], time.time()),
             )
             row_id = cur.lastrowid
+            conn.commit()
+        finally:
+            if private:
+                conn.close()
         logger.info(f"[VECTOR][retry] queued {action_type} attempt={attempt} retry_in={delay}s id={row_id}")
         return row_id
 
     def pop_due(self, limit: int = 10) -> list[RetryItem]:
         """Return items whose next_retry_at <= now. Removes them from the queue."""
         now = time.time()
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             rows = conn.execute(
                 "SELECT * FROM retry_queue WHERE next_retry_at <= ? ORDER BY next_retry_at LIMIT ?",
                 (now, limit),
@@ -123,6 +133,10 @@ class RetryQueue:
             if rows:
                 ids = [r["id"] for r in rows]
                 conn.execute(f"DELETE FROM retry_queue WHERE id IN ({','.join('?' * len(ids))})", ids)
+                conn.commit()
+        finally:
+            if private:
+                conn.close()
         return [
             RetryItem(
                 id=r["id"], action_type=r["action_type"],
@@ -137,21 +151,34 @@ class RetryQueue:
         """After a retry failure: re-enqueue with incremented attempt, or DLQ if exhausted."""
         next_attempt = item.attempt + 1
         if next_attempt >= _MAX_ATTEMPTS:
-            with self._conn() as conn:
+            conn, private = self._conn()
+            try:
                 conn.execute(
                     "INSERT INTO dead_letter (action_type, params, proposed_by, attempts, last_error, failed_at) "
                     "VALUES (?, ?, ?, ?, ?, ?)",
                     (item.action_type, json.dumps(item.params, default=str),
                      item.proposed_by, next_attempt, error[:500], time.time()),
                 )
+                conn.commit()
+            finally:
+                if private:
+                    conn.close()
             logger.warning(f"[VECTOR][retry] DLQ: {item.action_type} after {next_attempt} attempts — {error[:80]}")
         else:
             self.push(item.action_type, item.params, item.proposed_by, error, next_attempt)
 
     def size(self) -> int:
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             return conn.execute("SELECT COUNT(*) FROM retry_queue").fetchone()[0]
+        finally:
+            if private:
+                conn.close()
 
     def dlq_size(self) -> int:
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             return conn.execute("SELECT COUNT(*) FROM dead_letter").fetchone()[0]
+        finally:
+            if private:
+                conn.close()
