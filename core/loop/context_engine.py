@@ -136,6 +136,8 @@ class ContextEngine:
             "owner_identity": owner_identity,
             "fatigue_score": fatigue_score,
             "screen_summary": sense_cache.get("screen_summary", ""),
+            "phone_connected": bool(phone_data.get("connected", False)),
+            "phone_notification_count": int(phone_data.get("notification_count", 0)),
         }
 
     def _person_context_line(self, person_id: str, topic: str = "current task") -> str:
