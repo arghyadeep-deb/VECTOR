@@ -2040,15 +2040,38 @@ class AutonomousLoop:
                 except Exception as _fe:
                     logger.debug("[VECTOR][sense] fatigue scoring failed: {}", _fe)
 
+        # Task B.2 (governor-wiring-and-ambient-perception.md): ADB-phone
+        # observe source. PhoneController already exists and degrades
+        # gracefully with no device (is_connected()=False,
+        # get_notifications()=[]) — it just was never polled from the loop.
+        phone_connected = False
+        phone_notifications: list[dict] = []
+        if phone_enabled:
+            try:
+                from core.control.phone_controller import PhoneController
+
+                def _poll_phone():
+                    pc = PhoneController()
+                    return pc.is_connected(), pc.get_notifications()
+
+                phone_connected, phone_notifications = await asyncio.to_thread(_poll_phone)
+            except Exception as _pe:
+                logger.debug("[VECTOR][sense] phone poll failed: {}", _pe)
+
         from core.loop.context_engine import update_sense_cache
         update_sense_cache(
             screen_summary=screen_summary,
             presence=presence,
             face={"detected": face_detected, "identity": owner_identity, "fatigue": fatigue_score},
+            phone={
+                "connected": phone_connected,
+                "notification_count": len(phone_notifications),
+                "recent": phone_notifications[:5],
+            },
         )
         logger.debug(
-            "[VECTOR][sense] tick — presence={} screen_chars={} fatigue={}",
-            presence, len(screen_summary), fatigue_score,
+            "[VECTOR][sense] tick — presence={} screen_chars={} fatigue={} phone_connected={}",
+            presence, len(screen_summary), fatigue_score, phone_connected,
         )
 
         # Vision → action: react to presence changes
