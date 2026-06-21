@@ -142,13 +142,23 @@ def _swarm_self_loaded_qualified_names(district_dir: Path, district: str) -> set
 
     qualified: set[str] = set()
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Assign):
+        # PYTHON_AGENTS is written either as a plain assignment or — in
+        # every district observed so far — a type-annotated one
+        # (`PYTHON_AGENTS: list[tuple[str, str]] = [...]`), which parses to
+        # ast.AnnAssign, not ast.Assign.
+        if isinstance(node, ast.Assign):
+            if not any(isinstance(t, ast.Name) and t.id == "PYTHON_AGENTS" for t in node.targets):
+                continue
+            value = node.value
+        elif isinstance(node, ast.AnnAssign):
+            if not (isinstance(node.target, ast.Name) and node.target.id == "PYTHON_AGENTS"):
+                continue
+            value = node.value
+        else:
             continue
-        if not any(isinstance(t, ast.Name) and t.id == "PYTHON_AGENTS" for t in node.targets):
+        if not isinstance(value, ast.List):
             continue
-        if not isinstance(node.value, ast.List):
-            continue
-        for elt in node.value.elts:
+        for elt in value.elts:
             if not isinstance(elt, ast.Tuple) or len(elt.elts) < 2:
                 continue
             mod_node, cls_node = elt.elts[0], elt.elts[1]
