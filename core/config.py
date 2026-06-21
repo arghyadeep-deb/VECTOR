@@ -1132,6 +1132,7 @@ _ENV_ALIASES: dict[str, str] = {
     "PAGESPEED_API_KEY":      "api_keys.pagespeed_api_key",
     "ELEVENLABS_VOICE_ID":    "api_keys.elevenlabs_voice_id",
     "YOUTUBE_CHANNEL_ID":     "api_keys.youtube_channel_id",
+    "YOUTUBE_DATA_API_KEY":   "api_keys.youtube_data_api_key",
     "INSTAGRAM_ACCOUNT_ID":   "api_keys.instagram_account_id",
 }
 
