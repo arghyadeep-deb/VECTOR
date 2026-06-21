@@ -68,3 +68,43 @@ def test_get_district_summary_after_register():
     summary = gov.get_district_summary()
     assert "coding" in summary
     assert summary["coding"]["agents"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_dispatch_prefers_capability_match_over_raw_hp():
+    """Audit finding 2026-06-21: governor.dispatch() picked the single
+    highest-HP agent in a district regardless of task type, so a Hand's
+    task_type was silently ignored whenever a district had >1 registered
+    agent (confirmed for investment: trader Hand sends type="trading_analysis"
+    but stock_analyst/sentiment_bot — the only manifest-registered investment
+    agents — always won the HP race and ignored task type entirely, never
+    reaching TradingConductorAgent's real 11-node LLM pipeline). Capability
+    matching must win over raw HP."""
+    generic = make_agent("coding")
+    generic.health_points = 900  # much higher HP, but no capability match
+    generic.capabilities = ["general"]
+
+    specialist = make_agent("coding")
+    specialist.health_points = 500
+    specialist.capabilities = ["coding", "code_review"]
+
+    called = {}
+
+    async def _generic_run(task):
+        called["agent"] = "generic"
+        return {"status": "ok"}
+
+    async def _specialist_run(task):
+        called["agent"] = "specialist"
+        return {"status": "ok"}
+
+    generic.run = _generic_run
+    specialist.run = _specialist_run
+
+    gov = Governor()
+    await gov.dispatch({"type": "code_review", "district": "coding", "params": {}})
+
+    assert called.get("agent") == "specialist", (
+        f"expected the capability-matched agent to be picked over raw HP, "
+        f"got: {called}"
+    )
