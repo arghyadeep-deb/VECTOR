@@ -66,7 +66,14 @@ class RetryQueue:
             return conn, True
         from core.memory.episodic import get_db_connection
         conn = get_db_connection()
-        conn.row_factory = sqlite3.Row
+        # The shared singleton may be a real sqlite3.Connection or an
+        # sqlcipher3.dbapi2.Connection depending on whether SQLCipher is
+        # active — sqlite3.Row only accepts a sqlite3.Cursor, raising
+        # "Row() argument 1 must be sqlite3.Cursor, not sqlcipher3.dbapi2.
+        # Cursor" if hardcoded. Derive the matching Row class from the
+        # connection's own driver module instead.
+        import importlib
+        conn.row_factory = importlib.import_module(type(conn).__module__).Row
         return conn, False
 
     def _init_db(self) -> None:
