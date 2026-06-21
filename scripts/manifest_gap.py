@@ -211,22 +211,51 @@ def build_report(by_district: dict[str, list[AgentClass]], registered: set[str])
     total_real = 0
     total_registered = 0
     total_unregistered = 0
+    total_swarm_reachable = 0
 
     for district in sorted(by_district.keys()):
         agents = by_district[district]
         if not agents:
             continue
+
+        district_dir = DISTRICTS_DIR / district
+        swarm_loaded_quals = _swarm_self_loaded_qualified_names(district_dir, district)
+        orchestrator_quals = {a.qualified for a in agents if a.module == f"districts.{district}.agent"}
+        orchestrator_registered = bool(orchestrator_quals & registered)
+
         reg = [a for a in agents if a.qualified in registered]
-        unreg = [a for a in agents if a.qualified not in registered]
+        swarm_reachable = [
+            a for a in agents
+            if a.qualified not in registered
+            and a.qualified in swarm_loaded_quals
+            and orchestrator_registered
+        ]
+        unreg = [
+            a for a in agents
+            if a.qualified not in registered
+            and a not in swarm_reachable
+        ]
         total_real += len(agents)
         total_registered += len(reg)
         total_unregistered += len(unreg)
+        total_swarm_reachable += len(swarm_reachable)
 
-        lines.append(f"## {district}  ({len(reg)} registered / {len(unreg)} unregistered / {len(agents)} total)")
+        lines.append(
+            f"## {district}  ({len(reg)} registered / {len(swarm_reachable)} swarm-reachable / "
+            f"{len(unreg)} unregistered / {len(agents)} total)"
+        )
         lines.append("")
         if reg:
             lines.append("**Registered:**")
             for a in reg:
+                lines.append(f"- `{a.qualified}`")
+            lines.append("")
+        if swarm_reachable:
+            lines.append(
+                f"**Swarm-reachable** (self-loaded by the registered orchestrator "
+                f"`districts.{district}.agent` — not a real gap, do not register individually):"
+            )
+            for a in swarm_reachable:
                 lines.append(f"- `{a.qualified}`")
             lines.append("")
         if unreg:
