@@ -140,7 +140,7 @@ class StrategyRecommender(AgentBase):
                     ],
                 }
 
-            if task_type in ("simulate", "what_if"):
+            if task_type in ("simulate", "what_if", "causal_simulate"):
                 simulator = self._get_simulator()
                 result = simulator.run_monte_carlo(
                     metric_name=params.get("metric_name", "unknown"),
