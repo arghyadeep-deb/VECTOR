@@ -44,6 +44,165 @@ class StrategyRecommender(AgentBase):
             name="strategy_recommender",
             district="predictive_analytics",
         )
+        # Task A.4 (governor-wiring-and-ambient-perception.md): the district's
+        # only AgentBase had no run() of its own, so governor.dispatch() hit
+        # AgentBase's generic fake-success stub regardless of task type. This
+        # composes the district's 3 other plain (non-AgentBase) helper
+        # classes — all real, zero-arg-constructible — behind a real run().
+        self._forecaster = None
+        self._anomaly_predictor = None
+        self._simulator = None
+        self._store = None
+
+    def _get_forecaster(self):
+        if self._forecaster is None:
+            from districts.predictive_analytics.time_series_forecaster import TimeSeriesForecaster
+            self._forecaster = TimeSeriesForecaster()
+        return self._forecaster
+
+    def _get_anomaly_predictor(self):
+        if self._anomaly_predictor is None:
+            from districts.predictive_analytics.anomaly_predictor import AnomalyPredictor
+            self._anomaly_predictor = AnomalyPredictor()
+        return self._anomaly_predictor
+
+    def _get_simulator(self):
+        if self._simulator is None:
+            from districts.predictive_analytics.causal_simulator import CausalSimulator
+            self._simulator = CausalSimulator()
+        return self._simulator
+
+    def _get_store(self):
+        if self._store is None:
+            from districts.predictive_analytics.prediction_store import PredictionStore
+            self._store = PredictionStore()
+        return self._store
+
+    async def run(self, task: dict) -> dict:
+        """Governor-dispatchable entrypoint — branches on task["type"].
+
+        Supported types: forecast, detect_anomalies, simulate (alias:
+        what_if), recommend (alias: causal_query, experiment). Unknown
+        types fall back to the store's pending recommendations rather than
+        AgentBase's fake-success stub, so a dispatch always reflects real
+        district state instead of a hardcoded shape.
+        """
+        task_type = task.get("type", "recommend")
+        params = task.get("params", {}) or {}
+
+        try:
+            if task_type == "forecast":
+                forecaster = self._get_forecaster()
+                result = forecaster.forecast(
+                    metric_name=params.get("metric_name", "unknown"),
+                    historical_data=params.get("historical_data", []),
+                    periods=params.get("periods", 7),
+                )
+                try:
+                    self._get_store().store_forecast(result)
+                except Exception as e:
+                    logger.warning(f"[VECTOR][predictive_analytics] store_forecast failed: {e}")
+                return {
+                    "status": "ok",
+                    "forecast": {
+                        "metric_name": result.metric_name,
+                        "timestamps": result.timestamps,
+                        "values": result.values,
+                        "confidence_lower": result.confidence_lower,
+                        "confidence_upper": result.confidence_upper,
+                        "model_used": result.model_used,
+                    },
+                }
+
+            if task_type == "detect_anomalies":
+                predictor = self._get_anomaly_predictor()
+                anomalies = predictor.detect(
+                    metric_name=params.get("metric_name", "unknown"),
+                    values=params.get("values", []),
+                    timestamps=params.get("timestamps"),
+                )
+                for a in anomalies:
+                    try:
+                        self._get_store().store_anomaly(a)
+                    except Exception as e:
+                        logger.warning(f"[VECTOR][predictive_analytics] store_anomaly failed: {e}")
+                return {
+                    "status": "ok",
+                    "anomalies": [
+                        {
+                            "metric_name": a.metric_name,
+                            "anomaly_type": a.anomaly_type.value,
+                            "severity": a.severity,
+                            "confidence": a.confidence,
+                            "cause": a.cause,
+                        }
+                        for a in anomalies
+                    ],
+                }
+
+            if task_type in ("simulate", "what_if"):
+                simulator = self._get_simulator()
+                result = simulator.run_monte_carlo(
+                    metric_name=params.get("metric_name", "unknown"),
+                    scenario_params=params.get("scenario_params", {}),
+                    iterations=params.get("iterations", 1000),
+                )
+                try:
+                    self._get_store().store_simulation(result)
+                except Exception as e:
+                    logger.warning(f"[VECTOR][predictive_analytics] store_simulation failed: {e}")
+                return {
+                    "status": "ok",
+                    "simulation": {
+                        "scenario_name": result.scenario_name,
+                        "iterations": result.iterations,
+                        "mean_outcome": result.mean_outcome,
+                        "confidence_interval": result.confidence_interval,
+                        "converged": result.converged,
+                    },
+                }
+
+            if task_type in ("recommend", "causal_query", "experiment"):
+                forecast = None
+                if params.get("metric_name") and params.get("historical_data"):
+                    forecast = self._get_forecaster().forecast(
+                        metric_name=params["metric_name"],
+                        historical_data=params["historical_data"],
+                        periods=params.get("periods", 7),
+                    )
+                anomalies = []
+                if params.get("metric_name") and params.get("values"):
+                    anomalies = self._get_anomaly_predictor().detect(
+                        metric_name=params["metric_name"],
+                        values=params["values"],
+                    )
+                recs = self.evaluate(forecast=forecast, anomalies=anomalies, context=params.get("context", {}))
+                for r in recs:
+                    try:
+                        self._get_store().store_recommendation(r)
+                    except Exception as e:
+                        logger.warning(f"[VECTOR][predictive_analytics] store_recommendation failed: {e}")
+                return {
+                    "status": "ok",
+                    "recommendations": [
+                        {
+                            "type": r.recommendation_type.value,
+                            "title": r.title,
+                            "description": r.description,
+                            "priority": r.priority,
+                            "confidence": r.confidence,
+                            "actions": r.actions,
+                        }
+                        for r in recs
+                    ],
+                }
+
+            # Unknown type: reflect real pending state, not a fake-success stub.
+            pending = self._get_store().get_pending_recommendations()
+            return {"status": "ok", "recommendations": pending, "note": f"unhandled type '{task_type}', returning pending recommendations"}
+        except Exception as e:
+            logger.error(f"[VECTOR][predictive_analytics] run({task_type}) failed: {e}")
+            return {"status": "error", "error": str(e), "type": task_type}
 
     def evaluate(
         self,
