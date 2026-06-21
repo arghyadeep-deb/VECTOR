@@ -140,18 +140,19 @@ def _swarm_self_loaded_qualified_names(district_dir: Path, district: str) -> set
     except (SyntaxError, UnicodeDecodeError):
         return set()
 
+    VAR_NAMES = {"PYTHON_AGENTS", "agents_to_import"}  # ops/agent.py uses the latter
     qualified: set[str] = set()
     for node in ast.walk(tree):
-        # PYTHON_AGENTS is written either as a plain assignment or — in
-        # every district observed so far — a type-annotated one
+        # Written either as a plain assignment or — in most districts
+        # observed so far — a type-annotated one
         # (`PYTHON_AGENTS: list[tuple[str, str]] = [...]`), which parses to
         # ast.AnnAssign, not ast.Assign.
         if isinstance(node, ast.Assign):
-            if not any(isinstance(t, ast.Name) and t.id == "PYTHON_AGENTS" for t in node.targets):
+            if not any(isinstance(t, ast.Name) and t.id in VAR_NAMES for t in node.targets):
                 continue
             value = node.value
         elif isinstance(node, ast.AnnAssign):
-            if not (isinstance(node.target, ast.Name) and node.target.id == "PYTHON_AGENTS"):
+            if not (isinstance(node.target, ast.Name) and node.target.id in VAR_NAMES):
                 continue
             value = node.value
         else:
