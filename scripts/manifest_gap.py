@@ -272,7 +272,11 @@ def build_report(by_district: dict[str, list[AgentClass]], registered: set[str])
                 )
             lines.append("")
 
-    lines.insert(6, f"**Totals: {total_registered} registered / {total_unregistered} unregistered / {total_real} real agent classes found.**\n")
+    lines.insert(
+        6,
+        f"**Totals: {total_registered} registered / {total_swarm_reachable} swarm-reachable / "
+        f"{total_unregistered} unregistered / {total_real} real agent classes found.**\n",
+    )
 
     return "\n".join(lines)
 
