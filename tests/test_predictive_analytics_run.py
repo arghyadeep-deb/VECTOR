@@ -17,6 +17,35 @@ import asyncio
 from districts.predictive_analytics.strategy_recommender import StrategyRecommender
 
 
+def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
+    """End-to-end: manifest -> registry -> governor.dispatch() reaches the
+    real run(), not just direct instantiation."""
+    from core.city.declarative_manifest import ManifestLoader
+    from core.city.agent_registry import get_registry
+    from core.city.governor import Governor
+
+    reg = get_registry()
+    before = set(reg._agents.keys())
+    try:
+        loader = ManifestLoader()
+        agents = [a for a in loader.load() if a["district"] == "predictive_analytics"]
+        assert len(agents) == 1
+        registered = loader.register_all(agents, reg)
+        assert registered == 1
+
+        result = asyncio.run(Governor().dispatch({
+            "type": "forecast",
+            "district": "predictive_analytics",
+            "params": {"metric_name": "cpu_usage", "historical_data": [1.0, 2.0, 3.0, 4.0]},
+        }))
+        assert result.get("status") == "ok"
+        assert "forecast" in result
+    finally:
+        for aid in list(reg._agents.keys()):
+            if aid not in before:
+                reg._agents.pop(aid, None)
+
+
 def test_run_does_not_use_the_agentbase_fake_success_stub():
     """The smoking-gun regression check: AgentBase's generic run() always
     returns {"status": "ok", "agent": ..., "task": task} verbatim — if
