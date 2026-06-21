@@ -163,12 +163,50 @@ class HedgeBotAgent(AgentBase):
 
         return await loop.run_in_executor(None, _run)
 
-    async def solana_execute(self, unsigned_transaction: str, request_id: str) -> dict:
+    async def solana_execute(self, unsigned_transaction: str, request_id: str,
+                             expected_price: str | None = None,
+                             reasoning: str | None = None) -> dict:
         """
         Sign and execute a Solana swap via Jupiter Ultra.
         Requires SOLANA_PRIVATE_KEY. Use solana_order() to get the transaction first.
+
+        REAL MONEY: signing moves real on-chain funds. Gated RED through the
+        PermissionGateway — VECTOR notifies the owner with the price + reasoning
+        and signs ONLY on explicit approval (owner rule 2026-06-21). Fails CLOSED:
+        if the gateway can't be consulted, the swap is NOT signed.
         """
         logger.info("[VECTOR][hedgebot_agent] solana_execute: reqId={}", request_id[:12])
+
+        # ── RED-tier owner approval BEFORE signing real money ──────────────────
+        _summary = (
+            f"Solana swap — price {expected_price or 'unknown'} — "
+            f"{reasoning or 'no reasoning provided'} (reqId {request_id[:12]})"
+        )
+        try:
+            from core.loop.permission_gateway import PermissionGateway, Action
+            approval = await PermissionGateway().execute(Action(
+                action_type="solana_swap_execute",
+                params={
+                    "summary": _summary,
+                    "expected_price": expected_price,
+                    "reasoning": reasoning,
+                    "request_id": request_id,
+                },
+                proposed_by="hedgebot_agent",
+            ))
+        except Exception as e:
+            # Real money: gateway unreachable → refuse to sign. NEVER fail open.
+            logger.error("[VECTOR][hedgebot_agent] gateway unavailable — refusing to sign Solana swap: {}", e)
+            return {"status": "blocked", "reason": f"gateway unavailable: {e}", "request_id": request_id}
+
+        if not getattr(approval, "approved", False):
+            logger.warning(
+                "[VECTOR][hedgebot_agent] Solana swap NOT approved — not signing: {}",
+                getattr(approval, "reason", "?"),
+            )
+            return {"status": "denied", "reason": getattr(approval, "reason", "owner did not approve"),
+                    "request_id": request_id}
+
         loop = asyncio.get_event_loop()
 
         def _run():
