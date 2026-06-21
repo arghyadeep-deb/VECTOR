@@ -17,9 +17,16 @@ import asyncio
 from districts.predictive_analytics.strategy_recommender import StrategyRecommender
 
 
-def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
+async def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
     """End-to-end: manifest -> registry -> governor.dispatch() reaches the
-    real run(), not just direct instantiation."""
+    real run(), not just direct instantiation.
+
+    Must be declared `async def` (pytest-asyncio's session-scoped loop per
+    pytest.ini), not a plain `def` calling `asyncio.run()` — the latter
+    creates a second, throwaway event loop that fights the session loop and
+    intermittently broke the SQLCipher singleton connection deep in
+    governor.dispatch()'s call graph (reproducible only inside pytest, never
+    in a standalone script — confirmed by hand before landing this fix)."""
     from core.city.declarative_manifest import ManifestLoader
     from core.city.agent_registry import get_registry
     from core.city.governor import Governor
@@ -33,11 +40,11 @@ def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
         registered = loader.register_all(agents, reg)
         assert registered == 1
 
-        result = asyncio.run(Governor().dispatch({
+        result = await Governor().dispatch({
             "type": "forecast",
             "district": "predictive_analytics",
             "params": {"metric_name": "cpu_usage", "historical_data": [1.0, 2.0, 3.0, 4.0]},
-        }))
+        })
         assert result.get("status") == "ok"
         assert "forecast" in result
     finally:
