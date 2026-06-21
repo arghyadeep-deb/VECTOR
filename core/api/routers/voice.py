@@ -246,6 +246,51 @@ async def set_default_profile(name: str):
         return {"status": "error", "error": str(e)}
 
 
+@router.post("/profiles/{name}/design")
+async def design_voice_profile(name: str, body: dict):
+    """VoxCPM2 Voice Design — generate a voice from a text description, with
+    NO reference audio needed (docs/repo_analysis/VoxCPM.md). Renders a short
+    sample, stores it as the profile's reference clip, and (if requested)
+    sets it as the active default — the path that builds the British
+    "VECTOR voice" persona from a one-line prompt.
+
+    Body: {"description": "<voice description>", "sample_text": "<text to render>",
+           "set_default": false}
+    Falls back to CONFIG["voice"]["voice_design_description"] when
+    "description" is omitted.
+    """
+    try:
+        from core.voice.voxcpm_cloning import get_voxcpm_cloner
+        from core.voice.voice_profiles import VoiceProfile, get_profile_store
+        from core.config import CONFIG
+        import io
+        import soundfile as sf
+
+        cloner = get_voxcpm_cloner()
+        if not cloner.available():
+            return {"status": "error", "error": "voxcpm not installed. Run: pip install voxcpm"}
+
+        description = body.get("description") or CONFIG.get("voice", {}).get("voice_design_description", "")
+        sample_text = body.get("sample_text") or "Hello, I am VECTOR."
+
+        audio, sr = cloner.design(description, sample_text)
+        buf = io.BytesIO()
+        sf.write(buf, audio, sr, format="WAV")
+        wav_bytes = buf.getvalue()
+
+        store = get_profile_store()
+        if not store.get(name):
+            store.create(VoiceProfile(name=name, description=description))
+        key = store.upload_reference(name, wav_bytes, f"{name}_design.wav")
+
+        if body.get("set_default"):
+            store.set_default(name)
+
+        return {"status": "ok", "name": name, "key": key, "description": description}
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+
+
 # ── Voice Studio: content script → audio in your cloned voice ─────────────────
 
 @router.post("/studio/generate")
