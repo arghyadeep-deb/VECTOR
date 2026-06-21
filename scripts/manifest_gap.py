@@ -140,31 +140,43 @@ def _swarm_self_loaded_qualified_names(district_dir: Path, district: str) -> set
     except (SyntaxError, UnicodeDecodeError):
         return set()
 
-    VAR_NAMES = {"PYTHON_AGENTS", "agents_to_import"}  # ops/agent.py uses the latter
+    # Two conventions observed:
+    #   PYTHON_AGENTS = [(bare_module_stem, ClassName, role_handle), ...]
+    #     (coding/finance/qa/research) — qualify as districts.<d>.<stem>.<Class>
+    #   agents_to_import = [(ClassName, "districts.ops.full.module.path", role), ...]
+    #     (ops) — reversed order AND already a fully-qualified module path
+    VAR_CONVENTIONS = {"PYTHON_AGENTS": "stem_first", "agents_to_import": "class_first"}
     qualified: set[str] = set()
     for node in ast.walk(tree):
         # Written either as a plain assignment or — in most districts
         # observed so far — a type-annotated one
         # (`PYTHON_AGENTS: list[tuple[str, str]] = [...]`), which parses to
         # ast.AnnAssign, not ast.Assign.
+        var_name = None
         if isinstance(node, ast.Assign):
-            if not any(isinstance(t, ast.Name) and t.id in VAR_NAMES for t in node.targets):
+            names = [t.id for t in node.targets if isinstance(t, ast.Name) and t.id in VAR_CONVENTIONS]
+            if not names:
                 continue
-            value = node.value
+            var_name, value = names[0], node.value
         elif isinstance(node, ast.AnnAssign):
-            if not (isinstance(node.target, ast.Name) and node.target.id in VAR_NAMES):
+            if not (isinstance(node.target, ast.Name) and node.target.id in VAR_CONVENTIONS):
                 continue
-            value = node.value
+            var_name, value = node.target.id, node.value
         else:
             continue
+        convention = VAR_CONVENTIONS[var_name]
         if not isinstance(value, ast.List):
             continue
         for elt in value.elts:
             if not isinstance(elt, ast.Tuple) or len(elt.elts) < 2:
                 continue
-            mod_node, cls_node = elt.elts[0], elt.elts[1]
-            if isinstance(mod_node, ast.Constant) and isinstance(cls_node, ast.Constant):
-                qualified.add(f"districts.{district}.{mod_node.value}.{cls_node.value}")
+            a, b = elt.elts[0], elt.elts[1]
+            if not (isinstance(a, ast.Constant) and isinstance(b, ast.Constant)):
+                continue
+            if convention == "stem_first":
+                qualified.add(f"districts.{district}.{a.value}.{b.value}")
+            else:  # class_first: (ClassName, full_module_path, ...)
+                qualified.add(f"{b.value}.{a.value}")
     return qualified
 
 
