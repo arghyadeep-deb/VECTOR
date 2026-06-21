@@ -760,3 +760,29 @@ districts:
       model: vector-reasoning
       description: Converts raw email threads into structured, reasoning-ready VECTOR context
       capabilities: [email_intelligence, email_parsing]
+
+  # Task A.2 (2026-06-21): doc_generator/technical_writer physically live in
+  # districts/qa/ but their own __init__ hardcodes district="documentation"
+  # (a real, separate bonus district per phase_status.md history — "VECTOR
+  # documents itself" — that never got its own districts/documentation/
+  # folder). get_by_district() filters on the INSTANCE's real .district
+  # attribute, not this YAML key, so grouping them under qa: would have been
+  # silently inert — confirmed core/api/routers/documentation.py's 4 routes
+  # (api_reference/generate_docs/generate_changelog/weekly_summary) dispatch
+  # via governor with no "district" key, falling through route_task() to
+  # _llm_classify(), whose candidate list is `set(DISTRICT_TASK_MAP.values())`
+  # — which had zero "documentation" entries, so "documentation" wasn't even
+  # offered as a choice. Fixed both ends: this section + 4 new
+  # DISTRICT_TASK_MAP keys in core/city/governor.py.
+  documentation:
+    - name: doc_generator
+      class: districts.qa.doc_generator.DocGenerator
+      model: vector-reasoning
+      description: Creates structured documents — weekly summaries, changelogs, district reports
+      capabilities: [weekly_summary, generate_changelog, district_report]
+
+    - name: technical_writer
+      class: districts.qa.technical_writer.TechnicalWriter
+      model: vector-reasoning
+      description: Auto-generates developer documentation for VECTOR's own modules
+      capabilities: [generate_docs, api_reference, technical_writing]
