@@ -105,6 +105,7 @@ class ManifestLoader:
                 module = importlib.import_module(module_path)
                 cls = getattr(module, cls_name)
                 instance = cls()
+                instance.capabilities = list(entry.get("capabilities", []))
                 instances.append(instance)
             except Exception as e:
                 logger.debug("[VECTOR][manifest] skip '{}': {}", name, e)
