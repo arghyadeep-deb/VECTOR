@@ -151,3 +151,59 @@ def test_phone_state_propagates_into_context_engine_world_state():
     state = ContextEngine().get_world_state()
     assert state["phone_connected"] is True
     assert state["phone_notification_count"] == 3
+
+
+def test_sense_tick_polls_wearable_when_enabled(monkeypatch):
+    """Task B.3: architecture names wearable (HR/sleep/steps) as a core
+    observe source; districts/health/wearable_connector.py already exists
+    and degrades gracefully with no sources, but nothing ever polled it
+    from the loop. Gated by sensing.wearable_enabled (default off,
+    owner-hardware-dependent)."""
+    from core.loop.autonomous_loop import AutonomousLoop
+    from core.config import CONFIG
+
+    monkeypatch.setitem(CONFIG["sensing"], "camera_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "screen_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "phone_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "wearable_enabled", True)
+
+    class _FakeWearableConnector:
+        async def poll_all(self):
+            return [{"source": "oura", "heart_rate": 62, "sleep_hours": 7.5}]
+
+    monkeypatch.setattr("districts.health.wearable_connector.WearableConnector", _FakeWearableConnector)
+
+    loop = AutonomousLoop()
+    asyncio.run(loop._sense_tick())
+
+    snap = get_sense_cache_snapshot()
+    assert snap["wearable"]["available"] is True
+    assert snap["wearable"]["data"][0]["heart_rate"] == 62
+
+
+def test_sense_tick_wearable_disabled_by_default_no_crash():
+    from core.loop.autonomous_loop import AutonomousLoop
+    from core.config import CONFIG
+
+    assert CONFIG["sensing"].get("wearable_enabled") is False
+    loop = AutonomousLoop()
+    asyncio.run(loop._sense_tick())  # must not raise
+
+
+def test_sense_tick_wearable_no_sources_degrades_gracefully(monkeypatch):
+    """Graceful when no wearable configured — the real WearableConnector
+    with zero enabled_sources should produce an empty poll, not a crash."""
+    from core.loop.autonomous_loop import AutonomousLoop
+    from core.config import CONFIG
+
+    monkeypatch.setitem(CONFIG["sensing"], "camera_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "screen_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "phone_enabled", False)
+    monkeypatch.setitem(CONFIG["sensing"], "wearable_enabled", True)
+    monkeypatch.setitem(CONFIG.setdefault("health", {}), "wearable_sources", [])
+
+    loop = AutonomousLoop()
+    asyncio.run(loop._sense_tick())
+
+    snap = get_sense_cache_snapshot()
+    assert snap["wearable"]["available"] is False
