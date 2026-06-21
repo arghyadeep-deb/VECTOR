@@ -1994,6 +1994,8 @@ class AutonomousLoop:
 
         screen_summary = ""
         presence = "unknown"
+        owner_identity = ""
+        fatigue_score = 0.0
 
         if screen_enabled:
             try:
@@ -2005,6 +2007,7 @@ class AutonomousLoop:
             except Exception as _se:
                 logger.debug("[VECTOR][sense] screen observe failed: {}", _se)
 
+        face_detected = False
         if camera_enabled:
             try:
                 from core.sensing.camera import FaceDetector
@@ -2012,21 +2015,39 @@ class AutonomousLoop:
                 if not faces:
                     presence = "absent"
                 else:
+                    face_detected = True
                     owner_faces = [f for f in faces if f.get("name", "unknown") != "unknown"]
                     if len(faces) > 1:
                         presence = "multiple"
                     elif owner_faces:
                         presence = "present"
+                        owner_identity = owner_faces[0].get("name", "")
                     else:
                         presence = "unknown_visitor"
             except Exception as _ce:
                 logger.debug("[VECTOR][sense] camera scan failed: {}", _ce)
 
+            # Task B.1 (governor-wiring-and-ambient-perception.md): health_monitor.py
+            # computes a real EAR-based fatigue score, but nothing ever called it
+            # from the loop — context_engine read a permanent 0.0 default despite
+            # its own docstring claiming FaceDetector wrote face.fatigue (it never
+            # did). Only score fatigue when a face was actually seen this tick.
+            if face_detected:
+                try:
+                    from core.sensing.health_monitor import HealthMonitor
+                    fatigue_score = await asyncio.to_thread(HealthMonitor().get_fatigue_score)
+                except Exception as _fe:
+                    logger.debug("[VECTOR][sense] fatigue scoring failed: {}", _fe)
+
         from core.loop.context_engine import update_sense_cache
-        update_sense_cache(screen_summary=screen_summary, presence=presence)
+        update_sense_cache(
+            screen_summary=screen_summary,
+            presence=presence,
+            face={"detected": face_detected, "identity": owner_identity, "fatigue": fatigue_score},
+        )
         logger.debug(
-            "[VECTOR][sense] tick — presence={} screen_chars={}",
-            presence, len(screen_summary),
+            "[VECTOR][sense] tick — presence={} screen_chars={} fatigue={}",
+            presence, len(screen_summary), fatigue_score,
         )
 
         # Vision → action: react to presence changes
