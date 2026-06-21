@@ -125,8 +125,16 @@ class PermissionGateway:
             _aid = action.action_type
             _approve_url = f"http://{_ip}:8000/gateway/approve/{_aid}"
             _reject_url  = f"http://{_ip}:8000/gateway/reject/{_aid}"
+            # Prefer a human-readable summary if the action provides one (e.g. a
+            # trade shows price + reasoning), so the owner can decide from the
+            # notification itself rather than a raw params dict.
+            _detail = ""
+            if isinstance(action.params, dict):
+                _detail = action.params.get("summary") or action.params.get("reason") or ""
+            if not _detail:
+                _detail = f"Params: {str(action.params)[:120]}"
             await self._notify(
-                f'VECTOR wants to: {action.action_type}\nParams: {str(action.params)[:120]}\n\nTap Approve or open Reject URL.',
+                f'VECTOR wants to: {action.action_type}\n{_detail}\n\nTap Approve or open Reject URL.',
                 priority=2,
                 url=_approve_url,
                 url_title="✅ Approve",
