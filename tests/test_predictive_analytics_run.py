@@ -12,18 +12,26 @@ branches on task["type"]: forecast / detect_anomalies / simulate / recommend
 (default), persisting results via PredictionStore and returning real status,
 not a hardcoded shape.
 
-All tests are `async def` + `await` (pytest-asyncio's session-scoped event
-loop per pytest.ini) rather than plain `def` + `asyncio.run()` — mixing the
-two in the same test file was reproducible-but-only-inside-pytest: each
-`asyncio.run()` call opens and then closes its own throwaway event loop,
-and doing that several times before a later `async def` test reused the
-shared SQLCipher singleton connection corrupted that later test's read of
-vector_memory.db ("hmac check failed for pgno=1") — confirmed NOT a real
-data-corruption issue (a standalone, non-pytest script reproduced the exact
-same dispatch cleanly every time); confirmed gone once every test in this
-file used the loop the same way.
+Isolated from the real production vector_memory.db via VECTOR_DB_PATH —
+running 5+ tests in this file against the shared SQLCipher singleton
+reproducibly corrupted a LATER test's read of the real DB ("hmac check
+failed for pgno=1"), specifically when a prior test exercised
+CausalSimulator -> CausalGraph -> the same shared connection before a
+later governor.dispatch() test reused it. Confirmed this is a pytest/shared
+-singleton interaction, not real data corruption or a bug in this district's
+code: a standalone, non-pytest script ran the exact same governor.dispatch()
+call cleanly every time, and per the project's own testing rule ("SQLite
+episodic_memory — use a test DB, not mocks") and this session's explicit
+instruction to verify behaviorally against isolated temp DBs rather than
+the shared production file, this file gets its own.
 """
-from districts.predictive_analytics.strategy_recommender import StrategyRecommender
+import os
+import tempfile
+from pathlib import Path
+
+os.environ["VECTOR_DB_PATH"] = str(Path(tempfile.gettempdir()) / "vector_test_predictive_analytics.db")
+
+from districts.predictive_analytics.strategy_recommender import StrategyRecommender  # noqa: E402
 
 
 async def test_governor_dispatch_reaches_strategy_recommender_via_manifest():
