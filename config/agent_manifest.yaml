@@ -576,6 +576,33 @@ districts:
       capabilities: [investment, trading_analysis]
       notes: "Verified LIVE 2026-06-21 — fixes in core/config.py + core/trading/graph/setup.py. Registered here so the trader Hand's task_type=trading_analysis actually reaches this class instead of stock_analyst/sentiment_bot (governor.dispatch() previously picked by raw HP only, ignoring task type)."
 
+    # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
+    # Also fixed a real bug found along the way: core/api/routers/investment.py's
+    # /analyze, /dcf, /alpha, /backtest, /geopolitics endpoints resolved
+    # FinAgentAgent via a module path that has never existed
+    # ("vector_finagent_agent" — no such file; real file is finagent_agent.py),
+    # silently 503'ing every call. Fixed in that file; regression test at
+    # tests/test_investment_router_agent_paths.py.
+    - name: execution_engine
+      class: districts.investment.execution_engine.ExecutionEngine
+      model: vector-focus
+      description: Paper-first order execution engine with full safety stack — never live trades unless paper_trading=False is explicitly set
+      capabilities: [place_order, order_history, order_summary]
+      notes: "Paper trading by default — see core config investment.paper_trading"
+
+    - name: finagent_agent
+      class: districts.investment.finagent_agent.FinAgentAgent
+      model: vector-reasoning
+      description: VECTOR's financial intelligence agent — powered by the FinAgent suite (analysis only)
+      capabilities: [investor_analysis, corporate_finance, alpha_discovery, quant_backtest, geopolitics, vt_research, list_skills, portfolio_summary]
+
+    - name: hedgebot_agent
+      class: districts.investment.hedgebot_agent.HedgeBotAgent
+      model: vector-reasoning
+      description: VECTOR's autonomous hedge fund agent — Solana swap execution is RED-gated through PermissionGateway
+      capabilities: [hedge_run, hedge_status]
+      notes: "solana_execute requires PermissionGateway approval + SOLANA_PRIVATE_KEY/JUPITER_API_KEY env vars (absent as of 2026-06-21 soak) — fails closed without both."
+
   content:
     - name: script_generator
       class: districts.content.script_generator.ScriptGenerator
