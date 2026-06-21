@@ -51,6 +51,15 @@ districts:
       capabilities: [testing, pytest, tdd]
 
   research:
+    # Task A.2 (2026-06-21): ResearchSwarm self-loads + routes to deep_researcher,
+    # stealth_scout_agent, opencli_adapter — not otherwise reachable. Same
+    # orchestrator pattern as coding_swarm/ops_swarm/qa_swarm above.
+    - name: research_swarm
+      class: districts.research.agent.ResearchSwarm
+      model: vector-reasoning
+      description: Orchestrator that auto-loads and routes across deep_researcher, stealth_scout_agent, opencli_adapter by task-type keyword match
+      capabilities: [deep_research, stealth, stealth_scout, cli_adapter]
+
     - name: research_hub
       class: districts.research.research_hub.ResearchHub
       model: vector-reasoning
