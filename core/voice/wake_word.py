@@ -150,7 +150,13 @@ class WakeWordDetector:
         import subprocess
         from pathlib import Path
 
-        model_dir = Path(__file__).parent.parent.parent / "models" / "wake_word"
+        # Task B.4 (governor-wiring-and-ambient-perception.md): this used to
+        # write to models/wake_word/, but _init_model()'s read path (and the
+        # already-correct scripts/train_wake_word.py CLI) is models/wake/ —
+        # a trained model from this method would have been silently
+        # invisible to _init_model() forever. Aligned to the same folder
+        # the 15 existing recorded samples already live in.
+        model_dir = self._custom_model_path.parent
         model_dir.mkdir(parents=True, exist_ok=True)
         samples_dir = model_dir / "samples"
         samples_dir.mkdir(exist_ok=True)
