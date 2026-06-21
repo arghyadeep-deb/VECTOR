@@ -61,20 +61,31 @@ class TestRetryQueueSharedConnectionBranch(unittest.TestCase):
     test style for this exact bug class."""
 
     def test_conn_uses_shared_singleton_when_path_matches_main_db(self):
+        """Real sqlite3.Connection stand-in (not a bare MagicMock) — proves
+        both that get_db_connection() is the one called (not sqlite3.connect
+        directly) AND that row_factory assignment doesn't crash, which is
+        exactly the second bug this fix uncovered: sqlite3.Row can't wrap an
+        sqlcipher3.dbapi2.Cursor, so row_factory must be derived from the
+        connection's own driver module, not hardcoded."""
+        import sqlite3 as _sqlite3
         import core.queue.retry_queue as mod
-        from unittest.mock import MagicMock, patch
+        from unittest.mock import patch
 
         rq = mod.RetryQueue.__new__(mod.RetryQueue)
         rq._db = str(mod.configured_db_path())  # no override — the real-world case
 
-        fake_conn = MagicMock()
-        with patch("core.memory.episodic.get_db_connection", return_value=fake_conn) as get_conn, \
-             patch("sqlite3.connect") as raw_connect:
-            conn, private = rq._conn()
-            get_conn.assert_called_once()
-            raw_connect.assert_not_called()
-            self.assertIs(conn, fake_conn)
-            self.assertFalse(private)
+        fake_conn = _sqlite3.connect(":memory:")
+        try:
+            with patch("core.memory.episodic.get_db_connection", return_value=fake_conn) as get_conn, \
+                 patch("sqlite3.connect") as raw_connect:
+                conn, private = rq._conn()
+                get_conn.assert_called_once()
+                raw_connect.assert_not_called()
+                self.assertIs(conn, fake_conn)
+                self.assertFalse(private)
+                self.assertIs(conn.row_factory, _sqlite3.Row)
+        finally:
+            fake_conn.close()
 
     def test_conn_uses_private_plain_sqlite_when_path_overridden(self):
         import core.queue.retry_queue as mod
