@@ -248,6 +248,20 @@ class TestFalsePositiveRate(unittest.TestCase):
         self.assertEqual(sum(results), 0)
 
 
+class TestTrainWakeWordMethodPathConsistency(unittest.TestCase):
+    """Task B.4 regression: WakeWordDetector.train_wake_word() (the async
+    method, separate from scripts/train_wake_word.py) used to write its
+    output .onnx to models/wake_word/, while _init_model()'s read path is
+    models/wake/ — a model trained via this method would never be found.
+    Verified by source inspection (no audio hardware needed)."""
+
+    def test_train_method_writes_to_same_dir_init_model_reads_from(self):
+        det = _make_detector()
+        src = inspect.getsource(det.train_wake_word)
+        self.assertNotIn('"wake_word"', src, "train_wake_word() must not use the old, unread models/wake_word/ path")
+        self.assertIn("self._custom_model_path.parent", src)
+
+
 class TestTrainScript(unittest.TestCase):
     """scripts/train_wake_word.py CLI smoke checks."""
 
