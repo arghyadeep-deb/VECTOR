@@ -113,6 +113,10 @@ class ContextEngine:
         owner_identity: str = face_data.get("identity", "")
         fatigue_score: float = float(face_data.get("fatigue", 0.0))
 
+        # Task B.2 — ADB-phone observe source (written by _sense_tick when
+        # sensing.phone_enabled is on; gracefully {} when off/no device).
+        phone_data: dict = sense_cache.get("phone", {})
+
         return {
             "timestamp": now.isoformat(),
             "time_of_day": self._time_of_day(now),
