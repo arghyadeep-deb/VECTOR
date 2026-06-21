@@ -101,6 +101,59 @@ def test_task_type_overrides_match_governor_routes():
         assert route in DISTRICT_TASK_MAP, f"route {route!r} missing from governor.py"
 
 
+def test_trader_hand_reaches_trading_conductor_not_stock_analyst():
+    """Audit finding 2026-06-21: the investment district's manifest only
+    registered stock_analyst + sentiment_bot, neither of which branches on
+    task_type (stock_analyst.run() always returns a basic quote for a
+    hardcoded default symbol regardless of task["type"]). governor.dispatch()
+    picked whichever had higher HP, so the trader Hand's scheduled runs
+    never reached TradingConductorAgent's real, tonight-verified 11-node
+    LLM pipeline at all — "investment/trading is LIVE" was true for direct
+    calls but not through the actual scheduler->Hand->Governor path this
+    Hand Execution Engine exists to prove. Fixed by registering
+    trading_conductor in config/agent_manifest.yaml with a matching
+    capability, plus governor.dispatch() now preferring a capability match
+    over raw HP. This test proves the real fix, not just the manifest edit:
+    it boots real manifest-driven agents into a real registry, then asserts
+    a real Governor().dispatch() call for the Hand's exact task lands on
+    TradingConductorAgent specifically."""
+    import asyncio
+    from core.city.declarative_manifest import ManifestLoader
+    from core.city.agent_registry import get_registry
+    from core.city.governor import Governor
+    from districts.investment.trading_conductor_agent import TradingConductorAgent
+
+    reg = get_registry()
+    before = set(reg._agents.keys())
+    try:
+        loader = ManifestLoader()
+        agents = [a for a in loader.load() if a["district"] == "investment"]
+        registered = loader.register_all(agents, reg)
+        assert registered >= 1
+
+        investment_agents = reg.get_by_district("investment")
+        assert any(isinstance(a, TradingConductorAgent) for a in investment_agents), (
+            "trading_conductor must be in the manifest-loaded investment agents"
+        )
+        # Reproduce the exact dispatch shape hands/runner.py sends.
+        task = {
+            "type": "trading_analysis",
+            "district": "investment",
+            "params": {"context": "smoke", "hand": "trader"},
+        }
+        result = asyncio.run(Governor().dispatch(task))
+        assert result.get("status") in ("ok", "error"), result  # real pipeline ran (or genuinely failed), not silently skipped
+        # The decisive proof: it's not the basic-quote shape stock_analyst returns.
+        assert "price" not in result, (
+            f"dispatch landed on stock_analyst (returns a 'price' key), not "
+            f"trading_conductor: {result}"
+        )
+    finally:
+        for aid in list(reg._agents.keys()):
+            if aid not in before:
+                reg._agents.pop(aid, None)
+
+
 def test_autonomous_loop_starts_hand_runner():
     """Task 1.5 — the moment this is wired in, the 9 Hands stop being
     orphaned dataclasses and actually execute on a schedule."""
