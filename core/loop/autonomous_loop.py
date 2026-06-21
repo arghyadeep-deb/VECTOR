@@ -1015,11 +1015,37 @@ class AutonomousLoop:
                     skills = sm.match(action_type=winner.action_type, params=winner.params)
                     skill = skills[0] if skills else None
                     if skill and skill.confidence > 0.6:
-                        skill_result = sm.execute(skill.name, winner.params)
-                        if skill_result and getattr(skill_result, "status", None) != "error":
-                            result = {"status": "ok", "skill": skill.name}
-                            _skill_executed = True
-                            logger.info(f"[VECTOR][skills] {winner.action_type} handled by skill '{skill.name}' (conf={skill.confidence:.2f})")
+                        # RULE 3: a matched skill is an LLM-selected action — it MUST pass
+                        # the PermissionGateway like any other action. This path used to call
+                        # sm.execute() directly, bypassing all gating (FORBIDDEN/RED never
+                        # enforced). Mirror the VectorCode gate above.
+                        _skill_allowed = True
+                        gw = self._get_gateway()
+                        if gw is not None:
+                            _level = gw.classify(winner.action_type)
+                            if _level == "FORBIDDEN":
+                                logger.warning(
+                                    f"[VECTOR][skills] '{winner.action_type}' is FORBIDDEN — skill '{skill.name}' blocked"
+                                )
+                                return
+                            if _level == "RED":
+                                from core.loop.permission_gateway import Action as _GWAction
+                                _sk_gw = await gw.execute(_GWAction(
+                                    action_type=winner.action_type,
+                                    params=winner.params,
+                                    proposed_by="skill",
+                                ))
+                                if not _sk_gw.approved:
+                                    logger.warning(
+                                        f"[VECTOR][skills] RED skill '{skill.name}' denied: {_sk_gw.reason}"
+                                    )
+                                    _skill_allowed = False
+                        if _skill_allowed:
+                            skill_result = sm.execute(skill.name, winner.params)
+                            if skill_result and getattr(skill_result, "status", None) != "error":
+                                result = {"status": "ok", "skill": skill.name}
+                                _skill_executed = True
+                                logger.info(f"[VECTOR][skills] {winner.action_type} handled by skill '{skill.name}' (conf={skill.confidence:.2f})")
                 except Exception as _sk_err:
                     logger.debug(f"[VECTOR][skills] skill match skipped: {_sk_err}")
 
