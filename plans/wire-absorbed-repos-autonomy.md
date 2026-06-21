@@ -324,3 +324,50 @@ scheduling alone is sufficient or whether one of these two is still needed.
 - DB: `core.memory.episodic.get_db_connection()`/`close_db_connection()` only (SQLCipher).
 - TDD per task; never bundle; no deletion in Phases 0–3.
 ```
+
+### Soak started (2026-06-21, owner's explicit go-ahead) — found+fixed a real bug along the way
+`run_vector.py loop` mode (the scheduler) was NOT running before this — only
+`api` mode was alive. Started it as a new background process for the
+24-48h soak. Confirmed: `run_vector.py api` does not start the scheduler at
+all (`_start_background_services()` only wires CloudBrainHeartbeat + ambient
+listener; `scheduler_loop()`/`bootstrap_agents()` only run inside `loop`
+mode's `run_loop()`).
+
+**Found and fixed while watching the first startup log**: `core/queue/retry_queue.py`
+(Gap 4 — durable retry queue, drained every 30s by `scheduler_loop()`) opened
+the shared, SQLCipher-encrypted main DB with plain `sqlite3.connect()` instead
+of `core.memory.episodic.get_db_connection()` — raised `"file is not a
+database"` on every single drain tick, silently swallowed (logged at DEBUG,
+never crashed), meaning the retry-replay feature has been dead with nothing
+to show it. This is a **6th instance** of the exact bug class already fixed
+in 5 other modules per the project's own "SQLCipher access discipline" note
+(`phase_status.md`) — slipped through that earlier pass. Fixed using the
+identical `(conn, private)` pattern already established in
+`core/avatar/avatar_state.py::_get_conn()`: route through the shared
+singleton when the path matches the main DB, private plain-sqlite3 only when
+overridden (tests). Verifying the fix against the real, live SQLCipher DB
+surfaced a **second, related bug**: `sqlite3.Row` can't wrap an
+`sqlcipher3.dbapi2.Cursor` (`TypeError: Row() argument 1 must be
+sqlite3.Cursor, not sqlcipher3.dbapi2.Cursor`) — fixed by deriving the
+matching `Row` class from the connection's own driver module
+(`importlib.import_module(type(conn).__module__).Row`) instead of hardcoding
+`sqlite3.Row`. Tests: `tests/backend/test_retry_queue.py` (5 tests — private-path
+roundtrip + DLQ transition + both branches of `_conn()` verified, one against
+a real `sqlite3.Connection` stand-in to catch exactly the row-factory bug).
+Verified live against the real configured DB (push→size→drain roundtrip,
+zero errors) before restarting the loop process clean.
+
+Restarted `run_vector.py loop` (new PID) with the fix applied — confirmed
+20/20 jobs registered (13 cron + 7 hands), zero "retry drain error" lines on
+two subsequent ticks. Marked the soak baseline at `2026-06-21T07:25:57.49Z`
+(re-marked after the restart — the first baseline, taken before this fix
+landed, is stale). Owner check-in command:
+`python scripts/check_soak.py --since "2026-06-21T07:25:57.491155+00:00"`
+
+**Observed in the live log, NOT chased down tonight (out of scope, noted for
+a follow-up pass)**: `vectorcode_loop` repeatedly restarts its MCP server
+every 5s (`"MCP server started... MCP server exited... restarting in 5s"`)
+— could be benign or a real crash loop, worth checking if it's still doing
+this after a few hours of soak; and one `request_agent_help` fallback log
+line — `'WorkflowRunner' object has no attribute 'trigger_workflow'`.
+Neither blocks the soak's purpose (observing scheduled job/hand firings).
