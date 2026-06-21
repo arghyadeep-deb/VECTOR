@@ -355,6 +355,20 @@ districts:
       description: Audits what data leaves the device and to where
       capabilities: [privacy, audit, data_flow]
 
+  # Task A.4 (2026-06-21): predictive_analytics had ZERO dispatchable agents —
+  # StrategyRecommender (its only AgentBase) had no run() of its own, so a
+  # dispatch fell through to AgentBase's generic fake-success stub. Composed
+  # the district's 3 other real, zero-arg-constructible plain classes
+  # (TimeSeriesForecaster, AnomalyPredictor, CausalSimulator + PredictionStore)
+  # behind a real run() that branches on task type. See
+  # tests/test_predictive_analytics_run.py.
+  predictive_analytics:
+    - name: strategy_recommender
+      class: districts.predictive_analytics.strategy_recommender.StrategyRecommender
+      model: vector-reasoning
+      description: Composes forecast/anomaly/causal-simulation pipeline into recommendations
+      capabilities: [predict, forecast, anomaly_prediction, detect_anomalies, time_series, causal_simulate, simulate, strategy_recommend, recommend, prediction_store]
+
   pattern_detective:
     - name: habit_finder
       class: districts.pattern_detective.habit_finder.HabitFinder
