@@ -109,6 +109,40 @@ class ContentScheduler(AgentBase):
 
             try:
                 content = job.payload.get("content", "") if isinstance(job.payload, dict) else ""
+                # RULE 3 / outward publish: posting to Dev.to/Hashnode/Medium is a
+                # real, public, irreversible action. Gate RED — owner approves each
+                # publish. This cron path previously bypassed the gateway entirely
+                # (the content Hand gates, this scheduler did not). Fail CLOSED.
+                _approved = False
+                try:
+                    from core.loop.permission_gateway import PermissionGateway, Action
+                    _appr = await PermissionGateway().execute(Action(
+                        action_type="content_publish",
+                        params={
+                            "summary": f"Publish '{job.title[:60]}' to {job.platform}",
+                            "platform": job.platform,
+                            "title": job.title,
+                        },
+                        proposed_by="content_scheduler",
+                    ))
+                    _approved = getattr(_appr, "approved", False)
+                except Exception as _gw_err:
+                    logger.error(
+                        "[VECTOR][scheduler] gateway unavailable — NOT publishing {} ({}): {}",
+                        job.job_id, job.platform, _gw_err,
+                    )
+                    _approved = False
+                if not _approved:
+                    logger.warning(
+                        "[VECTOR][scheduler] publish of {} ({}) not approved — skipping",
+                        job.job_id, job.platform,
+                    )
+                    try:
+                        tracker.mark_failed(job.job_id, "owner did not approve publish")
+                    except Exception:
+                        logger.exception("[VECTOR] mark_failed after non-approval failed")
+                    results.append({"job_id": job.job_id, "platform": job.platform, "status": "unapproved"})
+                    continue
                 result = await asyncio.to_thread(
                     publisher.publish_all,
                     job.title,
