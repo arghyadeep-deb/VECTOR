@@ -288,9 +288,29 @@ def main() -> int:
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(report, encoding="utf-8")
 
-    total_real = sum(len(v) for v in by_district.values())
-    total_unreg = sum(1 for agents in by_district.values() for a in agents if a.qualified not in registered)
+    # Re-derive the same totals build_report computed (swarm-reachable
+    # sub-agents of a registered orchestrator are not a real gap).
+    total_real = 0
+    total_unreg = 0
+    total_swarm = 0
+    for district, agents in by_district.items():
+        if not agents:
+            continue
+        district_dir = DISTRICTS_DIR / district
+        swarm_loaded_quals = _swarm_self_loaded_qualified_names(district_dir, district)
+        orchestrator_quals = {a.qualified for a in agents if a.module == f"districts.{district}.agent"}
+        orchestrator_registered = bool(orchestrator_quals & registered)
+        total_real += len(agents)
+        for a in agents:
+            if a.qualified in registered:
+                continue
+            if a.qualified in swarm_loaded_quals and orchestrator_registered:
+                total_swarm += 1
+            else:
+                total_unreg += 1
+
     print(f"Scanned {total_real} real agent classes across {len(by_district)} districts.")
+    print(f"Swarm-reachable (not a real gap): {total_swarm}")
     print(f"Unregistered: {total_unreg}")
     print(f"Report written to {OUT_PATH}")
     return 0
