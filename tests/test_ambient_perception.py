@@ -141,3 +141,13 @@ def test_sense_tick_phone_enabled_no_device_degrades_gracefully(monkeypatch):
     snap = get_sense_cache_snapshot()
     assert snap["phone"]["connected"] is False
     assert snap["phone"]["notification_count"] == 0
+
+
+def test_phone_state_propagates_into_context_engine_world_state():
+    update_sense_cache(
+        screen_summary="", presence="present",
+        phone={"connected": True, "notification_count": 3, "recent": []},
+    )
+    state = ContextEngine().get_world_state()
+    assert state["phone_connected"] is True
+    assert state["phone_notification_count"] == 3
