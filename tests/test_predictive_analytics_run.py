@@ -1,0 +1,91 @@
+"""Task A.4 (plans/governor-wiring-and-ambient-perception.md): predictive_analytics
+had zero dispatchable agents — its only AgentBase subclass, StrategyRecommender,
+had no `run()` of its own, so a dispatch would silently hit AgentBase's generic
+fake-success stub (`{"status": "ok", "agent": ..., "task": task}`) regardless of
+what was asked, exactly the failure mode the rest of this effort exists to close.
+
+The other 3 files in the district (TimeSeriesForecaster, AnomalyPredictor,
+CausalSimulator, PredictionStore) are real, working, plain (non-AgentBase)
+classes with zero-arg constructors. This composes them behind a real
+`run(task)` on StrategyRecommender — the district's one AgentBase — that
+branches on task["type"]: forecast / detect_anomalies / simulate / recommend
+(default), persisting results via PredictionStore and returning real status,
+not a hardcoded shape.
+"""
+import asyncio
+
+from districts.predictive_analytics.strategy_recommender import StrategyRecommender
+
+
+def test_run_does_not_use_the_agentbase_fake_success_stub():
+    """The smoking-gun regression check: AgentBase's generic run() always
+    returns {"status": "ok", "agent": ..., "task": task} verbatim — if
+    StrategyRecommender.run() still produces that exact shape, it means our
+    override isn't actually being called (or doesn't do real work)."""
+    agent = StrategyRecommender()
+    result = asyncio.run(agent.run({"type": "forecast", "params": {
+        "metric_name": "cpu_usage",
+        "historical_data": [10.0, 12.0, 11.0, 13.0, 14.0, 12.5, 15.0],
+    }}))
+    assert result.get("agent") != agent.name or "task" not in result, (
+        "run() returned the unmodified AgentBase stub shape — override not real"
+    )
+    assert "forecast" in result or result.get("status") == "ok"
+
+
+def test_run_forecast_branch_returns_real_forecast():
+    agent = StrategyRecommender()
+    result = asyncio.run(agent.run({
+        "type": "forecast",
+        "params": {
+            "metric_name": "cpu_usage",
+            "historical_data": [10.0, 12.0, 11.0, 13.0, 14.0, 12.5, 15.0, 16.0, 13.0, 14.0],
+            "periods": 3,
+        },
+    }))
+    assert result["status"] == "ok"
+    assert result["forecast"]["metric_name"] == "cpu_usage"
+    assert len(result["forecast"]["values"]) == 3
+
+
+def test_run_detect_anomalies_branch():
+    agent = StrategyRecommender()
+    result = asyncio.run(agent.run({
+        "type": "detect_anomalies",
+        "params": {
+            "metric_name": "error_rate",
+            "values": [1.0, 1.1, 0.9, 1.0, 50.0, 1.0, 0.95],
+        },
+    }))
+    assert result["status"] == "ok"
+    assert "anomalies" in result
+
+
+def test_run_simulate_branch():
+    agent = StrategyRecommender()
+    result = asyncio.run(agent.run({
+        "type": "simulate",
+        "params": {
+            "metric_name": "deadline_risk",
+            "scenario_params": {"base_value": 50.0, "parameters": {}},
+            "iterations": 50,
+        },
+    }))
+    assert result["status"] == "ok"
+    assert "simulation" in result
+
+
+def test_run_unknown_type_falls_back_to_pending_recommendations_not_fake_ok():
+    agent = StrategyRecommender()
+    result = asyncio.run(agent.run({"type": "totally_unhandled_type", "params": {}}))
+    assert result["status"] == "ok"
+    assert "recommendations" in result
+
+
+if __name__ == "__main__":
+    test_run_does_not_use_the_agentbase_fake_success_stub()
+    test_run_forecast_branch_returns_real_forecast()
+    test_run_detect_anomalies_branch()
+    test_run_simulate_branch()
+    test_run_unknown_type_falls_back_to_pending_recommendations_not_fake_ok()
+    print("[OK] test_predictive_analytics_run")
