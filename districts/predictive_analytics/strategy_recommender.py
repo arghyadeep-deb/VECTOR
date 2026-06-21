@@ -114,7 +114,7 @@ class StrategyRecommender(AgentBase):
                     },
                 }
 
-            if task_type == "detect_anomalies":
+            if task_type in ("detect_anomalies", "anomaly_prediction"):
                 predictor = self._get_anomaly_predictor()
                 anomalies = predictor.detect(
                     metric_name=params.get("metric_name", "unknown"),
