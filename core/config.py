@@ -728,6 +728,7 @@ CONFIG: dict = {
         "kiit_password":          _secret(_s.KIIT_PASSWORD.get_secret_value()),
         "google_credentials_path": _s.GOOGLE_CREDENTIALS_PATH,
         "youtube_channel_id":     _s.YOUTUBE_CHANNEL_ID,
+        "youtube_data_api_key":   _secret(_s.YOUTUBE_DATA_API_KEY.get_secret_value()),
         "instagram_access_token": _secret(_s.INSTAGRAM_ACCESS_TOKEN.get_secret_value()),
         "instagram_account_id":   _s.INSTAGRAM_ACCOUNT_ID,
         "elevenlabs_key":         _secret(_s.ELEVENLABS_KEY.get_secret_value()),
