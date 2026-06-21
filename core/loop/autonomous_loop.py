@@ -1989,8 +1989,9 @@ class AutonomousLoop:
         screen_enabled = sensing_cfg.get("screen_enabled", False)
         camera_enabled = sensing_cfg.get("camera_enabled", False)
         phone_enabled = sensing_cfg.get("phone_enabled", False)
+        wearable_enabled = sensing_cfg.get("wearable_enabled", False)
 
-        if not screen_enabled and not camera_enabled and not phone_enabled:
+        if not screen_enabled and not camera_enabled and not phone_enabled and not wearable_enabled:
             return
 
         screen_summary = ""
