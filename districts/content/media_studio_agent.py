@@ -130,7 +130,10 @@ class MediaStudioAgent(AgentBase):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "generate_image")
+        # Accept the governor's task["type"] dispatch convention as the
+        # primary key, falling back to the legacy params["action"] shape
+        # so existing internal callers keep working unchanged.
+        action = task.get("type") or p.get("action", "generate_image")
 
         if action in ("generate_image", "text_to_image", "t2i"):
             return await self.generate_image(
