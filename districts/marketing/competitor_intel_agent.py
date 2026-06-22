@@ -121,6 +121,34 @@ class CompetitorIntelAgent(AgentBase, SkillMixin):
             logger.warning("[VECTOR][competitor_intel] find_gaps failed: {}", e)
         return {}
 
+    def build_xray_brief(self, target: str, context: str = "") -> dict:
+        """Convert profile_competitor()'s free-form LLM findings into the
+        Competitor X-Ray evidence-tiered brief schema (districts/marketing/
+        competitor_xray.py) — structured claims, normalized target,
+        threat ranking. LLM-derived findings are tagged INFERRED (not
+        CONFIRMED — no independent source verification happens here)."""
+        from districts.marketing.competitor_xray import build_empty_brief, make_claim, score_threat
+
+        profile = self.profile_competitor(target, context)
+        brief = build_empty_brief(target, confidence="medium" if "error" not in profile else "low")
+
+        for strength in profile.get("strengths", []):
+            brief.funnel.append(make_claim(f"Strength: {strength}", tier="INFERRED"))
+        for weakness in profile.get("weaknesses", []):
+            brief.funnel.append(make_claim(f"Weakness: {weakness}", tier="INFERRED"))
+        for opportunity in profile.get("opportunities", []):
+            brief.monetization.append(make_claim(f"Opportunity: {opportunity}", tier="INFERRED"))
+        if profile.get("pricing"):
+            brief.monetization.append(make_claim(f"Pricing: {profile['pricing']}", tier="INFERRED"))
+
+        threat_map = {"low": 20.0, "medium": 55.0, "high": 85.0}
+        threat_level = str(profile.get("threat_level", "medium")).lower()
+        maturity = threat_map.get(threat_level, 50.0)
+        evidence_quality = 60.0 if "error" not in profile else 10.0
+        brief.threat_score = score_threat(maturity=maturity, momentum=maturity, evidence_quality=evidence_quality)
+
+        return brief.to_dict()
+
     async def run(self, task: dict) -> dict:
         action = task.get("type", "")
         params = task.get("params", {})
