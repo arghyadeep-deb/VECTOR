@@ -44,8 +44,9 @@ class RuleMatch:
             self.triggered_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
 
-class DetectionRules:
+class DetectionRules(AgentBase):
     def __init__(self, rules_dir: str | None = None):
+        super().__init__(str(uuid.uuid4()), "DetectionRules", "security")
         from core.runtime_paths import data_path
 
         self._rules_dir = Path(rules_dir) if rules_dir else data_path("security", "rules")
