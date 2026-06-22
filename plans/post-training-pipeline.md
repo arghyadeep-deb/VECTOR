@@ -94,7 +94,7 @@
   ```
 - [ ] Run → expect FAIL
 - [ ] Add `CounterfactualMemory.get_all_rejections(limit=200) -> list[dict]` to `core/memory/counterfactual.py` (a plain `SELECT * FROM rejections ORDER BY created_at DESC LIMIT ?` through the existing `self._conn` — same pattern as `get_all_scenarios` at line 301; this is the one small addition to an existing file this plan needs).
-  - [ ] Write its own failing test first in the *existing* counterfactual test file (find it via `grep -rl CounterfactualMemory tests/`), then implement, then pass — same TDD discipline, just inside an existing module.
+  - [ ] Write its own failing test first in `tests/integration/test_phase_a3_counterfactual_act_on.py` (the existing `CounterfactualMemory` test file), then implement, then pass — same TDD discipline, just inside an existing module.
 - [ ] Implement `build_dpo_pairs(min_reward=0.7, action_type_match=True) -> list[dict]` in `reasoning_chain_dataset.py`:
   - Pulls rejections via `CounterfactualMemory().get_all_rejections()`.
   - Pulls high-reward chains via `ReasoningMemory().get_training_data()`.
