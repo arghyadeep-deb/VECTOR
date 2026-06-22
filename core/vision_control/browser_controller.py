@@ -103,18 +103,35 @@ class BrowserController:
                 inputs=inputs,
             )
             if not decision.allowed:
-                logger.warning(
-                    "[VECTOR][browser_ctrl] blocked {}: {}",
-                    action_type,
-                    decision.reason,
+                approved = False
+                if decision.requires_owner:
+                    summary = f"{action_type} on {current_url or '(unknown page)'}"
+                    try:
+                        approved = await PermissionGateway().request_approval(
+                            decision.permission_action, summary,
+                        )
+                    except Exception as exc:
+                        logger.warning(
+                            "[VECTOR][browser_ctrl] request_approval failed, staying blocked: {}", exc,
+                        )
+                        approved = False
+
+                if not approved:
+                    logger.warning(
+                        "[VECTOR][browser_ctrl] blocked {}: {}",
+                        action_type,
+                        decision.reason,
+                    )
+                    return {
+                        "status": "blocked",
+                        "action_type": action_type,
+                        "level": decision.level,
+                        "reason": decision.reason,
+                        "requires_owner": decision.requires_owner,
+                    }
+                logger.info(
+                    "[VECTOR][browser_ctrl] owner approved {} — proceeding", action_type,
                 )
-                return {
-                    "status": "blocked",
-                    "action_type": action_type,
-                    "level": decision.level,
-                    "reason": decision.reason,
-                    "requires_owner": decision.requires_owner,
-                }
 
             if action_type in ("click", "left_click", "left_single"):
                 if s_coords:
