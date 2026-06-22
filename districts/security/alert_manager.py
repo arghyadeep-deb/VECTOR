@@ -36,8 +36,9 @@ class Alert(BaseModel):
 
 _STATUSES = {"NEW", "ACKNOWLEDGED", "INVESTIGATING", "RESOLVED", "CLOSED"}
 
-class AlertManager:
+class AlertManager(AgentBase):
     def __init__(self, db_path: str | None = None):
+        super().__init__(str(uuid.uuid4()), "AlertManager", "security")
         from core.runtime_paths import data_path
 
         self._db_path = db_path or str(data_path("security", "alerts.db"))
