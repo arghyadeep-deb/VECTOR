@@ -319,18 +319,21 @@ class ClientManager(AgentBase):
         ]
 
         if task_type == "add_client":
-            return {"status": "ok", **self.add_client(p.get("name", ""), p.get("contact", ""), p.get("notes", ""), p.get("tags"))}
+            r = self.add_client(p.get("name", ""), p.get("contact", ""), p.get("notes", ""), p.get("tags"))
+            return {**r, "status": "ok" if r.get("status") == "success" else "error"}
         if task_type == "get_client":
             client = self.get_client(p.get("name", ""))
             return {"status": "ok", "client": client}
         if task_type == "list_clients":
             return {"status": "ok", "clients": self.list_clients(p.get("status"))}
         if task_type == "update_client":
-            return {"status": "ok", **self.update_client(p.get("name", ""), p.get("updates", {}))}
+            r = self.update_client(p.get("name", ""), p.get("updates", {}))
+            return {**r, "status": "ok" if r.get("status") == "success" else "error"}
         if task_type == "delete_client":
             return {"status": "ok", "deleted": self.delete_client(p.get("name", ""))}
         if task_type == "track_engagement":
-            return {"status": "ok", **self.track_engagement(p.get("client", ""), p.get("event_type", ""), p.get("details"))}
+            r = self.track_engagement(p.get("client", ""), p.get("event_type", ""), p.get("details"))
+            return {**r, "status": "ok" if r.get("status") == "success" else "error"}
         if task_type == "get_top_clients":
             return {"status": "ok", "clients": self.get_top_clients(p.get("by", "engagement_score"), p.get("limit", 10))}
         if task_type == "client_summary":
