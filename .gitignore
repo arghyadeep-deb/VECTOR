@@ -133,6 +133,7 @@ data/runtime/
 data/security/incidents/
 data/training_runs/
 data/logs/
+data/adapters/
 .claude/screenshots/
 .claude/scheduled_tasks.lock
 districts/investment/vector_backtest/sessions/
