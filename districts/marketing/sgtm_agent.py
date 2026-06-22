@@ -37,9 +37,17 @@ Data: {str(data or {})[:500]}"""
             logger.error("[VECTOR][sgtm] health_check error: {}", e)
             return {"status": "error", "error": str(e)}
 
-    async def run(self, params: dict | None = None) -> dict:
-        p = params or {}
-        return await self.health_check(p.get("container_url", ""), p)
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        params = task.get("params", {}) or {}
+
+        if task_type in ("health_check", "sgtm_health"):
+            return await self.health_check(params.get("container_url", ""), params)
+        return {
+            "status": "error",
+            "error": f"unhandled type '{task_type}'",
+            "supported": ["health_check", "sgtm_health"],
+        }
 
 if __name__ == "__main__":
     a = SGTMAgent()
