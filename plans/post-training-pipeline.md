@@ -174,12 +174,19 @@
   def test_run_sft_with_export_calls_ollama_exporter(monkeypatch, tmp_path):
       from core.training.post_training.sft_trainer import run_sft
       # ... monkeypatch chains_to_sft_examples to return >= min_examples,
-      # monkeypatch LoRATrainer.train to return {"status": "ok", "save_dir": str(tmp_path)},
+      # monkeypatch LoRATrainer.train to return
+      #   {"status": "success", "method": "peft", "save_path": str(tmp_path)},
       # monkeypatch OllamaExporter.export_model_weights as a spy,
-      # assert it was called with the trainer's save_dir when export=True.
+      # assert it was called with src_path=that save_path when export=True.
+
+  def test_run_sft_with_export_skips_export_when_simulated(monkeypatch):
+      # LoRATrainer's simulated path's result dict has NO "save_path" key at all
+      # (core/training/lora_trainer.py:175-185) — confirm export is skipped
+      # gracefully (not a KeyError) when method == "simulated".
+      ...
   ```
-- [ ] Run → expect FAIL
-- [ ] Add an `export: bool = False` kwarg to `run_sft`/`run_dpo`; on `status == "ok"`, call `OllamaExporter().export_model_weights(src_path=result["save_dir"], model_name=adapter_name)` then `create_modelfile(...)` (reuse `core/training/openmythos/export_to_ollama.py` as-is, no modifications needed there).
+- [ ] Run both → expect FAIL
+- [ ] Add an `export: bool = False` kwarg to `run_sft`/`run_dpo`; on `status == "success"` (SFT) / the real-trl success status (DPO) **and** `result.get("save_path")` present, call `OllamaExporter().export_model_weights(src_path=result["save_path"], model_name=adapter_name)` then `create_modelfile(...)`. When `save_path` is absent (the simulated path never sets it), skip export and note `"export": "skipped_no_save_path"` in the returned dict rather than raising `KeyError`. Reuse `core/training/openmythos/export_to_ollama.py` as-is, no modifications needed there.
 - [ ] Run → expect PASS
 - [ ] Commit: `git commit -m "feat(training): wire post-training export to OllamaExporter"`
 
