@@ -106,3 +106,13 @@ class ContextBudgetManager:
             "estimated_saved_chars": max(0, original - compact),
         }
 
+
+_manager: ContextBudgetManager | None = None
+
+
+def get_context_budget_manager() -> ContextBudgetManager:
+    global _manager
+    if _manager is None:
+        _manager = ContextBudgetManager()
+    return _manager
+
