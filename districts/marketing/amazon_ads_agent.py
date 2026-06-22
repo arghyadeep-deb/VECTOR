@@ -36,8 +36,17 @@ Data: {str(account_data or {})[:1000]}"""
             logger.error("[VECTOR][amazon_ads] audit error: {}", e)
             return {"status": "error", "error": str(e)}
 
-    async def run(self, params: dict | None = None) -> dict:
-        return await self.audit(params or {})
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        params = task.get("params", {}) or {}
+
+        if task_type in ("audit", "amazon_ads_audit"):
+            return await self.audit(params.get("account_data", params))
+        return {
+            "status": "error",
+            "error": f"unhandled type '{task_type}'",
+            "supported": ["audit", "amazon_ads_audit"],
+        }
 
 if __name__ == "__main__":
     a = AmazonAdsAgent()
