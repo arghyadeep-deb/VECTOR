@@ -218,7 +218,11 @@ class HealthAdvisor(AgentBase):
             recs = self.generate_recommendations(p.get("metrics", {}), p.get("trends", {}))
             return {"status": "ok", "recommendations": recs}
         if task_type == "health_check":
-            return {"status": "ok", **self.health_check()}
+            # health_check()'s own "status" field is agent liveness
+            # (active/dead), a different axis than dispatch-level
+            # ok/error — preserve it under "agent_status".
+            check = self.health_check()
+            return {**check, "agent_status": check.get("status"), "status": "ok"}
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
