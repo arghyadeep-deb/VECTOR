@@ -659,33 +659,36 @@ districts:
       class: districts.languages.japanese_coach.JapaneseCoach
       model: vector-multilingual
       description: Japanese language coaching and vocabulary practice
-      capabilities: [practice_vocabulary, grammar_check, generate_sentences, track_progress]
-      notes: "Cleanup batch (2026-06-22): this entry pre-dated the cleanup effort and was wrongly assumed correct — run() always called track_progress() regardless of type, the same bug as the other 4 language coaches. Fixed alongside them; was the reference pattern others were told to mirror, but the reference itself was broken."
+      capabilities: [languages, japanese, coaching]
+      notes: "Cleanup batch (2026-06-22): this entry pre-dated the cleanup effort and was wrongly assumed correct — run() always called track_progress() regardless of type, the same bug as the other 4 language coaches. Fixed alongside them; was the reference pattern others were told to mirror, but the reference itself was broken. Capability tag keeps language name (not literal task types like practice_vocabulary) since all 5 coaches share identical task-type vocabularies — the language name is what distinguishes them for capability-aware dispatch."
 
     # Cleanup batch (2026-06-22): run()-branching fix, same pattern as japanese_coach above.
+    # Capability tags use language name (not literal task types) for the same
+    # reason as japanese_coach — all 5 coaches share an identical task-type
+    # vocabulary, so the language name is the only thing that disambiguates them.
     - name: assamese_coach
       class: districts.languages.assamese_coach.AssameseCoach
       model: vector-multilingual
       description: Assamese language coaching and vocabulary practice
-      capabilities: [practice_vocabulary, grammar_check, generate_sentences, track_progress]
+      capabilities: [languages, assamese, coaching]
 
     - name: bengali_coach
       class: districts.languages.bengali_coach.BengaliCoach
       model: vector-multilingual
       description: Bengali language coaching and vocabulary practice
-      capabilities: [practice_vocabulary, grammar_check, generate_sentences, track_progress]
+      capabilities: [languages, bengali, coaching]
 
     - name: english_coach
       class: districts.languages.english_coach.EnglishCoach
       model: vector-multilingual
       description: English language coaching and vocabulary practice
-      capabilities: [practice_vocabulary, grammar_check, generate_sentences, track_progress]
+      capabilities: [languages, english, coaching]
 
     - name: hindi_coach
       class: districts.languages.hindi_coach.HindiCoach
       model: vector-multilingual
       description: Hindi language coaching and vocabulary practice
-      capabilities: [practice_vocabulary, grammar_check, generate_sentences, track_progress]
+      capabilities: [languages, hindi, coaching]
 
   interview_prep:
     - name: mock_interviewer
