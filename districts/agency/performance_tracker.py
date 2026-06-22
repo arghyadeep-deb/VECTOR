@@ -341,17 +341,17 @@ class PerformanceTracker(AgentBase):
         task_type = task.get("type", "")
         p = task.get("params", {}) or {}
         supported = [
-            "track_metric", "get_trend", "alert_anomaly", "get_active_alerts",
+            "track_metric", "get_trend", "alert_anomaly", "active_alerts",
             "acknowledge_alert", "get_metric_summary", "get_comparison", "remove_metric",
         ]
 
         if task_type == "track_metric":
-            return {"status": "ok", **self.track_metric(p.get("name", ""), float(p.get("value", 0)), p.get("tags"))}
+            return {"status": "ok", **self.track_metric(p.get("metric", ""), float(p.get("value", 0)), p.get("tags"))}
         if task_type == "get_trend":
             return {"status": "ok", **self.get_trend(p.get("metric", "engagement"), p.get("days", 7))}
         if task_type == "alert_anomaly":
             return {"status": "ok", "set": self.alert_anomaly(p.get("metric", ""), float(p.get("threshold", 0)), p.get("direction", "above"))}
-        if task_type == "get_active_alerts":
+        if task_type == "active_alerts":
             return {"status": "ok", "alerts": self.get_active_alerts()}
         if task_type == "acknowledge_alert":
             return {"status": "ok", "acknowledged": self.acknowledge_alert(p.get("alert_id", ""))}
