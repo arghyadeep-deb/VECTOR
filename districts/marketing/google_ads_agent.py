@@ -261,33 +261,39 @@ class GoogleAdsAgent(AgentBase, SkillMixin):
     # ── AgentBase interface ───────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        action = p.get("action", "audit")
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
 
-        if action in ("audit", "google_ads_audit"):
+        if task_type in ("audit", "google_ads_audit"):
             return await self.audit_account(
                 account_id=p.get("account_id", ""),
                 industry=p.get("industry", "general"),
                 business_context=p.get("business_context", ""),
             )
-        elif action in ("copy", "google_ads_copy", "ads_copy"):
+        elif task_type in ("copy", "google_ads_copy", "ads_copy"):
             return await self.generate_copy(
                 product=p.get("product", ""),
                 target_keyword=p.get("keyword", ""),
                 usp=p.get("usp", ""),
                 num_variants=int(p.get("variants", 3)),
             )
-        elif action in ("performance", "ads_performance"):
+        elif task_type in ("performance", "ads_performance"):
             return await self.analyze_performance(
                 metrics=p.get("metrics", {}),
                 industry=p.get("industry", "general"),
             )
-        elif action in ("landing", "google_ads_landing"):
+        elif task_type in ("landing", "google_ads_landing"):
             return await self.diagnose_landing_page(
                 url=p.get("url", ""),
                 keyword=p.get("keyword", ""),
             )
-        return {"status": "error", "error": f"unknown action: {action}"}
+        return {
+            "status": "error",
+            "error": f"unhandled type '{task_type}'",
+            "supported": ["audit", "google_ads_audit", "copy", "google_ads_copy",
+                          "ads_copy", "performance", "ads_performance",
+                          "landing", "google_ads_landing"],
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][google_ads_agent] ready")
