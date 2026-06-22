@@ -153,11 +153,18 @@ Format: JSON only."""
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        if hasattr(self, "extract") and p.get("text"):
-            result = self.extract(p["text"])
-            return {"status": "ok", "concepts": result}
-        return {"status": "ok", "agent": self.name}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["extract_concepts", "suggest_prerequisites"]
+
+        if task_type == "extract_concepts":
+            result = self.extract_concepts(p.get("text", ""))
+            return {"status": "ok", **result}
+        if task_type == "suggest_prerequisites":
+            result = self.suggest_prerequisites(p.get("concept", ""))
+            return {"status": "ok", **result}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
