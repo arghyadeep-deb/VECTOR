@@ -76,14 +76,16 @@ class ContextBudgetManager:
         except Exception as exc:
             logger.warning("[VECTOR][context_budget] persist failed for {}: {}", handle.handle, exc)
 
-    def compact_messages(self, messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def compact_messages(self, messages: list[dict[str, Any]], *, persist: bool = False) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         compacted: list[dict[str, Any]] = []
         handles: list[dict[str, Any]] = []
         for index, msg in enumerate(messages):
             content = msg.get("content", "")
             if not isinstance(content, str):
                 content = json.dumps(content, default=str)
-            new_content, handle = self.compact_text(content, label=f"message:{index}:{msg.get('role', 'unknown')}")
+            new_content, handle = self.compact_text(
+                content, label=f"message:{index}:{msg.get('role', 'unknown')}", persist=persist,
+            )
             updated = dict(msg)
             updated["content"] = new_content
             compacted.append(updated)
