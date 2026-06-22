@@ -305,8 +305,20 @@ Make it specific to {company} and the {role} role.
 
 
     async def run(self, task: dict) -> dict:
-        result = self.generate_progress_report()
-        return {"status": "ok", **result}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["session_report", "progress_report", "export_report", "company_specific"]
+
+        if task_type == "session_report":
+            return self.generate_session_report(p.get("interview_id", ""))
+        if task_type == "progress_report":
+            return self.generate_progress_report()
+        if task_type == "export_report":
+            return self.export_report(p.get("report", {}), p.get("format", "markdown"), p.get("output_path"))
+        if task_type == "company_specific":
+            return self.generate_company_specific_report(p.get("company", ""), p.get("role", ""), p.get("questions", []))
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
