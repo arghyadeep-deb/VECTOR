@@ -18,7 +18,7 @@ def run_sft(
     min_examples: int = 50,
     export: bool = False,
 ) -> dict:
-    examples = chains_to_sft_examples(min_reward=min_reward)
+    examples = reasoning_chain_dataset.chains_to_sft_examples(min_reward=min_reward)
     if len(examples) < min_examples:
         logger.info(
             "[VECTOR][post_training] run_sft skipped — {} examples < min {}",
