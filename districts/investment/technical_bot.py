@@ -388,10 +388,25 @@ class TechnicalBot(AgentBase):
         return datetime.now(timezone.utc).isoformat()
 
 
+    SUPPORTED_TYPES = ("get_price_data", "detect_patterns", "calculate_indicators")
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        result = self.get_price_data(p.get("symbol", "RELIANCE"))
-        return {"status": "ok", **result}
+        task_type = task.get("type", "get_price_data")
+
+        if task_type == "get_price_data":
+            return self.get_price_data(p.get("symbol", "RELIANCE"), p.get("timeframe", "3mo"))
+        elif task_type == "detect_patterns":
+            return self.detect_patterns(p.get("symbol", "RELIANCE"))
+        elif task_type == "calculate_indicators":
+            return self.calculate_indicators(
+                p.get("symbol", "RELIANCE"), p.get("indicators", self.INDICATORS),
+            )
+        return {
+            "status": "error",
+            "error": f"unhandled type '{task_type}'",
+            "supported": list(self.SUPPORTED_TYPES),
+        }
 
 
 if __name__ == "__main__":
