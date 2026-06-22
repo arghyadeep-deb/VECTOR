@@ -6,7 +6,7 @@ from loguru import logger
 from core.training.lora_trainer import LoRATrainer
 from core.training.training_config import AdapterConfig, TrainingArgs
 from core.training.openmythos.export_to_ollama import OllamaExporter
-from core.training.reasoning_chain_dataset import chains_to_sft_examples
+from core.training import reasoning_chain_dataset
 
 __all__ = ["run_sft"]
 
