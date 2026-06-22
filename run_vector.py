@@ -30,6 +30,35 @@ except ImportError:
 
 from loguru import logger
 
+from core.runtime_paths import data_path
+
+
+# ── Persistent file logging ────────────────────────────────────────────────────
+
+def _configure_file_logging(mode: str) -> int | None:
+    """Add a rotating file sink so long-running modes (loop/api) survive a
+    closed terminal. Without this, even a CRITICAL unhandled-exception log
+    line from `_global_excepthook`/`_asyncio_exception_handler` below was
+    only ever written to stderr and lost once the process's terminal went
+    away — there was nothing to inspect after the fact.
+
+    Returns the sink ID (for `logger.remove()` in tests), or None if disabled.
+    """
+    if os.environ.get("VECTOR_DISABLE_FILE_LOGGING", "").lower() in {"1", "true", "yes"}:
+        return None
+
+    log_path = data_path("logs", f"vector_{mode}.log")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    return logger.add(
+        str(log_path),
+        rotation="10 MB",
+        retention=5,
+        level="INFO",
+        enqueue=True,
+        backtrace=True,
+        diagnose=False,
+    )
+
 
 # ── Global exception hooks ─────────────────────────────────────────────────────
 
@@ -388,18 +417,6 @@ def _start_background_services() -> list[object]:
     services: list[object] = []
     try:
         from core.config import CONFIG
-        cloud_cfg = CONFIG.get("cloud", {})
-        brain_url = cloud_cfg.get("brain_url", "")
-        if brain_url:
-            from core.cloud.heartbeat import CloudBrainHeartbeat
-            heartbeat = CloudBrainHeartbeat(
-                brain_url=brain_url,
-                api_key=cloud_cfg.get("api_key", ""),
-            )
-            if heartbeat.is_enabled():
-                services.append(asyncio.create_task(heartbeat.start_loop()))
-                logger.info("[VECTOR][background] CloudBrainHeartbeat started")
-
         voice_cfg = CONFIG.get("voice", {})
         ambient_enabled = bool(voice_cfg.get("ambient_enabled", False))
         if ambient_enabled:
