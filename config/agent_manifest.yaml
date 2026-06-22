@@ -255,6 +255,23 @@ districts:
       description: Exercise session logging and streak tracking
       capabilities: [health, exercise, logging]
 
+    # Cleanup batch (2026-06-22): already correctly wired — run() reads
+    # flat sources/obsidian keys (not task["type"], since this is a
+    # single-operation agent) and does real work. No code change needed.
+    - name: biometrics_aggregator
+      class: districts.health.biometrics_aggregator.BiometricsAggregator
+      model: vector-focus
+      description: Aggregates biometrics from Apple Health/Oura/Strava, persists + writes Obsidian note
+      capabilities: [health, biometrics, aggregation]
+
+    # Cleanup batch (2026-06-22): had no run() at all — added one routing
+    # to the existing generate_recommendations()/health_check() methods.
+    - name: health_advisor
+      class: districts.health.health_advisor.HealthAdvisor
+      model: vector-focus
+      description: Health recommendation engine — sleep/activity/stress/medical advice from biometric trends
+      capabilities: [health_recommendations, health_check]
+
   memory_curator:
     - name: consolidation_bot
       class: districts.memory_curator.consolidation_bot.ConsolidationBot
