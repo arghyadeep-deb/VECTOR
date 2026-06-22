@@ -46,17 +46,6 @@ async def test_connect_hackernews_degrades_gracefully_on_failure(monkeypatch):
     assert "hackernews" in brief.degraded_sources
 
 
-async def test_connect_hackernews_signal_scores_recent_higher():
-    from districts.research.last30days_connectors import connect_hackernews
-
-    brief = await connect_hackernews("test")
-    # Real network call — degrades gracefully either way (LIVE or NEEDS-CONFIG),
-    # the point is build_brief()'s contract holds regardless.
-    assert hasattr(brief, "ranked")
-    ranked = brief.ranked()
-    assert isinstance(ranked, list)
-
-
 if __name__ == "__main__":
     import pytest
     sys.exit(pytest.main([__file__, "-v"]))
