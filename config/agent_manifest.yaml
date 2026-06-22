@@ -961,8 +961,8 @@ districts:
     - name: competitor_intel_agent
       class: districts.marketing.competitor_intel_agent.CompetitorIntelAgent
       model: vector-reasoning
-      description: Competitive intelligence specialist
-      capabilities: [competitor_intel]
+      description: Competitive intelligence specialist — profiling, market landscape, strategic gaps, evidence-tiered X-Ray briefs
+      capabilities: [competitor_intel, profile_competitor, market_landscape, strategic_gaps, xray_brief]
 
     - name: content_creator
       class: districts.marketing.content_creator.ContentCreator
