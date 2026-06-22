@@ -12,6 +12,7 @@ from loguru import logger
 
 from core.config import CONFIG
 from core.runtime_paths import data_path
+from core.city.agent_base import AgentBase
 from districts.security.log_aggregator import LogAggregator, LogEvent
 from districts.security.detection_rules import DetectionRules, RuleMatch
 from districts.security.incident_playbook_runner import IncidentPlaybookRunner, Incident
