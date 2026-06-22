@@ -496,6 +496,45 @@ class Uploader(AgentBase):
         """Get current UTC timestamp."""
         return datetime.now(timezone.utc).isoformat()
 
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = [
+            "upload_youtube", "upload_instagram", "upload_tiktok", "upload_twitter",
+            "schedule_upload", "execute_scheduled_uploads", "upload_history",
+            "scheduled_uploads", "cancel_scheduled_upload",
+        ]
+
+        if task_type == "upload_youtube":
+            return await self.upload_to_youtube(
+                p.get("video_path", ""), p.get("title", ""), p.get("description", ""),
+                p.get("tags", []), p.get("category", "22"), p.get("privacy", "private"),
+                p.get("scheduled_time"),
+            )
+        if task_type == "upload_instagram":
+            return await self.upload_to_instagram(
+                p.get("video_path", ""), p.get("caption", ""), p.get("hashtags", []), p.get("scheduled_time"),
+            )
+        if task_type == "upload_tiktok":
+            return await self.upload_to_tiktok(p.get("video_path", ""), p.get("caption", ""), p.get("hashtags"))
+        if task_type == "upload_twitter":
+            return await self.upload_to_twitter(p.get("video_path", ""), p.get("text", ""), p.get("hashtags"))
+        if task_type == "schedule_upload":
+            return await self.schedule_upload(
+                p.get("platform", ""), p.get("video_path", ""),
+                p.get("scheduled_datetime", ""), p.get("metadata", {}),
+            )
+        if task_type == "execute_scheduled_uploads":
+            return {"status": "ok", "results": await self.execute_scheduled_uploads()}
+        if task_type == "upload_history":
+            return {"status": "ok", "history": self.get_upload_history(p.get("platform"), p.get("limit", 50))}
+        if task_type == "scheduled_uploads":
+            return {"status": "ok", "scheduled": self.get_scheduled_uploads(p.get("status"))}
+        if task_type == "cancel_scheduled_upload":
+            return {"status": "ok", "cancelled": self.cancel_scheduled_upload(p.get("schedule_id", ""))}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     import asyncio
