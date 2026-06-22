@@ -360,16 +360,24 @@ Return recommended posting times with reasoning.
 
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
-        p = task.get("params", {})
-        action = p.get("action", "title_thumbnail")
-        if action in ("render_html", "render_video", "html_to_video"):
+        p = task.get("params", {}) or {}
+        task_type = task.get("type") or p.get("action", "title_thumbnail")
+        supported = ["title_thumbnail", "generate_tags", "render_html"]
+
+        if task_type in ("render_html", "render_video", "html_to_video"):
             return await self.render_html_to_video(
                 html_path=p.get("html_path", ""),
                 output_path=p.get("output_path", "output.mp4"),
             )
-        topic = p.get("topic", p.get("script", "VECTOR AI"))
-        result = self.generate_title_thumbnail(topic, count=p.get("count", 5))
-        return {"status": "ok", **result}
+        if task_type == "generate_tags":
+            tags = self.generate_tags(p.get("topic", "VECTOR AI"), count=p.get("count", 15))
+            return {"status": "ok", "tags": tags}
+        if task_type in ("title_thumbnail", "generate_title_thumbnail"):
+            topic = p.get("topic", p.get("script", "VECTOR AI"))
+            result = self.generate_title_thumbnail(topic, count=p.get("count", 5))
+            return {"status": "ok", **result}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
     def _get_timestamp(self) -> str:
         """Get current UTC timestamp."""
