@@ -188,7 +188,25 @@ class SIEMPipeline:
         return ids
 
     async def run(self, task: dict | None = None) -> dict:
-        return self.get_stats()
+        task = task or {}
+        task_type = task.get("type") or "stats"
+        params = task.get("params") or {}
+        supported = ["alerts", "process_event", "process_event_async", "stats"]
+
+        if task_type in ("stats", "get_stats"):
+            return {"status": "ok", **self.get_stats()}
+        if task_type in ("alerts", "get_alerts"):
+            return {"status": "ok", "alerts": self.get_alerts(**params)}
+        if task_type == "process_event":
+            return {"status": "ok", "triggered": self.process_event(params.get("event", params))}
+        if task_type == "process_event_async":
+            return {"status": "ok", "triggered": await self.async_process_event(params.get("event", params))}
+
+        return {
+            "status": "error",
+            "error": f"unhandled type: {task_type}",
+            "supported": supported,
+        }
 
 
 if __name__ == "__main__":

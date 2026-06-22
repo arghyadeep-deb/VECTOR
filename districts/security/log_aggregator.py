@@ -207,7 +207,23 @@ class LogAggregator:
         self._running = False
 
     async def run(self, task: dict | None = None) -> dict:
-        return self.get_stats()
+        task = task or {}
+        task_type = task.get("type") or "stats"
+        params = task.get("params") or {}
+        supported = ["prune_retention", "query", "stats"]
+
+        if task_type in ("stats", "get_stats"):
+            return {"status": "ok", **self.get_stats()}
+        if task_type == "query":
+            return {"status": "ok", "logs": self.query(**params)}
+        if task_type == "prune_retention":
+            return {"status": "ok", "deleted": self.prune_retention(**params)}
+
+        return {
+            "status": "error",
+            "error": f"unhandled type: {task_type}",
+            "supported": supported,
+        }
 
 
 if __name__ == "__main__":

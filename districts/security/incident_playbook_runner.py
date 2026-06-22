@@ -369,7 +369,30 @@ class IncidentPlaybookRunner:
         self._running = False
 
     async def run(self, task: dict | None = None) -> dict:
-        return {"playbooks_loaded": len(self._playbooks), "playbooks": list(self._playbooks.keys())}
+        task = task or {}
+        task_type = task.get("type") or "list_playbooks"
+        params = task.get("params") or {}
+        supported = ["execute_playbook", "list_incidents", "list_playbooks", "rollback"]
+
+        if task_type in ("list_playbooks", "stats"):
+            return {"status": "ok", "playbooks_loaded": len(self._playbooks), "playbooks": list(self._playbooks.keys())}
+        if task_type in ("list_incidents", "get_incidents"):
+            return {"status": "ok", "incidents": self.get_incidents(**params)}
+        if task_type == "rollback":
+            return {"status": "ok", "rolled_back": self.rollback(params.get("incident_id", ""))}
+        if task_type == "execute_playbook":
+            playbook_id = params.get("playbook_id") or params.get("id")
+            playbook = self._playbooks.get(playbook_id or "")
+            if playbook is None:
+                return {"status": "error", "error": f"unknown playbook: {playbook_id}", "supported": supported}
+            incident = await self.execute_playbook(playbook, params.get("evidence", {}), params.get("alert_id", ""))
+            return {"status": "ok", "incident": incident.model_dump(mode="json")}
+
+        return {
+            "status": "error",
+            "error": f"unhandled type: {task_type}",
+            "supported": supported,
+        }
 
 
 if __name__ == "__main__":

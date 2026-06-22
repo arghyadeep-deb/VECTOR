@@ -221,7 +221,26 @@ class NetworkMonitor:
         self._running = False
 
     async def run(self, task: dict | None = None) -> dict:
-        return self.generate_report()
+        task = task or {}
+        task_type = task.get("type") or "report"
+        supported = ["blocklist", "connection_rate", "port_scan", "report", "scan"]
+
+        if task_type in ("report", "generate_report"):
+            return {"status": "ok", **self.generate_report()}
+        if task_type in ("scan", "scan_connections"):
+            return {"status": "ok", "connections": self.scan_connections()}
+        if task_type == "port_scan":
+            return {"status": "ok", "threats": self.detect_port_scan()}
+        if task_type == "blocklist":
+            return {"status": "ok", "matches": self.check_blocklist()}
+        if task_type == "connection_rate":
+            return {"status": "ok", **self.track_connection_rate()}
+
+        return {
+            "status": "error",
+            "error": f"unhandled type: {task_type}",
+            "supported": supported,
+        }
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

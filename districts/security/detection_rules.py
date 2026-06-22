@@ -247,7 +247,24 @@ class DetectionRules:
         self._running = False
 
     async def run(self, task: dict | None = None) -> dict:
-        return {"rules_loaded": len(self._rules), "rules": [r.id for r in self._rules]}
+        task = task or {}
+        task_type = task.get("type") or "list_rules"
+        params = task.get("params") or {}
+        supported = ["hot_reload", "list_rules", "match_event"]
+
+        if task_type in ("list_rules", "stats"):
+            return {"status": "ok", "rules_loaded": len(self._rules), "rules": [r.id for r in self._rules]}
+        if task_type in ("match_event", "evaluate"):
+            event = params.get("event", params)
+            return {"status": "ok", "matches": [m.__dict__ for m in self.evaluate(event)]}
+        if task_type == "hot_reload":
+            return {"status": "ok", "rules_loaded": self.hot_reload()}
+
+        return {
+            "status": "error",
+            "error": f"unhandled type: {task_type}",
+            "supported": supported,
+        }
 
 
 if __name__ == "__main__":

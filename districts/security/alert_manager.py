@@ -244,7 +244,29 @@ class AlertManager:
             return {"hours": hours, "total_alerts": 0, "top_rules": []}
 
     async def run(self, task: dict | None = None) -> dict:
-        return self.get_stats()
+        task = task or {}
+        task_type = task.get("type") or "stats"
+        params = task.get("params") or {}
+        supported = ["acknowledge", "digest", "escalate", "list_alerts", "resolve", "stats"]
+
+        if task_type in ("stats", "get_stats"):
+            return {"status": "ok", **self.get_stats()}
+        if task_type in ("list_alerts", "get_alerts"):
+            return {"status": "ok", "alerts": self.get_alerts(**params)}
+        if task_type == "digest":
+            return {"status": "ok", "digest": self.get_digest(**params)}
+        if task_type == "acknowledge":
+            return {"status": "ok", "updated": self.acknowledge(params.get("alert_id", ""))}
+        if task_type == "resolve":
+            return {"status": "ok", "updated": self.resolve(params.get("alert_id", ""))}
+        if task_type == "escalate":
+            return {"status": "ok", "updated": self.escalate(params.get("alert_id", ""))}
+
+        return {
+            "status": "error",
+            "error": f"unhandled type: {task_type}",
+            "supported": supported,
+        }
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
