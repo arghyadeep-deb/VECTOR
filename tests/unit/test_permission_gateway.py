@@ -314,3 +314,57 @@ class TestErrorMessages:
     async def test_red_timeout_message(self, gateway):
         result = await gateway.execute(make_action("send_email", {"to": "t@t.com"}))
         assert "Timed out" in result.reason or "forbidden" in result.reason.lower()
+
+
+@pytest.mark.unit
+class TestRequestApprovalOnly:
+    """request_approval() — approval-only helper for callers (e.g. browser
+    governance) that need to perform the REAL action themselves after owner
+    sign-off, rather than delegating execution to the gateway's own
+    _execute_action (which dispatches through the governor — not appropriate
+    for replaying a paused mid-page Playwright action)."""
+
+    async def test_request_approval_notifies_and_waits_for_red(self):
+        gw = PermissionGateway()
+        gw._notify = AsyncMock()
+        gw._wait_for_confirmation = AsyncMock(return_value=True)
+
+        approved = await gw.request_approval("hand_browser", "Click 'Buy Now' on amazon.com")
+        assert approved is True
+        gw._notify.assert_awaited()
+
+    async def test_request_approval_times_out_rejects_for_safety(self):
+        gw = PermissionGateway()
+        gw._notify = AsyncMock()
+        gw._wait_for_confirmation = AsyncMock(side_effect=asyncio.TimeoutError)
+
+        approved = await gw.request_approval("hand_browser", "Click 'Buy Now'", timeout=0.01)
+        assert approved is False
+
+    async def test_request_approval_rejected_explicitly(self):
+        gw = PermissionGateway()
+        gw._notify = AsyncMock()
+        gw._wait_for_confirmation = AsyncMock(return_value=False)
+
+        approved = await gw.request_approval("hand_browser", "Submit payment form")
+        assert approved is False
+
+    async def test_request_approval_does_not_call_execute_action(self):
+        """The whole point: it must NOT call _execute_action — the caller
+        executes the real action itself after approval."""
+        gw = PermissionGateway()
+        gw._notify = AsyncMock()
+        gw._wait_for_confirmation = AsyncMock(return_value=True)
+        gw._execute_action = AsyncMock(return_value={"status": "should not be called"})
+
+        await gw.request_approval("hand_browser", "test summary")
+        gw._execute_action.assert_not_awaited()
+
+    async def test_request_approval_writes_audit_log(self):
+        gw = PermissionGateway()
+        gw._notify = AsyncMock()
+        gw._wait_for_confirmation = AsyncMock(return_value=True)
+
+        before = len(gw.audit_log)
+        await gw.request_approval("hand_browser", "test summary")
+        assert len(gw.audit_log) == before + 1
