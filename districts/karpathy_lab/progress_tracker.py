@@ -271,7 +271,14 @@ class ProgressTracker(AgentBase):
         if task_type == "get_progress":
             return self.get_progress(p.get("run_name", "default"))
         if task_type == "generate_report":
-            return self.generate_report(p.get("run_name", "default"))
+            # generate_report()'s own "status" field is the training run's
+            # status (running/completed/...), a different axis than the
+            # governor-dispatch status convention — preserve it under
+            # "run_status" and report dispatch-level "ok" separately.
+            report = self.generate_report(p.get("run_name", "default"))
+            if "error" in report:
+                return {**report, "status": "error"}
+            return {**report, "run_status": report.get("status"), "status": "ok"}
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
