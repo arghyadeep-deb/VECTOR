@@ -834,6 +834,13 @@ districts:
       description: Skill mastery progression and plateau detection
       capabilities: [skills, mastery, tracking]
 
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: gap_analyst
+      class: districts.skills.gap_analyst.GapAnalyst
+      model: vector-reasoning
+      description: Skill gap analysis, prioritization, and learning-path suggestion
+      capabilities: [analyze_gaps, prioritize_gaps, suggest_learning_path]
+
   # Audit finding 2026-06-21: ops/qa/personal_growth/chief_of_staff/science had
   # ZERO manifest entries — governor.dispatch() silently substituted a no-op
   # AgentBase stub (returning fake status="ok" + awarding +50 HP) for every
