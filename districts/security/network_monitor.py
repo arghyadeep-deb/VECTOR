@@ -6,6 +6,7 @@ import datetime
 import re
 import subprocess
 import time
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
@@ -16,6 +17,7 @@ ensure_paths()
 from loguru import logger
 
 from core.config import CONFIG
+from core.city.agent_base import AgentBase
 
 @dataclass
 class BlocklistEntry:
