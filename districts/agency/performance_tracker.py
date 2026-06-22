@@ -346,7 +346,8 @@ class PerformanceTracker(AgentBase):
         ]
 
         if task_type == "track_metric":
-            return {"status": "ok", **self.track_metric(p.get("metric", ""), float(p.get("value", 0)), p.get("tags"))}
+            r = self.track_metric(p.get("metric", ""), float(p.get("value", 0)), p.get("tags"))
+            return {**r, "status": "ok" if r.get("status") == "success" else "error"}
         if task_type == "get_trend":
             return {"status": "ok", **self.get_trend(p.get("metric", "engagement"), p.get("days", 7))}
         if task_type == "alert_anomaly":
