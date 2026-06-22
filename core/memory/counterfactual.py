@@ -309,6 +309,23 @@ class CounterfactualMemory:
             logger.warning(f"[VECTOR][counterfactual] get_all_scenarios failed: {e}")
             return []
 
+    def get_all_rejections(self, limit: int = 200) -> list[dict]:
+        """Plain read of the rejections table, most-recent first.
+
+        Used by the post-training DPO dataset adapter
+        (core/training/reasoning_chain_dataset.py) to approximate
+        preference pairs against high-reward reasoning_chains.
+        """
+        try:
+            with self._lock:
+                rows = self._conn.execute(
+                    "SELECT * FROM rejections ORDER BY created_at DESC LIMIT ?", (limit,)
+                ).fetchall()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            logger.warning(f"[VECTOR][counterfactual] get_all_rejections failed: {e}")
+            return []
+
     def close(self):
         try:
             with self._lock:
