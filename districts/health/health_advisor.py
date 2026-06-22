@@ -209,6 +209,19 @@ class HealthAdvisor(AgentBase):
             return {"status": "ok", "recommendations": recs}
         return await super().handle(event)
 
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["health_recommendations", "health_check"]
+
+        if task_type == "health_recommendations":
+            recs = self.generate_recommendations(p.get("metrics", {}), p.get("trends", {}))
+            return {"status": "ok", "recommendations": recs}
+        if task_type == "health_check":
+            return {"status": "ok", **self.health_check()}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
+
     def health_check(self) -> dict[str, Any]:
         monitors = ["sleep_hygiene", "activity_exercise", "stress_management",
                      "hydration_nutrition", "ergonomics", "medical_attention",
