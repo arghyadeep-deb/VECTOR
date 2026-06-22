@@ -257,11 +257,25 @@ V.E.C.T.O.R. Response:"""
         return datetime.now(timezone.utc).isoformat()
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        if p.get("text"):
-            result = self.generate_response(p["text"], p.get("context"))
-            return {"status": "ok", **result}
-        return {"status": "ok", "agent": self.name}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = [
+            "generate_response", "text_to_speech", "respond_to_audio",
+            "get_available_voices", "get_response_history",
+        ]
+
+        if task_type == "generate_response":
+            return self.generate_response(p.get("text", ""), p.get("context"))
+        if task_type == "text_to_speech":
+            return await self.text_to_speech(p.get("text", ""), p.get("voice", "default"), p.get("output_path"))
+        if task_type == "respond_to_audio":
+            return await self.respond_to_audio(p.get("audio_path", ""), p.get("context"))
+        if task_type == "get_available_voices":
+            return {"status": "ok", "voices": self.get_available_voices()}
+        if task_type == "get_response_history":
+            return {"status": "ok", "history": self.get_response_history(p.get("limit", 20))}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
