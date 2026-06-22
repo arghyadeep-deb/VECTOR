@@ -117,7 +117,11 @@
           lambda **kw: [{"instruction": "x", "response": "y", "reward": 0.9}],
       )
       result = run_sft(adapter_name="test-adapter", base_model="dummy/model")
-      assert result["status"] in ("simulated", "ok", "failed")
+      # LoRATrainer.train()'s real statuses (core/training/lora_trainer.py:101,112,167-185):
+      # "success" for BOTH the real-PEFT path and the simulated path — they're
+      # distinguished by the "method" field ("peft"/"unsloth"/"simulated"), not
+      # status — or "failed". run_sft's own pre-check adds "skipped" for too little data.
+      assert result["status"] in ("success", "failed", "skipped")
       assert "adapter" in result
   ```
 - [ ] Run → expect FAIL
