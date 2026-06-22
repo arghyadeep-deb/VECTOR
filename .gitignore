@@ -93,6 +93,7 @@ districts/intelligence/**/wormhole_secure_store.key
 scripts/dead_code_report.json
 scripts/import_graph_report.txt
 baseline_test_results.txt
+pytest_out.txt
 _result.json
 
 # Debug/scratch files
