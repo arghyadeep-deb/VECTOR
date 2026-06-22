@@ -309,6 +309,31 @@ class VoiceGenerator(AgentBase):
         ssml.append('</speak>')
         return '\n'.join(ssml)
 
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = [
+            "generate_voice", "generate_in_my_voice", "clone_voice",
+            "get_voices", "adjust_voice_speed", "generate_batch", "text_to_ssml",
+        ]
+
+        if task_type == "generate_voice":
+            return self.generate_voice(p.get("text", ""), p.get("voice_name", "af_heart"), p.get("output_path"))
+        if task_type == "generate_in_my_voice":
+            return self.generate_in_my_voice(p.get("text", ""), p.get("profile_name", "owner"), p.get("output_path"))
+        if task_type == "clone_voice":
+            return self.clone_voice(p.get("audio_samples", []), p.get("text", ""), p.get("output_path"))
+        if task_type == "get_voices":
+            return {"status": "ok", "voices": self.get_available_voices()}
+        if task_type == "adjust_voice_speed":
+            return self.adjust_voice_speed(p.get("audio_path", ""), p.get("speed", 1.0), p.get("output_path"))
+        if task_type == "generate_batch":
+            return {"status": "ok", "results": self.generate_batch(p.get("texts", []), p.get("voice", "af_heart"), p.get("output_dir"))}
+        if task_type == "text_to_ssml":
+            return {"status": "ok", "ssml": self.text_to_ssml(p.get("text", ""), p.get("breaks"))}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
