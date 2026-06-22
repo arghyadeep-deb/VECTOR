@@ -43,7 +43,7 @@ async def connect_hackernews(query: str, limit: int = 20) -> Last30DaysBrief:
                 # HN's Firebase API doesn't return a timestamp in get_hn_top's
                 # current shape — treat as "now" (best-effort; a future pass
                 # could thread the item's real `time` field through).
-                published_at=__import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
+                published_at=datetime.now(timezone.utc).isoformat(),
                 engagement=float(story.get("score", 0)),
                 confidence=0.8,
                 notes=f"by {story.get('by', 'unknown')}, {story.get('comments', 0)} comments",
