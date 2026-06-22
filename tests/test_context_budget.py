@@ -95,7 +95,10 @@ def test_provider_client_compacts_oversized_messages(monkeypatch):
             compact_calls.append(messages)
             return messages, []
 
-    monkeypatch.setattr(mod, "get_context_budget_manager", lambda: _SpyManager())
+    monkeypatch.setattr(
+        "districts.memory_curator.context_budget.get_context_budget_manager",
+        lambda: _SpyManager(),
+    )
 
     # Don't actually dispatch to a real provider — patch the routing internals
     # to short-circuit immediately after the compaction step we're testing.
