@@ -77,7 +77,7 @@ def test_browser_controller_proceeds_on_red_after_owner_approval(monkeypatch) ->
     async def _approve(*a, **kw):
         return True
 
-    monkeypatch.setattr(mod, "get_permission_gateway", lambda: type("G", (), {"request_approval": _approve})())
+    monkeypatch.setattr(mod, "PermissionGateway", lambda: type("G", (), {"request_approval": _approve})())
 
     page = DummyPage()
     result = asyncio.run(
