@@ -46,7 +46,22 @@ Phases 0 through 3 and 5.1-5.3 are `[x]` and verified (`docs/capability_proofs/_
 | Owner-review items flagged in the doc itself: Ollama model-warmth tuning (`num_ctx`, `OLLAMA_MAX_LOADED_MODELS=1→2`), `intelligence` health-poll loop, `content` live-generation supervision | DEFERRED(owner) | per doc |
 | Minor noted-not-chased: `vectorcode_loop` MCP server restart-every-5s log spam; one `WorkflowRunner.trigger_workflow` AttributeError fallback log line | TODO (low) | LOW — flagged "out of scope" in the soak notes, never followed up |
 
-### 1c. `plans/post-training-pipeline.md` — **Largely NOT DONE — confirmed real gap**
+### 1c. `plans/post-training-pipeline.md` — ✅ **DONE this session** (Tasks 1-4, 6-7; Task 5/GRPO explicitly deferred per the plan itself)
+
+Implemented via TDD, all tests passing, zero regressions (verified `pytest -k cron` 41/41, `smoke_test` 165 agents/ok, `integration_check` 51/51):
+- `core/memory/counterfactual.py::get_all_rejections()` (Task 2 prereq) — 3 new tests in `tests/integration/test_phase_a3_counterfactual_act_on.py`.
+- `core/training/reasoning_chain_dataset.py::chains_to_sft_examples()` + `build_dpo_pairs()` (Tasks 1-2) — wired to real `ReasoningMemory`/`CounterfactualMemory`, not the generic `alignment_dataset.py` shape. 5 tests in `tests/test_reasoning_chain_dataset.py`.
+- `core/training/post_training/sft_trainer.py::run_sft()` (Task 3) — delegates to `LoRATrainer`, min-examples gate. 4 tests.
+- `core/training/post_training/dpo_trainer.py::run_dpo()` (Task 4) — `trl`-or-simulate, mirrors `LoRATrainer`'s convention. 3 tests.
+- Export wiring (Task 6) — `run_sft(export=True)` calls `OllamaExporter`, skips gracefully when the simulated path has no `save_path`.
+- `core/config.py::TrainingConfig` extended with `post_training_enabled` (default `False`), `post_training_min_chain_reward`, `post_training_min_examples`, `post_training_base_model` (Task 7).
+- `core/loop/cron_jobs.py::job_post_training_run()` — checks the flag first (no-op, zero heavy imports when off), registered as `weekly-post-training` (Sat 04:00). 4 tests in `tests/test_post_training_cron_wiring.py`.
+
+**Owner action still required** (unchanged from the plan, not something code can satisfy): `pip install peft trl` to get real training instead of the simulated-but-real-pipeline path; decide whether/when to flip `post_training_enabled`; the actual overnight training run is owner-scheduled, not auto-run.
+
+<details><summary>Original gap analysis (superseded by the above)</summary>
+
+**Largely NOT DONE — confirmed real gap** (as of start of this session)
 
 `_CODEX_IMPLEMENTATION_PASS_2.md` claims "train-llm-from-scratch Post-Training Only — Added `core/training/alignment_dataset.py`" as done. Verified directly:
 
