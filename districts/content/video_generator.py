@@ -375,7 +375,7 @@ Return recommended posting times with reasoning.
         if task_type in ("title_thumbnail", "generate_title_thumbnail"):
             topic = p.get("topic", p.get("script", "VECTOR AI"))
             result = self.generate_title_thumbnail(topic, count=p.get("count", 5))
-            return {"status": "ok", **result}
+            return {**result, "status": "ok" if result.get("status") == "success" else "error"}
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
