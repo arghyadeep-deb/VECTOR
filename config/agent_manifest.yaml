@@ -325,6 +325,17 @@ districts:
       capabilities: [track_experiment, experiments]
 
   security:
+    # Cleanup (2026-06-23): confirmed via manifest_gap.py re-scan — was claimed
+    # registered in an earlier session but never actually was. Single-purpose
+    # PromptAgent-style scanner (one real operation: scan_artifact); the
+    # "doesn't branch on type" scanner heuristic is a false positive here,
+    # same pattern as ObraCodeReviewer/SocialSimAgent found earlier.
+    - name: skill_spector
+      class: districts.security.skill_spector.SkillSpector
+      model: vector-focus
+      description: Pre-load vetting of skills/MCP manifests/repo artifacts before absorption (SkillSpector)
+      capabilities: [scan_artifact]
+
     - name: threat_scout
       class: districts.security.threat_scout.ThreatScout
       model: vector-focus
