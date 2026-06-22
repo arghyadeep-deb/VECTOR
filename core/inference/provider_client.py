@@ -111,6 +111,21 @@ class ProviderClient:
           4. Tries providers in order until one succeeds
           5. (optional) Consistency enforcement -- rewrite off-character responses
         """
+        # -- Context budget compaction ------------------------------------------
+        # Headroom-inspired: oversized messages get compacted to a head/tail
+        # preview + retrieval handle before they ever reach a provider. No-op
+        # for normal-sized messages (compact_text's own length gate).
+        try:
+            from districts.memory_curator.context_budget import get_context_budget_manager
+            messages, _budget_handles = get_context_budget_manager().compact_messages(messages, persist=True)
+            if _budget_handles:
+                logger.info(
+                    "[VECTOR][provider_client] context budget compacted {} message(s) caller={}",
+                    len(_budget_handles), caller_id,
+                )
+        except Exception as _cbe:
+            logger.warning("[VECTOR][provider_client] context budget compaction failed: {}", _cbe)
+
         # -- Personality injection ---------------------------------------------
         _personality_layer = None
         _user_text_for_validation = ""
