@@ -310,6 +310,36 @@ def load_skill(name_or_path: str, session_id: str = "") -> Dict[str, Any]:
                 )
         skill_path = all_skills[slug]
 
+    if os.getenv("VECTOR_DISABLE_SKILL_SCANNER", "").lower() not in {"1", "true", "yes"}:
+        try:
+            from core.security.skill_scanner import scan_skill_for_load
+
+            scan_report = scan_skill_for_load(skill_path)
+            if scan_report.blocked:
+                reasons = "; ".join(
+                    f"{f.category}:{f.message}" for f in scan_report.findings[:3]
+                )
+                raise ValueError(
+                    f"Skill '{name_or_path}' blocked by VECTOR skill scanner "
+                    f"({scan_report.summary()}): {reasons}"
+                )
+        except ValueError:
+            raise
+        except Exception as exc:
+            # Fail CLOSED: a malicious skill can deliberately crash the scanner
+            # (e.g. malformed content that breaks the parser) to slip past the
+            # gate. Treat any scanner error as a block. Operator can set
+            # VECTOR_DISABLE_SKILL_SCANNER=1 to bypass if the scanner is genuinely
+            # buggy. (Was: warn-and-load — a fail-open security gate.)
+            logger.error(
+                "[VECTOR][skills] skill scanner errored for {} — blocking (fail-closed): {}",
+                skill_path, exc,
+            )
+            raise ValueError(
+                f"Skill '{name_or_path}' blocked: scanner errored (fail-closed). "
+                f"Set VECTOR_DISABLE_SKILL_SCANNER=1 to bypass if the scanner is buggy. ({exc})"
+            ) from exc
+
     raw = skill_path.read_text(encoding="utf-8")
     frontmatter, body = parse_frontmatter(raw)
 
@@ -384,6 +414,27 @@ class SkillRegistry:
                     frontmatter, _ = parse_frontmatter(raw)
                     if not skill_matches_platform(frontmatter):
                         continue
+                    scan_summary = "not_scanned"
+                    if os.getenv("VECTOR_DISABLE_SKILL_SCANNER", "").lower() not in {"1", "true", "yes"}:
+                        try:
+                            from core.security.skill_scanner import scan_skill_for_load
+
+                            scan_report = scan_skill_for_load(skill_path)
+                            scan_summary = scan_report.summary()
+                            if scan_report.blocked:
+                                logger.warning(
+                                    "[VECTOR][skills] quarantined {}: {}",
+                                    skill_path,
+                                    scan_summary,
+                                )
+                                continue
+                        except Exception as scan_exc:
+                            scan_summary = f"scanner_error:{scan_exc}"
+                            logger.warning(
+                                "[VECTOR][skills] scanner failed for {}: {}",
+                                skill_path,
+                                scan_exc,
+                            )
                     name = str(frontmatter.get("name") or skill_path.parent.name)
                     description = str(frontmatter.get("description") or "").strip().strip("'\"")
                     new_skills[slug] = {
@@ -392,6 +443,7 @@ class SkillRegistry:
                         "description": description,
                         "path": skill_path,
                         "frontmatter": frontmatter,
+                        "scan": scan_summary,
                     }
                 except Exception as e:
                     logger.debug(f"[VECTOR][skills] failed to load metadata for {skill_path}: {e}")
