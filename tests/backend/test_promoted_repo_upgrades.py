@@ -103,7 +103,7 @@ def test_browser_controller_stays_blocked_on_red_without_approval(monkeypatch) -
     async def _reject(*a, **kw):
         return False
 
-    monkeypatch.setattr(mod, "get_permission_gateway", lambda: type("G", (), {"request_approval": _reject})())
+    monkeypatch.setattr(mod, "PermissionGateway", lambda: type("G", (), {"request_approval": _reject})())
 
     result = asyncio.run(
         mod.BrowserController().execute_browser_action(
