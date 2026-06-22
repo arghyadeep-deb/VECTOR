@@ -609,6 +609,19 @@ districts:
       description: Inbound call screening and priority classification
       capabilities: [calls, voice, screening]
 
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: transcription_bot
+      class: districts.calls.transcription_bot.TranscriptionBot
+      model: vector-focus
+      description: Whisper-based audio transcription, summarization, action-item extraction
+      capabilities: [transcribe_audio, transcribe_live, summarize_transcript, extract_action_items]
+
+    - name: voice_responder
+      class: districts.calls.voice_responder.VoiceResponder
+      model: vector-focus
+      description: Text response generation + Kokoro TTS for voice interaction pipelines
+      capabilities: [generate_response, text_to_speech, respond_to_audio]
+
   karpathy_lab:
     - name: autoresearch_runner
       class: districts.karpathy_lab.autoresearch_runner.AutoresearchRunner
