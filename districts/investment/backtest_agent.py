@@ -322,13 +322,20 @@ class BacktestAgent(AgentBase):
 
     # ── AgentBase interface ───────────────────────────────────────────────────
 
-    async def run(self, task: dict) -> dict:
-        p = task.get("params", task)
-        action = p.get("action", "vt_research")
+    SUPPORTED_TYPES = (
+        "vt_research", "quant_research", "vt_backtest", "shadow_account",
+        "vt_swarm", "vt_skills", "vt_export",
+    )
 
-        if action in ("vt_research", "quant_research"):
+    async def run(self, task: dict) -> dict:
+        # Governor's real dispatch contract is task["type"]; params["action"]
+        # is kept only as a back-compat alias for direct/manual invocations.
+        p = task.get("params", task)
+        task_type = task.get("type") or p.get("action", "vt_research")
+
+        if task_type in ("vt_research", "quant_research"):
             return await self.vt_research(task=p.get("task", p.get("query", "")))
-        elif action == "vt_backtest":
+        elif task_type == "vt_backtest":
             return await self.vt_backtest(
                 codes=p.get("codes", p.get("tickers", ["AAPL"])),
                 start_date=p.get("start_date", p.get("start", "2022-01-01")),
@@ -338,21 +345,25 @@ class BacktestAgent(AgentBase):
                 engine=p.get("engine", "daily"),
                 interval=p.get("interval", "1D"),
             )
-        elif action == "shadow_account":
+        elif task_type == "shadow_account":
             return await self.shadow_account(journal_path=p.get("journal_path", ""))
-        elif action == "vt_swarm":
+        elif task_type == "vt_swarm":
             return await self.vt_swarm(
                 preset=p.get("preset", "investment_committee"),
                 variables=p.get("variables", {}),
             )
-        elif action == "vt_skills":
+        elif task_type == "vt_skills":
             return await self.vt_skills(search=p.get("search"))
-        elif action == "vt_export":
+        elif task_type == "vt_export":
             return await self.vt_export(
                 strategy_code=p.get("strategy_code", ""),
                 target=p.get("target", "pine"),
             )
-        return {"status": "error", "error": f"unknown action: {action}"}
+        return {
+            "status": "error",
+            "error": f"unhandled type '{task_type}'",
+            "supported": list(self.SUPPORTED_TYPES),
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][vt_agent] ready — waiting for tasks")
