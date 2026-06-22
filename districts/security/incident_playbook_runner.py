@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field
 
 from core.config import CONFIG
 from core.runtime_paths import data_path
+from core.city.agent_base import AgentBase
 
 
 @dataclass
