@@ -14,6 +14,8 @@ convention (resilience first, never propagate from an observe-style call).
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from loguru import logger
 
 from districts.research.last30days import Last30DaysBrief, RecentSignal, build_brief
