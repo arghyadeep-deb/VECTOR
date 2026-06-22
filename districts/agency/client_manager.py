@@ -315,7 +315,7 @@ class ClientManager(AgentBase):
         supported = [
             "add_client", "get_client", "list_clients", "update_client",
             "delete_client", "track_engagement", "get_top_clients",
-            "get_client_summary", "get_at_risk_clients",
+            "client_summary", "get_at_risk_clients",
         ]
 
         if task_type == "add_client":
