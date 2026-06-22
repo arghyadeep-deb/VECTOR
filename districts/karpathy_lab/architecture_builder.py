@@ -212,9 +212,21 @@ hardware:
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        result = self.generate_config(p.get("architecture", {}))
-        return {"status": "ok", **result}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["design_architecture", "generate_config", "estimate_compute"]
+
+        if task_type == "design_architecture":
+            result = self.design_architecture(p.get("model_type", "transformer"), p.get("params", {}))
+            return {"status": "ok", **result}
+        if task_type == "generate_config":
+            result = self.generate_config(p.get("architecture", {}))
+            return {"status": "ok", **result}
+        if task_type == "estimate_compute":
+            result = self.estimate_compute(p.get("architecture", {}))
+            return {"status": "ok", **result}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
