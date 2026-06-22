@@ -310,6 +310,45 @@ districts:
       description: SIEM rule development, MITRE ATT&CK coverage mapping, detection-as-code
       capabilities: [detection_rule, mitre_attack, siem]
 
+    # Cleanup batch (2026-06-22): the "fully built but 100% disconnected"
+    # SIEM stack from the 2026-06-21 audit — run() ignored task["type"]
+    # entirely, always returning the same hardcoded method's output.
+    - name: alert_manager
+      class: districts.security.alert_manager.AlertManager
+      model: vector-focus
+      description: Security alert lifecycle — list, acknowledge, resolve, escalate, digest
+      capabilities: [alert_management, acknowledge, escalate, list_alerts]
+
+    - name: detection_rules_engine
+      class: districts.security.detection_rules.DetectionRules
+      model: vector-focus
+      description: Detection rule store — match events against loaded rules, hot-reload
+      capabilities: [match_event, evaluate, hot_reload, list_rules]
+
+    - name: incident_playbook_runner
+      class: districts.security.incident_playbook_runner.IncidentPlaybookRunner
+      model: vector-reasoning
+      description: Executes incident response playbooks, tracks incidents, supports rollback
+      capabilities: [execute_playbook, incident_response, list_incidents, rollback]
+
+    - name: log_aggregator
+      class: districts.security.log_aggregator.LogAggregator
+      model: vector-focus
+      description: Security log ingestion, query, and retention pruning
+      capabilities: [log_query, log_aggregation, prune_retention]
+
+    - name: network_monitor
+      class: districts.security.network_monitor.NetworkMonitor
+      model: vector-focus
+      description: Connection scanning, port-scan detection, blocklist checks
+      capabilities: [network_scan, port_scan, blocklist, connection_rate]
+
+    - name: siem_pipeline
+      class: districts.security.siem_pipeline.SIEMPipeline
+      model: vector-reasoning
+      description: Aggregates log_aggregator + detection_rules + alert_manager + incident_playbook_runner into one event-processing pipeline
+      capabilities: [process_event, siem_alerts, siem_stats]
+
   time_calendar:
     - name: kiit_scraper
       class: districts.time_calendar.kiit_scraper.KIITScraper
