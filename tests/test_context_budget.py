@@ -91,7 +91,7 @@ def test_provider_client_compacts_oversized_messages(monkeypatch):
     compact_calls = []
 
     class _SpyManager:
-        def compact_messages(self, messages):
+        def compact_messages(self, messages, persist=False):
             compact_calls.append(messages)
             return messages, []
 
