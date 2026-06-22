@@ -198,10 +198,18 @@ class DataPrep(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
-        if hasattr(self, "prepare"):
-            result = self.prepare()
-            return {"status": "ok", "result": result}
-        return {"status": "ok", "agent": self.name}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["download_dataset", "preprocess_data", "tokenize_data"]
+
+        if task_type == "download_dataset":
+            return self.download_dataset(p.get("dataset_name", ""))
+        if task_type == "preprocess_data":
+            return self.preprocess_data(p.get("input_path", ""), p.get("output_path", ""))
+        if task_type == "tokenize_data":
+            return self.tokenize_data(p.get("text_path", ""), p.get("vocab_size", 8000))
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
