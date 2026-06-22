@@ -176,7 +176,14 @@ class MediaStudioAgent(AgentBase):
             return await self.get_status()
         elif action == "list_models":
             return await self.list_models(p.get("category"))
-        return {"status": "error", "error": f"unknown action: {action}"}
+        return {
+            "status": "error",
+            "error": f"unhandled type '{action}'",
+            "supported": [
+                "generate_image", "generate_i2i", "generate_video", "animate_image",
+                "lipsync", "background_remove", "upscale", "media_status", "list_models",
+            ],
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][media_studio] ready — waiting for tasks")
