@@ -168,6 +168,32 @@ class PermissionGateway:
         self._write_audit(action, result)
         return result
 
+    async def request_approval(self, action_type: str, summary: str, *, timeout: int | None = None) -> bool:
+        """Owner-approval-only — notify + wait, never executes anything itself.
+
+        For callers that must perform the real action themselves after
+        owner sign-off (e.g. browser governance replaying a paused
+        mid-page Playwright click) rather than delegating execution to
+        `_execute_action` (which dispatches through the governor — wrong
+        abstraction for "resume this exact in-flight browser action").
+        Reuses the same Pushover notify + wait_for_confirmation machinery
+        as the RED tier in `execute()`, fails closed on timeout/rejection.
+        """
+        action = Action(action_type=action_type, params={"summary": summary}, proposed_by="request_approval")
+        _red_timeout = timeout if timeout is not None else (1 if "pytest" in sys.modules else 300)
+
+        await self._notify(f'VECTOR wants to: {action_type}\n{summary}', priority=2)
+
+        try:
+            confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=_red_timeout)
+        except asyncio.TimeoutError:
+            confirmed = False
+            logger.warning(f"[VECTOR][gateway] request_approval for {action_type} timed out — rejected for safety")
+
+        result = GatewayResult(confirmed, 'RED', False, {}, 'Owner confirmed' if confirmed else 'Timed out or rejected waiting for owner')
+        self._write_audit(action, result)
+        return confirmed
+
     async def _handle_red_tier(self, action: "Action") -> str:
         """Call CouncilBrain.deliberate_action() and persist the result to council_log.jsonl.
         Returns 'proceed', 'reject', or 'defer'.  Always returns 'defer' on any failure
