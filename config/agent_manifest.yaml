@@ -692,6 +692,30 @@ districts:
       capabilities: [hedge_run, hedge_status]
       notes: "solana_execute requires PermissionGateway approval + SOLANA_PRIVATE_KEY/JUPITER_API_KEY env vars (absent as of 2026-06-21 soak) — fails closed without both."
 
+    # Cleanup batch (2026-06-22): run()-branching fix. ANALYSIS ONLY — none
+    # of these place real orders (confirmed: backtest/fundamentals/technical
+    # are read-only analysis by design, same convention as stock_analyst).
+    - name: backtest_agent
+      class: districts.investment.backtest_agent.BacktestAgent
+      model: vector-reasoning
+      description: VT research/backtest pipeline — analysis only
+      capabilities: [vt_research, quant_research, vt_backtest, shadow_account, vt_swarm, vt_skills, vt_export]
+      notes: "ANALYSIS ONLY — never executes trades"
+
+    - name: fundamentals_bot
+      class: districts.investment.fundamentals_bot.FundamentalsBot
+      model: vector-reasoning
+      description: Fundamentals analysis — valuation, financials, sector comparison, dividends
+      capabilities: [check_valuation, analyze_financials, compare_to_sector, dividend_analysis]
+      notes: "ANALYSIS ONLY — never executes trades"
+
+    - name: technical_bot
+      class: districts.investment.technical_bot.TechnicalBot
+      model: vector-reasoning
+      description: Technical analysis — price data, pattern detection, indicators
+      capabilities: [get_price_data, detect_patterns, calculate_indicators]
+      notes: "ANALYSIS ONLY — never executes trades"
+
   content:
     - name: script_generator
       class: districts.content.script_generator.ScriptGenerator
