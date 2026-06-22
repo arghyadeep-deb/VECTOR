@@ -343,8 +343,19 @@ Be specific and actionable in your analysis.
 
 
     async def run(self, task: dict) -> dict:
-        result = self.track_progress()
-        return {"status": "ok", **result}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["analyze_feedback", "identify_improvements", "track_progress"]
+
+        if task_type == "analyze_feedback":
+            entry = self.analyze_feedback(p.get("text", ""))
+            return {"status": "ok", **entry} if "error" not in entry else {"status": "error", **entry}
+        if task_type == "identify_improvements":
+            return self.identify_improvements(p.get("text", ""))
+        if task_type == "track_progress":
+            return self.track_progress()
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
