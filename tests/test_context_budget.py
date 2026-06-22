@@ -102,7 +102,7 @@ def test_provider_client_compacts_oversized_messages(monkeypatch):
     async def _fail_fast(*a, **kw):
         raise RuntimeError("stop here intentionally — only testing compaction wiring")
 
-    monkeypatch.setattr(mod.ProviderClient, "_try_providers", _fail_fast, raising=False)
+    monkeypatch.setattr(mod.ProviderClient, "_call_with_retry", _fail_fast)
 
     import asyncio
     client = mod.ProviderClient()
