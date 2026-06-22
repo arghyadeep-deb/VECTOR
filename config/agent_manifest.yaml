@@ -457,6 +457,16 @@ districts:
       description: Cross-district intelligence synthesis (Shadowbroker)
       capabilities: [intelligence, synthesis, signals]
 
+    # Cleanup batch (2026-06-22): already correctly wired — run() branches
+    # on params["action"] (not task["type"], a different valid convention
+    # the audit heuristic didn't detect), dispatching to 7 real methods.
+    # No code change needed, just registering it.
+    - name: social_sim_agent
+      class: districts.intelligence.social_sim_agent.SocialSimAgent
+      model: vector-reasoning
+      description: Social simulation — ontology/graph building, persona generation, full simulation runs
+      capabilities: [social_simulate, build_ontology, build_graph, generate_personas]
+
   news_trends:
     - name: ai_news_bot
       class: districts.news_trends.ai_news_bot.AINewsBot
