@@ -42,14 +42,22 @@ async def test_fastapi_reviewer_review_fastapi_task_type():
     task = {
         "type": "review_fastapi",
         "params": {
-            "code": "from fastapi import FastAPI\napp = FastAPI()\n",
+            "code": (
+                "from fastapi import FastAPI\n"
+                "app = FastAPI()\n"
+                'add_middleware("CORSMiddleware", allow_origins=["*"], allow_credentials=True)\n'
+                "@app.get('/items')\n"
+                "def get_items():\n"
+                "    raise Exception('oops')\n"
+            ),
             "filename": "router.py",
         },
     }
     result = await agent.run(task)
     assert result["agent"] == "FastAPIReviewer"
-    assert "issues" in result
-    assert "issue_count" in result
+    # Must have actually unwrapped task["params"]["code"] and run the static scan —
+    # this sample has CORS + sync-handler + bare-Exception violations.
+    assert result["issue_count"] > 0
 
 
 async def test_fastapi_reviewer_unhandled_type_returns_error():
