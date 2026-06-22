@@ -195,11 +195,30 @@ class PythonReviewer(AgentBase):
                 issues.append({"text": text, "severity": severity})
         return issues
 
-    async def run(self, params: dict | None = None) -> dict:
-        p = params or {}
-        code = p.get("code", "")
-        filename = p.get("filename", p.get("file", ""))
-        context = p.get("context", "")
+    _SUPPORTED_TASK_TYPES = ("review_python", "check_pep8", "review")
+
+    async def run(self, task: dict) -> dict:
+        """Governor entrypoint — routes by task['type'] to the real review logic.
+
+        task = {"type": "review_python", "params": {"code": ..., "filename": ...}}
+        Legacy callers passing a flat dict (code/filename at top level, no
+        "type" key) are still honored for backward compatibility.
+        """
+        task = task or {}
+        task_type = task.get("type", "review_python")
+        params = task.get("params", task)
+
+        if task_type not in self._SUPPORTED_TASK_TYPES:
+            return {
+                "agent": self.name,
+                "status": "error",
+                "error": f"unhandled type '{task_type}'",
+                "supported": list(self._SUPPORTED_TASK_TYPES),
+            }
+
+        code = params.get("code", "")
+        filename = params.get("filename", params.get("file", ""))
+        context = params.get("context", "")
         if not code and filename:
             try:
                 code = Path(filename).read_text(encoding="utf-8", errors="replace")
