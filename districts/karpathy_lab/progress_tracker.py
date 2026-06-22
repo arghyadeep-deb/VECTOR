@@ -260,9 +260,20 @@ class ProgressTracker(AgentBase):
         return report
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        result = self.generate_report(p.get("run_name", "default"))
-        return {"status": "ok", **result}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["start_run", "log_step", "get_progress", "generate_report"]
+
+        if task_type == "start_run":
+            return self.start_run(p.get("run_name", "default"), p.get("config", {}))
+        if task_type == "log_step":
+            return self.log_step(p.get("step", 0), p.get("metrics", {}), p.get("run_name"))
+        if task_type == "get_progress":
+            return self.get_progress(p.get("run_name", "default"))
+        if task_type == "generate_report":
+            return self.generate_report(p.get("run_name", "default"))
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
