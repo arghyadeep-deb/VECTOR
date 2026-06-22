@@ -265,9 +265,24 @@ Transcript:
         return datetime.now(timezone.utc).isoformat()
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        result = await self.transcribe_live(p.get("duration_sec", 5.0))
-        return {"status": "ok", **result}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = [
+            "transcribe_audio", "transcribe_live", "summarize_transcript", "extract_action_items",
+        ]
+
+        if task_type == "transcribe_audio":
+            return self.transcribe_audio(p.get("audio_path", ""), p.get("language"))
+        if task_type == "transcribe_live":
+            result = await self.transcribe_live(p.get("duration_sec", 5.0))
+            return result
+        if task_type == "summarize_transcript":
+            return self.summarize_transcript(p.get("text", ""), p.get("style", "concise"))
+        if task_type == "extract_action_items":
+            items = self.extract_action_items(p.get("text", ""))
+            return {"status": "ok", "action_items": items}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
