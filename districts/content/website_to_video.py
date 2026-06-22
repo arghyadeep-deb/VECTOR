@@ -180,8 +180,8 @@ class WebsiteToVideoAgent(AgentBase):
     # ── AgentBase interface ───────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        action = p.get("action", "capture_url")
+        p = task.get("params", {}) or {}
+        action = task.get("type") or p.get("action", "capture_url")
 
         if action == "capture_url":
             return await self.capture_url(
