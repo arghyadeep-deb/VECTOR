@@ -37,7 +37,7 @@ class ContextBudgetManager:
         self._store: dict[str, str] = {}
         self._handles: dict[str, ContextHandle] = {}
 
-    def compact_text(self, text: str, *, label: str = "context") -> tuple[str, ContextHandle | None]:
+    def compact_text(self, text: str, *, label: str = "context", persist: bool = False) -> tuple[str, ContextHandle | None]:
         if len(text) <= self.max_message_chars:
             return text, None
         digest = hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
@@ -58,7 +58,23 @@ class ContextBudgetManager:
             created_at=datetime.now(timezone.utc).isoformat(),
         )
         self._handles[handle_id] = handle
+        if persist:
+            self._persist_handle(handle, text, label)
         return compact, handle
+
+    def _persist_handle(self, handle: ContextHandle, original_text: str, label: str) -> None:
+        """Persist the handle->original mapping so a restart doesn't lose
+        retrievability. Never raises — this is a best-effort durability
+        layer, not a request-path dependency."""
+        try:
+            EpisodicMemory().store(
+                event_type="context_budget_handle",
+                content=json.dumps({"handle": handle.handle, "original_text": original_text}),
+                tags=["context_budget", label],
+                source="context_budget",
+            )
+        except Exception as exc:
+            logger.warning("[VECTOR][context_budget] persist failed for {}: {}", handle.handle, exc)
 
     def compact_messages(self, messages: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         compacted: list[dict[str, Any]] = []
