@@ -77,6 +77,8 @@ Implemented via TDD, all tests passing, zero regressions (verified `pytest -k cr
 
 **Owner action required regardless of code state:** `pip install peft trl` (neither installed; without them, training silently simulates rather than training for real — this is `LoRATrandiner`'s existing, correct graceful-degrade convention, not a bug).
 
+</details>
+
 ---
 
 ## §2 — Repo absorption: 31-repo list reconciled against actual code
