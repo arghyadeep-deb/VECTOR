@@ -391,14 +391,11 @@ class FundamentalsBot(AgentBase):
             result = self.check_valuation(p.get("metric", "PE"), p.get("threshold", 25.0))
             return {"status": "ok", **result}
         elif task_type == "analyze_financials":
-            result = self.analyze_financials(p.get("ticker", "AAPL"))
-            return {"status": result.get("status", "ok"), **result}
+            return self.analyze_financials(p.get("ticker", "AAPL"))
         elif task_type == "compare_to_sector":
-            result = self.compare_to_sector(p.get("ticker", "AAPL"), p.get("sector", "technology"))
-            return {"status": result.get("status", "ok"), **result}
+            return self.compare_to_sector(p.get("ticker", "AAPL"), p.get("sector", "technology"))
         elif task_type == "dividend_analysis":
-            result = self.get_dividend_analysis(p.get("ticker", "AAPL"))
-            return {"status": result.get("status", "ok"), **result}
+            return self.get_dividend_analysis(p.get("ticker", "AAPL"))
         return {
             "status": "error",
             "error": f"unhandled type '{task_type}'",
