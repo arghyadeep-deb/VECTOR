@@ -36,8 +36,17 @@ Data: {str(ga4_data or {})[:800]}"""
             logger.error("[VECTOR][attribution] audit error: {}", e)
             return {"status": "error", "error": str(e)}
 
-    async def run(self, params: dict | None = None) -> dict:
-        return await self.audit_consent_mode(params or {})
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        params = task.get("params", {}) or {}
+
+        if task_type in ("audit_consent_mode", "attribution_audit"):
+            return await self.audit_consent_mode(params.get("ga4_data", params))
+        return {
+            "status": "error",
+            "error": f"unhandled type '{task_type}'",
+            "supported": ["audit_consent_mode", "attribution_audit"],
+        }
 
 if __name__ == "__main__":
     a = AttributionAgent()
