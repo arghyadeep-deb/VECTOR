@@ -49,8 +49,9 @@ def _parse_netstat(output: str) -> list[dict[str, Any]]:
         })
     return connections
 
-class NetworkMonitor:
+class NetworkMonitor(AgentBase):
     def __init__(self, interval_sec: int | None = None):
+        super().__init__(str(uuid.uuid4()), "NetworkMonitor", "security")
         self._interval = interval_sec or CONFIG.get("security_siem", {}).get("network_monitor_interval_sec", 30)
         self._running = False
         self._blocklist: list[BlocklistEntry] = []
