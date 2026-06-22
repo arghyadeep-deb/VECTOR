@@ -950,6 +950,28 @@ districts:
       description: Server-side GTM health check
       capabilities: [sgtm_health]
 
+    # Cleanup batch (2026-06-22): already correctly wired — run() branches
+    # on params["action"] (not task["type"], a convention the audit
+    # heuristic didn't detect), with a real per-action dispatch and proper
+    # "unknown action" error. No code change needed, just registering them.
+    - name: meta_ads_agent
+      class: districts.marketing.meta_ads_agent.MetaAdsAgent
+      model: vector-reasoning
+      description: Meta Ads account audit, creative fatigue diagnosis, ROAS analysis, creative briefs
+      capabilities: [meta_ads_audit, meta_ads_creative, meta_ads_performance, meta_ads]
+
+    - name: seo_agent
+      class: districts.marketing.seo_agent.SEOAgent
+      model: vector-reasoning
+      description: SEO audit, keyword research, broken links, pagespeed, schema markup, GEO optimization
+      capabilities: [seo_audit, keyword_research, broken_links, pagespeed, schema_markup, geo_optimize]
+
+    - name: seo_portfolio
+      class: districts.marketing.seo_portfolio.SEOPortfolioAgent
+      model: vector-reasoning
+      description: Multi-site SEO portfolio review, onboarding, weekly review, page improvement, drop investigation
+      capabilities: [seo_portfolio_review, seo_onboard, seo_weekly_review, seo_improve_page, seo_investigate_drop]
+
   skills:
     - name: skill_mapper
       class: districts.skills.skill_mapper.SkillMapper
