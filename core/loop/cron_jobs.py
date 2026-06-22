@@ -22,6 +22,9 @@ from typing import Any, Callable
 
 from loguru import logger
 
+from core.training.post_training.sft_trainer import run_sft
+from core.training.post_training.dpo_trainer import run_dpo
+
 
 # ── Job implementations ──────────────────────────────────────────────────────
 
