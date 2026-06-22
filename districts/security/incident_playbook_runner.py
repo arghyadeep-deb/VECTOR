@@ -40,8 +40,9 @@ class Incident(BaseModel):
     resolved_at: datetime.datetime | None = None
 
 
-class IncidentPlaybookRunner:
+class IncidentPlaybookRunner(AgentBase):
     def __init__(self, playbooks_dir: str | None = None, db_path: str | None = None):
+        super().__init__(str(uuid.uuid4()), "IncidentPlaybookRunner", "security")
         self._playbooks_dir = Path(playbooks_dir) if playbooks_dir else data_path("security", "playbooks")
         self._packaged_playbooks_dir = Path(__file__).parent / "data" / "playbooks"
         self._db_path = db_path or str(data_path("security", "incidents.db"))
