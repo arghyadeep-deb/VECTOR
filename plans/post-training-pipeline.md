@@ -148,6 +148,10 @@
           lambda **kw: [{"prompt": "p", "chosen": "c", "rejected": "r"}] * 10,
       )
       result = run_dpo(adapter_name="test-dpo", base_model="dummy/model", min_pairs=5)
+      # New module — choose its own status vocabulary deliberately (it does
+      # NOT delegate to LoRATrainer, so it isn't bound to "success"/"failed"):
+      # "simulated" when trl is absent, "ok" when a real trl run completes,
+      # "skipped" for insufficient pairs, "failed" on a real run that errors.
       assert result["status"] in ("simulated", "ok", "failed", "skipped")
   ```
 - [ ] Run → expect FAIL
