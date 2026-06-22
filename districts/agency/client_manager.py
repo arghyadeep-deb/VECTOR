@@ -310,11 +310,35 @@ class ClientManager(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        if p.get("name"):
-            result = self.get_client(p["name"])
-            return {"status": "ok", "client": result}
-        return {"status": "ok", "agent": self.name}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = [
+            "add_client", "get_client", "list_clients", "update_client",
+            "delete_client", "track_engagement", "get_top_clients",
+            "get_client_summary", "get_at_risk_clients",
+        ]
+
+        if task_type == "add_client":
+            return {"status": "ok", **self.add_client(p.get("name", ""), p.get("contact", ""), p.get("notes", ""), p.get("tags"))}
+        if task_type == "get_client":
+            client = self.get_client(p.get("name", ""))
+            return {"status": "ok", "client": client}
+        if task_type == "list_clients":
+            return {"status": "ok", "clients": self.list_clients(p.get("status"))}
+        if task_type == "update_client":
+            return {"status": "ok", **self.update_client(p.get("name", ""), p.get("updates", {}))}
+        if task_type == "delete_client":
+            return {"status": "ok", "deleted": self.delete_client(p.get("name", ""))}
+        if task_type == "track_engagement":
+            return {"status": "ok", **self.track_engagement(p.get("client", ""), p.get("event_type", ""), p.get("details"))}
+        if task_type == "get_top_clients":
+            return {"status": "ok", "clients": self.get_top_clients(p.get("by", "engagement_score"), p.get("limit", 10))}
+        if task_type == "get_client_summary":
+            return {"status": "ok", **self.get_client_summary()}
+        if task_type == "get_at_risk_clients":
+            return {"status": "ok", "clients": self.get_at_risk_clients(p.get("threshold", 20))}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
