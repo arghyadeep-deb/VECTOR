@@ -75,7 +75,11 @@ async def test_architecture_builder_run_routes_generate_config(architecture_buil
 
 
 async def test_architecture_builder_run_routes_estimate_compute(architecture_builder):
-    arch = architecture_builder.design_architecture("transformer", {"hidden_size": 512, "num_layers": 4})
+    # hidden_size/num_layers large enough that parameters_billion (rounded to
+    # 2 decimals by the real estimate_compute()) doesn't round to 0.0 — a
+    # tiny config like hidden_size=512/num_layers=4 computes to ~0.0042B,
+    # which legitimately rounds to 0.0 and isn't a routing bug.
+    arch = architecture_builder.design_architecture("transformer", {"hidden_size": 2048, "num_layers": 24})
     result = await architecture_builder.run({
         "type": "estimate_compute",
         "params": {"architecture": arch},
