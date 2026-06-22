@@ -58,7 +58,7 @@
   ```
 - [ ] Run: `PYTHONUTF8=1 pytest tests/test_reasoning_chain_dataset.py::test_chains_to_sft_examples_filters_by_reward_threshold -v` → expect FAIL (module doesn't exist yet)
 - [ ] Implement `core/training/reasoning_chain_dataset.py::chains_to_sft_examples(min_reward=0.7, limit=1000) -> list[dict]`:
-  - Calls `ReasoningMemory().get_training_data(limit=limit)` (note: confirm exact method name in `core/memory/reasoning_memory.py` — the file has a method around line 143 documented as "Return chains tagged is_training_data=1 (reward > 0.7)"; use that, do not re-filter reward client-side if the method already does it server-side — check first, don't assume).
+  - Calls `ReasoningMemory().get_training_data(limit=limit)` — **confirmed** (`core/memory/reasoning_memory.py:142-147`) this already filters server-side to `is_training_data=1` (which is set whenever `reward > 0.7` at insert time). `chains_to_sft_examples`'s own `min_reward` kwarg is a redundant client-side safety filter on top (useful if the server-side threshold ever changes, or for a stricter cutoff in a specific training run) — apply it via `[c for c in chains if c["reward"] >= min_reward]`, don't assume it's pre-filtered to *your* exact threshold.
   - Maps each chain to `{"instruction": situation, "response": f"{action_taken}\n\nOutcome: {outcome}", "reward": reward, "chain_id": id}`.
   - Returns `[]` gracefully on any exception (log at `warning`, never raise — this is a batch job input, not a request path).
 - [ ] Run the test → expect PASS
