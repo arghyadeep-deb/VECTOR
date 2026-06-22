@@ -15,6 +15,7 @@ from loguru import logger
 from pydantic import BaseModel, Field
 
 from core.config import CONFIG
+from core.city.agent_base import AgentBase
 
 
 class LogEvent(BaseModel):
