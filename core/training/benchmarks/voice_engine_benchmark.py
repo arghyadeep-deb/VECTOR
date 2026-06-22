@@ -73,30 +73,36 @@ def _probe_omnivoice(text: str, language: str) -> dict:
     except ImportError:
         return {"status": "unavailable", "engine": "omnivoice", "reason": "omnivoice package not installed"}
 
-    started = time.perf_counter()
-    try:
-        result = engine.synthesize(text)
-    except Exception as exc:
-        return {"status": "unavailable", "engine": "omnivoice", "reason": str(exc)}
-    return {"status": "ok", "engine": "omnivoice", "latency_ms": round((time.perf_counter() - started) * 1000, 2), **result}
+    with tempfile.TemporaryDirectory() as tmp:
+        out_path = str(Path(tmp) / "bench_omnivoice.wav")
+        started = time.perf_counter()
+        try:
+            saved_path = engine.synthesize_to_file(text, language=language, output_path=out_path)
+        except Exception as exc:
+            return {"status": "unavailable", "engine": "omnivoice", "reason": str(exc)}
+        latency_ms = round((time.perf_counter() - started) * 1000, 2)
+        audio_bytes = Path(saved_path).stat().st_size if Path(saved_path).exists() else 0
+        return {"status": "ok", "engine": "omnivoice", "latency_ms": latency_ms, "audio_bytes": audio_bytes}
 
 
 def _probe_voxcpm(text: str, language: str) -> dict:
     try:
-        from core.voice.voxcpm_cloning import get_voxcpm_cloner
+        from core.voice.voxcpm_cloning import get_voxcpm_cloner, VoxCPMCloner
     except Exception as exc:
         return {"status": "unavailable", "engine": "voxcpm", "reason": f"import failed: {exc}"}
 
-    cloner = get_voxcpm_cloner()
-    if not cloner.available():
+    if not VoxCPMCloner.available():
         return {"status": "unavailable", "engine": "voxcpm", "reason": "voxcpm package not installed (pip install voxcpm, ~8GB weights)"}
 
+    cloner = get_voxcpm_cloner()
     started = time.perf_counter()
     try:
-        result = cloner.synthesize(text)
+        samples, sample_rate = cloner.synthesize(text)
     except Exception as exc:
         return {"status": "unavailable", "engine": "voxcpm", "reason": str(exc)}
-    return {"status": "ok", "engine": "voxcpm", "latency_ms": round((time.perf_counter() - started) * 1000, 2), **result}
+    latency_ms = round((time.perf_counter() - started) * 1000, 2)
+    audio_bytes = int(len(samples) * 2) if samples is not None else 0  # int16-equivalent estimate
+    return {"status": "ok", "engine": "voxcpm", "latency_ms": latency_ms, "audio_bytes": audio_bytes, "sample_rate": sample_rate}
 
 
 def _probe_supertonic(text: str, language: str) -> dict:
