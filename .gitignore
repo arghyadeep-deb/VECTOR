@@ -48,7 +48,7 @@ data/training/conversations/
 .claude/settings.local.json
 
 # Brain vault junction — local only, do not commit
-brain/
+/brain/
 .gstack/
 
 
@@ -118,11 +118,20 @@ test_tmp/
 *.bak
 *.bak.*
 data/feedback/
+
+# Runtime-generated memory/cache state
+data/lightrag_vault/
+districts/intelligence/shadowbroker_server/carrier_cache.json
+
+# Local wake-word samples; keep real voice data out of source commits by default
+models/wake/samples/
 data/missions/
 data/rejected_runs/
 data/reports/
 data/runtime/
 data/security/incidents/
+data/training_runs/
+data/logs/
 .claude/screenshots/
 .claude/scheduled_tasks.lock
 districts/investment/vector_backtest/sessions/
