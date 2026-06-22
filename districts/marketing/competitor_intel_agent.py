@@ -153,7 +153,16 @@ class CompetitorIntelAgent(AgentBase, SkillMixin):
         action = task.get("type", "")
         params = task.get("params", {})
 
-        if "profile" in action or "competitor" in action:
+        if "xray" in action or "x-ray" in action or "x_ray" in action:
+            competitor = params.get("competitor", params.get("query", ""))
+            context = params.get("context", "")
+            result = self.build_xray_brief(competitor, context)
+            return {
+                "message": f"X-Ray brief complete. Threat score: {result.get('threat_score', 0)}.",
+                "data": result,
+            }
+
+        elif "profile" in action or "competitor" in action:
             competitor = params.get("competitor", params.get("query", ""))
             context = params.get("context", "")
             result = self.profile_competitor(competitor, context)
