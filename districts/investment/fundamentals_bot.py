@@ -379,10 +379,31 @@ class FundamentalsBot(AgentBase):
         }
 
 
+    SUPPORTED_TYPES = (
+        "check_valuation", "analyze_financials", "compare_to_sector", "dividend_analysis",
+    )
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        result = self.check_valuation(p.get("metric", "PE"), p.get("threshold", 25.0))
-        return {"status": "ok", **result}
+        task_type = task.get("type", "check_valuation")
+
+        if task_type == "check_valuation":
+            result = self.check_valuation(p.get("metric", "PE"), p.get("threshold", 25.0))
+            return {"status": "ok", **result}
+        elif task_type == "analyze_financials":
+            result = self.analyze_financials(p.get("ticker", "AAPL"))
+            return {"status": result.get("status", "ok"), **result}
+        elif task_type == "compare_to_sector":
+            result = self.compare_to_sector(p.get("ticker", "AAPL"), p.get("sector", "technology"))
+            return {"status": result.get("status", "ok"), **result}
+        elif task_type == "dividend_analysis":
+            result = self.get_dividend_analysis(p.get("ticker", "AAPL"))
+            return {"status": result.get("status", "ok"), **result}
+        return {
+            "status": "error",
+            "error": f"unhandled type '{task_type}'",
+            "supported": list(self.SUPPORTED_TYPES),
+        }
 
 
 if __name__ == "__main__":
