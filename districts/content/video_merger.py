@@ -355,6 +355,35 @@ class VideoMerger(AgentBase):
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = [
+            "merge_clips", "add_background_music", "add_transitions",
+            "trim_video", "extract_audio", "add_subtitles",
+        ]
+
+        if task_type == "merge_clips":
+            return self.merge_clips(
+                p.get("clips_dir", ""), p.get("output_path", ""),
+                p.get("order"), p.get("transition", "dissolve"), p.get("transition_duration", 0.5),
+            )
+        if task_type == "add_background_music":
+            return self.add_background_music(
+                p.get("video_path", ""), p.get("music_path", ""), p.get("output_path"),
+                p.get("volume_music", 0.3), p.get("volume_video", 1.0),
+            )
+        if task_type == "add_transitions":
+            return self.add_transitions(p.get("video_path", ""), p.get("transition_type", ""), p.get("duration", 0.5))
+        if task_type == "trim_video":
+            return self.trim_video(p.get("video_path", ""), p.get("start_time", 0), p.get("end_time", 0), p.get("output_path"))
+        if task_type == "extract_audio":
+            return self.extract_audio(p.get("video_path", ""), p.get("output_path"))
+        if task_type == "add_subtitles":
+            return self.add_subtitles(p.get("video_path", ""), p.get("subtitle_path", ""), p.get("output_path"), p.get("style", "default"))
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
