@@ -866,6 +866,66 @@ districts:
       description: Live YouTube trending-topic harvest + competitor channel keyword analysis
       capabilities: [youtube_trending, fetch_trending, youtube_competitor, analyze_competitor]
 
+    # Cleanup batch (2026-06-22): Group A (had a run() but keyed off
+    # params["action"] only, no task["type"] support, or ignored type
+    # entirely) — fixed to accept task["type"] as primary dispatch key.
+    - name: media_studio_agent
+      class: districts.content.media_studio_agent.MediaStudioAgent
+      model: vector-focus
+      description: Image/video generation studio — t2i, i2i, t2v, i2v, lipsync, background removal, upscale
+      capabilities: [generate_image, generate_i2i, generate_video, animate_image, lipsync, background_remove, upscale, media_status, list_models]
+
+    - name: video_generator
+      class: districts.content.video_generator.VideoGenerator
+      model: vector-reasoning
+      description: Video title/thumbnail generation, tag generation, HTML-to-video rendering
+      capabilities: [title_thumbnail, generate_tags, render_html]
+
+    - name: video_pipeline
+      class: districts.content.video_pipeline.VideoPipelineAgent
+      model: vector-reasoning
+      description: End-to-end content video pipeline — script, narration, captions, upload, job tracking
+      capabilities: [create_and_upload, job_status, job_queue, job_history]
+
+    - name: website_to_video
+      class: districts.content.website_to_video.WebsiteToVideoAgent
+      model: vector-focus
+      description: Website screen-capture-to-video, title cards, data viz renders, background removal
+      capabilities: [capture_url, title_card, data_viz, remove_bg]
+
+    # Cleanup batch (2026-06-22): Group B (had no run() of their own at
+    # all, silently inheriting the AgentBase fake-success stub) — added
+    # real run() methods routing to each class's existing real methods.
+    - name: caption_generator
+      class: districts.content.caption_generator.CaptionGenerator
+      model: vector-focus
+      description: Caption/subtitle generation, highlight captions, caption translation
+      capabilities: [generate_captions, generate_subtitles, generate_highlight_captions, translate_captions]
+
+    - name: content_scheduler
+      class: districts.content.content_scheduler.ContentScheduler
+      model: vector-focus
+      description: Multi-platform post scheduling, publish execution, job summary
+      capabilities: [schedule_post, run_pending, summary]
+
+    - name: uploader
+      class: districts.content.uploader.Uploader
+      model: vector-focus
+      description: Multi-platform video upload (YouTube/Instagram/TikTok/Twitter), scheduling, history
+      capabilities: [upload_youtube, upload_instagram, upload_tiktok, upload_twitter, schedule_upload, execute_scheduled_uploads, upload_history]
+
+    - name: video_merger
+      class: districts.content.video_merger.VideoMerger
+      model: vector-focus
+      description: FFmpeg-based clip merging, transitions, background music, trim, audio extraction, subtitle burn-in
+      capabilities: [merge_clips, add_background_music, add_transitions, trim_video, extract_audio, add_subtitles]
+
+    - name: voice_generator
+      class: districts.content.voice_generator.VoiceGenerator
+      model: vector-focus
+      description: Kokoro TTS voice generation, owner voice cloning, batch synthesis, SSML
+      capabilities: [generate_voice, generate_in_my_voice, clone_voice, get_voices, adjust_voice_speed, generate_batch, text_to_ssml]
+
   marketing:
     - name: seo_specialist
       class: districts.marketing.seo_specialist.SEOSpecialist
