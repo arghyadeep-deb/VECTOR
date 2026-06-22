@@ -211,7 +211,11 @@ class WebsiteToVideoAgent(AgentBase):
                 output_path=p.get("output", "out_alpha.webm"),
                 model=p.get("model", "u2net_human"),
             )
-        return {"status": "error", "error": f"unknown action: {action}"}
+        return {
+            "status": "error",
+            "error": f"unhandled type '{action}'",
+            "supported": ["capture_url", "title_card", "data_viz", "remove_bg"],
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][website_to_video_agent] ready — waiting for tasks")
