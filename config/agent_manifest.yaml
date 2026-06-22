@@ -20,6 +20,35 @@ districts:
       description: Orchestrator that auto-loads and routes across 9 additional coding specialists by task-type keyword match
       capabilities: [onboarding, code_conductor, code-intel, database-optimizer, db_optimize, frontend_developer, gui, minimal-change, mlops, rapid-prototype, rapid_prototype]
 
+    # Cleanup batch (2026-06-22): fixed run()-branching for 3, registered
+    # obra_code_reviewer as-is (PromptAgent subclass — AgentBase via
+    # core.city.prompt_agent.PromptAgent; its real run() is a generic
+    # single-purpose LLM-persona dispatcher, not the AgentBase fake stub —
+    # "branching on type" doesn't apply the same way to single-job prompt agents).
+    - name: fastapi_reviewer
+      class: districts.coding.fastapi_reviewer.FastAPIReviewer
+      model: vector-coder
+      description: FastAPI-specific code review (async correctness, dependency injection, Pydantic schemas)
+      capabilities: [review_fastapi, fastapi_review]
+
+    - name: python_reviewer
+      class: districts.coding.python_reviewer.PythonReviewer
+      model: vector-coder
+      description: General Python code review (PEP8, idioms, type hints)
+      capabilities: [review_python, check_pep8, python_review]
+
+    - name: security_reviewer
+      class: districts.coding.security_reviewer.SecurityReviewer
+      model: vector-coder
+      description: Security-focused code review and vulnerability scanning
+      capabilities: [review_security, scan_vulnerabilities, security_code_review]
+
+    - name: obra_code_reviewer
+      class: districts.coding.obra_code_reviewer.ObraCodeReviewer
+      model: vector-coder
+      description: Independent second-opinion code reviewer (fresh-eyes review style)
+      capabilities: [obra_review]
+
     - name: git_bot
       class: districts.coding.git_bot.GitBot
       model: vector-coder
