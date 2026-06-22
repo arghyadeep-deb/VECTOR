@@ -59,6 +59,63 @@ def test_browser_controller_uses_governance_before_execution() -> None:
     assert result["level"] == "RED"
 
 
+def test_browser_controller_proceeds_on_red_after_owner_approval(monkeypatch) -> None:
+    """RED actions now go through PermissionGateway.request_approval() instead
+    of a hard, unconditional block — if the owner approves, the real action
+    proceeds. This is the doc's "Next" item (connect RED browser actions to
+    the full PermissionGateway owner-approval flow), closed this session."""
+    from core.vision_control import browser_controller as mod
+
+    class DummyMouse:
+        async def click(self, x, y):
+            self.clicked = (x, y)
+
+    class DummyPage:
+        url = "https://checkout.example"
+        mouse = DummyMouse()
+
+    async def _approve(*a, **kw):
+        return True
+
+    monkeypatch.setattr(mod, "get_permission_gateway", lambda: type("G", (), {"request_approval": _approve})())
+
+    page = DummyPage()
+    result = asyncio.run(
+        mod.BrowserController().execute_browser_action(
+            page,
+            {
+                "action_type": "click",
+                "action_inputs": {"content": "submit payment"},
+                "start_coords": (10, 20),
+            },
+        )
+    )
+
+    assert result["status"] != "blocked"
+
+
+def test_browser_controller_stays_blocked_on_red_without_approval(monkeypatch) -> None:
+    from core.vision_control import browser_controller as mod
+
+    class DummyPage:
+        url = "https://checkout.example"
+
+    async def _reject(*a, **kw):
+        return False
+
+    monkeypatch.setattr(mod, "get_permission_gateway", lambda: type("G", (), {"request_approval": _reject})())
+
+    result = asyncio.run(
+        mod.BrowserController().execute_browser_action(
+            DummyPage(),
+            {"action_type": "type", "action_inputs": {"content": "submit payment"}},
+        )
+    )
+
+    assert result["status"] == "blocked"
+    assert result["level"] == "RED"
+
+
 def test_extraction_artifact_cleans_html_and_tracks_hash() -> None:
     from core.research_engine.content_fetcher.extraction import (
         build_extraction_artifact,
