@@ -351,6 +351,13 @@ class TrainingConfig(BaseModel):
     self_improvement_interval_hours: int = 168
     distillation_enabled: bool = True
     training_enabled: bool = False
+    # Post-training (SFT/DPO on VECTOR's own reasoning_chains + counterfactual
+    # rejections — see plans/post-training-pipeline.md). Off by default;
+    # enabling is a deliberate owner choice, not a silent default flip.
+    post_training_enabled: bool = False
+    post_training_min_chain_reward: float = 0.7
+    post_training_min_examples: int = 50
+    post_training_base_model: str = "vector-coder"
 
 
 class PredictiveAnalyticsConfig(BaseModel):
