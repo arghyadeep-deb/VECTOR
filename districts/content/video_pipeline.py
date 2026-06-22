@@ -607,14 +607,29 @@ class VideoPipelineAgent(AgentBase):
     # ── AgentBase interface ───────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        return await self.create_and_upload(
-            topic=p.get("topic"),
-            platform=p.get("platform", "both"),
-            niche=p.get("niche", CONFIG.get("content_niche", "AI")),
-            duration_min=float(p.get("duration_min", 8.0)),
-            dry_run=bool(p.get("dry_run", False)),
-        )
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["create_and_upload", "job_status", "job_queue", "job_history"]
+
+        if task_type == "job_status":
+            job = self._get_job(p.get("job_id", ""))
+            if job is None:
+                return {"status": "error", "error": "job not found"}
+            return {"status": "ok", "job": job}
+        if task_type == "job_queue":
+            return {"status": "ok", "jobs": get_job_queue(p.get("limit", 20))}
+        if task_type == "job_history":
+            return {"status": "ok", "jobs": get_job_history(p.get("limit", 10))}
+        if task_type in ("create_and_upload", ""):
+            return await self.create_and_upload(
+                topic=p.get("topic"),
+                platform=p.get("platform", "both"),
+                niche=p.get("niche", CONFIG.get("content_niche", "AI")),
+                duration_min=float(p.get("duration_min", 8.0)),
+                dry_run=bool(p.get("dry_run", False)),
+            )
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][video_pipeline] ready — waiting for tasks")
