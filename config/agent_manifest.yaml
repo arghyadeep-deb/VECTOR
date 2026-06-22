@@ -863,6 +863,16 @@ districts:
       description: YouTube/Reel script generation with SEO hooks
       capabilities: [content, scripts, youtube]
 
+    # Cleanup (2026-06-23): confirmed via manifest_gap.py re-scan — was claimed
+    # registered in an earlier session but never actually was. Single-purpose
+    # agent (one real operation: build_storyboard); same false-positive
+    # "doesn't branch on type" scanner pattern as skill_spector above.
+    - name: asset_video_pipeline
+      class: districts.content.asset_video_pipeline.AssetVideoPipelineAgent
+      model: vector-focus
+      description: Asset-aware storyboard generation from user photos/videos (Pixelle-Video)
+      capabilities: [build_storyboard]
+
     - name: comfyui_adapter
       class: districts.content.comfyui_adapter.ComfyUIAdapter
       model: vector-focus
