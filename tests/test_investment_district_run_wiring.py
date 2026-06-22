@@ -56,11 +56,12 @@ async def test_backtest_agent_run_routes_vt_skills_by_task_type(backtest_agent):
     task["type"] (NOT params["action"]) must select the branch. The
     underlying vt_skills() may itself error in this environment (the
     vector_backtest "src" package has its own dependency gaps) — what
-    matters here is that run() routed to vt_skills() at all, evidenced by
-    the absence of vt_research's distinctive "task" key in the result."""
+    matters is that run() routed to vt_skills(), not vt_research(): both
+    surface an "error" status on failure, but only vt_research's failure
+    dict carries a "task" key (see vt_research()'s return shape)."""
     result = await backtest_agent.run({"type": "vt_skills", "params": {}})
-    assert "skills" in result or "search" in result or result.get("status") == "error"
     assert "task" not in result
+    assert "skills" in result or "search" in result or "error" in result
 
 
 async def test_backtest_agent_run_does_not_default_to_vt_research_for_other_types(backtest_agent):
