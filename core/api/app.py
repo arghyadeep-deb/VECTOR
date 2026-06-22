@@ -269,6 +269,8 @@ def create_app() -> FastAPI:
         executor,
         # Multi-step mission execution
         missions,
+        # OpenAI-compatible gateway for external clients
+        openai_compat,
     )
     app.include_router(a2a.router)
     app.include_router(commands.router)
@@ -355,6 +357,7 @@ def create_app() -> FastAPI:
     app.include_router(world.router)
     app.include_router(executor.router)
     app.include_router(missions.router)
+    app.include_router(openai_compat.router)
 
     # External task ingestion API — phone, cloud, ESP32
     from core.api import tasks as external_tasks

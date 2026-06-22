@@ -1,4 +1,5 @@
 import sys
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -191,13 +192,28 @@ class PCController:
     # Shell command (YELLOW-tier)
     # ------------------------------------------------------------------
 
-    def run_shell_command(self, command: str, timeout: int = 30) -> dict:
+    def run_shell_command(
+        self,
+        command: str,
+        timeout: int = 30,
+        *,
+        _gateway_approved: bool = False,
+    ) -> dict:
         """Run a shell command and return exit code + stdout + stderr.
 
         WARNING: YELLOW-tier action — must go through permission_gateway in production.
         Never call this directly from untrusted input.
         """
         try:
+            if not _gateway_approved:
+                logger.warning("[VECTOR][pc_controller] blocked direct shell command call")
+                return {
+                    "exit_code": -1,
+                    "stdout": "",
+                    "stderr": "blocked: shell commands must go through PermissionGateway",
+                    "command": command,
+                    "blocked": True,
+                }
             completed = subprocess.run(
                 command,
                 shell=True,

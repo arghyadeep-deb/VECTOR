@@ -188,10 +188,32 @@ Return JSON: {{prioritized: [{{skill, priority_rank: int, priority_score: float,
 
 
     async def run(self, task: dict) -> dict:
-        if hasattr(self, "analyse_gaps"):
-            result = self.analyse_gaps()
-            return {"status": "ok", **result}
-        return {"status": "ok", "agent": self.name}
+        task = task or {}
+        task_type = task.get("type", "")
+        params = task.get("params", {})
+
+        try:
+            if task_type == "analyze_gaps":
+                result = self.analyze_gaps(
+                    required_skills=list(params.get("required_skills", [])),
+                    current_skills=list(params.get("current_skills", [])),
+                )
+                return {"status": "ok", **result}
+            if task_type == "prioritize_gaps":
+                result = self.prioritize_gaps(list(params.get("gaps", [])))
+                return {"status": "ok", **result}
+            if task_type == "suggest_learning_path":
+                result = self.suggest_learning_path(dict(params.get("skill_gap", {})))
+                return {"status": "ok", **result}
+        except Exception as exc:
+            logger.error("[VECTOR][skills] GapAnalyst task failed: {}", exc)
+            return {"status": "error", "error": str(exc), "task_type": task_type}
+
+        return {
+            "status": "error",
+            "error": f"unhandled type: {task_type}",
+            "supported": ["analyze_gaps", "prioritize_gaps", "suggest_learning_path"],
+        }
 
 
 if __name__ == "__main__":

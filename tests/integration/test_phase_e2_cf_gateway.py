@@ -105,6 +105,24 @@ class TestRouterTs(unittest.TestCase):
     def test_allowed_paths_includes_heartbeat(self):
         self.assertIn('"/heartbeat"', self._src())
 
+    def test_has_node_poll_route(self):
+        src = self._src()
+        self.assertIn("/nodes/", src)
+        self.assertIn("/poll", src)
+        self.assertIn("nodePoll", src)
+
+    def test_has_command_result_route(self):
+        src = self._src()
+        self.assertIn("/commands/", src)
+        self.assertIn("/result", src)
+        self.assertIn("commandResult", src)
+
+    def test_commands_are_targeted_to_nodes(self):
+        src = self._src()
+        self.assertIn("target_node", src)
+        self.assertIn("termux-room-node", src)
+        self.assertIn("legion-heavy-node", src)
+
     def test_returns_503_on_upstream_failure(self):
         self.assertIn("503", self._src())
 
@@ -172,6 +190,32 @@ class TestRateLimiterTs(unittest.TestCase):
 
     def test_has_expiration_ttl(self):
         self.assertIn("expirationTtl", self._src())
+
+
+class TestD1Schema(unittest.TestCase):
+    """api/schema.sql â€” D1 command queue schema."""
+
+    def _schema(self) -> str:
+        return (_API_DIR / "schema.sql").read_text(encoding="utf-8")
+
+    def test_schema_has_target_node(self):
+        self.assertIn("target_node", self._schema())
+
+    def test_schema_has_result_columns(self):
+        schema = self._schema()
+        self.assertIn("result", schema)
+        self.assertIn("error", schema)
+        self.assertIn("completed_at", schema)
+
+    def test_schema_has_target_status_index(self):
+        self.assertIn("idx_command_queue_target_status", self._schema())
+
+    def test_additive_migration_exists_for_existing_d1(self):
+        migration = _API_DIR / "migrations" / "0002_command_node_results.sql"
+        self.assertTrue(migration.exists())
+        text = migration.read_text(encoding="utf-8")
+        self.assertIn("ALTER TABLE command_queue ADD COLUMN target_node", text)
+        self.assertIn("idx_command_queue_target_status", text)
 
 
 if __name__ == "__main__":

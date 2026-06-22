@@ -80,3 +80,103 @@ def test_configured_key_sends_bearer(phone, monkeypatch):
     label = phone._classify_remote("do the thing")
     assert label == "task"
     assert captured["auth"] == "Bearer " + "k" * 40
+
+
+# â”€â”€ local endpoint auth + wake-on-LAN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+def test_local_mutating_auth_allows_dev_blank_key(phone, monkeypatch):
+    monkeypatch.setattr(phone, "API_KEY", "")
+    assert phone._auth_ok(None) is True
+
+
+def test_local_mutating_auth_requires_matching_bearer(phone, monkeypatch):
+    monkeypatch.setattr(phone, "API_KEY", "node-token")
+    assert phone._auth_ok(None) is False
+    assert phone._auth_ok("Bearer wrong") is False
+    assert phone._auth_ok("Bearer node-token") is True
+
+
+def test_phone_magic_packet_shape(phone):
+    packet = phone._magic_packet("14-B5-CD-3C-EC-99")
+    assert len(packet) == 102
+    assert packet[:6] == b"\xff" * 6
+    assert packet[6:] == bytes.fromhex("14b5cd3cec99") * 16
+
+
+def test_phone_wake_legion_reports_missing_config(phone, monkeypatch):
+    monkeypatch.setattr(phone, "LEGION_WIFI_MAC", "")
+    monkeypatch.setattr(phone, "LEGION_ETHERNET_MAC", "")
+    result = phone.wake_legion()
+    assert result["ok"] is False
+    assert "LEGION_WIFI_MAC" in result["error"]
+
+
+def test_phone_wake_legion_sends_udp_broadcast(phone, monkeypatch):
+    calls = {}
+
+    class FakeSocket:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def setsockopt(self, level, optname, value):
+            calls["sockopt"] = (level, optname, value)
+
+        def sendto(self, packet, address):
+            calls["packet"] = packet
+            calls["address"] = address
+
+    monkeypatch.setattr(phone, "LEGION_WIFI_MAC", "14-B5-CD-3C-EC-99")
+    monkeypatch.setattr(phone, "LEGION_ETHERNET_MAC", "")
+    monkeypatch.setattr(phone, "LEGION_WAKE_BROADCAST", "10.208.79.255")
+    monkeypatch.setattr(phone, "LEGION_WAKE_PORT", 9)
+    monkeypatch.setattr(phone.socket, "socket", lambda *args: FakeSocket())
+
+    result = phone.wake_legion()
+
+    assert result["ok"] is True
+    assert result["mac"] == "14b5cd3cec99"
+    assert calls["address"] == ("10.208.79.255", 9)
+    assert calls["packet"] == b"\xff" * 6 + bytes.fromhex("14b5cd3cec99") * 16
+
+
+def test_execute_cloud_command_wake_legion(phone, monkeypatch):
+    monkeypatch.setattr(phone, "wake_legion", lambda prefer="wifi": {"ok": True, "prefer": prefer})
+
+    status, result, error = phone._execute_cloud_command({
+        "id": "cmd1",
+        "type": "wake_legion",
+        "params": {"prefer": "wifi"},
+    })
+
+    assert status == "done"
+    assert result == {"ok": True, "prefer": "wifi"}
+    assert error == ""
+
+
+def test_command_poll_once_executes_and_posts_result(phone, monkeypatch):
+    calls = []
+
+    def fake_cloud_request(path, payload, timeout=10):
+        calls.append((path, payload))
+        if path.endswith("/poll"):
+            return {
+                "ok": True,
+                "commands": [
+                    {"id": "cmd1", "type": "ping", "params": {}, "target_node": "termux-room-node"}
+                ],
+            }
+        return {"ok": True}
+
+    monkeypatch.setattr(phone, "API_KEY", "node-token")
+    monkeypatch.setattr(phone, "NODE_ID", "termux-room-node")
+    monkeypatch.setattr(phone, "_cloud_request", fake_cloud_request)
+
+    result = phone._command_poll_once()
+
+    assert result == {"ok": True, "commands": 1, "handled": 1}
+    assert calls[0][0] == "/nodes/termux-room-node/poll"
+    assert calls[1][0] == "/commands/cmd1/result"
+    assert calls[1][1]["status"] == "done"

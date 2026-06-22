@@ -28,7 +28,7 @@ Single-context repo:
 ├── core/                         ← intelligence stack (loop, memory, inference, city)
 ├── districts/             ← 45+ specialized districts
 ├── vectorcode/src/               ← comms layer (30+ channels, neural, swarm)
-└── cloud/                        ← Cloudflare Workers + Fly.io deployment
+└── cloud/                        ← Cloudflare Workers plus auxiliary cloud services
 ```
 
 ## Use the glossary's vocabulary

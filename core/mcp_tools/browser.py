@@ -13,6 +13,7 @@ def add_browser_tools(mcp) -> None:
         from core.browser.dom_pruner import get_dom_pruner as _get_pruner
         from core.browser.auth_profiles import get_auth_store as _get_store
         from core.browser.pii_scrub import scrub_text as _scrub_text
+        from core.browser.governance import get_browser_governance as _get_governance
     except Exception as e:
         logger.warning(f"[VECTOR][mcp] browser tools unavailable: {e}")
         return
@@ -52,7 +53,23 @@ def add_browser_tools(mcp) -> None:
             return _safe_json({"error": "blocked by MCP security rate limit"})
         try:
             import json as _json
+            decision = _get_governance().classify(
+                "save_auth_profile",
+                inputs={"profile_name": profile_name},
+            )
+            if not decision.allowed:
+                return _safe_json({
+                    "error": "blocked by browser governance",
+                    "level": decision.level,
+                    "reason": decision.reason,
+                })
             state = _json.loads(state_json)
-            return _safe_json(_get_store().save(profile_name, state))
+            result = _get_store().save(profile_name, state)
+            result["governance"] = {
+                "level": decision.level,
+                "requires_owner": decision.requires_owner,
+                "reason": decision.reason,
+            }
+            return _safe_json(result)
         except Exception as e:
             return _safe_json({"error": str(e)})

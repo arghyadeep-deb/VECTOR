@@ -484,6 +484,9 @@ class TestNewsAggregator(unittest.TestCase):
         from districts.research.news_aggregator import NewsAggregator
         self.agg = NewsAggregator()
         self.agg._newsapi_key = ""  # ensure no real API calls
+        self._chat_patch = patch("core.inference.vectorcode_llm.chat", return_value="1,2,3,4,5")
+        self._chat_patch.start()
+        self.addCleanup(self._chat_patch.stop)
 
     # ── init ──────────────────────────────────────────────────────────────────
 
@@ -616,6 +619,9 @@ class TestWebScout(unittest.TestCase):
     def setUp(self):
         from districts.research.web_scout import WebScout
         self.scout = WebScout()
+        self._chat_patch = patch("core.inference.vectorcode_llm.chat", return_value="Mock research summary")
+        self._chat_patch.start()
+        self.addCleanup(self._chat_patch.stop)
 
     # ── init ──────────────────────────────────────────────────────────────────
 
@@ -979,7 +985,8 @@ class TestResearchEpisodicIntegration(unittest.TestCase):
             {"title": "Integration Test", "url": f"https://integ.test/{uuid.uuid4().hex}", "snippet": "s"}
         ])
         scout.fetch_page = AsyncMock(return_value="test content")
-        _run(scout.research("integration test query", save_note=False))
+        with patch("core.inference.vectorcode_llm.chat", return_value="Mock research summary"):
+            _run(scout.research("integration test query", save_note=False))
         self.assertTrue(_event_stored("research"))
 
     def test_news_aggregator_news_brief_event_stored(self):
@@ -994,7 +1001,8 @@ class TestResearchEpisodicIntegration(unittest.TestCase):
             vault = Path(d)
             (vault / "Research").mkdir()
             agg._obsidian._vault = vault
-            _run(agg.morning_brief())
+            with patch("core.inference.vectorcode_llm.chat", return_value="1"):
+                _run(agg.morning_brief())
         self.assertTrue(_event_stored("news_brief"))
 
     def test_paper_reader_paper_brief_event_stored(self):

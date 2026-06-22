@@ -29,9 +29,14 @@ def ensure_paths() -> None:
     on first touch). Inserting vectorcode/src LAST keeps it closer to the
     front but still behind repo root, so the real core/ package always wins.
     """
-    for p in [str(_VECTORCODE_SRC), str(_REPO_ROOT)]:
-        if p not in sys.path:
-            sys.path.insert(0, p)
+    repo_root = str(_REPO_ROOT)
+    vectorcode_src = str(_VECTORCODE_SRC)
+
+    # Reposition both entries every time; otherwise an already-present repo
+    # root can be left behind a newly inserted vectorcode/src entry.
+    sys.path[:] = [p for p in sys.path if p not in (repo_root, vectorcode_src)]
+    sys.path.insert(0, vectorcode_src)
+    sys.path.insert(0, repo_root)
 
 
 # Run on import (side-effect)

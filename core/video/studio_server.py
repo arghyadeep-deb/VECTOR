@@ -32,9 +32,17 @@ from core.video.composition_linter import lint_composition, LintResult
 
 
 app = FastAPI(title="VECTOR Studio Server", version="1.0.0")
+_cors_origins = [
+    origin.strip()
+    for origin in os.environ.get(
+        "VECTOR_STUDIO_CORS_ORIGINS",
+        "http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:5173,http://localhost:5173",
+    ).split(",")
+    if origin.strip()
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -45,7 +53,25 @@ _ws_clients: list[WebSocket] = []
 
 def set_project_dir(path: str) -> None:
     global _project_dir
-    _project_dir = path
+    _project_dir = str(Path(path).expanduser().resolve())
+
+
+def _project_root() -> Path:
+    return Path(_project_dir).expanduser().resolve()
+
+
+def _resolve_composition_path(path: str) -> Path:
+    requested = Path(path)
+    if requested.is_absolute() or ".." in requested.parts:
+        raise HTTPException(400, "Composition path must stay inside the project")
+    full_path = (_project_root() / requested).resolve()
+    try:
+        full_path.relative_to(_project_root())
+    except ValueError:
+        raise HTTPException(400, "Composition path must stay inside the project")
+    if full_path.suffix.lower() != ".html":
+        raise HTTPException(400, "Only .html compositions supported")
+    return full_path
 
 
 # ── WebSocket for hot reload ───────────────────────────────────────────────────
@@ -85,11 +111,11 @@ async def _watch_files() -> None:
                 if not event.is_directory and event.src_path.endswith(".html"):
                     asyncio.create_task(_broadcast({
                         "type": "file_changed",
-                        "path": os.path.relpath(event.src_path, _project_dir),
+                        "path": os.path.relpath(event.src_path, _project_root()),
                     }))
 
         observer = Observer()
-        observer.schedule(_Handler(), _project_dir, recursive=True)
+        observer.schedule(_Handler(), str(_project_root()), recursive=True)
         observer.start()
         logger.info("[VECTOR][studio_server] watching: {}", _project_dir)
         while True:
@@ -104,8 +130,9 @@ async def _watch_files() -> None:
 async def list_compositions() -> JSONResponse:
     """List all .html composition files in the project."""
     files = []
-    for html_path in Path(_project_dir).rglob("*.html"):
-        rel = str(html_path.relative_to(_project_dir)).replace("\\", "/")
+    root = _project_root()
+    for html_path in root.rglob("*.html"):
+        rel = str(html_path.relative_to(root)).replace("\\", "/")
         files.append({
             "id": rel,
             "name": html_path.stem,
@@ -118,8 +145,8 @@ async def list_compositions() -> JSONResponse:
 @app.get("/compositions/{path:path}")
 async def get_composition(path: str) -> JSONResponse:
     """Read a composition file."""
-    full_path = Path(_project_dir) / path
-    if not full_path.exists() or not full_path.suffix == ".html":
+    full_path = _resolve_composition_path(path)
+    if not full_path.exists():
         raise HTTPException(404, f"Composition not found: {path}")
     html = full_path.read_text(encoding="utf-8")
     lint = lint_composition(html, file_path=path)
@@ -142,9 +169,7 @@ async def get_composition(path: str) -> JSONResponse:
 @app.put("/compositions/{path:path}")
 async def save_composition(path: str, body: dict) -> JSONResponse:
     """Save a composition file and return lint results."""
-    full_path = Path(_project_dir) / path
-    if not path.endswith(".html"):
-        raise HTTPException(400, "Only .html compositions supported")
+    full_path = _resolve_composition_path(path)
     full_path.parent.mkdir(parents=True, exist_ok=True)
     html = body.get("html", "")
     full_path.write_text(html, encoding="utf-8")
@@ -177,7 +202,7 @@ async def trigger_render(body: dict) -> JSONResponse:
         from core.video.vector_composer import VectorComposer, ComposerJob
         from core.video.composition_types import Fps
 
-        composition_path = str(Path(_project_dir) / body.get("path", "index.html"))
+        composition_path = str(_resolve_composition_path(body.get("path", "index.html")))
         output_path = body.get("output", "renders/studio_render.mp4")
         duration = float(body.get("duration", 10.0))
         fps_val = body.get("fps", 30)
@@ -208,7 +233,7 @@ async def trigger_render(body: dict) -> JSONResponse:
 @app.get("/lint/{path:path}")
 async def lint_endpoint(path: str) -> JSONResponse:
     """Lint a composition file on demand."""
-    full_path = Path(_project_dir) / path
+    full_path = _resolve_composition_path(path)
     if not full_path.exists():
         raise HTTPException(404, f"File not found: {path}")
     html = full_path.read_text(encoding="utf-8")

@@ -28,6 +28,7 @@ from core.config import CONFIG
 from core.vision_control.action_parser import action_parser
 from core.vision_control.vision_operator import ACTION_SPACE
 from core.vision_control.gui_agent import GUIStatus
+from core.browser.governance import get_browser_governance
 from loguru import logger
 
 _BROWSER_SYSTEM_PROMPT = """You are VECTOR's browser automation agent. You control a web browser to complete tasks.
@@ -89,6 +90,31 @@ class BrowserController:
             return {"status": "terminal", "type": action_type}
 
         try:
+            governance = get_browser_governance()
+            current_url = ""
+            try:
+                current_url = page.url
+            except Exception:
+                current_url = ""
+            decision = governance.classify(
+                action_type,
+                url=current_url,
+                inputs=inputs,
+            )
+            if not decision.allowed:
+                logger.warning(
+                    "[VECTOR][browser_ctrl] blocked {}: {}",
+                    action_type,
+                    decision.reason,
+                )
+                return {
+                    "status": "blocked",
+                    "action_type": action_type,
+                    "level": decision.level,
+                    "reason": decision.reason,
+                    "requires_owner": decision.requires_owner,
+                }
+
             if action_type in ("click", "left_click", "left_single"):
                 if s_coords:
                     await page.mouse.click(s_coords[0], s_coords[1])

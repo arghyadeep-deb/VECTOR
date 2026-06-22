@@ -3,6 +3,32 @@
 
 ---
 
+## Current Role vs 24/7 Target
+
+This guide currently sets up the Android phone as a **VECTOR phone node**. It can run all day in your room, report status/battery, receive alerts, and talk to a configured VECTOR brain URL.
+
+For the planned 24/7 setup, the phone should become a **lightweight primary node**:
+
+```text
+Your daily phone / browser / any device
+  -> Cloudflare Worker secure API
+  -> Cloudflare D1/KV command queue
+  -> OPPO A31 Termux node, always on
+  -> Legion VECTOR node, only when online for heavy work
+```
+
+That means the OPPO A31 does not need to run heavy local models. It only needs to:
+
+- stay online
+- poll Cloudflare for commands
+- call approved AI APIs through secured backend routes
+- reply with results
+- queue laptop-only work until the Legion comes online
+
+Do not put AI provider keys in frontend code. For 24/7 cloud use, store required provider keys as Cloudflare Worker Secrets. Keep laptop-only keys in the laptop `.env`.
+
+---
+
 ## What Is Termux?
 
 Termux is a terminal app on Android. Think of it like Command Prompt or PowerShell, but on your phone. It lets you run Python scripts, install packages, and use your phone as a mini Linux computer.
@@ -34,7 +60,13 @@ The `~` symbol means your home folder. That's where we'll put everything.
 
 ---
 
-## Part 2 — Before You Start (Do This on Legion First)
+## Part 2 — Before You Start
+
+There are two supported modes.
+
+**Mode A: Local laptop mode**
+
+Use this when the Legion is on and the phone talks directly to the laptop over WiFi.
 
 Open PowerShell on your Legion laptop and run:
 
@@ -47,7 +79,20 @@ You'll see something like:
 IPv4 Address. . . . . . . . : 192.168.1.5
 ```
 
-**Write down that number.** This is your `LEGION_IP`. You'll need it later.
+**Write down that number.** This is your `LEGION_IP`. You'll need it later for local mode.
+
+**Mode B: 24/7 Cloudflare mode**
+
+Use this when the OPPO A31 should stay useful even when the Legion is off.
+
+You need:
+
+- a deployed Cloudflare Worker URL, for example `https://vector-api.example.workers.dev`
+- a private `VECTOR_API_KEY` or per-node token
+- Cloudflare Worker Secrets for any AI provider keys needed by the cloud relay
+- D1 or KV configured for command queue/state
+
+In this mode, the phone should point `VECTOR_BRAIN_URL` to the Cloudflare Worker, not the Legion IP.
 
 ---
 
@@ -136,28 +181,55 @@ You should see `ambient_server.py` in the list.
 
 ## Part 6 — Create the Config File
 
-This tells the script where your Legion laptop is.
+This tells the script where the VECTOR brain/relay is.
 
-In Termux, type this command **exactly** (replace `192.168.1.5` with YOUR Legion IP from Part 2):
+In Termux, type this command:
 
 ```bash
 mkdir -p ~/.vector
 ```
 
-Then run this — it creates the config file:
+For local laptop mode, run this and replace `192.168.1.5` with your Legion IP:
 
 ```bash
 cat > ~/.vector/phone_config.env << 'EOF'
 VECTOR_BRAIN_URL=http://192.168.1.5:8000
-VECTOR_API_KEY=
+VECTOR_API_KEY=REPLACE_WITH_YOUR_VECTOR_TOKEN
 VECTOR_NODE_ID=phone-ambient
 HEARTBEAT_INTERVAL_SEC=60
+COMMAND_POLL_INTERVAL_SEC=15
 LOCAL_PORT=7700
+LEGION_WIFI_MAC=14-B5-CD-3C-EC-99
+LEGION_ETHERNET_MAC=E8-97-44-2E-A9-3C
+LEGION_WAKE_BROADCAST=10.208.79.255
+LEGION_WAKE_PORT=9
 EOF
 ```
 
-> **Important:** Replace `192.168.1.5` with your actual Legion IP.
-> Leave `VECTOR_API_KEY=` blank (empty) unless you set one in VECTOR's `.env` file.
+For 24/7 Cloudflare mode, use the Worker URL instead:
+
+```bash
+cat > ~/.vector/phone_config.env << 'EOF'
+VECTOR_BRAIN_URL=https://vector-api.example.workers.dev
+VECTOR_API_KEY=REPLACE_WITH_YOUR_TERMUX_NODE_TOKEN
+VECTOR_NODE_ID=termux-room-node
+HEARTBEAT_INTERVAL_SEC=60
+COMMAND_POLL_INTERVAL_SEC=15
+LOCAL_PORT=7700
+LEGION_WIFI_MAC=14-B5-CD-3C-EC-99
+LEGION_ETHERNET_MAC=E8-97-44-2E-A9-3C
+LEGION_WAKE_BROADCAST=10.208.79.255
+LEGION_WAKE_PORT=9
+EOF
+```
+
+Important:
+
+- Do not paste your full laptop `.env` into Termux.
+- Use a minimal token/key set for the phone.
+- The current phone script skips upstream heartbeat/classify when `VECTOR_API_KEY` is blank.
+- For the final 24/7 design, AI provider keys should live in Cloudflare Worker Secrets or in a minimal Termux-only config only when absolutely required.
+- The `LEGION_*` values above are not provider secrets; they allow the OPPO node to try waking the Legion over WiFi.
 
 **Verify the file was created:**
 ```bash
@@ -169,7 +241,9 @@ You should see the contents printed back.
 
 ## Part 7 — Run the Script
 
-Make sure your phone and Legion are on the **same WiFi network**.
+For local laptop mode, make sure your phone and Legion are on the **same WiFi network**.
+
+For 24/7 Cloudflare mode, the phone only needs internet access and a valid Worker URL/token.
 
 In Termux:
 ```bash
@@ -185,9 +259,13 @@ If everything is correct, you'll see:
 
 The script is now running. **Don't close Termux** — just leave it open in the background.
 
+In the current implementation, this starts the ambient phone node. The planned 24/7 primary-node upgrade still needs a Cloudflare polling loop and command router.
+
 ---
 
 ## Part 8 — Verify It Works (Test from Legion)
+
+This section verifies the current local HTTP server on the phone. It is useful for local mode and debugging.
 
 First, find your **phone's WiFi IP**:
 - Phone → Settings → WiFi → tap the connected network name → look for "IP address"
@@ -210,6 +288,16 @@ curl -X POST http://192.168.1.YOUR_PHONE_IP:7700/alert -H "Content-Type: applica
 ```
 
 A notification should appear on your phone.
+
+Security note: `/status` is public for diagnostics. Mutating endpoints like `/alert`, `/classify`, and `/wake_legion` require `Authorization: Bearer <VECTOR_API_KEY>` when `VECTOR_API_KEY` is configured.
+
+**Test WiFi Wake-on-LAN packet from Legion/another device:**
+
+```powershell
+curl -X POST http://192.168.1.YOUR_PHONE_IP:7700/wake_legion -H "Authorization: Bearer REPLACE_WITH_YOUR_TERMUX_NODE_TOKEN" -H "Content-Type: application/json" -d "{\"prefer\":\"wifi\"}"
+```
+
+This only confirms the OPPO node can send the wake packet. To prove real wake, put the Legion to sleep and trigger this request from another device on the same WiFi.
 
 ---
 
@@ -246,6 +334,14 @@ chmod +x ~/.termux/boot/vector_ambient.sh
 **Step 2** — Open the **Termux:Boot** app on your phone once (just tap it). This activates it.
 
 **Step 3** — Test it by restarting your phone. After it boots, wait 30 seconds, then check if the script is running by testing from Legion again (the `curl` from Part 8).
+
+For true 24/7 use:
+
+- keep the OPPO A31 plugged in
+- disable battery optimization for Termux and Termux:API
+- allow background activity for Termux
+- keep WiFi enabled during sleep if the phone has that setting
+- periodically check `~/.vector/ambient.log`
 
 ---
 
@@ -305,4 +401,17 @@ Your phone is now an ambient node for VECTOR:
 - **Runs in background** → Termux stays open, phone stays connected over WiFi
 - **Auto-restarts** → if your phone reboots, the script comes back automatically (after Termux:Boot is set up)
 
-When the cloud brain is deployed later (`fly deploy`), just update `VECTOR_BRAIN_URL` in `~/.vector/phone_config.env` to the cloud URL and restart the script.
+When the Cloudflare Worker relay is deployed later (`wrangler deploy` from `api/` or the Worker project folder), update `VECTOR_BRAIN_URL` in `~/.vector/phone_config.env` to the Worker URL and restart the script.
+
+## Planned 24/7 Upgrade Checklist
+
+This guide is ready for the current ambient node. To make the OPPO A31 act as the always-on lightweight VECTOR node while the Legion is off, the codebase still needs:
+
+- Cloudflare Worker authenticated command submission
+- D1/KV command queue and result storage
+- Termux polling loop for pending commands (implemented in `ambient_server.py`; needs deployed Worker validation)
+- lightweight assistant task router on Termux
+- AI calls through Worker Secrets or a minimal Termux-only config
+- Legion heavy-node polling for deferred laptop-only commands
+- Cloudflare integration for `/wake_legion`
+- watchdog/restart behavior and bounded logs

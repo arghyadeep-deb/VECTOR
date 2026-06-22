@@ -18,6 +18,8 @@ from .media_studio_agent import MediaStudioAgent
 from .analytics_retriever import AnalyticsRetriever, PostMetrics
 from .blog_publisher import BlogPublisher, PublishResult
 from .post_job import PostJobTracker, JobStatus
+from .asset_video_pipeline import AssetVideoPipelineAgent
+from .youtube_trends import YouTubeTrendScout
 
 __all__ = [
     "ScriptGenerator",
@@ -34,6 +36,8 @@ __all__ = [
     "PublishResult",
     "PostJobTracker",
     "JobStatus",
+    "AssetVideoPipelineAgent",
+    "YouTubeTrendScout",
 ]
 
 logger.info("[VECTOR][content] Content district loaded")
@@ -54,6 +58,9 @@ def get_agent(name: str):
         "AnalyticsRetriever": AnalyticsRetriever,
         "BlogPublisher": BlogPublisher,
         "PostJobTracker": PostJobTracker,
+        "AssetVideoPipelineAgent": AssetVideoPipelineAgent,
+        "asset_video": AssetVideoPipelineAgent,
+        "YouTubeTrendScout": YouTubeTrendScout,
     }
     return agents.get(name)
 

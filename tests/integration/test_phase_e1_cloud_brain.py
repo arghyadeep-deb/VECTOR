@@ -4,8 +4,8 @@ The cloud brain runs entirely on the Cloudflare Worker (api/) — see
 api/src/router.ts. The original Fly.io brain_server has been removed
 entirely (superseded — full endpoint parity now lives in the Worker).
 These tests cover what's still real: CONFIG["cloud"] wiring, the generic
-CloudBrainHeartbeat poster used by run_vector.py, and that run_vector.py
-actually starts it. No live network calls.
+CloudBrainHeartbeat poster, and the autonomous loop command-poll path that
+posts heartbeats and drains returned commands. No live network calls.
 """
 from __future__ import annotations
 
@@ -40,12 +40,14 @@ class TestCloudConfig(unittest.TestCase):
         from core.config import CONFIG
         self.assertIn("api_key", CONFIG["cloud"])
 
-    def test_cloud_brain_url_empty_by_default(self):
-        """Without VECTOR_BRAIN_URL env var, brain_url should be empty."""
-        import os
+    def test_cloud_brain_url_is_empty_or_worker_url(self):
+        """Local config may be unset, or point at the deployed Worker."""
         from core.config import CONFIG
-        if not os.environ.get("VECTOR_BRAIN_URL"):
-            self.assertEqual(CONFIG["cloud"]["brain_url"], "")
+        brain_url = CONFIG["cloud"]["brain_url"]
+        self.assertTrue(
+            brain_url == "" or brain_url.endswith(".workers.dev"),
+            f"unexpected cloud brain URL: {brain_url}",
+        )
 
 
 # ── CloudBrainHeartbeat ───────────────────────────────────────────────────────
@@ -121,19 +123,19 @@ class TestCloudBrainHeartbeat(unittest.TestCase):
 
 
 class TestRunVectorCloudIntegration(unittest.TestCase):
-    """run_vector.py wires CloudBrainHeartbeat in _start_background_services."""
+    """AutonomousLoop owns the live heartbeat + remote-command polling path."""
 
     def _src(self) -> str:
-        return (_ROOT / "run_vector.py").read_text(encoding="utf-8")
+        return (_ROOT / "core" / "loop" / "autonomous_loop.py").read_text(encoding="utf-8")
 
-    def test_run_vector_imports_cloud_heartbeat(self):
-        self.assertIn("CloudBrainHeartbeat", self._src())
+    def test_autonomous_loop_has_command_poll_loop(self):
+        self.assertIn("command_poll_loop", self._src())
 
-    def test_run_vector_references_brain_url(self):
+    def test_autonomous_loop_references_brain_url(self):
         self.assertIn("brain_url", self._src())
 
-    def test_run_vector_starts_heartbeat_task(self):
-        self.assertIn("start_loop", self._src())
+    def test_autonomous_loop_drains_commands(self):
+        self.assertIn('"commands"', self._src())
 
     def test_core_cloud_directory_exists(self):
         self.assertTrue(_CORE_CLOUD.exists())

@@ -55,6 +55,7 @@ dependencies = [
 
     # Agent frameworks
     "fastmcp>=2.0.0",
+    "beartype>=0.20.0,<0.23.0",
     "mcp>=1.27.0",
     "agno>=2.0.0",
 

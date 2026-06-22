@@ -12,15 +12,24 @@ code (it parses fine, the typo is in a runtime-only string)."""
 import re
 from pathlib import Path
 
-from core.api.routers.investment import _get_agent
+import pytest
 
 
-def test_finagent_agent_module_path_resolves():
-    agent = _get_agent("districts.investment.finagent_agent.FinAgentAgent")
+@pytest.fixture
+def investment_router(monkeypatch, tmp_path):
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "investment_router_paths.db"))
+    from core.api.routers import investment
+
+    investment._agent_cache.clear()
+    return investment
+
+
+def test_finagent_agent_module_path_resolves(investment_router):
+    agent = investment_router._get_agent("districts.investment.finagent_agent.FinAgentAgent")
     assert agent is not None, "FinAgentAgent must be importable at this path"
 
 
-def test_no_get_agent_call_site_references_a_nonexistent_module():
+def test_no_get_agent_call_site_references_a_nonexistent_module(investment_router):
     """Belt-and-suspenders: parse every _get_agent("...") literal out of the
     router source and confirm each one actually imports, so a future typo
     in any of the 10 call sites (not just the 5 that broke) fails CI
@@ -29,7 +38,7 @@ def test_no_get_agent_call_site_references_a_nonexistent_module():
     paths = set(re.findall(r'_get_agent\("([\w\.]+)"\)', src))
     assert paths, "expected at least one _get_agent(...) call site in investment.py"
     for path in paths:
-        agent = _get_agent(path)
+        agent = investment_router._get_agent(path)
         assert agent is not None, f"_get_agent({path!r}) returned None — module/class path is broken"
 
 

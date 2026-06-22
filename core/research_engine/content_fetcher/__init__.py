@@ -15,7 +15,14 @@ Usage:
 
 """
 
-from .fetcher import ContentFetcher
 from .url_classifier import URLClassifier, URLType
 
 __all__ = ["ContentFetcher", "URLClassifier", "URLType"]
+
+
+def __getattr__(name: str):
+    if name == "ContentFetcher":
+        from .fetcher import ContentFetcher
+
+        return ContentFetcher
+    raise AttributeError(name)

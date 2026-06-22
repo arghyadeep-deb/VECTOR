@@ -47,10 +47,16 @@ class AsyncEventBus(EventBus):
     async def stop(self) -> None:
         self._started = False
         tasks = list(self._tasks.values())
+        current_loop = asyncio.get_running_loop()
+        waitable_tasks = []
         for task in tasks:
+            task_loop = task.get_loop()
+            if task.done() or task_loop.is_closed() or task_loop is not current_loop:
+                continue
             task.cancel()
-        if tasks:
-            await asyncio.wait(tasks, timeout=5.0)
+            waitable_tasks.append(task)
+        if waitable_tasks:
+            await asyncio.wait(waitable_tasks, timeout=5.0)
         self._tasks.clear()
         self._subscribers.clear()
         self._queues.clear()

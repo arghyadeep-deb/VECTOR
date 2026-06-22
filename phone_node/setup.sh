@@ -9,6 +9,13 @@
 #   - termux-api (for battery/notifications access)
 #   - httpx (HTTP client to poll brain server)
 #   - llama.cpp Python bindings (optional local inference)
+#
+# Current role:
+#   - ambient phone node
+#
+# Target role:
+#   - always-on lightweight Termux node that talks to the Cloudflare Worker
+#     command queue while Legion handles heavy tasks when online.
 
 set -euo pipefail
 
@@ -38,15 +45,21 @@ fi
 # ── Config ─────────────────────────────────────────────────────────────────────
 mkdir -p "$HOME/.vector"
 cat > "$HOME/.vector/phone_config.env" << 'EOF'
-VECTOR_BRAIN_URL=https://vector-brain.fly.dev
-VECTOR_API_KEY=REPLACE_WITH_YOUR_KEY
-VECTOR_NODE_ID=phone-ambient
+VECTOR_BRAIN_URL=https://vector-api.<you>.workers.dev
+VECTOR_API_KEY=REPLACE_WITH_YOUR_TERMUX_NODE_TOKEN
+VECTOR_NODE_ID=termux-room-node
 HEARTBEAT_INTERVAL_SEC=60
+COMMAND_POLL_INTERVAL_SEC=15
 LOCAL_PORT=7700
+LEGION_WIFI_MAC=14-B5-CD-3C-EC-99
+LEGION_ETHERNET_MAC=E8-97-44-2E-A9-3C
+LEGION_WAKE_BROADCAST=10.208.79.255
+LEGION_WAKE_PORT=9
 EOF
 
 echo "[VECTOR] Config written to ~/.vector/phone_config.env"
-echo "[VECTOR] Edit ~/.vector/phone_config.env to set VECTOR_API_KEY"
+echo "[VECTOR] Edit ~/.vector/phone_config.env to set VECTOR_BRAIN_URL and VECTOR_API_KEY"
+echo "[VECTOR] Do not copy your full laptop .env onto the phone."
 
 # ── Termux boot (auto-start) ───────────────────────────────────────────────────
 mkdir -p "$HOME/.termux/boot"
@@ -67,6 +80,6 @@ fi
 
 echo ""
 echo "[VECTOR] Setup complete."
-echo "  1. Edit ~/.vector/phone_config.env (set VECTOR_API_KEY)"
+echo "  1. Edit ~/.vector/phone_config.env (set Worker URL + Termux node token)"
 echo "  2. Run: cd ~/vector_phone_node && python ambient_server.py"
 echo "  3. Install Termux:Boot app to auto-start on reboot"

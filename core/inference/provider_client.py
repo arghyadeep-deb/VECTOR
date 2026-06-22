@@ -33,6 +33,7 @@ __all__ = [
 import asyncio
 import json
 import os
+import time
 from dataclasses import dataclass
 
 from loguru import logger
@@ -242,13 +243,34 @@ class ProviderClient:
             if _prov is None:
                 continue
             try:
+                from core.inference.provider_health import get_provider_health
+
+                _health = get_provider_health()
+                if not _health.can_try(_prov.slug, target_model):
+                    logger.warning(
+                        "[VECTOR][provider_client] {}:{} skipped by provider health circuit",
+                        _prov.slug,
+                        target_model,
+                    )
+                    continue
+            except Exception as _health_err:
+                _health = None
+                logger.debug("[VECTOR][provider_client] provider health unavailable: {}", _health_err)
+            try:
                 logger.debug(
                     "[VECTOR][provider_client] {} -> {} ({})",
                     tier, target_model, _prov.slug,
                 )
+                _started = time.perf_counter()
                 result = await self._call_with_retry(
                     _prov, target_model, messages, temperature, max_tokens, tools
                 )
+                if _health is not None:
+                    _health.record_success(
+                        _prov.slug,
+                        target_model,
+                        latency_ms=(time.perf_counter() - _started) * 1000,
+                    )
                 # -- Consistency enforcement -----------------------------------
                 if _personality_layer is not None and result.content:
                     try:
@@ -271,6 +293,9 @@ class ProviderClient:
             except Exception as e:
                 last_error = str(e)
                 _err_low = last_error.lower()
+                if _health is not None:
+                    _kind = _health.classify_error(e)
+                    _health.record_failure(_prov.slug, target_model, kind=_kind, error=last_error)
                 if _mark_cooldown and (
                     "429" in last_error
                     or "rate limit" in _err_low

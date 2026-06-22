@@ -16,7 +16,7 @@ VECTOR City is a Darwinian multi-agent civilization where:
 
 ```
 Layer A — Devices:        Legion Pro 5 (primary) | Old Android Termux (ambient) | Daily phone (alerts)
-Layer B — Cloud:          Fly.io (3 VMs) | Cloudflare Workers+D1+R2+KV | Supabase | Turso
+Layer B — Cloud:          Cloudflare Workers+D1+R2+KV | Supabase | Turso
 Layer C — APIs:           Claude Sonnet (Pro chat, build sessions) | Gemini 2.5 Pro (free) | Ollama local
 ```
 
@@ -147,11 +147,8 @@ Each district follows a standardized agent template with:
 - Documentation generation
 
 #### Cloud Services
-- **Fly.io**: 3 VM distribution for redundancy
-  - Primary: Main processing workload
-  - Secondary: Backup and failover
-  - Tertiary: Development/testing
-- **Cloudflare**: 
+- **Cloudflare**:
+  - Worker: Unified brain relay for heartbeat, command queue, and memory reads
   - Workers: Edge computing for lightweight tasks
   - D1: SQL database for structured data
   - R2: Object storage for media/files
@@ -487,7 +484,7 @@ class AutonomousLoop:
 
 #### DevOps & Deployment
 - **Docker**: 24.0.0+ (containerization)
-- **Fly.io**: Platform-as-a-service deployment
+- **Cloudflare Workers**: Serverless deployment for the cloud brain relay
 - **GitHub Actions**: CI/CD pipeline automation
 - **Prometheus**: Metrics collection and alerting
 - **Grafana**: Visualization dashboard
@@ -521,7 +518,7 @@ class AutonomousLoop:
 ### Security Architecture
 
 #### Defense in Depth
-1. **Network Layer**: Cloudflare WAF, Fly.io private networking
+1. **Network Layer**: Cloudflare WAF and Worker authentication
 2. **Application Layer**: Permission Gateway, input validation, output sanitization
 3. **Data Layer**: Encryption at rest and in transit, PII detection
 4. **Access Layer**: Role-based access, API key rotation, session management

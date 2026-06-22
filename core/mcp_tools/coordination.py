@@ -105,19 +105,101 @@ def add_guidance_tools(mcp) -> None:
 def add_kanban_tools(mcp) -> None:
     """Register kanban task-management tools (4 tools: list, create, update, complete)."""
     try:
-        from tools.kanban_tools import (
-            list_kanban_tasks,
-            create_kanban_task,
-            update_kanban_task,
-            complete_kanban_task,
-        )
+        from vectorcode.src.vector_cli import kanban_db as _kb
+
+        def _list_kanban_tasks(status: str = "active", limit: int = 20):
+            conn = _kb.connect()
+            try:
+                normalized = (status or "active").lower()
+                include_archived = normalized == "all"
+                task_status = None if normalized in {"active", "all"} else normalized
+                tasks = _kb.list_tasks(
+                    conn,
+                    status=task_status,
+                    include_archived=include_archived,
+                    limit=limit,
+                )
+                return {
+                    "tasks": [
+                        {
+                            "id": task.id,
+                            "title": task.title,
+                            "description": task.body,
+                            "status": task.status,
+                            "priority": task.priority,
+                            "assignee": task.assignee,
+                            "created_at": task.created_at,
+                            "completed_at": task.completed_at,
+                        }
+                        for task in tasks
+                    ],
+                    "count": len(tasks),
+                }
+            finally:
+                conn.close()
+
+        def _create_kanban_task(title: str, description: str = "", priority: str = "normal"):
+            priority_map = {"low": -1, "normal": 0, "medium": 0, "high": 1, "urgent": 2}
+            numeric_priority = priority_map.get(str(priority).lower(), 0)
+            conn = _kb.connect()
+            try:
+                task_id = _kb.create_task(
+                    conn,
+                    title=title,
+                    body=description or None,
+                    priority=numeric_priority,
+                    created_by="mcp",
+                )
+                task = _kb.get_task(conn, task_id)
+                return {
+                    "id": task_id,
+                    "title": task.title if task else title,
+                    "status": task.status if task else "ready",
+                }
+            finally:
+                conn.close()
+
+        def _update_kanban_task(task_id: str, status: str = None, description: str = None):
+            conn = _kb.connect()
+            try:
+                task = _kb.get_task(conn, task_id)
+                if task is None:
+                    return {"error": f"task not found: {task_id}"}
+                sets = []
+                params = []
+                if status is not None:
+                    if status not in _kb.VALID_STATUSES:
+                        return {"error": f"status must be one of {sorted(_kb.VALID_STATUSES)}"}
+                    sets.append("status = ?")
+                    params.append(status)
+                if description is not None:
+                    sets.append("body = ?")
+                    params.append(description)
+                if not sets:
+                    return {"id": task_id, "updated": False}
+                with _kb.write_txn(conn):
+                    conn.execute(
+                        f"UPDATE tasks SET {', '.join(sets)} WHERE id = ?",
+                        (*params, task_id),
+                    )
+                return {"id": task_id, "updated": True}
+            finally:
+                conn.close()
+
+        def _complete_kanban_task(task_id: str):
+            conn = _kb.connect()
+            try:
+                ok = _kb.complete_task(conn, task_id, result="completed via MCP")
+                return {"id": task_id, "completed": ok}
+            finally:
+                conn.close()
 
         @mcp.tool
         def kanban_list(status: str = "active", limit: int = 20) -> str:
             """List VECTOR kanban tasks. status: active|done|all."""
             return _mcp_call_json(
                 "kanban_list",
-                list_kanban_tasks,
+                _list_kanban_tasks,
                 status=status,
                 limit=limit,
             )
@@ -127,7 +209,7 @@ def add_kanban_tools(mcp) -> None:
             """Create a new kanban task in VECTOR's task board."""
             return _mcp_call_json(
                 "kanban_create",
-                create_kanban_task,
+                _create_kanban_task,
                 title=title,
                 description=description,
                 priority=priority,
@@ -138,7 +220,7 @@ def add_kanban_tools(mcp) -> None:
             """Update a kanban task's status or description."""
             return _mcp_call_json(
                 "kanban_update",
-                update_kanban_task,
+                _update_kanban_task,
                 task_id=task_id,
                 status=status,
                 description=description,
@@ -147,7 +229,7 @@ def add_kanban_tools(mcp) -> None:
         @mcp.tool
         def kanban_complete(task_id: str) -> str:
             """Mark a kanban task as complete."""
-            return _mcp_call_json("kanban_complete", complete_kanban_task, task_id=task_id)
+            return _mcp_call_json("kanban_complete", _complete_kanban_task, task_id=task_id)
 
         logger.info("[VECTOR][mcp] kanban tools registered (4 tools)")
     except ImportError as e:

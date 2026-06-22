@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import sys
 import tempfile
@@ -24,13 +25,12 @@ def setUpModule():
 
 def tearDownModule():
     import core.memory.episodic as mod
+    os.environ.pop("VECTOR_DB_PATH", None)
     mod.CONFIG["db_path"] = _ORIG_DB_PATH
     try:
-        if mod._db_connection is not None:
-            mod._db_connection.close()
+        mod.close_db_connection()
     except Exception:
         pass
-    mod._db_connection = None
     # Failures against the throwaway DBs may have latched the global episodic
     # circuit breaker OPEN — close it so later test files aren't rejected.
     try:
@@ -210,13 +210,15 @@ class TestSearchSemanticWithMockedModel(unittest.TestCase):
         f = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
         tmp = Path(f.name)
         f.close()
+        mod.close_db_connection()
+        os.environ["VECTOR_DB_PATH"] = str(tmp)
         mod.CONFIG["db_path"] = str(tmp)
-        mod._db_connection = None
         mem = mod.EpisodicMemory()
         return mem, mod, tmp
 
     def _teardown(self, mod, tmp):
-        mod._db_connection = None
+        mod.close_db_connection()
+        os.environ.pop("VECTOR_DB_PATH", None)
         try:
             tmp.unlink(missing_ok=True)
         except PermissionError:

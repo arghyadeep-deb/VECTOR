@@ -14,4 +14,11 @@ except Exception:
 
 logger.info("[VECTOR] voice package loaded")
 
-__all__ = []
+__all__ = ["OmniVoiceEngine", "OmniVoiceConfig"]
+
+
+def __getattr__(name: str):
+    if name in {"OmniVoiceEngine", "OmniVoiceConfig"}:
+        from core.voice.engines.omnivoice_engine import OmniVoiceConfig, OmniVoiceEngine
+        return {"OmniVoiceEngine": OmniVoiceEngine, "OmniVoiceConfig": OmniVoiceConfig}[name]
+    raise AttributeError(name)

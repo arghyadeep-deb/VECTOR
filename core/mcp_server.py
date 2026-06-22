@@ -14,6 +14,8 @@ MCP Client (outbound):
   This is the opposite direction — VECTOR as MCP consumer, not server.
 """
 import sys
+import inspect
+from types import SimpleNamespace
 
 __all__ = [
     "create_mcp_app",
@@ -63,15 +65,71 @@ try:
 except Exception:
     _VC_MCP_AVAILABLE = False
 
+class _FallbackMCP:
+    """Minimal in-process MCP facade for tests when FastMCP is unavailable."""
+
+    def __init__(self, name: str, instructions: str = ""):
+        self.name = name
+        self.instructions = instructions
+        self._tools = {}
+        self._resources = {}
+
+    def tool(self, fn=None, **metadata):
+        def decorator(func):
+            name = metadata.get("name") or func.__name__
+            self._tools[name] = SimpleNamespace(
+                name=name,
+                description=metadata.get("description") or inspect.getdoc(func) or "",
+                fn=func,
+            )
+            return func
+
+        if fn is None:
+            return decorator
+        return decorator(fn)
+
+    def resource(self, uri=None, **metadata):
+        def decorator(func):
+            resource_uri = uri or metadata.get("uri") or func.__name__
+            self._resources[resource_uri] = SimpleNamespace(
+                uri=resource_uri,
+                name=metadata.get("name") or func.__name__,
+                description=metadata.get("description") or inspect.getdoc(func) or "",
+                fn=func,
+            )
+            return func
+
+        if callable(uri) and not metadata:
+            fn = uri
+            uri = None
+            return decorator(fn)
+        return decorator
+
+    async def list_tools(self):
+        return [self._tools[name] for name in sorted(self._tools)]
+
+    async def call_tool(self, name: str, arguments: dict | None = None):
+        tool = self._tools.get(name)
+        if tool is None:
+            raise KeyError(f"unknown MCP tool: {name}")
+        result = tool.fn(**(arguments or {}))
+        if inspect.isawaitable(result):
+            result = await result
+        return result
+
+    def run(self, *args, **kwargs):
+        raise RuntimeError("FastMCP is required for MCP transports; fallback is test-only")
+
+
 def _make_server():
     if not _FASTMCP_AVAILABLE:
-        extra = ""
-        if _VC_MCP_AVAILABLE:
-            extra = " (OJ MCP fallback available at vectorcode.src.vc_mcp)"
-        raise ImportError(
-            "fastmcp not installed — run: pip install fastmcp" + extra
-        )
-    mcp = FastMCP(
+        extra = " with vc_mcp available" if _VC_MCP_AVAILABLE else ""
+        logger.warning("[VECTOR][mcp] using in-process fallback MCP%s", extra)
+        mcp_cls = _FallbackMCP
+    else:
+        mcp_cls = FastMCP
+
+    mcp = mcp_cls(
         "VECTOR",
         instructions=(
             "You are connected to VECTOR — a Darwinian multi-agent AI system "
@@ -80,7 +138,7 @@ def _make_server():
         ),
     )
 
-    # â”€â”€ Marketing CLI tools â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Marketing CLI tools
 
     _add_builtin_tools(mcp)
 
@@ -148,7 +206,7 @@ if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
     if not _FASTMCP_AVAILABLE:
-        print("âš ï¸  fastmcp not installed — install with: pip install fastmcp")
+        print("⚠️  fastmcp not installed — install with: pip install fastmcp")
         print("   Verifying server scaffold only...")
         print("✅ mcp_server.py scaffold OK (fastmcp not installed)")
     else:

@@ -280,6 +280,7 @@ class TestDispatchExtended:
         mock_agent = MagicMock()
         mock_agent.health_points = 500
         mock_agent.name = "TestBot"
+        mock_agent.capabilities = ["research_papers"]
         mock_agent.run = AsyncMock(return_value={"status": "ok", "data": "result"})
         mock_registry.get_by_district.return_value = [mock_agent]
         g._registry = mock_registry

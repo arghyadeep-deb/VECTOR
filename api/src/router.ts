@@ -31,6 +31,7 @@ const ALLOWED_PATHS = new Set([
   "/health",
   "/heartbeat",
   "/command",
+  "/commands",
   "/memory/recent",
   "/council/history",
   "/security/recent",
@@ -66,7 +67,12 @@ export class Router {
     const path = url.pathname;
     const method = request.method;
 
-    if (!ALLOWED_PATHS.has(path) && !path.startsWith("/command/")) {
+    if (
+      !ALLOWED_PATHS.has(path) &&
+      !path.startsWith("/command/") &&
+      !path.startsWith("/commands/") &&
+      !path.startsWith("/nodes/")
+    ) {
       return json({ error: "not found", path }, 404);
     }
 
@@ -75,8 +81,19 @@ export class Router {
 
     if (path === "/heartbeat" && method === "POST") return this.heartbeatPost(request, env);
     if (path === "/heartbeat") return this.heartbeatGet(env);
-    if (path === "/command" && method === "POST") return this.commandPost(request, env);
+    if ((path === "/command" || path === "/commands") && method === "POST") return this.commandPost(request, env);
     if (path.startsWith("/command/")) return this.commandStatus(env, decodeURIComponent(path.slice("/command/".length)));
+    if (path.startsWith("/commands/") && path.endsWith("/result") && method === "POST") {
+      const id = decodeURIComponent(path.slice("/commands/".length, -"/result".length));
+      return this.commandResult(request, env, id);
+    }
+    if (path.startsWith("/commands/")) {
+      return this.commandStatus(env, decodeURIComponent(path.slice("/commands/".length)));
+    }
+    if (path.startsWith("/nodes/") && path.endsWith("/poll") && method === "POST") {
+      const nodeId = decodeURIComponent(path.slice("/nodes/".length, -"/poll".length));
+      return this.nodePoll(request, env, nodeId);
+    }
 
     if (path === "/memory/recent") return this.memory(env, null, clampLimit(url, 10), "events");
     if (path === "/council/history") return this.memory(env, "council_session", clampLimit(url, 5), "sessions");
@@ -96,22 +113,24 @@ export class Router {
     }
     const now = new Date().toISOString();
     await env.RATE_LIMIT_KV.put("hb:last", JSON.stringify({ data, received_at: now }));
+    const nodeId = String(data.node_id || data.nodeId || "legion-heavy-node");
 
     let commands: unknown[] = [];
     try {
       const res = await env.DB.prepare(
-        "SELECT id,type,params,created_at FROM command_queue WHERE status='queued' ORDER BY created_at LIMIT 50",
-      ).all();
+        "SELECT id,type,params,target_node,created_at FROM command_queue WHERE status='queued' AND (target_node=? OR target_node IS NULL OR target_node='') ORDER BY created_at LIMIT 50",
+      ).bind(nodeId).all();
       commands = (res.results || []).map((r: any) => ({
         id: r.id,
         type: r.type,
         params: JSON.parse((r.params as string) || "{}"),
+        target_node: r.target_node || nodeId,
         created_at: r.created_at,
       }));
       if (commands.length) {
         await env.DB.batch(
           (commands as any[]).map((c) =>
-            env.DB.prepare("UPDATE command_queue SET status='delivered', delivered_at=? WHERE id=?").bind(now, c.id),
+            env.DB.prepare("UPDATE command_queue SET status='delivered', delivered_at=?, claimed_at=?, updated_at=? WHERE id=?").bind(now, now, now, c.id),
           ),
         );
       }
@@ -140,24 +159,25 @@ export class Router {
       params = { text: String(data.text), ...params };
     }
     if (!type) return json({ error: "command 'type' or 'text' is required" }, 400);
+    const targetNode = this.inferTargetNode(type, data, params);
 
     const id = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
     const now = new Date().toISOString();
     try {
       await env.DB.prepare(
-        "INSERT INTO command_queue (id,type,params,status,created_at) VALUES (?,?,?,?,?)",
+        "INSERT INTO command_queue (id,type,params,status,target_node,created_at,updated_at) VALUES (?,?,?,?,?,?,?)",
       )
-        .bind(id, type, JSON.stringify(params), "queued", now)
+        .bind(id, type, JSON.stringify(params), "queued", targetNode, now, now)
         .run();
     } catch (e) {
       return json({ error: "queue unavailable", detail: String(e) }, 503);
     }
-    return json({ ok: true, command_id: id });
+    return json({ ok: true, command_id: id, target_node: targetNode, status: "queued" });
   }
 
   async commandStatus(env: Env, id: string): Promise<Response> {
     try {
-      const row = await env.DB.prepare("SELECT id,type,status,created_at,delivered_at FROM command_queue WHERE id=?")
+      const row = await env.DB.prepare("SELECT id,type,status,target_node,result,error,created_at,delivered_at,claimed_at,completed_at,updated_at FROM command_queue WHERE id=?")
         .bind(id)
         .first();
       if (row) return json({ found: true, ...row });
@@ -165,6 +185,83 @@ export class Router {
       /* ignore */
     }
     return json({ found: false, command_id: id });
+  }
+
+  inferTargetNode(type: string, data: Record<string, any>, params: Record<string, any>): string {
+    const explicit = data.target_node || data.targetNode || params.target_node || params.targetNode;
+    if (explicit) return String(explicit);
+
+    const capability = String(data.capability || params.capability || "").toLowerCase();
+    if (capability === "lightweight" || capability === "termux" || capability === "requires_termux") {
+      return "termux-room-node";
+    }
+    if (type === "wake_legion") return "termux-room-node";
+    if (data.requires_legion || params.requires_legion || capability === "requires_legion") {
+      return "legion-heavy-node";
+    }
+
+    // Preserve legacy behavior: generic remote commands are drained by Legion
+    // through /heartbeat unless the caller explicitly marks them lightweight.
+    return "legion-heavy-node";
+  }
+
+  async nodePoll(request: Request, env: Env, nodeId: string): Promise<Response> {
+    let data: Record<string, any> = {};
+    try {
+      data = (await request.json()) as Record<string, any>;
+    } catch {
+      /* empty body ok */
+    }
+    const now = new Date().toISOString();
+    await env.RATE_LIMIT_KV.put(`hb:${nodeId}`, JSON.stringify({ data, received_at: now }));
+    if (nodeId === "legion-heavy-node") {
+      await env.RATE_LIMIT_KV.put("hb:last", JSON.stringify({ data, received_at: now }));
+    }
+
+    let commands: unknown[] = [];
+    try {
+      const res = await env.DB.prepare(
+        "SELECT id,type,params,target_node,created_at FROM command_queue WHERE status='queued' AND target_node=? ORDER BY created_at LIMIT 10",
+      ).bind(nodeId).all();
+      commands = (res.results || []).map((r: any) => ({
+        id: r.id,
+        type: r.type,
+        params: JSON.parse((r.params as string) || "{}"),
+        target_node: r.target_node,
+        created_at: r.created_at,
+      }));
+      if (commands.length) {
+        await env.DB.batch(
+          (commands as any[]).map((c) =>
+            env.DB.prepare("UPDATE command_queue SET status='running', claimed_at=?, updated_at=? WHERE id=? AND status='queued'").bind(now, now, c.id),
+          ),
+        );
+      }
+    } catch {
+      /* D1 unavailable -> no commands this tick */
+    }
+    return json({ ok: true, node_id: nodeId, received_at: now, commands });
+  }
+
+  async commandResult(request: Request, env: Env, id: string): Promise<Response> {
+    let data: Record<string, any> = {};
+    try {
+      data = (await request.json()) as Record<string, any>;
+    } catch {
+      return json({ error: "invalid json" }, 400);
+    }
+    const status = data.status === "failed" ? "failed" : data.status === "deferred" ? "deferred" : "done";
+    const now = new Date().toISOString();
+    try {
+      await env.DB.prepare(
+        "UPDATE command_queue SET status=?, result=?, error=?, completed_at=?, updated_at=? WHERE id=?",
+      )
+        .bind(status, JSON.stringify(data.result || {}), data.error || "", now, now, id)
+        .run();
+    } catch (e) {
+      return json({ error: "queue unavailable", detail: String(e) }, 503);
+    }
+    return json({ ok: true, command_id: id, status });
   }
 
   async memory(env: Env, eventType: string | null, limit: number, key: string): Promise<Response> {

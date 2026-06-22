@@ -37,6 +37,11 @@ from core.video.composition_linter import (
     lint_composition, lint_file, lint_project,
     LintResult, LintFinding,
 )
+from core.video.provider_capabilities import (
+    MediaModelCapability, MediaProviderCapability,
+    get_media_provider, list_media_providers,
+)
+from core.video.workflow_resolver import WorkflowResolutionError, resolve_workflow
 
 __all__ = [
     # Types
@@ -55,4 +60,8 @@ __all__ = [
     # Linter
     "lint_composition", "lint_file", "lint_project",
     "LintResult", "LintFinding",
+    # Media provider registry / workflow resolver
+    "MediaModelCapability", "MediaProviderCapability",
+    "get_media_provider", "list_media_providers",
+    "WorkflowResolutionError", "resolve_workflow",
 ]

@@ -356,6 +356,7 @@ class TestFatigueMonitor(unittest.TestCase):
     def setUp(self):
         from districts.health.fatigue_monitor import FatigueMonitor
         self.monitor = FatigueMonitor()
+        self.monitor._notify = lambda message: None
 
     def test_init_hp(self):
         self.assertEqual(self.monitor.health_points, 500)
@@ -481,6 +482,7 @@ class TestExerciseLogger(unittest.TestCase):
     def setUp(self):
         from districts.health.exercise_logger import ExerciseLogger
         self.logger = ExerciseLogger()
+        self.logger._get_suggestion = lambda days_inactive, hydration: "10 min walk."
 
     def test_init_hp(self):
         self.assertEqual(self.logger.health_points, 500)
@@ -691,6 +693,7 @@ class TestDailyHealthSnapshot(unittest.TestCase):
     def test_fatigue_event_in_episodic_memory(self):
         from districts.health.fatigue_monitor import FatigueMonitor
         monitor = FatigueMonitor()
+        monitor._notify = lambda message: None
         monitor._get_ear_from_world_state = lambda: 0.10
         _run(monitor.check_once())
         cur = monitor._memory.conn.cursor()

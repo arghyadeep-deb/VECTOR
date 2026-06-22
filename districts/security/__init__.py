@@ -15,6 +15,7 @@ from .log_aggregator import LogAggregator, LogEvent
 from .detection_rules import DetectionRules, DetectionRule, RuleMatch
 from .alert_manager import AlertManager, Alert
 from .incident_playbook_runner import IncidentPlaybookRunner, Incident, PlaybookStep
+from .skill_spector import SkillSpector
 
 __all__ = [
     "NodeGuard",
@@ -32,6 +33,7 @@ __all__ = [
     "IncidentPlaybookRunner",
     "Incident",
     "PlaybookStep",
+    "SkillSpector",
 ]
 
 logger.info("[VECTOR][security] Security district loaded")
@@ -48,6 +50,7 @@ def get_agent(name: str):
         "DetectionRules": DetectionRules,
         "AlertManager": AlertManager,
         "IncidentPlaybookRunner": IncidentPlaybookRunner,
+        "SkillSpector": SkillSpector,
     }
     return agents.get(name)
 

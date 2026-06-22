@@ -20,6 +20,7 @@ from .url_classifier import URLClassifier, URLType
 from ..research_library.downloaders.base import ContentType
 from ..security.ssrf_validator import validate_url
 from ..utilities.resource_utils import safe_close
+from .extraction import build_extraction_artifact
 
 # Default maximum content length (500KB of text)
 DEFAULT_MAX_CONTENT_LENGTH = 500_000
@@ -278,9 +279,26 @@ class ContentFetcher:
                             exc_info=True,
                         )
 
+                artifact = build_extraction_artifact(
+                    url,
+                    content,
+                    title=metadata.get("title"),
+                    mode=f"{source_name}_clean_markdown",
+                    max_chars=max_length,
+                    metadata={
+                        "author": metadata.get("author"),
+                        "published_date": metadata.get("published_date"),
+                    },
+                )
+
                 return {
                     "status": "success",
                     "content": content,
+                    "markdown": artifact.markdown,
+                    "content_hash": artifact.content_hash,
+                    "fetched_at": artifact.fetched_at,
+                    "extraction_mode": artifact.extraction_mode,
+                    "links": artifact.links,
                     "url": url,
                     "source_type": source_name,
                     "title": metadata.get("title"),

@@ -176,7 +176,25 @@ class PaperReader(AgentBase):
     # ── Loop ──────────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
         p = task.get("params", {})
+        if task_type in {"ingest_paper", "paper_card", "summarize_paper_tree"}:
+            try:
+                from districts.research.paper_ingestion import ingest_paper, paper_card
+
+                artifact = ingest_paper(p.get("input", p))
+                card = paper_card(artifact)
+                result = {"status": "ok", "artifact": artifact.model_dump(), "card": card.model_dump()}
+                self._memory.store(
+                    event_type="paper_ingested",
+                    content=f"Paper ingested: {artifact.title}",
+                    tags=["research", "paper", "ingestion"],
+                    context={"content_hash": artifact.content_hash, "source": artifact.source.uri},
+                    source="paper_reader",
+                )
+                return result
+            except Exception as exc:
+                return {"status": "error", "error": str(exc)}
         if p.get("query"):
             results = await self.search_papers(p["query"])
             return {"status": "ok", "papers": results}

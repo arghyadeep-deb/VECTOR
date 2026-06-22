@@ -85,7 +85,7 @@ class MiroFishRequest(BaseModel):
 async def stock_analysis(body: StockAnalysisRequest):
     """Run comprehensive stock analysis via Fincept terminal intelligence."""
     try:
-        agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        agent = _get_agent("districts.investment.finagent_agent.FinAgentAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "investor_analysis", "params": body.model_dump()})
@@ -100,7 +100,7 @@ async def stock_analysis(body: StockAnalysisRequest):
 async def dcf_valuation(body: DCFRequest):
     """Run DCF/WACC valuation model for a company."""
     try:
-        agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        agent = _get_agent("districts.investment.finagent_agent.FinAgentAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "corporate_finance/dcf", "params": body.model_dump()})
@@ -115,7 +115,7 @@ async def dcf_valuation(body: DCFRequest):
 async def alpha_discovery(body: AlphaRequest):
     """Discover alpha signals using RSI, MACD, ROC technical indicators."""
     try:
-        agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        agent = _get_agent("districts.investment.finagent_agent.FinAgentAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "alpha_discovery", "params": body.model_dump()})
@@ -130,7 +130,7 @@ async def alpha_discovery(body: AlphaRequest):
 async def backtest(body: BacktestRequest):
     """Run quantitative backtest via Fincept's BacktestingPy provider."""
     try:
-        agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        agent = _get_agent("districts.investment.finagent_agent.FinAgentAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "quant_backtest", "params": body.model_dump()})
@@ -145,7 +145,7 @@ async def backtest(body: BacktestRequest):
 async def geopolitics(body: GeopoliticsRequest):
     """Geopolitical risk analysis for investment decisions."""
     try:
-        agent = _get_agent("districts.investment.vector_finagent_agent.FinAgentAgent")
+        agent = _get_agent("districts.investment.finagent_agent.FinAgentAgent")
         if agent is None:
             raise HTTPException(status_code=503, detail="FinAgentAgent unavailable")
         return await agent.run({"type": "geopolitics", "params": body.model_dump()})

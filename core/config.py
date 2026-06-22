@@ -659,6 +659,13 @@ CONFIG: dict = {
         "brain_url": _s.VECTOR_BRAIN_URL,
         "api_key": _secret(_s.VECTOR_BRAIN_API_KEY.get_secret_value()),
     },
+    "wake": {
+        "legion_node_id": os.environ.get("LEGION_NODE_ID", "legion-heavy-node"),
+        "legion_wifi_mac": os.environ.get("LEGION_WIFI_MAC", ""),
+        "legion_ethernet_mac": os.environ.get("LEGION_ETHERNET_MAC", ""),
+        "legion_wake_broadcast": os.environ.get("LEGION_WAKE_BROADCAST", "255.255.255.255"),
+        "legion_wake_port": int(os.environ.get("LEGION_WAKE_PORT", "9")),
+    },
     "oauth_redirect_base": _s.VECTOR_OAUTH_REDIRECT_BASE,
     "sentry_dsn": _s.SENTRY_DSN,
     "sentry_env": _s.VECTOR_ENV,
