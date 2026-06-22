@@ -662,6 +662,19 @@ districts:
       description: Placement and recruitment specialist
       capabilities: [recruitment, placement]
 
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: feedback_analyst
+      class: districts.interview_prep.feedback_analyst.FeedbackAnalyst
+      model: vector-reasoning
+      description: Interview feedback analysis, improvement-area identification, progress tracking
+      capabilities: [analyze_feedback, identify_improvements, track_progress]
+
+    - name: report_generator
+      class: districts.interview_prep.report_generator.ReportGenerator
+      model: vector-reasoning
+      description: Interview session/progress report generation, export, company-specific prep
+      capabilities: [session_report, progress_report, export_report, company_specific]
+
   agency:
     - name: content_strategist
       class: districts.agency.content_strategist.ContentStrategist
