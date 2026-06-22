@@ -179,10 +179,21 @@ class NoteOrganizer(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
-        if hasattr(self, "organise"):
-            result = self.organise()
-            return {"status": "ok", "result": result}
-        return {"status": "ok", "agent": self.name}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["organize_notes", "summarize_notes", "link_notes"]
+
+        if task_type == "organize_notes":
+            result = self.organize_notes(p.get("source_dir", ""))
+            return {"status": "ok", **result}
+        if task_type == "summarize_notes":
+            result = self.summarize_notes(p.get("topic", ""))
+            return {"status": "ok", **result}
+        if task_type == "link_notes":
+            result = self.link_notes(p.get("concept_a", ""), p.get("concept_b", ""))
+            return {"status": "ok", **result}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
