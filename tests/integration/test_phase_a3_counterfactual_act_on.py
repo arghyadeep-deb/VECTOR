@@ -38,6 +38,27 @@ class TestCounterfactualShouldAvoid(unittest.TestCase):
         self.assertGreaterEqual(score, 0.7)
         self.assertIn("Too destructive", reason)
 
+    def test_get_all_rejections_returns_most_recent_first(self):
+        """New for the post-training DPO dataset adapter (plans/post-training-pipeline.md
+        Task 2) — a plain read of the rejections table, same pattern as get_all_scenarios."""
+        self.cf.record_rejection("deploy", "deploy untested", "no tests run")
+        self.cf.record_rejection("deploy", "deploy without review", "skipped review")
+        rows = self.cf.get_all_rejections(limit=10)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0]["proposal"], "deploy without review")
+        self.assertEqual(rows[1]["proposal"], "deploy untested")
+        self.assertEqual(rows[0]["decision_id"], "deploy")
+
+    def test_get_all_rejections_respects_limit(self):
+        for i in range(5):
+            self.cf.record_rejection(f"dec-{i}", f"proposal {i}", "reason")
+        rows = self.cf.get_all_rejections(limit=2)
+        self.assertEqual(len(rows), 2)
+
+    def test_get_all_rejections_empty_table_returns_empty_list(self):
+        rows = self.cf.get_all_rejections()
+        self.assertEqual(rows, [])
+
     def test_dissimilar_proposal_not_blocked(self):
         self.cf.record_rejection("dec-2", "delete all logs", "Too destructive")
         avoid, score, _ = self.cf.should_avoid("run unit tests", threshold=0.7)
