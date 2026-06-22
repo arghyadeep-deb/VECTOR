@@ -175,6 +175,23 @@ class ContentScheduler(AgentBase):
         """Return per-status job counts."""
         return self._get_tracker().summary()
 
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["schedule_post", "run_pending", "summary"]
+
+        if task_type == "schedule_post":
+            return await self.schedule_post(
+                p.get("title", ""), p.get("content", ""),
+                p.get("platforms", []), p.get("scheduled_for"),
+            )
+        if task_type == "run_pending":
+            return await self.run_pending()
+        if task_type == "summary":
+            return self.get_summary()
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
+
 if __name__ == "__main__":
     s = ContentScheduler()
     print("✅ content_scheduler OK" if s else "❌ FAILED")
