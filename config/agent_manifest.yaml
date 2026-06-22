@@ -793,6 +793,34 @@ districts:
       description: Cross-platform social media strategy and content generation
       capabilities: [social_media_strategy]
 
+    # Cleanup batch (2026-06-22): run()-branching fix. AdsOrchestratorAgent
+    # does NOT self-load these (confirmed via grep — no AmazonAdsAgent/
+    # GoogleAdsAgent/MetaAdsAgent import in ads_orchestrator_agent.py), so
+    # they're genuinely standalone, not swarm-reachable duplicates.
+    - name: amazon_ads_agent
+      class: districts.marketing.amazon_ads_agent.AmazonAdsAgent
+      model: vector-reasoning
+      description: Amazon Ads account audit
+      capabilities: [amazon_ads_audit]
+
+    - name: attribution_agent
+      class: districts.marketing.attribution_agent.AttributionAgent
+      model: vector-reasoning
+      description: Consent-mode and attribution audit
+      capabilities: [attribution_audit, audit_consent_mode]
+
+    - name: google_ads_agent
+      class: districts.marketing.google_ads_agent.GoogleAdsAgent
+      model: vector-reasoning
+      description: Google Ads account audit, copy generation, performance, landing page review
+      capabilities: [google_ads_audit, google_ads_copy, ads_performance, google_ads_landing]
+
+    - name: sgtm_agent
+      class: districts.marketing.sgtm_agent.SGTMAgent
+      model: vector-reasoning
+      description: Server-side GTM health check
+      capabilities: [sgtm_health]
+
   skills:
     - name: skill_mapper
       class: districts.skills.skill_mapper.SkillMapper
