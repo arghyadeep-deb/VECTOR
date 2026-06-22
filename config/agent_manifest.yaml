@@ -644,6 +644,19 @@ districts:
       description: Outbound prospecting, ICE-scored pipeline, deal strategy, outreach sequences
       capabilities: [sales, outbound, pipeline, deal_strategy]
 
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: client_manager
+      class: districts.agency.client_manager.ClientManager
+      model: vector-focus
+      description: Client relationship management — engagement tracking, lifetime value, churn risk
+      capabilities: [add_client, get_client, list_clients, update_client, delete_client, track_engagement, get_top_clients, client_summary, get_at_risk_clients]
+
+    - name: performance_tracker_agency
+      class: districts.agency.performance_tracker.PerformanceTracker
+      model: vector-focus
+      description: Time-series metric tracking, trend detection, anomaly alerts
+      capabilities: [track_metric, get_trend, alert_anomaly, active_alerts, acknowledge_alert, get_metric_summary, get_comparison, remove_metric]
+
   investment:
     - name: stock_analyst
       class: districts.investment.stock_analyst.StockAnalyst
