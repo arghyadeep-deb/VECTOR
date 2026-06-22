@@ -635,6 +635,25 @@ districts:
       description: Deliberate code practice and typing drill tracker
       capabilities: [learning, coding, practice]
 
+    # Cleanup batch (2026-06-22): run()-branching fix.
+    - name: architecture_builder
+      class: districts.karpathy_lab.architecture_builder.ArchitectureBuilder
+      model: vector-reasoning
+      description: Designs model architectures, generates training configs, estimates compute requirements
+      capabilities: [design_architecture, generate_config, estimate_compute]
+
+    - name: data_prep
+      class: districts.karpathy_lab.data_prep.DataPrep
+      model: vector-coder
+      description: Dataset download, preprocessing, and tokenization for training pipelines
+      capabilities: [download_dataset, preprocess_data, tokenize_data]
+
+    - name: karpathy_progress_tracker
+      class: districts.karpathy_lab.progress_tracker.ProgressTracker
+      model: vector-focus
+      description: Training run lifecycle tracking — start, log steps, progress, reports
+      capabilities: [start_run, log_step, get_progress, generate_report]
+
   languages:
     - name: japanese_coach
       class: districts.languages.japanese_coach.JapaneseCoach
