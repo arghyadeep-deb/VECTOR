@@ -354,17 +354,13 @@ async def job_post_training_run(*, _ctx: dict | None = None) -> dict:
         dpo_result = run_dpo(adapter_name="vector-post-dpo", base_model=base_model)
 
         try:
-            from core.memory.episodic import get_db_connection
-            conn = get_db_connection()
-            conn.execute(
-                "INSERT INTO episodic_memory (event_type, content, timestamp) VALUES (?, ?, ?)",
-                (
-                    "post_training_run",
-                    f"sft={sft_result.get('status')} dpo={dpo_result.get('status')}",
-                    datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                ),
+            from core.memory.episodic import EpisodicMemory
+            EpisodicMemory().store(
+                event_type="post_training_run",
+                content=f"sft={sft_result.get('status')} dpo={dpo_result.get('status')}",
+                tags=["training", "post_training"],
+                source="cron_jobs",
             )
-            conn.commit()
         except Exception as exc:
             logger.warning("[VECTOR][cron] post_training_run episodic write failed: {}", exc)
 
