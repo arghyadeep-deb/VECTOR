@@ -183,8 +183,24 @@ class EnglishCoach(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
-        result = self.track_progress()
-        return {"status": "ok", **result}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["practice_vocabulary", "grammar_check", "generate_sentences", "track_progress"]
+
+        if task_type == "practice_vocabulary":
+            result = self.practice_vocabulary(p.get("word_count", 5))
+            return {"status": "ok", **result}
+        if task_type == "grammar_check":
+            result = self.grammar_check(p.get("text", ""))
+            return {"status": "ok", **result}
+        if task_type == "generate_sentences":
+            result = self.generate_sentences(p.get("word", ""))
+            return {"status": "ok", **result}
+        if task_type == "track_progress":
+            result = self.track_progress()
+            return {"status": "ok", **result}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
