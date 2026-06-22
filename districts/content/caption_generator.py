@@ -312,6 +312,22 @@ Translation:"""
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = ["generate_captions", "generate_subtitles", "generate_highlight_captions", "translate_captions"]
+
+        if task_type == "generate_captions":
+            return self.generate_captions(p.get("transcript", ""), p.get("style", "standard"))
+        if task_type == "generate_subtitles":
+            return self.generate_subtitles(p.get("video_path", ""), p.get("style", "standard"), p.get("output_format", "srt"))
+        if task_type == "generate_highlight_captions":
+            return self.generate_highlight_captions(p.get("transcript", ""), p.get("keywords", []))
+        if task_type == "translate_captions":
+            return self.translate_captions(p.get("captions", {}), p.get("target_language", ""))
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
