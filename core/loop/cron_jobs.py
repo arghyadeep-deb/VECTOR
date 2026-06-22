@@ -330,6 +330,54 @@ async def job_content_scheduler(*, _ctx: dict | None = None) -> dict:
         return {"published": 0, "error": str(e)}
 
 
+async def job_post_training_run(*, _ctx: dict | None = None) -> dict:
+    """Weekly Sat 04:00 — SFT+DPO LoRA training on VECTOR's own reasoning_chains
+    + counterfactual rejections. Gated off by default (CONFIG["training"]["post_training_enabled"]).
+    """
+    from core.config import CONFIG
+    cfg = CONFIG["training"]
+
+    if not cfg.get("post_training_enabled", False):
+        return {"status": "disabled"}
+
+    try:
+        base_model = cfg.get("post_training_base_model", "vector-coder")
+        min_reward = cfg.get("post_training_min_chain_reward", 0.7)
+        min_examples = cfg.get("post_training_min_examples", 50)
+
+        sft_result = run_sft(
+            adapter_name="vector-post-sft",
+            base_model=base_model,
+            min_reward=min_reward,
+            min_examples=min_examples,
+        )
+        dpo_result = run_dpo(adapter_name="vector-post-dpo", base_model=base_model)
+
+        try:
+            from core.memory.episodic import get_db_connection
+            conn = get_db_connection()
+            conn.execute(
+                "INSERT INTO episodic_memory (event_type, content, timestamp) VALUES (?, ?, ?)",
+                (
+                    "post_training_run",
+                    f"sft={sft_result.get('status')} dpo={dpo_result.get('status')}",
+                    datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                ),
+            )
+            conn.commit()
+        except Exception as exc:
+            logger.warning("[VECTOR][cron] post_training_run episodic write failed: {}", exc)
+
+        logger.info(
+            "[VECTOR][cron] post_training_run: sft={} dpo={}",
+            sft_result.get("status"), dpo_result.get("status"),
+        )
+        return {"status": "ok", "sft": sft_result, "dpo": dpo_result}
+    except Exception as e:
+        logger.warning("[VECTOR][cron] post_training_run failed: {}", e)
+        return {"status": "failed", "reason": str(e)}
+
+
 # ── Registration ─────────────────────────────────────────────────────────────
 
 
