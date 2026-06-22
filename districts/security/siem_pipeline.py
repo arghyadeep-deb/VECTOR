@@ -18,7 +18,7 @@ from districts.security.detection_rules import DetectionRules, RuleMatch
 from districts.security.incident_playbook_runner import IncidentPlaybookRunner, Incident
 
 
-class SIEMPipeline:
+class SIEMPipeline(AgentBase):
     """Security Information and Event Management pipeline.
 
     Connects LogAggregator → DetectionRules → IncidentPlaybookRunner.
@@ -32,6 +32,7 @@ class SIEMPipeline:
         playbooks_dir: str | None = None,
         incidents_db_path: str | None = None,
     ) -> None:
+        super().__init__(str(uuid.uuid4()), "SIEMPipeline", "security")
         self.log_aggregator = LogAggregator(db_path=db_path)
         self.detection_rules = DetectionRules(rules_dir=rules_dir)
         self.playbook_runner = IncidentPlaybookRunner(
