@@ -29,6 +29,7 @@ from core.vision_control.action_parser import action_parser
 from core.vision_control.vision_operator import ACTION_SPACE
 from core.vision_control.gui_agent import GUIStatus
 from core.browser.governance import get_browser_governance
+from core.loop.permission_gateway import PermissionGateway
 from loguru import logger
 
 _BROWSER_SYSTEM_PROMPT = """You are VECTOR's browser automation agent. You control a web browser to complete tasks.
