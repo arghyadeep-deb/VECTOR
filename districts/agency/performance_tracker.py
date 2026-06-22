@@ -338,12 +338,31 @@ class PerformanceTracker(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        if p.get("metric") and p.get("value") is not None:
-            result = self.track_metric(p["metric"], float(p["value"]))
-            return {"status": "ok", **result}
-        trend = self.get_trend(p.get("metric", "engagement"))
-        return {"status": "ok", **trend}
+        task_type = task.get("type", "")
+        p = task.get("params", {}) or {}
+        supported = [
+            "track_metric", "get_trend", "alert_anomaly", "get_active_alerts",
+            "acknowledge_alert", "get_metric_summary", "get_comparison", "remove_metric",
+        ]
+
+        if task_type == "track_metric":
+            return {"status": "ok", **self.track_metric(p.get("name", ""), float(p.get("value", 0)), p.get("tags"))}
+        if task_type == "get_trend":
+            return {"status": "ok", **self.get_trend(p.get("metric", "engagement"), p.get("days", 7))}
+        if task_type == "alert_anomaly":
+            return {"status": "ok", "set": self.alert_anomaly(p.get("metric", ""), float(p.get("threshold", 0)), p.get("direction", "above"))}
+        if task_type == "get_active_alerts":
+            return {"status": "ok", "alerts": self.get_active_alerts()}
+        if task_type == "acknowledge_alert":
+            return {"status": "ok", "acknowledged": self.acknowledge_alert(p.get("alert_id", ""))}
+        if task_type == "get_metric_summary":
+            return {"status": "ok", **self.get_metric_summary()}
+        if task_type == "get_comparison":
+            return {"status": "ok", **self.get_comparison(p.get("metric_a", ""), p.get("metric_b", ""), p.get("days", 7))}
+        if task_type == "remove_metric":
+            return {"status": "ok", "removed": self.remove_metric(p.get("metric", ""))}
+
+        return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 
 if __name__ == "__main__":
