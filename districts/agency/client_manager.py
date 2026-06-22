@@ -318,22 +318,24 @@ class ClientManager(AgentBase):
             "client_summary", "get_at_risk_clients",
         ]
 
+        # NOTE: add_client/update_client/track_engagement already return their
+        # own native "success"/"error" status (their own established public
+        # API contract, used directly by callers elsewhere) — passed through
+        # unchanged rather than translated, so run() doesn't mask a real
+        # "error" result (e.g. duplicate client name) as a fake "ok".
         if task_type == "add_client":
-            r = self.add_client(p.get("name", ""), p.get("contact", ""), p.get("notes", ""), p.get("tags"))
-            return {**r, "status": "ok" if r.get("status") == "success" else "error"}
+            return self.add_client(p.get("name", ""), p.get("contact", ""), p.get("notes", ""), p.get("tags"))
         if task_type == "get_client":
             client = self.get_client(p.get("name", ""))
             return {"status": "ok", "client": client}
         if task_type == "list_clients":
             return {"status": "ok", "clients": self.list_clients(p.get("status"))}
         if task_type == "update_client":
-            r = self.update_client(p.get("name", ""), p.get("updates", {}))
-            return {**r, "status": "ok" if r.get("status") == "success" else "error"}
+            return self.update_client(p.get("name", ""), p.get("updates", {}))
         if task_type == "delete_client":
             return {"status": "ok", "deleted": self.delete_client(p.get("name", ""))}
         if task_type == "track_engagement":
-            r = self.track_engagement(p.get("client", ""), p.get("event_type", ""), p.get("details"))
-            return {**r, "status": "ok" if r.get("status") == "success" else "error"}
+            return self.track_engagement(p.get("client", ""), p.get("event_type", ""), p.get("details"))
         if task_type == "get_top_clients":
             return {"status": "ok", "clients": self.get_top_clients(p.get("by", "engagement_score"), p.get("limit", 10))}
         if task_type == "client_summary":
