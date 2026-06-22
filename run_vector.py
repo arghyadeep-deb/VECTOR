@@ -493,6 +493,12 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+
+    # loop/api are the long-running, often-unattended modes — give them a
+    # persistent file sink so a closed terminal doesn't lose the trail.
+    if args.mode in ("loop", "api"):
+        _configure_file_logging(args.mode)
+
     logger.info("[VECTOR][launcher] mode={}", args.mode)
 
     # Start optional sidecar services (ComfyUI, etc.) — non-blocking.
