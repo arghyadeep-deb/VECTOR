@@ -333,7 +333,7 @@ class ClientManager(AgentBase):
             return {"status": "ok", **self.track_engagement(p.get("client", ""), p.get("event_type", ""), p.get("details"))}
         if task_type == "get_top_clients":
             return {"status": "ok", "clients": self.get_top_clients(p.get("by", "engagement_score"), p.get("limit", 10))}
-        if task_type == "get_client_summary":
+        if task_type == "client_summary":
             return {"status": "ok", **self.get_client_summary()}
         if task_type == "get_at_risk_clients":
             return {"status": "ok", "clients": self.get_at_risk_clients(p.get("threshold", 20))}
