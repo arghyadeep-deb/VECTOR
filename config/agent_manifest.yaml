@@ -562,6 +562,21 @@ districts:
       description: Any-URL video ingestion with concept extraction
       capabilities: [learning, video, yt_dlp]
 
+    # Cleanup batch (2026-06-22): both had a broken hasattr() guard checking
+    # a method name that never existed (typo/placeholder) — always dead code,
+    # run() always fell through to a fake-success no-op. Now real type-branching.
+    - name: concept_extractor
+      class: districts.learning.concept_extractor.ConceptExtractor
+      model: vector-reasoning
+      description: Extracts key concepts from text, suggests learning prerequisites
+      capabilities: [extract_concepts, suggest_prerequisites]
+
+    - name: note_organizer
+      class: districts.learning.note_organizer.NoteOrganizer
+      model: vector-reasoning
+      description: Organizes notes by topic, summarizes, links related concepts
+      capabilities: [organize_notes, summarize_notes, link_notes]
+
   startups:
     - name: market_scanner
       class: districts.startups.market_scanner.MarketScanner
