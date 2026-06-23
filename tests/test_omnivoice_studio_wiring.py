@@ -30,25 +30,38 @@ def test_omnivoice_config_defaults_are_safe():
     assert config.unload_after_seconds > 0
 
 
-def test_omnivoice_generate_path_is_mockable_without_real_model(monkeypatch):
+def test_omnivoice_generate_path_is_mockable_without_real_model(monkeypatch, tmp_path):
     """synthesize_to_file must be reachable via a mocked _load() — proves
     the adapter's control flow doesn't require the real omnivoice package
-    to be tested."""
+    to be tested.
+
+    Root-caused real bug (omnivoice installed this pass, API verified
+    directly): generate() doesn't accept profile/num_step/output_path
+    kwargs (none exist on the real method) and returns list[numpy.ndarray]
+    -- it never writes a file itself. Fixed synthesize_to_file() to call
+    only real parameters and save the result via soundfile using the
+    model's own model.sampling_rate attribute (the package's own docstring
+    documents this exact pattern)."""
+    import numpy as np
     from core.voice.engines.omnivoice_engine import OmniVoiceConfig, OmniVoiceEngine
 
     engine = OmniVoiceEngine(OmniVoiceConfig(enabled=True))
 
     class _FakeModel:
+        sampling_rate = 24000
+
         def generate(self, **kwargs):
-            # Real model writes the file as a side effect and returns nothing
-            # meaningful — synthesize_to_file falls through to its own
-            # `target` path in that case (`return str(result or target)`).
-            return None
+            assert "profile" not in kwargs
+            assert "num_step" not in kwargs
+            assert "output_path" not in kwargs
+            return [np.zeros(100, dtype=np.float32)]
 
     monkeypatch.setattr(engine, "_load", lambda: _FakeModel())
 
-    result = engine.synthesize_to_file("hello world", output_path="/tmp/test_omnivoice.wav")
-    assert Path(result) == Path("/tmp/test_omnivoice.wav")
+    out_path = str(tmp_path / "test_omnivoice.wav")
+    result = engine.synthesize_to_file("hello world", output_path=out_path)
+    assert Path(result) == Path(out_path)
+    assert Path(out_path).exists()
 
 
 def test_live_conversation_tts_never_references_omnivoice():
