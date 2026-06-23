@@ -97,7 +97,7 @@ class CircuitBreaker:
             elif self.state == CircuitState.CLOSED:
                 self.failure_count = 0
 
-    async def _on_failure(self) -> None:
+    async def on_failure(self) -> None:
         async with self._lock:
             self.failure_count += 1
             self.last_failure_time = time.time()
