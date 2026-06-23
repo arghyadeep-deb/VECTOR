@@ -43,17 +43,44 @@ def test_supertonic_tts_create_raises_clean_error_when_disabled():
         assert "supertonic" in str(exc).lower()
 
 
-def test_supertonic_tts_load_constructs_real_tts_class():
+def test_supertonic_tts_load_constructs_real_tts_class_with_auto_download_off(monkeypatch):
     """Root-caused real bug: _load() called a nonexistent
     supertonic.load_model() -- confirmed via the actual installed package's
     public API (supertonic.TTS, not a module-level load_model function).
-    Fixed to construct the real class."""
+    Fixed to construct the real class. Mocked rather than instantiated for
+    real -- a real TTS() with no local weights triggers an actual ~260MB
+    HuggingFace download, a separate explicit owner action, not something
+    a test should trigger."""
     from core.voice.supertonic_tts import SupertonicTTS
     import supertonic
 
+    captured = {}
+
+    class _FakeTTS:
+        def __init__(self, model_dir=None, auto_download=True):
+            captured["model_dir"] = model_dir
+            captured["auto_download"] = auto_download
+
+    monkeypatch.setattr(supertonic, "TTS", _FakeTTS)
+
     tts = SupertonicTTS(enabled=True)
     engine = tts._load()
-    assert isinstance(engine, supertonic.TTS)
+    assert isinstance(engine, _FakeTTS)
+    assert captured["auto_download"] is False
+
+
+def test_supertonic_tts_load_raises_clean_error_when_weights_missing():
+    """Real behavior with no mocking: weights genuinely aren't downloaded
+    locally and auto_download defaults to False -- must fail fast with a
+    clear, actionable error, not hang on a network call."""
+    from core.voice.supertonic_tts import SupertonicTTS
+
+    tts = SupertonicTTS(enabled=True)
+    try:
+        tts._load()
+        assert False, "expected RuntimeError (no local weights, auto_download=False)"
+    except RuntimeError as exc:
+        assert "auto_download" in str(exc) or "OWNER_ACTIONS_NEEDED" in str(exc)
 
 
 def test_supertonic_tts_create_returns_samples_and_sample_rate(monkeypatch):
