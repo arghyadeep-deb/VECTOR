@@ -39,16 +39,20 @@ _MCP_SERVER = _REPO_ROOT / "core" / "mcp_server.py"
 
 def test_mcp_server_module_source_strips_its_own_directory_from_sys_path():
     """Static check that the fix is actually present: core/mcp_server.py
-    must remove its own auto-prepended directory from sys.path near the
-    top of the file, before any import that could trigger the stdlib
-    `email` shadowing (pydantic's plugin loader does this transitively)."""
+    must remove its own auto-prepended directory from sys.path before any
+    import that could trigger the stdlib `email` shadowing (pydantic's
+    plugin loader does this transitively), and that fix-up must come
+    before the first `from core.` import in the file."""
     source = _MCP_SERVER.read_text(encoding="utf-8")
-    head = source.split("\n\n", 3)
-    head_text = "\n\n".join(head[:3])  # first few blocks, before heavy imports
-    assert "sys.path" in head_text and ("remove" in head_text or "[1:]" in head_text or "discard" in head_text), (
-        "core/mcp_server.py must neutralize its own auto-prepended script "
-        "directory near the top of the file, before any import that could "
-        "trigger the core/email/ vs stdlib email shadowing bug"
+    fixup_idx = source.find("sys.path[:] = [p for p in sys.path if p !=")
+    first_core_import_idx = source.find("from core.")
+    assert fixup_idx != -1, (
+        "core/mcp_server.py must strip its own auto-prepended script "
+        "directory from sys.path before any import that could trigger "
+        "the core/email/ vs stdlib email shadowing bug"
+    )
+    assert fixup_idx < first_core_import_idx, (
+        "the sys.path fix-up must run before the first 'from core.' import"
     )
 
 
