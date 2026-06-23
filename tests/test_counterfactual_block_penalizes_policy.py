@@ -47,19 +47,24 @@ def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
     from core.memory.counterfactual import CounterfactualMemory
     from core.memory.policy import PolicyMemory
 
+    # PolicyMemory has no db_path override -- it always uses the shared,
+    # real episodic-memory connection (the same DB the live autonomous
+    # loop, if running, also writes to). Use a unique action_type so this
+    # test's situation_hash can never collide with real production rows.
+    action_type = f"test_auto_block_{uuid.uuid4().hex[:8]}"
+
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         cf_db = f.name
     try:
         cf = CounterfactualMemory(db_path=cf_db)
         # Must match _act_on()'s exact proposal construction:
         # f"{winner.action_type} {json.dumps(winner.params, default=str)}"
-        cf.record_rejection("analyze_progress", "analyze_progress {}", "auto-blocked: similar to past rejection (score=1.00)")
+        cf.record_rejection(action_type, f"{action_type} {{}}", "auto-blocked: similar to past rejection (score=1.00)")
 
         loop = AutonomousLoop()
         monkeypatch.setattr("core.memory.counterfactual.CounterfactualMemory", lambda: cf)
 
         pm = PolicyMemory()
-        action_type = "analyze_progress"
         params: dict = {}
         sit_hash = _situation_hash(action_type, params)
         score_before = pm.get_score(action_type, sit_hash)
