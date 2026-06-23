@@ -83,7 +83,9 @@ Implemented via TDD, all tests passing, zero regressions (verified `pytest -k cr
 
 ## §2 — Repo absorption: 31-repo list reconciled against actual code
 
-Legend: ✅ DONE (cite file) · 🟡 PARTIAL · ⬜ TODO · 🔵 DEFERRED(owner) · ⏭️ SKIP · — N/A (reference-only, no action)
+**The 20 ✅ DONE rows below are summarized here; full evidence for each moved to `docs/repo_analysis/_DONE.md`, which consolidates and replaces their 20 individual per-repo `.md` files (removed from this directory — do not recreate them, the content lives in `_DONE.md` now).**
+
+Legend: ✅ DONE (full evidence in `_DONE.md`) · 🟡 PARTIAL · ⏭️ SKIP · — N/A (reference-only, no action)
 
 | # | Repo | `_FINAL_CROSSCHECK` verdict | Actual state (verified) | Status |
 |---|---|---|---|---|
