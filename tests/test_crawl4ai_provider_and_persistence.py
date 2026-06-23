@@ -16,6 +16,17 @@ import attempts; see docs/repo_analysis/_MASTER_TODO.md §3 item 12), a
 real, separate, much larger structural gap. extraction.py itself has zero
 problematic imports (pure stdlib) and is the doc's actual "VECTOR-native
 contract" — these additions extend it without touching the broken chain.
+
+Later correction, same investigation: Crawl4AIProvider's only fetch path
+depended on the external `crawl4ai` package, duplicating a job
+core/scraper/vector_scraper.py::VectorScraper already does natively --
+SSRF-checked, audited, real markdown conversion via `markdownify`, with
+7 existing callers across the codebase. Added fetch_via_vector_scraper()
+as the real PRIMARY path (no extra dependency, reuses already-wired
+infrastructure); Crawl4AIProvider stays as an explicitly optional upgrade
+for crawl4ai-specific features VectorScraper doesn't have (deep-crawl
+resume, BM25 fit-markdown, schema extraction) -- not removed, since those
+are genuinely different capabilities, not pure duplication.
 """
 import sys
 from pathlib import Path
