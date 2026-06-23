@@ -117,11 +117,11 @@ Legend: ✅ DONE (full evidence in `_DONE.md`) · 🟡 PARTIAL · ⏭️ SKIP ·
 | 24 | **ECC** | Vet/selective clean-room | `core/security/workspace_audit.py` — local skill inventory + hook/config review checks, no external hooks installed | ✅ DONE (narrow scope as specified) |
 | 25 | **OpenAlice** | Clean-room only (AGPL) | `districts/investment/order_lifecycle.py` — staged order lifecycle, risk snapshots, approval-gated live submit, append-only transitions; no AGPL code/schemas copied | ✅ DONE (clean-room ideas only, as specified) |
 | 26 | **Nautilus Trader** | Clean-room only (LGPL) | Same `order_lifecycle.py` covers this verdict's clean-room scope too (risk snapshots, paper/live parity concept) | ✅ DONE (clean-room ideas only, as specified) |
-| 27 | **remotion** | SKIP | N/A | ⏭️ SKIP |
+| 27 | **remotion** | SKIP | VECTOR independently built the same headless-Chromium frame-seek + ffmpeg architecture; license also mandates paid tier at commercial scale — see `_DONE.md` #25 | ⏭️ SKIP |
 | 28 | **kickbacks.ai** | HARD SKIP, detector rule as the one defensive takeaway | `core/security/skill_scanner.py:127-132,246` — `_KICKBACKS_STYLE` regex + `"extension_adware"` finding category | ✅ DONE — **correction (2026-06-23):** this was wrongly carried forward as "no detector rule built yet" in an earlier pass of this same audit; the rule genuinely already existed, it just had **zero test coverage anywhere in the suite** (confirmed via grep before writing tests). Added `tests/test_skill_scanner_adware_detection.py` (4 tests: fires on ad-injection+extension-hook text, fires on claude_config+sponsored-prompt text, does NOT false-positive on ordinary skill text, `scan_artifact()` end-to-end flags a kickbacks-style file as CAUTION/DO_NOT_LOAD). No kickbacks source code copied — confirmed clean-room, detection patterns only. |
-| 29 | **voicebox** | SKIP (absorbed) | N/A | ⏭️ SKIP |
-| 30 | **OpenCut** | SKIP (scaffold) | N/A | ⏭️ SKIP |
-| 31 | **text-to-cad** | SKIP (bookmark) | N/A | ⏭️ SKIP |
+| 29 | **voicebox** | SKIP (absorbed) | Same repo already absorbed 2026-05-27. **One real, never-built gap remains: system-wide dictation** (Whisper STT → inject text into any focused OS window) — a feature decision for the owner, not a bug; flagged in `_DONE.md` #28, not auto-built (security-sensitive, writes keystrokes into arbitrary apps) | ⏭️ SKIP (+ 1 flagged optional feature, owner's call) |
+| 30 | **OpenCut** | SKIP (scaffold) | Checked-out repo is a scaffold with no real editor core/timeline/rendering API yet — see `_DONE.md` #26 | ⏭️ SKIP |
+| 31 | **text-to-cad** | SKIP (bookmark) | VECTOR has zero CAD capability by design (off-mission) — see `_DONE.md` #27 | ⏭️ SKIP |
 
 **Net effect (re-audited 2026-06-23, mechanically recounted from the table above — a script-extracted tally, not eyeballed — after three rounds of self-correction since my first "17 DONE / 6 PARTIAL / 8 DEFERRED" claim this same session was itself wrong on all three numbers; supertonic, open-webui, crawl4ai, then kickbacks.ai's detector rule moved →DONE in later passes the same day — see their rows):**
 
