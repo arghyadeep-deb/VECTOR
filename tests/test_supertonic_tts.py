@@ -181,10 +181,21 @@ def test_speak_supertonic_returns_false_when_default_kokoro_engine():
 
 
 def test_speak_supertonic_falls_through_when_enabled_but_package_missing(monkeypatch):
+    """Mocked explicitly so this doesn't depend on the real environment's
+    package/weight state -- supertonic is genuinely installed with weights
+    downloaded as of this session, so without mocking this would attempt
+    real synthesis + audio playback, not test the "missing" fallback path
+    this test is named for."""
     import core.config as config_module
+    import core.voice.supertonic_tts as st_module
     from core.voice.tts import VoiceTTS
 
+    class _UnavailableEngine:
+        def available(self):
+            return False
+
     monkeypatch.setitem(config_module.CONFIG["voice"], "live_engine", "supertonic")
+    monkeypatch.setattr(st_module, "get_live_tts", lambda *a, **kw: ("supertonic", _UnavailableEngine()))
     tts = VoiceTTS.__new__(VoiceTTS)
     tts._speed = 1.0
     assert tts._speak_supertonic("hello", "en") is False
