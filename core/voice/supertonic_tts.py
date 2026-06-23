@@ -130,5 +130,6 @@ def get_live_tts(live_engine: str | None = None) -> tuple[str, SupertonicTTS | N
             model_dir=voice_cfg.get("supertonic_model_dir", ""),
             total_steps=int(voice_cfg.get("supertonic_total_steps", 8)),
             voice_style=voice_cfg.get("supertonic_voice_style", ""),
+            auto_download=bool(voice_cfg.get("supertonic_auto_download", False)),
         )
     return "kokoro", None
