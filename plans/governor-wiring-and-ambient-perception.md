@@ -3,6 +3,14 @@
 **Author:** Opus (planning) · **Executor:** Sonnet · **Date:** 2026-06-21
 **Goal:** Close the two remaining pre-Phase-4 gaps from the 2026-06-21 audit. Security bypasses (4/4) are already DONE. Phase 4 (dead-code deletion) stays gated until these + the soak are green.
 
+> ✅ **CLOSED 2026-06-23 — all tasks below are done.** This file's checkboxes were
+> never updated as the work landed; verified line-by-line against actual code in
+> `docs/repo_analysis/_MASTER_TODO.md` §1a (file:line evidence for every task).
+> Kept as the historical execution spec — checkboxes below corrected to match
+> reality, not left stale. Only owner-gated item: B.4's wake-word ONNX *training*
+> (the code-side load path is done; training the model from the 15 recorded
+> samples is a one-time owner action, tracked in `docs/repo_analysis/OWNER_ACTIONS_NEEDED.md`).
+
 **Rules:** TDD per task (failing test → fix → pass → commit). Don't touch the running soak (edits land on disk, go live at next restart). DB via `core.memory.episodic.get_db_connection()` only. Never delete code (owner rule: wire-the-useful, delete only genuinely-dead, last).
 
 ---
