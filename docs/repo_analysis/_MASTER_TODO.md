@@ -139,7 +139,7 @@ Two correction rounds this pass: (1) SkillSpector and AssetVideoPipelineAgent we
 
 ## §3 — Open issues (bugs/security — gate quality, per execution order item 1)
 
-From `docs/CLAUDE_CODE_REMAINING_ISSUES.md`, reconciled against current state:
+Originally reconciled against `docs/CLAUDE_CODE_REMAINING_ISSUES.md` (deleted — fully superseded by the verified state below, with file:line evidence instead of the original's prose claims; `docs/REMAINING_ISSUES.md` and `docs/REPO_STATUS.md` were also deleted as stale snapshots for the same reason — their content lives in `OWNER_ACTIONS_NEEDED.md` and here):
 
 | # | Issue | Doc claim | Verified current state | Status |
 |---|---|---|---|---|
