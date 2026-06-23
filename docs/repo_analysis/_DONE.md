@@ -1,13 +1,15 @@
-# Repo Absorption — 24 DONE + 6 closed-by-decision (consolidated)
+# Repo Absorption — 25 DONE + 6 closed-by-decision (consolidated)
 
 **Date:** 2026-06-23. Supersedes the individual per-repo `.md` files this
 consolidates (removed from this directory — their content is folded in
 below). Source of truth for "is X done" is `_MASTER_TODO.md` §2; this file
-is the evidence archive for the ✅ rows there, plus (from item 25 onward)
+is the evidence archive for the ✅ rows there, plus (from item 26 onward)
 the SKIP/reference items that are closed by decision rather than by code.
 Don't re-investigate these — re-verify only if something here turns out to
 be wrong (see the self-correction rounds noted in `_MASTER_TODO.md` for
-why that's a real possibility, not a hypothetical).
+why that's a real possibility, not a hypothetical). **Only `omnivoice.md`
+remains as a standalone file** — the single genuinely owner-gated PARTIAL
+repo left (see `OWNER_ACTIONS_NEEDED.md`).
 
 **"DONE" means:** the gap identified in `_FINAL_CROSSCHECK.md` is closed —
 either a narrow real feature is implemented and wired (`IMPLEMENT` verdicts),
