@@ -622,7 +622,7 @@ turso>=0.5.0
    # Required production values:
    # - VECTOR_API_KEY
    # - VECTOR_JWT_SECRET
-   # - VECTOR_COMFYUI_PATH / VECTOR_LIBRECHAT_PATH if using sidecars
+   # - VECTOR_COMFYUI_PATH if using sidecars
    ```
 
 3. **Service Initialization**
