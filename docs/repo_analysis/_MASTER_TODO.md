@@ -121,12 +121,12 @@ Legend: ✅ DONE (full evidence in `_DONE.md`) · 🟡 PARTIAL · ⏭️ SKIP ·
 | 30 | **OpenCut** | SKIP (scaffold) | N/A | ⏭️ SKIP |
 | 31 | **text-to-cad** | SKIP (bookmark) | N/A | ⏭️ SKIP |
 
-**Net effect (re-audited 2026-06-23, mechanically recounted from the table above — a script-extracted tally, not eyeballed — after two rounds of self-correction since my first "17 DONE / 6 PARTIAL / 8 DEFERRED" claim this same session was itself wrong on all three numbers):**
+**Net effect (re-audited 2026-06-23, mechanically recounted from the table above — a script-extracted tally, not eyeballed — after two rounds of self-correction since my first "17 DONE / 6 PARTIAL / 8 DEFERRED" claim this same session was itself wrong on all three numbers; supertonic moved PARTIAL→DONE in a later pass the same day, real code shipped — see its row):**
 
 | Marker | Count | Repos |
 |---|---|---|
-| ✅ DONE | **20** | SkillSpector, auto-browser, headroom, OmniRoute, train-llm-from-scratch, youtube-automation-agent, supervision, quant-mind, Pixelle-Video, competitor-x-ray, VoxCPM, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy, Evolver, ECC, OpenAlice, Nautilus Trader |
-| 🟡 PARTIAL | **5** | crawl4ai, OmniVoice, last30days-skill, supertonic, open-webui |
+| ✅ DONE | **21** | SkillSpector, auto-browser, headroom, OmniRoute, train-llm-from-scratch, youtube-automation-agent, supervision, quant-mind, Pixelle-Video, competitor-x-ray, VoxCPM, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy, Evolver, ECC, OpenAlice, Nautilus Trader, supertonic |
+| 🟡 PARTIAL | **4** | crawl4ai, OmniVoice, last30days-skill, open-webui |
 | ⏭️ SKIP | **5** | remotion, kickbacks.ai, voicebox, OpenCut, text-to-cad |
 | — N/A | **1** | awesome-llm-apps |
 | **Total** | **31** | |
