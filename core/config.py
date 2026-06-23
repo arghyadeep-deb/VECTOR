@@ -393,11 +393,6 @@ class SidecarsConfig(BaseModel):
     # VECTOR codebase (i.e. <codebase-parent>/GitHub/<AppName>).
     # Set a non-empty path to point at wherever you cloned/installed the app.
     #
-    # LibreChat: no npm package exists; must be cloned locally.
-    #   Default: <codebase-parent>/GitHub/LibreChat-main
-    #   Override: set VECTOR_LIBRECHAT_PATH env var or change this field.
-    librechat_path: str = ""
-    #
     # ComfyUI: local Stable-Diffusion node UI; must be cloned locally.
     #   Default: <codebase-parent>/GitHub/ComfyUI-master
     #   Override: set VECTOR_COMFYUI_PATH env var.
