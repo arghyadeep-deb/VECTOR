@@ -55,9 +55,7 @@ def test_dependency_doctor_rejects_weak_production_secrets(monkeypatch, tmp_path
     monkeypatch.setenv("VECTOR_API_KEY", "short")
     monkeypatch.setenv("VECTOR_JWT_SECRET", "changeme")
     monkeypatch.setenv("VECTOR_COMFYUI_PATH", str(tmp_path))
-    monkeypatch.setenv("VECTOR_LIBRECHAT_PATH", str(tmp_path))
     monkeypatch.setenv("COMFYUI_URL", "http://127.0.0.1:9")
-    monkeypatch.setenv("LIBRECHAT_URL", "http://127.0.0.1:9")
 
     payload = run_dependency_doctor(include_optional=True).to_dict()
     checks = {check["name"]: check for check in payload["checks"]}
