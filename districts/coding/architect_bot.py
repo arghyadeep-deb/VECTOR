@@ -209,7 +209,10 @@ class ArchitectBot(AgentBase):
         tech_stack = result.get("tech_stack") or result.get("languages", [])
         if tech_stack:
             try:
-                await self.request_agent_help("research_hub", {
+                # ResearchHub is the agent's actual registered .name (PascalCase
+                # class name), not the manifest's lowercase "research_hub" key —
+                # request_agent_help looks up by .name, not manifest key.
+                await self.request_agent_help("ResearchHub", {
                     "type": "deep_research",
                     "params": {"query": f"best practices for {tech_stack}"},
                 })
