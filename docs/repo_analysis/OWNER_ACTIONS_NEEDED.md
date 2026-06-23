@@ -77,14 +77,55 @@ build a Bluesky connector — its public API contract can't be verified
 without live network access in this environment, and shipping an unverified
 integration risked silently being wrong.
 
-## 4. Restarting the autonomous loop
+## 4. Restarting the autonomous loop — ✅ DONE (2026-06-24, owner-authorized)
 
-`python run_vector.py loop` — the loop is not currently running. A
-persistent file log sink now exists (`data/logs/vector_{mode}.log`,
-10MB/5 files rotating) so the *next* stoppage will actually be diagnosable,
-unlike the last one (no recoverable crash trace existed). I'm blocked from
-restarting this myself by the harness's own permission classifier, which
-correctly read "don't restart the loop just to test" as covering this too.
+`python run_vector.py loop` is running. You explicitly authorized the
+restart this session. Running it surfaced 3 real, previously-invisible
+bugs in the first minute — all found and fixed, with regression tests:
+
+1. **`vectorcode/src/cli.py`** — `mcp_script` path used one `.parent` too
+   many, resolving outside the repo entirely (`...\V.E.C.T.O.R\core\
+   mcp_server.py` instead of `...\V.E.C.T.O.R. Codebase\core\
+   mcp_server.py`). Fixed: `.parent.parent.parent.parent` → `.parent.parent.parent`.
+2. **`core/mcp_server.py`** — running it as a direct script (its own
+   documented usage) auto-prepends its own directory (`core/`) to
+   `sys.path[0]`. Since `core/email/` is a real VECTOR subpackage, any
+   transitive `import email` (pydantic's plugin loader does this)
+   resolved to VECTOR's package instead of the stdlib, crashing with a
+   confusing, unrelated `ImportError`. Fixed: the file now strips its own
+   auto-prepended directory from `sys.path` before any other import.
+3. **`core/mcp_server.py` (separate, more severe)** — the `if __name__ ==
+   "__main__":` block never actually called `main()` — it always ran a
+   hardcoded scaffold-verification banner and exited with `returncode 0`,
+   regardless of `--transport`/`--port` args. This meant the MCP server
+   had *never* actually served a single request when launched this way —
+   every restart "succeeded" (clean exit, no crash) and the loop's
+   restart-on-exit logic dutifully relaunched it every ~5-10s forever.
+   Fixed: `__main__` now dispatches to `main()` when server args are
+   present, preserving the bare-invocation scaffold-test behavior.
+4. **`core/loop/loop_guard.py`** — `LoopGuardState` had no `reset()`
+   method at all, despite `autonomous_loop.py`'s `observe_loop()` calling
+   `guard.reset()` directly after every `max_iterations` termination.
+   Since `_violations` is append-only, `is_terminated` became permanently
+   `True` forever after the *first* such termination — every subsequent
+   tick crashed on the missing method, was caught, logged as an ERROR,
+   and repeated roughly twice a second indefinitely. This guard has
+   almost certainly been silently broken on every run past its first ~50
+   ticks for as long as this code has existed (no log sink existed
+   before this session to ever surface it). Fixed: added a real
+   `reset()` that clears iteration count, violations, and the phantom-
+   detection buffer.
+
+19 new regression tests across 4 files (`test_vectorcode_mcp_port_fix.py`,
+`test_mcp_server_email_shadow_fix.py`, `test_mcp_server_main_dispatch_fix.py`,
+`test_loop_guard_reset.py`). Verified live: restarted the loop after all
+four fixes, observed the MCP server start cleanly with zero restart-spam
+and zero LoopGuardState errors over a sustained window. 51/51 integration
+checks stay green throughout.
+
+A persistent file log sink now exists (`data/logs/vector_{mode}.log`,
+10MB/5 files rotating), which is exactly what surfaced all of this —
+previously, none of these 4 bugs had any recoverable trace.
 
 ## 5. Physical hardware / real deployment
 
