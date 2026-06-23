@@ -1,5 +1,11 @@
 # Task 12 — Deploy cloud brain (Fly.io)
 
+> ❌ **CANCELLED — Fly.io declined (requires a card), `cloud/brain_server/`
+> removed entirely.** The Cloudflare Worker (`api/src/router.ts`) has full
+> endpoint parity and is the only cloud brain now — see `DEPLOY.md` for the
+> current, Fly-free deployment path. Tasks 13/14/15 below no longer depend
+> on this task; see their own updated "Depends on" lines.
+
 - **Depends on:** Task 01 (rotated keys only)
 - **Who:** OWNER login → me
 - **Effort:** ~30 min
