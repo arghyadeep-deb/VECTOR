@@ -81,7 +81,7 @@ def test_voice_studio_falls_back_to_kokoro_when_omnivoice_raises(monkeypatch):
     result = gen.generate_voice_studio("hello", language="en")
     assert result["status"] == "success"
     assert result["engine"] == "kokoro"
-    assert "fallback" in result.get("fallback_reason", "") or result.get("fallback_used") is True
+    assert "omnivoice" in result.get("fallback_reason", "").lower()
 
 
 def test_voice_studio_uses_omnivoice_when_enabled_and_succeeds(monkeypatch):
