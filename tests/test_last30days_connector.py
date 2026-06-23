@@ -112,6 +112,38 @@ async def test_connect_github_degrades_gracefully_on_failure(monkeypatch):
     assert "github" in brief.degraded_sources
 
 
+async def test_connect_web_search_builds_brief_from_real_shape(monkeypatch):
+    from districts.research.last30days_connectors import connect_web_search
+    from districts.research.web_scout import WebScout
+
+    async def _fake_search(self, query, max_results=5):
+        return [
+            {"title": "Recent article", "url": "https://example.com/1", "snippet": "summary text"},
+        ]
+
+    monkeypatch.setattr(WebScout, "search", _fake_search)
+
+    brief = await connect_web_search("AI tools", limit=5)
+    assert brief.query == "AI tools"
+    assert len(brief.signals) == 1
+    assert brief.signals[0].source == "web_search"
+    assert brief.degraded_sources == []
+
+
+async def test_connect_web_search_degrades_gracefully_on_failure(monkeypatch):
+    from districts.research.last30days_connectors import connect_web_search
+    from districts.research.web_scout import WebScout
+
+    async def _broken(self, query, max_results=5):
+        raise RuntimeError("search unavailable")
+
+    monkeypatch.setattr(WebScout, "search", _broken)
+
+    brief = await connect_web_search("AI tools")
+    assert brief.signals == []
+    assert "web_search" in brief.degraded_sources
+
+
 async def test_connect_all_fans_out_and_merges_sources(monkeypatch):
     """The doc's own 'source fanout' idea — one combined brief from all
     connectors, partial failures don't take down the whole brief."""
@@ -126,9 +158,13 @@ async def test_connect_all_fans_out_and_merges_sources(monkeypatch):
     async def _github_ok(query, language="python", limit=10):
         return mod.build_brief(query, [mod.RecentSignal(source="github", title="y", url="u2", published_at="2026-06-23T00:00:00+00:00")])
 
+    async def _web_search_ok(query, limit=5):
+        return mod.build_brief(query, [mod.RecentSignal(source="web_search", title="z", url="u3", published_at="2026-06-23T00:00:00+00:00")])
+
     monkeypatch.setattr(mod, "connect_hackernews", _hn_ok)
     monkeypatch.setattr(mod, "connect_reddit", _reddit_broken)
     monkeypatch.setattr(mod, "connect_github", _github_ok)
+    monkeypatch.setattr(mod, "connect_web_search", _web_search_ok)
 
     brief = await mod.connect_all("test query")
     assert brief.query == "test query"
