@@ -161,7 +161,8 @@ def cmd_mcp(args):
     mcp_script = Path(__file__).parent.parent.parent.parent / "core" / "mcp_server.py"
     cmd = [sys.executable, str(mcp_script)]
     if getattr(args, "sse", False):
-        cmd += ["--transport", "sse", "--port", "9000"]
+        port = getattr(args, "port", 9000)
+        cmd += ["--transport", "sse", "--port", str(port)]
     print(f"[VectorCode] Starting MCP server ({' '.join(cmd[2:] or ['stdio'])})")
     subprocess.run(cmd)
 
