@@ -61,13 +61,19 @@ def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
         sit_hash = _situation_hash(action_type, params)
         score_before = pm.get_score(action_type, sit_hash)
 
+        assert score_before == pm.DEFAULT_SCORE, "no policy row should exist yet (sanity check)"
+
         candidate = Candidate(action_type=action_type, params=params, goal_ids=[])
         asyncio.run(loop._act_on(candidate))
 
         score_after = pm.get_score(action_type, sit_hash)
-        assert score_after < score_before or score_after <= 0.5, (
-            f"policy score for repeatedly-auto-blocked action must drop -- "
-            f"before={score_before} after={score_after}"
+        assert score_after != pm.DEFAULT_SCORE, (
+            "policy.update_from_outcome() must be called on counterfactual "
+            "auto-block -- a real row must now exist with a penalized reward, "
+            f"not still be reading the untouched default ({pm.DEFAULT_SCORE})"
+        )
+        assert score_after < 0.3, (
+            f"auto-blocked actions must get a clearly negative reward, got {score_after}"
         )
     finally:
         cf.close()
