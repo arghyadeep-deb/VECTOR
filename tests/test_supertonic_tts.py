@@ -80,6 +80,26 @@ def test_config_defaults_are_safe():
     assert voice_cfg.get("live_engine", "kokoro") == "kokoro"
 
 
+def test_speak_supertonic_returns_false_when_default_kokoro_engine():
+    """speak()'s new Supertonic branch must be a true no-op when
+    live_engine is the default "kokoro" — never touches the package."""
+    from core.voice.tts import VoiceTTS
+
+    tts = VoiceTTS.__new__(VoiceTTS)
+    tts._speed = 1.0
+    assert tts._speak_supertonic("hello", "en") is False
+
+
+def test_speak_supertonic_falls_through_when_enabled_but_package_missing(monkeypatch):
+    import core.config as config_module
+    from core.voice.tts import VoiceTTS
+
+    monkeypatch.setitem(config_module.CONFIG["voice"], "live_engine", "supertonic")
+    tts = VoiceTTS.__new__(VoiceTTS)
+    tts._speed = 1.0
+    assert tts._speak_supertonic("hello", "en") is False
+
+
 if __name__ == "__main__":
     import pytest
     sys.exit(pytest.main([__file__, "-v"]))
