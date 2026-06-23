@@ -215,8 +215,29 @@ def _configured_legion_mac(prefer: str = "wifi") -> str:
     return LEGION_WIFI_MAC or LEGION_ETHERNET_MAC
 
 
+def _check_legion_reachable(host: str = "", port: int = 0, timeout: float = 2.0) -> bool:
+    """Real TCP probe -- no live deployment needed to exercise this: a
+    closed/refused local port is a real, observable network state."""
+    host = host or LEGION_HOST
+    port = port or LEGION_API_PORT
+    if not host:
+        return False
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 def wake_legion(prefer: str = "wifi") -> dict:
-    """Send a Wake-on-LAN packet for the configured Legion adapter."""
+    """Send a Wake-on-LAN packet for the configured Legion adapter.
+
+    If LEGION_HOST is configured, checks reachability first and skips a
+    redundant WoL packet when Legion is already awake. Falls back to the
+    original always-send-WoL behavior when LEGION_HOST is unset.
+    """
+    if LEGION_HOST and _check_legion_reachable():
+        return {"ok": True, "already_awake": True, "host": LEGION_HOST}
     mac = _configured_legion_mac(prefer)
     if not mac:
         return {"ok": False, "error": "LEGION_WIFI_MAC or LEGION_ETHERNET_MAC not configured"}
