@@ -69,11 +69,18 @@ def test_supertonic_tts_load_constructs_real_tts_class_with_auto_download_off(mo
     assert captured["auto_download"] is False
 
 
-def test_supertonic_tts_load_raises_clean_error_when_weights_missing():
-    """Real behavior with no mocking: weights genuinely aren't downloaded
-    locally and auto_download defaults to False -- must fail fast with a
-    clear, actionable error, not hang on a network call."""
+def test_supertonic_tts_load_raises_clean_error_when_weights_missing(monkeypatch):
+    """auto_download=False (the default) must fail fast with a clear,
+    actionable error when weights aren't available locally -- mocked so
+    this doesn't depend on the real environment's cache state (weights
+    were downloaded for real during this session's verification)."""
     from core.voice.supertonic_tts import SupertonicTTS
+    import supertonic
+
+    def _raise_missing(*a, **kw):
+        raise FileNotFoundError("model weights not cached locally")
+
+    monkeypatch.setattr(supertonic, "TTS", _raise_missing)
 
     tts = SupertonicTTS(enabled=True)
     try:
