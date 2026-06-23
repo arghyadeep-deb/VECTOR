@@ -30,6 +30,51 @@ def test_omnivoice_config_defaults_are_safe():
     assert config.unload_after_seconds > 0
 
 
+def test_load_calls_from_pretrained_without_device_or_dtype_kwargs(monkeypatch):
+    """Real bug found 2026-06-24 (model weights downloaded for real this
+    session, live verification run): _load() called
+    OmniVoice.from_pretrained(model, device=..., dtype=...), but the real
+    HF from_pretrained() forwards unrecognized kwargs straight to
+    OmniVoice.__init__(), which doesn't accept either -- confirmed live:
+    TypeError: OmniVoice.__init__() got an unexpected keyword argument
+    'device'. The real, working pattern (also confirmed live) is to call
+    from_pretrained() with no device/dtype kwargs, then call
+    model.to(device=..., dtype=...) afterward."""
+    from core.voice.engines.omnivoice_engine import OmniVoiceConfig, OmniVoiceEngine
+    import core.voice.engines.omnivoice_engine as ov_module
+
+    captured = {}
+
+    class _FakeModel:
+        def to(self, device=None, dtype=None):
+            captured["to_device"] = device
+            captured["to_dtype"] = dtype
+            return self
+
+    class _FakeOmniVoice:
+        @staticmethod
+        def from_pretrained(model_name, *args, **kwargs):
+            captured["from_pretrained_kwargs"] = kwargs
+            return _FakeModel()
+
+    monkeypatch.setattr(ov_module, "OmniVoice", _FakeOmniVoice, raising=False)
+    monkeypatch.setitem(
+        __import__("sys").modules, "omnivoice",
+        type("M", (), {"OmniVoice": _FakeOmniVoice})(),
+    )
+
+    config = OmniVoiceConfig(enabled=True, device="cpu", dtype="float32")
+    engine = OmniVoiceEngine(config)
+    engine._load()
+
+    assert captured["from_pretrained_kwargs"] == {}, (
+        "from_pretrained() must not receive device/dtype kwargs -- "
+        f"got {captured['from_pretrained_kwargs']}"
+    )
+    assert captured["to_device"] == "cpu"
+    assert str(captured["to_dtype"]).endswith("float32")
+
+
 def test_omnivoice_generate_path_is_mockable_without_real_model(monkeypatch, tmp_path):
     """synthesize_to_file must be reachable via a mocked _load() — proves
     the adapter's control flow doesn't require the real omnivoice package
