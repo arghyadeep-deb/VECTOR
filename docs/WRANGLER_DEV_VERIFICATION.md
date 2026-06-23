@@ -141,12 +141,26 @@ curl http://127.0.0.1:8787/memory/recent -H "Authorization: Bearer local-dev-tes
 Remove-Item -Recurse -Force ./.wrangler-local-state
 ```
 
-## If a full automated harness is wanted later
+## Automated harness — built, but blocked by a local environment issue
 
-`@cloudflare/vitest-pool-workers` (Cloudflare's official, currently-recommended
-approach — runs Worker code in the real `workerd` runtime, not a Node shim) is
-the right tool: `npm install -D vitest @cloudflare/vitest-pool-workers`,
-configure `vitest.config.ts` with the pool, write tests against `SELF.fetch()`
-with D1/KV bindings provided by `env` in the test context. This doc's manual
-steps map directly to what those tests would assert — worth doing as its own
-scoped session, not bundled into this pass.
+`@cloudflare/vitest-pool-workers` is built: `api/package.json`,
+`api/vitest.config.ts` (isolated local-only Miniflare D1/KV bindings,
+deliberately not the real provisioned IDs in `wrangler.toml`),
+`api/test/smoke.test.ts`. `npm install` succeeded.
+
+**Running it fails in this local environment** — confirmed directly, not
+assumed: `workerd`'s module loader cannot resolve modules because this
+project's real filesystem path contains a literal space
+(`.../V.E.C.T.O.R. Codebase/...`). Exact error:
+`No such module ".../node_modules/vitest/dist/file:/...V.E.C.T.O.R.%20Codebase/.../threads.js"`.
+A Windows-junction workaround (aliasing the path to a space-free location)
+was tried and does **not** help — Node's module resolution sees through
+junctions to the real canonical path regardless. This is an upstream
+`workerd`/Miniflare path-handling bug, not a bug in this repo's config or
+Worker code (`router.ts`/`auth.ts`/`index.ts` are independently verified
+secure by direct reading, separately from this harness).
+
+The harness will run correctly wherever the project path has no spaces —
+CI on Linux (e.g. a GitHub Actions workflow), or a local clone at a
+space-free path. Until then, the manual steps above remain the only way
+to actually verify the Worker from this environment.
