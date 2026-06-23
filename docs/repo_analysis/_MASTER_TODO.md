@@ -166,11 +166,12 @@ Per `docs/VECTOR_24_7_CLOUDFLARE_TERMUX_PLAN.md` + `docs/TERMUX_SETUP.md`'s own 
 
 **Code DONE this pass (corrections — both were wrongly read as "TODO, none started" earlier in this same audit):**
 - ✅ Worker auth + command queue/heartbeat/degraded-bindings — `api/src/router.ts` read in full: `POST /command`, `GET /command/{id}`, `POST /commands/{id}/result`, `POST /nodes/{id}/poll`, heartbeat drain, target_node routing, Bearer auth fails closed (missing→401, wrong→403). Manual verification script: `docs/WRANGLER_DEV_VERIFICATION.md`. Zero TODO/FIXME markers in `router.ts`/`index.ts`/`auth.ts`.
-- ✅ Node status model (`online`/`asleep`/`offline`/`unknown`) — `core/control/node_status.py` (new this pass): `NodeStatus` enum, `check_node_status()` (real TCP probe), `ensure_node_awake()` (status check + WoL send, never raises). 7 tests against real local sockets.
+- ✅ Node status model (`online`/`asleep`/`offline`/`unknown`) — `core/control/node_status.py`: `NodeStatus` enum, `check_node_status()` (real TCP probe), `ensure_node_awake()` (status check + WoL send, never raises). 7 tests against real local sockets.
+- ✅ **Dispatch wiring closed (later pass, same day)** — `ensure_node_awake()`'s logic now has a real caller: `phone_node/ambient_server.py::wake_legion()` checks reachability via a self-contained equivalent (`_check_legion_reachable()`, Termux can't import `core/`) before sending a WoL packet, skipping it when Legion's already awake. 6 tests.
 
 **Genuinely owner-gated (real hardware/deployment, not buildable from here):**
 - End-to-end smoke test (phone submits → Termux executes → result readable) — needs a real deployed Worker + a real Termux device
-- End-to-end heavy-command smoke test (wake-on-LAN → Legion drains → result) — needs BIOS/UEFI WoL enabled on the physical Legion machine + a real network path to test against; `ensure_node_awake()` has no caller wiring it into an actual dispatch path yet (the seam exists, the integration point doesn't)
+- End-to-end heavy-command smoke test (wake-on-LAN → Legion drains → result) — needs BIOS/UEFI WoL enabled on the physical Legion machine + setting `LEGION_HOST` to Legion's real LAN IP in `phone_config.env`
 - Windows BIOS/UEFI + network-adapter WoL setup — owner's physical machine, cannot be done from code
 - Actual `wrangler deploy` against the real provisioned D1/KV in `wrangler.toml`, `wrangler secret put` for any secrets that should live on the Worker side, physical Termux `setup.sh` run
 
