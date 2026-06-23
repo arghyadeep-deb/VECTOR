@@ -70,28 +70,36 @@ class OmniVoiceEngine:
         self,
         text: str,
         language: str = "en",
-        profile: str = "vector",
         ref_audio: str | None = None,
         ref_text: str | None = None,
         instruct: str | None = None,
         speed: float = 1.0,
-        num_step: int = 16,
         output_path: str | Path | None = None,
     ) -> str:
+        """Generate and save audio.
+
+        Real API confirmed against the installed package: generate() takes
+        no `profile`/`num_step`/`output_path` kwargs (those were guessed
+        before the package was ever installed) and returns
+        list[numpy.ndarray] -- it never writes a file itself, the caller
+        must save it. Fixed to call only real parameters and write the
+        result via soundfile (already a VECTOR dependency).
+        """
         if not text.strip():
             raise ValueError("text is required")
         model = self._load()
         target = Path(output_path) if output_path else Path(tempfile.gettempdir()) / f"vector_omnivoice_{int(time.time()*1000)}.wav"
         target.parent.mkdir(parents=True, exist_ok=True)
-        result = model.generate(
+        audio_arrays = model.generate(
             text=text,
             language=language,
-            profile=profile,
             ref_audio=ref_audio,
             ref_text=ref_text,
             instruct=instruct,
             speed=speed,
-            num_step=num_step,
-            output_path=str(target),
         )
-        return str(result or target)
+        audio = audio_arrays[0] if isinstance(audio_arrays, list) else audio_arrays
+        import soundfile as sf
+
+        sf.write(str(target), audio, samplerate=24000)
+        return str(target)
