@@ -166,5 +166,14 @@ secure by direct reading, separately from this harness).
 
 The harness will run correctly wherever the project path has no spaces —
 CI on Linux (e.g. a GitHub Actions workflow), or a local clone at a
-space-free path. Until then, the manual steps above remain the only way
-to actually verify the Worker from this environment.
+space-free path.
+
+**Update (2026-06-24):** the Worker is now actually deployed
+(`https://vector-api.arghyadeepdeb020703.workers.dev`, see
+`docs/repo_analysis/OWNER_ACTIONS_NEEDED.md` §5), and was verified
+directly against the **real** production endpoint with live curl
+requests — auth fails closed, the command queue genuinely works (after
+fixing a missing migration), Supabase reads work (after fixing two
+malformed secret names). So this doc's local-only steps are no longer
+the *only* way to verify the Worker — they're the right tool for testing
+changes safely **before** redeploying, without touching the real D1/KV.
