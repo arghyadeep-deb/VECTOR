@@ -73,6 +73,38 @@ def test_cmd_mcp_defaults_to_9000_when_port_not_set(monkeypatch):
     assert "9000" in captured["cmd"]
 
 
+def test_cmd_mcp_script_path_actually_exists_on_disk(monkeypatch):
+    """Real second bug found 2026-06-24: even with the --port argparse fix
+    applied, the MCP server still restart-spammed every 5s in a live loop
+    run. Root cause: cmd_mcp()'s mcp_script path used one Path.parent too
+    many (.parent.parent.parent.parent from vectorcode/src/cli.py lands on
+    the directory ABOVE the VECTOR codebase root, not core/mcp_server.py
+    inside it) -- confirmed by running the exact subprocess command
+    directly: "can't open file '...\\V.E.C.T.O.R\\core\\mcp_server.py'"
+    (missing the "V.E.C.T.O.R. Codebase" directory level entirely).
+    cmd_mcp() swallowed this because vectorcode_bridge.py's caller redirects
+    stderr to DEVNULL, so the failure was invisible except as a restart-loop.
+
+    This test catches what the port-fix tests above never checked: that the
+    constructed script path resolves to a real file, not just that the
+    --port value made it into the command list."""
+    from vectorcode.src import cli
+    import subprocess as real_subprocess
+
+    captured = {}
+    monkeypatch.setattr(real_subprocess, "run", lambda cmd: captured.setdefault("cmd", cmd))
+
+    class Args:
+        sse = True
+        port = 9001
+
+    cli.cmd_mcp(Args())
+    script_path = captured["cmd"][1]
+    from pathlib import Path
+    assert Path(script_path).is_file(), f"mcp_script path does not exist: {script_path}"
+    assert Path(script_path).name == "mcp_server.py"
+
+
 if __name__ == "__main__":
     import pytest
     sys.exit(pytest.main([__file__, "-v"]))
