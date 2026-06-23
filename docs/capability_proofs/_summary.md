@@ -1,5 +1,15 @@
 # Capability Triage Summary — FINAL (2026-06-21)
 
+> **Note (2026-06-24):** Phase 5.4/Phase 4 below describe the 2026-06-21
+> state. Since then: the loop was restarted (owner-authorized), surfaced
+> and fixed 5 real bugs (3 layered causes of an MCP restart-spam, a
+> permanently-broken `LoopGuardState.reset()`, and a non-learning
+> decision-engine loop), and ran clean over a sustained observation
+> window — see `docs/repo_analysis/_MASTER_TODO.md` §0 and
+> `OWNER_ACTIONS_NEEDED.md` §4 for the current soak/Phase-4 status. This
+> file is kept as the dated point-in-time proof record for the 2026-06-21
+> fixes specifically — not updated in place.
+
 Per `plans/wire-absorbed-repos-autonomy.md`. Evidence, not guesses — every
 verdict below is backed by a real, captured run (see the per-repo `.md`
 files in this directory). This supersedes all prior summaries — every
