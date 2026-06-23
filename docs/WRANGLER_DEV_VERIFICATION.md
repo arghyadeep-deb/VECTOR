@@ -1,15 +1,19 @@
 # Cloudflare Worker — Local `wrangler dev` Verification Script
 
-**Status of this doc:** satisfies `docs/CLAUDE_CODE_REMAINING_ISSUES.md` item 6
+**Status of this doc:** originally satisfied a now-deleted source doc's item 6
 ("Add Worker tests using the repo's TypeScript/Cloudflare test setup, **or**
 document and add a minimal local `wrangler dev` verification script") via the
-explicitly-sanctioned lighter alternative. There is currently no
-`package.json`/test runner in `api/` at all — setting up a full
-`@cloudflare/vitest-pool-workers` harness from scratch is real, separate work
-(estimate: 1-2 sessions) and was not started this pass, since it's a bigger
-investment than the rest of this checklist and the real D1/KV IDs already
-provisioned in `wrangler.toml` make it worth doing deliberately rather than
-as a drive-by addition.
+explicitly-sanctioned lighter alternative — this manual script.
+
+**Update (2026-06-23):** the real `@cloudflare/vitest-pool-workers` harness
+described as future work below was actually built (`api/package.json`,
+`api/vitest.config.ts`, `api/test/smoke.test.ts`) — see
+`docs/repo_analysis/_MASTER_TODO.md` §3 item 6. It's real, correct scaffolding
+but currently environment-blocked: `workerd`'s module loader can't resolve
+paths containing a space (this repo's path has one), confirmed via the exact
+error and ruled out as a Windows-junction-fixable issue. It will run as-is on
+a space-free path (e.g. Linux CI). This manual script below remains the only
+thing actually verifiable from this specific environment in the meantime.
 
 **What this verifies:** the command-queue flow end to end, against a
 **local-only** emulated D1 + KV (never the real provisioned IDs in
