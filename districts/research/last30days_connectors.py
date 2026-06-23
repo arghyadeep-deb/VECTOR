@@ -116,6 +116,33 @@ async def connect_github(query: str, language: str = "python", limit: int = 10) 
         return build_brief(query, [], degraded_sources=["github"])
 
 
+async def connect_web_search(query: str, limit: int = 5) -> Last30DaysBrief:
+    """General web search via WebScout — covers the doc's "web search"
+    source. Reuses WebScout.search(), already free/no-API-key by default
+    (DuckDuckGo fallback; Firecrawl/ParallelResearcher are optional
+    upgrades on top, not required).
+    """
+    try:
+        from districts.research.web_scout import WebScout
+
+        results = await WebScout().search(query, max_results=limit)
+        signals = [
+            RecentSignal(
+                source="web_search",
+                title=r.get("title", ""),
+                url=r.get("url", ""),
+                published_at=datetime.now(timezone.utc).isoformat(),
+                confidence=0.6,
+                notes=(r.get("snippet") or "")[:200],
+            )
+            for r in results
+        ]
+        return build_brief(query, signals)
+    except Exception as exc:
+        logger.warning("[VECTOR][last30days] web_search connector failed: {}", exc)
+        return build_brief(query, [], degraded_sources=["web_search"])
+
+
 async def connect_all(query: str, limit: int = 10) -> Last30DaysBrief:
     """Fan out to all connectors and merge into one combined brief — the
     doc's own "source fanout" idea. A single connector's failure only adds
@@ -125,6 +152,7 @@ async def connect_all(query: str, limit: int = 10) -> Last30DaysBrief:
         await connect_hackernews(query, limit=limit),
         await connect_reddit(query, limit=limit),
         await connect_github(query, limit=limit),
+        await connect_web_search(query, limit=min(limit, 5)),
     ]
     signals: list[RecentSignal] = []
     degraded: list[str] = []
