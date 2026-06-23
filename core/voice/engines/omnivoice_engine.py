@@ -101,5 +101,9 @@ class OmniVoiceEngine:
         audio = audio_arrays[0] if isinstance(audio_arrays, list) else audio_arrays
         import soundfile as sf
 
-        sf.write(str(target), audio, samplerate=24000)
+        # model.sampling_rate is the real attribute the package itself
+        # documents (its own docstring shows the exact pattern:
+        # soundfile.write("out.wav", audios[0], model.sampling_rate)) --
+        # not guessed.
+        sf.write(str(target), audio, samplerate=model.sampling_rate)
         return str(target)
