@@ -137,6 +137,22 @@ class LoopGuardState:
         """Call after a successful different tool call to clear phantom detection."""
         self._recent_calls.clear()
 
+    def reset(self) -> None:
+        """Restore a fully fresh state after termination, so the same
+        long-lived guard instance can be reused for the next task cycle.
+
+        Without this, is_terminated() stays permanently True forever once
+        any max_iterations violation has been recorded (_violations is
+        append-only) -- callers that loop on the same guard instance (e.g.
+        autonomous_loop.py's observe_loop(), which creates one guard for
+        the entire process lifetime) would otherwise see is_terminated
+        stuck True on every subsequent tick.
+        """
+        self.iteration = 0
+        self._violations.clear()
+        self._recent_calls.clear()
+        self._started_at = time.time()
+
     def guidance_for_tool_error(self, tool_name: str, error: str) -> str:
         """
         Generate helpful guidance injected into the next LLM prompt
