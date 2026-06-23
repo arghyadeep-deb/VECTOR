@@ -187,7 +187,7 @@ These were never "implement" verdicts — closed by decision, not by code. Conso
 **Why:** VECTOR has zero CAD/3D capability (confirmed — no cadquery/build123d/STL/STEP hits anywhere). That's by design, not a gap: CAD/robotics/3D-printing is off-mission for this owner's software-builder JARVIS. The repo's actual polished value (React/Three.js viewer, agent-skill prompt scaffolding) is exactly the part VECTOR can't use; the portable Python slice reduces to "add build123d as a dependency," which isn't an absorption.
 **Revisit only if:** the owner explicitly pivots to hardware/robotics/3D-printing — bookmark this as the starting point (build123d directly, skip `cadpy`/the viewer fork).
 
-## 28. voicebox — SKIP, with one real unaddressed gap
+## 29. voicebox — SKIP, with one real unaddressed gap
 **Why mostly skip:** This is the same repo VECTOR already absorbed 2026-05-27 (`core/voice/cloning.py`, `voice_profiles.py`, `effects.py`) — re-absorbing would be pure duplication.
 **The one genuinely new, never-built gap:** **system-wide dictation** — Whisper STT → inject text into whatever OS window currently has focus (not VECTOR's own UI). VECTOR has the STT half (`core/voice/stt.py`) and the keystroke-injection half (`core/control/pc_controller.py`, already used for vision-guided PC control) but nothing wires them together for this specific "dictate into any app" use case.
 **This is a feature decision, not a bug** — flagging it here rather than building it unprompted, since it's owner-preference-gated (do you actually want push-to-talk-into-any-app?) and security-sensitive (the original analysis explicitly says: gate it through `PermissionGateway`, since it writes keystrokes into arbitrary apps). Estimated ~half a session if wanted.
