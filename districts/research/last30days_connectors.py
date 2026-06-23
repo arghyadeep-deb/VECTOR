@@ -20,7 +20,10 @@ from loguru import logger
 
 from districts.research.last30days import Last30DaysBrief, RecentSignal, build_brief
 
-__all__ = ["connect_hackernews", "connect_reddit", "connect_github", "connect_all"]
+__all__ = [
+    "connect_hackernews", "connect_reddit", "connect_github",
+    "connect_web_search", "connect_all",
+]
 
 _DEFAULT_SUBREDDITS = ["MachineLearning", "LocalLLaMA"]
 
