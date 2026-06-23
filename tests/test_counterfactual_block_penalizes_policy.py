@@ -61,7 +61,7 @@ def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
         sit_hash = _situation_hash(action_type, params)
         score_before = pm.get_score(action_type, sit_hash)
 
-        candidate = DecisionEngine.Candidate(action_type=action_type, params=params, goal_ids=[])
+        candidate = Candidate(action_type=action_type, params=params, goal_ids=[])
         asyncio.run(loop._act_on(candidate))
 
         score_after = pm.get_score(action_type, sit_hash)
