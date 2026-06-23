@@ -780,18 +780,20 @@ class DownloadService:
             Extracted text or None if extraction fails
         """
         try:
-            # First try with pdfplumber (better for complex layouts)
+            # First try with pdfplumber (better for complex layouts) — optional,
+            # falls through to PyPDF below when not installed.
             import io
 
-            with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
-                text_parts = []
-                for page in pdf.pages:
-                    page_text = page.extract_text()
-                    if page_text:
-                        text_parts.append(page_text)
+            if pdfplumber is not None:
+                with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
+                    text_parts = []
+                    for page in pdf.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text_parts.append(page_text)
 
-                if text_parts:
-                    return "\n\n".join(text_parts)
+                    if text_parts:
+                        return "\n\n".join(text_parts)
 
             # Fallback to PyPDF if pdfplumber fails
             reader = PdfReader(io.BytesIO(pdf_content))
