@@ -58,11 +58,18 @@ class OmniVoiceEngine:
                 from omnivoice import OmniVoice  # type: ignore
             except Exception as exc:
                 raise RuntimeError(f"OmniVoice package is not installed or failed to import: {exc}") from exc
-            self._model = OmniVoice.from_pretrained(
-                self.config.model,
-                device=self.config.device,
-                dtype=self.config.dtype,
-            )
+            # Real bug found 2026-06-24 (model weights downloaded for real
+            # this session, live verification): from_pretrained() forwards
+            # unrecognized kwargs straight to OmniVoice.__init__(), which
+            # doesn't accept device/dtype -- confirmed live:
+            # "TypeError: OmniVoice.__init__() got an unexpected keyword
+            # argument 'device'". Fixed: load with no device/dtype kwargs,
+            # then move via .to() (the real, working pattern, also
+            # confirmed live).
+            import torch
+            model = OmniVoice.from_pretrained(self.config.model)
+            torch_dtype = getattr(torch, self.config.dtype, None)
+            self._model = model.to(device=self.config.device, dtype=torch_dtype)
             self._loaded_at = time.time()
         return self._model
 
