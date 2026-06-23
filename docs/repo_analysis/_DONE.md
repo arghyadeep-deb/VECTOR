@@ -138,6 +138,12 @@ identified is genuinely closed.
 **Files:** Same `districts/investment/order_lifecycle.py` as item 19 — one implementation satisfies both verdicts' clean-room scope.
 **Owner action:** none unless stronger real-money readiness is wanted.
 
+## 21. supertonic
+**Verdict:** UPGRADE — config-selectable live-conversation TTS engine, alternate to Kokoro (NOT the cloning role — that stays VoxCPM/Chatterbox via `cloning_engine`).
+**Files:** `core/voice/supertonic_tts.py` (`SupertonicTTS`, `get_live_tts()`, `map_lang_code()`), 4 new `VoiceConfig` fields, wired into `core/voice/tts.py::speak()` via `_speak_supertonic()`.
+**Evidence:** Built per the doc's own integration plan almost exactly as specified — lazy guarded-import wrapper, factory mirroring `get_cloner()`'s pattern, en/hi/ja mapped directly, bn/as explicitly excluded and confirmed to stay on the existing gTTS route. 10 new tests + 168/168 voice-suite regression clean. The pre-existing `core/voice/engines/supertonic_engine.py` (thinner, benchmark-only) is untouched — different purpose, still used by the voice-engine benchmark harness.
+**Owner action:** `pip install supertonic`, ~260MB model download, pick/build a persona voice JSON, A/B against Kokoro's `bf_emma` before flipping the `live_engine` default.
+
 ---
 
-*Consolidated from: `SkillSpector.md`, `auto-browser.md`, `headroom.md`, `omniroute.md`, `train-llm-from-scratch.md`, `youtube-automation-agent.md`, `supervision.md`, `quant-mind.md`, `pixelle-video.md`, `competitor-x-ray.md`, `VoxCPM.md`, `turbovec.md`, `helix-db.md`, `longcat-video.md`, `evolution-api.md`, `cal-diy.md`, `evolver.md`, `ecc.md`, `openalice.md`, `nautilus-trader.md` (all removed from this directory).*
+*Consolidated from: `SkillSpector.md`, `auto-browser.md`, `headroom.md`, `omniroute.md`, `train-llm-from-scratch.md`, `youtube-automation-agent.md`, `supervision.md`, `quant-mind.md`, `pixelle-video.md`, `competitor-x-ray.md`, `VoxCPM.md`, `turbovec.md`, `helix-db.md`, `longcat-video.md`, `evolution-api.md`, `cal-diy.md`, `evolver.md`, `ecc.md`, `openalice.md`, `nautilus-trader.md`, `supertonic.md` (all removed from this directory).*
