@@ -78,6 +78,7 @@ def test_crawl4ai_provider_fetch_normalizes_to_webextractionartifact(monkeypatch
         async def arun(self, url):
             return _FakeResult()
 
+    monkeypatch.setattr(provider, "available", lambda: True)
     monkeypatch.setattr(provider, "_load_crawler", lambda: _FakeCrawler())
 
     artifact = asyncio.run(provider.fetch("https://example.com", query="hello"))
