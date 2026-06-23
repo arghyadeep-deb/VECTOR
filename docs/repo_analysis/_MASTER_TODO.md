@@ -127,8 +127,8 @@ Legend: ✅ DONE (full evidence in `_DONE.md`) · 🟡 PARTIAL · ⏭️ SKIP ·
 
 | Marker | Count | Repos |
 |---|---|---|
-| ✅ DONE | **24** | SkillSpector, auto-browser, headroom, OmniRoute, train-llm-from-scratch, youtube-automation-agent, supervision, quant-mind, Pixelle-Video, competitor-x-ray, VoxCPM, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy, Evolver, ECC, OpenAlice, Nautilus Trader, supertonic, open-webui, crawl4ai, kickbacks.ai (detector rule) |
-| 🟡 PARTIAL | **2** | OmniVoice, last30days-skill — both genuinely blocked: OmniVoice needs real benchmark numbers (owner-gated package install), last30days' remaining sources (Twitter/X, TikTok, Instagram, Polymarket, Bluesky) need paid APIs VECTOR has no keys for. Neither is a code gap. |
+| ✅ DONE | **25** | SkillSpector, auto-browser, headroom, OmniRoute, train-llm-from-scratch, youtube-automation-agent, supervision, quant-mind, Pixelle-Video, competitor-x-ray, VoxCPM, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy, Evolver, ECC, OpenAlice, Nautilus Trader, supertonic, open-webui, crawl4ai, kickbacks.ai (detector rule), last30days-skill |
+| 🟡 PARTIAL | **1** | OmniVoice — genuinely blocked: needs real benchmark numbers, which need the actual `omnivoice` package + model weights installed (heavy ML install, owner-gated). Not a code gap — the adapter, Voice Studio wiring, and benchmark harness are all built and tested. |
 | ⏭️ SKIP | **4** | remotion, voicebox, OpenCut, text-to-cad |
 | — N/A | **1** | awesome-llm-apps |
 | **Total** | **31** | |
