@@ -116,12 +116,24 @@ bugs in the first minute — all found and fixed, with regression tests:
    `reset()` that clears iteration count, violations, and the phantom-
    detection buffer.
 
-19 new regression tests across 4 files (`test_vectorcode_mcp_port_fix.py`,
+A fifth, related behavioral bug was found and fixed the same way: the
+decision engine kept picking the exact same already-rejected action every
+~10s cycle forever, because `_act_on()`'s counterfactual auto-block branch
+returned early without ever calling `policy.update_from_outcome()` (RULE
+7) — so the action's policy score never dropped and it kept winning the
+same race indefinitely. Fixed: the auto-block branch now penalizes the
+policy score (reward=0.05) using the exact same situation_hash formula
+`decision_engine.py` reads from, so a different candidate can actually win
+next cycle.
+
+20 new regression tests across 5 files (`test_vectorcode_mcp_port_fix.py`,
 `test_mcp_server_email_shadow_fix.py`, `test_mcp_server_main_dispatch_fix.py`,
-`test_loop_guard_reset.py`). Verified live: restarted the loop after all
-four fixes, observed the MCP server start cleanly with zero restart-spam
-and zero LoopGuardState errors over a sustained window. 51/51 integration
-checks stay green throughout.
+`test_loop_guard_reset.py`, `test_counterfactual_block_penalizes_policy.py`).
+Verified live: restarted the loop after all five fixes, observed the MCP
+server start cleanly with zero restart-spam, zero LoopGuardState errors,
+and the decision engine no longer stuck repeating the same auto-blocked
+action, over a sustained window. 51/51 integration checks stay green
+throughout.
 
 A persistent file log sink now exists (`data/logs/vector_{mode}.log`,
 10MB/5 files rotating), which is exactly what surfaced all of this —
