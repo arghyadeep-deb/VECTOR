@@ -320,15 +320,6 @@ def _start_sidecars() -> None:
             "env_extra": {"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"},
         },
         {
-            "name": "LibreChat",
-            "cmd": ["node", "api/server/index.js"],
-            # Cloned locally. Configure via VECTOR_LIBRECHAT_PATH / CONFIG["sidecars"]["librechat_path"].
-            # One-time setup in that dir: `npm ci` then `npm run frontend` (build), plus a .env + MongoDB.
-            "cwd": _sidecar_path("librechat_path", "LibreChat-main"),
-            "env_extra": {"PORT": "3080"},
-            "requires_subdir": "node_modules",  # skip with a clear warning if deps aren't installed
-        },
-        {
             "name": "shadowbroker",
             # Intelligence district — real-time geo/SIGINT/flight/ship intelligence server.
             # Health endpoint is /api/health (NOT /health).
