@@ -69,7 +69,20 @@ def test_openai_compat_chat_completion_shape(monkeypatch):
     assert body["usage"]["total_tokens"] == 7
 
 
-def test_openai_compat_rejects_streaming_until_sse_added():
+def test_openai_compat_streaming_returns_sse_content_type(monkeypatch):
+    class FakeProviderClient:
+        async def chat(self, **kwargs):
+            class Result:
+                content = "hello streamed"
+                model = "vector-test"
+                provider = "test"
+                input_tokens = 2
+                output_tokens = 2
+                finish_reason = "stop"
+
+            return Result()
+
+    monkeypatch.setattr(openai_compat, "ProviderClient", FakeProviderClient)
     app = FastAPI()
     app.include_router(openai_compat.router)
     client = TestClient(app)
@@ -78,5 +91,55 @@ def test_openai_compat_rejects_streaming_until_sse_added():
         "stream": True,
         "messages": [{"role": "user", "content": "hi"}],
     })
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/event-stream")
+
+
+def test_openai_compat_streaming_emits_valid_chunks_and_done_marker(monkeypatch):
+    import json as _json
+
+    class FakeProviderClient:
+        async def chat(self, **kwargs):
+            class Result:
+                content = "hello streamed"
+                model = "vector-test"
+                provider = "test"
+                input_tokens = 2
+                output_tokens = 2
+                finish_reason = "stop"
+
+            return Result()
+
+    monkeypatch.setattr(openai_compat, "ProviderClient", FakeProviderClient)
+    app = FastAPI()
+    app.include_router(openai_compat.router)
+    client = TestClient(app)
+
+    response = client.post("/v1/chat/completions", json={
+        "stream": True,
+        "messages": [{"role": "user", "content": "hi"}],
+    })
+
+    lines = [l for l in response.text.split("\n\n") if l.strip()]
+    assert lines[-1] == "data: [DONE]"
+
+    data_lines = [l[len("data: "):] for l in lines[:-1]]
+    assert data_lines, "expected at least one chunk before [DONE]"
+    chunk = _json.loads(data_lines[0])
+    assert chunk["object"] == "chat.completion.chunk"
+    assert "delta" in chunk["choices"][0]
+    full_text = "".join(_json.loads(l)["choices"][0]["delta"].get("content", "") for l in data_lines)
+    assert full_text == "hello streamed"
+    last_chunk = _json.loads(data_lines[-1])
+    assert last_chunk["choices"][0]["finish_reason"] == "stop"
+
+
+def test_openai_compat_streaming_requires_messages():
+    app = FastAPI()
+    app.include_router(openai_compat.router)
+    client = TestClient(app)
+
+    response = client.post("/v1/chat/completions", json={"stream": True, "messages": []})
 
     assert response.status_code == 400
