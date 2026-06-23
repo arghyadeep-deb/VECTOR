@@ -217,6 +217,7 @@ class VoiceConfig(BaseModel):
     supertonic_model_dir: str = ""
     supertonic_total_steps: int = Field(8, ge=1, le=50)
     supertonic_voice_style: str = ""          # path to a Voice-Builder persona JSON
+    supertonic_auto_download: bool = False    # ~260MB model weights -- separate explicit owner opt-in
 
 
 class SecurityCfg(BaseModel):
