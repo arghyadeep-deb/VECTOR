@@ -1066,11 +1066,9 @@ CONFIG: dict = {
     # cloned repos can live anywhere (or be deleted entirely — VECTOR silently
     # skips sidecars whose directory does not exist).
     #
-    #   VECTOR_LIBRECHAT_PATH   — LibreChat clone  (node api/server/index.js)
     #   VECTOR_COMFYUI_PATH     — ComfyUI clone    (python main.py)
     #   VECTOR_HYPERFRAMES_PATH — hyperframes clone (node packages/producer/dist/server.js)
     "sidecars": {
-        "librechat_path":   _s.VECTOR_LIBRECHAT_PATH or _s.sidecars.librechat_path,
         "comfyui_path":     _s.VECTOR_COMFYUI_PATH or _s.sidecars.comfyui_path,
         "hyperframes_path": _s.VECTOR_HYPERFRAMES_PATH or _s.sidecars.hyperframes_path,
     },
