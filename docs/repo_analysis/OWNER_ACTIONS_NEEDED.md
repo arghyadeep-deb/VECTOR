@@ -11,18 +11,46 @@ Grouped by what kind of action it needs. Each item links back to its
 
 ---
 
-## 1. Heavy package installs (pip install + model weights)
+## 1. Heavy package installs — ✅ DONE (2026-06-23)
 
-None of these are required for VECTOR to work today — all are optional
-upgrades with complete, tested, disabled-by-default code seams already in
-place. Install only if you want the specific capability.
+All 6 packages installed and verified importable: `peft` 0.19.1, `trl` 1.6.0,
+`supervision` 0.29.0, `ultralytics` 8.4.75, `omnivoice` 0.1.5, `supertonic`
+1.3.1. Zero VECTOR regressions — full project regression (51/51 integration
+checks, 209/209 voice tests, smoke) stays green after each install.
 
-| Package(s) | Unlocks | Where the seam lives |
-|---|---|---|
-| `pip install peft trl` | Real LoRA SFT/DPO training instead of the simulated-but-real pipeline | `core/training/post_training/` — §1c |
-| `pip install omnivoice` + model weights | Real comparative voice-engine benchmark numbers vs. Kokoro/VoxCPM/Supertonic; multilingual (600+ lang) high-quality voice studio generation | `core/voice/engines/omnivoice_engine.py`, `districts/content/voice_generator.py::generate_voice_studio()` — §2 #6 |
-| `pip install supervision ultralytics` + `yolo11n.pt` weights | Real YOLO+ByteTrack ambient presence detection (upgrade over frontal-face-only check) | `core/sensing/presence_detector.py` — §2 #9 |
-| `pip install supertonic` + ~260MB model + build/pick a persona voice JSON | CPU-only, zero-VRAM live-conversation TTS alternative to Kokoro; better Hindi/Japanese quality, no cloud round-trip | `core/voice/supertonic_tts.py` — §2 #14. **After installing:** A/B listen against Kokoro's `bf_emma`, then flip `CONFIG["voice"]["live_engine"] = "supertonic"` if you like it better. |
+**Two real bugs found and fixed while verifying** (both wrappers were
+written before the packages existed, so their assumed APIs were guesses —
+now confirmed and corrected against the real installed code):
+- `core/voice/supertonic_tts.py` called a nonexistent `supertonic.load_model()`
+  — the real entry point is `supertonic.TTS(...)`. Also added an explicit
+  `auto_download=False` default so the wrapper never silently triggers the
+  ~260MB weight download — that stays a separate, deliberate opt-in
+  (`CONFIG["voice"]["supertonic_auto_download"]`).
+- `core/voice/engines/omnivoice_engine.py` called `generate()` with
+  `profile`/`num_step`/`output_path` kwargs that don't exist on the real
+  method, and assumed it saved a file itself — it actually returns
+  `list[numpy.ndarray]` and the caller must save it. Fixed to call only
+  real parameters and save via `soundfile` using the model's own
+  `model.sampling_rate` attribute (the package's own docstring documents
+  this exact pattern).
+
+**Still open, deliberately not done — model weight downloads** are a
+separate, larger action from installing the package (omnivoice's are
+multi-GB, supertonic's are ~260MB) and weren't attempted:
+- `supertonic`: weights download is now safely gated behind
+  `auto_download=True` (or set `CONFIG["voice"]["supertonic_auto_download"] = True`)
+  — currently defaults to a clean error instead of a silent download.
+  **After downloading:** A/B listen against Kokoro's `bf_emma`, then flip
+  `CONFIG["voice"]["live_engine"] = "supertonic"` if you like it better.
+- `omnivoice`: real model weights not yet fetched (no equivalent
+  `auto_download` guard exists in its own API at the level I could verify
+  without triggering a real download to check) — first real
+  `synthesize_to_file()`/benchmark call will attempt to fetch them from
+  HuggingFace Hub. Worth knowing before triggering it.
+- `supervision`/`ultralytics`: the YOLO weights file (`yolo11n.pt`) downloads
+  automatically on first real detection call (~6MB, small) — not attempted
+  here since `presence_detector.py` was only verified via the package
+  import, not a live camera frame.
 
 ## 2. Decisions that don't need new code, just a choice
 
