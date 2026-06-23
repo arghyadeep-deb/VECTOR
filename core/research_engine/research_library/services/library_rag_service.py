@@ -35,9 +35,21 @@ from ...web_search_engines.engines.local_embedding_manager import (
 )
 from ...security.file_integrity import FileIntegrityManager, FAISSIndexVerifier
 import hashlib
-from faiss import IndexFlatL2, IndexFlatIP, IndexHNSWFlat, IndexIVFFlat
-from langchain_community.vectorstores import FAISS
-from langchain_community.docstore.in_memory import InMemoryDocstore
+
+# faiss is OPTIONAL -- not declared/installed by default (confirmed: zero
+# hits in requirements.txt/pyproject.toml). Guarded so this module (and the
+# whole research_library package, which imports it unconditionally at
+# package-init time) doesn't break for everything else when it's absent.
+try:
+    from faiss import IndexFlatL2, IndexFlatIP, IndexHNSWFlat, IndexIVFFlat
+    from langchain_community.vectorstores import FAISS
+    from langchain_community.docstore.in_memory import InMemoryDocstore
+
+    _FAISS_AVAILABLE = True
+except ImportError:
+    IndexFlatL2 = IndexFlatIP = IndexHNSWFlat = IndexIVFFlat = None  # type: ignore
+    FAISS = InMemoryDocstore = None  # type: ignore
+    _FAISS_AVAILABLE = False
 
 
 class LibraryRAGService:
