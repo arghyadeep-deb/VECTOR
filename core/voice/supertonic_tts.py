@@ -83,14 +83,20 @@ class SupertonicTTS:
                 ) from exc
         return self._engine
 
+    # Real bug found 2026-06-24 (model weights confirmed downloaded, live
+    # verification run): "default" is not a real preset name. The package's
+    # own usage example (supertonic/__init__.py) uses "M1" -- the 10 real
+    # built-in presets are M1-M5/F1-F5, confirmed via the package's own
+    # FileNotFoundError message when "default" was tried.
+    DEFAULT_VOICE_PRESET = "M1"
+
     def _resolve_voice_style(self, engine):
         """synthesize() requires a real Style object, not a bare path
         string. A configured voice_style is treated as a path to a
-        Voice-Builder persona JSON; otherwise fall back to the engine's
-        own default preset voice."""
+        Voice-Builder persona JSON; otherwise fall back to a real preset."""
         if self.voice_style:
             return engine.get_voice_style_from_path(self.voice_style)
-        return engine.get_voice_style("default")
+        return engine.get_voice_style(self.DEFAULT_VOICE_PRESET)
 
     def create(self, text: str, lang: str = "en", speed: float = 1.0) -> tuple:
         """Synthesize `text`. Returns (samples, sample_rate) — same shape
