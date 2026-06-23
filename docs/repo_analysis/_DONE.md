@@ -192,7 +192,7 @@ These were never "implement" verdicts — closed by decision, not by code. Conso
 **The one genuinely new, never-built gap:** **system-wide dictation** — Whisper STT → inject text into whatever OS window currently has focus (not VECTOR's own UI). VECTOR has the STT half (`core/voice/stt.py`) and the keystroke-injection half (`core/control/pc_controller.py`, already used for vision-guided PC control) but nothing wires them together for this specific "dictate into any app" use case.
 **This is a feature decision, not a bug** — flagging it here rather than building it unprompted, since it's owner-preference-gated (do you actually want push-to-talk-into-any-app?) and security-sensitive (the original analysis explicitly says: gate it through `PermissionGateway`, since it writes keystrokes into arbitrary apps). Estimated ~half a session if wanted.
 
-## 29. awesome-llm-apps — REFERENCE ONLY
+## 30. awesome-llm-apps — REFERENCE ONLY
 **Why:** A large (1653-file) cookbook of standalone LLM/agent/RAG templates, Apache-2.0. Mine occasional patterns from it; never bulk-absorb. No specific action pending.
 
 ## 30. Voice stack decision (`voice-stack-decision.md`, a cross-cutting strategy note, not a single repo)
