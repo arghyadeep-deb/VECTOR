@@ -29,6 +29,7 @@ import asyncio
 import hashlib
 import sys
 import tempfile
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
