@@ -28,6 +28,7 @@ for crawl4ai-specific features VectorScraper doesn't have (deep-crawl
 resume, BM25 fit-markdown, schema extraction) -- not removed, since those
 are genuinely different capabilities, not pure duplication.
 """
+import asyncio
 import sys
 from pathlib import Path
 
