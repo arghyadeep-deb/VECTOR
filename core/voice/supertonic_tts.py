@@ -65,10 +65,22 @@ class SupertonicTTS:
         if self._engine is None:
             import supertonic  # type: ignore
 
-            # Real API confirmed against the installed package (no
-            # module-level load_model() exists -- supertonic.TTS is the
-            # actual entry point):
-            self._engine = supertonic.TTS(model_dir=self.model_dir or None)
+            try:
+                # Real API confirmed against the installed package (no
+                # module-level load_model() exists -- supertonic.TTS is
+                # the actual entry point). auto_download=False unless the
+                # owner explicitly opted in (see __init__).
+                self._engine = supertonic.TTS(
+                    model_dir=self.model_dir or None,
+                    auto_download=self.auto_download,
+                )
+            except Exception as exc:
+                raise RuntimeError(
+                    "supertonic model weights not found locally and auto_download is "
+                    "disabled by default (~260MB download is a separate, explicit owner "
+                    "action — see docs/repo_analysis/OWNER_ACTIONS_NEEDED.md). "
+                    f"Set SupertonicTTS(auto_download=True) to allow it. Original error: {exc}"
+                ) from exc
         return self._engine
 
     def _resolve_voice_style(self, engine):
