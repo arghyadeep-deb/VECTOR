@@ -21,8 +21,15 @@ from urllib.parse import urlparse
 import requests
 from loguru import logger
 from sqlalchemy.orm import Session
-import pdfplumber
 from pypdf import PdfReader
+
+# pdfplumber is OPTIONAL (requirements.txt: "not installed by default") —
+# guarded import so this module (and everything that transitively imports
+# it, e.g. ContentFetcher) still works without it; falls back to PyPDF.
+try:
+    import pdfplumber
+except ImportError:
+    pdfplumber = None
 
 from ...constants import FILE_PATH_SENTINELS, FILE_PATH_TEXT_ONLY
 from ...database.models.download_tracker import (
