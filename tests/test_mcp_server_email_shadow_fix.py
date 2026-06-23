@@ -44,8 +44,12 @@ def test_mcp_server_module_source_strips_its_own_directory_from_sys_path():
     plugin loader does this transitively), and that fix-up must come
     before the first `from core.` import in the file."""
     source = _MCP_SERVER.read_text(encoding="utf-8")
-    fixup_idx = source.find("sys.path[:] = [p for p in sys.path if p !=")
-    first_core_import_idx = source.find("from core.")
+    # Skip the module docstring -- it contains an illustrative
+    # "from core.mcp.client import MCPClient" example, not a real import.
+    docstring_end = source.find('"""', source.find('"""') + 3) + 3
+    body = source[docstring_end:]
+    fixup_idx = body.find("sys.path[:] = [p for p in sys.path if p !=")
+    first_core_import_idx = body.find("\nfrom core.")
     assert fixup_idx != -1, (
         "core/mcp_server.py must strip its own auto-prepended script "
         "directory from sys.path before any import that could trigger "
