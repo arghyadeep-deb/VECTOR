@@ -152,7 +152,8 @@ machine, your phone, and real cloud credentials.
 | `bash phone_node/setup.sh` on the Termux Android device | Needed before phone↔Legion command relay can be tested end-to-end |
 | Enable Wake-on-LAN in Windows BIOS/UEFI + network adapter settings on the Legion machine | `core/control/wake_on_lan.py` (send) + `phone_node/ambient_server.py::_check_legion_reachable()`/`wake_legion()` (check + send, the actual deployment target) are built and tested against local sockets — but nothing can wake a real machine without WoL enabled in firmware first |
 | Train the "Hey VECTOR" wake-word ONNX model from the 15 already-recorded samples | `core/voice/wake_word.py` already checks for a custom `.onnx` model and falls back to Whisper-chunk keyword spotting if absent — code is done, the model itself isn't trained |
-| `pip install face-recognition mediapipe openwakeword` | Activates face ID + fatigue scoring + wake-word training pipeline (currently degrade gracefully without them) |
+| `face_recognition` — needs a **Windows security policy change**, not pip | Confirmed installed (`pip show` ok) but its native `dlib` DLL is blocked by a Windows Application Control policy (`ImportError: ... An Application Control policy has blocked this file`) — that's an OS security setting only you can change, not a missing package |
+| `mediapipe`, `openwakeword` | ✅ **Already installed and confirmed working** (verified this session) — no action needed |
 
 ---
 
