@@ -20,7 +20,9 @@ from loguru import logger
 
 from districts.research.last30days import Last30DaysBrief, RecentSignal, build_brief
 
-__all__ = ["connect_hackernews"]
+__all__ = ["connect_hackernews", "connect_reddit", "connect_github", "connect_all"]
+
+_DEFAULT_SUBREDDITS = ["MachineLearning", "LocalLLaMA"]
 
 
 async def connect_hackernews(query: str, limit: int = 20) -> Last30DaysBrief:
