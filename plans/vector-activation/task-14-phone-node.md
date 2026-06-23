@@ -1,6 +1,9 @@
 # Task 14 — Phone ambient node (Termux)
 
-- **Depends on:** Task 12
+> Updated: Task 12 (Fly.io) was cancelled — the phone node talks to the
+> Cloudflare Worker now, not a Fly brain. See `DEPLOY.md` Step 5.
+
+- **Depends on:** Task 13 (Cloudflare Worker live)
 - **Who:** OWNER (old Android in hand)
 - **Effort:** ~30 min
 
