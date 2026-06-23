@@ -121,12 +121,12 @@ Legend: ✅ DONE (full evidence in `_DONE.md`) · 🟡 PARTIAL · ⏭️ SKIP ·
 | 30 | **OpenCut** | SKIP (scaffold) | N/A | ⏭️ SKIP |
 | 31 | **text-to-cad** | SKIP (bookmark) | N/A | ⏭️ SKIP |
 
-**Net effect (re-audited 2026-06-23, mechanically recounted from the table above — a script-extracted tally, not eyeballed — after two rounds of self-correction since my first "17 DONE / 6 PARTIAL / 8 DEFERRED" claim this same session was itself wrong on all three numbers; supertonic then open-webui moved PARTIAL→DONE in later passes the same day, real code shipped both times — see their rows):**
+**Net effect (re-audited 2026-06-23, mechanically recounted from the table above — a script-extracted tally, not eyeballed — after two rounds of self-correction since my first "17 DONE / 6 PARTIAL / 8 DEFERRED" claim this same session was itself wrong on all three numbers; supertonic, then open-webui, then crawl4ai moved PARTIAL→DONE in later passes the same day, real code shipped each time — see their rows):**
 
 | Marker | Count | Repos |
 |---|---|---|
-| ✅ DONE | **22** | SkillSpector, auto-browser, headroom, OmniRoute, train-llm-from-scratch, youtube-automation-agent, supervision, quant-mind, Pixelle-Video, competitor-x-ray, VoxCPM, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy, Evolver, ECC, OpenAlice, Nautilus Trader, supertonic, open-webui |
-| 🟡 PARTIAL | **3** | crawl4ai, OmniVoice, last30days-skill |
+| ✅ DONE | **23** | SkillSpector, auto-browser, headroom, OmniRoute, train-llm-from-scratch, youtube-automation-agent, supervision, quant-mind, Pixelle-Video, competitor-x-ray, VoxCPM, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy, Evolver, ECC, OpenAlice, Nautilus Trader, supertonic, open-webui, crawl4ai |
+| 🟡 PARTIAL | **2** | OmniVoice, last30days-skill — both genuinely blocked: OmniVoice needs real benchmark numbers (owner-gated package install), last30days' remaining sources (Twitter/X, TikTok, Instagram, Polymarket, Bluesky) need paid APIs VECTOR has no keys for. Neither is a code gap. |
 | ⏭️ SKIP | **5** | remotion, kickbacks.ai, voicebox, OpenCut, text-to-cad |
 | — N/A | **1** | awesome-llm-apps |
 | **Total** | **31** | |
