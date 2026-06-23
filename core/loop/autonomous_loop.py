@@ -954,6 +954,18 @@ class AutonomousLoop:
                         proposal=_proposal,
                         reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
                     )
+                    # RULE 7 — without this, policy_score for this action never
+                    # drops, so decision_engine keeps proposing the exact same
+                    # already-rejected action every cycle forever (confirmed
+                    # live during a 2026-06-24 soak run: every ~10s, same
+                    # winner, same auto-block, no learning).
+                    try:
+                        _sit_hash = hashlib.sha256(
+                            f"{winner.action_type}:{sorted(winner.params.items())}".encode()
+                        ).hexdigest()[:12]
+                        self._get_policy().update_from_outcome(winner.action_type, _sit_hash, reward=0.05)
+                    except Exception as _pen_err:
+                        logger.warning("[VECTOR][counterfactual] policy penalty failed: {}", _pen_err)
                     return
                 elif 0.4 < _cf_score <= 0.7 and _cf_reason:
                     logger.info(
