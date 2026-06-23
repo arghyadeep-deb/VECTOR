@@ -167,6 +167,18 @@ def _open_sqlcipher_connection(path: str):
     try:
         db_key = _get_db_key()
         conn.execute("PRAGMA key = " + _sql_literal(db_key))
+        # Explicit, defensive: vector_memory.db was created under SQLCipher 4's
+        # stock defaults (4096-byte pages). Without this, a HMAC-check failure
+        # is possible if anything else in the same process changed the
+        # PROCESS-WIDE `cipher_default_page_size` pragma before this connection
+        # opened — confirmed real: core/research_engine/database/sqlcipher_utils.py
+        # sets `PRAGMA cipher_default_page_size = 16384` globally for its own,
+        # separate database. cipher_default_* pragmas are process-wide in
+        # SQLCipher, not scoped to one connection, so importing research_engine
+        # anywhere earlier in the same process silently broke this DB's HMAC
+        # verification. Setting our own page size explicitly makes this
+        # connection immune regardless of what else has run in the process.
+        conn.execute("PRAGMA cipher_page_size = 4096")
         # busy_timeout: a second connection to this file (another VECTOR
         # process, accidental or a future multi-process deployment) waits up
         # to 5s for the lock instead of failing immediately. journal_mode=WAL
