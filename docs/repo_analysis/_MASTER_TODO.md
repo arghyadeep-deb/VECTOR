@@ -4,6 +4,8 @@
 
 **Headline finding:** the docs folder is ahead of itself in places and behind in others. Two prior passes ("Codex Pass 1/2", dated 2026-06-22) and a same-day plan-execution track (`wire-absorbed-repos-autonomy.md`, dated 2026-06-20/21) already closed most of what `governor-wiring-and-ambient-perception.md` and the top of `_SUMMARY.md`'s ranking still show as open checkboxes. The real open work is narrower than the 31-repo list suggests, but one **operational** finding is urgent: **the autonomous loop is not currently running** (see §0).
 
+**Everything genuinely owner-gated (heavy installs, paid API keys, physical hardware, real deploys) is consolidated in one place: `docs/repo_analysis/OWNER_ACTIONS_NEEDED.md`.** Nothing on that list is blocked on more code — every code-buildable gap found during this audit has been closed.
+
 ---
 
 ## §0 — soak: no recoverable crash trace; log sink added; restart is owner's call
