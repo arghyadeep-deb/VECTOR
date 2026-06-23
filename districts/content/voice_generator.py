@@ -93,16 +93,14 @@ class VoiceGenerator(AgentBase):
             return {"status": "error", "message": str(e)}
 
     def _get_omnivoice_engine(self):
-        """Lazily build the OmniVoice adapter from CONFIG. Separate method
-        so tests can monkeypatch it without touching the real config or
-        loading the (likely not pip-installed) omnivoice package."""
-        from core.voice.engines.omnivoice_engine import OmniVoiceConfig, OmniVoiceEngine
+        """Lazily build the OmniVoice adapter. Separate method so tests can
+        monkeypatch it without touching the real config or loading the
+        (likely not pip-installed) omnivoice package. Reuses
+        OmniVoiceEngine.from_vector_config() — don't re-read CONFIG here."""
+        from core.voice.engines.omnivoice_engine import OmniVoiceEngine
 
         if self._omnivoice_config is None:
-            voice_cfg = CONFIG.get("voice", {})
-            self._omnivoice_config = OmniVoiceConfig(
-                enabled=bool(voice_cfg.get("omnivoice_enabled", False)),
-            )
+            self._omnivoice_config = OmniVoiceEngine.from_vector_config()
         return OmniVoiceEngine(self._omnivoice_config)
 
     def generate_voice_studio(self, text: str, language: str = "en",
@@ -114,14 +112,11 @@ class VoiceGenerator(AgentBase):
         Kokoro (generate_voice) on any failure or when disabled, never
         raising to the caller.
         """
-        engine_config = self._omnivoice_config
-        if engine_config is None:
-            voice_cfg = CONFIG.get("voice", {})
-            from core.voice.engines.omnivoice_engine import OmniVoiceConfig
-            engine_config = OmniVoiceConfig(enabled=bool(voice_cfg.get("omnivoice_enabled", False)))
-            self._omnivoice_config = engine_config
+        if self._omnivoice_config is None:
+            from core.voice.engines.omnivoice_engine import OmniVoiceEngine
+            self._omnivoice_config = OmniVoiceEngine.from_vector_config()
 
-        if not engine_config.enabled:
+        if not self._omnivoice_config.enabled:
             result = self.generate_voice(text, output_path=output_path)
             result["engine"] = "kokoro"
             return result
