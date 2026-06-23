@@ -14,6 +14,24 @@ MCP Client (outbound):
   This is the opposite direction — VECTOR as MCP consumer, not server.
 """
 import sys
+from pathlib import Path
+
+# When run as a direct script ("python core/mcp_server.py" -- the documented
+# usage above, and exactly what districts/coding/vectorcode_bridge.py's
+# subprocess.Popen does), Python auto-prepends this file's own directory
+# (core/) to sys.path[0]. Since core/ contains a real subpackage named
+# core/email/, every module inside core/ becomes importable by its bare
+# name -- the first transitive `import email` anywhere downstream (pydantic's
+# plugin loader does this via importlib.metadata) then resolves to VECTOR's
+# core/email/ instead of the stdlib email package, crashing with a confusing,
+# unrelated "cannot import name 'CONFIG' from 'core.config'" error. Strip it
+# and ensure the real repo root is present instead, before any other import.
+_this_dir = str(Path(__file__).resolve().parent)
+sys.path[:] = [p for p in sys.path if p != _this_dir]
+_repo_root = str(Path(__file__).resolve().parent.parent)
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
 import inspect
 from types import SimpleNamespace
 
