@@ -40,6 +40,7 @@ def test_run_dpo_simulated_writes_manifest(monkeypatch, tmp_path):
         lambda **kw: [{"prompt": "p", "chosen": "c", "rejected": "r"}] * 25,
     )
     monkeypatch.setattr(dpo_trainer, "_ADAPTERS_DIR", tmp_path)
+    monkeypatch.setattr(dpo_trainer, "_train_with_trl", dpo_trainer._simulate_dpo)
 
     result = dpo_trainer.run_dpo(adapter_name="test-dpo-manifest", base_model="dummy/model", min_pairs=20)
     assert result["status"] == "simulated"

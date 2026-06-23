@@ -53,28 +53,30 @@ def test_skill_scanner_detects_static_secret_to_network_flow(tmp_path):
     assert any(f.category == "static_taint" for f in report.findings)
 
 
-def test_provider_health_cools_down_and_recovers_model():
+@pytest.mark.asyncio
+async def test_provider_health_cools_down_and_recovers_model():
     health = ProviderHealthManager(failure_threshold=2, base_cooldown_seconds=0)
-    assert health.can_try("gemini", "gemini-2.5-flash")
+    assert await health.can_try("gemini", "gemini-2.5-flash")
 
-    health.record_failure("gemini", "gemini-2.5-flash", kind=FailureKind.SERVER_ERROR, error="503")
-    state = health.record_failure("gemini", "gemini-2.5-flash", kind=FailureKind.SERVER_ERROR, error="503")
+    await health.record_failure("gemini", "gemini-2.5-flash", kind=FailureKind.SERVER_ERROR, error="503")
+    state = await health.record_failure("gemini", "gemini-2.5-flash", kind=FailureKind.SERVER_ERROR, error="503")
 
     assert state.health == RouteHealth.COOLDOWN
-    assert health.can_try("gemini", "gemini-2.5-flash")
-    assert state.health == RouteHealth.HALF_OPEN
+    assert await health.can_try("gemini", "gemini-2.5-flash")
+    assert health.state("gemini", "gemini-2.5-flash").health == RouteHealth.HALF_OPEN
 
-    recovered = health.record_success("gemini", "gemini-2.5-flash", latency_ms=123)
+    recovered = await health.record_success("gemini", "gemini-2.5-flash", latency_ms=123)
     assert recovered.health == RouteHealth.HEALTHY
     assert recovered.consecutive_failures == 0
 
 
-def test_provider_health_disables_provider_on_auth_failure():
+@pytest.mark.asyncio
+async def test_provider_health_disables_provider_on_auth_failure():
     health = ProviderHealthManager()
 
-    health.record_failure("openai", "gpt-4o-mini", kind=FailureKind.AUTH, error="401")
+    await health.record_failure("openai", "gpt-4o-mini", kind=FailureKind.AUTH, error="401")
 
-    assert not health.can_try("openai", "gpt-4o-mini")
+    assert not await health.can_try("openai", "gpt-4o-mini")
     assert health.state("openai", "*").health == RouteHealth.DISABLED
 
 

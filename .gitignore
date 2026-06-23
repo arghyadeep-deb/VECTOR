@@ -11,6 +11,9 @@ keyring_store/
 models/*.lgb
 models/*.gguf
 models/*.bin
+*.pt
+*.pth
+*.safetensors
 
 # Python
 node_modules/
@@ -57,6 +60,7 @@ github/
 
 # Runtime-generated agent workspace
 agent_workspace/
+**/.claude/screenshots/
 
 # Stale Claude Code worktrees — clean up with: git worktree prune
 .claude/worktrees/
