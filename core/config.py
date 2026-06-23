@@ -209,6 +209,14 @@ class VoiceConfig(BaseModel):
         "A calm, articulate British male voice, mid-30s, measured pace, "
         "warm but precise — like a trusted technical advisor."
     )
+    # Supertonic 3 absorption (docs/repo_analysis/supertonic.md) — alternate
+    # LIVE-conversation engine (not cloning — that's cloning_engine above).
+    # CPU-only, zero VRAM. Kept off by default until an owner A/B confirms
+    # it against Kokoro's bf_emma "VECTOR voice" identity.
+    live_engine: str = "kokoro"               # "kokoro" | "supertonic"
+    supertonic_model_dir: str = ""
+    supertonic_total_steps: int = Field(8, ge=1, le=50)
+    supertonic_voice_style: str = ""          # path to a Voice-Builder persona JSON
 
 
 class SecurityCfg(BaseModel):
