@@ -158,24 +158,21 @@ From `docs/CLAUDE_CODE_REMAINING_ISSUES.md`, reconciled against current state:
 
 ---
 
-## §4 — 24/7 Cloudflare/Termux deployment (plan-only this pass, per OWNER CHECKPOINTS)
+## §4 — 24/7 Cloudflare/Termux deployment (code reconciled this pass; deploy stays owner-gated per OWNER CHECKPOINTS)
 
-Per `docs/VECTOR_24_7_CLOUDFLARE_TERMUX_PLAN.md` + `docs/TERMUX_SETUP.md`'s own checklists, reconciled with git status (several files mid-implementation, untracked/modified):
+Per `docs/VECTOR_24_7_CLOUDFLARE_TERMUX_PLAN.md` + `docs/TERMUX_SETUP.md`'s own checklists, reconciled against actual code (not git-status signals):
 
-**In progress (code, untracked or modified):**
-- `api/migrations/0002_command_node_results.sql` (new) — node/result schema for command queue
-- `api/src/router.ts` (modified) — likely adding poll/result routes
-- `phone_node/ambient_server.py`, `phone_node/setup.sh` (modified) — Termux polling loop updates
-- `core/control/wake_on_lan.py`, `core/control/legion_wake.py` (new) — WoL primitives
+**Code DONE this pass (corrections — both were wrongly read as "TODO, none started" earlier in this same audit):**
+- ✅ Worker auth + command queue/heartbeat/degraded-bindings — `api/src/router.ts` read in full: `POST /command`, `GET /command/{id}`, `POST /commands/{id}/result`, `POST /nodes/{id}/poll`, heartbeat drain, target_node routing, Bearer auth fails closed (missing→401, wrong→403). Manual verification script: `docs/WRANGLER_DEV_VERIFICATION.md`. Zero TODO/FIXME markers in `router.ts`/`index.ts`/`auth.ts`.
+- ✅ Node status model (`online`/`asleep`/`offline`/`unknown`) — `core/control/node_status.py` (new this pass): `NodeStatus` enum, `check_node_status()` (real TCP probe), `ensure_node_awake()` (status check + WoL send, never raises). 7 tests against real local sockets.
 
-**Still TODO (per checklist, none started or unverified):**
-- Worker auth middleware + tests for queue/heartbeat/degraded-bindings
-- Node status model (`online`/`asleep`/`offline`/`unknown`)
-- End-to-end smoke test (phone submits → Termux executes → result readable)
-- End-to-end heavy-command smoke test (wake-on-LAN → Legion drains → result)
-- Windows BIOS/UEFI + network-adapter WoL setup documentation (owner's physical machine)
+**Genuinely owner-gated (real hardware/deployment, not buildable from here):**
+- End-to-end smoke test (phone submits → Termux executes → result readable) — needs a real deployed Worker + a real Termux device
+- End-to-end heavy-command smoke test (wake-on-LAN → Legion drains → result) — needs BIOS/UEFI WoL enabled on the physical Legion machine + a real network path to test against; `ensure_node_awake()` has no caller wiring it into an actual dispatch path yet (the seam exists, the integration point doesn't)
+- Windows BIOS/UEFI + network-adapter WoL setup — owner's physical machine, cannot be done from code
+- Actual `wrangler deploy` against the real provisioned D1/KV in `wrangler.toml`, `wrangler secret put` for any secrets that should live on the Worker side, physical Termux `setup.sh` run
 
-**This is execution-order item 4's domain ("24/7 access layer") per `_SUMMARY.md`'s ranking** — real code work remains, but actual deployment (Worker secrets, wrangler deploy, physical Termux device setup) is owner-gated per the user's explicit instruction.
+**This is execution-order item 4's domain ("24/7 access layer") per `_SUMMARY.md`'s ranking** — the code side is now fully reconciled (done where claimed done, fixed where wrongly marked TODO); only physical/deployment actions remain, all owner-gated.
 
 ---
 
