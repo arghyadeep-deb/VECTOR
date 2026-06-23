@@ -163,6 +163,12 @@ identified is genuinely closed.
 **Evidence:** This rule already existed before this session — it had been wrongly carried forward as "no detector rule built yet" in an earlier pass of this same audit. Confirmed it genuinely works (fires on ad-injection/extension-hook text and claude_config+sponsored-prompt text, doesn't false-positive on ordinary skill text) and added the test coverage that was missing: `tests/test_skill_scanner_adware_detection.py` (4 tests, including a `scan_artifact()` end-to-end check that a kickbacks-style file gets flagged CAUTION/DO_NOT_LOAD). Zero kickbacks source code copied — detection patterns only, clean-room.
 **Owner action:** none.
 
+## 25. last30days-skill
+**Verdict:** VET/IMPLEMENT after SkillSpector — recency-first research mode, clean-room only (the upstream skill itself is untrusted prompt/tool material).
+**Files:** `districts/research/last30days.py` (schema), `districts/research/last30days_connectors.py` (4 connectors + fan-out).
+**Evidence:** Every genuinely accessible free source now has a connector: `connect_hackernews()` (reuses `ResearchHub.get_hn_top()`), `connect_reddit()` (reuses `RedditMiner.fetch_hot()`), `connect_github()` (reuses `ResearchHub.get_github_trending()`), `connect_web_search()` (reuses `WebScout().search()` — DuckDuckGo, no key). All first-party, already-tested data sources, not third-party skill text. `connect_all()` fans out and merges; one connector's failure only degrades, never takes the whole brief down. 9 tests. **Verified-blocked, not skipped out of caution**: live-tested Bluesky's public search endpoint via WebFetch — got HTTP 403 (ambiguous: auth-required or bot-blocked, either way not reliably usable from here, so no connector was shipped for it rather than risk an unverified integration).
+**Owner action:** Twitter/X, TikTok, Instagram, Polymarket all need paid/app-review API access — see `OWNER_ACTIONS_NEEDED.md`. YouTube transcript fetching exists (`core/stealth_browser/transcripts.py`) but needs a known video URL, not a discovery mechanism — doesn't fit this model without a paid YouTube Data API key for search/trending.
+
 ---
 
 # Skipped / reference-only — no code action needed (5 repos + 1 strategy doc)
