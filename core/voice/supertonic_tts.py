@@ -100,7 +100,14 @@ class SupertonicTTS:
 
     def create(self, text: str, lang: str = "en", speed: float = 1.0) -> tuple:
         """Synthesize `text`. Returns (samples, sample_rate) — same shape
-        Kokoro is used through (tts.py's `self._kokoro.create(...)`)."""
+        Kokoro is used through (tts.py's `self._kokoro.create(...)`).
+
+        Real bug found 2026-06-24 (live verification after weights
+        downloaded): engine.synthesize() returns (waveform,
+        duration_in_seconds), NOT (samples, sample_rate) — confirmed
+        directly (the second value was a float like 4.23, not an integer
+        sample rate). The real fixed rate lives on engine.sample_rate.
+        """
         if not self.available():
             raise RuntimeError("supertonic package not installed or disabled")
         mapped_lang = map_lang_code(lang)
@@ -108,13 +115,14 @@ class SupertonicTTS:
             raise RuntimeError(f"supertonic does not support lang={lang!r} — route to gTTS instead")
         engine = self._load()
         voice_style = self._resolve_voice_style(engine)
-        return engine.synthesize(
+        waveform, _duration_secs = engine.synthesize(
             text=text,
             voice_style=voice_style,
             lang=mapped_lang,
             total_steps=self.total_steps,
             speed=speed,
         )
+        return waveform, engine.sample_rate
 
 
 def get_live_tts(live_engine: str | None = None) -> tuple[str, SupertonicTTS | None]:
