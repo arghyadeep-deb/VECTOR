@@ -42,7 +42,7 @@ def _situation_hash(action_type: str, params: dict) -> str:
 
 def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
     from core.loop.autonomous_loop import AutonomousLoop
-    from core.loop.decision_engine import DecisionEngine
+    from core.loop.decision_engine import Candidate
     from core.memory.counterfactual import CounterfactualMemory
     from core.memory.policy import PolicyMemory
 
