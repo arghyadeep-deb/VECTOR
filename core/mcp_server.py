@@ -223,7 +223,18 @@ def main():
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
 
-    if not _FASTMCP_AVAILABLE:
+    # Real production entry point ("Run: python core/mcp_server.py
+    # --transport sse --port 9000" per this file's own docstring): if
+    # server-dispatch args are present, actually serve -- main() parses
+    # them and calls mcp.run(), which blocks. This was a real bug found
+    # 2026-06-24: this block previously ALWAYS ran the bare scaffold
+    # self-test below regardless of args, so the server printed a banner
+    # and exited with rc=0 immediately, every time, never actually serving
+    # a single request.
+    _server_args = {"--transport", "--port", "--host"}
+    if _server_args & set(sys.argv[1:]):
+        main()
+    elif not _FASTMCP_AVAILABLE:
         print("⚠️  fastmcp not installed — install with: pip install fastmcp")
         print("   Verifying server scaffold only...")
         print("✅ mcp_server.py scaffold OK (fastmcp not installed)")
