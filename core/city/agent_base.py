@@ -266,14 +266,23 @@ class AgentBase:
             return default
 
     async def request_agent_help(self, target_agent: str, task: dict) -> dict:
-        """Request help through the workflow runner when available."""
+        """Request help directly from another live agent, by name.
+
+        Looks the target up in the agent registry and calls its run() —
+        simpler and more correct than building a single-task WorkflowRunner
+        DAG for what is fundamentally a direct agent-to-agent request.
+        """
         try:
-            from core.loop.workflow_runner import WorkflowRunner
-            workflow_id = await WorkflowRunner().trigger_workflow(
-                "agent_help",
-                {"from": self.name, "to": target_agent, "task": task},
+            from core.city.agent_registry import get_registry
+            registry = get_registry()
+            target = next(
+                (a for a in registry.get_all_agents() if getattr(a, "name", None) == target_agent),
+                None,
             )
-            return {"status": "requested", "target_agent": target_agent, "workflow_id": workflow_id}
+            if target is None:
+                raise LookupError(f"agent '{target_agent}' not found in registry")
+            result = await target.run(task)
+            return {"status": "requested", "target_agent": target_agent, "result": result}
         except Exception as e:
             logger.debug("[VECTOR][city] request_agent_help fallback: {}", e)
             return {"status": "unavailable", "target_agent": target_agent, "error": str(e)}
