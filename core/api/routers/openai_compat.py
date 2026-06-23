@@ -1,11 +1,13 @@
 """Minimal OpenAI-compatible VECTOR gateway."""
 from __future__ import annotations
 
+import json
 import time
 import uuid
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 
 from core.inference.llm_providers import PROVIDERS
 from core.inference.provider_client import ProviderClient
