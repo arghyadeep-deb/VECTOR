@@ -97,6 +97,11 @@ def test_supertonic_tts_create_returns_samples_and_sample_rate(monkeypatch):
 
     class _FakeEngine:
         def get_voice_style(self, name):
+            # Real bug found 2026-06-24 (live verification after weights
+            # downloaded): "default" is not a real preset -- the real
+            # package raises FileNotFoundError, listing M1-M5/F1-F5 as the
+            # only valid names. Assert the fix uses a real one.
+            assert name in {"M1", "M2", "M3", "M4", "M5", "F1", "F2", "F3", "F4", "F5"}, name
             return _FakeStyle()
 
         def synthesize(self, text, voice_style, total_steps=8, speed=1.0, lang=None, **kw):
