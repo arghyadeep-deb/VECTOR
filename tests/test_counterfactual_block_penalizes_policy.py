@@ -50,7 +50,9 @@ def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
         cf_db = f.name
     try:
         cf = CounterfactualMemory(db_path=cf_db)
-        cf.record_rejection("analyze_progress", "analyze_progress []", "auto-blocked: similar to past rejection (score=1.00)")
+        # Must match _act_on()'s exact proposal construction:
+        # f"{winner.action_type} {json.dumps(winner.params, default=str)}"
+        cf.record_rejection("analyze_progress", "analyze_progress {}", "auto-blocked: similar to past rejection (score=1.00)")
 
         loop = AutonomousLoop()
         monkeypatch.setattr("core.memory.counterfactual.CounterfactualMemory", lambda: cf)
