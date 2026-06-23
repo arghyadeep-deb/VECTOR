@@ -15,13 +15,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def test_supertonic_tts_available_false_without_package():
-    from core.voice.supertonic_tts import SupertonicTTS
-
-    tts = SupertonicTTS(enabled=True)
-    assert tts.available() is False
-
-
 def test_supertonic_tts_available_false_when_disabled():
     from core.voice.supertonic_tts import SupertonicTTS
 
@@ -29,15 +22,64 @@ def test_supertonic_tts_available_false_when_disabled():
     assert tts.available() is False
 
 
-def test_supertonic_tts_create_raises_clean_error_when_unavailable():
+def test_supertonic_tts_available_true_when_enabled_and_package_installed():
+    """supertonic was installed this pass (docs/repo_analysis/OWNER_ACTIONS_NEEDED.md
+    item resolved) -- available() must reflect that honestly rather than
+    assume the package is absent."""
     from core.voice.supertonic_tts import SupertonicTTS
 
     tts = SupertonicTTS(enabled=True)
+    assert tts.available() is True
+
+
+def test_supertonic_tts_create_raises_clean_error_when_disabled():
+    from core.voice.supertonic_tts import SupertonicTTS
+
+    tts = SupertonicTTS(enabled=False)
     try:
         tts.create("hello", lang="en")
         assert False, "expected RuntimeError"
     except RuntimeError as exc:
         assert "supertonic" in str(exc).lower()
+
+
+def test_supertonic_tts_load_constructs_real_tts_class():
+    """Root-caused real bug: _load() called a nonexistent
+    supertonic.load_model() -- confirmed via the actual installed package's
+    public API (supertonic.TTS, not a module-level load_model function).
+    Fixed to construct the real class."""
+    from core.voice.supertonic_tts import SupertonicTTS
+    import supertonic
+
+    tts = SupertonicTTS(enabled=True)
+    engine = tts._load()
+    assert isinstance(engine, supertonic.TTS)
+
+
+def test_supertonic_tts_create_returns_samples_and_sample_rate(monkeypatch):
+    """create() must obtain a real Style object via get_voice_style()
+    before calling synthesize() -- synthesize() requires a Style instance,
+    not a bare string/None, which the original code passed."""
+    from core.voice.supertonic_tts import SupertonicTTS
+    import numpy as np
+
+    tts = SupertonicTTS(enabled=True)
+
+    class _FakeStyle:
+        pass
+
+    class _FakeEngine:
+        def get_voice_style(self, name):
+            return _FakeStyle()
+
+        def synthesize(self, text, voice_style, total_steps=8, speed=1.0, lang=None, **kw):
+            assert isinstance(voice_style, _FakeStyle)
+            return (np.zeros(100), 24000)
+
+    monkeypatch.setattr(tts, "_load", lambda: _FakeEngine())
+    samples, sr = tts.create("hello", lang="en")
+    assert sr == 24000
+    assert len(samples) == 100
 
 
 def test_lang_code_maps_en_hi_ja_directly():
