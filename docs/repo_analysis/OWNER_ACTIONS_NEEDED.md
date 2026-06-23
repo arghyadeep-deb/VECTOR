@@ -34,23 +34,41 @@ now confirmed and corrected against the real installed code):
   `model.sampling_rate` attribute (the package's own docstring documents
   this exact pattern).
 
-**Still open, deliberately not done — model weight downloads** are a
-separate, larger action from installing the package (omnivoice's are
-multi-GB, supertonic's are ~260MB) and weren't attempted:
-- `supertonic`: weights download is now safely gated behind
-  `auto_download=True` (or set `CONFIG["voice"]["supertonic_auto_download"] = True`)
-  — currently defaults to a clean error instead of a silent download.
-  **After downloading:** A/B listen against Kokoro's `bf_emma`, then flip
-  `CONFIG["voice"]["live_engine"] = "supertonic"` if you like it better.
-- `omnivoice`: real model weights not yet fetched (no equivalent
-  `auto_download` guard exists in its own API at the level I could verify
-  without triggering a real download to check) — first real
-  `synthesize_to_file()`/benchmark call will attempt to fetch them from
-  HuggingFace Hub. Worth knowing before triggering it.
-- `supervision`/`ultralytics`: the YOLO weights file (`yolo11n.pt`) downloads
-  automatically on first real detection call (~6MB, small) — not attempted
-  here since `presence_detector.py` was only verified via the package
-  import, not a live camera frame.
+**Model weight downloads — ✅ DONE (2026-06-24, owner-authorized).** All
+three triggered and verified with real end-to-end synthesis/detection,
+surfacing **3 more real bugs**, same root cause as above (wrappers built
+before the weights existed to test against):
+- `supertonic` (~260MB) — downloaded cleanly. Real audio confirmed
+  synthesizing at 44.1kHz. Two bugs found: (1) the voice-preset fallback
+  used `"default"`, which isn't a real preset — the package raises
+  `FileNotFoundError` listing the only valid ones (`M1-M5`/`F1-F5`); fixed
+  to `M1`. (2) `engine.synthesize()` returns `(waveform, duration_seconds)`,
+  not `(samples, sample_rate)` as assumed — the real fixed rate lives on
+  `engine.sample_rate`; fixed to return that instead.
+- `yolo11n.pt` (~6MB) — downloaded, loaded, real COCO class names
+  confirmed. `PresenceDetector.available()` now returns `True`.
+- `omnivoice` (multi-GB, 13 files) — **the download itself stalled mid-way
+  with zero IO/CPU activity** (confirmed via `psutil` — likely the
+  unauthenticated-HF-Hub rate limit; the download logs warn about this
+  and suggest setting `HF_TOKEN` for faster, more reliable downloads).
+  Killed and retried; resumed correctly from the partial cache and
+  completed in ~6.5 minutes. Then found a third bug:
+  `OmniVoice.from_pretrained(model, device=..., dtype=...)` doesn't work
+  — `from_pretrained()` forwards unrecognized kwargs straight to
+  `OmniVoice.__init__()`, which doesn't accept either (confirmed live:
+  `TypeError: unexpected keyword argument 'device'`). Fixed to load with
+  no device/dtype kwargs, then call `model.to(device=..., dtype=...)`
+  afterward (also confirmed live — the real working pattern). Real
+  end-to-end synthesis confirmed: a genuine 115KB WAV file produced via
+  `synthesize_to_file()`.
+
+7 new/updated regression tests across `test_supertonic_tts.py` and
+`test_omnivoice_studio_wiring.py`. 210/214 voice tests pass (4 pre-existing
+skips, unrelated), 51/51 integration checks stay green.
+
+**A/B listening and any default-engine flip is still your call** —
+`CONFIG["voice"]["live_engine"]` stays `"kokoro"`, `cloning_engine` stays
+`"chatterbox"`; nothing was changed by default.
 
 ## 2. Decisions that don't need new code, just a choice
 
