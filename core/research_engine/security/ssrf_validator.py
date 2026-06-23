@@ -150,9 +150,20 @@ def is_ip_blocked(
         # value is not cached across env mutations. Cloud-metadata IPs are
         # ALWAYS blocked above, so this carve-out cannot reopen IMDS via
         # the IPv6-wrapped form.
-        from ..settings.env_registry import get_env_setting
+        #
+        # Guarded: core.research_engine.settings transitively imports a
+        # missing core.research_engine.web package in this checkout (a
+        # real, separate, pre-existing absorption gap) — without this
+        # guard, EVERY call to this function (the core SSRF check, for
+        # ANY url including a harmless public one) raised an uncaught
+        # ModuleNotFoundError instead of safely defaulting. Default False
+        # matches the function's own documented default for this setting.
+        try:
+            from ..settings.env_registry import get_env_setting
 
-        nat64_allowed = bool(get_env_setting("security.allow_nat64", False))
+            nat64_allowed = bool(get_env_setting("security.allow_nat64", False))
+        except Exception:
+            nat64_allowed = False
 
         # Check if IP is in any blocked range
         for blocked_range in BLOCKED_IP_RANGES:
