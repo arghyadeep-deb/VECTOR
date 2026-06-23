@@ -1003,7 +1003,8 @@ def main():
     sub.add_parser("hybrid", help="Mode C: hybrid with checkpoint gates")
 
     mcp_p = sub.add_parser("mcp", help="Start MCP server")
-    mcp_p.add_argument("--sse", action="store_true", help="Use SSE transport on port 9000")
+    mcp_p.add_argument("--sse", action="store_true", help="Use SSE transport")
+    mcp_p.add_argument("--port", type=int, default=9000, help="SSE port (default: 9000)")
 
     sub.add_parser("status", help="Show current session status")
 
