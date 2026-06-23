@@ -248,6 +248,7 @@ def wake_legion(prefer: str = "wifi") -> dict:
             sock.sendto(packet, (LEGION_WAKE_BROADCAST, LEGION_WAKE_PORT))
         return {
             "ok": True,
+            "already_awake": False,
             "mac": _normalize_mac(mac),
             "broadcast": LEGION_WAKE_BROADCAST,
             "port": LEGION_WAKE_PORT,
