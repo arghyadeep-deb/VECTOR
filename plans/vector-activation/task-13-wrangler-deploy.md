@@ -1,6 +1,10 @@
 # Task 13 — Deploy Cloudflare Worker API
 
-- **Depends on:** Task 12
+> Updated: Task 12 (Fly.io) was cancelled — this task no longer depends on
+> it. Cloudflare is the only cloud brain now; see `DEPLOY.md` for the
+> current step-by-step (Supabase + Turso + Cloudflare D1/KV, no Fly).
+
+- **Depends on:** Task 01 (rotated keys only)
 - **Who:** OWNER login → me
 - **Effort:** ~30 min
 
