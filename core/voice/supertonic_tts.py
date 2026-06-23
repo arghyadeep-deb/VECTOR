@@ -37,11 +37,17 @@ class SupertonicTTS:
     """Lazy, guarded-import wrapper around the optional `supertonic` package."""
 
     def __init__(self, enabled: bool = False, model_dir: str = "",
-                 total_steps: int = 8, voice_style: str = ""):
+                 total_steps: int = 8, voice_style: str = "", auto_download: bool = False):
         self.enabled = enabled
         self.model_dir = model_dir
         self.total_steps = total_steps
         self.voice_style = voice_style
+        # Defaults to False -- ~260MB of model weights is a separate,
+        # explicit owner action (docs/repo_analysis/OWNER_ACTIONS_NEEDED.md),
+        # distinct from installing the pip package. Never silently download
+        # on the first real synthesis call; raise a clear, actionable error
+        # instead and let the owner opt in explicitly.
+        self.auto_download = auto_download
         self._engine = None
 
     def available(self) -> bool:
