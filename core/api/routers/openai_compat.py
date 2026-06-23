@@ -29,10 +29,46 @@ async def list_models() -> dict[str, Any]:
     return {"object": "list", "data": data}
 
 
+async def _sse_chunks(result, completion_id: str, created: int) -> AsyncIterator[str]:
+    """Frame an already-fetched ProviderClient result as OpenAI-compatible
+    SSE chunks. Buffered, not token-by-token — VECTOR's provider layer
+    (core/inference/provider_client.py) has no per-provider streaming
+    support across its ~27 backends; rewiring all of them is real, separate,
+    much larger work (see docs/repo_analysis/_MASTER_TODO.md). This still
+    satisfies the actual goal — "so Open WebUI... can talk to VECTOR" — by
+    emitting valid SSE framing a real streaming client can consume, just
+    delivered as one content chunk instead of incremental token deltas.
+    """
+    chunk = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": result.model,
+        "choices": [{
+            "index": 0,
+            "delta": {"role": "assistant", "content": result.content},
+            "finish_reason": None,
+        }],
+    }
+    yield f"data: {json.dumps(chunk)}\n\n"
+
+    final_chunk = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": created,
+        "model": result.model,
+        "choices": [{
+            "index": 0,
+            "delta": {},
+            "finish_reason": result.finish_reason,
+        }],
+    }
+    yield f"data: {json.dumps(final_chunk)}\n\n"
+    yield "data: [DONE]\n\n"
+
+
 @router.post("/chat/completions")
-async def chat_completions(payload: dict[str, Any]) -> dict[str, Any]:
-    if payload.get("stream"):
-        raise HTTPException(status_code=400, detail="streaming is not enabled on this compatibility endpoint yet")
+async def chat_completions(payload: dict[str, Any]):
     messages = payload.get("messages")
     if not isinstance(messages, list) or not messages:
         raise HTTPException(status_code=400, detail="messages must be a non-empty list")
@@ -45,6 +81,15 @@ async def chat_completions(payload: dict[str, Any]) -> dict[str, Any]:
         max_tokens=int(payload.get("max_tokens", 4096)),
         caller_id="openai_compat",
     )
+
+    if payload.get("stream"):
+        completion_id = f"chatcmpl-{uuid.uuid4().hex}"
+        created = int(time.time())
+        return StreamingResponse(
+            _sse_chunks(result, completion_id, created),
+            media_type="text/event-stream",
+        )
+
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex}",
         "object": "chat.completion",
