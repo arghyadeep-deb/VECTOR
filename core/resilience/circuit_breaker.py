@@ -53,19 +53,19 @@ class CircuitBreaker:
         self._lock = asyncio.Lock()
 
     async def call(self, fn: Callable, *args: Any, **kwargs: Any) -> Any:
-        if not await self._can_proceed():
+        if not await self.can_proceed():
             raise CircuitBreakerOpenError(
                 f"Circuit breaker '{self.config.name}' is {self.state.value}"
             )
         try:
             result = await fn(*args, **kwargs) if asyncio.iscoroutinefunction(fn) else fn(*args, **kwargs)
-            await self._on_success()
+            await self.on_success()
             return result
         except Exception as e:
-            await self._on_failure()
+            await self.on_failure()
             raise
 
-    async def _can_proceed(self) -> bool:
+    async def can_proceed(self) -> bool:
         async with self._lock:
             if self.state == CircuitState.CLOSED:
                 return True
