@@ -281,7 +281,7 @@ class ProviderClient:
                     _prov, target_model, messages, temperature, max_tokens, tools
                 )
                 if _health is not None:
-                    _health.record_success(
+                    await _health.record_success(
                         _prov.slug,
                         target_model,
                         latency_ms=(time.perf_counter() - _started) * 1000,
