@@ -40,7 +40,10 @@ def test_omnivoice_generate_path_is_mockable_without_real_model(monkeypatch):
 
     class _FakeModel:
         def generate(self, **kwargs):
-            return {"audio_path": kwargs.get("output_path") or "fake.wav"}
+            # Real model writes the file as a side effect and returns nothing
+            # meaningful — synthesize_to_file falls through to its own
+            # `target` path in that case (`return str(result or target)`).
+            return None
 
     monkeypatch.setattr(engine, "_load", lambda: _FakeModel())
 
