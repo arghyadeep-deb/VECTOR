@@ -61,16 +61,14 @@ def test_content_fetcher_blocks_metadata_url_without_network_call(monkeypatch):
     BEFORE reaching any downloader — confirmed by spying on
     _get_downloader and asserting it is never called.
 
-    Skipped: importing ContentFetcher pulls in research_library ->
-    database -> settings -> a missing core.research_engine.web package
-    (confirmed absent from this checkout via `ls` — a real, separate,
-    pre-existing structural gap in the absorbed research_engine subsystem,
-    unrelated to SSRF and far larger than this task's scope). The
-    validate_url-level tests above cover the actual security guard; this
-    integration test documents the intended end-to-end contract for when
-    that gap is closed.
+    Previously skipped: importing ContentFetcher hit a missing
+    core.research_engine.web package. That structural gap is now fixed
+    (clean-room core.research_engine.web.models.settings rebuilt from the
+    real usage contract in settings/manager.py, plus guarding the
+    Flask-blueprint imports research_library/__init__.py never needed --
+    see docs/repo_analysis/_MASTER_TODO.md §3 item 12) — this test now
+    runs for real instead of documenting an intended future contract.
     """
-    pytest.skip("ContentFetcher import chain hits a missing core.research_engine.web package — see docstring")
     from core.research_engine.content_fetcher.fetcher import ContentFetcher
 
     fetcher = ContentFetcher()
@@ -89,8 +87,8 @@ def test_content_fetcher_blocks_metadata_url_without_network_call(monkeypatch):
 
 
 def test_content_fetcher_blocks_localhost_url_without_network_call(monkeypatch):
-    """See skip reason on test_content_fetcher_blocks_metadata_url_without_network_call."""
-    pytest.skip("ContentFetcher import chain hits a missing core.research_engine.web package — see sibling test's docstring")
+    """See docstring on test_content_fetcher_blocks_metadata_url_without_network_call
+    -- the missing-package gap that previously skipped this is now fixed."""
     from core.research_engine.content_fetcher.fetcher import ContentFetcher
 
     fetcher = ContentFetcher()
