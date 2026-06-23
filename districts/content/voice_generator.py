@@ -27,6 +27,7 @@ class VoiceGenerator(AgentBase):
         self._kokoro_dir = Path(self._voice_config.get("kokoro_model_dir", "./models/kokoro"))
         self._available = self._check_tts()
         self._generated_voices: list[dict] = []
+        self._omnivoice_config = None  # lazy — resolved from CONFIG on first studio call
         logger.info(f"[VECTOR][voice_generator] VoiceGenerator initialized - TTS: {self._available}")
 
     def _check_tts(self) -> bool:
