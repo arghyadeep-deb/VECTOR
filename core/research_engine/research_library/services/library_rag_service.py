@@ -319,6 +319,11 @@ class LibraryRAGService:
         Returns:
             FAISS vector store instance
         """
+        if not _FAISS_AVAILABLE:
+            raise RuntimeError(
+                "faiss is not installed -- pip install faiss-cpu (or faiss-gpu) "
+                "to use library RAG indexing"
+            )
         rag_index = self._get_or_create_rag_index(collection_id)
         self.rag_index_record = rag_index
 
