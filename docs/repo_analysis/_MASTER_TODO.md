@@ -85,7 +85,7 @@ Implemented via TDD, all tests passing, zero regressions (verified `pytest -k cr
 
 ## §2 — Repo absorption: 31-repo list reconciled against actual code
 
-**24 of 31 repos are ✅ DONE; the 6 SKIP/reference items are closed-by-decision. All 30 of those now have their full evidence/reasoning consolidated in `docs/repo_analysis/_DONE.md`** (24 DONE entries + 6 closed-by-decision entries), which replaces 30 individual per-repo `.md` files — removed from this directory, do not recreate them. **Only the 2 genuinely PARTIAL repos (`omnivoice.md`, `last30days-skill.md`) still have standalone files** — they're owner-gated, not code gaps; see `OWNER_ACTIONS_NEEDED.md`.
+**25 of 31 repos are ✅ DONE; the 6 SKIP/reference items are closed-by-decision. All 31 of those now have their full evidence/reasoning consolidated in `docs/repo_analysis/_DONE.md`** (25 DONE entries + 6 closed-by-decision entries), which replaces 31 individual per-repo `.md` files — removed from this directory, do not recreate them. **Only `omnivoice.md` still has a standalone file** — it's the one genuinely PARTIAL repo left, owner-gated (needs the real package + model weights installed for benchmark numbers), not a code gap; see `OWNER_ACTIONS_NEEDED.md`.
 
 Legend: ✅ DONE (full evidence in `_DONE.md`) · 🟡 PARTIAL · ⏭️ SKIP · — N/A (reference-only, no action)
 
