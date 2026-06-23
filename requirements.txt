@@ -10,8 +10,9 @@ alembic==1.18.4            # DB migrations for research engine
 beautifulsoup4==4.14.3     # HTML parsing for content extraction
 langchain-ollama==1.1.0    # Ollama LangChain integration
 langchain-community==0.4.1 # DuckDuckGo + other search integrations
-langchain-openai==0.3.35   # OpenAI-compatible endpoint support
-langchain-text-splitters==0.3.11  # document chunking
+langchain-openai==1.3.3    # OpenAI-compatible endpoint support (bumped from 0.3.35 -- that version requires langchain-core<1.0, conflicting with the langchain-core==1.x pinned below; this was a real, broken pin combination)
+langchain-text-splitters==1.1.2   # document chunking (bumped from 0.3.11 for the same langchain-core 1.x compatibility reason)
+langchain-anthropic==1.4.3 # Anthropic chat models (was unpinned -- pip always installed latest, which silently broke when langchain-core fell behind; pinning so this can't drift again)
 arxiv==3.0.0               # ArXiv academic paper search
 wikipedia==1.4.0           # Wikipedia search engine
 trafilatura==2.0.0         # web content extraction (best quality)
