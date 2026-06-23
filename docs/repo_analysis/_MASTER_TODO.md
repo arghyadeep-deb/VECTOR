@@ -110,9 +110,9 @@ Legend: ✅ DONE (cite file) · 🟡 PARTIAL · ⬜ TODO · 🔵 DEFERRED(owner)
 | 21 | **open-webui** | Gateway, not absorption | `core/api/routers/openai_compat.py` mounted at `/v1/models` + `/v1/chat/completions` in `core/api/app.py` per Codex Pass 2 | 🟡 PARTIAL — gateway exists; "Still Deferred By Design": no streaming SSE for `/v1/chat/completions` yet |
 | 22 | **awesome-llm-apps** | Reference only | N/A | — N/A |
 | 23 | **Evolver** | Clean-room only (GPL) | `core/city/evolution_audit.py` — `EvolutionEvent`/`EvolutionStatus`/`StrategyGene` dataclasses, review-before-apply + rollback semantics | ✅ DONE (clean-room confirmed) — read in full (45 lines): pure dataclasses/enum, explicit "Clean-room" docstring, zero GPL/"Evolver" string traces |
-| 24 | **ECC** | Vet/selective clean-room | Not checked | ⬜ TODO/low |
-| 25 | **OpenAlice** | Clean-room only (AGPL) | Not checked | 🔵 DEFERRED(owner) — only if stronger real-money readiness wanted |
-| 26 | **Nautilus Trader** | Clean-room only (LGPL) | Not checked | 🔵 DEFERRED(owner) |
+| 24 | **ECC** | Vet/selective clean-room | `core/security/workspace_audit.py` — local skill inventory + hook/config review checks, no external hooks installed | ✅ DONE (narrow scope as specified) |
+| 25 | **OpenAlice** | Clean-room only (AGPL) | `districts/investment/order_lifecycle.py` — staged order lifecycle, risk snapshots, approval-gated live submit, append-only transitions; no AGPL code/schemas copied | ✅ DONE (clean-room ideas only, as specified) |
+| 26 | **Nautilus Trader** | Clean-room only (LGPL) | Same `order_lifecycle.py` covers this verdict's clean-room scope too (risk snapshots, paper/live parity concept) | ✅ DONE (clean-room ideas only, as specified) |
 | 27 | **remotion** | SKIP | N/A | ⏭️ SKIP |
 | 28 | **kickbacks.ai** | HARD SKIP | N/A — no detector rule built yet per Codex's own "skipped" note | ⏭️ SKIP (code) / ⬜ TODO (the one detector-rule follow-up some batches mention, low priority) |
 | 29 | **voicebox** | SKIP (absorbed) | N/A | ⏭️ SKIP |
