@@ -195,7 +195,7 @@ These were never "implement" verdicts — closed by decision, not by code. Conso
 ## 30. awesome-llm-apps — REFERENCE ONLY
 **Why:** A large (1653-file) cookbook of standalone LLM/agent/RAG templates, Apache-2.0. Mine occasional patterns from it; never bulk-absorb. No specific action pending.
 
-## 30. Voice stack decision (`voice-stack-decision.md`, a cross-cutting strategy note, not a single repo)
+## 31. Voice stack decision (`voice-stack-decision.md`, a cross-cutting strategy note, not a single repo)
 **Decision:** one live engine (Kokoro, with supertonic as a benchmarked alternative), one high-quality studio/cloning engine (OmniVoice, with VoxCPM on hold), pyttsx3/gTTS as fallbacks — explicitly avoiding "implement every voice repo" engine sprawl.
 **Status: fully executed and confirmed**, all 6 acceptance criteria met as of this session: only one live TTS default exists (`live_engine="kokoro"`); only one cloning/design engine is active by default (`cloning_engine="chatterbox"`, VoxCPM on hold); OmniVoice does not load at startup (`enabled=False`, lazy `_load()`); heavy voice models respect the model-residency lock (CPU-only Supertonic, lazy-loaded OmniVoice); 168/168 existing voice tests still pass; pyttsx3/gTTS fallbacks remain in place and untouched.
 
