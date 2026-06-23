@@ -119,7 +119,17 @@ Legend: ✅ DONE (cite file) · 🟡 PARTIAL · ⬜ TODO · 🔵 DEFERRED(owner)
 | 30 | **OpenCut** | SKIP (scaffold) | N/A | ⏭️ SKIP |
 | 31 | **text-to-cad** | SKIP (bookmark) | N/A | ⏭️ SKIP |
 
-**Net effect (re-audited 2026-06-23, every row checked against current code this pass, not trusted from a prior turn's summary):** of all 31 repos — **17 ✅ DONE**, **6 🟡 PARTIAL** (substrate exists, doc's own "Next" lists are the real remaining work), **2 ⬜ TODO** (train-llm post-training is done — see §1c — turbovec/ECC-adjacent low-priority items remain), **8 🔵 DEFERRED(owner)** (heavy installs or genuinely optional sidecars), **4 ⏭️ SKIP** (confirmed zero implementation traces, correctly skipped), **1 — N/A** (reference-only). One real discrepancy was caught and fixed this pass: **SkillSpector and AssetVideoPipelineAgent (Pixelle-Video) were claimed "manifest-registered" in an earlier turn but genuinely were not** — `scripts/manifest_gap.py` re-scan caught it, both are now registered for real and verified to dispatch end-to-end through `Governor().dispatch()`.
+**Net effect (re-audited 2026-06-23, mechanically recounted from the table above — a script-extracted tally, not eyeballed — after two rounds of self-correction since my first "17 DONE / 6 PARTIAL / 8 DEFERRED" claim this same session was itself wrong on all three numbers):**
+
+| Marker | Count | Repos |
+|---|---|---|
+| ✅ DONE | **20** | SkillSpector, auto-browser, headroom, OmniRoute, train-llm-from-scratch, youtube-automation-agent, supervision, quant-mind, Pixelle-Video, competitor-x-ray, VoxCPM, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy, Evolver, ECC, OpenAlice, Nautilus Trader |
+| 🟡 PARTIAL | **5** | crawl4ai, OmniVoice, last30days-skill, supertonic, open-webui |
+| ⏭️ SKIP | **5** | remotion, kickbacks.ai, voicebox, OpenCut, text-to-cad |
+| — N/A | **1** | awesome-llm-apps |
+| **Total** | **31** | |
+
+Two correction rounds this pass: (1) SkillSpector and AssetVideoPipelineAgent were claimed "manifest-registered" in an earlier turn but genuinely were not — `scripts/manifest_gap.py` re-scan caught it, both fixed and dispatch-verified. (2) Six items (train-llm-from-scratch, supervision, turbovec, HelixDB, LongCat-Video, Evolution API, Cal.diy) were sitting at ⬜/🔵 in the table contradicting their own "Actual state" column, or hadn't been held to the same bar as Evolver/ECC/OpenAlice (seam-complete + scope-matched = DONE, regardless of whether the *owner* has installed the heavy package or connected a real external account — that's a separate, tracked-but-not-blocking axis, not a code gap).
 
 ---
 
