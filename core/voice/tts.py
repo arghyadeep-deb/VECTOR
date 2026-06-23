@@ -195,6 +195,11 @@ class VoiceTTS:
         if lang == "en" and self._el_ok:
             if self._speak_elevenlabs_stream(text):
                 return
+        # Optional Supertonic live-engine swap (docs/repo_analysis/supertonic.md)
+        # — bn/as are never routed here even if live_engine="supertonic",
+        # they stay on the gTTS path below regardless of this setting.
+        if lang not in _KOKORO_UNSUPPORTED and self._speak_supertonic(text, lang):
+            return
         # bn/as not supported by Kokoro — try gTTS (real online voices) before pyttsx3
         if self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
             self._speak_kokoro(text, lang)
