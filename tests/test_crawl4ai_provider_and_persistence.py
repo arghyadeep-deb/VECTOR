@@ -140,8 +140,6 @@ def test_fetch_via_vector_scraper_raises_clean_error_on_blocked_or_failed_fetch(
         assert False, "expected RuntimeError"
     except RuntimeError as exc:
         assert "SSRF blocked" in str(exc) or "fetch failed" in str(exc).lower()
-    assert artifact.content_hash
-    assert any(l["url"] == "https://example.com/about" for l in artifact.links)
 
 
 def test_persist_extraction_artifact_writes_to_episodic_memory(monkeypatch):
