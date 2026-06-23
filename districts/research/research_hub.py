@@ -74,8 +74,10 @@ class ResearchHub(AgentBase):
             try:
                 logger.info(f"[VECTOR][research_hub] event-triggered research: {et} query={query[:50]}")
                 results = await self.search_web(str(query)[:100], max_results=5)
-                # Store findings in memory for other agents
-                await self.request_agent_help("memory_curator", {
+                # Store findings in memory for other agents. ConsolidationBot
+                # is the memory_curator district's actual registered .name —
+                # there is no agent literally named "memory_curator".
+                await self.request_agent_help("ConsolidationBot", {
                     "type": "store_findings",
                     "params": {"topic": str(query)[:100], "findings": str(results)[:500]},
                 })
