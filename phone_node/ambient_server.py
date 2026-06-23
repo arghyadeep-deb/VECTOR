@@ -90,6 +90,12 @@ LEGION_WIFI_MAC = _cfg.get("LEGION_WIFI_MAC", "").strip()
 LEGION_ETHERNET_MAC = _cfg.get("LEGION_ETHERNET_MAC", "").strip()
 LEGION_WAKE_BROADCAST = _cfg.get("LEGION_WAKE_BROADCAST", "255.255.255.255").strip()
 LEGION_WAKE_PORT = int(_cfg.get("LEGION_WAKE_PORT", "9"))
+# Optional: Legion's LAN IP + VECTOR API port, so wake_legion() can check
+# reachability first and skip a redundant WoL packet if already awake.
+# Unset by default (owner hasn't configured it yet) -- falls back to the
+# original always-send-WoL behavior, never breaks if absent.
+LEGION_HOST = _cfg.get("LEGION_HOST", "").strip()
+LEGION_API_PORT = int(_cfg.get("LEGION_API_PORT", "8000"))
 
 _start_time   = time.time()
 _last_hb_ok   = False
