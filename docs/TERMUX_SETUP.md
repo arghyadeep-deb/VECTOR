@@ -401,15 +401,17 @@ Your phone is now an ambient node for VECTOR:
 - **Runs in background** → Termux stays open, phone stays connected over WiFi
 - **Auto-restarts** → if your phone reboots, the script comes back automatically (after Termux:Boot is set up)
 
-When the Cloudflare Worker relay is deployed later (`wrangler deploy` from `api/` or the Worker project folder), update `VECTOR_BRAIN_URL` in `~/.vector/phone_config.env` to the Worker URL and restart the script.
+**Update (2026-06-24): the Cloudflare Worker relay is now deployed and verified live** —
+`https://vector-api.arghyadeepdeb020703.workers.dev`. Set `VECTOR_BRAIN_URL`
+in `~/.vector/phone_config.env` to that URL and restart the script.
 
 ## Planned 24/7 Upgrade Checklist
 
-This guide is ready for the current ambient node. To make the OPPO A31 act as the always-on lightweight VECTOR node while the Legion is off, the codebase still needs:
+This guide is ready for the current ambient node. To make the OPPO A31 act as the always-on lightweight VECTOR node while the Legion is off:
 
-- Cloudflare Worker authenticated command submission
-- D1/KV command queue and result storage
-- Termux polling loop for pending commands (implemented in `ambient_server.py`; needs deployed Worker validation)
+- ✅ Cloudflare Worker authenticated command submission — verified live (401 without a key, 200 with the right one)
+- ✅ D1/KV command queue and result storage — verified live with a real submitted command (`migrations/0002_command_node_results.sql` applied 2026-06-24, was missing before that)
+- Termux polling loop for pending commands (implemented in `ambient_server.py`) — code-complete, still needs an actual phone running it to validate end-to-end
 - lightweight assistant task router on Termux
 - AI calls through Worker Secrets or a minimal Termux-only config
 - Legion heavy-node polling for deferred laptop-only commands
