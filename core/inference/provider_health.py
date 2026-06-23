@@ -1,9 +1,24 @@
-"""Provider health and circuit-breaker state for VECTOR inference."""
+"""Provider health for VECTOR inference — built on the real, already-wired
+core.resilience.circuit_breaker.CircuitBreaker (async-locked, 8 production
+callers across the codebase) rather than reimplementing a parallel state
+machine.
+
+This module's job is the genuinely-new layer on top: per-(provider, model)
+granularity, failure-kind classification (rate limit vs auth vs server
+error vs network vs bad request), differentiated cooldown durations per
+kind, permanent provider-disable on auth failure (a state CircuitBreaker
+itself doesn't model — it only knows OPEN-with-a-timeout), and latency
+tracking. The CLOSED/OPEN/HALF_OPEN state machine and its locking are
+delegated entirely to CircuitBreaker.
+"""
 from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+
+from core.breaker_registry import get_registry
+from core.resilience.circuit_breaker import CircuitBreaker, CircuitBreakerConfig, CircuitState
 
 __all__ = [
     "FailureKind",
@@ -30,8 +45,18 @@ class FailureKind(str, Enum):
     UNKNOWN = "unknown"
 
 
+_STATE_TO_HEALTH = {
+    CircuitState.CLOSED: RouteHealth.HEALTHY,
+    CircuitState.OPEN: RouteHealth.COOLDOWN,
+    CircuitState.HALF_OPEN: RouteHealth.HALF_OPEN,
+}
+
+
 @dataclass
 class ProviderRouteState:
+    """Observability snapshot — lifetime counters CircuitBreaker doesn't
+    track itself (it only tracks consecutive failures for its own
+    transition logic), plus the mapped health enum for API compatibility."""
     provider: str
     model: str = "*"
     health: RouteHealth = RouteHealth.HEALTHY
@@ -44,16 +69,6 @@ class ProviderRouteState:
     rolling_latency_ms: float = 0.0
     updated_at: float = field(default_factory=time.time)
 
-    def can_try(self, now: float | None = None) -> bool:
-        now = time.time() if now is None else now
-        if self.health == RouteHealth.DISABLED:
-            return False
-        if self.health == RouteHealth.COOLDOWN and now < self.next_retry_at:
-            return False
-        if self.health == RouteHealth.COOLDOWN and now >= self.next_retry_at:
-            self.health = RouteHealth.HALF_OPEN
-        return True
-
 
 class ProviderHealthManager:
     def __init__(
@@ -65,55 +80,111 @@ class ProviderHealthManager:
         self.failure_threshold = failure_threshold
         self.base_cooldown_seconds = base_cooldown_seconds
         self.rate_limit_cooldown_seconds = rate_limit_cooldown_seconds
-        self._states: dict[tuple[str, str], ProviderRouteState] = {}
+        self._registry = get_registry()
+        self._meta: dict[tuple[str, str], ProviderRouteState] = {}
+        # AUTH failures permanently disable a route until manual reset —
+        # a state CircuitBreaker doesn't model (it only knows OPEN-with-
+        # a-timeout), so it's tracked here as an explicit override.
+        self._disabled: set[tuple[str, str]] = set()
+
+    def _key(self, provider: str, model: str = "*") -> tuple[str, str]:
+        return (provider, model or "*")
+
+    def _breaker(self, provider: str, model: str = "*") -> CircuitBreaker:
+        provider, model = self._key(provider, model)
+        name = f"provider_health:{provider}:{model}"
+        cb = self._registry.get(name)
+        if cb is None:
+            cb = self._registry.register(
+                name,
+                CircuitBreakerConfig(
+                    name=name,
+                    failure_threshold=self.failure_threshold,
+                    recovery_timeout=self.base_cooldown_seconds,
+                ),
+            )
+        return cb
+
+    def _route_meta(self, provider: str, model: str = "*") -> ProviderRouteState:
+        key = self._key(provider, model)
+        if key not in self._meta:
+            self._meta[key] = ProviderRouteState(provider=key[0], model=key[1])
+        return self._meta[key]
 
     def state(self, provider: str, model: str = "*") -> ProviderRouteState:
-        key = (provider, model or "*")
-        if key not in self._states:
-            self._states[key] = ProviderRouteState(provider=provider, model=model or "*")
-        return self._states[key]
+        """Read-only snapshot combining the real breaker's state with
+        this manager's own lifetime counters."""
+        key = self._key(provider, model)
+        meta = self._route_meta(*key)
+        cb = self._breaker(*key)
+        meta.health = RouteHealth.DISABLED if key in self._disabled else _STATE_TO_HEALTH[cb.state]
+        if cb.state == CircuitState.OPEN:
+            meta.next_retry_at = cb.last_failure_time + cb.config.recovery_timeout
+        return meta
 
-    def can_try(self, provider: str, model: str = "*") -> bool:
-        provider_state = self.state(provider, "*")
-        model_state = self.state(provider, model)
-        return provider_state.can_try() and model_state.can_try()
+    async def can_try(self, provider: str, model: str = "*") -> bool:
+        provider_key = self._key(provider, "*")
+        model_key = self._key(provider, model)
+        if provider_key in self._disabled or model_key in self._disabled:
+            return False
+        provider_ok = await self._breaker(*provider_key).can_proceed()
+        model_ok = await self._breaker(*model_key).can_proceed()
+        return provider_ok and model_ok
 
-    def record_success(self, provider: str, model: str = "*", latency_ms: float = 0.0) -> ProviderRouteState:
-        state = self.state(provider, model)
-        state.successes += 1
-        state.consecutive_failures = 0
-        state.health = RouteHealth.HEALTHY
-        state.next_retry_at = 0.0
-        state.updated_at = time.time()
+    async def record_success(self, provider: str, model: str = "*", latency_ms: float = 0.0) -> ProviderRouteState:
+        key = self._key(provider, model)
+        await self._breaker(*key).on_success()
+        meta = self._route_meta(*key)
+        meta.successes += 1
+        meta.consecutive_failures = 0
+        meta.health = RouteHealth.HEALTHY
+        meta.next_retry_at = 0.0
+        meta.updated_at = time.time()
         if latency_ms > 0:
-            state.rolling_latency_ms = (
-                latency_ms if state.rolling_latency_ms <= 0 else state.rolling_latency_ms * 0.8 + latency_ms * 0.2
+            meta.rolling_latency_ms = (
+                latency_ms if meta.rolling_latency_ms <= 0 else meta.rolling_latency_ms * 0.8 + latency_ms * 0.2
             )
-        return state
+        return meta
 
-    def record_failure(
+    async def record_failure(
         self,
         provider: str,
         model: str = "*",
         kind: FailureKind = FailureKind.UNKNOWN,
         error: str = "",
     ) -> ProviderRouteState:
-        target = "*" if kind == FailureKind.AUTH else (model or "*")
-        state = self.state(provider, target)
-        state.failures += 1
-        state.consecutive_failures += 1
-        state.last_failure_kind = kind
-        state.last_error = error[:300]
-        state.updated_at = time.time()
+        target_model = "*" if kind == FailureKind.AUTH else (model or "*")
+        key = self._key(provider, target_model)
+        meta = self._route_meta(*key)
+        meta.failures += 1
+        meta.consecutive_failures += 1
+        meta.last_failure_kind = kind
+        meta.last_error = error[:300]
+        meta.updated_at = time.time()
+
         if kind == FailureKind.AUTH:
-            state.health = RouteHealth.DISABLED
-        elif kind == FailureKind.BAD_REQUEST:
-            state.health = RouteHealth.HEALTHY
-        elif kind == FailureKind.RATE_LIMIT or state.consecutive_failures >= self.failure_threshold:
-            state.health = RouteHealth.COOLDOWN
-            cooldown = self.rate_limit_cooldown_seconds if kind == FailureKind.RATE_LIMIT else self.base_cooldown_seconds
-            state.next_retry_at = time.time() + cooldown
-        return state
+            self._disabled.add(key)
+            meta.health = RouteHealth.DISABLED
+            return meta
+        if kind == FailureKind.BAD_REQUEST:
+            # Caller's fault (malformed request), not the provider's —
+            # must not trip the circuit.
+            meta.health = RouteHealth.HEALTHY
+            return meta
+
+        cb = self._breaker(*key)
+        cb.config.recovery_timeout = (
+            self.rate_limit_cooldown_seconds if kind == FailureKind.RATE_LIMIT else self.base_cooldown_seconds
+        )
+        await cb.on_failure()
+        meta.health = _STATE_TO_HEALTH[cb.state]
+        if cb.state == CircuitState.OPEN:
+            meta.next_retry_at = cb.last_failure_time + cb.config.recovery_timeout
+        return meta
+
+    def reset(self, provider: str, model: str = "*") -> None:
+        """Manual override — clears a permanent AUTH disable."""
+        self._disabled.discard(self._key(provider, model))
 
     def classify_error(self, error: BaseException | str) -> FailureKind:
         text = str(error).lower()
@@ -130,20 +201,22 @@ class ProviderHealthManager:
         return FailureKind.UNKNOWN
 
     def snapshot(self) -> list[dict]:
-        return [
-            {
-                "provider": state.provider,
-                "model": state.model,
-                "health": state.health.value,
-                "successes": state.successes,
-                "failures": state.failures,
-                "consecutive_failures": state.consecutive_failures,
-                "last_failure_kind": state.last_failure_kind.value if state.last_failure_kind else None,
-                "next_retry_at": state.next_retry_at,
-                "rolling_latency_ms": round(state.rolling_latency_ms, 2),
-            }
-            for state in self._states.values()
-        ]
+        result = []
+        for key, meta in self._meta.items():
+            cb = self._breaker(*key)
+            health = RouteHealth.DISABLED if key in self._disabled else _STATE_TO_HEALTH[cb.state]
+            result.append({
+                "provider": meta.provider,
+                "model": meta.model,
+                "health": health.value,
+                "successes": meta.successes,
+                "failures": meta.failures,
+                "consecutive_failures": meta.consecutive_failures,
+                "last_failure_kind": meta.last_failure_kind.value if meta.last_failure_kind else None,
+                "next_retry_at": meta.next_retry_at,
+                "rolling_latency_ms": round(meta.rolling_latency_ms, 2),
+            })
+        return result
 
 
 _health: ProviderHealthManager | None = None
