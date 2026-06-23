@@ -1,6 +1,6 @@
-# Repo Absorption — 21 DONE (consolidated)
+# Repo Absorption — 22 DONE (consolidated)
 
-**Date:** 2026-06-23 (supertonic added in a later pass same day). Supersedes the individual per-repo `.md` files this
+**Date:** 2026-06-23 (supertonic and open-webui added in later passes same day). Supersedes the individual per-repo `.md` files this
 consolidates (removed from this directory — their content is folded in
 below). Source of truth for "is X done" is `_MASTER_TODO.md` §2; this file
 is the evidence archive for the ✅ rows there. Don't re-investigate these —
