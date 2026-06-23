@@ -342,15 +342,6 @@ def run_dependency_doctor(
                 )
             )
 
-        if sidecar_path_checks.get("sidecar:librechat_path", DependencyCheck("", "fail", False)).ok:
-            librechat_base = os.environ.get("LIBRECHAT_URL", "http://127.0.0.1:3080").strip()
-            checks.append(
-                _check_local_http_service(
-                    "sidecar:librechat_health",
-                    librechat_base,
-                    production_mode,
-                )
-            )
 
     required_failed = sum(1 for check in checks if check.required and not check.ok)
     warnings = sum(1 for check in checks if not check.required and not check.ok)
