@@ -56,3 +56,76 @@ async def connect_hackernews(query: str, limit: int = 20) -> Last30DaysBrief:
     except Exception as exc:
         logger.warning("[VECTOR][last30days] hackernews connector failed: {}", exc)
         return build_brief(query, [], degraded_sources=["hackernews"])
+
+
+async def connect_reddit(query: str, subreddits: list[str] | None = None, limit: int = 10) -> Last30DaysBrief:
+    """Fetch hot posts from the given subreddits and normalize into the
+    last30days brief schema. Reuses RedditMiner.fetch_hot — already a
+    first-party VECTOR connector against Reddit's public read-only JSON API
+    (no OAuth), not third-party skill text.
+    """
+    try:
+        from districts.research.reddit_miner import RedditMiner
+
+        miner = RedditMiner()
+        subs = subreddits or _DEFAULT_SUBREDDITS
+        signals: list[RecentSignal] = []
+        for sub in subs:
+            posts = await miner.fetch_hot(sub, limit=limit)
+            for post in posts:
+                signals.append(RecentSignal(
+                    source="reddit",
+                    title=post.get("title", ""),
+                    url=post.get("url", ""),
+                    published_at=datetime.now(timezone.utc).isoformat(),
+                    engagement=float(post.get("score", 0)),
+                    confidence=0.7,
+                    notes=f"r/{post.get('subreddit', sub)}, {post.get('comments', 0)} comments",
+                ))
+        return build_brief(query, signals)
+    except Exception as exc:
+        logger.warning("[VECTOR][last30days] reddit connector failed: {}", exc)
+        return build_brief(query, [], degraded_sources=["reddit"])
+
+
+async def connect_github(query: str, language: str = "python", limit: int = 10) -> Last30DaysBrief:
+    """Fetch GitHub trending repos and normalize into the last30days brief
+    schema. Reuses ResearchHub.get_github_trending (public Search API, no auth)."""
+    try:
+        from districts.research.research_hub import ResearchHub
+
+        repos = await ResearchHub().get_github_trending(language=language, limit=limit)
+        signals = [
+            RecentSignal(
+                source="github",
+                title=repo.get("name", ""),
+                url=repo.get("url", ""),
+                published_at=datetime.now(timezone.utc).isoformat(),
+                engagement=float(repo.get("stars", 0)),
+                confidence=0.75,
+                notes=repo.get("description", ""),
+            )
+            for repo in repos
+        ]
+        return build_brief(query, signals)
+    except Exception as exc:
+        logger.warning("[VECTOR][last30days] github connector failed: {}", exc)
+        return build_brief(query, [], degraded_sources=["github"])
+
+
+async def connect_all(query: str, limit: int = 10) -> Last30DaysBrief:
+    """Fan out to all connectors and merge into one combined brief — the
+    doc's own "source fanout" idea. A single connector's failure only adds
+    its name to degraded_sources, it never takes down the whole brief.
+    """
+    briefs = [
+        await connect_hackernews(query, limit=limit),
+        await connect_reddit(query, limit=limit),
+        await connect_github(query, limit=limit),
+    ]
+    signals: list[RecentSignal] = []
+    degraded: list[str] = []
+    for brief in briefs:
+        signals.extend(brief.signals)
+        degraded.extend(brief.degraded_sources)
+    return build_brief(query, signals, degraded_sources=degraded)
