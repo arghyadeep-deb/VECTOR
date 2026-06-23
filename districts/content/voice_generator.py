@@ -92,6 +92,51 @@ class VoiceGenerator(AgentBase):
             logger.error(f"[VECTOR][voice_generator] Voice generation failed: {e}")
             return {"status": "error", "message": str(e)}
 
+    def _get_omnivoice_engine(self):
+        """Lazily build the OmniVoice adapter from CONFIG. Separate method
+        so tests can monkeypatch it without touching the real config or
+        loading the (likely not pip-installed) omnivoice package."""
+        from core.voice.engines.omnivoice_engine import OmniVoiceConfig, OmniVoiceEngine
+
+        if self._omnivoice_config is None:
+            voice_cfg = CONFIG.get("voice", {})
+            self._omnivoice_config = OmniVoiceConfig(
+                enabled=bool(voice_cfg.get("omnivoice_enabled", False)),
+            )
+        return OmniVoiceEngine(self._omnivoice_config)
+
+    def generate_voice_studio(self, text: str, language: str = "en",
+                               output_path: Optional[str] = None) -> dict:
+        """High-quality content-generation voice path (docs/repo_analysis/
+        omnivoice.md's "Voice Studio" — distinct from the always-on live
+        conversation engine, which never touches OmniVoice regardless of
+        this config). Tries OmniVoice first when enabled; falls back to
+        Kokoro (generate_voice) on any failure or when disabled, never
+        raising to the caller.
+        """
+        engine_config = self._omnivoice_config
+        if engine_config is None:
+            voice_cfg = CONFIG.get("voice", {})
+            from core.voice.engines.omnivoice_engine import OmniVoiceConfig
+            engine_config = OmniVoiceConfig(enabled=bool(voice_cfg.get("omnivoice_enabled", False)))
+            self._omnivoice_config = engine_config
+
+        if not engine_config.enabled:
+            result = self.generate_voice(text, output_path=output_path)
+            result["engine"] = "kokoro"
+            return result
+
+        try:
+            engine = self._get_omnivoice_engine()
+            path = engine.synthesize_to_file(text, language=language, output_path=output_path)
+            return {"status": "success", "engine": "omnivoice", "output_path": path}
+        except Exception as exc:
+            logger.warning("[VECTOR][voice_generator] OmniVoice failed, falling back to Kokoro: {}", exc)
+            result = self.generate_voice(text, output_path=output_path)
+            result["engine"] = "kokoro"
+            result["fallback_reason"] = f"omnivoice failed: {exc}"
+            return result
+
     def generate_in_my_voice(self, text: str, profile_name: str = "owner",
                              output_path: Optional[str] = None) -> dict:
         """
