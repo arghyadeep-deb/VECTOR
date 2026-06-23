@@ -200,6 +200,34 @@ def persist_extraction_artifact(artifact: WebExtractionArtifact, query: str = ""
         return None
 
 
+async def fetch_via_vector_scraper(url: str, query: str = "", max_chars: int = 12000) -> WebExtractionArtifact:
+    """Primary extraction path — reuses VECTOR's own already-wired scraper
+    (core/scraper/vector_scraper.py::VectorScraper, 7 existing callers)
+    instead of an external, not-installed package. SSRF-checked, audited,
+    real markdown conversion via `markdownify` already built in.
+
+    Crawl4AIProvider above stays as an explicitly optional upgrade for
+    crawl4ai-specific features VectorScraper doesn't have (deep-crawl
+    resume, BM25 fit-markdown, schema extraction) — not removed, since
+    those are genuinely different capabilities, not pure duplication.
+    """
+    from core.scraper.vector_scraper import VectorScraper
+
+    scraper = VectorScraper()
+    result = await scraper.smart_fetch(url)
+    if not result.ok:
+        raise RuntimeError(f"fetch failed: {result.error or result.status_code}")
+
+    return build_extraction_artifact(
+        url,
+        result.markdown or result.content,
+        mode="vector_scraper_clean_markdown",
+        query=query,
+        max_chars=max_chars,
+        metadata={"fetcher_used": result.fetcher_used, "status_code": result.status_code},
+    )
+
+
 def _clean_inline(html: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", unescape(html))).strip()
 
