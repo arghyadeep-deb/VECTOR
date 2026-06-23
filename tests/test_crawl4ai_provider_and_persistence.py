@@ -97,6 +97,48 @@ def test_crawl4ai_provider_fetch_normalizes_to_webextractionartifact(monkeypatch
     assert artifact.extraction_mode == "crawl4ai_clean_markdown"
     assert artifact.title == "Hello Page"
     assert "Hello" in artifact.markdown
+
+
+def test_fetch_via_vector_scraper_normalizes_to_webextractionartifact(monkeypatch):
+    """Primary path: reuses VECTOR's own already-wired scraper (SSRF-checked,
+    audited, real markdownify conversion, 7 existing callers) instead of an
+    external, not-installed package."""
+    from core.research_engine.content_fetcher.extraction import (
+        fetch_via_vector_scraper, WebExtractionArtifact,
+    )
+    from core.scraper.vector_scraper import ScrapeResult
+
+    async def _fake_smart_fetch(self, url):
+        return ScrapeResult(
+            url=url, status_code=200,
+            content="raw html ignored", markdown="# Hello\n\nWorld content",
+            html="<html><body><h1>Hello</h1></body></html>",
+            fetcher_used="http_tls",
+        )
+
+    monkeypatch.setattr("core.scraper.vector_scraper.VectorScraper.smart_fetch", _fake_smart_fetch)
+
+    artifact = asyncio.run(fetch_via_vector_scraper("https://example.com", query="hello"))
+    assert isinstance(artifact, WebExtractionArtifact)
+    assert artifact.extraction_mode == "vector_scraper_clean_markdown"
+    assert "Hello" in artifact.markdown
+    assert artifact.content_hash
+
+
+def test_fetch_via_vector_scraper_raises_clean_error_on_blocked_or_failed_fetch(monkeypatch):
+    from core.research_engine.content_fetcher.extraction import fetch_via_vector_scraper
+    from core.scraper.vector_scraper import ScrapeResult
+
+    async def _fake_smart_fetch_blocked(self, url):
+        return ScrapeResult(url=url, status_code=403, content="", error="SSRF blocked")
+
+    monkeypatch.setattr("core.scraper.vector_scraper.VectorScraper.smart_fetch", _fake_smart_fetch_blocked)
+
+    try:
+        asyncio.run(fetch_via_vector_scraper("http://169.254.169.254/"))
+        assert False, "expected RuntimeError"
+    except RuntimeError as exc:
+        assert "SSRF blocked" in str(exc) or "fetch failed" in str(exc).lower()
     assert artifact.content_hash
     assert any(l["url"] == "https://example.com/about" for l in artifact.links)
 
