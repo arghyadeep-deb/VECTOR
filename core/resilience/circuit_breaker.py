@@ -85,7 +85,7 @@ class CircuitBreaker:
                 return False
             return False
 
-    async def _on_success(self) -> None:
+    async def on_success(self) -> None:
         async with self._lock:
             if self.state == CircuitState.HALF_OPEN:
                 self.success_count += 1
