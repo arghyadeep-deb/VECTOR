@@ -1,6 +1,8 @@
 # Task 15 — Comms service deploy
 
-- **Depends on:** Task 12 (+ rotated channel creds from Task 01)
+> Updated: Task 12 (Fly.io) was cancelled — no longer a dependency.
+
+- **Depends on:** Task 01 (rotated channel creds)
 - **Who:** me
 - **Effort:** ~45 min
 
