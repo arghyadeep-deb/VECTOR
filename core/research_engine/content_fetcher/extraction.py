@@ -113,6 +113,93 @@ def build_extraction_artifact(
     )
 
 
+class Crawl4AIProvider:
+    """Disabled-by-default optional provider wrapping the real `crawl4ai`
+    package, when installed. Normalizes its output into the same
+    WebExtractionArtifact contract every other extraction path uses —
+    docs/repo_analysis/crawl4ai.md's "Implement a disabled-by-default
+    Crawl4AI provider path" recommendation. VECTOR works without it
+    installed; this class never imports `crawl4ai` until fetch() is called
+    with enabled=True.
+    """
+
+    def __init__(self, enabled: bool = False):
+        self.enabled = enabled
+        self._crawler = None
+
+    def available(self) -> bool:
+        if not self.enabled:
+            return False
+        try:
+            import crawl4ai  # noqa: F401
+            return True
+        except Exception:
+            return False
+
+    def _load_crawler(self):
+        from crawl4ai import AsyncWebCrawler  # type: ignore
+
+        return AsyncWebCrawler()
+
+    async def fetch(self, url: str, query: str = "", max_chars: int = 12000) -> WebExtractionArtifact:
+        if not self.available():
+            raise RuntimeError("crawl4ai package not installed or provider disabled")
+        crawler = self._load_crawler()
+        async with crawler as session:
+            result = await session.arun(url)
+
+        markdown = getattr(result, "markdown", None) or getattr(result, "html", "") or ""
+        links_raw = getattr(result, "links", {}) or {}
+        links = [
+            {"url": link.get("href", ""), "text": link.get("text", "")}
+            for bucket in links_raw.values()
+            for link in (bucket or [])
+            if link.get("href")
+        ]
+        metadata = getattr(result, "metadata", {}) or {}
+        return build_extraction_artifact(
+            getattr(result, "url", url) or url,
+            markdown,
+            title=metadata.get("title"),
+            links=links,
+            mode="crawl4ai_clean_markdown",
+            query=query,
+            max_chars=max_chars,
+            metadata=metadata,
+        )
+
+
+def _get_episodic_memory():
+    from core.memory.episodic import EpisodicMemory
+
+    return EpisodicMemory()
+
+
+def persist_extraction_artifact(artifact: WebExtractionArtifact, query: str = "") -> str | None:
+    """Store an extraction result as a citation/hash-tracked research
+    artifact — docs/repo_analysis/crawl4ai.md item 3: "Normalize outputs
+    into VECTOR research artifacts with citations and hashes." Never
+    raises (house convention for observe-style persistence calls);
+    returns None on any failure instead of propagating.
+    """
+    try:
+        memory = _get_episodic_memory()
+        return memory.store(
+            event_type="web_extraction_artifact",
+            content={
+                "url": artifact.url,
+                "content_hash": artifact.content_hash,
+                "fetched_at": artifact.fetched_at,
+                "extraction_mode": artifact.extraction_mode,
+                "title": artifact.title,
+                "links": artifact.links,
+                "query": query,
+            },
+        )
+    except Exception:
+        return None
+
+
 def _clean_inline(html: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", unescape(html))).strip()
 
