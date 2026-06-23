@@ -93,7 +93,14 @@ def test_supertonic_tts_load_raises_clean_error_when_weights_missing(monkeypatch
 def test_supertonic_tts_create_returns_samples_and_sample_rate(monkeypatch):
     """create() must obtain a real Style object via get_voice_style()
     before calling synthesize() -- synthesize() requires a Style instance,
-    not a bare string/None, which the original code passed."""
+    not a bare string/None, which the original code passed.
+
+    Real bug found 2026-06-24 (live verification after weights downloaded):
+    engine.synthesize() returns (waveform, duration_in_seconds), NOT
+    (samples, sample_rate) -- confirmed directly against the real package
+    (the second value was a float like 4.23, not an integer sample rate).
+    The real fixed sample rate lives on engine.sample_rate. create() must
+    return that, not synthesize()'s second value verbatim."""
     from core.voice.supertonic_tts import SupertonicTTS
     import numpy as np
 
@@ -103,22 +110,22 @@ def test_supertonic_tts_create_returns_samples_and_sample_rate(monkeypatch):
         pass
 
     class _FakeEngine:
+        sample_rate = 44100
+
         def get_voice_style(self, name):
-            # Real bug found 2026-06-24 (live verification after weights
-            # downloaded): "default" is not a real preset -- the real
-            # package raises FileNotFoundError, listing M1-M5/F1-F5 as the
-            # only valid names. Assert the fix uses a real one.
+            # "default" is not a real preset -- the real package raises
+            # FileNotFoundError, listing M1-M5/F1-F5 as the only valid names.
             assert name in {"M1", "M2", "M3", "M4", "M5", "F1", "F2", "F3", "F4", "F5"}, name
             return _FakeStyle()
 
         def synthesize(self, text, voice_style, total_steps=8, speed=1.0, lang=None, **kw):
             assert isinstance(voice_style, _FakeStyle)
-            return (np.zeros(100), 24000)
+            return (np.zeros((1, 100)), np.array([0.0023]))  # (waveform, duration) -- real shape
 
     monkeypatch.setattr(tts, "_load", lambda: _FakeEngine())
     samples, sr = tts.create("hello", lang="en")
-    assert sr == 24000
-    assert len(samples) == 100
+    assert sr == 44100, "must return engine.sample_rate, not synthesize()'s duration value"
+    assert samples.shape == (1, 100)
 
 
 def test_lang_code_maps_en_hi_ja_directly():
