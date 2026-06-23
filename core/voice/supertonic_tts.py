@@ -59,8 +59,20 @@ class SupertonicTTS:
         if self._engine is None:
             import supertonic  # type: ignore
 
-            self._engine = supertonic.load_model(self.model_dir or None)
+            # Real API confirmed against the installed package (no
+            # module-level load_model() exists -- supertonic.TTS is the
+            # actual entry point):
+            self._engine = supertonic.TTS(model_dir=self.model_dir or None)
         return self._engine
+
+    def _resolve_voice_style(self, engine):
+        """synthesize() requires a real Style object, not a bare path
+        string. A configured voice_style is treated as a path to a
+        Voice-Builder persona JSON; otherwise fall back to the engine's
+        own default preset voice."""
+        if self.voice_style:
+            return engine.get_voice_style_from_path(self.voice_style)
+        return engine.get_voice_style("default")
 
     def create(self, text: str, lang: str = "en", speed: float = 1.0) -> tuple:
         """Synthesize `text`. Returns (samples, sample_rate) — same shape
@@ -71,10 +83,11 @@ class SupertonicTTS:
         if mapped_lang is None:
             raise RuntimeError(f"supertonic does not support lang={lang!r} — route to gTTS instead")
         engine = self._load()
+        voice_style = self._resolve_voice_style(engine)
         return engine.synthesize(
             text=text,
+            voice_style=voice_style,
             lang=mapped_lang,
-            voice_style=self.voice_style or None,
             total_steps=self.total_steps,
             speed=speed,
         )
