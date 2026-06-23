@@ -261,7 +261,7 @@ class ProviderClient:
                 from core.inference.provider_health import get_provider_health
 
                 _health = get_provider_health()
-                if not _health.can_try(_prov.slug, target_model):
+                if not await _health.can_try(_prov.slug, target_model):
                     logger.warning(
                         "[VECTOR][provider_client] {}:{} skipped by provider health circuit",
                         _prov.slug,
