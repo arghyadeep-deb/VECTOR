@@ -210,6 +210,25 @@ class VoiceTTS:
                 logger.info(f"[VECTOR][tts] {lang} gTTS unavailable — using pyttsx3 fallback")
             self._speak_pyttsx3(text)
 
+    def _speak_supertonic(self, text: str, lang: str) -> bool:
+        """Try the optional Supertonic live engine. Returns False (never
+        raises) when live_engine isn't "supertonic" or the package/lang
+        isn't available, so the caller falls through to Kokoro unchanged."""
+        try:
+            from core.voice.supertonic_tts import get_live_tts
+            engine_name, engine = get_live_tts()
+            if engine_name != "supertonic" or engine is None or not engine.available():
+                return False
+            import sounddevice as sd
+            samples, sr = engine.create(text, lang=lang, speed=self._speed)
+            logger.info("[VECTOR][tts] supertonic speak '{}...' lang={}", text[:40], lang)
+            sd.play(samples, samplerate=sr)
+            sd.wait()
+            return True
+        except Exception as e:
+            logger.warning("[VECTOR][tts] supertonic speak failed: {} — falling back to Kokoro", e)
+            return False
+
     def _speak_clone(self, text: str, profile_name: str) -> bool:
         """Render `text` in a cloned voice profile and play it. Returns True on success.
 
