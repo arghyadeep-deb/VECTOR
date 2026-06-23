@@ -240,8 +240,32 @@ class ConsolidationBot(AgentBase):
     # ── Loop ──────────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
+        task_type = (task or {}).get("type", "")
+        if task_type == "store_findings":
+            return self._store_findings(task.get("params", {}))
         count = await self.consolidate_old_episodes()
         return {"status": "ok", "consolidated": count}
+
+    def _store_findings(self, params: dict) -> dict:
+        """Store a specific research finding into semantic memory.
+
+        districts/research/research_hub.py's event-triggered research sends
+        this — it expects a targeted write, not a full consolidation pass.
+        Reuses the same EpisodicMemory.remember() write path
+        consolidate_old_episodes() already uses for semantic-memory entries.
+        """
+        topic = str(params.get("topic", "")).strip()
+        findings = str(params.get("findings", "")).strip()
+        if not topic or not findings:
+            return {"status": "error", "error": "store_findings needs both 'topic' and 'findings'"}
+        key = f"finding:{topic}:{datetime.datetime.now().isoformat()}"
+        try:
+            self._memory.remember(key, findings, category="research_finding", confidence=0.6)
+            self.award_points(15, "finding_stored")
+            return {"status": "ok", "key": key}
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] store_findings failed: {e}")
+            return {"status": "error", "error": str(e)}
 
     async def run_forever(self) -> None:
         """Daily reflection + weekly consolidation. RULE 2 — never crashes."""
