@@ -119,7 +119,7 @@ Legend: ✅ DONE (cite file) · 🟡 PARTIAL · ⬜ TODO · 🔵 DEFERRED(owner)
 | 30 | **OpenCut** | SKIP (scaffold) | N/A | ⏭️ SKIP |
 | 31 | **text-to-cad** | SKIP (bookmark) | N/A | ⏭️ SKIP |
 
-**Net effect:** 6 of 14 "near-term implement" items are genuinely ✅ DONE, 7 are 🟡 PARTIAL (substrate exists, the doc's own "Next" lists are the real remaining TODOs — narrower than re-implementing from scratch), 1 (train-llm post-training) is a real, substantial ⬜ TODO.
+**Net effect (re-audited 2026-06-23, every row checked against current code this pass, not trusted from a prior turn's summary):** of all 31 repos — **17 ✅ DONE**, **6 🟡 PARTIAL** (substrate exists, doc's own "Next" lists are the real remaining work), **2 ⬜ TODO** (train-llm post-training is done — see §1c — turbovec/ECC-adjacent low-priority items remain), **8 🔵 DEFERRED(owner)** (heavy installs or genuinely optional sidecars), **4 ⏭️ SKIP** (confirmed zero implementation traces, correctly skipped), **1 — N/A** (reference-only). One real discrepancy was caught and fixed this pass: **SkillSpector and AssetVideoPipelineAgent (Pixelle-Video) were claimed "manifest-registered" in an earlier turn but genuinely were not** — `scripts/manifest_gap.py` re-scan caught it, both are now registered for real and verified to dispatch end-to-end through `Governor().dispatch()`.
 
 ---
 
