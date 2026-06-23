@@ -136,13 +136,18 @@ def test_auth_failure_permanently_disables_regardless_of_wait():
 
 
 def test_auth_disable_can_be_manually_reset():
+    """AUTH disables at the provider level ("*"), matching the original
+    semantics: target_model becomes "*" for AUTH failures regardless of
+    which model triggered it (an invalid API key blocks the whole
+    provider, not just one model) -- so reset() must target that same
+    provider-level key."""
     from core.inference.provider_health import FailureKind
 
     mgr = _fresh_manager()
 
     async def _run():
         await mgr.record_failure("openai", "gpt-4", kind=FailureKind.AUTH, error="401")
-        mgr.reset("openai", "gpt-4")
+        mgr.reset("openai", "*")
         return await mgr.can_try("openai", "gpt-4")
 
     assert asyncio.run(_run()) is True
