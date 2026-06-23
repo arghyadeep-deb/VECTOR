@@ -44,13 +44,10 @@ def test_mcp_subcommand_parses_port_without_error():
 
 def test_cmd_mcp_uses_parsed_port_not_hardcoded(monkeypatch):
     from vectorcode.src import cli
+    import subprocess as real_subprocess
 
     captured = {}
-
-    def _fake_run(cmd):
-        captured["cmd"] = cmd
-
-    monkeypatch.setattr(cli.subprocess if hasattr(cli, "subprocess") else __import__("subprocess"), "run", _fake_run)
+    monkeypatch.setattr(real_subprocess, "run", lambda cmd: captured.setdefault("cmd", cmd))
 
     class Args:
         sse = True
