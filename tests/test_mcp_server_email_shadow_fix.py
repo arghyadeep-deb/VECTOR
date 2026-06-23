@@ -37,20 +37,23 @@ _REPO_ROOT = Path(__file__).parent.parent
 _MCP_SERVER = _REPO_ROOT / "core" / "mcp_server.py"
 
 
-def test_mcp_server_does_not_shadow_stdlib_email_when_run_as_direct_script():
-    """The exact real-world reproduction: invoke as a direct script, same
-    as vectorcode_bridge.py's subprocess.Popen does, and confirm `import
-    email` resolves to the stdlib, not core/email/."""
+def test_mcp_server_own_sys_path_fixup_prevents_email_shadowing():
+    """Reproduces the exact hazard Python creates automatically when
+    core/mcp_server.py is run as a direct script: it auto-prepends
+    core/mcp_server.py's own directory (core/) to sys.path[0], which would
+    make core/email/ shadow the stdlib email package for the rest of the
+    process. core/mcp_server.py's own fix-up at the top of the file must
+    neutralize this regardless of what sys.path looked like beforehand."""
     result = subprocess.run(
         [sys.executable, "-c",
-         "import sys; sys.path.insert(0, str(__import__('pathlib').Path(r'" + str(_MCP_SERVER.parent) + r"'))); "
+         "import sys; sys.path.insert(0, r'" + str(_MCP_SERVER.parent) + r"'); "
+         "exec(open(r'" + str(_MCP_SERVER) + r"').read().split('if __name__')[0]); "
          "import email; print(email.__file__)"],
-        capture_output=True, text=True, timeout=15,
+        capture_output=True, text=True, timeout=15, cwd=str(_REPO_ROOT),
     )
-    # This direct repro of the OLD bug confirms the hazard exists at the
-    # sys.path level -- core/mcp_server.py's own fix must defend against it
-    # without relying on callers to avoid this sys.path shape.
-    assert "core" in result.stdout.lower() or result.returncode == 0
+    assert "core" not in result.stdout.replace("\\", "/").lower(), (
+        f"email resolved to VECTOR's core/email/, not stdlib. stdout={result.stdout!r} stderr={result.stderr[-500:]!r}"
+    )
 
 
 def test_mcp_server_script_does_not_crash_on_startup_import_chain():
