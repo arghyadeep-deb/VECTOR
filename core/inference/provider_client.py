@@ -310,7 +310,7 @@ class ProviderClient:
                 _err_low = last_error.lower()
                 if _health is not None:
                     _kind = _health.classify_error(e)
-                    _health.record_failure(_prov.slug, target_model, kind=_kind, error=last_error)
+                    await _health.record_failure(_prov.slug, target_model, kind=_kind, error=last_error)
                 if _mark_cooldown and (
                     "429" in last_error
                     or "rate limit" in _err_low
