@@ -142,6 +142,15 @@ def test_get_live_tts_factory_dispatches_to_supertonic():
     assert isinstance(engine, SupertonicTTS)
 
 
+def test_get_live_tts_factory_defaults_auto_download_off():
+    """~260MB model weights are a separate, explicit owner action --
+    the factory must never default to auto-downloading them."""
+    from core.voice.supertonic_tts import get_live_tts
+
+    _, engine = get_live_tts(live_engine="supertonic")
+    assert engine.auto_download is False
+
+
 def test_config_defaults_are_safe():
     from core.config import CONFIG
 
