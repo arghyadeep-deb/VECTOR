@@ -325,7 +325,6 @@ def run_dependency_doctor(
     if include_optional:
         optional_paths = [
             ("sidecar:comfyui_path", "VECTOR_COMFYUI_PATH"),
-            ("sidecar:librechat_path", "VECTOR_LIBRECHAT_PATH"),
         ]
         sidecar_path_checks: dict[str, DependencyCheck] = {}
         for name, env_name in optional_paths:
