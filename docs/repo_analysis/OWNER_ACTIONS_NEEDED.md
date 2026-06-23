@@ -179,5 +179,5 @@ machine, your phone, and real cloud credentials.
 
 - Kokoro TTS — already installed and working (confirmed: real 911ms/412ms latency benchmarks captured this session)
 - `sqlalchemy_utc`, `beartype` pins — already installed/verified
-- Cloudflare Worker code, command queue, node status model, Worker auth — all code-complete and tested, only the deploy step above is pending
+- Cloudflare Worker code, command queue, node status model, Worker auth — all code-complete, tested, **and now deployed and verified live** (§5)
 - 24 of 31 repos in the absorption list — fully done, see `_DONE.md`
