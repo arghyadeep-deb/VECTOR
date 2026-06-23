@@ -19,8 +19,11 @@ duplicated across many stale task files.
   deployment, and owner-triggered work.
 
 Superseded production-hardening and audit-remediation plan folders were
-consolidated into [`docs/REPO_STATUS.md`](../docs/REPO_STATUS.md). Use
-`python run_vector.py production-check` for the live readiness gate.
+consolidated into [`docs/repo_analysis/_MASTER_TODO.md`](../docs/repo_analysis/_MASTER_TODO.md)
+and [`docs/repo_analysis/OWNER_ACTIONS_NEEDED.md`](../docs/repo_analysis/OWNER_ACTIONS_NEEDED.md)
+(`docs/REPO_STATUS.md` itself was deleted as a stale snapshot — its content
+lives in those two files now). Use `python run_vector.py production-check`
+for the live readiness gate.
 
 ## Creating A New Plan
 
