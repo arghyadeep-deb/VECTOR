@@ -48,7 +48,7 @@ def test_omnivoice_generate_path_is_mockable_without_real_model(monkeypatch):
     monkeypatch.setattr(engine, "_load", lambda: _FakeModel())
 
     result = engine.synthesize_to_file("hello world", output_path="/tmp/test_omnivoice.wav")
-    assert result == "/tmp/test_omnivoice.wav"
+    assert Path(result) == Path("/tmp/test_omnivoice.wav")
 
 
 def test_live_conversation_tts_never_references_omnivoice():
