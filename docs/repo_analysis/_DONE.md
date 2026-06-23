@@ -175,7 +175,7 @@ identified is genuinely closed.
 
 These were never "implement" verdicts — closed by decision, not by code. Consolidated here for the same reason as the 24 above: their individual `.md` files added no further information once distilled.
 
-## 25. remotion — SKIP
+## 26. remotion — SKIP
 **Why:** VECTOR independently built the *same* architecture Remotion uses (deterministic headless-Chromium frame-seek capture of animated HTML/CSS/JS → ffmpeg encode) in `core/video/vector_composer.py` + `html_renderer.py` + `vector_runtime.js`, including GSAP/anime.js/WAAPI adapters. Zero real capability gap — only an authoring-ergonomics delta (React/JSX vs. Python-generated HTML). Decisive factor: Remotion's source-available license mandates a paid Company License the instant VECTOR's content/agency districts operate commercially at any scale.
 **Revisit only if:** VECTOR's home-grown composer proves inadequate for complex motion graphics AND the licensing cost is acceptable. Neither is true today.
 
