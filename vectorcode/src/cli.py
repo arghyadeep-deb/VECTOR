@@ -158,7 +158,7 @@ def cmd_hybrid(_args):
 
 def cmd_mcp(args):
     import subprocess
-    mcp_script = Path(__file__).parent.parent.parent.parent / "core" / "mcp_server.py"
+    mcp_script = Path(__file__).parent.parent.parent / "core" / "mcp_server.py"
     cmd = [sys.executable, str(mcp_script)]
     if getattr(args, "sse", False):
         port = getattr(args, "port", 9000)
