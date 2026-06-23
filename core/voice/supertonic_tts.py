@@ -1,0 +1,103 @@
+"""Optional config-selectable live-conversation TTS engine (Supertonic 3).
+
+docs/repo_analysis/supertonic.md: a CPU-only, zero-VRAM alternative to
+Kokoro for live conversation — does not touch the cloning role (VoxCPM/
+Chatterbox). Mirrors core/voice/cloning.py's get_cloner() factory pattern:
+"kokoro" stays the existing tts.py code path unchanged; "supertonic" routes
+through this wrapper. bn/as are not in Supertonic's language set and stay
+on the existing gTTS fallback in tts.py — never fed to this engine.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+__all__ = [
+    "SupertonicTTS",
+    "get_live_tts",
+    "map_lang_code",
+    "SUPERTONIC_SUPPORTED_LANGS",
+    "SUPERTONIC_UNSUPPORTED_LANGS",
+]
+
+# Supertonic's 31-language set includes en/hi/ja directly (README.md:31-35).
+# bn/as are not supported — same gap as Kokoro; stays on tts.py's gTTS route.
+SUPERTONIC_SUPPORTED_LANGS = {"en", "hi", "ja"}
+SUPERTONIC_UNSUPPORTED_LANGS = {"bn", "as"}
+
+
+def map_lang_code(lang: str) -> str | None:
+    """Map a VECTOR language code to Supertonic's code set, or None if
+    Supertonic doesn't support it (caller should keep that lang on gTTS)."""
+    if lang in SUPERTONIC_SUPPORTED_LANGS:
+        return lang
+    return None
+
+
+class SupertonicTTS:
+    """Lazy, guarded-import wrapper around the optional `supertonic` package."""
+
+    def __init__(self, enabled: bool = False, model_dir: str = "",
+                 total_steps: int = 8, voice_style: str = ""):
+        self.enabled = enabled
+        self.model_dir = model_dir
+        self.total_steps = total_steps
+        self.voice_style = voice_style
+        self._engine = None
+
+    def available(self) -> bool:
+        if not self.enabled:
+            return False
+        try:
+            import supertonic  # noqa: F401
+            return True
+        except Exception:
+            return False
+
+    def _load(self):
+        if not self.enabled:
+            raise RuntimeError("supertonic is disabled; set voice.live_engine=\"supertonic\" to enable")
+        if self._engine is None:
+            import supertonic  # type: ignore
+
+            self._engine = supertonic.load_model(self.model_dir or None)
+        return self._engine
+
+    def create(self, text: str, lang: str = "en", speed: float = 1.0) -> tuple:
+        """Synthesize `text`. Returns (samples, sample_rate) — same shape
+        Kokoro is used through (tts.py's `self._kokoro.create(...)`)."""
+        if not self.available():
+            raise RuntimeError("supertonic package not installed or disabled")
+        mapped_lang = map_lang_code(lang)
+        if mapped_lang is None:
+            raise RuntimeError(f"supertonic does not support lang={lang!r} — route to gTTS instead")
+        engine = self._load()
+        return engine.synthesize(
+            text=text,
+            lang=mapped_lang,
+            voice_style=self.voice_style or None,
+            total_steps=self.total_steps,
+            speed=speed,
+        )
+
+
+def get_live_tts(live_engine: str | None = None) -> tuple[str, SupertonicTTS | None]:
+    """Return (engine_name, engine) per CONFIG["voice"]["live_engine"].
+
+    "kokoro" (default) returns (name, None) — tts.py's existing Kokoro code
+    path needs zero changes, it's the engine when this factory returns None.
+    "supertonic" returns a live SupertonicTTS instance.
+    """
+    if live_engine is None:
+        from core.config import CONFIG
+        live_engine = (CONFIG.get("voice", {}) or {}).get("live_engine", "kokoro")
+
+    if live_engine == "supertonic":
+        from core.config import CONFIG
+        voice_cfg = CONFIG.get("voice", {}) or {}
+        return "supertonic", SupertonicTTS(
+            enabled=True,
+            model_dir=voice_cfg.get("supertonic_model_dir", ""),
+            total_steps=int(voice_cfg.get("supertonic_total_steps", 8)),
+            voice_style=voice_cfg.get("supertonic_voice_style", ""),
+        )
+    return "kokoro", None
