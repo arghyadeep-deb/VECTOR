@@ -183,7 +183,7 @@ These were never "implement" verdicts — closed by decision, not by code. Conso
 **Why:** The checked-out repo is a scaffold — Bun/TanStack/Cloudflare web shell with no editor core, timeline engine, rendering API, plugin runtime, or headless renderer yet (all "coming" per its own README). Nothing to absorb from the current code.
 **Revisit only if:** the project ships a real headless/programmatic editor API later.
 
-## 27. text-to-cad — SKIP
+## 28. text-to-cad — SKIP
 **Why:** VECTOR has zero CAD/3D capability (confirmed — no cadquery/build123d/STL/STEP hits anywhere). That's by design, not a gap: CAD/robotics/3D-printing is off-mission for this owner's software-builder JARVIS. The repo's actual polished value (React/Three.js viewer, agent-skill prompt scaffolding) is exactly the part VECTOR can't use; the portable Python slice reduces to "add build123d as a dependency," which isn't an absorption.
 **Revisit only if:** the owner explicitly pivots to hardware/robotics/3D-printing — bookmark this as the starting point (build123d directly, skip `cadpy`/the viewer fork).
 
