@@ -168,8 +168,8 @@ async def test_connect_all_fans_out_and_merges_sources(monkeypatch):
 
     brief = await mod.connect_all("test query")
     assert brief.query == "test query"
-    assert len(brief.signals) == 2
-    assert {"hackernews", "github"} <= {s.source for s in brief.signals}
+    assert len(brief.signals) == 3
+    assert {"hackernews", "github", "web_search"} <= {s.source for s in brief.signals}
     assert "reddit" in brief.degraded_sources
 
 
