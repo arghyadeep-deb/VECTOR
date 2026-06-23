@@ -164,4 +164,34 @@ identified is genuinely closed.
 
 ---
 
-*Consolidated from: `SkillSpector.md`, `auto-browser.md`, `headroom.md`, `omniroute.md`, `train-llm-from-scratch.md`, `youtube-automation-agent.md`, `supervision.md`, `quant-mind.md`, `pixelle-video.md`, `competitor-x-ray.md`, `VoxCPM.md`, `turbovec.md`, `helix-db.md`, `longcat-video.md`, `evolution-api.md`, `cal-diy.md`, `evolver.md`, `ecc.md`, `openalice.md`, `nautilus-trader.md`, `supertonic.md`, `open-webui.md`, `crawl4ai.md`, `kickbacks-ai.md` (all removed from this directory).*
+# Skipped / reference-only — no code action needed (5 repos + 1 strategy doc)
+
+These were never "implement" verdicts — closed by decision, not by code. Consolidated here for the same reason as the 24 above: their individual `.md` files added no further information once distilled.
+
+## 25. remotion — SKIP
+**Why:** VECTOR independently built the *same* architecture Remotion uses (deterministic headless-Chromium frame-seek capture of animated HTML/CSS/JS → ffmpeg encode) in `core/video/vector_composer.py` + `html_renderer.py` + `vector_runtime.js`, including GSAP/anime.js/WAAPI adapters. Zero real capability gap — only an authoring-ergonomics delta (React/JSX vs. Python-generated HTML). Decisive factor: Remotion's source-available license mandates a paid Company License the instant VECTOR's content/agency districts operate commercially at any scale.
+**Revisit only if:** VECTOR's home-grown composer proves inadequate for complex motion graphics AND the licensing cost is acceptable. Neither is true today.
+
+## 26. OpenCut — SKIP
+**Why:** The checked-out repo is a scaffold — Bun/TanStack/Cloudflare web shell with no editor core, timeline engine, rendering API, plugin runtime, or headless renderer yet (all "coming" per its own README). Nothing to absorb from the current code.
+**Revisit only if:** the project ships a real headless/programmatic editor API later.
+
+## 27. text-to-cad — SKIP
+**Why:** VECTOR has zero CAD/3D capability (confirmed — no cadquery/build123d/STL/STEP hits anywhere). That's by design, not a gap: CAD/robotics/3D-printing is off-mission for this owner's software-builder JARVIS. The repo's actual polished value (React/Three.js viewer, agent-skill prompt scaffolding) is exactly the part VECTOR can't use; the portable Python slice reduces to "add build123d as a dependency," which isn't an absorption.
+**Revisit only if:** the owner explicitly pivots to hardware/robotics/3D-printing — bookmark this as the starting point (build123d directly, skip `cadpy`/the viewer fork).
+
+## 28. voicebox — SKIP, with one real unaddressed gap
+**Why mostly skip:** This is the same repo VECTOR already absorbed 2026-05-27 (`core/voice/cloning.py`, `voice_profiles.py`, `effects.py`) — re-absorbing would be pure duplication.
+**The one genuinely new, never-built gap:** **system-wide dictation** — Whisper STT → inject text into whatever OS window currently has focus (not VECTOR's own UI). VECTOR has the STT half (`core/voice/stt.py`) and the keystroke-injection half (`core/control/pc_controller.py`, already used for vision-guided PC control) but nothing wires them together for this specific "dictate into any app" use case.
+**This is a feature decision, not a bug** — flagging it here rather than building it unprompted, since it's owner-preference-gated (do you actually want push-to-talk-into-any-app?) and security-sensitive (the original analysis explicitly says: gate it through `PermissionGateway`, since it writes keystrokes into arbitrary apps). Estimated ~half a session if wanted.
+
+## 29. awesome-llm-apps — REFERENCE ONLY
+**Why:** A large (1653-file) cookbook of standalone LLM/agent/RAG templates, Apache-2.0. Mine occasional patterns from it; never bulk-absorb. No specific action pending.
+
+## 30. Voice stack decision (`voice-stack-decision.md`, a cross-cutting strategy note, not a single repo)
+**Decision:** one live engine (Kokoro, with supertonic as a benchmarked alternative), one high-quality studio/cloning engine (OmniVoice, with VoxCPM on hold), pyttsx3/gTTS as fallbacks — explicitly avoiding "implement every voice repo" engine sprawl.
+**Status: fully executed and confirmed**, all 6 acceptance criteria met as of this session: only one live TTS default exists (`live_engine="kokoro"`); only one cloning/design engine is active by default (`cloning_engine="chatterbox"`, VoxCPM on hold); OmniVoice does not load at startup (`enabled=False`, lazy `_load()`); heavy voice models respect the model-residency lock (CPU-only Supertonic, lazy-loaded OmniVoice); 168/168 existing voice tests still pass; pyttsx3/gTTS fallbacks remain in place and untouched.
+
+---
+
+*Consolidated from: `SkillSpector.md`, `auto-browser.md`, `headroom.md`, `omniroute.md`, `train-llm-from-scratch.md`, `youtube-automation-agent.md`, `supervision.md`, `quant-mind.md`, `pixelle-video.md`, `competitor-x-ray.md`, `VoxCPM.md`, `turbovec.md`, `helix-db.md`, `longcat-video.md`, `evolution-api.md`, `cal-diy.md`, `evolver.md`, `ecc.md`, `openalice.md`, `nautilus-trader.md`, `supertonic.md`, `open-webui.md`, `crawl4ai.md`, `kickbacks-ai.md`, `remotion.md`, `opencut.md`, `text-to-cad.md`, `voicebox.md`, `awesome-llm-apps.md`, `voice-stack-decision.md` (all removed from this directory).*
