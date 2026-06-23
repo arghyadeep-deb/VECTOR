@@ -109,7 +109,7 @@ Legend: ✅ DONE (cite file) · 🟡 PARTIAL · ⬜ TODO · 🔵 DEFERRED(owner)
 | 20 | **Cal.diy** | Optional concept source | Not checked — low priority | 🔵 DEFERRED(owner) |
 | 21 | **open-webui** | Gateway, not absorption | `core/api/routers/openai_compat.py` mounted at `/v1/models` + `/v1/chat/completions` in `core/api/app.py` per Codex Pass 2 | 🟡 PARTIAL — gateway exists; "Still Deferred By Design": no streaming SSE for `/v1/chat/completions` yet |
 | 22 | **awesome-llm-apps** | Reference only | N/A | — N/A |
-| 23 | **Evolver** | Clean-room only (GPL) | `core/city/evolution_audit.py` exists (untracked, per git status) — likely the clean-room EvolutionEvent/StrategyGene schema | 🟡 NEEDS VERIFICATION — confirm it's clean-room (no GPL trace) and what it actually implements |
+| 23 | **Evolver** | Clean-room only (GPL) | `core/city/evolution_audit.py` — `EvolutionEvent`/`EvolutionStatus`/`StrategyGene` dataclasses, review-before-apply + rollback semantics | ✅ DONE (clean-room confirmed) — read in full (45 lines): pure dataclasses/enum, explicit "Clean-room" docstring, zero GPL/"Evolver" string traces |
 | 24 | **ECC** | Vet/selective clean-room | Not checked | ⬜ TODO/low |
 | 25 | **OpenAlice** | Clean-room only (AGPL) | Not checked | 🔵 DEFERRED(owner) — only if stronger real-money readiness wanted |
 | 26 | **Nautilus Trader** | Clean-room only (LGPL) | Not checked | 🔵 DEFERRED(owner) |
