@@ -55,6 +55,11 @@ LEGION_WIFI_MAC=14-B5-CD-3C-EC-99
 LEGION_ETHERNET_MAC=E8-97-44-2E-A9-3C
 LEGION_WAKE_BROADCAST=10.208.79.255
 LEGION_WAKE_PORT=9
+# Optional: Legion's LAN IP + VECTOR API port. If set, wake_legion() checks
+# reachability first and skips sending a redundant WoL packet when Legion
+# is already awake. Leave unset to keep the original always-send-WoL behavior.
+# LEGION_HOST=192.168.1.50
+# LEGION_API_PORT=8000
 EOF
 
 echo "[VECTOR] Config written to ~/.vector/phone_config.env"
