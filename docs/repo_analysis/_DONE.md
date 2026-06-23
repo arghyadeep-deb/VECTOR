@@ -179,7 +179,7 @@ These were never "implement" verdicts — closed by decision, not by code. Conso
 **Why:** VECTOR independently built the *same* architecture Remotion uses (deterministic headless-Chromium frame-seek capture of animated HTML/CSS/JS → ffmpeg encode) in `core/video/vector_composer.py` + `html_renderer.py` + `vector_runtime.js`, including GSAP/anime.js/WAAPI adapters. Zero real capability gap — only an authoring-ergonomics delta (React/JSX vs. Python-generated HTML). Decisive factor: Remotion's source-available license mandates a paid Company License the instant VECTOR's content/agency districts operate commercially at any scale.
 **Revisit only if:** VECTOR's home-grown composer proves inadequate for complex motion graphics AND the licensing cost is acceptable. Neither is true today.
 
-## 26. OpenCut — SKIP
+## 27. OpenCut — SKIP
 **Why:** The checked-out repo is a scaffold — Bun/TanStack/Cloudflare web shell with no editor core, timeline engine, rendering API, plugin runtime, or headless renderer yet (all "coming" per its own README). Nothing to absorb from the current code.
 **Revisit only if:** the project ships a real headless/programmatic editor API later.
 
