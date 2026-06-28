@@ -125,8 +125,14 @@ def test_quarantined_backend_skipped_on_write():
     assert len(mgr._sync_queue) == 1
 
 
-def test_sync_all_noop_without_cloud_creds():
+def test_sync_all_noop_without_cloud_creds(monkeypatch):
     """With no cloud configured, sync_all must run clean (no crash, no-op)."""
     mgr = MultiDBManager()
+    # Hermetic: a dev machine's .env may contain real Supabase/Turso creds, which
+    # this manager would otherwise pick up via _get_config and then make real
+    # ~15s/backend network calls — blowing the test timeout. Force the genuine
+    # "no cloud creds" path the test name claims (every cloud path reads creds
+    # through _get_config). CI has no creds, so it never hit this.
+    monkeypatch.setattr(mgr, "_get_config", lambda *a, **k: None)
     res = asyncio.run(mgr.sync_all())
     assert isinstance(res, dict) and "pushed" in res and "pulled" in res
