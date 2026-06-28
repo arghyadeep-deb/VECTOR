@@ -288,7 +288,19 @@ class MissionStore:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = path.with_suffix(path.suffix + ".tmp")
         tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-        tmp_path.replace(path)
+        # Windows: os.replace (Path.replace) raises PermissionError [WinError 5]
+        # if the destination is momentarily held open by another reader (a real
+        # race under concurrent access). Retry a few times with a short backoff
+        # before giving up — atomic-rename semantics are preserved on success.
+        import time as _time
+        for _attempt in range(5):
+            try:
+                tmp_path.replace(path)
+                return
+            except PermissionError:
+                if _attempt == 4:
+                    raise
+                _time.sleep(0.05)
 
     def reload(self) -> None:
         self._missions.clear()
