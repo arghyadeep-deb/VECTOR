@@ -753,9 +753,22 @@ class TestTranscriptionBot:
         assert bot._whisper_model == "base"
 
     def test_transcribe_audio_no_whisper(self):
-        """transcribe_audio returns error when whisper is not available."""
+        """transcribe_audio returns error when whisper is not available.
+
+        Uses a real (existing) temp file so the file-existence check passes and
+        execution actually reaches the whisper-availability branch — transcribe_audio
+        deliberately fails fast on a missing path *before* loading the model, so a
+        fake path would report "Audio file not found", not the no-whisper error.
+        """
+        import os
+        import tempfile
         bot = self._make_bot()
-        result = bot.transcribe_audio("/fake/audio.wav")
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+            real_path = f.name
+        try:
+            result = bot.transcribe_audio(real_path)
+        finally:
+            os.unlink(real_path)
         assert result["status"] == "error"
         assert "Whisper not available" in result["message"]
 
