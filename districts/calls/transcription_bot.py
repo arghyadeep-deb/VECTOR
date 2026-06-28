@@ -28,11 +28,18 @@ class TranscriptionBot(AgentBase):
         self._whisper_model = CONFIG.get("voice", {}).get("whisper_model", "base")
         self._sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
         self._whisper = None
-        self._init_whisper()
+        self._whisper_init_attempted = False
+        # Whisper is loaded lazily on first real transcription, NOT here:
+        # whisper.load_model() is heavy (and downloads ~140MB on first ever use),
+        # so eager loading in __init__ made every TranscriptionBot() construction
+        # block for seconds-to-minutes — flaky under the 60s test timeout.
         logger.info(f"[VECTOR][transcription_bot] TranscriptionBot initialized - model: {self._whisper_model}")
 
     def _init_whisper(self) -> None:
-        """Initialize Whisper model."""
+        """Lazily load the Whisper model once, on first use."""
+        if self._whisper is not None or self._whisper_init_attempted:
+            return
+        self._whisper_init_attempted = True
         try:
             import whisper
             self._whisper = whisper.load_model(self._whisper_model)
@@ -47,12 +54,15 @@ class TranscriptionBot(AgentBase):
         Transcribe audio file to text.
         Returns dict with transcription and metadata.
         """
-        if not self._whisper:
-            return {"status": "error", "message": "Whisper not available"}
-
+        # Check the file first so a missing path fails fast without paying the
+        # cost of loading the Whisper model.
         audio_file = Path(audio_path)
         if not audio_file.exists():
             return {"status": "error", "message": "Audio file not found"}
+
+        self._init_whisper()
+        if not self._whisper:
+            return {"status": "error", "message": "Whisper not available"}
 
         try:
             import whisper
