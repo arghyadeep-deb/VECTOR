@@ -744,6 +744,10 @@ class TestTranscriptionBot:
             bot._whisper_model = "base"
             bot._sample_rate = 16000
             bot._whisper = None  # simulate whisper not loaded
+            # Mark init as already attempted so the lazy loader in transcribe_audio
+            # no-ops (leaving _whisper None = "unavailable") instead of trying to
+            # load the real model during the test.
+            bot._whisper_init_attempted = True
             return bot
 
     def test_init(self):
