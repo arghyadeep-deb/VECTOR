@@ -185,7 +185,7 @@ now runs this Worker smoke harness in CI.
 | Focused research/skills + cloud-email hardening tests | ✅ 24/24 |
 | Manifest agent registration (`scripts/manifest_gap.py`) | ✅ **0 unregistered** (196 agent classes / 37 districts; 29 swarm-reachable) |
 | Absorbed-module import smoke (29 modules across all 25 DONE repos) | ✅ 29/29 import clean — integration confirmed |
-| Full shard matrix | see §8 below (run on idle machine after flaky-tail fixes) |
+| Full shard matrix | ✅ **ALL 20 SHARDS PASSED** (`run_pytest_shards.py --continue-on-fail -- --timeout=90`, idle machine, 2026-06-29): `All selected shards passed`, EXIT=0 — **0 failures / 0 errors / 0 timeouts / 0 WinError-5**. This is the clean full-repo proof Codex item 1 needed (the earlier interrupted runs were the reused-basetemp bug + flaky tail, both now fixed). |
 
 **Owner-level / can't-be-done-from-code (Codex items 5 & 6 — confirmed, unchanged):** git-history secret purge + credential rotation if `certs/vector.key` was ever committed (working tree is clean; **history is not** — owner must `git filter-repo`/BFG + rotate before publishing); and production Cloudflare deploy (account/domain, Email Routing, R2, Workers AI, Access, `POLICY_AUD`/`TEAM_DOMAIN` secrets). Both tracked in `OWNER_ACTIONS_NEEDED.md`.
 
