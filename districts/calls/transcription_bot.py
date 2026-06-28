@@ -107,6 +107,7 @@ class TranscriptionBot(AgentBase):
         """
         import numpy as np
 
+        self._init_whisper()
         if not self._whisper:
             return {"status": "error", "message": "Whisper not available"}
 
