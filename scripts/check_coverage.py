@@ -34,6 +34,42 @@ def _coverage_paths() -> list[str]:
     return unique
 
 
+def _on_rm_error(func, path, _exc):
+    """rmtree onexc handler: clear the read-only bit and retry (Windows).
+
+    Windows refuses os.rmdir/os.remove on read-only files (TLS keys, secret
+    fixtures), which is what previously left a half-deleted basetemp behind.
+    """
+    try:
+        os.chmod(path, stat.S_IWRITE)
+        func(path)
+    except OSError:
+        pass
+
+
+def _fresh_basetemp() -> Path:
+    """A unique, repo-local pytest basetemp for this run.
+
+    Reusing a single fixed basetemp (`test_tmp/coverage`) was the root cause of
+    the WinError 5 cascade: a read-only/locked leftover from the prior run made
+    pytest's start-of-run rmtree of that path fail on Windows, leaving the dir
+    half-deleted so every later tmp_path fixture errored at setup. A unique path
+    per run is never pre-populated, so pytest never has to delete a locked dir.
+    Stale `coverage_*` dirs from earlier runs are best-effort cleaned here with a
+    read-only-aware rmtree so test_tmp/ does not grow without bound.
+    """
+    root = Path("test_tmp")
+    root.mkdir(parents=True, exist_ok=True)
+    for stale in root.glob("coverage_*"):
+        if stale.is_dir():
+            shutil.rmtree(stale, onexc=_on_rm_error)
+    # Legacy fixed dir, if present from before this fix.
+    legacy = root / "coverage"
+    if legacy.exists():
+        shutil.rmtree(legacy, onexc=_on_rm_error)
+    return root / f"coverage_{os.getpid()}_{int(time.time())}"
+
+
 def main():
     try:
         import pytest_cov  # noqa: F401
@@ -41,17 +77,22 @@ def main():
         print(f"SKIPPED: pytest-cov not installed (coverage gate: {THRESHOLD}%)")
         sys.exit(0)
 
+    basetemp = _fresh_basetemp()
     cmd = [
         sys.executable, "-m", "pytest",
         "--cov=core", "--cov-report=term-missing",
         f"--cov-fail-under={THRESHOLD}",
-        "--basetemp=" + str(Path("test_tmp") / "coverage"),
+        "--basetemp=" + str(basetemp),
         *_coverage_paths(),
         "-q", "--tb=short", "--timeout=60",
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     output = result.stdout + result.stderr
     print(output)
+
+    # Best-effort cleanup of this run's basetemp (read-only-aware).
+    if basetemp.exists():
+        shutil.rmtree(basetemp, onexc=_on_rm_error)
 
     match = re.search(r"^TOTAL\s+.*?(\d+(?:\.\d+)?%)", output, re.MULTILINE)
     if not match:
