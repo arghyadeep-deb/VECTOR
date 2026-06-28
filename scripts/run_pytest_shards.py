@@ -129,8 +129,7 @@ def run_shard(name: str, extra_pytest_args: list[str]) -> int:
     if not paths:
         print(f"[skip] {name}: no files")
         return 0
-    basetemp = TMP / name
-    basetemp.parent.mkdir(parents=True, exist_ok=True)
+    basetemp = _fresh_basetemp(name)
     cmd = [
         sys.executable,
         "-m",
@@ -143,7 +142,11 @@ def run_shard(name: str, extra_pytest_args: list[str]) -> int:
     ]
     print(f"\n=== {name} ===")
     print(" ".join(cmd))
-    return subprocess.run(cmd, cwd=ROOT).returncode
+    try:
+        return subprocess.run(cmd, cwd=ROOT).returncode
+    finally:
+        if basetemp.exists():
+            shutil.rmtree(basetemp, onexc=_on_rm_error)
 
 
 def main() -> int:
