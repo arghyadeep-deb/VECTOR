@@ -122,6 +122,10 @@ test_tmp/
 *.tmp
 *.bak
 *.bak.*
+# Email attachment store (runtime/test-generated, UUID-keyed blobs)
+attachments/
+# SEO portfolio runtime state (test/runtime-generated JSON, e.g. example sites)
+seo_portfolio/
 data/feedback/
 
 # Runtime-generated memory/cache state
