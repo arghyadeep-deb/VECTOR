@@ -175,6 +175,24 @@ machine, your phone, and real cloud credentials.
 
 ---
 
+Additional Cloudflare deploy boundary: `cloud/email` (`vector-email` Agentic
+Inbox Worker) is separate from the already-deployed API Worker. Real deploy
+is owner-gated because it needs a Cloudflare account/domain, Email Routing, R2
+bucket `vector-email`, Workers AI, Cloudflare Access, and Worker secrets
+`POLICY_AUD`/`TEAM_DOMAIN`.
+
+**Dependency audit — done 2026-06-29.** `npm ci` clean; `npm run typecheck`
+passes (EXIT=0). Baseline `npm audit` was **27 advisories (2 low / 9 moderate /
+16 high)**, all in dev tooling. Safe `npm audit fix` (NO `--force`) cleared 24,
+leaving **3 high** — `react-router` / `@react-router/node` / `@react-router/dev`,
+transitive **dev-only** deps fixable only via a breaking major bump (`--force`).
+These are NOT in the deployed Worker runtime (build/dev tooling only), so they do
+not affect production security; left as-is per the no-`--force` rule. **Owner
+decision:** either accept (dev-only, low real risk) or schedule a `react-router`
+major upgrade + retest before any future dev-tooling change. (Note: the audit fix
+bumped Cloudflare type bindings; a now-stale `@ts-expect-error` in
+`workers/lib/ai.ts` was removed so typecheck stays green.)
+
 ## What's explicitly NOT on this list (correctly closed, no action needed)
 
 - Kokoro TTS — already installed and working (confirmed: real 911ms/412ms latency benchmarks captured this session)
