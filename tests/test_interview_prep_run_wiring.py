@@ -26,6 +26,19 @@ from districts.interview_prep.feedback_analyst import FeedbackAnalyst
 from districts.interview_prep.report_generator import ReportGenerator
 
 
+@pytest.fixture(autouse=True)
+def _stub_report_llm(monkeypatch):
+    """ReportGenerator._llm makes a real provider call with a 90s ceiling, which
+    blows the 60s test timeout whenever a live model actually answers. These are
+    dispatch/return-shape wiring tests, not LLM-quality tests, so stub the LLM to
+    keep them hermetic and fast (mocking external APIs is allowed per testing.md).
+    """
+    import districts.interview_prep.report_generator as _rg
+    monkeypatch.setattr(
+        _rg, "_llm", lambda *a, **k: "Stubbed interview report content for wiring test."
+    )
+
+
 # ---------------------------------------------------------------------------
 # FeedbackAnalyst
 # ---------------------------------------------------------------------------
