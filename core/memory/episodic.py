@@ -250,15 +250,11 @@ def _with_cb(op, *args, **kwargs):
     cb = get_registry().get("episodic_memory")
     if cb is None:
         return op(*args, **kwargs)
-    # Detect whether we are already inside a running event loop.
-    # asyncio.run() raises RuntimeError in that context, so we skip the coroutine
-    # path entirely and call the synchronous operation directly with manual CB bookkeeping.
-    _in_async = False
-    try:
-        loop = asyncio.get_event_loop()
-        _in_async = loop.is_running()
-    except RuntimeError:
-        pass
+    # Episodic memory operations are synchronous SQLite calls and always run
+    # through the synchronous breaker path below (see the note before the return),
+    # so there is no need to inspect the running event loop here. The previous
+    # asyncio.get_event_loop() probe was dead code (its result was never read) and
+    # used a deprecated API — removed.
     from core.resilience.circuit_breaker import CircuitState
 
     def _run_sync_with_cb() -> object:
