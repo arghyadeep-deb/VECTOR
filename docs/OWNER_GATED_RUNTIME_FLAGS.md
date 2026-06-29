@@ -26,12 +26,6 @@ service/device/account and runs the live proof.
 | `VECTOR_REDDIT_MINER_LLM=1` | off | LLM-backed RedditMiner opportunity extraction. |
 | `VECTOR_SKILLS_LLM=1` | off | LLM-backed skills gap analysis, prioritization, and learning path generation. |
 
-Cloud/device owner-gated work that is not just an env flag:
-
-- `cloud/email` production deploy requires Cloudflare domain, Email Routing,
-  R2, Workers AI, Cloudflare Access, `POLICY_AUD`, and `TEAM_DOMAIN`.
-- Termux phone relay needs `phone_node/setup.sh` on the physical Android device.
-- Legion wake/resume needs Wake-on-LAN enabled in firmware/Windows network
-  adapter settings and real LAN values for the phone node.
-- Wake-word ONNX training needs the real openWakeWord training pipeline and
-  synthetic/background/noise datasets; the current runtime falls back safely.
+Owner-gated **work items** (cloud deploys, hardware, wake-word training, etc.)
+are tracked in `OPEN_ISSUES.md`, not here — this doc is only the catalog of
+runtime *config flags*. See `OPEN_ISSUES.md` §B/§C for the deploy/device actions.
