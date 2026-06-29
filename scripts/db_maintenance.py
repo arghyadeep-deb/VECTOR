@@ -71,6 +71,13 @@ def purge_test_pollution(dry_run: bool = False) -> int:
             _TEST_POLLUTION_TYPES,
         )
         ids.update(r[0] for r in cursor.fetchall())
+        # Dead/legacy write-only event types — purge unconditionally.
+        dph = ",".join("?" for _ in _DEAD_EVENT_TYPES)
+        cursor.execute(
+            f"SELECT id FROM episodic_memory WHERE event_type IN ({dph})",
+            _DEAD_EVENT_TYPES,
+        )
+        ids.update(r[0] for r in cursor.fetchall())
         # Future-dated rows are always test sentinels — no real event is in the future.
         cursor.execute("SELECT id FROM episodic_memory WHERE timestamp > ?", (now,))
         ids.update(r[0] for r in cursor.fetchall())
