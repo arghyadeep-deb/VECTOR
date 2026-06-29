@@ -2,6 +2,29 @@
 V.E.C.T.O.R. core package.
 Core systems: config, memory, inference, loop, voice, city, sensing, control, brain.
 """
+# --- Windows console safety -------------------------------------------------
+# The code style ships an emoji status line (`print("✅ ... OK")`) at the bottom
+# of nearly every module, and per-file imports route through `core.config`,
+# which imports this package first. A default Windows console is cp1252, which
+# raises UnicodeEncodeError the instant such a line prints. Forcing stdout/stderr
+# to UTF-8 here fixes every module that touches `core` from one place — no need
+# to edit hundreds of files. Idempotent, guarded, and a no-op when the stream is
+# already UTF-8 (e.g. under pytest capture or on Linux/macOS).
+import sys as _sys
+
+for _stream in (_sys.stdout, _sys.stderr):
+    try:
+        if (
+            _stream is not None
+            and hasattr(_stream, "reconfigure")
+            and (getattr(_stream, "encoding", "") or "").lower() not in ("utf-8", "utf8")
+        ):
+            _stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        # Never let console-encoding setup break an import.
+        pass
+# ---------------------------------------------------------------------------
+
 from importlib.util import find_spec
 
 from loguru import logger
