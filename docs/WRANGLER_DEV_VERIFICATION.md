@@ -31,8 +31,23 @@ explicit go-ahead).
 
 ## Setup
 
+**Step 0 — create the local D1 schema first (REQUIRED).** The emulated local D1
+starts empty; without this, steps 3–8 fail with
+`D1_ERROR: no such table: command_queue`. Apply the schema to the local
+(`--local`) database before starting the dev server:
+
 ```powershell
 cd api
+npx wrangler d1 execute vector-brain --local --persist-to ./.wrangler-local-state --file=schema.sql
+```
+
+`schema.sql` already includes the `target_node`/`result`/`error`/… columns, so a
+fresh apply is all you need. `migrations/0002_command_node_results.sql` is only
+for an *older* D1 created before those columns existed — applying it on top of a
+fresh `schema.sql` errors with "duplicate column" (harmless, just skip it
+locally). Then start the server:
+
+```powershell
 npx wrangler dev --local --persist-to=./.wrangler-local-state --port 8787
 ```
 
