@@ -655,6 +655,10 @@ def _normalize_turso_http_url(value: str) -> str:
 
 CONFIG: dict = {
     "owner_name": "Arghyadeep",
+    # Owner's primary email — used as the from-address for VECTOR-composed mail.
+    # Override with VECTOR_OWNER_EMAIL. Defaults to the owner's Gmail (the active
+    # email path; see docs/EMAIL_SETUP.md).
+    "owner_email": os.environ.get("VECTOR_OWNER_EMAIL", "arghyadeepdeb020703@gmail.com"),
     "system_name": "VECTOR",
     "version": "1.0.0",
     "env": _s.VECTOR_ENV,
@@ -1075,7 +1079,7 @@ CONFIG: dict = {
 }
 
 # ── Afterburner: inject CONFIG values into os.environ for absorbed code ──────
-# vectorcode/src/ (Hermes/OpenJarvis/Ruflo) uses os.getenv() directly (~1500 calls).
+# vectorcode/src/ legacy imports use os.getenv() directly (~1500 calls).
 # Instead of editing 330+ files, we pre-populate os.environ with CONFIG values
 # at startup. Existing os.getenv() calls automatically pick up CONFIG settings.
 # Shell env takes precedence (setdefault, not set).
