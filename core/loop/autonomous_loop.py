@@ -1614,6 +1614,18 @@ class AutonomousLoop:
                 params[k] = ""
         logger.info(f"[VECTOR][cmd] remote command {cmd.get('id','')} type={cmd_type}")
 
+        # Email-bridge ingress: cloud inbox → brain. HMAC-verified + injection-scanned
+        # inside the handler; off unless VECTOR_EMAIL_BRIDGE=1. Not an "action" to
+        # gate — it's an inbound event that lands in episodic memory for triage.
+        if cmd_type == "email_received":
+            try:
+                from core.loop.handlers.email_received import handle_email_received
+                signature = cmd.get("signature") or params.get("signature") or ""
+                await handle_email_received(params, signature=signature)
+            except Exception as e:
+                logger.error(f"[VECTOR][cmd] email_received handler failed: {e}")
+            return
+
         # Free-text command → run through the FULL local /command pipeline
         # (context → decision → gateway → policy/memory). Reuses the API so we
         # never duplicate the intelligence stack. The gateway gates it there.
