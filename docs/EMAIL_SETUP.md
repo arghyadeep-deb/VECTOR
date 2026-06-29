@@ -23,12 +23,10 @@ requires buying a domain. Until then, Path A covers everything.
 
 Code is in place (`districts/communications/email_intelligence.py::_get_gmail_service`
 reads an authorized-user token; `core/integrations/gmail_auth.py` runs the OAuth flow).
-**Three one-time owner steps** (none can be done from code — they need your Google account):
+Step 1 below is **already done** (library installed + pinned). Only steps 2–3 remain,
+and they need your Google account so they can't be done from code:
 
-1. **Install the OAuth library:**
-   ```
-   pip install google-auth-oauthlib
-   ```
+1. ✅ **DONE — OAuth library installed** (`google-auth-oauthlib==1.4.0`, pinned in `requirements.txt`).
 2. **Create an OAuth client (Google Cloud Console):**
    - New project → enable the **Gmail API**.
    - OAuth consent screen → **External** → add `arghyadeepdeb020703@gmail.com` as a *test user*.
