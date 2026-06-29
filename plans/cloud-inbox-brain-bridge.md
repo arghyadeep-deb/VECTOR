@@ -1,6 +1,12 @@
 # Plan — Cloud Inbox ↔ VECTOR Brain Bridge
 
-> Status: SPEC (not started). Planned by Opus 2026-06-29; execute with Sonnet/Codex, TDD.
+> Status: **Phases 1–2 DONE (2026-06-29, local, TDD — 14 tests in `tests/test_email_bridge.py`, all green; no regressions across 92 email-related tests).** Phase 3 (TS Worker hook + send endpoint) and the deploy remain owner-gated (need a domain + Email Routing + Access). Planned + built by Opus 2026-06-29.
+>
+> **What's live now (off by default behind `VECTOR_EMAIL_BRIDGE=1`):**
+> - Ingress handler `core/loop/handlers/email_received.py` — HMAC-verified (fail-closed), prompt-injection-scanned (quarantine on hit), stores to episodic memory, lightweight rule-based priority (no LLM in the hot path). Wired into `core/loop/autonomous_loop.py::_handle_remote_command` (`email_received` branch).
+> - Gated send `districts/communications/email_agent.py::send_reply()` — async, routes through the permission gateway under the existing RED `send_email` tier; fail-closed if the gateway is unreachable; transport is injectable (the Worker send endpoint / SMTP comes in Phase 3). Reused the existing `send_email` RED entry — no config change needed.
+>
+> Original spec below.
 > One-line goal: turn the standalone `vector-email` Cloudflare Worker into a real 24/7
 > autonomous channel that feeds VECTOR's brain (episodic memory + governor + permission
 > gateway), instead of an isolated webmail app — so deploying it actually makes VECTOR
