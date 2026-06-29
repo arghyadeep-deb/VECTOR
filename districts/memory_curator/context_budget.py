@@ -117,7 +117,23 @@ class ContextBudgetManager:
         return compacted, handles
 
     def retrieve(self, handle: str) -> str | None:
-        return self._store.get(handle)
+        # In-memory first (same session); fall back to the persisted table so a
+        # handle created before a restart is still retrievable. (Previously this
+        # only checked _store, so persistence was effectively write-only.)
+        text = self._store.get(handle)
+        if text is not None:
+            return text
+        try:
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cur:
+                cur.execute(
+                    "SELECT original_text FROM context_budget_handles WHERE handle = ?",
+                    (handle,),
+                )
+                row = cur.fetchone()
+                return row[0] if row else None
+        except Exception:
+            return None
 
     def stats(self) -> dict[str, Any]:
         original = sum(h.original_chars for h in self._handles.values())
