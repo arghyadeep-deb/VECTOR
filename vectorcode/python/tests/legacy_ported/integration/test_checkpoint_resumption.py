@@ -17,6 +17,16 @@ Usage:
     # Run full comparison
     python tests/test_checkpoint_resumption.py --compare
 """
+# --- Windows console UTF-8 safety (VECTOR codemod) ---
+import sys as _vsys  # noqa: E402
+for _vstream in (_vsys.stdout, _vsys.stderr):
+    try:
+        if _vstream is not None and hasattr(_vstream, "reconfigure") and (getattr(_vstream, "encoding", "") or "").lower() not in ("utf-8", "utf8"):
+            _vstream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        pass
+# ---------------------------------------------------------------------------
+
 
 import pytest
 pytestmark = pytest.mark.integration

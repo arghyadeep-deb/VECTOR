@@ -9,6 +9,16 @@ Example:
     python utils/package_skill.py skills/public/my-skill
     python utils/package_skill.py skills/public/my-skill ./dist
 """
+# --- Windows console UTF-8 safety (VECTOR codemod) ---
+import sys as _vsys  # noqa: E402
+for _vstream in (_vsys.stdout, _vsys.stderr):
+    try:
+        if _vstream is not None and hasattr(_vstream, "reconfigure") and (getattr(_vstream, "encoding", "") or "").lower() not in ("utf-8", "utf8"):
+            _vstream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        pass
+# ---------------------------------------------------------------------------
+
 
 import fnmatch
 import sys

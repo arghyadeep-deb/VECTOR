@@ -20,6 +20,16 @@ Public API (signatures preserved from the original 2,400-line version):
     check_toolset_requirements() -> dict
     check_tool_availability(quiet) -> tuple
 """
+# --- Windows console UTF-8 safety (VECTOR codemod) ---
+import sys as _vsys  # noqa: E402
+for _vstream in (_vsys.stdout, _vsys.stderr):
+    try:
+        if _vstream is not None and hasattr(_vstream, "reconfigure") and (getattr(_vstream, "encoding", "") or "").lower() not in ("utf-8", "utf8"):
+            _vstream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        pass
+# ---------------------------------------------------------------------------
+
 
 import json
 import asyncio
