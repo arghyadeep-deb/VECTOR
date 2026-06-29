@@ -7,6 +7,13 @@
 google_credentials.json
 keyring_store/
 
+# Cloudflare Workers — local dev artifacts + local secrets (never commit)
+.dev.vars
+.wrangler/
+.wrangler-local-state/
+**/.wrangler/
+**/.wrangler-local-state/
+
 # Models — too large
 models/*.lgb
 models/*.gguf
