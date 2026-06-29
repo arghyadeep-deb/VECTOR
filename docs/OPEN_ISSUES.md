@@ -76,4 +76,32 @@ and `repo_analysis/OWNER_ACTIONS_NEEDED.md`. This file is the short, current
 
 ---
 
+## F. Runtime config flags (reference — not work, just knobs)
+
+These env-var flags gate live services / model calls / mutable resources out of
+default runs. They are **off by default on purpose** (so tests never hit live
+LLMs/services); flip one when you want that feature live. A feature behind a flag
+isn't "proven in production" until you supply the service/device and run it live.
+
+| Flag | Default | Enables |
+|---|---:|---|
+| `VECTOR_LIVE_TESTS=1` | off | Live network/model integration proofs in `tests/integration/test_capability_live.py`. |
+| `VECTOR_RESEARCH_LLM_DESIGN=1` | off | Ollama-backed research experiment design (`core/research_engine/experiment_designer.py`); else rule-based. |
+| `VECTOR_TRAINING_REAL=1` | off | Real PEFT/Unsloth LoRA training (`core/training/lora_trainer.py`); else simulated/dry-run. |
+| `VECTOR_PREDICTIVE_USE_MEMORY=1` | off | Predictive analytics mining of live episodic memory history. |
+| `VECTOR_DB_RECOVERY_CHECK=1` | off | Live memory-DB integrity check + recovery playbook. Keep off unless DB is backed up. |
+| `VECTOR_OBSIDIAN_RAG_QUERY=1` | off | Obsidian/LightRAG query during context hydration. |
+| `VECTOR_FASTAPI_REVIEW_LLM=1` | off | LLM-backed FastAPI code review. |
+| `VECTOR_PYTHON_REVIEW_LLM=1` | off | LLM-backed Python code review. |
+| `VECTOR_SECURITY_REVIEW_LLM=1` | off | LLM-backed security review. |
+| `VECTOR_SEO_LLM=1` | off | LLM-backed SEO synthesis/schema/keyword work. |
+| `VECTOR_GOOGLE_ADS_LLM=1` | off | LLM-backed Google Ads audit/copy/landing-page reasoning. |
+| `VECTOR_FEEDBACK_LLM=1` | off | LLM-backed interview feedback analysis. |
+| `VECTOR_STYLE_LLM=1` | off | Ollama-backed persona style rewrites. |
+| `VECTOR_WEB_SCOUT_LLM=1` | off | LLM-backed WebScout research summaries. |
+| `VECTOR_REDDIT_MINER_LLM=1` | off | LLM-backed RedditMiner opportunity extraction. |
+| `VECTOR_SKILLS_LLM=1` | off | LLM-backed skills gap analysis, prioritization, learning paths. |
+
+---
+
 *All code-side work is closed. Update this file in place as owner actions land.*
