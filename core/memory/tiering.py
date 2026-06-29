@@ -67,3 +67,9 @@ def is_critical(table: str, record: dict | None = None) -> bool:
 def protected_event_types() -> frozenset:
     """Episodic event types the forgetting pass must never prune."""
     return CRITICAL_EVENT_TYPES
+
+
+def ephemeral_event_types() -> frozenset:
+    """High-frequency telemetry/test event types the forgetting pass prunes
+    after EPHEMERAL_RETENTION_DAYS instead of the default 90d."""
+    return EPHEMERAL_EVENT_TYPES
