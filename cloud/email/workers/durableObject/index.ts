@@ -7,7 +7,7 @@ import { drizzle } from "drizzle-orm/durable-sqlite";
 import { eq, and, or, asc, desc, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import * as schema from "../db/schema";
-import { Folders } from "../../shared/folders";
+import { FOLDER_DISPLAY_NAMES, Folders } from "../../shared/folders";
 import type { Env } from "../types";
 import { applyMigrations, mailboxMigrations } from "./migrations";
 
@@ -571,6 +571,32 @@ export class MailboxDO extends DurableObject<Env> {
 	}
 
 	// ── Folders (Drizzle) ──────────────────────────────────────────
+
+	async listAttachmentKeys(): Promise<string[]> {
+		const rows = [
+			...this.ctx.storage.sql.exec(
+				`SELECT email_id, id, filename FROM attachments`,
+			),
+		] as { email_id: string; id: string; filename: string }[];
+		return rows.map((row) => `attachments/${row.email_id}/${row.id}/${row.filename}`);
+	}
+
+	async purgeMailboxData() {
+		this.ctx.storage.transactionSync(() => {
+			this.ctx.storage.sql.exec(`DELETE FROM attachments`);
+			this.ctx.storage.sql.exec(`DELETE FROM emails`);
+			this.ctx.storage.sql.exec(`DELETE FROM folders`);
+
+			for (const id of Object.values(Folders)) {
+				this.ctx.storage.sql.exec(
+					`INSERT INTO folders (id, name, is_deletable) VALUES (?1, ?2, 0)`,
+					id,
+					FOLDER_DISPLAY_NAMES[id],
+				);
+			}
+		});
+		return { status: "purged" };
+	}
 
 	async getFolders() {
 		const result = this.db

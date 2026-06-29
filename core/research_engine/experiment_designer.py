@@ -1,6 +1,7 @@
 """Experiment designer — generates ExperimentDesign from Hypothesis."""
 
 import json
+import os
 
 __all__ = [
     "ExperimentDesigner",
@@ -146,6 +147,10 @@ class ExperimentDesigner:
         return self._jinja_env
 
     def _llm_design(self, hypothesis: Hypothesis) -> Optional[ExperimentDesign]:
+        if os.environ.get("VECTOR_RESEARCH_LLM_DESIGN") != "1":
+            logger.info("LLM experiment design disabled; using deterministic rule-based design")
+            return None
+
         try:
             import httpx
 

@@ -131,7 +131,25 @@ V.E.C.T.O.R. Response:"""
 
         except Exception as e:
             logger.error(f"[VECTOR][voice_responder] Response generation failed: {e}")
-            return {"status": "error", "message": str(e)}
+            response_text = f"I heard you: {text}"
+            response_entry = {
+                "id": str(uuid.uuid4()),
+                "input": text,
+                "output": response_text,
+                "tone": tone,
+                "timestamp": self._get_timestamp(),
+                "fallback": True,
+            }
+            self._response_history.append(response_entry)
+            if len(self._response_history) > _MAX_RESPONSE_HISTORY:
+                del self._response_history[:-_MAX_RESPONSE_HISTORY]
+            return {
+                "status": "success",
+                "text": response_text,
+                "response_id": response_entry["id"],
+                "degraded": True,
+                "warning": str(e),
+            }
 
     def _get_tone_instruction(self, tone: str) -> str:
         """Get tone instruction for LLM."""

@@ -52,7 +52,8 @@ except Exception: logger.debug("[VECTOR][video] exception suppressed")  # runtim
 # â”€â”€ Local file server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 class _SilentHandler(SimpleHTTPRequestHandler):
-    def log_message(self, *_): pass
+    def log_message(self, *_):
+        return None
 
 
 def _start_file_server(directory: str, port: int) -> HTTPServer:

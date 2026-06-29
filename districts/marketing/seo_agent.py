@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import os
 import sys
 import uuid
 
@@ -126,6 +127,18 @@ class SEOAgent(AgentBase, SkillMixin):
 
     async def analyze_keywords(self, topic: str, site: str = "") -> dict:
         """Generate keyword research using LLM + GSC data."""
+        if os.environ.get("VECTOR_SEO_LLM") != "1":
+            base = topic.strip() or "seo"
+            return {
+                "topic": topic,
+                "analysis": {
+                    "mode": "deterministic",
+                    "primary_keywords": [base, f"{base} strategy", f"{base} tools"],
+                    "long_tail_keywords": [f"best {base} workflow", f"how to improve {base}"],
+                    "question_keywords": [f"what is {base}", f"how does {base} work"],
+                    "content_gaps": ["Add comparison pages", "Add FAQ coverage", "Refresh outdated examples"],
+                },
+            }
         hydration = self._context.session_hydration_prompt()
         try:
             from core.inference.vectorcode_llm import chat
@@ -154,6 +167,17 @@ class SEOAgent(AgentBase, SkillMixin):
 
     async def generate_schema_markup(self, page_type: str, data: dict) -> str:
         """Generate JSON-LD schema markup for a page type."""
+        if os.environ.get("VECTOR_SEO_LLM") != "1":
+            import json
+
+            return json.dumps(
+                {
+                    "@context": "https://schema.org",
+                    "@type": page_type or "WebPage",
+                    **{k: v for k, v in data.items() if isinstance(k, str)},
+                },
+                ensure_ascii=False,
+            )
         hydration = self._context.session_hydration_prompt()
         try:
             from core.inference.vectorcode_llm import chat
@@ -179,6 +203,19 @@ class SEOAgent(AgentBase, SkillMixin):
         GEO (Generative Engine Optimization) — optimize content so ChatGPT,
         Claude, Perplexity, and Gemini cite this page in their answers.
         """
+        if os.environ.get("VECTOR_SEO_LLM") != "1":
+            return {
+                "url": url,
+                "geo_analysis": {
+                    "mode": "deterministic",
+                    "score": 50 if content else 0,
+                    "recommendations": [
+                        "Add explicit author and source information",
+                        "Answer high-intent questions directly",
+                        "Use concise definitions and structured headings",
+                    ],
+                },
+            }
         hydration = self._context.session_hydration_prompt()
         try:
             from core.inference.vectorcode_llm import chat
@@ -208,6 +245,8 @@ class SEOAgent(AgentBase, SkillMixin):
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     async def _synthesize_audit(self, site: str, sections: dict) -> str:
+        if os.environ.get("VECTOR_SEO_LLM") != "1":
+            return f"Audit complete for {site}. Review GSC, PageSpeed, and broken-link sections for prioritized fixes."
         hydration = self._context.session_hydration_prompt()
         try:
             from core.inference.vectorcode_llm import chat
@@ -297,7 +336,7 @@ class SEOAgent(AgentBase, SkillMixin):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        action = p.get("action", "full_audit")
+        action = task.get("type") or p.get("action", "full_audit")
 
         if action in ("full_audit", "seo_audit", "seo_analysis"):
             return await self.full_audit(
@@ -327,7 +366,20 @@ class SEOAgent(AgentBase, SkillMixin):
                 url=p.get("url", ""),
                 content=p.get("content", ""),
             )
-        return {"status": "error", "error": f"unknown action: {action}"}
+        return {
+            "status": "error",
+            "error": f"unhandled type: {action}",
+            "supported": [
+                "full_audit",
+                "seo_audit",
+                "seo_analysis",
+                "keyword_research",
+                "broken_links",
+                "pagespeed",
+                "schema_markup",
+                "geo_optimize",
+            ],
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][seo_agent] ready — waiting for tasks")

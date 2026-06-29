@@ -9,7 +9,7 @@ Tables: folders, emails, attachments
 """
 from __future__ import annotations
 
-from core.memory.db_utils import apply_pragmas
+from core.memory.db_utils import apply_pragmas, configured_db_path
 __all__ = [
     "CREATE_ATTACHMENTS",
     "CREATE_EMAILS",
@@ -25,7 +25,7 @@ __all__ = [
 import sqlite3
 from pathlib import Path
 
-EMAIL_DB_PATH = Path.home() / ".vector" / "email.db"
+EMAIL_DB_PATH = configured_db_path().with_name("email.db")
 
 CREATE_FOLDERS = """
 CREATE TABLE IF NOT EXISTS folders (

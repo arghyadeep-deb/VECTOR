@@ -239,7 +239,7 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         driver="openai_compat",
         default_model="meta-llama/Llama-3-70b-chat-hf",
         models=["meta-llama/Llama-3-70b-chat-hf","mistralai/Mixtral-8x7B-Instruct-v0.1",
-                "NousResearch/Nous-Hermes-2-Yi-34B","Qwen/Qwen1.5-72B-Chat"],
+                "Qwen/Qwen1.5-72B-Chat"],
         context_window=32_000,
         pricing_per_1m={"input":0.9,"output":0.9},
     ),

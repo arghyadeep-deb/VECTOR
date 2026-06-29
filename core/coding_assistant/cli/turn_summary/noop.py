@@ -17,22 +17,22 @@ class NoopTurnSummary(TurnSummaryPort):
 
     @on_summary.setter
     def on_summary(self, value: Callable[[TurnSummaryResult], None] | None) -> None:
-        pass
+        return None
 
     def start_turn(self, user_message: str) -> None:
-        pass
+        return None
 
     def track(self, event: BaseEvent) -> None:
-        pass
+        return None
 
     def set_error(self, message: str) -> None:
-        pass
+        return None
 
     def cancel_turn(self) -> None:
-        pass
+        return None
 
     def end_turn(self) -> Callable[[], bool] | None:
         return None
 
     async def close(self) -> None:
-        pass
+        return None

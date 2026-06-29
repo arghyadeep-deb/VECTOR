@@ -20,7 +20,7 @@ description: Use when scaffolding, building, or debugging any of the 8 VECTOR di
 | 3 | Security | custom | Phase 1 |
 | 4 | Coding | GitBot | Phase 1 |
 | 5 | Time/Calendar | KIIT scraper | Phase 1 |
-| 6 | Comms | hermes-agent | Phase 1 |
+| 6 | Comms | vector-agent | Phase 1 |
 | 7 | Memory Curator | LightRAG + mem0 | Phase 1 |
 | 8 | Research | karpathy/autoresearch + OpenCLI | Phase 1 |
 

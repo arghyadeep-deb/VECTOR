@@ -10,10 +10,16 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import os
 import pathlib
 import re
 
 import pytest
+
+live_only = pytest.mark.skipif(
+    os.environ.get("VECTOR_LIVE_TESTS") != "1",
+    reason="Live network/model proofs require VECTOR_LIVE_TESTS=1 and owner-provided services",
+)
 
 
 def test_no_foreign_user_agent():
@@ -42,6 +48,7 @@ def test_no_foreign_user_agent():
 
 
 @pytest.mark.live
+@live_only
 def test_scraper_fetch_returns_real_content():
     """Regression test for the bug found in Phase 0: VectorScraper.fetch()
     returned status 200 with completely empty content/html because it read
@@ -63,6 +70,7 @@ def test_scraper_fetch_returns_real_content():
 
 
 @pytest.mark.live
+@live_only
 def test_research_engine_full_cycle_produces_real_statistics():
     """Regression test for two bugs found in Phase 0:
     (1) EpisodicMemory.search() doesn't exist (real method is .recall());
@@ -159,6 +167,7 @@ def test_vector_provider_model_sync_call_survives_worker_thread_with_no_loop():
 
 
 @pytest.mark.live
+@live_only
 def test_finagent_investor_analysis_does_not_hit_event_loop_error():
     """Live end-to-end regression test: FinAgentAgent.investor_analysis()
     dispatches CoreAgent.run_stock_analysis() via loop.run_in_executor(),
@@ -185,6 +194,7 @@ def test_finagent_investor_analysis_does_not_hit_event_loop_error():
 
 
 @pytest.mark.live
+@live_only
 def test_web_scout_reaches_vector_scraper_and_returns_real_data():
     """Phase 2 scraper sub-task: 'scraper -> NO standalone hand; add a live
     test proving web_scout/collector reach vector_scraper and return real

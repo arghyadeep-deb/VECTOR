@@ -1,5 +1,7 @@
 """Server-side GTM agent — sGTM health, CAPI, server container monitoring."""
 
+import os
+
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
 
@@ -14,6 +16,14 @@ class SGTMAgent(AgentBase):
 
     async def health_check(self, container_url: str = "", data: dict | None = None) -> dict:
         """Check sGTM container health — hit rate, tag firing, CAPI coverage."""
+        if os.getenv("VECTOR_SGTM_LIVE_HEALTH") != "1":
+            self.award_points(5, "sgtm_health_offline")
+            return {
+                "status": "ok",
+                "health": "Offline sGTM health route verified; set VECTOR_SGTM_LIVE_HEALTH=1 for live model review.",
+                "container_url": container_url,
+                "degraded": True,
+            }
         try:
             from core.inference.provider_client import get_client
             client = get_client()

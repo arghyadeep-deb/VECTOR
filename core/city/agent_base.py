@@ -276,7 +276,12 @@ class AgentBase:
             from core.city.agent_registry import get_registry
             registry = get_registry()
             target = next(
-                (a for a in registry.get_all_agents() if getattr(a, "name", None) == target_agent),
+                (
+                    a
+                    for a in registry.get_all_agents()
+                    if getattr(a, "name", None) == target_agent
+                    or getattr(a, "district", None) == target_agent
+                ),
                 None,
             )
             if target is None:

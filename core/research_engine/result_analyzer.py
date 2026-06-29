@@ -34,8 +34,8 @@ class ResultAnalyzer:
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
             self._matplotlib = plt
-        except ImportError:
-            logger.warning("matplotlib not available — plots disabled")
+        except Exception as exc:
+            logger.warning("matplotlib not available - plots disabled: {}", exc)
 
     def analyze(self, experiment_result: ExperimentResult) -> AnalysisResult:
         exp_id = experiment_result.experiment_id
@@ -49,12 +49,11 @@ class ResultAnalyzer:
         effect_size = 0.0
 
         if len(data) >= 4:
-            if self._scipy:
-                t_result = self._ttest(data)
-                if t_result:
-                    tests.append(t_result)
-                    significance = t_result.get("p_value", 1.0)
-                    effect_size = t_result.get("effect_size", 0.0)
+            t_result = self._ttest(data)
+            if t_result:
+                tests.append(t_result)
+                significance = t_result.get("p_value", 1.0)
+                effect_size = t_result.get("effect_size", 0.0)
 
             corr_result = self._correlation(data)
             if corr_result:
@@ -116,27 +115,48 @@ class ResultAnalyzer:
         }
 
     def _ttest(self, data: list[float]) -> Optional[dict]:
-        if self._scipy and len(data) >= 4:
-            try:
-                mid = len(data) // 2
-                group_a = data[:mid]
-                group_b = data[mid:]
-                t_stat, p_val = self._scipy.ttest_ind(group_a, group_b)
-                n1, n2 = len(group_a), len(group_b)
-                s1 = self._numpy.std(group_a, ddof=1) if self._numpy else 0
-                s2 = self._numpy.std(group_b, ddof=1) if self._numpy else 0
-                pooled = math.sqrt(((n1 - 1) * s1 ** 2 + (n2 - 1) * s2 ** 2) / (n1 + n2 - 2)) if n1 + n2 > 2 else 0
-                cohens_d = abs(t_stat) / math.sqrt(len(data)) if pooled == 0 else abs(t_stat) / (pooled * math.sqrt(1 / n1 + 1 / n2))
-                return {
-                    "test": "independent_t_test",
-                    "t_statistic": round(float(t_stat), 6),
-                    "p_value": round(float(p_val), 6),
-                    "effect_size": round(float(cohens_d), 6),
-                    "df": n1 + n2 - 2,
-                }
-            except Exception as exc:
-                logger.warning("t-test failed: {}", exc)
+        if len(data) < 4:
+            return None
+        try:
+            mid = len(data) // 2
+            group_a = data[:mid]
+            group_b = data[mid:]
+            n1, n2 = len(group_a), len(group_b)
+            mean_a = sum(group_a) / n1
+            mean_b = sum(group_b) / n2
+            s1 = self._stddev(group_a)
+            s2 = self._stddev(group_b)
+            pooled = math.sqrt(((n1 - 1) * s1 ** 2 + (n2 - 1) * s2 ** 2) / (n1 + n2 - 2)) if n1 + n2 > 2 else 0
+
+            if self._scipy:
+                raw = self._scipy.ttest_ind(group_a, group_b)
+                t_stat = getattr(raw, "statistic", raw[0] if isinstance(raw, tuple) else raw)
+                p_val = getattr(raw, "pvalue", raw[1] if isinstance(raw, tuple) and len(raw) > 1 else 1.0)
+            else:
+                denom = pooled * math.sqrt(1 / n1 + 1 / n2)
+                t_stat = 0.0 if denom == 0 else (mean_a - mean_b) / denom
+                # Normal approximation keeps the fallback deterministic without scipy.
+                p_val = math.erfc(abs(float(t_stat)) / math.sqrt(2))
+
+            cohens_d = 0.0 if pooled == 0 else abs(mean_b - mean_a) / pooled
+            return {
+                "test": "independent_t_test",
+                "t_statistic": round(float(t_stat), 6),
+                "p_value": round(float(p_val), 6),
+                "effect_size": round(float(cohens_d), 6),
+                "df": n1 + n2 - 2,
+            }
+        except Exception as exc:
+            logger.warning("t-test failed: {}", exc)
         return None
+
+    def _stddev(self, data: list[float]) -> float:
+        if len(data) < 2:
+            return 0.0
+        if self._numpy:
+            return float(self._numpy.std(data, ddof=1))
+        mean = sum(data) / len(data)
+        return math.sqrt(sum((x - mean) ** 2 for x in data) / (len(data) - 1))
 
     def _correlation(self, data: list[float]) -> Optional[dict]:
         if self._scipy and len(data) >= 6:

@@ -97,7 +97,8 @@ class LifelongAgentScorer(Scorer):
     _warned_single_shot = False
 
     def __init__(self, judge_backend: Any = None, judge_model: str = "") -> None:
-        pass
+        self.judge_backend = judge_backend
+        self.judge_model = judge_model
 
     def score(
         self,

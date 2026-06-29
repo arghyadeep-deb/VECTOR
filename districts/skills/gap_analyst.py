@@ -4,6 +4,7 @@ District: skills | Focus: Analyze skill gaps, suggest learning paths, prioritize
 """
 
 import sys
+import os
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
@@ -27,6 +28,8 @@ class GapAnalyst(AgentBase):
         logger.info("[VECTOR][skills] GapAnalyst ready")
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
+        if os.getenv("VECTOR_SKILLS_LLM") != "1":
+            return ""
         from core.inference.vectorcode_llm import chat as ollama_chat
         from core.loop.context_engine import ContextEngine
         hydration = ContextEngine().session_hydration_prompt()

@@ -221,7 +221,7 @@ def _allow_lazy_installs() -> bool:
     refusing to install would lock people out of their own backends; the
     decision to block is an explicit user opt-in.
     """
-    if os.environ.get("HERMES_DISABLE_LAZY_INSTALLS") == "1":
+    if os.environ.get("VECTOR_DISABLE_LAZY_INSTALLS") == "1":
         return False
     try:
         from vector_cli.config import load_config

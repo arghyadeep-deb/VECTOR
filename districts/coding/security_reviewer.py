@@ -6,6 +6,7 @@ deserialization (pickle), permission bypass patterns, and auth gaps.
 """
 import sys
 import asyncio
+import os
 import re
 from pathlib import Path
 
@@ -157,6 +158,21 @@ class SecurityReviewer(AgentBase):
                 hydration = ""
 
             static_issues = self._static_scan(code, filename)
+
+            if os.environ.get("VECTOR_SECURITY_REVIEW_LLM") != "1":
+                critical_count = sum(1 for i in static_issues if i["severity"] == "CRITICAL")
+                high_count = sum(1 for i in static_issues if i["severity"] == "HIGH")
+                return {
+                    "agent": self.name,
+                    "filename": filename,
+                    "issues": static_issues,
+                    "feedback": "LLM review disabled; returned static security scan results.",
+                    "issue_count": len(static_issues),
+                    "critical_count": critical_count,
+                    "high_count": high_count,
+                    "static_issue_count": len(static_issues),
+                    "degraded": True,
+                }
 
             from core.inference.provider_client import ProviderClient
             client = ProviderClient()

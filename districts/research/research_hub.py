@@ -77,7 +77,7 @@ class ResearchHub(AgentBase):
                 # Store findings in memory for other agents. ConsolidationBot
                 # is the memory_curator district's actual registered .name —
                 # there is no agent literally named "memory_curator".
-                await self.request_agent_help("ConsolidationBot", {
+                await self.request_agent_help("memory_curator", {
                     "type": "store_findings",
                     "params": {"topic": str(query)[:100], "findings": str(results)[:500]},
                 })

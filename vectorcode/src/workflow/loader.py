@@ -83,7 +83,14 @@ def _parse_node(data: Dict[str, Any]) -> WorkflowNode:
         transform_expr=data.get("transform_expr", data.get("transform", "")),
     )
 
-__all__ = ["load_workflow"]
+__all__ = ["load_workflow", "discover_workflows"]
 
 def discover_workflows(directory=None) -> list:
     """Discover available workflow definitions."""
+    root = Path(directory) if directory is not None else Path(__file__).parent / "builtin"
+    if not root.exists():
+        return []
+    workflows = []
+    for path in sorted(root.rglob("*.toml")):
+        workflows.append({"name": path.stem, "path": str(path)})
+    return workflows

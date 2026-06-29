@@ -676,7 +676,7 @@ Claude Code) can call it as both a CLI and an MCP tool.
 (Cursor, Codex CLI, etc.) will still get the gbrain CLI on PATH — they can
 register `gbrain serve` in their own MCP config manually after setup.
 
-**Audience:** local-Mac users. openclaw/hermes agents typically run in cloud
+**Audience:** local-Mac users. openclaw/vector agents typically run in cloud
 docker containers with their own gbrain; "sharing" a brain between them and
 local Claude Code is only possible through shared Postgres (Supabase).
 
@@ -724,7 +724,7 @@ flag was passed. The question title: "Where should your brain live?"
 Options (present based on detected state):
 
 - **1 — Supabase, I already have a connection string.** Cloud-agent users
-  whose openclaw/hermes provisioned one already. Paste the Session Pooler
+  whose openclaw/vector provisioned one already. Paste the Session Pooler
   URL from the Supabase dashboard (Settings → Database → Connection Pooler
   → Session). *Trust-surface caveat to include in the prompt:* "Pasting this
   URL gives your local Claude Code full read/write access to every page your

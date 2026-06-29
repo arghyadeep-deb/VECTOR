@@ -138,7 +138,8 @@ class CodingAssistantScorer(Scorer):
     scorer_id = "coding_assistant"
 
     def __init__(self, judge_backend=None, judge_model: str = "") -> None:
-        pass
+        self.judge_backend = judge_backend
+        self.judge_model = judge_model
 
     def score(
         self,

@@ -47,7 +47,7 @@ _FALLBACK_PATTERNS = re.compile(
     re.IGNORECASE,
 )
 
-_TASK_NAME_DEFAULT = "Hermes_Gateway"
+_TASK_NAME_DEFAULT = "VECTOR_Gateway"
 _TASK_DESCRIPTION = "VECTOR Gateway - Messaging Platform Integration"
 
 
@@ -135,8 +135,8 @@ def _should_fall_back(code: int, detail: str) -> bool:
 def get_task_name() -> str:
     """Scheduled Task name, scoped per profile.
 
-    Default profile: ``Hermes_Gateway``
-    Named profile X: ``Hermes_Gateway_<X>``
+    Default profile: ``VECTOR_Gateway``
+    Named profile X: ``VECTOR_Gateway_<X>``
     """
     _assert_windows()
     # Local import to avoid circular module initialization during vector_cli boot.

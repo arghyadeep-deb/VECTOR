@@ -30,12 +30,16 @@ async def submit_task(
     task: TaskSubmission,
     authorization: str = Header(None),
 ):
-    if _INTERNAL_TOKEN:
-        if not authorization or not authorization.startswith("Bearer "):
-            raise HTTPException(401, "Missing authorization")
-        token = authorization.removeprefix("Bearer ")
-        if not hmac.compare_digest(token, _INTERNAL_TOKEN):
-            raise HTTPException(403, "Invalid token")
+    if not _INTERNAL_TOKEN:
+        raise HTTPException(
+            503,
+            "External task ingestion requires VECTOR_INTERNAL_TOKEN to be set",
+        )
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(401, "Missing authorization")
+    token = authorization.removeprefix("Bearer ")
+    if not hmac.compare_digest(token, _INTERNAL_TOKEN):
+        raise HTTPException(403, "Invalid token")
     from core.loop.autonomous_loop import AutonomousLoop
     # BUG FIX: previously constructed a FRESH AutonomousLoop() and set
     # _pending_voice on it — the running loop never saw the intent. Use the

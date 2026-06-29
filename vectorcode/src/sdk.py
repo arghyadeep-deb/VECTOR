@@ -626,7 +626,8 @@ class VectorAgent:
         self.close()
 
 
-__all__ = ["VectorAgent", "VectorSystem", "MemoryHandle", "SystemBuilder"]
+__all__ = ["VectorAgent", "Vector", "VectorSystem", "MemoryHandle", "SystemBuilder"]
 
 # Backward-compatible alias
 vector = VectorAgent
+Vector = VectorAgent

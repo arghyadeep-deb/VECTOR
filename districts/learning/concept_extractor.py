@@ -9,6 +9,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
+import os
 import uuid, asyncio, json
 from typing import Optional
 
@@ -27,6 +28,8 @@ class ConceptExtractor(AgentBase):
         logger.info("[VECTOR][learning] ConceptExtractor ready")
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
+        if os.getenv("VECTOR_LEARNING_LLM") != "1":
+            return '[{"name":"offline_concept","definition":"Offline concept extraction fallback","importance":5,"related_concepts":[]}]'
         from core.inference.vectorcode_llm import chat as ollama_chat
         from core.loop.context_engine import ContextEngine
         hydration = ContextEngine().session_hydration_prompt()

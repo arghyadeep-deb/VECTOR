@@ -9,6 +9,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
+import os
 import uuid, asyncio, json, math
 from typing import Optional
 
@@ -66,8 +67,13 @@ class ArchitectureBuilder(AgentBase):
             "created_at": self.last_active,
         }
 
-        prompt = f"Analyze this architecture config for a {model_type} model: {json.dumps(architecture['config'], indent=2)}. Provide a concise critique focusing on potential bottlenecks and recommended tweaks."
-        critique = self._call_ollama(prompt)
+        critique = "Critique skipped; set VECTOR_KARPATHY_LLM_CRITIQUE=1 to enable live LLM analysis."
+        if os.getenv("VECTOR_KARPATHY_LLM_CRITIQUE") == "1":
+            prompt = f"Analyze this architecture config for a {model_type} model: {json.dumps(architecture['config'], indent=2)}. Provide a concise critique focusing on potential bottlenecks and recommended tweaks."
+            try:
+                critique = self._call_ollama(prompt)
+            except Exception as e:
+                critique = f"Critique unavailable: {e}"
         architecture["critique"] = critique
 
         self.memory.store(

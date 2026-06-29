@@ -7,6 +7,11 @@ from .bootstrap import ensure_paths
 ensure_paths()
 
 try:
+    from .sdk import VectorAgent, Vector, VectorSystem, MemoryHandle, SystemBuilder
+except ImportError:
+    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+
+try:
     from .claims import ClaimService, WorkStealingService, LoadBalancer, mcp_claim_task, mcp_release_task, mcp_steal_task
 except ImportError:
     logger.debug("[VECTOR] suppressed exception", exc_info=True)

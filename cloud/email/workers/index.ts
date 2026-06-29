@@ -20,8 +20,13 @@ import { handleReplyEmail, handleForwardEmail } from "./routes/reply-forward";
 import { Folders } from "../shared/folders";
 import type { Env } from "./types";
 import { requireMailbox, type MailboxContext } from "./lib/mailbox";
+import type { MailboxDO } from "./durableObject";
 
 type AppContext = Context<MailboxContext>;
+type MailboxMaintenanceStub = DurableObjectStub<MailboxDO> & {
+	listAttachmentKeys(): Promise<string[]>;
+	purgeMailboxData(): Promise<{ status: string }>;
+};
 
 // -- Request body schemas (kept for validation) ---------------------
 
@@ -136,7 +141,11 @@ app.delete("/api/v1/mailboxes/:mailboxId", async (c) => {
 	const mailboxId = c.req.param("mailboxId")!;
 	const key = `mailboxes/${mailboxId}.json`;
 	if (!(await c.env.BUCKET.head(key))) return c.json({ error: "Not found" }, 404);
-	await c.env.BUCKET.delete(key); // TODO: also delete DO data and R2 attachment blobs
+	const stub = c.env.MAILBOX.get(c.env.MAILBOX.idFromName(mailboxId)) as MailboxMaintenanceStub;
+	const attachmentKeys = await stub.listAttachmentKeys();
+	if (attachmentKeys.length > 0) await c.env.BUCKET.delete(attachmentKeys);
+	await stub.purgeMailboxData();
+	await c.env.BUCKET.delete(key);
 	return c.body(null, 204);
 });
 
@@ -215,7 +224,6 @@ app.post("/api/v1/mailboxes/:mailboxId/drafts", async (c: AppContext) => {
 	const mailboxId = c.req.param("mailboxId")!;
 	const { to, cc, bcc, subject, body, in_reply_to, thread_id, draft_id } = DraftBody.parse(await c.req.json());
 	const stub = c.var.mailboxStub;
-	if (draft_id) await stub.deleteEmail(draft_id); // not atomic — create-then-delete would be safer
 	const messageId = crypto.randomUUID();
 	const now = new Date().toISOString();
 	await stub.createEmail(Folders.DRAFT, {
@@ -224,6 +232,7 @@ app.post("/api/v1/mailboxes/:mailboxId/drafts", async (c: AppContext) => {
 		date: now, body, in_reply_to: in_reply_to || null, email_references: null,
 		thread_id: thread_id || in_reply_to || messageId,
 	}, []);
+	if (draft_id) await stub.deleteEmail(draft_id);
 	return c.json({ id: messageId, status: "draft", subject: subject || "", recipient: to || "", date: now }, 201);
 });
 

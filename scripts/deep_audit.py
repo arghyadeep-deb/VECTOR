@@ -9,7 +9,8 @@ import sys
 from pathlib import Path
 from collections import defaultdict
 
-vc = Path(__file__).parent.parent / "vectorcode" / "src"
+vectorcode_root = Path(__file__).parent.parent / "vectorcode"
+vc = vectorcode_root / "src"
 py_files = sorted(f for f in vc.rglob("*.py") if "__pycache__" not in str(f))
 
 print(f"Deep-auditing {len(py_files)} files...", flush=True)
@@ -33,6 +34,9 @@ for py in py_files:
             for t in node.targets:
                 if isinstance(t, ast.Name):
                     defined_names.add(t.id)
+        elif isinstance(node, ast.AnnAssign):
+            if isinstance(node.target, ast.Name):
+                defined_names.add(node.target.id)
         elif isinstance(node, ast.Import):
             for alias in node.names:
                 defined_names.add(alias.asname or alias.name.split(".")[0])
@@ -52,11 +56,12 @@ SKIP_NAMES = BUILTINS | {
     "NotImplementedError", "NotImplemented", "Ellipsis",
     "_", "__", "n", "i", "j", "k", "x", "y", "z", "e",
     "a", "b", "c", "d", "f", "g", "h", "m", "p", "q", "r", "s", "t",
-    "u", "v", "w", "ok", "err",
+    "u", "v", "w", "ok", "err", "__file__", "__builtins__",
 }
 
 # ── 2. Per-file checks ────────────────────────────────────────────────────
 issues: list[tuple[str, str, int, str]] = []  # (level, rel_path, lineno, msg)
+ENCLOSING_SCOPE_NAMES: dict[int, set[str]] = {}
 
 IGNORE_IMPORTS = frozenset({
     # Third-party that may or may not be installed
@@ -147,6 +152,17 @@ IGNORE_IMPORTS = frozenset({
     "terraform", "pulumi", "aws_cdk", "constructs",
 })
 
+def add_target_names(target: ast.AST, scope: set[str]) -> None:
+    """Add names bound by assignment-like targets, including destructuring."""
+    if isinstance(target, ast.Name):
+        scope.add(target.id)
+    elif isinstance(target, (ast.Tuple, ast.List)):
+        for elt in target.elts:
+            add_target_names(elt, scope)
+    elif isinstance(target, ast.Starred):
+        add_target_names(target.value, scope)
+
+
 def get_local_scope(tree: ast.Module, func_node) -> set[str]:
     """Get names visible in a function's scope."""
     scope: set[str] = set()
@@ -156,8 +172,9 @@ def get_local_scope(tree: ast.Module, func_node) -> set[str]:
             scope.add(node.name)
         elif isinstance(node, ast.Assign):
             for t in node.targets:
-                if isinstance(t, ast.Name):
-                    scope.add(t.id)
+                add_target_names(t, scope)
+        elif isinstance(node, ast.AnnAssign):
+            add_target_names(node.target, scope)
         elif isinstance(node, ast.Import):
             for a in node.names:
                 scope.add(a.asname or a.name.split(".")[0])
@@ -172,20 +189,20 @@ def get_local_scope(tree: ast.Module, func_node) -> set[str]:
         scope.add(args.vararg.arg)
     if args.kwarg:
         scope.add(args.kwarg.arg)
+    scope |= ENCLOSING_SCOPE_NAMES.get(id(func_node), set())
     # Assigned within function
     for node in ast.walk(func_node):
         if isinstance(node, ast.Assign):
             for t in node.targets:
-                if isinstance(t, ast.Name):
-                    scope.add(t.id)
+                add_target_names(t, scope)
+        elif isinstance(node, ast.AnnAssign):
+            add_target_names(node.target, scope)
         elif isinstance(node, ast.AugAssign):
-            if isinstance(node.target, ast.Name):
-                scope.add(node.target.id)
+            add_target_names(node.target, scope)
         elif isinstance(node, (ast.For, ast.AsyncFor)):
-            if isinstance(node.target, ast.Name):
-                scope.add(node.target.id)
+            add_target_names(node.target, scope)
         elif isinstance(node, ast.NamedExpr):
-            scope.add(node.target.id)
+            add_target_names(node.target, scope)
         elif isinstance(node, ast.Import):
             for a in node.names:
                 scope.add(a.asname or a.name.split(".")[0])
@@ -202,16 +219,14 @@ def get_local_scope(tree: ast.Module, func_node) -> set[str]:
                 scope.add(n)
         elif isinstance(node, ast.ListComp, ):
             for gen in node.generators:
-                if isinstance(gen.target, ast.Name):
-                    scope.add(gen.target.id)
+                add_target_names(gen.target, scope)
         elif isinstance(node, (ast.DictComp, ast.SetComp, ast.GeneratorExp)):
             for gen in node.generators:
-                if isinstance(gen.target, ast.Name):
-                    scope.add(gen.target.id)
-        elif isinstance(node, ast.With):
+                add_target_names(gen.target, scope)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
             for item in node.items:
-                if item.optional_vars and isinstance(item.optional_vars, ast.Name):
-                    scope.add(item.optional_vars.id)
+                if item.optional_vars:
+                    add_target_names(item.optional_vars, scope)
         elif isinstance(node, ast.ExceptHandler):
             if node.name:
                 scope.add(node.name)
@@ -227,8 +242,12 @@ def check_import_from(node: ast.ImportFrom, py: Path, rel: str) -> None:
     if not mod.startswith("vectorcode"):
         return
     # Convert module path to file path
-    parts = mod.replace("vectorcode.src.", "").replace("vectorcode.", "").split(".")
-    candidate = vc.joinpath(*parts)
+    if mod.startswith("vectorcode.src."):
+        parts = mod.replace("vectorcode.src.", "").split(".")
+        candidate = vc.joinpath(*parts)
+    else:
+        parts = mod.replace("vectorcode.", "").split(".")
+        candidate = vectorcode_root.joinpath(*parts)
     # Try as module file or package
     file_candidates = [
         candidate.with_suffix(".py"),
@@ -244,23 +263,100 @@ def check_import_from(node: ast.ImportFrom, py: Path, rel: str) -> None:
         try:
             target_tree = ast.parse(target_file.read_text(encoding="utf-8", errors="replace"))
             target_names: set[str] = set()
+            if target_file.name == "__init__.py":
+                for child in target_file.parent.glob("*.py"):
+                    if child.name != "__init__.py":
+                        target_names.add(child.stem)
             for n in ast.walk(target_tree):
                 if isinstance(n, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
                     target_names.add(n.name)
                 elif isinstance(n, ast.Assign):
                     for t in n.targets:
-                        if isinstance(t, ast.Name):
-                            target_names.add(t.id)
+                        add_target_names(t, target_names)
+                elif isinstance(n, ast.AnnAssign):
+                    add_target_names(n.target, target_names)
                 elif isinstance(n, ast.ImportFrom):
                     for a in n.names:
                         target_names.add(a.asname or a.name)
             for alias in node.names:
                 name = alias.name
-                if name != "*" and name not in target_names:
+                if name != "*" and "*" not in target_names and name not in target_names:
                     issues.append(("IMPORT", rel, node.lineno,
                                    f"from {mod!r} import {name!r} — {name!r} not defined in {target_file.name}"))
         except Exception:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
+
+
+def iter_function_load_names(func_node):
+    """Yield loaded Name nodes in a function, excluding nested scopes."""
+    class _LoadNameVisitor(ast.NodeVisitor):
+        def __init__(self):
+            self.names = []
+
+        def visit_FunctionDef(self, node):
+            if node is func_node:
+                self.generic_visit(node)
+
+        def visit_AsyncFunctionDef(self, node):
+            if node is func_node:
+                self.generic_visit(node)
+
+        def visit_Lambda(self, node):
+            return
+
+        def visit_ClassDef(self, node):
+            return
+
+        def visit_Name(self, node):
+            if isinstance(node.ctx, ast.Load):
+                self.names.append(node)
+
+    visitor = _LoadNameVisitor()
+    visitor.visit(func_node)
+    return visitor.names
+
+
+def function_bindings(func_node) -> set[str]:
+    bindings: set[str] = set()
+    args = func_node.args
+    for a in args.args + args.posonlyargs + args.kwonlyargs:
+        bindings.add(a.arg)
+    if args.vararg:
+        bindings.add(args.vararg.arg)
+    if args.kwarg:
+        bindings.add(args.kwarg.arg)
+    for node in ast.walk(func_node):
+        if isinstance(node, ast.Assign):
+            for t in node.targets:
+                add_target_names(t, bindings)
+        elif isinstance(node, ast.AnnAssign):
+            add_target_names(node.target, bindings)
+        elif isinstance(node, (ast.For, ast.AsyncFor)):
+            add_target_names(node.target, bindings)
+        elif isinstance(node, (ast.With, ast.AsyncWith)):
+            for item in node.items:
+                if item.optional_vars:
+                    add_target_names(item.optional_vars, bindings)
+    return bindings
+
+
+class EnclosingScopeVisitor(ast.NodeVisitor):
+    def __init__(self):
+        self.stack: list[set[str]] = []
+
+    def visit_FunctionDef(self, node):
+        ENCLOSING_SCOPE_NAMES[id(node)] = set().union(*self.stack) if self.stack else set()
+        self.stack.append(function_bindings(node))
+        for stmt in node.body:
+            self.visit(stmt)
+        self.stack.pop()
+
+    def visit_AsyncFunctionDef(self, node):
+        self.visit_FunctionDef(node)
+
+    def visit_ClassDef(self, node):
+        for stmt in node.body:
+            self.visit(stmt)
 
 
 for py in py_files:
@@ -273,6 +369,8 @@ for py in py_files:
         continue
 
     lines = text.splitlines()
+    ENCLOSING_SCOPE_NAMES.clear()
+    EnclosingScopeVisitor().visit(tree)
 
     # ── Check all from X import Y ──────────────────────────────────────
     for node in ast.walk(tree):
@@ -286,11 +384,7 @@ for py in py_files:
         local_scope = get_local_scope(tree, node)
         visible = local_scope | defined_names | SKIP_NAMES
 
-        for child in ast.walk(node):
-            if not isinstance(child, ast.Name):
-                continue
-            if not isinstance(child.ctx, ast.Load):
-                continue
+        for child in iter_function_load_names(node):
             name = child.id
             if name in visible:
                 continue
@@ -310,6 +404,12 @@ for py in py_files:
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             continue
+        decorator_names = {
+            getattr(dec, "id", getattr(dec, "attr", ""))
+            for dec in node.decorator_list
+        }
+        if "abstractmethod" in decorator_names:
+            continue
         # Skip if return annotation is None/nothing
         if isinstance(node.returns, ast.Constant) and node.returns.value is None:
             continue
@@ -321,6 +421,10 @@ for py in py_files:
         # Check if any path has no return
         body = node.body
         last = body[-1] if body else None
+        if isinstance(last, ast.Expr) and isinstance(last.value, ast.Constant) and last.value.value is Ellipsis:
+            continue
+        if any(isinstance(n, (ast.Yield, ast.YieldFrom)) for n in ast.walk(node)):
+            continue
         if last and not isinstance(last, (ast.Return, ast.Raise, ast.If,
                                           ast.For, ast.While, ast.Try,
                                           ast.With, ast.AsyncFor, ast.AsyncWith)):

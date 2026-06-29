@@ -1,4 +1,5 @@
 import sys
+import os
 import uuid
 import asyncio
 import datetime
@@ -37,8 +38,11 @@ class ConsolidationBot(AgentBase):
         self._memory = EpisodicMemory()
         self._obsidian = ObsidianSync()
         self._context = ContextEngine()
+        mem0_enabled = os.getenv("VECTOR_MEM0_ENABLE") == "1"
         # mem0 episodic layer — self-hosted OSS only (RULE 11, never MemoryClient)
         try:
+            if not mem0_enabled:
+                raise ImportError("mem0 disabled; set VECTOR_MEM0_ENABLE=1 to enable")
             from mem0 import Memory as _Mem0
             self._mem0 = _Mem0()
             logger.info("[VECTOR][consolidation_bot] mem0 episodic layer active")
@@ -122,6 +126,8 @@ class ConsolidationBot(AgentBase):
         hydration = self._context.session_hydration_prompt()  # RULE 1
 
         try:
+            if os.getenv("VECTOR_MEMORY_CURATOR_LLM") != "1":
+                raise RuntimeError("memory curator LLM disabled; set VECTOR_MEMORY_CURATOR_LLM=1 to enable")
             from core.inference.vectorcode_llm import chat
             summary = chat(
                 model=CONFIG["models"]["reasoning"],
@@ -189,6 +195,8 @@ class ConsolidationBot(AgentBase):
             hydration = self._context.session_hydration_prompt()  # RULE 1
 
             try:
+                if os.getenv("VECTOR_MEMORY_CURATOR_LLM") != "1":
+                    raise RuntimeError("memory curator LLM disabled; set VECTOR_MEMORY_CURATOR_LLM=1 to enable")
                 from core.inference.vectorcode_llm import chat
                 reflection = chat(
                     model=CONFIG["models"]["reasoning"],

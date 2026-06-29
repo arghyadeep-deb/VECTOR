@@ -35,6 +35,7 @@ class Transport(Protocol):
 
     def write(self, obj: dict) -> bool:
         """Emit one JSON frame. Return ``False`` when the peer is gone."""
+        ...
 
     def close(self) -> None:
         """Release any resources owned by this transport."""

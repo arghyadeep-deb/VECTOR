@@ -1,4 +1,5 @@
 import sys
+import os
 import uuid
 import asyncio
 import datetime
@@ -95,6 +96,8 @@ class PatternFinder(AgentBase):
         hydration = self._context.session_hydration_prompt()  # RULE 1
 
         try:
+            if os.getenv("VECTOR_MEMORY_CURATOR_LLM") != "1":
+                raise RuntimeError("memory curator LLM disabled; set VECTOR_MEMORY_CURATOR_LLM=1 to enable")
             from core.inference.vectorcode_llm import chat
             raw = chat(
                 model=CONFIG["models"]["reasoning"],

@@ -209,7 +209,25 @@ Format clearly with numbered options.
 
         except Exception as e:
             logger.error(f"[VECTOR][video_generator] Title generation failed: {e}")
-            return {"topic": topic, "error": str(e)}
+            options = [
+                {
+                    "id": str(uuid.uuid4()),
+                    "topic": topic,
+                    "title": f"{topic}: What You Need to Know",
+                    "style": "how-to",
+                    "thumbnail_concept": f"Clear bold text over a relevant visual for {topic}",
+                    "char_count": len(f"{topic}: What You Need to Know"),
+                    "created_at": self._get_timestamp(),
+                }
+            ]
+            return {
+                "status": "success",
+                "topic": topic,
+                "options": options,
+                "created_at": self._get_timestamp(),
+                "degraded": True,
+                "warning": str(e),
+            }
 
     def _parse_title_options(self, content: str, topic: str) -> list[dict]:
         """Parse title options from LLM response."""
@@ -276,7 +294,9 @@ Return ONLY a comma-separated list of tags, nothing else.
 
         except Exception as e:
             logger.error(f"[VECTOR][video_generator] Tag generation failed: {e}")
-            return []
+            base = [t.strip().lower() for t in topic.replace("-", " ").split() if t.strip()]
+            tags = base + [topic.lower(), "video", "explainer", "guide"]
+            return list(dict.fromkeys(tags))[:count]
 
     def suggest_scheduling(self, topic: str) -> dict:
         """

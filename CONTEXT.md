@@ -57,8 +57,8 @@ The LLM deliberation body invoked for high-stakes decisions. Members: `vector-re
 _Avoid_: committee, panel, board, ensemble
 
 **Vectorcode**:
-The communications layer (`vectorcode/src/`) — 30+ platform channel adapters (Telegram, WhatsApp, Discord, Slack, Gmail, etc.), neural routing, swarm coordination, and agent scaffolding. Fully replaces the old Hermes system.
-_Avoid_: Hermes, comms layer, messaging system (use "vectorcode" specifically)
+The communications layer (`vectorcode/src/`) — 30+ platform channel adapters (Telegram, WhatsApp, Discord, Slack, Gmail, etc.), neural routing, swarm coordination, and agent scaffolding. This is the only supported cross-platform messaging implementation.
+_Avoid_: comms layer, messaging system (use "vectorcode" specifically)
 
 **District LLM**:
 `vectorcode/src/district_llm.py` — unified LLM interface for all district agents. Automatically loads the district's `.md` system prompt and calls `vectorcode_llm.chat()`.

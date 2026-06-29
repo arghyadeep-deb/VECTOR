@@ -25,7 +25,7 @@ Usage:
 
 from __future__ import annotations
 
-from core.memory.db_utils import apply_pragmas
+from core.memory.db_utils import apply_pragmas, configured_db_path
 __all__ = ["PostJob", "PostJobTracker", "JobStatus"]
 
 import json
@@ -44,7 +44,8 @@ ensure_paths()
 from loguru import logger
 from core.config import CONFIG
 
-_DB_PATH = Path(CONFIG.get("data_dir", str(Path.home() / ".vector"))) / "post_jobs.db"
+_DATA_DIR = CONFIG.get("data_dir")
+_DB_PATH = (Path(str(_DATA_DIR)) if _DATA_DIR else configured_db_path().parent) / "post_jobs.db"
 _MAX_RETRIES = 3
 
 class JobStatus(str, Enum):

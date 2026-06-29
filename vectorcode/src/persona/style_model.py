@@ -4,6 +4,7 @@ Conversation analytics, tone/formality adjustment, style comparison.
 Standalone — no AgentBase. Uses Ollama directly for text rewriting.
 """
 import re
+import os
 
 from loguru import logger
 
@@ -211,6 +212,9 @@ class StyleModel:
         }
 
     def _ollama_rewrite(self, prompt: str, fallback: str) -> str:
+        if os.environ.get("VECTOR_STYLE_LLM") != "1":
+            return fallback
+
         try:
             import ollama
             resp = ollama.chat(

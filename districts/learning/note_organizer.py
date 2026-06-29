@@ -29,6 +29,8 @@ class NoteOrganizer(AgentBase):
         logger.info("[VECTOR][learning] NoteOrganizer ready")
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
+        if os.getenv("VECTOR_LEARNING_LLM") != "1":
+            return "Offline learning summary available; set VECTOR_LEARNING_LLM=1 for live model analysis."
         from core.inference.vectorcode_llm import chat as ollama_chat
         from core.loop.context_engine import ContextEngine
         hydration = ContextEngine().session_hydration_prompt()

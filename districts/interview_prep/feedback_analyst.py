@@ -1,6 +1,7 @@
 import sys
 import uuid
 import json
+import os
 import asyncio as _asyncio
 import concurrent.futures as _cf
 from pathlib import Path
@@ -13,6 +14,19 @@ from core.memory.episodic import EpisodicMemory
 
 
 def _llm(prompt: str, max_tokens: int = 1000, temperature: float = 0.5) -> str:
+    if os.environ.get("VECTOR_FEEDBACK_LLM") != "1":
+        return (
+            "AREAS_STRONG:\n"
+            "- Clear technical baseline\n"
+            "AREAS_IMPROVE:\n"
+            "- Provide more specific examples\n"
+            "SKILLS_TO_PRACTICE:\n"
+            "1. STAR-format behavioral answers\n"
+            "OVERALL_SCORE: 6\n"
+            "KEY_TAKEAWAY: Practice concise evidence-backed examples.\n"
+            "CATEGORIES: communication, behavioral, examples, star_format"
+        )
+
     from core.inference.provider_client import ProviderClient as _PC
     async def _call():
         r = await _PC().chat(

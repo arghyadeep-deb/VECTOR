@@ -25,7 +25,7 @@ No,Category,Guideline,Description,Do,Don't,Code Good,Code Bad,Severity,Docs URL
 24,Performance,Use useCallback for handlers,Stable function references,useCallback for props,New function on every render,"useCallback(() => {}, [deps])",() => handlePress(),Medium,
 25,Performance,Use useMemo for expensive ops,Cache expensive calculations,useMemo for heavy computations,Recalculate every render,"useMemo(() => expensive(), [deps])",const result = expensive(),Medium,
 26,Performance,Avoid anonymous functions in JSX,Prevent re-renders,Named handlers or useCallback,Inline arrow functions,onPress={handlePress},onPress={() => doSomething()},Medium,
-27,Performance,Use Hermes engine,Improved startup and memory,Enable Hermes in build,JavaScriptCore for new projects,hermes_enabled: true,hermes_enabled: false,Medium,https://reactnative.dev/docs/hermes
+27,Performance,Use VECTOR engine,Improved startup and memory,Enable VECTOR in build,JavaScriptCore for new projects,vector_enabled: true,vector_enabled: false,Medium,https://reactnative.dev/docs/vector
 28,Images,Use expo-image,Modern performant image component for React Native,"Use expo-image for caching, blurring, and performance",Use default Image for heavy lists or unmaintained libraries,<Image source={url} cachePolicy='memory-disk' /> (expo-image),<FastImage source={url} />,Medium,https://docs.expo.dev/versions/latest/sdk/image/
 29,Images,Specify image dimensions,Prevent layout shifts,width and height for remote images,No dimensions for network images,<Image style={{ width: 100 height: 100 }} />,<Image source={{ uri }} /> no size,High,
 30,Images,Use resizeMode,Control image scaling,resizeMode cover contain,Stretch images,"resizeMode=""cover""",No resizeMode,Low,

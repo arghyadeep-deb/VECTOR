@@ -191,7 +191,7 @@ class TestMessagingHubAbsorption:
     def test_known_platforms_complete(self):
         from vectorcode.src.comms import MessagingHub
         hub = MessagingHub()
-        # Hermes supported 14 platforms — we cover at least as many
+        # VECTOR supported 14 platforms — we cover at least as many
         assert len(hub.KNOWN_PLATFORMS) >= 14
         for p in ("telegram", "discord", "email", "webhook"):
             assert p in hub.KNOWN_PLATFORMS
@@ -656,13 +656,13 @@ class TestWorkersAbsorption:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# SECTION 8 — SUPERIORITY CHECK: VectorCode > Hermes + VECTOR
+# SECTION 8 — SUPERIORITY CHECK: VectorCode > VECTOR + VECTOR
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestVectorCodeSuperiority:
     """
-    Proves VectorCode is functionally superior to Hermes + VECTOR combined.
-    Each test represents a feature VectorCode has that Hermes/VECTOR lacked.
+    Proves VectorCode is functionally superior to VECTOR + VECTOR combined.
+    Each test represents a feature VectorCode has that VECTOR/VECTOR lacked.
     """
 
     def test_vectorcode_has_no_http_dependency(self):
@@ -681,7 +681,7 @@ class TestVectorCodeSuperiority:
         assert "vector-dev" in dm  # model domain exists with learned keywords
 
     def test_vectorcode_queen_has_consensus_protocol(self):
-        """VECTOR had consensus; Hermes had none. VectorCode has both + local Python."""
+        """VECTOR had consensus; VECTOR had none. VectorCode has both + local Python."""
         from vectorcode.src.queen import QueenCoordinator, ConsensusProposal, ConsensusVerdict
         q = QueenCoordinator()
         p = ConsensusProposal(action="delete logs", context="maintenance")
@@ -697,7 +697,7 @@ class TestVectorCodeSuperiority:
         assert bus is not None
 
     def test_vectorcode_persona_persists_to_disk(self):
-        """Hermes PersonModel required Obsidian vault. VectorCode uses ~/.vector/personas/."""
+        """VECTOR PersonModel required Obsidian vault. VectorCode uses ~/.vector/personas/."""
         from vectorcode.src.persona import PersonModel
         from pathlib import Path
         pm = PersonModel()
@@ -705,19 +705,19 @@ class TestVectorCodeSuperiority:
         profile_path = Path.home() / ".vector" / "personas" / "Disktestperson.json"
         assert profile_path.exists()
 
-    def test_vectorcode_all_modules_importable_without_hermes_running(self):
-        """Key superiority: VectorCode works fully offline without Hermes."""
-        # Import everything — none should require Hermes HTTP
+    def test_vectorcode_all_modules_importable_without_vector_running(self):
+        """Key superiority: VectorCode works fully offline without VECTOR."""
+        # Import everything — none should require VECTOR HTTP
         from vectorcode.src.persona import PersonModel, StyleModel
         from vectorcode.src.comms import MessagingHub
         from vectorcode.src.message_bus import MessageBus
         from vectorcode.src.router import NeuralRouter
         from vectorcode.src.queen import QueenCoordinator
         from vectorcode.src.hooks.workers import BackgroundWorkers
-        # All imports succeeded without Hermes
+        # All imports succeeded without VECTOR
         assert True
 
-    def test_vectorcode_combines_vector_hermes_in_single_python_package(self):
+    def test_vectorcode_combines_vector_vector_in_single_python_package(self):
         """VectorCode is a single Python package — no TypeScript, no separate processes."""
         base = Path(__file__).parent.parent / "vectorcode" / "src"
         required_paths = [
@@ -810,7 +810,7 @@ class TestMessageBusACL:
         from vectorcode.src.message_bus import FilterRule, FilterOp, Message
         fr = FilterRule(field="sender", op=FilterOp.MATCHES, value=r"^vec")
         assert fr.evaluate(Message(sender="vector"))
-        assert not fr.evaluate(Message(sender="hermes"))
+        assert not fr.evaluate(Message(sender="coder"))
 
     def test_filter_op_in(self):
         from vectorcode.src.message_bus import FilterRule, FilterOp, Message
@@ -1292,7 +1292,7 @@ class TestTelegramBot:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestPlatformAdapters:
-    """Validates all 9 Hermes platform adapters are absorbed."""
+    """Validates all 9 VECTOR platform adapters are absorbed."""
 
     def test_all_adapters_importable(self):
         from vectorcode.src.comms.platform_adapters import (

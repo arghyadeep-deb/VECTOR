@@ -1,6 +1,10 @@
-def ask(prompt: str, **kw) -> str:
+"""Compatibility exports for legacy ``vectorcode.src.cli.ask`` imports."""
+
+from vectorcode.src.vector_cli.ask import _build_tools, _get_memory_backend  # noqa: F401
+
+
+def ask(prompt: str, **_kw) -> str:
     return input(prompt)
 
-def _build_tools(config=None) -> list:
-    """Build tool list for agent."""
-    return []
+
+__all__ = ["ask", "_build_tools", "_get_memory_backend"]

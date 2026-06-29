@@ -107,7 +107,7 @@ class MigrationReport:
 # VECTOR keys that codex's MCP schema doesn't support — dropped during
 # migration with a warning. Anything not on the keep list AND not the
 # transport keys is added to skipped.
-_KNOWN_HERMES_KEYS = {
+_KNOWN_VECTOR_KEYS = {
     # transport — stdio
     "command", "args", "env", "cwd",
     # transport — http
@@ -191,7 +191,7 @@ def _translate_one_server(
     for key in vector_cfg:
         if key in _KEYS_DROPPED_WITH_WARNING:
             skipped.append(f"{key} (no codex equivalent)")
-        elif key not in _KNOWN_HERMES_KEYS:
+        elif key not in _KNOWN_VECTOR_KEYS:
             skipped.append(f"{key} (unknown VECTOR key)")
 
     return out, skipped
@@ -591,8 +591,8 @@ def _build_vector_tools_mcp_entry() -> dict:
     if pythonpath:
         env["PYTHONPATH"] = pythonpath
     # Quiet mode + redaction defaults so the MCP wire stays clean.
-    env["HERMES_QUIET"] = "1"
-    env["HERMES_REDACT_SECRETS"] = env.get("HERMES_REDACT_SECRETS", "true")
+    env["VECTOR_QUIET"] = "1"
+    env["VECTOR_REDACT_SECRETS"] = env.get("VECTOR_REDACT_SECRETS", "true")
 
     out: dict[str, Any] = {
         "command": sys.executable,

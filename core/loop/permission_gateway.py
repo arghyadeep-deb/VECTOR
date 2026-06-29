@@ -75,21 +75,28 @@ class PermissionGateway:
             return result
 
         if level == 'YELLOW':
-            await self._notify(
-                f'YELLOW action pending: {action.action_type} — auto-executes in 10s unless rejected',
-                priority=1,
+            yellow_auto_confirm = os.environ.get("VECTOR_YELLOW_AUTO_CONFIRM") == "1"
+            yellow_notice = (
+                f'YELLOW action pending: {action.action_type} - auto-executes in 10s unless rejected'
+                if yellow_auto_confirm
+                else f'YELLOW action pending: {action.action_type} - requires owner confirmation'
             )
+            await self._notify(yellow_notice, priority=1)
             yellow_timeout = 0.01 if "pytest" in sys.modules else 10
             try:
                 confirmed = await asyncio.wait_for(
                     self._wait_for_confirmation(action), timeout=yellow_timeout
                 )
             except asyncio.TimeoutError:
-                # No explicit rejection within 10s → execute (opt-out model)
-                confirmed = True
-                logger.info(
-                    f"[VECTOR][gateway] YELLOW action {action.action_type} auto-confirmed after 10s timeout"
-                )
+                confirmed = yellow_auto_confirm
+                if confirmed:
+                    logger.info(
+                        f"[VECTOR][gateway] YELLOW action {action.action_type} auto-confirmed after 10s timeout"
+                    )
+                else:
+                    logger.warning(
+                        f"[VECTOR][gateway] YELLOW action {action.action_type} timed out without confirmation"
+                    )
             if not confirmed and hasattr(self._wait_for_confirmation, "mock_calls"):
                 confirmed = True
             if not confirmed:
@@ -231,8 +238,14 @@ class PermissionGateway:
                     "rationale": rationale[:500],
                     "votes": deliberation.get("votes", []),
                 }
-                with log_path.open("a", encoding="utf-8") as fh:
-                    fh.write(json.dumps(entry) + "\n")
+                try:
+                    with log_path.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(entry) + "\n")
+                except PermissionError:
+                    if log_path.exists():
+                        os.chmod(log_path, 0o666)
+                    with log_path.open("a", encoding="utf-8") as fh:
+                        fh.write(json.dumps(entry) + "\n")
             except Exception as _log_err:
                 logger.warning("[VECTOR][gateway] council_log write failed — RED-tier deliberation audit trail incomplete: {}", _log_err)
             logger.info(
@@ -279,7 +292,7 @@ class PermissionGateway:
         return getattr(self, '_unknown_actions', {})
 
     async def evaluate_external(self, action_type: str, params: dict, source: str) -> GatewayResult:
-        """Validate an externally-submitted action (phone, cloud, ESP32). Skips capability check."""
+        """Validate and execute an externally-submitted action through the normal gate."""
         level = self._classify(action_type)
         logger.info("[VECTOR][gateway] external {} from {} classified as {}", action_type, source, level)
         if level == 'FORBIDDEN':
@@ -291,10 +304,7 @@ class PermissionGateway:
             r = GatewayResult(False, 'UNKNOWN', False, {}, f'Unknown action type: {action_type}')
             self._write_audit(Action(action_type, params, source), r)
             return r
-        result = await self._execute_action(Action(action_type, params, source))
-        r = GatewayResult(True, level, True, result, f'External action from {source} executed')
-        self._write_audit(Action(action_type, params, source), r)
-        return r
+        return await self.execute(Action(action_type, params, source))
 
 
     def _classify(self, action_type) -> str:
@@ -568,26 +578,39 @@ class PermissionGateway:
                     import httpx
                     from core.security.ssrf_guard import SSRFGuard
                     url = action.params.get("url", "")
-                    dest = action.params.get("dest", "downloads/" + url.split("/")[-1])
                     if not url:
                         result["status"] = "error"
                         result["error"] = "no url provided"
                     else:
-                        _ssrf = SSRFGuard().check_url(url)
+                        _ssrf = SSRFGuard(resolve_dns=True).check_url(url)
                         if not _ssrf.safe:
                             result["status"] = "error"
                             result["error"] = f"SSRF blocked: {_ssrf.reason}"
                         else:
                             import pathlib
-                            pathlib.Path(dest).parent.mkdir(parents=True, exist_ok=True)
+                            from urllib.parse import urlparse, unquote
+                            download_root = data_path("downloads").resolve()
+                            requested = action.params.get("dest")
+                            if requested:
+                                dest_name = pathlib.PurePath(str(requested)).name
+                            else:
+                                dest_name = pathlib.PurePath(unquote(urlparse(url).path)).name
+                            if not dest_name or dest_name in (".", ".."):
+                                dest_name = "download.bin"
+                            dest_path = (download_root / dest_name).resolve()
+                            if download_root not in dest_path.parents and dest_path != download_root:
+                                result["status"] = "error"
+                                result["error"] = "download destination escapes downloads directory"
+                                return result
+                            dest_path.parent.mkdir(parents=True, exist_ok=True)
                             async with httpx.AsyncClient(timeout=30) as _client:
                                 _resp = await _client.get(url)
                                 _resp.raise_for_status()
                                 await asyncio.to_thread(
-                                    pathlib.Path(dest).write_bytes, _resp.content
+                                    dest_path.write_bytes, _resp.content
                                 )
                             result["status"] = "ok"
-                            result["dest"] = dest
+                            result["dest"] = str(dest_path)
                             result["bytes"] = len(_resp.content)
                 except Exception as _e:
                     result["status"] = "error"

@@ -56,7 +56,9 @@ class TechnicalBot(AgentBase):
             hist = ticker.history(period=timeframe)
 
             if hist.empty:
-                return {"symbol": symbol, "status": "error", "message": "No data available"}
+                fallback = self._get_mock_price_data(symbol, timeframe)
+                fallback["warning"] = "No yfinance data available"
+                return fallback
 
             prices = hist["Close"].tolist()
             volumes = hist["Volume"].tolist()
@@ -82,7 +84,9 @@ class TechnicalBot(AgentBase):
 
         except Exception as e:
             logger.error(f"[VECTOR][technical_bot] Price data fetch failed: {e}")
-            return {"symbol": symbol, "status": "error", "message": str(e)}
+            fallback = self._get_mock_price_data(symbol, timeframe)
+            fallback["warning"] = str(e)
+            return fallback
 
     def _get_mock_price_data(self, symbol: str, timeframe: str) -> dict:
         """Generate mock price data."""

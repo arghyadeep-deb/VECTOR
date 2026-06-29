@@ -64,7 +64,7 @@
 | T5.2 | `districts/time_calendar/time_blocker.py` | ✅ Done |
 | T5.3 | `districts/security/threat_scout.py` | ✅ Done (process + startup + malware scan) |
 | T5.3 | `districts/security/node_guard.py` | ✅ Done (166 connections, bad-port flagging) |
-| T5.4 | `districts/communications/` | ⚠️ Stub (Hermes — RULE 10: use Hermes, do not rebuild) |
+| T5.4 | `districts/communications/` | ⚠️ Stub (VECTOR — RULE 10: use VECTOR, do not rebuild) |
 
 ## T6 — Day 6 Memory + Research + Cloud ✅ COMPLETE (cloud pending deploy)
 | Task | File | Status |
@@ -77,7 +77,7 @@
 | T6.2 | `districts/research/reddit_miner.py` | ✅ Done |
 | T6.3 | `cloud/brain_server/main.py` (FastAPI, /status → 200) | ✅ Done |
 | T6.3 | `cloud/agent_workers/workers.py` + `scheduler.py` | ✅ Done |
-| T6.3 | `cloud/comms_service/service.py` (Hermes bridge) | ✅ Done |
+| T6.3 | `cloud/comms_service/service.py` (VECTOR bridge) | ✅ Done |
 | T6.3 | `api/src/*.ts` + `wrangler.toml` (Cloudflare Worker) | ✅ Done |
 | T6.3 | `dashboard/src/app/` (7 Next.js pages) | ✅ Done |
 | NOTE | Fly.io deploy: `fly launch` in cloud/brain_server/ | ⚠️ Not deployed yet |

@@ -324,6 +324,8 @@ class FundamentalsBot(AgentBase):
         """Assess overall performance vs sector."""
         above_count = sum(1 for m in metrics.values() if m["vs_sector"] == "above")
         total = len(metrics)
+        if total == 0:
+            return "insufficient_data"
 
         if above_count / total > 0.6:
             return "strong_vs_sector"

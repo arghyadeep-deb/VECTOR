@@ -69,9 +69,9 @@ def test_full_manifest_instantiates_without_attribute_error():
         loader = ManifestLoader()
         defs = loader.load()
         sec_defs = [d for d in defs if d["district"] == "security"]
-        assert len(sec_defs) == 11  # 5 pre-existing + 6 new
+        assert len(sec_defs) == 12  # 6 pre-existing + 6 SIEM-stack agents
         registered = loader.register_all(sec_defs, reg)
-        assert registered == 11
+        assert registered == 12
     finally:
         for aid in list(reg._agents.keys()):
             if aid not in before:

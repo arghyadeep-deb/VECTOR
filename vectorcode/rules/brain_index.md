@@ -24,7 +24,7 @@ Read any file below with the Read tool using the `brain/` prefix.
 - `brain/VECTOR/Districts/02-education.md` — Skills, Languages, Interview Prep, Learning, Karpathy Lab
 - `brain/VECTOR/Districts/03-builder.md` — Coding, Projects, Startups, Investment, Agency
 - `brain/VECTOR/Districts/04-security.md` — ThreatScout, MalwareHunter, NodeGuard, Privacy Guardian
-- `brain/VECTOR/Districts/05-communications.md` — Hermes, WhatsApp, Telegram, Discord, Signal
+- `brain/VECTOR/Districts/05-communications.md` — VECTOR, WhatsApp, Telegram, Discord, Signal
 - `brain/VECTOR/Districts/06-life.md` — Finance, Health, Relationships, Time/Calendar, Reflection
 - `brain/VECTOR/Districts/07-intelligence.md` — Research, Memory Curator, Pattern Detective, News
 
@@ -56,7 +56,7 @@ brain/
 ## VectorCode Agents (live in brain — read on-demand, never copied)
 All agents are at `brain/vectorcode/agents/`. Read before using as a subagent context.
 - `vector-coder.md` — coding District 4, GitBot, code review
-- `vector-comms.md` — comms District 6, Hermes gateway
+- `vector-comms.md` — comms District 6, VECTOR gateway
 - `vector-memory-curator.md` — memory District 7, LightRAG, episodic
 - `vector-researcher.md` — research District, OpenCLI, ArXiv
 - `vector-security.md` — security District, ThreatScout

@@ -48,7 +48,7 @@ Expert mobile developer specializing in React Native, Flutter, and native iOS/An
 
 ### React Native Expertise
 - New Architecture migration and optimization
-- Hermes JavaScript engine configuration
+- VECTOR JavaScript engine configuration
 - Metro bundler optimization and custom transformers
 - React Native 0.74+ features and performance improvements
 - Flipper and React Native debugger integration

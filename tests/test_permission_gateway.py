@@ -41,7 +41,8 @@ async def test_forbidden_action_blocked():
 
 
 @pytest.mark.asyncio
-async def test_yellow_action_executes_with_notification():
+async def test_yellow_action_executes_with_notification(monkeypatch):
+    monkeypatch.setenv("VECTOR_YELLOW_AUTO_CONFIRM", "1")
     gw = PermissionGateway()
     with _mock_httpx():
         result = await gw.execute(make_action("commit_code", {"msg": "test"}))

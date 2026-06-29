@@ -27,7 +27,7 @@ _UAV_MODEL_KEYWORDS = (
     "GLOBALHAWK",
     "TRITON",
     "PREDATOR",
-    "HERMES",
+    "ELBIT_UAV",
     "HERON",
     "BAYRAKTAR",
 )
@@ -44,7 +44,7 @@ _UAV_WIKI = {
     "GLOBALHAWK": "https://en.wikipedia.org/wiki/Northrop_Grumman_RQ-4_Global_Hawk",
     "TRITON": "https://en.wikipedia.org/wiki/Northrop_Grumman_MQ-4C_Triton",
     "PREDATOR": "https://en.wikipedia.org/wiki/General_Atomics_MQ-1_Predator",
-    "HERMES": "https://en.wikipedia.org/wiki/Elbit_Hermes_900",
+    "ELBIT_UAV": "",
     "HERON": "https://en.wikipedia.org/wiki/IAI_Heron",
     "BAYRAKTAR": "https://en.wikipedia.org/wiki/Bayraktar_TB2",
 }
@@ -144,8 +144,8 @@ def _classify_uav(model: str, callsign: str):
                 return True, "MALE ISR/Strike", _UAV_WIKI.get(kw, "")
             elif "BAYRAKTAR" in model_up or "TB2" in model_up:
                 return True, "MALE Strike", _UAV_WIKI.get("BAYRAKTAR", "")
-            elif "HERMES" in model_up:
-                return True, "MALE ISR", _UAV_WIKI.get("HERMES", "")
+            elif "ELBIT" in model_up and "900" in model_up:
+                return True, "MALE ISR", _UAV_WIKI.get("ELBIT_UAV", "")
             elif "HERON" in model_up:
                 return True, "MALE ISR", _UAV_WIKI.get("HERON", "")
             return True, "MALE ISR", _UAV_WIKI.get(kw, "")

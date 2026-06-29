@@ -6,6 +6,7 @@ Prefer importing from vectorcode.src.vc_engine directly.
 """VectorCode engine — the agent execution runtime."""
 from .agent import AIAgent
 from .budget import IterationBudget
+from vectorcode.src.vc_engine._base import EngineConnectionError
 from .safety import _SafeWriter, install_safe_stdio, _sanitize_surrogates, _is_destructive_command
 from .tool_exec import (
     _should_parallelize_tool_batch,
@@ -18,6 +19,7 @@ from .tool_exec import (
 
 __all__ = [
     "AIAgent",
+    "EngineConnectionError",
     "IterationBudget",
     "_SafeWriter",
     "install_safe_stdio",

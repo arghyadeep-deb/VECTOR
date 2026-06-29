@@ -13,7 +13,7 @@
 02. security/        — ThreatScout, MalwareHunter, NodeGuard
 03. coding/          — GitBot, CodeReviewer, BugHunter, ArchitectBot
 04. time_calendar/   — KIITScraper (Playwright), DeadlineManager
-05. communications/  — Hermes + Kimi K2.6 adapter (DO NOT rebuild from scratch)
+05. communications/  — VECTOR + Kimi K2.6 adapter (DO NOT rebuild from scratch)
 06. memory_curator/  — LightRAG, ConsolidationBot, PatternFinder
 07. research/        — OpenCLI autoresearch, PaperReader, NewsAggregator
 08. intelligence/    — PatternDetective, NewsTrends

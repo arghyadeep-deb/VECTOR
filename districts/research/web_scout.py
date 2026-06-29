@@ -2,6 +2,7 @@ import sys
 import uuid
 import asyncio
 import datetime
+import os
 from pathlib import Path
 
 from core.config import CONFIG
@@ -33,6 +34,13 @@ class WebScout(AgentBase):
         self._obsidian = ObsidianSync()
         self._context = ContextEngine()
         logger.info(f"[VECTOR][web_scout] ready gen={generation} hp={self.health_points}")
+
+    def _offline_summary(self, query: str, source_text: str, snippets: str) -> str:
+        """Return a deterministic brief for offline tests and local no-key runs."""
+        text = (source_text or snippets).strip()
+        if not text:
+            return f"No results found for '{query}'"
+        return f"Research brief for '{query}': {text[:1000]}"
 
     # ── Search ─────────────────────────────────────────────────────────────────
 
@@ -233,31 +241,32 @@ class WebScout(AgentBase):
         )
         source_text = page_content[:3000] if page_content else snippets
 
-        summary = ""
-        try:
-            from core.inference.vectorcode_llm import chat
-            from core.prompt_library import get_library as _gl
-            _sys = _gl().get_for_agent("web_scout") or hydration
-            summary = chat(
-                model=CONFIG["models"]["reasoning"],
-                messages=[
-                    {"role": "system", "content": _sys},
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Research brief for: '{query}'\n\n"
-                            "Summarize the key findings in 2-3 paragraphs. Be factual and concise.\n\n"
-                            + source_text
-                        ),
-                    },
-                ],
-                timeout=60.0,
-            )
-            if not summary:
-                raise RuntimeError("empty model response")
-        except Exception as e:
-            logger.warning(f"[VECTOR][web_scout] LLM unavailable: {e}")
-            summary = snippets[:1000] if snippets else f"No results found for '{query}'"
+        summary = self._offline_summary(query, source_text, snippets)
+        if os.getenv("VECTOR_WEB_SCOUT_LLM") == "1":
+            try:
+                from core.inference.vectorcode_llm import chat
+                from core.prompt_library import get_library as _gl
+                _sys = _gl().get_for_agent("web_scout") or hydration
+                summary = chat(
+                    model=CONFIG["models"]["reasoning"],
+                    messages=[
+                        {"role": "system", "content": _sys},
+                        {
+                            "role": "user",
+                            "content": (
+                                f"Research brief for: '{query}'\n\n"
+                                "Summarize the key findings in 2-3 paragraphs. Be factual and concise.\n\n"
+                                + source_text
+                            ),
+                        },
+                    ],
+                    timeout=60.0,
+                )
+                if not summary:
+                    raise RuntimeError("empty model response")
+            except Exception as e:
+                logger.warning(f"[VECTOR][web_scout] LLM unavailable: {e}")
+                summary = self._offline_summary(query, source_text, snippets)
 
         # Store in episodic memory
         self._memory.store(
@@ -269,7 +278,7 @@ class WebScout(AgentBase):
         self._memory.store_chain(
             situation="web_research",
             goal_ids=["gather_knowledge"],
-            steps=["search_ddg", "fetch_page", "summarize_llm"],
+            steps=["search_ddg", "fetch_page", "summarize"],
             action="research",
             outcome=f"{len(results)} results for '{query}'",
             reward=0.8 if results else 0.3,

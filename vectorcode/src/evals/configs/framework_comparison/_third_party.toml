@@ -1,12 +1,12 @@
 # Foreign-framework paths + pinned commits.
 #
-# REQUIRED: set HERMES_AGENT_PATH and OPENCLAW_PATH env vars to point at
+# REQUIRED: set VECTOR_AGENT_PATH and OPENCLAW_PATH env vars to point at
 # your local checkouts. The empty `path = ""` defaults below are
 # intentional — they require explicit user configuration.
 #
 # Each foreign framework must be runnable in its own right BEFORE the
 # harness can drive it:
-#   - Hermes: install its Python deps (recommend its own venv, point
+#   - VECTOR: install its Python deps (recommend its own venv, point
 #     `python_executable` at it).
 #   - OpenClaw: needs Node ≥14.8 AND `pnpm install && pnpm build` first.
 # See docs/development/contributing.md for full setup instructions.
@@ -14,10 +14,10 @@
 # To bypass commit-pin enforcement (for development against a different
 # commit): set JARVIS_ALLOW_COMMIT_DRIFT=1.
 
-[hermes]
+[vector]
 path = ""
 pinned_commit = "5d3be898a"
-runner_script = "src/vector/evals/backends/external/_runners/hermes_runner.py"
+runner_script = "src/vector/evals/backends/external/_runners/vector_runner.py"
 python_executable = ""
 
 [openclaw]

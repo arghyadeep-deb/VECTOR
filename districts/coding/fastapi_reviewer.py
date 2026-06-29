@@ -6,6 +6,7 @@ rate limiting (slowapi), CORS config, response model types, error handling.
 """
 import sys
 import asyncio
+import os
 from pathlib import Path
 
 from vectorcode.src.bootstrap import ensure_paths
@@ -69,6 +70,18 @@ class FastAPIReviewer(AgentBase):
 
             static_issues = self._static_scan(code, filename)
 
+            if os.environ.get("VECTOR_FASTAPI_REVIEW_LLM") != "1":
+                feedback = "LLM review disabled; returned static FastAPI scan results."
+                return {
+                    "agent": self.name,
+                    "filename": filename,
+                    "issues": static_issues,
+                    "feedback": feedback,
+                    "issue_count": len(static_issues),
+                    "static_issue_count": len(static_issues),
+                    "degraded": True,
+                }
+
             from core.inference.provider_client import ProviderClient
             client = ProviderClient()
 
@@ -103,7 +116,17 @@ class FastAPIReviewer(AgentBase):
             }
         except Exception as e:
             logger.error("[VECTOR][fastapi_reviewer] review error: {}", e)
-            return {"agent": self.name, "error": str(e), "issues": [], "issue_count": 0}
+            static_issues = self._static_scan(code, filename)
+            return {
+                "agent": self.name,
+                "filename": filename,
+                "issues": static_issues,
+                "feedback": "Provider review unavailable; returned static FastAPI scan results.",
+                "issue_count": len(static_issues),
+                "static_issue_count": len(static_issues),
+                "degraded": True,
+                "warning": str(e),
+            }
 
     def _static_scan(self, code: str, filename: str) -> list[dict]:
         """Static checks for FastAPI-specific anti-patterns."""

@@ -64,7 +64,7 @@ Allianz is the world's largest property-casualty insurer, serving both retail an
 - **Specialties**: Marine, aviation, energy, construction, cyber, financial lines
 - **Global Network**: Local presence in 30+ countries
 
-#### Allianz Trade (formerly Euler Hermes)
+#### Allianz Trade
 - **Focus**: Trade credit insurance, surety, debt collection
 - **Market Position**: Global leader in credit insurance
 - **Services**: Risk assessment, receivables management, bond insurance

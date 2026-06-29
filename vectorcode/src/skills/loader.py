@@ -594,3 +594,4 @@ def discover_skills(search_path=None, *, include_optional: bool = False):
 
 def load_skill_directory(path=None) -> list:
     """Load skills from a directory."""
+    return discover_skills(search_path=path)

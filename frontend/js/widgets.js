@@ -969,7 +969,7 @@
     { id:'trading', title:'INVESTMENT + TRADING', summary:'Investment analysis, DCF, alpha, hedge, portfolio, and market status.', health:'/investment/market-status', endpoints:['/investment/market-status','/investment/portfolio','/investment/research/skills','/investment/analyze','/investment/dcf','/investment/alpha','/investment/hedge'] },
     { id:'backtest', title:'BACKTEST', summary:'Main API backtest request surface. Deep swarm sessions live in the side backtest server.', health:'/investment/market-status', endpoints:['/investment/backtest','/investment/portfolio','/investment/market-status'] },
     { id:'hedgebot', title:'HEDGEBOT', summary:'Hedge intelligence status and hedge request endpoint.', health:'/investment/hedge/status', endpoints:['/investment/hedge/status','/investment/hedge','/investment/geopolitics'] },
-    { id:'intelligencepanel', title:'INTELLIGENCE', summary:'Flights, vessels, satellites, conflicts, fires, outages, CCTV, reports, and pins.', health:'/intelligence/status', endpoints:['/intelligence/status','/intelligence/all','/intelligence/summary','/intelligence/report','/intelligence/flights','/intelligence/vessels','/intelligence/satellites','/intelligence/conflicts','/intelligence/pins'] },
+    { id:'intelligencepanel', title:'INTELLIGENCE', summary:'Flights, vessels, satellites, conflicts, fires, outages, CCTV, reports, and pins.', health:'/intelligence/status', endpoints:['/intelligence/status','/intelligence/all','/intelligence/summary','/intelligence/report','/intelligence/flights','/intelligence/vessels','/intelligence/satellites','/intelligence/conflicts','/intelligence/cctv'] },
     { id:'shadowbroker', title:'SHADOWBROKER', summary:'Geocode, layers, summary, pins, commands, SSE, and health.', health:'/sb/health', endpoints:['/sb/health','/sb/summary','/sb/layer/{name}','/sb/pins','/sb/cmd','/sb/sse'] },
     { id:'mediastudio', title:'MEDIA STUDIO', summary:'Main API media model catalog. Generation/status lives in the Studio side server.', health:'/media/models', endpoints:['/media/models','studio:/api/media/status','studio:/api/media/generate','studio:/api/media/models','studio:/api/workflows'] },
     { id:'comfyui', title:'COMFYUI', summary:'Local image/video generation adapter. Requires local ComfyUI; full controls are Studio-side today.', health:'/media/models', endpoints:['/media/models','studio:/api/media/status','comfyui:http://127.0.0.1:8188'] },
@@ -1044,14 +1044,14 @@
     const label = side ? path.replace(/^(studio:|sidecar:|comfyui:)/, '') : path;
     const safePrefixes = [
       '/world/snapshot','/status','/system','/health','/agents','/a2a/agents','/a2a/events',
-      '/city/districts','/brain/goals','/brain/hypothesis/active','/brain/epistemic',
-      '/brain/reasoning','/brain/persons','/knowledge/status','/code-intel/status',
+      '/city/districts','/brain/goals','/brain/hypothesis/active','/brain/epistemic/summary',
+      '/brain/reasoning/chains','/brain/persons','/knowledge/status','/code-intel/status',
       '/code-intel/health','/code-intel/projects','/code-intel/symbols',
       '/code-intel/graph/circular','/vectorcode/status','/investment/market-status',
       '/investment/portfolio','/investment/research/skills','/investment/hedge/status',
-      '/intelligence','/sb/health','/sb/summary','/sb/pins','/media/models',
+      '/intelligence/status','/sb/health','/sb/summary','/sb/pins','/media/models',
       '/video/compositions','/content/scheduled','/ads/references','/seo/status',
-      '/news/daily-brief','/research','/sensing','/camera/status','/skills/map',
+      '/news/daily-brief','/research/status','/sensing/status','/camera/status','/skills/map',
       '/relationships/contacts','/calls/contacts','/patterns/habits','/simulation/status',
       '/scheduler/jobs','/projects/list','/tasks/','/queue/retry/stats','/ops/slo-check',
       '/keys/status','/oauth/integrations','/analytics/pipeline-health',
@@ -1479,7 +1479,7 @@
   };
 
   const CORE_GROUPS = [
-    { title:'BRAIN + LOOP', copy:'Decision engine, context hydration, goals, autonomous loop, planner, nudges, task queue.', widgets:['brainpanel','goals','goalplanner'], endpoints:['/brain/goals','/brain/epistemic/summary','/brain/reasoning/chains','/loop/status','/tasks/'] },
+    { title:'BRAIN + LOOP', copy:'Decision engine, context hydration, goals, autonomous loop, planner, nudges, task queue.', widgets:['brainpanel','goals','goalplanner'], endpoints:['/brain/goals','/brain/epistemic/summary','/brain/reasoning/chains','/loop/status','/api/v1/tasks'] },
     { title:'CITY + AGENTS', copy:'Governor, agent registry, A2A sessions, district dispatch, HP/evolution contracts.', widgets:['agentspanel','districts','council','city3d'], endpoints:['/agents','/a2a/agents','/city/districts','/city/evolution/generations'] },
     { title:'MEMORY + KNOWLEDGE', copy:'Episodic/semantic/policy memory, reasoning chains, Obsidian sync, graph merge.', widgets:['memory','knowledgepanel'], endpoints:['/memory/recent','/memory/goals','/memory/council/history','/knowledge/status'] },
     { title:'INFERENCE', copy:'Provider routing, model catalogs, smart routing, fallback chain, budget-aware inference.', widgets:['telemetry'], endpoints:['/inference/stats','/inference/models','/inference/providers','/providers/routes'] },

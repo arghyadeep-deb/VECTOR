@@ -264,7 +264,7 @@ class SEOPortfolioAgent(AgentBase, SkillMixin):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        action = p.get("action", "portfolio_review")
+        action = task.get("type") or p.get("action", "portfolio_review")
 
         if action in ("portfolio_review", "seo_portfolio_review"):
             return await self.run_portfolio_review()
@@ -288,7 +288,22 @@ class SEOPortfolioAgent(AgentBase, SkillMixin):
                 site_id=p.get("site_id", ""),
                 days=int(p.get("days", 28)),
             )
-        return {"status": "error", "error": f"unknown action: {action}"}
+        return {
+            "status": "error",
+            "error": f"unhandled type: {action}",
+            "supported": [
+                "portfolio_review",
+                "seo_portfolio_review",
+                "onboard",
+                "seo_onboard",
+                "weekly_review",
+                "seo_weekly_review",
+                "improve_page",
+                "seo_improve_page",
+                "investigate_drop",
+                "seo_investigate_drop",
+            ],
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][seo_portfolio] ready — waiting for tasks")

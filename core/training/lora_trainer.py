@@ -1,6 +1,7 @@
 """LoRA adapter training with PEFT, Unsloth, or simulated fallback."""
 
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Any
@@ -33,6 +34,8 @@ class LoRATrainer:
             return {"status": "failed", "reason": "empty_dataset", "adapter": adapter_config.name}
         dataset_size = len(dataset)
         logger.info("[Training] Dataset size: {} examples", dataset_size)
+        if self._should_simulate(adapter_config.base_model):
+            return self._simulate_training(adapter_config, training_args, dataset_size)
         try:
             import transformers
             import peft
@@ -44,6 +47,14 @@ class LoRATrainer:
             except ImportError:
                 logger.warning("[Training] PEFT/Unsloth not available, simulating training")
                 return self._simulate_training(adapter_config, training_args, dataset_size)
+
+    def _should_simulate(self, base_model: str) -> bool:
+        if os.environ.get("VECTOR_TRAINING_REAL") != "1":
+            return True
+        if os.environ.get("VECTOR_TRAINING_SIMULATE") == "1":
+            return True
+        model = (base_model or "").strip().lower()
+        return model in {"test", "vector-test"} or model.startswith("test-")
 
     def _train_with_peft(self, config: AdapterConfig, args: TrainingArgs, dataset: list[dict], size: int) -> dict:
         try:

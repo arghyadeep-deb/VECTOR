@@ -20,7 +20,7 @@ Usage (governor):
 
 from __future__ import annotations
 
-from core.memory.db_utils import apply_pragmas
+from core.memory.db_utils import apply_pragmas, configured_db_path
 import asyncio
 import datetime
 import os
@@ -45,7 +45,7 @@ from loguru import logger
 
 # ── Job tracking (SQLite) ─────────────────────────────────────────────────────
 
-_DB_PATH = Path.home() / ".vector" / "content_jobs.db"
+_DB_PATH = configured_db_path().with_name("content_jobs.db")
 _DB_LOCK = threading.RLock()
 
 def _get_job_conn() -> sqlite3.Connection:

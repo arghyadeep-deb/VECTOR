@@ -36,9 +36,6 @@ import threading
 
 # ── Configuration ───────────────────────────────────────
 
-_API_KEY: str = os.environ.get("VECTOR_API_KEY", "")
-_API_KEY_ENABLED: bool = bool(_API_KEY)
-
 # FIX #7: When no API key is set, enforce localhost-only access instead of open access
 _REQUIRE_LOCALHOST_WHEN_NO_KEY: bool = True
 
@@ -155,6 +152,9 @@ async def auth_middleware(request: Request, call_next):
     """Require Bearer token for all non-public endpoints.
     FIX #7: When no API key is set, only allow localhost connections (not any process).
     """
+    api_key = os.environ.get("VECTOR_API_KEY", "")
+    api_key_enabled = bool(api_key)
+
     # Skip auth for public paths
     if request.url.path in _PUBLIC_PATHS:
         return await call_next(request)
@@ -164,7 +164,7 @@ async def auth_middleware(request: Request, call_next):
         return await call_next(request)
     
     # When API key not configured: enforce localhost-only access
-    if not _API_KEY_ENABLED:
+    if not api_key_enabled:
         if _REQUIRE_LOCALHOST_WHEN_NO_KEY:
             client_ip = request.client.host if request.client else ""
             if client_ip not in ("127.0.0.1", "::1", "localhost"):
@@ -176,7 +176,7 @@ async def auth_middleware(request: Request, call_next):
     
     auth = request.headers.get("Authorization", "")
     # Constant-time comparison — avoids leaking the key via response timing.
-    if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], _API_KEY):
+    if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], api_key):
         return JSONResponse(
             status_code=401,
             headers={"WWW-Authenticate": "Bearer"},
@@ -320,7 +320,7 @@ async def csrf_middleware(request: Request, call_next):
     """
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
         # Skip CSRF for API key authenticated requests (non-browser clients)
-        if _API_KEY_ENABLED and request.headers.get("Authorization", "").startswith("Bearer "):
+        if os.environ.get("VECTOR_API_KEY", "") and request.headers.get("Authorization", "").startswith("Bearer "):
             return await call_next(request)
 
         # Skip CSRF for WebSocket upgrades

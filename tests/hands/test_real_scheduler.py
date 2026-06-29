@@ -30,8 +30,8 @@ async def test_register_default_jobs_against_real_apscheduler(real_scheduler):
     the wrong reason."""
     from core.loop.cron_jobs import register_default_jobs
     n = register_default_jobs(real_scheduler)
-    assert n == 13, f"expected 12 cron jobs + 1 interval job = 13, got {n}"
-    assert len(real_scheduler.get_jobs()) == 13
+    assert n == 14, f"expected 13 cron jobs + 1 interval job = 14, got {n}"
+    assert len(real_scheduler.get_jobs()) == 14
 
 
 @pytest.mark.asyncio

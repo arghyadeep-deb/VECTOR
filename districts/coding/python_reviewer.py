@@ -6,6 +6,7 @@ asyncio correctness, loguru usage, and correct import patterns.
 """
 import sys
 import asyncio
+import os
 from pathlib import Path
 
 from vectorcode.src.bootstrap import ensure_paths
@@ -66,6 +67,17 @@ class PythonReviewer(AgentBase):
 
             # Static pre-scan (fast, free, catches obvious issues before LLM)
             static_issues = self._static_scan(code, filename)
+
+            if os.environ.get("VECTOR_PYTHON_REVIEW_LLM") != "1":
+                return {
+                    "agent": self.name,
+                    "filename": filename,
+                    "issues": static_issues,
+                    "feedback": "LLM review disabled; returned static Python scan results.",
+                    "issue_count": len(static_issues),
+                    "static_issue_count": len(static_issues),
+                    "degraded": True,
+                }
 
             from core.inference.provider_client import ProviderClient
             client = ProviderClient()

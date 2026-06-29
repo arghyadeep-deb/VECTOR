@@ -33,8 +33,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 from loguru import logger
+from core.memory.db_utils import configured_db_path
 
-_PORTFOLIO_DIR = Path.home() / ".vector" / "seo_portfolio"
+_PORTFOLIO_DIR = configured_db_path().parent / "seo_portfolio"
 
 SEVERITY_WEIGHTS = {
     "critical": 3.0,

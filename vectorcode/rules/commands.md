@@ -45,11 +45,11 @@ pip install airllm
 # Install OpenMythos (verify train.py exists before Month 2)
 pip install open-mythos
 
-# WSL2 for Hermes (PowerShell Admin)
+# WSL2 for VECTOR (PowerShell Admin)
 wsl --install
 # After restart in WSL2:
-curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash
-ollama launch hermes --model kimi-k2.6:cloud
+curl -fsSL https://raw.githubusercontent.com/NousResearch/vector-agent/main/scripts/install.sh | bash
+ollama launch vector --model kimi-k2.6:cloud
 ```
 
 ## Ollama Model Management

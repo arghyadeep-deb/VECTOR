@@ -263,7 +263,7 @@ class MetaAdsAgent(AgentBase, SkillMixin):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        action = p.get("action", "audit")
+        action = task.get("type") or p.get("action", "audit")
 
         if action in ("audit", "meta_ads_audit"):
             return await self.audit_account(
@@ -287,7 +287,20 @@ class MetaAdsAgent(AgentBase, SkillMixin):
                 target_audience=p.get("audience", ""),
                 objective=p.get("objective", "conversions"),
             )
-        return {"status": "error", "error": f"unknown action: {action}"}
+        return {
+            "status": "error",
+            "error": f"unhandled type: {action}",
+            "supported": [
+                "audit",
+                "meta_ads_audit",
+                "fatigue",
+                "meta_ads_creative",
+                "roas",
+                "meta_ads_performance",
+                "creative",
+                "meta_ads",
+            ],
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][meta_ads_agent] ready")

@@ -1,5 +1,11 @@
 # Cloudflare Worker — Local `wrangler dev` Verification Script
 
+**Current status (2026-06-27):** `npm.cmd test` from `api/` now works from this Windows repo
+path. The package script uses `api/scripts/run-vitest-no-space.mjs` to copy the
+Worker test tree to a temporary space-free path when the real path contains
+spaces, then runs Vitest there. Verified locally: 1 Worker smoke test file,
+5/5 tests passed.
+
 **Status of this doc:** originally satisfied a now-deleted source doc's item 6
 ("Add Worker tests using the repo's TypeScript/Cloudflare test setup, **or**
 document and add a minimal local `wrangler dev` verification script") via the
@@ -9,11 +15,10 @@ explicitly-sanctioned lighter alternative — this manual script.
 described as future work below was actually built (`api/package.json`,
 `api/vitest.config.ts`, `api/test/smoke.test.ts`) — see
 `docs/repo_analysis/_MASTER_TODO.md` §3 item 6. It's real, correct scaffolding
-but currently environment-blocked: `workerd`'s module loader can't resolve
-paths containing a space (this repo's path has one), confirmed via the exact
-error and ruled out as a Windows-junction-fixable issue. It will run as-is on
-a space-free path (e.g. Linux CI). This manual script below remains the only
-thing actually verifiable from this specific environment in the meantime.
+and is now locally runnable through `npm test`. Direct Vitest execution is
+still sensitive to the space in this checkout's path, so the package script
+copies the API package to a temporary space-free path first. Verified locally
+on 2026-06-27.
 
 **What this verifies:** the command-queue flow end to end, against a
 **local-only** emulated D1 + KV (never the real provisioned IDs in
@@ -28,8 +33,6 @@ explicit go-ahead).
 
 ```powershell
 cd api
-# No package.json exists yet — wrangler can still run via npx without one,
-# but for repeated local dev a minimal package.json is worth adding:
 npx wrangler dev --local --persist-to=./.wrangler-local-state --port 8787
 ```
 
@@ -145,28 +148,55 @@ curl http://127.0.0.1:8787/memory/recent -H "Authorization: Bearer local-dev-tes
 Remove-Item -Recurse -Force ./.wrangler-local-state
 ```
 
-## Automated harness — built, but blocked by a local environment issue
+## Automated Harness
 
 `@cloudflare/vitest-pool-workers` is built: `api/package.json`,
 `api/vitest.config.ts` (isolated local-only Miniflare D1/KV bindings,
 deliberately not the real provisioned IDs in `wrangler.toml`),
 `api/test/smoke.test.ts`. `npm install` succeeded.
 
-**Running it fails in this local environment** — confirmed directly, not
-assumed: `workerd`'s module loader cannot resolve modules because this
-project's real filesystem path contains a literal space
-(`.../V.E.C.T.O.R. Codebase/...`). Exact error:
-`No such module ".../node_modules/vitest/dist/file:/...V.E.C.T.O.R.%20Codebase/.../threads.js"`.
-A Windows-junction workaround (aliasing the path to a space-free location)
-was tried and does **not** help — Node's module resolution sees through
-junctions to the real canonical path regardless. This is an upstream
-`workerd`/Miniflare path-handling bug, not a bug in this repo's config or
-Worker code (`router.ts`/`auth.ts`/`index.ts` are independently verified
-secure by direct reading, separately from this harness).
+Run it with:
 
-The harness will run correctly wherever the project path has no spaces —
-CI on Linux (e.g. a GitHub Actions workflow), or a local clone at a
-space-free path.
+```powershell
+cd api
+npm.cmd test
+```
+
+Direct Vitest execution is still sensitive to this checkout's space-containing
+path. The `npm test` wrapper copies the API package to a temporary space-free
+path before invoking Vitest. Verified locally on 2026-06-27:
+`test/smoke.test.ts` passed 5/5 tests.
+
+## Cloud Email Worker Verification
+
+Separate from the API Worker above, `cloud/email` is the Agentic Inbox
+Cloudflare Worker app (`vector-email`) with Durable Objects, R2, Email Routing,
+Workers AI, and Cloudflare Access enforcement.
+
+Verified locally on 2026-06-27:
+
+```powershell
+cd cloud/email
+npm.cmd ci
+npm.cmd run typecheck
+```
+
+Result: dependency install completed, `wrangler types`, `react-router typegen`,
+and `tsc -b` all passed.
+
+Security caveat from the same run: `npm.cmd audit --json` reports 27 known
+advisories in this dependency tree (2 low, 9 moderate, 16 high, 0 critical).
+Notable direct vulnerable packages include `@cloudflare/vite-plugin`,
+`@react-router/dev`, `dompurify`, `drizzle-orm`, `hono`, `react-router`,
+`vite`, and `wrangler`. I did not run `npm audit fix`; dependency upgrades
+need a separate compatibility pass.
+
+Not verified here: `npm run deploy`. That command would build and deploy the
+real Cloudflare email app and may provision or mutate account resources. A real
+production deploy also requires a Cloudflare account/domain, Email Routing,
+R2 bucket `vector-email`, Workers AI, Cloudflare Access, and Worker secrets
+`POLICY_AUD` plus `TEAM_DOMAIN`. Treat deploy verification as owner-gated until
+those account settings are explicitly available and authorized.
 
 **Update (2026-06-24):** the Worker is now actually deployed
 (`https://vector-api.arghyadeepdeb020703.workers.dev`, see

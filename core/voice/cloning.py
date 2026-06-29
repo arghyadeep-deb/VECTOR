@@ -146,7 +146,7 @@ class VoiceCloner:
         try:
             import chatterbox.tts  # noqa: F401
             return True
-        except ImportError:
+        except Exception:
             return False
 
     # ── model loading ─────────────────────────────────────────────────────────

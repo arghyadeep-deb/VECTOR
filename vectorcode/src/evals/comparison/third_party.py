@@ -7,7 +7,7 @@
 
 The ``_third_party.toml`` file declares the canonical filesystem path and
 expected git commit for each foreign framework (VECTOR, OpenClaw).
-Env vars (``HERMES_AGENT_PATH``, ``OPENCLAW_PATH``) override the default path.
+Env vars (``VECTOR_AGENT_PATH``, ``OPENCLAW_PATH``) override the default path.
 ``VECTOR_ALLOW_COMMIT_DRIFT=1`` disables strict commit-pin enforcement.
 """
 
@@ -27,7 +27,7 @@ LOGGER = logging.getLogger(__name__)
 # Map framework name -> env var that overrides its `path` field.
 # Must be kept in sync with the section keys in _third_party.toml.
 _PATH_ENV_VAR = {
-    "vector": "HERMES_AGENT_PATH",
+    "vector": "VECTOR_AGENT_PATH",
     "openclaw": "OPENCLAW_PATH",
 }
 
@@ -37,7 +37,7 @@ _PATH_ENV_VAR = {
 # openclaw it overrides `node_executable` (point at a Node ≥14.8 binary if
 # the system default is too old).
 _RUNTIME_ENV_VAR = {
-    "vector": "HERMES_AGENT_PYTHON",
+    "vector": "VECTOR_AGENT_PYTHON",
     "openclaw": "OPENCLAW_NODE",
 }
 

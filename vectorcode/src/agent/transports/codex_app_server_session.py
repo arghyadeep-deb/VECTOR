@@ -52,7 +52,7 @@ _STDERR_TAIL_LINES = 12
 # Permission profile mapping mirrors the docstring in PR proposal:
 # VECTOR's tools.terminal.security_mode → Codex's permissions profile id.
 # Defaults if config is missing → workspace-write (matches Codex's own default).
-_HERMES_TO_CODEX_PERMISSION_PROFILE = {
+_VECTOR_TO_CODEX_PERMISSION_PROFILE = {
     "auto": "workspace-write",
     "approval-required": "read-only-with-approval",
     "unrestricted": "full-access",
@@ -177,8 +177,8 @@ class CodexAppServerSession:
         self._codex_bin = codex_bin
         self._codex_home = codex_home
         self._permission_profile = (
-            permission_profile or _HERMES_TO_CODEX_PERMISSION_PROFILE.get(
-                os.environ.get("HERMES_TERMINAL_SECURITY_MODE", "auto"),
+            permission_profile or _VECTOR_TO_CODEX_PERMISSION_PROFILE.get(
+                os.environ.get("VECTOR_TERMINAL_SECURITY_MODE", "auto"),
                 "workspace-write",
             )
         )

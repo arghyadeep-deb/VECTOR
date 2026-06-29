@@ -300,7 +300,6 @@ export async function toolUpdateDraft(
 		return { error: "Draft verification failed — keeping existing draft unchanged. Please try again." };
 	}
 
-	await stub.deleteEmail(params.draftId);
 	await stub.createEmail(
 		Folders.DRAFT,
 		{
@@ -316,6 +315,7 @@ export async function toolUpdateDraft(
 		},
 		[],
 	);
+	await stub.deleteEmail(params.draftId);
 
 	return {
 		status: "draft_updated",

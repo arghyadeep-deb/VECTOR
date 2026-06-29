@@ -31,7 +31,7 @@ CATEGORY_MAP = {
 
 SKIP_DIRS = {
     "node_modules", ".git", "__pycache__", ".slate", ".opencode",
-    ".openclaw", ".hermes", ".gbrain", ".cursor", ".kiro", ".factory",
+    ".openclaw", ".vector-cache", ".gbrain", ".cursor", ".kiro", ".factory",
     ".agents", "test", "fixtures", "docs", "model-overlays", "openclaw",
 }
 

@@ -145,7 +145,7 @@ def _parse_source_query(query: str) -> tuple[str, str]:
     """
     if ":" not in query:
         raise click.BadParameter(
-            f"Expected '<source>:<name>' format (e.g. 'hermes:apple-notes'), "
+            f"Expected '<source>:<name>' format (e.g. 'vector-cache:apple-notes'), "
             f"got: {query!r}"
         )
     source, _, name = query.partition(":")
@@ -158,10 +158,10 @@ def _parse_source_query(query: str) -> tuple[str, str]:
 
 def _get_resolver(source: str, url: str = ""):
     """Return a resolver instance for the given source name."""
-    if source == "hermes":
-        from vectorcode.src.skills.sources.hermes import HermesResolver
+    if source == "vector-cache":
+        from vectorcode.src.skills.sources.vector_cache import VectorCacheResolver
 
-        return HermesResolver()
+        return VectorCacheResolver()
     if source == "openclaw":
         from vectorcode.src.skills.sources.openclaw import OpenClawResolver
 
@@ -199,7 +199,7 @@ def _get_resolver(source: str, url: str = ""):
 def install(query: str, with_scripts: bool, force: bool, url: str):
     """Install a skill from a source.
 
-    Example: ``vector skill install hermes:apple-notes``
+    Example: ``vector skill install vector-cache:apple-notes``
     """
     console = Console()
     source, name = _parse_source_query(query)
@@ -211,7 +211,7 @@ def install(query: str, with_scripts: bool, force: bool, url: str):
         console.print(f"[red]Failed to sync source {source}: {exc}[/red]")
         raise SystemExit(1)
 
-    # Support category/name queries (e.g. openclaw:owner/slug, hermes:apple/apple-notes)
+    # Support category/name queries (e.g. openclaw:owner/slug, vector-cache:apple/apple-notes)
     if "/" in name:
         category, _, skill_name = name.partition("/")
         matches = [

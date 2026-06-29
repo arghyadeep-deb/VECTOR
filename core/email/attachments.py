@@ -14,9 +14,11 @@ from pathlib import Path
 from typing import Optional
 
 from core.config import CONFIG
+from core.memory.db_utils import configured_db_path
 
 # Local attachment storage root (mirrors R2 bucket structure locally)
-_ATTACH_ROOT = Path(CONFIG.get("VECTOR_DATA_DIR", Path.home() / ".vector")) / "attachments"
+_DATA_DIR = CONFIG.get("VECTOR_DATA_DIR") or CONFIG.get("data_dir")
+_ATTACH_ROOT = (Path(str(_DATA_DIR)) if _DATA_DIR else configured_db_path().parent) / "attachments"
 
 _UNSAFE_CHARS = re.compile(r'[/\\:*?"<>|\x00-\x1f]')
 

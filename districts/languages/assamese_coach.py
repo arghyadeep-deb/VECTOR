@@ -9,6 +9,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
+import os
 import uuid, asyncio, json, random
 from typing import Optional
 
@@ -50,6 +51,8 @@ class AssameseCoach(AgentBase):
         ]
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
+        if os.getenv("VECTOR_LANGUAGE_LLM") != "1":
+            return "Offline language guidance available; set VECTOR_LANGUAGE_LLM=1 for live model feedback."
         from core.inference.vectorcode_llm import chat as ollama_chat
         from core.loop.context_engine import ContextEngine
         hydration = ContextEngine().session_hydration_prompt()

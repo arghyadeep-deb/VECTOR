@@ -11,7 +11,7 @@ version: 0.1.0
 description: |
   Pair a remote AI agent with your browser. One command generates a setup key and
   prints instructions the other agent can follow to connect. Works with OpenClaw,
-  Hermes, Codex, Cursor, or any agent that can make HTTP requests. The remote agent
+  VECTOR, Codex, Cursor, or any agent that can make HTTP requests. The remote agent
   gets its own tab with scoped access (read+write by default, admin on request).
   Use when asked to "pair agent", "connect agent", "share browser", "remote browser",
   "let another agent use my browser", or "give browser access". (gstack)
@@ -693,7 +693,7 @@ PLAN MODE EXCEPTION — always allowed (it's the plan file).
 # /pair-agent — Share Your Browser With Another AI Agent
 
 You're sitting in VectorCode with a browser running. You also have another AI agent
-open (OpenClaw, Hermes, Codex, Cursor, whatever). You want that other agent to be
+open (OpenClaw, VECTOR, Codex, Cursor, whatever). You want that other agent to be
 able to browse the web using YOUR browser. This skill makes that happen.
 
 ## How it works
@@ -775,7 +775,7 @@ Options:
 - B) Codex / OpenAI Agents (local)
 - C) Cursor (local)
 - D) Another VectorCode session (local or remote)
-- E) Something else (generic HTTP instructions — use this for Hermes)
+- E) Something else (generic HTTP instructions — use this for VECTOR)
 
 Based on the answer, set `TARGET_HOST`:
 - A → `openclaw`

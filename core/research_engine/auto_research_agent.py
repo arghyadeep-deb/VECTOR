@@ -129,7 +129,7 @@ class AutoResearchAgent:
                 topics = self._suggest_research_topics()
                 for topic in topics:
                     logger.info("Scheduled research on topic: {}", topic)
-                    report = self.run_full_cycle(topic)
+                    report = await asyncio.to_thread(self.run_full_cycle, topic)
                     logger.info("Scheduled research completed: {} — supports={}", report.sections.get("title", "?"), report.analysis.supports_hypothesis if report.analysis else "N/A")
                 logger.info("Scheduled research cycle complete — sleeping {}h", interval_hours)
                 await asyncio.sleep(interval_hours * 3600)

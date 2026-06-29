@@ -2,6 +2,7 @@ import sys
 import uuid
 import asyncio
 import datetime
+import os
 from pathlib import Path
 
 from core.config import CONFIG
@@ -112,6 +113,8 @@ class RedditMiner(AgentBase):
         )
         opportunities = ""
         try:
+            if os.getenv("VECTOR_REDDIT_MINER_LLM") != "1":
+                raise RuntimeError("LLM disabled; set VECTOR_REDDIT_MINER_LLM=1 to enable")
             from core.inference.vectorcode_llm import chat
             opportunities = chat(
                 model=CONFIG["models"]["reasoning"],
@@ -156,7 +159,7 @@ class RedditMiner(AgentBase):
         self._memory.store_chain(
             situation="reddit_intelligence",
             goal_ids=["find_opportunities"],
-            steps=["mine_subreddits", "extract_signals_llm", "write_vault"],
+            steps=["mine_subreddits", "extract_signals", "write_vault"],
             action="intelligence_report",
             outcome=f"{len(posts)} posts mined",
             reward=0.75,

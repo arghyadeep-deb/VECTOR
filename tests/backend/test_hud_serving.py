@@ -7,21 +7,18 @@ prod/dev selection, demo asset blocking, and path-traversal defense.
 """
 from __future__ import annotations
 
-import importlib
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from core.api import app as app_module
-from core.api import middleware as mw
 
 
 @pytest.fixture
 def auth_client(monkeypatch):
     """A TestClient with a known API key so /hud/ auth is deterministic."""
-    monkeypatch.setattr(mw, "_API_KEY_ENABLED", True, raising=False)
-    monkeypatch.setattr(mw, "_API_KEY", "testkey-hud", raising=False)
+    monkeypatch.setenv("VECTOR_API_KEY", "testkey-hud")
     client = TestClient(app_module.create_app())
     token = {"Authorization": "Bearer testkey-hud"}
     return client, token

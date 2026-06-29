@@ -229,7 +229,7 @@ class VoiceTTS:
             logger.warning("[VECTOR][tts] supertonic speak failed: {} — falling back to Kokoro", e)
             return False
 
-    def _speak_clone(self, text: str, profile_name: str) -> bool:
+    def _speak_clone(self, text: str, profile_name: str = "default") -> bool:
         """Render `text` in a cloned voice profile and play it. Returns True on success.
 
         Looks up the profile's reference WAV, synthesizes via the local VoiceCloner

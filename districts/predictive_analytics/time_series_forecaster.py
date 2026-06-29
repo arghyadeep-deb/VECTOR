@@ -2,6 +2,7 @@
 from dataclasses import dataclass, field
 from typing import Optional
 from datetime import datetime, timezone, timedelta
+import os
 import numpy as np
 
 from loguru import logger
@@ -117,6 +118,9 @@ class TimeSeriesForecaster:
                 return [r[0] for r in reversed(rows)]
         except Exception:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        if os.environ.get("VECTOR_PREDICTIVE_USE_MEMORY") != "1":
+            return []
+
         try:
             from core.config import CONFIG
             from core.memory.episodic import EpisodicMemory

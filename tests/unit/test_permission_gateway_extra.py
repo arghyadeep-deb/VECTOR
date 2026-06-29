@@ -47,6 +47,23 @@ class TestGatewayExecute:
         await gateway.execute(action)
         gateway._notify.assert_called()
 
+    async def test_execute_yellow_timeout_fails_closed_by_default(self):
+        import asyncio
+        g = PermissionGateway()
+        g._notify = AsyncMock()
+        g._execute_action = AsyncMock(return_value={"status": "ok"})
+        g._check_capability = MagicMock(return_value=(True, "mock ok"))
+
+        async def never_confirms(_action):
+            await asyncio.sleep(1)
+            return True
+
+        g._wait_for_confirmation = never_confirms
+        result = await g.execute(make_action("set_reminder", {"time": "18:00"}))
+        assert result.approved is False
+        assert result.executed is False
+        g._execute_action.assert_not_awaited()
+
     async def test_execute_forbidden_blocked(self, gateway):
         action = make_action("format_drive", {})
         result = await gateway.execute(action)
@@ -268,10 +285,11 @@ class TestEvaluateExternal:
         result = await gateway.evaluate_external("play_music", {"track": "jazz"}, "phone")
         assert result.approved is True
 
-    async def test_external_red_action_executed_without_cap_check(self, gateway):
-        # evaluate_external skips capability check
+    async def test_external_red_action_uses_normal_gateway(self, gateway):
         result = await gateway.evaluate_external("send_email", {"to": "a@b.com"}, "cloud")
-        assert result.executed is True  # no capability check in external path
+        assert result.approved is False
+        assert result.level == "RED"
+        gateway._execute_action.assert_not_awaited()
 
     async def test_external_unknown_increments_block_count(self, gateway):
         await gateway.evaluate_external("brand_new_op_xyz", {}, "esp32")

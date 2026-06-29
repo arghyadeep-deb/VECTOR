@@ -120,7 +120,8 @@ class CodingTaskScorer(Scorer):
     def __init__(self, judge_backend=None, judge_model: str = "") -> None:
         # Accept same constructor args as LLMJudgeScorer for compatibility
         # but don't need the judge for this scorer
-        pass
+        self.judge_backend = judge_backend
+        self.judge_model = judge_model
 
     def score(
         self,

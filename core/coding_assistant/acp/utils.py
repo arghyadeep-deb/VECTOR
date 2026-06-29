@@ -45,7 +45,8 @@ except (ImportError, AttributeError):
     _ACP_SCHEMA_AVAILABLE = False
     # Stubs for all ACP schema types used at module level
     class _AcpStub:
-        def __init__(self, **kwargs): pass
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
         def __class_getitem__(cls, item): return cls
     AgentMessageChunk = AgentThoughtChunk = ContentToolCallContent = _AcpStub
     ModelInfo = SessionConfigOptionSelect = SessionConfigSelectOption = _AcpStub

@@ -49,9 +49,9 @@ HP system must wire to actual task outcomes.
 Fake HP = fake evolution = system that never improves.
 Death triggers ghost memory preservation. Always.
 
-**RULE 10 — HERMES NOT REBUILT**
-`ollama launch hermes --model kimi-k2.6:cloud`
-Hermes already has multi-platform messaging, skill creation, persistent memory.
+**RULE 10 — VECTOR NOT REBUILT**
+`ollama launch vector --model kimi-k2.6:cloud`
+VECTOR already has multi-platform messaging, skill creation, persistent memory.
 Do not rebuild districts/communications from scratch.
 
 **RULE 11 — CLAUDE API NEVER IN RUNTIME**

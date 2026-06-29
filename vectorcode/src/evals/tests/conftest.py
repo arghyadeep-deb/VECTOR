@@ -100,7 +100,7 @@ class MockDataset(DatasetProvider):
         self._records = records or []
 
     def load(self, *, max_samples=None, split=None, seed=None) -> None:
-        pass
+        return None
 
     def iter_records(self):
         return iter(self._records)

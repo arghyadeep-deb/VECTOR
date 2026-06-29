@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 import uuid
 
@@ -91,6 +92,8 @@ class GoogleAdsAgent(AgentBase, SkillMixin):
         policies_text = "\n".join(f"- {k}: {v}" for k, v in GOOGLE_ADS_POLICIES.items())
 
         try:
+            if os.environ.get("VECTOR_GOOGLE_ADS_LLM") != "1":
+                raise RuntimeError("LLM disabled by default; set VECTOR_GOOGLE_ADS_LLM=1")
             from core.inference.vectorcode_llm import chat
             prompt = (
                 f"Audit this Google Ads account for a {industry} business.\n"
@@ -148,6 +151,8 @@ class GoogleAdsAgent(AgentBase, SkillMixin):
         """Generate RSA headlines and descriptions for Google Ads."""
         hydration = self._context.session_hydration_prompt()
         try:
+            if os.environ.get("VECTOR_GOOGLE_ADS_LLM") != "1":
+                raise RuntimeError("LLM disabled by default; set VECTOR_GOOGLE_ADS_LLM=1")
             from core.inference.vectorcode_llm import chat
             prompt = (
                 f"Generate {num_variants} Google RSA (Responsive Search Ad) variants for:\n"
@@ -229,6 +234,8 @@ class GoogleAdsAgent(AgentBase, SkillMixin):
 
         hydration = self._context.session_hydration_prompt()
         try:
+            if os.environ.get("VECTOR_GOOGLE_ADS_LLM") != "1":
+                raise RuntimeError("LLM disabled by default; set VECTOR_GOOGLE_ADS_LLM=1")
             from core.inference.vectorcode_llm import chat
             prompt = (
                 f"Score this landing page for the keyword '{keyword}':\n"

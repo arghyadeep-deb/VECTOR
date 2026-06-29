@@ -110,7 +110,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     # ── Llama 3.1 405B ────────────────────────────────────────────────────────
     "llama-405b": [
         ("github_models", "Meta-Llama-3.1-405B-Instruct"),   # FREE via GitHub token
-        ("openrouter",    "nousresearch/hermes-3-llama-3.1-405b:free"),
+        ("openrouter",    "meta-llama/llama-3.1-405b-instruct"),
         ("nvidia",        "meta/llama-3.1-405b-instruct"),
     ],
 

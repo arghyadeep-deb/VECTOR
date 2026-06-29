@@ -35,8 +35,11 @@ def apply_pragmas(conn: sqlite3.Connection, *, foreign_keys: bool = False) -> No
     WAL mode + 5s busy timeout make concurrent writers safe.
     foreign_keys=True is opt-in (not all schemas need it).
     """
-    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=5000")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+    except sqlite3.OperationalError:
+        conn.execute("PRAGMA journal_mode=DELETE")
     if foreign_keys:
         conn.execute("PRAGMA foreign_keys=ON")
 

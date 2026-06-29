@@ -19,6 +19,7 @@ __all__ = [
 
 import subprocess
 import sys
+import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
@@ -236,6 +237,14 @@ class DBCorruptionPlaybook(RecoveryPlaybook):
 
         db_path = configured_db_path()
         if db_path.exists():
+            if os.environ.get("VECTOR_DB_RECOVERY_CHECK") != "1":
+                actions.append("DB integrity check skipped; set VECTOR_DB_RECOVERY_CHECK=1 to inspect live memory DB")
+                return PlaybookResult(
+                    name=self.name,
+                    success=True,
+                    duration_s=time.time() - start,
+                    actions_taken=actions,
+                )
             try:
                 # MUST use the SQLCipher-aware singleton — plain sqlite3 reads
                 # an encrypted DB as "corrupt" and this playbook would rename

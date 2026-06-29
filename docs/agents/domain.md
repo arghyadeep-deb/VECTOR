@@ -21,7 +21,7 @@ Single-context repo:
 │   │   ├── 0001-local-first-no-cloud-runtime.md
 │   │   ├── 0002-darwinian-hp-over-static-agents.md
 │   │   ├── 0003-permission-gateway-only-action-interface.md
-│   │   ├── 0004-vectorcode-replaces-hermes-as-comms-layer.md
+│   │   ├── 0004-vectorcode-replaces-vector-as-comms-layer.md
 │   │   ├── 0005-one-ollama-model-at-a-time.md
 │   │   └── 0006-sqlite-not-postgres-for-local-runtime.md
 │   └── agents/                   ← skill configuration (this folder)
@@ -40,7 +40,7 @@ When naming issues, tests, refactor proposals, or hypotheses — use CONTEXT.md 
 - Say **HP**, not "score" or "rating"
 - Say **Permission Gateway**, not "action layer"
 - Say **Ghost Memory**, not "agent log" or "backup"
-- Say **Vectorcode**, not "Hermes" or "comms layer"
+- Say **Vectorcode**, not "VECTOR" or "comms layer"
 
 ## Critical rules that constrain architecture proposals
 

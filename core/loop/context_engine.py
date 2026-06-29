@@ -1,5 +1,6 @@
 import sys
 import datetime
+import os
 import threading
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
@@ -254,6 +255,8 @@ class ContextEngine:
 
     async def get_vault_context(self, query: str = "") -> str:
         """Query LightRAG graph for vault context to feed session hydration."""
+        if os.environ.get("VECTOR_OBSIDIAN_RAG_QUERY") != "1":
+            return ""
         try:
             from core.memory.obsidian_sync import ObsidianSync
             sync = ObsidianSync()

@@ -429,7 +429,7 @@ if __name__ == "__main__":
             def is_available(self) -> bool:
                 return True
             def initialize(self, session_id: str, **kwargs) -> None:
-                pass
+                return None
             def get_tool_schemas(self) -> List[Dict[str, Any]]:
                 return []
 

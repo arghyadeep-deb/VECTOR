@@ -393,7 +393,7 @@ def run_oauth_flow(
                 self.end_headers()
 
         def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
-            pass  # Suppress HTTP request logs
+            return None  # Suppress HTTP request logs
 
     # Parse port from redirect_uri
     port = int(urlparse(redirect_uri).port or 8789)
@@ -514,7 +514,7 @@ def _wait_for_callback_code(
                 self.end_headers()
 
         def log_message(self, *_args: Any) -> None:
-            pass
+            return None
 
     # Ensure port is free
     import socket

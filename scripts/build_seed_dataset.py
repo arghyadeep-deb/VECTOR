@@ -544,10 +544,10 @@ EXAMPLES: list[dict] = [
         "instruction": "What is VECTOR's approach to test coverage?",
         "input": "",
         "output": (
-            "VECTOR targets 80% coverage of the core/ package. Tests live in tests/ mirroring "
-            "module structure. Core invariants are never mocked: permission_gateway, "
-            "session_hydration, HP system, and SQLite episodic_memory. External APIs may be "
-            "mocked. Every district has at least one integration test."
+            "VECTOR currently enforces a smoke coverage floor for stable CI shards, not a "
+            "production-grade whole-repo coverage target. Tests live in tests/ and focus on "
+            "core invariants such as permission_gateway, routing, auth, memory persistence, "
+            "and route wiring. External APIs and device-bound paths are mocked or owner-gated."
         ),
     },
     {

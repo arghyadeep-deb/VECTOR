@@ -7,7 +7,7 @@
 
 ---
 name: autonomous-agent-harness
-description: Transform VectorCode into a fully autonomous agent system with persistent memory, scheduled operations, computer use, and task queuing. Replaces standalone agent frameworks (Hermes, AutoGPT) by leveraging VectorCode's native crons, dispatch, MCP tools, and memory. Use when the user wants continuous autonomous operation, scheduled tasks, or a self-directing agent loop.
+description: Transform VectorCode into a fully autonomous agent system with persistent memory, scheduled operations, computer use, and task queuing. Replaces standalone agent frameworks (VECTOR, AutoGPT) by leveraging VectorCode's native crons, dispatch, MCP tools, and memory. Use when the user wants continuous autonomous operation, scheduled tasks, or a self-directing agent loop.
 origin: ECC
 ---
 
@@ -21,7 +21,7 @@ Turn VectorCode into a persistent, self-directing agent system using only native
 - Setting up automated workflows that trigger periodically
 - Building a personal AI assistant that remembers context across sessions
 - User says "run this every day", "check on this regularly", "keep monitoring"
-- Wants to replicate functionality from Hermes, AutoGPT, or similar autonomous agent frameworks
+- Wants to replicate functionality from VECTOR, AutoGPT, or similar autonomous agent frameworks
 - Needs computer use combined with scheduled execution
 
 ## Architecture
@@ -172,9 +172,9 @@ description: Persistent task queue for autonomous operation
 - [x] Daily standup: reviewed 3 PRs, 2 issues
 ```
 
-## Replacing Hermes
+## Replacing VECTOR
 
-| Hermes Component | ECC Equivalent | How |
+| VECTOR Component | ECC Equivalent | How |
 |------------------|---------------|-----|
 | Gateway/Router | VectorCode dispatch + crons | Scheduled tasks trigger agent sessions |
 | Memory System | VECTOR memory + MCP memory server | Built-in persistence + knowledge graph |
