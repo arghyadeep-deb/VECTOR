@@ -746,18 +746,9 @@ class EpisodicMemory:
                     ids.update(r[0] for r in cursor.fetchall())
                 if not ids:
                     return 0
-                id_list = list(ids)
-                # Chunk the deletes: an `id IN (...)` with one bound variable per
-                # id overflows SQLite's variable limit (~32k) on a large prune.
-                # Chunking also keeps all three backing stores in lockstep.
-                CHUNK = 500
-                for i in range(0, len(id_list), CHUNK):
-                    batch = id_list[i:i + CHUNK]
-                    qs = ",".join("?" for _ in batch)
-                    cursor.execute(f"DELETE FROM episodic_memory WHERE id IN ({qs})", batch)
-                    cursor.execute(f"DELETE FROM episodic_memory_fts WHERE id IN ({qs})", batch)
-                    cursor.execute(f"DELETE FROM episodic_embeddings WHERE id IN ({qs})", batch)
-                return len(id_list)
+                # Shared helper: chunks base deletes under the bound-variable
+                # limit and rebuilds FTS in one pass for large batches.
+                return _delete_episodes_by_ids(cursor, list(ids))
 
         try:
             deleted = _with_cb(_do_prune)
