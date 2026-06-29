@@ -23,11 +23,21 @@ on 2026-06-27.
 **What this verifies:** the command-queue flow end to end, against a
 **local-only** emulated D1 + KV (never the real provisioned IDs in
 `wrangler.toml` — `--local` / `--persist-to` keep everything on-disk in a
-temp dir). Confirmed available in this environment: `wrangler 4.101.0`,
-`node v24.15.0`. Not run as part of this session (starting a long-lived dev
-server is an operator action, not something to leave running unattended) —
-this is the script for whoever runs it next (owner or a future session with
-explicit go-ahead).
+temp dir).
+
+**Update (2026-06-29): actually run end-to-end, all 8 steps pass.** Started
+`wrangler dev --local` (4.103.0) from this space-containing path — it works
+(the space-in-path issue only affects the Vitest `workerd` loader, not
+`wrangler dev`). Verified live: 1 public endpoints `200` ✅; 2 auth fails
+closed `401`/`403` ✅; 3 submit → `queued` ✅; 4 heartbeat drain →
+`delivered` ✅; 5 node-targeted routing keeps termux/legion queues isolated
+✅; 6 result post → `done` with stored result ✅; 7 rate limiting returns
+`429` past the per-IP window ✅; 8 degraded Supabase → graceful
+`source:"unconfigured"`, not a 500 ✅. **This run surfaced and fixed a real
+gap in this very doc:** Step 0 below (apply `schema.sql` to the local D1) was
+missing, so steps 3–8 failed out of the box with
+`no such table: command_queue` until the schema was applied. The throwaway
+dev server, `.dev.vars`, and `.wrangler-local-state/` were torn down after.
 
 ## Setup
 
