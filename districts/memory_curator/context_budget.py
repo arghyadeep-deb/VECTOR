@@ -14,8 +14,6 @@ from typing import Any
 
 from loguru import logger
 
-from core.memory.episodic import EpisodicMemory
-
 
 @dataclass
 class ContextHandle:
