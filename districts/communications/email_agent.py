@@ -197,7 +197,7 @@ class EmailAgent(AgentBase):
             conn.execute(
                 "INSERT INTO emails(id,folder_id,subject,sender,recipient,date,body,in_reply_to,thread_id) "
                 "VALUES(?,?,?,?,?,?,?,?,?)",
-                (draft_id, "draft", subject, "arghyadeep@2305119.kiit.ac.in", to,
+                (draft_id, "draft", subject, CONFIG.get("owner_email", "arghyadeepdeb020703@gmail.com"), to,
                  datetime.datetime.now().isoformat(), verified, original_email_id, thread_id)
             )
         conn.close()
@@ -216,7 +216,7 @@ class EmailAgent(AgentBase):
             conn.execute(
                 "INSERT INTO emails(id,folder_id,subject,sender,recipient,date,body,thread_id) "
                 "VALUES(?,?,?,?,?,?,?,?)",
-                (draft_id, "draft", subject, "arghyadeep@2305119.kiit.ac.in", to,
+                (draft_id, "draft", subject, CONFIG.get("owner_email", "arghyadeepdeb020703@gmail.com"), to,
                  datetime.datetime.now().isoformat(), verified, draft_id)
             )
         conn.close()
@@ -361,7 +361,7 @@ class EmailAgent(AgentBase):
                 "INSERT OR IGNORE INTO emails(id,folder_id,subject,sender,recipient,date,"
                 "body,thread_id,message_id,raw_headers,read) VALUES(?,?,?,?,?,?,?,?,?,?,0)",
                 (email_id, "inbox", subject, sender,
-                 "arghyadeep@2305119.kiit.ac.in",
+                 CONFIG.get("owner_email", "arghyadeepdeb020703@gmail.com"),
                  datetime.datetime.now().isoformat(),
                  body, resolved_thread_id, message_id, raw_headers)
             )
