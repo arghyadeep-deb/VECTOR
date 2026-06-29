@@ -28,6 +28,24 @@ CRITICAL_EVENT_TYPES = frozenset({
     "council", "ghost", "death", "consolidation", "security",
 })
 
+# High-frequency, low-value operational telemetry + test pollution. In 24/7
+# operation these flood episodic_memory (a single observe-loop or a leaked test
+# can write hundreds of thousands of rows) yet carry no long-term value — the
+# durable signal already lives in policy_memory / reasoning_chains / semantic.
+# The forgetting pass applies EPHEMERAL_RETENTION_DAYS to these instead of the
+# default 90d, so growth is bounded without losing anything meaningful.
+EPHEMERAL_EVENT_TYPES = frozenset({
+    "concurrent",            # test-pollution sentinel (concurrency stress tests)
+    "test", "unit",          # leaked test rows
+    "api_health_check",      # health-probe telemetry
+    "context_budget_handle", # internal token-budget bookkeeping
+    "governor_dispatch",     # routing telemetry (the decision is in reasoning_chains)
+    "observe", "observation",# raw sensor ticks
+})
+
+# Days of retention for EPHEMERAL_EVENT_TYPES (vs the default 90 for bulk).
+EPHEMERAL_RETENTION_DAYS = 14
+
 TIER_CRITICAL = "critical"
 TIER_BULK = "bulk"
 
