@@ -51,19 +51,6 @@ def _db_size_mb() -> float:
         return -1.0
 
 
-def _chunked_delete(cursor, ids: list) -> int:
-    """Delete ids from all three episodic backing stores, chunked to stay under
-    SQLite's bound-variable limit."""
-    CHUNK = 500
-    for i in range(0, len(ids), CHUNK):
-        batch = ids[i:i + CHUNK]
-        qs = ",".join("?" for _ in batch)
-        cursor.execute(f"DELETE FROM episodic_memory WHERE id IN ({qs})", batch)
-        cursor.execute(f"DELETE FROM episodic_memory_fts WHERE id IN ({qs})", batch)
-        cursor.execute(f"DELETE FROM episodic_embeddings WHERE id IN ({qs})", batch)
-    return len(ids)
-
-
 def purge_test_pollution(dry_run: bool = False) -> int:
     """Delete leaked test rows + future-dated sentinels. Returns rows affected."""
     import datetime
