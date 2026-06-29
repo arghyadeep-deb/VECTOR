@@ -80,7 +80,7 @@ def purge_test_pollution(dry_run: bool = False) -> int:
 
     def _do() -> int:
         with get_temp_cursor() as cursor:
-            return _chunked_delete(cursor, ids)
+            return _delete_episodes_by_ids(cursor, ids)
 
     deleted = _with_cb(_do)
     logger.info(f"[db_maintenance] purged {deleted:,} test-pollution rows")
