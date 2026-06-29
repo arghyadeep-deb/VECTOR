@@ -13,6 +13,22 @@ This replaces the ~8 copies of:
 import sys
 from pathlib import Path
 
+# Windows console safety (mirrors core/__init__.py): force stdout/stderr to
+# UTF-8 so the emoji status lines at the bottom of vectorcode modules don't
+# raise UnicodeEncodeError on a cp1252 console. Runs on import, so it covers
+# both `import vectorcode.src.bootstrap` and `from ... import ensure_paths`.
+# Idempotent and a no-op when already UTF-8.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        if (
+            _stream is not None
+            and hasattr(_stream, "reconfigure")
+            and (getattr(_stream, "encoding", "") or "").lower() not in ("utf-8", "utf8")
+        ):
+            _stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except Exception:
+        pass
+
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _VECTORCODE_SRC = Path(__file__).resolve().parent
 
