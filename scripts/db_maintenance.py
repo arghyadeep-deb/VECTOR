@@ -30,7 +30,13 @@ except Exception:
 
 from loguru import logger
 
-from core.memory.episodic import EpisodicMemory, get_db_connection, get_temp_cursor, _with_cb
+from core.memory.episodic import (
+    EpisodicMemory,
+    get_db_connection,
+    get_temp_cursor,
+    _with_cb,
+    _delete_episodes_by_ids,
+)
 
 # Synthetic event types the test suite writes; purge only when source='test' so
 # a real feature that ever reused one of these names is never touched.
