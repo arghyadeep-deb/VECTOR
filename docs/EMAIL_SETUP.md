@@ -47,13 +47,17 @@ which VECTOR only does through the permission gateway). Narrow to read-only in
 python -c "from core.integrations.gmail_auth import is_connected; print(is_connected())"
 ```
 
-### Current Gmail wiring status (2026-06-29, verified)
+### Current Gmail wiring status (2026-06-29) — ✅ CONNECTED & LIVE
 - `googleapiclient` / `google.oauth2` installed ✅
 - Read path present (`fetch_recent_threads`, `extract_intelligence`) ✅
-- Auth helper `core/integrations/gmail_auth.py` **built this session** (was referenced but missing) ✅
-- `google-auth-oauthlib==1.4.0` **installed + pinned** ✅ (verified importable)
-- From-address **fixed** ✅ — `EmailAgent` drafts now use `CONFIG["owner_email"]` (defaults to `arghyadeepdeb020703@gmail.com`, override via `VECTOR_OWNER_EMAIL`), no longer the hardcoded KIIT address.
-- `~/.vector/google_credentials.json` + `gmail_token.json` **not present** ❌ (steps 2–3 below) → **Gmail not connected yet — this is the only remaining step, and it's owner-only.**
+- Auth helper `core/integrations/gmail_auth.py` built ✅
+- `google-auth-oauthlib==1.4.0` installed + pinned ✅
+- From-address uses `CONFIG["owner_email"]` (default `arghyadeepdeb020703@gmail.com`, override `VECTOR_OWNER_EMAIL`) ✅
+- `~/.vector/google_credentials.json` (Desktop OAuth client) **placed** ✅
+- `~/.vector/gmail_token.json` **created via OAuth consent** ✅ — scopes `gmail.modify` + `gmail.send`
+- **End-to-end verified 2026-06-29:** `EmailIntelligence().fetch_recent_threads()` returned real inbox threads. VECTOR reads Gmail; sending is permission-gated (`EmailAgent.send_reply` → RED `send_email`).
+
+**To re-authorize / switch account:** delete `~/.vector/gmail_token.json` and re-run `python -m core.integrations.gmail_auth`.
 
 ---
 
