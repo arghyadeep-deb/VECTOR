@@ -1,7 +1,7 @@
 # Code Style
 
 ## Language
-Python 3.11+ for all backend. TypeScript for Cloudflare Workers only.
+Python 3.12+ for all backend (PEP 695 generics in use; `requires-python = ">=3.12"`). TypeScript for Cloudflare Workers only.
 
 ## Naming
 ```

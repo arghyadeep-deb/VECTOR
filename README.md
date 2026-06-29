@@ -458,8 +458,8 @@ class AutonomousLoop:
 ### Supported Technologies with Versions
 
 #### Runtime Environment
-- **Python**: 3.11.9 (minimum)
-- **AsyncIO**: Built-in Python 3.11+ features
+- **Python**: 3.12 (minimum; PEP 695 generics in use, runtime tested on 3.13)
+- **AsyncIO**: Built-in Python 3.12+ features
 - **Pydantic**: 2.7.0 (data validation)
 - **Loguru**: 0.7.2 (logging)
 - **Typer**: 0.9.0 (CLI interface)
@@ -581,7 +581,7 @@ class AutonomousLoop:
 ### Software Dependencies
 ```bash
 # Core requirements
-python>=3.11
+python>=3.12
 fastapi>=0.110.0
 uvicorn>=0.30.0
 pydantic>=2.7.0
