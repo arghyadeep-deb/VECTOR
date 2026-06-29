@@ -62,17 +62,40 @@ class ContextBudgetManager:
             self._persist_handle(handle, text, label)
         return compact, handle
 
+    # Keep at most this many persisted handles. They are an opaque
+    # handle->text cache (retrieved by exact handle, never searched), so the
+    # newest few are all that can still be referenced by a live prompt.
+    _PERSIST_CAP = 1000
+
     def _persist_handle(self, handle: ContextHandle, original_text: str, label: str) -> None:
-        """Persist the handle->original mapping so a restart doesn't lose
-        retrievability. Never raises — this is a best-effort durability
-        layer, not a request-path dependency."""
+        """Persist the handle->original mapping to a dedicated, capped,
+        NON-FTS table so a restart doesn't lose retrievability.
+
+        Crucially this does NOT go through ``EpisodicMemory.store`` — that
+        path FTS-indexes every token of the content, and these blobs are huge
+        (tens of KB each, oversized-prompt offloads). Indexing them ballooned
+        the DB to multiple GB for data that is only ever fetched by exact
+        handle. A plain keyed table is the right store. Never raises — this is
+        best-effort durability, not a request-path dependency."""
         try:
-            EpisodicMemory().store(
-                event_type="context_budget_handle",
-                content=json.dumps({"handle": handle.handle, "original_text": original_text}),
-                tags=["context_budget", label],
-                source="context_budget",
-            )
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cur:
+                cur.execute(
+                    "CREATE TABLE IF NOT EXISTS context_budget_handles ("
+                    "handle TEXT PRIMARY KEY, original_text TEXT, label TEXT, created_at TEXT)"
+                )
+                cur.execute(
+                    "INSERT OR REPLACE INTO context_budget_handles "
+                    "(handle, original_text, label, created_at) VALUES (?, ?, ?, ?)",
+                    (handle.handle, original_text, label, handle.created_at),
+                )
+                # Bound the table: drop everything but the newest _PERSIST_CAP.
+                cur.execute(
+                    "DELETE FROM context_budget_handles WHERE handle NOT IN ("
+                    "SELECT handle FROM context_budget_handles "
+                    "ORDER BY created_at DESC LIMIT ?)",
+                    (self._PERSIST_CAP,),
+                )
         except Exception as exc:
             logger.warning("[VECTOR][context_budget] persist failed for {}: {}", handle.handle, exc)
 
