@@ -593,12 +593,29 @@ def _delete_episodes_by_ids(cursor, ids: list) -> int:
         cursor.execute(f"DELETE FROM episodic_embeddings WHERE id IN ({qs})", batch)
     if len(ids) >= _FTS_REBUILD_THRESHOLD:
         # Rebuild FTS from the (already-pruned) base table — far faster than
-        # row-by-row deletion for large batches.
-        cursor.execute("DELETE FROM episodic_memory_fts")
+        # row-by-row deletion for large batches. NOTE: a plain
+        # `DELETE FROM <fts5>` does NOT free the index — FTS5 appends tombstone
+        # markers, so the index keeps growing. DROP + CREATE physically removes
+        # the shadow tables, giving a genuinely fresh, compact index. We read the
+        # live CREATE statement so this stays correct if the schema ever changes.
         cursor.execute(
-            f"INSERT INTO episodic_memory_fts ({_EPISODIC_COLS}) "
-            f"SELECT {_EPISODIC_COLS} FROM episodic_memory"
+            "SELECT sql FROM sqlite_master WHERE name='episodic_memory_fts' AND type='table'"
         )
+        row = cursor.fetchone()
+        create_sql = row[0] if row else None
+        if create_sql:
+            cursor.execute("DROP TABLE episodic_memory_fts")
+            cursor.execute(create_sql)
+            cursor.execute(
+                f"INSERT INTO episodic_memory_fts ({_EPISODIC_COLS}) "
+                f"SELECT {_EPISODIC_COLS} FROM episodic_memory"
+            )
+        else:  # schema not found — fall back to per-row delete
+            CHUNK = 500
+            for i in range(0, len(ids), CHUNK):
+                batch = ids[i:i + CHUNK]
+                qs = ",".join("?" for _ in batch)
+                cursor.execute(f"DELETE FROM episodic_memory_fts WHERE id IN ({qs})", batch)
     else:
         for i in range(0, len(ids), CHUNK):
             batch = ids[i:i + CHUNK]
