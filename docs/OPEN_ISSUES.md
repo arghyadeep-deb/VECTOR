@@ -6,9 +6,10 @@ has been built, tested, and (for cloud) deployed. Every item below is
 owner-gated: physical hardware, a paid/verified account, a deploy step, or a
 decision only you can make.
 
-Full per-item evidence lives in `repo_analysis/_MASTER_TODO.md` (source of truth)
-and `repo_analysis/OWNER_ACTIONS_NEEDED.md`. This file is the short, current
-"what's left" view; the done-work archives were removed.
+This file is the single owner-facing source of truth. Full per-item evidence
+(the detailed 31-repo absorption + open-issues audit with file:line proof) lives
+in git history — the in-tree `repo_analysis/` archives were removed once their
+open items were folded in here.
 
 ---
 
