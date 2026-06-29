@@ -564,6 +564,49 @@ def get_temp_cursor():
             cursor.close()
 
 
+# Above this many rows, rebuild the FTS index in one pass instead of deleting
+# row-by-row. Standalone FTS5 `DELETE ... WHERE id IN (...)` is O(index-size)
+# per statement, so a large prune that way is pathologically slow (a 186k-row
+# cleanup never finished inside a 10-min window); an INSERT…SELECT rebuild of
+# the remaining rows is O(remaining) and finishes in seconds.
+_FTS_REBUILD_THRESHOLD = 20000
+
+# Column order shared by episodic_memory and episodic_memory_fts (the FTS table
+# lists them in a different order, so the rebuild names them explicitly).
+_EPISODIC_COLS = "id, event_type, content, tags, source, timestamp, context_snapshot"
+
+
+def _delete_episodes_by_ids(cursor, ids: list) -> int:
+    """Delete the given episode ids from all three backing stores
+    (episodic_memory, episodic_embeddings, episodic_memory_fts), keeping them in
+    lockstep. Chunks base-table deletes to stay under SQLite's bound-variable
+    limit, and rebuilds the FTS index in one pass when the batch is large.
+    Caller is responsible for the surrounding transaction/commit.
+    """
+    if not ids:
+        return 0
+    CHUNK = 500
+    for i in range(0, len(ids), CHUNK):
+        batch = ids[i:i + CHUNK]
+        qs = ",".join("?" for _ in batch)
+        cursor.execute(f"DELETE FROM episodic_memory WHERE id IN ({qs})", batch)
+        cursor.execute(f"DELETE FROM episodic_embeddings WHERE id IN ({qs})", batch)
+    if len(ids) >= _FTS_REBUILD_THRESHOLD:
+        # Rebuild FTS from the (already-pruned) base table — far faster than
+        # row-by-row deletion for large batches.
+        cursor.execute("DELETE FROM episodic_memory_fts")
+        cursor.execute(
+            f"INSERT INTO episodic_memory_fts ({_EPISODIC_COLS}) "
+            f"SELECT {_EPISODIC_COLS} FROM episodic_memory"
+        )
+    else:
+        for i in range(0, len(ids), CHUNK):
+            batch = ids[i:i + CHUNK]
+            qs = ",".join("?" for _ in batch)
+            cursor.execute(f"DELETE FROM episodic_memory_fts WHERE id IN ({qs})", batch)
+    return len(ids)
+
+
 class EpisodicMemory:
     """Thread-safe SQLite-backed episodic memory with connection pooling."""
     
