@@ -626,66 +626,145 @@ class EpisodicMemory:
     # agent_history, not here, so it is unaffected regardless.
     _PROTECTED_EVENT_TYPES = frozenset({"council", "consolidation", "ghost", "death"})
 
+    # Run VACUUM from prune only when at least this many rows were forgotten —
+    # VACUUM rewrites the whole file, so it isn't worth it for a handful of rows.
+    _VACUUM_ROW_THRESHOLD = 2000
+
     def prune_old_episodes(
         self,
         retention_days: int = 90,
         protect_event_types: "set[str] | None" = None,
+        vacuum: "bool | None" = None,
     ) -> int:
         """Forget raw episodes older than ``retention_days``.
 
         Decay/forgetting (roadmap #7): once ConsolidationBot has summarized old
         episodes into semantic_memory + mem0, the raw rows are redundant and
         otherwise grow the DB unbounded in 24/7 operation. Deletes from all
-        three backing stores (episodic_memory, the FTS index, embeddings) in one
-        transaction. Protected event types are kept. Returns rows deleted.
+        three backing stores (episodic_memory, the FTS index, embeddings).
+        Protected event types are kept forever; high-frequency telemetry
+        (``tiering.EPHEMERAL_EVENT_TYPES``) is forgotten after the much shorter
+        ``EPHEMERAL_RETENTION_DAYS`` so a single observe-loop or leaked test
+        can't grow the DB without bound. Returns rows deleted.
+
+        ``vacuum`` reclaims the freed pages back to the OS (plain ``VACUUM`` —
+        SQLCipher-safe, unlike ``VACUUM INTO`` which writes a plaintext copy).
+        Default (None) → auto-VACUUM only when ≥ ``_VACUUM_ROW_THRESHOLD`` rows
+        were forgotten.
         """
         if retention_days <= 0:
             return 0
         try:
             from core.memory import tiering as _tiering
             protected = set(_tiering.protected_event_types())
+            ephemeral = set(_tiering.ephemeral_event_types()) - protected
+            ephemeral_days = int(getattr(_tiering, "EPHEMERAL_RETENTION_DAYS", 14))
         except Exception:
             protected = set(self._PROTECTED_EVENT_TYPES)
+            ephemeral = set()
+            ephemeral_days = 14
         if protect_event_types:
             protected |= set(protect_event_types)
-        cutoff = (
-            datetime.datetime.now(datetime.timezone.utc)
-            - datetime.timedelta(days=retention_days)
-        ).isoformat()  # ISO-8601 sorts lexicographically → safe string compare
+            ephemeral -= set(protect_event_types)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        # ISO-8601 sorts lexicographically → safe string compare
+        cutoff = (now - datetime.timedelta(days=retention_days)).isoformat()
+        # Ephemeral window never exceeds the bulk window.
+        eph_cutoff = (
+            now - datetime.timedelta(days=min(ephemeral_days, retention_days))
+        ).isoformat()
 
         def _do_prune() -> int:
             with get_temp_cursor() as cursor:
-                if protected:
-                    placeholders = ",".join("?" for _ in protected)
-                    sel = (
+                ids: "set" = set()
+                # Pass A — bulk events past retention_days. Skip protected (never)
+                # and ephemeral (handled with a shorter window in Pass B).
+                skip = protected | ephemeral
+                if skip:
+                    ph = ",".join("?" for _ in skip)
+                    cursor.execute(
                         "SELECT id FROM episodic_memory "
-                        f"WHERE timestamp < ? AND event_type NOT IN ({placeholders})"
+                        f"WHERE timestamp < ? AND event_type NOT IN ({ph})",
+                        (cutoff, *skip),
                     )
-                    cursor.execute(sel, (cutoff, *protected))
                 else:
                     cursor.execute(
                         "SELECT id FROM episodic_memory WHERE timestamp < ?", (cutoff,)
                     )
-                ids = [r[0] for r in cursor.fetchall()]
+                ids.update(r[0] for r in cursor.fetchall())
+                # Pass B — high-frequency telemetry past the short window.
+                if ephemeral:
+                    ephp = ",".join("?" for _ in ephemeral)
+                    cursor.execute(
+                        "SELECT id FROM episodic_memory "
+                        f"WHERE timestamp < ? AND event_type IN ({ephp})",
+                        (eph_cutoff, *ephemeral),
+                    )
+                    ids.update(r[0] for r in cursor.fetchall())
                 if not ids:
                     return 0
-                qs = ",".join("?" for _ in ids)
-                cursor.execute(f"DELETE FROM episodic_memory WHERE id IN ({qs})", ids)
-                cursor.execute(f"DELETE FROM episodic_memory_fts WHERE id IN ({qs})", ids)
-                cursor.execute(f"DELETE FROM episodic_embeddings WHERE id IN ({qs})", ids)
-                return len(ids)
+                id_list = list(ids)
+                # Chunk the deletes: an `id IN (...)` with one bound variable per
+                # id overflows SQLite's variable limit (~32k) on a large prune.
+                # Chunking also keeps all three backing stores in lockstep.
+                CHUNK = 500
+                for i in range(0, len(id_list), CHUNK):
+                    batch = id_list[i:i + CHUNK]
+                    qs = ",".join("?" for _ in batch)
+                    cursor.execute(f"DELETE FROM episodic_memory WHERE id IN ({qs})", batch)
+                    cursor.execute(f"DELETE FROM episodic_memory_fts WHERE id IN ({qs})", batch)
+                    cursor.execute(f"DELETE FROM episodic_embeddings WHERE id IN ({qs})", batch)
+                return len(id_list)
 
         try:
             deleted = _with_cb(_do_prune)
             if deleted:
                 logger.info(
-                    f"[VECTOR][episodic] forgot {deleted} episodes older than "
-                    f"{retention_days}d (protected: {sorted(protected)})"
+                    f"[VECTOR][episodic] forgot {deleted} episodes "
+                    f"(bulk>{retention_days}d, ephemeral>{min(ephemeral_days, retention_days)}d; "
+                    f"protected: {sorted(protected)})"
                 )
+                should_vacuum = vacuum if vacuum is not None else (deleted >= self._VACUUM_ROW_THRESHOLD)
+                if should_vacuum:
+                    self.vacuum()
             return deleted
         except Exception as e:
             logger.error(f"[VECTOR][episodic] prune_old_episodes failed: {e}")
             return 0
+
+    def vacuum(self) -> bool:
+        """Reclaim freed pages back to the OS after large deletes.
+
+        Plain ``VACUUM`` preserves SQLCipher encryption (the page cipher is
+        reapplied as the file is rewritten); ``VACUUM INTO`` does NOT — it emits
+        a plaintext copy, so it must never be used here. VACUUM cannot run inside
+        a transaction, so we commit and drop to autocommit first. Rewrites the
+        whole file (needs transient free disk ≈ DB size); cheap once the DB is
+        small.
+        """
+        try:
+            conn = get_db_connection()
+            try:
+                conn.commit()
+            except Exception:
+                pass
+            old_iso = getattr(conn, "isolation_level", None)
+            try:
+                conn.isolation_level = None  # autocommit — VACUUM can't be in a txn
+            except Exception:
+                pass
+            try:
+                conn.execute("VACUUM")
+            finally:
+                try:
+                    conn.isolation_level = old_iso
+                except Exception:
+                    pass
+            logger.info("[VECTOR][episodic] VACUUM complete — freed pages returned to OS")
+            return True
+        except Exception as e:
+            logger.warning(f"[VECTOR][episodic] VACUUM skipped: {e}")
+            return False
 
     def recall(self, query, limit=5, event_type=None) -> list[dict]:
         try:
