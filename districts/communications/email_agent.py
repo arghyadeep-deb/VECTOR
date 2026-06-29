@@ -262,6 +262,64 @@ class EmailAgent(AgentBase):
         conn.close()
         return {"status": "discarded", "draftId": draft_id}
 
+    # ── Sending (permission-gated) ────────────────────────────────────────────
+
+    async def send_reply(self, draft_id: str, transport=None) -> dict:
+        """Send a saved draft — GATED.
+
+        Outbound email is an outward, hard-to-reverse action, so it goes through
+        the permission gateway under the existing RED ``send_email`` tier: the
+        owner is notified (to / subject / preview) and it sends ONLY on approval.
+        Fail-closed: if the gateway raises or is unreachable, nothing is sent.
+
+        ``transport`` is an injectable ``callable(draft_dict) -> bool`` for the
+        actual send channel (the ``vector-email`` Worker's ``/api/v1/agent/send``
+        endpoint in Phase 3, or an SMTP sender). With no transport wired yet, an
+        approved send returns ``approved_no_transport`` rather than silently
+        pretending to have sent. See ``plans/cloud-inbox-brain-bridge.md`` (Phase 2).
+        """
+        draft = self.get_email(draft_id)
+        if not draft:
+            return {"status": "error", "message": "draft not found"}
+        to = draft.get("recipient", "")
+        subject = draft.get("subject", "")
+        preview = (draft.get("body") or "")[:200]
+
+        try:
+            from core.loop.permission_gateway import PermissionGateway, Action
+            gw = PermissionGateway()
+            result = await gw.execute(Action(
+                action_type="send_email",
+                params={"to": to, "subject": subject, "preview": preview, "draft_id": draft_id},
+                proposed_by="email_agent",
+            ))
+        except Exception as e:
+            logger.error("[VECTOR][email_agent] gateway unreachable — send blocked (fail-closed): {}", e)
+            return {"status": "blocked", "reason": "gateway_unreachable"}
+
+        if not getattr(result, "approved", False):
+            logger.info("[VECTOR][email_agent] send not approved for draft {}", draft_id)
+            return {"status": "blocked", "reason": "not_approved", "draftId": draft_id}
+
+        if transport is None:
+            return {"status": "approved_no_transport", "draftId": draft_id}
+
+        try:
+            sent_ok = bool(transport(draft))
+        except Exception as e:
+            logger.error("[VECTOR][email_agent] transport failed: {}", e)
+            return {"status": "error", "message": str(e)}
+
+        if not sent_ok:
+            return {"status": "error", "message": "transport reported failure"}
+
+        conn = self._conn()
+        with conn:
+            conn.execute("UPDATE emails SET folder_id='sent' WHERE id=?", (draft_id,))
+        conn.close()
+        logger.info("[VECTOR][email_agent] sent draft {} → {}", draft_id, to)
+        return {"status": "sent", "draftId": draft_id, "to": to}
+
     # ── Management tools ──────────────────────────────────────────────────────
 
     def mark_email_read(self, email_id: str, read: bool) -> dict:
