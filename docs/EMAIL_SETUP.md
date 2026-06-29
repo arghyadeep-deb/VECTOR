@@ -51,9 +51,9 @@ python -c "from core.integrations.gmail_auth import is_connected; print(is_conne
 - `googleapiclient` / `google.oauth2` installed ✅
 - Read path present (`fetch_recent_threads`, `extract_intelligence`) ✅
 - Auth helper `core/integrations/gmail_auth.py` **built this session** (was referenced but missing) ✅
-- `google-auth-oauthlib` **not installed** ❌ (step 1 above)
-- `~/.vector/google_credentials.json` + `gmail_token.json` **not present** ❌ (steps 2–3) → **Gmail not connected yet**
-- Note: `EmailAgent` drafts currently hardcode the from-address `arghyadeep@2305119.kiit.ac.in` (KIIT, not the Gmail). Update it in `districts/communications/email_agent.py` if you want drafts to come from the Gmail address.
+- `google-auth-oauthlib==1.4.0` **installed + pinned** ✅ (verified importable)
+- From-address **fixed** ✅ — `EmailAgent` drafts now use `CONFIG["owner_email"]` (defaults to `arghyadeepdeb020703@gmail.com`, override via `VECTOR_OWNER_EMAIL`), no longer the hardcoded KIIT address.
+- `~/.vector/google_credentials.json` + `gmail_token.json` **not present** ❌ (steps 2–3 below) → **Gmail not connected yet — this is the only remaining step, and it's owner-only.**
 
 ---
 
