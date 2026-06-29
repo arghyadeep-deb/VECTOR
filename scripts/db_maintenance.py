@@ -42,6 +42,13 @@ from core.memory.episodic import (
 # a real feature that ever reused one of these names is never touched.
 _TEST_POLLUTION_TYPES = ("concurrent", "test", "unit")
 
+# Event types that are no longer written and were never read back — pure
+# write-only bloat. `context_budget_handle` stored tens-of-KB prompt offloads
+# into FTS-indexed episodic_memory (ballooned the DB to multiple GB); the
+# context budget manager now uses a dedicated capped non-FTS table instead, so
+# every existing row here is dead. Purged unconditionally (any source/age).
+_DEAD_EVENT_TYPES = ("context_budget_handle",)
+
 
 def _db_size_mb() -> float:
     try:
