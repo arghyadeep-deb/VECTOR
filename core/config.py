@@ -393,8 +393,8 @@ class SidecarsConfig(BaseModel):
     # VECTOR codebase (i.e. <codebase-parent>/GitHub/<AppName>).
     # Set a non-empty path to point at wherever you cloned/installed the app.
     #
-    # ComfyUI: local Stable-Diffusion node UI; must be cloned locally.
-    #   Default: <codebase-parent>/GitHub/ComfyUI-master
+    # ComfyUI: local Stable-Diffusion node UI; runs from the sibling install.
+    #   Default: <codebase-parent>/ComfyUI  (the real install)
     #   Override: set VECTOR_COMFYUI_PATH env var.
     comfyui_path: str = ""
     #
