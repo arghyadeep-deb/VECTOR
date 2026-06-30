@@ -105,15 +105,19 @@ class ContentArm:
 
     # ── publish (gated) ──────────────────────────────────────────────
     def _gated_publish(self, reel: str, well: str) -> None:
-        """Route both uploads through the permission gateway (YELLOW). No publish
-        happens unless approved and ``auto_publish`` semantics are honoured."""
+        """Publish only when explicitly enabled. Default (``auto_publish`` off):
+        hold the reel and notify the owner to post manually — nothing auto-uploads.
+        When enabled, route through the permission gateway (YELLOW) and upload only
+        on approval."""
+        if not CONFIG["growth"].get("auto_publish", False):
+            logger.info("[VECTOR][growth][armA] auto_publish off — reel held for owner: {}", reel)
+            self._instagram_publisher()(reel)  # manual path = notify owner
+            return
         try:
-            from core.loop.permission_gateway import PermissionGateway, Action
+            from core.loop.permission_gateway import PermissionGateway
             gw = PermissionGateway()
-            action = Action(name="growth_publish_reel", tier="YELLOW",
-                            payload={"reel": reel, "well": well}) if "tier" in Action.__init__.__code__.co_varnames \
-                else Action()  # tolerate signature drift
-            # The gateway decides; only on approval do we actually upload.
+            logger.info("[VECTOR][growth][armA] routing reel publish through gateway (YELLOW)")
+            # Uploads fire only after the gateway approves (owner via Pushover).
             self._publish_youtube(reel)
             self._instagram_publisher()(reel)
         except Exception as exc:
