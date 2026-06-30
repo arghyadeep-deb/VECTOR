@@ -17,6 +17,8 @@ from __future__ import annotations
 __all__ = ["PersonalityLayer", "get_personality_layer"]
 
 
+from pathlib import Path
+
 from loguru import logger
 from core.personality import PersonalityEngine
 from core.personality.character_card import CharacterCard

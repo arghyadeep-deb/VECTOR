@@ -4,9 +4,12 @@ import datetime
 import hashlib
 import json
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING, Callable
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    from core.loop.decision_engine import Candidate
 from core.config import CONFIG
 from core.event_bus.types import Event, EventType
 from core.event_bus.worker_pool import WorkerPool
@@ -827,7 +830,7 @@ class AutonomousLoop:
                 self._trace_collector.capture(event=event, **data)
             except Exception: logger.debug("[VECTOR][loop] exception suppressed")
 
-    async def _act_on(self, winner: "DecisionEngine.Candidate") -> None:
+    async def _act_on(self, winner: "Candidate") -> None:
         """
         Route winner to governor (which routes to permission_gateway).
         RULE 3 — LLM zero direct access. All through gateway.
@@ -1993,8 +1996,23 @@ class AutonomousLoop:
             self.sense_loop(),
             self.anticipation_loop(),
             self.command_poll_loop(),
+            self.growth_loop(),
             return_exceptions=True,
         )
+
+    async def growth_loop(self) -> None:
+        """Launch the Growth Engine orchestrator (ARM A content + ARM B software).
+        No-ops unless CONFIG.growth.enabled (default False). Self-gates and never
+        crashes the autonomous loop (RULE 2 never-die)."""
+        try:
+            if not CONFIG.get("growth", {}).get("enabled", False):
+                logger.info("[VECTOR][growth] disabled (CONFIG.growth.enabled=False) — growth_loop idle")
+                return
+            from districts.growth.growth_orchestrator import GrowthOrchestrator
+            logger.info("[VECTOR][growth] launching orchestrator from autonomous loop")
+            await GrowthOrchestrator().run_forever()
+        except Exception as _ge:
+            logger.error("[VECTOR][growth] growth_loop error (loop survives): {}", _ge)
 
     async def sense_loop(self) -> None:
         """Call _sense_tick() every 30s. Skipped when sensing disabled. Never crashes."""

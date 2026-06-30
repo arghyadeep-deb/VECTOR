@@ -44,6 +44,13 @@ async def voice_stream(websocket: WebSocket):
     chunks: list[bytes] = []
     logger.info("[VECTOR][voice_ws] Client connected")
 
+    # broadcast_event is imported lazily (avoids a circular import with the
+    # websocket router) and shared across this handler's dashboard broadcasts.
+    try:
+        from core.api.routers.websocket import broadcast_event  # type: ignore
+    except Exception:
+        broadcast_event = None  # type: ignore
+
     # Helper to broadcast orb FSM state to every connected dashboard.
     # Never raises (RULE 2); logs are debug-level to avoid log spam.
     async def _orb(state: str) -> None:

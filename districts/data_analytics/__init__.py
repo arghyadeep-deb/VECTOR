@@ -55,6 +55,9 @@ class DataAnalytics(AgentBase):
                 lines = content.splitlines()
             elif data_p.suffix == ".db":
                 conn = sqlite3.connect(data_p, check_same_thread=False)
+                cursor = conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+                )
                 tables = [row[0] for row in cursor]
                 sample_data = {}
                 for tbl in tables[:3]:

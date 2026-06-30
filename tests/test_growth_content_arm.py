@@ -12,7 +12,11 @@ async def test_arm_a_chains_and_gates(monkeypatch):
     monkeypatch.setattr(arm, "_narrate", lambda txt: ("/n.wav", 10.0))
     monkeypatch.setattr(arm, "_record", lambda wav, dur: "/reel.mp4")
     gate = {}
-    monkeypatch.setattr(arm, "_gated_publish", lambda *a, **k: gate.setdefault("called", True))
+
+    async def _fake_publish(*a, **k):
+        gate.setdefault("called", True)
+
+    monkeypatch.setattr(arm, "_gated_publish", _fake_publish)
     r = await arm.run_once()
     assert r["reel"] == "/reel.mp4" and gate["called"] is True
 

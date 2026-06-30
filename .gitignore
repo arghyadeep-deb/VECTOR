@@ -178,3 +178,6 @@ districts/intelligence/shadowbroker_server/data/transport/*.json
 districts/intelligence/shadowbroker_server/data/wormhole_status.json
 districts/intelligence/vector_social_sim/logs/
 
+
+# Generated media output (growth reels, video renders)
+renders/

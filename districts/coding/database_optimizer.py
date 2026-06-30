@@ -50,6 +50,10 @@ class DatabaseOptimizer(AgentBase):
             return {"error": "vector_memory.db not found"}
         try:
             con = sqlite3.connect(str(self._db_path), timeout=5, check_same_thread=False)
+            cur = con.cursor()
+            tables = cur.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            ).fetchall()
             schema = {}
             for (name,) in tables:
                 row_count = cur.execute(f"SELECT COUNT(*) FROM [{name}]").fetchone()[0]
@@ -82,6 +86,7 @@ class DatabaseOptimizer(AgentBase):
         benchmarks = {}
         try:
             con = sqlite3.connect(str(self._db_path), timeout=5, check_same_thread=False)
+            cur = con.cursor()
             queries = {
                 "recent_events": "SELECT * FROM episodic_memory ORDER BY timestamp DESC LIMIT 50",
                 "fts_search": "SELECT * FROM episodic_memory WHERE content MATCH 'VECTOR' LIMIT 10",

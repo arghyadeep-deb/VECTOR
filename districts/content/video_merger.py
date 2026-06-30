@@ -120,6 +120,19 @@ class VideoMerger(AgentBase):
             logger.error(f"[VECTOR][video_merger] Merge failed: {e}")
             return {"status": "error", "message": str(e)}
 
+    def _probe_duration(self, video: Path) -> float:
+        """Return the video's duration in seconds via ffprobe (0.0 on failure)."""
+        try:
+            result = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=noprint_wrappers=1:nokey=1", str(video)],
+                capture_output=True, text=True, timeout=30,
+            )
+            return float(result.stdout.strip())
+        except (subprocess.SubprocessError, FileNotFoundError, ValueError) as e:
+            logger.warning("[VECTOR][video_merger] ffprobe duration failed: {}", e)
+            return 0.0
+
     def _add_transition(self, cmd: list, transition: str, duration: float) -> list:
         """Add transition filter to ffmpeg command."""
         filter_idx = cmd.index("-c:v") + 1
@@ -152,12 +165,14 @@ class VideoMerger(AgentBase):
             output_path = video.parent / f"{video.stem}_with_music{video.suffix}"
 
         try:
+            duration = self._probe_duration(video)
+            fade_start = max(0.0, duration - 3) if duration else 0.0
             cmd = [
                 "ffmpeg", "-y",
                 "-i", str(video),
                 "-i", str(music),
                 "-filter_complex",
-                f"[1:a]volume={volume_music},afade=t=out:st={duration-3}:d={fade_out}[music];"
+                f"[1:a]volume={volume_music},afade=t=out:st={fade_start}:d={fade_out}[music];"
                 f"[0:a]volume={volume_video}[speech];"
                 f"[speech][music]amix=inputs=2:duration=longest[aout]",
                 "-map", "0:v",

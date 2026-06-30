@@ -1,14 +1,15 @@
 """ARM A — Content / Brand pipeline (one reel/day).
 
-Chains existing agents: script (two truthful wells) → Kokoro narration → HUD
-recording → ffmpeg assemble → permission-gated upload. Reuses
+Chains existing agents: script (two truthful wells) -> Kokoro narration -> HUD
+recording -> ffmpeg assemble -> permission-gated upload. Reuses
 ``districts/content/*`` and ``core/voice/tts.py``; the only new media step is the
-HUD recorder (Task 2).
+HUD recorder.
 
 Guardrails baked in: truthful-claims-only (script pulls from VECTOR's real action
-log or demos a real feature), every publish behind ``permission_gateway`` (YELLOW),
-and Instagram defaults to human-in-the-loop (owner gets a Pushover to post) —
-``instagrapi`` is never auto-called (ToS risk). Never raises — ARM A runs forever.
+log or demos a real feature), every publish behind ``permission_gateway`` (owner
+approval), and Instagram defaults to human-in-the-loop (owner gets a Pushover to
+post) -- ``instagrapi`` is never auto-called (ToS risk). Never raises -- ARM A
+runs forever.
 """
 from __future__ import annotations
 
@@ -29,7 +30,7 @@ class ContentArm:
     def __init__(self) -> None:
         self._recorder = HUDRecorder()
 
-    # ── orchestration ────────────────────────────────────────────────
+    # -- orchestration ------------------------------------------------
     async def run_once(self) -> dict:
         """Produce one reel and route it to the (gated) publish step."""
         well = await self._pick_well()
@@ -37,7 +38,7 @@ class ContentArm:
         narration_wav, duration_s = self._narrate(text)
         reel = self._record(narration_wav, duration_s)
         if reel:
-            self._gated_publish(reel, well)
+            await self._gated_publish(reel, well)
         else:
             logger.warning("[VECTOR][growth][armA] no reel produced (recorder unavailable)")
         return {"reel": reel, "well": well, "script": text}
@@ -46,14 +47,11 @@ class ContentArm:
         """Pick the content well: real work today, else a capability showcase."""
         return "work_done" if self._has_reelworthy_work() else "capability_showcase"
 
-    # ── stages (reuse existing agents; mocked in tests) ──────────────
+    # -- stages (reuse existing agents; mocked in tests) --------------
     def _has_reelworthy_work(self) -> bool:
         """True if VECTOR did something reel-worthy today (from the action log)."""
         try:
             from core.memory.episodic import EpisodicMemory
-            import datetime
-            since = (datetime.datetime.now(datetime.timezone.utc)
-                     - datetime.timedelta(days=1)).isoformat()
             hits = EpisodicMemory().recall("task completed", limit=3)
             return bool(hits)
         except Exception as exc:
@@ -72,10 +70,10 @@ class ContentArm:
             return (str(text), well)
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] script fell back: {}", exc)
-            return (f"{CONFIG['growth']['brand_line']} — {well}", well)
+            return (f"{CONFIG['growth']['brand_line']} - {well}", well)
 
     def _narrate(self, text: str) -> tuple:
-        """Kokoro bf_emma narration → (wav_path, duration_seconds)."""
+        """Kokoro bf_emma narration -> (wav_path, duration_seconds)."""
         try:
             from core.voice.tts import VoiceTTS
             tts = VoiceTTS()
@@ -103,31 +101,50 @@ class ContentArm:
         except Exception:
             logger.debug("[VECTOR][growth][armA] live-task trigger no-op")
 
-    # ── publish (gated) ──────────────────────────────────────────────
-    def _gated_publish(self, reel: str, well: str) -> None:
+    # -- publish (gated) ----------------------------------------------
+    async def _gated_publish(self, reel: str, well: str) -> None:
         """Publish only when explicitly enabled. Default (``auto_publish`` off):
-        hold the reel and notify the owner to post manually — nothing auto-uploads.
-        When enabled, route through the permission gateway (YELLOW) and upload only
-        on approval."""
+        hold the reel and notify the owner to post manually -- nothing auto-uploads.
+        When enabled, ask the permission gateway for owner approval and upload only
+        if it returns True (fails closed on timeout/rejection)."""
         if not CONFIG["growth"].get("auto_publish", False):
-            logger.info("[VECTOR][growth][armA] auto_publish off — reel held for owner: {}", reel)
-            self._instagram_publisher()(reel)  # manual path = notify owner
+            logger.info("[VECTOR][growth][armA] auto_publish off -- reel held for owner: {}", reel)
+            await self._instagram_publisher()(reel)  # manual path = notify owner
             return
+
+        approved = False
         try:
             from core.loop.permission_gateway import PermissionGateway
-            gw = PermissionGateway()
-            logger.info("[VECTOR][growth][armA] routing reel publish through gateway (YELLOW)")
-            # Uploads fire only after the gateway approves (owner via Pushover).
-            self._publish_youtube(reel)
-            self._instagram_publisher()(reel)
+            summary = f"Publish daily reel ({well}) to YouTube Shorts" + \
+                      (" + Instagram" if CONFIG["growth"].get("instagram_mode") == "graph_api" else "")
+            approved = await PermissionGateway().request_approval(
+                "growth_publish_reel", f"{summary}\nfile: {reel}"
+            )
         except Exception as exc:
-            logger.error("[VECTOR][growth][armA] gated publish failed: {}", exc)
+            logger.error("[VECTOR][growth][armA] approval request failed (fail-closed): {}", exc)
+            approved = False
 
-    def _publish_youtube(self, reel: str) -> None:
+        if not approved:
+            logger.info("[VECTOR][growth][armA] publish not approved -- reel held: {}", reel)
+            return
+
+        # Owner approved -> fire the real uploads.
+        await self._publish_youtube(reel, well)
+        await self._instagram_publisher()(reel)
+
+    async def _publish_youtube(self, reel: str, well: str) -> None:
+        """Real YouTube Shorts upload via the existing Uploader. Uploads as
+        ``private`` (owner flips to public) and dry-runs when no Google creds."""
         try:
             from districts.content.uploader import Uploader
-            logger.info("[VECTOR][growth][armA] YouTube Shorts publish queued (gated)")
-            # Uploader().upload_to_youtube(...) — fired only post-approval in the gateway path
+            title = CONFIG["growth"]["brand_line"]
+            desc = f"Autonomous demo - {well.replace('_', ' ')}. {CONFIG['growth']['brand_line']}"
+            tags = ["VECTOR", "AI", "JARVIS", "automation"]
+            res = await Uploader().upload_to_youtube(
+                reel, title=title, description=desc, tags=tags, privacy="private"
+            )
+            status = res.get("status") if isinstance(res, dict) else res
+            logger.info("[VECTOR][growth][armA] YouTube upload result: {}", status)
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] youtube publish unavailable: {}", exc)
 
@@ -139,7 +156,7 @@ class ContentArm:
             return self._graph_api_post
         return self._notify_owner_to_post
 
-    def _notify_owner_to_post(self, reel: str | None = None) -> None:
+    async def _notify_owner_to_post(self, reel: str | None = None) -> None:
         """Human-in-the-loop IG: render the reel + Pushover the owner to post it."""
         try:
             from core.notify import pushover  # type: ignore
@@ -147,10 +164,16 @@ class ContentArm:
         except Exception:
             logger.info("[VECTOR][growth][armA] (manual IG) owner-notify: reel ready {}", reel)
 
-    def _graph_api_post(self, reel: str | None = None) -> None:
+    async def _graph_api_post(self, reel: str | None = None) -> None:
         """Official Instagram Graph API Content Publishing (owner must have a
-        Business/Creator account + app review). Gated like every publish."""
-        logger.info("[VECTOR][growth][armA] IG Graph API publish queued (gated): {}", reel)
+        Business/Creator account + app review). Reached only post-approval."""
+        try:
+            from districts.content.uploader import Uploader
+            res = await Uploader().upload_to_instagram(reel, caption=CONFIG["growth"]["brand_line"])
+            status = res.get("status") if isinstance(res, dict) else res
+            logger.info("[VECTOR][growth][armA] IG Graph API upload result: {}", status)
+        except Exception as exc:
+            logger.warning("[VECTOR][growth][armA] IG graph_api publish unavailable: {}", exc)
 
 
 if __name__ == "__main__":

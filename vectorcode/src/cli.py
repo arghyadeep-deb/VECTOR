@@ -59,51 +59,90 @@ AM = "\x1b[93m"
 
 # ── THE LOGO (dense concentric rings + VECTOR beside) ────────
 def _print_hud_banner(model_name="", ollama_models=None, has_vectormd=False):
-    """Welcome banner — circular reactor + status, Claude Code style."""
+    """Welcome banner — VECTOR pixel mascot (V-core orb) + status, Claude Code style."""
     import sys
     from pathlib import Path
 
-    C  = "\x1b[36m"      # cyan
-    CB = "\x1b[96m"      # bright cyan
-    W  = "\x1b[97;1m"    # white bold
-    G  = "\x1b[92m"      # green
-    Y  = "\x1b[93m"      # yellow
-    D  = "\x1b[2m"       # dim
     R  = "\x1b[0m"       # reset
+    D  = "\x1b[2m"       # dim
+    W  = "\x1b[97;1m"    # white bold
+
+    # Truecolor palette for the mascot
+    PAL = {
+        "B": (127, 232, 255),  # bright cyan dome
+        "C": (63, 184, 214),   # cyan body
+        "K": (4, 20, 28),      # dark visor plate
+        "V": (95, 216, 242),   # orb ring
+        "O": (234, 253, 255),  # orb core (white-hot)
+        "G": (157, 255, 176),  # status green
+        "A": (127, 232, 255),  # antenna tip
+    }
+
+    def _fg(rgb):
+        return f"\x1b[38;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
+
+    def _bg(rgb):
+        return f"\x1b[48;2;{rgb[0]};{rgb[1]};{rgb[2]}m"
+
+    # 16x14 pixel mascot: dome head, dark visor with glowing core orb, antenna, legs
+    sprite = [
+        "       AA       ",
+        "       CC       ",
+        "    BBBBBBBB    ",
+        "   BBBBBBBBBB   ",
+        "  BBBBBBBBBBBB  ",
+        "  CCKKVVVVKKCC  ",
+        "  CCKVKKKKVKCC  ",
+        "  CCVKKOOKKVCC  ",
+        "  CCKVKKKKVKCC  ",
+        "  CCKKVVVVKKCC  ",
+        "  CCCCCCCCCCCC  ",
+        "  CCCCCGCCCCCC  ",
+        "   CCCCCCCCCC   ",
+        "   CC      CC   ",
+    ]
+
+    # Render two pixel rows per text line via the upper half-block (▀):
+    # fg paints the top pixel, bg paints the bottom pixel.
+    art = []
+    for r in range(0, len(sprite), 2):
+        top = sprite[r]
+        bot = sprite[r + 1] if r + 1 < len(sprite) else " " * len(top)
+        line = ""
+        for cx in range(len(top)):
+            tc = PAL.get(top[cx])
+            bc = PAL.get(bot[cx]) if cx < len(bot) else None
+            if tc and bc:
+                line += _fg(tc) + _bg(bc) + "▀" + R
+            elif tc:
+                line += _fg(tc) + "▀" + R
+            elif bc:
+                line += _fg(bc) + "▄" + R
+            else:
+                line += " "
+        art.append(line)
 
     cwd = str(Path.cwd()).replace(str(Path.home()), "~")
-    if len(cwd) > 50:
-        cwd = "..." + cwd[-47:]
-
+    if len(cwd) > 48:
+        cwd = "..." + cwd[-45:]
     mn = (model_name or "vector-focus")[:36]
     n_models = len(ollama_models or [])
-    online = f"{G}● online{R}" if n_models > 0 else f"{Y}○ offline{R}"
+    online = (f"{_fg(PAL['G'])}●{R} {D}online{R}" if n_models > 0
+              else f"{D}○ offline{R}")
+    cyan = _fg(PAL["V"])
 
-    # 5-line circular arc reactor — concentric rings, glowing core
-    reactor = [
-        f"{C}    ╭─────╮{R}",
-        f"{C}   ╱{R} {CB}╭───╮{R} {C}╲{R}",
-        f"{C}  │{R} {CB}│{R}  {W}◉{R}  {CB}│{R} {C}│{R}",
-        f"{C}   ╲{R} {CB}╰───╯{R} {C}╱{R}",
-        f"{C}    ╰─────╯{R}",
-    ]
-
-    # Right-side status block (5 lines aligned)
-    right = [
-        f"{W}VectorCode{R}{D}  v0.1.0{R}",
-        f"{D}autonomous coding agent{R}",
-        f"",
-        f"{C}model{R}  {W}{mn}{R}  {D}·{R}  {online}  {D}·{R} {W}{n_models}{R} {D}models{R}",
-        f"{D}cwd:   {cwd}{R}",
-    ]
+    # Text block, vertically centered against the mascot (7 rendered rows)
+    right = {
+        2: f"{W}VectorCode{R}  {D}v0.1.0{R}",
+        3: f"{cyan}{mn}{R}  {D}·{R}  {online}  {D}·{R}  {W}{n_models}{R} {D}models{R}",
+        4: f"{D}{cwd}{R}",
+    }
 
     out = sys.stderr
     print(file=out)
-    for i, line in enumerate(reactor):
-        side = right[i] if i < len(right) else ""
-        print(f"  {line}    {side}", file=out)
-    print(file=out)
-    print(f"  {D}/help for commands  ·  @file to attach  ·  /sparc <task>  ·  /quit to exit{R}", file=out)
+    for i, line in enumerate(art):
+        print(f"  {line}   {right.get(i, '')}", file=out)
+    print(f"  {D}/help{R} {D}·{R} {D}@file{R} {D}·{R} {D}/sparc <task>{R} {D}·{R} {D}/quit{R}", file=out)
     print(file=out)
 
 
