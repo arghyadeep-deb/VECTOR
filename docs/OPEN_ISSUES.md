@@ -46,10 +46,15 @@ open items were folded in here.
 7. **`cloud/email` Worker deploy** (separate from the already-live API Worker):
    needs a Cloudflare account/domain, Email Routing, R2 bucket `vector-email`,
    Workers AI, Cloudflare Access, and Worker secrets `POLICY_AUD`/`TEAM_DOMAIN`.
-8. **`cloud/email` dependency advisories** (decision): 3 high, dev-only
-   (`react-router`/`@react-router/node`/`@react-router/dev`), fixable only via a
-   breaking major bump. Not in the deployed Worker runtime. Accept (low real risk)
-   or schedule a `react-router` major upgrade + retest.
+8. **`cloud/email` dependency advisories** (decision): as of 2026-07-01, `npm audit`
+   = **3 high** (was 4 — a safe `npm audit fix` cleared an `echarts` XSS moderate;
+   typecheck still passes). The 3 remaining are `react-router` /
+   `@react-router/node` / `@react-router/dev` — a **vendored turbo-stream
+   deserialization RCE**, fixable only via a breaking `@react-router` major bump.
+   `@react-router/dev` is dev-tooling, but `react-router`/`@react-router/node` are
+   SSR-runtime — so this is **not safely dismissible as "dev-only"**: resolve it (major
+   bump + retest) **before deploying the email Worker** (which is not deployed yet, so
+   it isn't currently exposed). Owner decision: bump now, or gate it behind the deploy.
 9. **Cloudflare Worker parity tests** (`api/test/smoke.test.ts`): the harness is
    real and correct but `workerd`'s module loader can't resolve modules because
    this repo's path contains a literal space (`V.E.C.T.O.R. Codebase`). It runs
