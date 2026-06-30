@@ -979,6 +979,26 @@ CONFIG: dict = {
     "task_queue": {
         "max_concurrent": 8,
     },
+    # Autonomous Growth Engine (districts/growth/). All outward actions gated;
+    # nothing publishes or opens signups until the owner flips these on.
+    "growth": {
+        "enabled": False,                 # master switch — orchestrator no-ops until True
+        "auto_publish": False,            # never auto-post without per-action approval
+        "brand_line": "VECTOR — Arghyadeep's personal AI Intelligence",
+        "youtube_handle": "",             # owner fills before posting
+        "instagram_handle": "",
+        "instagram_mode": "manual",       # "manual" (human-in-loop) | "graph_api" (official)
+        "post_cadence": "daily",
+        "voice_profile": "bf_emma",       # Kokoro JARVIS voice
+        "hud_viewport": [1080, 1920],     # 9:16 vertical for Reels/Shorts
+        "signup_form_url": "",
+        "consent_text": (
+            "By signing up you consent to VECTOR storing your email locally "
+            "(encrypted) to notify you about the private beta. No data is shared "
+            "with third parties. You can request deletion at any time."
+        ),
+        "review_loop_max_iterations": 5,  # ARM B reviewer↔fix cap before escalation
+    },
     "training": _s.training.model_dump(),
     "event_bus": _s.event_bus.model_dump(),
     "research_lab": _s.research_lab.model_dump(),
