@@ -271,7 +271,10 @@ def create_app() -> FastAPI:
         missions,
         # OpenAI-compatible gateway for external clients
         openai_compat,
+        # Autonomous Growth Engine — public beta-signup form
+        growth,
     )
+    app.include_router(growth.router)
     app.include_router(a2a.router)
     app.include_router(commands.router)
     app.include_router(council.router)
