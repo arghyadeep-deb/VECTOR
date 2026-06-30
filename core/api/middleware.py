@@ -320,6 +320,10 @@ async def csrf_middleware(request: Request, call_next):
     The dashboard fetches a token from /csrf-token and includes it as X-CSRF-Token header.
     """
     if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        # Public endpoints (e.g. the beta-signup form) have no session/cookie to
+        # protect and define their own anti-abuse — exempt from CSRF.
+        if request.url.path in _PUBLIC_PATHS:
+            return await call_next(request)
         # Skip CSRF for API key authenticated requests (non-browser clients)
         if os.environ.get("VECTOR_API_KEY", "") and request.headers.get("Authorization", "").startswith("Bearer "):
             return await call_next(request)
