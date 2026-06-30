@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 
 # ── Task 1: FAISSIndex ────────────────────────────────────────────────────────
 
-from vectorcode.memory.faiss_index import FAISSIndex
+from vectorcode.src.memory.faiss_index import FAISSIndex
 
 
 def test_faiss_add_and_search(tmp_path):
@@ -40,7 +40,7 @@ def test_faiss_similarity_threshold(tmp_path):
 
 # ── Task 2: PatternStore ─────────────────────────────────────────────────────
 
-from vectorcode.memory.pattern_store import PatternStore
+from vectorcode.src.memory.pattern_store import PatternStore
 
 
 def test_pattern_store_save_and_recall(tmp_path):
@@ -77,7 +77,7 @@ def test_pattern_store_reward_updates_policy(tmp_path):
 
 # ── Task 3: AutoMemoryBridge ─────────────────────────────────────────────────
 
-from vectorcode.memory.auto_bridge import AutoMemoryBridge
+from vectorcode.src.memory.auto_bridge import AutoMemoryBridge
 
 
 def test_bridge_sync_reads_episodic(tmp_path):

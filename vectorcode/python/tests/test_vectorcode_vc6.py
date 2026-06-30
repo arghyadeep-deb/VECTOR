@@ -12,8 +12,8 @@ import asyncio
 from unittest.mock import patch, AsyncMock, MagicMock
 
 
-from vectorcode.tools.code_graph import CodeGraph
-from vectorcode.tools.browser_tools import BrowserTools
+from vectorcode.src.tools.code_graph import CodeGraph
+from vectorcode.src.tools.browser_tools import BrowserTools
 
 
 # ─────────────────────────────────────────────────────────────────────────────

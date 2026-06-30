@@ -11,10 +11,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 
-from vectorcode.engine import AIAgent, IterationBudget, _sanitize_surrogates, _SafeWriter
-from vectorcode.engine.safety import _is_destructive_command
-from vectorcode.tools.registry import ToolRegistry, registry as global_registry
-from vectorcode.session_db import SessionDB
+from vectorcode.src.engine import AIAgent, IterationBudget, _sanitize_surrogates, _SafeWriter
+from vectorcode.src.engine.safety import _is_destructive_command
+from vectorcode.src.tools.registry import ToolRegistry, registry as global_registry
+from vectorcode.src.session_db import SessionDB
 
 
 # ── Test 1: agent single tool call ────────────────────────────────────────────
@@ -98,7 +98,7 @@ def test_agent_iteration_budget():
 
 def test_tool_registry_dispatch():
     """Register a fake tool, call via handle_function_call, result flows back."""
-    from vectorcode.tools.registry import registry
+    from vectorcode.src.tools.registry import registry
 
     def my_tool(x: int = 0, y: int = 0) -> str:
         return f"sum={x + y}"
@@ -173,7 +173,7 @@ async def test_compression_triggers():
     ] * 50  # 100 messages, ~100k chars
 
     # The compression module should be importable
-    from vectorcode.engine import conversation
+    from vectorcode.src.engine import conversation
     assert hasattr(conversation, "run_conversation_loop")
 
 
@@ -182,7 +182,7 @@ async def test_compression_triggers():
 @pytest.mark.asyncio
 async def test_recovery_on_429():
     """Stubbed 429 from provider, credential pool rotates, call retries."""
-    from vectorcode.engine.recovery import recover_on_error
+    from vectorcode.src.engine.recovery import recover_on_error
 
     rotated = []
 
