@@ -991,7 +991,7 @@ def _session_info(agent) -> dict:
         "usage": _get_usage(agent),
     }
     try:
-        from vectorcode_cli import __version__, __release_date__
+        from vectorcode.vectorcode_cli import __version__, __release_date__
 
         info["version"] = __version__
         info["release_date"] = __release_date__
