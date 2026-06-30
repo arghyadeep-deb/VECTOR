@@ -59,7 +59,8 @@ _rate_limit_data: dict[str, list[float]] = defaultdict(list)
 
 # Public paths (no auth required)
 _PUBLIC_PATHS = {"/", "/status", "/health", "/docs", "/openapi.json", "/redoc",
-                 "/csrf-token"}  # CSRF token endpoint is public
+                 "/csrf-token",  # CSRF token endpoint is public
+                 "/growth/signup"}  # public beta-signup form (gated by BetaSignup, not auth/CSRF)
 
 # Allowed origins — localhost only (no external origins)
 _ALLOWED_ORIGINS = {
