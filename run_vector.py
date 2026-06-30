@@ -285,7 +285,9 @@ def _start_sidecars() -> None:
         cand = Path(base_dir) / ".venv" / ("Scripts" if win else "bin") / ("python.exe" if win else "python")
         return str(cand) if cand.exists() else "python"
 
-    _comfy_dir = _sidecar_path("comfyui_path", "ComfyUI-master")
+    # ComfyUI runs from the real sibling install (<repo-parent>/ComfyUI), not the
+    # GitHub/ reference clone. Config override (comfyui_path) still wins if set.
+    _comfy_dir = _sc.get("comfyui_path", "") or str(_github.parent / "ComfyUI")
     _ow_back = str(Path(_sidecar_path("open_webui_path", "open-webui-main")) / "backend")
 
     sidecars = [
