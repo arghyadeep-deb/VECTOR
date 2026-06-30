@@ -15,15 +15,17 @@ duplicated across many stale task files.
 
 ## Active Plans
 
-- [`vector-activation/`](./vector-activation/INDEX.md): remaining activation,
-  deployment, and owner-triggered work.
+- [`cloud-inbox-brain-bridge.md`](./cloud-inbox-brain-bridge.md): email worker ↔
+  brain bridge — Phases 1–2 done, Phase 3 (TS Worker hook) deferred to deploy.
+- [`GROWTH_ENGINE_STATUS.md`](./GROWTH_ENGINE_STATUS.md): autonomous growth engine —
+  built + tested; remaining items are owner-action (enable flags, IG setup, etc.).
 
-Superseded production-hardening and audit-remediation plan folders were
-consolidated into [`docs/repo_analysis/_MASTER_TODO.md`](../docs/repo_analysis/_MASTER_TODO.md)
-and [`docs/repo_analysis/OWNER_ACTIONS_NEEDED.md`](../docs/repo_analysis/OWNER_ACTIONS_NEEDED.md)
-(`docs/REPO_STATUS.md` itself was deleted as a stale snapshot — its content
-lives in those two files now). Use `python run_vector.py production-check`
-for the live readiness gate.
+Remaining owner activation/deployment work and the open-issues list live in
+[`docs/OPEN_ISSUES.md`](../docs/OPEN_ISSUES.md) (the single owner-facing tracker).
+Completed plan folders (production-hardening, audit-remediation, repo-absorption,
+vector-activation, post-training, governor-wiring) were executed and removed —
+their full detail is preserved in git history. Use
+`python run_vector.py production-check` for the live readiness gate.
 
 ## Creating A New Plan
 
