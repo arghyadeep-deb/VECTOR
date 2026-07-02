@@ -18,6 +18,7 @@ def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.85) -> str:
     async def _call():
         r = await _PC().chat(
             messages=messages,
+            model="domain:content.video_prompts",   # gemini → gpt-4o → glm-4.7 → ollama
             tier="agentic", temperature=temperature, max_tokens=max_tokens,
             caller_id="video_generator",
         )
