@@ -300,6 +300,15 @@ class ProviderClient:
                 get_backends as _get_backends,
                 mark_cooldown as _mark_cooldown,
             )
+            # Domain chains register into model_pool lazily on first catalog
+            # load — ensure that happened before the is_logical check, so the
+            # very first "domain:<name>" call in a process expands correctly.
+            if model and model.startswith("domain:"):
+                try:
+                    from core.inference.model_catalog import get_catalog
+                    get_catalog()
+                except Exception:
+                    pass
             if model and _is_logical(model):
                 # Whitelist clamp applies to pool-expanded pairs too — a pool
                 # entry must never route a paid model to a locked provider.
