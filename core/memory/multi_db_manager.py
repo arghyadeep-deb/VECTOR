@@ -448,8 +448,10 @@ class MultiDBManager:
             if latency:
                 results["latency_ms"]["turso"] = latency
 
-        # Cloudflare D1
-        d1_url = self._get_config("d1_url")
+        # Cloudflare D1 — reached through the deployed Worker, not a direct DB URL.
+        # cf_worker_url (full /health endpoint) is the canonical probe target;
+        # d1_url kept as an explicit override.
+        d1_url = self._get_config("d1_url") or self._get_config("cf_worker_url")
         if d1_url:
             latency = await self._ping_url(d1_url)
             results["d1"] = latency is not None
