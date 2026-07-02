@@ -139,29 +139,30 @@ def classify_intent_llm(text: str) -> str | None:
             return None
         from core.inference.ollama_safe import chat
         prompt = (
-            "You are VECTOR's voice intent gate. Decide if the utterance below is a "
-            "COMMAND asking the assistant to perform work (run, search, scan, build, "
-            "monitor, schedule, report, control something), or just conversation.\n"
-            "Reply with exactly one line:\n"
-            "CHAT\n"
-            "or\n"
-            "ACTION: <3-6 word task description>\n\n"
+            "Is this utterance a COMMAND to perform work, or conversation?\n"
+            "Reply one line: CHAT or ACTION: <3-6 word task>\n"
             f'Utterance: "{text}"'
         )
         # focus, not ambient: vector-ambient's modelfile forces JSON-only
         # output (it puts answers in `thinking` with empty content), and
         # loading it would evict the resident focus model (MAX_LOADED=1).
+        # think=False: focus is a thinking model; without it, ~100 hidden
+        # reasoning tokens push a one-line answer to ~7s (2s with it off).
         result = chat(
             model=CONFIG["models"]["focus"],
             messages=[{"role": "user", "content": prompt}],
             timeout=float(voice_cfg.get("llm_intent_timeout_sec", 12.0)),
             temperature=0.0,
+            think=False,
+            num_predict=32,
         ).strip()
         if not result:
             return None
+        # Robust extraction — persona may prefix ("Sir, ACTION: ...").
         first_line = result.splitlines()[0].strip()
-        if first_line.upper().startswith("ACTION:"):
-            task_type = first_line[len("ACTION:"):].strip().strip('."')
+        m = re.search(r"\bACTION\s*:\s*(.+)", first_line, re.IGNORECASE)
+        if m:
+            task_type = m.group(1).strip().strip('."')
             # Sanity clamp — a task type is a short phrase, not an essay.
             if 0 < len(task_type) <= 80:
                 logger.info(f"[VECTOR][realtime] LLM intent: ACTION '{task_type}' <- {text[:60]!r}")
