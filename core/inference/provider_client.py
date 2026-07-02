@@ -273,11 +273,11 @@ class ProviderClient:
                 ]
                 if not _pairs:
                     # All backends cooled-down or unconfigured — fall through to standard list
-                    _pairs = [(prov, model) for prov in providers_to_try]
+                    _pairs = [(prov, _model_for_provider(prov, model)) for prov in providers_to_try]
             else:
-                _pairs = [(prov, model or prov.default_model) for prov in providers_to_try]
+                _pairs = [(prov, _model_for_provider(prov, model)) for prov in providers_to_try]
         except ImportError:
-            _pairs = [(prov, model or prov.default_model) for prov in providers_to_try]
+            _pairs = [(prov, _model_for_provider(prov, model)) for prov in providers_to_try]
 
         last_error = ""
         for _prov, target_model in _pairs:
