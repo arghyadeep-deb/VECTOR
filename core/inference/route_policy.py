@@ -28,7 +28,12 @@ from core.inference.llm_providers import PROVIDERS
 
 
 _SENSITIVE_DISTRICTS = {"security", "privacy"}
-_PREMIUM_HEAVY = ["anthropic", "openai", "deepseek"]
+# Best-quality providers for heavy/complex work, FREE-first (owner has no paid
+# OpenAI/Anthropic keys): GitHub Models serves gpt-5/o3 free via GITHUB_TOKEN;
+# Cerebras serves zai-glm-4.7 (355B) free. Unconfigured/paid ones are filtered
+# out downstream, so keeping anthropic/openai/deepseek here is harmless (they
+# activate only if the owner ever adds those keys/balance).
+_PREMIUM_HEAVY = ["github_models", "cerebras", "anthropic", "openai", "deepseek"]
 # Substrings that mean "do not send this to a third party"
 _SECRET_MARKERS = (
     "password", "api key", "api_key", "secret key", "private key",
