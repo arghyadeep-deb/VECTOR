@@ -521,21 +521,21 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         base_url="https://api.llm7.io/v1",
         api_key_env="LLM7_API_KEY",
         driver="openai_compat",
-        default_model="mistral-small-3.2",
+        # Catalog rotates — old default mistral-small-3.2 vanished (400s).
+        # Live /v1/models list fetched 2026-07-02:
+        default_model="gemini-2.5-flash",
         models=[
-            "mistral-small-3.2",    # confirmed free
-            "codestral-latest",     # confirmed free
-            "qwen3-235b",           # confirmed free (slow, 240K ctx)
-            "kimi-k2.6",            # confirmed free via LLM7
-            "glm-5.2",              # confirmed free via LLM7
-            "GLM-4.6V-Flash",       # confirmed free via LLM7 (vision)
-            "minimax-m2.7",         # likely free
-            "devstral-small-2:24b", # likely free
+            "gemini-2.5-flash", "gemini-3-flash", "gemini-3.1-pro",
+            "deepseek-v4-flash", "codestral-latest", "devstral-small-2:24b",
+            "kimi-k2.6", "minimax-m2.7", "gpt-5.5", "gpt-5.4",
+            "gpt-5.4-mini", "gpt-5.3-codex-spark", "claude-fable-5",
+            "claude-sonnet-5",
         ],
         context_window=240_000,
         rate_limit_rpm=60,
         pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Free plan, verified 2026-06-18. Base URL: api.llm7.io/v1. Pro models (deepseek-v4) require upgrade.",
+        notes="Free gateway (proxied frontier models — bonus capacity, not backbone). "
+              "Catalog rotates; refresh from public GET /v1/models.",
     ),
 
     # ── GitHub Models (free, needs GitHub Personal Access Token) ──────────────
