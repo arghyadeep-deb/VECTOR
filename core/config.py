@@ -745,6 +745,7 @@ CONFIG: dict = {
         "pushover_user":          _s.PUSHOVER_USER,
         "supabase_url":           _normalize_supabase_url(_s.SUPABASE_URL),
         "supabase_key":           _secret(_s.SUPABASE_KEY.get_secret_value()),
+        "cf_worker_url":          _s.CF_WORKER_URL,
         "virustotal_key":         _secret(_s.VIRUSTOTAL_KEY.get_secret_value()),
         "newsapi_key":            _secret(_s.NEWSAPI_KEY.get_secret_value()),
         "stripe_key":             _secret(_s.STRIPE_KEY.get_secret_value()),
