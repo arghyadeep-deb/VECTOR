@@ -301,18 +301,28 @@ class ProviderClient:
                 mark_cooldown as _mark_cooldown,
             )
             if model and _is_logical(model):
+                # Whitelist clamp applies to pool-expanded pairs too — a pool
+                # entry must never route a paid model to a locked provider.
                 _pairs: list[tuple] = [
-                    (get_provider(slug), model_id)
+                    (get_provider(slug), _enforce_whitelist(get_provider(slug), model_id, tier))
                     for slug, model_id in _get_backends(model)
                     if get_provider(slug) is not None
                 ]
                 if not _pairs:
                     # All backends cooled-down or unconfigured — fall through to standard list
-                    _pairs = [(prov, _model_for_provider(prov, model)) for prov in providers_to_try]
+                    _pairs = [(prov, _model_for_provider(prov, model, tier)) for prov in providers_to_try]
             else:
-                _pairs = [(prov, _model_for_provider(prov, model)) for prov in providers_to_try]
+                _pairs = [(prov, _model_for_provider(prov, model, tier)) for prov in providers_to_try]
         except ImportError:
-            _pairs = [(prov, _model_for_provider(prov, model)) for prov in providers_to_try]
+            _pairs = [(prov, _model_for_provider(prov, model, tier)) for prov in providers_to_try]
+
+        # Soft quota rotation — pairs past ~90% of their free-tier limits move
+        # after fresh cloud pairs (ollama stays terminal). Never drops/blocks.
+        try:
+            from core.inference.quota_ledger import get_quota_ledger
+            _pairs = get_quota_ledger().reorder(_pairs)
+        except Exception as _qe:
+            logger.debug("[VECTOR][provider_client] quota ledger unavailable: {}", _qe)
 
         last_error = ""
         for _prov, target_model in _pairs:
