@@ -209,6 +209,9 @@ class VoiceConfig(BaseModel):
     # Uses the ambient model (resident, fast); adds <~1s before chat streaming starts.
     llm_intent_fallback: bool = True
     llm_intent_timeout_sec: float = Field(12.0, ge=0.5, le=30.0)
+    # Hard budget for the cloud-primary leg of the intent gate; past this the
+    # gate abandons cloud and falls back to local focus (voice must not stall).
+    llm_intent_cloud_budget_sec: float = Field(8.0, ge=1.0, le=60.0)
     # Voice cloning (voicebox absorption — chatterbox-tts optional install)
     cloning_engine: str = "chatterbox"       # "chatterbox" | "voxcpm"
     cloning_model_dir: str = str(Path(__file__).parent.parent / "models" / "chatterbox")
