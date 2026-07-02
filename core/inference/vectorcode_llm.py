@@ -408,6 +408,31 @@ def _model_to_tier(model: str) -> str:
     """Map an Ollama custom model name to a TIER_ROUTING key."""
     return _MODEL_TO_TIER.get(model, "fast")
 
+
+# Local role → default work domain (Step 8, owner request 2026-07-02).
+# Agents that don't pass an explicit domain= still get domain-aligned cloud
+# routing based on which local model they asked for.
+_ROLE_TO_DOMAIN = {
+    "vector-coder":        "coding.generation",
+    "vector-dev":          "coding.generation",
+    "vector-reasoning":    "orchestration",
+    "vector-r1":           "orchestration",
+    "vector-chairman":     "orchestration",
+    "vector-focus":        "agentic.loop",
+    "vector-ambient":      "agentic.loop",
+    "vector-multilingual": "multilingual.indic",
+    "vector-deep":         "research",
+    "vector-fast":         "summarization",
+}
+
+
+def _resolve_domain(model: str, domain: str) -> str:
+    """Explicit domain wins; else map the requested local role to its default
+    domain. Empty string when no mapping (caller keeps plain tier routing)."""
+    if domain:
+        return domain
+    return _ROLE_TO_DOMAIN.get(model, "")
+
 _CLAUDE_MAP = {
     "vector-reasoning": "claude-sonnet-4-6",
     "vector-chairman":  "claude-opus-4-7",
