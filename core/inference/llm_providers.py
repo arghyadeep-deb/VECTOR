@@ -388,8 +388,11 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         base_url=f"https://api.cloudflare.com/client/v4/accounts/{CONFIG.get('cloudflare_account_id','')}/ai/v1",
         api_key_env="CLOUDFLARE_API_KEY",
         driver="openai_compat",
-        default_model="@cf/meta/llama-3.1-8b-instruct",
-        models=["@cf/meta/llama-3.1-8b-instruct","@cf/mistral/mistral-7b-instruct-v0.2",
+        # llama-3.1-8b retired by Cloudflare (HTTP 410 "Model has been
+        # deprecated", verified live 2026-07-02)
+        default_model="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+        models=["@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+                "@cf/mistral/mistral-7b-instruct-v0.2",
                 "@cf/qwen/qwen1.5-14b-chat-awq"],
         context_window=8_000,
         pricing_per_1m={"input":0.0,"output":0.0},
