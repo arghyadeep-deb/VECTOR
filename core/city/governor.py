@@ -835,10 +835,14 @@ class Governor:
             # validation below always failed and every unknown task fell
             # through to "research". focus follows plain instructions and is
             # the resident model (no VRAM thrash with MAX_LOADED=1).
+            # think=False + num_predict cap: one-word answer, no hidden
+            # reasoning tokens (~7s → ~2s).
             result = chat(
                 model=CONFIG["models"]["focus"],
                 messages=messages,
                 timeout=12.0,
+                think=False,
+                num_predict=16,
             ).strip().lower()
             # Validate the response is a known district
             if result in districts:
