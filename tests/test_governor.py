@@ -41,7 +41,11 @@ def test_route_security_task():
     assert gov.route_task("scan for malware") == "security"
 
 
-def test_route_unknown_defaults_to_research():
+def test_route_unknown_defaults_to_research(monkeypatch):
+    # With the LLM classifier unavailable (empty reply), unknown task types
+    # must fall back to the research district.
+    import core.inference.ollama_safe as ollama_safe
+    monkeypatch.setattr(ollama_safe, "chat", lambda *a, **kw: "")
     gov = Governor()
     assert gov.route_task("xyzzy_totally_unknown") == "research"
 
