@@ -1484,7 +1484,7 @@ class AutonomousLoop:
         # Trust ladder weekly digest — Sunday 2AM reflect: what got promoted to
         # auto-execute / demoted this week, so earned autonomy stays visible.
         try:
-            if datetime.now().weekday() == 6:
+            if datetime.datetime.now().weekday() == 6:
                 from core.loop.trust_ladder import get_trust_ladder
                 _changes = get_trust_ladder().recent_changes(days=7)
                 if _changes["promoted"] or _changes["demoted"]:
