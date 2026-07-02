@@ -876,8 +876,13 @@ class Governor:
             import concurrent.futures as _cf
             try:
                 _aio.get_running_loop()
-                with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
-                    res = _ex.submit(_run).result(timeout=30)
+                # No `with` block: executor shutdown would join the worker and
+                # block for the full provider cascade even after our timeout.
+                _ex = _cf.ThreadPoolExecutor(max_workers=1)
+                try:
+                    res = _ex.submit(_run).result(timeout=15)
+                finally:
+                    _ex.shutdown(wait=False, cancel_futures=True)
             except RuntimeError:
                 res = _run()
             answer = (res.content or "").strip().lower()
