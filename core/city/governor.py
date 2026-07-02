@@ -848,10 +848,45 @@ class Governor:
             if result in districts:
                 logger.info(f"[VECTOR][governor] LLM classified '{task_type}' -> {result}")
                 return result
+            # Local gave nothing usable → cloud keys via provider_client
+            # (route_policy sensitivity gate still applies). Skipped under
+            # pytest so mocked-Ollama tests stay deterministic and offline.
+            if "pytest" not in sys.modules:
+                cloud_result = self._cloud_classify(prompt, districts)
+                if cloud_result:
+                    logger.info(f"[VECTOR][governor] cloud classified '{task_type}' -> {cloud_result}")
+                    return cloud_result
         except Exception as e:
             logger.warning(f"[VECTOR][governor] LLM classify failed: {e}")
         logger.warning(f"[VECTOR][governor] unknown task '{task_type}' -> defaulting to research")
         return "research"
+
+    @staticmethod
+    def _cloud_classify(prompt: str, districts: list[str]) -> str | None:
+        """Classify via provider_client cloud routing. Loop-safe: route_task is
+        sync but may run inside an event loop — complete_sync uses asyncio.run,
+        so hop to a worker thread when a loop is already running."""
+        try:
+            from core.inference.provider_client import get_client
+
+            def _run():
+                return get_client().complete_sync(
+                    prompt, tier="fast", temperature=0.0, max_tokens=24,
+                    caller_id="governor_classify")
+
+            import asyncio as _aio
+            import concurrent.futures as _cf
+            try:
+                _aio.get_running_loop()
+                with _cf.ThreadPoolExecutor(max_workers=1) as _ex:
+                    res = _ex.submit(_run).result(timeout=30)
+            except RuntimeError:
+                res = _run()
+            answer = (res.content or "").strip().lower()
+            return answer if answer in districts else None
+        except Exception as e:
+            logger.debug(f"[VECTOR][governor] cloud classify failed: {e}")
+            return None
 
     async def _should_convene_council(self, task: dict) -> bool:
         """Return True if this task type warrants LLM Council review (RED-tier actions only)."""
