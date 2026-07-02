@@ -2225,10 +2225,16 @@ class AutonomousLoop:
         LLM is unavailable the nudge still fires with the observation alone."""
         try:
             error_text = "\n".join(stuck.get("error_lines", []))[:600]
+            # Screen OCR can contain anything — scrub keys/tokens/PII before
+            # the text can leave the machine via a cloud provider.
+            try:
+                from core.browser.pii_scrub import scrub_text
+                error_text = scrub_text(error_text).text
+            except Exception as _scrub_err:
+                logger.debug("[VECTOR][companion] pii scrub unavailable: {}", _scrub_err)
             project = (session or {}).get("project", "")
             advice = ""
             try:
-                from core.inference.ollama_safe import chat
                 prompt = (
                     "The owner has been staring at the same error for "
                     f"{stuck.get('since_min')} minutes"
@@ -2238,16 +2244,22 @@ class AutonomousLoop:
                     "Give ONE short, concrete suggestion (2-3 sentences max) for "
                     "what to try next. No preamble."
                 )
-                advice = await asyncio.to_thread(
-                    chat,
-                    model=CONFIG["models"]["focus"],
-                    messages=[{"role": "user", "content": prompt}],
-                    timeout=30.0,
+                # provider_client, not direct Ollama: route_policy sends this
+                # cloud-first (owner's API keys) with local fallback — exactly
+                # right here, since hitting local focus would evict the owner's
+                # coding model from the shared GPU mid-session.
+                from core.inference.provider_client import get_client
+                _res = await get_client().chat(
+                    [{"role": "user", "content": prompt}],
                     temperature=0.3,
-                    think=False,       # one-shot advice, no hidden reasoning
-                    num_predict=180,
+                    max_tokens=220,
+                    caller_id="coding_companion",
+                    district="coding",
                 )
-                advice = (advice or "").strip()
+                advice = (_res.content or "").strip()
+                if advice:
+                    logger.debug("[VECTOR][companion] advice from {} ({})",
+                                 _res.provider, _res.model)
             except Exception as _llm_err:
                 logger.debug("[VECTOR][companion] advice LLM failed: {}", _llm_err)
             text = (
