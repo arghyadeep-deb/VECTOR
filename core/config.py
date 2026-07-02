@@ -2,6 +2,17 @@ import os
 import sys
 from pathlib import Path
 
+# Direct-script guard (same fix as core/mcp_server.py): "python core/config.py"
+# auto-prepends core/ to sys.path[0]; core/email/ then shadows the stdlib
+# `email` package the moment pydantic's plugin loader does `import email`
+# via importlib.metadata, crashing the self-test with a circular ImportError.
+# Strip core/ and ensure the repo root is present, before any other import.
+_this_dir = str(Path(__file__).resolve().parent)
+sys.path[:] = [p for p in sys.path if p != _this_dir]
+_repo_root = str(Path(__file__).resolve().parent.parent)
+if _repo_root not in sys.path:
+    sys.path.insert(0, _repo_root)
+
 from loguru import logger
 from typing import Optional
 from pydantic import BaseModel, SecretStr, Field, model_validator
