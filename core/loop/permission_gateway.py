@@ -63,6 +63,11 @@ class PermissionGateway:
             logger.debug(f"[VECTOR][gateway] trust ladder unavailable: {e}")
             return None
 
+    def _trust_recording_active(self) -> bool:
+        """Trust state must only change on real owner signals — never from
+        pytest's shimmed confirmations. Tests opt in via VECTOR_TRUST_TEST=1."""
+        return "pytest" not in sys.modules or os.environ.get("VECTOR_TRUST_TEST") == "1"
+
     async def execute(self, action: Action) -> GatewayResult:
         level = self._classify(action.action_type)
         logger.info(f'[VECTOR][gateway] {action.action_type} classified as {level} (proposed by {action.proposed_by})')
