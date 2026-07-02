@@ -185,6 +185,9 @@ class ScreenObserver:
             return {
                 "activity":     activity,
                 "text_snippet": snippet,
+                # Full OCR text (capped) — stuck detection needs whole error
+                # blocks, not the 200-char snippet.
+                "raw_text":     raw_text[:4000],
                 "timestamp":    ts,
             }
 
@@ -193,6 +196,7 @@ class ScreenObserver:
             return {
                 "activity":     "unknown",
                 "text_snippet": "",
+                "raw_text":     "",
                 "timestamp":    ts,
             }
 
