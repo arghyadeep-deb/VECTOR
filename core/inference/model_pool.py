@@ -41,7 +41,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     "glm-5.2": [
         ("cloudflare", "@cf/zai/glm-5.2"),                   # FREE Cloudflare-hosted
         ("llm7",       "glm-5.2"),                           # FREE on LLM7 (confirmed)
-        ("zai",        "glm-4.5"),                           # Z.ai (may hit quota)
+        ("zai",        "glm-4.7-flash"),                     # FREE (glm-4.5 is PAID — whitelist clamps anyway)
         ("nvidia",     "zai/glm-5.1"),
         ("openrouter", "zai/glm-5.2"),
     ],
