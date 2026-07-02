@@ -1,0 +1,157 @@
+"""Quota ledger — soft free-tier budgets with auto-rotate (2026-07-02).
+
+Offline; injected tmp paths + simulated clock. Uses the real model_catalog
+limits (measured Groq/Cerebras/Mistral numbers) as ground truth.
+"""
+
+import sys
+import json
+import datetime
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.inference.quota_ledger import QuotaLedger, _PROVIDER_KEY
+
+
+class FakeProv:
+    def __init__(self, slug):
+        self.slug = slug
+
+
+@pytest.fixture
+def clock():
+    return {"now": 100_000.0}
+
+
+@pytest.fixture
+def led(tmp_path, clock):
+    return QuotaLedger(path=tmp_path / "q.json", clock=lambda: clock["now"])
+
+
+def _fill(led, provider, bucket, requests=0, tokens=0):
+    day = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+    led._data.setdefault(day, {}).setdefault(provider, {})[bucket] = {
+        "requests": requests, "tokens": tokens}
+
+
+# ── saturation per unit type (real catalog limits) ───────────────────────────
+
+def test_groq_requests_per_day(led):
+    # llama-3.1-8b-instant: 14,400/day
+    _fill(led, "groq", "llama-3.1-8b-instant", requests=12_000)
+    assert not led.deprioritized("groq", "llama-3.1-8b-instant")   # 83%
+    _fill(led, "groq", "llama-3.1-8b-instant", requests=13_000)
+    assert led.deprioritized("groq", "llama-3.1-8b-instant")       # 90.3%
+
+
+def test_cerebras_tokens_per_day_bind(led):
+    # 1M tokens/day is the binding constraint, not the 2,400 req/day
+    _fill(led, "cerebras", "zai-glm-4.7", requests=10, tokens=950_000)
+    assert led.deprioritized("cerebras", "zai-glm-4.7")
+
+
+def test_cloudflare_neurons_vs_tokens(led):
+    # provider-wide 10K neurons/day compared against the tokens counter
+    _fill(led, "cloudflare", _PROVIDER_KEY, requests=5, tokens=9_500)
+    assert led.deprioritized("cloudflare")
+
+
+def test_mistral_per_minute_window(led, clock):
+    # ministral-3b: 750 req/min → 700 recorded within the sliding minute
+    for _ in range(700):
+        led.record("mistral", "ministral-3b-2512")
+    assert led.deprioritized("mistral", "ministral-3b-2512")
+    clock["now"] += 61          # window slides → resets
+    assert not led.deprioritized("mistral", "ministral-3b-2512")
+
+
+def test_unknown_limits_never_deprioritized(led):
+    for _ in range(50):
+        led.record("opencode_zen", "big-pickle", tokens=100_000)
+    assert led.saturation("opencode_zen", "big-pickle") == 0.0
+    assert not led.deprioritized("opencode_zen", "big-pickle")
+
+
+def test_per_model_isolation(led):
+    _fill(led, "groq", "llama-3.1-8b-instant", requests=14_000)
+    assert led.deprioritized("groq", "llama-3.1-8b-instant")
+    assert not led.deprioritized("groq", "llama-3.3-70b-versatile")
+
+
+# ── reorder semantics ────────────────────────────────────────────────────────
+
+def test_reorder_stable_partition_ollama_pinned(led):
+    _fill(led, "groq", "llama-3.1-8b-instant", requests=14_000)
+    pairs = [
+        (FakeProv("groq"), "llama-3.1-8b-instant"),      # saturated
+        (FakeProv("mistral"), "ministral-3b-2512"),      # fresh
+        (FakeProv("cerebras"), "gpt-oss-120b"),          # fresh
+        (FakeProv("ollama"), "vector-focus"),            # local terminal
+    ]
+    out = led.reorder(pairs)
+    slugs = [p[0].slug for p in out]
+    assert slugs == ["mistral", "cerebras", "groq", "ollama"]
+    assert len(out) == 4                                  # nothing dropped
+
+
+def test_reorder_never_drops_all_saturated(led):
+    _fill(led, "groq", _PROVIDER_KEY, requests=10**9)
+    _fill(led, "groq", "llama-3.1-8b-instant", requests=10**9)
+    pairs = [(FakeProv("groq"), "llama-3.1-8b-instant"),
+             (FakeProv("ollama"), "vector-focus")]
+    out = led.reorder(pairs)
+    assert len(out) == 2
+    assert out[-1][0].slug == "ollama"
+
+
+def test_reorder_empty_and_local_only_noop(led):
+    assert led.reorder([]) == []
+    pairs = [(FakeProv("ollama"), "vector-focus")]
+    assert [p[0].slug for p in led.reorder(pairs)] == ["ollama"]
+
+
+# ── day rollover + persistence ───────────────────────────────────────────────
+
+def test_utc_midnight_reset(led):
+    yesterday = (datetime.datetime.now(datetime.timezone.utc)
+                 - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
+    led._data[yesterday] = {"groq": {"llama-3.1-8b-instant":
+                                     {"requests": 14_000, "tokens": 0}}}
+    # Yesterday's counters don't count today.
+    assert led.saturation("groq", "llama-3.1-8b-instant") == 0.0
+
+
+def test_persistence_roundtrip(tmp_path):
+    p = tmp_path / "q.json"
+    a = QuotaLedger(path=p, clock=lambda: 1000.0)
+    a.record("groq", "llama-3.1-8b-instant", tokens=500)
+    a._last_save = 0.0
+    with a._lock:
+        a._save()
+    b = QuotaLedger(path=p)
+    reqs, toks = b._counters("groq", "llama-3.1-8b-instant")
+    assert (reqs, toks) == (1, 500)
+
+
+def test_corrupt_file_tolerated(tmp_path):
+    p = tmp_path / "q.json"
+    p.write_text("{not json", encoding="utf-8")
+    led = QuotaLedger(path=p)
+    assert led.saturation("groq") == 0.0    # fresh start, no crash
+
+
+def test_pytest_default_is_memory_only():
+    led = QuotaLedger()                      # no injected path, under pytest
+    assert led._path is None
+    led.record("groq", "llama-3.1-8b-instant")   # must not write anywhere
+
+
+if __name__ == "__main__":
+    # real test, no mocks
+    import tempfile
+    led = QuotaLedger(path=Path(tempfile.mkdtemp()) / "q.json")
+    led.record("groq", "llama-3.1-8b-instant", tokens=10)
+    print("✅ test_quota_ledger OK" if led.snapshot() else "❌ FAILED")
