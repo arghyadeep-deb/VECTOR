@@ -2218,6 +2218,51 @@ class AutonomousLoop:
             await self._on_presence_change(last_presence, presence)
             self._last_presence = presence
 
+    async def _coding_companion_nudge(self, stuck: dict, session: dict | None) -> None:
+        """Owner is stuck on the same error — proactively offer one concrete
+        suggestion (spoken via the voice duplex if live, always on the HUD).
+        Advice comes from vector-focus (resident model, think=False); if the
+        LLM is unavailable the nudge still fires with the observation alone."""
+        try:
+            error_text = "\n".join(stuck.get("error_lines", []))[:600]
+            project = (session or {}).get("project", "")
+            advice = ""
+            try:
+                from core.inference.ollama_safe import chat
+                prompt = (
+                    "The owner has been staring at the same error for "
+                    f"{stuck.get('since_min')} minutes"
+                    + (f" while working in {project}" if project else "")
+                    + ". Screen OCR of the error (may be noisy):\n"
+                    f"{error_text}\n\n"
+                    "Give ONE short, concrete suggestion (2-3 sentences max) for "
+                    "what to try next. No preamble."
+                )
+                advice = await asyncio.to_thread(
+                    chat,
+                    CONFIG["models"]["focus"],
+                    [{"role": "user", "content": prompt}],
+                    30.0,           # timeout
+                    None,           # keep_alive default
+                    0.3,            # temperature
+                    False,          # think — one-shot advice, no hidden reasoning
+                    180,            # num_predict
+                )
+                advice = (advice or "").strip()
+            except Exception as _llm_err:
+                logger.debug("[VECTOR][companion] advice LLM failed: {}", _llm_err)
+            text = (
+                f"You've hit the same error for {stuck.get('since_min')} minutes. "
+                + (advice if advice else "Want me to take a look?")
+            )[:500]
+            from core.loop.nudge_engine import nudge_engine
+            nudge_engine.push(text=text, source="coding_companion",
+                              need="unstick", priority=0.85)
+            logger.info("[VECTOR][companion] proactive nudge sent ({} chars advice)",
+                        len(advice))
+        except Exception as e:
+            logger.debug("[VECTOR][companion] nudge failed: {}", e)
+
     async def _on_presence_change(self, prev: str, current: str) -> None:
         """Trigger proactive behaviour when the owner arrives or leaves frame."""
         try:
