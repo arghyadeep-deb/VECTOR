@@ -168,15 +168,21 @@ async def test_disabled_ladder_restores_old_behavior(gateway_with_ladder, monkey
     assert result.reason != "Auto-executed (trust ladder)"
 
 
+async def _when_pending(gw, action_type: str, fn, tries: int = 500):
+    """Poll until the gateway registers the pending event, then act on it.
+    (The event only exists once _wait_for_confirmation starts.)"""
+    for _ in range(tries):
+        if action_type in gw._pending_events:
+            return fn()
+        await asyncio.sleep(0)
+    raise AssertionError(f"{action_type} never became pending")
+
+
 @pytest.mark.asyncio
 async def test_explicit_approval_feeds_streak(gateway_with_ladder):
     gw, ladder = gateway_with_ladder
-
-    async def _approve_soon():
-        await asyncio.sleep(0.001)
-        gw.confirm_action("set_reminder")
-
-    task = asyncio.create_task(_approve_soon())
+    task = asyncio.create_task(
+        _when_pending(gw, "set_reminder", lambda: gw.confirm_action("set_reminder")))
     result = await gw.execute(Action("set_reminder", {"text": "t"}, "pytest"))
     await task
     assert result.approved
@@ -187,12 +193,8 @@ async def test_explicit_approval_feeds_streak(gateway_with_ladder):
 @pytest.mark.asyncio
 async def test_explicit_rejection_feeds_ladder(gateway_with_ladder):
     gw, ladder = gateway_with_ladder
-
-    async def _reject_soon():
-        await asyncio.sleep(0.001)
-        gw.reject("set_reminder")
-
-    task = asyncio.create_task(_reject_soon())
+    task = asyncio.create_task(
+        _when_pending(gw, "set_reminder", lambda: gw.reject("set_reminder")))
     result = await gw.execute(Action("set_reminder", {"text": "t"}, "pytest"))
     await task
     assert result.approved is False
