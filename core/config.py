@@ -111,6 +111,11 @@ class PermissionConfig(BaseModel):
         # solana_swap_execute: notifies owner with price + reasoning, signs only on approval.
         "solana_swap_execute", "content_publish",
     ])
+    # Trust ladder — earned autonomy for YELLOW actions (core/loop/trust_ladder.py).
+    # N consecutive explicit approvals with zero bad outcomes → auto-execute;
+    # any rejection or failed execution demotes instantly. RED never participates.
+    trust_ladder_enabled: bool = True
+    trust_promotion_streak: int = Field(20, ge=3, le=1000)
 
 
 class CouncilConfig(BaseModel):
