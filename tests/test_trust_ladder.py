@@ -151,8 +151,8 @@ async def test_red_never_uses_trust(gateway_with_ladder):
 @pytest.mark.asyncio
 async def test_forbidden_never_uses_trust(gateway_with_ladder):
     gw, ladder = gateway_with_ladder
-    ladder.promote("modify_own_hp")
-    result = await gw.execute(Action("modify_own_hp", {}, "pytest"))
+    ladder.promote("mass_delete")  # in the gateway's FORBIDDEN list
+    result = await gw.execute(Action("mass_delete", {}, "pytest"))
     assert result.approved is False
     assert result.level == "FORBIDDEN"
 
