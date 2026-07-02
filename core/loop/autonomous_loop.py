@@ -1481,6 +1481,27 @@ class AutonomousLoop:
         except Exception as _sq_err:
             logger.debug("[VECTOR][reflect] SuggestionQueue drain suppressed: {}", _sq_err)
 
+        # Trust ladder weekly digest — Sunday 2AM reflect: what got promoted to
+        # auto-execute / demoted this week, so earned autonomy stays visible.
+        try:
+            if datetime.now().weekday() == 6:
+                from core.loop.trust_ladder import get_trust_ladder
+                _changes = get_trust_ladder().recent_changes(days=7)
+                if _changes["promoted"] or _changes["demoted"]:
+                    _lines = [
+                        f"↑ {p['action_type']} now auto-executes" for p in _changes["promoted"]
+                    ] + [
+                        f"↓ {d['action_type']} demoted ({d['reason']})" for d in _changes["demoted"]
+                    ]
+                    _msg = ("Trust ladder this week:\n" + "\n".join(_lines[:10]) +
+                            f"\nAuto-executed {_changes['total_auto_execs']} trusted actions total."
+                            "\nReview: /gateway/trust")
+                    self._notify_user(_msg)
+                    logger.info("[VECTOR][reflect] trust digest sent ({} promoted, {} demoted)",
+                                len(_changes["promoted"]), len(_changes["demoted"]))
+        except Exception as _tr_err:
+            logger.debug("[VECTOR][reflect] trust digest suppressed: {}", _tr_err)
+
         # Daily DB backup — runs every 2AM reflect cycle
         try:
             import subprocess
