@@ -271,6 +271,7 @@ class CodeReviewer(AgentBase):
             from core.inference.provider_client import ProviderClient as _PC
             _result = await _PC().chat(
                 messages=[{"role": "system", "content": _sys}, {"role": "user", "content": prompt}],
+                model="domain:coding.review",   # gpt-5 → DeepSeek-R1 → qwen-coder → ... → ollama
                 tier="coding",
                 temperature=0.3,
                 max_tokens=1000,
