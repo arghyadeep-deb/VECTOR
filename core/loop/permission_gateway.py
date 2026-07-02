@@ -118,11 +118,15 @@ class PermissionGateway:
             )
             await self._notify(yellow_notice, priority=1)
             yellow_timeout = 0.01 if "pytest" in sys.modules else 10
+            # Explicit owner signals (approve/reject) feed the trust ladder;
+            # timeouts are neutral — missing a phone ping is not a "no".
+            explicit_signal = True
             try:
                 confirmed = await asyncio.wait_for(
                     self._wait_for_confirmation(action), timeout=yellow_timeout
                 )
             except asyncio.TimeoutError:
+                explicit_signal = False
                 confirmed = yellow_auto_confirm
                 if confirmed:
                     logger.info(
@@ -134,11 +138,20 @@ class PermissionGateway:
                     )
             if not confirmed and hasattr(self._wait_for_confirmation, "mock_calls"):
                 confirmed = True
+                explicit_signal = False  # test shim, not an owner signal
             if not confirmed:
+                if explicit_signal and _trust is not None and self._trust_recording_active():
+                    _trust.record_rejection(action.action_type)
                 result = GatewayResult(False, 'YELLOW', False, {}, 'Rejected by owner')
                 self._write_audit(action, result)
                 logger.info(f"[VECTOR][gateway] YELLOW action {action.action_type} rejected by owner")
                 return result
+            if explicit_signal and _trust is not None and self._trust_recording_active():
+                if _trust.record_approval(action.action_type):
+                    await self._notify(
+                        f'VECTOR: {action.action_type} PROMOTED to auto-execute after '
+                        f'consistent approvals. Demote anytime: /gateway/trust',
+                        priority=1)
             exec_result = await self._execute_action(action)
             result = GatewayResult(True, 'YELLOW', True, exec_result, 'Executed after YELLOW window')
             self._write_audit(action, result)
