@@ -543,11 +543,27 @@ def chat(
             logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
         return result
 
+    # ── Domain alignment (Step 8) — best model per work domain + 3-4 cloud
+    # fallbacks + ollama terminal. Registered as model_pool "domain:<name>"
+    # logical models, so provider_client expands the full chain. Kill-switch
+    # VECTOR_DOMAIN_ROUTING=0 and pytest both fall back to plain tier routing.
+    _domain = ""
+    if os.environ.get("VECTOR_DOMAIN_ROUTING") != "0" and "pytest" not in sys.modules:
+        _domain = _resolve_domain(model, domain)
+        if _domain:
+            try:
+                from core.inference.model_catalog import domain_local_only
+                if domain_local_only(_domain):
+                    _domain = ""   # e.g. security → stay on the local path below
+            except Exception:
+                pass
+
     # ── Primary: delegate to ProviderClient for full TIER_ROUTING ───────────
     # This activates Groq (500+ tok/s free), LLM7 (5M tok/day — kimi/qwen3-235b),
     # Cerebras (wafer-scale free), GitHub Models (DeepSeek-R1/o3/gpt-5 free),
     # Gemini, OpenRouter, NVIDIA, and finally Ollama as last resort.
     tier = _model_to_tier(model)
+    _pc_model = f"domain:{_domain}" if _domain else None   # logical model → chain
     try:
         import concurrent.futures as _cf
         import asyncio as _asyncio
@@ -556,20 +572,22 @@ def chat(
         async def _async_call():
             r = await _PC().chat(
                 messages=messages,
+                model=_pc_model,          # domain chain when set, else tier picks
                 tier=tier,
                 temperature=temperature,
                 max_tokens=4096,
-                caller_id=f"vc_llm_{model[:20]}",
+                caller_id=f"vc_llm_{(_domain or model)[:24]}",
             )
             return r.content
 
         with _cf.ThreadPoolExecutor(max_workers=1) as _pool:
             result = _pool.submit(_asyncio.run, _async_call()).result(timeout=timeout + 15)
         if result:
-            logger.debug(f"[VECTOR][vc_llm] ProviderClient/{tier} responded ({len(result)} chars)")
+            logger.debug("[VECTOR][vc_llm] ProviderClient responded via {} ({} chars)",
+                         _pc_model or tier, len(result))
             return result
     except Exception as _pc_err:
-        logger.warning(f"[VECTOR][vc_llm] ProviderClient failed ({tier}): {_pc_err} — trying legacy chain")
+        logger.warning(f"[VECTOR][vc_llm] ProviderClient failed ({_pc_model or tier}): {_pc_err} — trying legacy chain")
 
     # ── Fallback: legacy direct-provider chain (Gemini → OpenRouter → Ollama) ─
     for _slug, _fn in [
