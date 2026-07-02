@@ -643,80 +643,64 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
 
 # Map of task tier → preferred provider priority list
 TIER_ROUTING: dict[str, list[str]] = {
-    # STRATEGY: Cloud-first. Ollama is last resort or explicitly private data.
+    # STRATEGY (regenerated 2026-07-02 from owner's measured free-tier data —
+    # see core/inference/model_catalog.yaml): cloud primary, ollama terminal.
+    # Provider order per tier ranks capability strength x free-limit generosity.
+    # The catalog picks the best MODEL per provider per tier (rank 1 first);
+    # quota_ledger soft-deprioritizes anything past 90% of its daily free tier.
     #
-    # Cloud providers (priority order within each tier):
-    #   github_models — FREE with GitHub token
-    #                   premium (50/day):  o3, gpt-5  ← reasoning/council/saas only
-    #                   basic  (unlimited): DeepSeek-R1, Phi-4, Llama-4-Maverick, o4-mini
-    #   groq          — fastest REST (500+ tok/s), llama-3.3-70b + deepseek-r1-distill
-    #   cerebras      — wafer-scale chip speed, gpt-oss-120b free
-    #   llm7          — 5M tokens/day; kimi-k2.6 (tool use), codestral, qwen3-235b, glm-5.2
-    #   gemini        — 360M tokens/month, 1M ctx, native vision + grounding
-    #   zai           — glm-5.2, purpose-built for Asian languages (HI/BN/AS/JA/ZH)
-    #   cohere        — command-a, RAG-optimized extraction and reranking
-    #   nvidia        — NIM credits; nemotron-ultra 550B, deepseek-v4-pro
-    #   openrouter    — last cloud resort; nemotron-ultra, qwen3-coder free tier
-    #   ollama        — LOCAL LAST: runs only when all cloud providers fail or
-    #                   route_policy.py sets sensitivity="high" (forces local-only)
+    #   groq          — 8b-instant 14,400 req/day (fast workhorse); 70B/gpt-oss 1K/day
+    #   mistral       — ministral-3b 12.5 RPS; codestral/devstral; huge TPMs
+    #   cerebras      — zai-glm-4.7 355B (biggest free frontier); ~3000 tok/s; 1M tok/day/model
+    #   github_models — gpt-5/o3 (assumed 50/day), Codestral, DeepSeek-R1, vision (150/day)
+    #   opencode_zen  — 5 unlimited free models (HARD whitelist — paid catalog on same key)
+    #   cloudflare    — kimi-k2.7-code, qwen-coder, sea-lion; 10K neurons/day
+    #   nvidia        — 40 RPM; qwen3-coder-480b, sarvam-m (Indic), 90b-vision
+    #   gemini        — 2.5-flash/pro, best vision/long-context (daily quotas modest)
+    #   zai           — glm-4.7-flash FREE (locked whitelist); Asian languages
+    #   openrouter    — 22 :free models ~1000/day; nemotron-ultra-550b headliner
+    #   llm7          — free proxied frontier models; bonus capacity, not backbone
+    #   cohere        — TRIAL 1000 req/month: demoted everywhere; translate/aya niche
+    #   ollama        — LOCAL TERMINAL: all-cloud failure or sensitivity=high
     #
-    # Private districts (health/, finance/, reflection/, voice/) always set
-    # sensitivity="high" in their LLM calls → route_policy.py overrides this
-    # table and routes to Ollama regardless of tier.
+    # Private/sensitive districts always route local via route_policy.py.
 
-    # Agentic loop (observe-tick classification, governor dispatches, tool routing)
-    # groq first — fastest latency for 0.5s loop ticks; kimi-k2.6 on llm7 for tool use
-    "agentic":       ["groq", "llm7", "cerebras", "gemini", "openrouter", "nvidia", "ollama"],
+    # Agentic loop — high frequency: biggest req/day budgets first
+    "agentic":       ["groq", "mistral", "cerebras", "zai", "llm7", "gemini", "opencode_zen", "nvidia", "openrouter", "ollama"],
 
-    # Coding (feature code, bug fixes, refactor, test writing, code review)
-    # DeepSeek-R1 on github_models (basic = unlimited) is best free coding model
-    # kimi-k2.6/codestral on llm7 are code-specialists
-    "coding":        ["github_models", "llm7", "groq", "mistral", "openrouter", "nvidia", "ollama"],
+    # Coding — Codestral/gpt-5, kimi-k2.7-code, north-mini-code, devstral
+    "coding":        ["github_models", "cloudflare", "opencode_zen", "mistral", "llm7", "nvidia", "groq", "openrouter", "ollama"],
 
-    # SaaS architecture, API design, database schema, system design
-    # o3/gpt-5 worth spending here — architecture decisions are rare and long-lived
-    "saas":          ["github_models", "llm7", "nvidia", "openrouter", "groq", "ollama"],
+    # SaaS architecture / API design — gpt-5 + 355B-class quality
+    "saas":          ["github_models", "cerebras", "nvidia", "opencode_zen", "openrouter", "groq", "ollama"],
 
-    # Reasoning (planning, analysis, step-by-step math, decision scoring)
-    # o3 leads (premium 50/day but worth it); DeepSeek-R1 is unlimited fallback within github_models
-    "reasoning":     ["github_models", "groq", "llm7", "nvidia", "openrouter", "ollama"],
+    # Reasoning — zai-glm-4.7 355B (1M tok/day) leads; o3/gpt-5 premium quota next
+    "reasoning":     ["cerebras", "github_models", "groq", "opencode_zen", "nvidia", "cloudflare", "openrouter", "llm7", "ollama"],
 
-    # Summarization (memory consolidation, research digests, document extraction)
-    # gemini handles long docs; cohere is RAG-optimized for extraction
-    "summarization": ["gemini", "cohere", "groq", "llm7", "openrouter", "ollama"],
+    # Summarization — gemini flash; mistral-small 2.25M TPM; llama-4-scout 30K tok/min
+    "summarization": ["gemini", "mistral", "groq", "cloudflare", "opencode_zen", "llm7", "openrouter", "ollama"],
 
-    # Multilingual (Hindi, Bengali, Assamese, Japanese, Chinese)
-    # zai/glm-5.2 purpose-built for Asian language pairs; qwen3-235b on llm7 strong on CJK
-    "multilingual":  ["zai", "llm7", "cohere", "gemini", "openrouter", "ollama"],
+    # Multilingual — glm-4.7-flash free; sarvam-m (Indic) on nvidia; sea-lion on cloudflare
+    "multilingual":  ["zai", "nvidia", "cloudflare", "gemini", "llm7", "cohere", "openrouter", "ollama"],
 
-    # Long context (1M-token docs, full codebase reads, full conversation history)
-    # gemini-1.5-pro = 1M ctx natively; llama-4-maverick also 1M ctx (basic tier)
-    "long_context":  ["gemini", "github_models", "llm7", "nvidia", "openrouter", "ollama"],
+    # Long context — gemini 1M ctx; llama-4-scout on github/groq
+    "long_context":  ["gemini", "llm7", "github_models", "groq", "nvidia", "openrouter", "ollama"],
 
-    # Vision (screenshots, UI analysis, OCR, multimodal)
-    # gemini is native multimodal with grounding; llama-4-maverick vision-capable (basic tier)
-    "vision":        ["gemini", "github_models", "zai", "nvidia", "openrouter", "ollama"],
+    # Vision — gemini native; 90b-vision on nvidia/github; glm-4.6V-flash free
+    "vision":        ["gemini", "nvidia", "github_models", "zai", "cloudflare", "openrouter", "ollama"],
 
-    # Fast (classification, routing, simple single-turn, loop heartbeat)
-    # groq is fastest REST; cerebras wafer-scale; gemini-flash-lite highest RPM
-    "fast":          ["groq", "cerebras", "gemini", "llm7", "openrouter", "ollama"],
+    # Fast — 8b-instant 14.4K/day, ministral-3b 12.5 RPS, gpt-oss-120b 3000 tok/s
+    "fast":          ["groq", "mistral", "cerebras", "gemini", "opencode_zen", "llm7", "cloudflare", "openrouter", "ollama"],
 
-    # Council (high-stakes decisions, HP>700 voting — fires rarely)
-    # o3 quota worth it for council; nemotron-ultra 550B on openrouter as deep fallback
-    "council":       ["github_models", "llm7", "nvidia", "openrouter", "groq", "ollama"],
+    # Council — rare, high-stakes: 355B + o3/gpt-5 + nemotron-ultra
+    "council":       ["cerebras", "github_models", "nvidia", "opencode_zen", "openrouter", "llm7", "ollama"],
 
-    # Translation (direct translate, no analysis)
-    # zai/glm-5.2 leads for Asian pairs; cohere for European
-    "translate":     ["zai", "cohere", "llm7", "gemini", "openrouter", "ollama"],
+    # Translation — glm-4.7-flash, riva-translate, gemini; cohere command-a-translate niche
+    "translate":     ["zai", "nvidia", "gemini", "cohere", "llm7", "ollama"],
 
-    # Conversation (real-time voice replies — latency is everything)
-    # groq: 500+ tok/s + ~80ms India RTT = first sentence in ~340ms (fastest cloud)
-    # cerebras: wafer-scale, similar speed to groq
-    # gemini: ~500ms first sentence — decent fallback
-    # ollama (vector-focus): permanent VRAM, offline-only fallback — slower streaming
-    #   but zero network dependency when internet is down
+    # Conversation — latency: groq ~500 tok/s, cerebras wafer-speed
     # NOTE: STT (Whisper) and TTS (Kokoro) are always local regardless of this tier.
-    "conversation":  ["groq", "cerebras", "gemini", "llm7", "openrouter", "ollama"],
+    "conversation":  ["groq", "cerebras", "mistral", "gemini", "llm7", "ollama"],
 }
 
 
