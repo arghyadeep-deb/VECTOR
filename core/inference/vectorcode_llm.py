@@ -497,6 +497,7 @@ def chat(
     district: str | None = None,
     sensitive: bool = False,
     temperature: float = 0.7,
+    domain: str = "",
 ) -> str:
     """Unified LLM call with multi-provider fallback.
 
