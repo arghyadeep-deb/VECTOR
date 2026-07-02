@@ -294,6 +294,7 @@ class BugHunter(AgentBase):
                 _sys = _gl().get_for_agent("bug_hunter") or "You are a security-focused bug hunter. Find vulnerabilities and bugs rigorously."
                 r = await _PC().chat(
                     messages=[{"role": "system", "content": _sys}, {"role": "user", "content": prompt}],
+                    model="domain:coding.review",   # bug hunting = review-grade scrutiny
                     tier="coding",
                     temperature=0.3,
                     max_tokens=1000,
