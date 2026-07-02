@@ -61,6 +61,10 @@ class LLMProvider:
     rate_limit_rpm: int = 60
     pricing_per_1m: dict = field(default_factory=lambda: {"input": 0.0, "output": 0.0})
     notes: str = ""
+    # HARD whitelist: only entries in `models` may EVER be sent to this
+    # provider (opencode_zen/zai keys can reach PAID models — owner card on
+    # file). provider_client._enforce_whitelist clamps.
+    locked_models: bool = False
 
     @property
     def api_key(self) -> str:
