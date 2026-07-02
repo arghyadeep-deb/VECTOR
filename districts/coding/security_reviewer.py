@@ -182,6 +182,7 @@ class SecurityReviewer(AgentBase):
                 prompt=prompt,
                 tier="coding",
                 max_tokens=1400,
+                district="security",   # sensitivity gate → local-only (never ship code to cloud)
             )
 
             feedback = result.content or "No security issues found."
