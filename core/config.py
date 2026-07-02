@@ -283,6 +283,16 @@ class SensingConfig(BaseModel):
     # Android device + adb on PATH). PhoneController already degrades
     # gracefully (is_connected()=False, get_notifications()=[]) when absent.
     phone_enabled: bool = False
+    # Coding Companion (core/sensing/stuck_detector.py) — proactive help when
+    # the owner is stuck in a vectorcode terminal session. Needs screen_enabled.
+    stuck_detection_enabled: bool = True
+    stuck_min_samples: int = Field(4, ge=2, le=100)      # ~30s OCR samples
+    stuck_after_min: float = Field(2.0, ge=0.5, le=120)  # error must persist
+    stuck_cooldown_min: float = Field(20.0, ge=1, le=1440)
+    # While the owner runs a vectorcode CLI session, VECTOR skips 2 of 3 think
+    # ticks — one GPU, OLLAMA_MAX_LOADED_MODELS=1: don't evict the owner's model.
+    defer_llm_while_owner_codes: bool = True
+    vc_session_marker: str = str(Path.home() / ".vector" / "vc_session.json")
     # Task B.3: wearable (HR/sleep/steps) observe source. Architecture docs
     # name it as a core observe source; zero wiring existed before this.
     # Owner-hardware-dependent (no wearable device/API credentials
