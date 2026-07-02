@@ -1,0 +1,390 @@
+# ============================================================================
+# VECTOR free-model catalog — owner-editable, no code changes needed.
+#
+# Sources: owner screenshots/console data + live API probes, 2026-07-02.
+# Limits marked "assumed" come from published docs, not measurement — the
+# soft 90% quota rotation makes small errors harmless. Correct freely.
+#
+# Schema:
+#   providers.<slug>:
+#     quota_unit: requests | tokens | neurons   (what the daily budget counts)
+#     per_model_quota: true                     (limits tracked per model)
+#     locked: true                              (HARD whitelist — only listed
+#                                                models may EVER be sent)
+#     allow_pattern: "<regex>"                  (model id must match)
+#     limits: {...}                             (provider-wide)
+#     models.<model_id>:
+#       tiers: {tier: rank}                     (rank 1 = best for that tier)
+#       limits: {requests_per_day, requests_per_min, tokens_per_day,
+#                tokens_per_min, neurons_per_day}
+#   domains.<name>:
+#     local_only: true                          (never leaves the machine)
+#     chain: [[provider, model], ...]           (best first; ollama terminal)
+#
+# Tier vocabulary = TIER_ROUTING keys. "heavy" is an alias resolved under
+# "reasoning" by the loader.
+# ============================================================================
+
+providers:
+
+  groq:                       # limits FETCHED from API headers 2026-07-02
+    quota_unit: requests
+    per_model_quota: true
+    models:
+      llama-3.1-8b-instant:
+        tiers: {fast: 1, agentic: 1, conversation: 1}
+        limits: {requests_per_day: 14400, tokens_per_min: 6000}
+      llama-3.3-70b-versatile:
+        tiers: {agentic: 2, summarization: 3, reasoning: 4, multilingual: 3}
+        limits: {requests_per_day: 1000, tokens_per_min: 12000}
+      openai/gpt-oss-120b:
+        tiers: {reasoning: 3, heavy: 2, council: 2}
+        limits: {requests_per_day: 1000, tokens_per_min: 8000}
+      openai/gpt-oss-20b:
+        tiers: {fast: 3}
+        limits: {requests_per_day: 1000, tokens_per_min: 8000}   # assumed
+      qwen/qwen3-32b:
+        tiers: {reasoning: 5}
+        limits: {requests_per_day: 1000, tokens_per_min: 6000}
+      meta-llama/llama-4-scout-17b-16e-instruct:
+        tiers: {long_context: 2, summarization: 2, vision: 4}
+        limits: {requests_per_day: 1000, tokens_per_min: 30000}
+
+  cerebras:                   # owner console screenshots — exact quotas
+    quota_unit: tokens        # 1M tokens/day/model is the binding limit
+    per_model_quota: true
+    models:
+      gpt-oss-120b:           # production, ~3000 tok/s (fastest in fleet)
+        tiers: {fast: 2, reasoning: 3, conversation: 2, council: 3}
+        limits: {tokens_per_day: 1000000, requests_per_min: 5, tokens_per_min: 30000}
+      zai-glm-4.7:            # preview, 355B — biggest free frontier model
+        tiers: {heavy: 1, reasoning: 1, council: 1, saas: 2}
+        limits: {tokens_per_day: 1000000, requests_per_min: 5, tokens_per_min: 30000}
+      gemma-4-31b:            # preview
+        tiers: {agentic: 3, summarization: 4}
+        limits: {tokens_per_day: 1000000, requests_per_min: 5, tokens_per_min: 30000}
+
+  cloudflare:                 # 10K neurons/day account-wide (neurons≈tokens)
+    quota_unit: neurons
+    limits: {neurons_per_day: 10000}
+    models:
+      "@cf/moonshotai/kimi-k2.7-code":              {tiers: {coding: 1}}
+      "@cf/qwen/qwen2.5-coder-32b-instruct":        {tiers: {coding: 2}}
+      "@cf/meta/llama-3.3-70b-instruct-fp8-fast":   {tiers: {agentic: 1, summarization: 2}}
+      "@cf/meta/llama-4-scout-17b-16e-instruct":    {tiers: {agentic: 2, long_context: 1}}
+      "@cf/meta/llama-3.2-11b-vision-instruct":     {tiers: {vision: 1}}
+      "@cf/meta/llama-3.2-3b-instruct":             {tiers: {fast: 1}}
+      "@cf/meta/llama-3.2-1b-instruct":             {tiers: {fast: 2}}
+      "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b": {tiers: {reasoning: 1}}
+      "@cf/openai/gpt-oss-120b":                    {tiers: {heavy: 1, council: 1}}
+      "@cf/openai/gpt-oss-20b":                     {tiers: {reasoning: 3}}
+      "@cf/google/gemma-sea-lion-v4-27b-it":        {tiers: {multilingual: 1, translate: 1}}
+      "@cf/google/gemma-4-26b-a4b-it":              {tiers: {agentic: 3}}
+      "@cf/zai/glm-5.2":                            {tiers: {reasoning: 2, saas: 1}}
+      "@cf/moonshotai/kimi-k2.6":                   {tiers: {agentic: 4}}
+      "@cf/mistralai/mistral-small-3.1-24b-instruct": {tiers: {summarization: 1}}
+      "@cf/nvidia/nemotron-3-super-120b":           {tiers: {heavy: 2}}
+      "@cf/qwen/qwen3-30b-a3b-fp8":                 {tiers: {reasoning: 4}}
+      "@cf/meta/llama-guard-3-8b":                  {tiers: {}}   # guard — explicit use only
+
+  opencode_zen:               # VERIFIED LIVE — key reaches PAID models, card
+    locked: true              # on file → HARD whitelist, never fall through
+    models:                   # (no limits: unlimited "for a limited time")
+      deepseek-v4-flash-free: {tiers: {fast: 1, agentic: 1, conversation: 1, coding: 3}}
+      big-pickle:             {tiers: {reasoning: 1, heavy: 2}}   # thinking-mode
+      mimo-v2.5-free:         {tiers: {agentic: 2, summarization: 1}}
+      north-mini-code-free:   {tiers: {coding: 1}}
+      nemotron-3-ultra-free:  {tiers: {heavy: 1, council: 1, reasoning: 2}}
+
+  openrouter:                 # key has credits → ~1000 free req/day, 20/min
+    allow_pattern: ":free$"   # default routing: free models only (paid = real money)
+    limits: {requests_per_day: 1000, requests_per_min: 20}
+    models:
+      "nvidia/nemotron-3-ultra-550b-a55b:free":     {tiers: {heavy: 1, council: 1, reasoning: 1}}
+      "nvidia/nemotron-3-super-120b-a12b:free":     {tiers: {heavy: 2}}
+      "nousresearch/hermes-3-llama-3.1-405b:free":  {tiers: {heavy: 3, reasoning: 2}}
+      "openai/gpt-oss-120b:free":                   {tiers: {reasoning: 3}}
+      "qwen/qwen3-coder:free":                      {tiers: {coding: 1}}
+      "cohere/north-mini-code:free":                {tiers: {coding: 2}}
+      "poolside/laguna-m.1:free":                   {tiers: {coding: 3}}
+      "meta-llama/llama-3.3-70b-instruct:free":     {tiers: {agentic: 1, summarization: 1}}
+      "qwen/qwen3-next-80b-a3b-instruct:free":      {tiers: {agentic: 2}}
+      "google/gemma-4-31b-it:free":                 {tiers: {agentic: 3}}
+      "google/gemma-4-26b-a4b-it:free":             {tiers: {fast: 2}}
+      "nvidia/nemotron-3-nano-30b-a3b:free":        {tiers: {fast: 1}}
+      "nvidia/nemotron-nano-12b-v2-vl:free":        {tiers: {vision: 1}}
+      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": {tiers: {reasoning: 4}}
+      "meta-llama/llama-3.2-3b-instruct:free":      {tiers: {fast: 3}}
+
+  mistral:                    # owner admin console — exact TPM/RPS, no daily caps
+    per_model_quota: true
+    models:
+      ministral-3b-2512:
+        tiers: {fast: 1, agentic: 2}
+        limits: {requests_per_min: 750, tokens_per_min: 1300000}   # 12.5 RPS
+      mistral-small-2506:
+        tiers: {summarization: 1, agentic: 3, conversation: 2}
+        limits: {requests_per_min: 300, tokens_per_min: 2250000}
+      ministral-8b-2512:
+        tiers: {fast: 2}
+        limits: {requests_per_min: 187, tokens_per_min: 625000}
+      codestral-2508:
+        tiers: {coding: 1}
+        limits: {requests_per_min: 124, tokens_per_min: 625000}
+      devstral-2512:
+        tiers: {coding: 2, agentic: 4}
+        limits: {requests_per_min: 49, tokens_per_min: 1000000}
+      ministral-14b-2512:
+        tiers: {agentic: 5}
+        limits: {requests_per_min: 30, tokens_per_min: 937500}
+      open-mistral-nemo:
+        tiers: {conversation: 3}
+        limits: {requests_per_min: 30, tokens_per_min: 500000}
+      mistral-medium-2508:
+        tiers: {summarization: 2, reasoning: 4}
+        limits: {requests_per_min: 22, tokens_per_min: 356250}
+      mistral-large-2512:
+        tiers: {heavy: 2, reasoning: 3}
+        limits: {requests_per_min: 4, tokens_per_min: 250000}
+      magistral-medium-2509:
+        tiers: {reasoning: 2}
+        limits: {requests_per_min: 4, tokens_per_min: 75000}
+
+  github_models:              # via GITHUB_TOKEN; per-model-tier req/day (assumed)
+    quota_unit: requests
+    per_model_quota: true
+    models:
+      gpt-5:
+        tiers: {saas: 1, council: 1, reasoning: 2, heavy: 1, coding: 4}
+        limits: {requests_per_day: 50}      # assumed high-tier
+      o3:
+        tiers: {reasoning: 1, council: 2}
+        limits: {requests_per_day: 50}      # assumed high-tier
+      o4-mini:
+        tiers: {reasoning: 3}
+        limits: {requests_per_day: 150}     # assumed
+      gpt-4o:
+        tiers: {conversation: 1, vision: 2, agentic: 2}
+        limits: {requests_per_day: 150}     # assumed
+      gpt-4o-mini:
+        tiers: {fast: 1}
+        limits: {requests_per_day: 150}     # assumed
+      gpt-4.1:
+        tiers: {coding: 2, long_context: 2}
+        limits: {requests_per_day: 150}     # assumed
+      Codestral-25.01:
+        tiers: {coding: 1}
+        limits: {requests_per_day: 150}     # assumed
+      DeepSeek-R1-0528:
+        tiers: {reasoning: 4, coding: 3}
+        limits: {requests_per_day: 150}     # assumed
+      Llama-3.2-90B-Vision-Instruct:
+        tiers: {vision: 1}
+        limits: {requests_per_day: 150}     # assumed
+      Llama-4-Scout-17B-16E-Instruct:
+        tiers: {long_context: 1, summarization: 1}
+        limits: {requests_per_day: 150}     # assumed
+      Phi-4-mini-instruct:
+        tiers: {fast: 2}
+        limits: {requests_per_day: 150}     # assumed
+      Llama-3.1-405B-Instruct:
+        tiers: {heavy: 2}
+        limits: {requests_per_day: 50}      # assumed high-tier
+
+  nvidia:                     # owner-stated 40 RPM account-wide
+    limits: {requests_per_min: 40}
+    models:
+      "meta/llama-3.3-70b-instruct":            {tiers: {agentic: 1, summarization: 2}}
+      "meta/llama-3.1-8b-instruct":             {tiers: {fast: 1}}
+      "meta/llama-3.2-90b-vision-instruct":     {tiers: {vision: 1}}
+      "meta/llama-3.2-11b-vision-instruct":     {tiers: {vision: 2}}
+      "qwen/qwen3-coder-480b-a35b-instruct":    {tiers: {coding: 1}}
+      "qwen/qwen2.5-coder-32b-instruct":        {tiers: {coding: 2}}
+      "abacusai/dracarys-llama-3.1-70b-instruct": {tiers: {coding: 3}}
+      "sarvamai/sarvam-m":                      {tiers: {multilingual: 1, translate: 2}}
+      "nvidia/riva-translate-4b-instruct":      {tiers: {translate: 1}}
+      "nvidia/nemotron-mini-4b-instruct":       {tiers: {fast: 2}}
+      "nvidia/nvidia-nemotron-nano-9b-v2":      {tiers: {fast: 3}}
+      "mistralai/mixtral-8x7b-instruct-v0.1":   {tiers: {agentic: 3}}
+      "microsoft/phi-4-multimodal-instruct":    {tiers: {vision: 3}}
+
+  zai:                        # VERIFIED LIVE — flash models only (glm-4.5 is PAID)
+    locked: true
+    models:
+      glm-4.7-flash:  {tiers: {multilingual: 1, translate: 1, fast: 2, agentic: 1, conversation: 2}}
+      glm-4.5-flash:  {tiers: {agentic: 2}}
+      glm-4.6V-flash: {tiers: {vision: 1}}
+
+  gemini:                     # limits ASSUMED from historical docs — owner:
+    per_model_quota: true     # correct from aistudio.google.com/rate-limit
+    models:
+      gemini-2.0-flash:
+        tiers: {fast: 2, summarization: 1, vision: 3, translate: 2}
+        limits: {requests_per_min: 15, requests_per_day: 200}
+      gemini-2.5-flash:
+        tiers: {vision: 1, long_context: 1, agentic: 2}
+        limits: {requests_per_min: 10, requests_per_day: 250}
+      gemini-2.5-flash-lite:
+        tiers: {fast: 1}
+        limits: {requests_per_min: 30, requests_per_day: 400}
+      gemini-2.5-pro:
+        tiers: {reasoning: 1, long_context: 2}
+        limits: {requests_per_min: 5, requests_per_day: 100}
+      gemini-2.0-flash-lite:
+        tiers: {fast: 3}
+        limits: {requests_per_min: 30, requests_per_day: 400}
+
+  llm7:                       # free gateway, catalog rotates; limits unpublished
+    models:                   # (no limits → reactive-only via provider_health)
+      gemini-2.5-flash:       {tiers: {fast: 1, agentic: 1}}
+      deepseek-v4-flash:      {tiers: {agentic: 2, coding: 3}}
+      codestral-latest:       {tiers: {coding: 1}}
+      "gpt-5.3-codex-spark":  {tiers: {coding: 2}}
+      kimi-k2.6:              {tiers: {agentic: 3}}
+      gemini-3-flash:         {tiers: {fast: 2}}
+      "gpt-5.4-mini":         {tiers: {summarization: 1}}
+      "minimax-m2.7":         {tiers: {conversation: 1}}
+
+  cohere:                     # TRIAL key: ~1000 req/month → scarce, niche only
+    limits: {requests_per_day: 33, requests_per_min: 20}
+    models:
+      command-a-translate-08-2025: {tiers: {translate: 1}}
+      c4ai-aya-expanse-32b:        {tiers: {multilingual: 1}}
+      command-a-reasoning-08-2025: {tiers: {}}   # explicit use only
+      c4ai-aya-vision-32b:         {tiers: {}}   # explicit use only
+
+  deepseek:                   # dormant — no balance; deepseek-chat deprecates 2026-07-24
+    models:
+      deepseek-v4-flash: {tiers: {agentic: 1, coding: 1, fast: 1}}
+      deepseek-v4-pro:   {tiers: {reasoning: 1, heavy: 1}}
+
+# ============================================================================
+# Domain chains — best model per work domain, 3-4 cloud fallbacks + ollama
+# terminal so VECTOR never crashes. Registered as model_pool logical models
+# "domain:<name>" at catalog load. Mapped to the actual district agents.
+# ============================================================================
+domains:
+
+  content.script:             # script_generator, caption_generator, ScriptGen
+    chain:
+      - [github_models, gpt-5]
+      - [cerebras, zai-glm-4.7]
+      - [groq, llama-3.3-70b-versatile]
+      - [mistral, mistral-small-2506]
+      - [ollama, vector-focus]
+
+  content.video_prompts:      # video_generator scene/prompt writing (video itself = local ComfyUI/SadTalker)
+    chain:
+      - [gemini, gemini-2.5-flash]
+      - [github_models, gpt-4o]
+      - [zai, glm-4.7-flash]
+      - [ollama, vector-focus]
+
+  coding.generation:          # test_writer, bug_hunter, rapid_prototyper, vectorcode
+    chain:
+      - [github_models, Codestral-25.01]
+      - [cloudflare, "@cf/moonshotai/kimi-k2.7-code"]
+      - [opencode_zen, north-mini-code-free]
+      - [mistral, devstral-2512]
+      - [ollama, vector-coder]
+
+  coding.review:              # code_reviewer, python_reviewer, fastapi_reviewer
+    chain:
+      - [github_models, gpt-5]
+      - [github_models, DeepSeek-R1-0528]
+      - [cloudflare, "@cf/qwen/qwen2.5-coder-32b-instruct"]
+      - [nvidia, "qwen/qwen3-coder-480b-a35b-instruct"]
+      - [ollama, "devstral:24b"]
+
+  coding.architecture:        # architect_bot, plan/architecture agents
+    chain:
+      - [github_models, o3]
+      - [cerebras, zai-glm-4.7]
+      - [github_models, gpt-5]
+      - [openrouter, "nousresearch/hermes-3-llama-3.1-405b:free"]
+      - [ollama, vector-reasoning]
+
+  saas.frontend:              # design district, ui_designer, MODE-2 coder
+    chain:
+      - [github_models, gpt-5]
+      - [github_models, Codestral-25.01]
+      - [llm7, "gpt-5.3-codex-spark"]
+      - [cloudflare, "@cf/moonshotai/kimi-k2.7-code"]
+      - [ollama, vector-coder]
+
+  saas.backend:               # MODE-2 coder, API builders
+    chain:
+      - [github_models, Codestral-25.01]
+      - [cloudflare, "@cf/qwen/qwen2.5-coder-32b-instruct"]
+      - [opencode_zen, north-mini-code-free]
+      - [nvidia, "qwen/qwen3-coder-480b-a35b-instruct"]
+      - [ollama, vector-coder]
+
+  orchestration:              # governor, chief_of_staff, swarm queen, workflow_runner
+    chain:
+      - [cerebras, zai-glm-4.7]
+      - [github_models, gpt-5]
+      - [groq, llama-3.3-70b-versatile]
+      - [opencode_zen, nemotron-3-ultra-free]
+      - [ollama, vector-reasoning]
+
+  agentic.loop:               # decision engine, hands, autonomous think — HIGH VOLUME
+    chain:
+      - [groq, llama-3.1-8b-instant]
+      - [mistral, ministral-3b-2512]
+      - [opencode_zen, deepseek-v4-flash-free]
+      - [cerebras, gpt-oss-120b]
+      - [ollama, vector-focus]
+
+  security:                   # security_reviewer, threat_scout, red_team — NEVER cloud
+    local_only: true
+    chain:
+      - [ollama, vector-reasoning]
+      - [ollama, "devstral:24b"]
+
+  research:                   # web_scout, paper_reader, company_researcher
+    chain:
+      - [cerebras, zai-glm-4.7]
+      - [gemini, gemini-2.5-pro]
+      - [github_models, o4-mini]
+      - [groq, llama-3.3-70b-versatile]
+      - [ollama, vector-deep]
+
+  multilingual.indic:         # hindi/bengali/assamese coaches
+    chain:
+      - [nvidia, "sarvamai/sarvam-m"]
+      - [zai, glm-4.7-flash]
+      - [gemini, gemini-2.0-flash]
+      - [cohere, c4ai-aya-expanse-32b]
+      - [ollama, vector-multilingual]
+
+  translate:                  # japanese coach, translation tasks
+    chain:
+      - [zai, glm-4.7-flash]
+      - [nvidia, "nvidia/riva-translate-4b-instruct"]
+      - [gemini, gemini-2.0-flash]
+      - [ollama, vector-multilingual]
+
+  summarization:              # consolidation_bot, daily_reviewer, chief briefs
+    chain:
+      - [gemini, gemini-2.0-flash]
+      - [mistral, mistral-small-2506]
+      - [groq, meta-llama/llama-4-scout-17b-16e-instruct]
+      - [cloudflare, "@cf/meta/llama-3.3-70b-instruct-fp8-fast"]
+      - [ollama, vector-fast]
+
+  vision:                     # screen understanding, camera, image analysis
+    chain:
+      - [gemini, gemini-2.5-flash]
+      - [nvidia, "meta/llama-3.2-90b-vision-instruct"]
+      - [github_models, Llama-3.2-90B-Vision-Instruct]
+      - [zai, glm-4.6V-flash]
+      - [ollama, "qwen2.5vl:7b"]
+
+  finance.analysis:           # stock_analyst, fundamentals_bot, fpa — analysis only
+    chain:
+      - [github_models, gpt-5]
+      - [cerebras, zai-glm-4.7]
+      - [github_models, DeepSeek-R1-0528]
+      - [groq, llama-3.3-70b-versatile]
+      - [ollama, vector-reasoning]
