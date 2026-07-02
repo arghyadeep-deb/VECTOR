@@ -148,10 +148,13 @@ def classify_intent_llm(text: str) -> str | None:
             "ACTION: <3-6 word task description>\n\n"
             f'Utterance: "{text}"'
         )
+        # focus, not ambient: vector-ambient's modelfile forces JSON-only
+        # output (it puts answers in `thinking` with empty content), and
+        # loading it would evict the resident focus model (MAX_LOADED=1).
         result = chat(
-            model=CONFIG["models"]["ambient"],
+            model=CONFIG["models"]["focus"],
             messages=[{"role": "user", "content": prompt}],
-            timeout=float(voice_cfg.get("llm_intent_timeout_sec", 4.0)),
+            timeout=float(voice_cfg.get("llm_intent_timeout_sec", 12.0)),
             temperature=0.0,
         ).strip()
         if not result:
