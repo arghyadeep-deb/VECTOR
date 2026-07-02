@@ -458,6 +458,9 @@ class VectorSettings(BaseSettings):
     PUSHOVER_USER: str = ""
     SUPABASE_URL: str = ""
     SUPABASE_KEY: SecretStr = SecretStr("")
+    # Deployed Cloudflare Worker health endpoint (D1 command queue lives behind it).
+    # Full /health URL to match existing district usage (ops/sre health probes).
+    CF_WORKER_URL: str = "https://vector-api.arghyadeepdeb020703.workers.dev/health"
     VIRUSTOTAL_KEY: SecretStr = SecretStr("")
     NEWSAPI_KEY: SecretStr = SecretStr("")
     STRIPE_KEY: SecretStr = SecretStr("")
