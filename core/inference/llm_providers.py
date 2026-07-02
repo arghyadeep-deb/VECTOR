@@ -581,15 +581,18 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
     LLMProvider(
         slug="zai",
         name="Z.ai (GLM/ZhipuAI)",
-        base_url="https://open.bigmodel.cn/api/paas/v4",
+        base_url="https://api.z.ai/api/paas/v4",   # verified live 2026-07-02
         api_key_env="ZAI_API_KEY",
         driver="openai_compat",
-        default_model="glm-4.5",
-        models=["glm-4.5", "glm-4.7-flash", "glm-4-flash", "glm-4-air"],
+        # glm-4.5 is PAID (caused "insufficient balance" 429s); the flash
+        # line is free — verified 200 OK with owner key 2026-07-02.
+        default_model="glm-4.7-flash",
+        models=["glm-4.7-flash", "glm-4.5-flash", "glm-4.6V-flash"],
+        locked_models=True,   # non-flash models bill the (empty) paid balance
         context_window=128_000,
         rate_limit_rpm=60,
         pricing_per_1m={"input":0.0,"output":0.0},
-        notes="ZhipuAI/GLM API. Key env: ZAI_API_KEY. Free credits on signup; may hit 429 when exhausted.",
+        notes="Z.ai GLM API. FREE flash models only (hard whitelist) — glm-4.5/5.2 are paid.",
     ),
 
 ]}
