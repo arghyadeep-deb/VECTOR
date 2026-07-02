@@ -227,13 +227,32 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         base_url="https://openrouter.ai/api/v1",
         api_key_env="OPENROUTER_API_KEY",
         driver="openai_compat",
-        default_model="meta-llama/llama-3.3-70b-instruct",
-        models=["meta-llama/llama-3.3-70b-instruct","anthropic/claude-3.5-sonnet",
-                "google/gemini-flash-1.5","mistralai/mixtral-8x7b-instruct",
-                "cohere/command-r-plus","01-ai/yi-large"],
+        # Default routing = :free models only (key has paid credits — real
+        # money; model_catalog allow_pattern ':free$' gates selection).
+        default_model="meta-llama/llama-3.3-70b-instruct:free",
+        models=[
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "nvidia/nemotron-3-super-120b-a12b:free",
+            "nousresearch/hermes-3-llama-3.1-405b:free",
+            "openai/gpt-oss-120b:free", "openai/gpt-oss-20b:free",
+            "qwen/qwen3-coder:free", "cohere/north-mini-code:free",
+            "poolside/laguna-m.1:free", "poolside/laguna-xs.2:free",
+            "qwen/qwen3-next-80b-a3b-instruct:free",
+            "google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free",
+            "nvidia/nemotron-3-nano-30b-a3b:free",
+            "nvidia/nemotron-nano-12b-v2-vl:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+            "nvidia/nemotron-nano-9b-v2:free",
+            "nvidia/nemotron-3.5-content-safety:free",
+            "meta-llama/llama-3.2-3b-instruct:free",
+            "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+            "liquid/lfm-2.5-1.2b-instruct:free", "liquid/lfm-2.5-1.2b-thinking:free",
+        ],
         context_window=200_000,
-        pricing_per_1m={"input":0.0,"output":0.0},    # varies per model
-        notes="Access 300+ models with one API key. Useful for model fallback chains.",
+        pricing_per_1m={"input":0.0,"output":0.0},    # :free models
+        notes="22 :free models on owner key (probed 2026-07-02; ~1000 req/day, 20/min). "
+              "Paid catalog reachable but kept out of default routing.",
     ),
 
     # ── Together AI ───────────────────────────────────────────────────────────
