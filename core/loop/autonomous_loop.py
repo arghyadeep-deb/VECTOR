@@ -1465,6 +1465,18 @@ class AutonomousLoop:
                 })
                 _sq.mark_surfaced(_item["id"])
                 logger.info("[VECTOR][reflect] hypothesis surfaced: {}", _item["hypothesis"][:80])
+                # Feed the proactive-speech stream: the voice duplex speaks
+                # nudges (its own quiet-hours/DND/priority gates apply) and
+                # the HUD polls nudge.latest — insights no longer die in the log.
+                try:
+                    from core.loop.nudge_engine import nudge_engine
+                    nudge_engine.push(
+                        text=str(_item["hypothesis"])[:280],
+                        source="hypothesis",
+                        priority=float(_item.get("confidence", 0.7)),
+                    )
+                except Exception as _ng_err:
+                    logger.debug("[VECTOR][reflect] hypothesis nudge push skipped: {}", _ng_err)
             _sq.close()
         except Exception as _sq_err:
             logger.debug("[VECTOR][reflect] SuggestionQueue drain suppressed: {}", _sq_err)
