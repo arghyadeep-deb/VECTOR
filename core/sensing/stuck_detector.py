@@ -157,7 +157,7 @@ class StuckDetector:
         # signature -> {"first": ts, "count": n, "error_lines": [...]}
         self._streaks: dict[str, dict] = {}
         self._nudged_at: dict[str, float] = {}   # per-signature cooldown
-        self._last_nudge = 0.0                   # global cooldown (half of per-sig)
+        self._last_nudge: float | None = None    # global cooldown (half of per-sig)
 
     def feed(self, raw_text: str, activity: str = "") -> dict | None:
         """One OCR sample in → stuck event dict, or None."""
