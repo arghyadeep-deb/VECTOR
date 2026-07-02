@@ -157,6 +157,22 @@ def classify_intent_llm(text: str) -> str | None:
             num_predict=32,
         ).strip()
         if not result:
+            # Local unavailable (Ollama down, or GPU busy with the owner's
+            # coding model) → cloud keys via provider_client. route_policy
+            # still applies its sensitivity gate; skipped under pytest so
+            # mocked-Ollama tests stay deterministic and offline.
+            if "pytest" not in sys.modules:
+                try:
+                    from core.inference.provider_client import get_client
+                    _res = get_client().complete_sync(
+                        prompt, tier="fast", temperature=0.0, max_tokens=32,
+                        caller_id="voice_intent")
+                    result = (_res.content or "").strip()
+                    if result:
+                        logger.info(f"[VECTOR][realtime] intent gate served by cloud ({_res.provider})")
+                except Exception as _cf_err:
+                    logger.debug(f"[VECTOR][realtime] cloud intent fallback failed: {_cf_err}")
+        if not result:
             return None
         # Robust extraction — persona may prefix ("Sir, ACTION: ...").
         first_line = result.splitlines()[0].strip()
