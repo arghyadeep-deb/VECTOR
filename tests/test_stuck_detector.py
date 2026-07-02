@@ -100,11 +100,11 @@ def test_cooldown_prevents_nagging(det, clock):
     # Still erroring right after the nudge — silence during cooldown.
     for _ in range(5):
         assert _tick(clock, det, ERR) is None
-    # After the 10-min cooldown the SAME error may nudge again.
+    # After the 10-min cooldown the SAME error may nudge again (fires on the
+    # first post-cooldown sample; later samples re-enter cooldown).
     clock["now"] += 10 * 60
-    for _ in range(3):
-        evt2 = _tick(clock, det, ERR)
-    assert evt2 is not None
+    events = [_tick(clock, det, ERR) for _ in range(3)]
+    assert any(e is not None for e in events)
 
 
 def test_no_trigger_on_clean_text(det, clock):
