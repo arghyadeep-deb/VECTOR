@@ -108,15 +108,31 @@ def classify_intent(text: str) -> str | None:
     return None
 
 
+# Cheap prefilter for the LLM intent gate: only utterances containing an
+# imperative-ish verb are worth an LLM round-trip. Pure conversation
+# ("good morning", "how are you") skips the gate — zero added latency.
+_ACTION_VERB_HINTS = frozenset(
+    "run execute make create generate build check scan search find get fetch "
+    "send schedule remind monitor watch track report fix write code deploy "
+    "update upload download start stop open close analyze analyse summarize "
+    "summarise research investigate review audit test commit push publish "
+    "record translate convert install delete rename backup sync mine".split()
+)
+
+
 def classify_intent_llm(text: str) -> str | None:
     """LLM chat-vs-action fallback when the regex patterns miss.
 
-    Asks the ambient model (resident, fast) whether the utterance is a command.
+    Asks vector-focus (permanent VRAM — no model thrash with
+    OLLAMA_MAX_LOADED_MODELS=1) whether the utterance is a command.
     Returns a short natural-language task type — Governor.route_task() accepts
     natural language (keyword map + its own LLM district classifier) — or None
     for conversation / any failure. Gated by CONFIG voice.llm_intent_fallback.
     """
     try:
+        words = set(re.findall(r"[a-z']+", text.lower()))
+        if not words & _ACTION_VERB_HINTS:
+            return None
         from core.config import CONFIG
         voice_cfg = CONFIG.get("voice", {})
         if not voice_cfg.get("llm_intent_fallback", True):
