@@ -312,6 +312,13 @@ class ProviderClient:
                         target_model,
                         latency_ms=(time.perf_counter() - _started) * 1000,
                     )
+                # Empty content without tool calls = a dud (reasoning models
+                # that burn max_tokens on hidden thinking: cerebras gpt-oss,
+                # ollama thinking models). Treat as failure → next provider.
+                if not (result.content or "").strip() and not tools:
+                    last_error = f"{_prov.slug}:{target_model} returned empty content"
+                    logger.warning("[VECTOR][provider_client] {} — trying next provider", last_error)
+                    continue
                 # -- Consistency enforcement -----------------------------------
                 if _personality_layer is not None and result.content:
                     try:
