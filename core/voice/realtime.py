@@ -157,15 +157,29 @@ def classify_intent_llm(text: str) -> str | None:
         result = ""
         if "pytest" not in sys.modules:
             try:
+                import concurrent.futures as _cf
                 from core.inference.provider_client import get_client
-                _res = get_client().complete_sync(
-                    prompt, tier="fast", temperature=0.0, max_tokens=32,
-                    caller_id="voice_intent")
-                result = (_res.content or "").strip()
-                if result:
-                    logger.debug(f"[VECTOR][realtime] intent gate served by {_res.provider}")
+
+                def _cloud():
+                    return get_client().complete_sync(
+                        prompt, tier="fast", temperature=0.0, max_tokens=32,
+                        caller_id="voice_intent")
+
+                # Hard budget: a failing-provider cascade (cooldowns, retries)
+                # must not stall the voice loop — abandon cloud and go local.
+                # No `with` block: executor shutdown would join the abandoned
+                # thread and block for the full cascade anyway.
+                _ex = _cf.ThreadPoolExecutor(max_workers=1)
+                try:
+                    _res = _ex.submit(_cloud).result(
+                        timeout=float(voice_cfg.get("llm_intent_cloud_budget_sec", 8.0)))
+                    result = (_res.content or "").strip()
+                    if result:
+                        logger.debug(f"[VECTOR][realtime] intent gate served by {_res.provider}")
+                finally:
+                    _ex.shutdown(wait=False, cancel_futures=True)
             except Exception as _cf_err:
-                logger.debug(f"[VECTOR][realtime] cloud intent gate failed: {_cf_err}")
+                logger.debug(f"[VECTOR][realtime] cloud intent gate failed/over budget: {_cf_err}")
         if not result:
             result = chat(
                 model=CONFIG["models"]["focus"],
