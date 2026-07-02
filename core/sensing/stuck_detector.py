@@ -185,9 +185,10 @@ class StuckDetector:
                 return None
 
             # Cooldowns — per signature, plus a global half-cooldown.
-            if now - self._nudged_at.get(sig, 0.0) < self.cooldown_min * 60:
+            _sig_at = self._nudged_at.get(sig)
+            if _sig_at is not None and now - _sig_at < self.cooldown_min * 60:
                 return None
-            if now - self._last_nudge < (self.cooldown_min / 2) * 60:
+            if self._last_nudge is not None and now - self._last_nudge < (self.cooldown_min / 2) * 60:
                 return None
 
             self._nudged_at[sig] = now
