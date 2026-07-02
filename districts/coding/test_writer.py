@@ -315,6 +315,7 @@ Return pytest code only, no explanations.
             async def _call():
                 r = await _PC().chat(
                     messages=[{"role": "user", "content": prompt}],
+                    model="domain:coding.generation",
                     tier="coding", temperature=0.3, max_tokens=600,
                     caller_id="test_writer",
                 )
