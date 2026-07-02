@@ -97,7 +97,8 @@ class PermissionGateway:
             # Trust ladder — this action earned auto-execution through N
             # consecutive explicit owner approvals with zero bad outcomes.
             _trust = self._get_trust()
-            if _trust is not None and _trust.is_promoted(action.action_type):
+            if (_trust is not None and self._trust_recording_active()
+                    and _trust.is_promoted(action.action_type)):
                 exec_result = await self._execute_action(action)
                 _failed = exec_result.get("status") == "error" or "error" in exec_result
                 if _failed:
