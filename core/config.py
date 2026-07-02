@@ -192,7 +192,7 @@ class VoiceConfig(BaseModel):
     # LLM chat-vs-action fallback when the regex intent patterns miss.
     # Uses the ambient model (resident, fast); adds <~1s before chat streaming starts.
     llm_intent_fallback: bool = True
-    llm_intent_timeout_sec: float = Field(4.0, ge=0.5, le=30.0)
+    llm_intent_timeout_sec: float = Field(12.0, ge=0.5, le=30.0)
     # Voice cloning (voicebox absorption — chatterbox-tts optional install)
     cloning_engine: str = "chatterbox"       # "chatterbox" | "voxcpm"
     cloning_model_dir: str = str(Path(__file__).parent.parent / "models" / "chatterbox")
