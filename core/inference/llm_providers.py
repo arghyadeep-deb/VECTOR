@@ -196,11 +196,13 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         base_url="https://api.deepseek.com/v1",
         api_key_env="DEEPSEEK_API_KEY",
         driver="openai_compat",
-        default_model="deepseek-chat",
-        models=["deepseek-chat","deepseek-coder","deepseek-reasoner"],
-        context_window=64_000,
+        # deepseek-chat/reasoner DEPRECATE 2026-07-24 (docs fetched 2026-07-02)
+        default_model="deepseek-v4-flash",
+        models=["deepseek-v4-flash","deepseek-v4-pro"],
+        context_window=1_000_000,
         pricing_per_1m={"input":0.14,"output":0.28},
-        notes="Very cheap. deepseek-reasoner = R1 reasoning chain.",
+        notes="No free tier — dormant until owner tops up balance. "
+              "deepseek-v4-flash-free is available FREE via opencode_zen.",
     ),
 
     # ── Mistral AI ────────────────────────────────────────────────────────────
