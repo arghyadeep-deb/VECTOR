@@ -19,6 +19,7 @@ def _llm(prompt: str, tier: str = "agentic", max_tokens: int = 800, temperature:
     async def _call():
         r = await _PC().chat(
             messages=messages,
+            model="domain:content.script",   # caption is short-form scripting
             tier=tier, temperature=temperature, max_tokens=max_tokens,
             caller_id="caption_generator",
         )
