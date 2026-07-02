@@ -108,6 +108,51 @@ def classify_intent(text: str) -> str | None:
     return None
 
 
+def classify_intent_llm(text: str) -> str | None:
+    """LLM chat-vs-action fallback when the regex patterns miss.
+
+    Asks the ambient model (resident, fast) whether the utterance is a command.
+    Returns a short natural-language task type — Governor.route_task() accepts
+    natural language (keyword map + its own LLM district classifier) — or None
+    for conversation / any failure. Gated by CONFIG voice.llm_intent_fallback.
+    """
+    try:
+        from core.config import CONFIG
+        voice_cfg = CONFIG.get("voice", {})
+        if not voice_cfg.get("llm_intent_fallback", True):
+            return None
+        from core.inference.ollama_safe import chat
+        prompt = (
+            "You are VECTOR's voice intent gate. Decide if the utterance below is a "
+            "COMMAND asking the assistant to perform work (run, search, scan, build, "
+            "monitor, schedule, report, control something), or just conversation.\n"
+            "Reply with exactly one line:\n"
+            "CHAT\n"
+            "or\n"
+            "ACTION: <3-6 word task description>\n\n"
+            f'Utterance: "{text}"'
+        )
+        result = chat(
+            model=CONFIG["models"]["ambient"],
+            messages=[{"role": "user", "content": prompt}],
+            timeout=float(voice_cfg.get("llm_intent_timeout_sec", 4.0)),
+            temperature=0.0,
+        ).strip()
+        if not result:
+            return None
+        first_line = result.splitlines()[0].strip()
+        if first_line.upper().startswith("ACTION:"):
+            task_type = first_line[len("ACTION:"):].strip().strip('."')
+            # Sanity clamp — a task type is a short phrase, not an essay.
+            if 0 < len(task_type) <= 80:
+                logger.info(f"[VECTOR][realtime] LLM intent: ACTION '{task_type}' <- {text[:60]!r}")
+                return task_type
+        return None
+    except Exception as e:
+        logger.warning(f"[VECTOR][realtime] LLM intent fallback failed (treating as chat): {e}")
+        return None
+
+
 def _in_quiet_hours(now_minutes: int, spec: str) -> bool:
     """spec '23:30-07:00' (may wrap midnight). Empty spec -> never quiet."""
     try:
