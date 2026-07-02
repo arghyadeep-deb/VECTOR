@@ -2111,7 +2111,7 @@ class AutonomousLoop:
                             screen_summary = (
                                 f"[owner-coding:{_vc_session.get('project', '?')}] "
                                 + screen_summary)
-                        if _vc_session is not None or activity in ("coding", "terminal"):
+                        if _vc_session is not None or activity == "coding":
                             _stuck = get_stuck_detector().feed(
                                 obs_result.get("raw_text", snippet), activity)
                             if _stuck:
