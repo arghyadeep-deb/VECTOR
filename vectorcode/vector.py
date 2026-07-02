@@ -19,4 +19,23 @@ _spec.loader.exec_module(_mod)
 main = _mod.main
 
 if __name__ == "__main__":
-    main()
+    # Coding-session marker: tells a running VECTOR instance the owner is
+    # actively coding in this terminal (project = os.getcwd()). VECTOR then
+    # defers its heavy LLM ticks (shared single-model GPU) and arms proactive
+    # stuck detection. Best-effort — never blocks or breaks the CLI.
+    _clear_marker = None
+    try:
+        sys.path.insert(0, str(Path(__file__).parent.parent))
+        from core.sensing.stuck_detector import write_session_marker, clear_session_marker
+        write_session_marker()
+        _clear_marker = clear_session_marker
+    except Exception:
+        logger.debug("[VECTOR] session marker unavailable", exc_info=True)
+    try:
+        main()
+    finally:
+        try:
+            if _clear_marker:
+                _clear_marker()
+        except Exception:
+            logger.debug("[VECTOR] suppressed exception", exc_info=True)
