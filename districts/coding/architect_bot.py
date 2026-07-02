@@ -181,6 +181,7 @@ class ArchitectBot(AgentBase):
             from core.inference.provider_client import ProviderClient as _PC
             _result = await _PC().chat(
                 messages=[{"role": "system", "content": _sys}, {"role": "user", "content": prompt}],
+                model="domain:coding.architecture",   # o3 → glm-4.7 → gpt-5 → ... → ollama
                 tier="coding",
                 temperature=0.4,
                 max_tokens=200,
