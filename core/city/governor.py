@@ -830,11 +830,17 @@ class Governor:
             elif _gov_lib:
                 messages.append({"role": "system", "content": _gov_lib})
             messages.append({"role": "user", "content": prompt})
-            # focus, not ambient: vector-ambient's modelfile forces JSON-only
-            # output, so it can never produce a bare district name — the
-            # validation below always failed and every unknown task fell
-            # through to "research". focus follows plain instructions and is
-            # the resident model (no VRAM thrash with MAX_LOADED=1).
+            # Cloud primary, Ollama fallback (owner policy 2026-07-02).
+            # route_policy still forces secret-looking prompts local-only;
+            # pytest stays local/mocked — no network in tests.
+            if "pytest" not in sys.modules:
+                cloud_result = self._cloud_classify(prompt, districts)
+                if cloud_result:
+                    logger.info(f"[VECTOR][governor] cloud classified '{task_type}' -> {cloud_result}")
+                    return cloud_result
+            # Local fallback — focus, not ambient: vector-ambient's modelfile
+            # forces JSON-only output, so it can never produce a bare district
+            # name (validation always failed → everything fell to "research").
             # think=False + num_predict cap: one-word answer, no hidden
             # reasoning tokens (~7s → ~2s).
             result = chat(
@@ -848,14 +854,6 @@ class Governor:
             if result in districts:
                 logger.info(f"[VECTOR][governor] LLM classified '{task_type}' -> {result}")
                 return result
-            # Local gave nothing usable → cloud keys via provider_client
-            # (route_policy sensitivity gate still applies). Skipped under
-            # pytest so mocked-Ollama tests stay deterministic and offline.
-            if "pytest" not in sys.modules:
-                cloud_result = self._cloud_classify(prompt, districts)
-                if cloud_result:
-                    logger.info(f"[VECTOR][governor] cloud classified '{task_type}' -> {cloud_result}")
-                    return cloud_result
         except Exception as e:
             logger.warning(f"[VECTOR][governor] LLM classify failed: {e}")
         logger.warning(f"[VECTOR][governor] unknown task '{task_type}' -> defaulting to research")
