@@ -830,10 +830,15 @@ class Governor:
             elif _gov_lib:
                 messages.append({"role": "system", "content": _gov_lib})
             messages.append({"role": "user", "content": prompt})
+            # focus, not ambient: vector-ambient's modelfile forces JSON-only
+            # output, so it can never produce a bare district name — the
+            # validation below always failed and every unknown task fell
+            # through to "research". focus follows plain instructions and is
+            # the resident model (no VRAM thrash with MAX_LOADED=1).
             result = chat(
-                model=CONFIG["models"]["ambient"],
+                model=CONFIG["models"]["focus"],
                 messages=messages,
-                timeout=5.0,
+                timeout=12.0,
             ).strip().lower()
             # Validate the response is a known district
             if result in districts:
