@@ -85,6 +85,7 @@ class PythonReviewer(AgentBase):
             prompt = self._build_prompt(code, filename, context, static_issues, hydration)
             result = await client.complete(
                 prompt=prompt,
+                model="domain:coding.review",
                 tier="coding",
                 max_tokens=1200,
             )
