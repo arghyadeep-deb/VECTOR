@@ -7,6 +7,9 @@ Endpoints:
   GET  /gateway/pending          — list all actions awaiting owner decision
   POST /gateway/approve/{id}     — approve a pending action
   POST /gateway/reject/{id}      — reject (block) a pending action
+  GET  /gateway/trust                     — trust-ladder state per action type
+  POST /gateway/trust/{action}/promote    — manually grant auto-execution
+  POST /gateway/trust/{action}/demote     — revoke auto-execution
 """
 
 import sys
