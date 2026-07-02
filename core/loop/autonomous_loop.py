@@ -669,6 +669,22 @@ class AutonomousLoop:
         from core.loop.decision_engine import Candidate
         _perf_ctx = timed_ctx("think_tick")
 
+        # Owner-coding backoff: while a vectorcode CLI session is live, skip
+        # 2 of 3 think ticks. One GPU + OLLAMA_MAX_LOADED_MODELS=1 — VECTOR's
+        # LLM calls would keep evicting the owner's coding model. Voice
+        # intents still process every tick (checked below before any LLM use).
+        try:
+            if (CONFIG.get("sensing", {}).get("defer_llm_while_owner_codes", True)
+                    and not getattr(self, "_pending_voice", None)):
+                from core.sensing.stuck_detector import get_active_session
+                if get_active_session() is not None:
+                    self._owner_code_skip = getattr(self, "_owner_code_skip", 0) + 1
+                    if self._owner_code_skip % 3:
+                        logger.debug("[VECTOR][think] owner coding session live — tick deferred")
+                        return
+        except Exception as _oc_err:
+            logger.debug("[VECTOR][think] owner-coding check skipped: {}", _oc_err)
+
         # Voice intent takes priority — act immediately, skip goal evaluation this tick
         pending = getattr(self, "_pending_voice", None)
         if pending:
