@@ -20,8 +20,19 @@ __all__ = ["KeyPool", "get_pool", "reset_pools"]
 import os
 import threading
 import time
+from pathlib import Path
 
 from loguru import logger
+
+# Keys may live only in the repo .env — pydantic reads that file for CONFIG
+# but never exports to os.environ, so providers saw system-wide keys (e.g.
+# GROQ_API_KEY) while .env-only keys (e.g. GEMINI_API_KEY) were invisible.
+# load_dotenv fills the gap; existing os.environ values are never overridden.
+try:
+    from dotenv import load_dotenv
+    load_dotenv(Path(__file__).parent.parent.parent / ".env")
+except Exception:
+    logger.debug("[VECTOR][key_pool] .env preload skipped", exc_info=True)
 
 
 class KeyPool:
