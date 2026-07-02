@@ -617,6 +617,26 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         notes="Z.ai GLM API. FREE flash models only (hard whitelist) — glm-4.5/5.2 are paid.",
     ),
 
+    # ── OpenCode Zen (added 2026-07-02, all 5 free models verified live) ─────
+    LLMProvider(
+        slug="opencode_zen",
+        name="OpenCode Zen",
+        base_url="https://opencode.ai/zen/v1",
+        api_key_env="OPENCODE_API_KEY",
+        driver="openai_compat",
+        default_model="deepseek-v4-flash-free",
+        models=["deepseek-v4-flash-free", "big-pickle", "mimo-v2.5-free",
+                "north-mini-code-free", "nemotron-3-ultra-free"],
+        # The same key serves PAID models (claude-fable-5, gpt-5.5, ...) and
+        # the owner's card is on file — selection must NEVER fall through.
+        locked_models=True,
+        context_window=256_000,
+        pricing_per_1m={"input":0.0,"output":0.0},
+        notes="5 free models ONLY (hard whitelist — owner card on file; paid catalog "
+              "reachable by the same key). Free models log prompts; 'limited time'. "
+              "big-pickle is thinking-mode: give generous max_tokens.",
+    ),
+
 ]}
 
 # ── Routing helpers ────────────────────────────────────────────────────────────
