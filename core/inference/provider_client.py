@@ -44,6 +44,32 @@ from core.inference.llm_providers import (
 )
 
 
+def _is_local_model_name(model: str) -> bool:
+    """True for Ollama-local model names (vector-* customs, ollama tag syntax,
+    or anything registered in CONFIG['models']). Cloud providers 404 on these —
+    they must use their own default_model instead."""
+    if not model:
+        return False
+    if model.startswith("vector-"):
+        return True
+    try:
+        from core.config import CONFIG
+        if model in set(CONFIG.get("models", {}).values()):
+            return True
+    except Exception:
+        pass
+    return ":" in model and "/" not in model  # ollama tag, e.g. qwen3:14b
+
+
+def _model_for_provider(prov, model: str | None) -> str:
+    """Requested model if this provider can serve it; else the provider's own
+    default. Fixes cloud calls being sent local names like 'vector-focus'
+    (Groq/GitHub 404) whenever ModelRouter resolved a tier to a local model."""
+    if model and (prov.slug == "ollama" or not _is_local_model_name(model)):
+        return model
+    return prov.default_model
+
+
 @dataclass
 class CompletionResult:
     content: str
