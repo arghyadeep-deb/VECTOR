@@ -427,11 +427,12 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         api_key_env="CEREBRAS_API_KEY",
         driver="openai_compat",
         default_model="gpt-oss-120b",
-        models=["gpt-oss-120b", "zai-glm-4.7"],
-        context_window=128_000,
-        rate_limit_rpm=60,
+        models=["gpt-oss-120b", "zai-glm-4.7", "gemma-4-31b"],
+        context_window=65_536,
+        rate_limit_rpm=5,   # owner console: 5 req/min, 1M tokens/day per model
         pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Free. Confirmed 2026-06-18. gpt-oss-120b (120B) + zai-glm-4.7 (GLM). Ultra-fast Cerebras silicon.",
+        notes="Free. Owner quotas 2026-07-02: 5rpm/150rph/2400rpd + 1M tok/day per model. "
+              "gpt-oss-120b ~3000 tok/s (fastest in fleet); zai-glm-4.7 = 355B frontier.",
     ),
 
     # ── SambaNova ─────────────────────────────────────────────────────────────
