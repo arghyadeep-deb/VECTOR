@@ -52,21 +52,28 @@ YOUR build sessions     → Claude Sonnet 4.6 via Pro plan chat (unlimited)
 YOUR complex planning   → Claude Opus 4.6 via Pro plan chat
 ```
 
-## VECTOR Runtime Rule (Phase 3 Update)
+## VECTOR Runtime Rule (updated 2026-07-02 — owner decision)
 ```
-Ollama is PRIMARY — always tried first (free, local, private, 0 latency overhead).
-Cloud providers via API keys are ALLOWED as:
-  - Explicit fallback when Ollama unavailable
-  - Tasks requiring cloud-grade models (vision, 200K context, ultra-reasoning)
-  - Content creation (ElevenLabs, image generation)
-  - Build sessions (Claude Sonnet/Opus via Pro plan chat, unlimited)
+CLOUD API KEYS are PRIMARY — Ollama is the FALLBACK.
+route_policy.decide_route() orders providers per call:
+  - simple/medium  → load-balanced pooled cloud keys, then ollama
+  - heavy          → premium cloud (anthropic/openai/deepseek), then ollama
+  - SENSITIVE      → local ONLY, always (security/privacy districts, RED tier,
+                     secret-looking prompts) — this gate is non-negotiable
+  - cloud budget exhausted (budget_gate) → automatic ollama-only
+
+Local stays primary ONLY where it must:
+  - voice conversation streaming (sentence-TTS needs token streaming)
+  - anything matching the sensitivity gate above
 
 Set API keys in .env to activate cloud providers:
   ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY, GROQ_API_KEY,
   DEEPSEEK_API_KEY, OPENROUTER_API_KEY, MISTRAL_API_KEY, etc.
+  (.env is auto-loaded by core/inference/key_pool.py — keys do NOT need
+  to be system-wide env vars.)
 
-Use core/inference/provider_client.py for all LLM calls — it routes
-Ollama first, then configured cloud providers, with automatic fallback.
+Use core/inference/provider_client.py for all LLM calls — never raw httpx,
+and prefer it over direct ollama_safe unless latency/streaming demands local.
 Budget tracked per-agent via core/metering/budget_meter.py.
 ```
 
