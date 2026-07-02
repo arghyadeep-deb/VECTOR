@@ -451,6 +451,10 @@ class VectorSettings(BaseSettings):
         env_file=_BASE_DIR / ".env",
         extra="ignore",
         case_sensitive=False,
+        # Nested overrides from .env, e.g. SENSING__SCREEN_ENABLED=true or
+        # VOICE__LLM_INTENT_FALLBACK=false. Only vars containing "__" are
+        # affected — flat keys (ANTHROPIC_API_KEY, ...) behave exactly as before.
+        env_nested_delimiter="__",
     )
 
     def _mapping_value(self, key: str, default=None):
