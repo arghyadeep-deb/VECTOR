@@ -116,6 +116,60 @@ async def reject_action_get(action_id: str, request: Request):
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+# ── Trust ladder (earned autonomy) ──────────────────────────────────────────
+
+def _get_trust():
+    from core.loop.trust_ladder import get_trust_ladder
+    return get_trust_ladder()
+
+
+@router.get("/trust")
+async def trust_status():
+    """Trust-ladder state per action type: streaks, promotions, auto-exec counts."""
+    try:
+        ladder = _get_trust()
+        rows = ladder.status()
+        return {
+            "actions": rows,
+            "promoted_count": sum(1 for r in rows if r.get("promoted")),
+            "recent": ladder.recent_changes(days=7),
+        }
+    except Exception as e:
+        logger.error("[VECTOR][api][gateway] trust status failed: {}", e)
+        return {"actions": [], "promoted_count": 0, "error": "Internal server error"}
+
+
+@router.post("/trust/{action_type}/promote")
+async def trust_promote(action_type: str, request: Request):
+    """Manually grant auto-execution to a YELLOW action type (owner override).
+    RED/FORBIDDEN actions never participate — the gateway ignores trust for them."""
+    try:
+        gw = _get_gw(request)
+        tier = gw.classify(action_type) if hasattr(gw, "classify") else "UNKNOWN"
+        if tier != "YELLOW":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Only YELLOW actions can be promoted (this is {tier})")
+        _get_trust().promote(action_type)
+        return {"status": "promoted", "action_type": action_type}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[VECTOR][api][gateway] trust promote failed for {}: {}", action_type, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/trust/{action_type}/demote")
+async def trust_demote(action_type: str):
+    """Revoke auto-execution — action returns to owner-gated YELLOW flow."""
+    try:
+        _get_trust().demote(action_type, "owner via API")
+        return {"status": "demoted", "action_type": action_type}
+    except Exception as e:
+        logger.error("[VECTOR][api][gateway] trust demote failed for {}: {}", action_type, e)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     print("OK: gateway.py router")
