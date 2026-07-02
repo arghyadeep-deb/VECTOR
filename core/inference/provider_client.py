@@ -357,6 +357,17 @@ class ProviderClient:
                         target_model,
                         latency_ms=(time.perf_counter() - _started) * 1000,
                     )
+                # Quota ledger — record BEFORE the empty-content dud check:
+                # empty responses still burned tokens/requests upstream.
+                try:
+                    from core.inference.quota_ledger import get_quota_ledger
+                    if _prov.slug not in ("ollama", "lmstudio", "vllm"):
+                        _est = (result.input_tokens + result.output_tokens) or (
+                            sum(len(m.get("content") or "") for m in messages) // 4
+                            + max_tokens // 2)
+                        get_quota_ledger().record(_prov.slug, target_model, tokens=_est)
+                except Exception:
+                    pass
                 # Empty content without tool calls = a dud (reasoning models
                 # that burn max_tokens on hidden thinking: cerebras gpt-oss,
                 # ollama thinking models). Treat as failure → next provider.
