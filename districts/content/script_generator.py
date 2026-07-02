@@ -18,6 +18,7 @@ def _llm(prompt: str, max_tokens: int = 1500, temperature: float = 0.88) -> str:
     async def _call():
         r = await _PC().chat(
             messages=messages,
+            model="domain:content.script",   # gpt-5 → glm-4.7 → llama-3.3 → ... → ollama
             tier="agentic", temperature=temperature, max_tokens=max_tokens,
             caller_id="script_generator",
         )
