@@ -54,6 +54,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
         ("openrouter", "deepseek/deepseek-v4-pro"),
     ],
     "deepseek-v4-flash": [
+        ("opencode_zen", "deepseek-v4-flash-free"),           # FREE, unlimited (verified 2026-07-02)
         ("nvidia",     "deepseek/deepseek-v4-flash"),
         ("deepseek",   "deepseek-v4-flash"),
         ("cloudflare", "@cf/deepseek/deepseek-v4-flash"),
