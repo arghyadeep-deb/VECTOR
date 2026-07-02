@@ -2240,13 +2240,12 @@ class AutonomousLoop:
                 )
                 advice = await asyncio.to_thread(
                     chat,
-                    CONFIG["models"]["focus"],
-                    [{"role": "user", "content": prompt}],
-                    30.0,           # timeout
-                    None,           # keep_alive default
-                    0.3,            # temperature
-                    False,          # think — one-shot advice, no hidden reasoning
-                    180,            # num_predict
+                    model=CONFIG["models"]["focus"],
+                    messages=[{"role": "user", "content": prompt}],
+                    timeout=30.0,
+                    temperature=0.3,
+                    think=False,       # one-shot advice, no hidden reasoning
+                    num_predict=180,
                 )
                 advice = (advice or "").strip()
             except Exception as _llm_err:
