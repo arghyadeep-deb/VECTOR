@@ -175,8 +175,8 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
 
     # ── Mistral / Codestral ───────────────────────────────────────────────────
     "mistral-small": [
-        ("llm7",     "mistral-small-3.2"),                    # FREE on LLM7
-        ("mistral",  "mistral-small-latest"),
+        ("mistral",  "mistral-small-2506"),                   # 2.25M TPM / 5 RPS free
+        ("llm7",     "deepseek-v4-flash"),                    # mistral-small-3.2 vanished from LLM7
     ],
     "codestral": [
         ("llm7",     "codestral-latest"),                     # FREE on LLM7
