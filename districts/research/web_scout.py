@@ -249,6 +249,7 @@ class WebScout(AgentBase):
                 _sys = _gl().get_for_agent("web_scout") or hydration
                 summary = chat(
                     model=CONFIG["models"]["reasoning"],
+                    domain="research",   # glm-4.7 → gemini-2.5-pro → o4-mini → ollama
                     messages=[
                         {"role": "system", "content": _sys},
                         {
