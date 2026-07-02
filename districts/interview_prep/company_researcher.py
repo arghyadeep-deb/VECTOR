@@ -16,6 +16,7 @@ def _llm(prompt: str, max_tokens: int = 1000, temperature: float = 0.6) -> str:
     async def _call():
         r = await _PC().chat(
             messages=[{"role": "user", "content": prompt}],
+            model="domain:research",   # glm-4.7 → gemini-2.5-pro → o4-mini → ollama
             tier="reasoning", temperature=temperature, max_tokens=max_tokens,
             caller_id="company_researcher",
         )
