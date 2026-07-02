@@ -503,6 +503,11 @@ class RealtimeConversation:
 
         # 2. Phase 4 — action handoff to governor (RULE 3: gateway untouched)
         task_type = classify_intent(text)
+        if task_type is None:
+            # Regex miss → LLM chat-vs-action gate (ambient model, off-thread so
+            # the event loop keeps streaming). Governor.route_task() handles the
+            # natural-language task type it returns.
+            task_type = await asyncio.to_thread(classify_intent_llm, text)
         if task_type and not self._speaker_owner:
             refusal = ("Voice not recognized — action commands are owner-only. "
                        "We can still chat.")
