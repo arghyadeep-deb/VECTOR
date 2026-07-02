@@ -155,6 +155,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
 
     # ── Cohere North Mini Code ────────────────────────────────────────────────
     "north-mini-code": [
+        ("opencode_zen", "north-mini-code-free"),             # FREE, unlimited (verified 2026-07-02)
         ("openrouter", "cohere/north-mini-code:free"),        # FREE on OpenRouter
         ("cohere",     "command-a-03-2025"),
     ],
