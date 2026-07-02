@@ -61,13 +61,45 @@ def _is_local_model_name(model: str) -> bool:
     return ":" in model and "/" not in model  # ollama tag, e.g. qwen3:14b
 
 
-def _model_for_provider(prov, model: str | None) -> str:
-    """Requested model if this provider can serve it; else the provider's own
-    default. Fixes cloud calls being sent local names like 'vector-focus'
-    (Groq/GitHub 404) whenever ModelRouter resolved a tier to a local model."""
+def _model_for_provider(prov, model: str | None, tier: str = "agentic") -> str:
+    """Model this provider should serve for this call.
+
+    Order: (1) requested cloud-servable model passes through verbatim;
+    (2) local name / no model → the provider's best catalog model FOR THIS
+    TIER (e.g. coding + cloudflare → kimi-k2.7-code, not the generic default);
+    (3) default_model. The result always goes through the whitelist clamp —
+    locked providers (opencode_zen, zai) can never emit a paid model."""
+    candidate: str | None = None
     if model and (prov.slug == "ollama" or not _is_local_model_name(model)):
-        return model
-    return prov.default_model
+        candidate = model
+    if candidate is None and prov.slug != "ollama":
+        try:
+            from core.inference.model_catalog import select_model
+            candidate = select_model(prov.slug, tier)
+        except Exception:
+            candidate = None
+    if candidate is None:
+        candidate = model if (model and prov.slug == "ollama") else prov.default_model
+    return _enforce_whitelist(prov, candidate, tier)
+
+
+def _enforce_whitelist(prov, model_id: str, tier: str = "agentic") -> str:
+    """HARD guardrail: locked providers never emit a non-whitelisted model —
+    the opencode_zen/zai keys can reach PAID models and the owner's card is
+    on file. Clamp to the catalog's best-for-tier (whitelisted by
+    construction) or default_model, and warn loudly."""
+    if not getattr(prov, "locked_models", False) or model_id in prov.models:
+        return model_id
+    try:
+        from core.inference.model_catalog import select_model
+        clamped = select_model(prov.slug, tier) or prov.default_model
+    except Exception:
+        clamped = prov.default_model
+    if clamped not in prov.models:      # belt and suspenders
+        clamped = prov.default_model
+    logger.warning("[VECTOR][provider_client] {} model '{}' not in whitelist — clamped to '{}'",
+                   prov.slug, model_id, clamped)
+    return clamped
 
 
 @dataclass
