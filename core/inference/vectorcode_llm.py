@@ -35,6 +35,7 @@ __all__ = [
 
 import asyncio
 import os
+import sys
 import time
 import threading
 from dataclasses import dataclass
