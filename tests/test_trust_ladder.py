@@ -168,13 +168,14 @@ async def test_disabled_ladder_restores_old_behavior(gateway_with_ladder, monkey
     assert result.reason != "Auto-executed (trust ladder)"
 
 
-async def _when_pending(gw, action_type: str, fn, tries: int = 500):
+async def _when_pending(gw, action_type: str, fn, tries: int = 5000):
     """Poll until the gateway registers the pending event, then act on it.
-    (The event only exists once _wait_for_confirmation starts.)"""
+    (The event only exists once _wait_for_confirmation starts; the notify
+    call before it may spend real wall time, so poll on the clock.)"""
     for _ in range(tries):
         if action_type in gw._pending_events:
             return fn()
-        await asyncio.sleep(0)
+        await asyncio.sleep(0.001)
     raise AssertionError(f"{action_type} never became pending")
 
 
