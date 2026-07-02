@@ -77,6 +77,41 @@ and prefer it over direct ollama_safe unless latency/streaming demands local.
 Budget tracked per-agent via core/metering/budget_meter.py.
 ```
 
+## Multi-Model Catalog + Soft Quota (added 2026-07-02)
+```
+core/inference/model_catalog.yaml — OWNER-EDITABLE catalog of every provider's
+FREE models + free-tier limits + capability tiers. Edit it to add/remove
+models or fix limits; NO code change needed (core/inference/model_catalog.py
+reloads it; hardcoded fallback keeps the guardrails if PyYAML is missing).
+
+Per-provider-per-tier model selection: when a tier hits a provider, the
+catalog picks that provider's BEST model for the tier (rank 1) — e.g. coding
+tier + cloudflare → Kimi K2.7 Code, not the generic default. Requested-model
+passthrough and model_pool logical aliases still work.
+
+Soft daily quota (core/inference/quota_ledger.py →
+~/.vector_ca/metering/provider_quota.json): tracks approx per-provider/model
+usage per UTC day. At >= 90% of any free-tier limit the provider/model is
+DEPRIORITIZED (moved after fresh cloud options, before the ollama terminal) —
+never hard-blocked. Resets at UTC midnight. Groq=req/day, Cerebras=tok/day,
+Cloudflare=neurons/day, Mistral=per-minute; unknown limits = never deprioritized.
+
+HARD WHITELIST (paid-model guardrail): opencode_zen and zai keys can reach
+PAID models (owner card on file). Their LLMProvider.locked_models=True and
+provider_client._enforce_whitelist CLAMP every call to the free-model
+whitelist — a paid model is NEVER sent, even via explicit model= or a
+model_pool entry. openrouter default routing is gated to ':free' models.
+
+DOMAIN ALIGNMENT (vectorcode_llm.chat domain= / model="domain:<name>"):
+each work domain (content.script, coding.review, coding.architecture,
+orchestration, agentic.loop, research, vision, multilingual.indic, security,
+...) is a 3-4 model cloud chain + ollama terminal in model_catalog.yaml
+domains:, registered as model_pool "domain:<name>". District agents pass
+domain= (or a local role that maps to one via _ROLE_TO_DOMAIN). security
+domain is local_only. Kill-switch: VECTOR_DOMAIN_ROUTING=0. Never crashes —
+every chain terminates on ollama.
+```
+
 ## Custom LLM Plan (OpenMythos RDT)
 ```
 Week 7-8:  nanoGPT on your data (learning exercise)
