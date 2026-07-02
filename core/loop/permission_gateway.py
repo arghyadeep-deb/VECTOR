@@ -49,6 +49,20 @@ class PermissionGateway:
         self._pending_actions: dict[str, dict] = {}
         logger.info('[VECTOR][gateway] Permission gateway initialised')
 
+    def _get_trust(self):
+        """Trust ladder (earned autonomy for YELLOW). None if disabled/unavailable —
+        the gateway must never fail because trust tracking failed (fail closed:
+        no ladder → normal owner-gated YELLOW flow)."""
+        try:
+            from core.config import CONFIG
+            if not CONFIG["permission"].get("trust_ladder_enabled", True):
+                return None
+            from core.loop.trust_ladder import get_trust_ladder
+            return get_trust_ladder()
+        except Exception as e:
+            logger.debug(f"[VECTOR][gateway] trust ladder unavailable: {e}")
+            return None
+
     async def execute(self, action: Action) -> GatewayResult:
         level = self._classify(action.action_type)
         logger.info(f'[VECTOR][gateway] {action.action_type} classified as {level} (proposed by {action.proposed_by})')
