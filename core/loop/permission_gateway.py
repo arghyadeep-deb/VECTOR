@@ -89,6 +89,27 @@ class PermissionGateway:
             return result
 
         if level == 'YELLOW':
+            # Trust ladder — this action earned auto-execution through N
+            # consecutive explicit owner approvals with zero bad outcomes.
+            _trust = self._get_trust()
+            if _trust is not None and _trust.is_promoted(action.action_type):
+                exec_result = await self._execute_action(action)
+                _failed = exec_result.get("status") == "error" or "error" in exec_result
+                if _failed:
+                    # Failure while trusted → instant demotion + loud notify.
+                    _trust.record_bad_outcome(action.action_type)
+                    await self._notify(
+                        f'VECTOR: trusted action {action.action_type} FAILED — '
+                        f'demoted back to owner approval', priority=1)
+                else:
+                    _trust.record_auto_exec(action.action_type)
+                    await self._notify(
+                        f'VECTOR executed (trusted): {action.action_type}', priority=0)
+                result = GatewayResult(True, 'YELLOW', True, exec_result,
+                                       'Auto-executed (trust ladder)')
+                self._write_audit(action, result)
+                return result
+
             yellow_auto_confirm = os.environ.get("VECTOR_YELLOW_AUTO_CONFIRM") == "1"
             yellow_notice = (
                 f'YELLOW action pending: {action.action_type} - auto-executes in 10s unless rejected'
