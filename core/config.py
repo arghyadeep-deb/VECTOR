@@ -731,6 +731,7 @@ CONFIG: dict = {
     "db_key": _secret(_s.VECTOR_DB_KEY.get_secret_value()),
     "ollama_host": _normalize_base_url(_s.OLLAMA_HOST),
     "allowed_origins": _s.ALLOWED_ORIGINS,
+    "cf_worker_url": _s.CF_WORKER_URL,
     "oauth": {
         "github_client_id": _s.OAUTH_GITHUB_CLIENT_ID,
         "github_client_secret": _secret(_s.OAUTH_GITHUB_CLIENT_SECRET.get_secret_value()),
