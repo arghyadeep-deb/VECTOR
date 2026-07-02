@@ -179,9 +179,18 @@ async def _when_pending(gw, action_type: str, fn, tries: int = 5000):
     raise AssertionError(f"{action_type} never became pending")
 
 
+def _silence_notify(gw):
+    """Pushover is an external API (mocking allowed) — and removing its wall
+    time makes the 10ms pytest YELLOW window deterministic under load."""
+    async def _noop(message, priority=0, url="", url_title=""):
+        return None
+    gw._notify = _noop
+
+
 @pytest.mark.asyncio
 async def test_explicit_approval_feeds_streak(gateway_with_ladder):
     gw, ladder = gateway_with_ladder
+    _silence_notify(gw)
     task = asyncio.create_task(
         _when_pending(gw, "set_reminder", lambda: gw.confirm_action("set_reminder")))
     result = await gw.execute(Action("set_reminder", {"text": "t"}, "pytest"))
@@ -194,6 +203,7 @@ async def test_explicit_approval_feeds_streak(gateway_with_ladder):
 @pytest.mark.asyncio
 async def test_explicit_rejection_feeds_ladder(gateway_with_ladder):
     gw, ladder = gateway_with_ladder
+    _silence_notify(gw)
     task = asyncio.create_task(
         _when_pending(gw, "set_reminder", lambda: gw.reject("set_reminder")))
     result = await gw.execute(Action("set_reminder", {"text": "t"}, "pytest"))
