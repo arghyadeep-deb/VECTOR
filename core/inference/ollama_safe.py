@@ -158,6 +158,8 @@ def chat(
     timeout: float = 8.0,
     keep_alive: str | None = None,
     temperature: float = 0.7,
+    think: bool | None = None,
+    num_predict: int | None = None,
 ) -> str:
     """Return Ollama chat text, or empty string on failure/timeout.
 
@@ -168,6 +170,10 @@ def chat(
         keep_alive: how long to keep the model resident after the call.
                     Defaults to DEFAULT_KEEP_ALIVE ("30m"); set to "-1" to
                     pin forever, or "0" to unload immediately after the call.
+        think: None = model default. False disables thinking-mode reasoning —
+               essential for short classification calls (a thinking model
+               burns 100+ hidden tokens before a one-line answer: ~7s → ~2s).
+        num_predict: hard cap on generated tokens (None = model default).
     """
     messages = _inject_personality(messages)
 
@@ -187,18 +193,27 @@ def chat(
         import ollama
         client = ollama.Client(host=CONFIG["ollama_host"], timeout=timeout)
         _opts = {"temperature": temperature}
+        if num_predict is not None:
+            _opts["num_predict"] = num_predict
+        _kwargs = {"model": model, "messages": messages,
+                   "keep_alive": keep_alive, "options": _opts}
+        if think is not None:
+            _kwargs["think"] = think
+
+        def _call():
+            try:
+                return client.chat(**_kwargs)
+            except TypeError:
+                # Older ollama-python without the `think` kwarg — retry without.
+                _kwargs.pop("think", None)
+                return client.chat(**_kwargs)
+
         if _energy_monitor is not None:
             with _energy_monitor.sample() as _energy:
-                response = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-                    model=model, messages=messages, keep_alive=keep_alive,
-                    options=_opts,
-                ))
+                response = _wrap_with_circuit_breaker("ollama", _call)
             _record_telemetry(model, time.time() - _start, response, _energy)
         else:
-            response = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-                model=model, messages=messages, keep_alive=keep_alive,
-                options=_opts,
-            ))
+            response = _wrap_with_circuit_breaker("ollama", _call)
             _record_telemetry(model, time.time() - _start, response, None)
         return response.get("message", {}).get("content", "")
     except CircuitBreakerOpenError:
