@@ -149,30 +149,32 @@ def classify_intent_llm(text: str) -> str | None:
         # loading it would evict the resident focus model (MAX_LOADED=1).
         # think=False: focus is a thinking model; without it, ~100 hidden
         # reasoning tokens push a one-line answer to ~7s (2s with it off).
-        result = chat(
-            model=CONFIG["models"]["focus"],
-            messages=[{"role": "user", "content": prompt}],
-            timeout=float(voice_cfg.get("llm_intent_timeout_sec", 12.0)),
-            temperature=0.0,
-            think=False,
-            num_predict=32,
-        ).strip()
+        # Cloud primary, Ollama fallback (owner policy 2026-07-02): the API
+        # keys are faster than local prefill for a one-line classification and
+        # never touch the GPU the owner's coding model may occupy. route_policy
+        # still forces secret-looking utterances local-only. pytest stays
+        # local/mocked — no network in tests.
+        result = ""
+        if "pytest" not in sys.modules:
+            try:
+                from core.inference.provider_client import get_client
+                _res = get_client().complete_sync(
+                    prompt, tier="fast", temperature=0.0, max_tokens=32,
+                    caller_id="voice_intent")
+                result = (_res.content or "").strip()
+                if result:
+                    logger.debug(f"[VECTOR][realtime] intent gate served by {_res.provider}")
+            except Exception as _cf_err:
+                logger.debug(f"[VECTOR][realtime] cloud intent gate failed: {_cf_err}")
         if not result:
-            # Local unavailable (Ollama down, or GPU busy with the owner's
-            # coding model) → cloud keys via provider_client. route_policy
-            # still applies its sensitivity gate; skipped under pytest so
-            # mocked-Ollama tests stay deterministic and offline.
-            if "pytest" not in sys.modules:
-                try:
-                    from core.inference.provider_client import get_client
-                    _res = get_client().complete_sync(
-                        prompt, tier="fast", temperature=0.0, max_tokens=32,
-                        caller_id="voice_intent")
-                    result = (_res.content or "").strip()
-                    if result:
-                        logger.info(f"[VECTOR][realtime] intent gate served by cloud ({_res.provider})")
-                except Exception as _cf_err:
-                    logger.debug(f"[VECTOR][realtime] cloud intent fallback failed: {_cf_err}")
+            result = chat(
+                model=CONFIG["models"]["focus"],
+                messages=[{"role": "user", "content": prompt}],
+                timeout=float(voice_cfg.get("llm_intent_timeout_sec", 12.0)),
+                temperature=0.0,
+                think=False,
+                num_predict=32,
+            ).strip()
         if not result:
             return None
         # Robust extraction — persona may prefix ("Sir, ACTION: ...").
