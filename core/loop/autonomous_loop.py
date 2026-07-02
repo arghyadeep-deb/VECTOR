@@ -2097,6 +2097,28 @@ class AutonomousLoop:
                 snippet = obs_result.get("text_snippet", "")
                 activity = obs_result.get("activity", "unknown")
                 screen_summary = f"[{activity}] {snippet[:200]}" if snippet else f"[{activity}]"
+
+                # Coding Companion — proactive stuck detection. Armed whenever
+                # the owner has a live vectorcode CLI session (marker file) or
+                # the screen shows coding/terminal activity.
+                if sensing_cfg.get("stuck_detection_enabled", True):
+                    try:
+                        from core.sensing.stuck_detector import (
+                            get_stuck_detector, get_active_session)
+                        _vc_session = get_active_session()
+                        if _vc_session is not None:
+                            # Visible to the context engine / hydration prompt.
+                            screen_summary = (
+                                f"[owner-coding:{_vc_session.get('project', '?')}] "
+                                + screen_summary)
+                        if _vc_session is not None or activity in ("coding", "terminal"):
+                            _stuck = get_stuck_detector().feed(
+                                obs_result.get("raw_text", snippet), activity)
+                            if _stuck:
+                                asyncio.create_task(
+                                    self._coding_companion_nudge(_stuck, _vc_session))
+                    except Exception as _cc_err:
+                        logger.debug("[VECTOR][sense] stuck detection skipped: {}", _cc_err)
             except Exception as _se:
                 logger.debug("[VECTOR][sense] screen observe failed: {}", _se)
 
