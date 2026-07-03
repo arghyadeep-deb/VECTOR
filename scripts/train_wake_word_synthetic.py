@@ -28,6 +28,14 @@ import sys
 import urllib.request
 from pathlib import Path
 
+# Windows console is cp1252 by default → any non-ASCII print (progress arrows)
+# raises UnicodeEncodeError. Force UTF-8 stdout/stderr (VECTOR house pattern).
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except Exception:
+    pass
+
 # MUST precede any openwakeword import. openwakeword.train pulls torchmetrics→
 # torchvision; torchvision's register_fake frame-walk calls hasattr(m,'__file__')
 # on every loaded module, which detonates speechbrain's broken lazy imports
