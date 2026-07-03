@@ -148,8 +148,10 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         base_url="https://generativelanguage.googleapis.com/v1beta",
         api_key_env="GEMINI_API_KEY",
         driver="gemini",
-        default_model="gemini-2.0-flash",
-        models=["gemini-2.0-flash-lite","gemini-2.0-flash","gemini-2.5-flash","gemini-1.5-pro","gemini-1.5-flash"],
+        # Probed live 2026-07-03: 2.0-flash / 2.5-pro have free_tier limit=0 on
+        # this key (no free quota). Only 2.5-flash + flash-lite actually work.
+        default_model="gemini-2.5-flash",
+        models=["gemini-2.5-flash","gemini-2.5-flash-lite","gemini-flash-latest","gemini-flash-lite-latest"],
         context_window=1_000_000,
         supports_vision=True,
         rate_limit_rpm=60,
