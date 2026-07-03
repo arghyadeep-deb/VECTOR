@@ -215,24 +215,16 @@ providers:
       glm-4.5-flash:  {tiers: {agentic: 2}}
       glm-4.6V-flash: {tiers: {vision: 1}}
 
-  gemini:                     # limits ASSUMED from historical docs — owner:
-    per_model_quota: true     # correct from aistudio.google.com/rate-limit
+  gemini:                     # PROBED LIVE 2026-07-03 on owner key: gemini-2.0-*
+    per_model_quota: true     # and 2.5-pro return free_tier limit=0 (NO free
+                              # quota) — removed. Only 2.5-flash + flash-lite work.
     models:
-      gemini-2.0-flash:
-        tiers: {fast: 2, summarization: 1, vision: 3, translate: 2}
-        limits: {requests_per_min: 15, requests_per_day: 200}
-      gemini-2.5-flash:
-        tiers: {vision: 1, long_context: 1, agentic: 2}
-        limits: {requests_per_min: 10, requests_per_day: 250}
-      gemini-2.5-flash-lite:
+      gemini-2.5-flash:       # the workhorse: native vision, 1M context
+        tiers: {vision: 1, long_context: 1, agentic: 2, summarization: 1, translate: 2}
+        limits: {requests_per_min: 10, requests_per_day: 250}   # assumed
+      gemini-2.5-flash-lite:  # fastest, highest RPM
         tiers: {fast: 1}
-        limits: {requests_per_min: 30, requests_per_day: 400}
-      gemini-2.5-pro:
-        tiers: {reasoning: 1, long_context: 2}
-        limits: {requests_per_min: 5, requests_per_day: 100}
-      gemini-2.0-flash-lite:
-        tiers: {fast: 3}
-        limits: {requests_per_min: 30, requests_per_day: 400}
+        limits: {requests_per_min: 30, requests_per_day: 400}   # assumed
 
   llm7:                       # free gateway, catalog rotates; limits unpublished
     models:                   # (no limits → reactive-only via provider_health)
