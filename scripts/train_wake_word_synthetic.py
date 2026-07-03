@@ -142,7 +142,7 @@ def train(full_negatives: bool) -> int:
         except Exception as e:
             print(f"  skip {p.name}: {e}", file=sys.stderr)
     pos_feats = np.stack(seqs).astype(np.float32) if seqs else np.zeros((0, WIN, 96), np.float32)
-    print(f"  positive clips: {len(pos_paths)} → {pos_feats.shape} sequences")
+    print(f"  positive clips: {len(pos_paths)} -> {pos_feats.shape} sequences")
 
     # 2. negative features (download + reshape to (M,16,96))
     print("\n[2/3] Fetching negative features ...")
