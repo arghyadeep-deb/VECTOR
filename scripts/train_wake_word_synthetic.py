@@ -25,16 +25,19 @@ from __future__ import annotations
 
 import argparse
 import sys
-import types as _types
 import urllib.request
 from pathlib import Path
 
-# MUST run before any torch/torchvision/openwakeword import: openwakeword pulls
-# in torchmetrics→torchvision, whose register_fake frame-walk detonates
-# speechbrain's broken k2_fsa lazy import under this torch 2.11 build. Stub it
-# (unused for wake-word training) at module load, ahead of everything.
-for _n in ("speechbrain.integrations", "speechbrain.integrations.k2_fsa"):
-    sys.modules.setdefault(_n, _types.ModuleType(_n))
+# MUST precede any openwakeword import. openwakeword.train pulls torchmetrics→
+# torchvision; torchvision's register_fake frame-walk calls hasattr(m,'__file__')
+# on every loaded module, which detonates speechbrain's broken lazy imports
+# (k2_fsa / huggingface.wordemb) under this torch 2.11 build. Importing
+# torchvision FIRST — before openwakeword loads speechbrain — lets its meta
+# registration complete cleanly; later imports are then cached no-ops.
+try:
+    import torchvision  # noqa: F401
+except Exception:
+    pass
 
 _ROOT = Path(__file__).resolve().parent.parent
 _WAKE = _ROOT / "models" / "wake"
