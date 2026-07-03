@@ -28,7 +28,7 @@ from loguru import logger
 class MediaStudioAgent(AgentBase):
     """
     VECTOR's creative media agent — images, videos, lip sync, animation.
-    Routes to Wan2GP (free) → sd.cpp (offline) → Muapi.ai (cloud) automatically.
+    Routes to Wan2GP (free local video) -> sd.cpp (offline images). Local-only.
     """
 
     def __init__(self, generation: int = 1, ghost: dict | None = None) -> None:
@@ -63,7 +63,7 @@ class MediaStudioAgent(AgentBase):
         self.award_points(30, f"i2i: {model}")
         return result
 
-    async def generate_video(self, prompt: str, model: str = "kling-v3", **kwargs) -> dict:
+    async def generate_video(self, prompt: str, model: str = "ltx-video", **kwargs) -> dict:
         """Text-to-video generation."""
         logger.info("[VECTOR][media_studio] t2v model={} prompt={!r:.60}", model, prompt)
         result = await self._studio.generate_video(prompt, model=model, **kwargs)
@@ -71,7 +71,7 @@ class MediaStudioAgent(AgentBase):
         self.award_points(30, f"video: {prompt[:40]}")
         return result
 
-    async def animate_image(self, image: str, prompt: str = "", model: str = "kling-i2v", **kwargs) -> dict:
+    async def animate_image(self, image: str, prompt: str = "", model: str = "wan22-i2v", **kwargs) -> dict:
         """Animate a still image into video."""
         logger.info("[VECTOR][media_studio] i2v model={}", model)
         result = await self._studio.animate_image(image, prompt=prompt, model=model, **kwargs)
@@ -151,7 +151,7 @@ class MediaStudioAgent(AgentBase):
         elif action in ("generate_video", "text_to_video", "t2v"):
             return await self.generate_video(
                 prompt=p.get("prompt", ""),
-                model=p.get("model", "kling-v3"),
+                model=p.get("model", "ltx-video"),
                 aspect_ratio=p.get("aspect_ratio", "16:9"),
                 prefer_local=p.get("prefer_local", True),
             )
@@ -159,7 +159,7 @@ class MediaStudioAgent(AgentBase):
             return await self.animate_image(
                 image=p.get("image", p.get("image_url", "")),
                 prompt=p.get("prompt", ""),
-                model=p.get("model", "kling-i2v"),
+                model=p.get("model", "wan22-i2v"),
             )
         elif action == "lipsync":
             return await self.lipsync(
@@ -203,7 +203,7 @@ if __name__ == "__main__":
 
         # Status check (no API key needed)
         status = await agent.run({"params": {"action": "media_status"}})
-        assert "muapi" in status
+        assert "wan2gp" in status
 
         # Model list
         models = await agent.run({"params": {"action": "list_models", "category": "t2i"}})
