@@ -355,15 +355,8 @@ async def media_history() -> JSONResponse:
 
 @app.get("/api/media/balance")
 async def media_balance() -> JSONResponse:
-    """Muapi.ai credit balance."""
-    try:
-        from core.media.muapi_client import MuapiClient
-        client = MuapiClient()
-        balance = await client.get_balance()
-        await client.close()
-        return JSONResponse({"balance": balance, "configured": bool(client._api_key)})
-    except Exception as e:
-        return JSONResponse({"balance": 0.0, "configured": False, "error": str(e)})
+    """Local-only studio — no cloud credits/billing to report."""
+    return JSONResponse({"balance": 0.0, "configured": False, "mode": "local_only"})
 
 
 @app.get("/api/media/models")
