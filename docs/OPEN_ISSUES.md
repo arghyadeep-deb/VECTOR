@@ -35,15 +35,23 @@ open items were folded in here.
    Windows Application Control policy (`ImportError: ... blocked by an Application
    Control policy`). This is an OS security setting only you can change — not a
    missing package. Camera/face features fall back to neutral until then.
-6. **"Hey VECTOR" wake word** — ⚠️ **MOSTLY DONE (2026-07-03).** `piper-sample-generator`
-   won't build on Windows (webrtcvad needs a C compiler), so `scripts/gen_wake_synthetic.py`
-   drives `piper-tts` directly: **150 synthetic clips generated** (8 pronunciations ×
-   6 prosody styles, 16kHz) + your 15 real recordings = 165 positives, feature
-   extraction verified → `(165, 9, 96)`. `scripts/train_wake_word_synthetic.py` stages
-   the rest. **Only remaining:** the negative feature download (~2GB "small" to ~30GB
-   full ACAV set) + the GPU train loop (tens of min to hours) → `models/wake/hey_vector.onnx`.
-   That's the one genuinely heavy step — run it when you can dedicate the machine.
-   `core/voice/wake_word.py` uses Whisper-chunk keyword spotting meanwhile (works today).
+6. **"Hey VECTOR" wake word** — ⚠️ **PIPELINE COMPLETE + PROVEN; model quality needs
+   better data (2026-07-03).** The full openWakeWord train→export→load pipeline now
+   runs end-to-end on this machine (`scripts/gen_wake_synthetic.py` +
+   `scripts/train_wake_word_synthetic.py`). Five real environment bugs were found &
+   fixed along the way: torchvision-before-openwakeword import order (speechbrain lazy
+   crash), cp1252 stdout, `mmap_batch_generator` `{label:path}` format, empty-val-history
+   IndexError (needs X_val), and openWakeWord's `export_to_onnx` writing an invalid
+   empty-named output (replaced with a direct `torch.onnx.export`). Trains 5000 steps
+   on CUDA in ~30s, exports a valid ONNX, loads in openWakeWord + VECTOR's detector.
+   **BUT** the model from 150 **single-piper-voice** clips + the small negative set
+   FAILS the new quality gate (fired 0.11 on real "hey vector", 0.97 on silence — it
+   would go deaf AND false-trigger). The script now REJECTS any model that doesn't
+   fire ≥0.50 on real clips / <0.30 on silence, so `core/voice/wake_word.py` keeps its
+   working Whisper keyword-spotting (NO regression). **To get a usable model:** need
+   MANY synthetic voices (piper-sample-generator's multi-speaker recipe, or download
+   several piper voices) + the full ~30GB ACAV negative set (`--full-negatives`). That
+   voice-diversity + big-negatives step is the genuinely heavy remaining work.
 
 ## C. Cloud deploy (needs your Cloudflare account/credentials)
 
