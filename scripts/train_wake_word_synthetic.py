@@ -25,8 +25,16 @@ from __future__ import annotations
 
 import argparse
 import sys
+import types as _types
 import urllib.request
 from pathlib import Path
+
+# MUST run before any torch/torchvision/openwakeword import: openwakeword pulls
+# in torchmetrics→torchvision, whose register_fake frame-walk detonates
+# speechbrain's broken k2_fsa lazy import under this torch 2.11 build. Stub it
+# (unused for wake-word training) at module load, ahead of everything.
+for _n in ("speechbrain.integrations", "speechbrain.integrations.k2_fsa"):
+    sys.modules.setdefault(_n, _types.ModuleType(_n))
 
 _ROOT = Path(__file__).resolve().parent.parent
 _WAKE = _ROOT / "models" / "wake"
