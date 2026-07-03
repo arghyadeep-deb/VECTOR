@@ -144,6 +144,13 @@ def train(full_negatives: bool) -> int:
     #    voices + full ACAV negatives for production quality)
     print("\n[3/3] Training ...")
     import torch
+    # openwakeword.train pulls in torchmetrics→torchvision→speechbrain; the
+    # speechbrain.integrations.k2_fsa lazy import is broken under this torch
+    # 2.11 build and detonates during torchvision's register_fake frame-walk.
+    # Stub it (unused for wake-word training) so the import succeeds.
+    import types as _types
+    for _n in ("speechbrain.integrations", "speechbrain.integrations.k2_fsa"):
+        sys.modules.setdefault(_n, _types.ModuleType(_n))
     from openwakeword.train import Model as TrainModel
     from openwakeword.data import mmap_batch_generator
 
