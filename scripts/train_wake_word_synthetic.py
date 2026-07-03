@@ -216,27 +216,74 @@ def train(full_negatives: bool) -> int:
     mdl.train_model(X=_loader(steps), max_steps=steps, X_val=X_val, val_steps=val_steps,
                     warmup_steps=steps // 5, hold_steps=steps // 3, lr=1e-4)
 
-    _OUT.parent.mkdir(parents=True, exist_ok=True)
-    # openWakeWord's export_to_onnx passes output_names=[""] (empty) → produces
-    # an invalid graph ("Graph output () does not exist") that onnxruntime
-    # rejects. Export directly with proper input/output names + the legacy
-    # exporter (dynamo=False) for onnxruntime compatibility.
+    # Export to a STAGING path first — never overwrite the live model until the
+    # new one passes a quality gate (a bad model would false-trigger or go deaf,
+    # worse than VECTOR's Whisper-KWS fallback).
+    _stage = _OUT.with_suffix(".candidate.onnx")
+    _stage.parent.mkdir(parents=True, exist_ok=True)
+    # openWakeWord's export_to_onnx passes output_names=[""] (empty) → an invalid
+    # graph ("Graph output () does not exist") that onnxruntime rejects. Export
+    # directly with proper names + legacy exporter (dynamo=False).
     core = mdl.model.to("cpu").eval()
-    dummy = torch.rand((1, WIN, 96))
     torch.onnx.export(
-        core, dummy, str(_OUT),
+        core, torch.rand((1, WIN, 96)), str(_stage),
         input_names=["x"], output_names=["scores"],
         dynamic_axes={"x": {0: "batch"}, "scores": {0: "batch"}},
         opset_version=17, dynamo=False,
     )
-    if _OUT.exists():
-        print(f"\nOK: wrote {_OUT} ({_OUT.stat().st_size/1e3:.0f} KB)")
-        print("PRELIMINARY model (150 single-voice synthetic + 15 real, small")
-        print("negatives). Test with your mic; retrain with --full-negatives +")
-        print("more piper voices for production reliability.")
+    if not _stage.exists():
+        print("Training finished but no ONNX produced.", file=sys.stderr)
+        return 1
+
+    # ── quality gate: must fire on held-out "hey vector", stay quiet on silence
+    print("\nValidating candidate model ...")
+    ok_gate, why = _quality_gate(_stage)
+    print(f"  {why}")
+    if ok_gate:
+        _stage.replace(_OUT)
+        print(f"OK: installed {_OUT} ({_OUT.stat().st_size/1e3:.0f} KB) — passed quality gate.")
+        print("Test with your mic; retrain with --full-negatives + more voices to improve.")
         return 0
-    print("Training finished but no ONNX produced.", file=sys.stderr)
-    return 1
+    _stage.unlink(missing_ok=True)
+    print("REJECTED: candidate model failed the quality gate — NOT installed.")
+    print("VECTOR keeps its working Whisper keyword-spotting fallback (no regression).")
+    print("A reliable model needs MANY synthetic voices (this used one piper voice)")
+    print("+ the full ACAV negative set (--full-negatives). Both are the heavy step.")
+    return 2
+
+
+def _quality_gate(model_path: Path) -> tuple[bool, str]:
+    """A model is only worth installing if it fires on real 'hey vector' clips
+    and stays quiet on silence. Returns (passed, reason)."""
+    try:
+        import torchvision  # noqa: F401  (import order guard, as at module top)
+        import numpy as np
+        import soundfile as sf
+        from openwakeword.model import Model
+        m = Model(wakeword_models=[str(model_path)], inference_framework="onnx")
+        key = list(m.models.keys())[0]
+
+        def peak(a16):
+            m.reset()
+            return max((float(m.predict(a16[i:i + 1280])[key])
+                        for i in range(0, len(a16) - 1280, 1280)), default=0.0)
+
+        reals = sorted(_REAL.glob("*.wav"))[:10]
+        hits = []
+        for p in reals:
+            a, sr = sf.read(p)
+            if a.ndim > 1:
+                a = a.mean(axis=1)
+            a16 = (a * 32767).astype(np.int16) if a.dtype != np.int16 else a
+            hits.append(peak(a16))
+        wake_peak = max(hits) if hits else 0.0
+        sil_peak = max(float(m.predict(np.zeros(1280, dtype=np.int16))[key])
+                       for _ in range(30))
+        passed = wake_peak >= 0.5 and sil_peak < 0.3
+        return passed, (f"wake-clip peak={wake_peak:.2f} (need >=0.50), "
+                        f"silence peak={sil_peak:.2f} (need <0.30)")
+    except Exception as e:
+        return False, f"quality gate errored (treated as fail): {e}"
 
 
 def main() -> int:
