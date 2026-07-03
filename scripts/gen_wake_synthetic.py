@@ -1,0 +1,99 @@
+"""
+scripts/gen_wake_synthetic.py — Generate synthetic "hey vector" positive clips
+for openWakeWord training, using piper-tts (no microphone / no owner voice
+needed). This is the piece OPEN_ISSUES #6 flagged as missing:
+piper-sample-generator won't build on Windows (webrtcvad needs a C compiler),
+so we drive piper-tts directly with varied speed / prosody / pronunciation.
+
+Output: models/wake/synthetic/*.wav  (16 kHz mono — openWakeWord's rate)
+Combine with the 15 real recordings in models/wake/samples/ for training.
+
+Usage:
+    python scripts/gen_wake_synthetic.py                 # ~150 clips
+    python scripts/gen_wake_synthetic.py --n 300
+"""
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+import itertools
+from pathlib import Path
+
+_ROOT = Path(__file__).resolve().parent.parent
+_VOICE = _ROOT / "models" / "piper" / "en_US-ryan-high.onnx"
+_OUT = _ROOT / "models" / "wake" / "synthetic"
+_TARGET_SR = 16000
+
+# Phrase spellings that piper pronounces slightly differently — cheap speaker
+# variety from a single voice. openWakeWord keys on the acoustic pattern.
+_PHRASES = [
+    "hey vector", "hey vector.", "hey, vector", "okay vector",
+    "hey vektor", "hey vecter", "hey vec tor", "hay vector",
+]
+# (length_scale=speed, noise_scale, noise_w_scale) — prosody/timing spread.
+_STYLES = [
+    (0.85, 0.5, 0.6), (0.95, 0.6, 0.7), (1.0, 0.667, 0.8),
+    (1.1, 0.7, 0.8), (1.2, 0.75, 0.9), (1.3, 0.8, 1.0),
+]
+
+
+def _resample_16k(path: Path) -> None:
+    try:
+        import soundfile as sf
+        import numpy as np
+        data, sr = sf.read(path)
+        if data.ndim > 1:
+            data = data.mean(axis=1)
+        if sr != _TARGET_SR:
+            # linear resample — adequate for 0.6s wake clips
+            n = int(round(len(data) * _TARGET_SR / sr))
+            x_old = np.linspace(0, 1, len(data), endpoint=False)
+            x_new = np.linspace(0, 1, n, endpoint=False)
+            data = np.interp(x_new, x_old, data)
+        sf.write(path, data.astype("float32"), _TARGET_SR)
+    except Exception as e:
+        print(f"  resample failed for {path.name}: {e}", file=sys.stderr)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--n", type=int, default=150, help="approx clips to generate")
+    args = ap.parse_args()
+
+    if not _VOICE.exists():
+        print(f"ERROR: piper voice not found at {_VOICE}", file=sys.stderr)
+        return 1
+    _OUT.mkdir(parents=True, exist_ok=True)
+
+    combos = list(itertools.product(_PHRASES, _STYLES))
+    made = 0
+    idx = 0
+    # cycle through combos until we reach --n
+    while made < args.n:
+        phrase, (ls, ns, nws) = combos[idx % len(combos)]
+        idx += 1
+        out = _OUT / f"syn_{made:04d}.wav"
+        try:
+            proc = subprocess.run(
+                [sys.executable, "-m", "piper", "-m", str(_VOICE),
+                 "-f", str(out), "--length-scale", str(ls),
+                 "--noise-scale", str(ns), "--noise-w-scale", str(nws)],
+                input=phrase, capture_output=True, text=True, timeout=60,
+            )
+            if proc.returncode != 0 or not out.exists():
+                print(f"  clip {made} failed: {proc.stderr[:120]}", file=sys.stderr)
+                continue
+            _resample_16k(out)
+            made += 1
+            if made % 25 == 0:
+                print(f"  generated {made}/{args.n} ...", flush=True)
+        except Exception as e:
+            print(f"  clip {made} error: {e}", file=sys.stderr)
+
+    print(f"OK: {made} synthetic clips in {_OUT}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
