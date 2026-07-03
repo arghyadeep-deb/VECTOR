@@ -1,15 +1,13 @@
 """
-VECTOR Media Studio
-AI creative media generation: 200+ image/video/lipsync models.
+VECTOR Media Studio — LOCAL-ONLY AI creative media generation (free, on-device).
 
-Backends:
-  Wan2GP      — free local GPU (user runs Wan2GP server, set WAN2GP_URL)
-  LocalInf    — offline sd.cpp (download binary once, no server needed)
-  Muapi.ai    — 200+ cloud models (set MUAPI_API_KEY, costs credits)
+Backends (paid cloud removed 2026-07-04):
+  Wan2GP      — free local GPU video+image (run Wan2GP server, set WAN2GP_URL)
+  LocalInf    — offline sd.cpp images (download binary once, no server needed)
 
-Priority: Wan2GP → local → Muapi (prefer free/local, fall back to cloud)
+Priority: Wan2GP -> local sd.cpp. No per-generation cost.
 """
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 from core.media.models import (
     MediaModel,
@@ -24,14 +22,12 @@ from core.media.models import (
     LIPSYNC_MODELS,
     V2V_MODELS,
 )
-from core.media.muapi_client import MuapiClient
 from core.media.wan2gp_client import Wan2GPClient, WAN2GP_CATALOG, Wan2GPModel
 from core.media.local_inference import LocalInference, LOCAL_MODEL_CATALOG
 from core.media.generative_studio import GenerativeStudio
 
 __all__ = [
     "GenerativeStudio",
-    "MuapiClient",
     "Wan2GPClient",
     "LocalInference",
     "MediaModel",
