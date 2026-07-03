@@ -217,7 +217,18 @@ def train(full_negatives: bool) -> int:
                     warmup_steps=steps // 5, hold_steps=steps // 3, lr=1e-4)
 
     _OUT.parent.mkdir(parents=True, exist_ok=True)
-    mdl.export_to_onnx(str(_OUT))
+    # openWakeWord's export_to_onnx passes output_names=[""] (empty) → produces
+    # an invalid graph ("Graph output () does not exist") that onnxruntime
+    # rejects. Export directly with proper input/output names + the legacy
+    # exporter (dynamo=False) for onnxruntime compatibility.
+    core = mdl.model.to("cpu").eval()
+    dummy = torch.rand((1, WIN, 96))
+    torch.onnx.export(
+        core, dummy, str(_OUT),
+        input_names=["x"], output_names=["scores"],
+        dynamic_axes={"x": {0: "batch"}, "scores": {0: "batch"}},
+        opset_version=17, dynamo=False,
+    )
     if _OUT.exists():
         print(f"\nOK: wrote {_OUT} ({_OUT.stat().st_size/1e3:.0f} KB)")
         print("PRELIMINARY model (150 single-voice synthetic + 15 real, small")
