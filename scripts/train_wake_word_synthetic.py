@@ -173,9 +173,10 @@ def train(full_negatives: bool) -> int:
 
     batch_size = 128
     n_pos = min(32, len(pos_feats))
+    # data_files / n_per_class are keyed by LABEL (0=neg, 1=pos) → path/count.
     gen = mmap_batch_generator(
-        data_files={str(neg_path): 0, str(pos_path): 1},
-        n_per_class={str(neg_path): batch_size - n_pos, str(pos_path): n_pos},
+        data_files={0: str(neg_path), 1: str(pos_path)},
+        n_per_class={0: batch_size - n_pos, 1: n_pos},
         batch_size=batch_size,
     )
 
