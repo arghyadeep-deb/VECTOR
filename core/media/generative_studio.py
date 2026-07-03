@@ -1,28 +1,31 @@
 """
-VECTOR Generative Studio — Unified orchestrator for AI creative media generation.
+VECTOR Generative Studio — LOCAL-ONLY AI creative media orchestrator.
 
-Priority chain: Wan2GP (free local GPU) → LocalInference (sd.cpp offline) → Muapi (cloud)
+Free, on-device generation only (owner decision 2026-07-04: paid cloud
+backends removed). Priority chain: Wan2GP (local GPU) → LocalInference
+(sd.cpp offline). No per-generation cost, ever.
 
-For image/video generation, always tries local/free options first before using
-Muapi.ai cloud credits. Pass prefer_local=False to skip directly to cloud.
+Backends:
+  Wan2GP        — text/image-to-video (ltx/wan2.2/hunyuan) + flux/qwen images
+  LocalInference— sd.cpp offline image fallback
+
+Text-to-image, text-to-video, and image-to-video run fully local. Cloud-only
+extras (i2i edit, lipsync, background-remove, upscale) return a clear
+"local-only mode" notice instead of calling any paid API — wire a local
+backend (ComfyUI / SadTalker / Real-ESRGAN) later if you want them.
 
 Usage:
     studio = GenerativeStudio()
-    result = asyncio.run(studio.generate_image("A cyberpunk cityscape at night"))
-    logger.info(result["url"])
-
+    result = asyncio.run(studio.generate_video("A neon city flythrough",
+                                               model="ltx-video"))
 """
 from __future__ import annotations
 
 import asyncio
-import os
-import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 from core.media.models import get_model, list_by_category, all_models
-from core.media.muapi_client import MuapiClient
 from core.media.wan2gp_client import Wan2GPClient, WAN2GP_CATALOG
 from core.media.local_inference import LocalInference
 from loguru import logger
@@ -30,20 +33,25 @@ from loguru import logger
 _MEDIA_DIR = Path.home() / ".vector" / "media"
 _MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
+# Free local defaults (were the paid kling-* cloud models).
+_DEFAULT_IMAGE = "flux-dev"
+_DEFAULT_VIDEO = "ltx-video"      # fastest free local text-to-video
+_DEFAULT_I2V   = "wan22-i2v"      # free local image-to-video
+
+_LOCAL_ONLY_MSG = ("local-only mode — this action needs a cloud backend that "
+                   "was removed. Wire a local backend (ComfyUI/SadTalker/"
+                   "Real-ESRGAN) to enable it.")
+
 
 class GenerativeStudio:
-    """
-    VECTOR's unified AI creative media interface.
-    Coordinates Wan2GP (local GPU), sd.cpp (offline), and Muapi.ai (cloud).
-    """
+    """VECTOR's unified LOCAL AI creative media interface (Wan2GP + sd.cpp)."""
 
     def __init__(self) -> None:
-        self._muapi   = MuapiClient()
         self._wan2gp  = Wan2GPClient()
         self._local   = LocalInference()
         self._wan2gp_probed = False
 
-    # â”€â”€ Backend selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Backend selection ────────────────────────────────────────────────────
 
     def _wan2gp_model_ids(self) -> set[str]:
         return {m.id for m in WAN2GP_CATALOG}
@@ -55,72 +63,54 @@ class GenerativeStudio:
             return probe.get("ok", False)
         return self._wan2gp_probed and bool(self._wan2gp._base_url)
 
-    def _has_muapi(self) -> bool:
-        return bool(self._muapi._api_key)
-
-    # â”€â”€ Auto-upload local files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-    async def _resolve_url(self, path_or_url: str, prefer_local: bool = True) -> str:
-        """If given a local file path, upload it to Muapi.ai or Wan2GP and return a hosted URL."""
-        if not path_or_url:
-            return path_or_url
-        if path_or_url.startswith("http"):
-            return path_or_url
-        p = Path(path_or_url)
-        if p.exists():
-            if prefer_local and self._wan2gp._base_url:
-                try:
-                    return await self._wan2gp.upload_file(str(p))
-                except Exception:
-                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-            if self._has_muapi():
-                return await self._muapi.upload_file(str(p))
-        return path_or_url
-
     async def _download_result(self, url: str) -> str:
-        """Download a generated result URL to local ~/.vector/media/ and return local path."""
-        if not url:
+        """Download a generated result URL to ~/.vector/media/ (Wan2GP may
+        return a hosted URL for large video)."""
+        if not url or not url.startswith("http"):
             return url
         try:
             import httpx
-            filename = f"vector_{int(time.time())}_{Path(url.split('?')[0]).suffix or '.png'}"
+            filename = f"vector_{int(time.time())}{Path(url.split('?')[0]).suffix or '.png'}"
             out_path = _MEDIA_DIR / filename
             async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as c:
                 resp = await c.get(url)
                 resp.raise_for_status()
                 out_path.write_bytes(resp.content)
-            logger.debug("[VECTOR][studio] saved → {}", out_path)
+            logger.debug("[VECTOR][studio] saved -> {}", out_path)
             return str(out_path)
         except Exception as e:
             logger.warning("[VECTOR][studio] could not download result {}: {}", url[:80], e)
             return url
 
-    # â”€â”€ Image generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    def _no_backend(self, kind: str) -> RuntimeError:
+        return RuntimeError(
+            f"No local {kind} backend available. Start Wan2GP and set its URL "
+            f"(CONFIG['media']['wan2gp_url'] / WAN2GP_URL), or install a local "
+            f"sd.cpp model.")
+
+    # ── Image generation ─────────────────────────────────────────────────────
 
     async def generate_image(
         self,
         prompt: str,
-        model: str = "flux-dev",
-        prefer_local: bool = True,
+        model: str = _DEFAULT_IMAGE,
+        prefer_local: bool = True,   # kept for call-site compat; always local now
         aspect_ratio: str = "1:1",
         **kwargs,
     ) -> dict:
-        """Text-to-image. Tries Wan2GP → sd.cpp → Muapi in order."""
-        wan2gp_id = f"wan2gp:{model.replace('flux-dev', 'flux-dev')}"
+        """Text-to-image: Wan2GP (flux/qwen) → sd.cpp offline."""
+        wan2gp_id = f"wan2gp:{model}"
 
-        # 1. Wan2GP (free local GPU)
-        if prefer_local and wan2gp_id in self._wan2gp_model_ids():
-            ok = await self._probe_wan2gp_if_needed()
-            if ok:
+        if wan2gp_id in self._wan2gp_model_ids():
+            if await self._probe_wan2gp_if_needed():
                 try:
                     result = await self._wan2gp.generate(wan2gp_id, prompt, aspect_ratio=aspect_ratio)
                     result["backend"] = "wan2gp"
                     return result
                 except Exception as e:
-                    logger.warning("[VECTOR][studio] Wan2GP failed ({}), trying next backend", e)
+                    logger.warning("[VECTOR][studio] Wan2GP failed ({}), trying sd.cpp", e)
 
-        # 2. Local sd.cpp (offline)
-        if prefer_local and self._local.is_available():
+        if self._local.is_available():
             local_model = "sdxl" if "flux" not in model and "xl" in model.lower() else "sd15"
             if self._local.model_downloaded(local_model):
                 try:
@@ -129,165 +119,91 @@ class GenerativeStudio:
                     result["url"] = result.get("image_path", "")
                     return result
                 except Exception as e:
-                    logger.warning("[VECTOR][studio] Local sd.cpp failed ({}), trying Muapi", e)
+                    logger.warning("[VECTOR][studio] Local sd.cpp failed ({})", e)
 
-        # 3. Muapi.ai cloud
-        if not self._has_muapi():
-            raise RuntimeError("No generation backend available. Set MUAPI_API_KEY or configure WAN2GP_URL.")
-        result = await self._muapi.generate_image(model, prompt, aspect_ratio=aspect_ratio, **kwargs)
-        result["backend"] = "muapi"
-        return result
-
-    async def generate_i2i(
-        self,
-        prompt: str,
-        image: str,
-        model: str = "nano-banana-edit",
-        **kwargs,
-    ) -> dict:
-        """Image-to-image editing (always cloud — Muapi.ai)."""
-        image_url = await self._resolve_url(image, prefer_local=False)
-        if not self._has_muapi():
-            raise RuntimeError("Image-to-image requires MUAPI_API_KEY")
-        result = await self._muapi.generate_i2i(model, prompt, image_url=image_url, **kwargs)
-        result["backend"] = "muapi"
-        return result
+        raise self._no_backend("image")
 
     async def generate_video(
         self,
         prompt: str,
-        model: str = "kling-v3",
+        model: str = _DEFAULT_VIDEO,
         prefer_local: bool = True,
         aspect_ratio: str = "16:9",
         **kwargs,
     ) -> dict:
-        """Text-to-video. Tries Wan2GP → Muapi in order."""
+        """Text-to-video: Wan2GP (ltx / wan2.2 / hunyuan), fully local."""
         wan2gp_id = f"wan2gp:{model}"
-
-        # 1. Wan2GP (free local GPU)
-        if prefer_local and wan2gp_id in self._wan2gp_model_ids():
-            ok = await self._probe_wan2gp_if_needed()
-            if ok:
+        if wan2gp_id in self._wan2gp_model_ids():
+            if await self._probe_wan2gp_if_needed():
                 try:
                     result = await self._wan2gp.generate(wan2gp_id, prompt, aspect_ratio=aspect_ratio)
                     result["backend"] = "wan2gp"
                     return result
                 except Exception as e:
-                    logger.warning("[VECTOR][studio] Wan2GP video failed ({}), trying Muapi", e)
-
-        # 2. Muapi.ai cloud
-        if not self._has_muapi():
-            raise RuntimeError("No video backend available. Set MUAPI_API_KEY or configure WAN2GP_URL.")
-        result = await self._muapi.generate_video(model, prompt, aspect_ratio=aspect_ratio, **kwargs)
-        result["backend"] = "muapi"
-        return result
+                    logger.warning("[VECTOR][studio] Wan2GP video failed ({})", e)
+        raise self._no_backend("video")
 
     async def animate_image(
         self,
         image: str,
         prompt: str = "",
-        model: str = "kling-i2v",
+        model: str = _DEFAULT_I2V,
         aspect_ratio: str = "16:9",
         prefer_local: bool = True,
         **kwargs,
     ) -> dict:
-        """Image-to-video animation. Tries Wan2GP wan22-i2v → Muapi."""
-        if prefer_local:
-            ok = await self._probe_wan2gp_if_needed()
-            if ok:
-                try:
-                    result = await self._wan2gp.generate(
-                        "wan2gp:wan22-i2v", prompt, aspect_ratio=aspect_ratio,
-                        image=image,
-                    )
-                    result["backend"] = "wan2gp"
-                    return result
-                except Exception as e:
-                    logger.warning("[VECTOR][studio] Wan2GP i2v failed ({}), trying Muapi", e)
+        """Image-to-video: Wan2GP wan22-i2v, fully local."""
+        if await self._probe_wan2gp_if_needed():
+            try:
+                result = await self._wan2gp.generate(
+                    "wan2gp:wan22-i2v", prompt, aspect_ratio=aspect_ratio, image=image)
+                result["backend"] = "wan2gp"
+                return result
+            except Exception as e:
+                logger.warning("[VECTOR][studio] Wan2GP i2v failed ({})", e)
+        raise self._no_backend("image-to-video")
 
-        image_url = await self._resolve_url(image, prefer_local=False)
-        if not self._has_muapi():
-            raise RuntimeError("No i2v backend available. Set MUAPI_API_KEY or configure WAN2GP_URL.")
-        result = await self._muapi.generate_i2v(model, image_url, prompt, aspect_ratio=aspect_ratio, **kwargs)
-        result["backend"] = "muapi"
-        return result
+    # ── Cloud-only extras (removed) — graceful notice, no paid calls ─────────
 
-    async def lipsync(
-        self,
-        portrait: str,
-        audio: str,
-        model: str = "infinite-talk",
-        is_video: bool = False,
-    ) -> dict:
-        """Lip sync — portrait image or video + narration audio → talking head video."""
-        portrait_url = await self._resolve_url(portrait, prefer_local=False)
-        audio_url    = await self._resolve_url(audio, prefer_local=False)
-        if not self._has_muapi():
-            raise RuntimeError("Lip sync requires MUAPI_API_KEY")
-        result = await self._muapi.process_lipsync(model, portrait_url, audio_url, is_video=is_video)
-        result["backend"] = "muapi"
-        logger.info("[VECTOR][studio] lipsync complete → {}", (result.get("url") or "")[:80])
-        return result
+    async def generate_i2i(self, prompt: str, image: str, model: str = "", **kwargs) -> dict:
+        return {"error": f"generate_i2i {_LOCAL_ONLY_MSG}", "backend": "local_only"}
+
+    async def lipsync(self, portrait: str, audio: str, model: str = "", is_video: bool = False) -> dict:
+        # A local SadTalker path exists at districts/content/ — route there later.
+        return {"error": f"lipsync {_LOCAL_ONLY_MSG} (SadTalker is the local option)",
+                "backend": "local_only"}
 
     async def background_remove(self, image: str) -> dict:
-        """Remove background from image."""
-        image_url = await self._resolve_url(image, prefer_local=False)
-        if not self._has_muapi():
-            raise RuntimeError("Background removal requires MUAPI_API_KEY")
-        result = await self._muapi.generate_i2i("background-remover", "", image_url=image_url)
-        result["backend"] = "muapi"
-        return result
+        # core/video/background_remover.py is a local option — wire it if wanted.
+        return {"error": f"background_remove {_LOCAL_ONLY_MSG}", "backend": "local_only"}
 
     async def upscale(self, image: str) -> dict:
-        """4x upscale an image."""
-        image_url = await self._resolve_url(image, prefer_local=False)
-        if not self._has_muapi():
-            raise RuntimeError("Upscaling requires MUAPI_API_KEY")
-        result = await self._muapi.generate_i2i("upscaler", "", image_url=image_url)
-        result["backend"] = "muapi"
-        return result
+        return {"error": f"upscale {_LOCAL_ONLY_MSG}", "backend": "local_only"}
 
-    # â”€â”€ Governor dispatch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Governor dispatch ────────────────────────────────────────────────────
 
     async def generate(self, task: dict) -> dict:
-        """Dispatch a generation task by action name. Used by Governor and MediaStudioAgent."""
+        """Dispatch a generation task by action name (Governor / MediaStudioAgent)."""
         p = task.get("params", task)
         action = p.get("action", "generate_image")
 
         if action in ("generate_image", "text_to_image", "t2i"):
             return await self.generate_image(
-                prompt=p.get("prompt", ""),
-                model=p.get("model", "flux-dev"),
-                prefer_local=p.get("prefer_local", True),
-                aspect_ratio=p.get("aspect_ratio", "1:1"),
-            )
-        elif action in ("generate_i2i", "image_to_image", "edit_image"):
-            return await self.generate_i2i(
-                prompt=p.get("prompt", ""),
-                image=p.get("image", p.get("image_url", "")),
-                model=p.get("model", "nano-banana-edit"),
-            )
+                prompt=p.get("prompt", ""), model=p.get("model", _DEFAULT_IMAGE),
+                aspect_ratio=p.get("aspect_ratio", "1:1"))
         elif action in ("generate_video", "text_to_video", "t2v"):
             return await self.generate_video(
-                prompt=p.get("prompt", ""),
-                model=p.get("model", "kling-v3"),
-                prefer_local=p.get("prefer_local", True),
-                aspect_ratio=p.get("aspect_ratio", "16:9"),
-            )
+                prompt=p.get("prompt", ""), model=p.get("model", _DEFAULT_VIDEO),
+                aspect_ratio=p.get("aspect_ratio", "16:9"))
         elif action in ("animate_image", "image_to_video", "i2v"):
             return await self.animate_image(
-                image=p.get("image", p.get("image_url", "")),
-                prompt=p.get("prompt", ""),
-                model=p.get("model", "kling-i2v"),
-                aspect_ratio=p.get("aspect_ratio", "16:9"),
-            )
+                image=p.get("image", p.get("image_url", "")), prompt=p.get("prompt", ""),
+                model=p.get("model", _DEFAULT_I2V), aspect_ratio=p.get("aspect_ratio", "16:9"))
+        elif action in ("generate_i2i", "image_to_image", "edit_image"):
+            return await self.generate_i2i(p.get("prompt", ""), p.get("image", ""))
         elif action == "lipsync":
-            return await self.lipsync(
-                portrait=p.get("portrait", p.get("image", "")),
-                audio=p.get("audio", p.get("audio_url", "")),
-                model=p.get("model", "infinite-talk"),
-                is_video=p.get("is_video", False),
-            )
+            return await self.lipsync(p.get("portrait", p.get("image", "")),
+                                      p.get("audio", p.get("audio_url", "")))
         elif action == "background_remove":
             return await self.background_remove(p.get("image", p.get("image_url", "")))
         elif action == "upscale":
@@ -295,13 +211,12 @@ class GenerativeStudio:
         else:
             return {"error": f"Unknown action: {action}"}
 
-    # â”€â”€ Status â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # ── Status ───────────────────────────────────────────────────────────────
 
     async def status(self) -> dict:
         probe = await self._wan2gp.probe() if self._wan2gp._base_url else {"ok": False}
-        balance = await self._muapi.get_balance() if self._has_muapi() else 0.0
         return {
-            "muapi": {"configured": self._has_muapi(), "balance": balance},
+            "mode": "local_only",
             "wan2gp": {"configured": bool(self._wan2gp._base_url), "connected": probe.get("ok", False),
                        "matched_models": probe.get("matched_models", 0)},
             "local": {"binary_available": self._local.is_available(),
@@ -316,15 +231,13 @@ if __name__ == "__main__":
     async def _smoke():
         studio = GenerativeStudio()
         st = await studio.status()
-        t2i_models = list_by_category("t2i")
-        print(f"OK generative_studio.py")
-        print(f"  t2i models: {len(t2i_models)}")
-        print(f"  muapi configured: {st['muapi']['configured']}")
+        print("OK generative_studio.py (LOCAL-ONLY)")
+        print(f"  mode: {st['mode']}")
         print(f"  wan2gp connected: {st['wan2gp']['connected']}")
         print(f"  local binary: {st['local']['binary_available']}")
-        # Dispatch test
-        result = await studio.generate({"params": {"action": "generate_image", "prompt": "test"}}) if st["muapi"]["configured"] else {"status": "no key"}
-        assert "error" not in result or "action" not in result
-        print(f"  dispatch test: OK")
+        # cloud-only action returns a graceful notice, never a paid call
+        r = await studio.generate({"params": {"action": "upscale", "image": "x.png"}})
+        assert r.get("backend") == "local_only", r
+        print("  cloud-only action correctly disabled:", "OK")
 
     asyncio.run(_smoke())
