@@ -104,8 +104,9 @@ def train(full_negatives: bool) -> int:
     import soundfile as sf
     from openwakeword.utils import AudioFeatures
     af = AudioFeatures()
-    N = 24000  # 1.5s @ 16kHz — fixed clip length
-    clips = []
+    WIN = 16               # model input = 16 feature windows x 96
+    N = 48000             # 3s @ 16kHz — long enough to yield >=16 windows
+    seqs = []             # (M, 16, 96) positive sequences (augmented by sliding)
     for p in pos_paths:
         try:
             audio, sr = sf.read(p)
@@ -113,38 +114,76 @@ def train(full_negatives: bool) -> int:
                 audio = audio.mean(axis=1)
             a16 = (audio * 32767).astype(np.int16) if audio.dtype != np.int16 else audio
             a16 = np.pad(a16, (0, max(0, N - len(a16))))[:N]
-            clips.append(a16)
+            w = np.array(af.embed_clips(a16[None, :], batch_size=1))[0]  # (windows, 96)
+            # sliding 16-window sequences = cheap time-shift augmentation
+            for start in range(0, max(1, len(w) - WIN + 1), 2):
+                chunk = w[start:start + WIN]
+                if len(chunk) == WIN:
+                    seqs.append(chunk)
         except Exception as e:
             print(f"  skip {p.name}: {e}", file=sys.stderr)
-    pos_feats = af.embed_clips(np.stack(clips), batch_size=64) if clips else np.array([])
-    # each clip → (windows, 96); model consumes 16-window sequences of these
-    print(f"  positive clips: {len(clips)}  feature array: {np.array(pos_feats).shape}")
+    pos_feats = np.stack(seqs).astype(np.float32) if seqs else np.zeros((0, WIN, 96), np.float32)
+    print(f"  positive clips: {len(pos_paths)} → {pos_feats.shape} sequences")
 
-    # 2. negative features (download)
-    print("\n[2/3] Fetching negative features (the heavy download) ...")
+    # 2. negative features (download + reshape to (M,16,96))
+    print("\n[2/3] Fetching negative features ...")
     want = ["validation_set_features.npy"]
     if full_negatives:
         want.append("openwakeword_features_ACAV100M_2000_hrs_16bit.npy")
     for name in want:
         if not _download(_NEG_URLS[name], _NEG_DIR / name):
-            print("Negative download failed — cannot train a robust model without it.",
-                  file=sys.stderr)
+            print("Negative download failed — cannot train without it.", file=sys.stderr)
             return 1
+    neg_raw = np.load(_NEG_DIR / want[-1], mmap_mode="r")          # (K, 96)
+    n_seq = len(neg_raw) // WIN
+    neg_feats = np.ascontiguousarray(
+        neg_raw[: n_seq * WIN].reshape(n_seq, WIN, 96).astype(np.float32))
+    print(f"  negative sequences: {neg_feats.shape}")
 
-    # 3. train
-    print("\n[3/3] Training (GPU, tens of minutes to hours) ...")
-    print("  NOTE: this script wires the openWakeWord training loop; for the")
-    print("  full recipe (adversarial texts, RIR augmentation, batch mmap) see")
-    print("  openWakeWord's automatic_model_training notebook. Model → hey_vector.onnx")
-    # Intentionally not auto-launching a multi-hour GPU job on import; the
-    # feature extraction + negative data above are the prerequisites that were
-    # missing. Uncomment / adapt the openWakeWord train loop when ready to run.
-    print("\nPrerequisites are staged. To execute the full train loop, run the")
-    print("openWakeWord training notebook against:")
-    print(f"  positives: {len(pos_feats)} windows from {_SYN} + {_REAL}")
-    print(f"  negatives: {_NEG_DIR}")
-    print(f"  output:    {_OUT}")
-    return 0
+    # 3. train (bounded: modest steps → PRELIMINARY model; retrain with more
+    #    voices + full ACAV negatives for production quality)
+    print("\n[3/3] Training ...")
+    import torch
+    from openwakeword.train import Model as TrainModel
+    from openwakeword.data import mmap_batch_generator
+
+    pos_path = _NEG_DIR / "_pos_feats.npy"
+    neg_path = _NEG_DIR / "_neg_feats.npy"
+    np.save(pos_path, pos_feats)
+    np.save(neg_path, neg_feats)
+
+    batch_size = 128
+    n_pos = min(32, len(pos_feats))
+    gen = mmap_batch_generator(
+        data_files={str(neg_path): 0, str(pos_path): 1},
+        n_per_class={str(neg_path): batch_size - n_pos, str(pos_path): n_pos},
+        batch_size=batch_size,
+    )
+
+    def _loader(steps):
+        for _ in range(steps):
+            x, y = next(gen)
+            yield [torch.from_numpy(np.asarray(x, np.float32)),
+                   torch.from_numpy(np.asarray(y, np.int64))]
+
+    steps = 5000            # bounded run; full recipe uses ~50k
+    mdl = TrainModel(n_classes=1, input_shape=(WIN, 96), model_type="dnn")
+    if torch.cuda.is_available():
+        mdl.to("cuda")
+    print(f"  training {steps} steps on {'cuda' if torch.cuda.is_available() else 'cpu'} ...")
+    mdl.train_model(X=_loader(steps), max_steps=steps,
+                    warmup_steps=steps // 5, hold_steps=steps // 3, lr=1e-4)
+
+    _OUT.parent.mkdir(parents=True, exist_ok=True)
+    mdl.export_to_onnx(str(_OUT))
+    if _OUT.exists():
+        print(f"\nOK: wrote {_OUT} ({_OUT.stat().st_size/1e3:.0f} KB)")
+        print("PRELIMINARY model (150 single-voice synthetic + 15 real, small")
+        print("negatives). Test with your mic; retrain with --full-negatives +")
+        print("more piper voices for production reliability.")
+        return 0
+    print("Training finished but no ONNX produced.", file=sys.stderr)
+    return 1
 
 
 def main() -> int:
