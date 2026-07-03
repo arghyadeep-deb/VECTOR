@@ -273,23 +273,24 @@ class VectorComposer:
         output_path: str | None = None,
     ) -> str | None:
         """
-        Generate video from text prompt using VideoProviderRegistry.
-        Chain: SadTalker → RunwayML → Pika. Falls back gracefully.
+        Generate video from a text prompt via the LOCAL generative studio
+        (Wan2GP). The old RunwayML/Pika stub registry was removed 2026-07-04 —
+        free local only. Falls back gracefully to None (composer then uses
+        image + narration instead of generated footage).
         """
         try:
-            from core.media.video_provider_registry import VideoProviderRegistry
-            registry = VideoProviderRegistry()
-            result = await registry.generate(
-                prompt=prompt,
-                image_path=image_path,
-                audio_path=audio_path,
-                duration=duration,
-            )
-            if result:
-                logger.info("[VECTOR][composer] Video generated via registry: {}", result)
-            return result
+            from core.media.generative_studio import GenerativeStudio
+            studio = GenerativeStudio()
+            if image_path:
+                res = await studio.animate_image(image=image_path, prompt=prompt or "")
+            else:
+                res = await studio.generate_video(prompt=prompt or "")
+            url = (res or {}).get("url") or (res or {}).get("video_path")
+            if url:
+                logger.info("[VECTOR][composer] video generated locally (Wan2GP): {}", url)
+            return url
         except Exception as e:
-            logger.warning("[VECTOR][composer] video_provider_registry failed: {}", e)
+            logger.warning("[VECTOR][composer] local video generation unavailable: {}", e)
             return None
 
     async def _mix_audio(
