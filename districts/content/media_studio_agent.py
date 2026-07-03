@@ -212,7 +212,7 @@ if __name__ == "__main__":
 
         print(f"OK media_studio_agent.py HP={agent.health_points}")
         print(f"  t2i models: {len(models['cloud_models'])}")
-        print(f"  muapi: {status['muapi']}")
+        print(f"  mode: {status.get('mode')}")
         print(f"  wan2gp: {status['wan2gp']}")
         print(f"  local: {status['local']['binary_available']}")
 
