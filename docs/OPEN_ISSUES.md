@@ -35,11 +35,15 @@ open items were folded in here.
    Windows Application Control policy (`ImportError: ... blocked by an Application
    Control policy`). This is an OS security setting only you can change — not a
    missing package. Camera/face features fall back to neutral until then.
-6. **"Hey VECTOR" wake word** (scoped-up, not a quick step): openWakeWord's real
-   recipe needs `piper-sample-generator` (external TTS, not installed) to make
-   thousands of synthetic clips + RIR/background-noise augmentation — not 15
-   manual recordings. `core/voice/wake_word.py` falls back to Whisper-chunk
-   keyword spotting, so nothing is broken; build this when you actually want it.
+6. **"Hey VECTOR" wake word** — ⚠️ **MOSTLY DONE (2026-07-03).** `piper-sample-generator`
+   won't build on Windows (webrtcvad needs a C compiler), so `scripts/gen_wake_synthetic.py`
+   drives `piper-tts` directly: **150 synthetic clips generated** (8 pronunciations ×
+   6 prosody styles, 16kHz) + your 15 real recordings = 165 positives, feature
+   extraction verified → `(165, 9, 96)`. `scripts/train_wake_word_synthetic.py` stages
+   the rest. **Only remaining:** the negative feature download (~2GB "small" to ~30GB
+   full ACAV set) + the GPU train loop (tens of min to hours) → `models/wake/hey_vector.onnx`.
+   That's the one genuinely heavy step — run it when you can dedicate the machine.
+   `core/voice/wake_word.py` uses Whisper-chunk keyword spotting meanwhile (works today).
 
 ## C. Cloud deploy (needs your Cloudflare account/credentials)
 
