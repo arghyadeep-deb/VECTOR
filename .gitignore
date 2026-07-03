@@ -144,6 +144,11 @@ districts/intelligence/shadowbroker_server/carrier_cache.json
 
 # Local wake-word samples; keep real voice data out of source commits by default
 models/wake/samples/
+# Generated wake-word training assets (piper synthetic clips, downloaded
+# negative features, trained model) — all reproducible, not source.
+models/wake/synthetic/
+models/wake/negative_features/
+models/wake/*.onnx
 data/missions/
 data/rejected_runs/
 data/reports/
