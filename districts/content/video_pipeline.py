@@ -319,7 +319,7 @@ class VideoPipelineAgent(AgentBase):
         try:
             from core.media.generative_studio import GenerativeStudio
             studio = GenerativeStudio()
-            if not studio._has_muapi() and not studio._wan2gp._base_url and not studio._local.is_available():
+            if not studio._wan2gp._base_url and not studio._local.is_available():
                 return ""
             title = script_data.get("title", "")
             prompt = (
