@@ -166,14 +166,23 @@ def train(full_negatives: bool) -> int:
     from openwakeword.train import Model as TrainModel
     from openwakeword.data import mmap_batch_generator
 
+    # Hold out ~20% of each class for validation (train_model indexes
+    # history["val_n_fp"][-1] at every val step and crashes if X_val is None).
+    rng = np.random.default_rng(0)
+    rng.shuffle(pos_feats); rng.shuffle(neg_feats)
+    n_pv = max(32, len(pos_feats) // 5)
+    n_nv = 2000
+    pos_val, pos_tr = pos_feats[:n_pv], pos_feats[n_pv:]
+    neg_val, neg_tr = neg_feats[:n_nv], neg_feats[n_nv:]
+
     pos_path = _NEG_DIR / "_pos_feats.npy"
     neg_path = _NEG_DIR / "_neg_feats.npy"
-    np.save(pos_path, pos_feats)
-    np.save(neg_path, neg_feats)
+    np.save(pos_path, pos_tr)
+    np.save(neg_path, neg_tr)
 
     batch_size = 128
-    n_pos = min(32, len(pos_feats))
-    # data_files / n_per_class are keyed by LABEL (0=neg, 1=pos) → path/count.
+    n_pos = min(32, len(pos_tr))
+    # data_files / n_per_class are keyed by LABEL (0=neg, 1=pos) -> path/count.
     gen = mmap_batch_generator(
         data_files={0: str(neg_path), 1: str(pos_path)},
         n_per_class={0: batch_size - n_pos, 1: n_pos},
@@ -186,12 +195,25 @@ def train(full_negatives: bool) -> int:
             yield [torch.from_numpy(np.asarray(x, np.float32)),
                    torch.from_numpy(np.asarray(y, np.int64))]
 
+    # X_val: a re-iterable list of balanced (x, y) validation batches.
+    def _val_batches():
+        out = []
+        vb = 128
+        for i in range(0, min(len(pos_val), len(neg_val)) - vb, vb):
+            xb = np.concatenate([neg_val[i:i + vb], pos_val[i:i + vb]]).astype(np.float32)
+            yb = np.concatenate([np.zeros(vb), np.ones(vb)]).astype(np.int64)
+            out.append([torch.from_numpy(xb), torch.from_numpy(yb)])
+        return out or [[torch.from_numpy(np.concatenate([neg_val[:16], pos_val[:16]]).astype(np.float32)),
+                        torch.from_numpy(np.concatenate([np.zeros(16), np.ones(16)]).astype(np.int64))]]
+    X_val = _val_batches()
+
     steps = 5000            # bounded run; full recipe uses ~50k
+    val_steps = [1000, 2000, 3000, 4000, 4990]
     mdl = TrainModel(n_classes=1, input_shape=(WIN, 96), model_type="dnn")
     if torch.cuda.is_available():
         mdl.to("cuda")
     print(f"  training {steps} steps on {'cuda' if torch.cuda.is_available() else 'cpu'} ...")
-    mdl.train_model(X=_loader(steps), max_steps=steps,
+    mdl.train_model(X=_loader(steps), max_steps=steps, X_val=X_val, val_steps=val_steps,
                     warmup_steps=steps // 5, hold_steps=steps // 3, lr=1e-4)
 
     _OUT.parent.mkdir(parents=True, exist_ok=True)
