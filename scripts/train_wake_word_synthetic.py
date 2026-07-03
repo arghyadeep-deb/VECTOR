@@ -101,22 +101,24 @@ def train(full_negatives: bool) -> int:
     if not pos_paths:
         print("No positive clips. Run gen_wake_synthetic.py first.", file=sys.stderr)
         return 1
+    import soundfile as sf
     from openwakeword.utils import AudioFeatures
     af = AudioFeatures()
-    pos_feats = []
+    N = 24000  # 1.5s @ 16kHz — fixed clip length
+    clips = []
     for p in pos_paths:
         try:
-            import soundfile as sf
             audio, sr = sf.read(p)
             if audio.ndim > 1:
                 audio = audio.mean(axis=1)
-            audio16 = (audio * 32767).astype(np.int16) if audio.dtype != np.int16 else audio
-            feats = af(audio16, sr)
-            if feats is not None and len(feats):
-                pos_feats.append(feats)
+            a16 = (audio * 32767).astype(np.int16) if audio.dtype != np.int16 else audio
+            a16 = np.pad(a16, (0, max(0, N - len(a16))))[:N]
+            clips.append(a16)
         except Exception as e:
             print(f"  skip {p.name}: {e}", file=sys.stderr)
-    print(f"  positive feature windows: {len(pos_feats)}")
+    pos_feats = af.embed_clips(np.stack(clips), batch_size=64) if clips else np.array([])
+    # each clip → (windows, 96); model consumes 16-window sequences of these
+    print(f"  positive clips: {len(clips)}  feature array: {np.array(pos_feats).shape}")
 
     # 2. negative features (download)
     print("\n[2/3] Fetching negative features (the heavy download) ...")
