@@ -18,6 +18,7 @@ import argparse
 import subprocess
 import sys
 import itertools
+import random
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
