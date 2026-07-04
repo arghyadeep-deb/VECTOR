@@ -208,7 +208,7 @@ if __name__ == "__main__":
         # Model list
         models = await agent.run({"params": {"action": "list_models", "category": "t2i"}})
         assert "cloud_models" in models
-        assert len(models["cloud_models"]) >= 10
+        assert len(models["cloud_models"]) >= 3
 
         print(f"OK media_studio_agent.py HP={agent.health_points}")
         print(f"  t2i models: {len(models['cloud_models'])}")

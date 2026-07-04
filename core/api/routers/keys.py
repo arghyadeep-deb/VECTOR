@@ -32,7 +32,6 @@ _PROVIDER_KEY_ALLOWLIST: dict[str, str] = {
     "elevenlabs": "ELEVENLABS_KEY",
     "openrouter": "OPENROUTER_KEY",
     "mistral": "MISTRAL_KEY",
-    "muapi": "MUAPI_API_KEY",
     "pagespeed": "PAGESPEED_API_KEY",
     "hass": "HASS_TOKEN",
     "groq": "GROQ_API_KEY",

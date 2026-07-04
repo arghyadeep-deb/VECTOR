@@ -373,7 +373,7 @@ async def media_models() -> JSONResponse:
 
 @app.get("/api/media/status")
 async def media_status() -> JSONResponse:
-    """Backend availability: Muapi + Wan2GP + local sd.cpp."""
+    """Backend availability: Wan2GP + local sd.cpp (local-only)."""
     try:
         from core.media.generative_studio import GenerativeStudio
         studio = GenerativeStudio()
@@ -462,7 +462,7 @@ async def run_workflow(workflow_id: str) -> JSONResponse:
                     results.append({"node_id": nid, "status": "done", "url": url})
                 elif ntype == "video_gen":
                     prompt = params.get("text") or upstream_url or params.get("prompt", "")
-                    r = await studio.generate_video(prompt, model=params.get("model", "kling-v3"))
+                    r = await studio.generate_video(prompt, model=params.get("model", "ltx-video"))
                     url = r.get("url") or ""
                     node_outputs[nid] = url
                     results.append({"node_id": nid, "status": "done", "url": url})
