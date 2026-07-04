@@ -270,7 +270,7 @@ def _quality_gate(model_path: Path) -> tuple[bool, str]:
             return max((float(m.predict(a16[i:i + 1280])[key])
                         for i in range(0, len(a16) - 1280, 1280)), default=0.0)
 
-        reals = sorted(_REAL.glob("*.wav"))[:10]
+        reals = sorted(_REAL.glob("*.wav"))
         hits = []
         for p in reals:
             a, sr = sf.read(p)
@@ -278,11 +278,14 @@ def _quality_gate(model_path: Path) -> tuple[bool, str]:
                 a = a.mean(axis=1)
             a16 = (a * 32767).astype(np.int16) if a.dtype != np.int16 else a
             hits.append(peak(a16))
-        wake_peak = max(hits) if hits else 0.0
+        # RECALL FRACTION, not max — a single lucky clip must not pass a model
+        # that misses the wake word 90% of the time (worse than Whisper KWS).
+        fired = sum(1 for x in hits if x >= 0.5)
+        recall = fired / len(hits) if hits else 0.0
         sil_peak = max(float(m.predict(np.zeros(1280, dtype=np.int16))[key])
                        for _ in range(30))
-        passed = wake_peak >= 0.5 and sil_peak < 0.3
-        return passed, (f"wake-clip peak={wake_peak:.2f} (need >=0.50), "
+        passed = recall >= 0.5 and sil_peak < 0.3
+        return passed, (f"real-clip recall={fired}/{len(hits)} ({recall:.0%}, need >=50%), "
                         f"silence peak={sil_peak:.2f} (need <0.30)")
     except Exception as e:
         return False, f"quality gate errored (treated as fail): {e}"
