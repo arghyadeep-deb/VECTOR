@@ -183,7 +183,7 @@ def train(full_negatives: bool) -> int:
     batch_size = 128
     # Heavier positive presence + more steps raise wake-clip recall (a globally
     # under-confident model = too few steps / too few positives per batch).
-    n_pos = min(48, len(pos_tr))
+    n_pos = min(64, len(pos_tr))   # 50% positive batches — bias toward recall
     # data_files / n_per_class are keyed by LABEL (0=neg, 1=pos) -> path/count.
     gen = mmap_batch_generator(
         data_files={0: str(neg_path), 1: str(pos_path)},
