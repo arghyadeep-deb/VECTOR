@@ -517,7 +517,7 @@ class VectorSettings(BaseSettings):
     MISTRAL_KEY: SecretStr = SecretStr("")
     CONTENT_NICHE: str = "AI"
     VIDEO_UPLOAD_DELAY_MINUTES: int = 30
-    MUAPI_API_KEY: SecretStr = SecretStr("")
+    # MUAPI_API_KEY removed 2026-07-04 — paid cloud video deleted, local-only.
     WAN2GP_URL: str = ""
     PAGESPEED_API_KEY: SecretStr = SecretStr("")
     HASS_URL: str = ""
