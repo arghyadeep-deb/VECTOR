@@ -25,6 +25,18 @@ for _stream in (_sys.stdout, _sys.stderr):
         pass
 # ---------------------------------------------------------------------------
 
+# Load .env into os.environ at the earliest point of `import core`, so every
+# env-gated feature (VECTOR_*_LLM flags, API keys read via os.environ.get) sees
+# it reliably — previously .env only loaded when core.inference.key_pool
+# happened to be imported, which many code paths never trigger. Existing
+# os.environ values win (load_dotenv override defaults to False).
+try:
+    from pathlib import Path as _Path
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(_Path(__file__).resolve().parent.parent / ".env")
+except Exception:
+    pass
+
 from importlib.util import find_spec
 
 from loguru import logger
