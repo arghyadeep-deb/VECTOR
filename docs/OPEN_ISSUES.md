@@ -15,13 +15,14 @@ open items were folded in here.
 
 ## A. This session's follow-ups (2026-06-29)
 
-1. **Force-push the rewritten history.** Git history was rewritten twice this
-   session to strip >100MB blobs (293MB cmake artifact + ONNX models) and the
-   `finagent/qt/build/` cruft — GitHub push is now unblocked but needs a force:
-   `git push -u origin production-hardening-complete --force`.
-2. **Delete the safety backups once the push is confirmed** (~3.4GB total):
-   `../vector_git_backup_20260629_180411`, `../vector_git_backup2_*`, and
-   `vector_memory.db.premaint.bak.20260629_135132`.
+1. **Force-push the rewritten history.** ✅ **DONE 2026-07-05.** Pushed
+   `production-hardening-complete` to github.com/arghyadeep-deb/VECTOR;
+   remote HEAD == local (06d6d208), largest blob now 27MB (kokoro voices,
+   well under GitHub's 100MB). The >100MB-blob history is gone from the
+   pushed tree.
+2. **Delete the safety backups.** ✅ **DONE** — `vector_git_backup*` and
+   `vector_memory.db.premaint.bak.*` were already removed in a prior session;
+   confirmed none remain.
 
 ## B. Physical hardware / OS settings (cannot be done from code)
 
