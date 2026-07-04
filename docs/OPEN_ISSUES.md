@@ -35,23 +35,21 @@ open items were folded in here.
    Windows Application Control policy (`ImportError: ... blocked by an Application
    Control policy`). This is an OS security setting only you can change — not a
    missing package. Camera/face features fall back to neutral until then.
-6. **"Hey VECTOR" wake word** — ⚠️ **PIPELINE COMPLETE + PROVEN; model quality needs
-   better data (2026-07-03).** The full openWakeWord train→export→load pipeline now
-   runs end-to-end on this machine (`scripts/gen_wake_synthetic.py` +
-   `scripts/train_wake_word_synthetic.py`). Five real environment bugs were found &
-   fixed along the way: torchvision-before-openwakeword import order (speechbrain lazy
-   crash), cp1252 stdout, `mmap_batch_generator` `{label:path}` format, empty-val-history
-   IndexError (needs X_val), and openWakeWord's `export_to_onnx` writing an invalid
-   empty-named output (replaced with a direct `torch.onnx.export`). Trains 5000 steps
-   on CUDA in ~30s, exports a valid ONNX, loads in openWakeWord + VECTOR's detector.
-   **BUT** the model from 150 **single-piper-voice** clips + the small negative set
-   FAILS the new quality gate (fired 0.11 on real "hey vector", 0.97 on silence — it
-   would go deaf AND false-trigger). The script now REJECTS any model that doesn't
-   fire ≥0.50 on real clips / <0.30 on silence, so `core/voice/wake_word.py` keeps its
-   working Whisper keyword-spotting (NO regression). **To get a usable model:** need
-   MANY synthetic voices (piper-sample-generator's multi-speaker recipe, or download
-   several piper voices) + the full ~30GB ACAV negative set (`--full-negatives`). That
-   voice-diversity + big-negatives step is the genuinely heavy remaining work.
+6. **"Hey VECTOR" wake word** — PIPELINE COMPLETE; blocked on owner's real voice
+   data (2026-07-04). Full openWakeWord train->export->load pipeline runs end-to-end
+   (gen_wake_synthetic.py + train_wake_word_synthetic.py); 5 env bugs fixed
+   (torchvision-first import, cp1252 stdout, mmap_batch_generator {label:path},
+   empty-val-history, export_to_onnx empty output). Voice diversity solved via
+   multi-speaker libritts (904 voices) -> FIXED false-triggering (silence 0.97->0.01).
+   But the real wall is RECALL on the OWNER's actual voice: synthetic TTS voices don't
+   transfer to the owner's real voice/mic -- best ~13% recall (2/15 real clips fire)
+   across every config (5k/20k steps, 32-64 pos/batch). Quality gate fixed to measure
+   real-clip RECALL FRACTION (>=50% must fire), not a lucky max -- so synthetic-only
+   models are correctly REJECTED and core/voice/wake_word.py keeps working Whisper
+   keyword-spotting (NO regression, verified). ONE remaining need is OWNER-GATED:
+   ~50-100 real "Hey VECTOR" recordings (record via scripts/train_wake_word.py, drop
+   into models/wake/samples/, re-run the synthetic trainer -- it installs only if
+   recall clears 50%). Full ~17GB ACAV negatives would NOT help (problem is recall).
 
 ## C. Cloud deploy (needs your Cloudflare account/credentials)
 
