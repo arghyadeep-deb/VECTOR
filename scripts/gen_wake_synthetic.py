@@ -61,35 +61,40 @@ def _resample_16k(path: Path) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--n", type=int, default=150, help="approx clips to generate")
+    ap.add_argument("--n", type=int, default=600, help="approx clips to generate")
     args = ap.parse_args()
 
-    if not _VOICE.exists():
-        print(f"ERROR: piper voice not found at {_VOICE}", file=sys.stderr)
+    multi = _VOICE_MULTI.exists()
+    voice = _VOICE_MULTI if multi else _VOICE_SINGLE
+    if not voice.exists():
+        print(f"ERROR: no piper voice found ({_VOICE_MULTI} / {_VOICE_SINGLE})", file=sys.stderr)
         return 1
+    print(f"Using {'MULTI-speaker libritts (904 voices)' if multi else 'single ryan voice'}")
     _OUT.mkdir(parents=True, exist_ok=True)
 
     combos = list(itertools.product(_PHRASES, _STYLES))
+    random.shuffle(combos)
     made = 0
     idx = 0
-    # cycle through combos until we reach --n
     while made < args.n:
         phrase, (ls, ns, nws) = combos[idx % len(combos)]
         idx += 1
         out = _OUT / f"syn_{made:04d}.wav"
+        cmd = [sys.executable, "-m", "piper", "-m", str(voice), "-f", str(out),
+               "--length-scale", str(ls), "--noise-scale", str(ns),
+               "--noise-w-scale", str(nws)]
+        if multi:
+            # Spread across the 904 speakers — the key to a robust model.
+            cmd += ["--speaker", str(random.randint(0, _N_SPEAKERS - 1))]
         try:
-            proc = subprocess.run(
-                [sys.executable, "-m", "piper", "-m", str(_VOICE),
-                 "-f", str(out), "--length-scale", str(ls),
-                 "--noise-scale", str(ns), "--noise-w-scale", str(nws)],
-                input=phrase, capture_output=True, text=True, timeout=60,
-            )
+            proc = subprocess.run(cmd, input=phrase, capture_output=True,
+                                  text=True, timeout=60)
             if proc.returncode != 0 or not out.exists():
                 print(f"  clip {made} failed: {proc.stderr[:120]}", file=sys.stderr)
                 continue
             _resample_16k(out)
             made += 1
-            if made % 25 == 0:
+            if made % 50 == 0:
                 print(f"  generated {made}/{args.n} ...", flush=True)
         except Exception as e:
             print(f"  clip {made} error: {e}", file=sys.stderr)
