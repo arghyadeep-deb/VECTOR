@@ -174,8 +174,22 @@ class GenerativeStudio:
                 "backend": "local_only"}
 
     async def background_remove(self, image: str) -> dict:
-        # core/video/background_remover.py is a local option — wire it if wanted.
-        return {"error": f"background_remove {_LOCAL_ONLY_MSG}", "backend": "local_only"}
+        """Remove background — LOCAL rembg-style ONNX (core/video/background_remover)."""
+        try:
+            from core.video.background_remover import remove_background
+            src = Path(image)
+            if not src.exists():
+                return {"error": f"background_remove: file not found: {image}", "backend": "local"}
+            out = _MEDIA_DIR / f"nobg_{int(time.time())}_{src.stem}.png"
+            res = await asyncio.to_thread(remove_background, str(src), str(out))
+            ok = getattr(res, "ok", None)
+            path = getattr(res, "output_path", str(out)) or str(out)
+            if ok is False:
+                return {"error": f"background_remove failed: {getattr(res,'error','')}", "backend": "local"}
+            return {"url": path, "image_path": path, "backend": "local"}
+        except Exception as e:
+            logger.warning("[VECTOR][studio] local background_remove failed: {}", e)
+            return {"error": f"background_remove (local) errored: {e}", "backend": "local"}
 
     async def upscale(self, image: str) -> dict:
         return {"error": f"upscale {_LOCAL_ONLY_MSG}", "backend": "local_only"}
