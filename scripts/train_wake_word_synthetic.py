@@ -209,8 +209,8 @@ def train(full_negatives: bool) -> int:
                         torch.from_numpy(np.concatenate([np.zeros(16), np.ones(16)]).astype(np.int64))]]
     X_val = _val_batches()
 
-    steps = 5000            # bounded run; full recipe uses ~50k
-    val_steps = [1000, 2000, 3000, 4000, 4990]
+    steps = 20000           # more steps for confident recall (full recipe ~50k)
+    val_steps = [4000, 8000, 12000, 16000, 19900]
     mdl = TrainModel(n_classes=1, input_shape=(WIN, 96), model_type="dnn")
     if torch.cuda.is_available():
         mdl.to("cuda")
