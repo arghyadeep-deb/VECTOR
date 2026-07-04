@@ -21,20 +21,23 @@ import itertools
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
-_VOICE = _ROOT / "models" / "piper" / "en_US-ryan-high.onnx"
+# Multi-speaker voice (904 speakers) = the diversity a robust wake word needs.
+# Falls back to the single ryan voice if libritts isn't downloaded.
+_VOICE_MULTI = _ROOT / "models" / "piper" / "en_US-libritts_r-medium.onnx"
+_VOICE_SINGLE = _ROOT / "models" / "piper" / "en_US-ryan-high.onnx"
+_N_SPEAKERS = 904
 _OUT = _ROOT / "models" / "wake" / "synthetic"
 _TARGET_SR = 16000
 
-# Phrase spellings that piper pronounces slightly differently — cheap speaker
-# variety from a single voice. openWakeWord keys on the acoustic pattern.
+# Phrase spellings piper pronounces slightly differently — extra acoustic spread.
 _PHRASES = [
     "hey vector", "hey vector.", "hey, vector", "okay vector",
-    "hey vektor", "hey vecter", "hey vec tor", "hay vector",
+    "hey vektor", "hey vecter", "hay vector",
 ]
 # (length_scale=speed, noise_scale, noise_w_scale) — prosody/timing spread.
 _STYLES = [
     (0.85, 0.5, 0.6), (0.95, 0.6, 0.7), (1.0, 0.667, 0.8),
-    (1.1, 0.7, 0.8), (1.2, 0.75, 0.9), (1.3, 0.8, 1.0),
+    (1.1, 0.7, 0.8), (1.25, 0.8, 1.0),
 ]
 
 
