@@ -237,3 +237,16 @@ optionally a cron/loop config. (Do NOT auto-start it without owner sign-off.)
   workflows). And the harness/security recommendations above are ANALYSES —
   implementing their concrete edits is follow-up work.
 - OWNER OPERATIONAL GAPS remain (see section below) — the #1 is install the service.
+
+## SKILL LIBRARY — COMPLETED TO FULL SPEC (2026-07-08)
+Applied the skill-library-builder methodology (github.com/MeeshaBear1/skill-library-builder):
+executed-command provenance ([UNVERIFIED-CMD] markers), full taxonomy, Phase-3 review.
+- Added 7 skills: vector-diagnostics-and-tooling (+scripts/health_snapshot.py, RUN),
+  vector-docs-and-writing, vector-domain-reference, + ADVANCED tier
+  (vector-campaign-ship-to-running, vector-proof-and-analysis-toolkit,
+  vector-research-frontier, vector-research-methodology).
+- FABLE.md in .claude/ + docs/ (distilled Fable 5 charter for successors).
+- Phase-3 review: usability agent (6 MINOR, 3 fixed / 3 self-containedness kept) +
+  doctrine agent (5 MINOR, all 5 fixed) + factual-by-execution (all paths/commands
+  verified: smoke 38/38, integration 51/51, finance chain→ollama, 38 districts,
+  no paid Anthropic/OpenAI keys). Fixed stale .claude/rules/models.md paid-key language.
