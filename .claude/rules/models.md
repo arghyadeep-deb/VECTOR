@@ -53,6 +53,13 @@ YOUR complex planning   → Claude Opus 4.6 via Pro plan chat
 ```
 
 ## VECTOR Runtime Rule (updated 2026-07-02 — owner decision)
+> CORRECTION 2026-07-08: "premium cloud (anthropic/openai)" below is ASPIRATIONAL,
+> not current. The owner has NO paid `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` set
+> (verified 2026-07-08) — runtime is FREE-TIER ONLY across 13 providers (GitHub
+> Models gives gpt-5/o3 free; Cerebras gives zai-glm-4.7 free). opencode_zen/zai
+> keys can technically reach paid models but are hard-clamped to the free
+> whitelist. Do NOT stand up paid Anthropic/OpenAI routing. See the
+> `vector-inference-routing` skill for the authoritative current state.
 ```
 CLOUD API KEYS are PRIMARY — Ollama is the FALLBACK.
 route_policy.decide_route() orders providers per call:
