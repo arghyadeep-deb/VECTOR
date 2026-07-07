@@ -14,11 +14,12 @@ For VECTOR's automated LLM routing use `vector-inference-routing`. This skill is
 about the human/agent choosing a model + carrying the operating standard.
 
 ## The model tiers (2026 Anthropic lineup, as VECTOR references them)
-- **Fable 5** (`claude-fable-5`) — Mythos-class, the most capable generally-
-  available Claude; built for long-running, ambiguous, multi-step autonomous
+- **Fable 5** (`claude-fable-5`) — per Anthropic's positioning, "Mythos-class"
+  and the most capable generally-available Claude (this is their framing, not an
+  in-repo benchmark); built for long-running, ambiguous, multi-step autonomous
   work with few check-ins. Best for: architecture, hard debugging, multi-hour
   builds, work that must self-correct through verification loops. (This project
-  was largely built by Fable 5.)
+  was largely built by Fable 5.) Verify the current lineup/IDs if a newer model ships.
 - **Opus 4.8** (`claude-opus-4-8`) — deep reasoning/planning. Best for: complex
   planning, thorough review, gnarly single problems. Fast-mode available.
 - **Sonnet 4.6** (`claude-sonnet-4-6`) — the workhorse. Best for: implementation
