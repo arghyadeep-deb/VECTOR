@@ -219,8 +219,21 @@ optionally a cron/loop config. (Do NOT auto-start it without owner sign-off.)
   and the ADVANCED tier (campaign / proof-toolkit / research-frontier / methodology).
   These are nice-to-have; the CORE + routing + continuity set is the load-bearing
   minimum and it is COMPLETE.
-- STATUS FOR SUCCESSOR: P0 + P1 DONE. P2 (harness opt ×6, security ×2) and P3
-  (trading/research audit, life/work ×6, power-moves ×7, dev-loop) are NOT
-  started — all fully spec'd above with output locations. Pick up at P2.1.
-  Each P2/P3 item is a substantial standalone effort; do them one at a time,
-  ground-truth-only, and append results here.
+- 2026-07-07 (continued to session limit): **ALL P0-P3 TASKS COMPLETED.**
+  - P2.1 harness optimization: 6 analyses in `plans/harness/01..06`.
+  - P2.2 security: `plans/security/prompt-injection-map.md` + `attacksurface.md`
+    + `.claude/skills/attack-surface/` (skill + AssessAttackSurface workflow).
+  - P3.1 trading/research audit: `plans/audits/trading-research-audit.md`
+    (verdict FINE; applied finance.analysis domain routing to stock_analyst +
+    sentiment_bot).
+  - P3.2 life/work: `plans/strategy/life-work-strategy.md` (6 analyses) +
+    `.claude/skills/power-moves/` (7 workflows in VECTOR).
+  - P3.4 dev loop: `plans/dev-loop-design.md` (design only, do-not-auto-start).
+  - 12 skills authored total; smoke 38/38 throughout; nothing broke.
+- REMAINING (optional, NOT required — nice-to-have): additional skills
+  (memory-and-learning, districts-reference, diagnostics-and-tooling,
+  docs-and-writing, ADVANCED tier campaign/proof/frontier/methodology); and
+  ACTUALLY BUILDING the 7 Power Moves as tools (currently ready-to-run
+  workflows). And the harness/security recommendations above are ANALYSES —
+  implementing their concrete edits is follow-up work.
+- OWNER OPERATIONAL GAPS remain (see section below) — the #1 is install the service.
