@@ -207,5 +207,20 @@ optionally a cron/loop config. (Do NOT auto-start it without owner sign-off.)
 ---
 
 # EXECUTION LOG (append as tasks complete — the running record)
-- 2026-07-07: P0.1 handoff written. P1.1 in progress. CL4R1T4S fetch refused
-  (IP) → reframed to authored working-with-claude reference.
+- 2026-07-07: P0.1 handoff written (DONE). CL4R1T4S fetch refused (IP) → P1.1
+  reframed to authored `working-with-claude-models` skill (DONE).
+- 2026-07-07: P1.2 skill library — **10 skills authored + committed** (8 CORE:
+  change-control, debugging-playbook, architecture-contract, failure-archaeology,
+  config-and-flags, build-and-env, run-and-operate, validation-and-qa; + DOMAIN:
+  inference-routing; + working-with-claude-models). Phase-3 spot-check done
+  (run-modes, smoke 38/38, frontmatter all verified). REMAINING skill-library
+  work (optional, spec in P1.2 above): vector-memory-and-learning,
+  vector-districts-reference, vector-diagnostics-and-tooling, vector-docs-and-writing,
+  and the ADVANCED tier (campaign / proof-toolkit / research-frontier / methodology).
+  These are nice-to-have; the CORE + routing + continuity set is the load-bearing
+  minimum and it is COMPLETE.
+- STATUS FOR SUCCESSOR: P0 + P1 DONE. P2 (harness opt ×6, security ×2) and P3
+  (trading/research audit, life/work ×6, power-moves ×7, dev-loop) are NOT
+  started — all fully spec'd above with output locations. Pick up at P2.1.
+  Each P2/P3 item is a substantial standalone effort; do them one at a time,
+  ground-truth-only, and append results here.
