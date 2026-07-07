@@ -44,10 +44,13 @@ observe(0.5s) → think(event-driven) → act(permission-gated) → reflect(2AM)
    ZERO direct access. The trust ladder (`core/loop/trust_ladder.py`) promotes
    YELLOW actions to auto after N approvals — but RED/FORBIDDEN never promote.
 
-5. **Multi-DB cloud sync** (`core/memory/multi_db_manager.py`): local SQLite
-   (source) → Supabase + Turso + Cloudflare D1 (via Worker). Confirmed live
-   4/4 healthy 2026-07-02. Cloud is durable source of truth; local can forget
-   bulk data after sync.
+5. **Multi-DB cloud sync** (`core/memory/multi_db_manager.py`): local SQLite is
+   the SOURCE; it replicates to Supabase + Turso + Cloudflare D1 (via Worker).
+   Confirmed live 4/4 healthy 2026-07-02. Cloud is a durable REPLICA/backup.
+   NOTE (candidate, not policy): cloud sync could later allow local pruning of
+   bulk data, but there is NO such offload-and-delete policy today — do NOT delete
+   local memory rows on the assumption cloud has them. The sacred tables
+   (esp. `agent_history`) are never row-deleted (`vector-change-control`).
 
 6. **Domain routing for district agents** (`vectorcode_llm.chat(domain=...)`):
    each work domain (coding.review, content.script, research, etc.) is a 3–4
