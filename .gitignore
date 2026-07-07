@@ -187,3 +187,6 @@ districts/intelligence/vector_social_sim/logs/
 
 # Generated media output (growth reels, video renders)
 renders/
+
+# Piper TTS voice weights (large binaries; configs .json are kept)
+models/piper/*.onnx
