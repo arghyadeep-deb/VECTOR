@@ -1,6 +1,6 @@
 ---
 name: working-with-claude-models
-description: Load when deciding which Claude model to use for a VECTOR task, or when an Opus/Sonnet session is picking up work Fable 5 started — the model tiers, when to use each, and the operating discipline this project runs on. Triggers: "which model", "Opus vs Sonnet", "Fable", "continue Fable's work", "how should I approach this", "model choice", "handoff".
+description: Load when deciding which Claude model to use for a VECTOR task, or when an Opus/Sonnet session is picking up work Fable 5 started — the model tiers, when to use each, and the operating discipline this project runs on. Triggers: "which model", "Opus vs Sonnet", "Fable", "continue Fable's work", "Claude model choice", "which Claude model", "carry this forward".
 ---
 
 # Working with Claude Models (continuity guide)
