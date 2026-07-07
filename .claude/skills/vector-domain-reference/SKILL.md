@@ -61,6 +61,10 @@ degrades but never crashes. Sensitive prompts never leave the machine. See
 `vector-inference-routing`.
 
 ## Key terms (defined once)
+- **EMA** — exponential moving average; how HP and policy scores are smoothed so a
+  single good/bad outcome doesn't swing them wildly.
+- **RL reward** — reinforcement-learning signal; `policy_memory` stores an EMA of
+  action outcomes (worked/failed) that biases future decision scoring.
 - **Ghost memory** — lessons an agent leaves on death for its successor.
 - **Session hydration** — assembling full world state into the prompt before any
   LLM call (VECTOR's RULE 1).
