@@ -18,6 +18,7 @@ def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.6) -> str:
     async def _call():
         r = await _PC().chat(
             messages=[{"role": "user", "content": prompt}],
+            model="domain:finance.analysis",   # finance-tuned chain, ollama terminal
             tier="reasoning", temperature=temperature, max_tokens=max_tokens,
             caller_id="sentiment_bot",
         )
