@@ -13,6 +13,15 @@ VECTOR Brain (`brain/`) + memory + past sessions. Authored 2026-07-07.
 For the underlying LLM routing use `vector-inference-routing`; for VECTOR's
 districts use `vector-architecture-contract`.
 
+## MANDATORY before any of these lands code
+Moves #1, #4, #6, #7 generate code into the live tree (`districts/`, `tools/`).
+That is a NEW-FEATURE change → it MUST go through change control
+(`vector-change-control`): brainstorm/plan first, then implement, then pass the
+evidence gate (`vector-validation-and-qa`: smoke + integration + tests) before it
+lands. Outward actions inside these tools (send email/#4, deploy) are RED-tier —
+route through the permission gateway, never around it. A power move produces a
+DRAFT/artifact; landing it is a gated change like any other.
+
 ## 1. Build an internal tool (kill your biggest weekly time-drain)
 INPUT: the owner's repetitive weekly tasks. OUTPUT: one-file tool + plain
 instructions. RUN: identify the biggest drain from the task list, then generate
