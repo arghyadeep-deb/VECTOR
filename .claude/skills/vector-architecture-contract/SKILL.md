@@ -15,7 +15,9 @@ break use `vector-debugging-playbook`; for the LLM routing internals use
 
 ## What VECTOR is
 A local-first, single-owner autonomous agent system ("Darwinian multi-agent
-civilization"): ~1.5M LOC, 38 districts, 133 agents. VECTOR governs; agents are
+civilization"): ~1.5M LOC, 38 districts (verified `ls -d districts/*/` = 38 on
+2026-07-07; `.claude/rules/phase_status.md`'s "33" is stale), 133 agents. VECTOR
+governs; agents are
 citizens with HP (0–1000), die at 0, leave ghost memory the next generation
 inherits. The owner is the "God layer". Autonomous loop:
 observe(0.5s) → think(event-driven) → act(permission-gated) → reflect(2AM).
