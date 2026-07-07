@@ -1,6 +1,6 @@
 ---
 name: vector-proof-and-analysis-toolkit
-description: Load when you must PROVE a change works rather than assume it — a routing change, a quality gate, a bug fix, a performance claim. First-principles analysis recipes with worked examples from VECTOR's own history. Triggers: "prove it works", "measure the improvement", "did the fix actually hold", "is this better", "quality gate", "how do I show", "validate the change".
+description: Load when you must PROVE a change is an improvement — a routing change, a bug fix, a performance claim — by measuring old-vs-new, not assuming. First-principles analysis recipes with worked examples from VECTOR's own history. (For the standard pass/fail test gate use vector-validation-and-qa instead.) Triggers: "prove it works", "measure the improvement", "did the fix actually hold", "is this better", "how do I show", "prove the mechanism".
 ---
 
 # VECTOR Proof & Analysis Toolkit
