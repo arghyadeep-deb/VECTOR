@@ -78,7 +78,8 @@ def test_executor_does_not_treat_not_implemented_as_success() -> None:
     assert "result_status:not_implemented" in report.verification["checks"]
 
 
-def test_execute_plan_endpoint_returns_contract() -> None:
+def test_execute_plan_endpoint_returns_contract(monkeypatch) -> None:
+    monkeypatch.setenv("VECTOR_API_KEY", "test-executor-key")
     app = create_app()
     app.state.permission_gateway = FakeGateway(
         GatewayResult(True, "GREEN", True, {"status": "ok"}, "Auto")
@@ -89,7 +90,7 @@ def test_execute_plan_endpoint_returns_contract() -> None:
     response = client.post(
         "/execute/plan",
         json={"action_type": "respond", "params": {"message": "hi"}},
-        headers={"X-CSRF-Token": token},
+        headers={"X-CSRF-Token": token, "Authorization": "Bearer test-executor-key"},
     )
 
     assert response.status_code == 200
@@ -99,7 +100,8 @@ def test_execute_plan_endpoint_returns_contract() -> None:
     assert body["plan"]["steps"][2]["name"] == "gateway_execute"
 
 
-def test_execute_run_endpoint_can_dry_run_without_gateway_side_effects() -> None:
+def test_execute_run_endpoint_can_dry_run_without_gateway_side_effects(monkeypatch) -> None:
+    monkeypatch.setenv("VECTOR_API_KEY", "test-executor-key")
     app = create_app()
     gateway = FakeGateway(GatewayResult(True, "GREEN", True, {"status": "ok"}, "Auto"))
     app.state.permission_gateway = gateway
@@ -109,7 +111,7 @@ def test_execute_run_endpoint_can_dry_run_without_gateway_side_effects() -> None
     response = client.post(
         "/execute/run",
         json={"action_type": "respond", "params": {"message": "hi"}, "dry_run": True},
-        headers={"X-CSRF-Token": token},
+        headers={"X-CSRF-Token": token, "Authorization": "Bearer test-executor-key"},
     )
 
     assert response.status_code == 200

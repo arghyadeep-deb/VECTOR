@@ -59,9 +59,12 @@ class DailyReviewer(AgentBase):
         cutoff = (datetime.datetime.now() - datetime.timedelta(hours=24)).isoformat()
         try:
             cur = self._memory.conn.cursor()
+            # Exclude test-seeded rows — integration tests that write to the live DB must
+            # never surface in the owner's nightly reflection (A6 placeholder bug, 2026-07-08)
             cur.execute(
                 "SELECT event_type, content, tags, source, timestamp FROM episodic_memory "
-                "WHERE timestamp > ? ORDER BY timestamp ASC",
+                "WHERE timestamp > ? AND source NOT LIKE '%test%' AND tags NOT LIKE '%\"test\"%' "
+                "ORDER BY timestamp ASC",
                 (cutoff,),
             )
             cols = [d[0] for d in cur.description]
@@ -85,13 +88,18 @@ class DailyReviewer(AgentBase):
         )
         try:
             from core.inference.vectorcode_llm import chat
+            # domain="summarization" — catalog chain of free cloud models with ollama
+            # terminal, so the 2AM review survives Ollama being down (was: chairman-only,
+            # which produced "LLM reflection unavailable" placeholder journals).
             text = chat(
                 model=_CHAIRMAN,
                 messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}],
                 timeout=120.0,
+                district="reflection",
+                domain="summarization",
             )
             if not text:
-                raise ValueError("ollama_safe returned empty response")
+                raise ValueError("summarization chain returned empty response")
             return text
         except Exception as e:
             logger.warning(f"[VECTOR][daily_reviewer] LLM unavailable: {e}")

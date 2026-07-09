@@ -23,7 +23,17 @@ Read any file below with the Read tool using the `brain/` prefix.
 
 ## Owner Context
 - `brain/CLAUDE.md` — full user profile (goals, working style, project overview, weekly update)
-- `brain/GOALS.md` — detailed goal breakdown and current state
+- `brain/GOALS.md` — detailed goal breakdown and current state (governed by the Equation)
+
+## Blueprint (Brain vault `Blueprint/` — the governing strategy folder; index only, content lives in the Brain)
+- `brain/Blueprint/(C) Doctrine.md` — **runtime-wired**: its "## Hydration Line" is injected into every LLM call via `core/brain/blueprint_doctrine.py` → `context_engine.session_hydration_prompt()`. Claude-independent.
+- `brain/Blueprint/(C) The Equation — Top 100 Wealth Pattern.md` — W = Σ O×R×M, graduation gate (₹1L+/month × 3mo, ≤5 hrs/week owner time, churn <10%), one-product-at-a-time sequencing. Wired into `core/brain/goal_system.py` (g_first_revenue, g_equation_portfolio) and `districts/startups/idea_validator.py` (11-dimension scoring + revenue-velocity hard gate)
+- `brain/Blueprint/(C) Industries — Four Waves.md` — the four industry waves 2026–2038 (content ops → SMB agentic back-office → verticals → platform + holding co)
+- `brain/Blueprint/(C) Year-by-Year Math — 2026-2038.md` — age 23→35, three bands per year (downside/average/plan) with crisis windows applied + January re-forecast protocol
+- `brain/Blueprint/(C) Risk & Cycles — Downturn Playbook.md` — 40-year crisis frequency analysis, projected problem windows, NORMAL/CORRECTION/CRISIS regime rules. `Regime` is machine-read by `core/brain/blueprint_doctrine.get_regime()`; idea_validator defers new starts outside NORMAL
+- `brain/Blueprint/(C) Income Streams — Codebase Money Map.md` — all 7 income streams (salary, services, audience, digital products, companies, investments, secondaries) mapped to districts + stream×regime matrix
+- `brain/Blueprint/(C) The Real Blueprint — Wealth by 35.md` — 12-year multi-company plan (phases, wedge product, 90-day plan)
+- `brain/Blueprint/Specs/` — **Final Claude Month specs (read `00 README` first)**: 01 Reflect integrity (mostly done 2026-07-08), 02 free-tier inference maximization (60 call sites need `domain=`), 03 regime sentinel, 04 Wave-1 revenue pipeline (THE MONEY SPEC), 05 runway/finance wiring, 06 Claude exit & self-sufficiency
 
 ## Vault Structure (full)
 ```

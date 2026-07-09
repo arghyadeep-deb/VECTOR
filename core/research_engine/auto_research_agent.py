@@ -126,13 +126,16 @@ class AutoResearchAgent:
         logger.info("Scheduled research started — fires every {}h", interval_hours)
         while True:
             try:
+                # Sleep FIRST. Firing a full cycle at startup pushed blocking network
+                # work onto an executor thread immediately, which made shutdown/cancel
+                # hang on the unjoinable thread (found 2026-07-08 via the test suite).
+                await asyncio.sleep(interval_hours * 3600)
                 topics = self._suggest_research_topics()
                 for topic in topics:
                     logger.info("Scheduled research on topic: {}", topic)
                     report = await asyncio.to_thread(self.run_full_cycle, topic)
                     logger.info("Scheduled research completed: {} — supports={}", report.sections.get("title", "?"), report.analysis.supports_hypothesis if report.analysis else "N/A")
                 logger.info("Scheduled research cycle complete — sleeping {}h", interval_hours)
-                await asyncio.sleep(interval_hours * 3600)
             except asyncio.CancelledError:
                 logger.info("Scheduled research cancelled")
                 break
@@ -145,7 +148,7 @@ class AutoResearchAgent:
         try:
             from core.memory.episodic import EpisodicMemory
             memory = EpisodicMemory()
-            patterns = memory.search("research gap open question", limit=3)
+            patterns = memory.recall("research gap open question", limit=3)
             for p in patterns:
                 content = p.get("content", "") if isinstance(p, dict) else str(p)
                 if content and len(content) > 10:

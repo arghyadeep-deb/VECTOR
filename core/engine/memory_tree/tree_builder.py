@@ -23,7 +23,9 @@ __all__ = [
 
 import hashlib
 import json
+import os
 import re
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +35,7 @@ from loguru import logger
 
 _TREE_DB = Path.home() / ".vector_ca" / "memory_tree"
 _BRAIN_WIKI = Path("brain") / "VECTOR" / "wiki"
+_SAVE_LOCK = threading.Lock()
 
 
 # â”€â”€ Data structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -330,14 +333,33 @@ class MemoryTree:
                     for topic, node in source.nodes.items()
                 },
             }
-        self._db_path().write_text(json.dumps(data, indent=2), encoding="utf-8")
+        # Atomic write: plain write_text over the live file left torn JSON when the
+        # autonomous loop, MCP server, and tests saved concurrently ("Extra data" /
+        # empty-file corruption, found 2026-07-08). temp + os.replace is atomic on
+        # Windows and POSIX; the lock serializes writers within this process.
+        path = self._db_path()
+        tmp = path.with_suffix(path.suffix + f".tmp{os.getpid()}")
+        with _SAVE_LOCK:
+            tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+            os.replace(tmp, path)
 
     def _load(self) -> None:
         p = self._db_path()
         if not p.exists():
             return
         try:
-            data = json.loads(p.read_text(encoding="utf-8"))
+            raw = p.read_text(encoding="utf-8")
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError:
+                # Salvage pre-atomic-write corruption: torn files often hold a valid
+                # JSON prefix followed by stale trailing bytes — recover the prefix
+                # instead of dropping the whole tree.
+                data, end = json.JSONDecoder().raw_decode(raw)
+                logger.warning(
+                    "[VECTOR][memory_tree] salvaged valid JSON prefix from corrupt file "
+                    f"({end}/{len(raw)} chars) — will be rewritten atomically on next save"
+                )
             for key, sd in data.items():
                 source = MemorySource(
                     source_kind=sd["source_kind"],

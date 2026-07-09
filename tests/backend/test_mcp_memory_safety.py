@@ -61,21 +61,26 @@ def test_nested_traversal_back_inside_is_still_evaluated_on_real_target():
 
 @pytest.fixture
 def isolated_memory(monkeypatch):
-    """Point episodic memory at a throwaway DB and reset the singleton."""
+    """Point episodic memory at a throwaway DB and reset the singleton.
+
+    MUST use the VECTOR_DB_PATH env override — configured_db_path() checks it
+    BEFORE CONFIG["db_path"], so mutating CONFIG alone left these tests running
+    against the LIVE database (found 2026-07-08: seed/clear/export ran on 285k
+    production rows; only a failing pre-assert kept memory_clear from wiping them).
+    """
     import core.memory.episodic as ep
     tmp = Path(tempfile.mkdtemp()) / "mem.db"
-    orig_path = ep.CONFIG.get("db_path", "vector_memory.db")
-    ep.CONFIG["db_path"] = str(tmp)
-    ep._db_connection = None
-    ep.EpisodicMemory()  # creates the schema
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp))
+    monkeypatch.setitem(ep.CONFIG, "db_path", str(tmp))
+    ep.close_db_connection()
+    ep.EpisodicMemory()  # creates the schema at the throwaway path
+    # Hard guard: never run destructive tests against a DB that already has data
+    with ep.get_temp_cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM episodic_memory")
+        count = cur.fetchone()[0]
+    assert count == 0, f"isolated_memory redirect FAILED ({count} rows visible) — refusing to run destructive tests"
     yield ep
-    try:
-        if ep._db_connection is not None:
-            ep._db_connection.close()
-    except Exception:
-        pass
-    ep._db_connection = None
-    ep.CONFIG["db_path"] = orig_path
+    ep.close_db_connection()
 
 
 def _build_server():

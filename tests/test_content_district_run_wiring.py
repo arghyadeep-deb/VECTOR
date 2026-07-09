@@ -56,8 +56,10 @@ from districts.content.voice_generator import VoiceGenerator
 async def test_media_studio_agent_run_media_status_routes_by_type():
     agent = MediaStudioAgent()
     result = await agent.run({"type": "media_status"})
-    assert "muapi" in result
+    # "muapi" integration was removed — current status contract is local + wan2gp + mode
     assert "wan2gp" in result
+    assert "local" in result
+    assert "mode" in result
 
 
 @pytest.mark.asyncio

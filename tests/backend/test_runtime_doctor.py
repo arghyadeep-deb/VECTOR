@@ -4,7 +4,15 @@ import json
 import subprocess
 import sys
 
+import pytest
 from fastapi.testclient import TestClient
+
+
+@pytest.fixture(autouse=True)
+def _no_api_key(monkeypatch):
+    """These tests assert the documented no-key/localhost auth mode; the owner's
+    real .env loads VECTOR_API_KEY into the test process — remove it here."""
+    monkeypatch.delenv("VECTOR_API_KEY", raising=False)
 
 
 def test_dependency_doctor_required_core_checks_pass(monkeypatch) -> None:
@@ -38,9 +46,13 @@ def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None
     checks = {check["name"]: check for check in payload["checks"]}
 
     assert payload["status"] == "unready"
-    assert payload["required_failed"] >= 4
+    # Count only the checks this test controls via env — sidecar checks (ComfyUI etc.)
+    # legitimately pass on machines where the sidecar exists at its default path.
+    assert payload["required_failed"] >= 2
     assert checks["env:VECTOR_API_KEY"]["required"] is True
+    assert checks["env:VECTOR_API_KEY"]["status"] != "ok"
     assert checks["env:VECTOR_JWT_SECRET"]["required"] is True
+    assert checks["env:VECTOR_JWT_SECRET"]["status"] != "ok"
     assert checks["frontend:production_bundle"]["required"] is True
     assert checks["frontend:production_bundle"]["status"] == "ok"
     assert checks["sidecar:comfyui_path"]["required"] is True

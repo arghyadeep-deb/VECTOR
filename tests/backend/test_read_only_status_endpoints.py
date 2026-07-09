@@ -4,6 +4,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.fixture(autouse=True)
+def _no_api_key(monkeypatch):
+    """These tests assert the documented no-key/localhost auth mode; the owner's
+    real .env loads VECTOR_API_KEY into the test process — remove it here."""
+    monkeypatch.delenv("VECTOR_API_KEY", raising=False)
+
+
 READ_ONLY_ENDPOINTS = (
     "/health/status",
     "/patterns/habits",

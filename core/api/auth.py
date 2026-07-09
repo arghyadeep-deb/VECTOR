@@ -23,8 +23,14 @@ from loguru import logger
 from core.config import CONFIG
 
 security = HTTPBearer(auto_error=False)
-_API_KEY: str = os.environ.get("VECTOR_API_KEY", "")
 _AUTH_DISABLED_WARNED = False
+
+
+def _api_key() -> str:
+    """Read the key at call time — middleware.py already does; a module-global
+    frozen at import made the documented no-key/localhost mode unreachable once
+    the process imported with .env loaded (and untestable via monkeypatch)."""
+    return os.environ.get("VECTOR_API_KEY", "")
 
 
 def verify_api_key(
@@ -37,7 +43,8 @@ def verify_api_key(
     Raises HTTPException 401 only if key IS configured AND invalid.
     """
     global _AUTH_DISABLED_WARNED
-    if not _API_KEY:
+    api_key = _api_key()
+    if not api_key:
         if not _AUTH_DISABLED_WARNED:
             logger.warning("[VECTOR][auth] API authentication DISABLED — set VECTOR_API_KEY env var to enable (remote access blocked to localhost by middleware)")
             _AUTH_DISABLED_WARNED = True
@@ -47,7 +54,7 @@ def verify_api_key(
         raise HTTPException(status_code=401, detail="Missing authorization header")
 
     # Constant-time comparison — avoids leaking the key via response timing.
-    if not hmac.compare_digest(credentials.credentials, _API_KEY):
+    if not hmac.compare_digest(credentials.credentials, api_key):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     return True
@@ -55,4 +62,4 @@ def verify_api_key(
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    print("OK" if not _API_KEY else f"API key configured ({len(_API_KEY)} chars)")
+    print("OK" if not _api_key() else f"API key configured ({len(_api_key())} chars)")

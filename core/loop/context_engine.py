@@ -217,6 +217,15 @@ class ContextEngine:
         if state.get("goal_summary"):
             lines.append(f"Active goals: {state['goal_summary']}")
 
+        # Owner doctrine (brain vault Blueprint/(C) Doctrine.md) — rides every LLM call
+        try:
+            from core.brain.blueprint_doctrine import get_doctrine_line
+            doctrine = get_doctrine_line()
+            if doctrine:
+                lines.append(doctrine)
+        except Exception:
+            logger.warning("[VECTOR][context_engine] doctrine unavailable, continuing")
+
         if state.get("recent_episodes"):
             episodes_str = " | ".join(
                 e for e in state["recent_episodes"] if e

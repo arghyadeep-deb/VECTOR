@@ -61,9 +61,12 @@ class SynthesisBridge:
             from core.memory.episodic import EpisodicMemory
             em = EpisodicMemory()
             cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+            # source NOT LIKE '%test%': integration tests seed this table on the live DB —
+            # their rows must never reach the owner's briefing (A6 placeholder bug, 2026-07-08)
             rows = em.conn.execute(
                 """SELECT content FROM episodic_memory
                    WHERE event_type='cross_domain_synthesis' AND timestamp >= ?
+                   AND source NOT LIKE '%test%'
                    ORDER BY timestamp DESC LIMIT 20""",
                 (cutoff,),
             ).fetchall()

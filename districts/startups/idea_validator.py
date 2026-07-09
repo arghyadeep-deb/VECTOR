@@ -22,11 +22,26 @@ class IdeaValidator(StartupAgentBase):
         logger.info(f"[VECTOR][startups] Validating idea: {idea_name}")
         self.add_lesson({"action": "validate_idea", "idea": idea_name})
 
-        prompt = f"""Validate this startup idea across 8 dimensions using the VECTOR framework:
+        try:
+            from core.brain.blueprint_doctrine import get_regime
+            regime = get_regime()
+        except Exception:
+            regime = "NORMAL"
+
+        prompt = f"""Validate this startup idea across 11 dimensions using the VECTOR framework:
 Idea: {idea_name}
 Description: {idea.get('description', '')}
 Problem: {idea.get('problem', '')}
 Solution: {idea.get('solution', '')}
+
+Governing law — The Equation (Brain vault: Blueprint/(C) The Equation — Top 100 Wealth Pattern.md):
+W = Σ O×R×M. Ownership × Revenue × Multiple, sequenced: a new product is only admitted
+if the current one has passed the graduation gate (₹1L+/month × 3 months, ≤5 hrs/week
+owner time, churn <10%). Revenue is mandatory — an idea with no path to a paying
+stranger within 90 days contributes 0 regardless of how impressive it is to build.
+Current market regime: {regime} (Downturn Playbook: NORMAL = standard gates;
+CORRECTION/CRISIS = no new product starts — only retention, cost-saving pitches, and
+harvesting existing products are admissible).
 
 Score each dimension 1-10:
 1. Viability: Can it work technically and commercially?
@@ -37,11 +52,14 @@ Score each dimension 1-10:
 6. Team-fit: Does it match founder strengths?
 7. Passion: Does it excite the founders?
 8. Risk: What are the top 3 failure modes?
+9. Revenue velocity (R): Can a paying stranger be reached within 90 days?
+10. VECTOR operability (O): Can VECTOR run ops/content/support at ≤5 hrs/week owner time, so no dilution-forcing hires?
+11. Distribution (M): Is there an existing channel to the buyer and a moat mechanism (data loop, network effect, switching cost)?
 
-Return JSON: {{scores: {{viability, edge, timing, recourse, outlook, team_fit, passion, risk}}, overall_score: float, verdict: string, pros: string[], cons: string[], must_fix_before_launch: string[]}}"""
+Return JSON: {{scores: {{viability, edge, timing, recourse, outlook, team_fit, passion, risk, revenue_velocity, vector_operability, distribution}}, overall_score: float, verdict: string, pros: string[], cons: string[], must_fix_before_launch: string[]}}"""
         validation = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
         result_data = self._parse_json_response(validation, {
-            "scores": {k: 5 for k in ("viability", "edge", "timing", "recourse", "outlook", "team_fit", "passion", "risk")},
+            "scores": {k: 5 for k in ("viability", "edge", "timing", "recourse", "outlook", "team_fit", "passion", "risk", "revenue_velocity", "vector_operability", "distribution")},
             "overall_score": 5.0,
         })
 
@@ -49,11 +67,24 @@ Return JSON: {{scores: {{viability, edge, timing, recourse, outlook, team_fit, p
         overall = result_data.get("overall_score", sum(scores.values()) / max(len(scores), 1) if scores else 5.0)
         verdict = "STRONG" if overall >= 7 else "PROMISING" if overall >= 5 else "WEAK" if overall >= 3 else "REJECT"
 
+        # Equation hard gate (W = Σ O×R×M): R=0 zeroes the term — no plausible path to a
+        # paying stranger within 90 days caps the verdict at WEAK regardless of overall score.
+        if scores.get("revenue_velocity", 5) < 4 and verdict in ("STRONG", "PROMISING"):
+            logger.warning(f"[VECTOR][startups] Equation gate: '{idea_name}' capped to WEAK (revenue_velocity={scores.get('revenue_velocity')})")
+            verdict = "WEAK"
+
+        # Regime gate (Downturn Playbook): outside NORMAL, new product starts are frozen —
+        # a strong idea is deferred, not rejected; revisit when the regime returns to NORMAL.
+        if regime != "NORMAL" and verdict in ("STRONG", "PROMISING"):
+            logger.warning(f"[VECTOR][startups] Regime gate ({regime}): '{idea_name}' deferred — no new starts outside NORMAL")
+            verdict = "DEFERRED"
+
         validated = {
             "idea_name": idea_name,
             "scores": scores,
             "overall_score": round(overall, 2),
             "verdict": verdict,
+            "regime": regime,
             "pros": result_data.get("pros", []),
             "cons": result_data.get("cons", []),
             "must_fix": result_data.get("must_fix_before_launch", []),

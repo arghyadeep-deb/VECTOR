@@ -1,7 +1,15 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from core.api import create_app
 from core.loop.permission_gateway import GatewayResult
+
+
+@pytest.fixture(autouse=True)
+def _no_api_key(monkeypatch):
+    """These tests assert the documented no-key/localhost auth mode; the owner's
+    real .env loads VECTOR_API_KEY into the test process — remove it here."""
+    monkeypatch.delenv("VECTOR_API_KEY", raising=False)
 from core.runtime.missions import (
     MISSION_JOBS,
     MISSION_STORE,

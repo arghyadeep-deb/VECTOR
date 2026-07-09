@@ -68,6 +68,25 @@ PRESEEDED_GOALS = [
         "progress": 0.0,
         "tags": ["git", "habit", "coding"],
     },
+    # The Equation (added 2026-07-08) — W = Σ O×R×M, see Brain vault Blueprint/(C) The Equation — Top 100 Wealth Pattern.md
+    {
+        "id": "g_first_revenue",
+        "title": "First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)",
+        "horizon": "MID",
+        "priority": 10,
+        "status": "active",
+        "progress": 0.0,
+        "tags": ["revenue", "equation", "wedge", "startups"],
+    },
+    {
+        "id": "g_equation_portfolio",
+        "title": "Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2",
+        "horizon": "LONG",
+        "priority": 9,
+        "status": "active",
+        "progress": 0.0,
+        "tags": ["equation", "portfolio", "startups"],
+    },
 ]
 
 
@@ -97,6 +116,9 @@ class GoalSystem:
             stored = mem.recall_fact("goals_v1")
             if stored and stored.get("value"):
                 self._goals = json.loads(stored["value"])
+                merged = self._merge_new_seeds()
+                if merged:
+                    logger.info(f"[VECTOR][goal_system] merged {merged} new seed goals into stored set")
                 logger.info(f"[VECTOR][goal_system] loaded {len(self._goals)} goals from memory")
                 return
         except Exception as e:
@@ -105,6 +127,16 @@ class GoalSystem:
         self._goals = [g.copy() for g in PRESEEDED_GOALS]
         self._persist()
         logger.info(f"[VECTOR][goal_system] seeded {len(self._goals)} goals")
+
+    def _merge_new_seeds(self) -> int:
+        """Append PRESEEDED_GOALS added after first seeding (matched by id), so
+        already-persisted installs pick up new seed goals instead of ignoring them."""
+        existing_ids = {g.get("id") for g in self._goals}
+        new = [g.copy() for g in PRESEEDED_GOALS if g["id"] not in existing_ids]
+        if new:
+            self._goals.extend(new)
+            self._persist()
+        return len(new)
 
     def _persist(self):
         try:
