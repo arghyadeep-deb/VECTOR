@@ -34,6 +34,8 @@ Read any file below with the Read tool using the `brain/` prefix.
 - `brain/Blueprint/(C) Income Streams — Codebase Money Map.md` — all 7 income streams (salary, services, audience, digital products, companies, investments, secondaries) mapped to districts + stream×regime matrix
 - `brain/Blueprint/(C) The Real Blueprint — Wealth by 35.md` — 12-year multi-company plan (phases, wedge product, 90-day plan)
 - `brain/Blueprint/Specs/` — **Final Claude Month specs (read `00 README` first)**: 01 Reflect integrity (mostly done 2026-07-08), 02 free-tier inference maximization (60 call sites need `domain=`), 03 regime sentinel, 04 Wave-1 revenue pipeline (THE MONEY SPEC), 05 runway/finance wiring, 06 Claude exit & self-sufficiency
+- `brain/Blueprint/(C) Rolling Plan Protocol.md` — the year→quarter→month→week→day rolling planning system (goal_system horizons LONG/MID/SHORT map to quarter/week/day; chief_of_staff briefs = day layer)
+- `brain/Blueprint/Planning/2026-Q3.md` — **the active quarter plan — read before any build work**; quarter objectives, month plans, current week day-wise
 
 ## Vault Structure (full)
 ```

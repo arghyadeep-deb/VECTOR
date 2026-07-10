@@ -1,4 +1,4 @@
-﻿"""
+"""
 VectorCode LLM — unified multi-provider LLM router for VECTOR districts.
 
 Wraps ollama_safe (local) and adds cloud provider tiers via vectorcode's
@@ -517,6 +517,14 @@ def chat(
     """
     if not messages:
         return ""
+
+    # Ponytail minimal-code ladder — injected once here so all ~25 coding agents build
+    # lean (no-op for non-coding domains; degrades to no-op if the plugin is absent).
+    try:
+        from core.inference.ponytail_guard import inject as _ponytail_inject
+        messages = _ponytail_inject(messages, domain=domain, model=model)
+    except Exception:
+        pass
 
     if provider == "gemini":
         return _try_gemini(model, messages, timeout, temperature)

@@ -130,5 +130,26 @@ Skills symlinked into `~/.claude/skills/`. Repo: `GitHub/garrytan_gstack/repo`.
 
 ---
 
+## PLUGIN 8 — PONYTAIL (DietrichGebert/ponytail) — added 2026-07-09, owner decision
+
+Minimal-code enforcement ("lazy senior developer" decision ladder: needed? → exists in
+codebase? → stdlib? → platform-native? → installed? → only then write).
+
+**WIRED INTO VECTOR RUNTIME (not just Claude):** vendored at `ponytail/`;
+`core/inference/ponytail_guard.py` injects the ladder into every `coding.*`/`saas.*` LLM
+call via `vectorcode_llm.chat()` — all ~25 coding agents build lean, Claude-independent.
+Tune behavior by editing `ponytail/skills/ponytail/SKILL.md` (no code change).
+Claude-side (this session): `/plugin marketplace add DietrichGebert/ponytail` +
+`/plugin install ponytail@ponytail` for `/ponytail-review` and `/ponytail-audit`.
+
+| Situation | Command |
+|-----------|---------|
+| **Every MODE 2 SaaS build (Wave-1 product code) — MANDATORY, always on** | decision ladder active by default (`full` intensity) |
+| Before committing any feature diff | `/ponytail-review` — delete-list for over-engineering |
+| Codebase necessity sweep (scheduled: Q3 W2–W3) | `/ponytail-audit` — whole-repo scan |
+
+Rule: ponytail verdicts feed the same gate as code review — address or consciously
+override, never ignore. Complements (does not replace) verification-before-completion.
+
 ## Not Available
 - **claude-mem** (nicholasgasior/claude-mem) — repo does not exist on GitHub. mem0 is the replacement.

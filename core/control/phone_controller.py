@@ -242,6 +242,76 @@ class PhoneController:
             logger.error(f"[VECTOR][phone_controller] send_keyevent error: {e}")
             return False
 
+    # ------------------------------------------------------------------
+    # Interaction primitives — the app-automation layer (IG posting, WA replies).
+    # All RED-tier writes: ONLY call after permission_gateway approval.
+    # ------------------------------------------------------------------
+
+    def tap(self, x: int, y: int) -> bool:
+        """Tap screen coordinate (x, y)."""
+        if not self._connected:
+            return False
+        ok, _ = self._run_adb("shell", "input", "tap", str(int(x)), str(int(y)), timeout=10)
+        logger.info(f"[VECTOR][phone_controller] tap ({x},{y}) {'ok' if ok else 'FAIL'}")
+        return ok
+
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> bool:
+        """Swipe from (x1,y1) to (x2,y2) over duration_ms. Also used for scroll."""
+        if not self._connected:
+            return False
+        ok, _ = self._run_adb(
+            "shell", "input", "swipe",
+            str(int(x1)), str(int(y1)), str(int(x2)), str(int(y2)), str(int(duration_ms)),
+            timeout=10,
+        )
+        logger.info(f"[VECTOR][phone_controller] swipe ({x1},{y1})->({x2},{y2}) {'ok' if ok else 'FAIL'}")
+        return ok
+
+    def type_text(self, text: str) -> bool:
+        """Type text into the focused field. ASCII/basic only — `input text`
+        can't do emoji/newlines (Android limitation).
+        ponytail: install ADBKeyboard IME later if captions need emoji/unicode."""
+        if not self._connected:
+            return False
+        # `input text` treats spaces specially: encode as %s, escape shell-risky chars.
+        safe = text.replace(" ", "%s")
+        for ch in ("&", "<", ">", "|", ";", "(", ")", "`", '"', "'"):
+            safe = safe.replace(ch, "\\" + ch)
+        ok, _ = self._run_adb("shell", "input", "text", safe, timeout=15)
+        logger.info(f"[VECTOR][phone_controller] type_text ({len(text)} chars) {'ok' if ok else 'FAIL'}")
+        return ok
+
+    def launch_app(self, package: str) -> bool:
+        """Launch an app by package name (e.g. com.instagram.android)."""
+        if not self._connected:
+            return False
+        ok, _ = self._run_adb(
+            "shell", "monkey", "-p", package, "-c", "android.intent.category.LAUNCHER", "1",
+            timeout=15,
+        )
+        logger.info(f"[VECTOR][phone_controller] launch {package} {'ok' if ok else 'FAIL'}")
+        return ok
+
+    def current_app(self) -> str:
+        """Return the foreground app's package name (best-effort, '' on failure).
+        Used to verify launch_app actually landed on the target app."""
+        if not self._connected:
+            return ""
+        ok, out = self._run_adb("shell", "dumpsys", "window", timeout=10)
+        if not ok:
+            return ""
+        import re
+        m = re.search(r"mCurrentFocus=Window\{[^}]*\s+([\w.]+)/", out)
+        return m.group(1) if m else ""
+
+    def unlock(self) -> bool:
+        """Wake + swipe up to dismiss a no-PIN lock screen. (For PIN locks, the
+        owner must set screen lock to None — VECTOR does not store a PIN.)"""
+        if not self._connected:
+            return False
+        self.send_keyevent(224)  # KEYCODE_WAKEUP
+        return self.swipe(360, 1200, 360, 300, 250)
+
 
 # ----------------------------------------------------------------------
 # Smoke test
