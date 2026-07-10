@@ -556,7 +556,10 @@ class AutonomousLoop:
         """Observe world state every 0.5s. Never crashes."""
         interval = CONFIG["loop"]["observe_interval_sec"]
         logger.info(f"[VECTOR][observe] started — {interval}s interval")
-        guard = _get_loop_guard()
+        # NOTE (2026-07-11): LoopGuard (MAX_ITERATIONS=50) was ticked here and
+        # false-fired every ~25s — it's a PER-TASK guard for bounded agent loops,
+        # not the eternal observe loop (which is legitimately infinite and already
+        # protected by the asyncio.timeout(15) per tick below). Removed.
         while self._running:
             try:
                 async with asyncio.timeout(15):
@@ -567,11 +570,6 @@ class AutonomousLoop:
                     _ls.update_runtime(tick_count=self._tick_count, running=self._running)
                 except Exception as e:
                     logger.debug("[VECTOR][observe] loop_state update skipped: {}", e)
-                if guard:
-                    guard.tick()
-                    if guard.is_terminated:
-                        logger.warning("[VECTOR][observe] LoopGuard terminated — resetting")
-                        guard.reset()
             except asyncio.TimeoutError:
                 logger.warning("[VECTOR][observe] tick timed out (>15s) — skipping")
             except Exception as e:

@@ -64,13 +64,32 @@ class ResearchHub(AgentBase):
         self.subscribe_to("task_completed")
         self.subscribe_to("decision_made")
 
+    # Internal action names that are NOT researchable topics — web-searching these
+    # is meaningless and used to fire a 15s search on every decision (2026-07-11).
+    _SKIP_QUERIES = frozenset({
+        "analyze_progress", "research_topic", "respond", "wait", "no_action",
+        "analyze", "reflect", "observe", "think", "act", "idle",
+    })
+    # query -> last-researched epoch; skip repeats within the cooldown.
+    _recent_research: dict = {}
+    _RESEARCH_COOLDOWN_S = 1800   # 30 min — don't re-research the same query
+
     async def handle_event(self, event: dict) -> dict:
         """Phase 2B: Auto-launch deep research on knowledge gap events."""
         await super().handle_event(event)
         et = event.get("event_type", "")
         data = event.get("data", {})
         query = data.get("query") or data.get("topic") or data.get("action_type", "")
+        q_norm = str(query).strip().lower()
+        # Skip internal action-names and recently-researched queries (debounce).
+        if q_norm in self._SKIP_QUERIES:
+            return {"status": "skipped", "agent": self.name, "event": et, "reason": "internal-action"}
+        import time as _t
+        last = self._recent_research.get(q_norm, 0.0)
+        if q_norm and _t.time() - last < self._RESEARCH_COOLDOWN_S:
+            return {"status": "skipped", "agent": self.name, "event": et, "reason": "cooldown"}
         if query and et in ("task_completed", "decision_made"):
+            self._recent_research[q_norm] = _t.time()
             try:
                 logger.info(f"[VECTOR][research_hub] event-triggered research: {et} query={query[:50]}")
                 results = await self.search_web(str(query)[:100], max_results=5)
