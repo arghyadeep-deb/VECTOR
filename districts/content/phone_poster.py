@@ -31,6 +31,7 @@ from loguru import logger
 from core.config import CONFIG
 
 _IG_PACKAGE = "com.instagram.android"
+_YT_PACKAGE = "com.google.android.youtube"
 _REMOTE_MEDIA = "/sdcard/vector_post.mp4"
 
 
@@ -117,9 +118,66 @@ class PhonePoster:
             return {"status": "error", "reason": f"share step failed: {e}"}
 
 
+    async def post_youtube(self, media_path: str, caption: str = "") -> dict:
+        """Upload a Short to YouTube by driving the app (account already logged in
+        on the phone — no OAuth/Cloud Console needed). YouTube is the official
+        platform so ban-risk is minimal; still owner-approval-gated. Returns
+        {status, reason}. status ∈ pending_upload|uploaded|blocked|error.
+
+        No warm-up/cap gate here (YouTube tolerates uploads; those rules exist for
+        Instagram's stricter new-account bot detection)."""
+        handle = CONFIG["growth"].get("youtube_handle", "") or "__yt__"
+
+        # Owner approval (fail-closed)
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            approved = await PermissionGateway().request_approval(
+                action="youtube_upload_via_phone",
+                summary=f"Upload Short to YouTube (@{handle}) on the phone. {caption[:80]}",
+                risk="RED",
+            )
+        except Exception as e:
+            logger.error("[VECTOR][phone_poster] YT approval failed (fail-closed): {}", e)
+            approved = False
+        if not approved:
+            return {"status": "blocked", "reason": "owner did not approve"}
+
+        if not self._pc.is_connected():
+            return {"status": "error", "reason": "phone not connected"}
+
+        try:
+            self._pc.unlock()
+            ok, _ = self._pc._run_adb("push", media_path, _REMOTE_MEDIA, timeout=60)
+            if not ok:
+                return {"status": "error", "reason": "adb push of media failed"}
+            self._pc._run_adb("shell", "am", "broadcast", "-a",
+                              "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+                              "-d", f"file://{_REMOTE_MEDIA}", timeout=10)
+            # Share-intent hands the video to YouTube's upload composer.
+            self._pc._run_adb(
+                "shell", "am", "start", "-a", "android.intent.action.SEND",
+                "-t", "video/*", "--eu", "android.intent.extra.STREAM", f"file://{_REMOTE_MEDIA}",
+                "-p", _YT_PACKAGE, timeout=15,
+            )
+            await asyncio.sleep(4)
+        except Exception as e:
+            return {"status": "error", "reason": f"intent launch failed: {e}"}
+
+        # Final Next→Upload taps are calibration-driven (composer is multi-step).
+        # Until calibrated, composer is open with the video; owner taps through Upload.
+        try:
+            from core.notify import pushover  # type: ignore
+            pushover("Short loaded in YouTube composer — tap Next → Upload to publish.")
+        except Exception:
+            pass
+        return {"status": "pending_upload",
+                "reason": "composer open with video; owner taps Next→Upload "
+                          "(calibrate growth.yt_upload_taps to automate)"}
+
+
 if __name__ == "__main__":
     # Structural self-test only — does NOT post (no approval, no real media).
     import inspect
-    src = inspect.getsource(PhonePoster.post_instagram)
-    ok = all(s in src for s in ("can_post_now", "request_approval", "record_post", "SEND"))
+    src = inspect.getsource(PhonePoster.post_instagram) + inspect.getsource(PhonePoster.post_youtube)
+    ok = all(s in src for s in ("can_post_now", "request_approval", "record_post", "SEND", "_YT_PACKAGE"))
     print("phone_poster OK" if ok else "FAILED")

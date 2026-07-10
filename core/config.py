@@ -1028,6 +1028,7 @@ CONFIG: dict = {
         "youtube_handle": "",             # owner fills before posting
         "instagram_handle": "",
         "instagram_mode": "manual",       # "manual" (human-in-loop) | "graph_api" | "phone" (drive the app on the connected device)
+        "youtube_mode": "phone",          # "phone" (drive the app — no OAuth) | "api" (official Data API, needs Google OAuth creds)
         "post_cadence": "daily",
         # Ban-safety (see core/control/social_safety.py). Protects new accounts:
         # warm the account before posting, cap volume, jitter timing so it never

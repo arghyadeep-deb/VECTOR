@@ -133,8 +133,17 @@ class ContentArm:
         await self._instagram_publisher()(reel)
 
     async def _publish_youtube(self, reel: str, well: str) -> None:
-        """Real YouTube Shorts upload via the existing Uploader. Uploads as
-        ``private`` (owner flips to public) and dry-runs when no Google creds."""
+        """Publish a Short. youtube_mode='phone' drives the app on the device
+        (no OAuth needed — account logged in on the phone); 'api' uses the
+        official Data API Uploader (needs Google OAuth creds)."""
+        if CONFIG["growth"].get("youtube_mode", "phone") == "phone":
+            try:
+                from districts.content.phone_poster import PhonePoster
+                res = await PhonePoster().post_youtube(reel, caption=CONFIG["growth"]["brand_line"])
+                logger.info("[VECTOR][growth][armA] YouTube phone-post result: {}", res)
+            except Exception as exc:
+                logger.warning("[VECTOR][growth][armA] youtube phone post unavailable: {}", exc)
+            return
         try:
             from districts.content.uploader import Uploader
             title = CONFIG["growth"]["brand_line"]
