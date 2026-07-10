@@ -1046,6 +1046,12 @@ CONFIG: dict = {
         ),
         "review_loop_max_iterations": 5,  # ARM B reviewer↔fix cap before escalation
     },
+    # Agency / client ops (districts/agency/wa_assistant.py — WhatsApp Business replies)
+    "agency": {
+        "wa_autosend": False,           # OFF: VECTOR drafts, owner sends. Keep OFF for
+                                        # early clients (a bad auto-reply loses a client).
+        "wa_send_tap": [1000, 1830],    # WhatsApp Send-arrow coords; recalibrate if it moves
+    },
     "training": _s.training.model_dump(),
     "event_bus": _s.event_bus.model_dump(),
     "research_lab": _s.research_lab.model_dump(),
