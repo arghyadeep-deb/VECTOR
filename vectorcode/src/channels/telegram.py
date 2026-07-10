@@ -47,7 +47,9 @@ class TelegramChannel(BaseChannel):
         bus: Optional[EventBus] = None,
     ) -> None:
         self._token = bot_token or os.environ.get("TELEGRAM_BOT_TOKEN", "")
-        self._allowed_chat_ids = allowed_chat_ids
+        # Env fallback (mirrors bot_token) — owner allowlist lives in .env so a
+        # stranger who finds the bot can't command VECTOR. Comma-separated chat ids.
+        self._allowed_chat_ids = allowed_chat_ids or os.environ.get("TELEGRAM_ALLOWED_CHAT_IDS", "")
         self._parse_mode = parse_mode
         self._bus = bus
         self._handlers: List[ChannelHandler] = []
