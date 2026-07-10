@@ -30,14 +30,20 @@ RETENTION_DAYS: int = 7
 _BASE_DIR      = Path(CONFIG.get("base_dir", Path(__file__).parent.parent))
 BACKUP_DIR     = _BASE_DIR / "data" / "backups" / "sqlite"
 
-# Directories to never back up (node_modules, venv, external data)
-_SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__"}
+# Directories to never back up (node_modules, venv, external data).
+# "backups" is CRITICAL: without it, rglob re-copies every prior backup each run —
+# an exponential recursion bomb that reached 74GB on 2026-06-19 (fixed 2026-07-11).
+_SKIP_DIRS = {".git", ".venv", "venv", "node_modules", "__pycache__", "backups"}
 
 
 def _find_db_files() -> list[Path]:
     result: list[Path] = []
+    _backup_root = BACKUP_DIR.resolve()
     for path in _BASE_DIR.rglob("*.db"):
         if any(part in _SKIP_DIRS for part in path.parts):
+            continue
+        # Belt-and-suspenders: never back up anything already under the backup dir.
+        if _backup_root in path.resolve().parents:
             continue
         result.append(path)
     result.sort()
