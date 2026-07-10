@@ -1027,8 +1027,15 @@ CONFIG: dict = {
         "brand_line": "VECTOR — Arghyadeep's personal AI Intelligence",
         "youtube_handle": "",             # owner fills before posting
         "instagram_handle": "",
-        "instagram_mode": "manual",       # "manual" (human-in-loop) | "graph_api" (official)
+        "instagram_mode": "manual",       # "manual" (human-in-loop) | "graph_api" | "phone" (drive the app on the connected device)
         "post_cadence": "daily",
+        # Ban-safety (see core/control/social_safety.py). Protects new accounts:
+        # warm the account before posting, cap volume, jitter timing so it never
+        # looks machine-scheduled. account_created_iso is per-handle in growth state.
+        "warmup_days": 10,                # no posting until the account is this old
+        "max_posts_per_day": 1,           # hard daily cap per account
+        "min_hours_between_posts": 6,     # spacing floor
+        "post_jitter_minutes": 90,        # randomize scheduled time by ±this
         "voice_profile": "bf_emma",       # Kokoro JARVIS voice
         "hud_viewport": [1080, 1920],     # 9:16 vertical for Reels/Shorts
         "signup_form_url": "",

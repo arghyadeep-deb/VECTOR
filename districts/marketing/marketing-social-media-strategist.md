@@ -130,3 +130,20 @@ Use this agent when you need:
 - **Content Performance Patterns**: Document what resonates on each platform
 - **Audience Evolution**: Monitor changing demographics and engagement preferences
 - **Competitive Landscape**: Track competitor social strategies and industry benchmarks
+
+## VECTOR Ban-Safety Constraints (posting via real device)
+
+VECTOR posts by driving the app on a connected phone (residential IP, real taps) — the
+lowest-ban-risk method. Any schedule this agent produces MUST comply, or the account
+gets flagged as a bot:
+
+- **Warm-up:** a new account does NO posting for ~10 days — only human-like activity
+  (scroll, like, follow a few). Enforced by `core/control/social_safety.py`.
+- **Volume:** ≤ 1 post/day per account at launch; ramp slowly over weeks.
+- **Spacing & timing:** ≥ 6h between posts; never an exact clock time (jittered ±90 min).
+- **Never:** bulk/burst posting, bought followers/likes, mass-follow, or `instagrapi`.
+- Start on an AGED, real account (e.g. the owner's father's — Wave 1 customer #1), not a
+  brand-new handle. New handles warm slowly on the side.
+
+Code path: content plan → reel → `districts/growth/content_arm` (`instagram_mode="phone"`)
+→ `districts/content/phone_poster` → `social_safety` gate + owner approval → post.

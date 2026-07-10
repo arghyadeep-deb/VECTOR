@@ -209,6 +209,12 @@ Include:
 7. Cross-platform adaptation notes
 8. Engagement prompts for audience
 
+VECTOR ban-safety constraints (posting is via a real device — respect these or the
+account gets flagged): a NEW account must warm up ~10 days (human activity, no posting)
+before its first post; then at most 1 post/day, spaced 6h+, at human-varied (not exact
+clock) times. Ramp volume slowly over weeks. Never propose bulk/burst posting or bought
+engagement. Enforced in code by core/control/social_safety.py.
+
 Format clearly with headers and bullet points.
 Make it actionable and ready to execute.
 """

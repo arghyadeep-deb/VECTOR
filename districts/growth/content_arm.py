@@ -149,12 +149,26 @@ class ContentArm:
             logger.warning("[VECTOR][growth][armA] youtube publish unavailable: {}", exc)
 
     def _instagram_publisher(self):
-        """Return the IG publish strategy. Default 'manual' = human-in-the-loop;
-        'graph_api' = official Instagram Graph API. instagrapi is never used."""
+        """Return the IG publish strategy. 'manual' = human-in-the-loop (default);
+        'phone' = drive the app on the connected device (ban-safest, gated by
+        social_safety + approval); 'graph_api' = official API. instagrapi never used."""
         mode = CONFIG["growth"].get("instagram_mode", "manual")
         if mode == "graph_api":
             return self._graph_api_post
+        if mode == "phone":
+            return self._phone_post
         return self._notify_owner_to_post
+
+    async def _phone_post(self, reel: str | None = None) -> None:
+        """Post the reel by driving Instagram on the connected phone. All gating
+        (warm-up/cap/spacing + owner approval) lives in PhonePoster — this just
+        delegates and logs. Reached only after content_arm's own approval gate."""
+        try:
+            from districts.content.phone_poster import PhonePoster
+            res = await PhonePoster().post_instagram(reel or "", caption=CONFIG["growth"]["brand_line"])
+            logger.info("[VECTOR][growth][armA] IG phone-post result: {}", res)
+        except Exception as exc:
+            logger.warning("[VECTOR][growth][armA] phone IG post unavailable: {}", exc)
 
     async def _notify_owner_to_post(self, reel: str | None = None) -> None:
         """Human-in-the-loop IG: render the reel + Pushover the owner to post it."""
