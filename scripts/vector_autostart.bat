@@ -1,6 +1,8 @@
 @echo off
-REM VECTOR autostart launcher — run by the Windows Scheduled Task at logon.
-REM Guards against double-launch: exits if a run_vector.py loop is already running.
+REM VECTOR autostart launcher — run by the Windows Startup shortcut at logon.
+REM Runs the FULL brain + LAN-accessible API in ONE process, bound to 0.0.0.0 so
+REM both the laptop and the daily phone can reach VECTOR over the home network.
+REM Guards against double-launch: exits if VECTOR is already running.
 cd /d "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase"
 
 REM Skip if VECTOR is already running (avoid duplicate instances).
@@ -10,7 +12,9 @@ if %errorlevel%==0 (
   exit /b 0
 )
 
-REM Launch the autonomous loop, log to file (rotated by date).
 set LOGDIR=%USERPROFILE%\.vector_ca\logs
 if not exist "%LOGDIR%" mkdir "%LOGDIR%"
-python run_vector.py loop >> "%LOGDIR%\vector_%DATE:/=-%.log" 2>&1
+
+REM VECTOR_API_RUN_LOOP=1 -> the api server also runs the full autonomous brain.
+set VECTOR_API_RUN_LOOP=1
+python run_vector.py api --host 0.0.0.0 --port 8000 >> "%LOGDIR%\vector_%DATE:/=-%.log" 2>&1
