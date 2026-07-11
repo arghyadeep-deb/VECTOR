@@ -160,12 +160,32 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[VECTOR][api] UI broadcast registration failed: {e}")
 
+    # Optionally run the FULL autonomous brain (observe→think→act→reflect) inside
+    # this same process, so one `api` server = brain + LAN-accessible interface.
+    # Gated by VECTOR_API_RUN_LOOP=1 so tests / plain-API use don't spin the loop.
+    # Used by: python run_vector.py api --host 0.0.0.0 (LAN full-access launch).
+    loop_task = None
+    if os.environ.get("VECTOR_API_RUN_LOOP") == "1":
+        try:
+            from core.loop.autonomous_loop import AutonomousLoop
+            app.state.autonomous_loop = AutonomousLoop()
+            loop_task = asyncio.create_task(app.state.autonomous_loop.run_forever())
+            logger.info("[VECTOR][api] Autonomous loop started IN-PROCESS (brain + API together)")
+        except Exception as e:
+            logger.warning("[VECTOR][api] in-process autonomous loop failed to start: {}", e)
+
     logger.info("[VECTOR][api] V.E.C.T.O.R. API ready")
 
     yield  # ── APP RUNS HERE ──
 
     # ── SHUTDOWN ──
     logger.info("[VECTOR][api] Shutting down...")
+    if loop_task is not None:
+        try:
+            app.state.autonomous_loop._running = False
+        except Exception:
+            pass
+        loop_task.cancel()
     if nudge_task is not None:
         nudge_task.cancel()
     # app.state.episodic_memory.conn IS the module singleton — close it once,
