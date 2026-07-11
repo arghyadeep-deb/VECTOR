@@ -164,13 +164,30 @@ async def lifespan(app: FastAPI):
     # this same process, so one `api` server = brain + LAN-accessible interface.
     # Gated by VECTOR_API_RUN_LOOP=1 so tests / plain-API use don't spin the loop.
     # Used by: python run_vector.py api --host 0.0.0.0 (LAN full-access launch).
-    loop_task = None
+    #
+    # CRITICAL (2026-07-11): the loop runs in its OWN thread with its OWN event
+    # loop — NOT asyncio.create_task on uvicorn's loop. The brain has blocking
+    # sections (Whisper large-v3 load = 71s, sync LLM/DB calls) that starve the
+    # HTTP server if they share one event loop (verified: /health timed out).
+    # A dedicated thread isolates them so HTTP stays responsive for the phone.
+    loop_thread = None
+    app.state.autonomous_loop = None
     if os.environ.get("VECTOR_API_RUN_LOOP") == "1":
         try:
+            import threading
             from core.loop.autonomous_loop import AutonomousLoop
-            app.state.autonomous_loop = AutonomousLoop()
-            loop_task = asyncio.create_task(app.state.autonomous_loop.run_forever())
-            logger.info("[VECTOR][api] Autonomous loop started IN-PROCESS (brain + API together)")
+
+            def _run_brain():
+                try:
+                    inst = AutonomousLoop()
+                    app.state.autonomous_loop = inst
+                    asyncio.run(inst.run_forever())
+                except Exception as _e:
+                    logger.warning("[VECTOR][api] brain thread exited: {}", _e)
+
+            loop_thread = threading.Thread(target=_run_brain, name="vector-brain", daemon=True)
+            loop_thread.start()
+            logger.info("[VECTOR][api] Autonomous loop started in dedicated thread (brain + API, HTTP stays responsive)")
         except Exception as e:
             logger.warning("[VECTOR][api] in-process autonomous loop failed to start: {}", e)
 
@@ -180,12 +197,11 @@ async def lifespan(app: FastAPI):
 
     # ── SHUTDOWN ──
     logger.info("[VECTOR][api] Shutting down...")
-    if loop_task is not None:
+    if app.state.autonomous_loop is not None:
         try:
-            app.state.autonomous_loop._running = False
+            app.state.autonomous_loop._running = False  # daemon thread exits with process
         except Exception:
             pass
-        loop_task.cancel()
     if nudge_task is not None:
         nudge_task.cancel()
     # app.state.episodic_memory.conn IS the module singleton — close it once,
