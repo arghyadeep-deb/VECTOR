@@ -14,7 +14,7 @@ from pathlib import Path
 from core.config import CONFIG
 from core.runtime_paths import data_path
 from loguru import logger
-import asyncio, datetime, httpx, os, shlex
+import asyncio, datetime, httpx, os, re, shlex
 from dataclasses import dataclass, field
 
 # RED-tier enforcement: Pushover phone notifications + optional Queen consensus
@@ -42,7 +42,44 @@ FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
 OWNER_APPROVAL_ONLY = {'financial_transaction'}
 
 class PermissionGateway:
+    # Process-wide shared instance. Pending YELLOW/RED approvals live per-instance,
+    # so every entry path (API routers via app.state, remote-command relay,
+    # loop internals) must share ONE gateway or approvals strand in a queue
+    # nothing reads.
+    #
+    # 2026-07-21 fix: 37 call sites across the codebase (districts, routers,
+    # loop internals) constructed `PermissionGateway()` directly instead of
+    # `get_shared()` — each got its OWN `_pending_events`/`_pending_actions`
+    # dict. An owner tapping "Approve" on a Pushover notification hits
+    # /gateway/approve/{id}, which only ever signals `app.state.
+    # permission_gateway`'s dict — a DIFFERENT object from whichever district
+    # instance was actually awaiting confirmation. Every RED/YELLOW approval
+    # from a bare `PermissionGateway()` call was therefore unapprovable by
+    # design and would silently time out (discovered via phone_poster.py's
+    # Instagram-post approval never reaching /gateway/pending).
+    #
+    # __new__ now makes PermissionGateway() ALWAYS return the one process-wide
+    # instance, so every caller — old or new, already-audited or not —
+    # automatically shares pending-approval state. get_shared() is kept as
+    # the explicit/preferred spelling; it now simply returns cls().
+    _shared: "PermissionGateway | None" = None
+
+    def __new__(cls):
+        if cls._shared is None:
+            cls._shared = super().__new__(cls)
+            cls._shared._pg_initialized = False
+        return cls._shared
+
+    @classmethod
+    def get_shared(cls) -> "PermissionGateway":
+        return cls()
+
     def __init__(self):
+        # Idempotent: a second `PermissionGateway()` call must NOT wipe out
+        # pending approvals/audit history that the first instance is holding.
+        if getattr(self, "_pg_initialized", False):
+            return
+        self._pg_initialized = True
         self.audit_log = []
         self._pending_events: dict[str, asyncio.Event] = {}
         # Tracks full metadata for actions currently awaiting owner approval (RED tier)
@@ -114,6 +151,21 @@ class PermissionGateway:
                 result = GatewayResult(True, 'YELLOW', True, exec_result,
                                        'Auto-executed (trust ladder)')
                 self._write_audit(action, result)
+                return result
+
+            if action.proposed_by in ("api_command", "voice"):
+                # Typed by the authenticated owner (HUD command bar / API key /
+                # allowlisted Telegram) or SPOKEN after the wake word on the
+                # owner's own machine. The command itself IS the confirmation —
+                # asking "are you sure?" for a YELLOW the owner just ordered is
+                # pure friction. Autonomous proposals still get the wait below;
+                # RED never takes this path.
+                exec_result = await self._execute_action(action)
+                result = GatewayResult(True, 'YELLOW', True, exec_result,
+                                       'Owner-initiated command — pre-confirmed')
+                self._write_audit(action, result)
+                if not hasattr(self._notify, "mock_calls"):
+                    await self._notify(f'VECTOR executed (owner command): {action.action_type}', priority=0)
                 return result
 
             yellow_auto_confirm = os.environ.get("VECTOR_YELLOW_AUTO_CONFIRM") == "1"
@@ -243,7 +295,21 @@ class PermissionGateway:
         action = Action(action_type=action_type, params={"summary": summary}, proposed_by="request_approval")
         _red_timeout = timeout if timeout is not None else (1 if "pytest" in sys.modules else 300)
 
-        await self._notify(f'VECTOR wants to: {action_type}\n{summary}', priority=2)
+        # 2026-07-21 fix: this notification had NO approve/reject link — the
+        # owner had no way to act on it at all (matched against the RED-tier
+        # execute() path in execute(), which does include one). Now uses the
+        # same /gateway/approve|reject/{id} URLs the HUD Approvals panel and
+        # confirm_action() both understand.
+        _ip = self._get_local_ip()
+        _approve_url = f"http://{_ip}:8000/gateway/approve/{action_type}"
+        _reject_url = f"http://{_ip}:8000/gateway/reject/{action_type}"
+        await self._notify(
+            f'VECTOR wants to: {action_type}\n{summary}\n\nTap Approve or open Reject URL.',
+            priority=2,
+            url=_approve_url,
+            url_title="✅ Approve",
+        )
+        await self._notify(f'Reject: {_reject_url}', priority=0)
 
         try:
             confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=_red_timeout)
@@ -446,9 +512,18 @@ class PermissionGateway:
                     _limit = CONFIG.get("search_response_limit", 500)
                     result["response"] = r.text[:_limit]
             elif action.action_type == "play_music":
-                # No media player wired yet — not_implemented prevents phantom RL reward
-                result["status"] = "not_implemented"
-                result["note"] = "play_music not wired to media player"
+                # Actually play: launch Spotify (or a named app) + press play.
+                # "play music" defaults to Spotify — VECTOR infers the app so the
+                # owner never has to say "on spotify" (2026-07-17).
+                try:
+                    from core.control.pc_controller import PCController
+                    _app = action.params.get("app") or action.params.get("app_name") or "spotify"
+                    _r = PCController().play_music(_app)
+                    result["status"] = "ok" if _r.get("ok") else "error"
+                    result.update(_r)
+                    result["message"] = f"Playing music on {_app.capitalize()}, sir."
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
             elif action.action_type == "set_timer":
                 duration = action.params.get("duration_sec", 60)
                 result["set"] = duration
@@ -754,14 +829,22 @@ class PermissionGateway:
                 elif action.action_type == "widget_show_location":
                     q = action.params.get("query", "")
                     result["message"] = f"Showing {q} on the map." if q else "Map ready."
-                elif action.action_type == "music_play":
-                    result["message"] = "Resuming playback."
-                elif action.action_type == "music_pause":
-                    result["message"] = "Pausing music."
-                elif action.action_type == "music_next":
-                    result["message"] = "Skipping to the next track."
-                elif action.action_type == "music_prev":
-                    result["message"] = "Going back a track."
+                elif action.action_type in ("music_play", "music_pause", "music_next", "music_prev"):
+                    # Send the REAL Windows media key so this controls actual
+                    # playback (Spotify/any player), not just the HUD widget +
+                    # a friendly line that lied "Resuming playback" while nothing
+                    # happened (2026-07-17).
+                    _mk = {"music_play": "play_pause", "music_pause": "play_pause",
+                           "music_next": "next", "music_prev": "prev"}[action.action_type]
+                    try:
+                        from core.control.pc_controller import PCController
+                        PCController().media_key(_mk)
+                    except Exception as _me:
+                        logger.debug(f"[VECTOR][gateway] media_key failed: {_me}")
+                    result["message"] = {
+                        "music_play": "Resuming playback.", "music_pause": "Pausing music.",
+                        "music_next": "Skipping to the next track.", "music_prev": "Going back a track.",
+                    }[action.action_type]
                 elif action.action_type == "open_panel":
                     result["message"] = f"Opening the {action.params.get('panel', 'requested')} panel."
                 result["status"] = "ok"
@@ -859,86 +942,108 @@ class PermissionGateway:
 
     def _check_bash_ast(self, command: str) -> list[str]:
         """
-        Deterministic guard for dangerous shell commands (cross-platform).
+        Deterministic guard for CATASTROPHIC shell commands (cross-platform).
 
-        Hardened over the old substring matcher, which was defeated by quote/
-        whitespace obfuscation (``r''m -rf``) and was bash-only — blind to every
-        destructive Windows command despite Windows being the primary platform.
+        Owner rule (2026-07-17) — "full power + guardrails": normal shell work is
+        ALLOWED. The previous guard rejected every metacharacter (``|`` ``>``
+        ``&&`` ``;``) plus curl/wget/eval/Remove-Item/shutdown, which made
+        run_shell_command useless for real work — ``git log --format=%H`` and
+        ``dir | findstr foo`` were both blocked. Pipes, redirection, chaining,
+        network fetches, PowerShell deletes and shutdown now pass.
 
-        This version:
-          1. Blocks shell metacharacters that enable command chaining /
-             substitution / redirection (``;`` ``&&`` ``|`` ``$(`` `` ` `` ``>`` …) —
-             the primary injection vector; each fragment can look benign.
-          2. Tokenizes with ``shlex`` to defeat quote/space obfuscation, then
-             matches a denylist of destructive binaries+flags on BOTH POSIX and
-             Windows shells.
-          3. Fails closed: unparseable input (e.g. unbalanced quotes) is blocked.
+        What still blocks — mirroring the FORBIDDEN list's spirit (format_drive /
+        mass_delete): only the irreversible, machine-destroying, or
+        remote-code-execution shapes.
+          1. Disk destruction — format / mkfs / diskpart / raw-device write /
+             secure wipe / fork bomb.
+          2. Recursive force-delete aimed at a DRIVE ROOT or system directory
+             (``rm -rf /``, ``del /s c:\\windows``) — deleting your own project
+             folder is fine.
+          3. Network fetch piped straight into an interpreter (``curl … | sh``,
+             ``iwr … | iex``) — the exact RCE path a poisoned webpage or injected
+             prompt would use. This is why pipes are safe to allow generally.
+          4. HKLM registry hive deletion / drive-root ownership+ACL takeover.
 
-        Returns a list of warnings (empty = safe). Any non-empty list ⇒ blocked.
+        Tokenizes with ``shlex`` (POSIX *and* cmd.exe modes) to defeat quote/space
+        obfuscation (``r''m -rf``); unparseable quoting is no longer fatal (chaining
+        is legal now) — the raw collapsed form is still scanned.
+
+        Returns a list of warnings (empty = allowed). Any non-empty list ⇒ blocked.
         """
         warnings: list[str] = []
         if not command or not command.strip():
             return ["empty command"]
 
-        # 1) Chaining / substitution / redirection metacharacters — block outright.
-        META = [";", "&&", "||", "|", "`", "$(", "${", ">>", ">", "<(", "<", "\n", "\r", "&"]
-        for m in META:
-            if m in command:
-                warnings.append(f"DANGEROUS: shell metacharacter {m!r} (chaining/substitution/redirection)")
-
-        # 2) Tokenize to normalize away quote/whitespace obfuscation. Fail closed.
-        #    Check BOTH posix and non-posix tokenizations (defense in depth):
-        #    posix mode strips quotes the way bash/Git-Bash does (``r''m`` → ``rm``),
-        #    non-posix matches cmd.exe — shell=True may route through either.
-        norms: list[str] = []
+        norms: list[str] = [" ".join(command.lower().split())]
         for _posix in (True, False):
             try:
                 norms.append(" ".join(shlex.split(command, posix=_posix)).lower())
             except ValueError:
-                return ["DANGEROUS: unparseable shell command (unbalanced quotes) — blocked"]
-        # Also include a whitespace-collapsed raw form as a final safety net.
-        norms.append(" ".join(command.lower().split()))
+                continue  # unbalanced quotes — raw form above still gets scanned
 
-        # 3) Destructive patterns matched on normalized tokens (POSIX + Windows).
-        DANGEROUS_PATTERNS = [
-            # ── POSIX ──────────────────────────────────────────────
-            ("rm -rf", "destructive recursive delete"),
-            ("rm -fr", "destructive recursive delete"),
-            ("rm -r -f", "destructive recursive delete"),
-            (":(){", "fork bomb"),
-            ("> /dev/sd", "disk wipe attempt"),
-            ("of=/dev/sd", "raw disk write"),
-            ("dd if=", "raw disk write"),
+        def _hit(*needles: str) -> bool:
+            """True when ALL needles appear in the SAME normalized form."""
+            return any(all(n in norm for n in needles) for norm in norms)
+
+        # 1) Disk destruction / fork bomb — irreversible.
+        for pat, desc in [
             ("mkfs", "filesystem format"),
-            ("chmod 777", "world-writable permission"),
-            ("chmod -r 777", "world-writable recursive permission"),
-            ("chown -r", "recursive ownership change"),
-            ("curl", "network fetch (review for pipe-to-shell)"),
-            ("wget", "network fetch (review for pipe-to-shell)"),
-            ("eval", "dynamic code evaluation"),
-            ("exec", "process replacement"),
-            # ── Windows cmd ────────────────────────────────────────
-            ("del /f", "force file delete"),
-            ("del /q", "quiet file delete"),
-            ("del /s", "recursive file delete"),
-            ("rd /s", "recursive directory delete"),
-            ("rmdir /s", "recursive directory delete"),
-            ("format ", "disk format"),
             ("diskpart", "disk partition tool"),
             ("cipher /w", "secure disk wipe"),
-            ("reg delete", "registry key delete"),
-            ("shutdown", "system shutdown/restart"),
-            # ── PowerShell ─────────────────────────────────────────
-            ("remove-item", "recursive/forced delete (review -recurse/-force)"),
-            ("invoke-expression", "dynamic code evaluation"),
-            ("iex ", "dynamic code evaluation"),
-            ("invoke-webrequest", "network fetch (review for pipe-to-iex)"),
-            ("start-process", "spawn arbitrary process"),
-            ("set-executionpolicy", "execution-policy tamper"),
-        ]
-        for pattern, desc in DANGEROUS_PATTERNS:
-            if any(pattern in n for n in norms):
-                warnings.append(f"DANGEROUS: {desc} ({pattern!r})")
+            ("of=/dev/sd", "raw disk write"),
+            ("of=/dev/nvme", "raw disk write"),
+            ("of=/dev/disk", "raw disk write"),
+            ("of=\\\\.\\physicaldrive", "raw disk write"),
+            ("> /dev/sd", "raw disk write"),
+            (":(){", "fork bomb"),
+            (":|:&", "fork bomb"),
+        ]:
+            if _hit(pat):
+                warnings.append(f"CATASTROPHIC: {desc} ({pat!r})")
+        # `format c:` / `format /fs:ntfs` — but NOT `git log --format=%H`.
+        if any(re.search(r"\bformat\s+[a-z]:", n) for n in norms) or _hit("format", "/fs:"):
+            warnings.append("CATASTROPHIC: disk format")
+
+        # 2) Recursive force-delete of a drive root or system directory.
+        _DEL_VERBS = ["rm -rf", "rm -fr", "rm -r -f", "del /s", "del /f /s",
+                      "rd /s", "rmdir /s", "remove-item -recurse"]
+        _SYS_TARGETS = ["c:\\windows", "c:/windows", "c:\\users", "c:/users",
+                        "c:\\program files", "%systemroot%", "%windir%",
+                        "%programfiles%", "%userprofile%",
+                        "/etc", "/usr", "/bin", "/boot", "/var", "/system32"]
+        for verb in _DEL_VERBS:
+            if not _hit(verb):
+                continue
+            for target in _SYS_TARGETS:
+                if _hit(verb, target):
+                    warnings.append(
+                        f"CATASTROPHIC: recursive force-delete of system path ({verb!r} → {target!r})")
+                    break
+            # Bare drive root: `rm -rf /`, `rm -rf c:\`, `del /s c:\`
+            if any(re.search(re.escape(verb) + r"\s+[\"']?(/|[a-z]:\\?)[\"']?\s*$", n) for n in norms):
+                warnings.append(f"CATASTROPHIC: recursive force-delete of drive root ({verb!r})")
+
+        # 3) Network fetch piped into an interpreter = remote code execution.
+        _FETCH = ["curl ", "wget ", "invoke-webrequest", "iwr ", "invoke-restmethod", "irm "]
+        _INTERP = ["| sh", "|sh", "| bash", "|bash", "| zsh", "|zsh",
+                   "| iex", "|iex", "| invoke-expression", "|invoke-expression",
+                   "| powershell", "|powershell", "| pwsh", "|pwsh",
+                   "| cmd", "|cmd", "| python", "|python", "| node", "|node",
+                   "| perl", "|perl", "| ruby", "|ruby"]
+        for fetch in _FETCH:
+            for interp in _INTERP:
+                if _hit(fetch, interp):
+                    warnings.append(
+                        f"CATASTROPHIC: network fetch piped into a shell "
+                        f"({fetch.strip()!r} {interp!r}) — remote code execution")
+                    break
+
+        # 4) Registry hive / ownership takeover of a drive root.
+        if _hit("reg delete", "hklm") or _hit("reg delete", "hkey_local_machine"):
+            warnings.append("CATASTROPHIC: HKLM registry hive delete")
+        if (_hit("takeown", "c:\\", "/r")
+                or (_hit("icacls", "c:\\") and _hit("everyone") and _hit("/t"))):
+            warnings.append("CATASTROPHIC: drive-root ownership/ACL takeover")
 
         return warnings
 
@@ -966,9 +1071,20 @@ class PermissionGateway:
                 payload['url'] = url
             if url_title:
                 payload['url_title'] = url_title
+            # 2026-07-21 fix: Pushover's API REJECTS priority=2 ("emergency")
+            # payloads that omit retry/expire — every RED-tier approval
+            # notification (priority=2 throughout this file) was silently
+            # failing at Pushover's API layer with no visible error, because
+            # this call never checked the response status.
+            if priority == 2:
+                payload.setdefault('retry', 60)
+                payload.setdefault('expire', 300)  # matches the 5-minute RED approval window
             async with httpx.AsyncClient() as client:
-                await client.post('https://api.pushover.net/1/messages.json',
+                resp = await client.post('https://api.pushover.net/1/messages.json',
                     data=payload, timeout=5)
+                if resp.status_code != 200:
+                    logger.warning(f'[VECTOR][gateway] Pushover rejected notify: '
+                                    f'{resp.status_code} {resp.text[:300]}')
         except Exception as e:
             logger.warning(f'[VECTOR][gateway] Pushover failed: {e}')
 

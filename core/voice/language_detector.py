@@ -4,12 +4,12 @@ from loguru import logger
 
 
 class LanguageDetector:
-    # Kokoro voices: en-gb→bf_emma | hi→hf_alpha | ja→jf_alpha
-    # bn/as: Google Cloud TTS (not yet wired) — pyttsx3 fallback for now
+    # Kokoro voices — male only (owner rule 2026-07-15): en→bm_george |
+    # hi→hm_omega | ja→jm_kumo. bn/as: gTTS fallback (no Kokoro voice).
     VOICE_MAP = {
-        "en": "bf_emma",
-        "hi": "hf_alpha",
-        "ja": "jf_alpha",
+        "en": "bm_george",
+        "hi": "hm_omega",
+        "ja": "jm_kumo",
         "bn": None,   # gTTS fallback
         "as": None,   # gTTS fallback
     }

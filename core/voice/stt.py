@@ -23,10 +23,59 @@ __all__ = [
 ]
 
 
+import re
+
 import numpy as np
 from loguru import logger
 
 from core.config import CONFIG
+
+# Cap for quiet-mic normalization. Uncapped `0.9/peak` turned a ~0.001 noise
+# floor into full-scale hiss and fed it to Whisper (2026-07-17).
+_MAX_NORMALIZE_GAIN = 8.0
+
+# Whisper's well-known silence/noise artifacts — it emits these when handed
+# near-silence (they come from its YouTube-subtitle training data). Real speech
+# is protected: only unmistakable artifacts are listed, so a genuine "thanks"
+# from the owner still gets through as part of a longer utterance.
+_HALLUCINATION_EXACT = {
+    "thanks for watching", "thanks for watching!", "thank you for watching",
+    "thank you for watching!", "please subscribe", "like and subscribe",
+    "subtitles by the amara.org community", "amara.org", "www.mooji.org",
+    "subtitles by", "transcription by castingwords", "bye", "you",
+    # 2026-07-21 browser dogfood: these leaked through and were injected into
+    # the HUD chat as phantom owner messages ("I'll see you in the next
+    # video.", "Thanks for watching. Have a great week.", "Thank you.").
+    "thank you", "thanks", "i'll see you in the next video",
+    "see you in the next video", "see you in the next one",
+    "i'll see you in the next one", "have a great week", "have a great day",
+    "thanks for listening", "thank you for listening",
+    "don't forget to subscribe", "the end", "so", "okay", "oh",
+}
+
+
+def _is_hallucination(text: str, lang_pinned: str = "") -> bool:
+    """True when a transcript is a Whisper silence artifact rather than speech."""
+    t = (text or "").strip()
+    if not t:
+        return True
+    low = t.lower().strip(" .!?,-—…")
+    if not low or low in _HALLUCINATION_EXACT:
+        return True
+    # Multi-sentence artifacts ("Thanks for watching. Have a great week.") —
+    # if EVERY sentence is individually a known artifact, the whole thing is
+    # one. Real speech is protected: any single non-artifact sentence passes.
+    parts = [p.strip(" .!?,-—…") for p in re.split(r"[.!?]+", low) if p.strip(" .!?,-—…")]
+    if parts and all(p in _HALLUCINATION_EXACT for p in parts):
+        return True
+    # Pure punctuation / symbol soup.
+    if not re.search(r"[a-z0-9ऀ-ॿঀ-৿぀-ヿ一-鿿]", low):
+        return True
+    # Language is pinned to English but Whisper produced no Latin letters at all
+    # (e.g. 'ぷいっ', 'ᶅᶁᶇᶅ ᶠᶅᶜᶦᶉ') — that is invented, not the owner speaking.
+    if lang_pinned.startswith("en") and not re.search(r"[a-z]", low):
+        return True
+    return False
 
 
 # ── Whisper (local, default) ─────────────────────────────────────────────────
@@ -87,8 +136,14 @@ class WhisperSTT:
                 return ""
             if audio_np.dtype != np.float32:
                 audio_np = audio_np.astype(np.float32) / 32768.0
-            result = self._model.transcribe(audio_np, fp16=False)
+            lang = (CONFIG.get("voice", {}).get("stt_language") or "").strip()
+            result = self._model.transcribe(audio_np, fp16=False,
+                                            language=lang or None,
+                                            condition_on_previous_text=False)
             text = result.get("text", "").strip()
+            if _is_hallucination(text, lang):
+                logger.debug(f"[VECTOR][stt:whisper] discarded artifact: {text!r}")
+                return ""
             logger.info(f"[VECTOR][stt:whisper] '{text}'")
             return text
         except Exception as e:
@@ -98,7 +153,9 @@ class WhisperSTT:
     def record_until_silence(
         self,
         sample_rate: int | None = None,
-        silence_rms: float = 0.01,
+        # 0.0012 (was 0.01): laptop mic arrays at default Windows input levels
+        # produce speech at rms ~0.003 — the old gate never detected speech.
+        silence_rms: float = 0.0012,
         post_silence_s: float = 0.6,
         max_s: float = 8.0,
     ) -> "np.ndarray":
@@ -133,7 +190,16 @@ class WhisperSTT:
                     if silence_frames >= silence_threshold:
                         break
 
-        audio = np.concatenate(frames) if frames else np.zeros(chunk, dtype="float32")
+        # No speech at all ⇒ return EMPTY, never a block of silence. Handing
+        # Whisper 8s of silence is what made it hallucinate ("Thank you.",
+        # Japanese, gibberish) — those phantom utterances then hit the speaker
+        # gate and made VECTOR announce "I only talk with Arghyadeep" at nobody
+        # (2026-07-17 fix).
+        if not speech_started:
+            logger.debug("[VECTOR][stt] VAD: no speech in {}s — no transcription", max_s)
+            return np.zeros(0, dtype="float32")
+
+        audio = np.concatenate(frames) if frames else np.zeros(0, dtype="float32")
         logger.info("[VECTOR][stt:whisper] VAD captured {}s", round(len(audio) / sr, 1))
         return audio
 
@@ -143,6 +209,15 @@ class WhisperSTT:
             import numpy as np
             sample_rate = CONFIG.get("voice", {}).get("sample_rate", 16000)
             audio = self.record_until_silence(sample_rate=sample_rate)
+            if audio is None or audio.size == 0:
+                return ""  # silence — do not feed Whisper
+            # Normalize quiet-mic audio so Whisper gets a usable signal level.
+            # Gain is CAPPED: the old `0.9 / peak` multiplied a ~0.001 noise floor
+            # by ~900x, boosting room hiss to full scale — which is exactly what
+            # Whisper then "transcribed" into phantom speech (2026-07-17 fix).
+            peak = float(np.max(np.abs(audio)))
+            if 0 < peak < 0.3:
+                audio = audio * min(0.9 / peak, _MAX_NORMALIZE_GAIN)
             return self.transcribe(audio, sample_rate)
         except Exception as e:
             logger.error(f"[VECTOR][stt:whisper] Record failed: {e}")
@@ -212,13 +287,28 @@ class FasterWhisperSTT:
                 return ""
             if audio_np.dtype != np.float32:
                 audio_np = audio_np.astype(np.float32) / 32768.0
-            segments, _info = self._model.transcribe(audio_np, beam_size=5)
-            text = " ".join(s.text.strip() for s in segments)
+            lang = (CONFIG.get("voice", {}).get("stt_language") or "").strip()
+            segments, _info = self._model.transcribe(
+                audio_np,
+                beam_size=5,
+                language=lang or None,          # pinned (default en) — stops
+                                                # random-script transcripts
+                vad_filter=True,                # drop non-speech before decoding
+                condition_on_previous_text=False,  # stops hallucination loops
+            )
+            text = " ".join(s.text.strip() for s in segments).strip()
+            if _is_hallucination(text, lang):
+                logger.debug(f"[VECTOR][stt:faster_whisper] discarded artifact: {text!r}")
+                return ""
             logger.info(f"[VECTOR][stt:faster_whisper] '{text}'")
             return text
         except Exception as e:
             logger.error(f"[VECTOR][stt:faster_whisper] failed: {e}")
             return ""
+
+    def record_until_silence(self, *args, **kwargs) -> "np.ndarray":
+        # Mic capture is backend-independent — reuse Whisper's VAD recorder.
+        return WhisperSTT.record_until_silence(self, *args, **kwargs)  # type: ignore[arg-type]
 
     def record_and_transcribe(self, duration_sec: float | None = None) -> str:
         return WhisperSTT.record_and_transcribe(self, duration_sec)  # type: ignore[arg-type]
@@ -294,6 +384,10 @@ class DeepgramSTT:
         except Exception as e:
             logger.error(f"[VECTOR][stt:deepgram] failed: {e}")
             return ""
+
+    def record_until_silence(self, *args, **kwargs) -> "np.ndarray":
+        # Mic capture is backend-independent — reuse Whisper's VAD recorder.
+        return WhisperSTT.record_until_silence(self, *args, **kwargs)  # type: ignore[arg-type]
 
     def record_and_transcribe(self, duration_sec: float | None = None) -> str:
         return WhisperSTT.record_and_transcribe(self, duration_sec)  # type: ignore[arg-type]

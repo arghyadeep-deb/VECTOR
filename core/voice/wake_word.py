@@ -121,9 +121,16 @@ class WakeWordDetector:
                 await asyncio.to_thread(sd.wait)
                 audio_flat = audio.flatten()
                 rms = float(np.sqrt(np.mean(audio_flat ** 2)))
-                if rms < 0.004:
+                # 0.0012 (was 0.004): laptop mic arrays at default Windows input
+                # levels produce speech at rms ~0.003 — the old gate classified
+                # the owner's actual voice as silence, so wake NEVER triggered.
+                if rms < 0.0012:
                     await asyncio.sleep(0.1)
                     continue
+                # Normalize quiet audio so Whisper gets a usable signal level.
+                peak = float(np.max(np.abs(audio_flat)))
+                if 0 < peak < 0.3:
+                    audio_flat = audio_flat * (0.9 / peak)
                 try:
                     text = stt.transcribe(audio_flat, self._sample_rate).lower().strip()
                     if text:

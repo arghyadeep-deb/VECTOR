@@ -160,30 +160,60 @@ class ScreenObserver:
 
         return best_category
 
+    def active_window_title(self) -> str:
+        """Title of the foreground window — 'what the owner is doing RIGHT NOW'.
+
+        This is the cheapest, most reliable screen-context signal: no OCR, no
+        install, always available on Windows. When Tesseract isn't installed
+        (OCR disabled) this is the ONLY thing that tells VECTOR the owner is in
+        'main.py - Visual Studio Code' vs 'YouTube - Google Chrome' vs Spotify
+        (2026-07-17 owner: "it should understand my complete screen when I do
+        some work" — OCR was dead so screen_summary was just '[idle]')."""
+        if sys.platform != "win32":
+            return ""
+        try:
+            import ctypes
+            u32 = ctypes.windll.user32
+            h = u32.GetForegroundWindow()
+            n = u32.GetWindowTextLengthW(h)
+            if n <= 0:
+                return ""
+            buf = ctypes.create_unicode_buffer(n + 1)
+            u32.GetWindowTextW(h, buf, n + 1)
+            return buf.value.strip()
+        except Exception:
+            return ""
+
     def observe(self) -> dict:
-        """Full pipeline: capture → OCR → classify.
+        """Full pipeline: capture → active-window → OCR → classify.
 
         Returns::
             {
                 "activity":     str,   # classified category
+                "window":       str,   # foreground window title (no OCR needed)
                 "text_snippet": str,   # first 200 chars of OCR output
                 "timestamp":    str,   # ISO-8601 UTC
             }
         On any unhandled error returns activity="unknown".
         """
         ts = datetime.now(timezone.utc).isoformat()
+        window = self.active_window_title()
         try:
             frame    = self.capture()
             raw_text = self.ocr_text(frame)
-            activity = self.classify_activity(raw_text)
+            # Fold the window title into classification too — even with OCR off,
+            # "Visual Studio Code"/"YouTube"/"Spotify" in the title classifies the
+            # activity correctly.
+            activity = self.classify_activity((raw_text + " " + window).strip())
             snippet  = raw_text[:200]
 
             logger.info(
                 f"[VECTOR][screen] observe → activity={activity!r} "
-                f"text_len={len(raw_text)}"
+                f"window={window[:40]!r} text_len={len(raw_text)}"
             )
             return {
                 "activity":     activity,
+                "window":       window,
                 "text_snippet": snippet,
                 # Full OCR text (capped) — stuck detection needs whole error
                 # blocks, not the 200-char snippet.
@@ -195,6 +225,7 @@ class ScreenObserver:
             logger.error(f"[VECTOR][screen] observe error: {exc}")
             return {
                 "activity":     "unknown",
+                "window":       window,
                 "text_snippet": "",
                 "raw_text":     "",
                 "timestamp":    ts,

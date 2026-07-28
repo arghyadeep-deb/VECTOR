@@ -1629,7 +1629,11 @@ class AutonomousLoop:
         brain_url = (CONFIG.get("cloud", {}).get("brain_url") or os.environ.get("VECTOR_BRAIN_URL") or "").rstrip("/")
         if not brain_url:
             return  # cloud relay not configured yet (set VECTOR_BRAIN_URL to the Worker URL)
-        api_key = CONFIG.get("api_keys", {}).get("vector_api_key") or CONFIG.get("vector_api_key", "")
+        # NOTE (2026-07-21): CONFIG["api_keys"] never wires up a "vector_api_key"
+        # entry — core/api/auth.py (and the Worker's env.VECTOR_API_KEY) both read
+        # the raw VECTOR_API_KEY env var, so this must match or the heartbeat sends
+        # no Authorization header at all and the Worker always 401s.
+        api_key = os.environ.get("VECTOR_API_KEY", "") or CONFIG.get("api_keys", {}).get("vector_api_key", "")
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         payload = {
             "uptime_sec": self.uptime_seconds,
@@ -1640,7 +1644,18 @@ class AutonomousLoop:
             async with httpx.AsyncClient(timeout=8.0) as c:
                 r = await c.post(f"{brain_url}/heartbeat", json=payload, headers=headers)
                 if r.status_code != 200:
+                    # Log on status-code CHANGE only — this ticks every ~3s, so an
+                    # unconditional warning would flood the log, but swallowing
+                    # non-200s hid a rate-limit collision (429s) for weeks.
+                    if r.status_code != getattr(self, "_last_hb_status", 200):
+                        logger.warning(
+                            "[VECTOR][cmd] heartbeat rejected by cloud brain: HTTP {} "
+                            "(remote commands stalled until this clears)", r.status_code)
+                    self._last_hb_status = r.status_code
                     return
+                if getattr(self, "_last_hb_status", 200) != 200:
+                    logger.info("[VECTOR][cmd] heartbeat recovered (HTTP 200)")
+                self._last_hb_status = 200
                 for cmd in (r.json().get("commands") or []):
                     await self._handle_remote_command(cmd)
         except Exception as e:
@@ -1696,9 +1711,11 @@ class AutonomousLoop:
                 return
 
         # Structured command → permission gateway (GREEN/YELLOW/RED gating).
+        # Must be the SHARED gateway: a fresh instance would hold any pending
+        # RED approval in a queue the HUD/API approval endpoints never see.
         try:
             from core.loop.permission_gateway import PermissionGateway, Action
-            gw = PermissionGateway()
+            gw = PermissionGateway.get_shared()
             await gw.execute(Action(
                 action_type=cmd_type,
                 params=params,
@@ -1821,8 +1838,27 @@ class AutonomousLoop:
     # ─── VectorCode MCP server ────────────────────────────────────────────────
 
     async def vectorcode_loop(self) -> None:
-        """Start VectorCode MCP server at startup. Restarts if it crashes."""
+        """Start VectorCode MCP server at startup. Restarts if it crashes.
+
+        Uses exponential backoff + a circuit breaker instead of a fixed 5s
+        restart: a process that dies fast (<30s uptime) repeatedly means a
+        real problem (e.g. port bind conflict) — hammering it every 5s just
+        burns CPU in a crash loop. See ~/.vector_ca/logs/mcp_server.log for
+        the subprocess's real stderr (previously discarded to DEVNULL).
+        """
+        # Owner rule (2026-07-16): ONE localhost server only. The MCP tool
+        # server (port 9001) is opt-in — it only powers background coding-agent
+        # tooling, and VECTOR runs fine without it. Set VECTOR_MCP=1 to enable.
+        import os as _os
+        if _os.environ.get("VECTOR_MCP", "").strip().lower() in ("", "0", "off", "false", "none"):
+            logger.info("[VECTOR][vectorcode] MCP server disabled (single-server mode) — set VECTOR_MCP=1 to enable coding-agent tools")
+            return
         logger.info("[VECTOR][vectorcode] loop starting")
+        _FAST_FAIL_THRESHOLD_SEC = 30.0
+        _BACKOFF_SCHEDULE = [5, 15, 60, 300]  # seconds, indexed by fast-fail count - 1
+        _CIRCUIT_BREAKER_LIMIT = 5
+        _CIRCUIT_BREAKER_COOLDOWN_SEC = 1800  # 30 min
+        consecutive_fast_fails = 0
         while self._running:
             try:
                 from districts.coding.vectorcode_bridge import get_bridge
@@ -1841,42 +1877,43 @@ class AutonomousLoop:
                     logger.info(f"[VECTOR][vectorcode] MCP server running on port {mcp_port}")
                     # Block until the process exits — without this the loop
                     # re-spawns a new MCP process on every iteration (runaway).
+                    start_time = asyncio.get_event_loop().time()
                     try:
                         await asyncio.get_event_loop().run_in_executor(None, proc.wait)
                     except Exception:
                         logger.warning("[VECTOR] silent swallow")
                         pass
-                    logger.info("[VECTOR][vectorcode] MCP server exited — restarting in 5s")
-                    await asyncio.sleep(5)
+                    uptime = asyncio.get_event_loop().time() - start_time
+                    if uptime < _FAST_FAIL_THRESHOLD_SEC:
+                        consecutive_fast_fails += 1
+                    else:
+                        consecutive_fast_fails = 0
+
+                    if consecutive_fast_fails >= _CIRCUIT_BREAKER_LIMIT:
+                        logger.warning(
+                            "[VECTOR][vectorcode] MCP server crash-looping — see "
+                            "~/.vector_ca/logs/mcp_server.log; backing off 30 min"
+                        )
+                        await asyncio.sleep(_CIRCUIT_BREAKER_COOLDOWN_SEC)
+                        consecutive_fast_fails = 0
+                        continue
+
+                    delay = _BACKOFF_SCHEDULE[
+                        min(consecutive_fast_fails, len(_BACKOFF_SCHEDULE)) - 1
+                    ] if consecutive_fast_fails > 0 else _BACKOFF_SCHEDULE[0]
+                    logger.info(
+                        f"[VECTOR][vectorcode] MCP server exited after {uptime:.1f}s — "
+                        f"restarting in {delay}s (consecutive fast fails={consecutive_fast_fails})"
+                    )
+                    await asyncio.sleep(delay)
                 else:
                     await asyncio.sleep(30)
             except Exception as e:
                 logger.error("[VECTOR][vectorcode] loop crashed: {} — restarting in 10s", e)
                 await asyncio.sleep(10)
 
-    async def emergency_loop(self) -> None:
-        """Start Emergency Response System. Never crashes."""
-        logger.info("[VECTOR][emergency] loop starting")
-        while self._running:
-            try:
-                cfg = CONFIG.get("emergency", {})
-                if not cfg.get("enabled", False):
-                    logger.info("[VECTOR][emergency] disabled in config")
-                    return
-                from districts.emergency.main import EmergencyResponseSystem
-                self._emergency = EmergencyResponseSystem()
-                await self._emergency.start()
-                logger.info("[VECTOR][emergency] system online")
-                while self._running:
-                    await asyncio.sleep(60)
-            except ImportError as e:
-                logger.warning("[VECTOR][emergency] unavailable: {}", e)
-                return  # don't retry if the module isn't installed
-            except asyncio.CancelledError:
-                raise
-            except Exception as e:
-                logger.error("[VECTOR][emergency] loop crashed: {} — restarting in 30s", e)
-                await asyncio.sleep(30)
+    # NOTE: emergency_loop was removed 2026-07-15 — it was never launched by
+    # run_forever (dead code); emergency_detection_cycle is the live path.
 
     # ─── Main entry ───────────────────────────────────────────────────────────
 
@@ -2022,30 +2059,64 @@ class AutonomousLoop:
             self._avatar = None
             logger.warning("[VECTOR][autonomous_loop] AvatarCore init failed: {}", _av_err)
 
+        # Every coroutine runs under a supervisor (RULE 2: log → back off →
+        # restart). Bare gather(return_exceptions=True) merely COLLECTED an
+        # escaped exception — the coroutine stayed dead, silently, forever.
+        loops: list[tuple[str, Callable]] = [
+            ("observe", self.observe_loop),
+            ("think", self.think_loop),
+            ("reflect", self.reflect_loop),
+            ("sync", self.sync_loop),
+            ("obsidian", self.obsidian_loop),
+            ("phone", self.phone_loop),
+            ("vectorcode", self.vectorcode_loop),
+            ("scheduler", self.scheduler_loop),
+            ("ambient_scheduler", self.ambient_scheduler_loop),
+            ("hypothesis", self.hypothesis_loop),
+            ("predict", self.predict_cycle),
+            ("degradation", self.degradation_monitor),
+            ("wearable", self.wearable_poll_cycle),
+            ("health_analysis", self.health_analysis_cycle),
+            ("emergency_detection", self.emergency_detection_cycle),
+            ("research", self.research_loop),
+            ("state_checkpoint", self.state_checkpoint_loop),
+            ("sense", self.sense_loop),
+            ("anticipation", self.anticipation_loop),
+            ("command_poll", self.command_poll_loop),
+            ("growth", self.growth_loop),
+        ]
         await asyncio.gather(
-            self.observe_loop(),
-            self.think_loop(),
-            self.reflect_loop(),
-            self.sync_loop(),
-            self.obsidian_loop(),
-            self.phone_loop(),
-            self.vectorcode_loop(),
-            self.scheduler_loop(),
-            self.ambient_scheduler_loop(),
-            self.hypothesis_loop(),
-            self.predict_cycle(),
-            self.degradation_monitor(),
-            self.wearable_poll_cycle(),
-            self.health_analysis_cycle(),
-            self.emergency_detection_cycle(),
-            self.research_loop(),
-            self.state_checkpoint_loop(),
-            self.sense_loop(),
-            self.anticipation_loop(),
-            self.command_poll_loop(),
-            self.growth_loop(),
+            *(self._supervised(name, fn) for name, fn in loops),
             return_exceptions=True,
         )
+
+    async def _supervised(self, name: str, coro_fn: Callable) -> None:
+        """Restart wrapper for one eternal coroutine.
+
+        A coroutine that RETURNS did so deliberately (feature disabled in
+        config, or _running=False shutdown) — never restarted. An exception
+        that escapes the coroutine's own guards (typically a setup line
+        before its while-loop) restarts it with exponential backoff, capped
+        at 5 minutes, so one bad init can no longer kill a subsystem for the
+        life of the process without a trace.
+        """
+        backoff = 5.0
+        while True:
+            try:
+                await coro_fn()
+                return
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                _capture_loop_error(e, f"supervisor:{name}")
+                if not self._running:
+                    return
+                logger.warning(
+                    "[VECTOR][supervisor] {} loop died ({}: {}) — restarting in {:.0f}s",
+                    name, type(e).__name__, e, backoff,
+                )
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 300.0)
 
     async def growth_loop(self) -> None:
         """Launch the Growth Engine orchestrator (ARM A content + ARM B software).
@@ -2094,7 +2165,14 @@ class AutonomousLoop:
                 obs_result = await asyncio.to_thread(ScreenObserver().observe)
                 snippet = obs_result.get("text_snippet", "")
                 activity = obs_result.get("activity", "unknown")
-                screen_summary = f"[{activity}] {snippet[:200]}" if snippet else f"[{activity}]"
+                window = obs_result.get("window", "")
+                # Always include the foreground window title so VECTOR knows what
+                # the owner is doing even when OCR is off (Tesseract not
+                # installed) — otherwise screen_summary was just "[idle]"
+                # (2026-07-17).
+                _win = f" in {window}" if window else ""
+                screen_summary = (f"[{activity}]{_win} {snippet[:180]}".rstrip()
+                                  if snippet else f"[{activity}]{_win}")
 
                 # Coding Companion — proactive stuck detection. Armed whenever
                 # the owner has a live vectorcode CLI session (marker file) or

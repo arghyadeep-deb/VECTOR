@@ -29,12 +29,32 @@ def _install_test_sounddevice_stub() -> None:
 _install_test_sounddevice_stub()
 
 # Kokoro-supported voices only. bn/as not supported by Kokoro — routed to pyttsx3 fallback.
+# en default is bm_george (British male, JARVIS-style); override via
+# CONFIG['voice']['kokoro_voice'] / env VOICE__KOKORO_VOICE without code changes.
 _KOKORO_VOICE_MAP = {
-    "en": "bf_emma",
-    "hi": "hf_alpha",
-    "ja": "jf_alpha",
+    "en": "bm_george",   # British male (owner: male voices ONLY, 2026-07-15)
+    "hi": "hm_omega",    # Hindi male
+    "ja": "jm_kumo",     # Japanese male
 }
+
+
+def _voice_for(lang: str) -> str:
+    """Kokoro voice id for a language. The English voice is overridable via
+    CONFIG['voice']['kokoro_voice'] (env: VOICE__KOKORO_VOICE) so it can be
+    swapped without code changes; other languages use the fixed map."""
+    if lang == "en":
+        try:
+            override = (CONFIG.get("voice", {}) or {}).get("kokoro_voice")
+        except Exception:
+            override = None
+        if override:
+            return override
+    return _KOKORO_VOICE_MAP.get(lang, _KOKORO_VOICE_MAP["en"])
 _KOKORO_UNSUPPORTED = {"bn", "as"}  # routed through gTTS (then pyttsx3) below
+
+# How many times speak() re-probes Kokoro after a failed boot before accepting
+# the fallback (prevents a reload attempt on every single utterance).
+_KOKORO_MAX_RETRIES = 3
 
 # gTTS (Google Translate TTS) language codes — free, no API key. Google Translate's
 # TTS endpoint has no native Assamese voice, so Assamese text is routed through the
@@ -75,6 +95,7 @@ class VoiceTTS:
         self._kokoro = None
         self._pyttsx3 = None
         self._kokoro_ok = False
+        self._kokoro_retries = 0   # see speak(): capped re-probe after a bad boot
         self._el_ok = False
         self._el_client = None
         voice_cfg = CONFIG.get("voice", {}) if isinstance(CONFIG, dict) else {}
@@ -142,6 +163,16 @@ class VoiceTTS:
         try:
             import pyttsx3
             self._pyttsx3 = pyttsx3.init()
+            # Owner rule: male voices only — pick a male SAPI voice (David on
+            # Windows) instead of the default, which is usually female (Zira).
+            try:
+                for v in self._pyttsx3.getProperty("voices") or []:
+                    ident = f"{getattr(v, 'name', '')} {getattr(v, 'id', '')}".lower()
+                    if "david" in ident or "male" in ident:
+                        self._pyttsx3.setProperty("voice", v.id)
+                        break
+            except Exception:
+                pass  # default voice is still better than no voice
             logger.info("[VECTOR][tts] pyttsx3 fallback ready")
         except Exception as e:
             logger.error(f"[VECTOR][tts] pyttsx3 init failed: {e}")
@@ -200,6 +231,14 @@ class VoiceTTS:
         # they stay on the gTTS path below regardless of this setting.
         if lang not in _KOKORO_UNSUPPORTED and self._speak_supertonic(text, lang):
             return
+        # Kokoro may have failed to init at boot (GPU contention) — re-probe a
+        # few times so one bad boot doesn't strand the whole session on the
+        # robotic pyttsx3 fallback (owner rule: never robotic). Capped: when
+        # Kokoro is genuinely absent, retrying on EVERY utterance would reload-
+        # spam the log and add latency to every reply (2026-07-17).
+        if not self._kokoro_ok and self._kokoro_retries < _KOKORO_MAX_RETRIES:
+            self._kokoro_retries += 1
+            self._init_kokoro()
         # bn/as not supported by Kokoro — try gTTS (real online voices) before pyttsx3
         if self._kokoro_ok and lang not in _KOKORO_UNSUPPORTED:
             self._speak_kokoro(text, lang)
@@ -285,7 +324,7 @@ class VoiceTTS:
         try:
             if self._kokoro_ok:
                 import soundfile as sf
-                voice = _KOKORO_VOICE_MAP.get("en", _KOKORO_VOICE_MAP["en"])
+                voice = _voice_for("en")
                 samples, sr = self._kokoro.create(text, voice=voice, speed=self._speed)
                 sf.write(out_path, samples, sr)
                 logger.info("[VECTOR][tts] wrote Kokoro audio → {}", out_path)
@@ -298,7 +337,7 @@ class VoiceTTS:
         try:
             import sounddevice as sd
             import numpy as np
-            voice = _KOKORO_VOICE_MAP.get(lang, _KOKORO_VOICE_MAP["en"])
+            voice = _voice_for(lang)
             chunks = _chunk_sentences(text)
 
             # Short text: single-shot path, unchanged.
@@ -428,7 +467,7 @@ class StreamingTTS:
 
     def __init__(self, sample_rate: int = 16000):
         self.sample_rate = sample_rate
-        self._current_voice = "bf_emma"
+        self._current_voice = "bm_george"
         self._speaking = False
 
     @property

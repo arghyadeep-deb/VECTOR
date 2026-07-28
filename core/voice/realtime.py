@@ -66,7 +66,7 @@ def tts_wav(text: str, speed: float = 0.85) -> bytes | None:
         tts = VoiceTTS()
         if not tts._kokoro_ok:
             return None
-        voice = CONFIG.get("voice", {}).get("kokoro_voice", "bf_emma")
+        voice = CONFIG.get("voice", {}).get("kokoro_voice", "bm_george")
         samples, sample_rate = tts._kokoro.create(text, voice=voice, speed=speed)
         buf = io.BytesIO()
         sf.write(buf, samples, sample_rate, format="WAV")
@@ -107,6 +107,39 @@ def classify_intent(text: str) -> str | None:
         if re.search(pattern, low):
             return task_type
     return None
+
+
+_device_gateway = None  # module-cached PermissionGateway for voice device commands
+
+
+async def try_device_action(text: str) -> str | None:
+    """'open spotify'-style direct device commands from VOICE — reuses the typed
+    command bar's intent detector and executes through the permission gateway
+    (RULE 3 intact; proposed_by=api_command → owner speech is the confirmation).
+    Scoped to launch_app only: search/research utterances stay conversational.
+    Returns the spoken reply, or None when the utterance is not a device command."""
+    global _device_gateway
+    try:
+        from core.api.routers.commands import _detect_intent_action
+        intent = _detect_intent_action(text)
+        if not intent or intent.get("action_type") != "launch_app":
+            return None
+        from core.loop.permission_gateway import PermissionGateway, Action
+        if _device_gateway is None:
+            _device_gateway = PermissionGateway()
+        result = await _device_gateway.execute(Action(
+            action_type="launch_app",
+            params=intent.get("params", {}),
+            proposed_by="api_command",
+        ))
+        app = str(intent.get("params", {}).get("app_name", "the app"))
+        if result.executed and (result.result or {}).get("status") == "ok":
+            return f"Opening {app}, sir."
+        err = (result.result or {}).get("error", "")
+        return f"I couldn't open {app}" + (f" — {err}" if err else ".")
+    except Exception as e:
+        logger.warning(f"[VECTOR][realtime] device action failed: {e}")
+        return None
 
 
 # Cheap prefilter for the LLM intent gate: only utterances containing an
@@ -553,6 +586,21 @@ class RealtimeConversation:
                 return
         except Exception as e:
             logger.debug(f"[VECTOR][realtime] rules bypass skipped: {e}")
+
+        # 1.6 Direct device command ("open spotify") — same detector as the typed
+        # command bar, executed via the permission gateway. Owner voice only.
+        if self._speaker_owner:
+            try:
+                device_reply = await try_device_action(text)
+            except Exception:
+                device_reply = None
+            if device_reply is not None:
+                await self._safe_send({"type": "response", "text": device_reply})
+                await self._speak_text(device_reply)
+                self._store_turn(text, device_reply, ["device_action"])
+                self._back_to_listening()
+                await self._state("LISTENING")
+                return
 
         # 2. Phase 4 — action handoff to governor (RULE 3: gateway untouched)
         task_type = classify_intent(text)

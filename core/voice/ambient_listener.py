@@ -12,7 +12,9 @@ from pathlib import Path
 from loguru import logger
 from core.config import CONFIG
 from core.runtime_paths import data_path
-from core.resilience.bulkhead_executor import BulkheadRegistry, BulkheadRejectedError
+# NOTE: no bulkhead here — voice input is single-session (one utterance at a
+# time), and BulkheadRegistry has no production singleton; calling it on the
+# class crashed every intent classification (2026-07-15 fix).
 
 _END_PHRASES = {"that's all vector", "thats all vector", "stop vector", "goodbye vector"}
 _WAKE_MODES = {
@@ -59,7 +61,7 @@ _ACTION_TYPES = (
     "check_attendance, set_reminder, read_calendar, create_calendar_event, "
     "commit_code, download_file, open_panel, run_command, respond, "
     "widget_open, widget_close, widget_show_location, music_play, music_pause, music_next, "
-    "home_control"
+    "home_control, ignore"
 )
 
 
@@ -102,10 +104,12 @@ class AmbientListener:
             logger.warning(f"[VECTOR][voice] WakeWordDetector init failed: {e}")
 
         try:
-            from core.voice.stt import WhisperSTT
-            self._stt = WhisperSTT()
+            # STT() honors CONFIG voice.stt_engine (faster_whisper = ~4x faster) —
+            # was hardcoded to slow WhisperSTT(large-v3), the #1 wake-command latency.
+            from core.voice.stt import STT
+            self._stt = STT()
         except Exception as e:
-            logger.warning(f"[VECTOR][voice] WhisperSTT init failed: {e}")
+            logger.warning(f"[VECTOR][voice] STT init failed: {e}")
 
         try:
             from core.voice.tts import VoiceTTS
@@ -168,12 +172,72 @@ class AmbientListener:
         try:
             mode = await self._wake.listen_for_wake()
             if mode:
+                # "Hey VECTOR" summons the HUD onto the screen (focus-or-launch,
+                # fullscreen). Runs in a thread so the voice session starts
+                # immediately; failures never block the conversation.
+                asyncio.get_event_loop().run_in_executor(None, self._summon_hud)
                 if self._conversation:
                     self._conversation.start_session("default_user")
                     self._conversation.transition("LISTENING")
                 await self.handle_voice_input(mode=mode)
         except Exception as e:
             logger.error(f"[VECTOR][voice] _wake_and_handle error: {e}")
+
+    def _summon_hud(self) -> None:
+        """Bring the VECTOR HUD onto the screen: focus an existing HUD window,
+        else launch ONE fullscreen (app mode, no tabs/bar).
+
+        Uses the same scripts/vector_focus_hud.ps1 as the desktop icon so both
+        entry points agree. The old pygetwindow path matched ANY title containing
+        "VECTOR" — including "VECTOR_RULEBOOK.md - Visual Studio Code", so it
+        could focus the editor and then spawn a duplicate HUD anyway; and when
+        pygetwindow was missing it launched a fresh window every single wake
+        (2026-07-17: owner reported stacking HUD windows).
+        """
+        import os
+        import subprocess
+        import time as _time
+        _here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        _focus = os.path.join(_here, "scripts", "vector_focus_hud.ps1")
+        try:
+            if os.path.exists(_focus):
+                rc = subprocess.run(
+                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", _focus],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20,
+                ).returncode
+                if rc == 0:
+                    logger.info("[VECTOR][voice] HUD window focused (no duplicate opened)")
+                    return
+        except Exception as e:
+            logger.debug(f"[VECTOR][voice] HUD focus check failed ({e}) — launching")
+        # LAUNCH COOLDOWN: focus above is cheap + idempotent and runs every time,
+        # but a freshly-launched HUD takes a few seconds to appear AND to title
+        # itself "VECTOR Production" — during that gap the focus check can't see
+        # it yet. The wake word false-fires ~every 25s (ambient noise), so
+        # without this guard each wake in that window launched ANOTHER HUD,
+        # stacking 8-9 of them (2026-07-17 owner screenshot). Never launch a
+        # second HUD within 45s of the last launch; by then it's visible and
+        # focus finds it.
+        _now = _time.time()
+        if _now - getattr(self, "_last_hud_launch", 0.0) < 45.0:
+            logger.debug("[VECTOR][voice] HUD launch suppressed — one launched <45s ago")
+            return
+        self._last_hud_launch = _now
+        try:
+            key = os.environ.get("VECTOR_API_KEY", "")
+            # 127.0.0.1, not localhost: VECTOR binds 0.0.0.0 (IPv4) and localhost
+            # resolves to ::1 first on Windows.
+            url = f"http://127.0.0.1:8000/hud/?key={key}"
+            chrome = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+            edge = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
+            exe = chrome if os.path.exists(chrome) else edge
+            subprocess.Popen(
+                [exe, f"--app={url}", "--start-fullscreen"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            logger.info("[VECTOR][voice] HUD launched fullscreen")
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice] HUD summon failed: {e}")
 
     def _is_end_phrase(self, text: str) -> bool:
         return text.strip().lower() in _END_PHRASES
@@ -251,14 +315,36 @@ class AmbientListener:
                     self._tts.stop_speaking()
 
                 text = ""
+                audio = None
+                sr = CONFIG.get("voice", {}).get("sample_rate", 16000)
                 if self._stt:
-                    duration = CONFIG.get("voice", {}).get("record_duration_sec", 5.0)
-                    text = await asyncio.to_thread(self._stt.record_and_transcribe, duration_sec=duration)
+                    try:
+                        audio = await asyncio.to_thread(self._stt.record_until_silence, sample_rate=sr)
+                        if audio is not None and getattr(audio, "size", 0):
+                            import numpy as _np
+                            peak = float(_np.max(_np.abs(audio)))
+                            if 0 < peak < 0.3:
+                                audio = audio * (0.9 / peak)
+                            text = await asyncio.to_thread(self._stt.transcribe, audio, sr)
+                    except Exception as e:
+                        logger.warning(f"[VECTOR][voice] record/transcribe failed: {e}")
                 if not text:
                     await asyncio.sleep(0.5)
                     continue
 
                 self._last_speech_time = time.time()
+
+                # Owner-only detail (2026-07-16): anyone near the mic used to be
+                # treated as the owner. Verify the voiceprint; unknown speakers
+                # get a polite refusal — no personal context, no actions.
+                is_owner, speaker_sim = True, 1.0
+                try:
+                    from core.voice.speaker_verify import get_verifier
+                    _sv = get_verifier()
+                    if _sv.active and audio is not None and getattr(audio, "size", 0):
+                        is_owner, speaker_sim = await asyncio.to_thread(_sv.verify, audio, sr)
+                except Exception as _sv_err:
+                    logger.warning(f"[VECTOR][voice] speaker verify failed ({_sv_err}) — failing open")
 
                 if self._is_end_phrase(text):
                     logger.info("[VECTOR][voice] End phrase — session closed")
@@ -270,7 +356,46 @@ class AmbientListener:
                         self._conversation.end_session()
                     break
 
+                if not is_owner:
+                    # STAY SILENT. Do not announce the refusal.
+                    #
+                    # It used to speak "I only take instructions from Arghyadeep"
+                    # once per session — but ambient audio (a TV/YouTube) false-
+                    # triggers the wake word, and every wake starts a NEW session,
+                    # so the per-session guard reset each time: 29 spoken refusals
+                    # from 32 false wakes in ~25 min, which is exactly what the
+                    # owner reported hearing (2026-07-17).
+                    #
+                    # Nearly all unverified audio is background noise, not an
+                    # impostor addressing VECTOR — talking back to a TV is pure
+                    # noise pollution. Silence is also better security: it never
+                    # confirms to a real impostor that VECTOR is listening.
+                    # The event is still logged + stored for review.
+                    logger.warning(
+                        f"[VECTOR][voice] unverified speaker (sim={speaker_sim:.2f}) — "
+                        f"ignoring silently: {text[:60]!r}")
+                    self._store_in_memory(text, "(ignored — unverified speaker)",
+                                          "unverified_speaker")
+                    self._session_active = False   # close; owner can just wake again
+                    if self._conversation:
+                        self._conversation.end_session()
+                    break
+
                 logger.info(f"[VECTOR][voice] TRANSCRIBE: '{text}'")
+
+                # Direct device command ("open spotify") — deterministic, same
+                # detector as the typed command bar, executed via the gateway.
+                try:
+                    from core.voice.realtime import try_device_action
+                    device_reply = await try_device_action(text)
+                except Exception:
+                    device_reply = None
+                if device_reply:
+                    logger.info(f"[VECTOR][voice] device action: {device_reply}")
+                    if self._tts:
+                        await asyncio.to_thread(self._tts.speak, device_reply, lang="en")
+                    self._store_in_memory(text, device_reply, "launch_app")
+                    continue
 
                 if self._conversation:
                     self._conversation.transition("PROCESSING")
@@ -301,6 +426,23 @@ class AmbientListener:
                 if not intents:
                     intents = [{"action_type": "respond", "params": {"message": text}, "confidence": 0.5}]
 
+                # ADDRESSEE GATE (2026-07-17): VECTOR is always listening, so most
+                # of what it hears is the owner talking to OTHER PEOPLE, thinking
+                # aloud, or ambient chatter — NOT a request to VECTOR. The
+                # classifier returns action_type='ignore' for anything not
+                # addressed to VECTOR. Owner complaint: "vector replies always no
+                # matter what — even when I talk to someone else." If the (only)
+                # intent is ignore, stay SILENT and keep listening — no reply, no
+                # action. (A real command mixed in is kept; pure ignore is dropped.)
+                _actionable = [i for i in intents
+                               if i.get("action_type") not in ("ignore", None)]
+                if not _actionable:
+                    logger.info(f"[VECTOR][voice] not addressed to VECTOR — staying silent: {text[:60]!r}")
+                    self._store_in_memory(text, "(ignored — not addressed to VECTOR)", "not_addressed")
+                    await asyncio.sleep(0.3)
+                    continue
+                intents = _actionable
+
                 from core.loop.permission_gateway import Action
                 gw = self._get_gateway()
                 response_parts: list[str] = []
@@ -323,10 +465,11 @@ class AmbientListener:
                     else:
                         action = Action(action_type=action_type, params=params, proposed_by="voice")
                         result = await gw.execute(action)
-                        msg = result.get("message", f"Done, sir: {action_type}.")
+                        _payload = result.result if isinstance(result.result, dict) else {}
+                        msg = _payload.get("message") or f"Done, sir: {action_type}."
                         response_parts.append(msg)
 
-                        if str(result.get("decision", "")).upper() == "RED":
+                        if str(result.level).upper() == "RED" and not result.approved:
                             logger.info(f"[VECTOR][voice] RED denial on {action_type} — stopping chain")
                             break
 
@@ -338,7 +481,17 @@ class AmbientListener:
                 if self._tts:
                     if tone_config:
                         self._tts._speed = tone_config.speed
-                    await asyncio.to_thread(self._tts.speak, response_text, lang=lang)
+                    # Voice follows the language of the REPLY being spoken, not the
+                    # input: whisper often mis-detects accented English as hi/bn,
+                    # which flipped the voice to the Hindi female (hf_alpha) while
+                    # speaking an English sentence (2026-07-15 fix).
+                    speak_lang = "en"
+                    if self._lang:
+                        try:
+                            speak_lang = self._lang.detect(response_text)
+                        except Exception:
+                            speak_lang = "en"
+                    await asyncio.to_thread(self._tts.speak, response_text, lang=speak_lang)
 
                 if self._conversation:
                     self._conversation.transition("LISTENING")
@@ -395,10 +548,6 @@ class AmbientListener:
         Returns {action_type, params, confidence}.
         """
         try:
-            import httpx
-            ollama_host = CONFIG["ollama_host"]
-            model = CONFIG["models"]["ambient"]
-
             # Use provided history or fall back to session history
             history = conversation_history if conversation_history is not None else self._conversation_history
 
@@ -422,35 +571,26 @@ class AmbientListener:
                 "Respond with ONLY valid JSON, no explanation."
             )
 
-            bulkhead = BulkheadRegistry.get("voice")
-            async def _classify_call():
-                async with httpx.AsyncClient(timeout=12.0) as client:
-                    resp = await client.post(
-                        f"{ollama_host}/api/chat",
-                        json={
-                            "model": model,
-                            "messages": [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": prompt},
-                            ],
-                            "stream": False,
-                        },
-                    )
-                    resp.raise_for_status()
-                    raw = resp.json().get("message", {}).get("content", "")
-                    start = raw.find("{")
-                    end = raw.rfind("}") + 1
-                    if start != -1 and end > start:
-                        return json.loads(raw[start:end])
-                    return None
-            if bulkhead:
-                result = await bulkhead.execute(_classify_call)
-                if result:
-                    return result
-            else:
-                result = await _classify_call()
-                if result:
-                    return result
+            # Cloud-first fast tier with automatic ollama terminal. Raw local
+            # ollama calls starved here whenever a big model was loaded
+            # (OLLAMA_MAX_LOADED_MODELS=1 churn) → 12s timeouts → every
+            # utterance became "I didn't quite catch that" (2026-07-15 fix).
+            from core.inference.provider_client import ProviderClient
+            completion = await ProviderClient().chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                tier="fast",
+                max_tokens=300,
+                temperature=0.1,
+                caller_id="voice_classify",
+            )
+            raw = completion.content or ""
+            start = raw.find("{")
+            end = raw.rfind("}") + 1
+            if start != -1 and end > start:
+                return json.loads(raw[start:end])
         except Exception as e:
             logger.warning(f"[VECTOR][voice] Intent classification failed: {e} — defaulting to respond")
         return {
@@ -474,10 +614,6 @@ class AmbientListener:
             ]}
         """
         try:
-            import httpx
-            ollama_host = CONFIG["ollama_host"]
-            model = CONFIG["models"]["ambient"]
-
             history_str = ""
             if self._conversation_history:
                 recent = self._conversation_history[-6:]
@@ -489,6 +625,17 @@ class AmbientListener:
                 f"{hydration}\n\n"
                 f"{history_str}"
                 f"User just said: \"{text}\"\n\n"
+                "FIRST decide who the speaker is addressing. You are VECTOR, a "
+                "voice assistant that is always listening in the background. The "
+                "speaker is often talking to OTHER PEOPLE, thinking aloud, or in "
+                "a side conversation — NOT to you. Only treat the utterance as "
+                "directed at you when it is a command, request, or question "
+                "plausibly meant for an assistant (e.g. 'play some music', "
+                "'what's the weather', 'open spotify', 'remind me to...'). If it "
+                "is clearly NOT addressed to you — casual chat, someone's name, "
+                "a reply to another person, mid-thought muttering, or ambiguous "
+                "background speech — return exactly: "
+                '{"intents": [{"action_type": "ignore", "params": {}, "confidence": 0.9}]}\n'
                 "The user MAY say multiple commands in one utterance "
                 "(e.g. \"close the music widget and show me London\" = 2 commands).\n"
                 "Decompose into ALL distinct commands and return a JSON object:\n"
@@ -499,32 +646,26 @@ class AmbientListener:
                 "  widget_close: params.id (or params.id='all' to close all)\n"
                 "  widget_show_location: params.query (place name or address)\n"
                 "Music: music_play / music_pause / music_next (no params)\n"
-                "For pure conversational replies use one intent action_type='respond' "
-                "with params.message set to the spoken reply.\n"
+                "For a genuine question or chat DIRECTED AT YOU use one intent "
+                "action_type='respond' with params.message set to the spoken reply.\n"
+                "For anything NOT addressed to you use action_type='ignore'.\n"
                 "Preserve order of commands as the user said them.\n"
                 "Respond with ONLY valid JSON. No prose."
             )
 
-            bulkhead = BulkheadRegistry.get("voice")
-            async def _classify_call():
-                async with httpx.AsyncClient(timeout=12.0) as client:
-                    resp = await client.post(
-                        f"{ollama_host}/api/chat",
-                        json={
-                            "model": model,
-                            "messages": [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": prompt},
-                            ],
-                            "stream": False,
-                        },
-                    )
-                    resp.raise_for_status()
-                    return resp.json().get("message", {}).get("content", "")
-            if bulkhead:
-                raw = await bulkhead.execute(_classify_call)
-            else:
-                raw = await _classify_call()
+            # Cloud-first fast tier (see _classify_intent for why not raw ollama).
+            from core.inference.provider_client import ProviderClient
+            completion = await ProviderClient().chat(
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt},
+                ],
+                tier="fast",
+                max_tokens=400,
+                temperature=0.1,
+                caller_id="voice_classify",
+            )
+            raw = completion.content or ""
 
             # Extract the JSON object
             start = raw.find("{")

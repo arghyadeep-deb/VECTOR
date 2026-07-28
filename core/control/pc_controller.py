@@ -31,6 +31,14 @@ _WIN_APP_ALIASES: dict[str, str] = {
     "taskmgr":      "taskmgr.exe",
 }
 
+# URI-protocol fallbacks — Microsoft Store installs have no classic exe path
+# (e.g. Store Spotify), but register a protocol Windows resolves via startfile.
+_WIN_APP_PROTOCOLS: dict[str, str] = {
+    "spotify":  "spotify:",
+    "settings": "ms-settings:",
+    "whatsapp": "whatsapp:",
+}
+
 try:
     import pyautogui
     pyautogui.FAILSAFE = True
@@ -168,12 +176,24 @@ class PCController:
             args = args or []
             name_lower = app_name.strip().lower()
 
-            # 1. Check alias table first
+            # 1. Check alias table first — but drop aliases whose absolute path
+            #    doesn't exist (e.g. Store-installed Spotify has no classic exe)
             exe = _WIN_APP_ALIASES.get(name_lower)
+            if exe and os.path.isabs(exe) and not os.path.exists(exe):
+                exe = None
 
-            # 2. If no alias, try shutil.which (finds anything on PATH)
+            # 2. If no usable alias, try shutil.which (finds anything on PATH)
             if exe is None:
-                exe = shutil.which(app_name) or app_name
+                exe = shutil.which(app_name)
+
+            # 3. Still nothing → URI-protocol launch (Microsoft Store installs)
+            if exe is None:
+                proto = _WIN_APP_PROTOCOLS.get(name_lower)
+                if proto and sys.platform == "win32":
+                    os.startfile(proto)  # Windows resolves the registered handler
+                    logger.info(f"[VECTOR][pc] launched '{app_name}' via {proto}")
+                    return {"launched": True, "pid": None, "app": app_name, "via": proto}
+                exe = app_name  # last resort: let Popen try the raw name
 
             cmd = [exe] + args
             proc = subprocess.Popen(
@@ -187,6 +207,50 @@ class PCController:
         except Exception as e:
             logger.error(f"[VECTOR][pc_controller] launch_app '{app_name}' error: {e}")
             return {"launched": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Media control (real OS playback — Spotify/any media app)
+    # ------------------------------------------------------------------
+
+    def media_key(self, key: str) -> dict:
+        """Send a Windows media key (play_pause/next/prev/stop) to whatever
+        media app has media-key focus (Spotify, browser, etc.).
+
+        Uses keybd_event via ctypes — no extra dependency. This is what makes
+        "play music" / "pause" / "next track" actually control real playback;
+        before this the gateway just SAID "Resuming playback" and did nothing
+        (2026-07-17 owner: voice comprehends the intent but nothing plays).
+        """
+        _VK = {"play_pause": 0xB3, "next": 0xB0, "prev": 0xB1, "stop": 0xB2}
+        vk = _VK.get(key)
+        if vk is None:
+            return {"ok": False, "error": f"unknown media key: {key}"}
+        if sys.platform != "win32":
+            return {"ok": False, "error": "media keys are Windows-only"}
+        try:
+            import ctypes
+            KEYEVENTF_KEYUP = 0x0002
+            ctypes.windll.user32.keybd_event(vk, 0, 0, 0)               # down
+            ctypes.windll.user32.keybd_event(vk, 0, KEYEVENTF_KEYUP, 0)  # up
+            logger.info(f"[VECTOR][pc] media key '{key}' sent")
+            return {"ok": True, "key": key}
+        except Exception as e:
+            logger.error(f"[VECTOR][pc_controller] media_key '{key}' error: {e}")
+            return {"ok": False, "error": str(e)}
+
+    def play_music(self, app: str = "spotify") -> dict:
+        """Actually start music: launch the player (if needed) and press play.
+
+        'play music' with no app named defaults to Spotify — VECTOR should infer
+        the app rather than making the owner spell it out every time.
+        """
+        launched = self.launch_app(app)
+        # Give a just-launched player a moment to grab media-key focus, then play.
+        import time as _t
+        _t.sleep(2.5 if launched.get("launched") else 0.2)
+        played = self.media_key("play_pause")
+        return {"ok": played.get("ok", False), "app": app,
+                "launched": launched.get("launched"), "played": played.get("ok")}
 
     # ------------------------------------------------------------------
     # Shell command (YELLOW-tier)
@@ -219,6 +283,8 @@ class PCController:
                 shell=True,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout,
             )
             logger.info(

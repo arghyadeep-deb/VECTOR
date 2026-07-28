@@ -15,6 +15,15 @@ class PhoneController:
 
     def __init__(self):
         self._adb_path: str = CONFIG.get("control", {}).get("adb_path", "adb")
+        # Resolve adb (2026-07-21): the scheduled-task environment often lacks
+        # adb on PATH, so a bare "adb" silently fails. Fall back to the
+        # platform-tools bundled next to the codebase.
+        import shutil as _shutil
+        from pathlib import Path as _Path
+        if self._adb_path == "adb" and not _shutil.which("adb"):
+            _local = _Path(__file__).resolve().parents[2].parent / "platform-tools" / "adb.exe"
+            if _local.exists():
+                self._adb_path = str(_local)
         self._device_id: str | None = CONFIG.get("control", {}).get("phone_device_id", None)
         self._connected: bool = False
         self._check_connection()
@@ -32,11 +41,13 @@ class PhoneController:
                 cmd,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 timeout=timeout,
             )
-            output = result.stdout.strip()
+            output = (result.stdout or "").strip()
             if result.returncode != 0:
-                err = result.stderr.strip()
+                err = (result.stderr or "").strip()
                 logger.debug(f"[VECTOR][phone_controller] adb non-zero rc: {err}")
                 return (False, err)
             return (True, output)

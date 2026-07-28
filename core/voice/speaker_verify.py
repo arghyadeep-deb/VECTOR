@@ -151,6 +151,16 @@ class SpeakerVerifier:
         but the realtime layer logs every unverified action decision."""
         if not self.active:
             return True, 1.0
+        # Too little speech to judge ⇒ fail OPEN. A d-vector from <1s of audio is
+        # noise: silence/short clips scored 0.40-0.56 against the owner (vs an
+        # impostor's 0.44), i.e. indistinguishable — and refusing the real owner
+        # is far worse than not gating a one-word utterance (2026-07-17).
+        min_s = float(CONFIG.get("voice", {}).get("speaker_verify_min_seconds", 1.0))
+        if audio is None or getattr(audio, "size", 0) < int(min_s * sr):
+            secs = (getattr(audio, "size", 0) / sr) if audio is not None else 0.0
+            logger.debug("[VECTOR][speaker] {:.2f}s < {:.2f}s minimum — not judged (fail open)",
+                         secs, min_s)
+            return True, 1.0
         try:
             emb = self.embed(audio, sr)
             owner = self._owner_emb
