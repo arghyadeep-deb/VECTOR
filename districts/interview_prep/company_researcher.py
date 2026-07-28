@@ -301,6 +301,27 @@ Note: Be clear these are rough estimates based on public data.
         if company:
             result = await self.research_company(company)
             return {"status": "ok", **result}
+        # 2026-07-28: when params.company was absent (always true for
+        # free-text chat dispatch, which never populates it), this
+        # returned a bare {"status":"ok","agent":name} — worse than
+        # design district's #33 stub, since it returns literally no
+        # content at all instead of even a wrong one. Answer the real
+        # question grounded in this agent's real capabilities instead.
+        query = p.get("query") or p.get("content") or task.get("query")
+        if query:
+            prompt = (
+                "You are VECTOR's company research assistant for interview prep. "
+                "You can research_company(name) for company-specific facts, or "
+                "get_interview_tips(company) for tips. Answer the owner's question "
+                f"directly:\n\n{query}\n\nIf they named a specific company, say so "
+                "and note they can ask you to research it."
+            )
+            try:
+                answer = _llm(prompt, max_tokens=500, temperature=0.6)
+            except Exception as e:
+                logger.warning(f"[VECTOR][company_researcher] answer failed: {e}")
+                answer = ""
+            return {"status": "ok", "response": answer or "\n".join(self._get_generic_tips())}
         return {"status": "ok", "agent": self.name}
 
 

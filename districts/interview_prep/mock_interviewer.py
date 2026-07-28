@@ -321,8 +321,35 @@ Be honest, constructive, and specific.
         return datetime.now(timezone.utc).isoformat()
 
 
+    def _answer_interview_question(self, query: str) -> str:
+        """Answer a free-text question about interview prep, grounded in
+        real capabilities (difficulty levels, question types, any active
+        interview) instead of always generating a default question — same
+        design-district #33 fix pattern."""
+        active = getattr(self, "_active_interviews", None)
+        active_ctx = f"{len(active)} interview(s) in progress." if active else "No interview in progress."
+        prompt = (
+            f"You are VECTOR's mock interview coach. {active_ctx} "
+            f"Difficulty levels: {getattr(self, 'DIFFICULTY_LEVELS', 'easy/medium/hard')}. "
+            f"Question types: {getattr(self, 'QUESTION_TYPES', 'technical/behavioral')}.\n\n"
+            f"Owner asked: {query}\n\nAnswer specifically — do not just generate a random practice question "
+            f"unless that's actually what was asked for."
+        )
+        try:
+            return _llm(prompt, max_tokens=600, temperature=0.6) or "I need a bit more detail to help with that."
+        except Exception as e:
+            logger.warning(f"[VECTOR][mock_interviewer] answer failed: {e}")
+            return "I ran into a problem answering that — try again in a moment."
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        # 2026-07-28: run() never checked task["type"] — always generated
+        # a "machine learning"/"medium" question regardless of what was
+        # actually asked, ignoring free-text questions entirely. Same bug
+        # class as design district's #33.
+        query = p.get("query") or p.get("content") or task.get("query")
+        if query and not p.get("topic"):
+            return {"status": "ok", "response": self._answer_interview_question(query)}
         q = self.generate_question(p.get("topic", "machine learning"), p.get("difficulty", "medium"))
         return {"status": "ok", "question": q}
 
