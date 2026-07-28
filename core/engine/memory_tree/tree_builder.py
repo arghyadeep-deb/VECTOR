@@ -18,24 +18,47 @@ __all__ = [
     "MemoryTree",
     "TreeChunk",
     "TreeNode",
+    "get_shared_tree",
+    "close_shared_tree",
 ]
 
 
+import atexit
 import hashlib
 import json
 import os
 import re
 import threading
+import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
 from loguru import logger
 
-_TREE_DB = Path.home() / ".vector_ca" / "memory_tree"
 _BRAIN_WIKI = Path("brain") / "VECTOR" / "wiki"
 _SAVE_LOCK = threading.Lock()
+
+
+def _default_tree_dir() -> Path:
+    """Resolve the default memory-tree directory.
+
+    Mirrors core.memory.db_utils.configured_db_path()'s override precedence
+    so tests that isolate VECTOR_DB_PATH isolate the tree too — this used to
+    be a hardcoded ~/.vector_ca/memory_tree path, silently un-isolatable,
+    which was the root cause of a real 90+s hang under concurrent episodic
+    writes (KNOWN_ISSUES: MemoryTree reconstructed + full read/parse/rewrite
+    on every single EpisodicMemory.store() call).
+    """
+    override = os.environ.get("VECTOR_MEMORY_TREE_PATH")
+    if override:
+        return Path(override)
+    try:
+        from core.memory.db_utils import configured_db_path
+        return configured_db_path().parent / "memory_tree"
+    except Exception:
+        return Path.home() / ".vector_ca" / "memory_tree"
 
 
 # â”€â”€ Data structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -68,8 +91,13 @@ class TreeNode:
     chunks: list[TreeChunk] = field(default_factory=list)
     updated_at: str = ""
 
-    def add_chunk(self, chunk: TreeChunk) -> None:
+    def add_chunk(self, chunk: TreeChunk, max_chunks: int | None = None) -> None:
         self.chunks.append(chunk)
+        if max_chunks and len(self.chunks) > max_chunks:
+            # Bound unbounded growth (mirrors episodic.py's _memory_buffer
+            # deque(maxlen=...) — this tree has no equivalent cap otherwise,
+            # and grows forever since every store() ingests here).
+            self.chunks = self.chunks[-max_chunks:]
         self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def chunk_count(self) -> int:
@@ -105,10 +133,25 @@ class MemoryTree:
     """
 
     def __init__(self, db_dir: Path | None = None, wiki_dir: Path | None = None) -> None:
-        self._db_dir = db_dir or _TREE_DB
+        self._db_dir = db_dir or _default_tree_dir()
         self._db_dir.mkdir(parents=True, exist_ok=True)
         self._wiki_dir = wiki_dir or _BRAIN_WIKI
         self._sources: dict[str, MemorySource] = {}
+
+        try:
+            from core.config import CONFIG
+            _mt_cfg = CONFIG.get("memory_tree", {})
+        except Exception:
+            _mt_cfg = {}
+        self._max_chunks_per_topic: int = _mt_cfg.get("max_chunks_per_topic", 2000)
+        self._save_every_n: int = _mt_cfg.get("save_every_n_ingests", 20)
+        self._save_interval_s: float = _mt_cfg.get("save_interval_seconds", 15)
+
+        self._dirty = False
+        self._ingests_since_save = 0
+        self._last_save_ts = time.monotonic()
+        self._last_saved_stat: tuple[int, int] | None = None
+
         self._load()
 
     # â”€â”€ Ingestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -156,12 +199,36 @@ class MemoryTree:
 
         source = self._sources[key]
         node = source.get_or_create_node(topic)
-        node.add_chunk(chunk)
+        node.add_chunk(chunk, max_chunks=self._max_chunks_per_topic)
         source.updated_at = datetime.now(timezone.utc).isoformat()
 
-        self._save()
+        # Debounced save: a full read/parse/rewrite of the whole tree file on
+        # EVERY ingest() was the root cause of a real 90+s hang under
+        # concurrent EpisodicMemory.store() calls (200 calls x full-file
+        # round-trip each). Save every N ingests or every T seconds,
+        # whichever first, with flush() available for a guaranteed
+        # durable checkpoint. MemoryTree ingestion is already best-effort/
+        # non-fatal from episodic.py's perspective (the SQL episodic_memory
+        # table is the real source of truth, written first) so losing the
+        # last few seconds of this derived index on an ungraceful kill is
+        # an acceptable tradeoff for removing the per-call I/O cost.
+        self._dirty = True
+        self._ingests_since_save += 1
+        now = time.monotonic()
+        if (
+            self._ingests_since_save >= self._save_every_n
+            or (now - self._last_save_ts) >= self._save_interval_s
+        ):
+            self._save()
         logger.debug("[VECTOR][memory_tree] ingested chunk topic={} source={}", topic, source_id[:16])
         return chunk
+
+    def flush(self) -> bool:
+        """Force a save if there are unsaved ingests. Returns True if a save happened."""
+        if self._dirty:
+            self._save()
+            return True
+        return False
 
     def ingest_document(
         self,
@@ -336,15 +403,62 @@ class MemoryTree:
         # Atomic write: plain write_text over the live file left torn JSON when the
         # autonomous loop, MCP server, and tests saved concurrently ("Extra data" /
         # empty-file corruption, found 2026-07-08). temp + os.replace is atomic on
-        # Windows and POSIX; the lock serializes writers within this process.
+        # Windows and POSIX; the lock serializes writers within this process only —
+        # _SAVE_LOCK is a threading.Lock, no protection against a second OS process.
+        # True cross-process locking is deliberately deferred (this store's
+        # documented architecture is in-process singleton, see autonomous_loop);
+        # this best-effort check just makes a lost update loud instead of silent.
         path = self._db_path()
+        try:
+            if self._last_saved_stat is not None and path.exists():
+                st = path.stat()
+                if (st.st_mtime_ns, st.st_size) != self._last_saved_stat:
+                    logger.warning(
+                        "[VECTOR][memory_tree] {} was modified by another writer since this "
+                        "process's last save — this save will overwrite it (last-writer-wins, no merge)",
+                        path,
+                    )
+        except Exception:
+            pass
+
         tmp = path.with_suffix(path.suffix + f".tmp{os.getpid()}")
         with _SAVE_LOCK:
             tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
             os.replace(tmp, path)
+            try:
+                st = path.stat()
+                self._last_saved_stat = (st.st_mtime_ns, st.st_size)
+            except Exception:
+                self._last_saved_stat = None
+
+        self._dirty = False
+        self._ingests_since_save = 0
+        self._last_save_ts = time.monotonic()
+
+    def _cleanup_orphaned_tmp_files(self, p: Path) -> None:
+        """Best-effort removal of memory_tree.json.tmp<pid> siblings left by a
+        process that was killed mid-_save() (evidence: a 19.6MB orphaned tmp
+        file was found live on this machine during investigation of the I/O
+        hang this fix addresses). Never allowed to fail _load()."""
+        try:
+            import psutil
+        except ImportError:
+            return
+        try:
+            for tmp_file in p.parent.glob(f"{p.name}.tmp*"):
+                suffix = tmp_file.name.rsplit(".tmp", 1)[-1]
+                if not suffix.isdigit():
+                    continue
+                pid = int(suffix)
+                if not psutil.pid_exists(pid):
+                    tmp_file.unlink(missing_ok=True)
+                    logger.warning("[VECTOR][memory_tree] removed orphaned tmp file from dead pid {}: {}", pid, tmp_file)
+        except Exception:
+            pass
 
     def _load(self) -> None:
         p = self._db_path()
+        self._cleanup_orphaned_tmp_files(p)
         if not p.exists():
             return
         try:
@@ -383,6 +497,74 @@ class MemoryTree:
         except Exception as e:
             logger.warning("[VECTOR][memory_tree] load failed: {}", e)
 
+    # ── Retention ──────────────────────────────────────────────────────────
+
+    def prune_old_chunks(self, retention_days: int = 90) -> int:
+        """Drop chunks older than retention_days, across all sources/topics.
+
+        Modeled on EpisodicMemory.prune_old_episodes() — the tree had no
+        equivalent bound before, unlike episodic.py's own bounded
+        _memory_buffer, so it grew forever (~20MB/42k chunks observed on one
+        machine before this fix). Returns the number of chunks removed.
+        """
+        cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+        removed = 0
+        for source in self._sources.values():
+            for node in source.nodes.values():
+                kept = []
+                for chunk in node.chunks:
+                    try:
+                        created = datetime.fromisoformat(chunk.created_at)
+                        if created.tzinfo is None:
+                            created = created.replace(tzinfo=timezone.utc)
+                    except (ValueError, TypeError):
+                        kept.append(chunk)
+                        continue
+                    if created >= cutoff:
+                        kept.append(chunk)
+                    else:
+                        removed += 1
+                node.chunks = kept
+        if removed:
+            self._dirty = True
+            self.flush()
+            logger.info("[VECTOR][memory_tree] pruned {} chunks older than {}d", removed, retention_days)
+        return removed
+
+
+# ── Shared singleton ─────────────────────────────────────────────────────────
+# Mirrors core.memory.episodic._db_connection / _db_lock exactly. Confirmed
+# safe: the only other direct MemoryTree() construction sites
+# (wiki_formatter.py, ingestion_queue.py) already accept an explicit `tree`
+# instance from their caller rather than constructing their own, so this
+# singleton only changes behavior for callers that used to construct a
+# fresh (and therefore always-reloading) MemoryTree() with defaults, which
+# in production is only core.memory.episodic.EpisodicMemory.store().
+
+_tree_singleton: "MemoryTree | None" = None
+_tree_lock = threading.Lock()
+
+
+def get_shared_tree(db_dir: Path | None = None, wiki_dir: Path | None = None) -> "MemoryTree":
+    global _tree_singleton
+    with _tree_lock:
+        if _tree_singleton is None:
+            _tree_singleton = MemoryTree(db_dir=db_dir, wiki_dir=wiki_dir)
+            atexit.register(_tree_singleton.flush)
+        return _tree_singleton
+
+
+def close_shared_tree() -> None:
+    """Mirrors close_db_connection(): intentional reset for tests/shutdown."""
+    global _tree_singleton
+    with _tree_lock:
+        if _tree_singleton is not None:
+            try:
+                _tree_singleton.flush()
+            except Exception:
+                logger.warning("[VECTOR][memory_tree] flush-on-close failed", exc_info=True)
+            _tree_singleton = None
+
 
 if __name__ == "__main__":
     import tempfile
@@ -397,4 +579,26 @@ if __name__ == "__main__":
         assert "coding" in wiki.lower()
         p = tree.save_wiki(wiki, "sess_001")
         assert p.exists()
+
+        # Growth bound + retention (new this pass)
+        for i in range(50):
+            tree.ingest("test", "cap_test", f"chunk {i}", topic="capped")
+        tree._max_chunks_per_topic = 10
+        tree._sources["test:cap_test"].nodes["capped"].add_chunk(
+            TreeChunk(id="extra", source_kind="test", source_id="cap_test",
+                      topic="capped", content="overflow", created_at=datetime.now(timezone.utc).isoformat()),
+            max_chunks=10,
+        )
+        assert len(tree._sources["test:cap_test"].nodes["capped"].chunks) == 10, "per-topic cap not enforced"
+
+        tree.flush()
+
+        # Singleton identity
+        t1 = get_shared_tree(db_dir=Path(d) / "singleton", wiki_dir=Path(d) / "wiki2")
+        t2 = get_shared_tree()
+        assert t1 is t2, "get_shared_tree() must return the same instance"
+        close_shared_tree()
+        t3 = get_shared_tree(db_dir=Path(d) / "singleton", wiki_dir=Path(d) / "wiki2")
+        assert t3 is not t1, "close_shared_tree() must reset the singleton"
+        close_shared_tree()
     print("OK memory_tree/tree_builder.py")

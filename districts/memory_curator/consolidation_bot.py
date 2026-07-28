@@ -183,6 +183,14 @@ class ConsolidationBot(AgentBase):
         except Exception as e:
             logger.warning(f"[VECTOR][consolidation_bot] forgetting pass skipped: {e}")
 
+        try:
+            from core.engine.memory_tree.tree_builder import get_shared_tree
+            tree_forgotten = get_shared_tree().prune_old_chunks(self.RETENTION_DAYS)
+            if tree_forgotten:
+                self.award_points(5, f"forgot {tree_forgotten} stale tree chunks")
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] memory_tree forgetting pass skipped: {e}")
+
         return len(episodes)
 
     async def write_daily_reflection(self) -> bool:

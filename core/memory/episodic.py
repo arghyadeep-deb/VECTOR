@@ -367,6 +367,17 @@ def close_db_connection() -> None:
     except Exception:
         logger.warning("[VECTOR] silent swallow")
         pass
+    try:
+        # Resets the MemoryTree singleton in lockstep with the SQL singleton
+        # so the next store() picks up whatever VECTOR_DB_PATH/
+        # VECTOR_MEMORY_TREE_PATH is active — this is what makes the
+        # existing isolated_db test fixture isolate MemoryTree too, with no
+        # test-file edits required.
+        from core.engine.memory_tree.tree_builder import close_shared_tree
+        close_shared_tree()
+    except Exception:
+        logger.warning("[VECTOR] silent swallow")
+        pass
 
 
 def get_db_write_lock() -> threading.RLock:
@@ -670,8 +681,8 @@ class EpisodicMemory:
             _with_cb(_do_store)
 
             try:
-                from core.engine.memory_tree.tree_builder import MemoryTree
-                _tree = MemoryTree()
+                from core.engine.memory_tree.tree_builder import get_shared_tree
+                _tree = get_shared_tree()
                 _tree.ingest(
                     source_kind="episodic",
                     source_id=source,

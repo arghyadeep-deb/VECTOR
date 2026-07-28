@@ -1032,6 +1032,16 @@ CONFIG: dict = {
     "task_queue": {
         "max_concurrent": 8,
     },
+    "memory_tree": {
+        # A full read/parse/rewrite of the whole tree file on every single
+        # EpisodicMemory.store() call was a real ~90+s hang under concurrent
+        # writes — these bound the derived MemoryTree index the same way
+        # episodic.py's own _memory_buffer is already bounded.
+        "max_chunks_per_topic": 2000,
+        "save_every_n_ingests": 20,
+        "save_interval_seconds": 15,
+        "retention_days": 90,
+    },
     # Autonomous Growth Engine (districts/growth/). All outward actions gated;
     # nothing publishes or opens signups until the owner flips these on.
     "growth": {
