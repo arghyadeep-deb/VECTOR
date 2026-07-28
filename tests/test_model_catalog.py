@@ -53,7 +53,7 @@ def test_select_model_expectations():
     assert select_model("nvidia", "vision") == "meta/llama-3.2-90b-vision-instruct"
     assert select_model("cerebras", "reasoning") == "zai-glm-4.7"
     assert select_model("groq", "fast") == "llama-3.1-8b-instant"
-    assert select_model("github_models", "coding") == "Codestral-25.01"
+    assert select_model("github_models", "coding") == "mistral-ai/Codestral-2501"  # catalog ID format now provider-prefixed, matching GitHub Models' real API naming
 
 
 def test_heavy_alias_resolves_under_reasoning():

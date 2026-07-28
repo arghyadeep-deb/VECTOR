@@ -299,7 +299,12 @@ def test_budget_analyst_analyse():
         with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
              patch("ollama.chat", side_effect=Exception("offline")):
             ok = asyncio.run(bot.analyse())
-    assert ok is True
+    # analyse() returns the report text (str) on success, None on failure —
+    # deliberately changed 2026-07-22 so run() could surface real content
+    # instead of a bare stub; it never returned a bool (unlike the sibling
+    # review()/write_daily()/write_weekly() methods above, which still do).
+    assert ok is not None
+    assert "Budget Analysis" in ok
 
 
 def test_tax_calendar_init():

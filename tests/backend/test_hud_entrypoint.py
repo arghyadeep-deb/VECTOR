@@ -9,7 +9,14 @@ AUTH_HEADERS = {"Authorization": "Bearer test-hud-key"}
 def test_hud_serves_development_entrypoint_by_default(monkeypatch) -> None:
     from core.api.app import create_app
 
-    monkeypatch.delenv("VECTOR_ENV", raising=False)
+    # core.api.app._is_production_env() does
+    # os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))) —
+    # CONFIG["env"] is resolved from the real .env at import time
+    # (VECTOR_ENV=production on this machine), so deleting the env var only
+    # falls back to that already-baked-in "production" default instead of
+    # "development". Set it explicitly instead, which os.getenv checks
+    # before ever consulting the CONFIG-derived fallback.
+    monkeypatch.setenv("VECTOR_ENV", "development")
     monkeypatch.setenv("VECTOR_API_KEY", "test-hud-key")
     client = TestClient(create_app(), client=("127.0.0.1", 50000))
 

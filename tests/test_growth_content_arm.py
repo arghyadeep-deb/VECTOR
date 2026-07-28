@@ -28,10 +28,12 @@ async def test_arm_a_falls_back_to_showcase_when_no_work(monkeypatch):
     assert (await arm._pick_well()) == "capability_showcase"
 
 
-def test_arm_a_instagram_default_is_manual():
+def test_arm_a_instagram_default_is_phone():
     from districts.growth.content_arm import ContentArm
-    # default instagram_mode="manual" → owner notified to post, instagrapi never called
-    assert ContentArm()._instagram_publisher().__name__ == "_notify_owner_to_post"
+    # instagram_mode default deliberately changed "manual" -> "phone": VECTOR
+    # now drives the connected phone (ban-safest), gated by social_safety +
+    # owner approval inside _phone_post itself. instagrapi still never used.
+    assert ContentArm()._instagram_publisher().__name__ == "_phone_post"
 
 
 if __name__ == "__main__":

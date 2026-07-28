@@ -104,13 +104,19 @@ def test_sense_tick_polls_phone_when_enabled(monkeypatch):
     assert snap["phone"]["recent"][0]["package"] == "com.whatsapp"
 
 
-def test_sense_tick_phone_disabled_by_default_no_crash():
+def test_sense_tick_phone_disabled_by_default_no_crash(monkeypatch):
     """phone_enabled defaults False (owner-hardware-dependent) — _sense_tick
-    must not crash or attempt ADB calls when it's off."""
+    must not crash or attempt ADB calls when it's off.
+
+    This machine's real .env sets SENSING__PHONE_ENABLED=true deliberately
+    (real phone-notification sensing), so CONFIG["sensing"]["phone_enabled"]
+    is True at the live singleton — force it False for this test's scope
+    the same way the sibling test above does, instead of asserting against
+    the live, .env-overridden value."""
     from core.loop.autonomous_loop import AutonomousLoop
     from core.config import CONFIG
 
-    assert CONFIG["sensing"].get("phone_enabled") is False
+    monkeypatch.setitem(CONFIG["sensing"], "phone_enabled", False)
     loop = AutonomousLoop()
     asyncio.run(loop._sense_tick())  # must not raise
 

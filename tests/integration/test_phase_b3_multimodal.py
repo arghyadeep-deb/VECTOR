@@ -21,8 +21,13 @@ class TestSensingConfigDefaults(unittest.TestCase):
         self.assertIn("camera_enabled", sensing)
 
     def test_screen_enabled_default_false(self):
-        from core.config import CONFIG
-        self.assertFalse(CONFIG.get("sensing", {}).get("screen_enabled"))
+        # CONFIG["sensing"] is the live, .env-merged singleton (this machine
+        # sets SENSING__SCREEN_ENABLED=true deliberately for real screen
+        # awareness) — assert against the Pydantic field's own default
+        # instead, which is unaffected by .env and is what this test is
+        # actually meant to guard.
+        from core.config import SensingConfig
+        self.assertFalse(SensingConfig.model_fields["screen_enabled"].default)
 
     def test_camera_enabled_default_false(self):
         from core.config import CONFIG
@@ -154,8 +159,17 @@ class TestSenseTickDisabledByDefault(unittest.TestCase):
 
         async def _run():
             al = AutonomousLoop.__new__(AutonomousLoop)
-            with patch("core.config.CONFIG") as mock_cfg:
-                mock_cfg.get = MagicMock(return_value={"screen_enabled": False, "camera_enabled": False})
+            # core/loop/autonomous_loop.py does `from core.config import
+            # CONFIG` — a module-local name bound to the real dict object
+            # at import time. Patching core.config.CONFIG only replaces the
+            # attribute on the core.config module; it never reaches the
+            # already-bound reference inside autonomous_loop, so
+            # _sense_tick() kept using the real (.env-overridden,
+            # screen_enabled=True) CONFIG regardless of this patch. Patch
+            # the actual consumed reference instead — same pattern already
+            # used correctly elsewhere in this file (e.g.
+            # test_presence_absent_when_no_faces).
+            with patch("core.loop.autonomous_loop.CONFIG", {"sensing": {"screen_enabled": False, "camera_enabled": False}}):
                 await al._sense_tick()
 
         asyncio.run(_run())
