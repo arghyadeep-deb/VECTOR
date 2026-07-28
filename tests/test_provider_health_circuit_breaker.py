@@ -166,6 +166,50 @@ def test_bad_request_does_not_trip_circuit():
     assert asyncio.run(_run()) is True
 
 
+def test_unknown_model_permanently_disables_that_model_only():
+    """2026-07-23 (JARVIS-parity latency pass): a provider saying it doesn't
+    recognize a specific model (e.g. github_models rejecting openai/gpt-5
+    with 'unknown_model' — a real, live, reproduced-every-time case, not
+    hypothetical) is a permanent, content-independent mismatch, unlike a
+    generic BAD_REQUEST which might just be this one request's fault.
+    Confirms: (a) it disables immediately regardless of failure_threshold,
+    (b) it survives a cooldown wait (like AUTH), (c) unlike AUTH it's scoped
+    to just that model — a sibling model on the same provider is untouched."""
+    from core.inference.provider_health import FailureKind
+
+    mgr = _fresh_manager()
+
+    async def _run():
+        await mgr.record_failure(
+            "github_models", "openai/gpt-5", kind=FailureKind.UNKNOWN_MODEL,
+            error='{"error":{"code":"unknown_model","message":"Unknown model: openai/gpt-5"}}',
+        )
+        immediate = await mgr.can_try("github_models", "openai/gpt-5")
+        await asyncio.sleep(0.5)  # well past any cooldown
+        later = await mgr.can_try("github_models", "openai/gpt-5")
+        sibling = await mgr.can_try("github_models", "Codestral-25.01")
+        return immediate, later, sibling
+
+    immediate, later, sibling = asyncio.run(_run())
+    assert immediate is False
+    assert later is False
+    assert sibling is True
+
+
+def test_classify_error_detects_unknown_model_before_generic_bad_request():
+    mgr = _fresh_manager()
+    from core.inference.provider_health import FailureKind
+
+    assert mgr.classify_error(
+        '{"error":{"code":"unknown_model","message":"Unknown model: openai/gpt-5"}}'
+    ) == FailureKind.UNKNOWN_MODEL
+    assert mgr.classify_error("Model not found") == FailureKind.UNKNOWN_MODEL
+    # A generic 400 with no model-not-found signature still classifies as
+    # plain BAD_REQUEST (does NOT permanently disable) — confirms the new
+    # check doesn't swallow unrelated 400s.
+    assert mgr.classify_error("400 Bad Request: missing required field") == FailureKind.BAD_REQUEST
+
+
 def test_classify_error_maps_common_strings():
     mgr = _fresh_manager()
     from core.inference.provider_health import FailureKind

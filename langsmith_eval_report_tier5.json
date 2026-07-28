@@ -1,0 +1,72 @@
+{
+  "tier": "tier5",
+  "project": "VECTOR-eval",
+  "overall_score": 0.922,
+  "num_examples": 4,
+  "results": [
+    {
+      "category": "language_hindi_in",
+      "query": "मुझे हिंदी में आज के तीन जरूरी काम बताओ।",
+      "response": "मैं आपको आज के तीन जरूरी काम बताने में सक्षम नहीं हूं क्योंकि मेरे पास आवश्यक जानकारी नहीं है। हालांकि, मैं आपको यह बता सकता हूं कि आपके वर्तमान में सक्रिय उद्देश्यों में कुछ महत्वपूर्ण बिंदु हैं जिन पर आप ध्यान दे सकते हैं:\n\n1. MID: Vector फेज 1 को पूरा करना - 8 कोर जिले को पूरा करना और ₹1 की उत्पाद आय प्राप्त करना।\n2. LONG: KIIT की उपस्थिति 75% से अधिक रखना और समीकरण पोर्टफोलियो में उत्पाद 1 को ",
+      "latency_s": 22.21,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "devanagari_script": 1.0,
+        "llm_judge": 0.2
+      },
+      "avg_score": 0.8,
+      "notes": [
+        "judge: Answer did not provide three general daily tasks in Hindi as requested, instead listing unrelated project-specific points."
+      ]
+    },
+    {
+      "category": "language_hindi_requested",
+      "query": "Please reply in Hindi: what should I focus on today?",
+      "response": "आज **वित्तीय लक्ष्य** पर ध्यान केंद्रित करें, विशेष रूप से **Phase 1** के अंतिम चरणों को पूरा करने के लिए:\n\n1. **₹1 लाख से अधिक राजस्व** प्राप्त करने के लिए **साल्टन (stran)** से कमाई बढ़ाएं (वर्तमान लक्ष्य ₹1 लाख/महीना).\n2. **8 कोर डिस्ट्रिक्ट** में संचालन सुनिश्चित करें—अगर कोई बाधा है, तो तत्काल **डिस्ट्रिक्ट समाधान** (/district) से समस्या का समाधान करें।\n3. **क्रीटर AI कंटेंट ऑपरेशन** (Wave 1)",
+      "latency_s": 6.1,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "devanagari_script": 1.0,
+        "llm_judge": 0.95
+      },
+      "avg_score": 0.988,
+      "notes": [
+        "judge: The answer is highly relevant, detailed, and directly addresses the question in Hindi with actionable steps."
+      ]
+    },
+    {
+      "category": "language_hindi_project_status",
+      "query": "हिंदी में जवाब दो — मेरा VECTOR प्रोजेक्ट कैसा चल रहा है?",
+      "response": "वर्तमान में मेरे पास VECTOR प्रोजेक्ट की विस्तृत प्रगति जानकारी नहीं है। आपके सक्रिय लक्ष्य इस प्रकार हैं:\n\n- **मध्य‑कालीन लक्ष्य**: VECTOR Phase 1 को पूरा करना (8 कोर डिस्ट्रिक्ट) और पहला ₹1 रुपया उत्पाद राजस्व हासिल करना।  \n- **दीर्घ‑कालीन लक्ष्य**: KIIT में उपस्थिति 75 % से ऊपर बनाए रखना तथा Equation पोर्टफ़ोलियो के तहत पहला ग्रेजुएट प्रोडक्ट लॉन्च करना।  \n\nइन लक्ष्यों के आधार पर, यदि आप हालिया",
+      "latency_s": 4.35,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "devanagari_script": 1.0,
+        "llm_judge": 0.7
+      },
+      "avg_score": 0.925,
+      "notes": [
+        "judge: उत्तर प्रासंगिक है लेकिन लक्ष्यों पर केंद्रित है, प्रोजेक्ट की वास्तविक स्थिति नहीं बताता।"
+      ]
+    },
+    {
+      "category": "language_hindi_explicit_script",
+      "query": "Reply only in Hindi (Devanagari script, not romanized) — give me one tip for better sleep.",
+      "response": "एक टिप: सोने से पहले कम से कम 30 मिनट तक स्क्रीन (फ़ोन, लैपटॉप) बंद कर दें; नीली रोशनी कम होने से मेलाटोनिन स्तर सामान्य रहता है और नींद आसान होती है।",
+      "latency_s": 3.51,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "devanagari_script": 1.0,
+        "llm_judge": 0.9
+      },
+      "avg_score": 0.975,
+      "notes": [
+        "judge: उत्तर प्रश्न के अनुरूप है, सही जानकारी देता है और हिंदी में लिखा गया है।"
+      ]
+    }
+  ]
+}

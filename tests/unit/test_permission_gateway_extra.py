@@ -47,8 +47,12 @@ class TestGatewayExecute:
         await gateway.execute(action)
         gateway._notify.assert_called()
 
-    async def test_execute_yellow_timeout_fails_closed_by_default(self):
+    async def test_execute_yellow_timeout_fails_closed_by_default(self, monkeypatch):
         import asyncio
+        # "By default" must mean the flag is OFF — the owner's live .env sets
+        # VECTOR_YELLOW_AUTO_CONFIRM=1, which legitimately flips this branch to
+        # execute-after-window. Pin the default so the test is hermetic.
+        monkeypatch.delenv("VECTOR_YELLOW_AUTO_CONFIRM", raising=False)
         g = PermissionGateway()
         g._notify = AsyncMock()
         g._execute_action = AsyncMock(return_value={"status": "ok"})
@@ -107,11 +111,25 @@ class TestGatewayExecute:
 class TestExecuteActionStubs:
     """Test _execute_action() directly for all stub action types."""
 
-    async def test_play_music_not_implemented(self):
-        # play_music not wired to a media player — not_implemented prevents phantom RL reward
+    async def test_play_music_launches_configured_app(self):
+        # 2026-07-23 (task #91 core-subsystem audit): this test previously
+        # asserted status == "not_implemented", which was stale — play_music
+        # was wired to a real PCController.play_music() call on 2026-07-17
+        # (permission_gateway.py's play_music branch launches an app + hits
+        # play). Left unmocked, running THIS test actually launched Spotify
+        # and sent a real media key on the host machine (confirmed live:
+        # 'launched spotify pid=30424' + 'media key play_pause sent' in the
+        # pytest run that first caught this). Mock PCController so the test
+        # verifies the gateway wires the call correctly without a real
+        # side effect, and assert the CURRENT correct status.
+        from unittest.mock import MagicMock, patch
         g = PermissionGateway()
-        result = await g._execute_action(Action("play_music", {"track": "jazz"}, "test"))
-        assert result["status"] == "not_implemented"
+        mock_pc = MagicMock()
+        mock_pc.play_music.return_value = {"ok": True, "app": "spotify"}
+        with patch("core.control.pc_controller.PCController", return_value=mock_pc):
+            result = await g._execute_action(Action("play_music", {"track": "jazz"}, "test"))
+        assert result["status"] == "ok"
+        mock_pc.play_music.assert_called_once()
 
     async def test_set_timer_returns_duration(self):
         g = PermissionGateway()
@@ -211,13 +229,22 @@ class TestExecuteActionStubs:
         assert result["status"] == "ok"
 
     async def test_music_pause_returns_ok(self):
+        # 2026-07-23 (task #91): unmocked, this sends a REAL Windows media
+        # key (permission_gateway.py's music_pause branch calls
+        # PCController().media_key('play_pause')) — confirmed live during
+        # the audit that caught this alongside the play_music finding above.
+        # Mock PCController so running this test doesn't touch real playback.
+        from unittest.mock import MagicMock, patch
         g = PermissionGateway()
-        result = await g._execute_action(Action("music_pause", {}, "test"))
+        with patch("core.control.pc_controller.PCController", return_value=MagicMock()):
+            result = await g._execute_action(Action("music_pause", {}, "test"))
         assert result["status"] == "ok"
 
     async def test_music_next_returns_ok(self):
+        from unittest.mock import MagicMock, patch
         g = PermissionGateway()
-        result = await g._execute_action(Action("music_next", {}, "test"))
+        with patch("core.control.pc_controller.PCController", return_value=MagicMock()):
+            result = await g._execute_action(Action("music_next", {}, "test"))
         assert result["status"] == "ok"
 
     async def test_widget_show_location_returns_ok(self):

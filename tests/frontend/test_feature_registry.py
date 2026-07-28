@@ -152,12 +152,16 @@ def test_frontend_config_uses_same_origin_only_when_api_served() -> None:
 
 
 def test_production_hud_controls_expose_dock_without_dev_director() -> None:
+    # 2026-07-14 LEAN DOCK: features/missioncontrol moved off the dock into the
+    # Ctrl+Shift+H terminal (covered by the terminal registry test above); the
+    # dock now carries only the always-working production controls.
     text = HUD_CONTROLS_JS.read_text(encoding="utf-8")
 
     assert "VectorHudControls" in text
     assert "buildDock" in text
-    assert "V.openWidget('features')" in text
-    assert "V.openWidget('missioncontrol')" in text
+    assert "V.openWidget('chat')" in text
+    assert "V.openWidget('goals')" in text
+    assert "V.openWidget('approvals')" in text
     assert "Director" not in text
     assert "autoDemo" not in text
     assert "d-base" not in text

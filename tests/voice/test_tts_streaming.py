@@ -301,6 +301,11 @@ class TestSpeakRouting(unittest.TestCase):
         tts = VoiceTTS()
         tts._el_ok = True
         tts._kokoro_ok = False
+        # speak() re-probes Kokoro when _kokoro_ok is False (so one bad boot
+        # doesn't strand the session on robotic pyttsx3). Kokoro IS installed on
+        # this machine, so that re-probe would succeed and this test would never
+        # reach the pyttsx3 fallback — stub it out to model "Kokoro truly absent".
+        tts._init_kokoro = MagicMock()
         tts._speak_elevenlabs_stream = MagicMock(return_value=False)
         tts._speak_pyttsx3 = MagicMock()
         tts._pyttsx3 = MagicMock()
@@ -308,6 +313,22 @@ class TestSpeakRouting(unittest.TestCase):
         tts.speak("hello", lang="en")
 
         tts._speak_pyttsx3.assert_called_once()
+
+    def test_kokoro_reprobe_is_capped(self):
+        """A missing Kokoro must not trigger a reload attempt on EVERY utterance."""
+        from core.voice.tts import VoiceTTS, _KOKORO_MAX_RETRIES
+        tts = VoiceTTS()
+        tts._el_ok = False
+        tts._kokoro_ok = False
+        tts._init_kokoro = MagicMock()          # stays unavailable
+        tts._speak_pyttsx3 = MagicMock()
+        tts._pyttsx3 = MagicMock()
+
+        for _ in range(_KOKORO_MAX_RETRIES + 4):
+            tts.speak("hello", lang="en")
+
+        assert tts._init_kokoro.call_count == _KOKORO_MAX_RETRIES, (
+            f"re-probed {tts._init_kokoro.call_count}x, expected cap of {_KOKORO_MAX_RETRIES}")
 
     def test_skips_elevenlabs_for_non_english(self):
         """ElevenLabs streaming is skipped for non-English languages."""

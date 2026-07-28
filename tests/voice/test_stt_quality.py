@@ -293,17 +293,30 @@ class TestWerThresholds(unittest.TestCase):
 class TestSTTFactory(unittest.TestCase):
     """STT() returns correct engine and handles unknown engine gracefully."""
 
+    # NOTE: patch "core.voice.stt.CONFIG", NOT "core.config.CONFIG" — stt.py does
+    # `from core.config import CONFIG`, which binds the object into stt's own
+    # namespace at import. Patching core.config.CONFIG does nothing here, so
+    # these tests silently read the LIVE .env instead (which sets
+    # VOICE__STT_ENGINE=faster_whisper) and asserted against the wrong engine.
+
     def test_factory_returns_whisper_by_default(self):
         from core.voice.stt import STT, WhisperSTT
-        with patch("core.config.CONFIG", {"voice": {"stt_engine": "whisper", "whisper_model": "base"}}):
+        with patch("core.voice.stt.CONFIG", {"voice": {"stt_engine": "whisper", "whisper_model": "base"}}):
             instance = STT()
         self.assertIsInstance(instance, WhisperSTT)
 
     def test_factory_unknown_engine_falls_back_to_whisper(self):
         from core.voice.stt import STT, WhisperSTT
-        with patch("core.config.CONFIG", {"voice": {"stt_engine": "nonexistent_engine"}}):
+        with patch("core.voice.stt.CONFIG", {"voice": {"stt_engine": "nonexistent_engine"}}):
             instance = STT()
         self.assertIsInstance(instance, WhisperSTT)
+
+    def test_factory_honours_configured_faster_whisper(self):
+        """The live default: .env sets VOICE__STT_ENGINE=faster_whisper."""
+        from core.voice.stt import STT, FasterWhisperSTT
+        with patch("core.voice.stt.CONFIG", {"voice": {"stt_engine": "faster_whisper"}}):
+            instance = STT()
+        self.assertIsInstance(instance, FasterWhisperSTT)
 
     def test_whisper_stt_has_transcribe_method(self):
         from core.voice.stt import WhisperSTT

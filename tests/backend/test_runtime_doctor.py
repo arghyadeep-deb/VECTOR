@@ -10,9 +10,14 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture(autouse=True)
 def _no_api_key(monkeypatch):
-    """These tests assert the documented no-key/localhost auth mode; the owner's
-    real .env loads VECTOR_API_KEY into the test process — remove it here."""
-    monkeypatch.delenv("VECTOR_API_KEY", raising=False)
+    """These tests assert the documented no-key/localhost dev contract; the owner's
+    real .env loads VECTOR_API_KEY and VECTOR_ENV=production into the test process.
+    Set the key to "" (not delenv — lazy load_dotenv(override=False) calls during
+    app import resurrect a deleted var from .env, but skip one that exists empty)
+    and pin VECTOR_ENV=dev so production-only doctor checks (TLS, sidecar health)
+    don't apply. Tests that assert production behavior setenv it back explicitly."""
+    monkeypatch.setenv("VECTOR_API_KEY", "")
+    monkeypatch.setenv("VECTOR_ENV", "dev")
 
 
 def test_dependency_doctor_required_core_checks_pass(monkeypatch) -> None:

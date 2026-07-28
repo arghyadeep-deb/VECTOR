@@ -17,6 +17,11 @@ _CONFIG = (
 def _load_config(monkeypatch, env: dict):
     for k in ("FLASK_ENV", "VECTOR_ENV", "SECRET_KEY", "FLASK_DEBUG", "CORS_ORIGINS"):
         monkeypatch.delenv(k, raising=False)
+    # Pin VECTOR_ENV: config.py runs load_dotenv(override=False), which refills a
+    # *deleted* var from the owner's .env (VECTOR_ENV=production on the live box)
+    # but respects one that is explicitly set. Tests asserting production set
+    # FLASK_ENV/VECTOR_ENV via the env dict below.
+    monkeypatch.setenv("VECTOR_ENV", "dev")
     for k, v in env.items():
         monkeypatch.setenv(k, v)
     spec = importlib.util.spec_from_file_location("social_sim_config_test", _CONFIG)
