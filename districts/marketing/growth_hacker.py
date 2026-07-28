@@ -212,6 +212,16 @@ class GrowthHacker(AgentBase, SkillMixin):
                 self.award_points(20, "funnel_analyzed")
                 return {"status": "ok", "funnel": result}
 
+            elif task_type not in ("plan",) and (task.get("params", {}).get("query") or task.get("params", {}).get("content") or task.get("query")):
+                # 2026-07-28: unmatched/free-text task_type always fell
+                # through to "plan" with hardcoded defaults (VECTOR AI /
+                # 0 users / 1000 target), ignoring what was actually asked
+                # — same bug class as design district's #33. Only routes
+                # here when there's a real query and the type isn't
+                # already the legitimate "plan" default.
+                query = task.get("params", {}).get("query") or task.get("params", {}).get("content") or task.get("query")
+                return {"status": "ok", "response": await self.answer_marketing_question(query)}
+
             else:  # plan
                 result = await self.generate_growth_plan(
                     task.get("product", "VECTOR AI"),

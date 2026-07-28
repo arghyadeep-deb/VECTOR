@@ -249,6 +249,14 @@ class AICitationStrategist(AgentBase, SkillMixin):
                 self.award_points(20, "competitor_analysis_done")
                 return {"status": "ok", "analysis": analysis, "query": query}
 
+            elif task_type not in ("aeo_strategy",) and (task.get("params", {}).get("query") or task.get("params", {}).get("content") or task.get("query")):
+                # 2026-07-28: unmatched/free-text task_type always fell
+                # through to "aeo_strategy" with a canned entity/query set,
+                # ignoring what was actually asked — same bug class as
+                # design district's #33.
+                query = task.get("params", {}).get("query") or task.get("params", {}).get("content") or task.get("query")
+                return {"status": "ok", "response": await self.answer_marketing_question(query)}
+
             else:  # aeo_strategy
                 strategy = await self.generate_aeo_strategy(
                     task.get("entity", "VECTOR AI"),

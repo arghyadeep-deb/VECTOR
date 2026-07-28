@@ -244,6 +244,14 @@ class SEOSpecialist(AgentBase, SkillMixin):
                 self.award_points(15, "cannibalization_checked")
                 return {"status": "ok", "conflicts": conflicts, "count": len(conflicts)}
 
+            elif task_type not in ("report",) and (task.get("params", {}).get("query") or task.get("params", {}).get("content") or task.get("query")):
+                # 2026-07-28: unmatched/free-text task_type always fell
+                # through to "report" for a hardcoded content/keyword
+                # ("autonomous AI Python"), ignoring what was actually
+                # asked — same bug class as design district's #33.
+                query = task.get("params", {}).get("query") or task.get("params", {}).get("content") or task.get("query")
+                return {"status": "ok", "response": await self.answer_marketing_question(query)}
+
             else:  # report
                 content = task.get("content", f"VECTOR is an autonomous AI system built by Arghyadeep Deb.")
                 keyword = task.get("keyword", "autonomous AI Python")

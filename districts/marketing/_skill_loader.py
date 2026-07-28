@@ -73,6 +73,27 @@ class SkillMixin:
             return f"{self._skill_prompt}\n\n---\n\n{hydration}"
         return hydration
 
+    async def answer_marketing_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question, grounded in this
+        agent's own loaded skill context (same design-district #33 fix
+        pattern: real content instead of a wrong hardcoded default action).
+        Each of the 5 marketing agents shares this one implementation via
+        SkillMixin rather than duplicating it."""
+        prompt = (
+            f"The owner asked: {query}\n\n"
+            "Answer using your loaded expert context above. Be concrete and "
+            "specific to what was actually asked — do not fall back to a "
+            "generic template or unrelated example."
+        )
+        try:
+            return await self._achat(prompt, timeout=45.0) or (
+                "I don't have enough context to answer that specifically — "
+                "try asking with more detail."
+            )
+        except Exception as e:
+            logger.warning(f"[VECTOR][skill_loader] answer_marketing_question failed: {e}")
+            return "I ran into a problem answering that — try again in a moment."
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
