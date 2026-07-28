@@ -128,6 +128,15 @@ Return JSON: {{gaps: [{{type, description, severity: high/medium/low, opportunit
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        # 2026-07-28: run() never checked task["type"] at all — always
+        # scanned "AI SaaS" (or whatever p.get("niche") happened to be)
+        # regardless of what was actually asked, since free-text chat
+        # dispatch never populates "niche" — same bug class as design
+        # district's #33.
+        query = p.get("query") or p.get("content") or task.get("query")
+        if query and not p.get("niche"):
+            history_ctx = f"Recent scans: {len(self.scan_history)} niches scanned so far." if self.scan_history else "No scans run yet."
+            return {"status": "ok", "response": await self.answer_startup_question(query, history_ctx)}
         result = self.scan_market(p.get("niche", "AI SaaS"))
         return {"status": "ok", **result}
 

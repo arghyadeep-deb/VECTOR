@@ -106,6 +106,16 @@ Include: landscape overview, each competitor summary, market positioning, strate
         return result
 
     async def run(self, task: dict) -> dict:
+        p = task.get("params", {})
+        # 2026-07-28: run() never checked task["type"] at all — always
+        # generated a report over whatever competitors happened to be
+        # tracked so far (often none) — a total non-sequitur for a
+        # free-text ask. Same bug class as design district's #33.
+        query = p.get("query") or p.get("content") or task.get("query")
+        if query:
+            tracked = list(self.movement_history.keys())
+            ctx = f"Currently tracking {len(tracked)} competitor(s): {', '.join(tracked) or 'none yet'}."
+            return {"status": "ok", "response": await self.answer_startup_question(query, ctx)}
         result = self.generate_competitive_report()
         return {"status": "ok", **result}
 

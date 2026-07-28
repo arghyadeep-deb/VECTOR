@@ -115,6 +115,12 @@ Return JSON: {{monthly_projection: [{{month: int, revenue: float, costs: float, 
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        # 2026-07-28: for free-text chat dispatch, p has no "idea"/"name"/
+        # "description" keys, so this modeled revenue for an empty idea
+        # every single time — same bug class as design district's #33.
+        query = p.get("query") or p.get("content") or task.get("query")
+        if query and not (p.get("idea") or p.get("name")):
+            return {"status": "ok", "response": await self.answer_startup_question(query)}
         idea = p.get("idea", {"name": p.get("name", ""), "description": p.get("description", "")})
         result = self.model_revenue(idea)
         return {"status": "ok", **result}

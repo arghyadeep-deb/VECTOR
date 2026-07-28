@@ -96,3 +96,35 @@ class StartupAgentBase(AgentBase):
     @staticmethod
     def _now_iso() -> str:
         return datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+    async def answer_startup_question(self, query: str, extra_context: str = "") -> str:
+        """Answer a free-text/unmatched-task_type question, grounded in the
+        live regime and whatever real per-agent state the caller passes in
+        (scan history, competitor profiles, validated ideas, revenue
+        models — subclasses have their own real state, this stays generic).
+        Same design-district #33 fix pattern: real content instead of a
+        wrong hardcoded default action. Shared here so market_scanner,
+        competitor_spy, idea_validator, and revenue_modeler don't each
+        duplicate it."""
+        regime = "unknown"
+        try:
+            from core.brain.blueprint_doctrine import get_regime
+            regime = get_regime()
+        except Exception:
+            pass
+
+        context = f"Current market regime: {regime}."
+        if extra_context:
+            context += f"\n{extra_context}"
+
+        prompt = (
+            f"You are VECTOR's {self.name} in the startups district. Answer the "
+            f"owner's question using this real context — do not invent data you "
+            f"don't have:\n\n{context}\n\nQuestion: {query}\n\nBe concrete and specific."
+        )
+        try:
+            result = self._call_ollama(prompt, temperature=0.6)
+            return result or context
+        except Exception as e:
+            logger.warning("[VECTOR][startups] answer_startup_question failed ({}): {}", self.name, e)
+            return context
