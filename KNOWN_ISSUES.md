@@ -2316,3 +2316,61 @@ All 4 new findings above are logged here per this project's discipline of
 recording what's found even when not immediately actioned — none were in
 today's assigned work list (coding/investment audit + eval re-run + commits
 + tunnel), so none were fixed blind.
+
+**Follow-up pass, same day (2026-07-29) — all 4 above plus the flagged
+`gui_automation_agent.py`/`finagent_agent.py`/`stock_analyst.py` gaps now
+closed:**
+- **`injection_exfiltration` — FIXED.** Root cause precisely found (not
+  guessed): `commands.py`'s guard checked `_scan.has_critical` instead of
+  `not _scan.clean` — only blocked on literally-CRITICAL warnings, ignoring
+  the scanner's own HIGH+ blocking threshold. The exfil prompt only matched
+  a HIGH pattern. Every other real call site (`governor.py`,
+  `email_received.py`, `realtime.py`) already used `.clean` correctly; this
+  was the one inconsistent copy. Verified: exact prompt now blocks, 5
+  benign prompts (incl. prior `commit`/`check` keyword-collision cases)
+  stay clean.
+- **`karpathy_lab` + `agency` — FIXED.** Root cause: `classify_chat_intent()`'s
+  `_DISTRICT_DISAMBIGUATION_HINTS` had entries for `communications`/`content`
+  (issue #25) but none for `agency` or `karpathy_lab` — a bare, undescribed
+  district name lets the classifier confidently pick a wrong-but-described
+  neighbor instead. Added both hints. Verified via direct
+  `classify_chat_intent()` calls (not just live HTTP): 3/3 repeats now
+  correctly classify to the intended district for both prompts (was
+  non-deterministic/wrong before — confirmed via raw LLM traces showing one
+  run correctly landing on `answer_question`, one on the wrong district,
+  before the fix).
+- **`languages` — not investigated this pass.** Wasn't part of this
+  follow-up's 5-item list (injection guard, karpathy_lab/agency,
+  gui_automation_agent gating, finagent_agent `/dcf`, stock_analyst
+  portfolio_summary). Still open, same status as when first found.
+- **`gui_automation_agent.py` PermissionGateway gap — FIXED.** Added
+  `_gate()`: owner-typed/spoken commands (`source` in `api_command`/`voice`)
+  bypass with zero added friction (matches the exact policy every other
+  YELLOW action already gets system-wide); any other origin goes through
+  `PermissionGateway.request_approval()` before a real `gui_task`/
+  `browser_task`/`click_screen` fires. Verified with both the gateway and
+  the real execution path mocked — no live desktop action or Pushover
+  notification fired during verification.
+- **`finagent_agent.py`'s `/dcf` unreachability — FIXED.** `/dcf` dispatches
+  the compound `task["type"] = "corporate_finance/dcf"`, which never
+  matched the elif's literal-string comparisons — unreachable even after
+  the earlier task["type"] fix. Fixed the match + mapped `DCFRequest`'s
+  real `company_name` field (it has no `ticker`). Verified live: now
+  reaches the real DCF code path with the right args. Surfaced a *separate*
+  pre-existing bug in the process — the vendored
+  `vector_finagent/Analytics/corporateFinance/valuation/dcf_model.py`
+  import chain fails with `No module named 'corporateFinance'` (a broken
+  absolute-import assumption from the original absorbed third-party code).
+  **Not fixed — new, separately-scoped issue, flagged here for a future
+  pass.** `/alpha` and `/backtest` and `/geopolitics` turned out to already
+  be correctly fixed in the earlier investment-audit commit (both field
+  name conventions accepted) — the original finding overstated their
+  status; only `/dcf` was actually still broken.
+- **`stock_analyst.py`'s missing `portfolio_summary` branch — FIXED.**
+  `GET /investment/portfolio` dispatched a task_type with no matching
+  branch, silently falling to a RELIANCE quote. There is no live brokerage
+  position feed anywhere in this codebase (analysis-only architecture) —
+  added a branch that honestly reports the one genuinely real
+  portfolio-adjacent state that exists (`ExecutionEngine`'s paper-trade
+  order history + today's trade/loss counters) instead of fabricating fake
+  positions or returning an unrelated quote.
