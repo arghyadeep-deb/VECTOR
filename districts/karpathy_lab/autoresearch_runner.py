@@ -311,9 +311,70 @@ class AutoresearchRunner(AgentBase):
         return summary
 
 
+    def _answer_karpathy_question(self, query: str) -> str:
+        """Answer a free-text question about training status/architecture
+        grounded in real state — never triggers a training run. This is the
+        fallback for anything that doesn't explicitly ask to run a cycle."""
+        best = self._load_best_result()
+        rf = self._results_file()
+        history_lines: list[str] = []
+        if rf.exists():
+            for line in rf.read_text(encoding="utf-8").splitlines()[-5:]:
+                try:
+                    r = json.loads(line)
+                    history_lines.append(
+                        f"exp {r.get('experiment', '?')}: val_bpb={r.get('val_bpb', '?')} — {r.get('description', '')}"
+                    )
+                except json.JSONDecodeError:
+                    continue
+
+        context = (
+            f"Best val_bpb today: {best.get('val_bpb') if best else 'no runs yet'}. "
+            f"train.py present: {self._train_script.exists()}. "
+            f"Recent experiments:\n" + ("\n".join(history_lines) if history_lines else "none yet")
+        )
+        prompt = (
+            f"You are VECTOR's Karpathy autoresearch lab assistant. Answer the owner's "
+            f"question using ONLY this real state — do not invent numbers:\n\n{context}\n\n"
+            f"Question: {query}\n\nBe concise and specific."
+        )
+        try:
+            from core.inference.vectorcode_llm import chat
+            result = chat(
+                model=CONFIG["models"]["reasoning"],
+                messages=[{"role": "user", "content": prompt}],
+                timeout=45.0,
+            )
+            return result or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][autoresearch] answer generation failed: {e}")
+            return context
+
     async def run(self, task: dict) -> dict:
-        result = await self.run_experiment_cycle()
-        return {"status": "ok", **result}
+        # 2026-07-28: run() used to unconditionally call
+        # run_experiment_cycle() for EVERY dispatch regardless of
+        # task["type"] — a stray free-text chat message classified into
+        # karpathy_lab could trigger a real training subprocess, LLM-driven
+        # mutation of train.py, and a git commit. Now gated behind an
+        # explicit task_type; everything else gets a real answer grounded
+        # in actual training history, never a side-effecting action.
+        p = task.get("params", {})
+        task_type = task.get("type", "")
+        if task_type == "run_experiment_cycle":
+            result = await self.run_experiment_cycle()
+            return {"status": "ok", **result}
+
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("text") or ""
+        if query:
+            return {"status": "ok", "response": self._answer_karpathy_question(query)}
+
+        # No real question and no explicit run request — report status,
+        # same grounded data the answer path uses, no training triggered.
+        best = self._load_best_result()
+        return {
+            "status": "ok",
+            "response": f"Best val_bpb today: {best.get('val_bpb') if best else 'no runs yet'}.",
+        }
 
 
 if __name__ == "__main__":
@@ -333,6 +394,13 @@ if __name__ == "__main__":
             "---\nval_bpb:          0.9979\ntraining_seconds: 300.1\npeak_vram_mb:     45060.2\n---"
         )
         assert abs(summary["val_bpb"] - 0.9979) < 0.001
+
+        # run() must NOT trigger a real training cycle for a free-text
+        # question — only an explicit task_type="run_experiment_cycle" may.
+        r = await runner.run({"type": "chat", "params": {"query": "how is training going?"}})
+        assert r["status"] == "ok" and "response" in r
+        r2 = await runner.run({"type": "chat", "params": {}})
+        assert r2["status"] == "ok" and "response" in r2
 
         print(f"✅ autoresearch_runner OK  HP={runner.health_points}")
 
