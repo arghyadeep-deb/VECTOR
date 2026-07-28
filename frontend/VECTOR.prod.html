@@ -63,6 +63,10 @@
 </div>
 
 <script src="js/config.js"></script>
+<!-- Restores a still-valid passkey session into VECTOR_CONFIG.apiKey before
+     autoConnect() below reads it, and exposes window.VECTORAuth for a
+     login UI to call. Must load before the autoConnect script block. -->
+<script src="js/webauthn.js"></script>
 <script src="dist/vector-hud.prod.js"></script>
 
 <script>
@@ -109,22 +113,30 @@
 
   const newsTrack = document.getElementById('newsTrack');
   if(newsTrack){
-    const news = Array.isArray(D.NEWS) ? D.NEWS : [];
-    const agents = Array.isArray(D.agents) ? D.agents : [];
-    const approvals = Array.isArray(D.APPROVALS) ? D.APPROVALS : [];
-    const memory = Array.isArray(D.MEMORY) ? D.MEMORY : [];
-    const sys = [
-      'SECURITY · THREAT LEVEL LOW',
-      approvals.length + ' APPROVAL' + (approvals.length!==1?'S':'') + ' PENDING REVIEW',
-      'LOOP · 33 DISTRICTS ONLINE · TICK NOMINAL',
-    ];
-    const hot = agents.slice().sort((a,b)=>(b.health_points||0)-(a.health_points||0))[0];
-    if(hot) sys.push('AGENT ' + String(hot.name).toUpperCase() + ' · HP ' + hot.health_points + ' · ' + hot.tier);
-    if(memory[0]) sys.push('MEMORY · ' + memory[0].event_type + ' · ' + memory[0].content);
-    const feed = [];
-    news.forEach((n,i)=>{ feed.push(n); if(sys[i]) feed.push('▣ '+sys[i]); });
-    if(!feed.length) feed.push(...sys);
-    newsTrack.textContent = feed.concat(feed).join('      ◆      ');
+    // Rebuild periodically from live D (2026-07-19): this ran ONCE at page
+    // init, so the ticker permanently showed the seed data's "2 APPROVALS
+    // PENDING REVIEW" while the live gateway said 0.
+    const buildTicker = () => {
+      const news = Array.isArray(D.NEWS) ? D.NEWS : [];
+      const agents = Array.isArray(D.agents) ? D.agents : [];
+      const approvals = Array.isArray(D.APPROVALS) ? D.APPROVALS : [];
+      const memory = Array.isArray(D.MEMORY) ? D.MEMORY : [];
+      const sys = [
+        'SECURITY · THREAT LEVEL LOW',
+        approvals.length + ' APPROVAL' + (approvals.length!==1?'S':'') + ' PENDING REVIEW',
+        'LOOP · 33 DISTRICTS ONLINE · TICK NOMINAL',
+      ];
+      const hot = agents.slice().sort((a,b)=>(b.health_points||0)-(a.health_points||0))[0];
+      if(hot) sys.push('AGENT ' + String(hot.name).toUpperCase() + ' · HP ' + Math.round(hot.health_points||0) + ' · ' + hot.tier);
+      if(memory[0]) sys.push('MEMORY · ' + memory[0].event_type + ' · ' + memory[0].content);
+      const feed = [];
+      news.forEach((n,i)=>{ feed.push(n); if(sys[i]) feed.push('▣ '+sys[i]); });
+      if(!feed.length) feed.push(...sys);
+      const text = feed.concat(feed).join('      ◆      ');
+      if(newsTrack.textContent !== text) newsTrack.textContent = text;
+    };
+    buildTicker();
+    setInterval(buildTicker, 30000);
   }
 
   const lines = [

@@ -60,7 +60,24 @@ _rate_limit_data: dict[str, list[float]] = defaultdict(list)
 # Public paths (no auth required)
 _PUBLIC_PATHS = {"/", "/status", "/health", "/docs", "/openapi.json", "/redoc",
                  "/csrf-token",  # CSRF token endpoint is public
-                 "/growth/signup"}  # public beta-signup form (gated by BetaSignup, not auth/CSRF)
+                 "/growth/signup",  # public beta-signup form (gated by BetaSignup, not auth/CSRF)
+                 # WebAuthn login must be reachable WITHOUT already holding
+                 # VECTOR_API_KEY — that's the whole point, it's how you
+                 # authenticate without the static key. Registration
+                 # (/auth/webauthn/register/*) is deliberately NOT here — it
+                 # stays behind the normal auth gate below (localhost-only,
+                 # enforced again inside the handler itself) so a remote
+                 # caller can't enroll their own fingerprint as trusted.
+                 # /auth/webauthn/status is read-only (no secrets) and public
+                 # so the HUD login page can show "no passkey enrolled yet"
+                 # before any auth exists.
+                 "/auth/webauthn/login/options", "/auth/webauthn/login/verify",
+                 "/auth/webauthn/status",
+                 # Minimal public passkey sign-in shell (core/api/app.py's
+                 # login_page). Carries no VECTOR data or district output —
+                 # just a button that calls the three public webauthn paths
+                 # above. /hud/ itself stays gated; see that route's comment.
+                 "/login"}
 
 # Allowed origins — localhost only (no external origins)
 _ALLOWED_ORIGINS = {
@@ -83,7 +100,15 @@ _SECURITY_HEADERS = {
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Permissions-Policy": "geolocation=(), microphone=(), camera=()",
+    # microphone/camera=(self) — NOT (): an empty allowlist blocks the page
+    # from ever requesting them, even from itself, even with the browser's own
+    # permission prompt granted. That silently broke the HUD's own core
+    # features — voice input (speech.js/voice_duplex.js getUserMedia) and the
+    # webcam widget could NEVER work in any real browser (2026-07-17 browser
+    # dogfood: "Permissions policy violation: microphone/camera is not allowed
+    # in this document" on every attempt). (self) still blocks third-party
+    # iframes from getting mic/camera — only this document's own JS can ask.
+    "Permissions-Policy": "geolocation=(), microphone=(self), camera=(self)",
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 }
 
@@ -149,6 +174,22 @@ async def rate_limiting_middleware(request: Request, call_next):
 # ── Authentication ─────────────────────────────────────
 
 
+def _verify_webauthn_jwt(token: str) -> bool:
+    """Accept a passkey-issued session JWT (core/api/routers/webauthn_auth.py's
+    /auth/webauthn/login/verify) as an alternative credential to the static
+    VECTOR_API_KEY. Lazy import — most requests authenticate via the static
+    key and never need this path; keeps this middleware's hot path free of
+    the collections-engine import for those requests."""
+    if token.count(".") != 2:
+        return False  # not JWT-shaped, skip the (slightly) more expensive check
+    try:
+        from core.collections.auth import JWTManager
+        JWTManager().verify(token, expected_type="webauthn_session")
+        return True
+    except Exception:
+        return False
+
+
 async def auth_middleware(request: Request, call_next):
     """Require Bearer token for all non-public endpoints.
     FIX #7: When no API key is set, only allow localhost connections (not any process).
@@ -175,16 +216,51 @@ async def auth_middleware(request: Request, call_next):
                 )
         return await call_next(request)
     
+    # Credential can arrive three ways, in priority order:
+    #   1. Authorization: Bearer <key>  — API/WS clients and the HUD's own fetch()
+    #   2. ?key=<key> query param        — a browser NAVIGATING to /hud/?key=... ;
+    #      it cannot set an Authorization header, so this is the only way the very
+    #      first HUD page load can authenticate (e.g. the phone opening the bookmark)
+    #   3. vector_key cookie             — set on the first ?key= load so that the
+    #      HUD's RELATIVE asset requests (config.js, the prod bundle, CSS) — which
+    #      carry neither a Bearer header nor the query param — authenticate too.
     auth = request.headers.get("Authorization", "")
+    provided = ""
+    via_query = False
+    if auth.startswith("Bearer "):
+        provided = auth[7:]
+    elif request.query_params.get("key"):
+        provided = request.query_params.get("key", "")
+        via_query = True
+    elif request.cookies.get("vector_key"):
+        provided = request.cookies.get("vector_key", "")
+
     # Constant-time comparison — avoids leaking the key via response timing.
-    if not auth.startswith("Bearer ") or not hmac.compare_digest(auth[7:], api_key):
+    # A request can also authenticate with a passkey-issued session JWT
+    # (see /auth/webauthn/login/verify) instead of the long-lived static
+    # key — added so the owner isn't stuck pasting/copying VECTOR_API_KEY
+    # for interactive browser use, which is exactly what led to a real key
+    # leak this session.
+    key_matches = bool(provided) and hmac.compare_digest(provided, api_key)
+    if not key_matches and not (provided and _verify_webauthn_jwt(provided)):
         return JSONResponse(
             status_code=401,
             headers={"WWW-Authenticate": "Bearer"},
-            content={"detail": "Unauthorized. Valid API key required."},
+            content={"detail": "Unauthorized. Valid API key or passkey session required."},
         )
-    
-    return await call_next(request)
+
+    response = await call_next(request)
+    # First HUD load authenticated via the URL key → drop an HttpOnly cookie so the
+    # page's relative assets + same-origin API/WS calls authenticate without the key
+    # needing to appear in every asset URL. 30-day life; HttpOnly keeps JS from
+    # reading it (the HUD uses the query-param key for its own Bearer/WS auth).
+    if via_query:
+        response.set_cookie(
+            "vector_key", provided,
+            max_age=60 * 60 * 24 * 30,
+            httponly=True, samesite="lax", path="/",
+        )
+    return response
 
 
 # ── Logging ────────────────────────────────────────────
@@ -277,6 +353,20 @@ async def security_headers_middleware(request: Request, call_next):
         "font-src 'self' https://fonts.gstatic.com; "
         "connect-src 'self' wss://localhost:8000 ws://localhost:8000; "
         "img-src 'self' data:; "
+        # audio.js._speakKokoro() plays VECTOR's real voice via
+        # URL.createObjectURL(wavBlob) + new Audio(blobUrl) — that's a `blob:`
+        # media source. No media-src directive meant it fell back to
+        # default-src 'self', which does NOT cover blob: — every Kokoro reply
+        # was silently blocked by CSP and the HUD fell back to the robotic
+        # browser voice the owner explicitly banned (2026-07-17 browser
+        # dogfood: 'Loading media from blob:... violates CSP directive').
+        "media-src 'self' blob:; "
+        # Local sidecar widgets (comfyui:8188, librechat:3080, open-webui:8080)
+        # embed their UI in an iframe. Without an explicit frame-src these fell
+        # back to default-src 'self' and were ALWAYS blocked — those three
+        # widgets could never work, even with the sidecar running (2026-07-17
+        # browser dogfood). Loopback only: never the public internet.
+        "frame-src 'self' http://127.0.0.1:* http://localhost:*; "
         "frame-ancestors 'none';"
     )
 

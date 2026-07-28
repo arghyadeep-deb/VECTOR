@@ -299,6 +299,9 @@ def create_app() -> FastAPI:
         gateway,
         # API key management
         keys,
+        # Passkey / fingerprint / Windows Hello authentication (alternative to
+        # the static VECTOR_API_KEY bearer token)
+        webauthn_auth,
         # Unified world model
         world,
         # Safe autonomous execution contract
@@ -393,6 +396,7 @@ def create_app() -> FastAPI:
     app.include_router(content.router)
     app.include_router(gateway.router)
     app.include_router(keys.router)
+    app.include_router(webauthn_auth.router)
     app.include_router(world.router)
     app.include_router(executor.router)
     app.include_router(missions.router)
@@ -421,6 +425,22 @@ def create_app() -> FastAPI:
         @app.get("/hud", include_in_schema=False)
         async def hud_redirect():
             return RedirectResponse(url="/hud/")
+
+        # PUBLIC passkey login shell — the one page reachable without already
+        # holding VECTOR_API_KEY. Deliberately separate from hud_static below:
+        # /hud/* stays fully auth-gated (by design — see that handler's own
+        # comment), but a keyless browser had NO way to even reach a "sign in
+        # with passkey" button before this, since the HUD's own login affordance
+        # lived inside the auth-gated shell. This page offers ONLY the passkey
+        # LOGIN ceremony (never registration, which still correctly requires
+        # the existing key — see core/api/routers/webauthn_auth.py). Must be
+        # listed in middleware._PUBLIC_PATHS as "/login" for this to work.
+        @app.get("/login", include_in_schema=False)
+        async def login_page():
+            login_html = _hud_dir / "login.html"
+            if login_html.exists():
+                return FileResponse(str(login_html), media_type="text/html")
+            return JSONResponse({"error": "login.html not found"}, status_code=404)
 
         @app.get("/hud/", include_in_schema=False)
         async def hud_root():

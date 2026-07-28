@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VECTOR · Sign in</title>
+<!--
+  Minimal PUBLIC login shell — the only VECTOR page reachable without
+  already holding VECTOR_API_KEY or a passkey session.
+
+  Deliberately narrow in scope: this page offers ONLY the passkey LOGIN
+  ceremony (navigator.credentials.get against an already-enrolled
+  credential), never registration. That split matters for security —
+  /auth/webauthn/login/* is safe to expose publicly because it can only
+  ever succeed against a credential someone already enrolled from
+  localhost with the existing API key in hand; opening it up doesn't let
+  a stranger create access, only use an already-trusted device (see
+  core/api/routers/webauthn_auth.py's own docstring). Registration stays
+  behind the normal key wall on purpose — enrolling a NEW passkey still
+  requires loading the full HUD once with your existing ?key= URL and
+  running VECTORAuth.register() (or a future in-HUD button) from there.
+
+  Everything else about VECTOR (the full HUD, district data, etc.) stays
+  exactly as gated as before — this page carries no VECTOR data itself,
+  just a button and the existing public /auth/webauthn/* JSON endpoints.
+
+  On a successful login, /auth/webauthn/login/verify now also sets the
+  vector_key cookie server-side (HttpOnly), so the redirect below to
+  /hud/ authenticates automatically — the whole point of this page is to
+  close the bootstrap gap where /hud/'s own auth-gated static serving
+  meant a keyless browser could never even reach the HUD's login button.
+-->
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: #05070a; color: #cfe8ff;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .card {
+    width: min(360px, 90vw); padding: 32px 28px; border-radius: 14px;
+    background: rgba(15, 22, 30, 0.9); border: 1px solid rgba(96, 200, 255, 0.25);
+    box-shadow: 0 0 40px rgba(0, 180, 255, 0.08);
+    text-align: center;
+  }
+  h1 {
+    margin: 0 0 6px; font-size: 20px; letter-spacing: 0.08em; font-weight: 600;
+    color: #7fdcff;
+  }
+  p.sub { margin: 0 0 26px; font-size: 13px; color: #7f96a8; }
+  button {
+    width: 100%; padding: 13px 16px; border-radius: 8px; border: 1px solid rgba(96, 200, 255, 0.4);
+    background: linear-gradient(180deg, rgba(60,180,255,0.18), rgba(60,180,255,0.06));
+    color: #d6f2ff; font-size: 14px; font-weight: 600; letter-spacing: 0.03em;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button:not(:disabled):hover { border-color: rgba(96, 200, 255, 0.8); }
+  #msg {
+    margin-top: 18px; font-size: 12.5px; color: #7f96a8; min-height: 1.2em;
+    white-space: pre-wrap; line-height: 1.5;
+  }
+  #msg.err { color: #ff8a8a; }
+  #msg.ok { color: #8affb0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>VECTOR</h1>
+    <p class="sub">Sign in with your enrolled passkey</p>
+    <button id="loginBtn" disabled>Checking enrollment…</button>
+    <div id="msg"></div>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  const btn = document.getElementById('loginBtn');
+  const msgEl = document.getElementById('msg');
+
+  function setMsg(text, cls) {
+    msgEl.textContent = text || '';
+    msgEl.className = cls || '';
+  }
+
+  function b64urlToBuffer(b64url) {
+    const pad = '='.repeat((4 - (b64url.length % 4)) % 4);
+    const base64 = (b64url + pad).replace(/-/g, '+').replace(/_/g, '/');
+    const raw = atob(base64);
+    const buf = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+    return buf.buffer;
+  }
+
+  function bufferToB64url(buf) {
+    const bytes = new Uint8Array(buf);
+    let str = '';
+    for (let i = 0; i < bytes.length; i++) str += String.fromCharCode(bytes[i]);
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+
+  async function api(path, opts) {
+    const res = await fetch(path, Object.assign({
+      headers: { 'Content-Type': 'application/json' }
+    }, opts || {}));
+    if (!res.ok) {
+      let detail = res.statusText;
+      try { detail = (await res.json()).detail || detail; } catch (e) {}
+      throw new Error(detail);
+    }
+    return res.json();
+  }
+
+  async function checkEnrollment() {
+    if (!window.PublicKeyCredential) {
+      setMsg('This browser does not support passkeys.', 'err');
+      return;
+    }
+    try {
+      const status = await api('/auth/webauthn/status');
+      if (!status.enrolled) {
+        setMsg('No passkey enrolled yet.\nOpen the HUD with your API key once to set one up.', 'err');
+        btn.textContent = 'No passkey enrolled';
+        return;
+      }
+      btn.disabled = false;
+      btn.textContent = 'Sign in with Passkey';
+    } catch (e) {
+      setMsg('Could not reach VECTOR: ' + e.message, 'err');
+    }
+  }
+
+  async function login() {
+    btn.disabled = true;
+    btn.textContent = 'Waiting for passkey…';
+    setMsg('');
+    try {
+      const options = await api('/auth/webauthn/login/options', { method: 'POST' });
+      const publicKey = Object.assign({}, options, {
+        challenge: b64urlToBuffer(options.challenge),
+        allowCredentials: (options.allowCredentials || []).map(c =>
+          Object.assign({}, c, { id: b64urlToBuffer(c.id) })
+        )
+      });
+
+      const assertion = await navigator.credentials.get({ publicKey });
+      if (!assertion) throw new Error('Passkey login was cancelled.');
+
+      const body = {
+        id: assertion.id,
+        rawId: bufferToB64url(assertion.rawId),
+        type: assertion.type,
+        response: {
+          clientDataJSON: bufferToB64url(assertion.response.clientDataJSON),
+          authenticatorData: bufferToB64url(assertion.response.authenticatorData),
+          signature: bufferToB64url(assertion.response.signature),
+          userHandle: assertion.response.userHandle ? bufferToB64url(assertion.response.userHandle) : null
+        }
+      };
+
+      // The server also sets the vector_key session cookie on this response
+      // (HttpOnly) — that's what lets the redirect below actually get past
+      // /hud/'s own server-side auth check.
+      await api('/auth/webauthn/login/verify', { method: 'POST', body: JSON.stringify(body) });
+
+      setMsg('Signed in — opening HUD…', 'ok');
+      window.location.href = '/hud/';
+    } catch (e) {
+      setMsg('Sign-in failed: ' + e.message, 'err');
+      btn.disabled = false;
+      btn.textContent = 'Sign in with Passkey';
+    }
+  }
+
+  btn.addEventListener('click', login);
+  checkEnrollment();
+})();
+</script>
+</body>
+</html>

@@ -103,6 +103,9 @@
 
 <!-- VECTOR modules -->
 <script src="js/config.js"></script>
+<!-- Restores a still-valid passkey session into VECTOR_CONFIG.apiKey before
+     vector-core.js's connect() reads it. Must load before vector-core.js. -->
+<script src="js/webauthn.js"></script>
 <script src="js/data.js"></script>
 <script src="js/orb.js"></script>
 <script src="js/ambient.js"></script>
@@ -118,6 +121,9 @@
 <script src="js/speech.js"></script>
 <script src="js/cinematic.js"></script>
 <script src="js/terminal.js"></script>
+<script src="js/canvas-pan.js"></script>
+<script src="js/command-box.js"></script>
+<script src="js/hud-controls.js"></script>
 <script src="js/provider-keys.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/city3d.js"></script>
