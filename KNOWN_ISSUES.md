@@ -489,11 +489,33 @@ change).
 Confirmed in `core/config.py` this is a well-commented safety default, not a bug.
 **To close:** Owner decides when to flip it.
 
-### 10. Instagram AI-creator toggle issue — undiagnosed
-**Status:** Open, no repro found in codebase.
-Flagged earlier in the session; no discoverable trace of the described behavior in the
-code. Needs more detail from the owner (exact steps, screenshot, error text) to make
-progress.
+### 10. Instagram AI-creator toggle issue — likely not a VECTOR bug, needs owner clarification
+**Status:** Open, reclassified after a fresh, thorough re-search (2026-07-28).
+Searched the whole codebase (case-insensitive) for "ai_creator"/"AI Creator"/"creator_toggle"/
+"creator_mode" and every real Instagram-related code path — `districts/content/phone_poster.py`,
+`districts/content/uploader.py`, `districts/content/video_pipeline.py`,
+`districts/growth/content_arm.py`, `districts/content/analytics_retriever.py`, every
+`frontend/js/*.js` file, `core/config.py`, `.env`/`.env.example`. **Zero matches anywhere.** The
+only "mode" concept that actually exists for Instagram in VECTOR is `growth.instagram_mode`
+(`manual`/`graph_api`/`phone`) — unrelated in name and behavior to what was described. The only
+place the word "Creator" appears near Instagram at all is a comment in
+`analytics_retriever.py:168` about Meta's own **Business/Creator account type** requirement for
+the Graph API — not a toggle, not a bug.
+**Most likely explanation:** "AI Creator" (also shown as "AI info"/"Made with AI") is a real,
+current Instagram *platform* feature — an account-level or per-post label Instagram itself
+exposes in its own app, unrelated to anything VECTOR renders or drives. Since no VECTOR code
+path surfaces Instagram's own in-app UI to the owner, this was likely encountered directly in
+the Instagram app and mentioned in passing during a VECTOR automation session, then recorded as
+a VECTOR issue by association.
+**To close:** needs exactly one of these from the owner before any further debugging makes
+sense:
+1. Which surface was this on — the real Instagram app/website, or something inside VECTOR (HUD,
+   a Pushover prompt, a generated caption)? (Most important — likely resolves this alone.)
+2. Exact steps: what screen, what was tapped/toggled, what happened right after.
+3. A screenshot — instantly disambiguates Instagram's native UI vs. something VECTOR renders.
+4. Any error text/log output, if it happened during an automated post (grep `[VECTOR][phone_poster]`
+   around the time this was flagged).
+5. Timing — during a real `PhonePoster.post_instagram()` run, or independent manual phone use?
 
 ---
 
