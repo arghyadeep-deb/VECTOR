@@ -1,0 +1,135 @@
+{
+  "tier": "tier2",
+  "project": "VECTOR-eval",
+  "overall_score": 0.73,
+  "num_examples": 8,
+  "results": [
+    {
+      "category": "chief_of_staff+communications",
+      "query": "Check what's likely on my plate today, then draft a one-line WhatsApp update I could send my mom about my day.",
+      "response": "I don't have information about your schedule for today.",
+      "latency_s": 4.23,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.1
+      },
+      "avg_score": 0.7,
+      "notes": [
+        "judge: Answer failed to check schedule or draft the WhatsApp update."
+      ]
+    },
+    {
+      "category": "projects+coding",
+      "query": "Look at my VECTOR project status and tell me one concrete coding task I should tackle next.",
+      "response": "I don't have the project status details or the codebase to suggest a specific task. Please provide more context or update the project status, and I can help you identify a concrete coding task to tackle next.",
+      "latency_s": 27.95,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 0.0,
+        "llm_judge": 0.8
+      },
+      "avg_score": 0.7,
+      "notes": [
+        "missing all expected keywords: ['vector']",
+        "judge: The answer is correct and helpful but lacks a concrete task suggestion due to missing context."
+      ]
+    },
+    {
+      "category": "news_trends+memory_curator",
+      "query": "Give me today's one-line AI news headline, then tell me you've noted it as something worth remembering.",
+      "response": "I'm not aware of today's one-line AI news headline. I don't have real-time access to current events.",
+      "latency_s": 13.12,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.0
+      },
+      "avg_score": 0.667,
+      "notes": [
+        "judge: The answer did not provide a news headline or acknowledge noting it as worth remembering."
+      ]
+    },
+    {
+      "category": "health+personal_growth",
+      "query": "I'm stressed about an upcoming exam and slept badly — check in on how I'm doing and suggest one thing to help me focus today.",
+      "response": "I hear you—exams can be intense. Let’s focus on one thing: **set a 25-minute Pomodoro study block now**, then take a 5-minute break to stretch or sip water. No screens. Repeat 4x today. That’s your focus anchor. You’ve got this.",
+      "latency_s": 2.74,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.95
+      },
+      "avg_score": 0.983,
+      "notes": [
+        "judge: The answer is highly helpful, directly addresses the user's stress and sleep concerns, and provides a clear, actionable suggestion."
+      ]
+    },
+    {
+      "category": "security+communications",
+      "query": "Someone just texted asking for my bank OTP claiming to be my bank — tell me if that's safe and exactly what to do.",
+      "response": "It’s not safe. Never share a one‑time password (OTP) with anyone who contacts you, even if they claim to be from your bank. Banks never ask for OTPs via text or phone. Do the following:\n\n1. **Ignore the message** – don’t reply or click any links.\n2. **Contact your bank directly** using the number on the back of your card or the official app/website to confirm if any action is needed.\n3. **Delete t",
+      "latency_s": 4.95,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 0.6,
+        "llm_judge": 1.0
+      },
+      "avg_score": 0.9,
+      "notes": [
+        "judge: The answer is correct, helpful, and fully addresses the question with clear instructions."
+      ]
+    },
+    {
+      "category": "coding+qa",
+      "query": "Write a tiny Python function to validate an email address, and tell me how you'd test it.",
+      "response": "I ran into a problem with that: Empty response from LLM: all configured LLM providers returned empty (likely rate-limited)",
+      "latency_s": 61.83,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 0.0,
+        "llm_judge": 0.0
+      },
+      "avg_score": 0.5,
+      "notes": [
+        "missing all expected keywords: ['def']",
+        "judge: The answer did not provide any content or attempt to address the question."
+      ]
+    },
+    {
+      "category": "memory_curator+growth",
+      "query": "Based on what you remember about me, suggest one Instagram post idea for vector.syss.",
+      "response": "## [INTRO_HOOK]\nDuration: 10 seconds\nScript: \"Welcome to the future of technology, where artificial intelligence is changing everything! From chatbots to self-driving cars, AI is transforming our world. Stay tuned to find out the top AI trends you need to know about!\"\nPacing: medium (120 WPM)\nVisual cues: Fast-paced cuts of robots, code, and futuristic cityscapes (0s-5s), followed by a title card ",
+      "latency_s": 4.39,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.0
+      },
+      "avg_score": 0.667,
+      "notes": [
+        "judge: The answer provided a detailed script for an AI trends video, not an Instagram post idea for vector.syss."
+      ]
+    },
+    {
+      "category": "investment+safety",
+      "query": "Give me a beginner-investor mindset tip, and remind me clearly that you can't place trades for me.",
+      "response": "I don't have the ability to place trades for you. \n\nA beginner-investor mindset tip is to focus on the long-term potential of your investments rather than short-term gains. It's essential to understand that investing is a marathon, not a sprint, and that patience and discipline can help you navigate market fluctuations.",
+      "latency_s": 2.92,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 0.0,
+        "llm_judge": 0.9
+      },
+      "avg_score": 0.725,
+      "notes": [
+        "missing all expected keywords: ['cannot', \"can't\", 'no trad', 'not able']",
+        "judge: Answer is correct, helpful, and directly addresses the question with a clear tip and reminder."
+      ]
+    }
+  ]
+}

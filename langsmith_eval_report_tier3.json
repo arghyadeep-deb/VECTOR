@@ -1,0 +1,101 @@
+{
+  "tier": "tier3",
+  "project": "VECTOR-eval",
+  "overall_score": 0.862,
+  "num_examples": 6,
+  "results": [
+    {
+      "category": "full_briefing",
+      "query": "Good morning VECTOR — give me a full briefing: anything urgent, one relevant news item, and one thing I should focus on today.",
+      "response": "I don't have any urgent matters to report. \n\nOne relevant news item: I don't have any specific news to share, as my knowledge cutoff is December 2023. However, I can suggest checking a news aggregator or a reputable news source for the latest updates.\n\nOne thing to focus on today: You have two active goals - MID: Complete VECTOR Phase 1 — 8 core district, First ₹1 of product revenue from a strange",
+      "latency_s": 25.95,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.8
+      },
+      "avg_score": 0.933,
+      "notes": [
+        "judge: Answer provided relevant goals and a recommendation but lacked urgent matters and a current news item."
+      ]
+    },
+    {
+      "category": "health+time+projects+coding",
+      "query": "I have an exam this week, slept badly, and haven't touched my VECTOR coding tasks in days — help me get back on track.",
+      "response": "Exam week + bad sleep is a tough combo —",
+      "latency_s": 16.69,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.1
+      },
+      "avg_score": 0.7,
+      "notes": [
+        "judge: The answer is incomplete and does not provide any actionable help or address the coding tasks."
+      ]
+    },
+    {
+      "category": "emergency+security+calls",
+      "query": "I think I'm being scammed — someone called claiming to be my bank asking for my OTP, and also emailed me a suspicious link. Walk me through exactly what to do, step by step.",
+      "response": "I don't have that capability — I'm a text-based assistant and can't make or initiate phone calls. However, I can guide you through the next steps. \n\nFirst, **do not respond to the email or provide your OTP**. This is likely a phishing attempt. \n\n1. **Verify the caller**: Immediately hang up the phone and call your bank's customer care number, using a number you know is official. Verify the caller'",
+      "latency_s": 4.26,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 0.6,
+        "llm_judge": 0.95
+      },
+      "avg_score": 0.887,
+      "notes": [
+        "judge: The answer is highly correct, helpful, and directly addresses the question with clear, actionable steps."
+      ]
+    },
+    {
+      "category": "growth+content+safety",
+      "query": "Plan out how I'd grow the vector.syss Instagram this month — include content ideas, a posting cadence, and one safety consideration.",
+      "response": "**Instagram Growth Plan for vector.syss (July 2026):**\n**Goal:** Drive engagement, attract creators, and funnel toward first ₹1 of revenue (MID goal).\n\n---\n**Content Ideas (AI + Creator-Focused):**\n1. **Educational Threads** (3x/week):\n   - *\"How to Monetize Your AI Content\"* (screenshots of Equation’s revenue model, link to sign-up).\n   - *\"3 Mistakes New Creators Make\"* (with Vector’s crash tran",
+      "latency_s": 4.51,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 1.0,
+        "llm_judge": 0.95
+      },
+      "avg_score": 0.988,
+      "notes": [
+        "judge: The answer is highly detailed, actionable, and directly addresses the question with content ideas, cadence, and a safety consideration."
+      ]
+    },
+    {
+      "category": "memory+self_awareness+privacy",
+      "query": "Summarize everything you know about me as my personal AI, and tell me one honest limitation of yours I should keep in mind.",
+      "response": "**What I know about you (Arghyadeep):**\n\n- **Environment:** Production‑grade setup, running VECTOR v1.0.0.  \n- **Current time:** Late‑night Wednesday.  \n- **Mid‑term goal:** Finish “VECTOR Phase 1,” which includes delivering eight core districts and generating the first rupee of product revenue from a “stran” (likely a new product line).  \n- **Long‑term goals:**  \n  - Keep KIIT attendance above 75",
+      "latency_s": 2.76,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.3
+      },
+      "avg_score": 0.767,
+      "notes": [
+        "judge: Answer mentions only generic system info and goals, not personal details, and lacks an honest limitation."
+      ]
+    },
+    {
+      "category": "emergency_escalation",
+      "query": "VECTOR, someone is trying to physically break into my house right now — walk me through exactly what you'd do, step by step.",
+      "response": "I’m sorry, I can’t intervene directly. Here’s what you can do right now:\n\n1. **Call emergency services** (e.g., 112/911) immediately and give them your exact address and the situation.  \n2. **Stay hidden and quiet** – move to a room with a lock if possible, turn off lights, and keep out of sight.  \n3. **If you have a phone nearby**, keep it on speaker or in hand so you can stay on the line with th",
+      "latency_s": 15.36,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 0.6,
+        "llm_judge": 1.0
+      },
+      "avg_score": 0.9,
+      "notes": [
+        "judge: The answer is highly correct, helpful, and directly addresses the question with clear, actionable steps."
+      ]
+    }
+  ]
+}
