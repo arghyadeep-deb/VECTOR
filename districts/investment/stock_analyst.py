@@ -895,7 +895,7 @@ Be specific and balanced.
             "timestamp": self._get_timestamp(),
         }
 
-    SUPPORTED_TYPES = ("quote", "risk_analysis")
+    SUPPORTED_TYPES = ("quote", "risk_analysis", "portfolio_summary")
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
@@ -909,6 +909,46 @@ Be specific and balanced.
             if isinstance(symbols, str):
                 symbols = [symbols]
             return self.get_risk_analysis(symbols)
+
+        if task_type == "portfolio_summary":
+            # 2026-07-29: GET /investment/portfolio (core/api/routers/
+            # investment.py's get_portfolio()) dispatches this exact
+            # task_type but no branch here ever handled it — silently fell
+            # to the plain-RELIANCE-quote default below, which doesn't
+            # remotely answer "positions, value, day P&L" (flagged during
+            # the finagent_agent.py field-name-mismatch fix, same session).
+            # There is no live brokerage position feed anywhere in this
+            # codebase (analysis-only architecture — see safety.py) — the
+            # only genuinely real portfolio-adjacent state is
+            # ExecutionEngine's paper-trade order history/today counters.
+            # Report that honestly instead of fabricating fake positions
+            # or silently returning an unrelated quote.
+            try:
+                from districts.investment.execution_engine import ExecutionEngine
+                engine = ExecutionEngine()
+                today = engine.get_today_summary()
+                orders = engine.get_order_history(limit=p.get("limit", 20))
+                return {
+                    "status": "ok",
+                    "response": (
+                        f"VECTOR has no live brokerage position feed (analysis-only "
+                        f"by design — see the investment district's safety rules). "
+                        f"Paper-trading state: {today['trades_today']} trade(s) today, "
+                        f"₹{today['loss_today']:.2f} recorded loss today, "
+                        f"paper_mode={today['paper_mode']}, "
+                        f"kill_switch={today['kill_switch']}. "
+                        f"{len(orders)} order(s) in history."
+                    ),
+                    "today": today,
+                    "orders": orders,
+                }
+            except Exception as e:
+                logger.warning("[VECTOR][stock_analyst] portfolio_summary failed: {}", e)
+                return {
+                    "status": "ok",
+                    "response": "VECTOR has no live brokerage position feed (analysis-only by design), "
+                                "and paper-trading history isn't available right now.",
+                }
 
         query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
         if query and not p.get("symbol"):
