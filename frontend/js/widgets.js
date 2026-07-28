@@ -978,7 +978,7 @@
     { id:'hyperframes', title:'HYPERFRAMES', summary:'Video render sidecar used by composer fallback path. Main API exposes composition list only.', health:'/video/compositions', endpoints:['/video/compositions','sidecar:http://127.0.0.1:7421/render','studio:/render'] },
     { id:'contentpanel', title:'CONTENT OPS', summary:'Scheduled content queue, scheduling, run trigger, ads, SEO, and news operations.', health:'/content/scheduled', endpoints:['/content/scheduled','/content/schedule','/content/run','/ads/references','/seo/status','/news/daily-brief'] },
     { id:'designpanel', title:'DESIGN', summary:'Component specs, image prompts, UX research, and design tokens.', health:'/media/models', endpoints:['/design/component-spec','/design/image-prompt','/design/ux-research','/design/tokens'] },
-    { id:'researchpanel', title:'RESEARCH', summary:'Search, news, papers, Reddit, and research status.', health:'/research/status', endpoints:['/research/status','/research/search?query=vector','/research/news','/research/papers','/research/reddit'] },
+    { id:'researchpanel', title:'RESEARCH', summary:'Search, news, papers, Reddit, and research status.', health:'/research/status', endpoints:['/research/status','/research/search?query=vector','/research/news','/research/papers?query=vector','/research/reddit'] },
     { id:'pccontrol', title:'PC CONTROL', summary:'Local PC screenshot, type, click, and app launch gates. Phone endpoints are excluded.', health:'/sensing/status', endpoints:['/control/pc/screenshot','/control/pc/type','/control/pc/click','/control/pc/launch-app','/sensing/status','/sensing/screen'] },
     { id:'camerapanel', title:'CAMERA', summary:'Camera start/stop/status and visual sensing.', health:'/camera/status', endpoints:['/camera/status','/camera/start','/camera/stop','/sensing/health'] },
     { id:'healthpanel', title:'HEALTH', summary:'Fatigue, sleep, biometrics, exercise, and health/system status.', health:'/health/status', endpoints:['/health/status','/health/system','/health/production-readiness','/health/check-fatigue','/health/biometrics','/health/sleep','/health/exercise'] },
@@ -1007,10 +1007,10 @@
     hyperframes: { mode:'video render', focus:['composition list','render sidecar','composer fallback','exports'], widgets:['mediastudio','comfyui'], reads:['/video/compositions'] },
     contentpanel: { mode:'growth ops', focus:['queue','schedule','ads','SEO'], widgets:['contentscheduler','researchpanel'], reads:['/content/scheduled','/ads/references','/seo/status','/news/daily-brief'] },
     designpanel: { mode:'design lab', focus:['component specs','image prompts','UX research','tokens'], widgets:['mediastudio','contentpanel'], reads:['/media/models'] },
-    researchpanel: { mode:'research desk', focus:['status','search','news','papers'], widgets:['answerengine','knowledgepanel'], reads:['/research/status','/research/search?query=vector','/research/news','/research/papers'] },
+    researchpanel: { mode:'research desk', focus:['status','search','news','papers'], widgets:['answerengine','knowledgepanel'], reads:['/research/status','/research/search?query=vector','/research/news','/research/papers?query=vector'] },
     pccontrol: { mode:'local control', focus:['YELLOW gate','screenshot','type','click'], widgets:['security','approvals','webcam'], reads:['/sensing/status','/sensing/screen','/gateway/pending'] },
     camerapanel: { mode:'vision control', focus:['status','start','stop','sensing health'], widgets:['webcam','pccontrol'], reads:['/camera/status','/sensing/health'] },
-    healthpanel: { mode:'body systems', focus:['fatigue','biometrics','sleep','exercise'], widgets:['telemetry','personalpanel'], reads:['/health/status','/health/system','/health/biometrics','/health/sleep'] },
+    healthpanel: { mode:'body systems', focus:['fatigue','biometrics','sleep','exercise'], widgets:['telemetry','personalpanel'], reads:['/health/status','/health/system','/health/biometrics'] },
     learningpanel: { mode:'learning stack', focus:['skills map','video ingest','courses','quiz'], widgets:['goalplanner','personalpanel'], reads:['/skills/map'] },
     workpanel: { mode:'operations', focus:['projects','tasks','scheduler','queue'], widgets:['goals','goalplanner','analyticspanel'], reads:['/projects/list','/tasks/','/scheduler/jobs','/queue/retry/stats'] },
     privacypanel: { mode:'trust boundary', focus:['privacy scan','redaction','key status','OAuth'], widgets:['security','approvals'], reads:['/keys/status','/oauth/integrations'] },
@@ -1048,7 +1048,9 @@
     const side = /^(studio:|sidecar:|comfyui:)/.test(path);
     const label = side ? path.replace(/^(studio:|sidecar:|comfyui:)/, '') : path;
     const safePrefixes = [
-      '/world/snapshot','/status','/system','/health','/agents','/a2a/agents','/a2a/events',
+      '/world/snapshot','/status','/system',
+      '/health/status','/health/system','/health/production-readiness','/health/check-fatigue','/health/biometrics',
+      '/agents','/a2a/agents','/a2a/events',
       '/city/districts','/brain/goals','/brain/hypothesis/active','/brain/epistemic/summary',
       '/brain/reasoning/chains','/brain/persons','/knowledge/status','/code-intel/status',
       '/code-intel/health','/code-intel/projects','/code-intel/symbols',
