@@ -135,12 +135,42 @@ class PromptAgent(AgentBase):
         # capacity limits of a ₹0-forever free-tier stack. What IS worth
         # fixing: keeping the real failure reason around so run() can be
         # specific instead of generic when one is available.
+        #
+        # Follow-up (issue #24, latency pass): `timeout=` here is a
+        # *per-provider* HTTP timeout (see vectorcode_llm.chat()'s own
+        # docstring), not a ceiling on the whole call — chat() is a
+        # blocking sync function that (a) tries the multi-provider
+        # ProviderClient chain with its own internal `timeout + 15`
+        # ceiling, then (b) on failure falls through to a legacy
+        # gemini -> openrouter -> ollama chain at up to `timeout` seconds
+        # each. Worst case with no outer bound: (timeout+15) + 3*timeout —
+        # ~195s at the default 45s, matching the 148s+ real-world cases
+        # this issue was opened for. governor.py's sibling LLM call sites
+        # (_answer_conversationally, classify_chat_intent, commands.py's
+        # _llm_answer) all already wrap their call in asyncio.wait_for()
+        # for exactly this reason (issue #31) — this was the one call
+        # site using that pattern that hadn't gotten it. The ceiling below
+        # is timeout+35: enough slack to let the primary (well-optimized,
+        # circuit-breaker-aware) ProviderClient path always reach its own
+        # timeout+15 budget, plus room for one legacy-chain attempt if
+        # that path genuinely fails — not the full 3-attempt legacy tail.
+        # chat() itself can't be awaited (it's sync), so it's run in a
+        # thread and wait_for wraps that, matching the same outer-deadline
+        # shape as the other three call sites.
         self._last_ask_error: str = ""
+        outer_ceiling = timeout + 35.0
         try:
-            result = chat(model=self._model, messages=messages, timeout=timeout)
+            result = await asyncio.wait_for(
+                asyncio.to_thread(chat, model=self._model, messages=messages, timeout=timeout),
+                timeout=outer_ceiling,
+            )
             if not result:
                 self._last_ask_error = "all configured LLM providers returned empty (likely rate-limited)"
             return result
+        except asyncio.TimeoutError:
+            logger.warning("[VECTOR][prompt_agent] {} ask timed out (>{:.0f}s)", self.name, outer_ceiling)
+            self._last_ask_error = f"reasoning engine still working after {outer_ceiling:.0f}s — provider chain likely saturated"
+            return ""
         except Exception as e:
             logger.warning("[VECTOR][prompt_agent] {} ask failed: {}", self.name, e)
             self._last_ask_error = str(e)
