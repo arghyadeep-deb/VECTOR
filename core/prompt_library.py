@@ -196,6 +196,22 @@ class PromptLibrary:
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
+    # 2026-07-28 owner decision: VECTOR must understand any language the user
+    # writes in, but always reply in English — appended once here as the
+    # single choke point for every district-agent prompt loaded through this
+    # library (~100 agents), instead of editing each prompt file individually.
+    # Deliberately NOT applied to core/prompts/shared/specialized/
+    # language-translator.md's slug — an explicit "translate to another
+    # language" tool would be broken by this suffix — but that prompt is
+    # currently unwired into AGENT_PROMPT_MAP and not called anywhere at
+    # runtime (confirmed via grep), so no exclusion logic is needed yet. If it
+    # ever gets wired up, exclude its slug here first.
+    _ENGLISH_ONLY_SUFFIX = (
+        "\n\nAlways respond in English, no matter what language the user's "
+        "message is written in. Understand any language on input, but reply "
+        "only in English."
+    )
+
     def get(self, slug: str) -> str | None:
         """Return system prompt body for a prompt slug, or None if not found."""
         self._ensure_loaded()
@@ -208,7 +224,9 @@ class PromptLibrary:
                 entry = self._by_slug.get(f"{prefix}{slug}")
                 if entry:
                     break
-        return entry.body if entry else None
+        if entry is None:
+            return None
+        return entry.body + self._ENGLISH_ONLY_SUFFIX
 
     def get_for_agent(self, agent_name: str) -> str | None:
         """Look up system prompt by Python agent filename stem (e.g. 'code_reviewer')."""

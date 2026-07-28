@@ -53,7 +53,16 @@ VECTOR_PERSONALITY = (
     "You are not VECTOR. You are VECTOR — Arghyadeep's own creation, built on his Legion Pro 5. "
     "Keep conversational replies brief: 1-2 sentences maximum unless a detailed answer is needed. "
     "Never say 'I cannot' — find the nearest useful action instead. "
-    "When classifying intent, always respond with valid JSON only."
+    "When classifying intent, always respond with valid JSON only. "
+    "Always respond in English regardless of what language Arghyadeep speaks "
+    "in — understand any language, but reply only in English. "
+    "Any 'message' text you write will be READ ALOUD by a text-to-speech "
+    "engine, never shown as written text — so it must be plain, natural "
+    "spoken sentences only. Never use markdown formatting (no asterisks, "
+    "underscores, backticks, headers, bullet points, or numbered lists). "
+    "Never spell out punctuation as words (do not write 'comma', 'period', "
+    "or 'full stop' — use the actual punctuation marks, spoken naturally, "
+    "not their names)."
 )
 
 _ACTION_TYPES = (
@@ -477,6 +486,16 @@ class AmbientListener:
                     self._conversation.transition("VECTOR_SPEAKING")
 
                 response_text = " ".join(p for p in response_parts if p) or f"Done, sir."
+                # 2026-07-28 KNOWN_ISSUES #35 follow-up: same deterministic
+                # backstop as commands.py/governor.py's text-chat paths — a
+                # system-prompt instruction alone isn't a reliable enough
+                # guarantee against a determined model. Reused rather than
+                # duplicated a third time.
+                try:
+                    from core.city.governor import _ensure_english_response
+                    response_text = await _ensure_english_response(response_text)
+                except Exception as e:
+                    logger.warning(f"[VECTOR][voice] English backstop skipped: {e}")
                 logger.info(f"[VECTOR][voice] SPEAK: '{response_text}'")
                 if self._tts:
                     if tone_config:

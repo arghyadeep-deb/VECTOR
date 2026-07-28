@@ -104,8 +104,13 @@ async def voice_endpoint(audio: UploadFile = File(...)):
                 logger.debug(f"[VECTOR][api][voice] consistency check skipped: {e}")
 
         # Step 5: Speak response
+        # 2026-07-28: was `lang=language.split('-')[0]` — picked the TTS voice
+        # from the DETECTED INPUT language, not the response text's language.
+        # VECTOR now always replies in English (owner decision), so the voice
+        # must always be the English voice regardless of what language the
+        # user spoke in.
         tts = await asyncio.to_thread(_load_tts)
-        await asyncio.to_thread(tts.speak, response_text, lang=language.split('-')[0])
+        await asyncio.to_thread(tts.speak, response_text, lang="en")
 
         return VoiceResponse(
             transcript=transcript,

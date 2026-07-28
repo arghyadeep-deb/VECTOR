@@ -7,9 +7,15 @@ import asyncio, datetime, uuid
 from collections import deque
 
 # Default global voice personality — used when an agent has no override
+# Always respond in English regardless of the language the user writes/speaks
+# in (VECTOR must still UNDERSTAND any language on input) — 2026-07-28 owner
+# decision. See core/prompt_library.py's get()/get_for_agent() for the
+# equivalent global suffix applied to the ~100 district-agent prompts.
 _VECTOR_PERSONALITY = (
     "You are VECTOR, a precise and professional AI assistant. "
-    "Speak clearly and concisely."
+    "Speak clearly and concisely. "
+    "Always respond in English, no matter what language the user writes or "
+    "speaks in — understand any language, but reply only in English."
 )
 
 # Pre-set voice styles for key agents (district → style string)

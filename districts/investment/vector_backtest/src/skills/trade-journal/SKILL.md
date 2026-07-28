@@ -80,37 +80,38 @@ win rate / PnL ratio (only closed round-trips count).
 
 ## Presenting results to the user
 
-Produce a **single markdown report** in the user's language. Lead with the
-top-line numbers, then section-by-section. Keep it dense — this is retail
+Produce a **single markdown report** in English, regardless of what language
+the user wrote in or what language the trade journal data is in. Lead with
+the top-line numbers, then section-by-section. Keep it dense — this is retail
 readers skimming on a phone.
 
 ### Report template
 
 ```
-## 你的交易画像 — {date_range}
+## Your Trading Profile — {date_range}
 
-**总体**
-- 交易笔数：{total_trades}（完整来回 {total_roundtrips} 次）
-- 平均持仓：{avg_holding_days} 天
-- 交易频率：{trade_frequency_per_week} 次/周
-- 胜率：{win_rate:.0%}
-- 盈亏比：{profit_loss_ratio}
-- 累计盈亏：{total_pnl}
-- 最大回撤：{max_drawdown}
+**Overview**
+- Trade count: {total_trades} ({total_roundtrips} completed round-trips)
+- Avg. holding period: {avg_holding_days} days
+- Trade frequency: {trade_frequency_per_week} / week
+- Win rate: {win_rate:.0%}
+- Profit/loss ratio: {profit_loss_ratio}
+- Total P&L: {total_pnl}
+- Max drawdown: {max_drawdown}
 
-**最常交易的标的**（前 5 名）
-| 标的 | 笔数 | 成交额 |
+**Most-traded symbols** (top 5)
+| Symbol | Trades | Amount |
 |------|------|--------|
 | ... | ... | ... |
 
-**市场分布**
+**Market distribution**
 {market_distribution}
 
-**交易时段**
+**Trading hours**
 {hourly_distribution — highlight peak hours}
 
-**一句话观察**
-（根据数据写 1-2 句：过度交易？只做窄范围标的？集中在某时段？）
+**One-line observation**
+(1-2 sentences from the data: overtrading? narrow-range only? clustered in one time slot?)
 ```
 
 Guidance:
