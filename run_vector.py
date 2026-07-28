@@ -335,6 +335,21 @@ def _start_sidecars() -> None:
         # runs natively via core/vision_control/ (GUIAgent) instead. See districts/coding/gui_automation_agent.py.
     ]
 
+    # Owner rule (2026-07-16): no extra localhost servers by default. Sidecars
+    # (ComfyUI/hyperframes/open-webui/shadowbroker) only start when explicitly
+    # enabled: VECTOR_SIDECARS=1|all for everything, or a comma-list of names
+    # (e.g. VECTOR_SIDECARS=comfyui,shadowbroker).
+    _sidecars_env = os.environ.get("VECTOR_SIDECARS", "").strip().lower()
+    if _sidecars_env in ("", "0", "off", "false", "none"):
+        logger.info(
+            "[VECTOR][sidecars] disabled — only the main API (8000) + MCP (9001) run. "
+            "Set VECTOR_SIDECARS=1 (or a comma-list of names) to enable extras.")
+        sidecars = []
+    elif _sidecars_env not in ("1", "all", "on", "true"):
+        _wanted = {s.strip() for s in _sidecars_env.split(",") if s.strip()}
+        sidecars = [s for s in sidecars if s["name"].lower() in _wanted]
+        logger.info("[VECTOR][sidecars] enabled subset: {}", [s["name"] for s in sidecars])
+
     for sidecar in sidecars:
         cwd = sidecar["cwd"]
         # Python module check: skip if required pip package is not installed
@@ -439,12 +454,18 @@ def run_api(host: str, port: int) -> None:
         import uvicorn
         from core.api import create_app
         from core.loop.permission_gateway import PermissionGateway
+        from core.runtime.tls import uvicorn_ssl_kwargs
         app = create_app()
         # Wire the shared PermissionGateway singleton into app.state so that
         # all gateway router endpoints share the same pending-approvals queue.
-        app.state.permission_gateway = PermissionGateway()
-        logger.info("[VECTOR][api] Starting server at http://{}:{}", host, port)
-        uvicorn.run(app, host=host, port=port, reload=False)
+        app.state.permission_gateway = PermissionGateway.get_shared()
+        # TLS: VECTOR_TLS_CERTFILE/KEYFILE turn on HTTPS; VECTOR_TLS_TERMINATED=1
+        # declares upstream (Tailscale/proxy) transport encryption. Without this
+        # call the helper was dead code — env vars silently did nothing.
+        ssl_kwargs = uvicorn_ssl_kwargs()
+        scheme = "https" if ssl_kwargs else "http"
+        logger.info("[VECTOR][api] Starting server at {}://{}:{}", scheme, host, port)
+        uvicorn.run(app, host=host, port=port, reload=False, **ssl_kwargs)
     except ImportError:
         logger.error(
             "[VECTOR][api] uvicorn or core.api not available — "
@@ -529,7 +550,12 @@ def main() -> int:
         # we create a fresh loop solely to run the drain coroutine.
         try:
             from core.loop.autonomous_loop import AutonomousLoop
-            _shutdown_loop_instance = AutonomousLoop.__new__(AutonomousLoop)
+            # Use the instance that actually ran (get_instance survives loop
+            # teardown) — a bare __new__ instance has no _active_task_count and
+            # made the drain a silent no-op via AttributeError.
+            _shutdown_loop_instance = AutonomousLoop.get_instance()
+            if _shutdown_loop_instance is None:
+                _shutdown_loop_instance = AutonomousLoop()
             _shutdown_loop_instance._running = False
 
             async def _drain():

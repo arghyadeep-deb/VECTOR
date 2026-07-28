@@ -23,7 +23,7 @@ $ip = (Get-NetIPAddress -AddressFamily IPv4 |
        Select-Object -First 1).IPAddress
 
 # Read the real API key from .env so we can print the complete, ready-to-use URL
-# locally (it prints on YOUR screen only — do not paste it into any chat).
+# locally (it prints on YOUR screen only - do not paste it into any chat).
 $envPath = "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase\.env"
 $key = ""
 if (Test-Path $envPath) {
@@ -39,5 +39,5 @@ if ($key) {
     Write-Host ("  http://{0}:8000/hud/?key=YOUR_VECTOR_API_KEY" -f $ip)
 }
 Write-Host "Open that in your phone's browser (same Wi-Fi). Bookmark it."
-Write-Host "Note: your IP ($ip) can change when you switch networks — re-run to see the new one."
+Write-Host "Note: your IP ($ip) can change when you switch networks - re-run to see the new one."
 Write-Host "==================================================================="
