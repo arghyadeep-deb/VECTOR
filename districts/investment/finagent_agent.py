@@ -577,10 +577,28 @@ class FinAgentAgent(AgentBase):
                 persona=p.get("persona", "buffett"),
                 date=p.get("date"),
             )
-        elif action in ("corporate_finance", "dcf", "lbo", "merger"):
+        elif action in (
+            "corporate_finance", "dcf", "lbo", "merger",
+            "corporate_finance/dcf", "corporate_finance/lbo", "corporate_finance/merger",
+        ):
+            # 2026-07-29: the /dcf route dispatches task["type"] =
+            # "corporate_finance/dcf" (see core/api/routers/investment.py's
+            # dcf_valuation()) — a compound slash-joined string that never
+            # matched this elif's literal comparisons, so the branch was
+            # unreachable via the real API route even after the task["type"]
+            # fix above (only reachable via a manual dispatch using the bare
+            # "dcf"/"corporate_finance" strings). Split the compound form to
+            # recover the real analysis_type. Also: DCFRequest's body has no
+            # "ticker" field, only "company_name" — map it so the DCF model
+            # gets the real company name instead of the generic "Company"
+            # default.
+            _atype = (
+                action.split("/", 1)[1] if "/" in action
+                else p.get("type", p.get("analysis_type", action if action != "corporate_finance" else "dcf"))
+            )
             return await self.corporate_finance(
-                analysis_type=p.get("type", p.get("analysis_type", action if action != "corporate_finance" else "dcf")),
-                ticker=p.get("ticker"),
+                analysis_type=_atype,
+                ticker=p.get("ticker") or p.get("company_name"),
                 data=p.get("data"),
             )
         elif action in ("alpha_discovery", "alpha"):
