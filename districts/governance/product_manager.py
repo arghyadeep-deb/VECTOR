@@ -139,6 +139,32 @@ class ProductManager(AgentBase):
                 f"**Launch criteria:** All acceptance criteria pass, documentation complete, demo recorded."
             )
 
+    async def answer_product_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question about VECTOR's
+        product/roadmap process, instead of always generating a fully
+        hardcoded fake PRD ('Users can't accomplish their goal efficiently',
+        etc.) regardless of what was actually asked — the exact
+        KNOWN_ISSUES bug pattern found here: any conversational question
+        routed to ProductManager used to get a fabricated PRD for a
+        nonexistent 'New Feature' back instead of an answer."""
+        prompt = (
+            "You are VECTOR's ProductManager in the governance district — "
+            "you own PRDs, roadmap prioritization (RICE scoring), and "
+            "feature briefs for VECTOR itself. Answer the owner's question "
+            "directly and concretely. Do not invent a fake feature, PRD, "
+            f"or roadmap unless the question actually asks for one.\n\n"
+            f"Question: {query}"
+        )
+        try:
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("product_manager") or ""
+            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+            result = chat(model=self._model, messages=_msgs, timeout=20.0)
+            return (result or "").strip()
+        except Exception as e:
+            logger.warning("[VECTOR][pm] answer_product_question failed: {}", e)
+            return ""
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "prd")
         try:
@@ -171,7 +197,29 @@ class ProductManager(AgentBase):
                 self.award_points(20, "feature_brief_written")
                 return {"status": "ok", "brief": brief}
 
-            else:  # prd
+            else:  # prd, or an unmatched task_type carrying a free-text question
+                # Only treat this as a real PRD request when a real feature_name
+                # was actually supplied — a bare conversational message has no
+                # "feature_name" and used to still get a fabricated PRD for a
+                # made-up "New Feature". Real free text gets answered instead.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query and not task.get("feature_name"):
+                    answer = await self.answer_product_question(query)
+                    if answer:
+                        self._get_memory().store(
+                            event_type="product_question_answered",
+                            content=f"ProductManager answered: {query[:80]}",
+                            tags=["governance", "product"],
+                            source="product_manager",
+                        )
+                        self.award_points(15, "product_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 prd = self.build_prd(
                     task.get("feature_name", "New Feature"),
                     task.get("problem", "Users can't accomplish their goal efficiently"),

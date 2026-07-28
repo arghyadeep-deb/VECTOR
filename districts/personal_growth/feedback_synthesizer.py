@@ -169,7 +169,46 @@ class FeedbackSynthesizer(AgentBase):
             logger.warning("[VECTOR][feedback_synth] report write failed: {}", e)
             return ""
 
+    async def answer_personal_growth_question(self, query: str) -> str:
+        """Answer a free-text question instead of blindly re-running the
+        full feedback synthesis pipeline (which writes a new report file
+        to the vault and new memory entries on every call, regardless of
+        what was actually asked — KNOWN_ISSUES bug pattern: a real,
+        unrelated file-write side effect from a stray conversational
+        message). Grounded in a lightweight real signal count, not a full
+        re-synthesis."""
+        try:
+            signals = self.collect_from_memory(days=7)
+            context = f"{len(signals)} feedback signal(s) collected from memory in the last 7 days."
+        except Exception:
+            context = "Feedback signal count unavailable right now."
+        prompt = (
+            "You are VECTOR's FeedbackSynthesizer in the personal_growth "
+            "district — you collect and synthesize feedback signals about "
+            "the owner's own behavior/work. Answer the owner's question "
+            f"using this real context; do not invent data you don't have:"
+            f"\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning("[VECTOR][feedback_synth] answer_personal_growth_question failed: {}", e)
+            return context
+
     async def run(self, task: dict) -> dict:
+        query = (
+            (task.get("params") or {}).get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if query:
+            answer = await self.answer_personal_growth_question(query)
+            if answer:
+                self.award_points(10, "personal_growth_question_answered")
+                return {"status": "ok", "response": answer}
+
         try:
             days = task.get("days", 7)
             # Collect from all sources

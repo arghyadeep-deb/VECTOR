@@ -683,6 +683,32 @@ class VideoPipelineAgent(AgentBase):
 
     # ── AgentBase interface ───────────────────────────────────────────────────
 
+    async def answer_content_question(self, query: str) -> str:
+        """Answer a free-text question instead of silently kicking off the
+        real autonomous video creation + auto-upload-to-YouTube/Instagram
+        pipeline for any content-district message with no explicit type
+        (KNOWN_ISSUES bug pattern — the highest-risk shape: a real,
+        unrelated, potentially public-facing side effect from a stray
+        conversational message, the same class as the already-fixed
+        karpathy_lab/autoresearch_runner training+commit bug)."""
+        context = (
+            "VideoPipelineAgent runs the full topic -> script -> TTS -> "
+            "render -> caption -> upload pipeline for YouTube/Instagram. "
+            "It does not have cached results to report without actually "
+            "running a job."
+        )
+        prompt = (
+            "You are VECTOR's VideoPipelineAgent in the content district. "
+            "Answer the owner's question using this real context — do not "
+            f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][video_pipeline] answer_content_question failed: {e}")
+            return context
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "")
         p = task.get("params", {}) or {}
@@ -697,6 +723,25 @@ class VideoPipelineAgent(AgentBase):
             return {"status": "ok", "jobs": get_job_queue(p.get("limit", 20))}
         if task_type == "job_history":
             return {"status": "ok", "jobs": get_job_history(p.get("limit", 10))}
+
+        # KNOWN_ISSUES bug pattern: an empty/unmatched task_type (e.g. a
+        # stray conversational question routed here with no real "type")
+        # used to unconditionally kick off the real video-generation +
+        # auto-upload pipeline. A genuinely content-free structured call
+        # (the documented "create_and_upload"/"" default) still runs it
+        # exactly as before; real free text with no explicit topic gets
+        # answered in words instead.
+        query = (
+            p.get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if task_type == "" and query and not p.get("topic"):
+            answer = await self.answer_content_question(query)
+            if answer:
+                return {"status": "ok", "response": answer}
+
         if task_type in ("create_and_upload", ""):
             return await self.create_and_upload(
                 topic=p.get("topic"),

@@ -153,7 +153,12 @@ class DeepResearcher(AgentBase):
 
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "quick")
-        query = task.get("query", "")
+        # 2026-07-28: real chat dispatch puts the user's text at
+        # task["params"]["query"], not top-level task["query"] — this was
+        # returning a clean "No query provided" error for every real
+        # conversational research question (see core/city/prompt_agent.py's
+        # matching fix for the full explanation).
+        query = (task.get("params") or {}).get("query") or task.get("query", "")
 
         if not query:
             return {"status": "error", "error": "No query provided"}

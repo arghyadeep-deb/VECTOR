@@ -119,6 +119,32 @@ class CredentialManager(AgentBase):
         ]
         return "\n".join(lines)
 
+    async def answer_credential_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question grounded in the
+        real provider-availability scan, instead of always dumping the raw
+        scan_available_providers() dict regardless of what was actually
+        asked (KNOWN_ISSUES bug pattern — same shape as the design-district
+        #33 fix: 'static config/token data unrelated to the question')."""
+        scan = self.scan_available_providers()
+        context = (
+            f"{scan['available_count']} LLM providers available "
+            f"({scan['cloud_providers_ready']} cloud): "
+            f"{ {k: v['available'] for k, v in scan['providers'].items()} }. "
+            f"Recommendation: {scan['recommendation']}"
+        )
+        prompt = (
+            "You are VECTOR's CredentialManager in the governance district. "
+            "Answer the owner's question using this real provider-status "
+            f"context — do not invent data you don't have:\n\n{context}\n\n"
+            f"Question: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning("[VECTOR][cred_mgr] answer_credential_question failed: {}", e)
+            return context
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "scan")
         try:
@@ -132,7 +158,25 @@ class CredentialManager(AgentBase):
                 self.award_points(5, "template_generated")
                 return {"status": "ok", "template": template}
 
-            else:  # scan
+            else:  # scan, or an unmatched task_type carrying a free-text question
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_credential_question(query)
+                    if answer:
+                        self._get_memory().store(
+                            event_type="credential_question_answered",
+                            content=f"CredentialManager answered: {query[:80]}",
+                            tags=["governance", "credentials"],
+                            source="credential_manager",
+                        )
+                        self.award_points(10, "credential_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 result = self.scan_available_providers()
                 self._get_memory().store(
                     event_type="credential_scan",

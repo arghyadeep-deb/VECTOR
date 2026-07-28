@@ -230,6 +230,32 @@ class ZKSteward(AgentBase):
             logger.warning("[VECTOR][zk_steward] MOC write failed: {}", e)
             return ""
 
+    async def answer_personal_growth_question(self, query: str) -> str:
+        """Answer a free-text question instead of blindly running a full
+        ZK vault scan that actually edits the owner's real notes (inserting
+        backlinks) and rewrites the MOC index on every call, regardless of
+        what was actually asked (KNOWN_ISSUES bug pattern: a real,
+        unrelated file-mutation side effect from a stray conversational
+        message)."""
+        try:
+            notes = self.scan_vault_notes(limit=30)
+            context = f"{len(notes)} note(s) in the Zettelkasten vault currently scannable."
+        except Exception:
+            context = "Vault note count unavailable right now."
+        prompt = (
+            "You are VECTOR's ZKSteward in the personal_growth district — "
+            "you maintain a Zettelkasten knowledge vault (concept "
+            "extraction, backlinks, a Master-of-Concepts index). Answer "
+            "the owner's question using this real context; do not invent "
+            f"data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning("[VECTOR][zk_steward] answer_personal_growth_question failed: {}", e)
+            return context
+
     # ── Main run ───────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
@@ -237,6 +263,18 @@ class ZKSteward(AgentBase):
         Full ZK scan: scan vault → extract concepts → find connections →
         insert backlinks → update MOC → store graph stats.
         """
+        query = (
+            (task.get("params") or {}).get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if query:
+            answer = await self.answer_personal_growth_question(query)
+            if answer:
+                self.award_points(10, "personal_growth_question_answered")
+                return {"status": "ok", "response": answer}
+
         try:
             limit = task.get("limit", 30)
             notes = self.scan_vault_notes(limit=limit)

@@ -137,6 +137,30 @@ class SalesStrategist(AgentBase):
                 f"Worth a 15-min call to see if I can help?\n\nArghyadeep"
             )
 
+    async def answer_sales_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question grounded in the
+        agency's real ICP, instead of always dumping the raw ICP dict
+        regardless of what was actually asked (KNOWN_ISSUES bug pattern —
+        'dumps an unrelated hardcoded default')."""
+        context = (
+            f"Target ICP: {', '.join(_ICP['industry'])}, {_ICP['company_size']}. "
+            f"Signals: {', '.join(_ICP['signals'])}. "
+            f"Offer: {_ICP['offer']}."
+        )
+        prompt = (
+            "You are VECTOR's SalesStrategist in the agency district — "
+            "you handle outbound prospecting, pipeline analysis, and deal "
+            "coaching for Arghyadeep's AI/ML development agency. Answer "
+            "the owner's question using this real context; do not invent "
+            f"data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning("[VECTOR][sales] answer_sales_question failed: {}", e)
+            return context
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "pipeline")
         try:
@@ -170,6 +194,24 @@ class SalesStrategist(AgentBase):
                 return {"status": "ok", "message": msg}
 
             else:
+                # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
+                # stray conversational question routed here) used to always
+                # get the static ICP config dumped back, regardless of
+                # what was actually asked. Real free text now gets
+                # answered; a genuinely content-free structured call still
+                # gets the identical ICP dump.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_sales_question(query)
+                    if answer:
+                        self.award_points(15, "sales_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 return {"status": "ok", "icp": _ICP, "message": "SalesStrategist ready"}
 
         except Exception as e:

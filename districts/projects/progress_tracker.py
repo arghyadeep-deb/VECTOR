@@ -151,7 +151,45 @@ class ProgressTracker(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def answer_projects_question(self, query: str) -> str:
+        """Answer a free-text question instead of blindly writing a new
+        weekly progress report to the vault on every call, regardless of
+        what was actually asked (KNOWN_ISSUES bug pattern: a real,
+        unrelated file-write side effect from a stray conversational
+        message). Grounded in real recent git/progress activity."""
+        try:
+            git_activity = self._fetch_git_activity(days=7)
+            progress_events = self._fetch_progress_events(days=7)
+            context = f"{len(git_activity)} commit(s), {len(progress_events)} progress update(s) in the last 7 days."
+        except Exception:
+            context = "Recent progress data unavailable right now."
+        prompt = (
+            "You are VECTOR's ProgressTracker in the projects district. "
+            "Answer the owner's question using this real context — do not "
+            f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            from core.inference.vectorcode_llm import chat
+            hydration = self._context.session_hydration_prompt()
+            text = chat(model=_FOCUS, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=60.0)
+            return (text or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][progress_tracker] answer_projects_question failed: {e}")
+            return context
+
     async def run(self, task: dict) -> dict:
+        query = (
+            (task.get("params") or {}).get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if query:
+            answer = await self.answer_projects_question(query)
+            if answer:
+                self.award_points(10, "projects_question_answered")
+                return {"status": "ok", "response": answer}
+
         ok = await self.weekly_report()
         return {"status": "ok" if ok else "error"}
 

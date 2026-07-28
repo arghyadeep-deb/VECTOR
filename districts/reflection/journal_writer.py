@@ -158,8 +158,46 @@ class JournalWriter(AgentBase):
             self.deduct_points(10, "weekly write failed")
             return False
 
+    async def answer_reflection_question(self, query: str) -> str:
+        """Answer a free-text question routed to JournalWriter instead of
+        blindly writing a new Obsidian journal note on every call
+        regardless of what was actually asked (KNOWN_ISSUES bug pattern: a
+        real, unrelated file-write side effect from a stray conversational
+        message). Grounded in today's real event log."""
+        events = self._fetch_events(hours=24)
+        summary = "\n".join(
+            f"[{e.get('timestamp','')[:16]}] {e.get('event_type','')}: {e.get('content','')[:120]}"
+            for e in events[:30]
+        ) or "No activity logged today."
+        prompt = (
+            "You are VECTOR's JournalWriter in the reflection district. "
+            "Answer the owner's question using today's real activity log "
+            f"below — do not invent data you don't have:\n\n{summary}\n\n"
+            f"Question: {query}"
+        )
+        try:
+            from core.inference.vectorcode_llm import chat
+            hydration = self._context.session_hydration_prompt()
+            text = chat(model=_CHAIRMAN, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=60.0)
+            return (text or "").strip()
+        except Exception as e:
+            logger.warning(f"[VECTOR][journal_writer] answer_reflection_question failed: {e}")
+            return ""
+
     async def run(self, task: dict) -> dict:
         t = task.get("type", "")
+        query = (
+            (task.get("params") or {}).get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if query and t not in ("weekly_journal", "daily_journal"):
+            answer = await self.answer_reflection_question(query)
+            if answer:
+                self.award_points(10, "reflection_question_answered")
+                return {"status": "ok", "response": answer}
+
         if t == "weekly_journal":
             ok = await self.write_weekly()
         else:

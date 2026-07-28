@@ -183,6 +183,26 @@ class FederationAgent(AgentBase):
         logger.info("[VECTOR][federation] verified task from {}: {}", origin, task.get("type"))
         return {"status": "ok", "task": task, "origin": origin}
 
+    async def answer_federation_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question grounded in the
+        real peer registry, instead of always dumping the raw peer-status
+        dict regardless of what was actually asked (KNOWN_ISSUES bug
+        pattern — 'dumps an unrelated hardcoded default')."""
+        peers = self.list_peers()
+        context = f"{len(self._peers)} federation peer(s) registered: {peers}."
+        prompt = (
+            "You are VECTOR's FederationAgent in the governance district — "
+            "you coordinate cross-machine VECTOR agent collaboration. "
+            "Answer the owner's question using this real context; do not "
+            f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning("[VECTOR][federation] answer_federation_question failed: {}", e)
+            return context
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "status")
         try:
@@ -206,7 +226,19 @@ class FederationAgent(AgentBase):
                 result = self.receive_task(task.get("signed_task", {}))
                 return result
 
-            else:  # status
+            else:  # status, or an unmatched task_type carrying a free-text question
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_federation_question(query)
+                    if answer:
+                        self.award_points(5, "federation_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 self._get_memory().store(
                     event_type="federation_status",
                     content=f"Federation: {len(self._peers)} peers registered",

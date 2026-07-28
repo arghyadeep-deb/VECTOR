@@ -121,8 +121,38 @@ class DocWriter(AgentBase):
             self.deduct_points(5, "write failed")
             return False
 
+    async def answer_projects_question(self, query: str) -> str:
+        """Answer a free-text question instead of silently writing a new
+        (context-free, since no real project/doc_type was given) 'VECTOR
+        readme' note into the vault on every unmatched call — a real,
+        unrelated file-write side effect for a stray conversational
+        message (KNOWN_ISSUES bug pattern)."""
+        context = f"DocWriter generates: {', '.join(self.DOC_TYPES)} docs, written to the Projects vault folder."
+        prompt = (
+            "You are VECTOR's DocWriter in the projects district. Answer "
+            "the owner's question using this real context — do not invent "
+            f"data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][doc_writer] answer_projects_question failed: {e}")
+            return context
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        query = (
+            p.get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if query and not p.get("project") and not p.get("doc_type"):
+            answer = await self.answer_projects_question(query)
+            if answer:
+                return {"status": "ok", "response": answer}
+
         ok = self.write_doc(p.get("project", "VECTOR"), p.get("doc_type", "readme"), p.get("context", ""))
         return {"status": "ok" if ok else "error"}
 

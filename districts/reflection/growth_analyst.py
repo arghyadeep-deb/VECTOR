@@ -175,7 +175,46 @@ class GrowthAnalyst(AgentBase):
             self.deduct_points(10, "write failed")
             return False
 
+    async def answer_reflection_question(self, query: str) -> str:
+        """Answer a free-text question routed to GrowthAnalyst instead of
+        blindly running analyse() — which writes a new Obsidian note and
+        semantic-memory entries on every call regardless of what was
+        actually asked (KNOWN_ISSUES bug pattern: a real, unrelated file-
+        write side effect from a stray conversational message). Grounded
+        in the agent's own real growth-score/policy history."""
+        growth_scores = self._fetch_growth_scores(days=21)
+        policies = self._fetch_policy_updates(days=7)
+        context = (
+            f"{len(growth_scores)} growth scores tracked (last 21 days), "
+            f"{len(policies)} policy updates (last 7 days)."
+        )
+        prompt = (
+            "You are VECTOR's GrowthAnalyst in the reflection district. "
+            "Answer the owner's question using this real context — do not "
+            f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            from core.inference.vectorcode_llm import chat
+            hydration = self._context.session_hydration_prompt()
+            text = chat(model=_REASONING, messages=[{"role": "system", "content": hydration}, {"role": "user", "content": prompt}], timeout=60.0)
+            return (text or "").strip()
+        except Exception as e:
+            logger.warning(f"[VECTOR][growth_analyst] answer_reflection_question failed: {e}")
+            return ""
+
     async def run(self, task: dict) -> dict:
+        query = (
+            (task.get("params") or {}).get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if query:
+            answer = await self.answer_reflection_question(query)
+            if answer:
+                self.award_points(10, "reflection_question_answered")
+                return {"status": "ok", "response": answer, "agent": self.name}
+
         ok = await self.analyse()
         return {"status": "ok" if ok else "error"}
 

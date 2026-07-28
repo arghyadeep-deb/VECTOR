@@ -401,6 +401,31 @@ class PerformanceBenchmarker(AgentBase):
             )
             return False
 
+    async def answer_data_analytics_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question instead of
+        silently kicking off a real full benchmark run (LLM latency probes,
+        decision-engine/memory/routing timing) on any unmatched task_type
+        (KNOWN_ISSUES bug pattern: a real, unrelated side effect from a
+        stray conversational message)."""
+        context = (
+            "PerformanceBenchmarker measures: Ollama LLM latency, "
+            "decision-engine latency, episodic-memory op latency, and "
+            "task-routing latency. It writes an Obsidian report after a "
+            "full run."
+        )
+        prompt = (
+            "You are VECTOR's PerformanceBenchmarker in the data_analytics "
+            "district. Answer the owner's question using this real "
+            f"context — do not invent data you don't have:\n\n{context}"
+            f"\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][performance_benchmarker] answer_data_analytics_question failed: {e}")
+            return context
+
     # ── Dispatch ──────────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
@@ -426,6 +451,25 @@ class PerformanceBenchmarker(AgentBase):
                 result = self.benchmark_routing(n=params.get("n", 5))
                 payload = {"status": "ok", "task": task_type, "result": result}
             else:
+                # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
+                # stray conversational question routed here) used to
+                # unconditionally trigger a real full benchmark run
+                # (ollama/decision/memory/routing probes) regardless of
+                # what was actually asked. Real free text now gets
+                # answered in words instead; a genuinely content-free
+                # structured call (the documented "full_benchmark" default)
+                # still runs the real suite exactly as before.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_data_analytics_question(query)
+                    if answer:
+                        return {"status": "ok", "response": answer, "hp": self.health_points}
+
                 # Default: full benchmark suite
                 results = self.run_full_benchmark()
                 written = self.write_benchmark_report(results)

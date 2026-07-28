@@ -125,11 +125,48 @@ class ProjectPlanner(AgentBase):
             logger.warning(f"[VECTOR][project_planner] list failed: {e}")
             return []
 
+    async def answer_projects_question(self, query: str) -> str:
+        """Answer a free-text question grounded in the real active-project
+        list, instead of silently no-op'ing with a bare agent-name echo
+        regardless of what was actually asked (KNOWN_ISSUES bug pattern)."""
+        try:
+            projects = self.list_active_projects()
+            if projects:
+                names = ", ".join(proj["name"] for proj in projects[:10])
+                context = f"{len(projects)} active project(s): {names}."
+            else:
+                context = "No active projects tracked right now."
+        except Exception:
+            context = "Active project list unavailable right now."
+        prompt = (
+            "You are VECTOR's ProjectPlanner in the projects district. "
+            "Answer the owner's question using this real context — do not "
+            f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][project_planner] answer_projects_question failed: {e}")
+            return context
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         if task.get("type") == "create_project":
             result = self.create_project(p.get("name", ""), p.get("goal", ""), p.get("deadline", ""))
             return {"status": "ok", **result}
+
+        query = (
+            p.get("query")
+            or task.get("query")
+            or task.get("text")
+            or ""
+        ).strip()
+        if query:
+            answer = await self.answer_projects_question(query)
+            if answer:
+                return {"status": "ok", "response": answer}
+
         return {"status": "ok", "agent": self.name}
 
     async def run_forever(self) -> None:

@@ -141,6 +141,27 @@ class FinancialAnalyst(AgentBase):
             "recommendation": "validate",
         }
 
+    async def answer_finance_question(self, query: str) -> str:
+        """Answer a free-text question about VECTOR's financial-analysis
+        capabilities, instead of always running a scenario analysis
+        against fully hardcoded placeholder revenue/cost figures
+        regardless of what was actually asked."""
+        prompt = (
+            "You are VECTOR's FinancialAnalyst in the finance district — "
+            "you do DCF valuation, break-even analysis, business-model "
+            "review, and scenario modeling. Analysis only — you never "
+            "execute financial transactions. Answer the owner's question "
+            "directly and concretely. Do not invent hypothetical revenue/"
+            f"cost figures unless the question actually asks for a "
+            f"scenario model.\n\nQuestion: {query}"
+        )
+        try:
+            result = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            return (result or "").strip()
+        except Exception as e:
+            logger.warning("[VECTOR][financial_analyst] answer_finance_question failed: {}", e)
+            return ""
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "scenario")
         try:
@@ -167,7 +188,25 @@ class FinancialAnalyst(AgentBase):
                 self.award_points(35, "business_model_analyzed")
                 return {"status": "ok", "analysis": result}
 
-            else:  # scenario
+            else:  # scenario, or an unmatched task_type carrying a free-text question
+                # KNOWN_ISSUES bug pattern (same shape as governance's
+                # product_manager fix): a conversational question with no
+                # real revenue/cost figures used to still get a scenario
+                # analysis run against fully hardcoded placeholder numbers
+                # (base_revenue=500000, base_costs=350000) instead of an
+                # answer.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query and "base_revenue" not in task:
+                    answer = await self.answer_finance_question(query)
+                    if answer:
+                        self.award_points(15, "finance_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 result = self.run_scenario_analysis(
                     task.get("base_revenue", 500000),
                     task.get("base_costs", 350000),

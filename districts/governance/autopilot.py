@@ -144,6 +144,33 @@ class Autopilot(AgentBase):
         }
         return await self.run_chain(follow_on, chain_depth + 1)
 
+    async def answer_governance_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question about Autopilot
+        instead of blindly falling into run_chain() (which recursively
+        dispatches through Governor and can auto-chain up to
+        MAX_CHAIN_DEPTH real hops across other districts based on
+        keyword-matched output — a real, unrelated side effect for a stray
+        conversational message, the exact bug pattern in KNOWN_ISSUES.md).
+        Grounded in real autopilot state; never invents data."""
+        context = (
+            f"Autopilot has {len(_CHAIN_RULES)} chaining rules registered "
+            f"(routes to: {sorted({d for _, d, _ in _CHAIN_RULES})}), "
+            f"max chain depth {self.MAX_CHAIN_DEPTH}."
+        )
+        prompt = (
+            "You are VECTOR's Autopilot in the governance district — you "
+            "automatically chain district agents together based on task "
+            "output (e.g. research -> coding -> qa). Answer the owner's "
+            "question using this real context; do not invent data you "
+            f"don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning("[VECTOR][autopilot] answer_governance_question failed: {}", e)
+            return context
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "chain")
         try:
@@ -153,7 +180,25 @@ class Autopilot(AgentBase):
                 self.award_points(10, "next_step_classified")
                 return {"status": "ok", "next_step": next_step}
 
-            else:  # chain — run full autopilot chain
+            else:  # chain — run full autopilot chain, or answer a free-text question
+                # KNOWN_ISSUES bug pattern: any unmatched/invented task_type
+                # (e.g. a stray conversational message routed here) used to
+                # unconditionally trigger run_chain() — a real autonomous
+                # multi-hop dispatch to other districts. Only run the real
+                # chain for genuine structured callers with no free text;
+                # answer real questions in words instead.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_governance_question(query)
+                    if answer:
+                        self.award_points(10, "governance_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 result = await self.run_chain(task)
                 return {"status": "ok", **result}
 

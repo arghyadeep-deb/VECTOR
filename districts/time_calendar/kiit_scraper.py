@@ -212,12 +212,57 @@ class KIITScraper(AgentBase):
             logger.warning(f"[VECTOR][kiit] Close error: {e}")
 
 
+    async def answer_time_calendar_question(self, query: str) -> str:
+        """Answer a free-text question instead of silently launching a
+        headless browser and logging into the real KIIT ERP portal with
+        real credentials on any unmatched task_type — a real, unrelated
+        side effect for a stray conversational message (KNOWN_ISSUES bug
+        pattern). Does not invent schedule/attendance data it hasn't
+        actually scraped."""
+        context = (
+            f"KIITScraper checks today's class schedule, per-subject "
+            f"attendance %, and upcoming assignment deadlines by logging "
+            f"into {self.KIIT_ERP_URL}. It doesn't cache results locally — "
+            f"a live check requires actually running the scrape (task_type "
+            f"'check_attendance' or no type, e.g. the daily 7AM run)."
+        )
+        prompt = (
+            "You are VECTOR's KIITScraper in the time_calendar district. "
+            "Answer the owner's question using this real context — do not "
+            f"invent schedule/attendance data you haven't actually scraped:"
+            f"\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][kiit] answer_time_calendar_question failed: {e}")
+            return context
+
     async def run(self, task: dict) -> dict:
         t = task.get("type", "")
         try:
             if t == "check_attendance":
                 alerts = await self.check_attendance_alerts()
                 return {"status": "ok", "alerts": alerts}
+
+            # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
+            # stray conversational question routed here) used to
+            # unconditionally trigger a real browser login + full portal
+            # scrape. Real free text now gets answered in words; a
+            # genuinely content-free structured call (t=="" with no query
+            # — the daily cron job's shape) still scrapes exactly as before.
+            query = (
+                (task.get("params") or {}).get("query")
+                or task.get("query")
+                or task.get("text")
+                or ""
+            ).strip()
+            if query:
+                answer = await self.answer_time_calendar_question(query)
+                if answer:
+                    return {"status": "ok", "response": answer}
+
             result = await self.scrape_all()
             return {"status": "ok", **result}
         finally:

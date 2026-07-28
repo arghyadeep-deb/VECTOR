@@ -376,6 +376,31 @@ class ModelQASpecialist(AgentBase):
 
         return "\n".join(lines)
 
+    async def answer_model_qa_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question grounded in
+        this agent's real supported capabilities, instead of always
+        dumping the raw status dict regardless of what was actually asked
+        (KNOWN_ISSUES bug pattern — 'dumps an unrelated hardcoded
+        default')."""
+        context = (
+            "ModelQASpecialist supports: audit (accuracy/F1/precision/recall "
+            "against predictions+labels), bias (per-group metric parity), "
+            "drift (baseline vs current prediction distribution shift), "
+            "report (formatted audit summary)."
+        )
+        prompt = (
+            "You are VECTOR's ModelQASpecialist in the qa district — you "
+            "audit ML model predictions for accuracy, bias, and drift. "
+            "Answer the owner's question using this real context; do not "
+            f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self._llm(prompt, timeout=20.0)
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning("[VECTOR][model_qa_specialist] answer_model_qa_question failed: {}", e)
+            return context
+
     # ── run dispatch ──────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
@@ -423,6 +448,24 @@ class ModelQASpecialist(AgentBase):
                 return {"status": "ok", "report": report}
 
             else:
+                # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
+                # stray conversational question routed here) used to always
+                # get this same static status/capabilities dump back,
+                # regardless of what was actually asked. Real free text now
+                # gets answered; a genuinely content-free structured call
+                # still gets the identical status dump.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_model_qa_question(query)
+                    if answer:
+                        self.award_points(15, "model_qa_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 # Default: status report
                 return {
                     "status": "ok",

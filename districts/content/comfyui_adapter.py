@@ -688,10 +688,41 @@ class ComfyUIAdapter(AgentBase):
         )
         return await self._queue_and_poll(wf, output_type="image")
 
+    async def answer_content_question(self, query: str) -> str:
+        """Answer a free-text question instead of silently kicking off a
+        real local GPU Stable Diffusion generation job for a hardcoded
+        "a beautiful landscape" prompt whenever no real image prompt was
+        supplied (KNOWN_ISSUES bug pattern: a real, unrelated GPU-resource
+        side effect from a stray conversational message)."""
+        context = "ComfyUIAdapter generates images locally via a running ComfyUI instance — it needs an actual image prompt to run."
+        prompt = (
+            "You are VECTOR's ComfyUIAdapter in the content district. "
+            "Answer the owner's question using this real context — do not "
+            f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            result = self.vchat([{"role": "user", "content": prompt}])
+            return (result or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][comfyui] answer_content_question failed: {e}")
+            return context
+
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
         p = task.get("params", {})
-        prompt = p.get("prompt", p.get("text", "a beautiful landscape"))
+        real_prompt = p.get("prompt") or p.get("text") or p.get("query")
+        if not real_prompt:
+            # KNOWN_ISSUES bug pattern: no real image prompt anywhere used
+            # to still silently generate "a beautiful landscape" — a real
+            # GPU generation job for a stray/unrelated message. Answer any
+            # free text instead; only fall through to the hardcoded
+            # default for a genuinely content-free structured call.
+            query = task.get("query") or task.get("text") or ""
+            if query:
+                answer = await self.answer_content_question(query)
+                if answer:
+                    return {"status": "ok", "response": answer}
+        prompt = real_prompt or "a beautiful landscape"
         return await self.generate(
             prompt=prompt,
             width=p.get("width", 512),

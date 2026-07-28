@@ -181,10 +181,25 @@ class PromptAgent(AgentBase):
         Default run: extract query from task, call ask(), return response.
         Subclasses can override for multi-step workflows.
         """
+        # 2026-07-28: real chat dispatch (governor.py's _dispatch_to_district
+        # -> agent.run(task)) puts the user's actual text at
+        # task["params"]["query"] (see governor.py's own read of it at
+        # ~line 1686), NOT top-level task["query"]. This base class only
+        # checked the top-level keys, so any of the 12 PromptAgent-based
+        # district agents (coding, research, finance, qa, governance,
+        # data_analytics) that never override run() were handing the LLM a
+        # stringified repr of the whole task dict — not the real question —
+        # for every real conversational query. Same bug CLASS as issues
+        # #1/#14/#15/#21/#33 (wrong/garbage default instead of the real
+        # question), just a different shape (mangled input, not a wrong
+        # action). Same precedence order used by the district-level fixes.
         query = (
-            task.get("query")
+            (task.get("params") or {}).get("query")
+            or task.get("query")
             or task.get("prompt")
             or task.get("input")
+            or (task.get("params") or {}).get("user_message")
+            or task.get("text")
             or str(task)
         )
         context = task.get("context", "")

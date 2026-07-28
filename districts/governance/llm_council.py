@@ -342,9 +342,27 @@ class LLMCouncil(AgentBase):
         }
 
     async def run(self, task: dict) -> dict:
-        """Governor dispatch interface."""
+        """Governor dispatch interface.
+
+        Bug fixed (KNOWN_ISSUES bug-pattern sweep): this only ever checked
+        params["question"] and fell back to the raw task_type string (e.g.
+        "answer_question") as the literal question text — the real chat
+        entry point (governor.dispatch()) actually populates the free-text
+        message under params["query"] (per governor.py's own taint-tracking
+        comment), so a real conversational question routed here was never
+        read at all; the council would convene on its own task_type label
+        instead of what the owner actually asked. Now checks the real
+        field first, only falling back to the generic prompt when there is
+        genuinely no question text anywhere.
+        """
         p = task.get("params", {})
-        question = p.get("question", task.get("type", "What should VECTOR do next?"))
+        question = (
+            p.get("question")
+            or p.get("query")
+            or task.get("query")
+            or task.get("text")
+            or task.get("type", "What should VECTOR do next?")
+        )
         stakes = p.get("stakes", "medium")
         requester_hp = p.get("requester_hp", 700)
         return await self.convene(question=question, stakes=stakes, requester_hp=requester_hp)

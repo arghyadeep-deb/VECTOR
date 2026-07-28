@@ -524,6 +524,31 @@ class ThreatDetectionEngineer(AgentBase):
                 "error": str(e),
             }
 
+    async def answer_threat_detection_question(self, query: str) -> str:
+        """Answer a free-text/unmatched-task_type question grounded in
+        this agent's real loaded state, instead of always dumping the raw
+        agent-status/capabilities dict regardless of what was actually
+        asked (KNOWN_ISSUES bug pattern — 'dumps an unrelated hardcoded
+        default')."""
+        context = (
+            f"{len(self._attack_techniques)} MITRE ATT&CK techniques loaded, "
+            f"{len(_IOC_PATTERNS)} IOC patterns loaded. "
+            f"Capabilities: sigma_rule, coverage_map, analyze_logs, report."
+        )
+        prompt = (
+            "You are VECTOR's ThreatDetectionEngineer in the security "
+            "district — you write Sigma detection rules, map MITRE ATT&CK "
+            "coverage, and analyze logs for threat indicators. Answer the "
+            "owner's question using this real context; do not invent data "
+            f"you don't have:\n\n{context}\n\nQuestion: {query}"
+        )
+        try:
+            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            return (response or "").strip() or context
+        except Exception as e:
+            logger.warning(f"[VECTOR][threat_detection] answer_threat_detection_question failed: {e}")
+            return context
+
     # ------------------------------------------------------------------
     # run() — multi-task dispatcher
     # ------------------------------------------------------------------
@@ -569,6 +594,24 @@ class ThreatDetectionEngineer(AgentBase):
                 return {"status": "ok", **result}
 
             else:
+                # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
+                # stray conversational question routed here) used to always
+                # get this same static agent-status/capabilities dump back,
+                # regardless of what was actually asked — never an answer.
+                # Real free text now gets answered; a genuinely content-free
+                # structured call still gets the identical status dump.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_threat_detection_question(query)
+                    if answer:
+                        self.award_points(15, "threat_detection_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 # Default: status
                 return {
                     "status": "ok",

@@ -167,6 +167,26 @@ class ProposalStrategist(AgentBase):
             doc += f"1. {step}\n"
         return doc
 
+    async def answer_proposal_question(self, query: str) -> str:
+        """Answer a free-text question about VECTOR's proposal/win-strategy
+        process, instead of always generating a fully hardcoded fake
+        proposal for a nonexistent project/client regardless of what was
+        actually asked."""
+        prompt = (
+            "You are VECTOR's ProposalStrategist in the agency district — "
+            "you write project proposals, win themes, ROI calculators, and "
+            "exec summaries for Arghyadeep's AI/ML development agency. "
+            "Answer the owner's question directly and concretely. Do not "
+            "invent a fake client, project, or proposal unless the "
+            f"question actually asks for one.\n\nQuestion: {query}"
+        )
+        try:
+            result = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            return (result or "").strip()
+        except Exception as e:
+            logger.warning("[VECTOR][proposal] answer_proposal_question failed: {}", e)
+            return ""
+
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "proposal")
         try:
@@ -192,7 +212,30 @@ class ProposalStrategist(AgentBase):
                 self.award_points(20, "proposal_structured")
                 return {"status": "ok", "structure": result}
 
-            else:  # full proposal
+            else:  # full proposal, or an unmatched task_type carrying a free-text question
+                # KNOWN_ISSUES bug pattern (same shape as governance's
+                # product_manager fix): a conversational question with no
+                # real "project_name" used to still get a fully fabricated
+                # proposal for a made-up "AI Automation Project"/"Client"
+                # instead of an answer.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query and not task.get("project_name"):
+                    answer = await self.answer_proposal_question(query)
+                    if answer:
+                        self._get_memory().store(
+                            event_type="proposal_question_answered",
+                            content=f"ProposalStrategist answered: {query[:80]}",
+                            tags=["agency", "proposal"],
+                            source="proposal_strategist",
+                        )
+                        self.award_points(15, "proposal_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 doc = await self.generate_full_proposal(
                     task.get("project_name", "AI Automation Project"),
                     task.get("client", "Client"),
