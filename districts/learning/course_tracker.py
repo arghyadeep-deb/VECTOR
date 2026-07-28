@@ -218,6 +218,55 @@ class CourseTracker(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
+        # 2026-07-29 (found while investigating the languages TIER6 eval
+        # finding): this completely ignored task_type and every param —
+        # ANY dispatch, including a real chat question about something
+        # unrelated to course progress, always returned the exact same
+        # generate_report() dump. Worst-case instance of the #1/#14/#15/
+        # #21/#33/#36 bug class: not even reading the task at all. Add real
+        # branches for this agent's actual capabilities, and a grounded
+        # free-text fallback for anything else with a real question;
+        # generate_report() stays the default only when there's truly no
+        # query to answer (matches this agent's original always-safe,
+        # non-destructive behavior for structurally empty dispatches).
+        p = task.get("params", {}) or {}
+        task_type = task.get("type", "")
+
+        if task_type == "add_course":
+            return {"status": "ok", **self.add_course(
+                p.get("name", ""), p.get("platform", ""), p.get("url", ""),
+            )}
+        if task_type == "get_progress":
+            return {"status": "ok", **self.get_progress(p.get("course_name", ""))}
+        if task_type == "log_lesson":
+            return {"status": "ok", **self.log_lesson(
+                p.get("course_name", ""), p.get("lesson_name", ""), p.get("notes"),
+            )}
+        if task_type in ("generate_report", "report", "progress_report"):
+            result = self.generate_report()
+            return {"status": "ok", **result}
+
+        # NOTE: an empty/missing task_type is exactly the shape a real
+        # free-text query arrives in (governor dispatch always sets a real
+        # type, but direct/manual calls and some callers don't) — check for
+        # a real query BEFORE falling to the report default, or a genuine
+        # question with no explicit type would get silently swallowed by
+        # the report dump again, the same bug this fix exists to close.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            try:
+                answer = self._call_ollama(
+                    "You are VECTOR's CourseTracker, a learning-district agent that "
+                    "tracks the owner's online course enrollments and lesson progress "
+                    "(add_course, get_progress, log_lesson, generate_report). Answer "
+                    f"the owner's question directly:\n\n{query}"
+                )
+                return {"status": "ok", "response": answer or ""}
+            except Exception as e:
+                logger.warning("[VECTOR][learning] course_tracker free-text fallback failed: {}", e)
+
         result = self.generate_report()
         return {"status": "ok", **result}
 
