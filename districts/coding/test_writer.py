@@ -367,11 +367,50 @@ Return pytest code only, no explanations.
             return {"passed": False, "error": str(e)}
 
 
+    async def _answer_query(self, query: str) -> str:
+        """Answer a free-text question directly, grounded in TestWriter's
+        role. Used by run() when a real chat message arrives instead of a
+        file to write tests for — 2026-07-29 sweep, same bug class as
+        #1/#14/#15/#21/#33 (wrong hardcoded default action — a full repo
+        scan — instead of the real question). run() is already async, so
+        this awaits ProviderClient directly (unlike _get_llm_test_suggestions,
+        which needs the thread+asyncio.run workaround because it's called
+        from a sync context)."""
+        try:
+            from core.inference.provider_client import ProviderClient as _PC
+            r = await _PC().chat(
+                messages=[
+                    {"role": "system", "content": (
+                        "You are TestWriter, VECTOR's pytest test-generation agent. "
+                        "You scan the codebase for untested Python files and write "
+                        "pytest unit tests using AST analysis and LLM suggestions. "
+                        "Answer the user's question directly and concisely."
+                    )},
+                    {"role": "user", "content": query},
+                ],
+                model="domain:coding.generation",
+                tier="coding", temperature=0.3, max_tokens=600,
+                caller_id="test_writer",
+            )
+            return r.content
+        except Exception as e:
+            logger.warning(f"[VECTOR][test_writer] _answer_query failed: {e}")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         if p.get("file"):
             out = self.write_tests_for_file(p["file"])
             return {"status": "ok", "output": str(out)}
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or ""
+        )
+        if query.strip():
+            answer = await self._answer_query(query)
+            return {"status": "ok", "response": answer, "agent": self.name}
+
         modules = self.scan_for_untested_modules()
         return {"status": "ok", "untested": modules, "count": len(modules)}
 

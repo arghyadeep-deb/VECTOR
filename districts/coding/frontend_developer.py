@@ -120,9 +120,50 @@ class FrontendDeveloper(AgentBase):
 
         return results
 
-    async def run(self, task: dict) -> dict:
-        task_type = task.get("type", "audit")
+    async def answer_question(self, query: str) -> str:
+        """Answer a free-text frontend question directly (no dashboard
+        scan). Used by run() when a real chat query is present but no
+        audit/scaffold/plan/check was explicitly requested — 2026-07-29
+        sweep, same bug class as #1/#14/#15/#21/#33 (wrong hardcoded
+        default action instead of the real question)."""
         try:
+            sys_prompt = (
+                "You are FrontendDeveloper, VECTOR's dashboard/web interface "
+                "specialist. You audit dashboard code, scaffold React TypeScript "
+                "components, plan dashboard pages, and check API endpoint health. "
+                "Answer the user's question directly and concisely."
+            )
+            answer = chat(
+                model=self._model,
+                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                timeout=30.0,
+            )
+            self.award_points(10, "frontend_qa_answered")
+            return answer or "I don't have enough information to answer that right now."
+        except Exception as e:
+            logger.warning("[VECTOR][frontend_dev] answer_question failed: {}", e)
+            return f"Error answering question: {e}"
+
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) if isinstance(task.get("params"), dict) else {}
+        try:
+            query = (
+                p.get("query") or p.get("content") or task.get("query")
+                or task.get("prompt") or ""
+            )
+            # 2026-07-29: default used to be "audit" for ANY unmatched
+            # task_type — including real free-text chat questions with no
+            # audit intent at all. Only audit when explicitly requested or
+            # when there's no real question to answer.
+            known_types = ("audit", "scaffold", "dashboard_plan", "check_api")
+            if task_type not in known_types and query.strip():
+                answer = await self.answer_question(query)
+                return {"status": "ok", "response": answer, "agent": self.name}
+
+            if not task_type:
+                task_type = "audit"
+
             if task_type == "audit":
                 result = self.audit_dashboard_code()
                 self.award_points(30, "dashboard_audit")

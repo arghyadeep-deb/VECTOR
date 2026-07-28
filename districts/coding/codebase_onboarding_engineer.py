@@ -316,11 +316,52 @@ class CodebaseOnboardingEngineer(AgentBase):
     # run() — multi-task dispatcher
     # ------------------------------------------------------------------
 
+    async def answer_question(self, query: str) -> str:
+        """Answer a free-text onboarding/architecture question directly (no
+        filesystem scan). Used by run() when a real chat query is present
+        but no scan/trace/onboard was explicitly requested — 2026-07-29
+        sweep, same bug class as #1/#14/#15/#21/#33 (wrong hardcoded default
+        action instead of the real question)."""
+        try:
+            sys_prompt = (
+                "You are CodebaseOnboardingEngineer, VECTOR's repo-navigation "
+                "specialist. You scan repo structure, trace import chains from "
+                "entry points, and generate onboarding docs grounded only in real "
+                "facts from the code. Answer the user's question directly and "
+                "concisely."
+            )
+            from core.prompt_library import get_library as _gl
+            _lib = _gl().get_for_agent("codebase_onboarding_engineer") or ""
+            _sys_final = (sys_prompt + "\n\n" + _lib).strip() if _lib else sys_prompt
+            answer = chat(
+                model=self._model,
+                messages=[{"role": "system", "content": _sys_final}, {"role": "user", "content": query}],
+                timeout=30.0,
+            )
+            self.award_points(10, "onboarding_qa_answered")
+            return answer or "I don't have enough information to answer that right now."
+        except Exception as e:
+            logger.error(f"[VECTOR][onboarding] answer_question error: {e}")
+            self.deduct_points(10, "task_failed")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
         """Dispatch task types: scan | trace | onboard | status."""
         try:
-            task_type = task.get("type", "scan")
-            repo_path = task.get("repo_path", task.get("path", str(Path.cwd())))
+            task_type = task.get("type", "")
+            p = task.get("params", {}) if isinstance(task.get("params"), dict) else {}
+            repo_path = task.get("repo_path", task.get("path", p.get("repo_path", p.get("path", str(Path.cwd())))))
+
+            query = (
+                p.get("query") or p.get("content") or task.get("query")
+                or task.get("prompt") or ""
+            )
+            if task_type not in ("scan", "trace", "onboard") and query.strip():
+                answer = await self.answer_question(query)
+                return {"status": "ok", "response": answer, "agent": self.name}
+
+            if not task_type:
+                task_type = "scan"
 
             if task_type == "scan":
                 result = self.quick_scan(repo_path)

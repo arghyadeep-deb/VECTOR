@@ -400,8 +400,46 @@ class SecurityReviewer(AgentBase):
             except Exception as e:
                 return {"agent": self.name, "error": f"Cannot read file: {e}", "issues": [], "issue_count": 0, "critical_count": 0}
         if not code:
+            # 2026-07-29: no code/filename means this is very likely a real
+            # free-text chat message reaching this agent via generic district
+            # routing, not a genuine review request (governor puts the real
+            # text at params["query"]/["content"]). Answer it directly instead
+            # of returning a content-free "No code provided" stub.
+            query = (
+                params.get("query") or params.get("content")
+                or task.get("query") or task.get("prompt") or ""
+            )
+            if query.strip():
+                return await self._answer_query(query)
             return {"agent": self.name, "error": "No code provided", "issues": [], "issue_count": 0, "critical_count": 0}
         return await self.review(code, filename, context)
+
+    async def _answer_query(self, query: str) -> dict:
+        """Answer a free-text question directly, grounded in
+        SecurityReviewer's role. Never touches the LLM-review kill switch —
+        this is a plain conversational answer, not a code audit. Routed
+        through the security sensitivity gate (district="security") so it
+        never leaves the local model chain."""
+        try:
+            from core.inference.provider_client import ProviderClient
+            sys_prompt = (
+                "You are SecurityReviewer, VECTOR's security-focused code "
+                "reviewer. You check for injection vulnerabilities, hardcoded "
+                "secrets, SSRF, path traversal, eval/exec usage, unsafe "
+                "deserialization, permission bypass patterns, and auth gaps. "
+                "Answer the user's question directly and concisely."
+            )
+            result = await ProviderClient().chat(
+                messages=[{"role": "system", "content": sys_prompt},
+                          {"role": "user", "content": query}],
+                tier="coding",
+                max_tokens=600,
+                district="security",   # sensitivity gate → local-only
+            )
+            return {"agent": self.name, "status": "ok", "response": result.content.strip()}
+        except Exception as e:
+            logger.error("[VECTOR][security_reviewer] _answer_query error: {}", e)
+            return {"agent": self.name, "status": "error", "error": str(e)}
 
     async def run_forever(self) -> None:
         """RULE 2 — never stops. Event-driven; sleeps between polls."""

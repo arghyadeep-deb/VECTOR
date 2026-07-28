@@ -238,8 +238,46 @@ class PythonReviewer(AgentBase):
             except Exception as e:
                 return {"agent": self.name, "error": f"Cannot read file: {e}", "issues": [], "issue_count": 0}
         if not code:
+            # 2026-07-29: no code/filename means this is very likely a real
+            # free-text chat message reaching this agent via generic district
+            # routing, not a genuine review request (governor puts the real
+            # text at params["query"]/["content"]). Answer it directly instead
+            # of returning a content-free "No code provided" stub.
+            query = (
+                params.get("query") or params.get("content")
+                or task.get("query") or task.get("prompt") or ""
+            )
+            if query.strip():
+                return await self._answer_query(query)
             return {"agent": self.name, "error": "No code provided", "issues": [], "issue_count": 0}
         return await self.review(code, filename, context)
+
+    async def _answer_query(self, query: str) -> dict:
+        """Answer a free-text question directly, grounded in PythonReviewer's
+        role. Never touches the LLM-review kill switch — this is a plain
+        conversational answer, not a code review."""
+        try:
+            from core.inference.provider_client import ProviderClient
+            sys_prompt = (
+                "You are PythonReviewer, VECTOR's Python-specific code quality "
+                "reviewer. You check PEP 8, type hints, security (injection, eval, "
+                "pickle), performance (N+1, missing async), asyncio correctness, "
+                "loguru usage, and import patterns. Answer the user's question "
+                "directly and concisely."
+            )
+            result = await ProviderClient().chat(
+                messages=[{"role": "system", "content": sys_prompt},
+                          {"role": "user", "content": query}],
+                model="domain:coding.review",
+                tier="coding",
+                temperature=0.3,
+                max_tokens=600,
+                caller_id="python_reviewer",
+            )
+            return {"agent": self.name, "status": "ok", "response": result.content.strip()}
+        except Exception as e:
+            logger.error("[VECTOR][python_reviewer] _answer_query error: {}", e)
+            return {"agent": self.name, "status": "error", "error": str(e)}
 
     async def run_forever(self) -> None:
         """RULE 2 — never stops. Event-driven; sleeps between polls."""

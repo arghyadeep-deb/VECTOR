@@ -329,12 +329,49 @@ class CodeReviewer(AgentBase):
             static["vectorcode_review"] = f"error: {e}"
         return static
 
+    async def _answer_query(self, query: str) -> str:
+        """Answer a free-text question directly, grounded in CodeReviewer's
+        role. Used by run() when a real chat message arrives instead of a
+        file to review — 2026-07-29 sweep, same bug class as
+        #1/#14/#15/#21/#33 (content-free stub instead of the real question)."""
+        try:
+            from core.inference.provider_client import ProviderClient as _PC
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("code_reviewer") or (
+                "You are CodeReviewer, VECTOR's static + LLM Python code reviewer. "
+                "You check files against VECTOR rules compliance, banned patterns, "
+                "and structural issues. Answer the user's question directly and "
+                "concisely."
+            )
+            result = await _PC().chat(
+                messages=[{"role": "system", "content": _sys}, {"role": "user", "content": query}],
+                model="domain:coding.review",
+                tier="coding",
+                temperature=0.3,
+                max_tokens=600,
+                caller_id="code_reviewer",
+            )
+            self.award_points(10, "code_reviewer_qa_answered")
+            return result.content.strip()
+        except Exception as e:
+            logger.error(f"[VECTOR][code_reviewer] _answer_query error: {e}")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         file_path = p.get("file", p.get("path", ""))
         if file_path:
             result = await self.review_with_llm(file_path)
             return {"status": "ok", **result}
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or ""
+        )
+        if query.strip():
+            answer = await self._answer_query(query)
+            return {"status": "ok", "response": answer, "agent": self.name}
+
         return {"status": "ok", "note": "no file specified"}
 
     async def run_forever(self) -> None:

@@ -153,26 +153,72 @@ class GUIAutomationAgent(AgentBase):
 
     # ── AgentBase interface ───────────────────────────────────────────────────
 
+    async def _answer_query(self, query: str) -> dict:
+        """Answer a free-text question directly instead of driving real
+        mouse/keyboard/browser control. Grounded in this agent's actual
+        capabilities so the answer is relevant, not generic."""
+        try:
+            from core.inference.vectorcode_llm import chat
+            sys_prompt = (
+                "You are GUIAutomationAgent, VECTOR's vision-based desktop and "
+                "browser automation agent. You use a VLM agent loop to complete "
+                "natural-language desktop tasks (gui_task), browser tasks "
+                "(browser_task), and single-shot element clicks (click_screen). "
+                "Answer the user's question directly and concisely; do not take "
+                "any GUI action."
+            )
+            answer = chat(
+                model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
+                messages=[{"role": "system", "content": sys_prompt},
+                          {"role": "user", "content": query}],
+                timeout=30.0,
+            )
+            return {"status": "ok", "response": answer or "", "agent": self.name}
+        except Exception as e:
+            logger.error("[VECTOR][gui_agent] _answer_query error: {}", e)
+            return {"status": "error", "error": str(e)}
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "gui_task")
+        action = p.get("action")
+        instruction = p.get("instruction", p.get("task", ""))
 
-        if action in ("gui_task", "vision_control", "desktop_task"):
+        # 2026-07-29 (HIGH SEVERITY fix): `action` used to default to
+        # "gui_task" whenever no explicit action was given, and run_gui_task()
+        # ran unconditionally even with an empty instruction. gui_task /
+        # browser_task drive a REAL VLM agent loop that clicks, types, and
+        # controls the browser on the owner's actual desktop. Real chat
+        # dispatch (governor._dispatch_to_district -> agent.run(task)) can
+        # land here with only task["params"]["query"] set and no
+        # "action"/"instruction" at all -- that used to silently fire a real
+        # GUI automation loop with an empty instruction. Same bug class as
+        # karpathy_lab's autoresearch_runner (a real subprocess triggered by a
+        # stray chat message). Now: GUI/browser actions only fire on an
+        # EXPLICIT action match AND a non-empty instruction/description;
+        # everything else gets a safe grounded answer instead.
+        if action in ("gui_task", "vision_control", "desktop_task") and instruction.strip():
             return await self.run_gui_task(
-                instruction=p.get("instruction", p.get("task", "")),
+                instruction=instruction,
                 max_loop=p.get("max_loop"),
             )
-        elif action in ("browser_task", "web_task", "browser"):
+        elif action in ("browser_task", "web_task", "browser") and instruction.strip():
             return await self.run_browser_task(
-                instruction=p.get("instruction", p.get("task", "")),
+                instruction=instruction,
                 url=p.get("url"),
                 max_loop=p.get("max_loop"),
                 headless=p.get("headless", False),
             )
-        elif action == "click_screen":
+        elif action == "click_screen" and p.get("description", p.get("element", "")).strip():
             return await self.click_screen(
                 description=p.get("description", p.get("element", ""))
             )
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or instruction or ""
+        )
+        if query.strip():
+            return await self._answer_query(query)
         return {"status": "error", "error": f"unknown action: {action}"}
 
     async def run_forever(self) -> None:

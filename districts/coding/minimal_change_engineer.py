@@ -333,10 +333,46 @@ class MinimalChangeEngineer(AgentBase):
     # run() — multi-task dispatcher
     # ------------------------------------------------------------------
 
+    async def answer_question(self, query: str) -> str:
+        """Answer a free-text question directly, grounded in
+        MinimalChangeEngineer's role. Used by run() when a real chat query
+        is present but no analyze/scope_check/diff_prompt was explicitly
+        requested — 2026-07-29 sweep, same bug class as #1/#14/#15/#21/#33
+        (content-free capabilities-stub instead of the real question)."""
+        try:
+            sys_prompt = (
+                "You are MinimalChangeEngineer, VECTOR's minimum-viable-diff "
+                "enforcer. You analyze how small a code change can be, detect "
+                "scope creep in proposed changes, and generate minimal-diff "
+                "prompts. Answer the user's question directly and concisely."
+            )
+            answer = chat(
+                model=self._model,
+                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                timeout=30.0,
+            )
+            self.award_points(10, "minimal_change_qa_answered")
+            return answer or "I don't have enough information to answer that right now."
+        except Exception as e:
+            logger.error(f"[VECTOR][minimal_change_engineer] answer_question error: {e}")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
         """Dispatch task types: analyze | scope_check | diff_prompt | status."""
         try:
-            task_type = task.get("type", "status")
+            task_type = task.get("type", "")
+            p = task.get("params", {}) if isinstance(task.get("params"), dict) else {}
+            query = (
+                p.get("query") or p.get("content") or task.get("query")
+                or task.get("prompt") or ""
+            )
+            known_types = ("analyze", "scope_check", "diff_prompt", "status")
+            if task_type not in known_types and query.strip():
+                answer = await self.answer_question(query)
+                return {"status": "ok", "response": answer, "agent": self.name}
+
+            if not task_type:
+                task_type = "status"
 
             if task_type == "analyze":
                 file_path = task.get("file", task.get("file_path", ""))

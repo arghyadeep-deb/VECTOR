@@ -409,13 +409,55 @@ class RapidPrototyper(AgentBase):
     # run() — multi-task dispatcher
     # ------------------------------------------------------------------
 
+    async def answer_question(self, query: str) -> str:
+        """Answer a free-text question directly, grounded in
+        RapidPrototyper's role. Used by run() when a real chat query is
+        present but no stack_select/plan/analyze was explicitly requested."""
+        try:
+            sys_prompt = (
+                "You are RapidPrototyper, VECTOR's ultra-fast POC development "
+                "agent. You select the fastest viable tech stack for a given "
+                "idea, generate prototype plans (must-haves, file structure, "
+                "time-boxed steps), and analyze requirements for core hypothesis "
+                "and riskiest assumptions. Answer the user's question directly "
+                "and concisely."
+            )
+            answer = chat(
+                model=self._model,
+                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                timeout=30.0,
+            )
+            self.award_points(10, "rapid_prototyper_qa_answered")
+            return answer or "I don't have enough information to answer that right now."
+        except Exception as e:
+            logger.error(f"[VECTOR][rapid_prototyper] answer_question error: {e}")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
         """Dispatch task types: stack_select | plan | analyze | status."""
         try:
-            task_type = task.get("type", "plan")
+            task_type = task.get("type", "")
+            p = task.get("params", {}) if isinstance(task.get("params"), dict) else {}
+            # 2026-07-29: real chat dispatch puts the user's actual text at
+            # task["params"]["query"] — none of the branches below looked
+            # there, so a real free-text idea/question landing here with no
+            # "type" (default was "plan") or with "type":"plan" but no
+            # top-level "idea"/"requirements" key always hit the
+            # "Missing 'idea' parameter" error. Use the real query text as a
+            # fallback idea/requirements value everywhere it's read below —
+            # RapidPrototyper's whole job is "given free text, propose a
+            # plan", so this is the correct grounded behavior, not just a
+            # patch to avoid a stub.
+            query = (
+                p.get("query") or p.get("content") or task.get("query")
+                or task.get("prompt") or ""
+            )
+
+            if not task_type:
+                task_type = "plan" if query.strip() else "status"
 
             if task_type == "stack_select":
-                requirements = task.get("requirements", task.get("req", ""))
+                requirements = task.get("requirements", task.get("req", "")) or query
                 if not requirements:
                     return {"status": "error", "error": "Missing 'requirements' parameter"}
                 result = self.select_stack(requirements)
@@ -423,7 +465,7 @@ class RapidPrototyper(AgentBase):
                 return {"status": "ok", **result}
 
             elif task_type == "plan":
-                idea = task.get("idea", task.get("requirements", ""))
+                idea = task.get("idea", task.get("requirements", "")) or query
                 if not idea:
                     return {"status": "error", "error": "Missing 'idea' parameter"}
                 hours = int(task.get("time_budget_hours", task.get("hours", 2)))
@@ -432,12 +474,19 @@ class RapidPrototyper(AgentBase):
                 return {"status": "ok", **result}
 
             elif task_type == "analyze":
-                requirements = task.get("requirements", task.get("req", ""))
+                requirements = task.get("requirements", task.get("req", "")) or query
                 if not requirements:
                     return {"status": "error", "error": "Missing 'requirements' parameter"}
                 result = await self.analyze_requirements(requirements)
                 self.award_points(30, "task_done")
                 return {"status": "ok", **result}
+
+            elif query.strip():
+                # Unmatched task_type (e.g. "status") but a real free-text
+                # question is present — answer it instead of returning the
+                # content-free capabilities stub.
+                answer = await self.answer_question(query)
+                return {"status": "ok", "response": answer, "agent": self.name}
 
             else:
                 # Default: status

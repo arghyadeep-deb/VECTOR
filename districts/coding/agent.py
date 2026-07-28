@@ -185,7 +185,29 @@ class CodingSwarm(AgentBase):
 
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", task.get("task_type", "default"))
-        return await self.dispatch(task_type, task)
+        # 2026-07-29: governor._dispatch_to_district calls agent.run(task)
+        # directly with the real user text nested at task["params"]["query"]
+        # (or ["content"]) -- not at task["query"]. dispatch()/
+        # _fallback_response() below read params.get("query", ...), so
+        # passing `task` itself as `params` (the old behavior) left the
+        # nested query invisible and every free-text chat message that
+        # reached CodingSwarm this way fell to the generic
+        # "Handle coding task: X" stub. Flatten the real query onto the
+        # params dict dispatch() actually reads -- same precedence used by
+        # every other district's fix this pass.
+        real_query = (
+            (task.get("params") or {}).get("query")
+            or (task.get("params") or {}).get("content")
+            or task.get("query")
+            or task.get("prompt")
+            or ""
+        )
+        params = dict(task.get("params") or {})
+        params.setdefault("query", real_query)
+        for k, v in task.items():
+            if k not in ("type", "task_type", "params"):
+                params.setdefault(k, v)
+        return await self.dispatch(task_type, params)
 
 if __name__ == "__main__":
     async def _smoke():

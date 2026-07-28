@@ -198,10 +198,65 @@ class ArchitectBot(AgentBase):
             self.deduct_points(10, "explain_failed")
             return f"Error explaining module: {e}"
 
+    async def answer_question(self, query: str) -> str:
+        """Answer a free-text architecture question directly (no filesystem
+        scan). Used by run() when a real chat query is present but no scan
+        was explicitly requested — 2026-07-29 sweep, same bug class as
+        #1/#14/#15/#21/#33 (wrong hardcoded default action instead of the
+        real question)."""
+        try:
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"task": "architect_qa"})
+            from core.prompt_library import get_library as _get_lib
+            _sys = _get_lib().get_for_agent("architect_bot") or (
+                "You are ArchitectBot, VECTOR's codebase architecture specialist. "
+                "You scan codebases for file/line/class/function counts, detect "
+                "circular imports, find missing __init__.py files, and explain "
+                "module roles. Answer the user's question directly and concisely."
+            )
+            from core.inference.provider_client import ProviderClient as _PC
+            result = await _PC().chat(
+                messages=[{"role": "system", "content": f"{hydration}\n\n{_sys}"},
+                          {"role": "user", "content": query}],
+                model="domain:coding.architecture",
+                tier="coding",
+                temperature=0.4,
+                max_tokens=500,
+                caller_id="architect_bot",
+            )
+            self.award_points(10, "architect_qa_answered")
+            return result.content.strip()
+        except Exception as e:
+            logger.error(f"[VECTOR][architect_bot] answer_question error: {e}")
+            self.deduct_points(10, "architect_qa_failed")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        root = p.get("root", ".")
-        use_graph = p.get("use_graph", True)
+        p = task.get("params", {}) if isinstance(task.get("params"), dict) else {}
+        root = p.get("root", task.get("root"))
+        use_graph = p.get("use_graph", task.get("use_graph", True))
+        task_type = task.get("type", task.get("task_type", ""))
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or ""
+        )
+
+        # 2026-07-29: run() used to always run a filesystem scan of "." for
+        # ANY task, including real free-text chat questions with no scan
+        # intent at all (governor._dispatch_to_district -> agent.run(task)
+        # puts the real question at task["params"]["query"]). Only scan when
+        # explicitly requested (a known scan task_type, or an explicit
+        # root/use_graph param) or when there's no real question to answer.
+        explicit_scan = bool(
+            root is not None
+            or task_type in ("scan", "scan_codebase", "architecture", "architect")
+        )
+        if not explicit_scan and query.strip():
+            answer = await self.answer_question(query)
+            return {"status": "ok", "response": answer, "agent": self.name}
+
+        root = root or "."
         if use_graph:
             result = self.scan_codebase_with_graph(root)
         else:

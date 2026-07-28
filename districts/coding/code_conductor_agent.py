@@ -130,15 +130,54 @@ class CodeConductorAgent(AgentBase):
 
     # ── AgentBase interface ───────────────────────────────────────────────────
 
+    async def _answer_query(self, query: str) -> dict:
+        """Answer a free-text question directly instead of running the real
+        multi-agent code-editing pipeline. Grounded in CodeConductorAgent's
+        actual capabilities so the answer is relevant, not generic."""
+        try:
+            from core.inference.provider_client import ProviderClient as _PC
+            sys_prompt = (
+                "You are CodeConductorAgent, VECTOR's multi-agent coding orchestrator. "
+                "You coordinate file-picker, planner, editor, and reviewer sub-agents to "
+                "make real code changes (code_conduct), do surgical string replacements "
+                "(str_replace), build an AST symbol index of the codebase (code_map), and "
+                "measure coding accuracy by reconstructing real git commits "
+                "(code_accuracy_test). Answer the user's question directly and concisely."
+            )
+            result = await _PC().chat(
+                messages=[{"role": "system", "content": sys_prompt},
+                          {"role": "user", "content": query}],
+                model="domain:coding.architecture",
+                tier="coding",
+                temperature=0.4,
+                max_tokens=500,
+                caller_id="code_conductor_agent",
+            )
+            return {"status": "ok", "response": result.content.strip(), "agent": self.name}
+        except Exception as e:
+            logger.error("[VECTOR][code_conductor] _answer_query error: {}", e)
+            return {"status": "error", "error": str(e)}
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "code_conduct")
+        action = p.get("action")
+        instruction = p.get("instruction", p.get("task", ""))
 
-        if action in ("code_conduct", "conduct", "code"):
-            return await self.code_conduct(
-                instruction=p.get("instruction", p.get("task", "")),
-                cwd=p.get("cwd"),
-            )
+        # 2026-07-29 (HIGH SEVERITY fix): `action` used to default to
+        # "code_conduct" whenever no explicit action was given, and
+        # code_conduct() ran unconditionally even with an empty instruction.
+        # code_conduct drives a REAL multi-agent code-editing pipeline
+        # (file picker -> planner -> editor -> reviewer) that writes to disk.
+        # Real chat dispatch (governor._dispatch_to_district -> agent.run(task))
+        # can land here with only task["params"]["query"] set and no
+        # "action"/"instruction" at all -- that used to silently fire
+        # code_conduct(instruction="") against the live repo. Same bug class
+        # as karpathy_lab's autoresearch_runner (a real training subprocess +
+        # git commit triggered by a stray chat message). Now: code_conduct
+        # only fires on an EXPLICIT action match AND a non-empty instruction;
+        # everything else gets a safe grounded answer instead.
+        if action in ("code_conduct", "conduct", "code") and instruction.strip():
+            return await self.code_conduct(instruction=instruction, cwd=p.get("cwd"))
         elif action == "str_replace":
             return await self.do_str_replace(
                 file_path=p.get("file", p.get("path", "")),
@@ -163,6 +202,13 @@ class CodeConductorAgent(AgentBase):
                 content=p.get("content", ""),
                 cwd=p.get("cwd", self._cwd),
             )
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or instruction or ""
+        )
+        if query.strip():
+            return await self._answer_query(query)
         return {"status": "error", "error": f"unknown action: {action}"}
 
     async def run_forever(self) -> None:

@@ -420,11 +420,49 @@ OVERALL ASSESSMENT: [score 1-10]
         }
 
 
+    async def _answer_query(self, query: str) -> str:
+        """Answer a free-text question directly, grounded in BugHunter's
+        role (AST/regex/LLM bug detection). Used by run() when a real chat
+        message arrives instead of a file to scan — 2026-07-29 sweep, same
+        bug class as #1/#14/#15/#21/#33 (content-free stub instead of the
+        real question)."""
+        try:
+            from core.inference.provider_client import ProviderClient as _PC
+            from core.prompt_library import get_library as _gl
+            _sys = _gl().get_for_agent("bug_hunter") or (
+                "You are BugHunter, VECTOR's static-analysis and LLM-powered bug "
+                "detection agent. You scan Python files for logic errors, security "
+                "vulnerabilities, silent failures, and performance issues. Answer "
+                "the user's question directly and concisely."
+            )
+            r = await _PC().chat(
+                messages=[{"role": "system", "content": _sys}, {"role": "user", "content": query}],
+                model="domain:coding.review",
+                tier="coding",
+                temperature=0.3,
+                max_tokens=600,
+                caller_id="bug_hunter",
+            )
+            self.award_points(10, "bug_hunter_qa_answered")
+            return r.content
+        except Exception as e:
+            logger.error(f"[VECTOR][bug_hunter] _answer_query error: {e}")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
         if p.get("file"):
             result = self.scan_file(p["file"])
             return {"status": "ok", **result}
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or ""
+        )
+        if query.strip():
+            answer = await self._answer_query(query)
+            return {"status": "ok", "response": answer, "agent": self.name}
+
         result = self.report_bugs()
         return {"status": "ok", **result}
 

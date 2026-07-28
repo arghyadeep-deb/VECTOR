@@ -291,12 +291,48 @@ class MLOpsAgent(AgentBase):
 
     # ── AgentBase interface ───────────────────────────────────────────────────
 
+    async def _answer_query(self, query: str) -> dict:
+        """Answer a free-text question directly, without invoking the (paid,
+        API-key-backed) ml_research sub-agent or any HF Hub/Jobs action."""
+        try:
+            from core.inference.vectorcode_llm import chat
+            sys_prompt = (
+                "You are MLOpsAgent, VECTOR's autonomous ML engineering agent. "
+                "You do HF Papers research, submit HF Jobs training runs, inspect "
+                "HF datasets, manage HF Hub files, search GitHub for ML code, and "
+                "create multi-step ML engineering plans. Answer the user's "
+                "question directly and concisely."
+            )
+            answer = chat(
+                model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
+                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                timeout=30.0,
+            )
+            return {"status": "ok", "response": answer or "", "agent": self.name}
+        except Exception as e:
+            logger.warning("[VECTOR][vector_mlops] _answer_query error: {}", e)
+            return {"status": "error", "error": str(e)}
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "ml_research")
+        action = p.get("action")
 
+        # 2026-07-29: `action` used to default to "ml_research" whenever no
+        # explicit action was given, and ml_research() ran unconditionally —
+        # including with an empty topic. ml_research invokes a real,
+        # API-key-backed research sub-agent (ANTHROPIC_API_KEY/OPENAI_API_KEY
+        # per this module's own docstring), so a stray free-text chat message
+        # reaching this agent via generic district routing used to silently
+        # burn a real paid API call on a nonsensical "topic". hf_train/hf_hub
+        # were already correctly gated behind an exact action match (real
+        # GPU jobs / Hub writes never fired on a default) — this closes the
+        # same gap for the research action. Now: ml_research only fires on an
+        # explicit action match; everything else gets a safe grounded answer.
         if action == "ml_research":
-            return await self.ml_research(topic=p.get("topic", p.get("query", "")))
+            topic = p.get("topic", p.get("query", ""))
+            if not topic.strip():
+                return {"status": "error", "error": "Missing 'topic' parameter"}
+            return await self.ml_research(topic=topic)
         elif action == "hf_train":
             return await self.hf_train(
                 script=p.get("script", ""),
@@ -329,6 +365,13 @@ class MLOpsAgent(AgentBase):
             )
         elif action == "ml_plan":
             return await self.ml_plan(goal=p.get("goal", p.get("task", "")))
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or ""
+        )
+        if query.strip():
+            return await self._answer_query(query)
         return {"status": "error", "error": f"unknown action: {action}"}
 
     async def run_forever(self) -> None:

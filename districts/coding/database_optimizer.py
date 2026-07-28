@@ -143,9 +143,47 @@ class DatabaseOptimizer(AgentBase):
         except Exception as e:
             return f"Recommendation generation failed: {e}"
 
-    async def run(self, task: dict) -> dict:
-        task_type = task.get("type", "full_audit")
+    async def answer_question(self, query: str) -> str:
+        """Answer a free-text database/optimization question directly (no
+        schema scan, no Obsidian write). Used by run() when a real chat
+        query is present but no schema/benchmark/audit was explicitly
+        requested — 2026-07-29 sweep, same bug class as #1/#14/#15/#21/#33
+        (wrong hardcoded default action instead of the real question)."""
         try:
+            sys_prompt = (
+                "You are DatabaseOptimizer, VECTOR's SQLite/Supabase/Turso tuning "
+                "agent. You analyze schemas, benchmark queries, check WAL health, "
+                "and generate optimization recommendations. Answer the user's "
+                "question directly and concisely."
+            )
+            answer = chat(model=self._model, messages=[
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": query},
+            ], timeout=30.0)
+            self.award_points(10, "db_qa_answered")
+            return answer or "I don't have enough information to answer that right now."
+        except Exception as e:
+            logger.error("[VECTOR][db_optimizer] answer_question error: {}", e)
+            return f"Error answering question: {e}"
+
+    async def run(self, task: dict) -> dict:
+        task_type = task.get("type", "")
+        p = task.get("params", {}) if isinstance(task.get("params"), dict) else {}
+        try:
+            query = (
+                p.get("query") or p.get("content") or task.get("query")
+                or task.get("prompt") or ""
+            )
+            # 2026-07-29: default used to be "full_audit" for ANY unmatched
+            # task_type — including real free-text chat questions with no
+            # audit intent at all. full_audit is read-only but also writes a
+            # report note to Obsidian on every call, which is the wrong
+            # side effect for a stray chat message. Only audit when
+            # explicitly requested or when there's no real question to answer.
+            if task_type not in ("schema", "benchmark", "full_audit") and query.strip():
+                answer = await self.answer_question(query)
+                return {"status": "ok", "response": answer, "agent": self.name}
+
             if task_type == "schema":
                 result = self.analyze_schema()
                 self.award_points(20, "schema_analyzed")

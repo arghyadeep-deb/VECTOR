@@ -284,6 +284,32 @@ class GitBot(AgentBase):
             logger.warning(f"[VECTOR][git_bot] VectorCode commit message failed: {e}")
         return f"auto: {diff_summary[:60]}"
 
+    async def _answer_query(self, query: str) -> str:
+        """Answer a free-text question directly, grounded in GitBot's role.
+        Used by run() when a real chat message doesn't match any structured
+        git task type — 2026-07-29 sweep, same bug class as
+        #1/#14/#15/#21/#33 (content-free stub instead of the real question).
+        Note: the destructive git actions above (commit/branch/PR) are
+        already correctly gated behind an exact task-type match, so this
+        fallback is answer-only and never touches the repo."""
+        try:
+            from core.inference.vectorcode_llm import chat
+            sys_prompt = (
+                "You are GitBot, VECTOR's git automation agent. You handle commits, "
+                "status checks, branch creation, PR creation, and GitNexus codebase "
+                "impact analysis. Answer the user's question directly and concisely."
+            )
+            answer = chat(
+                model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
+                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                timeout=30.0,
+            )
+            self.award_points(5, "git_bot_qa_answered")
+            return answer or "I don't have enough information to answer that right now."
+        except Exception as e:
+            logger.error(f"[VECTOR][git_bot] _answer_query error: {e}")
+            return f"Error answering question: {e}"
+
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
         t = task.get("type", "")
@@ -302,6 +328,15 @@ class GitBot(AgentBase):
             return await self.gitnexus_impact(
                 p.get("symbol", ""), p.get("depth", 3), p.get("repo", ".")
             )
+
+        query = (
+            p.get("query") or p.get("content") or task.get("query")
+            or task.get("prompt") or ""
+        )
+        if query.strip():
+            answer = await self._answer_query(query)
+            return {"status": "ok", "response": answer, "agent": self.name}
+
         return {"status": "ok", "agent": self.name, "task": t}
 
     async def analyze_with_gitnexus(self, repo_path: str = ".") -> dict:
