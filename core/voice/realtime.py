@@ -62,7 +62,14 @@ def tts_wav(text: str, speed: float = 0.85) -> bytes | None:
     """Synthesize one sentence with Kokoro -> WAV bytes. Never raises."""
     try:
         import soundfile as sf
-        from core.voice.tts import VoiceTTS
+        from core.voice.tts import VoiceTTS, sanitize_for_speech
+        # 2026-07-28: this calls Kokoro directly, bypassing VoiceTTS.speak()'s
+        # own sanitization — see core/voice/tts.py's module comment on
+        # sanitize_for_speech() for the full story (real-time voice replies
+        # were reaching TTS with raw, unstripped markdown).
+        text = sanitize_for_speech(text)
+        if not text:
+            return None
         tts = VoiceTTS()
         if not tts._kokoro_ok:
             return None
@@ -659,6 +666,33 @@ class RealtimeConversation:
                     system_prompt = sp
         except Exception as e:
             logger.debug(f"[VECTOR][realtime] personality skipped: {e}")
+
+        # 2026-07-29 CORRECTION (issue #37): `core.personality` DOES exist and
+        # DOES work — the try/except above normally succeeds and returns a
+        # real, non-empty system_prompt built from
+        # core/personality/characters/vector.json's `rules` array. The actual
+        # root cause of the Hindi-leak / markdown-in-speech bug was that
+        # vector.json's rules never included an English-only or
+        # spoken-text-safety directive, so PersonalityEngine's real output was
+        # missing that guidance (this fallback almost never engaged). Fixed at
+        # the source: vector.json's rules array now includes both directives,
+        # so every PersonalityEngine consumer gets them automatically. This
+        # fallback stays as a defense-in-depth safety net for the case where
+        # personality is disabled/unavailable — same VECTOR_PERSONALITY used
+        # by the other voice pipeline (ambient_listener.py).
+        if not system_prompt:
+            try:
+                from core.voice.ambient_listener import VECTOR_PERSONALITY
+                system_prompt = VECTOR_PERSONALITY
+            except Exception as e:
+                logger.warning(f"[VECTOR][realtime] VECTOR_PERSONALITY fallback failed: {e}")
+                system_prompt = (
+                    "You are VECTOR, Arghyadeep's personal AI assistant. Always "
+                    "respond in English regardless of what language the user's "
+                    "message is written in. This reply will be read aloud by "
+                    "text-to-speech — plain natural spoken sentences only, no "
+                    "markdown, no spelled-out punctuation names."
+                )
 
         messages = []
         if system_prompt:

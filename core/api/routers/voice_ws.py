@@ -401,6 +401,7 @@ async def _stream_respond(websocket, text: str, orb) -> tuple[str, float]:
 
     pe = _get_personality()
     prompt = text
+    system_prompt = ""
     if pe is not None:
         try:
             result = pe.process(text)
@@ -412,6 +413,27 @@ async def _stream_respond(websocket, text: str, orb) -> tuple[str, float]:
                 prompt = f"{system_prompt}\n\nUser: {text}"
         except Exception as e:
             logger.debug(f"[VECTOR][voice_ws] personality process skipped: {e}")
+    # 2026-07-29 CORRECTION (issue #37): `core.personality` DOES exist and
+    # `pe.process()` normally succeeds with a real system_prompt built from
+    # vector.json's `rules` array. The actual bug was that vector.json never
+    # had an English-only or spoken-text-safety rule — fixed at the source,
+    # so every consumer of PersonalityEngine now gets it automatically. This
+    # stays as a defense-in-depth fallback for when personality is
+    # disabled/unavailable.
+    if not system_prompt:
+        try:
+            from core.voice.ambient_listener import VECTOR_PERSONALITY
+            system_prompt = VECTOR_PERSONALITY
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice_ws] VECTOR_PERSONALITY fallback failed: {e}")
+            system_prompt = (
+                "You are VECTOR, Arghyadeep's personal AI assistant. Always "
+                "respond in English regardless of what language the user's "
+                "message is written in. This reply will be read aloud by "
+                "text-to-speech — plain natural spoken sentences only, no "
+                "markdown, no spelled-out punctuation names."
+            )
+        prompt = f"{system_prompt}\n\nUser: {text}"
 
     loop = asyncio.get_event_loop()
     full_text = ""
@@ -477,6 +499,7 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
         model = CONFIG.get("models", {}).get("focus", "vector-focus")
         personality_enabled = CONFIG.get("personality", {}).get("enabled", True)
         pe = None
+        system_prompt = ""
         if personality_enabled:
             try:
                 from core.personality import PersonalityEngine
@@ -486,12 +509,25 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
                 tone_config = personality_result.get("tone_config")
                 if tone_config:
                     speed = tone_config.speed
-                prompt = f"{system_prompt}\n\nUser: {text}" if system_prompt else text
             except Exception as e:
                 logger.warning(f"[VECTOR][voice_ws] personality init failed: {e}")
-                prompt = text
-        else:
-            prompt = text
+        # 2026-07-29 CORRECTION (issue #37): see _stream_respond() above —
+        # `core.personality` works; the real fix lives in vector.json's rules.
+        # This stays as a defense-in-depth fallback.
+        if not system_prompt and personality_enabled:
+            try:
+                from core.voice.ambient_listener import VECTOR_PERSONALITY
+                system_prompt = VECTOR_PERSONALITY
+            except Exception as e:
+                logger.warning(f"[VECTOR][voice_ws] VECTOR_PERSONALITY fallback failed: {e}")
+                system_prompt = (
+                    "You are VECTOR, Arghyadeep's personal AI assistant. Always "
+                    "respond in English regardless of what language the user's "
+                    "message is written in. This reply will be read aloud by "
+                    "text-to-speech — plain natural spoken sentences only, no "
+                    "markdown, no spelled-out punctuation names."
+                )
+        prompt = f"{system_prompt}\n\nUser: {text}" if system_prompt else text
 
         r = httpx.post(
             f"{ollama_host}/api/generate",
@@ -514,7 +550,12 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
 
 
 def _tts_to_wav(text: str, speed: float | None = None) -> bytes | None:
-    from core.voice.tts import VoiceTTS, _voice_for
+    from core.voice.tts import VoiceTTS, _voice_for, sanitize_for_speech
+    # 2026-07-28: calls Kokoro directly, bypassing VoiceTTS.speak()'s own
+    # sanitization — see core/voice/tts.py's sanitize_for_speech() docstring.
+    text = sanitize_for_speech(text)
+    if not text:
+        return None
     tts = VoiceTTS()
     if not tts._kokoro_ok:
         logger.warning("[VECTOR][voice_ws] Kokoro not available, skipping TTS")

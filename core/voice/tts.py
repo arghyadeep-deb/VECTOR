@@ -66,6 +66,61 @@ _GTTS_LANG_MAP = {"as": "bn"}
 import re as _re
 _SENTENCE_SPLIT = _re.compile(r"(?<=[.!?।])\s+")  # includes Devanagari danda ।
 
+# 2026-07-28 (owner-reported, live): spoken VECTOR replies sometimes came out
+# sounding "AI-generated" — literal markdown syntax and/or spelled-out
+# punctuation names reaching the TTS engine instead of natural spoken text.
+# Root cause: none of the 4 independent LLM->TTS pipelines in this codebase
+# (ambient_listener.py, core/voice/realtime.py's RealtimeConversation,
+# api/routers/voice_ws.py's two handlers) ever sanitized model output before
+# handing it to a synthesis engine — whatever markdown the model happened to
+# produce (bold/italic asterisks, backticks, bullet markers, headers) went
+# straight to Kokoro/pyttsx3/gTTS as literal text. Two of those 4 pipelines
+# (core/voice/realtime.py::tts_wav, voice_ws.py::_tts_to_wav) call
+# `VoiceTTS()._kokoro.create()` DIRECTLY, bypassing speak() entirely — so this
+# can't be fixed by only patching speak(); every synthesis entry point needs
+# to route through this first. Deliberately does NOT try to detect/strip
+# spelled-out punctuation WORDS (e.g. a literal "comma" in the text) — that's
+# handled at the prompt-instruction layer instead (VECTOR_PERSONALITY etc.),
+# since a blind regex for common words like "comma" would wrongly mangle
+# legitimate sentences that happen to use them.
+_MD_BOLD_ITALIC_RE = _re.compile(r"\*\*\*(.+?)\*\*\*|\*\*(.+?)\*\*|\*(.+?)\*")
+_MD_UNDERSCORE_EMPH_RE = _re.compile(r"(?<![A-Za-z0-9_])__(.+?)__(?![A-Za-z0-9_])")
+_MD_CODE_FENCE_RE = _re.compile(r"```.*?```", _re.DOTALL)
+_MD_INLINE_CODE_RE = _re.compile(r"`([^`]+)`")
+_MD_HEADER_RE = _re.compile(r"^#{1,6}\s+", _re.MULTILINE)
+_MD_BULLET_RE = _re.compile(r"^[ \t]*[-*•]\s+", _re.MULTILINE)
+_MD_NUMBERED_RE = _re.compile(r"^[ \t]*\d+[.)]\s+", _re.MULTILINE)
+_MD_LINK_RE = _re.compile(r"\[([^\]]+)\]\([^)]+\)")
+_MD_LEFTOVER_SYMBOLS_RE = _re.compile(r"[*_`#]")
+_WHITESPACE_COLLAPSE_RE = _re.compile(r"[ \t]+")
+_BLANK_LINES_RE = _re.compile(r"\n\s*\n+")
+
+
+def sanitize_for_speech(text: str) -> str:
+    """Strip markdown/formatting syntax before text reaches ANY TTS engine.
+
+    Every function in this codebase that turns model output into audio should
+    call this first — see the module comment above for why this can't live
+    only inside VoiceTTS.speak(). Idempotent and cheap; safe to call on text
+    that's already clean."""
+    if not text:
+        return text
+    t = _MD_CODE_FENCE_RE.sub(lambda m: m.group(0).strip("`"), text)
+    t = _MD_INLINE_CODE_RE.sub(r"\1", t)
+    t = _MD_LINK_RE.sub(r"\1", t)
+    t = _MD_HEADER_RE.sub("", t)
+    t = _MD_BULLET_RE.sub("", t)
+    t = _MD_NUMBERED_RE.sub("", t)
+    t = _MD_UNDERSCORE_EMPH_RE.sub(r"\1", t)
+    # Bold/italic asterisks: repeat once to also catch nested/adjacent runs
+    # (e.g. "**a** and **b**") that a single non-overlapping pass can miss.
+    for _ in range(2):
+        t = _MD_BOLD_ITALIC_RE.sub(lambda m: next(g for g in m.groups() if g is not None), t)
+    t = _MD_LEFTOVER_SYMBOLS_RE.sub("", t)
+    t = _BLANK_LINES_RE.sub(" ", t)
+    t = _WHITESPACE_COLLAPSE_RE.sub(" ", t).strip()
+    return t
+
 
 def _chunk_sentences(text: str, max_chars: int = 200) -> list[str]:
     """Group text into sentence-aligned chunks (≤ max_chars each) so TTS can
@@ -213,6 +268,9 @@ class VoiceTTS:
         """
         if not text:
             return
+        text = sanitize_for_speech(text)
+        if not text:
+            return
         if agent is not None:
             try:
                 style = agent.get_voice_style()
@@ -304,6 +362,7 @@ class VoiceTTS:
         """
         from pathlib import Path as _P
         _P(out_path).parent.mkdir(parents=True, exist_ok=True)
+        text = sanitize_for_speech(text)
         # Cloned-voice path
         if profile_name:
             try:
