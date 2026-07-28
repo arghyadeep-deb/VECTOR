@@ -190,3 +190,12 @@ renders/
 
 # Piper TTS voice weights (large binaries; configs .json are kept)
 models/piper/*.onnx
+
+# Personal biometric/runtime data — never commit (face images, voice audio,
+# heartbeat/watchdog state files)
+data/known_faces/
+data/voice_output/
+data/voice_profiles/
+data/loop_heartbeat.json
+watchdog_last_restart.marker
+models/wake/positive_all/
