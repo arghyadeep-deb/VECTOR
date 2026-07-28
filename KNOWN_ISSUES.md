@@ -2361,11 +2361,31 @@ closed:**
   `vector_finagent/Analytics/corporateFinance/valuation/dcf_model.py`
   import chain fails with `No module named 'corporateFinance'` (a broken
   absolute-import assumption from the original absorbed third-party code).
-  **Not fixed — new, separately-scoped issue, flagged here for a future
-  pass.** `/alpha` and `/backtest` and `/geopolitics` turned out to already
-  be correctly fixed in the earlier investment-audit commit (both field
-  name conventions accepted) — the original finding overstated their
-  status; only `/dcf` was actually still broken.
+  `/alpha` and `/backtest` and `/geopolitics` turned out to already be
+  correctly fixed in the earlier investment-audit commit (both field name
+  conventions accepted) — the original finding overstated their status;
+  only `/dcf` was actually still broken.
+  **Follow-up (same day) — the import chain bug is now FIXED too.** Root
+  cause: the vendored Fincept analytics suite (1,400+ scripts under
+  `Analytics/`) uses absolute imports written for its own standalone
+  layout (`from corporateFinance.valuation.trading_comps import ...`,
+  `from corporateFinance.deal_database.database_schema import ...`),
+  assuming `Analytics/` itself is on `sys.path` — not true once nested
+  under `districts.investment.vector_finagent`. Several of the package's
+  own `__init__.py` files (e.g. `corporateFinance/valuation/__init__.py`)
+  already compute an `analytics_path = Path(__file__).parent.parent.parent`
+  for exactly this purpose but never actually added it to `sys.path` — an
+  incomplete migration, not a design choice. Completed it once in
+  `Analytics/__init__.py` (always runs before any submodule import, per
+  normal Python package-init order) instead of converting potentially
+  hundreds of absolute imports to relative ones across the vendored tree.
+  Verified: `DCFModel` now imports cleanly, `finagent_agent.py`'s real
+  `/dcf` request shape returns a genuine computed WACC result end-to-end,
+  and the full existing investment test suite (27 tests across
+  `tests/test_investment_district_run_wiring.py`,
+  `tests/test_investment_router_agent_paths.py`,
+  `tests/districts/investment/`) passes with zero regressions from the
+  `sys.path` change.
 - **`stock_analyst.py`'s missing `portfolio_summary` branch — FIXED.**
   `GET /investment/portfolio` dispatched a task_type with no matching
   branch, silently falling to a RELIANCE quote. There is no live brokerage
