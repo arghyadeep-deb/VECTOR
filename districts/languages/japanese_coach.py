@@ -137,6 +137,32 @@ class JapaneseCoach(AgentBase):
             result = self.track_progress()
             return {"status": "ok", **result}
 
+        # 2026-07-29 (eval finding, languages TIER6): real chat dispatch
+        # (governor's classifier can invent a task_type like "generate_quiz"
+        # that has no exact match here and doesn't snap to a known
+        # DISTRICT_TASK_MAP key either) used to always return a bare
+        # "unhandled type" error, ignoring the real free-text question —
+        # same bug class as #1/#14/#15/#21/#33/#36, just presenting as an
+        # honest error instead of a wrong action. Route it to whichever
+        # real capability the query actually asks for instead of erroring;
+        # default to a vocabulary quiz (this coach's core capability, real
+        # data, no LLM dependency) for a generic "quiz/practice me" ask
+        # rather than guessing a grammar sentence or word that wasn't given.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            if "progress" in q or "how am i doing" in q or "how far" in q:
+                result = self.track_progress()
+                return {"status": "ok", **result}
+            if ("grammar" in q or "correct" in q) and "text" not in p:
+                return {"status": "ok", "response": f"Share the {self.language} sentence you'd like me to check and I'll review its grammar."}
+            if ("sentence" in q or "example" in q) and "word" not in p:
+                return {"status": "ok", "response": f"Tell me a {self.language} word and I'll generate example sentences using it."}
+            result = self.practice_vocabulary(p.get("word_count", 5))
+            return {"status": "ok", **result}
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":
