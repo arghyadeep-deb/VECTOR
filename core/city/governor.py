@@ -262,6 +262,28 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
                        "— only inbox/draft/send for email)",
     "content": "social media captions, video/reel scripts, image/video "
                "generation — public-facing content, not a message to a person",
+    # 2026-07-29 (eval finding): "draft a proposal/pitch for a client" was
+    # confidently (0.9) classified as district="content" three times in a
+    # row — content had a hint distinguishing it from "communications", but
+    # nothing told the classifier "agency" exists or what it's for, so a
+    # request that sounds like "drafting" defaulted to the one drafting-
+    # shaped district it had a description for. Same root-cause shape as
+    # issue #25, different district pair. `agency` genuinely owns
+    # proposal_strategist.py/sales_strategist.py for exactly this ask.
+    "agency": "client-facing business development — sales proposals, RFP "
+              "responses, pitch decks, deal/win strategy, client account "
+              "management (NOT public content/video/social media, which is "
+              "the 'content' district above)",
+    # 2026-07-29 (eval finding): "get a 30-minute deep-learning study
+    # session going" was classified to time_calendar/schedule (0.98
+    # confidence) instead of karpathy_lab — a defensible reading in
+    # isolation ("schedule this"), but karpathy_lab is the district that
+    # actually owns this specific, recurring practice ritual.
+    "karpathy_lab": "the owner's structured 30-minute daily deep-learning "
+                    "practice session (Karpathy-style ML skill-building: "
+                    "starting/logging/tracking a study run) — distinct from "
+                    "general calendar scheduling (time_calendar) or "
+                    "passive video-course tracking (learning)",
 }
 
 
