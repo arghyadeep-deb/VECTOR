@@ -139,6 +139,31 @@ class GUIAutomationAgent(AgentBase):
             logger.error("[VECTOR][gui_agent] click_screen failed: {}", e)
             return {"status": "error", "error": str(e)}
 
+    # ── Permission gating ────────────────────────────────────────────────────
+
+    async def _gate(self, action_type: str, summary: str, source: str) -> bool:
+        """gui_task/browser_task/click_screen are YELLOW-tier in
+        core/config.py (real mouse/keyboard/browser control on the owner's
+        actual desktop) but this agent never called PermissionGateway at
+        all before executing — flagged in the 2026-07-29 coding district
+        audit as a separate gap from that pass's fix (which only stopped a
+        stray chat message from firing an EMPTY instruction, not from
+        firing a real, fully-specified one with zero owner sign-off).
+        Matches the same owner-command bypass every other YELLOW action
+        already gets system-wide (permission_gateway.py's own execute():
+        "the command itself IS the confirmation" when proposed_by is
+        api_command/voice) — only autonomous/non-owner-initiated triggers
+        actually wait for approval, so a routine owner-typed GUI command
+        stays frictionless like it always has."""
+        if source in ("api_command", "voice"):
+            return True
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            return await PermissionGateway.get_shared().request_approval(action_type, summary)
+        except Exception as e:
+            logger.error("[VECTOR][gui_agent] permission gate error, failing closed: {}", e)
+            return False
+
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     def _store_result(self, event_type: str, instruction: str, result: dict) -> None:
@@ -196,12 +221,17 @@ class GUIAutomationAgent(AgentBase):
         # stray chat message). Now: GUI/browser actions only fire on an
         # EXPLICIT action match AND a non-empty instruction/description;
         # everything else gets a safe grounded answer instead.
+        source = p.get("source", task.get("source", ""))
         if action in ("gui_task", "vision_control", "desktop_task") and instruction.strip():
+            if not await self._gate("gui_task", f"Desktop GUI action: {instruction[:120]}", source):
+                return {"status": "error", "error": "GUI action not approved by owner"}
             return await self.run_gui_task(
                 instruction=instruction,
                 max_loop=p.get("max_loop"),
             )
         elif action in ("browser_task", "web_task", "browser") and instruction.strip():
+            if not await self._gate("browser_task", f"Browser automation: {instruction[:120]}", source):
+                return {"status": "error", "error": "Browser action not approved by owner"}
             return await self.run_browser_task(
                 instruction=instruction,
                 url=p.get("url"),
@@ -209,9 +239,10 @@ class GUIAutomationAgent(AgentBase):
                 headless=p.get("headless", False),
             )
         elif action == "click_screen" and p.get("description", p.get("element", "")).strip():
-            return await self.click_screen(
-                description=p.get("description", p.get("element", ""))
-            )
+            _desc = p.get("description", p.get("element", ""))
+            if not await self._gate("click_screen", f"Screen click: {_desc[:120]}", source):
+                return {"status": "error", "error": "Click action not approved by owner"}
+            return await self.click_screen(description=_desc)
 
         query = (
             p.get("query") or p.get("content") or task.get("query")
