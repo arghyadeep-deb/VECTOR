@@ -199,3 +199,8 @@ data/voice_profiles/
 data/loop_heartbeat.json
 watchdog_last_restart.marker
 models/wake/positive_all/
+# Real accumulated memory-tree index (core/engine/memory_tree) — derived
+# personal-memory data, same category as the exclusions above. Location
+# fixed 2026-07-28 to be colocated with the real SQLite DB instead of
+# ~/.vector_ca (see core/engine/memory_tree/tree_builder.py).
+/memory_tree/
