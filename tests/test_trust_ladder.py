@@ -110,6 +110,13 @@ def test_unknown_db_fails_closed():
 def gateway_with_ladder(monkeypatch):
     """Real PermissionGateway wired to an in-memory trust ladder."""
     monkeypatch.setenv("VECTOR_TRUST_TEST", "1")
+    # VECTOR_YELLOW_AUTO_CONFIRM=1 is set in this machine's real .env (an
+    # owner convenience choice) and permission_gateway.py reads it live from
+    # os.environ, not a cached config value — left set, a pytest-mode YELLOW
+    # timeout (0.01s) is treated as auto-confirmed instead of rejected,
+    # which legitimately flips test_unpromoted_yellow_still_gated's result.
+    # Same guard tests/unit/test_permission_gateway_extra.py already uses.
+    monkeypatch.delenv("VECTOR_YELLOW_AUTO_CONFIRM", raising=False)
     ladder = TrustLadder(conn=sqlite3.connect(":memory:"))
     import core.loop.trust_ladder as tl
     monkeypatch.setattr(tl, "_ladder", ladder)
