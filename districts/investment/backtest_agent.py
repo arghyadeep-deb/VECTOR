@@ -359,6 +359,18 @@ class BacktestAgent(AgentBase):
                 strategy_code=p.get("strategy_code", ""),
                 target=p.get("target", "pine"),
             )
+
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
+        if query:
+            # 2026-07-29: unmatched/free-text task_type previously fell
+            # straight through to an error stub with no real content —
+            # same bug class as stock_analyst.py's pre-fix quote default
+            # (KNOWN_ISSUES.md #1/#14/#15/#21/#33/#36). vt_research already
+            # handles arbitrary free-text finance questions via the ReAct
+            # research agent, so route real chat queries there directly
+            # instead of erroring.
+            return await self.vt_research(task=query)
+
         return {
             "status": "error",
             "error": f"unhandled type '{task_type}'",

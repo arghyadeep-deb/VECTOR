@@ -25,6 +25,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import uuid
+import concurrent.futures as _cf
 from datetime import datetime
 from typing import Optional
 
@@ -36,6 +37,20 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.loop.context_engine import ContextEngine
 from loguru import logger
+
+
+def _llm(prompt: str, max_tokens: int = 700, temperature: float = 0.6) -> str:
+    from core.inference.provider_client import ProviderClient as _PC
+    async def _call():
+        r = await _PC().chat(
+            messages=[{"role": "user", "content": prompt}],
+            model="domain:finance.analysis",   # gpt-5 → zai-glm-4.7 → DeepSeek-R1 → ollama
+            tier="reasoning", temperature=temperature, max_tokens=max_tokens,
+            caller_id="trading_conductor_agent",
+        )
+        return r.content
+    with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(asyncio.run, _call()).result(timeout=90)
 
 class TradingConductorAgent(AgentBase):
     """
@@ -159,7 +174,15 @@ class TradingConductorAgent(AgentBase):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "investment_analysis")
+        # 2026-07-29: was `p.get("action", "investment_analysis")` — never
+        # read task["type"] at all (governor.py's real dispatch contract),
+        # so every real chat/governor dispatch silently ran the full
+        # LangGraph multi-agent debate pipeline for a hardcoded NVDA ticker
+        # regardless of what was actually asked — same bug class as
+        # stock_analyst.py's pre-fix quote default (KNOWN_ISSUES.md
+        # #1/#14/#15/#21/#33/#36), and more expensive since it triggers a
+        # full deep-think LLM debate for the wrong ticker every time.
+        action = task.get("type") or p.get("action", "investment_analysis")
 
         if action in ("investment_analysis", "trading_analysis"):
             return await self.run_analysis(
@@ -176,6 +199,27 @@ class TradingConductorAgent(AgentBase):
             )
         elif action == "past_performance":
             return await self.get_past_performance(p.get("ticker", "NVDA"))
+
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
+        if query:
+            # Free-text chat query with no ticker/action specified: answer
+            # conversationally rather than guessing a ticker and burning a
+            # full multi-agent LangGraph debate run on the wrong stock.
+            try:
+                prompt = (
+                    "You are VECTOR's TradingConductorAgent, an investment-district "
+                    "agent that orchestrates a 12-agent research desk (technical/"
+                    "sentiment/news/fundamentals analysts, bull-vs-bear researchers, "
+                    "risk debate, portfolio committee) to produce a Buy/Overweight/"
+                    "Hold/Underweight/Sell rating for a named ticker. ANALYSIS ONLY "
+                    "— you never execute real trades. If the user wants a full "
+                    "multi-agent report, tell them to name a specific ticker.\n\n"
+                    f"Answer the user's question directly and specifically:\n{query}"
+                )
+                answer = _llm(prompt, max_tokens=700, temperature=0.6)
+                return {"status": "ok", "response": answer}
+            except Exception as e:
+                logger.error("[VECTOR][trading_conductor] free-text fallback failed: {}", e)
 
         return {"status": "error", "error": f"unknown action: {action}"}
 

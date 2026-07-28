@@ -295,6 +295,23 @@ class HedgeBotAgent(AgentBase):
                 p.get("unsigned_transaction", ""),
                 p.get("request_id", ""),
             )
+
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
+        if query:
+            # 2026-07-29: unmatched/free-text task_type previously fell
+            # straight through to an error stub with no real content —
+            # same bug class as stock_analyst.py's pre-fix quote default
+            # (KNOWN_ISSUES.md #1/#14/#15/#21/#33/#36). hedge_run already
+            # handles arbitrary free-text market questions via the 5-agent
+            # analysis pipeline (director → quant → risk → execution-thesis
+            # → sentiment — all text/analysis, no live order placement), so
+            # route real chat queries there instead of erroring. Note:
+            # this stays analysis-only — solana_execute (the only real
+            # money-moving path) still requires an EXACT action match plus
+            # RED-tier PermissionGateway owner approval and is never
+            # reachable from this fallback.
+            return await self.hedge_run(task=query, output_type=p.get("output_type", "str"))
+
         return {"status": "error", "error": f"unknown action: {action}"}
 
     async def run_forever(self) -> None:

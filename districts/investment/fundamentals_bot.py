@@ -1,9 +1,25 @@
 import sys
 import uuid
+import asyncio as _asyncio
+import concurrent.futures as _cf
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
+
+
+def _llm(prompt: str, max_tokens: int = 700, temperature: float = 0.6) -> str:
+    from core.inference.provider_client import ProviderClient as _PC
+    async def _call():
+        r = await _PC().chat(
+            messages=[{"role": "user", "content": prompt}],
+            model="domain:finance.analysis",   # gpt-5 → zai-glm-4.7 → DeepSeek-R1 → ollama
+            tier="reasoning", temperature=temperature, max_tokens=max_tokens,
+            caller_id="fundamentals_bot",
+        )
+        return r.content
+    with _cf.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_asyncio.run, _call()).result(timeout=90)
 
 
 class FundamentalsBot(AgentBase):
@@ -398,6 +414,28 @@ class FundamentalsBot(AgentBase):
             return self.compare_to_sector(p.get("ticker", "AAPL"), p.get("sector", "technology"))
         elif task_type == "dividend_analysis":
             return self.get_dividend_analysis(p.get("ticker", "AAPL"))
+
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
+        if query and not (p.get("ticker") or p.get("symbol")):
+            # 2026-07-29: unmatched/free-text task_type previously fell
+            # straight through to an error stub with no real content —
+            # same bug class as stock_analyst.py's pre-fix quote default
+            # (KNOWN_ISSUES.md #1/#14/#15/#21/#33/#36). Answer it directly.
+            try:
+                prompt = (
+                    "You are VECTOR's FundamentalsBot, an investment-district agent "
+                    "that analyzes financial statements (income/balance/cash-flow), "
+                    "valuation metrics (P/E, PEG, P/B, EV/EBITDA), sector comparisons, "
+                    "and dividend metrics for stocks. Analysis only — you never place "
+                    "or recommend executing real trades.\n\n"
+                    f"Answer the user's question directly and specifically:\n{query}"
+                )
+                answer = _llm(prompt, max_tokens=700, temperature=0.6)
+                return {"status": "ok", "response": answer}
+            except Exception as e:
+                logger.error("[VECTOR][fundamentals_bot] free-text fallback failed: {}", e)
+                # fall through to error stub below
+
         return {
             "status": "error",
             "error": f"unhandled type '{task_type}'",

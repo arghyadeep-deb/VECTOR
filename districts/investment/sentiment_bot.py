@@ -351,7 +351,31 @@ Be specific and actionable.
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        result = self.generate_sentiment_report(p.get("symbol", "RELIANCE"))
+        symbol = p.get("symbol")
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
+
+        if not symbol and query:
+            # 2026-07-29: run() ignored task_type entirely and always
+            # generated a sentiment report for a hardcoded RELIANCE symbol,
+            # regardless of what the user actually asked — same bug class
+            # as stock_analyst.py's pre-fix quote default (KNOWN_ISSUES.md
+            # #1/#14/#15/#21/#33/#36). Answer free-text queries directly.
+            try:
+                prompt = (
+                    "You are VECTOR's SentimentBot, an investment-district agent that "
+                    "analyzes news and social-media sentiment for stocks (bullish/"
+                    "bearish/neutral scoring, key themes, headline analysis, "
+                    "cross-symbol sentiment comparison). Analysis only — you never "
+                    "place or recommend executing real trades.\n\n"
+                    f"Answer the user's question directly and specifically:\n{query}"
+                )
+                answer = _llm(prompt, max_tokens=700, temperature=0.6)
+                return {"status": "ok", "response": answer}
+            except Exception as e:
+                logger.error("[VECTOR][sentiment_bot] free-text fallback failed: {}", e)
+                # fall through to legacy symbol-report default below
+
+        result = self.generate_sentiment_report(symbol or "RELIANCE")
         return {"status": "ok", **result}
 
 if __name__ == "__main__":

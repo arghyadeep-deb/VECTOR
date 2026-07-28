@@ -510,11 +510,66 @@ class FinAgentAgent(AgentBase):
     def terminal_status(self) -> dict:
         return self._launcher.status()
 
+    async def answer_freetext_query(self, query: str) -> dict:
+        """
+        Answer a free-text financial question directly via CoreAgent when no
+        structured action/task_type matched.
+
+        2026-07-29: run() previously read ONLY params["action"] and never
+        task["type"] at all, so every real dispatch from governor.py or the
+        /analyze, /dcf, /alpha, /backtest, /geopolitics API routes (which all
+        set task["type"], never params["action"]) silently fell through to a
+        hardcoded investor_analysis(NVDA, buffett) — same bug class as
+        stock_analyst.py's pre-fix quote default (KNOWN_ISSUES.md
+        #1/#14/#15/#21/#33/#36). This grounds a real answer instead.
+        """
+        logger.info("[VECTOR][finagent_agent] freetext query: {}", query[:60])
+        loop = asyncio.get_event_loop()
+
+        def _run():
+            try:
+                from districts.investment.vector_finagent.agents.finagent_core.core_agent import CoreAgent
+                import os
+
+                api_keys = {}
+                for env_k in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GOOGLE_API_KEY"):
+                    v = os.environ.get(env_k, "")
+                    if v:
+                        api_keys[env_k] = v
+
+                agent = CoreAgent(api_keys=api_keys or None)
+                system_prompt = (
+                    "You are VECTOR's FinAgentAgent — a financial intelligence agent "
+                    "covering investor-persona analysis (Buffett/Graham/Lynch/Munger/"
+                    "Klarman/Marks/Renaissance), corporate finance (DCF/LBO/merger/"
+                    "startup valuation/comps/fairness opinions), alpha discovery "
+                    "(momentum/technical screening), geopolitics analysis, and quant "
+                    "backtesting. Analysis only — you never execute real trades."
+                )
+                config = {
+                    "model": {"provider": "anthropic", "model_id": "claude-haiku-4-5-20251001"},
+                    "system_prompt": system_prompt,
+                }
+                result = agent.run(query=query, config=config)
+                return {"status": "ok", "response": str(result)[:2000]}
+            except Exception as e:
+                logger.warning("[VECTOR][finagent_agent] freetext query error: {}", e)
+                return {"status": "error", "error": str(e)}
+
+        return await loop.run_in_executor(None, _run)
+
     # ── AgentBase interface ───────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "investor_analysis")
+        # 2026-07-29: was `p.get("action", "investor_analysis")` — never
+        # read task["type"] at all, so real dispatches (governor.py and the
+        # /analyze,/dcf,/alpha,/backtest,/geopolitics API routes all set
+        # task["type"], not params["action"]) always silently defaulted to
+        # investor_analysis(NVDA, buffett). Sibling files in this district
+        # (backtest_agent.py, hedgebot_agent.py) already prefer
+        # task["type"]; align this one to match.
+        action = task.get("type") or p.get("action", "investor_analysis")
 
         if action in ("investor_analysis", "persona_analysis"):
             return await self.investor_analysis(
@@ -529,27 +584,44 @@ class FinAgentAgent(AgentBase):
                 data=p.get("data"),
             )
         elif action in ("alpha_discovery", "alpha"):
+            # 2026-07-29: /alpha route's AlphaRequest body uses `symbols`,
+            # not `universe` — same newly-reachable field-name mismatch as
+            # the geopolitics branch above (action always defaulted to
+            # investor_analysis before the task["type"] fix, so this never
+            # actually ran off real API params before).
             return await self.alpha_discovery(
-                universe=p.get("universe"),
+                universe=p.get("universe") or p.get("symbols"),
                 strategy=p.get("strategy", "momentum"),
             )
         elif action in ("geopolitics_analysis", "geopolitics"):
+            # 2026-07-29: the /geopolitics API route's GeopoliticsRequest
+            # body only has a `query` field, not `topic` — this branch was
+            # unreachable before the task["type"] fix above (action always
+            # defaulted to investor_analysis), so the field-name mismatch
+            # was never exposed. Accept either now that it's reachable.
             return await self.geopolitics_analysis(
-                topic=p.get("topic", ""),
+                topic=p.get("topic") or p.get("query", ""),
                 framework=p.get("framework", "grand_chessboard"),
             )
         elif action in ("quant_backtest", "backtest"):
+            # 2026-07-29: /backtest route's BacktestRequest body uses
+            # `symbols`/`start_date`/`end_date`, not `tickers`/`start`/`end`
+            # — same newly-reachable field-name mismatch as above.
             return await self.quant_backtest(
                 strategy=p.get("strategy", "buy_and_hold"),
-                tickers=p.get("tickers", ["SPY"]),
-                start_date=p.get("start", "2020-01-01"),
-                end_date=p.get("end", "2024-01-01"),
+                tickers=p.get("tickers") or p.get("symbols", ["SPY"]),
+                start_date=p.get("start") or p.get("start_date", "2020-01-01"),
+                end_date=p.get("end") or p.get("end_date", "2024-01-01"),
                 engine=p.get("engine", "backtesting"),
             )
         elif action in ("launch_terminal", "terminal", "open_terminal"):
             return await self.launch_terminal(auto_build=p.get("auto_build", False))
         elif action == "terminal_status":
             return self.terminal_status()
+
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
+        if query:
+            return await self.answer_freetext_query(query)
 
         return {"status": "error", "error": f"unknown action: {action}"}
 

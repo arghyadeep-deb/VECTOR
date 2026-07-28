@@ -910,6 +910,29 @@ Be specific and balanced.
                 symbols = [symbols]
             return self.get_risk_analysis(symbols)
 
+        query = p.get("query") or p.get("content") or task.get("query") or task.get("prompt")
+        if query and not p.get("symbol"):
+            # 2026-07-29: real free-text chat queries land here with an
+            # unmatched/arbitrary task_type (governor's classifier output)
+            # and no explicit `symbol` param. Before this fix they always
+            # silently got a plain RELIANCE quote, ignoring what was
+            # actually asked — same bug class as KNOWN_ISSUES.md
+            # #1/#14/#15/#21/#33/#36. Answer it directly instead.
+            try:
+                prompt = (
+                    "You are VECTOR's StockAnalyst, an investment-district agent that "
+                    "provides live stock/crypto quotes, fundamentals, sentiment, AI "
+                    "investment insights, equity screening, and risk analysis for "
+                    "NSE/BSE/global equities and crypto. Analysis only — you never "
+                    "place or recommend executing real trades.\n\n"
+                    f"Answer the user's question directly and specifically:\n{query}"
+                )
+                answer = _llm(prompt, max_tokens=800, temperature=0.6)
+                return {"status": "ok", "response": answer}
+            except Exception as e:
+                logger.error("[VECTOR][stock_analyst] free-text fallback failed: {}", e)
+                # fall through to legacy quote default below
+
         # Default / legacy behaviour for every other task_type routed here —
         # unchanged deliberately: the investment district's manifest
         # `capabilities` tags are descriptive themes, not literal task_type
