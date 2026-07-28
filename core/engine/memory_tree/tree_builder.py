@@ -41,6 +41,9 @@ _BRAIN_WIKI = Path("brain") / "VECTOR" / "wiki"
 _SAVE_LOCK = threading.Lock()
 
 
+_LEGACY_TREE_DIR = Path.home() / ".vector_ca" / "memory_tree"
+
+
 def _default_tree_dir() -> Path:
     """Resolve the default memory-tree directory.
 
@@ -50,15 +53,53 @@ def _default_tree_dir() -> Path:
     which was the root cause of a real 90+s hang under concurrent episodic
     writes (KNOWN_ISSUES: MemoryTree reconstructed + full read/parse/rewrite
     on every single EpisodicMemory.store() call).
+
+    configured_db_path() can legitimately return a RELATIVE path (this
+    deployment's own .env sets VECTOR_DB_PATH=vector_memory.db, relative to
+    the repo root) — .resolve() is required here, not optional: without it,
+    this directory silently depends on whatever the current process's CWD
+    happens to be at call time, so two callers launched from different
+    directories would each get their own un-synced copy of "the" tree.
+    Found live during this fix's own verification: an ad-hoc script run
+    from the repo root wrote real episodic data into <repo>/memory_tree/
+    instead of the historical ~/.vector_ca/memory_tree/, alongside the
+    resolve() bug — .resolve() anchors this to the actual configured DB
+    location deterministically, matching where the real SQLite DB already
+    lives for this deployment.
     """
     override = os.environ.get("VECTOR_MEMORY_TREE_PATH")
     if override:
-        return Path(override)
+        return Path(override).resolve()
     try:
         from core.memory.db_utils import configured_db_path
-        return configured_db_path().parent / "memory_tree"
+        return configured_db_path().resolve().parent / "memory_tree"
     except Exception:
-        return Path.home() / ".vector_ca" / "memory_tree"
+        return _LEGACY_TREE_DIR
+
+
+def _migrate_legacy_tree_if_needed(target_dir: Path) -> None:
+    """One-time continuity copy: if the resolved tree dir has no data yet
+    but the pre-fix hardcoded default (~/.vector_ca/memory_tree) does,
+    copy it over so upgrading doesn't silently orphan real accumulated
+    memory-tree data. Copies, never moves or deletes the original — safe
+    to run on every startup, a no-op once the target has its own file.
+    Never allowed to fail tree construction."""
+    try:
+        target_file = target_dir / "memory_tree.json"
+        legacy_file = _LEGACY_TREE_DIR / "memory_tree.json"
+        if target_file.exists() or not legacy_file.exists():
+            return
+        if target_dir.resolve() == _LEGACY_TREE_DIR.resolve():
+            return
+        import shutil
+        target_dir.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(legacy_file, target_file)
+        logger.info(
+            "[VECTOR][memory_tree] migrated {} -> {} for continuity (original left in place)",
+            legacy_file, target_file,
+        )
+    except Exception as e:
+        logger.warning("[VECTOR][memory_tree] legacy migration skipped: {}", e)
 
 
 # â”€â”€ Data structures â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -133,8 +174,14 @@ class MemoryTree:
     """
 
     def __init__(self, db_dir: Path | None = None, wiki_dir: Path | None = None) -> None:
+        _using_default_dir = db_dir is None
         self._db_dir = db_dir or _default_tree_dir()
         self._db_dir.mkdir(parents=True, exist_ok=True)
+        if _using_default_dir:
+            # Only migrate when resolving the real default — an explicit
+            # db_dir (tests, other callers) is a deliberate isolated
+            # location and must never be seeded from production data.
+            _migrate_legacy_tree_if_needed(self._db_dir)
         self._wiki_dir = wiki_dir or _BRAIN_WIKI
         self._sources: dict[str, MemorySource] = {}
 

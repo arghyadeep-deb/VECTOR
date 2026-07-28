@@ -135,13 +135,60 @@ class TestIsolation:
         fake_db = tmp_path / "isolated" / "mem.db"
         monkeypatch.setenv("VECTOR_DB_PATH", str(fake_db))
         resolved = tree_builder._default_tree_dir()
-        assert resolved == fake_db.parent / "memory_tree"
-        assert str(tmp_path) in str(resolved)
+        assert resolved == (fake_db.parent / "memory_tree").resolve()
+        assert str(tmp_path.resolve()) in str(resolved)
+
+    def test_default_tree_dir_is_absolute_regardless_of_relative_db_path(self, tmp_path, monkeypatch):
+        """The real bug found live during this fix's own verification: a
+        RELATIVE VECTOR_DB_PATH (this deployment's actual .env value,
+        "vector_memory.db") made the tree dir silently depend on the
+        calling process's CWD — two callers from different directories
+        would each get their own un-synced copy. Must always resolve to
+        an absolute, CWD-independent path."""
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("VECTOR_DB_PATH", "relative_mem.db")
+        resolved = tree_builder._default_tree_dir()
+        assert resolved.is_absolute()
+        assert resolved == (tmp_path / "memory_tree").resolve()
 
     def test_vector_memory_tree_path_env_var_overrides(self, tmp_path, monkeypatch):
         override = tmp_path / "custom_tree_dir"
         monkeypatch.setenv("VECTOR_MEMORY_TREE_PATH", str(override))
-        assert tree_builder._default_tree_dir() == override
+        assert tree_builder._default_tree_dir() == override.resolve()
+
+    def test_legacy_tree_migrated_for_continuity(self, tmp_path, monkeypatch):
+        """A real ~/.vector_ca/memory_tree/memory_tree.json with genuine
+        accumulated data must not be silently orphaned by the CWD-fix
+        above — copy it into the new resolved location the first time,
+        never delete/move the original."""
+        fake_legacy_dir = tmp_path / "legacy"
+        fake_legacy_dir.mkdir()
+        (fake_legacy_dir / "memory_tree.json").write_text(
+            '{"episodic:real_data": {"source_kind": "episodic", "source_id": "real_data", '
+            '"global_summary": "", "updated_at": "", "nodes": {}}}',
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(tree_builder, "_LEGACY_TREE_DIR", fake_legacy_dir)
+
+        new_dir = tmp_path / "new_location"
+        tree_builder._migrate_legacy_tree_if_needed(new_dir)
+
+        assert (new_dir / "memory_tree.json").exists()
+        assert (fake_legacy_dir / "memory_tree.json").exists(), "original must be left in place, never deleted"
+
+    def test_migration_is_noop_when_target_already_has_data(self, tmp_path, monkeypatch):
+        fake_legacy_dir = tmp_path / "legacy"
+        fake_legacy_dir.mkdir()
+        (fake_legacy_dir / "memory_tree.json").write_text('{"legacy": true}', encoding="utf-8")
+        monkeypatch.setattr(tree_builder, "_LEGACY_TREE_DIR", fake_legacy_dir)
+
+        new_dir = tmp_path / "new_location"
+        new_dir.mkdir()
+        (new_dir / "memory_tree.json").write_text('{"already_here": true}', encoding="utf-8")
+
+        tree_builder._migrate_legacy_tree_if_needed(new_dir)
+
+        assert "already_here" in (new_dir / "memory_tree.json").read_text(encoding="utf-8")
 
     def test_close_db_connection_resets_tree_singleton(self, tmp_path, monkeypatch):
         """The fixture used by the concurrency test only resets the SQL
