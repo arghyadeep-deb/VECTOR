@@ -39,11 +39,24 @@ def _is_production() -> bool:
     return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
 
 
-_FEDERATION_SECRET = os.environ.get("VECTOR_FEDERATION_SECRET", "").strip()
-if not _FEDERATION_SECRET:
-    if _is_production():
-        raise RuntimeError("VECTOR_FEDERATION_SECRET is required in production")
-    _FEDERATION_SECRET = secrets.token_urlsafe(32)
+# Resolved lazily so the module imports cleanly on nodes that never federate
+# (production boxes without VECTOR_FEDERATION_SECRET must still be able to
+# import the governance district — only actual sign/verify calls may raise).
+_FEDERATION_SECRET: str | None = None
+
+
+def _get_federation_secret() -> str:
+    global _FEDERATION_SECRET
+    if _FEDERATION_SECRET is None:
+        secret = os.environ.get("VECTOR_FEDERATION_SECRET", "").strip()
+        if not secret:
+            if _is_production():
+                raise RuntimeError("VECTOR_FEDERATION_SECRET is required in production")
+            secret = secrets.token_urlsafe(32)
+        _FEDERATION_SECRET = secret
+    return _FEDERATION_SECRET
+
+
 _REPLAY_WINDOW_SECS = 30  # reject requests older than 30s
 
 
@@ -53,7 +66,7 @@ def _sign_task(task: dict) -> dict:
     nonce = str(uuid.uuid4())
     payload = json.dumps(task, sort_keys=True, separators=(",", ":"))
     data = f"{timestamp}:{nonce}:{payload}"
-    sig = hmac.new(_FEDERATION_SECRET.encode(), data.encode(), hashlib.sha256).hexdigest()
+    sig = hmac.new(_get_federation_secret().encode(), data.encode(), hashlib.sha256).hexdigest()
     return {
         "task": task,
         "timestamp": timestamp,
@@ -76,7 +89,7 @@ def _verify_signed_task(signed: dict) -> bool:
             return False
         payload = json.dumps(task, sort_keys=True, separators=(",", ":"))
         data = f"{timestamp}:{nonce}:{payload}"
-        expected = hmac.new(_FEDERATION_SECRET.encode(), data.encode(), hashlib.sha256).hexdigest()
+        expected = hmac.new(_get_federation_secret().encode(), data.encode(), hashlib.sha256).hexdigest()
         return hmac.compare_digest(sig, expected)
     except Exception as e:
         logger.warning("[VECTOR][federation] verify failed: {}", e)

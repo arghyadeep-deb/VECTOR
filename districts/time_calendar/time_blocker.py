@@ -150,7 +150,21 @@ class TimeBlocker(AgentBase):
     async def run(self, task: dict) -> dict:
         ctx = self.get_time_context()
         snapshot = self.get_queue_snapshot()
-        return {"status": "ok", "time_context": ctx, "queue": snapshot}
+        # 2026-07-22: real data was always computed here (ctx, snapshot) but
+        # never surfaced as narrative text — "time_context"/"queue" aren't
+        # among the keys avatar/avatar_voice.py::_extract_text() checks, so
+        # this rendered as a bare "Task completed — status: ok." stub
+        # despite genuinely useful content being present (KNOWN_ISSUES.md
+        # #1 pattern). Added a `response` summary built from that same data.
+        if snapshot:
+            queue_line = f"{ctx['queued_count']} task(s) queued ({', '.join(f'{u}:{n}' for u, n in ctx['pending_by_urgency'].items())})."
+        else:
+            queue_line = "No tasks queued."
+        response = (
+            f"Current energy window: {ctx['current_window']} (hour {ctx['current_hour']}) — "
+            f"recommended action: {ctx['recommended_action']}. {queue_line}"
+        )
+        return {"status": "ok", "response": response, "time_context": ctx, "queue": snapshot}
 
 
 if __name__ == "__main__":

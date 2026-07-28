@@ -43,10 +43,11 @@ class CommunicationAnalyst(AgentBase):
         logger.info(f"[VECTOR][relationships] Analyzing communication style for: {contact_name}")
         self.add_lesson({"action": "analyze_communication_style", "contact": contact_name})
 
+        # KNOWN_ISSUES #21: don't close EpisodicMemory()'s shared singleton
+        # connection from a local instance — see skill_mapper.py's note.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         interactions = mem.recall(contact_name, limit=50)
-        mem.close()
 
         if not interactions:
             interactions = [{"content": f"Sample interaction with {contact_name} for baseline analysis", "event_type": "message"}]
@@ -100,10 +101,10 @@ Return JSON: {{style: string, formality_score: float, responsiveness: string, to
         logger.info(f"[VECTOR][relationships] Suggesting reconnection for: {contact_name}")
         self.add_lesson({"action": "suggest_reconnect", "contact": contact_name})
 
+        # KNOWN_ISSUES #21 — see analyze_communication_style() above.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         interactions = mem.recall(contact_name, limit=30)
-        mem.close()
 
         last_interaction = interactions[0] if interactions else None
         last_time = last_interaction.get("timestamp", "") if last_interaction else "Unknown"
@@ -140,10 +141,10 @@ Include: 1) Best reconnection method (call/message/email), 2) Opening line sugge
         logger.info(f"[VECTOR][relationships] Generating relationship insights for: {contact_name}")
         self.add_lesson({"action": "generate_relationship_insights", "contact": contact_name})
 
+        # KNOWN_ISSUES #21 — see analyze_communication_style() above.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         interactions = mem.recall(contact_name, limit=50)
-        mem.close()
 
         interaction_types = collections.Counter(i.get("event_type", "unknown") for i in interactions)
         content_keywords = collections.Counter()

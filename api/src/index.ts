@@ -41,9 +41,18 @@ export default {
     const authError = verifyAuth(request, env);
     if (authError) return authError;
 
-    // Rate limiting (10 req/min per IP)
+    // Rate limiting. The node poll paths (/heartbeat, /nodes/*/poll) are the
+    // authenticated machine-to-machine hot path — the laptop heartbeats every
+    // ~3s (~20 req/min), which a 10/min bucket 429'd half the time and the
+    // client swallowed silently. They get their own generous bucket; every
+    // other route keeps the strict human-scale limit.
     const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
-    const limited = await checkRateLimit(env.RATE_LIMIT_KV, ip, 10, 60);
+    const isNodePoll =
+      url.pathname === "/heartbeat" ||
+      (url.pathname.startsWith("/nodes/") && url.pathname.endsWith("/poll"));
+    const limited = isNodePoll
+      ? await checkRateLimit(env.RATE_LIMIT_KV, `poll:${ip}`, 60, 60)
+      : await checkRateLimit(env.RATE_LIMIT_KV, ip, 10, 60);
     if (limited) {
       return new Response(JSON.stringify({ error: "rate limited" }), {
         status: 429,

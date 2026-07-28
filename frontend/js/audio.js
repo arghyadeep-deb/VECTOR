@@ -89,19 +89,68 @@
   }
 
   // ---- speech synthesis (word-synced envelope drives the orb) -----------
+  // JARVIS = calm, refined British MALE. Browser TTS can only use voices the
+  // device actually has installed, so we hunt hardest for a UK male, then any
+  // English male, and explicitly REFUSE to fall back onto a female voice.
   let voice=null;
+  const _MALE   = /\b(daniel|arthur|oliver|george|james|thomas|guy|ryan|brian|rishi|male)\b/i;
+  const _FEMALE = /female|zira|hazel|susan|linda|catherine|serena|karen|moira|tessa|samantha|fiona|amelie|emma|libby|sonia/i;
   function pickVoice(){
-    const vs=speechSynthesis.getVoices();
-    voice = vs.find(v=>/daniel|google uk english male|arthur/i.test(v.name))
-         || vs.find(v=>/en-GB/i.test(v.lang)) || vs.find(v=>/en/i.test(v.lang)) || vs[0];
+    const vs=(speechSynthesis.getVoices()||[]);
+    if(!vs.length) return;                        // voices not ready yet — retried below
+    const gb=vs.filter(v=>/en[-_]GB/i.test(v.lang));
+    const en=vs.filter(v=>/^en/i.test(v.lang));
+    voice = gb.find(v=>_MALE.test(v.name) && !_FEMALE.test(v.name))   // UK male (best JARVIS)
+         || en.find(v=>_MALE.test(v.name) && !_FEMALE.test(v.name))   // any English male
+         || gb.find(v=>!_FEMALE.test(v.name))                         // UK, not obviously female
+         || en.find(v=>!_FEMALE.test(v.name))                         // English, not obviously female
+         || gb[0] || en[0] || vs[0];
   }
-  if('speechSynthesis' in global){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+  if('speechSynthesis' in global){
+    pickVoice(); speechSynthesis.onvoiceschanged=pickVoice;
+    setTimeout(pickVoice,500); setTimeout(pickVoice,1500);  // Android populates getVoices() late
+  }
 
+  // Preferred: VECTOR's real Kokoro voice (bm_george) fetched from the
+  // backend. Browser speechSynthesis is the robotic voice the owner banned
+  // (2026-07-15) — kept only as an emergency fallback when offline.
+  let _kokoroEl=null;
   function speak(text){
-    if(!('speechSynthesis' in global) || !enabled) return;
+    if(!enabled || !text) return;
+    _speakKokoro(text).catch(()=>{ _speakBrowser(text); });
+  }
+  async function _speakKokoro(text){
+    // Auth must match VECTOR.http(): Bearer + X-CSRF-Token on non-GET, else the
+    // server answers 403 and we silently fall back to the ROBOTIC browser voice
+    // (2026-07-17 browser dogfood caught exactly that). We can't reuse
+    // VECTOR.http() itself because it does res.json() and we need an audio blob.
+    const cfg=(global.VECTOR && global.VECTOR.config) || {};
+    const base=cfg.base || (global.VECTOR_CONFIG&&global.VECTOR_CONFIG.base) || '';
+    if(!base) throw new Error('offline');
+    const headers={'Content-Type':'application/json'};
+    if(cfg.apiKey) headers['Authorization']='Bearer '+cfg.apiKey;
+    if(cfg.csrf)   headers['X-CSRF-Token']=cfg.csrf;
+    const r=await fetch(base+'/voice/tts',{method:'POST', credentials:'same-origin',
+      headers, body:JSON.stringify({text})});
+    if(!r.ok) throw new Error('tts '+r.status);
+    const blob=await r.blob();
+    if(!blob || blob.size<800) throw new Error('empty wav');
+    try{ speechSynthesis.cancel(); }catch(e){}
+    if(_kokoroEl){ try{_kokoroEl.pause();}catch(e){} }
+    const url=URL.createObjectURL(blob);
+    const a=new Audio(url); _kokoroEl=a;
+    let pulse=null;
+    const done=()=>{ if(pulse) clearInterval(pulse); speakEnv=0; URL.revokeObjectURL(url); };
+    a.onplay=()=>{ speakEnv=.5; pulse=setInterval(()=>{ speakEnv=Math.min(1,.55+Math.random()*.45); },160); };
+    a.onended=done; a.onerror=done;
+    await a.play();
+  }
+  function _speakBrowser(text){
+    if(!('speechSynthesis' in global)) return;
+    if(!voice) pickVoice();                       // never speak with the null system default
     try{ speechSynthesis.cancel(); }catch(e){}
     const u=new SpeechSynthesisUtterance(text);
-    if(voice) u.voice=voice; u.rate=1.02; u.pitch=.92; u.volume=1;
+    if(voice) u.voice=voice; u.rate=.97; u.pitch=.85; u.volume=1;   // deeper + measured = JARVIS
     // envelope: ramp up on speech, pulse per word boundary
     u.onstart=()=>{ speakEnv=.5; };
     u.onboundary=()=>{ speakEnv=Math.min(1,.55+Math.random()*.45); };
@@ -193,7 +242,7 @@
   global.VectorAudio = {
     level:()=>level,
     speak, blip, startMic,
-    setEnabled(v){ enabled=v; if(!v){ humLevel(0); try{speechSynthesis.cancel();}catch(e){} } },
+    setEnabled(v){ enabled=v; if(!v){ humLevel(0); try{speechSynthesis.cancel();}catch(e){} if(_kokoroEl){ try{_kokoroEl.pause();}catch(e){} } } },
     get enabled(){ return enabled; }
   };
 })(window);

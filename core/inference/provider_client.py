@@ -122,7 +122,22 @@ class ProviderClient:
       3. Default: Ollama
     """
 
-    def __init__(self, timeout: int = 120) -> None:
+    def __init__(self, timeout: int = 60) -> None:
+        # 2026-07-23 (JARVIS-parity latency pass): was 120s. That's the
+        # per-HTTP-attempt ceiling for EVERY provider in a fallback chain —
+        # a single slow-but-not-erroring provider (no exception, just a
+        # genuine hang) could eat up to 120s before its own retry/backoff
+        # even kicks in, and callers with no outer asyncio.wait_for of their
+        # own (e.g. governor.py's _answer_conversationally(), fixed
+        # separately this pass) had nothing bounding the total. 60s is still
+        # generous for a real cold-model load (the documented worst case
+        # elsewhere in this codebase is "90+ seconds" for a cold Ollama
+        # swap, but Ollama is deliberately last in every fallback chain —
+        # by the time a call reaches it, cloud options ahead of it in the
+        # chain have already been tried) while capping the worst-case
+        # single-attempt wait for the free-tier cloud providers that make up
+        # the front of most chains, where a healthy response is normally
+        # single-digit seconds.
         self._timeout = timeout
 
     async def complete(
@@ -325,6 +340,24 @@ class ProviderClient:
         except ImportError:
             _pairs = [(prov, _model_for_provider(prov, model, tier)) for prov in providers_to_try]
 
+        # Cooldown rotation — a provider that just 429'd is marked via
+        # mark_cooldown(), but that was ONLY honoured for logical-model routing
+        # (get_backends filters it). Every tier-based call (tier="fast" — i.e.
+        # voice + command bar) rebuilt its list straight from providers_to_try
+        # and retried the cooled provider immediately: cohere-rag 429'd at
+        # 02:12:17, :21 AND :33, burning ~2s per call each time (2026-07-17).
+        # Deprioritize rather than drop, so a fully-cooled chain still runs.
+        try:
+            from core.inference.model_pool import _is_cooling_down
+            _hot = [p for p in _pairs if not _is_cooling_down(getattr(p[0], "slug", ""))]
+            _cold = [p for p in _pairs if _is_cooling_down(getattr(p[0], "slug", ""))]
+            if _cold and _hot:
+                logger.debug("[VECTOR][provider_client] cooling down, moved last: {}",
+                             [getattr(p[0], "slug", "?") for p in _cold])
+                _pairs = _hot + _cold
+        except Exception as _ce:
+            logger.debug("[VECTOR][provider_client] cooldown check unavailable: {}", _ce)
+
         # Soft quota rotation — pairs past ~90% of their free-tier limits move
         # after fresh cloud pairs (ollama stays terminal). Never drops/blocks.
         try:
@@ -463,6 +496,39 @@ class ProviderClient:
                 )
                 if key and is_key_err:
                     pool.mark_failed(key)  # bench this key; next attempt rotates to another
+
+                # Rate-limit/quota fast-failover: backing off on a dead key just
+                # burns wall-clock time — neither a rate window nor an unpaid
+                # balance (402) refills in seconds.
+                is_rl = (
+                    "429" in err
+                    or "402" in err
+                    or "rate limit" in low
+                    or "insufficient balance" in low
+                    or "too many requests" in low
+                    or (use_reliable and is_rate_limited(err))
+                )
+                if is_rl:
+                    pool_size = getattr(pool, "size", 1)
+                    if pool_size <= 1:
+                        # No spare key to rotate to -- hand off to the outer chat()
+                        # loop immediately so it can fail over to the next provider,
+                        # instead of sleeping through a multi-attempt backoff first.
+                        logger.warning(
+                            "[VECTOR][provider_client] {} rate-limited, no spare key -- failing over immediately",
+                            prov.slug,
+                        )
+                        raise
+                    if attempt == max_retries - 1:
+                        raise
+                    # Multi-key pool: rotate to a fresh key with ~0 wait instead of backoff.
+                    logger.debug(
+                        "[VECTOR][provider_client] {} rate-limited -- rotating key (attempt {}/{})",
+                        prov.slug, attempt + 1, max_retries,
+                    )
+                    await asyncio.sleep(0.05)
+                    continue
+
                 # auth error on a multi-key pool → try the next key instead of bailing
                 if use_reliable and is_non_retryable(err) and not (is_key_err and pool.size > 1):
                     raise
@@ -473,8 +539,6 @@ class ProviderClient:
                     retry_after = parse_retry_after_ms(err)
                     if retry_after:
                         wait = retry_after / 1000
-                    elif is_rate_limited(err):
-                        wait = backoff * 2
                 logger.warning(
                     "[VECTOR][provider_client] attempt {}/{} failed -- retrying in {:.1f}s",
                     attempt + 1, max_retries, wait,

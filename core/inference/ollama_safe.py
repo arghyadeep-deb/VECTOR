@@ -37,6 +37,18 @@ from core.config import CONFIG
 from core.resilience.circuit_breaker import CircuitBreakerOpenError
 from core.breaker_registry import get_registry
 
+# LangSmith tracing (2026-07-21, VECTOR eval work) — traceable() is a documented
+# no-op when LANGCHAIN_TRACING_V2 isn't set, so this is safe to leave on
+# permanently; falls back to an identity decorator if langsmith isn't
+# importable for any reason so chat() never breaks because of tracing.
+try:
+    from langsmith import traceable
+except Exception:
+    def traceable(*_dargs, **_dkwargs):
+        def _identity(fn):
+            return fn
+        return _identity
+
 # â”€â”€ AirLLM fallback path (large 70B+ models only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _airllm_env = os.environ.get("AIRLLM_REPO_PATH", "")
 _AIRLLM_REPO = Path(_airllm_env) if _airllm_env else None
@@ -152,6 +164,7 @@ def _inject_personality(messages: list[dict]) -> list[dict]:
         return messages
 
 
+@traceable(name="ollama_chat", run_type="llm")
 def chat(
     model: str,
     messages: list[dict],

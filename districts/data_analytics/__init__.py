@@ -112,10 +112,12 @@ Provide: 1) Data type identification, 2) Column descriptions, 3) Data quality as
         logger.info("[VECTOR][data_analytics] Generating dashboard metrics")
         self.add_lesson({"action": "generate_dashboard_metrics"})
 
+        # KNOWN_ISSUES #21: EpisodicMemory() wraps a process-wide singleton
+        # connection; closing a local instance closes it for every other
+        # consumer too. See districts/skills/skill_mapper.py for the full note.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         stats = mem.get_stats()
-        mem.close()
 
         prompt = f"""Generate dashboard metrics from these data points:
 Memory stats: {json.dumps(stats, indent=2)}

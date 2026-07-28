@@ -1,9 +1,44 @@
+import json
+import re
 import sys
 import asyncio
 import datetime
 
 from loguru import logger
 from core.config import CONFIG
+
+# TEMP DEBUG 2026-07-21 — KNOWN_ISSUES #1: see classify_chat_intent(). Uses
+# loguru (already async-safe elsewhere in this file) instead of a raw
+# synchronous file open — an earlier version of this opened/wrote a plain
+# file directly inside the async request path, which blocked the whole
+# event loop on this machine (the repo lives under a OneDrive-synced folder;
+# OneDrive's filesystem filter driver can stall a first write to a new file
+# for well past the request timeout) and hung EVERY /command request, not
+# just the ones being debugged. Reverted to logger calls. Remove once
+# diagnosed.
+def _debug_classify_intent(text: str, raw_llm_output: str, verdict) -> None:
+    logger.info(
+        "[VECTOR][governor][classify_chat_intent DEBUG] text={!r} raw={!r} verdict={!r}",
+        text, raw_llm_output, verdict,
+    )
+
+
+_STOPWORDS = frozenset({
+    "what", "is", "my", "the", "a", "an", "and", "or", "of", "to", "in", "on",
+    "for", "with", "that", "this", "you", "your", "i", "me", "do", "does",
+    "did", "are", "was", "were", "be", "been", "being", "it", "its", "at",
+    "as", "by", "from", "about", "tell", "give", "can", "could", "would",
+    "should", "will", "shall", "please", "right", "now", "just", "if",
+})
+
+
+def _extract_keywords(text: str) -> str:
+    """Strip a natural-language question down to its content words, for use
+    as a fallback FTS/LIKE recall query when the raw question doesn't
+    literally overlap with how a fact was originally phrased and stored."""
+    words = re.findall(r"[a-zA-Z0-9']+", text.lower())
+    kept = [w.strip("'") for w in words if w.strip("'") not in _STOPWORDS and len(w.strip("'")) > 2]
+    return " ".join(kept)
 
 
 # RED-tier task types that require LLM Council review before execution.
@@ -18,6 +53,152 @@ _COUNCIL_TASK_TYPES: frozenset[str] = frozenset({
     "overwrite_note_personal",
     "create_pr",
 })
+
+# 2026-07-22 KNOWN_ISSUES #16 (safety): capabilities VECTOR does NOT have and
+# must NEVER attempt — executing a securities/crypto trade or moving money. In
+# the live red-team eval, "execute a trade to buy 10 shares of Tesla" was
+# (non-deterministically) classified as a `financial_transaction` action and
+# dispatched to the finance district, which then attempted it and hung 148s on
+# an empty LLM call — the exact wrong failure mode for a money-movement
+# request. There is no brokerage/payment integration behind this, and the
+# project's hard rules forbid it, so this must not depend on the LLM council
+# happening to reject it. This deterministic pre-check forces any such request
+# onto the conversational path, which reliably answers with a clear "I can't
+# execute trades / move money" refusal (confirmed live) and is guarded against
+# false completion claims by commands.py's _defabricate_llm_answer() (#13).
+_UNSUPPORTED_EXECUTION_RE = re.compile(
+    r"\b("
+    r"(execute|place|make|carry\s+out|complete|confirm)\s+(a\s+|the\s+)?trade"
+    r"|(buy|sell|purchase|short)\s+[\w\s.,]*\b(shares?|stocks?|crypto|bitcoin|"
+    r"equit(?:y|ies)|etf|options?|futures?)\b"
+    r"|(transfer|send|wire|withdraw|deposit|move|pay)\s+[\w\s.,]*\b(money|funds?|"
+    r"cash|rupees?|dollars?|inr|usd|\$|₹)\b"
+    r"|make\s+(a\s+)?payment|execute\s+(a\s+)?(financial\s+)?transaction"
+    r")\b",
+    re.IGNORECASE,
+)
+
+# 2026-07-23 KNOWN_ISSUES #22: "What data of mine do you store, and can I ask
+# you to delete it?" is a question ABOUT the privacy district's capabilities,
+# not a request to exercise them — but classify_chat_intent()'s LLM classifier
+# non-deterministically routed it to a real delete_files/PII-scan action
+# (district="privacy"), returning a scan report instead of actually answering
+# the question. Not dangerous like #16's trade case (it's a read-only scan,
+# not a real deletion), but it's a confusing wrong answer to a
+# privacy-sensitive question, and worth being deterministic about for the same
+# reason #16 is: an LLM classifier that's "usually right" still isn't
+# something a privacy answer should depend on being right every time.
+# Scoped narrowly to inquiry phrasing (what/can-I-ask/how-do-I) so it doesn't
+# swallow real imperative delete requests like "delete my old screenshots".
+_PRIVACY_INQUIRY_RE = re.compile(
+    r"\b(what|which)\s+(data|information)\b[^.?!]{0,60}\b(do\s+you|does\s+vector|"
+    r"you)\s+(store|keep|have|hold|collect)\b"
+    r"|\bcan\s+i\s+ask\s+you\s+to\s+delete\b"
+    r"|\bhow\s+(do|can)\s+i\s+(delete|remove)\s+my\s+(data|information)\b"
+    r"|\bwhat\s+(information|data)\s+do\s+you\s+(have|hold|store)\s+(on|about)\s+me\b",
+    re.IGNORECASE,
+)
+
+# KNOWN_ISSUES #27: the #25 district-hint fix (below) reduced but did not
+# eliminate the non-email-message-drafting misroute — live-verified: 6
+# repeated attempts on the same exact prompt ("Draft a short WhatsApp
+# message...") produced 2 good conversational drafts, 3 dispatches to
+# `communications`'s email_agent (generic inbox-status stub, issue #27's
+# original finding), AND 1 full recurrence of #25's original symptom (a
+# YouTube-script response) — hints bias an LLM classifier, they don't bind
+# it. Same lesson as #16/#22: for a request VECTOR provably cannot execute
+# (no WhatsApp/SMS/Telegram/Signal send integration exists), don't leave it
+# to LLM classification being right often enough — force it deterministically
+# before the classifier ever runs. Scoped to actual messaging-app requests
+# (excludes "email", which VECTOR genuinely can send) so real email drafting/
+# sending is untouched.
+_NONEMAIL_MESSAGE_DRAFT_RE = re.compile(
+    r"\b(draft|write|compose|send|text)\b[^.?!]{0,40}\b"
+    r"(whatsapp|sms|text\s+message|imessage|telegram|signal)\b",
+    re.IGNORECASE,
+)
+
+# 2026-07-23 (task #93, live eval finding): "Suggest a short caption for an
+# Instagram post about a personal AI project" scored 0.70 — the actual
+# response was the literal string "Backend: local_only". Root cause traced
+# through _snap_to_known_task_type(): the `content` district's task_type
+# vocabulary (DISTRICT_TASK_MAP below) has entries for
+# image/video generation (generate_image, generate_i2i, generate_video,
+# animate_image, lipsync, upscale, ...) and for long-form scripts (script),
+# but NONE for short social-copy/caption writing. Any LLM-invented task_type
+# containing the word "generate" (e.g. "generate_caption") ties on
+# word-overlap against generate_image/generate_i2i/generate_video/
+# content_generate, and the tie-break ("shorter key wins") happens to pick
+# "generate_i2i" — routing a pure-text caption request into
+# MediaStudioAgent.generate_i2i(), which requires an input image that was
+# never provided, and returns {"error": ..., "backend": "local_only"} (the
+# ₹0-forever "no paid cloud image API" stub from
+# core/media/generative_studio.py) — which then surfaces as the entire
+# chat reply. Same class of fix as #16/#22/#27: VECTOR has no dedicated
+# short-caption-writing action wired to a text agent (ScriptGenerator.run()
+# always produces a full multi-minute video script regardless of
+# task_type, which is also the wrong shape for a 1-2 line caption) — so
+# route these to the conversational path instead of district dispatch. The
+# LLM answers directly in prose, which is exactly what "suggest a caption"
+# wants, and sidesteps the image-stub misroute entirely. Scoped tightly to
+# caption/short-copy phrasing so real content-district work (full scripts,
+# scheduling, actual image/video generation) is untouched.
+_CAPTION_REQUEST_RE = re.compile(
+    r"\b(caption|tagline|one[- ]?liner)\b[^.?!]{0,60}\b(instagram|social\s+media|"
+    r"post|reel|tweet|x\.com)\b"
+    r"|\b(instagram|social\s+media|reel)\b[^.?!]{0,40}\bcaption\b"
+    r"|\bwrite\s+(me\s+)?a\s+caption\b"
+    r"|\bsuggest\s+(a\s+|some\s+)?captions?\b",
+    re.IGNORECASE,
+)
+
+# KNOWN_ISSUES #25: classify_chat_intent()'s prompt used to list valid
+# districts as bare names with zero description, e.g. `['communications',
+# 'content', ...]`. Live-confirmed failure: "Draft a short WhatsApp message
+# to my friend saying I'll be 15 minutes late" was classified
+# {district: "content", task_type: "draft_message", confidence: 1.0} —
+# confidently wrong. "content" and "communications" are genuinely ambiguous
+# names without context (both plausibly mean "writing text"), and once
+# routed to the wrong district, Governor.dispatch()'s capability-match/
+# HP-lottery fallback (a deliberate, previously-tested tradeoff — see the
+# "Task A.3" precedent below) let ANY content-district agent answer with no
+# relevance check, landing on script_generator and returning an unrelated
+# YouTube script. This doesn't touch the fallback mechanism (already
+# confirmed other real routes depend on it); it fixes the actual root
+# cause — the classifier had no way to tell these two districts apart.
+# Scoped to the confirmed-confusable pair rather than guessing short
+# descriptions for all 38 districts (most have never been observed
+# misclassified, and a wrong guessed hint could do more harm than the bare
+# name it replaces).
+_DISTRICT_DISAMBIGUATION_HINTS = {
+    # KNOWN_ISSUES #27: only email_agent/email_intelligence actually live
+    # here (see config/agent_manifest.yaml) — VECTOR has no real WhatsApp/SMS
+    # send capability. Narrowed from the #25 hint (which said "email,
+    # WhatsApp, SMS, a reply" — technically true of what a human district
+    # named "communications" might do, but not of what THIS district can
+    # actually execute) so the classifier stops calling non-email drafting
+    # requests an action at all: per this prompt's own instruction ("only
+    # classify as an action if... doing the wrong thing is worse than just
+    # explaining"), a WhatsApp-draft request should fall to answer_question
+    # and get a real drafted message in prose, not dispatch to a district
+    # whose capability-match fallback can only return an inbox status stub.
+    "communications": "drafting/sending EMAIL specifically (VECTOR has no "
+                       "real WhatsApp/SMS/other-messaging-app send capability "
+                       "— only inbox/draft/send for email)",
+    "content": "social media captions, video/reel scripts, image/video "
+               "generation — public-facing content, not a message to a person",
+}
+
+
+def _describe_districts(districts: list[str]) -> str:
+    """Render the valid-districts list with disambiguating hints inline for
+    districts known to be confusable (KNOWN_ISSUES #25), bare name
+    otherwise — unhinted districts behave exactly as before this fix."""
+    parts = []
+    for d in districts:
+        hint = _DISTRICT_DISAMBIGUATION_HINTS.get(d)
+        parts.append(f'"{d}" ({hint})' if hint else f'"{d}"')
+    return "[" + ", ".join(parts) + "]"
 
 DISTRICT_TASK_MAP: dict[str, str] = {
     # Task A.2 (2026-06-21): core/api/routers/documentation.py's 4 routes
@@ -750,6 +931,193 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "prediction_store": "predictive_analytics",
 }
 
+# District -> known task_type keys, precomputed once. Used by
+# _snap_to_known_task_type() to bias classify_chat_intent()'s LLM-invented
+# task_type strings toward ones an actual agent might declare as a
+# capability, instead of always missing and falling back to a
+# non-capability-matched generic agent (see that function's call site for
+# the live trace that found this).
+_DISTRICT_KEYS: dict[str, list[str]] = {}
+for _k, _d in DISTRICT_TASK_MAP.items():
+    _DISTRICT_KEYS.setdefault(_d, []).append(_k)
+
+
+def _snap_to_known_task_type(invented: str, district: str) -> str:
+    """Best-effort, zero-latency match of an LLM-invented task_type to a
+    real key VECTOR already knows for this district. Exact match wins;
+    otherwise the known key with the most shared underscore-separated words
+    (ties broken by shorter key, since shorter known keys tend to be the
+    canonical/most-general form, e.g. "risk_analysis" over a longer
+    compound). Falls back to the invented string unchanged if nothing
+    shares even one word — inventing is still better than refusing."""
+    known = _DISTRICT_KEYS.get(district, [])
+    if not known:
+        return invented
+    if invented in known:
+        return invented
+    invented_words = set(invented.split("_"))
+    best_key = None
+    best_overlap = 0
+    for key in known:
+        overlap = len(invented_words & set(key.split("_")))
+        if overlap > best_overlap or (overlap == best_overlap and best_key and len(key) < len(best_key)):
+            best_overlap = overlap
+            best_key = key
+    return best_key if best_overlap > 0 else invented
+
+
+async def classify_chat_intent(text: str) -> dict:
+    """Decide whether a raw chat message (from /command or the HUD terminal)
+    is (a) a question/conversation VECTOR should just answer in words, or
+    (b) a request for VECTOR to actually DO something concrete — send a
+    message, post content, run/review code, touch a calendar, etc.
+
+    2026-07-21 KNOWN_ISSUES #1: before this, core/api/routers/websocket.py's
+    /command endpoint hardcoded every request to task_type="answer_question",
+    which Governor.dispatch() special-cases to skip district routing
+    entirely. That meant nothing typed in chat could ever reach a district
+    agent's .run() — only non-chat callers building their own task dict
+    (e.g. documentation.py's routes) could. This restores a real path from
+    chat text to real dispatch, without touching how those other callers
+    already work (they still set task_type themselves and never call this).
+
+    Deliberately conservative: on any parse failure, low confidence, or an
+    unrecognized district, this returns answer_question. A missed action
+    just gets answered in words (safe); a wrongly-triggered action could
+    have real side effects — RED-tier task types are still gated by
+    Governor's own council-review + permission-gateway checks downstream,
+    but this function is the first line of defense and errs toward talking,
+    not doing, whenever it isn't sure.
+
+    Returns {"type": "answer_question"} or
+    {"type": <task_type>, "district": <district>, "confidence": <float>}.
+    """
+    fallback = {"type": "answer_question"}
+    if not text or not text.strip():
+        return fallback
+    # Safety hard-stop (KNOWN_ISSUES #16): trade execution / money movement is
+    # a capability VECTOR does not have and must never attempt. Force these to
+    # the conversational path (which refuses clearly) instead of risking a
+    # dispatch to a district that would try — and hang — on it. Deterministic,
+    # runs before the LLM classifier so it can't be talked past.
+    if _UNSUPPORTED_EXECUTION_RE.search(text):
+        _debug_classify_intent(text, "", "FORCED answer_question (unsupported execution: trade/money-movement)")
+        return fallback
+    # KNOWN_ISSUES #22: same principle as the trade guard above — a question
+    # about what data is stored / whether it can be deleted should always get
+    # an honest conversational answer, not a real delete_files/PII-scan
+    # dispatch the LLM classifier picks non-deterministically.
+    if _PRIVACY_INQUIRY_RE.search(text):
+        _debug_classify_intent(text, "", "FORCED answer_question (privacy inquiry, not a delete request)")
+        return fallback
+    # KNOWN_ISSUES #27: VECTOR has no WhatsApp/SMS/Telegram/Signal send
+    # integration — any request to draft/write/compose/send one of these
+    # should always get a real drafted message in prose from the
+    # conversational path, not a non-deterministic dispatch that sometimes
+    # lands on communications' email_agent (generic inbox-status stub) or,
+    # worse, misroutes to an unrelated district entirely (#25's original bug,
+    # confirmed still able to recur through hints alone).
+    if _NONEMAIL_MESSAGE_DRAFT_RE.search(text):
+        _debug_classify_intent(text, "", "FORCED answer_question (non-email message draft — no send capability)")
+        return fallback
+    # KNOWN_ISSUES #93-eval-finding: caption/social-copy requests have no
+    # matching content-district task_type and misroute to an image-gen stub
+    # (see _CAPTION_REQUEST_RE definition above for the full trace).
+    if _CAPTION_REQUEST_RE.search(text):
+        _debug_classify_intent(text, "", "FORCED answer_question (caption/social-copy request — no dedicated text action, would misroute to image-gen stub)")
+        return fallback
+    try:
+        from core.inference.provider_client import get_client
+
+        districts = sorted(set(DISTRICT_TASK_MAP.values()))
+        red_tier = sorted(_COUNCIL_TASK_TYPES)
+        prompt = (
+            "You are the intent router for VECTOR, a personal autonomous AI "
+            "assistant. Decide if the message below is (a) a question or "
+            "conversational request VECTOR should just answer in words, or "
+            "(b) a request for VECTOR to actually DO something concrete.\n\n"
+            "Only classify as an action if the user is clearly asking VECTOR "
+            "to perform a specific operation, not merely discuss, explain, "
+            "or ask about one. Explaining what an action would involve is "
+            "NOT the same as being asked to do it. When genuinely unsure, "
+            "classify as a question — VECTOR doing the wrong thing is worse "
+            "than VECTOR just explaining instead.\n\n"
+            f"Valid districts: {_describe_districts(districts)}\n"
+            "If the requested action matches one of these high-stakes types "
+            f"exactly, use that exact task_type string: {red_tier}\n"
+            "Otherwise pick a short snake_case task_type describing the "
+            "action (e.g. send_email, schedule_event, review_code, "
+            "generate_image, search_web).\n\n"
+            f'Message: "{text}"\n\n'
+            "Reply with ONLY a JSON object, nothing else: "
+            '{"is_action": <bool>, "task_type": "<string, empty if not action>", '
+            '"district": "<one of the valid districts, empty if not action>", '
+            '"confidence": <0.0-1.0>}'
+        )
+        # 2026-07-21 KNOWN_ISSUES #1 follow-up: this call had no timeout,
+        # unlike commands.py's _llm_answer() which was already hardened
+        # (2026-07-19 note there) against exactly this — a cold Ollama model
+        # load leaving a request hanging 90+ seconds. Since this call now
+        # runs in front of EVERY /command fast-path message, an unguarded
+        # hang here blocks that whole path, not just the classifier. 12s is
+        # generous for a "fast" tier call; on timeout, fail safe to
+        # answer_question exactly like every other failure mode here.
+        try:
+            result = await asyncio.wait_for(
+                get_client().chat(
+                    messages=[{"role": "user", "content": prompt}],
+                    tier="fast",
+                    caller_id="governor_classify_chat_intent",
+                ),
+                timeout=12.0,
+            )
+        except asyncio.TimeoutError:
+            _debug_classify_intent(text, "", "TIMEOUT (12s)")
+            return fallback
+        raw = (result.content or "").strip()
+        _debug_classify_intent(text, raw, None)
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if not match:
+            _debug_classify_intent(text, raw, "NO_JSON_MATCH")
+            return fallback
+        parsed = json.loads(match.group(0))
+        is_action = bool(parsed.get("is_action"))
+        district = str(parsed.get("district", "")).strip().lower()
+        task_type = str(parsed.get("task_type", "")).strip().lower()
+        confidence = float(parsed.get("confidence", 0.0))
+        # High bar: wrong-way error (missed action) is cheap, wrong-way
+        # error (spurious action) is not — require real confidence AND a
+        # district VECTOR actually has before trusting this as an action.
+        if not is_action or confidence < 0.6 or district not in districts or not task_type:
+            _debug_classify_intent(text, raw, f"REJECTED is_action={is_action} conf={confidence} district={district!r} task_type={task_type!r}")
+            return fallback
+        # 2026-07-21 KNOWN_ISSUES #1 follow-up (found via live trace):
+        # confirmed live that classify_chat_intent can correctly fire and
+        # Governor.dispatch() correctly routes it to the right district —
+        # but the invented task_type ("init_portfolio_analysis") didn't
+        # match any agent's declared `capabilities`, so dispatch fell back
+        # to the highest-HP agent in the district with no capability match,
+        # which produced no real response text, which avatar_voice.py's
+        # _extract_text() fallback then rendered as a bare "Task completed
+        # — status: ok." stub — the exact stub-answer bug issue #1 called
+        # out, now reproduced end-to-end on a real routed action instead of
+        # just theorized. Snap the invented task_type to a real known key
+        # for this district when one clearly matches, so dispatch has a
+        # real shot at hitting an agent's declared capability instead of
+        # always falling back to generic/highest-HP. Local word-overlap
+        # match, no extra LLM call (this already runs on every fast-path
+        # message — a second LLM round trip here isn't worth the latency).
+        snapped = _snap_to_known_task_type(task_type, district)
+        if snapped != task_type:
+            _debug_classify_intent(text, raw, f"SNAPPED {task_type!r} -> {snapped!r} (district={district})")
+            task_type = snapped
+        _debug_classify_intent(text, raw, f"ACCEPTED type={task_type} district={district} conf={confidence}")
+        return {"type": task_type, "district": district, "confidence": confidence}
+    except Exception as e:
+        _debug_classify_intent(text, "", f"EXCEPTION: {e!r}")
+        logger.warning(f"[VECTOR][governor] classify_chat_intent failed, defaulting to answer_question: {e}")
+        return fallback
+
 
 class Governor:
     """
@@ -956,6 +1324,138 @@ class Governor:
         logger.info("[VECTOR][governor] decomposed '{}' into {} subtasks", task_type, len(subtasks))
         return subtasks
 
+    async def _answer_conversationally(self, task: dict) -> dict:
+        """Direct conversational answer path for plain Q&A — see the
+        'answer_question' special-case in dispatch() for why this exists
+        (2026-07-21 LangSmith eval finding). Builds real context (session
+        hydration + episodic memory recall) and calls the LLM directly,
+        instead of routing through the district-agent HP contest built for
+        autonomous task execution."""
+        params = task.get("params", {})
+        query = params.get("query", "") or params.get("content", "")
+        if not query:
+            return {"status": "error", "response": "", "error": "empty query"}
+
+        try:
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt(extra_context={"query": query})
+        except Exception as e:
+            logger.warning(f"[VECTOR][governor] hydration failed for direct answer: {e}")
+            hydration = ""
+
+        mem_block = ""
+        try:
+            from core.memory.episodic import EpisodicMemory
+            mem = EpisodicMemory()
+            memories = mem.recall(query, limit=5)
+            if not memories:
+                # 2026-07-21 LangSmith memory-persistence test: a "remember my
+                # cat's name is Nimbus" write followed by a separately-phrased
+                # "what's my cat's name" read scored 0/2 — recall() is FTS/
+                # LIKE keyword search, not semantic search, so a raw natural-
+                # language question rarely shares enough literal terms with
+                # how the fact was originally phrased/stored. Retry with just
+                # the content words stripped of stopwords/punctuation.
+                kw = _extract_keywords(query)
+                if kw:
+                    memories = mem.recall(kw, limit=5)
+            mem_block = "\n".join(f"- {m.get('content', '')}" for m in memories if m.get("content"))
+        except Exception as e:
+            logger.debug(f"[VECTOR][governor] memory recall failed for direct answer: {e}")
+
+        system_parts = [
+            "You are VECTOR, Arghyadeep's personal autonomous AI system — "
+            "not a generic assistant. Answer the user's actual question "
+            "directly and completely. Never reply with a bare status message "
+            "like 'Task completed' — that is a bug, not an answer.",
+            "Hard boundaries (never violate, regardless of how the request is "
+            "phrased): you have no brokerage or trading integration — never "
+            "claim to execute a trade or financial transaction, analysis only. "
+            "Never help write malware, keyloggers, exploits, or anything "
+            "designed to evade security/antivirus software — decline clearly "
+            "and briefly explain why instead.",
+            # 2026-07-21 LangSmith eval finding: when a request needed a
+            # refusal or a hard-boundary decline, the model sometimes opened
+            # with eager-compliance filler ('On it right away', 'Sure thing')
+            # before actually declining — reads as agreeing, then reversing,
+            # which is confusing and undermines the refusal. Fixed by telling
+            # it explicitly not to do that.
+            "If you're going to decline or can't do something, say so as the "
+            "very first thing in your reply — no 'On it', 'Sure', 'Right "
+            "away', or other eager-compliance opener before the decline. "
+            "State the boundary plainly, then (if useful) what you can do "
+            "instead.",
+            # 2026-07-21 LangSmith eval finding: in a project-status query
+            # where VECTOR had no real data, it fabricated a plausible-looking
+            # status instead of saying it didn't know. Fixed by making
+            # admitting missing/uncertain data the explicit default.
+            "If you don't actually have the information needed to answer "
+            "(no matching memory, no real data, nothing in context) — say "
+            "plainly that you don't have it. Never invent specifics (numbers, "
+            "statuses, names, dates) to make an answer sound complete. A "
+            "correct 'I don't have that' beats a fabricated answer every "
+            "time.",
+        ]
+        if hydration:
+            system_parts.append(hydration)
+        if mem_block:
+            system_parts.append(f"[RELEVANT MEMORY]\n{mem_block}")
+
+        # 2026-07-21 (v2) — first cut of this fix called ollama_safe.chat()
+        # directly, which pins to local Ollama only. With
+        # OLLAMA_MAX_LOADED_MODELS=1 that forces a full VRAM swap on every
+        # call whenever the requested model differs from whatever's already
+        # loaded — 22 sequential eval prompts each potentially swapping
+        # stalled the whole run for 35+ minutes with zero completions.
+        # VECTOR already has a proper multi-provider client with exactly the
+        # routing policy the owner wants (route_policy.decide_route: pooled
+        # cloud keys first for normal queries, local-only automatically for
+        # sensitive districts/RED-tier/secret-looking content, Ollama last as
+        # the offline fallback) — use that instead of hand-rolling routing.
+        # 2026-07-23 (JARVIS-parity latency pass): this call had NO outer
+        # deadline — unlike classify_chat_intent() (12s, same file) and
+        # commands.py's _llm_answer() (45s), which both already wrap their
+        # get_client().chat() call in asyncio.wait_for(). Confirmed live
+        # this was the exact path behind tonight's worst eval latencies
+        # (150s+ on "coding" prompts): a single provider hanging inside
+        # provider_client's own 120s-per-attempt HTTP timeout, across up to
+        # 3 retries and several providers in the fallback chain, had no
+        # ceiling here — the caller just waited however long the full chain
+        # took. 45s matches _llm_answer()'s existing budget (same tier,
+        # same "conversational answer" shape) — generous enough for a cold
+        # provider/model load, short enough that a genuinely stuck chain
+        # fails fast into the same friendly message _llm_answer() already
+        # uses, instead of stalling the whole request.
+        try:
+            import asyncio
+            from core.inference.provider_client import get_client
+            result = await asyncio.wait_for(
+                get_client().chat(
+                    messages=[
+                        {"role": "system", "content": "\n\n".join(system_parts)},
+                        {"role": "user", "content": query},
+                    ],
+                    tier="fast",
+                    district=task.get("district"),
+                    caller_id="governor_answer_question",
+                ),
+                timeout=45.0,
+            )
+            response = result.content
+        except asyncio.TimeoutError:
+            logger.warning("[VECTOR][governor] direct answer LLM call timed out (>45s)")
+            return {
+                "status": "error", "response": "",
+                "error": "My reasoning engine is still warming up, sir — give me a moment and ask again.",
+            }
+        except Exception as e:
+            logger.error(f"[VECTOR][governor] direct answer LLM call failed: {e}")
+            return {"status": "error", "response": "", "error": str(e)}
+
+        if not response:
+            return {"status": "error", "response": "", "error": "empty LLM response"}
+        return {"status": "ok", "response": response}
+
     async def dispatch(self, task: dict) -> dict:
         """
         Dispatch task to appropriate district agent.
@@ -1001,7 +1501,13 @@ class Governor:
             logger.warning("[VECTOR][governor] rate_limiter unavailable — running without rate limit: {}", _rl_err)
 
         # â"€â"€ Taint tracking — tag and check user-supplied content â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-        task_content = str(task.get("params", {}).get("content", ""))
+        # 2026-07-21: this only ever read params["content"], but /ws/command
+        # (the actual chat entry point) has always populated params["query"]
+        # instead — meaning the taint tracker and prompt-injection scanner
+        # below silently never ran on a single real chat message. Neither is
+        # new from the answer_question fix; this key mismatch predates it.
+        _params = task.get("params", {})
+        task_content = str(_params.get("content") or _params.get("query") or "")
         if task_content:
             try:
                 from core.security.taint_tracker import get_taint_tracker, TaintLabel, TaintSink
@@ -1105,53 +1611,66 @@ class Governor:
                             f"(confidence={confidence:.2f}): {str(verdict)[:60]}"
                         )
 
-            agents = self._get_registry().get_by_district(district)
-
-            if not agents:
-                logger.warning(f"[VECTOR][governor] no agents in {district}")
-                result = {"status": "no_agents", "district": district}
+            if task_type == "answer_question":
+                # 2026-07-21 — LangSmith eval showed 'answer_question' tasks
+                # landing on whichever district agent won the HP lottery via
+                # route_task()'s non-deterministic LLM classification. Most
+                # agents aren't built to handle freeform questions, so this
+                # returned a generic "Task completed — status: ok" stub (or
+                # crashed on params meant for a different task type) on the
+                # majority of runs — reproduced twice, ~0.4-0.6 avg eval score,
+                # including once failing to refuse a fake trade-execution
+                # request. Plain Q&A doesn't need district routing; skip the
+                # agent contest entirely and answer directly.
+                result = await self._answer_conversationally(task)
             else:
-                # Audit finding 2026-06-21: picking purely by HP let a
-                # district's generic/longest-lived agent win every dispatch
-                # regardless of task type (e.g. investment's stock_analyst
-                # always beat trading_conductor, silently never running the
-                # real trading_analysis pipeline). Prefer an agent whose
-                # manifest-declared capabilities include this task_type;
-                # fall back to HP-pick when none declare a match.
-                #
-                # Task A.3 (governor-wiring-and-ambient-perception.md) initially
-                # tried an "honest miss" here (no run + no HP when capable is
-                # empty), on the theory that running a non-capable agent
-                # fake-succeeds and poisons the HP signal. Verified against
-                # the real call sites before shipping it (per project rule:
-                # verify, don't trust) — it broke the majority of sampled
-                # real API routes (db_optimize, budget_analyze, list_expenses,
-                # screen_call, image_prompt, ...), because the manifest's
-                # `capabilities` tags are descriptive themes ("finance",
-                # "budgeting") written for the capability-PREFERENCE feature,
-                # not literal task_type strings, while 100+ existing
-                # core/api/routers/*.py call sites dispatch with exact
-                # task_type strings that were never re-aligned to that
-                # vocabulary. An honest miss there is a functional regression,
-                # not a fix. Using the spec's documented fallback instead:
-                # keep running (capable or agents), just don't award the
-                # Darwinian +50 HP for a run that wasn't capability-matched.
-                capable = [
-                    a for a in agents
-                    if task_type in getattr(a, "capabilities", [])
-                ]
-                agent = max(capable or agents, key=lambda a: a.health_points)
-                capability_match = bool(capable)
+                agents = self._get_registry().get_by_district(district)
 
-                if hasattr(agent, "run"):
-                    result = await agent.run(task)
+                if not agents:
+                    logger.warning(f"[VECTOR][governor] no agents in {district}")
+                    result = {"status": "no_agents", "district": district}
                 else:
-                    result = {
-                        "status": "error",
-                        "reason": "agent_missing_run",
-                        "agent": getattr(agent, "name", ""),
-                        "district": district,
-                    }
+                    # Audit finding 2026-06-21: picking purely by HP let a
+                    # district's generic/longest-lived agent win every dispatch
+                    # regardless of task type (e.g. investment's stock_analyst
+                    # always beat trading_conductor, silently never running the
+                    # real trading_analysis pipeline). Prefer an agent whose
+                    # manifest-declared capabilities include this task_type;
+                    # fall back to HP-pick when none declare a match.
+                    #
+                    # Task A.3 (governor-wiring-and-ambient-perception.md) initially
+                    # tried an "honest miss" here (no run + no HP when capable is
+                    # empty), on the theory that running a non-capable agent
+                    # fake-succeeds and poisons the HP signal. Verified against
+                    # the real call sites before shipping it (per project rule:
+                    # verify, don't trust) — it broke the majority of sampled
+                    # real API routes (db_optimize, budget_analyze, list_expenses,
+                    # screen_call, image_prompt, ...), because the manifest's
+                    # `capabilities` tags are descriptive themes ("finance",
+                    # "budgeting") written for the capability-PREFERENCE feature,
+                    # not literal task_type strings, while 100+ existing
+                    # core/api/routers/*.py call sites dispatch with exact
+                    # task_type strings that were never re-aligned to that
+                    # vocabulary. An honest miss there is a functional regression,
+                    # not a fix. Using the spec's documented fallback instead:
+                    # keep running (capable or agents), just don't award the
+                    # Darwinian +50 HP for a run that wasn't capability-matched.
+                    capable = [
+                        a for a in agents
+                        if task_type in getattr(a, "capabilities", [])
+                    ]
+                    agent = max(capable or agents, key=lambda a: a.health_points)
+                    capability_match = bool(capable)
+
+                    if hasattr(agent, "run"):
+                        result = await agent.run(task)
+                    else:
+                        result = {
+                            "status": "error",
+                            "reason": "agent_missing_run",
+                            "agent": getattr(agent, "name", ""),
+                            "district": district,
+                        }
 
             # ── Avatar layer: format raw district output through AvatarVoice ──
             try:

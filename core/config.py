@@ -191,10 +191,19 @@ class ResilienceConfig(BaseModel):
 class VoiceConfig(BaseModel):
     whisper_model: str = "large-v3"
     stt_engine: str = "whisper"
+    # Pin STT to one language. Owner speaks English; leaving Whisper on
+    # auto-detect made it "hear" Japanese/gibberish in room noise and reply in
+    # random languages (2026-07-17). Set to "" for auto-detect (multilingual
+    # voice input), or e.g. "hi" for Hindi. Env: VOICE__STT_LANGUAGE
+    stt_language: str = "en"
     device: str = "cuda"
     compute_type: str = "float16"
     kokoro_model_dir: str = str(Path(__file__).parent.parent / "models" / "kokoro")
     kokoro_speed: float = Field(0.85, ge=0.1, le=3.0)
+    kokoro_voice: str = "bm_george"  # en voice; British male (JARVIS-style). Swap via VOICE__KOKORO_VOICE
+    # Utterances shorter than this are never speaker-judged (fail open) — a
+    # d-vector from <1s of audio cannot separate the owner from noise.
+    speaker_verify_min_seconds: float = 1.0
     wake_threshold: float = Field(0.5, ge=0.0, le=1.0)
     record_duration_sec: float = Field(5.0, ge=1.0, le=120.0)
     sample_rate: int = Field(16000, ge=8000, le=96000)
@@ -241,6 +250,10 @@ class VoiceConfig(BaseModel):
     supertonic_total_steps: int = Field(8, ge=1, le=50)
     supertonic_voice_style: str = ""          # path to a Voice-Builder persona JSON
     supertonic_auto_download: bool = False    # ~260MB model weights -- separate explicit owner opt-in
+    # Owner-only voice gate (core/voice/speaker_verify.py) — closes the "anyone
+    # near the mic is treated as the owner" gap in the wake-word path.
+    speaker_verify_enabled: bool = True       # no-op until data/voice_profiles/owner_voiceprint.npz exists
+    speaker_verify_threshold: Optional[float] = None  # None = engine default (0.75 resemblyzer / 0.85 fallback)
 
 
 class SecurityCfg(BaseModel):
@@ -1022,7 +1035,7 @@ CONFIG: dict = {
     # Autonomous Growth Engine (districts/growth/). All outward actions gated;
     # nothing publishes or opens signups until the owner flips these on.
     "growth": {
-        "enabled": False,                 # master switch — orchestrator no-ops until True
+        "enabled": True,                  # master switch — orchestrator no-ops until True (flipped 2026-07-27, owner request)
         "auto_publish": False,            # never auto-post without per-action approval
         "brand_line": "VECTOR — Arghyadeep's personal AI Intelligence",
         "youtube_handle": "VectorSyss",   # @VectorSyss (channel: Arghyadeep Deb)
@@ -1037,7 +1050,7 @@ CONFIG: dict = {
         "max_posts_per_day": 1,           # hard daily cap per account
         "min_hours_between_posts": 6,     # spacing floor
         "post_jitter_minutes": 90,        # randomize scheduled time by ±this
-        "voice_profile": "bf_emma",       # Kokoro JARVIS voice
+        "voice_profile": "bm_george",     # Kokoro JARVIS voice (male — owner rule 2026-07-15)
         "hud_viewport": [1080, 1920],     # 9:16 vertical for Reels/Shorts
         "signup_form_url": "",
         "consent_text": (

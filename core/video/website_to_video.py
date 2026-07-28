@@ -75,7 +75,7 @@ class CaptureOptions:
     quality: RenderQuality = "standard"
     duration_seconds: float = 8.0
     add_narration: bool = False
-    narration_voice: str = "bf_emma"
+    narration_voice: str = "bm_george"
     use_stealth: bool = True
     take_screenshot: bool = True
     scroll_animation: bool = True    # animate page scroll in video

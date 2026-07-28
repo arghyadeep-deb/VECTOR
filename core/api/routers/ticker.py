@@ -112,8 +112,16 @@ async def finance_ticker(
 
 # ---- News -----------------------------------------------------------------
 
-def _aggregator_headlines(limit: int) -> list[dict] | None:
-    """Use districts/research/news_aggregator.py if importable."""
+async def _aggregator_headlines(limit: int) -> list[dict] | None:
+    """Pull headlines from districts/research/news_aggregator.py.
+
+    The old version probed for get_headlines/fetch/headlines/latest — the
+    aggregator has NONE of them (its real API is `async gather_news(...)`), so
+    this always returned None and /news/headlines was a permanent 503; it also
+    explicitly bailed on coroutines ("handled at call site" — it never was), and
+    ran under asyncio.to_thread where awaiting was impossible anyway.
+    Found by browser dogfood (2026-07-17).
+    """
     try:
         from districts.research.news_aggregator import NewsAggregator  # type: ignore
     except Exception as e:
@@ -121,15 +129,10 @@ def _aggregator_headlines(limit: int) -> list[dict] | None:
         return None
     try:
         agg = NewsAggregator()
-        # Common signatures: get_headlines(limit) or fetch(limit)
-        for fn in ("get_headlines", "fetch", "headlines", "latest"):
-            if hasattr(agg, fn):
-                items: Any = getattr(agg, fn)(limit) if callable(getattr(agg, fn)) else None
-                if asyncio.iscoroutine(items):
-                    return None  # async path — handled at call site
-                if isinstance(items, list):
-                    return [_norm_headline(it) for it in items][:limit]
-        return None
+        items = await agg.gather_news(max_per_source=max(3, min(limit, 10)))
+        if not isinstance(items, list) or not items:
+            return None
+        return [_norm_headline(it) for it in items][:limit]
     except Exception as e:
         logger.warning(f"[VECTOR][ticker] aggregator call failed: {e}")
         return None
@@ -154,7 +157,7 @@ async def news_headlines(limit: int = Query(default=20, ge=1, le=100)):
     if _news_cache[1] and (now - _news_cache[0]) < _NEWS_TTL_S:
         return JSONResponse({"headlines": _news_cache[1][:limit], "source": "cache", "status": "ok"})
 
-    items = await asyncio.to_thread(_aggregator_headlines, limit)
+    items = await _aggregator_headlines(limit)
     if not items:
         return JSONResponse(
             {"headlines": [], "source": "aggregator", "status": "unavailable"},

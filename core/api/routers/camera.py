@@ -60,8 +60,9 @@ async def camera_ws(ws: WebSocket):
         # Try to load YOLO — gracefully skip if not available
         try:
             from ultralytics import YOLO
-            model = YOLO("yolov8n.pt")
-            logger.info("[VECTOR][camera] YOLO yolov8n loaded")
+            # yolo11n matches presence_detector so the repo carries ONE weight file
+            model = YOLO("yolo11n.pt")
+            logger.info("[VECTOR][camera] YOLO yolo11n loaded")
         except Exception as e:
             logger.warning(f"[VECTOR][camera] YOLO unavailable, streaming without detection: {e}")
 

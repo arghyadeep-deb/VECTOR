@@ -277,7 +277,19 @@ districts:
       class: districts.memory_curator.consolidation_bot.ConsolidationBot
       model: vector-deep
       description: LightRAG knowledge consolidation from episodic memory
-      capabilities: [memory, lightrag, consolidation]
+      # KNOWN_ISSUES #21/#23: save_note/overwrite_note_personal are real
+      # task_types Governor routes here (classify_chat_intent picks them with
+      # high confidence for "note this down"-style requests), but capabilities
+      # here are theme words, not literal task_type strings — see governor.py's
+      # Task A.3 note on that mismatch. Without an exact match, dispatch fell
+      # to the HP-lottery and ran whichever agent won HP's UNRELATED default
+      # action instead (confirmed live: silently ran consolidate_old_episodes()
+      # and returned a bare episode count as the "answer"). ConsolidationBot
+      # now has a real handler for both (see consolidation_bot.py's
+      # _save_note()) — these two literal task_type strings make governor.py's
+      # existing capability-match logic route to it deterministically instead
+      # of by HP luck.
+      capabilities: [memory, lightrag, consolidation, save_note, overwrite_note_personal, create_note]
 
     - name: pattern_finder
       class: districts.memory_curator.pattern_finder.PatternFinder

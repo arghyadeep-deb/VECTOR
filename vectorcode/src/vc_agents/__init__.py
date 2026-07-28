@@ -63,10 +63,14 @@ try:
     import vectorcode.src.vc_agents.operative  # noqa: F401
 except ImportError:
     __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
+# NOTE (2026-07-19): vc_agents.monitor does not exist in this codebase (only
+# monitor_operative.py). The old WARNING-with-traceback spammed every startup
+# with a scary ModuleNotFoundError; downgraded to debug like the other
+# optional imports above.
 try:
     import vectorcode.src.vc_agents.monitor  # noqa: F401
 except ImportError:
-    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
+    logger.debug("[VECTOR] optional vc_agents.monitor not present")
 try:
     import vectorcode.src.vc_agents.monitor_operative  # noqa: F401
 except ImportError:

@@ -854,36 +854,80 @@ class ResearchHub(AgentBase):
                 await asyncio.sleep(1)
         logger.warning("[VECTOR][research_hub] died — HP=0")
 
+    @staticmethod
+    def _format_list_response(label: str, items: list[dict]) -> str:
+        """
+        Render a list-of-dicts result into readable text.
+
+        2026-07-22: every branch below used to return raw structured data
+        under a "results"/"apis" key with no matching entry in
+        avatar/avatar_voice.py::_extract_text()'s checked-key list
+        (response/result/content/message/text/output — note "results" !=
+        "result"), so real search/digest data was silently swallowed into
+        a bare "Task completed — status: ok." stub (KNOWN_ISSUES.md #1
+        pattern). Now every branch also populates `response` with a
+        formatted summary built from this same data.
+        """
+        if not items:
+            return f"No {label.lower()} found."
+        lines = [f"{label} ({len(items)}):"]
+        for it in items[:8]:
+            if not isinstance(it, dict):
+                lines.append(f"- {it}")
+                continue
+            title = it.get("title") or it.get("symbol") or it.get("name") or str(it)[:60]
+            extra = it.get("url") or it.get("snippet") or it.get("price")
+            lines.append(f"- {title} — {extra}" if extra else f"- {title}")
+        return "\n".join(lines)
+
+    @staticmethod
+    def _digest_response(digest: dict) -> str:
+        return (
+            f"Daily research digest ({digest.get('date', '?')}): "
+            f"{len(digest.get('hackernews', []) or [])} HN stories, "
+            f"{len(digest.get('github_trending', []) or [])} GitHub repos, "
+            f"{len(digest.get('devto', []) or [])} DEV.to posts, "
+            f"{len(digest.get('arxiv', []) or [])} ArXiv papers, "
+            f"{len(digest.get('tech_news', []) or [])} tech news items."
+        )
+
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
         t = task.get("type", "")
         p = task.get("params", {})
         if t in ("search_web", "search", "find"):
-            results = await self.search_web(p.get("query", ""))
-            return {"status": "ok", "results": results}
+            query = p.get("query", "")
+            results = await self.search_web(query)
+            response = self._format_list_response(f"Web search results for '{query}'", results)
+            return {"status": "ok", "response": response, "results": results}
         if t in ("daily_digest", "morning_brief"):
             digest = await self.daily_digest()
-            return {"status": "ok", **digest}
+            return {"status": "ok", "response": self._digest_response(digest), **digest}
         if t in ("search_arxiv", "paper"):
-            results = await self.search_arxiv(p.get("query", "AI"))
-            return {"status": "ok", "results": results}
+            query = p.get("query", "AI")
+            results = await self.search_arxiv(query)
+            response = self._format_list_response(f"ArXiv papers for '{query}'", results)
+            return {"status": "ok", "response": response, "results": results}
         if t in ("get_hn", "hackernews", "news"):
             results = await self.get_hn_top(p.get("limit", 10))
-            return {"status": "ok", "results": results}
+            response = self._format_list_response("Top HackerNews stories", results)
+            return {"status": "ok", "response": response, "results": results}
         if t in ("get_india_stocks", "stocks"):
             results = await self.get_india_stocks(p.get("symbols", ["RELIANCE", "TCS"]))
-            return {"status": "ok", "results": results}
+            response = self._format_list_response("India stock quotes", results)
+            return {"status": "ok", "response": response, "results": results}
         if t in ("find_api", "discover_api", "api_catalog"):
             # Use public-apis catalog to find data sources
             try:
                 from districts.research.api_catalog import search_apis
                 results = search_apis(p.get("query", ""), p.get("category", ""), limit=p.get("limit", 10))
-                return {"status": "ok", "apis": results, "count": len(results)}
+                response = self._format_list_response("Matching APIs", results)
+                return {"status": "ok", "response": response, "apis": results, "count": len(results)}
             except Exception as e:
                 return {"status": "error", "error": str(e)}
         # default: run daily digest
         digest = await self.daily_digest()
-        return {"status": "ok", **digest}
+        return {"status": "ok", "response": self._digest_response(digest), **digest}
 
 
 if __name__ == "__main__":

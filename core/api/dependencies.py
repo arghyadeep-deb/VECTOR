@@ -95,10 +95,11 @@ def get_decision_engine(request: Request):
 
 
 def get_permission_gateway(request: Request):
-    """Get PermissionGateway singleton."""
+    """Get PermissionGateway singleton (the process-wide shared instance, so
+    pending approvals are visible to the loop's remote-command relay too)."""
     return _lazy_get_or_create(
         request, "permission_gateway",
-        lambda: __import__("core.loop.permission_gateway", fromlist=["PermissionGateway"]).PermissionGateway()
+        lambda: __import__("core.loop.permission_gateway", fromlist=["PermissionGateway"]).PermissionGateway.get_shared()
     )
 
 

@@ -24,6 +24,7 @@ from core.memory.db_utils import apply_pragmas, configured_db_path
 import asyncio
 import datetime
 import os
+import shutil
 import sqlite3
 import sys
 import tempfile
@@ -135,6 +136,39 @@ def cancel_job(job_id: str) -> bool:
             conn.close()
     return True
 
+
+def recover_interrupted_jobs(max_age_hours: float = 2.0) -> int:
+    """Mark stale in-flight jobs as errored (2026-07-19).
+
+    If the process dies during render/safety-window/upload, jobs sat at
+    'uploading' (or another non-terminal stage) forever — with the rendered
+    video usually gone from %TEMP%. On startup, anything non-terminal that
+    hasn't been touched in `max_age_hours` is marked 'error' so the queue
+    tells the truth. Returns number of jobs recovered.
+    """
+    _init_db()
+    cutoff = (
+        datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(hours=max_age_hours)
+    ).isoformat()
+    with _DB_LOCK:
+        conn = _get_job_conn()
+        try:
+            cur = conn.execute(
+                "UPDATE content_jobs SET status='error', "
+                "error='interrupted — process restarted mid-pipeline (auto-recovery)', "
+                "updated_at=? "
+                "WHERE status NOT IN ('done','error','cancelled','pending') AND updated_at < ?",
+                (datetime.datetime.now(datetime.timezone.utc).isoformat(), cutoff),
+            )
+            conn.commit()
+            n = cur.rowcount or 0
+        finally:
+            conn.close()
+    if n:
+        logger.warning("[VECTOR][video_pipeline] recovered {} interrupted job(s)", n)
+    return n
+
 # ── Pipeline Agent ────────────────────────────────────────────────────────────
 
 class VideoPipelineAgent(AgentBase):
@@ -156,6 +190,10 @@ class VideoPipelineAgent(AgentBase):
         self._memory  = EpisodicMemory()
         self._context = ContextEngine()
         _init_db()
+        try:
+            recover_interrupted_jobs()
+        except Exception as e:
+            logger.warning("[VECTOR][video_pipeline] stale-job recovery failed: {}", e)
         logger.info("[VECTOR][video_pipeline] ready gen={} hp={}", generation, self.health_points)
 
     # ── Top-level entry point ─────────────────────────────────────────────────
@@ -251,6 +289,21 @@ class VideoPipelineAgent(AgentBase):
                 srt_path  = os.path.join(tmp, "captions.srt")
                 self._write_simple_srt(sections, srt_path)
                 final_mp4 = await self._burn_captions(raw_mp4, srt_path, final_mp4)
+
+                # Persist the finished render OUTSIDE the temp dir (2026-07-19):
+                # jobs interrupted during the 30-min safety window used to lose
+                # their video forever — %TEMP% was cleaned and the job sat at
+                # 'uploading' 85% with a dangling path (two real jobs found
+                # stuck like this from Jul 13 + Jul 15).
+                try:
+                    renders_dir = Path(__file__).resolve().parents[2] / "renders"
+                    renders_dir.mkdir(exist_ok=True)
+                    persistent_mp4 = str(renders_dir / f"{job_id}.mp4")
+                    shutil.copy2(final_mp4, persistent_mp4)
+                    final_mp4 = persistent_mp4
+                except Exception as e:
+                    logger.warning("[VECTOR][video_pipeline] could not persist render: {}", e)
+
                 self._update_job(job, status="uploading", stage_pct=85, video_path=final_mp4)
 
                 # Stage 6: Safety window notification
@@ -429,6 +482,20 @@ class VideoPipelineAgent(AgentBase):
 
     async def _upload_youtube(self, path: str, title: str, desc: str, tags: list) -> Optional[str]:
         try:
+            # Honor growth.youtube_mode (2026-07-19): config says "phone"
+            # (drive the real app over ADB — no OAuth), but this method always
+            # used the API Uploader, which silently SIMULATES uploads when no
+            # Google OAuth creds exist. Result: pipeline reported success,
+            # nothing ever reached the channel.
+            mode = str(CONFIG.get("growth", {}).get("youtube_mode", "api")).lower()
+            if mode == "phone":
+                from districts.content.phone_poster import PhonePoster
+                result = await PhonePoster().post_youtube(path, caption=title)
+                if isinstance(result, dict) and result.get("status") in ("posted", "pending_upload", "pending_share"):
+                    logger.info("[VECTOR][video_pipeline] YouTube phone post: {}", result.get("reason", "ok"))
+                    return result.get("url")
+                logger.warning("[VECTOR][video_pipeline] YouTube phone post failed: {}", result)
+                return None
             from districts.content.uploader import Uploader
             up = Uploader()
             result = await up.upload_to_youtube(path, title, desc, tags, privacy="public")
@@ -445,6 +512,16 @@ class VideoPipelineAgent(AgentBase):
         try:
             hashtags = [f"#{t.replace(' ','')}" for t in tags[:10]]
             caption = f"{title}\n\n{' '.join(hashtags)}"
+            # Honor growth.instagram_mode (2026-07-19) — see _upload_youtube.
+            mode = str(CONFIG.get("growth", {}).get("instagram_mode", "graph_api")).lower()
+            if mode == "phone":
+                from districts.content.phone_poster import PhonePoster
+                result = await PhonePoster().post_instagram(path, caption=caption)
+                if isinstance(result, dict) and result.get("status") in ("posted", "pending_upload", "pending_share"):
+                    logger.info("[VECTOR][video_pipeline] Instagram phone post: {}", result.get("reason", "ok"))
+                    return result.get("url")
+                logger.warning("[VECTOR][video_pipeline] Instagram phone post failed: {}", result)
+                return None
             from districts.content.uploader import Uploader
             up = Uploader()
             result = await up.upload_to_instagram(path, caption, hashtags)

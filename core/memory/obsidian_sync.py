@@ -225,7 +225,12 @@ class ObsidianSync:
             rag = LightRAG(
                 working_dir=working_dir,
                 llm_model_func=ollama_model_complete,
-                llm_model_name=CONFIG["models"]["reasoning"],
+                # Entity extraction = many small LLM calls. Use the genuinely
+                # small 'ambient' model (gemma4:e2b, 5.1B). Despite its name,
+                # 'vector-fast' is a 24B/15GB mistral3 — loading it evicted every
+                # other model (OLLAMA_MAX_LOADED_MODELS=1) and starved the voice
+                # pipeline's local calls (2026-07-15 fix).
+                llm_model_name=CONFIG["models"].get("ambient") or CONFIG["models"]["reasoning"],
                 llm_model_kwargs={
                     "host": ollama_host,
                     "options": {"num_ctx": 8192},

@@ -44,13 +44,24 @@ class PatternFinder(AgentBase):
         cutoff = (
             datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours)
         ).isoformat()
-        cursor = self._memory.conn.cursor()
-        cursor.execute(
-            "SELECT * FROM episodic_memory WHERE timestamp >= ? ORDER BY timestamp DESC LIMIT 200",
-            (cutoff,),
-        )
-        cols = [d[0] for d in cursor.description]
-        return [dict(zip(cols, row)) for row in cursor.fetchall()]
+        # KNOWN_ISSUES #21: was `self._memory.conn.cursor()` — a direct reference
+        # to the EpisodicMemory instance's connection captured once at __init__.
+        # get_db_connection()'s self-healing (reopen-if-closed) logic only runs
+        # inside get_db_connection() itself; a cached self.conn snapshot never
+        # sees it, so once the shared singleton connection was closed anywhere
+        # (e.g. EpisodicMemory.close() from another owner of the same
+        # singleton), this raised "Cannot operate on a closed database" forever
+        # until process restart. get_temp_cursor() always fetches a fresh
+        # connection via get_db_connection(), so it self-heals like every other
+        # EpisodicMemory read/write path already does.
+        from core.memory.episodic import get_temp_cursor
+        with get_temp_cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM episodic_memory WHERE timestamp >= ? ORDER BY timestamp DESC LIMIT 200",
+                (cutoff,),
+            )
+            cols = [d[0] for d in cursor.description]
+            return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
     def _event_distribution(self, episodes: list[dict]) -> str:
         counts = Counter(ep["event_type"] for ep in episodes)
@@ -191,14 +202,17 @@ class PatternFinder(AgentBase):
     def get_stored_patterns(self, days: int = 7) -> list[dict]:
         """Retrieve recent patterns from semantic_memory."""
         cutoff_date = (datetime.date.today() - datetime.timedelta(days=days)).isoformat()
-        cursor = self._memory.conn.cursor()
-        cursor.execute(
-            "SELECT key, value, confidence, updated_at FROM semantic_memory "
-            "WHERE category='pattern' AND updated_at >= ? ORDER BY updated_at DESC LIMIT 50",
-            (cutoff_date,),
-        )
-        cols = [d[0] for d in cursor.description]
-        return [dict(zip(cols, row)) for row in cursor.fetchall()]
+        # KNOWN_ISSUES #21 — see _fetch_window() above for why this must go
+        # through get_temp_cursor() rather than a cached self._memory.conn.
+        from core.memory.episodic import get_temp_cursor
+        with get_temp_cursor() as cursor:
+            cursor.execute(
+                "SELECT key, value, confidence, updated_at FROM semantic_memory "
+                "WHERE category='pattern' AND updated_at >= ? ORDER BY updated_at DESC LIMIT 50",
+                (cutoff_date,),
+            )
+            cols = [d[0] for d in cursor.description]
+            return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 

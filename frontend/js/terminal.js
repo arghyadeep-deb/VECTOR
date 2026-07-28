@@ -9,7 +9,12 @@
     'chat','music','map','webcam','telemetry','market','goals','goalplanner',
     'districts','council','security','memory','approvals','finance',
     'contentscheduler','answerengine','voicestudio','codegraph',
-    'librechat','openwebui','city3d','features','missioncontrol','corepanel','agentspanel','brainpanel',
+    // 'city3d' intentionally NOT listed — dropped from the prod bundle
+    // (tools/build_frontend.py: heavy three.js view, not part of the lean
+    // dock). Listing it here advertised a command that silently no-opped —
+    // `open city3d` printed "opened city3d" and nothing appeared
+    // (2026-07-17 browser dogfood).
+    'librechat','openwebui','features','missioncontrol','corepanel','agentspanel','brainpanel',
     'knowledgepanel','codeintel','vectorcodepanel','trading','backtest',
     'hedgebot','intelligencepanel','shadowbroker','mediastudio','comfyui',
     'hyperframes','contentpanel','designpanel','researchpanel','pccontrol',
@@ -41,6 +46,15 @@
     d.innerHTML=text; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
 
   function onKey(e){
+    // Let the global Ctrl+Shift+H listener (bottom of this file) still see the
+    // close shortcut, and treat Escape as "close" too — both used to be eaten
+    // by the unconditional stopPropagation() below, so once the terminal input
+    // had focus (i.e. right after typing any command) NEITHER shortcut could
+    // close it anymore; only the mouse-only ✕ button worked (2026-07-17 browser
+    // dogfood: Ctrl+Shift+H visibly failed to close the terminal after `open`
+    // commands had been typed).
+    if(e.ctrlKey && e.shiftKey && (e.key==='H'||e.key==='h')) return;
+    if(e.key==='Escape'){ toggle(false); e.preventDefault(); return; }
     e.stopPropagation();
     if(e.key==='Enter'){ const v=input.value.trim(); if(v){ hist.push(v); hi=hist.length; print('<span class="ct-echo">vector ❯</span> '+esc(v),'echo'); run(v); } input.value=''; }
     else if(e.key==='ArrowUp'){ if(hi>0){ hi--; input.value=hist[hi]||''; } e.preventDefault(); }
@@ -98,7 +112,13 @@
   function openName(n){ if(!n) return err('usage: open <panel>');
     if(n==='vision'||n==='camera'){ V.vision.open(); return ok('vision online'); }
     if(!WIDGETS.includes(n)) return err('unknown panel: '+esc(n));
-    V.openWidget(n); return ok('opened '+n); }
+    V.openWidget(n);
+    // Verify it actually rendered instead of claiming success unconditionally —
+    // widgets.js openWidget() silently no-ops (console.warn only) for an id with
+    // no factory function, and the old code always printed "opened <n>" either
+    // way (2026-07-17 dogfood: the now-removed 'city3d' entry did exactly this).
+    if(document.querySelector(`.widget[data-id="${n}"]`)) return ok('opened '+n);
+    return err(n+' did not open — panel unavailable in this build'); }
 
   function help(){
     print('<b>COMMANDS</b>','sys');
@@ -135,10 +155,13 @@
     else if(returnFocus && document.contains(returnFocus) && typeof returnFocus.focus==='function'){ returnFocus.focus(); returnFocus=null; }
   }
 
+  // Capture phase (2026-07-19): with focus inside the cmd-bar input the
+  // bubble-phase listener could be pre-empted by input handlers — ⌃⇧H
+  // silently failed. Capture guarantees the terminal hotkey always works.
   addEventListener('keydown', e=>{
-    if(e.ctrlKey && e.shiftKey && (e.key==='H'||e.key==='h')){ toggle(); e.preventDefault(); }
+    if(e.ctrlKey && e.shiftKey && (e.key==='H'||e.key==='h')){ toggle(); e.preventDefault(); e.stopPropagation(); }
     else if(e.key==='Escape' && open){ toggle(false); }
-  });
+  }, true);
 
-  global.VectorTerminal = { toggle, run:(c)=>{ if(!box) build(); run(c); } };
+  global.VectorTerminal = { toggle, run:(c)=>{ if(!box) build(); run(c); }, WIDGETS: WIDGETS.slice() };
 })(window);

@@ -109,18 +109,124 @@ class AvatarVoice:
         return clean
 
     # ── internal helpers ─────────────────────────────────────────────────────
+    # Keys that are pure routing/plumbing metadata — never the answer the owner
+    # wants to read. Anything NOT in here is treated as potentially substantive
+    # content when building the fallback render below.
+    _METADATA_KEYS: frozenset[str] = frozenset({
+        "status", "district", "agent", "agent_name", "task_id", "task_type",
+        "success", "ok", "error", "reason", "code", "http_status",
+        "health_points", "hp", "capability_match", "confidence", "score",
+        "timestamp", "ts", "created_at", "updated_at", "elapsed_ms", "latency",
+        "source", "caller_id", "trace_id", "span_id", "id", "uuid",
+    })
+
     def _extract_text(self, output: Any) -> str:
+        """Render a district's raw result into owner-facing text.
+
+        2026-07-22 (KNOWN_ISSUES #1/#14/#15 root-cause fix): previously this
+        checked only 6 keys and, finding none, emitted a bare
+        "Task completed — status: X" stub. Most of VECTOR's ~38 districts
+        return their real content under *other* keys (emails, items, summary,
+        analysis, plan, draft, quiz, ...), so a third-plus of districts and
+        every multi-district combo response rendered as that meaningless stub
+        in the live eval. Rather than patch 27+ districts one-by-one, fix the
+        shared choke point: after the 6 priority keys, walk the dict for any
+        substantive (non-metadata) content and render it readably. The
+        priority-key path is unchanged, so the 5 already-fixed districts and
+        every working one keep their exact current output.
+        """
         if isinstance(output, str):
             return output
+        if isinstance(output, list):
+            return self._render_value(output).strip()
         if isinstance(output, dict):
+            # 1) Priority keys — unchanged. Fixed/working districts hit here and
+            #    return exactly what they did before (no regression).
             for key in ("response", "result", "content", "message", "text", "output"):
                 val = output.get(key)
                 if val and isinstance(val, str):
                     return val
-            # fallback: stringify relevant status info
-            status = output.get("status", "done")
-            return f"Task completed — status: {status}."
+
+            # 2) Root-cause fallback: gather every substantive (non-metadata)
+            #    field and render it. This is what rescues the ~27 unaudited
+            #    districts and the combo path from the stub.
+            parts: list[str] = []
+            for key, val in output.items():
+                if key in self._METADATA_KEYS:
+                    continue
+                rendered = self._render_value(val).strip()
+                if not rendered:
+                    continue
+                # Single unlabeled block reads cleaner without a key prefix;
+                # multiple fields get a "Label: ..." so nothing is ambiguous.
+                label = key.replace("_", " ").strip().capitalize()
+                parts.append((label, rendered))
+
+            if len(parts) == 1:
+                label, body = parts[0]
+                # 2026-07-23 KNOWN_ISSUES #23: a memory_curator agent's
+                # fallback action (task_type it doesn't declare, HP-lottery
+                # picked it anyway — see governor.py's Task A.3 note) returned
+                # {"status": "ok", "consolidated": 200}. "consolidated" isn't
+                # metadata, so this was the sole substantive field and got
+                # returned bare: the literal string "200" — meaningless
+                # without its label. A bare token (no whitespace) isn't
+                # self-explanatory the way a full sentence is; only skip the
+                # label when the value reads as actual prose.
+                if " " in body or len(body) > 40:
+                    return body
+                return f"{label}: {body}"
+            if parts:
+                return "\n\n".join(f"{label}: {body}" for label, body in parts)
+
+            # 3) Genuinely nothing substantive. Be honest rather than claim a
+            #    fake completion — an empty/error dict should read as "couldn't
+            #    do it", not "Task completed". If there's an error string,
+            #    surface a cleaned version of it.
+            err = output.get("error") or output.get("reason")
+            if err and isinstance(err, str):
+                return f"I ran into a problem with that: {err}"
+            status = output.get("status", "")
+            if status in ("no_agents", "error", "failed"):
+                return (
+                    "I wasn't able to complete that one — nothing came back "
+                    "from the part of me that handles it. Want me to try a "
+                    "different way?"
+                )
+            return "I've noted that, but I don't have a result to show for it yet."
         return str(output)
+
+    def _render_value(self, val: Any, depth: int = 0) -> str:
+        """Turn an arbitrary district value (str/num/list/dict) into readable text.
+
+        Depth-guarded so a deeply nested or self-referential structure can't
+        run away. Lists render as bullet-ish lines; nested dicts recurse
+        through the same substantive-field logic (minus the stub fallback)."""
+        if val is None or isinstance(val, bool):
+            return ""
+        if isinstance(val, str):
+            return val.strip()
+        if isinstance(val, (int, float)):
+            return str(val)
+        if depth >= 3:
+            return ""
+        if isinstance(val, dict):
+            lines: list[str] = []
+            for k, v in val.items():
+                if k in self._METADATA_KEYS:
+                    continue
+                sub = self._render_value(v, depth + 1).strip()
+                if sub:
+                    lines.append(f"{k.replace('_', ' ').capitalize()}: {sub}")
+            return "\n".join(lines)
+        if isinstance(val, (list, tuple)):
+            items: list[str] = []
+            for item in val:
+                sub = self._render_value(item, depth + 1).strip()
+                if sub:
+                    items.append(sub if len(val) == 1 else f"• {sub}")
+            return "\n".join(items)
+        return str(val).strip()
 
     def _sanitise(self, text: str) -> str:
         """Replace leaked internal names with neutral 'I'."""

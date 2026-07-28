@@ -149,10 +149,11 @@ class HabitFinder(AgentBase):
 
         patterns = self.habit_patterns
         if not patterns:
+            # KNOWN_ISSUES #21: don't close EpisodicMemory()'s shared singleton
+            # connection from a local instance — see skill_mapper.py's note.
             from core.memory.episodic import EpisodicMemory
             mem = EpisodicMemory()
             events = mem.recall("", limit=50)
-            mem.close()
             if events:
                 self.find_habits(events)
             patterns = self.habit_patterns

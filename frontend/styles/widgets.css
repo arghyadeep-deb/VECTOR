@@ -7,8 +7,15 @@
 #workspace{ position:absolute; inset:var(--frame-pad); z-index:20;
   opacity:0; pointer-events:none; transition:opacity .5s; }
 #stage.wsopen #workspace{ opacity:1; pointer-events:auto; }
-/* parallax: near plane (panels) drifts OPPOSITE the cursor */
-#workspace{ transform:translate(var(--nx,0px), var(--ny,0px)); }
+/* navigable canvas: cinematic parallax (--nx/--ny) composes with user pan
+   (--pan-x/--pan-y, driven by canvas-pan.js — drag empty space, any direction).
+   NOTE: no touch-action here — that would kill finger-scroll inside panels;
+   the gesture surface is #canvas-backdrop (a sibling of the panels). */
+#workspace{ transform:translate(calc(var(--nx,0px) + var(--pan-x,0px)),
+                                calc(var(--ny,0px) + var(--pan-y,0px))); }
+#workspace.panning{ cursor:grabbing; }
+#canvas-backdrop{ position:absolute; left:-200vw; top:-200vh; right:-200vw; bottom:-200vh;
+  z-index:0; touch-action:none; }
 
 /* ---- cognition trace (shows near the orb while processing) ----------- */
 #think{ position:absolute; z-index:33; background:rgba(6,14,26,.82); border:1px solid var(--line);
@@ -69,9 +76,9 @@
   background:linear-gradient(90deg, rgba(0,207,255,.10), transparent); }
 .w-head .dotled{ width:6px; height:6px; border-radius:50%; background:var(--accent);
   box-shadow:0 0 8px var(--accent); flex:none; }
-.w-title{ font-size:10px; letter-spacing:.22em; color:var(--accent-soft); text-transform:uppercase; }
+.w-title{ font-size:11px; letter-spacing:.22em; color:var(--accent-soft); text-transform:uppercase; }
 .w-head .spacer{ flex:1; }
-.w-x{ font-size:12px; color:var(--txt-mute); line-height:1; padding:2px 4px; }
+.w-x{ font-size:14px; color:var(--txt-mute); line-height:1; padding:6px 10px; margin:-4px -6px -4px 0; }
 .w-x:hover{ color:var(--danger); }
 .w-body{ padding:10px; }
 
@@ -90,10 +97,10 @@
 .chat .msg.vector{ color:var(--accent-soft); }
 .chat .row{ display:flex; gap:6px; margin-top:9px; border-top:1px solid var(--line); padding-top:8px; }
 .chat input{ flex:1; background:rgba(0,0,0,.4); border:1px solid var(--line); color:var(--txt);
-  font-family:var(--mono); font-size:11px; padding:6px 8px; outline:none; }
+  font-family:var(--mono); font-size:13px; padding:9px 10px; outline:none; }
 .chat input:focus{ border-color:var(--line-hot); }
-.chat .send{ border:1px solid var(--line); padding:6px 10px; color:var(--accent-soft);
-  font-size:10px; letter-spacing:.1em; }
+.chat .send{ border:1px solid var(--line); padding:9px 14px; color:var(--accent-soft);
+  font-size:11px; letter-spacing:.1em; }
 .chat .send:hover{ background:rgba(0,207,255,.12); }
 
 /* ---- music widget ----------------------------------------------------- */
@@ -213,12 +220,15 @@
 #caption.show{ opacity:1; }
 
 /* ---- subsystem dock --------------------------------------------------- */
-#dock{ position:absolute; left:50%; bottom:calc(var(--frame-pad) + 30px); transform:translateX(-50%);
+#dock{ position:absolute; left:50%; bottom:calc(var(--frame-pad) + 100px); transform:translateX(-50%);
+  /* stacked clear of cmd-bar (74-110px) and .ticker.bot (40-66px) — was +30px, colliding with both */
   display:flex; gap:2px; align-items:center; z-index:34; opacity:0; transition:opacity .5s; }
 #stage.awake #dock{ opacity:1; }
-#dock .d-btn{ width:30px; height:24px; display:grid; place-items:center; color:var(--txt-faint);
-  position:relative; }
-#dock .d-btn svg{ width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:1.4; }
+#dock .d-btn{ min-width:56px; height:46px; padding:5px 8px 4px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+  color:var(--txt-faint); position:relative; }
+#dock .d-btn svg{ width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:1.4; }
+#dock .d-btn .d-lbl{ font-family:var(--mono); font-size:8px; letter-spacing:.08em; }
 #dock .d-btn.on{ color:var(--accent-soft); }
 #dock .d-btn.on::after{ content:''; position:absolute; bottom:1px; left:50%; transform:translateX(-50%);
   width:4px; height:1px; background:var(--accent); box-shadow:0 0 6px var(--accent); }
@@ -471,24 +481,31 @@
 
 @media (max-width: 640px) {
   #caption {
-    bottom: calc(var(--frame-pad) + 126px);
+    bottom: calc(var(--frame-pad) + 176px); /* clear the taller wrapped dock */
     max-width: calc(100vw - 72px);
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.35;
   }
 
   #dock {
     bottom: calc(var(--frame-pad) + 54px);
-    max-width: calc(100vw - 68px);
+    max-width: calc(100vw - 48px);
     flex-wrap: wrap;
     justify-content: center;
-    row-gap: 4px;
+    gap: 4px;
+    row-gap: 6px;
   }
 
+  /* Fingers need >= 44px targets (Apple HIG) — the old 26x22 guaranteed mis-taps */
   #dock .d-btn {
-    width: 26px;
-    height: 22px;
+    min-width: 58px;
+    height: 50px;
   }
+  #dock .d-btn svg {
+    width: 19px;
+    height: 19px;
+  }
+  #dock .d-btn .d-lbl { font-size: 9px; }
 
   .widget,
   .widget.vstudio,
@@ -498,21 +515,33 @@
   .widget.fin-panel,
   .widget.csch-panel,
   .gp-panel {
-    width: min(92vw, 360px);
-    max-width: 92vw;
+    /* MUST be narrower than the workspace (100vw - 2*frame-pad - margin),
+       or the drag clamp locks panels at x=0 and they can't move sideways */
+    width: min(calc(100vw - 48px), 400px);
+    max-width: calc(100vw - 48px);
     min-height: 180px;
-    max-height: 68vh;
+    max-height: 66vh;
   }
 
-  .widget {
-    left: 4vw !important;
-    top: 18vh !important;
-  }
+  /* spawn position is set by JS (cascade) — the old !important lock here
+     stacked every panel on one spot AND made them impossible to drag */
 
   .widget .w-body {
-    max-height: calc(68vh - 36px);
+    max-height: calc(66vh - 40px);
     overflow: auto;
   }
+
+  /* close button: real touch target */
+  .widget .w-x {
+    font-size: 17px;
+    padding: 10px 14px;
+    margin: -6px -8px -6px 0;
+  }
+  .w-title { font-size: 12px; }
+
+  /* chat: 16px input kills mobile auto-zoom-on-focus; send is tappable */
+  .chat input { font-size: 16px; padding: 11px 12px; }
+  .chat .send { padding: 11px 16px; font-size: 12px; }
 
   .widget.iframe-panel {
     height: 68vh;

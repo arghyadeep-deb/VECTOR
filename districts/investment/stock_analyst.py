@@ -777,8 +777,146 @@ Be specific and balanced.
         from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 
+    def get_risk_analysis(self, symbols: list[str]) -> dict:
+        """
+        Real risk analysis for one or more holdings — combines live quote
+        (intraday + 52w range) and fundamentals (beta, debt/equity) into a
+        per-symbol risk read plus a portfolio-level rollup.
+
+        2026-07-22: added because `run()` previously ignored `task["type"]`
+        entirely and always returned a plain quote for "risk_analysis"
+        requests, which had no field `avatar/avatar_voice.py::_extract_text()`
+        recognised as narrative text — the caller got a bare
+        "Task completed — status: ok." stub instead of any analysis
+        (KNOWN_ISSUES.md #1). Populates `response` with real prose so it
+        survives that formatting layer.
+        """
+        per_symbol = []
+        for raw_symbol in symbols:
+            symbol = raw_symbol.upper().strip()
+            quote = self.get_quote(symbol)
+            fundamentals = self.get_fundamentals(symbol)
+
+            day_high = quote.get("day_high")
+            day_low = quote.get("day_low")
+            price = quote.get("price")
+            wk_high = quote.get("52w_high")
+            wk_low = quote.get("52w_low")
+            beta = fundamentals.get("beta")
+            debt_to_equity = fundamentals.get("debt_to_equity")
+
+            # Intraday range as a % of price — cheap volatility proxy when
+            # we don't have a full historical return series to hand.
+            intraday_range_pct = None
+            if price and day_high is not None and day_low is not None and price:
+                try:
+                    intraday_range_pct = round(((day_high - day_low) / price) * 100, 2)
+                except (TypeError, ZeroDivisionError):
+                    intraday_range_pct = None
+
+            wk_range_pct = None
+            if wk_high is not None and wk_low is not None and wk_low:
+                try:
+                    wk_range_pct = round(((wk_high - wk_low) / wk_low) * 100, 2)
+                except (TypeError, ZeroDivisionError):
+                    wk_range_pct = None
+
+            risk_points = 0
+            reasons = []
+            if beta is not None:
+                try:
+                    if beta >= 1.5:
+                        risk_points += 2
+                        reasons.append(f"high beta ({beta:.2f})")
+                    elif beta >= 1.1:
+                        risk_points += 1
+                        reasons.append(f"above-market beta ({beta:.2f})")
+                except TypeError:
+                    pass
+            if intraday_range_pct is not None and intraday_range_pct >= 4:
+                risk_points += 1
+                reasons.append(f"wide intraday range ({intraday_range_pct}%)")
+            if wk_range_pct is not None and wk_range_pct >= 60:
+                risk_points += 1
+                reasons.append(f"wide 52-week range ({wk_range_pct}%)")
+            if debt_to_equity is not None:
+                try:
+                    if debt_to_equity >= 150:
+                        risk_points += 2
+                        reasons.append(f"high leverage (D/E {debt_to_equity:.0f})")
+                    elif debt_to_equity >= 80:
+                        risk_points += 1
+                        reasons.append(f"elevated leverage (D/E {debt_to_equity:.0f})")
+                except TypeError:
+                    pass
+
+            if risk_points >= 4:
+                risk_level = "high"
+            elif risk_points >= 2:
+                risk_level = "moderate"
+            else:
+                risk_level = "low"
+
+            per_symbol.append({
+                "symbol": symbol,
+                "price": price,
+                "beta": beta,
+                "debt_to_equity": debt_to_equity,
+                "intraday_range_pct": intraday_range_pct,
+                "52w_range_pct": wk_range_pct,
+                "risk_level": risk_level,
+                "risk_factors": reasons or ["no elevated risk factors detected"],
+                "quote_source": quote.get("source"),
+                "fundamentals_source": fundamentals.get("source"),
+            })
+
+        levels = [s["risk_level"] for s in per_symbol]
+        if "high" in levels:
+            overall = "high"
+        elif "moderate" in levels:
+            overall = "moderate"
+        elif levels:
+            overall = "low"
+        else:
+            overall = "unknown"
+
+        lines = [f"Risk analysis for {len(per_symbol)} holding(s) — overall portfolio risk: {overall}."]
+        for s in per_symbol:
+            factor_text = "; ".join(s["risk_factors"])
+            price_text = f"₹{s['price']}" if s["price"] is not None else "price unavailable"
+            lines.append(f"- {s['symbol']} ({price_text}): {s['risk_level']} risk — {factor_text}.")
+        response_text = "\n".join(lines)
+
+        return {
+            "status": "ok",
+            "response": response_text,
+            "overall_risk": overall,
+            "holdings": per_symbol,
+            "timestamp": self._get_timestamp(),
+        }
+
+    SUPPORTED_TYPES = ("quote", "risk_analysis")
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        task_type = task.get("type", "quote")
+
+        if task_type == "risk_analysis":
+            symbols = p.get("symbols") or p.get("holdings")
+            if not symbols:
+                single = p.get("symbol")
+                symbols = [single] if single else ["RELIANCE"]
+            if isinstance(symbols, str):
+                symbols = [symbols]
+            return self.get_risk_analysis(symbols)
+
+        # Default / legacy behaviour for every other task_type routed here —
+        # unchanged deliberately: the investment district's manifest
+        # `capabilities` tags are descriptive themes, not literal task_type
+        # strings (see governor.py dispatch comment), so many existing
+        # call sites reach this agent for task types it was never built to
+        # branch on. A plain quote is the long-standing fallback; only
+        # risk_analysis (the reproduced stub case) got a real handler above.
         symbol = p.get("symbol", "RELIANCE")
         result = self.get_quote(symbol)
         return {"status": "ok", **result}

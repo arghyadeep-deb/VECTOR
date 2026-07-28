@@ -209,6 +209,43 @@ class UIDesigner(AgentBase):
             logger.warning(f"[VECTOR][ui_designer] search_design_corpus failed: {e}")
             return []
 
+    async def answer_design_question(self, query: str) -> str:
+        """LLM-backed answer for open-ended design requests (layout sketches,
+        component breakdowns, UX questions) that don't map to one of this
+        agent's structured task_types.
+
+        Found via eval (KNOWN_ISSUES, TIER6 'design' category, score 0.575):
+        run()'s unmatched-task_type fallback always dumped the raw
+        _VECTOR_DESIGN_TOKENS dict regardless of what was actually asked —
+        e.g. "I'm mocking up a simple settings screen — can you sketch out
+        what components and layout it should probably have?" got back a
+        flat colors/typography/spacing listing, not a layout. Judge: "no
+        actual components or layout sketch." Grounded with VECTOR's own
+        design tokens so the answer stays consistent with the existing
+        system instead of inventing an unrelated palette.
+        """
+        tokens_summary = (
+            f"VECTOR design system reference — colors: {list(_VECTOR_DESIGN_TOKENS['colors'].keys())}, "
+            f"spacing scale: {list(_VECTOR_DESIGN_TOKENS['spacing'].keys())}, "
+            f"radius: {list(_VECTOR_DESIGN_TOKENS['radius'].keys())}, "
+            f"fonts: {_VECTOR_DESIGN_TOKENS['typography']['font_sans']} / "
+            f"{_VECTOR_DESIGN_TOKENS['typography']['font_mono']}."
+        )
+        prompt = (
+            "You are VECTOR's UI/UX designer. Answer the design request below "
+            "directly and concretely — name the actual components, layout "
+            "structure, and visual hierarchy needed. Do not just list design "
+            "tokens or color codes; use them only if relevant to the answer.\n\n"
+            f"{tokens_summary}\n\n"
+            f"Request: {query}"
+        )
+        try:
+            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            return (response or "").strip()
+        except Exception as e:
+            logger.warning("[VECTOR][ui_designer] answer_design_question LLM failed: {}", e)
+            return ""
+
     async def audit_design_consistency(self, html_content: str) -> dict:
         """LLM-assisted design audit for consistency, spacing, color usage."""
         prompt = (
@@ -264,7 +301,37 @@ class UIDesigner(AgentBase):
                 self.award_points(10, "corpus_searched")
                 return {"status": "ok", "query": query, "results": results, "count": len(results)}
 
-            else:  # tokens
+            else:  # unmatched task_type, or explicit "tokens" default
+                # KNOWN_ISSUES (per-district output-quality polish pass):
+                # any task_type the classifier invents that isn't one of the
+                # 5 structured branches above used to land here and always
+                # get the bare design-token dump — wrong for a real question
+                # like "sketch a settings screen layout" (eval score 0.575).
+                # If the request carries real free text (params.query /
+                # top-level query|text, per commands.py's
+                # {"query": body.text, "content": body.text} task shape),
+                # answer it properly; only fall back to the raw token dump
+                # when there's genuinely no question to answer (a literal,
+                # content-free {"type": "tokens"} call, which existing
+                # callers still get byte-for-byte unchanged).
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_design_question(query)
+                    if answer:
+                        self._get_memory().store(
+                            event_type="design_question_answered",
+                            content=f"UIDesigner answered: {query[:80]}",
+                            tags=["design", "ui"],
+                            source="ui_designer",
+                        )
+                        self.award_points(15, "design_question_answered")
+                        return {"status": "ok", "response": answer}
+
                 self._get_memory().store(
                     event_type="design_tokens_requested",
                     content="VECTOR design token system retrieved",

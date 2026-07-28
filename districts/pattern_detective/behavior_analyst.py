@@ -107,10 +107,11 @@ Provide: 1) Behavioral pattern identification, 2) Productivity analysis, 3) Cons
 
         profile = self.behavior_profiles.get("default", {})
         if not profile:
+            # KNOWN_ISSUES #21: don't close EpisodicMemory()'s shared singleton
+            # connection from a local instance — see skill_mapper.py's note.
             from core.memory.episodic import EpisodicMemory
             mem = EpisodicMemory()
             events = mem.recall("", limit=100)
-            mem.close()
             if events:
                 activity_log = [
                     {"type": e.get("event_type", "unknown"), "timestamp": e.get("timestamp", ""), "content": e.get("content", "")[:100]}

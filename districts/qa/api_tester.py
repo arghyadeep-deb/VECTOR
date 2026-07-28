@@ -26,7 +26,18 @@ class APITester(AgentBase):
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._base_url = CONFIG.get("api", {}).get("base_url", "http://127.0.0.1:8000")
-        logger.info("[VECTOR][api_tester] initialized — base={}", self._base_url)
+        # Authenticate against our OWN API. Without this, every endpoint behind
+        # the auth middleware returned 401 and the QA agent permanently
+        # self-reported "grade=F, 2/8 endpoints OK" for a perfectly healthy API
+        # (2026-07-17 browser dogfood spotted the false alarm in VECTOR's own
+        # memory feed). The middleware validates os.environ["VECTOR_API_KEY"].
+        import os as _os
+        self._api_key = _os.environ.get("VECTOR_API_KEY", "")
+        logger.info("[VECTOR][api_tester] initialized — base={} auth={}",
+                    self._base_url, "on" if self._api_key else "off")
+
+    def _auth_headers(self) -> dict:
+        return {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
 
     def _get_memory(self):
         if self._memory is None:
@@ -44,13 +55,14 @@ class APITester(AgentBase):
         try:
             import httpx
             url = f"{self._base_url}{path}"
+            headers = self._auth_headers()
             t0 = time.perf_counter()
             if method.upper() == "GET":
-                r = httpx.get(url, timeout=timeout)
+                r = httpx.get(url, headers=headers, timeout=timeout)
             elif method.upper() == "POST":
-                r = httpx.post(url, json=body or {}, timeout=timeout)
+                r = httpx.post(url, json=body or {}, headers=headers, timeout=timeout)
             else:
-                r = httpx.request(method.upper(), url, json=body, timeout=timeout)
+                r = httpx.request(method.upper(), url, json=body, headers=headers, timeout=timeout)
             latency_ms = round((time.perf_counter() - t0) * 1000, 1)
 
             ok = r.status_code == expected_status
@@ -82,21 +94,30 @@ class APITester(AgentBase):
 
     def run_full_suite(self) -> list[dict]:
         """Test all known VECTOR API endpoints."""
+        # Paths corrected 2026-07-17: /goals and /districts are not real routes
+        # (both 404'd even WITH auth) — the real ones are /brain/goals and
+        # /city/districts. And /command requires a `text` field (CommandRequest),
+        # so the old {"type":...} body 422'd. All three defects made the suite
+        # under-report health even after the auth fix.
         tests = [
             ("GET", "/health", 200),
             ("GET", "/status", 200),
             ("GET", "/agents", 200),
-            ("GET", "/goals", 200),
+            ("GET", "/brain/goals", 200),
             ("GET", "/memory/recent", 200),
-            ("GET", "/districts", 200),
-            ("POST", "/command", 200, {"type": "check_health", "params": {}}),
+            ("GET", "/city/districts", 200),
+            # /command runs the full LLM pipeline (free-tier cloud, 3-8s typical)
+            # — the 5s default timed it out and dropped an otherwise-healthy API
+            # a full grade. 5th tuple element = per-test timeout seconds.
+            ("POST", "/command", 200, {"text": "status"}, 20.0),
             ("GET", "/metrics", 200),
         ]
         results = []
         for test in tests:
             method, path, expected = test[0], test[1], test[2]
             body = test[3] if len(test) > 3 else None
-            result = self.test_endpoint(method, path, expected, body)
+            timeout = test[4] if len(test) > 4 else 5.0
+            result = self.test_endpoint(method, path, expected, body, timeout=timeout)
             results.append(result)
             status = "✅" if result["ok"] else "❌"
             logger.debug("[VECTOR][api_tester] {} {} {} {} ({}ms)",

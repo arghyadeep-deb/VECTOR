@@ -93,8 +93,31 @@ class AgentRegistry:
                 logger.error(f"[VECTOR][agent_registry] fallback spawn also failed: {fe}")
 
     def _persist_ghost(self, agent) -> None:
-        """Save dead agent's history for next-generation inheritance."""
+        """Save dead agent's history for next-generation inheritance.
+
+        Accepts either a live agent object (attribute access, e.g. from
+        deregister()) or a plain ghost dict (e.g. evolution_engine's
+        _persist_agent_history, which builds {"agent_id":..., "agent_name":...}
+        rather than an AgentBase instance) — both call this method, so both
+        shapes must work (2026-07-21: dict callers were crashing here on
+        every bulk cull).
+        """
         try:
+            if isinstance(agent, dict):
+                agent_id = agent.get("agent_id") or agent.get("id")
+                agent_name = agent.get("agent_name") or agent.get("name")
+                district = agent.get("district")
+                generation = agent.get("generation")
+                final_hp = agent.get("final_hp") or agent.get("health_points")
+                ghost_memory = agent.get("ghost_memory")
+            else:
+                agent_id = agent.id
+                agent_name = agent.name
+                district = agent.district
+                generation = agent.generation
+                final_hp = agent.health_points
+                ghost_memory = agent.ghost_memory
+
             from core.memory.episodic import get_db_connection
             conn = get_db_connection()
             conn.execute(
@@ -102,12 +125,12 @@ class AgentRegistry:
                 "(agent_id, agent_name, district, generation, final_hp, ghost_memory, died_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
-                    agent.id,
-                    agent.name,
-                    agent.district,
-                    agent.generation,
-                    agent.health_points,
-                    json.dumps(agent.ghost_memory),
+                    agent_id,
+                    agent_name,
+                    district,
+                    generation,
+                    final_hp,
+                    json.dumps(ghost_memory),
                     datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 ),
             )

@@ -10,6 +10,7 @@ Usage from VECTOR's coding district:
     bridge = VectorCodeBridge()
     result = await bridge.run_task("Fix the bug in core/memory/episodic.py")
 """
+import os
 import sys
 import asyncio
 import subprocess
@@ -102,11 +103,15 @@ class VectorCodeBridge:
             logger.warning("[VectorCode] Cannot start MCP server — not available")
             return None
         try:
+            log_dir = Path(os.path.expanduser("~")) / ".vector_ca" / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_path = log_dir / "mcp_server.log"
+            stderr_log = open(log_path, "a")
             proc = subprocess.Popen(
                 [sys.executable, str(_VC_ENTRY), "mcp", "--sse", "--port", str(port)],
                 cwd=str(_VC_ROOT),
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=stderr_log,
             )
             logger.info(f"[VectorCode] MCP server started on port {port} (pid={proc.pid})")
             return proc

@@ -66,10 +66,13 @@ class MasteryTracker(AgentBase):
         previous_score = previous.get("score", 0.0)
         progress_delta = score - previous_score
 
+        # KNOWN_ISSUES #21: EpisodicMemory() wraps a process-wide singleton
+        # connection — closing a local instance here used to close it for
+        # every other consumer too, which surfaced as intermittent "Cannot
+        # operate on a closed database" errors elsewhere in the system.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         mem.update_skill(skill_name, score, {"tracking": "mastery", "last_update": datetime.datetime.now(datetime.timezone.utc).isoformat()})
-        mem.close()
 
         self.mastery_levels[skill_name] = {
             "score": score,
@@ -110,10 +113,10 @@ class MasteryTracker(AgentBase):
         if skill_name in self.mastery_levels:
             level_data = self.mastery_levels[skill_name]
         else:
+            # KNOWN_ISSUES #21 — see track_mastery() above.
             from core.memory.episodic import EpisodicMemory
             mem = EpisodicMemory()
             skill_data = mem.get_skill(skill_name)
-            mem.close()
 
             if skill_data and skill_data.get("confidence"):
                 score = skill_data["confidence"]

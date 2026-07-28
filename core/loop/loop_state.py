@@ -28,6 +28,58 @@ _rt_running: bool = False
 _rt_start_time: str = ""
 _ui_broadcast_fn: Optional[Callable] = None
 
+# Cross-process heartbeat (2026-07-19): the loop (`run_vector.py loop`) and the
+# API server (`run_vector.py api`) are separate processes, so the in-memory
+# runtime above is invisible to the API — /loop/status reported running=False
+# forever while the loop was healthy. The loop now also writes a throttled
+# heartbeat file; get_runtime() falls back to it when the in-process state is
+# not running.
+_HEARTBEAT_MAX_AGE_SEC = 10.0
+_hb_last_write: float = 0.0
+
+
+def _heartbeat_path():
+    from core.runtime_paths import data_path
+    return data_path("loop_heartbeat.json")
+
+
+def _write_heartbeat(tick_count: int, running: bool, start_time: str) -> None:
+    global _hb_last_write
+    import json
+    import os
+    import time
+    now = time.time()
+    if running and (now - _hb_last_write) < 2.0:
+        return  # throttle: at most one write per 2s
+    _hb_last_write = now
+    try:
+        path = _heartbeat_path()
+        tmp = str(path) + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump({
+                "tick_count": tick_count,
+                "running": running,
+                "start_time": start_time,
+                "pid": os.getpid(),
+                "ts": now,
+            }, f)
+        os.replace(tmp, str(path))
+    except Exception:
+        pass  # heartbeat is best-effort; never break the loop
+
+
+def _read_heartbeat() -> Optional[dict]:
+    import json
+    import time
+    try:
+        with open(_heartbeat_path(), encoding="utf-8") as f:
+            hb = json.load(f)
+        if hb.get("running") and (time.time() - float(hb.get("ts", 0))) <= _HEARTBEAT_MAX_AGE_SEC:
+            return hb
+        return None  # stale or stopped
+    except Exception:
+        return None
+
 
 def update_runtime(*, tick_count: int, running: bool, start_time: str = "") -> None:
     """Called by AutonomousLoop on each tick and on start/stop."""
@@ -37,10 +89,30 @@ def update_runtime(*, tick_count: int, running: bool, start_time: str = "") -> N
         _rt_running = running
         if start_time:
             _rt_start_time = start_time
+        st = _rt_start_time
+    _write_heartbeat(tick_count, running, st)
 
 
 def get_runtime() -> dict:
-    """Return a snapshot of current loop runtime state."""
+    """Return a snapshot of current loop runtime state.
+
+    Falls back to the cross-process heartbeat file when this process isn't
+    the one running the loop (API process case).
+    """
+    with _rt_lock:
+        if _rt_running:
+            return {
+                "tick_count": _rt_tick_count,
+                "running": _rt_running,
+                "start_time": _rt_start_time,
+            }
+    hb = _read_heartbeat()
+    if hb:
+        return {
+            "tick_count": int(hb.get("tick_count", 0)),
+            "running": True,
+            "start_time": str(hb.get("start_time", "")),
+        }
     with _rt_lock:
         return {
             "tick_count": _rt_tick_count,

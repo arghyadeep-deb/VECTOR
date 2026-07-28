@@ -37,13 +37,15 @@ PROD_SCRIPT_ORDER = [
     "js/speech.js",
     "js/cinematic.js",
     "js/terminal.js",
+    "js/canvas-pan.js",
     "js/command-box.js",
     "js/provider-keys.js",
     "js/hud-controls.js",
-    "js/city3d.js",
     "js/backend.js",
-    "js/offline.js",
 ]
+# Dropped from prod (2026-07-14): js/city3d.js (heavy three.js 3D-city view, not
+# used in the lean dock) and js/offline.js (registers a service worker that was
+# dead in every shipped build — kept out to avoid stale-cache surprises).
 
 
 def extract_scripts(html: str) -> list[str]:

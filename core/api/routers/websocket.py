@@ -236,59 +236,44 @@ async def vector_ws(websocket: WebSocket):
                     continue
 
                 try:
-                    from core.loop.context_engine import ContextEngine
-                    from core.brain.goal_system import GoalSystem
-                    from core.loop.decision_engine import Candidate, DecisionEngine
-                    from core.loop.permission_gateway import PermissionGateway, Action
-                    from core.memory.policy import PolicyMemory
-
-                    # RULE 1 — Session hydration
-                    ctx = ContextEngine()
-                    hydration = ctx.session_hydration_prompt()
-
-                    # Get goals
-                    goals = GoalSystem()
-                    actions = goals.generate_immediate_actions(limit=4)
-
-                    # Build candidates
-                    candidates = [
-                        Candidate(
-                            action_type=a["action"],
-                            params={"goal_id": a["goal_id"], "title": a["title"]},
-                            goal_ids=[a["goal_id"]],
-                            urgency={"high": 0.9, "medium": 0.5, "low": 0.2}.get(a.get("urgency", "low"), 0.5),
-                            confidence=0.7,
-                            source="ws_command",
-                        )
-                        for a in actions
-                    ]
-
-                    # Evaluate
-                    decision = await DecisionEngine().evaluate(candidates)
-
-                    # Execute via gateway
-                    gw = PermissionGateway()
-                    result = await gw.execute(
-                        Action(
-                            action_type=decision.winner.action_type,
-                            params=decision.winner.params,
-                            proposed_by="dashboard_websocket",
-                            priority=msg.get("priority", "normal"),
-                        )
+                    # 2026-07-21 KNOWN_ISSUES #12: this used to completely
+                    # ignore `text` -- it built candidates from GoalSystem's
+                    # autonomous goal queue and executed whichever goal won,
+                    # regardless of what was actually typed, despite the
+                    # comment above claiming parity with /command. Confirmed
+                    # nothing in the current frontend actually sends this WS
+                    # action (frontend/js/vector-core.js's V.command(), used
+                    # by every real chat/terminal path, POSTs to the HTTP
+                    # /command endpoint instead) -- so this was unreachable
+                    # from the live UI, but a real bug for any direct WS
+                    # caller. Now reuses the same real pipeline as HTTP
+                    # /command (commands.py::command_endpoint(), which
+                    # itself now routes through classify_chat_intent() +
+                    # Governor.dispatch() per issue #1) instead of
+                    # duplicating a second, broken implementation.
+                    from core.api.routers.commands import command_endpoint
+                    from core.api.schemas import CommandRequest
+                    from core.api.dependencies import (
+                        get_context_engine, get_decision_engine,
+                        get_permission_gateway, get_episodic_memory,
                     )
-
-                    # Update policy
-                    pm = PolicyMemory()
-                    h = PolicyMemory.make_situation_hash(decision.winner.params)
-                    pm.update_from_outcome(decision.winner.action_type, h, 0.8 if result.approved else 0.2)
+                    cmd_result = await command_endpoint(
+                        body=CommandRequest(
+                            text=text, source="ws_command",
+                            priority=msg.get("priority", "normal"),
+                        ),
+                        ctx_engine=get_context_engine(websocket),
+                        decision_engine=get_decision_engine(websocket),
+                        perm_gateway=get_permission_gateway(websocket),
+                        episodic_mem=get_episodic_memory(websocket),
+                    )
 
                     await manager.send_personal(websocket, {
                         "type": "response",
-                        "action": decision.winner.action_type,
-                        "approved": result.approved,
-                        "level": result.level,
-                        "score": decision.winner.total_score,
-                        "reasoning": decision.reasoning,
+                        "response": cmd_result.response,
+                        "action": cmd_result.action_taken,
+                        "score": cmd_result.winner_score,
+                        "candidates_evaluated": cmd_result.candidates_evaluated,
                         "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                     })
 
@@ -309,7 +294,14 @@ async def vector_ws(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
     except Exception as e:
-        logger.error(f"[VECTOR][ws] connection error: {e}")
+        # A client dropping mid-handshake/stream surfaces as a Starlette state
+        # error ("not connected"/"need to call accept first"/disconnect). That's
+        # a benign race, not a fault — log it quietly and just clean up.
+        _m = str(e).lower()
+        if any(s in _m for s in ("not connected", "accept", "disconnect", "close message")):
+            logger.debug(f"[VECTOR][ws] client dropped: {e}")
+        else:
+            logger.error(f"[VECTOR][ws] connection error: {e}")
         manager.disconnect(websocket)
 
 
@@ -398,6 +390,8 @@ class WSCommandResponse(BaseModel):
     response: str
     success: bool = True
     error: Optional[str] = None
+    district: Optional[str] = None
+    task_type: Optional[str] = None
 
 
 @router.post("/command", response_model=WSCommandResponse)
@@ -407,27 +401,51 @@ async def ws_command_http(request: WSCommandRequest):
     from core.brain.goal_system import GoalSystem
     from core.loop.decision_engine import DecisionEngine, Candidate
     from core.loop.permission_gateway import PermissionGateway
-    from core.city.governor import GovernorCouncil
+    from core.city.governor import GovernorCouncil, classify_chat_intent
     from core.memory.episodic import EpisodicMemory
     import httpx
 
     try:
         # Route through the full intelligence pipeline via governor
         governor = GovernorCouncil()
-        task = {"type": "answer_question", "params": {"query": request.text, "source": "ws_http"}}
+        # 2026-07-21 KNOWN_ISSUES #1: this used to hardcode every request to
+        # task_type="answer_question", which Governor.dispatch() special-cases
+        # to skip district routing entirely — meaning nothing typed in chat
+        # could ever reach a real district agent. classify_chat_intent()
+        # decides per-message whether this is plain Q&A or a real action;
+        # it defaults to answer_question on any doubt, so this is additive,
+        # not a regression of the stub-answer fix that method exists for.
+        intent = await classify_chat_intent(request.text)
+        task = {
+            "type": intent["type"],
+            "params": {"query": request.text, "content": request.text, "source": "ws_http"},
+        }
+        if intent.get("district"):
+            task["district"] = intent["district"]
         result = await governor.dispatch(task)
         response_text = result.get("response") or result.get("output") or str(result.get("status", "executed"))
+        result_district = result.get("district")
+        result_task_type = intent.get("type")
 
         if result.get("status") == "error":
-            return WSCommandResponse(response=result.get("error", "command failed"), success=False)
+            return WSCommandResponse(
+                response=result.get("error", "command failed"), success=False,
+                district=result_district, task_type=result_task_type,
+            )
 
         # Store in memory
         try:
+            # 2026-07-21: this passed importance="medium", which
+            # EpisodicMemory.store() has never accepted (signature is
+            # event_type, content, tags, context, source — no importance
+            # kwarg). Every call raised TypeError, silently swallowed by
+            # this except block, so nothing sent through /ws/command has
+            # ever actually been persisted — confirmed by a write-then-read
+            # memory test that came back completely empty.
             mem = EpisodicMemory()
             mem.store(
                 event_type="command_executed",
                 content=request.text,
-                importance="medium",
                 tags=["ws_command", request.source if hasattr(request, 'source') else "http"],
                 context={"response": response_text, "success": True},
                 source="ws_command_http",
@@ -435,7 +453,10 @@ async def ws_command_http(request: WSCommandRequest):
         except Exception as e:
             logger.warning(f"[VECTOR][ws] memory store failed: {e}")
 
-        return WSCommandResponse(response=response_text, success=True)
+        return WSCommandResponse(
+            response=response_text, success=True,
+            district=result_district, task_type=result_task_type,
+        )
 
     except Exception as e:
         logger.error(f"[VECTOR][ws] HTTP command failed: {e}")

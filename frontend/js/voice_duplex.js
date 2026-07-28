@@ -132,9 +132,20 @@
       ws.onmessage = (e) => { let d; try { d = JSON.parse(e.data); } catch (_) { return; } onMessage(d); };
       ws.onopen = async () => {
         if (cfg.apiKey) ws.send(JSON.stringify({ auth: 'Bearer ' + cfg.apiKey }));
-        await startMicPump();
-        active = true;
-        console.log('[duplex] realtime conversation live');
+        try {
+          await startMicPump();
+          active = true;
+          console.log('[duplex] realtime conversation live');
+        } catch (e) {
+          // No mic available — plain-HTTP (non-localhost) blocks getUserMedia,
+          // permission denied, or no device. Text/command-bar mode still works.
+          console.warn('[duplex] mic unavailable — text-only mode', e);
+          try {
+            V.caption('Mic unavailable — voice off. Click VOICE in the dock for help enabling it.');
+            setTimeout(() => V.caption(''), 5000);
+          } catch (_) {}
+          stop();
+        }
       };
       ws.onclose = () => { active = false; stopMicPump(); };
       ws.onerror = () => { active = false; };

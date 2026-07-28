@@ -262,10 +262,14 @@ class APIManager:
     async def _check_memory_health(self) -> Dict[str, Any]:
         """Check memory services health."""
         try:
+            # KNOWN_ISSUES #21: EpisodicMemory() wraps a process-wide singleton
+            # connection (core.memory.episodic.get_db_connection()). Closing
+            # it from a periodic health check used to poison memory access for
+            # every other agent/thread in the system on every health-check
+            # tick — see districts/skills/skill_mapper.py for the full note.
             from core.memory.episodic import EpisodicMemory
             mem = EpisodicMemory()
             stats = mem.get_stats()
-            mem.close()
             return {
                 "healthy": True,
                 "stats": {

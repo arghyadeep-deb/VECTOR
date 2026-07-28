@@ -161,8 +161,8 @@ button{ font-family:inherit; color:inherit; cursor:pointer; background:none; bor
 .orb__label{ font-family:var(--font); font-weight:300; letter-spacing:.42em;
   font-size:calc(var(--orb-size) * .088); color:#eaf9ff; text-indent:.42em;
   text-shadow:0 0 16px rgba(120,225,255,.8); }
-.orb__sub{ position:absolute; bottom:24%; font-family:var(--mono); font-size:8px;
-  letter-spacing:.32em; color:var(--txt-faint); }
+.orb__sub{ position:absolute; bottom:24%; font-family:var(--mono); font-size:10px;
+  letter-spacing:.32em; color:var(--txt-mute); }
 
 /* ripple pulses (used on speaking) */
 .orb__pulse{ width:86%; height:86%; border-radius:50%;
@@ -347,8 +347,8 @@ button{ font-family:inherit; color:inherit; cursor:pointer; background:none; bor
   }
 
   .ticker {
-    height: 22px;
-    font-size: 10px;
+    height: 26px;
+    font-size: 12px; /* 10px was unreadable at arm's length */
   }
 
   .ticker.top {
@@ -370,11 +370,11 @@ button{ font-family:inherit; color:inherit; cursor:pointer; background:none; bor
   }
 
   #hint {
-    width: min(310px, calc(100vw - 52px));
+    width: min(330px, calc(100vw - 52px));
     bottom: 11%;
-    font-size: 9px;
+    font-size: 11px;
     line-height: 1.5;
-    letter-spacing: .18em;
+    letter-spacing: .14em;
   }
 
   #clock .t {

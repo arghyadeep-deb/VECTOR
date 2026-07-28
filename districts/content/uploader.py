@@ -44,6 +44,47 @@ class Uploader(AgentBase):
         if len(self._scheduled_uploads) > _MAX_SCHEDULED_UPLOADS:
             del self._scheduled_uploads[:-_MAX_SCHEDULED_UPLOADS]
 
+    async def _gate_publish(self, platform: str, title: str) -> tuple[bool, str]:
+        """RED-tier owner-approval gate for real, public, irreversible uploads.
+
+        2026-07-23 (task #92, per-district real tool-execution audit): found
+        that `upload_to_youtube`/`upload_to_instagram`/`upload_to_tiktok`/
+        `upload_to_twitter` had NO PermissionGateway check at all, even though
+        `content_publish` is explicitly RED-tiered in core/config.py
+        ("Real money / irreversible outward actions — owner approval ALWAYS").
+        `content_scheduler.py`'s `run_pending()` already gates its OWN publish
+        path (Dev.to/Hashnode/Medium via BlogPublisher) — its code comment
+        even says "the content Hand gates, this scheduler did not [before this
+        fix]" — but that's a DIFFERENT class from this Uploader, so it never
+        covered YouTube/Instagram/TikTok/Twitter. Both the direct
+        Governor.dispatch() → Uploader.run() path AND video_pipeline.py's
+        create_and_upload() call these methods directly with zero gating,
+        meaning VECTOR could autonomously publish to real social accounts
+        with no owner approval — confirmed via code read, not by firing a
+        real post. Mirrors content_scheduler's fail-closed pattern: any
+        exception talking to the gateway means NOT approved.
+        """
+        try:
+            from core.loop.permission_gateway import PermissionGateway, Action
+            result = await PermissionGateway().execute(Action(
+                action_type="content_publish",
+                params={
+                    "summary": f"Publish '{title[:60]}' to {platform}",
+                    "platform": platform,
+                    "title": title,
+                },
+                proposed_by="uploader",
+            ))
+            approved = getattr(result, "approved", False)
+            reason = getattr(result, "reason", "")
+            return approved, reason
+        except Exception as _gw_err:
+            logger.error(
+                "[VECTOR][uploader] gateway unavailable — NOT publishing to {}: {}",
+                platform, _gw_err,
+            )
+            return False, f"gateway unavailable: {_gw_err}"
+
     async def upload_to_youtube(self, video_path: str, title: str,
                                description: str, tags: list[str],
                                category: str = "22", privacy: str = "private",
@@ -53,6 +94,10 @@ class Uploader(AgentBase):
         """
         if not Path(video_path).exists():
             return {"status": "error", "message": "Video file not found"}
+
+        _approved, _reason = await self._gate_publish("youtube", title)
+        if not _approved:
+            return {"status": "blocked", "platform": "youtube", "reason": _reason or "owner did not approve publish"}
 
         try:
             from google.oauth2.credentials import Credentials
@@ -140,6 +185,10 @@ class Uploader(AgentBase):
         if not Path(video_path).exists():
             return {"status": "error", "message": "Video file not found"}
 
+        _approved, _reason = await self._gate_publish("instagram", caption)
+        if not _approved:
+            return {"status": "blocked", "platform": "instagram", "reason": _reason or "owner did not approve publish"}
+
         try:
             instagram_token = self._api_credentials.get("instagram_access_token", "")
             instagram_account_id = self._api_credentials.get("instagram_account_id", "")
@@ -221,6 +270,10 @@ class Uploader(AgentBase):
         if not token or self._dry_run_enabled():
             return self._simulate_upload("tiktok", video_path, caption)
 
+        _approved, _reason = await self._gate_publish("tiktok", caption)
+        if not _approved:
+            return {"status": "blocked", "platform": "tiktok", "reason": _reason or "owner did not approve publish"}
+
         try:
             import httpx
 
@@ -293,6 +346,10 @@ class Uploader(AgentBase):
         token = self._api_credentials.get("twitter_access_token", "")
         if not token or self._dry_run_enabled():
             return self._simulate_upload("twitter", video_path, text)
+
+        _approved, _reason = await self._gate_publish("twitter", text)
+        if not _approved:
+            return {"status": "blocked", "platform": "twitter", "reason": _reason or "owner did not approve publish"}
 
         try:
             import httpx

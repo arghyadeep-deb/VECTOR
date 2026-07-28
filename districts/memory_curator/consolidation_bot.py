@@ -90,25 +90,32 @@ class ConsolidationBot(AgentBase):
         cutoff = (
             datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days_old)
         ).isoformat()
-        cursor = self._memory.conn.cursor()
-        cursor.execute(
-            "SELECT * FROM episodic_memory WHERE timestamp < ? ORDER BY timestamp ASC LIMIT 200",
-            (cutoff,),
-        )
-        cols = [d[0] for d in cursor.description]
-        return [dict(zip(cols, row)) for row in cursor.fetchall()]
+        # KNOWN_ISSUES #21: a cached self._memory.conn never sees
+        # get_db_connection()'s self-healing reopen-if-closed logic — see
+        # pattern_finder.py's _fetch_window() for the full explanation.
+        # get_temp_cursor() always resolves a live connection.
+        from core.memory.episodic import get_temp_cursor
+        with get_temp_cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM episodic_memory WHERE timestamp < ? ORDER BY timestamp ASC LIMIT 200",
+                (cutoff,),
+            )
+            cols = [d[0] for d in cursor.description]
+            return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
     def _fetch_recent_episodes(self, hours: int) -> list[dict]:
         cutoff = (
             datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours)
         ).isoformat()
-        cursor = self._memory.conn.cursor()
-        cursor.execute(
-            "SELECT * FROM episodic_memory WHERE timestamp >= ? ORDER BY timestamp DESC LIMIT 100",
-            (cutoff,),
-        )
-        cols = [d[0] for d in cursor.description]
-        return [dict(zip(cols, row)) for row in cursor.fetchall()]
+        # KNOWN_ISSUES #21 — see _fetch_old_episodes() above.
+        from core.memory.episodic import get_temp_cursor
+        with get_temp_cursor() as cursor:
+            cursor.execute(
+                "SELECT * FROM episodic_memory WHERE timestamp >= ? ORDER BY timestamp DESC LIMIT 100",
+                (cutoff,),
+            )
+            cols = [d[0] for d in cursor.description]
+            return [dict(zip(cols, row)) for row in cursor.fetchall()]
 
     # ── Core tasks ─────────────────────────────────────────────────────────────
 
@@ -251,8 +258,48 @@ class ConsolidationBot(AgentBase):
         task_type = (task or {}).get("type", "")
         if task_type == "store_findings":
             return self._store_findings(task.get("params", {}))
+        # classify_chat_intent()'s LLM classifier isn't limited to a fixed
+        # vocabulary for non-RED-tier task types (governor.py: "Otherwise pick
+        # a short snake_case task_type") — live traces show it invents
+        # "create_note" as often as it uses the RED-tier "overwrite_note_
+        # personal" string for the same kind of request. Match on substring
+        # rather than an exact list so new LLM-invented synonyms (add_note,
+        # note_this, etc.) still land here instead of back in the HP-lottery.
+        if task_type in ("save_note", "overwrite_note_personal") or "note" in task_type:
+            return self._save_note(task.get("params", {}))
         count = await self.consolidate_old_episodes()
         return {"status": "ok", "consolidated": count}
+
+    def _save_note(self, params: dict) -> dict:
+        """Save a "note this down" / personal-reminder-style request.
+
+        KNOWN_ISSUES #21/#23: save_note and overwrite_note_personal are
+        real task_types Governor.dispatch() routes to district="memory_curator"
+        (classify_chat_intent() picks them with high confidence — e.g. 0.95
+        live), but none of the 3 memory_curator agents ever declared either as
+        a capability. That meant the request fell through to
+        Governor.dispatch()'s HP-lottery fallback (governor.py's Task A.3
+        note) and ran whatever agent won HP's UNRELATED default action
+        instead — for this bot, that's consolidate_old_episodes(), which
+        returns {"consolidated": <count>}. Confirmed live: a "note this down"
+        request silently consolidated old episodes instead, and the bare
+        episode count (e.g. 200) rendered as the entire response — nonsense
+        to the person who asked to have something noted. This gives the task
+        type an actual, correct handler instead of an accidental one.
+        """
+        content = str(
+            params.get("content") or params.get("query") or params.get("text") or ""
+        ).strip()
+        if not content:
+            return {"status": "error", "error": "no note content provided to save"}
+        key = f"note:{datetime.datetime.now(datetime.timezone.utc).isoformat()}"
+        try:
+            self._memory.remember(key, content, category="personal_note", confidence=1.0)
+            self.award_points(10, "note_saved")
+            return {"status": "ok", "response": f"Noted: {content}"}
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] save_note failed: {e}")
+            return {"status": "error", "error": str(e)}
 
     def _store_findings(self, params: dict) -> dict:
         """Store a specific research finding into semantic memory.

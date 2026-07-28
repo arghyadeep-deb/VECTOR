@@ -132,9 +132,9 @@
   border: 1px solid rgba(0,204,255,.22);
   border-radius: 6px;
   color: #00ccff;
-  font: 11px 'JetBrains Mono', 'Courier New', monospace;
+  font: 12px 'JetBrains Mono', 'Courier New', monospace;
   letter-spacing: .04em;
-  padding: 6px 10px;
+  padding: 10px 14px;
   cursor: pointer;
   z-index: 9900;
   backdrop-filter: blur(8px);

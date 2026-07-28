@@ -129,7 +129,7 @@ class BudgetAnalyst(AgentBase):
             logger.warning(f"[VECTOR][budget_analyst] LLM unavailable: {e}")
             return "Cook at home. Use student discounts. Audit subscriptions."
 
-    async def analyse(self) -> bool:
+    async def analyse(self) -> str | None:
         month_label = datetime.date.today().strftime("%Y-%m")
         spend = self._fetch_category_spend(days=30)
         over_budget = self._over_budget_categories(spend)
@@ -194,15 +194,25 @@ class BudgetAnalyst(AgentBase):
             )
             self.award_points(25, f"budget analysis {month_label}")
             logger.info(f"[VECTOR][budget_analyst] done: Rs.{total_spent:.2f} spent, {len(over_budget)} over-budget")
-            return True
+            return report
         except Exception as e:
             logger.error(f"[VECTOR][budget_analyst] write failed: {e}")
             self.deduct_points(5, "write failed")
-            return False
+            return None
 
     async def run(self, task: dict) -> dict:
-        ok = await self.analyse()
-        return {"status": "ok" if ok else "error", "agent": self.name}
+        # 2026-07-22: analyse() always built a full markdown report (spend
+        # vs budget, over-budget alerts, LLM recommendations) but run() used
+        # to discard it and return a bare {"status": "ok"} — none of the 6
+        # keys avatar/avatar_voice.py::_extract_text() checks, so every
+        # dispatch here rendered as a "Task completed — status: ok." stub
+        # even though real analysis had just been computed and written to
+        # Obsidian (KNOWN_ISSUES.md #1 pattern). Now returns the report text
+        # itself via `response`.
+        report = await self.analyse()
+        if report:
+            return {"status": "ok", "response": report, "agent": self.name}
+        return {"status": "error", "agent": self.name}
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][budget_analyst] run_forever — monthly on 1st at 09:30")

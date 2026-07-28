@@ -31,18 +31,25 @@ def _get_loop():
 @router.get("/status", response_model=LoopStatusResponse)
 async def loop_status():
     try:
-        loop = _get_loop()
-        if loop is None:
-            return LoopStatusResponse(
-                running=False, tick_count=0, uptime_seconds=0,
-                guard_violations=[], task_queue_depth=0,
-            )
-        running = getattr(loop, "_running", False)
-        tick_count = getattr(loop, "_tick_count", 0)
+        # Cross-process aware (2026-07-19): the loop usually runs in a separate
+        # process (`run_vector.py loop`) from this API server. Instantiating a
+        # private AutonomousLoop here and reading its attrs always reported
+        # running=False. loop_state.get_runtime() reads the loop's heartbeat
+        # file, so it works in both single- and two-process deployments.
+        from core.loop.loop_state import get_runtime
+        rt = get_runtime()
+        running = bool(rt.get("running"))
+        tick_count = int(rt.get("tick_count", 0))
         uptime = 0
-        start = getattr(loop, "_start_time", None)
+        start = rt.get("start_time")
         if start:
-            uptime = int((dt.datetime.now(dt.timezone.utc) - start).total_seconds())
+            try:
+                start_dt = dt.datetime.fromisoformat(str(start))
+                if start_dt.tzinfo is None:
+                    start_dt = start_dt.replace(tzinfo=dt.timezone.utc)
+                uptime = int((dt.datetime.now(dt.timezone.utc) - start_dt).total_seconds())
+            except (ValueError, TypeError):
+                uptime = 0
         guard_violations = []
         task_queue_depth = 0
         try:

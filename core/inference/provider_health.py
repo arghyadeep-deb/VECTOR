@@ -42,6 +42,7 @@ class FailureKind(str, Enum):
     SERVER_ERROR = "server_error"
     NETWORK = "network"
     BAD_REQUEST = "bad_request"
+    UNKNOWN_MODEL = "unknown_model"
     UNKNOWN = "unknown"
 
 
@@ -166,6 +167,28 @@ class ProviderHealthManager:
             self._disabled.add(key)
             meta.health = RouteHealth.DISABLED
             return meta
+        if kind == FailureKind.UNKNOWN_MODEL:
+            # 2026-07-23 (JARVIS-parity latency pass): distinct from generic
+            # BAD_REQUEST below. A provider saying "I don't recognize this
+            # model" (e.g. github_models rejecting openai/gpt-5, openai/o3,
+            # openai/o4-mini with "unknown_model" — a known, permanent
+            # mismatch documented in model_catalog.yaml's own comment,
+            # "gpt-5/o3/o4-mini return 400 (kept; fallback covers)") is NOT
+            # content-dependent — the identical (provider, model) pair will
+            # 400 again on every future call regardless of what's asked, so
+            # unlike a genuinely malformed one-off request, retrying it is
+            # pure wasted latency (confirmed live: these fired on nearly
+            # every "coding"/"saas"/"reasoning"/"council" tier call, each
+            # costing a full round trip before falling through to the next
+            # provider). Permanently disable just this (provider, model)
+            # pair — sibling models on the same provider (Codestral,
+            # DeepSeek-R1, etc.) are unaffected since disabling is scoped to
+            # `key`, not the provider as a whole. `reset()` still works if
+            # ever needed to force a retry (e.g. after the owner confirms a
+            # provider added support for the model).
+            self._disabled.add(key)
+            meta.health = RouteHealth.DISABLED
+            return meta
         if kind == FailureKind.BAD_REQUEST:
             # Caller's fault (malformed request), not the provider's —
             # must not trip the circuit.
@@ -196,6 +219,15 @@ class ProviderHealthManager:
             return FailureKind.SERVER_ERROR
         if any(token in text for token in ("timeout", "connection", "network", "dns", "temporarily unavailable")):
             return FailureKind.NETWORK
+        # Checked before the generic BAD_REQUEST bucket below: "this model
+        # doesn't exist / isn't available on this provider" is a permanent,
+        # content-independent mismatch (see the UNKNOWN_MODEL branch in
+        # record_failure() for the full rationale and the live evidence).
+        if any(token in text for token in (
+            "unknown_model", "unknown model", "model not found",
+            "model_not_found",
+        )):
+            return FailureKind.UNKNOWN_MODEL
         if any(token in text for token in ("400", "bad request", "invalid request", "context length")):
             return FailureKind.BAD_REQUEST
         return FailureKind.UNKNOWN

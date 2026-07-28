@@ -129,7 +129,7 @@
       return `<div class="agent ${cls}">
         <div class="an">${esc(a.name)}</div><div class="ad">${esc(String(a.district || '').toUpperCase())}</div>
         <div class="hpbar ${bar}"><i style="width:${pct}%"></i></div>
-        <div class="hp"><span>HP ${esc(a.health_points)}</span><span>G${esc(a.generation)} · ${esc(a.tier)}</span></div>
+        <div class="hp"><span>HP ${Math.round(a.health_points || 0)}</span><span>G${esc(a.generation)} · ${esc(a.tier)}</span></div>
       </div>`;
     }).join('');
   }
@@ -644,6 +644,38 @@
 
   // {type:'events'} from main /ws — episodic events burst
   V.on('response', function () {}); // already handled by vector-core.js (say)
+
+  // ── Paint-on-open ─────────────────────────────────────────────────────────
+  // Polls keep D.* fresh in the background but the refresh functions only paint
+  // a panel that's ALREADY open — so a freshly-opened panel stayed BLANK until
+  // the next poll tick (up to 20s for council). Repaint from cache the instant
+  // a panel opens; if its cache is empty, fire a one-shot fetch to fill it now.
+  const ONOPEN = {
+    goals:     { refresh: refreshGoals,     fetch: '/brain/goals',
+                 apply: d => { const l = d.goals || d.actions || d || []; if (Array.isArray(l) && l.length) { D.GOALS = adaptGoals(l); } } },
+    memory:    { refresh: refreshMemory,    fetch: '/memory/recent?limit=25',
+                 apply: d => { const e = d.memories || d.events || d.items || (Array.isArray(d) ? d : []); if (Array.isArray(e) && e.length) { D.MEMORY = adaptMemory(e); } } },
+    districts: { refresh: refreshDistricts, fetch: '/agents',
+                 apply: d => { const l = d.agents || d || []; if (Array.isArray(l) && l.length) { D.agents = l.map(adaptAgent); } } },
+    council:   { refresh: refreshCouncil,   fetch: '/memory/council/history',
+                 apply: d => { const s = d.sessions || d.events || d || []; if (Array.isArray(s) && s.length) { D.COUNCIL = s.slice(0, 5).map(x => ({
+                     question: x.question || x.content || '—',
+                     recommendation: x.recommendation || x.decision || 'defer',
+                     stakes: x.stakes || 'high', confidence: x.confidence || 0,
+                     when: relTime(x.timestamp || x.created_at) })); } } },
+  };
+  V.on('widget:open', function (ev) {
+    const spec = ONOPEN[ev && ev.id];
+    if (!spec) return;
+    spec.refresh();                       // 1) paint whatever's cached, instantly
+    const body = qs(ev.id, '.w-body') || qs(ev.id, '.grid');
+    const empty = !body || body.innerText.trim().length < 2;
+    if (empty && spec.fetch) {            // 2) cache was empty → fetch now, then paint
+      V.http(spec.fetch)
+        .then(d => { try { spec.apply(d); } catch (_) {} spec.refresh(); })
+        .catch(() => {});
+    }
+  });
 
   // ── Boot: start on 'connected' (already fired by VECTOR.html autoConnect) ─
 

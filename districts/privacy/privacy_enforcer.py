@@ -60,10 +60,11 @@ class PrivacyEnforcer(AgentBase):
         logger.info("[VECTOR][privacy] Scanning for unintended data sharing")
         self.add_lesson({"action": "scan_data_sharing"})
 
+        # KNOWN_ISSUES #21: don't close EpisodicMemory()'s shared singleton
+        # connection from a local instance — see skill_mapper.py's note.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         events = mem.recall("share", limit=50, event_type=None)
-        mem.close()
 
         shared_data_types = []
         sharing_violations = []

@@ -3,7 +3,12 @@ import uuid
 import json
 import asyncio
 import datetime
+import re
 from collections import defaultdict
+
+# Task outcome is encoded as "...status=<word>" in governor_dispatch/task
+# event content — the real success signal (see compute_activity_metrics).
+_STATUS_RE = re.compile(r"status=(\w+)")
 
 from loguru import logger
 from core.config import CONFIG
@@ -100,6 +105,15 @@ class AnalyticsReporter(AgentBase):
         by_hour: dict[int, int] = defaultdict(int)
         total = len(events)
 
+        # Real task-outcome signal lives in the `status=` field inside
+        # governor_dispatch / task event content ("...district=marketing
+        # status=ok"). VECTOR never emits literal task_completed/task_failed
+        # event TYPES — there are 0 of them in a 50k-event DB — so the old
+        # `by_type.get("task_completed")` computation reported success_rate=0.0%
+        # in EVERY weekly analytics report, forever (2026-07-17 browser dogfood
+        # spotted "success_rate=0.0%" alongside 49k events). Parse status
+        # instead; a real run is ~70% ok.
+        completed = failed = 0
         for ev in events:
             by_type[ev["event_type"]] += 1
             by_district[ev["source"]] += 1
@@ -109,8 +123,20 @@ class AnalyticsReporter(AgentBase):
             except Exception:
                 logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
-        completed = by_type.get("task_completed", 0)
-        failed = by_type.get("task_failed", 0)
+            if ev["event_type"] in ("governor_dispatch", "task"):
+                m = _STATUS_RE.search(ev.get("content") or "")
+                if m:
+                    status = m.group(1).lower()
+                    if status in ("ok", "completed", "success", "executed", "done"):
+                        completed += 1
+                    elif status in ("error", "failed", "no_agents", "blocked", "denied"):
+                        failed += 1
+                    # status=None / pending / unknown → not counted either way
+
+        # Back-compat: honour explicit task_completed/task_failed event types
+        # too, in case they're ever emitted.
+        completed += by_type.get("task_completed", 0)
+        failed += by_type.get("task_failed", 0)
         attempts = completed + failed
         success_rate = completed / attempts if attempts > 0 else 0.0
 

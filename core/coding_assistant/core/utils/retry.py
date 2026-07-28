@@ -19,6 +19,23 @@ def _is_retryable_http_error(e: Exception) -> bool:
     return False
 
 
+async def _backoff_or_raise(
+    e: Exception,
+    attempt: int,
+    tries: int,
+    delay_seconds: float,
+    backoff_factor: float,
+    is_retryable: Callable[[Exception], bool],
+) -> None:
+    """Shared retry decision: sleep before the next attempt, or re-raise when
+    out of attempts / the error is not retryable. (Was duplicated verbatim in
+    both decorators below — ponytail shrink, 2026-07-15.)"""
+    if attempt < tries - 1 and is_retryable(e):
+        await asyncio.sleep((delay_seconds * (backoff_factor**attempt)) + (0.05 * attempt))
+        return
+    raise e
+
+
 def async_retry[T, **P](
     tries: int = 3,
     delay_seconds: float = 0.5,
@@ -45,13 +62,9 @@ def async_retry[T, **P](
                     return await func(*args, **kwargs)
                 except Exception as e:
                     last_exc = e
-                    if attempt < tries - 1 and is_retryable(e):
-                        current_delay = (delay_seconds * (backoff_factor**attempt)) + (
-                            0.05 * attempt
-                        )
-                        await asyncio.sleep(current_delay)
-                        continue
-                    raise e
+                    await _backoff_or_raise(
+                        e, attempt, tries, delay_seconds, backoff_factor, is_retryable
+                    )
             raise RuntimeError(
                 f"Retries exhausted. Last error: {last_exc}"
             ) from last_exc
@@ -93,13 +106,9 @@ def async_generator_retry[T, **P](
                     return
                 except Exception as e:
                     last_exc = e
-                    if attempt < tries - 1 and is_retryable(e):
-                        current_delay = (delay_seconds * (backoff_factor**attempt)) + (
-                            0.05 * attempt
-                        )
-                        await asyncio.sleep(current_delay)
-                        continue
-                    raise e
+                    await _backoff_or_raise(
+                        e, attempt, tries, delay_seconds, backoff_factor, is_retryable
+                    )
             raise RuntimeError(
                 f"Retries exhausted. Last error: {last_exc}"
             ) from last_exc

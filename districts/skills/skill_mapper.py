@@ -43,10 +43,18 @@ class SkillMapper(AgentBase):
         logger.info(f"[VECTOR][skills] Mapping skills for: {person_name}")
         self.add_lesson({"action": "map_skills", "person": person_name})
 
+        # KNOWN_ISSUES #21: EpisodicMemory() wraps a process-wide SINGLETON
+        # sqlite connection (core.memory.episodic.get_db_connection()), not a
+        # private one. Calling .close() on a local instance here used to close
+        # that shared connection for every other agent/thread using episodic
+        # memory at the time — any of them holding a cached .conn reference
+        # (rather than re-resolving via get_temp_cursor() on every call) would
+        # then fail with "Cannot operate on a closed database" until process
+        # restart. Just let this local instance go out of scope; nothing needs
+        # explicit closing since the connection is shared and long-lived.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         events = mem.recall(person_name, limit=100)
-        mem.close()
 
         content_text = " ".join([e.get("content", "") for e in events])[:2000] if events else f"Skills data for {person_name}"
 
@@ -140,16 +148,16 @@ Return JSON: {{gaps: [{{skill_name, category, importance: 1-10, reason: string, 
         logger.info(f"[VECTOR][skills] Tracking skill progress: {skill_name}")
         self.add_lesson({"action": "track_skill_progress", "skill": skill_name})
 
+        # KNOWN_ISSUES #21 — see map_skills() above; don't close the shared
+        # singleton connection from a local EpisodicMemory instance.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
         skill_data = mem.get_skill(skill_name)
-        mem.close()
 
         if not skill_data:
             mem2 = EpisodicMemory()
             mem2.update_skill(skill_name, 0.3, {"source": "new_tracking"})
             skill_data = mem2.get_skill(skill_name)
-            mem2.close()
 
         evidence_text = skill_data.get("evidence", "") if skill_data else ""
         confidence = skill_data.get("confidence", 0.3) if skill_data else 0.3

@@ -141,17 +141,24 @@ class GracefulDegradation:
             return True
 
     async def _check_network(self) -> bool:
+        # NOTE: `await httpx.get(...)` was invalid (module-level get is SYNC) —
+        # it raised TypeError on every call, so this check returned False
+        # forever and pinned the whole brain at EMERGENCY/SURVIVAL tier.
         try:
             import httpx
-            r = await httpx.get("http://1.1.1.1", timeout=2.0)
-            return r.status_code == 200
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                # gstatic's connectivity-check endpoint (204, no redirects) —
+                # the same probe Android uses; https://1.1.1.1 failed TLS here
+                r = await client.get("http://www.gstatic.com/generate_204")
+                return r.status_code < 500  # any answer = network up
         except Exception:
             return False
 
     async def _check_ollama(self) -> bool:
         try:
             import httpx
-            r = await httpx.get(f"{CONFIG['ollama_host']}/api/tags", timeout=2.0)
-            return r.status_code == 200
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                r = await client.get(f"{CONFIG['ollama_host']}/api/tags")
+                return r.status_code == 200
         except Exception:
             return False

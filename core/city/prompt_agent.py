@@ -124,11 +124,26 @@ class PromptAgent(AgentBase):
         if context:
             messages.append({"role": "user", "content": f"[Context]\n{context}"})
         messages.append({"role": "user", "content": query})
+        # KNOWN_ISSUES #24: this used to swallow the real exception into a
+        # bare "" — run() then only ever surfaced the generic "Empty response
+        # from LLM" no matter what actually went wrong (all providers
+        # rate-limited, a single provider erroring, a timeout, ...).
+        # chat() itself already retries across ~13 free-tier providers before
+        # giving up (confirmed: groq/mistral/etc. cooldowns visible in the
+        # live provider_client logs) — a naive extra retry here would just
+        # double the worst-case latency without addressing the actual
+        # capacity limits of a ₹0-forever free-tier stack. What IS worth
+        # fixing: keeping the real failure reason around so run() can be
+        # specific instead of generic when one is available.
+        self._last_ask_error: str = ""
         try:
             result = chat(model=self._model, messages=messages, timeout=timeout)
+            if not result:
+                self._last_ask_error = "all configured LLM providers returned empty (likely rate-limited)"
             return result
         except Exception as e:
             logger.warning("[VECTOR][prompt_agent] {} ask failed: {}", self.name, e)
+            self._last_ask_error = str(e)
             return ""
 
     async def run(self, task: dict) -> dict:
@@ -157,9 +172,10 @@ class PromptAgent(AgentBase):
                 self.award_points(20, f"{self.name}_task_done")
                 return {"status": "ok", "response": response, "agent": self.name}
             else:
-                logger.warning("[VECTOR][prompt_agent] {} returned empty response", self.name)
+                reason = getattr(self, "_last_ask_error", "") or "Empty response from LLM"
+                logger.warning("[VECTOR][prompt_agent] {} returned empty response ({})", self.name, reason)
                 self.deduct_points(10, f"{self.name}_empty_response")
-                return {"status": "error", "error": "Empty response from LLM", "agent": self.name}
+                return {"status": "error", "error": f"Empty response from LLM: {reason}", "agent": self.name}
         except Exception as e:
             logger.error("[VECTOR][prompt_agent] {} run error: {}", self.name, e)
             self.deduct_points(30, f"{self.name}_run_failed")

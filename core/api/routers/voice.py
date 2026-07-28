@@ -16,7 +16,7 @@ __all__ = [
 import importlib.util
 import time
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Response
 from loguru import logger
 
 from core.api.schemas import VoiceResponse
@@ -196,6 +196,53 @@ async def voice_speak(body: dict):
         return {"status": "spoken"}
     except Exception as e:
         return {"status": "error", "error": str(e)}
+
+
+# Cached TTS for /tts — VoiceTTS() re-inits Kokoro (~2-4s) per instance, so the
+# HUD's per-reply synthesis must reuse one engine.
+_TTS_SINGLETON = None
+
+
+def _get_tts_singleton():
+    global _TTS_SINGLETON
+    if _TTS_SINGLETON is None:
+        from core.voice.tts import VoiceTTS
+        _TTS_SINGLETON = VoiceTTS()
+    return _TTS_SINGLETON
+
+
+@router.post("/tts")
+async def voice_tts(body: dict):
+    """Synthesize text → WAV (Kokoro, config voice) and return the audio bytes.
+
+    Used by the HUD so the browser plays VECTOR's real Kokoro voice instead of
+    the robotic browser speechSynthesis (owner rule: male + not robotic)."""
+    text = (body.get("text") or "").strip()
+    if not text:
+        return Response(status_code=400)
+    tts = _get_tts_singleton()
+    if not getattr(tts, "_kokoro_ok", False):
+        tts._init_kokoro()  # retry — may have failed at boot under GPU contention
+    if not getattr(tts, "_kokoro_ok", False):
+        return Response(status_code=503)
+
+    import asyncio
+    import io
+
+    def _synth() -> bytes:
+        import soundfile as sf
+        from core.voice.tts import _voice_for
+        samples, sr = tts._kokoro.create(text[:600], voice=_voice_for("en"), speed=tts._speed)
+        buf = io.BytesIO()
+        sf.write(buf, samples, sr, format="WAV")
+        return buf.getvalue()
+
+    try:
+        wav = await asyncio.to_thread(_synth)
+    except Exception as e:
+        logger.warning(f"[VECTOR][voice] /tts synth failed: {e}")
+        return Response(status_code=503)
+    return Response(content=wav, media_type="audio/wav")
 
 
 # ── Voice profile endpoints (voicebox absorption) ─────────────────────────────

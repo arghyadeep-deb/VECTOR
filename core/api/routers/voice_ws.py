@@ -64,6 +64,11 @@ async def voice_stream(websocket: WebSocket):
         await _orb("listening")  # connection open = mic active
         while True:
             raw = await websocket.receive()
+            if raw.get("type") == "websocket.disconnect":
+                # Client dropped — surface as a clean disconnect instead of
+                # looping back into receive() (which raises "Cannot call receive
+                # once a disconnect message has been received").
+                raise WebSocketDisconnect(raw.get("code", 1000))
             if raw.get("type") == "websocket.receive" and "text" in raw:
                 try:
                     msg = json.loads(raw["text"])
@@ -90,6 +95,24 @@ async def voice_stream(websocket: WebSocket):
             return
         await websocket.send_json({"type": "transcript", "text": transcript})
         logger.info(f"[VECTOR][voice_ws] Transcript: {transcript}")
+
+        # ── Fast path 0: direct device command ("open spotify") — executes
+        # through the permission gateway, same as the typed command bar ─────
+        try:
+            from core.voice.realtime import try_device_action
+            device_reply = await try_device_action(transcript)
+        except Exception as _da_err:
+            logger.debug(f"[VECTOR][voice_ws] device action skipped: {_da_err}")
+            device_reply = None
+        if device_reply:
+            await websocket.send_json({"type": "response", "text": device_reply})
+            await _orb("speaking")
+            wav = await loop.run_in_executor(None, _tts_to_wav, device_reply, 0.85)
+            if wav:
+                await _send_wav(websocket, wav, seq=0)
+            await websocket.send_json({"type": "done"})
+            await _orb("idle")
+            return
 
         # ── Fast path 1: rules-engine bypass — instant answer, no LLM ──────
         bypass_text = await loop.run_in_executor(None, _rules_bypass, transcript)
@@ -491,13 +514,15 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
 
 
 def _tts_to_wav(text: str, speed: float | None = None) -> bytes | None:
-    from core.voice.tts import VoiceTTS
+    from core.voice.tts import VoiceTTS, _voice_for
     tts = VoiceTTS()
     if not tts._kokoro_ok:
         logger.warning("[VECTOR][voice_ws] Kokoro not available, skipping TTS")
         return None
     try:
-        voice = "bf_emma"
+        # Config-driven voice (bm_george) — was hardcoded bf_emma, which kept
+        # the HUD/browser voice FEMALE after the main path went male (2026-07-15).
+        voice = _voice_for("en")
         tts_speed = speed if speed is not None else 0.85
         samples, sample_rate = tts._kokoro.create(text, voice=voice, speed=tts_speed)
         buf = io.BytesIO()

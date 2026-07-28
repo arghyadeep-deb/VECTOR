@@ -150,9 +150,14 @@ def easyquery(m: str = 'QueryData', dbcode: str = 'hgyd', rowcode: str = 'zb',
         if wdcode:
             obj['wdcode'] = wdcode
 
-        # Exact request handling from cnstats
-        requests.packages.urllib3.disable_warnings()
-        response = requests.post(url, data=obj, headers=API_HEADERS, verify=False, timeout=TIMEOUT)
+        # TLS verification ON by default (upstream cnstats shipped verify=False —
+        # flagged HIGH by VECTOR's own security_reviewer). stats.gov.cn has had
+        # broken cert chains historically; if the fetch starts failing on TLS,
+        # set VECTOR_CNSTATS_INSECURE=1 to restore the old behavior explicitly.
+        _insecure = os.environ.get("VECTOR_CNSTATS_INSECURE") == "1"
+        if _insecure:
+            requests.packages.urllib3.disable_warnings()
+        response = requests.post(url, data=obj, headers=API_HEADERS, verify=not _insecure, timeout=TIMEOUT)
         response.raise_for_status()
 
         return response.json()

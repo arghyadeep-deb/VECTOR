@@ -36,6 +36,22 @@ except ImportError:
         _USE_SQLCIPHER = False
         logger.warning("[VECTOR][memory] SQLCipher not available — using plain SQLite (install sqlcipher3 to encrypt)")
 
+# 2026-07-21: stopword list for recall()'s LIKE fallback — kept local to
+# this module (rather than importing core.city.governor's copy) to avoid a
+# core.memory <-> core.city circular import.
+_RECALL_STOPWORDS = frozenset({
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+    "and", "or", "but", "not", "no", "yes", "of", "to", "in", "on", "at",
+    "for", "with", "about", "what", "what's", "whats", "when", "where",
+    "who", "whom", "whose", "why", "how", "which", "this", "that", "these",
+    "those", "my", "your", "his", "her", "its", "our", "their", "me", "you",
+    "him", "them", "us", "i", "he", "she", "it", "we", "they", "do", "does",
+    "did", "can", "could", "will", "would", "shall", "should", "may",
+    "might", "must", "have", "has", "had", "please", "tell", "let", "know",
+    "just", "also", "some", "any", "all", "there", "here", "so", "if",
+    "then", "than", "as", "by", "from", "up", "out", "into", "over",
+})
+
 _DB_KEY = None  # resolved lazily below
 _MIGRATABLE_TABLES = (
     "episodic_memory",
@@ -821,6 +837,7 @@ class EpisodicMemory:
         try:
             def _do_recall():
                 with get_temp_cursor() as cursor:
+                    rows = []
                     try:
                         if event_type:
                             cursor.execute(
@@ -846,20 +863,73 @@ class EpisodicMemory:
                             )
                         rows = cursor.fetchall()
                     except Exception:
-                        query_pattern = f"%{query}%"
+                        rows = []
+                    if not rows:
+                        # 2026-07-21: fall through to a LIKE-based search
+                        # whenever FTS5 either errors out (bad query syntax)
+                        # OR simply returns zero rows — which happens for
+                        # basically any natural-language question, since FTS5
+                        # bareword MATCH implicitly ANDs every token,
+                        # including stopwords the stored content never
+                        # contains. This used to LIKE-match the *entire*
+                        # query string as one substring (f"%{query}%"). For
+                        # any natural-language question ("What is my cat's
+                        # name...") that requires the stored content to
+                        # contain that exact phrase verbatim, in that exact
+                        # word order — which it essentially never does, since
+                        # the fact was stored in different words. Confirmed
+                        # via a write-then-read memory test that came back
+                        # completely empty even after content was persisted
+                        # successfully. Fixed by requiring each significant
+                        # word to independently appear (AND of per-word LIKEs)
+                        # instead of the whole string as one substring.
+                        #
+                        # 2026-07-21 (round 2): the first version of this fix
+                        # still required EVERY word from the raw question —
+                        # including question words like "what"/"and"/"what's"
+                        # that never appear in the stored content — to match
+                        # (AND across all words), so it still returned zero
+                        # rows. Fixed by (a) stripping common English
+                        # stopwords/question words before building the LIKE
+                        # clauses, same idea as governor._extract_keywords but
+                        # duplicated here to avoid a core.city <-> core.memory
+                        # circular import, and (b) matching if enough of the
+                        # remaining significant words hit rather than
+                        # requiring literally all of them.
+                        import re as _re
+                        _stop = _RECALL_STOPWORDS
+                        raw_words = _re.findall(r"[A-Za-z0-9']+", query)
+                        words = [w for w in raw_words if len(w) > 2 and w.lower() not in _stop]
+                        if not words:
+                            words = [w for w in raw_words if len(w) > 2]
+                        if not words:
+                            words = [query] if query.strip() else []
+                        if words:
+                            # require at least half (rounded up) of the
+                            # significant words to appear, not literally all —
+                            # tolerates paraphrase/word-order differences.
+                            need = max(1, (len(words) + 1) // 2)
+                            case_clauses = " + ".join(
+                                "(CASE WHEN content LIKE ? THEN 1 ELSE 0 END)" for _ in words
+                            )
+                            clauses = f"({case_clauses}) >= ?"
+                            params = [f"%{w}%" for w in words] + [need]
+                        else:
+                            clauses = "1=1"
+                            params = []
                         if event_type:
                             cursor.execute(
-                                """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
-                                FROM episodic_memory WHERE content LIKE ? AND event_type = ?
+                                f"""SELECT id, event_type, content, tags, context_snapshot, timestamp, source
+                                FROM episodic_memory WHERE {clauses} AND event_type = ?
                                 ORDER BY timestamp DESC LIMIT ?""",
-                                (query_pattern, event_type, limit),
+                                (*params, event_type, limit),
                             )
                         else:
                             cursor.execute(
-                                """SELECT id, event_type, content, tags, context_snapshot, timestamp, source
-                                FROM episodic_memory WHERE content LIKE ?
+                                f"""SELECT id, event_type, content, tags, context_snapshot, timestamp, source
+                                FROM episodic_memory WHERE {clauses}
                                 ORDER BY timestamp DESC LIMIT ?""",
-                                (query_pattern, limit),
+                                (*params, limit),
                             )
                         rows = cursor.fetchall()
                     return rows

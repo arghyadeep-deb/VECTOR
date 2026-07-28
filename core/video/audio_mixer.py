@@ -241,7 +241,7 @@ class NarrationPipeline:
         self,
         script: str,
         output_path: str,
-        voice: str = "bf_emma",
+        voice: str = "bm_george",
         speed: float = 0.85,
     ) -> Optional[str]:
         """Generate speech from script using VECTOR's TTS engine."""

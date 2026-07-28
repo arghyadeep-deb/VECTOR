@@ -36,6 +36,12 @@ class CommandResponse(BaseModel):
     winner_score: float = 0.0
     memory_updated: bool = False
     processing_ms: int = 0
+    # 2026-07-21 KNOWN_ISSUES #1: surfaces which district actually handled
+    # this request when it went through Governor.dispatch() (real-district
+    # requests only — None for plain Q&A and for the older keyword-matched
+    # PermissionGateway actions, which have no district concept). Lets eval
+    # scripts / trace metadata see routing decisions instead of a black box.
+    district: Optional[str] = None
 
 class VoiceResponse(BaseModel):
     transcript: str

@@ -82,7 +82,7 @@ class ComposerJob:
 
     # Audio
     narration: Optional[str] = None          # TTS script
-    narration_voice: str = "bf_emma"
+    narration_voice: str = "bm_george"
     narration_speed: float = 0.85
     bg_music_path: Optional[str] = None
     bg_music_volume: float = 0.15

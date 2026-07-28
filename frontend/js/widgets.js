@@ -305,7 +305,9 @@
     function renderAgents(agents){
       grid.innerHTML = '';
       agents.slice(0,18).forEach(a=>{
-        const hp = a.health_points != null ? a.health_points : (a.hp != null ? a.hp : 500);
+        // Math.round (2026-07-19): backend HP is a float — raw values rendered
+        // as "190.92000000000004" in the districts panel.
+        const hp = Math.round(a.health_points != null ? a.health_points : (a.hp != null ? a.hp : 500));
         const pct = hp/1000*100;
         const cls = hp<=0?'ghost':'';
         const bar = hp<=0?'low':hp<400?'low':hp<700?'mid':'';
@@ -378,7 +380,7 @@
             wrap.appendChild(el('div','csess',
               `<div class="q">${a.name||a.id} · ${(a.district||'—').toUpperCase()}</div>
                <div class="meta"><span class="badge2 proceed">COUNCIL ELIGIBLE</span>
-                 <span class="k" style="margin-left:auto">HP ${a.health_points||a.hp}</span></div>`));
+                 <span class="k" style="margin-left:auto">HP ${Math.round(a.health_points||a.hp||0)}</span></div>`));
           });
         } else {
           wrap.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
@@ -1018,9 +1020,12 @@
     platformpanel: { mode:'platform control', focus:['collections','governance','sandbox','missions'], widgets:['missioncontrol','security','telemetry','workpanel'], reads:['/api/collections','/governance/autopilot/status','/sandbox/status','/mcp/status','/missions'] }
   };
 
+  // Plain text (2026-07-19): this used to escapeHtml() unconditionally, but
+  // most call sites assign the result via textContent — the panels displayed
+  // literal &quot; entities. Escape only at innerHTML call sites.
   function renderJsonPreview(data){
     const raw = JSON.stringify(data, null, 2);
-    return escapeHtml(raw.length > 1400 ? raw.slice(0, 1400)+'\n...' : raw);
+    return raw.length > 1400 ? raw.slice(0, 1400)+'\n...' : raw;
   }
 
   function previewValue(data){
@@ -1085,7 +1090,7 @@
           <span>${Math.round(Number(step.confidence == null ? 1 : step.confidence) * 100)}%</span>
           ${step.requires_review ? '<span class="mc-review">REVIEW</span>' : ''}
         </div>
-        <pre>${renderJsonPreview(step.params || {})}</pre>
+        <pre>${escapeHtml(renderJsonPreview(step.params || {}))}</pre>
       </div>`).join('');
   }
 
@@ -1112,7 +1117,7 @@
     return artifacts.slice(-8).reverse().map(a=>`
       <div class="mc-artifact">
         <div><b>${escapeHtml(a.title || 'Artifact')}</b><span>${escapeHtml(a.type || 'result')}</span></div>
-        <pre>${renderJsonPreview(a.content || {})}</pre>
+        <pre>${escapeHtml(renderJsonPreview(a.content || {}))}</pre>
       </div>`).join('');
   }
 
@@ -1623,10 +1628,18 @@
       if(i>=text.length){ clearInterval(node._tw); done&&done(); } }, 22);
   }
   function renderChat(log){ log.innerHTML=''; chatMsgs.forEach(m=>appendMsg(log,m,true)); log.scrollTop=log.scrollHeight; }
+  // Strip markdown control characters from LLM replies (2026-07-19): the chat
+  // log renders plain text, so "**VECTOR v1.0.0:**" showed its literal
+  // asterisks/backticks. Keep the words, drop the syntax.
+  function stripMd(t){ return String(t||'')
+    .replace(/```[a-z]*\n?/gi,'').replace(/`([^`]*)`/g,'$1')
+    .replace(/\*\*([^*]*)\*\*/g,'$1').replace(/\*([^*]*)\*/g,'$1')
+    .replace(/^#{1,6}\s+/gm,'').replace(/^[-*]\s+/gm,'· '); }
   function appendMsg(log,m,instant){ const pfx = m.role==='user'?'$':'›';
     const row=el('div','msg '+m.role, `<span class="pfx">${pfx}</span><span class="tx"></span>`);
     log.appendChild(row); const tx=row.querySelector('.tx');
-    if(m.role==='vector' && !instant) typeInto(tx, m.text); else tx.textContent=m.text;
+    const text = m.role==='vector' ? stripMd(m.text) : m.text;
+    if(m.role==='vector' && !instant) typeInto(tx, text); else tx.textContent=text;
     log.scrollTop=log.scrollHeight; }
   V.chat = { push(m){ chatMsgs.push(m); const w=live.chat; if(w){ appendMsg(w._log,m); w._log.scrollTop=w._log.scrollHeight; } } };
   V.music = { set(track){ if(live.music){ closeWidget('music'); openWidget('music',{track}); } else openWidget('music',{track}); } };
