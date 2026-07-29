@@ -18,7 +18,10 @@ def test_load_vector_json():
     assert card.platform == "Legion Pro 5 (RTX 5070 Ti 12GB)"
     assert "calm" in card.traits
     assert card.traits["calm"] == 0.95
-    assert len(card.rules) == 6
+    # 2026-07-28 (issue #37): 2 rules added to the base array (English-only,
+    # spoken-text-safety for voice mode) — 6 -> 8, a deliberate content
+    # change, not a regression.
+    assert len(card.rules) == 8
     assert len(card.quirks) == 7
     assert len(card.tone_mapping) == 6
     assert "knowledge_boundaries" in card.model_fields
