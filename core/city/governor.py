@@ -284,6 +284,86 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
                     "starting/logging/tracking a study run) — distinct from "
                     "general calendar scheduling (time_calendar) or "
                     "passive video-course tracking (learning)",
+    # 2026-07-30 (KNOWN_ISSUES #3, languages TIER6 finding): "quiz me on
+    # some Hindi vocabulary" landed on the conversational fallback rather
+    # than dispatching to the languages district's real vocabulary-coach
+    # agents (hindi_coach.py etc., which have a curated word bank and can
+    # build a real study guide) — most likely because "learning" (passive
+    # video/course-tracking, unrelated) is the only superficially-similar
+    # named district with any description at all. Adding hints for both so
+    # an actual vocabulary/grammar-practice request reads as clearly
+    # belonging to "languages", not "learning".
+    "languages": "active language-learning coaching in a specific language "
+                 "(Hindi/Bengali/Japanese/Assamese/English) — vocabulary "
+                 "quizzes/practice, grammar checks, example sentences — "
+                 "distinct from passive online-course tracking (learning)",
+    "learning": "tracking online course enrollments and lesson/video "
+                "completion progress — NOT language-learning practice "
+                "(vocabulary, grammar), which is the 'languages' district",
+    # 2026-07-30 audit fix: "growth" (marketing's growth-hacking capability,
+    # e.g. GrowthHacker/GrowthAnalyst) vs the separate background growth
+    # ENGINE (content + software autonomous arms) that was previously
+    # unreachable via chat at all — now reachable through this district.
+    "growth": "status/reporting on VECTOR's own background growth engine "
+              "(content + software autonomous arms) — NOT marketing "
+              "growth-hacking tactics, which is the 'marketing' district",
+    # 2026-07-30 audit fix: live-caught "Run a security code review on
+    # auth.py" landing in 'security' instead of 'coding' — the classifier's
+    # OWN district guess (not a downstream correction) kept jumping to
+    # 'security' just because the word appeared in the query.
+    "coding": "writing, reviewing, or fixing SOFTWARE CODE — functions, "
+              "files, bugs, tests, pull requests — including a "
+              "security-focused code review (looking for vulnerabilities "
+              "IN THE CODE) — NOT scanning the live system/OS/network for "
+              "active threats, which is the 'security' district",
+    "security": "scanning the live system/OS/network for active threats, "
+                "malware, or intrusions (process monitoring, malware "
+                "detection, PII/secrets redaction) — NOT reviewing source "
+                "code for vulnerabilities, which is the 'coding' district's "
+                "code-review capability",
+    # 2026-07-30 audit fix: live-caught "Run an SEO audit and check for
+    # broken links on my site" landing in 'content' instead of 'marketing'.
+    "marketing": "SEO audits, keyword research, broken-link checks, "
+                 "competitor/ads analysis, and growth-HACKING tactics "
+                 "(funnels, virality, acquisition experiments) — NOT "
+                 "content-scheduling/posting (that's 'content') and NOT a "
+                 "status check on VECTOR's own autonomous growth engine "
+                 "(that's the 'growth' district)",
+    "content": "creating or SCHEDULING/POSTING content (scripts, posts, "
+               "publish queues) — NOT auditing or analyzing marketing "
+               "performance (SEO, broken links, keyword research, ads), "
+               "which is the 'marketing' district",
+    # 2026-07-30 audit fix: live-caught "Run a GDPR compliance audit"
+    # landing in 'privacy' instead of 'governance', even though "gdpr" and
+    # "compliance" are governance's own explicit map keys.
+    "governance": "formal regulatory/legal compliance auditing (GDPR, "
+                   "policy, credentials, federation) — NOT auditing what "
+                   "data leaves the device or local-vs-cloud data flow, "
+                   "which is the 'privacy' district",
+    "privacy": "local-vs-cloud data flow — what data leaves THIS device and "
+               "to where, PII/secrets redaction — NOT formal regulatory "
+               "compliance auditing (GDPR, policy), which is the "
+               "'governance' district",
+    # 2026-07-30 audit fix: live-caught two different requests ("behavior
+    # patterns from activity logs", "forecast my expenses") both misrouted
+    # to 'data_analytics' — a district-name-shaped guess landing on the
+    # generic weekly-analytics reporter instead of the specific agent that
+    # actually declares that capability.
+    "data_analytics": "VECTOR's own INTERNAL weekly usage/health analytics "
+                       "(event counts, task success rate, its own anomaly "
+                       "detection on ITS OWN operational logs) — NOT the "
+                       "owner's personal behavior patterns/habits (that's "
+                       "'pattern_detective') and NOT forecasting the "
+                       "owner's finances/expenses (that's "
+                       "'predictive_analytics')",
+    "pattern_detective": "detecting the OWNER's behavior patterns and "
+                          "habits from their daily activity logs — NOT "
+                          "VECTOR's own internal system analytics, which is "
+                          "the 'data_analytics' district",
+    "predictive_analytics": "forecasting/predicting the OWNER's own data "
+                             "(expenses, time-series, causal what-ifs) — "
+                             "NOT VECTOR's own internal system analytics, "
+                             "which is the 'data_analytics' district",
 }
 
 
@@ -843,7 +923,15 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "feedback": "personal_growth",
     "synthesize_feedback": "personal_growth",
     # projects additions
-    "experiment": "projects",
+    # 2026-07-30 audit fix: "experiment" (bare) is removed from here — it was
+    # a silently-overridden duplicate key (science's later definition always
+    # won) AND didn't match experiment_tracker's own declared capabilities
+    # anyway ([track_experiment, experiments], not the singular "experiment").
+    # Science's science_agent DOES declare "experiment" literally, so that's
+    # the correct owner of the bare key. Give experiment_tracker its own
+    # real, matching keys instead of fighting over the ambiguous one.
+    "track_experiment": "projects",
+    "experiments": "projects",
     "hypothesis": "projects",
     # marketing district (new)
     "seo": "marketing",
@@ -918,7 +1006,12 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "break_even": "finance",
     "fpa": "finance",
     "variance": "finance",
-    "forecast": "finance",
+    # 2026-07-30 audit fix: bare "forecast" removed from here — silently
+    # overridden duplicate (predictive_analytics's later definition always
+    # won), and no finance agent actually declares "forecast" as a
+    # capability anyway (only strategy_recommender does, in
+    # predictive_analytics) so this entry was never reachable via
+    # capability-match even before the duplicate-key issue.
     # agency additions
     "sales": "agency",
     "pipeline": "agency",
@@ -1013,11 +1106,27 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     # Emergency district
     "emergency": "emergency",
     "emergency_alert": "emergency",
-    "incident": "emergency",
+    # 2026-07-30 audit fix: bare "incident" removed from here — silently
+    # overridden duplicate that beat ops's earlier "incident": "ops" (line
+    # above, near "slo"/"uptime"), even though ops_swarm is the one that
+    # actually declares "incident" as a literal capability (IncidentCommander
+    # is one of its sub-agents); emergency's own EmergencyResponseSystem
+    # doesn't declare "incident" as a capability tag at all. Emergency keeps
+    # its other 6 dedicated keys below, which don't conflict with anything.
     "escalate_emergency": "emergency",
     "runbook": "emergency",
     "detect_anomaly": "emergency",
     "classify_emergency": "emergency",
+    # Home Assistant district (2026-07-30 audit fix — real code, was
+    # completely orphaned: no manifest, no map key, no top-level agent)
+    "home_control": "home_assistant",
+    "smart_home": "home_assistant",
+    "ha_status": "home_assistant",
+    # Growth-engine status district (2026-07-30 audit fix — the background
+    # GrowthOrchestrator already runs for real, but was unreachable via chat;
+    # deliberately NOT reusing the bare "growth" key, which stays mapped to
+    # marketing's growth-hacking capability below to avoid breaking that).
+    "growth_status": "growth",
     # Predictive analytics district
     "predict": "predictive_analytics",
     "forecast": "predictive_analytics",
@@ -1038,20 +1147,76 @@ _DISTRICT_KEYS: dict[str, list[str]] = {}
 for _k, _d in DISTRICT_TASK_MAP.items():
     _DISTRICT_KEYS.setdefault(_d, []).append(_k)
 
+# Longest-key-first ordering for route_task()'s substring-fallback pass
+# (2026-07-30 audit fix). Precomputed once so the sort cost isn't paid on
+# every dispatch call.
+_DISTRICT_TASK_MAP_KEYS_BY_LEN_DESC: list[str] = sorted(
+    DISTRICT_TASK_MAP.keys(), key=len, reverse=True
+)
 
-def _snap_to_known_task_type(invented: str, district: str) -> str:
+# Keys where DISTRICT_TASK_MAP[key] == key — i.e. a district's own bare name
+# is *also* listed as one of its task_type keys (research/security/health/
+# finance/science/emergency, as of 2026-07-30). 2026-07-30 audit fix: these
+# are the weakest possible signal for the "authoritative district
+# correction" below — an LLM inventing task_type="security" for "run a
+# security code review on auth.py" is very plausibly just describing the
+# THEME of a coding-district request, not actually meaning "dispatch to the
+# security district." Live-caught: exactly this query landed in the security
+# district instead of coding. Non-self-referential keys (e.g. "market_scan")
+# are a much stronger signal and should keep overriding as before.
+_SELF_REFERENTIAL_DISTRICT_KEYS: frozenset[str] = frozenset(
+    k for k, v in DISTRICT_TASK_MAP.items() if k == v
+)
+
+
+def _snap_to_known_task_type(invented: str, district: str, query_text: str = "") -> str:
     """Best-effort, zero-latency match of an LLM-invented task_type to a
     real key VECTOR already knows for this district. Exact match wins;
     otherwise the known key with the most shared underscore-separated words
     (ties broken by shorter key, since shorter known keys tend to be the
     canonical/most-general form, e.g. "risk_analysis" over a longer
     compound). Falls back to the invented string unchanged if nothing
-    shares even one word — inventing is still better than refusing."""
+    shares even one word — inventing is still better than refusing.
+
+    2026-07-30 (KNOWN_ISSUES #3): the invented task_type alone isn't always
+    enough to disambiguate between several agents in the same district that
+    share near-identical capability tags — e.g. languages district's 5 coach
+    agents all declare `[languages, <lang>, coaching]`, but a generic invented
+    type like "practice_vocabulary" (no language name in it) has zero overlap
+    with any of "hindi"/"bengali"/"japanese"/"assamese", so dispatch falls to
+    whichever coach has the highest HP regardless of which language was
+    actually asked for.
+
+    First attempt (checking query_text only when word-overlap found nothing)
+    turned out to be insufficient: live-traced via vector_api.log, an LLM
+    invented task_type of "language_quiz" for "Quiz me on some Hindi
+    vocabulary" — that string word-overlaps ("language") the generic
+    "language_coach" key, which the word-overlap pass happily returns with
+    best_overlap=1, so query_text's fallback (gated on best_overlap==0) never
+    even ran. And "language_coach" isn't a real capability on any agent (the
+    manifest lists `[languages, hindi, coaching]` etc, never the literal
+    string "language_coach"), so capability-match came up empty and dispatch
+    fell to the HP tiebreaker anyway — silently reproducing the exact bug
+    this function exists to prevent.
+
+    Fix: check query_text FIRST, before the word-overlap pass. An exact,
+    unambiguous (exactly one match) whole-word hit in the user's own text is
+    strictly more trustworthy than an LLM's invented guess at a task_type —
+    it can only ever engage when precisely one of this district's known keys
+    literally appears in what the user typed, so it can't introduce
+    cross-district confusion (known is already scoped to the district the
+    classifier already picked) and never overrides an already-exact
+    "invented in known" match (checked above, returns early)."""
     known = _DISTRICT_KEYS.get(district, [])
     if not known:
         return invented
     if invented in known:
         return invented
+    if query_text:
+        text_words = set(re.findall(r"[a-z0-9]+", query_text.lower()))
+        text_matches = [key for key in known if key in text_words]
+        if len(text_matches) == 1:
+            return text_matches[0]
     invented_words = set(invented.split("_"))
     best_key = None
     best_overlap = 0
@@ -1060,7 +1225,9 @@ def _snap_to_known_task_type(invented: str, district: str) -> str:
         if overlap > best_overlap or (overlap == best_overlap and best_key and len(key) < len(best_key)):
             best_overlap = overlap
             best_key = key
-    return best_key if best_overlap > 0 else invented
+    if best_overlap > 0:
+        return best_key
+    return invented
 
 
 async def classify_chat_intent(text: str) -> dict:
@@ -1188,6 +1355,33 @@ async def classify_chat_intent(text: str) -> dict:
         if not is_action or confidence < 0.6 or district not in districts or not task_type:
             _debug_classify_intent(text, raw, f"REJECTED is_action={is_action} conf={confidence} district={district!r} task_type={task_type!r}")
             return fallback
+        # 2026-07-29 KNOWN_ISSUES (eval finding, documentation-district
+        # tool-syntax leak): "generate a changelog of the VECTOR codebase"
+        # came back {district: "coding", task_type: "generate_changelog"} —
+        # the LLM saw "codebase" and guessed "coding" even though
+        # DISTRICT_TASK_MAP (this file, ground truth) already says
+        # generate_changelog -> documentation. Landing in the wrong district
+        # meant _snap_to_known_task_type() below then snapped the task_type
+        # against CODING's capability list instead of documentation's,
+        # routing to a coding agent that had nothing real to run and echoed
+        # back literal invoke_tool(...) pseudocode instead of prose or a
+        # real changelog. When the LLM's task_type exactly matches a
+        # task_type VECTOR already has an authoritative mapping for, that
+        # mapping is ground truth and wins over the LLM's district guess —
+        # same "deterministic correction on top of the LLM classifier"
+        # pattern as _snap_to_known_task_type itself, just one step earlier
+        # (correcting district before task_type gets snapped against it).
+        if (
+            task_type in DISTRICT_TASK_MAP
+            and DISTRICT_TASK_MAP[task_type] != district
+            and task_type not in _SELF_REFERENTIAL_DISTRICT_KEYS
+        ):
+            _debug_classify_intent(
+                text, raw,
+                f"DISTRICT CORRECTED {district!r} -> {DISTRICT_TASK_MAP[task_type]!r} "
+                f"(task_type={task_type!r} has an authoritative mapping)",
+            )
+            district = DISTRICT_TASK_MAP[task_type]
         # 2026-07-21 KNOWN_ISSUES #1 follow-up (found via live trace):
         # confirmed live that classify_chat_intent can correctly fire and
         # Governor.dispatch() correctly routes it to the right district —
@@ -1204,7 +1398,7 @@ async def classify_chat_intent(text: str) -> dict:
         # always falling back to generic/highest-HP. Local word-overlap
         # match, no extra LLM call (this already runs on every fast-path
         # message — a second LLM round trip here isn't worth the latency).
-        snapped = _snap_to_known_task_type(task_type, district)
+        snapped = _snap_to_known_task_type(task_type, district, query_text=text)
         if snapped != task_type:
             _debug_classify_intent(text, raw, f"SNAPPED {task_type!r} -> {snapped!r} (district={district})")
             task_type = snapped
@@ -1260,11 +1454,26 @@ class Governor:
 
     def route_task(self, task_type: str) -> str:
         """Determine which district should handle this task type.
-        First tries keyword matching (fast, free). Falls back to LLM classification."""
+        First tries keyword matching (fast, free). Falls back to LLM classification.
+
+        2026-07-30 audit fix: the old version iterated DISTRICT_TASK_MAP in
+        insertion order and returned the FIRST key that was a substring of
+        task_type. Because many short generic keys ("video", "search",
+        "scan", "budget", "class", "health", ...) happen to be inserted
+        earlier than longer, more specific compound keys, ~50 exact
+        task_type strings (e.g. "market_scan", "seo_weekly_review",
+        "ads_budget") were unreachable — always shadowed by an earlier,
+        wrong, generic match. This is the same bug class already fixed once
+        for _snap_to_known_task_type(): try an exact match first (fast,
+        unambiguous), then fall back to substring matching ordered
+        longest-key-first so specific compound keys always outrank generic
+        short ones regardless of dict insertion order."""
         task_lower = task_type.lower()
-        for keyword, district in DISTRICT_TASK_MAP.items():
+        if task_lower in DISTRICT_TASK_MAP:
+            return DISTRICT_TASK_MAP[task_lower]
+        for keyword in _DISTRICT_TASK_MAP_KEYS_BY_LEN_DESC:
             if keyword in task_lower:
-                return district
+                return DISTRICT_TASK_MAP[keyword]
         # LLM fallback for natural language task types
         return self._llm_classify(task_type)
 
@@ -1627,7 +1836,41 @@ class Governor:
                 tt = get_taint_tracker()
                 tainted = tt.tag_user(task_content)
                 # Check before shell/network sinks
-                if task_type in ("bash", "shell", "exec", "run_code"):
+                #
+                # 2026-07-30 audit fix (Phase 3 — guardrails): this list never
+                # matched any task_type Governor.dispatch() actually sees.
+                # DISTRICT_TASK_MAP's real shell-flavored keys are
+                # "bash_execute"/"run_command" (-> district=coding), and
+                # _COUNCIL_TASK_TYPES' RED-tier "execute_code" also flows
+                # through this same dispatch() path — none of "bash", "shell",
+                # "exec", "run_code" (the literal strings that WERE checked)
+                # is an actual task_type anywhere in this codebase, so this
+                # control was a guaranteed silent no-op for every real call.
+                # (Confirmed safe to widen: "run_shell_command", the one
+                # action_type with its own dedicated AST safety guard in
+                # permission_gateway.py, is never a DISTRICT_TASK_MAP key — it
+                # is only ever constructed internally by autonomous_loop's
+                # planning/act phase as a PermissionGateway Action, so it
+                # never flows through this governor.dispatch() code path at
+                # all; widening this match can't double-gate or regress it.)
+                # Substring match (not just exact) so LLM-invented synonyms
+                # (e.g. "bash_command", "shell_exec") still land here too —
+                # same pattern already used for note/save_note matching above.
+                # Deliberately NOT matching on a bare "exec"/"run_code"
+                # substring: "execute_code" contains "exec" and is its own
+                # RED-tier task_type with a real LLM-council gate PLUS a
+                # fail-closed sandboxed (ContainerRunner) execution path
+                # already in front of it (see _COUNCIL_TASK_TYPES /
+                # permission_gateway.py's execute_code handler) — this taint
+                # check's SHELL_EXEC policy blocks USER_INPUT unconditionally
+                # with no clearance path at this call site, so matching
+                # execute_code here would silently dead-end that entire
+                # already-correctly-gated capability rather than add real
+                # protection. "bash"/"shell"/"run_command" have no such
+                # collision with any real task_type in this codebase.
+                _shell_ish = any(k in task_type for k in ("bash", "shell", "run_command", "run_code"))
+                _fetch_ish = any(k in task_type for k in ("web_fetch", "fetch_url", "scrape", "crawl"))
+                if _shell_ish:
                     v = tt.check_sink(tainted, TaintSink.SHELL_EXEC)
                     if v:
                         # A taint control that only logs is no control. BLOCK: tainted
@@ -1635,7 +1878,7 @@ class Governor:
                         logger.critical("[VECTOR][governor] taint violation BLOCKED task={}: {}", task_id, v)
                         return {"status": "blocked", "reason": f"taint violation (shell sink): {v}",
                                 "task_id": task_id, "district": district}
-                elif task_type in ("web_fetch", "scrape", "crawl"):
+                elif _fetch_ish:
                     v = tt.check_sink(tainted, TaintSink.NET_FETCH)
                     if v:
                         logger.critical("[VECTOR][governor] taint violation BLOCKED task={}: {}", task_id, v)
@@ -1785,6 +2028,63 @@ class Governor:
                             "district": district,
                         }
 
+                    # 2026-07-29 KNOWN_ISSUES (Governor capability-match
+                    # misrouting — 4 confirmed live instances: projects+
+                    # coding -> literal "Count: 0"; security+communications
+                    # (a bank-OTP-scam safety question) -> email_agent's
+                    # generic inbox-status branch; growth+content+safety
+                    # (Instagram growth-plan ask) -> an unrelated full
+                    # YouTube-script; agency (client-pitch request) -> an
+                    # unrelated "2024 social media trends" essay). Root
+                    # cause: when no agent in `district` declares this
+                    # task_type as a capability, the HP-lottery winner above
+                    # still runs its OWN generic default/status action and
+                    # returns it looking just as confident as a real answer
+                    # — nothing here or in AvatarVoice ever told the owner
+                    # the answer might not actually match the ask.
+                    #
+                    # Deliberately NOT touching agent selection or the
+                    # capability-match/HP-lottery fallback itself (Task A.3,
+                    # above) — that's proven load-bearing for 100+ existing
+                    # API routes that dispatch a stable task_type an agent
+                    # handles correctly via its own internal branching even
+                    # though the manifest's `capabilities` tags are thematic
+                    # ("finance", "budgeting"), not literal task_type
+                    # strings, and were never re-aligned to match. Blindly
+                    # captioning every non-capability-matched run would put
+                    # a false "might not match" disclaimer on those already-
+                    # correct routes too.
+                    #
+                    # Scoped instead to task["_llm_classified"] — set only by
+                    # classify_chat_intent()'s two chat callers (commands.py,
+                    # websocket.py), where task_type is freshly LLM-invented
+                    # from free text on this exact call and has no
+                    # established history of any agent handling it
+                    # correctly. That's precisely the class all 4 repro'd
+                    # cases came from, and precisely NOT the 100+ established
+                    # routes Task A.3 protects.
+                    if (
+                        not capability_match
+                        and task.get("_llm_classified")
+                        and isinstance(result, dict)
+                        and result.get("status") in ("ok", "success")
+                    ):
+                        _caveat = (
+                            f"Heads up, sir — {getattr(agent, 'name', 'this agent')} "
+                            f"in the {district} district doesn't have a dedicated "
+                            f"capability for this specific request, so the answer "
+                            f"below may not be a close match to what you asked."
+                        )
+                        _priority_keys = ("response", "result", "content", "message", "text", "output")
+                        _hit_key = next(
+                            (k for k in _priority_keys if isinstance(result.get(k), str) and result.get(k)),
+                            None,
+                        )
+                        if _hit_key:
+                            result[_hit_key] = f"{_caveat}\n\n{result[_hit_key]}"
+                        else:
+                            result["capability_note"] = _caveat
+
             # ── Avatar layer: format raw district output through AvatarVoice ──
             try:
                 from core.avatar.avatar_core import AvatarCore
@@ -1793,6 +2093,31 @@ class Governor:
                 result = _avatar.on_act(result, task_context={"task_type": task_type, "district": district}, user_message=user_msg)
             except Exception as _av_err:
                 logger.debug("[VECTOR][governor] avatar on_act suppressed: {}", _av_err)
+
+            # 2026-07-30 audit fix (Phase 3 — guardrails): the English-only
+            # backstop (_ensure_english_response(), KNOWN_ISSUES #35) was
+            # only ever wired into answer_question() (the direct
+            # conversational LLM path) and the streaming voice paths
+            # (ambient_listener.py, realtime.py, voice_ws.py) — this
+            # dispatch() path, which is how EVERY real district-agent
+            # response reaches the user (chat AND the 100+ existing API
+            # routes), never ran it. A district agent's own internal LLM
+            # call is just as capable of ignoring an "English only" system
+            # prompt as answer_question()'s was (that's the whole reason
+            # #35's backstop exists), so a Devanagari-heavy reply from any
+            # district — not just the conversational fallback — could reach
+            # the owner unfiltered. AvatarVoice's on_act() above always
+            # normalizes the user-facing text onto result["response"]
+            # (avatar_core.py: "Returns a dict with 'response' key... plus
+            # all original keys preserved"), so checking that one key here
+            # covers every district uniformly, same bounded-retry-then-
+            # fixed-fallback behavior as the conversational path.
+            try:
+                _resp_text = result.get("response") if isinstance(result, dict) else None
+                if isinstance(_resp_text, str) and _is_mostly_devanagari(_resp_text):
+                    result["response"] = await _ensure_english_response(_resp_text)
+            except Exception as _eng_err:
+                logger.debug("[VECTOR][governor] dispatch English-only backstop suppressed: {}", _eng_err)
 
             # RULE 9 — HP wired to actual task outcomes
             if agent is not None:
