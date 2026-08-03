@@ -131,19 +131,44 @@ class MLOpsAgent(AgentBase):
           "State space models vs transformers for time series"
         """
         logger.info("[VECTOR][vector_mlops] ml_research: {}", topic[:70])
-        loop = asyncio.get_event_loop()
 
-        def _run():
-            try:
-                with _vector_mlops_agent_namespace():
-                    from agent.tools.research_tool import run_research_agent
-                    result = run_research_agent(topic=topic)
-                return {"status": "ok", "topic": topic, "result": result}
-            except Exception as e:
-                logger.warning("[VECTOR][vector_mlops] ml_research error: {}", e)
-                return {"status": "error", "error": str(e), "topic": topic}
-
-        result = await loop.run_in_executor(None, _run)
+        # 2026-08-04 fix: the vendored call this used to make
+        # (`agent.tools.research_tool.run_research_agent(topic=...)`) never
+        # actually existed — the real, only exported entry point is
+        # `research_handler(arguments, session, tool_call_id)`, and it's not
+        # a standalone function: `if not session: return "No session
+        # available for research agent.", False`. `session` there means a
+        # live `agent.core.session.Session` from vector_mlops's own
+        # AgentLoop (litellm client config, tool router, message history,
+        # HF token, etc.) — not something safe to fake from outside that
+        # loop. This was unreachable before tonight (Phase 6) because the
+        # `agent` namespace collision made every import here fail first,
+        # masking the wrong-name bug underneath; fixing the namespace issue
+        # exposed it. Rather than reimplement vector_mlops's session
+        # machinery, this calls the reasoning LLM directly (same pattern as
+        # _answer_query below) — a real, working capability, just without
+        # the vendored tool's live citation-graph/paper-mining tool calls.
+        # A full fix (constructing a real Session + AgentLoop) is future
+        # work if that deeper capability is actually wanted.
+        try:
+            from core.inference.vectorcode_llm import chat
+            sys_prompt = (
+                "You are an ML research assistant. Given a research topic, "
+                "summarize the current state of the art: relevant papers/"
+                "techniques, methodology, and known training recipes or "
+                "pitfalls. Be concrete and technical. If you are not certain "
+                "of a specific citation, say so rather than inventing one."
+            )
+            answer = chat(
+                model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
+                messages=[{"role": "system", "content": sys_prompt},
+                          {"role": "user", "content": topic}],
+                timeout=60.0,
+            )
+            result = {"status": "ok" if answer else "error", "topic": topic, "result": answer or ""}
+        except Exception as e:
+            logger.warning("[VECTOR][vector_mlops] ml_research error: {}", e)
+            result = {"status": "error", "error": str(e), "topic": topic}
         self._memory.store(
             event_type="ml_research",
             content=f"MLOpsAgent research: {topic[:80]} -> {result.get('status')}",
@@ -336,20 +361,45 @@ class MLOpsAgent(AgentBase):
         Uses the research sub-agent to ground the plan in published work.
         """
         logger.info("[VECTOR][vector_mlops] ml_plan: {}", goal[:60])
-        loop = asyncio.get_event_loop()
 
-        def _run():
-            try:
-                with _vector_mlops_agent_namespace():
-                    from agent.tools.plan_tool import plan_handler
-                    args = {"title": f"ML Plan: {goal[:60]}", "description": goal}
-                    result, success = asyncio.run(plan_handler(args))
-                return {"status": "ok" if success else "error", "goal": goal, "plan": result}
-            except Exception as e:
-                logger.warning("[VECTOR][vector_mlops] ml_plan error: {}", e)
-                return {"status": "error", "error": str(e), "goal": goal}
+        # 2026-08-04 fix: same class of bug as ml_research above, plus a
+        # second one layered on top. The real vendored function is
+        # `plan_tool_handler`, not `plan_handler` (name typo/drift). But
+        # even with the right name, `PlanTool.execute()` is NOT a plan
+        # *generator* — it's an in-memory todo-list state tracker (the
+        # vendored agent-loop's equivalent of a TodoWrite tool): it expects
+        # `{"todos": [{"id", "content", "status"}, ...]}` and just records/
+        # formats whatever list it's given. It does not accept, and cannot
+        # do anything useful with, `{"title": ..., "description": goal}` —
+        # there was never a code path here that could have produced a real
+        # plan. Fixed the same way as ml_research: ask the reasoning LLM
+        # directly for a concrete multi-step plan, grounded by first running
+        # ml_research() on the goal (matches this method's own docstring
+        # promise "uses the research sub-agent to ground the plan").
+        try:
+            research = await self.ml_research(goal)
+            grounding = research.get("result", "") if research.get("status") == "ok" else ""
 
-        result = await loop.run_in_executor(None, _run)
+            from core.inference.vectorcode_llm import chat
+            sys_prompt = (
+                "You are an ML engineering planner. Given a goal and optional "
+                "research grounding, produce a concrete, numbered, multi-step "
+                "engineering plan (data, model, training, evaluation, "
+                "deployment as relevant). Be specific and actionable."
+            )
+            user_content = f"Goal: {goal}"
+            if grounding:
+                user_content += f"\n\nResearch grounding:\n{grounding}"
+            plan_text = chat(
+                model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
+                messages=[{"role": "system", "content": sys_prompt},
+                          {"role": "user", "content": user_content}],
+                timeout=60.0,
+            )
+            result = {"status": "ok" if plan_text else "error", "goal": goal, "plan": plan_text or ""}
+        except Exception as e:
+            logger.warning("[VECTOR][vector_mlops] ml_plan error: {}", e)
+            result = {"status": "error", "error": str(e), "goal": goal}
         if result.get("status") == "ok":
             self.award_points(15, "ml plan created")
         return result
@@ -463,9 +513,15 @@ if __name__ == "__main__":
                 from agent.tools.github_find_examples import find_examples
                 from agent.tools.jobs_tool import hf_jobs_handler
                 from agent.tools.papers_tool import _s2_get_paper
-                from agent.core.llm_params import build_litellm_kwargs
-                from agent.core.hf_tokens import get_hf_token
-                from agent.core.context_manager.manager import ContextManager
+                # 2026-08-04 fix: these three names/paths were wrong (didn't
+                # match the real vendored files at all) — `build_litellm_
+                # kwargs` doesn't exist in llm_params.py, `get_hf_token`
+                # doesn't exist in hf_tokens.py, and context_manager/ lives
+                # directly under vector_mlops's agent/, not agent/core/.
+                # Corrected to real, existing names/paths.
+                from agent.core.llm_params import _resolve_llm_params
+                from agent.core.hf_tokens import get_cached_hf_token
+                from agent.context_manager.manager import ContextManager
         except ImportError as e:
             tools_ok = False
             print(f"  Import error: {e}")
@@ -480,7 +536,7 @@ if __name__ == "__main__":
         _fake_agent.__marker__ = "not-vector-mlops"
         sys.modules["agent"] = _fake_agent
         with _vector_mlops_agent_namespace():
-            from agent.tools.plan_tool import plan_handler  # noqa: F401 -- proves vector_mlops's agent resolves here
+            from agent.tools.plan_tool import plan_tool_handler  # noqa: F401 -- proves vector_mlops's agent resolves here
             assert not hasattr(sys.modules["agent"], "__marker__"), \
                 "namespace swap did not actually switch to vector_mlops's agent package"
         assert sys.modules["agent"] is _fake_agent, \
