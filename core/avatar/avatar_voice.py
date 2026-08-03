@@ -161,6 +161,21 @@ class AvatarVoice:
         """
         raw = self._extract_text(district_output)
 
+        # 0. Strip markdown: some districts (e.g. chief_of_staff's executive
+        #    brief, docs/report generators) deliberately produce markdown
+        #    for a document/panel view. When that same string reaches the
+        #    owner as a *conversational* reply — including via this HP-
+        #    lottery-style fallback path, where a mismatched-capability
+        #    agent's own default output gets returned for an unrelated
+        #    request — raw "#", "**", "-" bullets read as visibly broken
+        #    formatting in chat and get read aloud literally ("hash",
+        #    "asterisk", "hyphen") over voice. 2026-07-30's #105 fix handled
+        #    this for the streaming voice paths' LLM-generated conversational
+        #    text specifically; this is the same problem in the shared
+        #    dispatch-result formatter every text response passes through,
+        #    string or dict, regardless of which district produced it.
+        raw = self._strip_markdown(raw)
+
         # 1. Sanitise: strip internal agent/district names
         clean = self._sanitise(raw)
 
@@ -296,6 +311,42 @@ class AvatarVoice:
             return "\n".join(items)
         return str(val).strip()
 
+    def _strip_markdown(self, text: str) -> str:
+        """Turn markdown-formatted text into plain conversational prose.
+
+        Deliberately conservative: removes syntax markers while preserving
+        the underlying words, rather than trying to fully re-flow structure
+        into new sentences (that's a much harder, LLM-shaped problem, and
+        wrong 5% of the time is worse than a visible '#' the rest of the
+        time). Handles the shapes VECTOR's own districts actually produce:
+        ATX headers, bold/italic, inline code, and leading bullet/numbered-
+        list markers. Numbered prefixes ("1. ", "2. ") are left alone —
+        spoken or read as literal numbers they're mildly odd but not the
+        "hash"/"asterisk"/"hyphen" mispronunciation problem this exists for.
+        """
+        if not text or ("#" not in text and "*" not in text and "_" not in text
+                         and "`" not in text and not re.search(r"(?m)^\s*[-•]\s+", text)):
+            return text
+        # ATX headers: "## Executive Brief" -> "Executive Brief"
+        out = re.sub(r"(?m)^\s{0,3}#{1,6}\s+", "", text)
+        # Bold/italic/bold-italic (**x**, __x__, *x*, _x_) -> x. Bold pass
+        # first so "**x**" doesn't leave a stray single "*" for the italic
+        # pass to mis-handle.
+        out = re.sub(r"\*\*\*(.+?)\*\*\*", r"\1", out)
+        out = re.sub(r"\*\*(.+?)\*\*", r"\1", out)
+        out = re.sub(r"__(.+?)__", r"\1", out)
+        out = re.sub(r"(?<!\w)\*(?!\s)(.+?)(?<!\s)\*(?!\w)", r"\1", out)
+        out = re.sub(r"(?<!\w)_(?!\s)(.+?)(?<!\s)_(?!\w)", r"\1", out)
+        # Inline code spans: `x` -> x
+        out = re.sub(r"`([^`]+)`", r"\1", out)
+        # Leading bullet markers: "- x" / "• x" -> "x"
+        out = re.sub(r"(?m)^\s*[-•]\s+", "", out)
+        # Collapse the blank-line runs left behind by removed header lines
+        out = re.sub(r"\n{3,}", "\n\n", out).strip()
+        if out != text:
+            logger.debug("[VECTOR][avatar_voice] stripped markdown syntax from response")
+        return out
+
     def _sanitise(self, text: str) -> str:
         """Replace leaked internal names with neutral 'I', re-conjugating
         the following verb for 1st person when the name was that verb's
@@ -379,3 +430,37 @@ if __name__ == "__main__":
         _got = _voice._sanitise(_src)
         assert _got == _expected, f"grammar mangled: {_src!r} -> {_got!r} (expected {_expected!r})"
     print("OK avatar_voice -- verb-agreement fix verified (7/7 cases)")
+
+    # 2026-08-04 fix: markdown-stripping regression tests, including the
+    # exact live-observed shape (chief_of_staff's executive brief markdown
+    # reaching the owner verbatim via the HP-lottery fallback — see
+    # KNOWN_ISSUES.md #10 / #11).
+    _md_cases = [
+        ("## Executive Brief — 2026-08-04\n\n1. ACCOMPLISHED — did stuff.",
+         "Executive Brief — 2026-08-04\n\n1. ACCOMPLISHED — did stuff."),
+        ("# ACCOMPLISHED\nNo significant autonomous actions taken.",
+         "ACCOMPLISHED\nNo significant autonomous actions taken."),
+        ("- Review goals\n- Check budget", "Review goals\nCheck budget"),
+        ("**bold** and *italic* and __also bold__ and _also italic_",
+         "bold and italic and also bold and also italic"),
+        ("Run `pytest` to check.", "Run pytest to check."),
+        ("No markdown here, just prose.", "No markdown here, just prose."),
+    ]
+    for _src, _expected in _md_cases:
+        _got = _voice._strip_markdown(_src)
+        assert _got == _expected, f"markdown not stripped: {_src!r} -> {_got!r} (expected {_expected!r})"
+    print("OK avatar_voice -- markdown-stripping fix verified (6/6 cases)")
+
+    # End-to-end: the exact live-observed chief_of_staff brief text (trimmed)
+    # should come out with no stray '#'/'*' characters after a full format()
+    # pass, not just the isolated _strip_markdown() call above.
+    _brief = {
+        "response": (
+            "# ACCOMPLISHED\n No significant autonomous actions taken by "
+            "VECTOR today.\n\n## DECISIONS NEEDED\n- Review Phase 1.\n"
+            "- Assess **revenue** progress."
+        )
+    }
+    _out = voice.format(_brief, state, user_message="Remember that my favorite color is teal.")
+    assert "#" not in _out and "**" not in _out, f"markdown leaked end-to-end: {_out!r}"
+    print("OK avatar_voice -- end-to-end markdown strip verified on live-observed shape")
