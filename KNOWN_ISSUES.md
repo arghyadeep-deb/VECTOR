@@ -70,6 +70,38 @@ is a verification task, not a code fix, still open.
 
 ## Needs engineering work
 
+10. **Live-reproduced: "remember X" from the real HUD chat misroutes to
+   `chief_of_staff`, not `memory_curator` — the exact Governor capability-
+   match/HP-lottery failure mode already flagged as deliberately deferred,
+   caught live for the first time tonight.** With the real backend running
+   (started via START_VECTOR.bat) and the real HUD open in a browser:
+   typing "Remember that Claude ran a live verification test..." got the
+   documented, correct, honest `_llm_answer()` caveat ("I don't have
+   tool-calling in this reply path") — the classifier didn't treat it as an
+   action at all, so it never left the safe conversational path. A second,
+   near-identical message ("Remember that my favorite color is teal.") DID
+   get classified as an action, but landed in `chief_of_staff`, which has no
+   capability for it — its highest-HP agent just returned its own unrelated
+   default output (a daily accomplishments/decisions-needed brief) instead
+   of an error, exactly the HP-lottery pattern described all session as the
+   most load-bearing, deliberately-unredesigned mechanism. Root cause:
+   `classify_chat_intent()` (`core/city/governor.py`) only auto-corrects
+   district via `DISTRICT_TASK_MAP` when the LLM-invented `task_type`
+   string is an *exact* key match (e.g. literally `"remember"`); tonight's
+   Phase 2 fix added `remember`/`recall`/`memory_store`/`memory_query` to
+   `consolidation_bot`'s *capabilities* (a separate list, consulted only
+   after Governor has already picked a district) — it never touched
+   `classify_chat_intent()`'s own district-guessing, so a real memory
+   request is still one LLM-classifier guess away from working correctly.
+   **This is a pre-existing gap, not a regression from tonight's changes**
+   (confirmed: `remember`/`recall` were already present in `DISTRICT_TASK_
+   MAP` before tonight). Concrete evidence for the Governor capability-
+   match/HP-lottery redesign conversation already flagged as needing the
+   owner awake — this is the live instance of exactly that risk, not a new
+   category of bug. Not fixed tonight: touching `classify_chat_intent()`'s
+   prompt/matching logic without the owner reviewing risks regressing the
+   100+ other routes this function already gets right.
+
 7. **Full TIER5 (English-only policy) eval harness run** and **full 65-item
    DeepEval golden-dataset re-run** haven't been done since the most recent
    fixes (English-only hardening, memory-router/session-buffer/reminder/
