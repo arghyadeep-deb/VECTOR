@@ -146,6 +146,22 @@ previously-closed archive issues.
   the file's own self-test. `hf_dataset`/`github_ml`/`hf_train`/`hf_hub`
   were checked too and call real, correctly-shaped functions — no bug there.
 
+- **Phase 8 continued — audited the other 3 vendored bridge agents, found +
+  fixed 2 more** (`bbde3a30c`): `backtest_agent.py`'s `vt_backtest()`
+  imported `BacktestConfigSchema` from the wrong module (it lives in
+  `backtest.runner`, not `backtest.models`); `shadow_account()` called a
+  function (`extract_rules`) that never existed and hand-built a
+  `ShadowProfile` with a field name (`source_path`) that isn't one of its
+  11 real fields on a frozen dataclass — rewrote it to call the real
+  `extract_shadow_profile(journal_path)`, which does the whole pipeline
+  itself. `vt_swarm`/`vt_skills`/`vt_export`/`vt_research` were checked too
+  (every class/function signature cross-referenced against the real
+  vendored files) — all correct. `finagent_agent.py` and `hedgebot_agent.py`
+  were also fully checked — clean, no bugs: they use absolute dotted-path
+  imports that were already validated against real names at write time,
+  unlike the other two agents' bare-import + sys.path-trick pattern where
+  naming drift could hide behind an import that failed before it mattered.
+
 ---
 
 ## Fixed and live-verified today (2026-07-30)
