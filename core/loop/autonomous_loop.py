@@ -1388,6 +1388,34 @@ class AutonomousLoop:
         except Exception as _bk_err:
             logger.warning("[VECTOR][reflect] db_backup failed: {}", _bk_err)
 
+        # 2026-07-30 audit fix (memory subsystem — scheduled forgetting): the
+        # real forgetting/prune pass lives in ConsolidationBot.run_forever()
+        # (daily reflection + Monday consolidation, which calls
+        # EpisodicMemory.prune_old_episodes()), but nothing in the actually
+        # running process ever started that loop — cloud/agent_workers/
+        # workers.py (which spins it up via run_memory_workers()) is only
+        # invoked from its own `if __name__ == "__main__"` block, and
+        # START_VECTOR.bat never launches it. Net effect: episodic memory
+        # grew unbounded in production; decay math existed but never fired.
+        # Fixed by piggybacking on this already-running 2AM reflect tick
+        # (same cron slot DailyReviewer/db_backup/etc. already use) instead
+        # of introducing yet another background task that could go unstarted
+        # the same way. Weekday gate mirrors ConsolidationBot.run_forever()'s
+        # own "Monday = weekly consolidation" rule exactly.
+        try:
+            from districts.memory_curator.consolidation_bot import ConsolidationBot
+            _bot = ConsolidationBot()
+            _reflected = await _bot.write_daily_reflection()
+            _consolidated = 0
+            if datetime.datetime.now().weekday() == 0:  # Monday
+                _consolidated = await _bot.consolidate_old_episodes()
+            logger.info(
+                "[VECTOR][reflect] memory forgetting pass: daily_reflection={} "
+                "consolidated_episodes={}", _reflected, _consolidated,
+            )
+        except Exception as _forget_err:
+            logger.warning("[VECTOR][reflect] memory forgetting pass failed: {}", _forget_err)
+
         try:
             from core.city.evolution_engine import EvolutionEngine
             from core.city.agent_registry import get_registry

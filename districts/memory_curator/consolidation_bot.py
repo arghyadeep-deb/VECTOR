@@ -3,6 +3,7 @@ import os
 import uuid
 import asyncio
 import datetime
+import hashlib
 from pathlib import Path
 
 from core.config import CONFIG
@@ -275,8 +276,220 @@ class ConsolidationBot(AgentBase):
         # note_this, etc.) still land here instead of back in the HP-lottery.
         if task_type in ("save_note", "overwrite_note_personal") or "note" in task_type:
             return self._save_note(task.get("params", {}))
-        count = await self.consolidate_old_episodes()
-        return {"status": "ok", "consolidated": count}
+        # KNOWN_ISSUES #21's residual/#6 in the 2026-07-30 cleanup pass:
+        # entity_add/knowledge_add/relation_add/knowledge_relate are real
+        # task_types DISTRICT_TASK_MAP routes to memory_curator (a genuine,
+        # distinct capability from note-saving — the knowledge graph, not
+        # episodic memory), but until now nothing here declared them, so
+        # they fell to the same HP-lottery default as the original #21 bug.
+        if task_type in ("entity_add", "knowledge_add", "relation_add", "knowledge_relate"):
+            return self._kg_write(task.get("params", {}), task_type)
+        if task_type == "knowledge_query":
+            return self._kg_query(task.get("params", {}))
+        # 2026-07-30 audit fix (Phase 2 — memory subsystem): governor.py's
+        # DISTRICT_TASK_MAP routes the literal task_types "remember",
+        # "recall", and "memory" straight to district=memory_curator (see
+        # core/city/governor.py DISTRICT_TASK_MAP), but until now none of
+        # them were declared here either — same HP-lottery-fallback class of
+        # bug as save_note/entity_add above (KNOWN_ISSUES #21/#6). A user
+        # saying "remember that my flight is Friday" or "recall what I said
+        # about the flight" silently ran a full consolidate_old_episodes()
+        # pass instead — the fact was never actually stored (or looked up),
+        # and the reply was a meaningless episode count.
+        if task_type in ("remember", "memory_store"):
+            return self._remember_fact(task.get("params", {}))
+        if task_type in ("recall", "memory_query", "memory"):
+            # "memory" alone is ambiguous (LLM classifier shorthand for
+            # "this is memory-flavored", not necessarily read vs write) —
+            # treat it as a read, since a misclassified read that runs a
+            # lookup is harmless, while a misclassified write would silently
+            # fabricate a stored "fact" from a question.
+            return self._recall_query(task.get("params", {}))
+        if task_type == "consolidate":
+            count = await self.consolidate_old_episodes()
+            return {"status": "ok", "consolidated": count}
+        # 2026-07-30 audit fix (Phase 2 — orphaned MemoryRouter): anything
+        # else that reaches memory_curator — an LLM-invented task_type not
+        # in the fixed vocabulary above (governor.py: classify_chat_intent()
+        # is free to pick "a short snake_case task_type" for non-RED-tier
+        # requests, so novel synonyms like "log_this"/"jot" are expected),
+        # or an HP-lottery win with no matching capability at all — used to
+        # fall straight through to consolidate_old_episodes() and return a
+        # bare episode count as the "answer", regardless of what the person
+        # actually said. core/memory/router.py's MemoryRouter was built
+        # earlier this session (task #117) specifically to classify free
+        # text and dispatch it to whichever real store it belongs in
+        # (policy/counterfactual/entity/reasoning/semantic/episodic), but
+        # was never wired to an actual call site — grep confirmed its only
+        # callers were its own self-test and unit test. This closes that
+        # gap: real free text with nowhere better to go gets properly
+        # classified and stored/queried instead of silently consolidating.
+        # consolidate_old_episodes() is still reachable — it just needs the
+        # explicit task_type="consolidate" now (handle_event() above already
+        # uses that), rather than being every unmatched task_type's default.
+        params = task.get("params", {}) or {}
+        text = str(
+            params.get("query") or params.get("content") or params.get("text") or ""
+        ).strip()
+        if not text:
+            count = await self.consolidate_old_episodes()
+            return {"status": "ok", "consolidated": count, "note": "no text given; ran default consolidation"}
+        try:
+            from core.memory.router import get_router
+            router = get_router()
+            if self._looks_like_question(text):
+                result = router.route_read(text)
+                if result.store_result:
+                    return {"status": "ok", "response": str(result.store_result)[:1000],
+                            "routed_to": result.category}
+                return {"status": "ok", "response": f"Nothing found for \"{text}\".",
+                        "routed_to": result.category}
+            result = router.route_write(text, event_type=task_type or "note", source="chat")
+            return {"status": "ok", "response": f"Noted ({result.category}): {text}",
+                    "routed_to": result.category}
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] memory_router dispatch failed: {e}")
+            count = await self.consolidate_old_episodes()
+            return {"status": "ok", "consolidated": count, "note": f"router unavailable ({e}); ran default consolidation"}
+
+    @staticmethod
+    def _looks_like_question(text: str) -> bool:
+        """Cheap read-vs-write heuristic for the MemoryRouter catch-all
+        above: a trailing '?' or a leading question word means 'look this
+        up', anything else means 'store this'."""
+        t = text.strip().lower()
+        if t.endswith("?"):
+            return True
+        first_word = t.split()[0] if t.split() else ""
+        return first_word in (
+            "who", "what", "when", "where", "why", "how", "do", "does",
+            "did", "is", "are", "was", "were", "can", "could", "should",
+            "would", "will",
+        )
+
+    def _remember_fact(self, params: dict) -> dict:
+        """Handle the literal 'remember'/'memory_store' task_type — store a
+        fact the owner explicitly asked VECTOR to remember. Distinct from
+        _save_note() (personal_note category, "note this down" phrasing):
+        this is the semantic-memory equivalent for "remember X" phrasing,
+        but shares the exact same idempotent content-hash key strategy so
+        repeating the same fact converges to one row instead of duplicating
+        (same fix rationale as _save_note(), 2026-07-30 idempotency pass)."""
+        content = str(
+            params.get("content") or params.get("query") or params.get("text") or ""
+        ).strip()
+        if not content:
+            return {"status": "error", "error": "nothing given to remember"}
+        fact_id = str(params.get("note_id") or params.get("title") or params.get("key") or "").strip()
+        if fact_id:
+            key = f"fact:id:{fact_id.lower()}"
+        else:
+            content_hash = hashlib.sha256(content.strip().lower().encode("utf-8")).hexdigest()[:16]
+            key = f"fact:content:{content_hash}"
+        try:
+            self._memory.remember(key, content, category="semantic_fact", confidence=0.9)
+            self._memory.store(event_type="remember", content=content, tags=["remember"], source="chat")
+            self.award_points(10, "fact_remembered")
+            return {"status": "ok", "response": f"Got it — I'll remember: {content}"}
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] remember failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _recall_query(self, params: dict) -> dict:
+        """Handle the literal 'recall'/'memory_query'/'memory' task_type — a
+        read-only lookup against episodic memory (FTS/LIKE search, see
+        EpisodicMemory.recall()). Does not consolidate or mutate anything."""
+        query = str(
+            params.get("query") or params.get("content") or params.get("text") or ""
+        ).strip()
+        if not query:
+            return {"status": "error", "error": "no recall query provided"}
+        try:
+            hits = self._memory.recall(query, limit=5)
+            if not hits:
+                return {"status": "ok", "response": f"I don't have anything remembered about \"{query}\"."}
+            lines = [f"- [{h['timestamp'][:10]}] {h['content'][:200]}" for h in hits]
+            return {"status": "ok", "response": "Here's what I remember:\n" + "\n".join(lines)}
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] recall failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _kg_write(self, params: dict, task_type: str) -> dict:
+        """Handle entity_add/knowledge_add/relation_add/knowledge_relate.
+
+        Governor dispatch only ever hands this free chat text (params.query/
+        content/text) or, for a structured caller, explicit fields — supports
+        both rather than assuming one shape. For free text, reuses
+        KnowledgeGraph.add_from_text()'s existing "X is/uses/has/builds/runs
+        Y" heuristic extractor (already built for exactly this purpose) so a
+        statement like "VECTOR runs on Ollama" becomes a real relation
+        instead of silently falling through to consolidate_old_episodes().
+        """
+        from core.memory.knowledge_graph import get_knowledge_graph
+        kg = get_knowledge_graph()
+        try:
+            # Structured entity add: {"name": ..., "entity_type": ..., "properties": {...}}
+            if task_type in ("entity_add", "knowledge_add") and params.get("name"):
+                entity = kg.add_entity(
+                    str(params["name"]),
+                    entity_type=str(params.get("entity_type", "concept")),
+                    properties=params.get("properties") or {},
+                )
+                self.award_points(10, "entity_added")
+                return {"status": "ok", "response": f"Added to knowledge graph: {entity.name} ({entity.entity_type})"}
+
+            # Structured relation add: {"subject": ..., "predicate": ..., "object": ...}
+            if task_type in ("relation_add", "knowledge_relate") and params.get("subject") and params.get("object"):
+                relation = kg.add_relation(
+                    str(params["subject"]),
+                    str(params.get("predicate", "related_to")),
+                    str(params["object"]),
+                    confidence=float(params.get("confidence", 1.0)),
+                    source=str(params.get("source", "chat")),
+                )
+                self.award_points(10, "relation_added")
+                return {"status": "ok", "response": f"Noted: {relation.subject} {relation.predicate} {relation.obj}"}
+
+            # Free-text fallback (the common real path — classify_chat_intent
+            # hands over the raw user sentence, not structured fields).
+            text = str(
+                params.get("query") or params.get("content") or params.get("text") or ""
+            ).strip()
+            if not text:
+                return {"status": "error", "error": f"no entity/relation content provided for {task_type}"}
+            relations = kg.add_from_text(text, source="chat")
+            if relations:
+                self.award_points(10, "kg_extracted_from_text")
+                summary = "; ".join(f"{r.subject} {r.predicate} {r.obj}" for r in relations)
+                return {"status": "ok", "response": f"Noted for the knowledge graph: {summary}"}
+            # No extractable subject-predicate-object triple (heuristic regex
+            # needs capitalized proper-noun-shaped subject/object) — still
+            # store the raw statement as a low-confidence generic entity
+            # rather than silently dropping it or running an unrelated
+            # consolidation pass.
+            entity = kg.add_entity(text[:80], entity_type="note", properties={"raw": text})
+            self.award_points(5, "kg_entity_fallback")
+            return {"status": "ok", "response": f"Noted: {text}"}
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] {task_type} failed: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def _kg_query(self, params: dict) -> dict:
+        """Handle knowledge_query — read-only lookup against the knowledge graph."""
+        from core.memory.knowledge_graph import get_knowledge_graph
+        term = str(
+            params.get("query") or params.get("term") or params.get("content") or params.get("text") or ""
+        ).strip()
+        if not term:
+            return {"status": "error", "error": "no search term provided for knowledge_query"}
+        try:
+            result = get_knowledge_graph().query(term)
+            if not result.entities and not result.relations:
+                return {"status": "ok", "response": f"Nothing in the knowledge graph yet for \"{term}\"."}
+            return {"status": "ok", "response": result.to_markdown()}
+        except Exception as e:
+            logger.warning(f"[VECTOR][consolidation_bot] knowledge_query failed: {e}")
+            return {"status": "error", "error": str(e)}
 
     def _save_note(self, params: dict) -> dict:
         """Save a "note this down" / personal-reminder-style request.
@@ -300,7 +513,30 @@ class ConsolidationBot(AgentBase):
         ).strip()
         if not content:
             return {"status": "error", "error": "no note content provided to save"}
-        key = f"note:{datetime.datetime.now(datetime.timezone.utc).isoformat()}"
+
+        # 2026-07-30 audit fix (idempotency): the key used to be
+        # f"note:{now.isoformat()}" — a fresh microsecond-precision
+        # timestamp every call, so asking "note this down: X" twice (a
+        # plausible real scenario: the owner repeats themselves, or a client
+        # retry fires after a slow response) created two separate rows with
+        # identical content, both retrievable forever, no way to tell
+        # they're the same note. remember()'s underlying SQL is already a
+        # real upsert (INSERT ... ON CONFLICT(key) DO UPDATE) — the bug was
+        # purely in how the key was built, defeating that. Two cases now:
+        #   - explicit note_id/title in params -> key by that (lets a
+        #     caller that KNOWS which note it means genuinely overwrite it
+        #     — this is what "overwrite_note_personal" needs to actually
+        #     overwrite something instead of just adding another note).
+        #   - no identifier given -> key by a hash of the normalized
+        #     content, so repeating the exact same note converges to one
+        #     row instead of duplicating, while a genuinely different note
+        #     still gets its own key.
+        note_id = str(params.get("note_id") or params.get("title") or "").strip()
+        if note_id:
+            key = f"note:id:{note_id.lower()}"
+        else:
+            content_hash = hashlib.sha256(content.strip().lower().encode("utf-8")).hexdigest()[:16]
+            key = f"note:content:{content_hash}"
         try:
             self._memory.remember(key, content, category="personal_note", confidence=1.0)
             self.award_points(10, "note_saved")

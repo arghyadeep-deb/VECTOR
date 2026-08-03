@@ -233,6 +233,26 @@ class ContextEngine:
             if episodes_str:
                 lines.append(f"Recent context: {episodes_str}")
 
+        # 2026-07-30 audit fix (Phase 2 — memory subsystem): the knowledge
+        # graph (core/memory/knowledge_graph.py — entities/relations built up
+        # via entity_add/knowledge_add/relation_add, see
+        # districts/memory_curator/consolidation_bot.py::_kg_write()) was
+        # only ever readable through the explicit "knowledge_query" task_type
+        # — a normal conversational turn ("what do I use for X", "tell me
+        # about my car") never surfaced anything VECTOR had actually learned
+        # into the graph, even though session_hydration_prompt() is called
+        # before every single LLM call (RULE 1) and is exactly where that
+        # context belongs. Fixed by doing a cheap, best-effort KG lookup
+        # keyed off proper-noun-shaped words in the query — same LIKE-based
+        # substring match kg.query() already does for the explicit
+        # knowledge_query path, just triggered automatically here too.
+        # Never raises; empty/no-match is silently skipped like every other
+        # optional line above.
+        if query:
+            kg_line = self._knowledge_graph_line(str(query))
+            if kg_line:
+                lines.append(kg_line)
+
         person_id = (extra_context or {}).get("person_id")
         if person_id:
             about = self._person_context_line(
@@ -261,6 +281,47 @@ class ContextEngine:
 
         lines.append("[END SESSION CONTEXT]")
         return "\n".join(lines)
+
+    def _knowledge_graph_line(self, query: str) -> str:
+        """Best-effort, read-only knowledge-graph lookup for session
+        hydration (see session_hydration_prompt() call site above).
+        Extracts proper-noun-shaped candidate terms from the free-text
+        query and checks the graph for anything matching — same
+        substring-LIKE match KnowledgeGraph.query() already does for the
+        explicit knowledge_query task_type. Returns "" on no match or any
+        failure (never raises, never blocks an LLM call on this)."""
+        try:
+            import re as _re
+            candidates = _re.findall(r"\b[A-Z][A-Za-z0-9]{2,}\b", query)
+            # Dedup while preserving order; cap how many lookups we do —
+            # this must stay cheap since it runs before every LLM call.
+            seen: list[str] = []
+            for c in candidates:
+                if c not in seen:
+                    seen.append(c)
+            if not seen:
+                return ""
+            from core.memory.knowledge_graph import get_knowledge_graph
+            kg = get_knowledge_graph()
+            facts: list[str] = []
+            for term in seen[:3]:
+                result = kg.query(term, max_results=3)
+                for e in result.entities[:2]:
+                    fact = f"{e.name} ({e.entity_type})"
+                    if fact not in facts:
+                        facts.append(fact)
+                for r in result.relations[:2]:
+                    fact = f"{r.subject} {r.predicate} {r.obj}"
+                    if fact not in facts:
+                        facts.append(fact)
+                if len(facts) >= 4:
+                    break
+            if not facts:
+                return ""
+            return "Known facts: " + "; ".join(facts[:4])[:250]
+        except Exception as e:
+            logger.debug("[VECTOR][context_engine] knowledge graph lookup skipped: {}", e)
+            return ""
 
     async def get_vault_context(self, query: str = "") -> str:
         """Query LightRAG graph for vault context to feed session hydration."""
