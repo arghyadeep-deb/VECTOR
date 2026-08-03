@@ -23,7 +23,10 @@ from __future__ import annotations
 import sys
 
 import asyncio
+import contextlib
+import threading
 import uuid
+from pathlib import Path
 
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
@@ -32,6 +35,63 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from loguru import logger
+
+# 2026-07-30 audit fix (Phase 6 — vendored integration reachability):
+# districts/coding/vector_mlops/agent/ is this district's vendored HF-agent
+# toolkit. Its own files do bare `from agent.core import X` / `from
+# agent.tools.Y import Z` imports, expecting 'agent' to resolve to ITS
+# package — which requires putting districts/coding/vector_mlops/ on
+# sys.path. Until this fix, nothing ever did that (confirmed: every one of
+# this class's 6 actions caught a swallowed ModuleNotFoundError and
+# returned a soft {"status": "error"} on every single call).
+#
+# A naive `sys.path.insert(0, .../vector_mlops)` at import time would trade
+# that guaranteed failure for a WORSE, non-deterministic one: this repo's
+# vectorcode/src/ is already on sys.path for nearly every module (every
+# district calls ensure_paths(), including this file two lines up), and
+# vectorcode/src/run_agent.py ALSO does bare `from agent.X import Y`
+# imports against its own, completely different 'agent' package (confirmed
+# via inspection — agent.memory_manager, agent.retry_utils, etc. are real
+# vectorcode modules, not vector_mlops ones). Python caches whichever
+# 'agent' package is imported first in sys.modules for the rest of the
+# process; the other would silently break for the process's entire
+# remaining lifetime with a confusing error (ModuleNotFoundError for a
+# submodule that "should" exist), depending purely on which subsystem
+# happened to run first. That's not a fix, it's relocating the same class
+# of bug onto vectorcode's currently-working agent tooling.
+#
+# _vector_mlops_agent_namespace() scopes the fix to exactly the moment
+# this district's own code needs bare 'agent' to mean ITS package: save
+# whatever's currently on sys.path / cached under 'agent'*, swap in
+# vector_mlops's, let the caller's import (and anything it transitively
+# imports) run, then restore everything exactly as found. A module-level
+# lock serializes this against concurrent use, since hf_train/hf_dataset/
+# github_ml/ml_plan run their blocking work via loop.run_in_executor
+# (a thread pool) and this manipulates process-global sys.path/sys.modules
+# state that isn't safe to touch from two threads at once.
+_MLOPS_AGENT_NS_LOCK = threading.Lock()
+_MLOPS_VENDOR_DIR = str(Path(__file__).parent / "vector_mlops")
+
+
+@contextlib.contextmanager
+def _vector_mlops_agent_namespace():
+    with _MLOPS_AGENT_NS_LOCK:
+        saved_path = list(sys.path)
+        saved_agent_modules = {
+            k: v for k, v in sys.modules.items()
+            if k == "agent" or k.startswith("agent.")
+        }
+        for k in saved_agent_modules:
+            del sys.modules[k]
+        sys.path.insert(0, _MLOPS_VENDOR_DIR)
+        try:
+            yield
+        finally:
+            sys.path[:] = saved_path
+            for k in [m for m in sys.modules if m == "agent" or m.startswith("agent.")]:
+                del sys.modules[k]
+            sys.modules.update(saved_agent_modules)
+
 
 class MLOpsAgent(AgentBase):
     """
@@ -75,8 +135,9 @@ class MLOpsAgent(AgentBase):
 
         def _run():
             try:
-                from agent.tools.research_tool import run_research_agent
-                result = run_research_agent(topic=topic)
+                with _vector_mlops_agent_namespace():
+                    from agent.tools.research_tool import run_research_agent
+                    result = run_research_agent(topic=topic)
                 return {"status": "ok", "topic": topic, "result": result}
             except Exception as e:
                 logger.warning("[VECTOR][vector_mlops] ml_research error: {}", e)
@@ -109,15 +170,16 @@ class MLOpsAgent(AgentBase):
 
         async def _run():
             try:
-                from agent.tools.dataset_tools import inspect_dataset
-                cfg = self._cfg()
-                result = await inspect_dataset(
-                    dataset=dataset,
-                    config=config,
-                    split=split,
-                    sample_rows=sample_rows,
-                    hf_token=cfg.get("hf_token") or None,
-                )
+                with _vector_mlops_agent_namespace():
+                    from agent.tools.dataset_tools import inspect_dataset
+                    cfg = self._cfg()
+                    result = await inspect_dataset(
+                        dataset=dataset,
+                        config=config,
+                        split=split,
+                        sample_rows=sample_rows,
+                        hf_token=cfg.get("hf_token") or None,
+                    )
                 formatted = result.get("formatted", str(result)) if isinstance(result, dict) else str(result)
                 return {"status": "ok", "dataset": dataset, "result": formatted}
             except Exception as e:
@@ -150,13 +212,14 @@ class MLOpsAgent(AgentBase):
 
         def _run():
             try:
-                from agent.tools.github_find_examples import find_examples
-                result = find_examples(
-                    keyword=keyword,
-                    repo=repo,
-                    org=org,
-                    max_results=max_results,
-                )
+                with _vector_mlops_agent_namespace():
+                    from agent.tools.github_find_examples import find_examples
+                    result = find_examples(
+                        keyword=keyword,
+                        repo=repo,
+                        org=org,
+                        max_results=max_results,
+                    )
                 formatted = result.get("formatted", str(result)) if isinstance(result, dict) else str(result)
                 is_error = result.get("isError", False) if isinstance(result, dict) else False
                 return {
@@ -242,16 +305,17 @@ class MLOpsAgent(AgentBase):
 
         def _run():
             try:
-                from agent.tools.jobs_tool import hf_jobs_handler
-                args = {
-                    "runtime": "python",
-                    "script": script,
-                    "repo_id": repo_id,
-                    "hardware": hardware,
-                    "timeout": timeout,
-                    "requirements": requirements or [],
-                }
-                result, success = asyncio.run(hf_jobs_handler(args))
+                with _vector_mlops_agent_namespace():
+                    from agent.tools.jobs_tool import hf_jobs_handler
+                    args = {
+                        "runtime": "python",
+                        "script": script,
+                        "repo_id": repo_id,
+                        "hardware": hardware,
+                        "timeout": timeout,
+                        "requirements": requirements or [],
+                    }
+                    result, success = asyncio.run(hf_jobs_handler(args))
                 return {
                     "status": "ok" if success else "error",
                     "repo_id": repo_id, "hardware": hardware,
@@ -276,9 +340,10 @@ class MLOpsAgent(AgentBase):
 
         def _run():
             try:
-                from agent.tools.plan_tool import plan_handler
-                args = {"title": f"ML Plan: {goal[:60]}", "description": goal}
-                result, success = asyncio.run(plan_handler(args))
+                with _vector_mlops_agent_namespace():
+                    from agent.tools.plan_tool import plan_handler
+                    args = {"title": f"ML Plan: {goal[:60]}", "description": goal}
+                    result, success = asyncio.run(plan_handler(args))
                 return {"status": "ok" if success else "error", "goal": goal, "plan": result}
             except Exception as e:
                 logger.warning("[VECTOR][vector_mlops] ml_plan error: {}", e)
@@ -389,19 +454,39 @@ if __name__ == "__main__":
         assert agent.name == "MLOpsAgent"
         assert agent.district == "coding"
 
-        # Verify core imports
+        # Verify core imports resolve to vector_mlops's own 'agent' package
+        # (2026-07-30 audit fix — see _vector_mlops_agent_namespace() above)
         tools_ok = True
         try:
-            from agent.tools.dataset_tools import inspect_dataset
-            from agent.tools.github_find_examples import find_examples
-            from agent.tools.jobs_tool import hf_jobs_handler
-            from agent.tools.papers_tool import _s2_get_paper
-            from agent.core.llm_params import build_litellm_kwargs
-            from agent.core.hf_tokens import get_hf_token
-            from agent.core.context_manager.manager import ContextManager
+            with _vector_mlops_agent_namespace():
+                from agent.tools.dataset_tools import inspect_dataset
+                from agent.tools.github_find_examples import find_examples
+                from agent.tools.jobs_tool import hf_jobs_handler
+                from agent.tools.papers_tool import _s2_get_paper
+                from agent.core.llm_params import build_litellm_kwargs
+                from agent.core.hf_tokens import get_hf_token
+                from agent.core.context_manager.manager import ContextManager
         except ImportError as e:
             tools_ok = False
             print(f"  Import error: {e}")
+
+        # Regression test for the actual bug this fixes: simulate a DIFFERENT
+        # 'agent' package (standing in for vectorcode's real one) already
+        # cached in sys.modules before vector_mlops needs its own — confirm
+        # the namespace swap doesn't clobber it permanently, and that
+        # vector_mlops's own tools ARE reachable inside the context.
+        import types
+        _fake_agent = types.ModuleType("agent")
+        _fake_agent.__marker__ = "not-vector-mlops"
+        sys.modules["agent"] = _fake_agent
+        with _vector_mlops_agent_namespace():
+            from agent.tools.plan_tool import plan_handler  # noqa: F401 -- proves vector_mlops's agent resolves here
+            assert not hasattr(sys.modules["agent"], "__marker__"), \
+                "namespace swap did not actually switch to vector_mlops's agent package"
+        assert sys.modules["agent"] is _fake_agent, \
+            "namespace swap failed to restore the pre-existing 'agent' module after exiting the context"
+        del sys.modules["agent"]
+        print("  namespace isolation OK: vector_mlops's agent package doesn't clobber vectorcode's")
 
         print(f"OK mlops_agent.py HP={agent.health_points}")
         print(f"  district: {agent.district}")
