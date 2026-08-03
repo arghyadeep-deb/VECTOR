@@ -102,6 +102,25 @@ is a verification task, not a code fix, still open.
    prompt/matching logic without the owner reviewing risks regressing the
    100+ other routes this function already gets right.
 
+11. **FIXED same session, live-caught by the owner reading #10's own output:**
+   the misrouted `chief_of_staff` reply above contained raw markdown syntax
+   (`#`, `**`, leading `-` bullets) — correct for chief_of_staff's own
+   executive-brief document view, but never stripped before reaching the
+   owner as a conversational reply. Traced to `AvatarVoice.format()`
+   (`core/avatar/avatar_voice.py`) — the one shared formatter every district
+   response passes through — which sanitises internal codenames, adds
+   empathy, enforces personality tone, and guarantees first person, but had
+   no markdown-stripping step at all. 2026-07-30's #105 fix only covered the
+   streaming voice paths' own LLM-generated text, not this shared formatter,
+   so raw syntax markers reached chat visibly broken and would be read aloud
+   literally ("hash", "asterisk", "hyphen") over voice. Fixed: added
+   `_strip_markdown()` (headers, bold/italic both delimiter styles, inline
+   code, leading bullets — deliberately leaves numbered-list prefixes alone,
+   not the same unpronounceable-symbol problem), wired in as the first
+   content transform in `format()`. Verified: 6/6 isolated cases + one full
+   end-to-end `format()` test using the exact live-observed chief_of_staff
+   brief shape from #10 (commit `a361a60b9`).
+
 7. **Full TIER5 (English-only policy) eval harness run** and **full 65-item
    DeepEval golden-dataset re-run** haven't been done since the most recent
    fixes (English-only hardening, memory-router/session-buffer/reminder/
