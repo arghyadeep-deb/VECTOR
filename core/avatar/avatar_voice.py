@@ -27,10 +27,78 @@ _INTERNAL_NAMES: list[str] = [
     "MockInterviewer", "ReportGenerator",
     "ConsolidationBot", "PatternFinder",
     "ChiefOfStaff", "Governor", "LLMCouncil",
-    "district", "District", "agent", "Agent",
 ]
+# 2026-07-29: bare "district"/"agent" used to be in _INTERNAL_NAMES above too.
+# Found live while testing the Governor capability-match caveat fix
+# (KNOWN_ISSUES #31): a legitimate, owner-facing sentence — "email_agent in
+# the communications district doesn't have a dedicated capability..." — came
+# out of _sanitise() as "...communications I doesn't have...", because
+# "district" is a common English word that also appears in ordinary
+# sentences, not just as a leaked internal codename (unlike "CodingBot" or
+# "ChiefOfStaff", which are unambiguous implementation names with no
+# legitimate use in owner-facing prose). Removed the two bare generic words;
+# the actual internal bot/system codenames above are untouched and still
+# get scrubbed.
+# 2026-07-30 audit fix (Phase 3 — guardrails): the bare name -> "I"
+# substitution below was grammatically fine only when the name sat in
+# object position ("ask CodingBot" -> "ask I" — already imperfect, but a
+# separate, smaller, pre-existing limitation not touched here). When the
+# name was the SUBJECT of a 3rd-person-singular verb, the swap stranded
+# that verb's conjugation behind: "CodingBot has reviewed" -> "I has
+# reviewed", "GitBot doesn't have" -> "I doesn't have", "ThreatScout is
+# monitoring" -> "I is monitoring" — all live, all wrong, and none of it was
+# caught by the existing self-test (which only checked the name was gone
+# and *an* "I" was present, not that the sentence still parsed). The
+# 2026-07-29 fix only removed a false-POSITIVE match ("district"/"agent"
+# wrongly caught as if they were internal names) — a different bug class
+# from this one, and patching _INTERNAL_NAMES entry-by-entry was never
+# going to fix verb agreement no matter how carefully the list was curated.
+# _INTERNAL_RE now also captures the word immediately after a matched name
+# so _sanitise() can re-conjugate the small set of verbs whose 1st- and
+# 3rd-person-singular forms actually differ, instead of leaving a
+# 3rd-person verb stranded after "I".
+_IRREGULAR_VERB_AGREEMENT: dict[str, str] = {
+    "is": "am", "isn't": "am not",
+    "has": "have", "hasn't": "haven't",
+    "does": "do", "doesn't": "don't",
+}
+
+
+def _naive_first_person_verb(word: str) -> "str | None":
+    """Best-effort 3rd-person-singular -> 1st-person conjugation for regular
+    '-s' verbs (reviews->review, finds->find, handles->handle). Not a real
+    morphological analyzer — deliberately conservative, returns None (leave
+    the word untouched) for anything it isn't reasonably confident about,
+    since "verb left as-is" was already today's behavior and is a safe
+    fallback, never a regression."""
+    lower = word.lower()
+    fixed = _IRREGULAR_VERB_AGREEMENT.get(lower)
+    if fixed is not None:
+        return fixed
+    if lower.endswith(("ches", "shes", "xes", "zes", "sses")):
+        return word[:-2]
+    if lower.endswith("ies") and len(lower) > 3:
+        return word[:-3] + "y"
+    if re.fullmatch(r"[a-z]+s", lower) and not lower.endswith(("ss", "us", "ous", "his", "is")):
+        return word[:-1]
+    return None
+
+
+def _sanitise_name_and_verb(m: "re.Match") -> str:
+    """re.sub callback: replace a leaked internal name with 'I', and — if
+    the very next word is a verb whose conjugation actually depends on
+    grammatical person — fix it up too, instead of stranding a 3rd-person
+    verb after a 1st-person subject."""
+    gap, word = m.group(2), m.group(3)
+    if not word:
+        return "I"
+    fixed = _naive_first_person_verb(word)
+    return "I" + gap + (fixed if fixed is not None else word)
+
+
 _INTERNAL_RE = re.compile(
     r"\b(" + "|".join(re.escape(n) for n in _INTERNAL_NAMES) + r")\b"
+    r"(?:(\s+)([A-Za-z']+))?"
 )
 
 # Empathy acknowledgments keyed on emotion
@@ -229,8 +297,10 @@ class AvatarVoice:
         return str(val).strip()
 
     def _sanitise(self, text: str) -> str:
-        """Replace leaked internal names with neutral 'I'."""
-        result = _INTERNAL_RE.sub("I", text)
+        """Replace leaked internal names with neutral 'I', re-conjugating
+        the following verb for 1st person when the name was that verb's
+        subject (see _sanitise_name_and_verb() / _naive_first_person_verb())."""
+        result = _INTERNAL_RE.sub(_sanitise_name_and_verb, text)
         if result != text:
             logger.debug("[VECTOR][avatar_voice] sanitised internal name leak")
         return result
@@ -291,3 +361,21 @@ if __name__ == "__main__":
     assert "CodingBot" not in out, f"Internal name leaked: {out}"
     assert "I" in out or "found" in out, f"No first-person: {out}"
     print(f"OK avatar_voice -- output: {out[:80]!r}")
+
+    # 2026-07-30 audit fix: verb-agreement regression tests — these are the
+    # exact live-confirmed mangled shapes ("I has", "I doesn't", "I is")
+    # that the old bare name->"I" substitution produced.
+    _voice = AvatarVoice()
+    _grammar_cases = [
+        ("CodingBot has reviewed your code.", "I have reviewed your code."),
+        ("GitBot doesn't have that capability.", "I don't have that capability."),
+        ("ThreatScout is monitoring your network.", "I am monitoring your network."),
+        ("GitBot reviews pull requests automatically.", "I review pull requests automatically."),
+        ("MalwareHunter catches suspicious files.", "I catch suspicious files."),
+        ("PatternFinder tries new correlations daily.", "I try new correlations daily."),
+        ("ChiefOfStaff will follow up tomorrow.", "I will follow up tomorrow."),
+    ]
+    for _src, _expected in _grammar_cases:
+        _got = _voice._sanitise(_src)
+        assert _got == _expected, f"grammar mangled: {_src!r} -> {_got!r} (expected {_expected!r})"
+    print("OK avatar_voice -- verb-agreement fix verified (7/7 cases)")

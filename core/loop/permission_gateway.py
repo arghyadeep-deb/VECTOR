@@ -39,7 +39,39 @@ GREEN = CONFIG['permission']['green']
 YELLOW = CONFIG['permission']['yellow']
 RED = CONFIG['permission']['red']
 FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
-OWNER_APPROVAL_ONLY = {'financial_transaction'}
+# 2026-07-30 audit fix (Phase 3 — guardrails): every RED-tier action_type
+# EXCEPT the ones listed here can be auto-executed on an LLM council
+# "proceed" verdict alone (see _handle_red_tier() / the `level == 'RED'`
+# branch below) — the owner is only ever actually pinged for
+# OWNER_APPROVAL_ONLY actions; everything else defers to Pushover ONLY if
+# the council itself declines to decide. Confirmed live risk, not
+# theoretical: districts/investment/hedgebot_agent.py::solana_execute()
+# signs REAL on-chain funds purely on `approval.approved` — its own
+# docstring claims "signs ONLY on explicit approval (owner rule
+# 2026-06-21)" and config.py's RED-tier comment claims "owner approval
+# ALWAYS" for solana_swap_execute, but neither was actually true: it was
+# never in this set, so a council vote alone could authorize signing real
+# money with zero owner involvement. push_github is the other confirmed
+# live risk — unlike delete_files/deploy_production (both intentionally
+# stubbed to `not_implemented` in _execute_action, so a council "proceed"
+# there is a no-op today), push_github's handler is real and unstubbed: a
+# council vote alone can push code to the remote right now.
+#
+# Widened per the 2026-07-30 audit's explicit recommendation to cover every
+# irreversible or real-world-outward RED action, not just financial_
+# transaction: real money (solana_swap_execute), irreversible remote/infra
+# changes (push_github, deploy_production, delete_files), and anything that
+# publishes/acts publicly under the owner's name (content_publish,
+# hand_browser — purchases/forms, hand_content — publishing, hand_clip —
+# upload). This is defense-in-depth even for the currently-stubbed actions:
+# if delete_files/deploy_production ever get a real implementation later,
+# the owner-approval requirement is already in place rather than something
+# someone has to remember to add at the same time.
+OWNER_APPROVAL_ONLY = {
+    'financial_transaction', 'solana_swap_execute',
+    'push_github', 'deploy_production', 'delete_files',
+    'content_publish', 'hand_browser', 'hand_content', 'hand_clip',
+}
 
 class PermissionGateway:
     # Process-wide shared instance. Pending YELLOW/RED approvals live per-instance,
@@ -677,14 +709,25 @@ class PermissionGateway:
             elif action.action_type == "set_reminder":
                 try:
                     from core.memory.episodic import EpisodicMemory
+                    reminder_text = action.params.get("text") or action.params.get("content") or "(no text)"
                     EpisodicMemory().store(
                         event_type="reminder",
-                        content=action.params.get("text", action.params.get("content", "(no text)")),
+                        content=reminder_text,
                         tags=["reminder"],
                         source="permission_gateway",
                     )
                     result["status"] = "ok"
                     result["stored"] = True
+                    # 2026-07-29 KNOWN_ISSUES: the caller (commands.py's
+                    # _build_response_text) prefers this "message" field over
+                    # its generic "Executed: set_reminder. You'll be
+                    # notified." fallback — without it, a confirmation never
+                    # said what was actually set. Only echo a real reminder
+                    # (intent detection was fixed to stop sending empty
+                    # params={}) — "(no text)" would just relocate the same
+                    # unhelpful confirmation into a differently-worded one.
+                    if reminder_text != "(no text)":
+                        result["message"] = f"Reminder set, sir: \"{reminder_text}\""
                 except Exception as _e:
                     result["status"] = "error"
                     result["error"] = str(_e)
