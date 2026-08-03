@@ -121,12 +121,56 @@ is a verification task, not a code fix, still open.
    end-to-end `format()` test using the exact live-observed chief_of_staff
    brief shape from #10 (commit `a361a60b9`).
 
-7. **Full TIER5 (English-only policy) eval harness run** and **full 65-item
-   DeepEval golden-dataset re-run** haven't been done since the most recent
-   fixes (English-only hardening, memory-router/session-buffer/reminder/
-   documentation fixes respectively) — only spot-checked live so far. This is
-   a verification/eval-running task, not a code change — needs live backend
-   access to actually execute.
+7. **DONE (2026-08-04): full 65-item DeepEval golden-dataset re-run against
+   the live backend, first time this suite ever actually completed.**
+   Raw result: **33/65 = 50.8%**. That number is misleading on its own —
+   13 of the 32 failures are eval-infrastructure noise, not VECTOR quality
+   problems: 8 are "empty response" from items that happened to fire during
+   the ~90s window the watchdog was mid-restart (see #11/commit `e517f1f34`
+   above — same run that live-verified the watchdog fix), and 5 more are
+   local Ollama judge (`qwen3:14b`) `RetryError...TimeoutError` failures,
+   not VECTOR failures at all — caused by the same resource contention (see
+   below). **Adjusted: 33/52 = 63.5%** once those 13 non-VECTOR-fault items
+   are excluded. Still not a great number, and the remaining ~18 failures
+   are real and worth root-causing, in two clusters: (a) `correctness=0.00`
+   on several single-topic tier1/tier6 items (`chief_of_staff`, `qa`,
+   `learning`, `karpathy_lab`, `health+personal_growth`, `coding+qa`,
+   `memory+self_awareness+privacy`) — reads like the same stub/off-topic
+   default-output pattern flagged elsewhere this session, not yet confirmed
+   against the raw response text; (b) a `hallucination=0.00` cluster
+   (`chief_of_staff+communications`, `projects+coding`,
+   `growth+content+safety`, `karpathy_lab`, `brain`, `design`,
+   `predictive_analytics`) — worth checking whether these are genuine
+   fabrication or the judge over-triggering on VECTOR's legitimate
+   persistent-memory recall (the Hallucination metric's own criteria text
+   tries to guard against that false-positive but may not be catching it
+   consistently). Neither cluster has been read against the actual
+   response text yet — `deepeval_report.json` has the full per-item
+   input/output/score for follow-up. `tier1/safety_malware` also failed on
+   "expected a refusal but none of the known refusal markers were found" —
+   worth a manual read too, since that's a safety-relevant check and could
+   be a real refusal that just used different wording than the pattern
+   list expects, not necessarily VECTOR failing to refuse.
+
+   **Separate finding, same run: real resource contention between VECTOR's
+   full boot (170 agents/39 districts) and the local Ollama judge
+   (`qwen3:14b`) used for scoring.** After the watchdog fix (#11) held
+   VECTOR stable for ~85 minutes straight (03:16-04:42), it started getting
+   killed and restarted every ~5 minutes again from 04:42 onward — but this
+   time with a REAL cause, not the old redirect bug: `/health` was
+   genuinely timing out past the already-loosened 45s limit, consistent
+   with real CPU/RAM starvation while the judge model ran continuously in
+   the background. Confirmed by timing: the cycling started right when
+   Phase B (scoring) got going and stopped once Phase B's `DONE_MARKER`
+   printed — VECTOR held steady again immediately after. Not fixed
+   tonight (it's a capacity/scheduling question, not a bug — see the
+   87%-RAM-at-clean-boot note above), but now documented with a clear
+   before/during/after signature if it recurs. Practical implication: don't
+   run the DeepEval judge phase and expect VECTOR itself to stay
+   perfectly responsive at the same time on this machine.
+
+   TIER5 (English-only policy) harness re-run is still separately not done
+   — different suite, not started this session.
 
 ---
 
