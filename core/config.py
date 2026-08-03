@@ -1059,6 +1059,7 @@ CONFIG: dict = {
         "warmup_days": 10,                # no posting until the account is this old
         "max_posts_per_day": 1,           # hard daily cap per account
         "min_hours_between_posts": 6,     # spacing floor
+        "content_dedup_hours": 72,        # refuse to re-post identical media+caption within this window (2026-07-30 audit fix)
         "post_jitter_minutes": 90,        # randomize scheduled time by ±this
         "voice_profile": "bm_george",     # Kokoro JARVIS voice (male — owner rule 2026-07-15)
         "hud_viewport": [1080, 1920],     # 9:16 vertical for Reels/Shorts

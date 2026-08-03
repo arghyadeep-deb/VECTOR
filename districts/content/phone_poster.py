@@ -81,7 +81,7 @@ class PhonePoster:
         # 1. Ban-safety gate
         try:
             from core.control.social_safety import can_post_now, record_post
-            decision = can_post_now(handle)
+            decision = can_post_now(handle, media_path=media_path, caption=caption)
             if not decision.allowed:
                 logger.info("[VECTOR][phone_poster] safety-gate denied: {}", decision.reason)
                 return {"status": "denied", "reason": decision.reason,
@@ -135,7 +135,7 @@ class PhonePoster:
                 tx, ty = _jitter(int(share_tap[0]), int(share_tap[1]))
                 self._pc.tap(tx, ty)
                 await _human_pause(2.5, 4.5)
-                record_post(handle)
+                record_post(handle, media_path=media_path, caption=caption)
                 return {"status": "posted", "reason": "shared via calibrated tap"}
             # Not calibrated → composer is open with media loaded; owner taps Share.
             #

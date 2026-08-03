@@ -33,7 +33,7 @@ import sqlite3
 import threading
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from pathlib import Path
 from typing import Any
@@ -153,11 +153,48 @@ class PostJobTracker:
         *,
         scheduled_for: str = "",
         max_retries: int = _MAX_RETRIES,
+        dedup_window_minutes: int = 10,
     ) -> str:
-        """Create a new post job. Returns the job_id."""
-        job_id = str(uuid.uuid4())
-        now = datetime.now(tz=timezone.utc).isoformat()
+        """Create a new post job. Returns the job_id.
+
+        2026-07-30 audit fix (idempotency): this used to unconditionally
+        INSERT a brand-new row with a fresh uuid every call — no check for
+        an existing pending job with the same (platform, title, payload).
+        A retried schedule_post() call (network retry, or the owner asking
+        twice) created two independent, both-real post_jobs rows, and
+        run_pending()'s own dedup only protects against publishing the SAME
+        job row twice, not against two DIFFERENT rows for the same content.
+        Now: if a job with identical (platform, title, payload) is still in
+        a non-terminal state (pending/publishing/retrying) and was created
+        within `dedup_window_minutes`, return its existing job_id instead of
+        creating a duplicate. Content genuinely re-scheduled after the
+        window, or with different payload/title, still gets a new job as
+        before.
+        """
+        payload_json = json.dumps(payload or {}, sort_keys=True)
+        cutoff = (datetime.now(tz=timezone.utc) - timedelta(minutes=dedup_window_minutes)).isoformat()
         with self._lock, self._connect() as conn:
+            existing = conn.execute("""
+                SELECT job_id FROM post_jobs
+                WHERE platform = ? AND title = ? AND payload = ?
+                  AND status IN (?, ?, ?)
+                  AND created_at > ?
+                ORDER BY created_at DESC LIMIT 1
+            """, (
+                platform, title, payload_json,
+                JobStatus.PENDING, JobStatus.PUBLISHING, "retrying",
+                cutoff,
+            )).fetchone()
+            if existing:
+                logger.info(
+                    "[VECTOR][post-job] duplicate schedule_post suppressed — "
+                    "reusing existing job {} for {} '{}'",
+                    existing["job_id"][:8], platform, title[:40],
+                )
+                return existing["job_id"]
+
+            job_id = str(uuid.uuid4())
+            now = datetime.now(tz=timezone.utc).isoformat()
             conn.execute("""
                 INSERT INTO post_jobs
                     (job_id, platform, title, status, payload, attempt_count,
@@ -165,7 +202,7 @@ class PostJobTracker:
                 VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
             """, (
                 job_id, platform, title, JobStatus.PENDING,
-                json.dumps(payload or {}), max_retries, now, now, scheduled_for,
+                payload_json, max_retries, now, now, scheduled_for,
             ))
         logger.info("[VECTOR][post-job] created {} — {} '{}'", job_id[:8], platform, title[:40])
         return job_id

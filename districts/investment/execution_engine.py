@@ -13,7 +13,7 @@ from pathlib import Path
 
 import asyncio
 import sqlite3
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
@@ -115,13 +115,65 @@ class ExecutionEngine(AgentBase):
             logger.error("[VECTOR][execution] ledger read failed: {}", e)
             return []
 
+    def _find_recent_duplicate(self, symbol: str, side: str, quantity: float,
+                                price: float, window_seconds: float) -> dict | None:
+        """2026-07-30 audit fix (idempotency). See place_order()."""
+        try:
+            cutoff = (datetime.now(timezone.utc) - timedelta(seconds=window_seconds)).isoformat()
+            conn = sqlite3.connect(str(EXECUTION_DB), check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM orders WHERE symbol=? AND side=? AND quantity=? AND price=? "
+                "AND status IN ('paper_filled', 'filled') AND timestamp > ? "
+                "ORDER BY timestamp DESC LIMIT 1",
+                (symbol, side, quantity, price, cutoff),
+            ).fetchone()
+            conn.close()
+            return dict(row) if row else None
+        except Exception as e:
+            logger.warning("[VECTOR][execution] duplicate-check failed: {}", e)
+            return None
+
     async def place_order(self, symbol: str, side: str, quantity: float,
-                          price: float = 0.0, order_type: str = "market") -> dict:
+                          price: float = 0.0, order_type: str = "market",
+                          dedup_window_seconds: float = 5.0) -> dict:
         """
         Place an order. Paper mode by default. Requires gateway RED for real.
 
         side: 'BUY' | 'SELL' | 'SHORT' | 'COVER'
+
+        2026-07-30 audit fix (idempotency): this used to generate a brand-new
+        order_id and log a fresh fill on EVERY call with zero dedup — a
+        network retry after a slow response, or a governor retry path
+        re-submitting the same task, would place two separate orders (two
+        ledger entries, two paper fills, _today_trades incremented twice).
+        Real-world exposure was low only because paper_trading defaults
+        True; the live-execution path below is reachable (gated by
+        PermissionGateway approval, not by any dedup logic) and the same
+        retry would have placed two REAL market orders. Now: an identical
+        (symbol, side, quantity, price) order filled within the last
+        `dedup_window_seconds` is detected and reused instead of re-placed.
+        A deliberate second order for the same symbol/side/qty/price minutes
+        apart is unaffected — only near-instant repeats are caught.
         """
+        dup = self._find_recent_duplicate(symbol, side, quantity, price, dedup_window_seconds)
+        if dup:
+            logger.warning(
+                "[VECTOR][execution] duplicate place_order suppressed (retry?) — "
+                "reusing order {}", dup["id"],
+            )
+            return {
+                "status": dup["status"],
+                "order_id": dup["id"],
+                "symbol": symbol,
+                "side": side,
+                "quantity": quantity,
+                "price": price,
+                "paper": bool(dup["paper"]),
+                "deduplicated": True,
+                "message": "An identical order was already placed moments ago — not resubmitting.",
+            }
+
         import uuid
         order_id = str(uuid.uuid4())[:8]
         cfg = self._get_inv_cfg()
