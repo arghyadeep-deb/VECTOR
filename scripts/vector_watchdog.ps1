@@ -80,12 +80,37 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# ── Launch fresh, detached, hidden, output captured to its own log ────────
-$startLog = Join-Path $base "watchdog_restart_stdout.log"
-Start-Process -FilePath "python" -ArgumentList "run_vector.py api --host 0.0.0.0" `
-    -WorkingDirectory $base -WindowStyle Hidden `
-    -RedirectStandardOutput $startLog -RedirectStandardError $startLog
-Pop-Location
+# ── Resolve a real python.exe path so PATH resolution can't silently fail
+#    when this script runs under Task Scheduler's process-creation context
+#    (which does not always match an interactively-launched shell's PATH,
+#    e.g. App Execution Aliases / per-session PATH caching). Falls back to
+#    bare "python" only if nothing better can be found.
+$pythonExe = $null
+$pyCmd = Get-Command python -ErrorAction SilentlyContinue
+if ($pyCmd) { $pythonExe = $pyCmd.Source }
+if (-not $pythonExe) {
+    $candidates = Get-ChildItem "$env:LOCALAPPDATA\Programs\Python\Python3*\python.exe" -ErrorAction SilentlyContinue
+    if ($candidates) { $pythonExe = ($candidates | Sort-Object FullName -Descending | Select-Object -First 1).FullName }
+}
+if (-not $pythonExe) { $pythonExe = "python" }
 
-Get-Date -Format "yyyy-MM-dd HH:mm:ss" | Set-Content -Path $graceFile
-Write-Log "Restart launched (detached, hidden, python run_vector.py api --host 0.0.0.0)."
+# ── Launch fresh, detached, hidden, output captured to its own log ────────
+# Use -PassThru + -ErrorAction Stop + try/catch so a launch failure is LOUD
+# in watchdog.log instead of being silently swallowed by the script-wide
+# $ErrorActionPreference = SilentlyContinue above (this exact silent-failure
+# shape is what let an 11-day, ~470-restart-attempt crash loop go unnoticed:
+# every attempt logged "Restart launched" whether or not a process actually
+# started, and watchdog_restart_stdout.log never once got created).
+$startOutLog = Join-Path $base "watchdog_restart_stdout.log"
+$startErrLog = Join-Path $base "watchdog_restart_stderr.log"
+try {
+    $proc = Start-Process -FilePath $pythonExe -ArgumentList "run_vector.py api --host 0.0.0.0" `
+        -WorkingDirectory $base -WindowStyle Hidden `
+        -RedirectStandardOutput $startOutLog -RedirectStandardError $startErrLog `
+        -PassThru -ErrorAction Stop
+    Get-Date -Format "yyyy-MM-dd HH:mm:ss" | Set-Content -Path $graceFile
+    Write-Log "Restart launched using '$pythonExe' (PID $($proc.Id), detached, hidden, python run_vector.py api --host 0.0.0.0)."
+} catch {
+    Write-Log "RESTART LAUNCH FAILED using '$pythonExe': $($_.Exception.Message) -- NOT updating grace marker, will retry next cycle."
+}
+Pop-Location

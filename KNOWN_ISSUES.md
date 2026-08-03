@@ -135,6 +135,52 @@ is a verification task, not a code fix, still open.
 Full audit trail (root causes, exact diffs, verification detail) is in
 `KNOWN_ISSUES_ARCHIVE.md`. Summary, oldest-to-newest commit:
 
+- **FIXED AND LIVE-VERIFIED (2026-08-04, this session): the VECTOR API had
+  been crash-looping every ~5 minutes, continuously, for 11 straight days
+  (2026-07-23 11:35 through tonight, ~470 failed restart attempts logged),
+  and every attempt was silently logged as a false "Restart launched"
+  success.** Discovered while diagnosing why the DeepEval suite scored 0/65
+  (0.0%) with every response `[WinError 10061] connection refused` — checked
+  the live HUD in a browser, found `/status` and `/command` both genuinely
+  unreachable while `/hud/` still loaded (served from browser cache/service
+  worker, not a real live signal), then found `watchdog.log`
+  (`scripts/vector_watchdog.ps1`, the task-#95 self-healing watchdog)
+  showing an unbroken `DOWN -> Restart launched` cycle every 5 minutes since
+  2026-07-23, never once actually recovering. Root cause: the script's
+  `Start-Process -RedirectStandardOutput $log -RedirectStandardError $log`
+  pointed stdout and stderr at the *same* file path — PowerShell's
+  `Start-Process` hard-rejects that combination
+  (`"RedirectStandardOutput" and "RedirectStandardError" are same"`) — and
+  the script-wide `$ErrorActionPreference = "SilentlyContinue"` swallowed
+  the resulting exception on every single one of the ~470 attempts, so
+  `Write-Log` unconditionally printed "Restart launched" whether or not a
+  process actually started. (Confirmed independently: `watchdog_restart_
+  stdout.log` had never once been created in 11 days, despite the log
+  claiming hundreds of successful launches — a real launch would have
+  created it immediately.) Fixed: split stdout/stderr into two separate log
+  files; resolved a real `python.exe` path via `Get-Command`/`Get-ChildItem`
+  instead of relying on bare `"python"` (removes a second, untested
+  PATH-resolution risk under Task Scheduler's process-creation context);
+  wrapped the launch in `try/catch` with `-ErrorAction Stop` and `-PassThru`
+  so any future launch failure is logged loudly with the real exception
+  message and a PID, instead of silently assumed to have succeeded.
+  **Live-verified, not just compile-checked**: waited for the next real
+  5-minute scheduled-task trigger, watched it fail once more with the
+  now-surfaced real error message (confirming the diagnosis), then watched
+  the following trigger actually launch VECTOR (PID logged), boot all 170
+  agents across 39 districts, and serve real `200` responses on `/health`,
+  `/status`, and `/command` — confirmed live via the browser HUD and a fresh
+  DeepEval run. This means every "live-verified" claim earlier in this
+  session that depended on the backend being up at that exact moment was
+  genuinely testing a real (if short-lived) live window, not a fabrication —
+  but it also means the backend has essentially never been stably available
+  between sessions, which likely explains other intermittent oddities
+  attributed to other causes over the past 11 days. Not yet done: a review
+  of whether 39 districts / 170 agents booting on every restart is itself
+  contributing to instability under this machine's RAM pressure (observed
+  86.9% RAM used at a normal, healthy boot) — flagged for the owner, not
+  fixed tonight, since it's a capacity/design question, not a bug.
+
 - **Phase 1 — dispatch/routing** (`a16d2eb09`): governor-level routing fixes
   bundled with the taint-check fix below.
 - **Phase 2 — memory subsystem** (`205f8110a`): wired the previously-dead
