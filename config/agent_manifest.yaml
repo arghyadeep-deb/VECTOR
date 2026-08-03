@@ -289,7 +289,17 @@ districts:
       # _save_note()) — these two literal task_type strings make governor.py's
       # existing capability-match logic route to it deterministically instead
       # of by HP luck.
-      capabilities: [memory, lightrag, consolidation, save_note, overwrite_note_personal, create_note]
+      # 2026-07-30 (KNOWN_ISSUES #6): entity_add/knowledge_add/relation_add/
+      # knowledge_relate/knowledge_query are real task_types DISTRICT_TASK_MAP
+      # routes here (a genuine knowledge-graph capability, distinct from
+      # note-saving above) but nothing declared them as literal capabilities
+      # either — same HP-lottery-fallback gap as the original #21 bug, now
+      # closed the same way: ConsolidationBot._kg_write()/_kg_query() give
+      # them a real handler, these strings make the match deterministic.
+      # 2026-07-30 Phase 2: same gap for the literal remember/recall/
+      # memory_store/memory_query task_types (DISTRICT_TASK_MAP also routes
+      # these here) -- see _remember_fact()/_recall_query().
+      capabilities: [memory, lightrag, consolidation, save_note, overwrite_note_personal, create_note, entity_add, knowledge_add, relation_add, knowledge_relate, knowledge_query, remember, recall, memory_store, memory_query]
 
     - name: pattern_finder
       class: districts.memory_curator.pattern_finder.PatternFinder
@@ -371,7 +381,7 @@ districts:
       class: districts.security.data_redactor.DataRedactor
       model: vector-focus
       description: PII and secrets redactor for VECTOR's LLM pipeline
-      capabilities: [redact, pii, secrets_redaction]
+      capabilities: [redact, pii, secrets_redaction, data_redact]
 
     - name: threat_detection_engineer
       class: districts.security.threat_detection_engineer.ThreatDetectionEngineer
@@ -647,7 +657,7 @@ districts:
       class: districts.calls.call_screener.CallScreener
       model: vector-focus
       description: Inbound call screening and priority classification
-      capabilities: [calls, voice, screening]
+      capabilities: [calls, voice, screening, call_screen]
 
     # Cleanup batch (2026-06-22): run()-branching fix.
     - name: transcription_bot
@@ -1179,3 +1189,29 @@ districts:
       model: vector-reasoning
       description: Auto-generates developer documentation for VECTOR's own modules
       capabilities: [generate_docs, api_reference, technical_writing]
+
+  # 2026-07-30 audit fix: emergency/home_assistant/growth were all real, working
+  # (or partially working) code with ZERO manifest entry and ZERO
+  # DISTRICT_TASK_MAP-reachable agent — confirmed dead/unreachable via chat or
+  # API despite real implementations existing on disk. See core/city/governor.py
+  # DISTRICT_TASK_MAP for the matching new task_type keys.
+  emergency:
+    - name: emergency_response
+      class: districts.emergency.main.EmergencyResponseSystem
+      model: vector-focus
+      description: Signal-driven personal emergency detection (health/security/system/network/disk/battery) with severity classification, runbook execution, and escalation. Also directly queryable/reportable via chat.
+      capabilities: [emergency, emergency_alert, escalate_emergency, runbook, detect_anomaly, classify_emergency]
+
+  home_assistant:
+    - name: home_assistant_agent
+      class: districts.home_assistant.agent.HomeAssistantAgent
+      model: vector-focus
+      description: Natural-language Home Assistant control (lights/locks/climate/covers/alarm) via REST+WS, with fuzzy entity matching and confirmation gating on high-risk domains (locks/alarms/gates/garage/cameras). Requires HASS_URL/HASS_TOKEN to be configured.
+      capabilities: [home_control, smart_home, ha_status]
+
+  growth:
+    - name: growth_agent
+      class: districts.growth.agent.GrowthAgent
+      model: vector-focus
+      description: Status/reporting front door for the background growth engine (ARM A content, ARM B software-factory placeholder)
+      capabilities: [growth_status]

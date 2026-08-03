@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
 import time
 from typing import Any
 
@@ -105,6 +106,69 @@ class EmergencyResponseSystem(AgentBase):
             duration_seconds=None,
             outcome="escalated" if scored.severity in ("CRITICAL", "HIGH") else "logged",
         )
+
+    async def run(self, task: dict) -> dict:
+        """Direct chat/API dispatch entry point (2026-07-30 audit fix).
+
+        Before this, EmergencyResponseSystem had no run() override, so a
+        governor.dispatch() call would silently hit AgentBase's no-op stub
+        (returns status:"ok" without doing anything) -- worse than the prior
+        "no_agents" failure because it LOOKED successful. This is deliberately
+        separate from the signal-driven start()/emit_signal() path the
+        background monitors use (health/security/system/network/disk/battery
+        domains keep running continuously regardless); this method lets the
+        owner directly report or query an emergency through chat."""
+        self.last_active = datetime.datetime.utcnow().isoformat()
+        task_type = task.get("type", "")
+        params = task.get("params", {}) or {}
+        query = params.get("query") or task.get("content") or ""
+
+        if task_type in ("escalate_emergency", "classify_emergency"):
+            event = EmergencyEvent(
+                event_id=f"chat_{int(time.time() * 1000)}",
+                domain=params.get("domain", "user_reported"),
+                signal_name="chat_report",
+                raw_message=query,
+                detected_at=time.time(),
+                source="chat",
+            )
+            scored = self._classifier.classify(event)
+            result = {
+                "status": "ok",
+                "agent": self.name,
+                "severity": scored.severity,
+                "severity_score": scored.severity_score,
+            }
+            if task_type == "escalate_emergency" and scored.severity in ("CRITICAL", "HIGH"):
+                actions = await self._runbook.execute(scored)
+                escalation_results = await self._escalation.escalate(scored, actions)
+                entry = self._build_entry(event, scored, actions, escalation_results)
+                self._log.append(entry)
+                result["actions_taken"] = [a.name for a in actions] if actions else []
+                result["escalated"] = bool(escalation_results)
+            else:
+                result["note"] = (
+                    "Classified only — severity below the escalation threshold "
+                    "(or this was a status/classification check, not a request "
+                    "to actually escalate)."
+                )
+            return result
+
+        if task_type == "runbook":
+            return {"status": "ok", "agent": self.name, "recent_log": self._log.summary(days=1)}
+
+        if task_type == "detect_anomaly":
+            return {
+                "status": "ok",
+                "agent": self.name,
+                "note": "Anomaly detection runs continuously in the background "
+                        "across health/security/system/network/disk/battery "
+                        "domains — this is a status check, not an on-demand scan.",
+                **self.get_state(),
+            }
+
+        # "emergency" / "emergency_alert" / anything else -> honest status report
+        return {"status": "ok", "agent": self.name, **self.get_state()}
 
     def acknowledge(self, event_id: str) -> None:
         self._escalation.acknowledge(event_id)
