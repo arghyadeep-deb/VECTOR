@@ -53,6 +53,21 @@ def _init_start_time():
     return START_TIME_DICT["time"]
 
 
+def _remember_turn(session_id: "str | None", user_text: str, response_text: str) -> None:
+    """Append this exchange to the per-session rolling buffer
+    (core.memory.session_buffer) — a strict no-op when session_id is falsy,
+    so callers that never opt in are completely unaffected. Best-effort:
+    never let a buffer-write failure break the actual response."""
+    if not session_id:
+        return
+    try:
+        from core.memory.session_buffer import append_turn
+        append_turn(session_id, "user", user_text)
+        append_turn(session_id, "assistant", response_text)
+    except Exception as e:
+        logger.debug(f"[VECTOR][api][command] session buffer write skipped: {e}")
+
+
 @router.post("", response_model=CommandResponse)
 async def command_endpoint(
     body: CommandRequest,
@@ -90,7 +105,18 @@ async def command_endpoint(
             logger.debug("[VECTOR][commands] prompt injection scan skipped: {}", _scan_err)
 
         # Step 1: Get session hydration context (RULE 1)
-        hydration = ctx_engine.session_hydration_prompt()
+        # 2026-07-29: optional per-session rolling conversational buffer
+        # (core.memory.session_buffer) — callers that never set session_id
+        # get IDENTICAL hydration to before this existed (recent_convo stays
+        # "", extra_context stays None, same call as always).
+        session_id = body.session_id
+        recent_convo = ""
+        if session_id:
+            from core.memory.session_buffer import format_for_prompt as _format_convo
+            recent_convo = _format_convo(session_id)
+        hydration = ctx_engine.session_hydration_prompt(
+            extra_context={"recent_conversation": recent_convo} if recent_convo else None
+        )
 
         # Step 2: Check for user intent from their text (moved ahead of goal
         # candidate generation so a pure conversational "respond" intent can
@@ -129,6 +155,18 @@ async def command_endpoint(
                 gov_task = {
                     "type": gov_intent["type"],
                     "params": {"query": body.text, "content": body.text, "source": "api_command"},
+                    # 2026-07-29 KNOWN_ISSUES (Governor capability-match
+                    # misrouting: projects+coding "Count: 0",
+                    # security+communications inbox stub, growth+content+
+                    # safety unrelated YouTube script, agency wrong topic) —
+                    # lets Governor.dispatch() tell "this task_type was
+                    # freshly LLM-invented from chat text" apart from "this
+                    # is one of the 100+ established routes with a stable,
+                    # long-existing task_type string" (documentation.py,
+                    # etc.). Only the former gets the honest capability-miss
+                    # caveat below — see dispatch()'s own comment for why
+                    # the latter must stay untouched (Task A.3 precedent).
+                    "_llm_classified": True,
                 }
                 if gov_intent.get("district"):
                     gov_task["district"] = gov_intent["district"]
@@ -170,6 +208,7 @@ async def command_endpoint(
                     context={"user_text": body.text, "chain_id": gov_chain_id},
                     source="api_command",
                 )
+                _remember_turn(session_id, body.text, gov_response_text)
                 return CommandResponse(
                     response=gov_response_text,
                     action_taken=gov_intent["type"],
@@ -206,6 +245,7 @@ async def command_endpoint(
                 source="api_command",
             )
 
+            _remember_turn(session_id, body.text, response_text)
             return CommandResponse(
                 response=response_text,
                 action_taken=None,
@@ -314,6 +354,7 @@ async def command_endpoint(
         else:
             response_text = _build_response_text(gateway_result, decision.winner, body.text)
 
+        _remember_turn(session_id, body.text, response_text)
         return CommandResponse(
             response=response_text,
             action_taken=decision.winner.action_type if gateway_result.executed else None,
@@ -390,7 +431,19 @@ def _detect_widget_action(text_lower: str) -> dict | None:
             return {"action_type": "widget_open", "params": {"id": wid}}
 
     # ── map / location ─────────────────────────────────────────────────────
-    if "map" in text_lower or re.search(r"\bwhere\s+is\b", text_lower):
+    # 2026-07-30 audit fix: bare "map" substring hijacked ANY message
+    # containing it ANYWHERE — live-caught: "Map my skill gaps for machine
+    # learning" (a skills-district request) never reached the classifier at
+    # all, silently turned into widget_show_location instead. Same risk for
+    # "roadmap", "sitemap", "mapping", qa's own map_workflow capability,
+    # coding's dependency-graph phrasing. Require "map" as a whole word (not
+    # a substring of a longer word) AND an explicit location-request verb —
+    # mirroring the verb requirement the sibling widget_open/close branch
+    # above already has — OR the standalone "where is" pattern.
+    _map_request_verbs = _OPEN_VERBS + ("locate", "find")
+    _has_map_word = re.search(r"\bmap\b", text_lower) is not None
+    _has_where_is = re.search(r"\bwhere\s+is\b", text_lower) or "where's" in text_lower
+    if _has_where_is or (_has_map_word and any(v in text_lower for v in _map_request_verbs)):
         q = re.sub(r"^.*?(?:show me|show|where is|locate|find|display|pull up)\s+",
                    "", text_lower)
         q = re.sub(r"\s*(?:on|in)\s+(?:the\s+)?map\b.*$", "", q)
@@ -430,6 +483,27 @@ _REMINDER_RHETORICAL_RE = re.compile(
     r"(who|what|when|where|why|how|which|do|does|did|is|are|can|could|should|would)\b",
     re.IGNORECASE,
 )
+
+# 2026-07-29 KNOWN_ISSUES: set_reminder's intent_map entry passed a bare
+# `{}` for params, so PermissionGateway._execute_action()'s set_reminder
+# branch always stored "(no text)" — and with nothing real to echo back, the
+# response fell to the generic "Executed: set_reminder. You'll be notified."
+# with no confirmation of what/when. Strip the trigger phrase and keep
+# whatever's left as the actual reminder content instead of discarding it.
+_REMINDER_TRIGGER_RE = re.compile(
+    r"^\s*(?:please\s+)?(?:set\s+(?:a\s+|an\s+)?(?:reminder|alarm)(?:\s+(?:to|for|that))?|"
+    r"remind\s+me(?:\s+to)?)\s*[:\-—,]?\s*",
+    re.IGNORECASE,
+)
+
+
+def _extract_reminder_text(text: str) -> str:
+    """Best-effort: what the user actually wants to be reminded about, with
+    the trigger phrase ('remind me to', 'set a reminder for', ...) stripped
+    off the front. Falls back to the whole message if stripping leaves
+    nothing (better to over-include than to store "(no text)")."""
+    stripped = _REMINDER_TRIGGER_RE.sub("", text, count=1).strip(" .!—")
+    return stripped or text.strip()
 
 
 def _detect_intent_action(text: str) -> dict | None:
@@ -484,7 +558,8 @@ def _detect_intent_action(text: str) -> dict | None:
     intent_map = [
         (["attendance", "kiit"], "check_attendance", {}),
         (["weather", "temperature"], "check_weather", {}),
-        (["remind me", "reminder", "set alarm", "set a reminder"], "set_reminder", {}),
+        (["remind me", "reminder", "set alarm", "set a reminder"], "set_reminder",
+         {"text": _extract_reminder_text(text)}),
         (["search the web", "web search", "look up", "google ", "search for"], "search_web", {"query": text_lower}),
         (["commit my code", "commit the code", "commit my changes", "git commit", "commit and push"], "commit_code", {}),
         (["my schedule", "my calendar", "calendar", "class schedule", "my classes", "read my calendar"], "read_calendar", {}),

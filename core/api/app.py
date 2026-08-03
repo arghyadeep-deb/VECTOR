@@ -95,6 +95,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[VECTOR][api] episodic_memory failed: {e}")
 
+    # 2026-07-30 audit fix: EmergencyResponseSystem existed with real
+    # signal-monitoring code (health/security/system/network/disk/battery)
+    # but its .start() was never called anywhere in the codebase, so its
+    # module-level _emit() helper (the only external hook into it, called
+    # from autonomous_loop.py's crash-signal handler) was a guaranteed
+    # silent no-op. Starting it here makes the background monitoring real;
+    # it's also now directly chat/API-dispatchable (see districts/emergency/
+    # main.py::run()) independent of this background task.
+    app.state.emergency_system = None
+    try:
+        from districts.emergency.main import EmergencyResponseSystem
+        app.state.emergency_system = EmergencyResponseSystem()
+        await app.state.emergency_system.start()
+        logger.info("[VECTOR][api] EmergencyResponseSystem monitoring started")
+    except Exception as e:
+        logger.warning(f"[VECTOR][api] EmergencyResponseSystem failed to start: {e}")
+
     # Collections engine (PocketBase absorption): run pending migrations + expose engine.
     try:
         if (CONFIG.get("collections", {}) or {}).get("enabled", True):
@@ -204,6 +221,11 @@ async def lifespan(app: FastAPI):
             pass
     if nudge_task is not None:
         nudge_task.cancel()
+    if app.state.emergency_system is not None:
+        try:
+            await app.state.emergency_system.stop()
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] EmergencyResponseSystem stop error: {e}")
     # app.state.episodic_memory.conn IS the module singleton — close it once,
     # through the helper that also clears the global and resets the circuit
     # breaker. Bare conn.close() left a dead-but-"healthy" singleton behind
