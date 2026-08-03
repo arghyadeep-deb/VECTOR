@@ -85,7 +85,28 @@ class FinanceSwarm(AgentBase):
         try: return {"status":"ok","response":await chat(model=CONFIG.get("models",{}).get("reasoning","vector-reasoning"), messages=m, timeout=60),"agent":self.name,"fallback":True}
         except Exception as e: return {"status":"error","error":str(e),"agent":self.name}
     async def run(self, t: dict) -> dict:
-        return await self.dispatch(t.get("type",t.get("task_type","default")), t)
+        # 2026-07-30 audit fix: governor.dispatch() calls agent.run(task)
+        # with the real user text nested at task["params"]["query"] (or
+        # ["content"]), not at task["query"] — passing `t` itself as `p`
+        # left the nested query invisible to dispatch()'s p.get("query", ...)
+        # read, so every PromptAgent sub-agent got an empty query (live-
+        # caught: "It seems like you haven't provided a query"). Same fix
+        # already applied to coding/agent.py (CodingSwarm) on 2026-07-29;
+        # flattening the real query onto params here too.
+        task_type = t.get("type", t.get("task_type", "default"))
+        real_query = (
+            (t.get("params") or {}).get("query")
+            or (t.get("params") or {}).get("content")
+            or t.get("query")
+            or t.get("prompt")
+            or ""
+        )
+        params = dict(t.get("params") or {})
+        params.setdefault("query", real_query)
+        for k, v in t.items():
+            if k not in ("type", "task_type", "params"):
+                params.setdefault(k, v)
+        return await self.dispatch(task_type, params)
 
 if __name__=="__main__":
     async def _s():

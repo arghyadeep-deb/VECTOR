@@ -135,8 +135,26 @@ class QASwarm(AgentBase):
             return {"status": "error", "error": str(e), "agent": self.name}
 
     async def run(self, task: dict) -> dict:
+        # 2026-07-30 audit fix: same "empty query" bug class as
+        # FinanceSwarm/ResearchSwarm/OpsSwarm (see districts/finance/agent.py)
+        # — governor.dispatch() nests the real user text at
+        # task["params"]["query"], not task["query"]; passing `task` itself
+        # as `params` left it invisible to dispatch()'s
+        # params.get("query", ...) read.
         task_type = task.get("type", task.get("task_type", "default"))
-        return await self.dispatch(task_type, task)
+        real_query = (
+            (task.get("params") or {}).get("query")
+            or (task.get("params") or {}).get("content")
+            or task.get("query")
+            or task.get("prompt")
+            or ""
+        )
+        params = dict(task.get("params") or {})
+        params.setdefault("query", real_query)
+        for k, v in task.items():
+            if k not in ("type", "task_type", "params"):
+                params.setdefault(k, v)
+        return await self.dispatch(task_type, params)
 
 if __name__ == "__main__":
     async def _smoke():
