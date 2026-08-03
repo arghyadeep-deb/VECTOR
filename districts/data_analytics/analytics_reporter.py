@@ -372,10 +372,43 @@ class AnalyticsReporter(AgentBase):
 
     # ── Full cycle ────────────────────────────────────────────────────────────────
 
+    # 2026-07-30 audit fix: run() used to execute the same full weekly-report
+    # cycle for ANY task_type, regardless of what was actually asked — so
+    # requests misrouted here from other districts (pattern_detective,
+    # predictive_analytics, coding/security mixups) got back an identical
+    # canned report that looked like a confident, on-topic answer but
+    # wasn't. classify_chat_intent's district-disambiguation hints (see
+    # governor.py) now reduce how often that misroute happens in the first
+    # place, but this is the honest backstop for when it still does.
+    _OWN_TASK_TYPES = frozenset({
+        "weekly_analytics", "analytics", "reporting", "anomaly_detection",
+        "analytics_report", "system_analytics",
+    })
+
     async def run(self, task: dict) -> dict:
         """Full analytics cycle: mine → metrics → anomalies → brief → report."""
         self.last_active = datetime.datetime.now(datetime.timezone.utc).isoformat()
         task_type = task.get("type", "weekly_analytics")
+
+        if task_type not in self._OWN_TASK_TYPES:
+            logger.warning(
+                f"[VECTOR][analytics_reporter] got task_type={task_type!r}, "
+                f"which isn't one of this agent's own capabilities "
+                f"({sorted(self._OWN_TASK_TYPES)}) — likely a misroute from "
+                f"another district. Refusing honestly instead of returning "
+                f"the canned weekly-analytics report."
+            )
+            return {
+                "status": "error",
+                "task": task_type,
+                "response": (
+                    "That doesn't look like a request for VECTOR's own "
+                    "internal usage analytics (which is what this district "
+                    "actually does) — it may have been routed here by "
+                    "mistake."
+                ),
+                "hp": self.health_points,
+            }
 
         try:
             days = task.get("params", {}).get("days", 7)
