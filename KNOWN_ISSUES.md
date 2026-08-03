@@ -45,20 +45,26 @@ is a verification task, not a code fix, still open.
    pushed or rewritten — this is a plain fast-forward push once you're
    authenticated.
 
-9. **Tonight's Phase 1-6 fixes are compile/unit-verified only, not yet
-   re-run against the live backend + real encrypted DB.** The sandboxed dev
-   environment used overnight cannot open the real encrypted
-   `episodic_memory` SQLite DB (`sqlite3.DatabaseError: file is not a
-   database` on the WAL pragma — a pre-existing, documented limitation of
-   that sandbox, not a bug in any of tonight's code) and has no way to drive
-   the real running API. Everything below was verified via `py_compile`,
-   static source checks, and isolated in-process tests with fake/substitute
-   inputs standing in for the real DB — genuine confidence, but not the same
-   as a live-traffic re-run. Needs: restart the API on your machine, re-run
-   the DeepEval suite (or at minimum manually exercise: a `remember`/`recall`
-   round-trip, a Monday-only `consolidate_old_episodes` call, an owner-
-   approval prompt for `push_github`/`hand_browser`/etc., a shell/fetch
-   taint-check trip, an `mlops_agent` capability call like `ml_plan`).
+9. **Tonight's Phase 1-6/8 fixes are verified against a scratch copy of the
+   real DB + real code paths, not the actual live API/websocket/voice
+   surface.** Update: the "encrypted DB unreadable in the sandbox" limitation
+   documented earlier turned out to be a missing `sqlcipher3-binary` pip
+   package, not a fundamental sandbox limit — installing it let the sandbox
+   open a **copy** of the real `vector_memory.db` (never the live file
+   itself, to avoid any risk to production data) and actually run
+   `ConsolidationBot.run()`, `PermissionGateway`'s owner-approval branching,
+   the taint-check regex, and `MLOpsAgent.run()` against real code and real
+   (copied) data. Confirmed working: `remember`/`recall` round-trip against
+   real historical episodic rows; `push_github`/etc. correctly force
+   `_council_verdict = "defer"` (skip auto-proceed, go to owner approval);
+   the taint-check regex correctly fires on shell/fetch task_types and
+   correctly leaves `execute_code` alone; `mlops_agent`'s namespace fix
+   resolves the real vendored package end-to-end (see the new fixed-tonight
+   entry below for what this surfaced). **Still not done — needs your real
+   machine**: the actual HTTP/websocket API surface, real TTS/voice
+   pipeline, real Ollama/Gemini calls (this sandbox's network policy blocks
+   Ollama entirely and 403s Gemini/OpenRouter — confirmed while testing
+   `ml_plan`, not a code bug), and a full DeepEval suite re-run.
 
 ---
 
@@ -120,6 +126,25 @@ Full audit trail (root causes, exact diffs, verification detail) is in
 Phase 4 (district-level bugs) had no changes left to make this session —
 everything found in that sweep was already covered by the fixes above or
 previously-closed archive issues.
+
+- **Phase 8 — deep live-DB verification, found + fixed 2 more real bugs**
+  (`da40f4303`): installing `sqlcipher3-binary` unblocked real DB access in
+  the sandbox (see #9 above), which let `mlops_agent.py`'s Phase 6 namespace
+  fix actually reach vector_mlops's real code for the first time ever —
+  exposing that `ml_research()` and `ml_plan()` called vendored functions
+  that either never existed under those names, or (once the name was fixed)
+  needed a live vector_mlops `AgentLoop` session object that isn't safely
+  constructible standalone, or expected a completely different parameter
+  shape than what was passed (`plan_tool.py`'s `PlanTool` is a todo-list
+  state tracker, not a plan generator — there was no version of the old call
+  that could have worked). Both were pre-existing bugs, invisible until
+  Phase 6 fixed the `agent` namespace collision that made every import here
+  fail first. Fixed by calling the reasoning LLM directly instead (same
+  pattern as this agent's own `_answer_query`) — a real, working capability,
+  trading away the vendored tool's live citation-graph lookups for a
+  simpler but actually-functioning answer. Also fixed 3 more wrong names in
+  the file's own self-test. `hf_dataset`/`github_ml`/`hf_train`/`hf_hub`
+  were checked too and call real, correctly-shaped functions — no bug there.
 
 ---
 
