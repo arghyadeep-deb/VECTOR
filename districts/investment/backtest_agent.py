@@ -17,8 +17,17 @@ import sys
 import uuid
 from pathlib import Path
 
-# Ensure districts/investment/vector_backtest/ is on sys.path so src.* and backtest.* resolve
-_VIBE_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_backtest"
+# Ensure districts/investment/vector_backtest/ is on sys.path so src.* and backtest.* resolve.
+# 2026-07-30 (KNOWN_ISSUES #5, vendored-subproject audit): this had one
+# `.parent` too many (resolved to <one-above-repo-root>/core/vector_backtest,
+# which doesn't exist) — every `from src...`/`from backtest...` import below
+# has always raised ModuleNotFoundError, silently caught by each method's own
+# broad `except Exception`, so all 6 of this agent's governor routes
+# (vt_research, vt_backtest, shadow_account, vt_swarm, vt_skills, vt_export)
+# have been failing closed with a generic error instead of actually running.
+# Not a safety bug (fails closed), but a real, previously-unnoticed dead
+# feature. Correct path is the sibling directory next to this file.
+_VIBE_DIR = Path(__file__).parent / "vector_backtest"
 if str(_VIBE_DIR) not in sys.path:
     sys.path.insert(0, str(_VIBE_DIR))
 
@@ -137,8 +146,12 @@ class BacktestAgent(AgentBase):
         def _run():
             try:
                 import json, tempfile, os
-                from backtest.runner import main as bt_main
-                from backtest.models import BacktestConfigSchema
+                # 2026-08-04 fix: BacktestConfigSchema doesn't live in
+                # backtest.models (that file only has Position/TradeRecord/
+                # EquitySnapshot) -- it's defined in backtest.runner itself,
+                # right next to `main`. This import always raised
+                # ImportError, so vt_backtest always failed closed.
+                from backtest.runner import main as bt_main, BacktestConfigSchema
 
                 run_dir = self._runs_dir() / f"bt_{uuid.uuid4().hex[:8]}"
                 run_dir.mkdir(parents=True, exist_ok=True)
@@ -192,29 +205,36 @@ class BacktestAgent(AgentBase):
 
         def _run():
             try:
-                import pandas as pd
-                from src.shadow_account.scanner import scan_today_signals
-                from src.shadow_account.extractor import extract_rules
-                from src.shadow_account.models import ShadowProfile
-                from src.shadow_account.storage import new_shadow_id, hash_journal
+                import dataclasses
+                # 2026-08-04 fix: this used to manually read the journal
+                # with pandas, hand-build an empty ShadowProfile with fields
+                # that don't exist on it (`source_path` isn't a field --
+                # ShadowProfile is a frozen dataclass requiring every one of
+                # its 11 real fields), and call `extract_rules(trades_df,
+                # profile=profile)`, which has never existed (only a private
+                # `_extract_rules(features_df, ...)` does). The real,
+                # single public entry point is `extract_shadow_profile
+                # (journal_path, ...)` -- it does the entire pipeline itself
+                # (parse -> pair roundtrips -> feature-engineer -> extract
+                # rules -> build ShadowProfile) and returns one fully-formed
+                # ShadowProfile. This always raised before any of that
+                # mismatch even mattered, since the import itself failed.
+                from src.shadow_account.extractor import extract_shadow_profile
 
                 path = Path(journal_path)
                 if not path.exists():
                     return {"status": "error", "error": f"Journal file not found: {journal_path}"}
 
-                trades_df = pd.read_csv(path)
-                profile = ShadowProfile(
-                    shadow_id=new_shadow_id(),
-                    journal_hash=hash_journal(trades_df),
-                    source_path=str(path),
-                )
-                rules = extract_rules(trades_df, profile=profile)
+                profile = extract_shadow_profile(path)
+                rules = [dataclasses.asdict(r) for r in profile.rules]
 
                 return {
                     "status": "ok",
                     "journal": journal_path,
+                    "shadow_id": profile.shadow_id,
+                    "profile_text": profile.profile_text,
                     "rules_extracted": len(rules),
-                    "rules": [r.__dict__ if hasattr(r, '__dict__') else str(r) for r in rules],
+                    "rules": rules,
                     "note": "Call vt_research with shadow_account tool for full HTML/PDF report",
                 }
             except Exception as e:
