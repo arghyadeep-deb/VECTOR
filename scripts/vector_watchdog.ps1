@@ -34,7 +34,18 @@ $listener = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction Sile
 $healthy = $false
 if ($listener) {
     try {
-        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -TimeoutSec 10 -UseBasicParsing
+        # 2026-08-04: bumped 10s -> 45s. Discovered live: with the redirect-
+        # bug restart loop fixed (see commit e517f1f34), a genuinely healthy
+        # process running a real eval (65 sequential LLM-backed /command
+        # calls) got its /health check starved past 10s and was killed
+        # mid-run as a false positive ("UNHEALTHY... Killed PID 14320" at
+        # 03:16:26, ~5 min into a real eval). Whether that's expected event-
+        # loop contention under load or a blocking-call bug elsewhere in the
+        # request path is a separate, not-yet-investigated question -- this
+        # change only stops the watchdog from being the thing that kills a
+        # busy-but-fine process. If /health still doesn't answer within 45s,
+        # it's a genuine hang, not just load, and killing it is still right.
+        $resp = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -TimeoutSec 45 -UseBasicParsing
         if ($resp.StatusCode -eq 200) { $healthy = $true }
     } catch {
         $healthy = $false
@@ -104,6 +115,24 @@ if (-not $pythonExe) { $pythonExe = "python" }
 $startOutLog = Join-Path $base "watchdog_restart_stdout.log"
 $startErrLog = Join-Path $base "watchdog_restart_stderr.log"
 try {
+    # 2026-08-04 (audit): the watchdog relaunched VECTOR WITHOUT the two env
+    # vars scripts/vector_autostart.bat sets, so every watchdog-driven restart
+    # silently produced an API-only process with NO autonomous brain:
+    #   VECTOR_API_RUN_LOOP=1 -> core/api/app.py:192 gates the entire
+    #     autonomous loop (observe/think/act/reflect) on this. Unset = the
+    #     loop never starts and /health/system reports
+    #     loop: {"status": "not_started"} while everything else looks healthy.
+    #   VECTOR_ENV=production -> serves the lean prod HUD instead of the dev one.
+    # Measured impact before this fix: over a 4d17h run the loop's last log
+    # entry was 2h in (the boot that came from autostart.bat), the permission
+    # gateway logged exactly ONE line in the whole window (its own init — zero
+    # actions ever executed), and there were zero proactive owner
+    # notifications. VECTOR looked fine (42k HTTP requests served, 2.5k
+    # governor dispatches) while the JARVIS half was simply absent.
+    # Start-Process inherits the parent environment, so setting them here is
+    # sufficient and keeps parity with autostart.bat.
+    $env:VECTOR_API_RUN_LOOP = "1"
+    $env:VECTOR_ENV = "production"
     $proc = Start-Process -FilePath $pythonExe -ArgumentList "run_vector.py api --host 0.0.0.0" `
         -WorkingDirectory $base -WindowStyle Hidden `
         -RedirectStandardOutput $startOutLog -RedirectStandardError $startErrLog `
