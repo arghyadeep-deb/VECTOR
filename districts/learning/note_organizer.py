@@ -195,6 +195,28 @@ class NoteOrganizer(AgentBase):
             result = self.link_notes(p.get("concept_a", ""), p.get("concept_b", ""))
             return {"status": "ok", **result}
 
+        # 2026-08-04: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's question in params["query"] — "summarize my notes on
+        # config" previously returned a bare "unhandled type" error. Route a
+        # real question to a real capability instead.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            a, b = p.get("concept_a", ""), p.get("concept_b", "")
+            if a and b and any(w in q for w in ("link", "connect", "relate", "between")):
+                result = self.link_notes(a, b)
+                return {"status": "ok", **result}
+            if p.get("source_dir") and any(w in q for w in ("organis", "organiz", "tidy", "sort")):
+                result = self.organize_notes(p["source_dir"])
+                return {"status": "ok", **result}
+            # Summarising is the read-only, no-required-arg default; topic
+            # falls back to the question itself so the summary is scoped to
+            # what was actually asked.
+            result = self.summarize_notes(p.get("topic", "") or query)
+            return {"status": "ok", **result}
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

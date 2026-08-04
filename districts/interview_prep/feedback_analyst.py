@@ -369,6 +369,29 @@ Be specific and actionable in your analysis.
         if task_type == "track_progress":
             return self.track_progress()
 
+        # 2026-08-04: real chat dispatch arrives as an LLM-invented task_type
+        # (classify_chat_intent) that matches none of the branches above, with
+        # the user's actual question in params["query"]. Before this, "how did
+        # I do in my last mock interview?" returned a bare "unhandled type"
+        # error even though a perfectly good question was supplied. Same bug
+        # class as the languages coaches (KNOWN_ISSUES #1/#14/#15/#21/#33/#36).
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            if any(w in q for w in ("progress", "how am i", "how did i", "improving", "trend")):
+                return self.track_progress()
+            text = p.get("text", "")
+            if text:
+                if any(w in q for w in ("improve", "better", "work on", "weak")):
+                    return self.identify_improvements(text)
+                entry = self.analyze_feedback(text)
+                return {"status": "ok", **entry} if "error" not in entry else {"status": "error", **entry}
+            # A real question with no feedback text to analyse — answer with
+            # the real progress data rather than erroring out.
+            return self.track_progress()
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

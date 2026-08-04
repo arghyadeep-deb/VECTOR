@@ -318,6 +318,27 @@ Make it specific to {company} and the {role} role.
         if task_type == "company_specific":
             return self.generate_company_specific_report(p.get("company", ""), p.get("role", ""), p.get("questions", []))
 
+        # 2026-08-04: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"] — "can you
+        # generate my progress report?" previously hit the bare "unhandled
+        # type" error stub. Route a real question to a real report instead.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            company = p.get("company", "")
+            if company:
+                return self.generate_company_specific_report(
+                    company, p.get("role", ""), p.get("questions", [])
+                )
+            interview_id = p.get("interview_id", "")
+            if interview_id and any(w in q for w in ("session", "last interview", "that interview")):
+                return self.generate_session_report(interview_id)
+            # progress_report() needs no arguments and reflects real stored
+            # data — the correct default for an open-ended reporting question.
+            return self.generate_progress_report()
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

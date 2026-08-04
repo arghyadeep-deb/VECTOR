@@ -167,6 +167,25 @@ Format: JSON only."""
             result = self.suggest_prerequisites(p.get("concept", ""))
             return {"status": "ok", **result}
 
+        # 2026-08-04: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's question in params["query"] — "what should I learn
+        # before transformers?" previously returned a bare "unhandled type"
+        # error. Route it to a real capability instead.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            concept = p.get("concept", "")
+            if concept and any(w in q for w in ("before", "prerequisite", "prereq", "first")):
+                result = self.suggest_prerequisites(concept)
+                return {"status": "ok", **result}
+            # No explicit concept/text supplied: the question itself is the
+            # best available source text, and extraction over it still yields
+            # the concepts the owner is asking about.
+            result = self.extract_concepts(p.get("text", "") or query)
+            return {"status": "ok", **result}
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

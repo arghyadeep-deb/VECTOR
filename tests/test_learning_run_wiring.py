@@ -72,13 +72,13 @@ async def test_concept_extractor_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (core/city/governor.py _dispatch_to_district /
     core/api/routers/commands.py): the governor's classifier invents a task_type per
     request and puts the user's actual free-text message in params["query"]/["content"].
-    ConceptExtractor.run() (districts/learning/concept_extractor.py) has NO query
-    fallback after its two structured branches (extract_concepts/suggest_prerequisites)
-    — unlike districts/languages/*_coach.py (already fixed), it ignores
-    params["query"]/["content"] entirely and falls straight to the error stub even when
-    the caller supplied a real question. LIVE BUG: a real user asking "what concepts
-    should I learn before studying transformers?" gets an error, not an answer. This
-    test documents CURRENT (broken) behavior rather than papering over it.
+    ConceptExtractor.run() (districts/learning/concept_extractor.py) originally had
+    NO query fallback after its two structured branches (extract_concepts/
+    suggest_prerequisites), so "what concepts should I learn before studying
+    transformers?" returned a bare "unhandled type" error. Fixed 2026-08-04 (same
+    pattern as districts/languages/*_coach.py): the question itself is used as the
+    source text when no explicit text/concept is supplied. Flipped from documenting
+    the bug to asserting the fix.
     """
     agent = ConceptExtractor()
     result = await agent.run({
@@ -89,9 +89,10 @@ async def test_concept_extractor_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", (
+        f"a real free-text question must not return the error stub: {result}"
+    )
+    assert "concepts" in result
 
 
 # ---------------------------------------------------------------------------
@@ -135,10 +136,11 @@ async def test_note_organizer_run_unhandled_type_returns_error_shape():
 async def test_note_organizer_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see concept_extractor's equivalent test above
     for the full explanation). NoteOrganizer.run() (districts/learning/note_organizer.py)
-    also has NO query fallback — a real user asking "can you summarize my notes on
-    config?" still hits the error stub because the governor's invented task_type
-    doesn't exactly match "organize_notes"/"summarize_notes"/"link_notes". LIVE BUG,
-    documented here rather than papered over.
+    also had NO query fallback — "can you summarize my notes on config?" hit the
+    error stub because the governor's invented task_type doesn't exactly match
+    "organize_notes"/"summarize_notes"/"link_notes". Fixed 2026-08-04: summarising
+    is the read-only, no-required-arg default, scoped to the question itself when
+    no explicit topic is given. Flipped from documenting the bug to asserting the fix.
     """
     agent = NoteOrganizer()
     result = await agent.run({
@@ -149,9 +151,10 @@ async def test_note_organizer_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", (
+        f"a real free-text question must not return the error stub: {result}"
+    )
+    assert "summary" in result
 
 
 if __name__ == "__main__":
