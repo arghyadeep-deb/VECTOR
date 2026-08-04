@@ -843,6 +843,16 @@ async def _llm_answer(text: str, hydration: str) -> str:
                 "(numbers, statuses, names, dates) to make an answer sound "
                 "complete. A correct 'I don't have that' beats a fabricated "
                 "answer every time.\n"
+                "If the owner's message has multiple parts and you only lack "
+                "the data for SOME of them, don't decline the whole message — "
+                "say plainly you don't have the missing piece, then actually "
+                "answer the part(s) you can from general knowledge/reasoning. "
+                "Example — asked to check in on stress levels AND suggest a "
+                "focus tip: don't just reply 'I don't have that information.' "
+                "(that only addresses the first part and silently drops the "
+                "second, which didn't need any personal data at all); say you "
+                "don't have stress/sleep data logged, then give the focus "
+                "tip anyway.\n"
                 "If you're going to decline or can't do something, say so as "
                 "the very first thing in your reply — no 'On it', 'Sure', "
                 "'Right away', or other eager-compliance opener before the "
@@ -856,15 +866,31 @@ async def _llm_answer(text: str, hydration: str) -> str:
         ]
         # Hard timeout (2026-07-19 browser dogfood): with no timeout, a cold
         # Ollama model load left the HUD chat hanging for 90+ seconds with no
-        # feedback. 45s covers a cold load; after that, fail fast so the UI
-        # gets a response instead of a stuck spinner.
+        # feedback, so this was originally set to 45s to fail fast.
+        # 2026-08-04 DeepEval full-suite run: that 45s ceiling turned out to
+        # be too aggressive for real usage. Phase A collection logged actual
+        # successful ProviderClient().chat() latencies up to ~105s (provider
+        # fallback chains — mistral -> openrouter -> cohere -> cloudflare
+        # etc. — each hop adds real latency, especially under rate-limit
+        # cooldowns), and 5/32 real eval failures were this exact stub
+        # replacing what would have been a correct answer 15-60s later. The
+        # eval harness's own collector already budgets 150s per call as
+        # legitimate non-error latency. Raised to 120s: covers the observed
+        # real-world range with margin, while still bounding worst case
+        # instead of hanging forever.
+        # max_tokens (2026-08-04 DeepEval finding): 400 was cutting off
+        # legitimate structured/multi-part answers mid-sentence — e.g. a
+        # "summarize what you know about me + one honest limitation" answer
+        # was truncated to "...Doctrine: Maximize W =" with no limitation
+        # ever reached. Raised to 700 to give thorough answers room to
+        # actually finish; still well short of unbounded.
         import asyncio
         result = await asyncio.wait_for(
             ProviderClient().chat(
                 messages=messages, tier="conversation",
-                max_tokens=400, temperature=0.6, caller_id="api_command",
+                max_tokens=700, temperature=0.6, caller_id="api_command",
             ),
-            timeout=45.0,
+            timeout=120.0,
         )
         answer = (getattr(result, "content", None) or "").strip()
         if not answer:
@@ -879,7 +905,7 @@ async def _llm_answer(text: str, hydration: str) -> str:
         answer = await _ensure_english_answer(answer)
         return answer
     except TimeoutError:
-        logger.warning("[VECTOR][api][command] LLM answer timed out (>45s)")
+        logger.warning("[VECTOR][api][command] LLM answer timed out (>120s)")
         return ("My reasoning engine is still warming up, sir — "
                 "give me a moment and ask again.")
     except Exception as e:

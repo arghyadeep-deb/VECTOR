@@ -33,6 +33,7 @@ __all__ = [
 import asyncio
 import json
 import os
+import re
 import time
 from dataclasses import dataclass
 
@@ -42,6 +43,42 @@ from core.inference.llm_providers import (
     LLMProvider, PROVIDERS, TIER_ROUTING,
     get_provider, configured_providers, route_for_tier,
 )
+
+
+_LEAKED_REASONING_RE = re.compile(
+    r"^\s*(We need to|We must|We should|I need to|I should|I'll (?:first|now)|"
+    r"Let'?s (?:think|check|figure|see)|Let me (?:think|check|see)|"
+    r"Okay,? let'?s|The user (?:wants|is asking|asked|says)|"
+    r"The owner (?:wants|is asking|asked|says)|Owner asks:|First,? I need)",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_leaked_reasoning(text: str) -> bool:
+    """Detect raw chain-of-thought / analysis-channel narration leaking into
+    the 'content' field instead of a real final answer.
+
+    2026-08-04 DeepEval full-suite run: some reasoning-style models (observed
+    on gpt-oss-class models reachable via the cloud fallback chain) return
+    their internal analysis-channel prose as ordinary `content` when they run
+    out of `max_tokens` mid-reasoning, before ever producing final-channel
+    output — e.g. "We need to respond as VECTOR, concise JARVIS-style
+    assistant, answer directly. Need to check what's likely on my plate
+    today..." ending mid-sentence. This is a close cousin of the empty-content
+    dud case just above (same underlying cause: a reasoning model burning its
+    token budget on hidden thinking) but the content isn't empty, so that
+    check doesn't catch it. No provider-side 'reasoning_content vs content'
+    separation is available/reliable across all 27 providers here, so this is
+    a deterministic backstop over the leaked text itself — same
+    "deterministic backstop over LLM judgment" pattern used elsewhere in this
+    codebase for safety/policy-critical output. False-positive risk is low:
+    a real final answer to the owner essentially never opens by narrating the
+    request in the third person ("the user/owner asks...") or announcing
+    internal deliberation ("we need to...") — VECTOR's own system prompts
+    address the owner directly instead.
+    """
+    head = (text or "").strip()[:120]
+    return bool(_LEAKED_REASONING_RE.match(head))
 
 
 def _is_local_model_name(model: str) -> bool:
@@ -415,6 +452,15 @@ class ProviderClient:
                 # ollama thinking models). Treat as failure → next provider.
                 if not (result.content or "").strip() and not tools:
                     last_error = f"{_prov.slug}:{target_model} returned empty content"
+                    logger.warning("[VECTOR][provider_client] {} — trying next provider", last_error)
+                    continue
+                # Non-empty but leaked reasoning/analysis text instead of a
+                # real final answer — same dud category as above, see
+                # _looks_like_leaked_reasoning() docstring for the 2026-08-04
+                # DeepEval finding that motivated this.
+                if not tools and _looks_like_leaked_reasoning(result.content):
+                    last_error = (f"{_prov.slug}:{target_model} returned leaked "
+                                   f"reasoning/analysis text instead of a final answer")
                     logger.warning("[VECTOR][provider_client] {} — trying next provider", last_error)
                     continue
                 # -- Consistency enforcement -----------------------------------
