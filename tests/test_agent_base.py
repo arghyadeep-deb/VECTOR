@@ -20,18 +20,30 @@ def test_initial_model_is_focus():
 
 
 def test_award_points_increases_hp():
+    # 2026-08-05 reward-curve fix: awards are shaped by headroom
+    # ((1000-hp)/1000) and repeat-reason habituation, so exact 1:1 arithmetic
+    # no longer holds — but the new value is still exactly knowable and is
+    # asserted as such. A first-time award of 100 at hp=500 lands at
+    # 100 * 1.0 (first use of this reason) * 0.5 (headroom) = 50 -> 550.
+    # Reviewer note: this originally got relaxed to `> 500` /
+    # `new_hp > old_hp`; the latter is true of ANY positive award and would
+    # pass even if the shaping were removed entirely. Pinned to the exact
+    # value to match tests/unit/test_agent_base.py, which asserts the same
+    # 550 for the same call.
     a = make_agent()
     result = a.award_points(100, "test")
-    assert a.health_points == 600
-    assert result["new_hp"] == 600
+    assert a.health_points == 550
+    assert result["new_hp"] == 550
     assert result["old_hp"] == 500
 
 
 def test_hp_capped_at_1000():
     a = make_agent()
-    # HP validator clamps each delta to ±200, so reach the ceiling across txns
-    for _ in range(3):
-        a.award_points(200, "big award")
+    a.health_points = 950
+    # A single realistic award is now deliberately tiny near the ceiling
+    # (that's the fix) — use an oversized one to prove the hard cap still
+    # holds via hp_validator's outlier clamp + the final min(1000, ...).
+    a.award_points(1_000_000, "big award")
     assert a.health_points == 1000
 
 
@@ -62,10 +74,11 @@ def test_death_preserves_ghost():
 
 def test_model_upgrades_with_hp():
     a = make_agent()
-    # HP validator clamps each delta to ±200; two awards clear the elite (≥800) tier
-    for _ in range(2):
-        a.award_points(200, "upgrade")
-    assert a.health_points == 900
+    a.health_points = 950
+    # Oversized award relies on the same hard-cap safety net as
+    # test_hp_capped_at_1000 to deterministically clear the elite tier.
+    a.award_points(1_000_000, "upgrade")
+    assert a.health_points == 1000
     assert a.is_elite is True
     assert a.model == CONFIG["models"]["cloud_coder"]
 
@@ -80,7 +93,10 @@ def test_model_downgrades_with_hp():
 def test_can_vote_in_council_threshold():
     a = make_agent()
     assert not a.can_vote_in_council()
-    a.award_points(201, "council eligible")
+    # Oversized award relies on hp_validator's outlier clamp (±200) to
+    # deterministically cross the 700 HP council threshold from birth (500).
+    a.award_points(1_000_000, "council eligible")
+    assert a.health_points == 700
     assert a.can_vote_in_council()
 
 

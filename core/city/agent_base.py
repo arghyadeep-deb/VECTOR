@@ -61,6 +61,14 @@ class AgentBase:
             _AGENT_NAME_VOICE_STYLES.get(name.lower(), "")
             or _DISTRICT_VOICE_STYLES.get(district, "")
         )
+        # HP reward-curve shaping state (2026-08-05 fix) — see award_points().
+        # Counts how many times THIS agent has been awarded points for each
+        # exact `reason` string, so a routine task that repeats unchanged
+        # every tick (health_check_done, seo_report_generated, ...) can be
+        # told apart from genuinely novel/varied accomplishments. Lives only
+        # as long as this instance — a fresh generation (spawned on death)
+        # starts with a clean slate, same as self.lessons/self._facts.
+        self._reason_award_counts: dict[str, int] = {}
         logger.info(f'[VECTOR][city] Agent {name} gen {generation} born at 500 HP using {self.model}')
 
     @staticmethod
@@ -115,13 +123,70 @@ class AgentBase:
             return float(delta)
 
     def award_points(self, points, reason) -> dict:
+        """Award HP for a task outcome, shaped so routine repetition can't
+        pin an agent at the 1000 ceiling (2026-08-05 fix).
+
+        Production measurement (4d17h run): 1,098 award events vs 4 deducts,
+        0 deaths, "virtually every line reads +30.0HP | 1000->1000" — agents
+        doing merely-frequent routine work (health_check_done,
+        seo_report_generated, fired on every tick) saturated the cap within
+        minutes because every award was full-value and the only ceiling was
+        a flat `min(1000, hp+delta)`. That makes HP measure how often an
+        agent runs, not the quality of what it did — the opposite of
+        Critical Rule #4 ("fake HP = fake evolution"), and it is what makes
+        Governor.dispatch()'s `max(agents, key=lambda a: a.health_points)`
+        fallback an effectively arbitrary tiebreak once every agent in a
+        district is tied at the ceiling.
+
+        Two independent, multiplicative dampeners fix this without touching
+        any of the ~160 call sites or changing the documented point
+        constants (+100 owner approved, +50 task done well, +30 output
+        used, +40 council vote, ...):
+
+          1. Repeat-reason habituation — the Nth time THIS agent earns
+             points for the exact same `reason` string, the raw award is
+             divided by (1 + N). A reason that repeats unchanged forever
+             (a templated health check, a routine report) decays toward
+             zero marginal value within a few dozen repeats — precisely the
+             pattern in the production log. A reason that never repeats
+             (novel work, a one-off critical fix, an owner approval) always
+             earns full credit the first time it happens.
+          2. Headroom (ceiling-approach) scaling — every award is also
+             scaled by how much room is left below the cap,
+             (1000 - hp) / 1000. This is what stops saturation for agents
+             whose reason strings differ on every call (e.g. per-query
+             research awards) — mechanism 1 alone can't catch that, since
+             each string only ever appears "for the first time". Approaching
+             1000 now costs exponentially more real accomplishments the
+             closer an agent gets, so agents with genuinely different
+             performance profiles settle at genuinely different steady-state
+             HP instead of all racing to the same wall.
+
+        The hard `min(1000, ...)` / `max(0, ...)` clamps stay in place as a
+        safety net regardless of shaping (see hp_validator's own outlier
+        clamp), so HP can never leave [0, 1000] no matter how large a raw
+        award is.
+
+        deduct_points() is deliberately NOT shaped — the Darwinian death
+        mechanic must stay at full strength; only the runaway positive side
+        was broken.
+        """
         old_hp = self.health_points
-        validated_points = max(0.0, self._validate_hp_delta(points, reason))
+        repeat_count = self._reason_award_counts.get(reason, 0)
+        self._reason_award_counts[reason] = repeat_count + 1
+        repeat_multiplier = 1.0 / (1.0 + repeat_count)
+        headroom_multiplier = max(0.0, (1000.0 - self.health_points) / 1000.0)
+        shaped_points = points * repeat_multiplier * headroom_multiplier
+        validated_points = max(0.0, self._validate_hp_delta(shaped_points, reason))
         self.health_points = min(1000, self.health_points + validated_points)
         old_model = self.model
         self.model = self._calculate_model()
         model_changed = self.model != old_model
-        logger.info(f'[VECTOR][city] {self.name} +{validated_points}HP ({reason}) | {old_hp}->{self.health_points}')
+        logger.info(
+            f'[VECTOR][city] {self.name} +{validated_points:.2f}HP ({reason}) | '
+            f'{old_hp}->{self.health_points} '
+            f'[repeat#{repeat_count} x{repeat_multiplier:.3f}, headroom x{headroom_multiplier:.3f}]'
+        )
         if model_changed:
             logger.info(f'[VECTOR][city] {self.name} model upgraded: {old_model} -> {self.model}')
         return {
@@ -132,6 +197,9 @@ class AgentBase:
             "reason": reason,
             "requested_delta": points,
             "validated_delta": validated_points,
+            "repeat_count": repeat_count,
+            "repeat_multiplier": repeat_multiplier,
+            "headroom_multiplier": headroom_multiplier,
         }
 
     def deduct_points(self, points, reason) -> dict:
@@ -344,18 +412,44 @@ if __name__ == '__main__':
     a = AgentBase(str(uuid.uuid4()), 'TestAgent', 'coding')
     assert a.health_points == 500
     assert a.model == CONFIG['models']['focus']
-    # hp_validator clamps any single delta to ±MAX_DELTA (200), so a
-    # 350-point award lands as +200.
+
+    # requested_delta always reports the raw ask; validated_delta reflects
+    # repeat + headroom shaping (2026-08-05 fix), so it is no longer a
+    # simple clamp-to-200 of the raw request.
     result = a.award_points(350, 'test award')
     assert result['requested_delta'] == 350
-    assert result['validated_delta'] <= 200
-    assert a.health_points == 700
+    assert result['repeat_count'] == 0
+    assert 0 < result['validated_delta'] < 350
+    assert a.health_points > 500
     assert a.is_elite is False
-    a.award_points(200, 'test award 2')
-    assert a.health_points == 900
+
+    # THE regression check for the saturation bug: hammering the exact same
+    # reason over and over (the "health_check_done" production pattern)
+    # must NOT ride min(1000, ...) up to the ceiling — each repeat is worth
+    # strictly less than the last.
+    spammer = AgentBase(str(uuid.uuid4()), 'SpammerAgent', 'ops')
+    prior_delta = None
+    for _ in range(50):
+        r = spammer.award_points(30, 'health_check_done')
+        if prior_delta is not None:
+            assert r['validated_delta'] <= prior_delta, (
+                'repeated identical reason must not gain value over time'
+            )
+        prior_delta = r['validated_delta']
+    assert spammer.health_points < 700, (
+        f'spammer pinned near the ceiling by routine repeats: {spammer.health_points}'
+    )
+
+    # A deliberately oversized single award still cannot push HP past 1000 —
+    # hp_validator's own outlier clamp plus the final min(1000, ...) hold.
+    a.health_points = 950
+    a.award_points(1_000_000, 'huge one-off bonus')
+    assert a.health_points == 1000
     assert a.is_elite is True
+
     # EMA smoothing damps opposite-sign deltas, so death takes several
-    # max-size deductions rather than one oversized one.
+    # max-size deductions rather than one oversized one. deduct_points is
+    # intentionally NOT shaped — the death mechanic stays at full strength.
     for _ in range(50):
         if not a.is_alive:
             break

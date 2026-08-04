@@ -83,14 +83,22 @@ class TestModelCalculation:
 class TestHPOperations:
 
     def test_award_points_increases_hp(self):
+        # 2026-08-05 reward-curve fix: awards are shaped by headroom
+        # ((1000-hp)/1000) and repeat-reason habituation, so a first-time
+        # "task_completed" award at hp=500 lands at 100 * 1.0 * 0.5 = 50,
+        # not the raw 100. See AgentBase.award_points() docstring.
         a = make_agent(hp=500)
         result = a.award_points(100, "task_completed")
-        assert result["new_hp"] == 600
-        assert a.health_points == 600
+        assert result["new_hp"] == 550
+        assert a.health_points == 550
 
     def test_award_points_caps_at_1000(self):
+        # A single realistic-sized award near the ceiling is deliberately
+        # tiny now (that's the fix). To prove the hard 1000 ceiling still
+        # holds, award something oversized — hp_validator's own outlier
+        # clamp (±200) plus the final min(1000, ...) must still cap it.
         a = make_agent(hp=950)
-        result = a.award_points(200, "bonus")
+        result = a.award_points(1_000_000, "bonus")
         assert result["new_hp"] == 1000
         assert a.health_points == 1000
 
@@ -128,7 +136,10 @@ class TestHPOperations:
     def test_award_recalculates_model(self):
         a = make_agent(hp=500)
         old_model = a.model
-        a.award_points(400, "excellence")  # goes to 900 → elite tier
+        # headroom shaping means 400 at hp=500 lands at ~200, not elite tier
+        # by itself — the assertion below is structural (always true) and
+        # doesn't depend on the exact post-shaping HP value.
+        a.award_points(400, "excellence")
         # model should be recalculated (might change)
         assert a.model == a._calculate_model()
 
