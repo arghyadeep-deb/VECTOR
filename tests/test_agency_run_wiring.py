@@ -72,6 +72,39 @@ async def test_client_manager_run_unhandled_type_returns_error_shape():
     assert "agent" not in result
 
 
+@pytest.mark.asyncio
+async def test_client_manager_run_real_chat_query_shape_still_errors():
+    """
+    Production shape: governor's classify_chat_intent() invents a task_type
+    string that matches none of ClientManager's structured branches, while
+    params carries a real free-text query. Unlike districts/languages/
+    hindi_coach.py (which falls back to answering p.get("query")/p.get
+    ("content") when no structured branch matches), ClientManager.run() has
+    no such fallback at all -- task["params"] is only ever read inside the
+    matched if-branches, never inspected for "query"/"content" once every
+    branch has failed to match. So a real user asking "how many clients do
+    we have and which ones need attention?" through chat still gets the bare
+    error stub, not an answer. This is CURRENT, VERIFIED behavior (read
+    districts/agency/client_manager.py run(), lines ~312-346) -- not a
+    guess -- and is a live bug: ClientManager can answer this exact
+    question via get_client_summary()/get_at_risk_clients(), it just never
+    gets routed there from free-text chat.
+    """
+    agent = ClientManager()
+    task = {
+        "type": "client_question",
+        "params": {
+            "query": "how many clients do we have and which ones need attention?",
+            "content": "how many clients do we have and which ones need attention?",
+            "source": "api_command",
+        },
+    }
+    result = await agent.run(task)
+    assert result["status"] == "error"
+    assert "unhandled type" in result["error"]
+    assert "supported" in result
+
+
 # ---------------------------------------------------------------------------
 # PerformanceTracker
 # ---------------------------------------------------------------------------
@@ -116,6 +149,33 @@ async def test_performance_tracker_run_unhandled_type_returns_error_shape():
     assert "unhandled type" in result["error"]
     assert "supported" in result
     assert "agent" not in result
+
+
+@pytest.mark.asyncio
+async def test_performance_tracker_run_real_chat_query_shape_still_errors():
+    """
+    Production shape: an LLM-invented task_type with a real free-text query
+    in params. PerformanceTracker.run() (districts/agency/performance_
+    tracker.py, lines ~340-366) only ever reads task["params"] inside its
+    eight matched if-branches; once none of them match task_type it falls
+    straight to the bare error stub without ever looking at p.get("query")/
+    p.get("content"). So "how is our response time trending this week, any
+    anomalies?" -- answerable via get_trend()/get_active_alerts() -- gets
+    only an error. Verified against current source, not assumed.
+    """
+    agent = PerformanceTracker()
+    task = {
+        "type": "performance_question",
+        "params": {
+            "query": "how is our response time trending this week, any anomalies?",
+            "content": "how is our response time trending this week, any anomalies?",
+            "source": "api_command",
+        },
+    }
+    result = await agent.run(task)
+    assert result["status"] == "error"
+    assert "unhandled type" in result["error"]
+    assert "supported" in result
 
 
 if __name__ == "__main__":

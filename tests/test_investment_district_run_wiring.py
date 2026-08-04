@@ -26,6 +26,20 @@ from districts.investment.fundamentals_bot import FundamentalsBot
 from districts.investment.technical_bot import TechnicalBot
 
 
+@pytest.fixture(autouse=True)
+def _stub_llm_calls(monkeypatch):
+    """FundamentalsBot._llm / TechnicalBot._llm make a real ProviderClient call
+    with a 90s ceiling (domain="finance.analysis") -- these are dispatch/
+    return-shape wiring tests, not LLM-quality tests, so stub only the LLM
+    transport (not run() itself), same pattern as
+    tests/test_interview_prep_run_wiring.py's _stub_report_llm fixture.
+    Mocking external LLM APIs is allowed per .claude/rules/testing.md."""
+    import districts.investment.fundamentals_bot as _fb
+    import districts.investment.technical_bot as _tb
+    monkeypatch.setattr(_fb, "_llm", lambda *a, **k: "Stubbed fundamentals free-text answer for wiring test.")
+    monkeypatch.setattr(_tb, "_llm", lambda *a, **k: "Stubbed technical free-text answer for wiring test.")
+
+
 # ── AgentBase subclassing sanity (static + isinstance) ──────────────────────
 
 def test_backtest_agent_subclasses_agent_base():
@@ -85,6 +99,37 @@ async def test_backtest_agent_run_no_real_orders_placed(backtest_agent):
     """Static guarantee: BacktestAgent has no order-placing method at all."""
     assert not hasattr(backtest_agent, "place_order")
     assert not hasattr(backtest_agent, "_execute_via_broker")
+
+
+async def test_backtest_agent_run_routes_unmatched_type_with_query_to_vt_research(backtest_agent):
+    """Real production dispatch shape: an LLM-invented task_type with no
+    structured branch match, but a genuine free-text finance query in
+    params. BacktestAgent.run()'s 2026-07-29 fallback routes this to
+    vt_research() instead of erroring immediately (see the comment at
+    backtest_agent.py's run() bottom, same bug class as the languages/
+    fundamentals_bot/technical_bot fixes).
+
+    vt_research() itself needs OPENAI_API_KEY (or an equivalent LangChain
+    provider key) to actually answer via the ReAct loop -- verified live in
+    this environment: it currently fails closed with "Missing credentials"
+    because no such key is configured here, which is an environment/config
+    gap, not a routing bug. So the assertion that's honest and
+    environment-independent is: this call must NOT hit the dispatch-level
+    "unhandled type" stub (that shape carries a "supported" key) -- it must
+    genuinely reach vt_research(), whose own success OR failure shape always
+    carries a "task" key (see vt_research()'s return statements)."""
+    result = await backtest_agent.run({
+        "type": "analyze_momentum_signal",
+        "params": {
+            "query": "What is the momentum signal for NVDA this week?",
+            "content": "What is the momentum signal for NVDA this week?",
+            "source": "api_command",
+        },
+    })
+    assert "supported" not in result
+    assert "task" in result
+    if result["status"] == "ok":
+        assert "result" in result
 
 
 # ── FundamentalsBot ──────────────────────────────────────────────────────────
@@ -156,6 +201,26 @@ async def test_fundamentals_bot_run_no_real_orders_placed(fundamentals_bot):
     assert not hasattr(fundamentals_bot, "_execute_via_broker")
 
 
+async def test_fundamentals_bot_run_routes_unmatched_type_with_query_to_free_text_answer(fundamentals_bot):
+    """Real production dispatch shape: an LLM-invented task_type with no
+    structured branch match, a genuine free-text valuation question, and no
+    ticker/symbol param (so none of the structured branches could apply
+    anyway). FundamentalsBot.run()'s 2026-07-29 fallback answers directly via
+    _llm() instead of erroring (see run()'s bottom, same bug class as
+    stock_analyst.py's pre-fix default). _llm is stubbed by the module-level
+    _stub_llm_calls fixture so this stays hermetic/fast."""
+    result = await fundamentals_bot.run({
+        "type": "explain_valuation_question",
+        "params": {
+            "query": "Is a forward P/E of 40 expensive for a mature software company?",
+            "content": "Is a forward P/E of 40 expensive for a mature software company?",
+            "source": "api_command",
+        },
+    })
+    assert result["status"] == "ok"
+    assert len(result.get("response", "")) > 0
+
+
 # ── TechnicalBot ─────────────────────────────────────────────────────────────
 
 @pytest.fixture
@@ -207,3 +272,21 @@ async def test_technical_bot_run_unhandled_type_returns_structured_error(technic
 async def test_technical_bot_run_no_real_orders_placed(technical_bot):
     assert not hasattr(technical_bot, "place_order")
     assert not hasattr(technical_bot, "_execute_via_broker")
+
+
+async def test_technical_bot_run_routes_unmatched_type_with_query_to_free_text_answer(technical_bot):
+    """Real production dispatch shape: an LLM-invented task_type with no
+    structured branch match, a genuine free-text technical-analysis
+    question, and no symbol param. TechnicalBot.run()'s 2026-07-29 fallback
+    answers directly via _llm() instead of erroring. _llm is stubbed by the
+    module-level _stub_llm_calls fixture so this stays hermetic/fast."""
+    result = await technical_bot.run({
+        "type": "explain_chart_pattern",
+        "params": {
+            "query": "What does a golden cross mean for a stock's trend?",
+            "content": "What does a golden cross mean for a stock's trend?",
+            "source": "api_command",
+        },
+    })
+    assert result["status"] == "ok"
+    assert len(result.get("response", "")) > 0

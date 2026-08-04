@@ -54,6 +54,36 @@ async def test_biometrics_aggregator_run_defaults_to_all_sources():
     assert set(result["sources_attempted"]) == {"apple_health", "oura", "strava"}
 
 
+@pytest.mark.asyncio
+async def test_biometrics_aggregator_real_chat_dispatch_shape_still_does_real_work():
+    """Real production shape from governor._dispatch_to_district is
+    task={"type": <classifier-invented string>, "params": {"query": ...,
+    "content": ..., "source": "api_command"}}. BiometricsAggregator.run()
+    doesn't branch on task["type"] at all (single-purpose agent, confirmed
+    correct in the module docstring above) — it reads "sources"/"obsidian"
+    off the TOP-LEVEL task dict, which this shape doesn't set, so it falls
+    through to its documented defaults (all three sources, obsidian=True)
+    and still performs the real pull attempt rather than returning the
+    bare AgentBase stub. Locks in that this remains true for the actual
+    real-world dispatch shape, not just the flat-dict shape the existing
+    tests above use.
+    """
+    agent = BiometricsAggregator()
+    task = {
+        "type": "how_did_i_sleep_last_night",
+        "params": {
+            "query": "How did I sleep last night?",
+            "content": "How did I sleep last night?",
+            "source": "api_command",
+        },
+    }
+    result = await agent.run(task)
+    assert result["status"] == "ok"
+    assert set(result["sources_attempted"]) == {"apple_health", "oura", "strava"}
+    assert "sources_succeeded" in result
+    assert "agent" not in result  # not the bare AgentBase stub shape
+
+
 # ---------------------------------------------------------------------------
 # HealthAdvisor
 # ---------------------------------------------------------------------------
