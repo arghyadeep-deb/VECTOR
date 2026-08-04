@@ -31,20 +31,29 @@ def _executor_from_request(request: Request) -> AutonomousExecutor:
 
 @router.post("/plan")
 async def plan_endpoint(body: ExecuteRequest, request: Request) -> dict[str, Any]:
+    # proposed_by is client-supplied here — never let it claim a reserved
+    # owner-trust marker (see sanitize_proposed_by's docstring).
+    from core.loop.permission_gateway import sanitize_proposed_by
+
     plan = _executor_from_request(request).plan(
         action_type=body.action_type,
         params=body.params,
-        proposed_by=body.proposed_by,
+        proposed_by=sanitize_proposed_by(body.proposed_by, fallback="api.executor"),
     )
     return {"status": "planned", "plan": plan.to_dict()}
 
 
 @router.post("/run")
 async def run_endpoint(body: ExecuteRequest, request: Request) -> dict[str, Any]:
+    # 2026-08-04: without this, POST /execute/run with
+    # {"proposed_by": "api_command"} would hit the RED_INTERACTIVE_TOOLS
+    # owner-initiated bypass and execute arbitrary shell with no approval.
+    from core.loop.permission_gateway import sanitize_proposed_by
+
     report = await _executor_from_request(request).execute(
         action_type=body.action_type,
         params=body.params,
-        proposed_by=body.proposed_by,
+        proposed_by=sanitize_proposed_by(body.proposed_by, fallback="api.executor"),
         dry_run=body.dry_run,
     )
     return report.to_dict()

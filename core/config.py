@@ -89,15 +89,14 @@ class PermissionConfig(BaseModel):
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         "send_message_routine", "create_calendar_event", "commit_code",
-        "download_file", "set_reminder", "write_note_personal",
-        "launch_app", "run_shell_command",
-        "pc_screenshot", "pc_type", "pc_click", "pc_launch_app",
-        # GUIAutomationAgent (core/vision_control) — VLM-driven desktop/browser control
-        "gui_task", "click_screen", "desktop_task", "browser_task", "vision_control",
+        "set_reminder", "write_note_personal",
+        "pc_screenshot",
         "monthly_report", "finance_report", "journal", "weekly_journal",
         "create_project", "add_deadline", "log_exercise",
-        # VectorCode write/execute actions
-        "code_task", "code_generate", "code_fix", "code_debug", "run_tests",
+        # VectorCode read/verify action — low blast radius (runs the test
+        # suite, no owner-invisible side effect). code_task/code_generate/
+        # code_fix/code_debug moved to RED below (2026-08-04 hardening).
+        "run_tests",
     ])
     red: list[str] = Field(default_factory=lambda: [
         "send_email", "delete_files", "execute_code",
@@ -110,6 +109,23 @@ class PermissionConfig(BaseModel):
         # (audit 2026-06-21: these previously bypassed the gateway entirely).
         # solana_swap_execute: notifies owner with price + reasoning, signs only on approval.
         "solana_swap_execute", "content_publish",
+        # 2026-08-04 hardening (prompt-injection -> unattended-execution audit):
+        # moved out of YELLOW. As YELLOW, these auto-executed after a ~10s
+        # window with no owner confirmation whenever VECTOR_YELLOW_AUTO_CONFIRM=1
+        # (owner's live .env) and the proposing LLM's task_type wasn't rejected —
+        # a direct path from ingested untrusted text (email/web/message) ->
+        # classify_chat_intent()'s invented task_type -> unattended shell/GUI/
+        # code/fetch execution. See permission_gateway.py's RED_INTERACTIVE_TOOLS
+        # for how these are gated (owner-typed/voice commands still pre-confirm
+        # instantly like they did as YELLOW; anything else always waits for a
+        # real Pushover owner approval, fail-closed on timeout, no LLM-council
+        # auto-proceed).
+        "run_shell_command",                                    # arbitrary shell execution
+        "gui_task", "click_screen", "desktop_task",              # VLM-driven desktop control
+        "browser_task", "vision_control",                        # VLM-driven browser control
+        "pc_type", "pc_click", "pc_launch_app", "launch_app",    # synthetic input / app launch
+        "code_task", "code_generate", "code_fix", "code_debug",  # code write + execute paths
+        "download_file",                                         # arbitrary fetch-to-disk
     ])
     # Trust ladder — earned autonomy for YELLOW actions (core/loop/trust_ladder.py).
     # N consecutive explicit approvals with zero bad outcomes → auto-execute;

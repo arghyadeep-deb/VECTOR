@@ -5,8 +5,10 @@ __all__ = [
     "FORBIDDEN",
     "GatewayResult",
     "GREEN",
+    "OWNER_APPROVAL_ONLY",
     "PermissionGateway",
     "RED",
+    "RED_INTERACTIVE_TOOLS",
     "YELLOW",
 ]
 
@@ -71,6 +73,88 @@ OWNER_APPROVAL_ONLY = {
     'financial_transaction', 'solana_swap_execute',
     'push_github', 'deploy_production', 'delete_files',
     'content_publish', 'hand_browser', 'hand_content', 'hand_clip',
+}
+
+# 2026-08-04 (review of the RED_INTERACTIVE_TOOLS hardening below): these two
+# strings are now SECURITY-CRITICAL. The RED branch grants an owner-initiated
+# bypass (execute immediately, no Pushover approval) to every
+# RED_INTERACTIVE_TOOLS action — including run_shell_command — purely on the
+# basis of `Action.proposed_by` matching one of these markers.
+#
+# That is safe ONLY because the owner-input paths set it server-side and
+# hardcoded: core/api/routers/commands.py (proposed_by="api_command") and
+# core/api/routers/voice.py (proposed_by="voice"). It is NOT safe for the
+# routes that populate proposed_by straight from a client-supplied request
+# body — core/api/routers/{executor,missions,tasks}.py. Without the guard
+# below, `POST /execute/run {"action_type":"run_shell_command",
+# "proposed_by":"api_command"}` would bypass owner approval entirely and run
+# arbitrary shell. (Before RED_INTERACTIVE_TOOLS existed, RED had no bypass
+# at all, so spoofing this string bought an attacker nothing — the hardening
+# is what made it exploitable, which is why the guard ships with it.)
+#
+# Ingress rule: any route that reads proposed_by from client input MUST pass
+# it through sanitize_proposed_by() before constructing an Action.
+_OWNER_TRUST_MARKERS = frozenset({'api_command', 'voice'})
+
+
+def sanitize_proposed_by(value: str, *, fallback: str = 'untrusted_client') -> str:
+    """Neutralise reserved owner-trust markers arriving from client input.
+
+    Returns the value unchanged unless it claims one of the reserved
+    server-only trust markers, in which case it is prefixed (and logged) so
+    it can never match the owner-initiated bypass in the RED branch.
+    """
+    v = (value or '').strip()
+    if v.lower() in _OWNER_TRUST_MARKERS:
+        logger.warning(
+            "[VECTOR][gateway] client-supplied proposed_by claimed reserved "
+            "owner-trust marker {!r} — neutralised (owner bypass denied)", v
+        )
+        return f'client_claimed_{v.lower()}'
+    return v or fallback
+
+# 2026-08-04 hardening (prompt-injection -> unattended-execution audit fix):
+# "interactive tool" capabilities promoted from YELLOW to RED — arbitrary
+# shell execution, VLM-driven desktop/browser control, synthetic input,
+# app launch (with attacker-controllable args), code write/execute paths,
+# and arbitrary fetch-to-disk. As YELLOW these could auto-execute after a
+# ~10s window with zero owner confirmation whenever VECTOR_YELLOW_AUTO_CONFIRM=1
+# (the owner's live .env) — a direct prompt-injection -> unattended-execution
+# path, since the action itself is an LLM-invented task_type
+# (classify_chat_intent() in core/city/governor.py) that can originate from
+# untrusted ingested text (email/web/message).
+#
+# These are deliberately NOT folded into OWNER_APPROVAL_ONLY above.
+# OWNER_APPROVAL_ONLY actions (real money, GitHub pushes, deploys, publishing)
+# intentionally require a Pushover phone-tap EVEN when the owner typed the
+# command themselves — that's correct for rare, high-stakes, "fire and
+# forget" actions. These RED_INTERACTIVE_TOOLS actions are the opposite
+# profile: tools the owner drives interactively many times a day (open an
+# app, run a command, have VECTOR click through a page while watching).
+# Blanket-requiring a phone tap for every one of those — even ones the owner
+# just typed into the HUD — would be console-breaking friction with no real
+# security benefit (an authenticated api_command/voice request already IS
+# the owner's explicit instruction; see the equivalent bypass in the YELLOW
+# branch above).
+#
+# So the RED branch below gives this set the SAME owner-initiated bypass
+# YELLOW already has (`action.proposed_by in ("api_command", "voice")` ->
+# pre-confirmed, no wait), but ONLY for this set — OWNER_APPROVAL_ONLY keeps
+# its existing no-bypass-ever behavior unchanged. Anything NOT owner-typed
+# (autonomous_loop / think_loop / skill / anticipation / remote_device, i.e.
+# exactly the LLM-invented-task_type path this fix targets) is forced
+# straight to `defer` -> Pushover, skipping CouncilBrain's auto-proceed path
+# entirely (see _handle_red_tier(): confidence defaults to a hardcoded 0.75
+# and is itself an LLM judgment over attacker-influenceable params/context —
+# letting it rubber-stamp exactly the actions this fix exists to gate would
+# just move the hole one hop over). Pushover approval fails closed on the
+# 300s timeout — never a silent auto-execute.
+RED_INTERACTIVE_TOOLS = {
+    'run_shell_command',
+    'gui_task', 'click_screen', 'desktop_task', 'browser_task', 'vision_control',
+    'pc_type', 'pc_click', 'pc_launch_app', 'launch_app',
+    'code_task', 'code_generate', 'code_fix', 'code_debug',
+    'download_file',
 }
 
 class PermissionGateway:
@@ -250,10 +334,31 @@ class PermissionGateway:
             return result
 
         if level == 'RED':
-            # A7: CouncilBrain deliberation before Pushover owner approval
+            # Owner-initiated bypass for RED_INTERACTIVE_TOOLS only (never
+            # OWNER_APPROVAL_ONLY — see the comment on that set above). Typed
+            # by the authenticated owner (HUD command bar / API key /
+            # allowlisted Telegram) or spoken after the wake word on the
+            # owner's own machine — mirrors the equivalent YELLOW-tier bypass.
+            if (action.action_type in RED_INTERACTIVE_TOOLS
+                    and action.proposed_by in ("api_command", "voice")):
+                exec_result = await self._execute_action(action)
+                result = GatewayResult(True, 'RED', True, exec_result,
+                                       'Owner-initiated command — pre-confirmed')
+                self._write_audit(action, result)
+                if not hasattr(self._notify, "mock_calls"):
+                    await self._notify(f'VECTOR executed (owner command): {action.action_type}', priority=0)
+                return result
+
+            # A7: CouncilBrain deliberation before Pushover owner approval.
+            # OWNER_APPROVAL_ONLY and RED_INTERACTIVE_TOOLS both skip
+            # CouncilBrain's auto-proceed path and go straight to a real
+            # Pushover owner approval (fail-closed on timeout) — for
+            # RED_INTERACTIVE_TOOLS this point is only reached when the
+            # action was NOT owner-initiated (see the bypass above).
             _council_verdict = (
                 "defer"
                 if action.action_type in OWNER_APPROVAL_ONLY
+                or action.action_type in RED_INTERACTIVE_TOOLS
                 else await self._handle_red_tier(action)
             )
             if _council_verdict == "proceed":

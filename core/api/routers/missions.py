@@ -19,6 +19,20 @@ from core.runtime.missions import (
 router = APIRouter(prefix="/missions", tags=["missions"])
 
 
+def _safe_proposed_by(value: str) -> str:
+    """Neutralise reserved owner-trust markers on this client-supplied field.
+
+    2026-08-04: mission steps execute through the PermissionGateway, so a
+    body claiming {"proposed_by": "api_command"} would otherwise inherit the
+    RED_INTERACTIVE_TOOLS owner-initiated bypass (shell/GUI/code execution
+    with no owner approval). Imported lazily to match this package's existing
+    gateway-import style and avoid an import cycle at module load.
+    """
+    from core.loop.permission_gateway import sanitize_proposed_by
+
+    return sanitize_proposed_by(value, fallback="api.missions")
+
+
 class MissionRequest(BaseModel):
     objective: str = Field(..., min_length=1)
     steps: list[dict[str, Any]] = Field(default_factory=list)
@@ -43,7 +57,7 @@ async def plan_mission(body: MissionRequest, request: Request) -> dict[str, Any]
     mission = _runner_from_request(request).plan(
         objective=body.objective,
         steps=body.steps,
-        proposed_by=body.proposed_by,
+        proposed_by=_safe_proposed_by(body.proposed_by),
         max_steps=body.max_steps,
         decompose=body.decompose,
         llm_plan=body.llm_plan,
@@ -57,7 +71,7 @@ async def run_mission(body: MissionRequest, request: Request) -> dict[str, Any]:
     mission = runner.plan(
         objective=body.objective,
         steps=body.steps,
-        proposed_by=body.proposed_by,
+        proposed_by=_safe_proposed_by(body.proposed_by),
         max_steps=body.max_steps,
         decompose=body.decompose,
         llm_plan=body.llm_plan,
@@ -72,7 +86,7 @@ async def run_mission_async(body: MissionRequest, request: Request) -> dict[str,
     mission = runner.plan(
         objective=body.objective,
         steps=body.steps,
-        proposed_by=body.proposed_by,
+        proposed_by=_safe_proposed_by(body.proposed_by),
         max_steps=body.max_steps,
         decompose=body.decompose,
         llm_plan=body.llm_plan,

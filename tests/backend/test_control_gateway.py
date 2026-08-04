@@ -1,12 +1,35 @@
 import asyncio
 
 
-def test_pc_control_actions_are_classified_yellow():
+def test_pc_control_actions_are_gateway_classified():
+    """PC-control actions must be gated — and the *writing* ones must be RED.
+
+    2026-08-04 hardening: `pc_type`/`pc_click`/`pc_launch_app` were promoted
+    YELLOW -> RED. As YELLOW they auto-executed after a ~10s window with no
+    owner confirmation whenever VECTOR_YELLOW_AUTO_CONFIRM=1 (the owner's
+    live .env) — synthetic keyboard/mouse input and app launch driven by an
+    LLM-invented task_type that can originate in untrusted ingested text.
+
+    `pc_screenshot` stays YELLOW deliberately: read-only, no owner-invisible
+    side effect, and gating it would add friction for no security gain.
+
+    This test previously asserted all four were YELLOW — i.e. it encoded the
+    pre-hardening (insecure) contract. Updated to assert the intended one.
+    See tests/test_red_interactive_tools_bypass.py for the full lock-in.
+    """
     from core.loop.permission_gateway import PermissionGateway
 
     gateway = PermissionGateway()
-    for action_type in ("pc_screenshot", "pc_type", "pc_click", "pc_launch_app"):
-        assert gateway._classify(action_type) == "YELLOW"
+
+    # Read-only — stays YELLOW.
+    assert gateway._classify("pc_screenshot") == "YELLOW"
+
+    # Input injection / app launch — must require explicit owner approval.
+    for action_type in ("pc_type", "pc_click", "pc_launch_app"):
+        assert gateway._classify(action_type) == "RED", (
+            f"{action_type} must be RED — as YELLOW it auto-executes under "
+            f"VECTOR_YELLOW_AUTO_CONFIRM=1"
+        )
 
 
 def test_pc_control_does_not_dispatch_when_gateway_blocks(monkeypatch):
