@@ -217,18 +217,67 @@ def load_agent_hp() -> dict | None:
 
 
 def restore_agent_hp(registry) -> int:
-    """Restore HP from last checkpoint into currently registered agents. Returns count restored."""
+    """Restore HP from last checkpoint into currently registered agents.
+
+    Returns the number of agents whose HP was restored.
+
+    2026-08-04 fix — this function silently restored ZERO agents, always.
+    It matched snapshot entries against `agent.id`, but 129 of the 201
+    district agent files construct themselves as
+    `super().__init__(str(uuid.uuid4()), "Name", "district")` — a fresh
+    random UUID on every process start. So the saved ids could never match
+    the live ones, `restored` stayed 0, and the "restored HP for N agents"
+    log line never fired (0 is falsy) — a completely invisible no-op.
+
+    Net effect: every agent was back at the hardcoded 500 HP birth default
+    after any restart, so the Darwinian HP economy never accumulated across
+    process lifetimes. Confirmed live: agents sat saturated at the 1000 cap
+    during a 4d17h run, then read exactly 500 for every agent immediately
+    after a restart.
+
+    Fixed by matching on the STABLE identity — (district, name) — which the
+    snapshot already stores alongside the id. Exact-id matching is kept as
+    the first pass so any agent that does use a stable id still works, and
+    so older snapshots keep restoring.
+    """
     snapshot = load_agent_hp()
     if not snapshot:
         return 0
-    agents = {a.id: a for a in registry.get_all_agents()}
+
+    live = list(registry.get_all_agents())
+    by_id = {a.id: a for a in live}
+    # (district, name) -> agent. Built in reverse so that on the (unlikely)
+    # duplicate, the FIRST registered agent wins, matching by_id semantics.
+    by_identity: dict[tuple, object] = {}
+    for a in reversed(live):
+        by_identity[(getattr(a, "district", ""), getattr(a, "name", ""))] = a
+
     restored = 0
+    claimed: set[int] = set()
     for agent_id, data in snapshot.items():
-        if agent_id in agents:
-            agents[agent_id].health_points = data["hp"]
-            restored += 1
-    if restored:
-        logger.info("[VECTOR][loop_state] restored HP for {} agents", restored)
+        try:
+            hp = data["hp"]
+        except (TypeError, KeyError):
+            continue
+
+        agent = by_id.get(agent_id)
+        if agent is None:
+            agent = by_identity.get((data.get("district", ""), data.get("name", "")))
+        # Never let two snapshot rows write to the same live agent.
+        if agent is None or id(agent) in claimed:
+            continue
+
+        agent.health_points = hp
+        claimed.add(id(agent))
+        restored += 1
+
+    # Log unconditionally — a 0 here is itself the signal that the snapshot
+    # no longer lines up with the live registry, which is exactly the
+    # failure that went unnoticed before.
+    logger.info(
+        "[VECTOR][loop_state] restored HP for {}/{} agents from snapshot of {}",
+        restored, len(live), len(snapshot),
+    )
     return restored
 
 
