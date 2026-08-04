@@ -96,6 +96,30 @@ async def test_architecture_builder_run_unhandled_type_returns_structured_error(
     assert "supported" in result
 
 
+async def test_architecture_builder_run_real_dispatch_shape_with_query(architecture_builder):
+    """Real production dispatch shape (core/city/governor.py _dispatch_to_district /
+    core/api/routers/commands.py): the governor's classifier invents a task_type per
+    request and puts the user's actual free-text message in params["query"]/["content"].
+    ArchitectureBuilder.run() (districts/karpathy_lab/architecture_builder.py) has NO
+    query fallback after its structured branches — a real "what transformer
+    architecture would you recommend for a small model?" still hits the error stub
+    because the governor's invented task_type doesn't exactly match
+    design_architecture/generate_config/estimate_compute. LIVE BUG, documented here
+    rather than papered over.
+    """
+    result = await architecture_builder.run({
+        "type": "ask_architecture_builder",
+        "params": {
+            "query": "What transformer architecture would you recommend for a small model?",
+            "content": "What transformer architecture would you recommend for a small model?",
+            "source": "api_command",
+        },
+    })
+    assert result["status"] == "error"
+    assert "unhandled type" in result["error"]
+    assert "supported" in result
+
+
 # ── DataPrep ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture
@@ -157,6 +181,25 @@ async def test_data_prep_run_unhandled_type_returns_structured_error(data_prep):
     result = await data_prep.run({"type": "made_up_type", "params": {}})
     assert result["status"] == "error"
     assert "made_up_type" in result["error"]
+    assert "supported" in result
+
+
+async def test_data_prep_run_real_dispatch_shape_with_query(data_prep):
+    """Real production dispatch shape (see test_architecture_builder_run_real_dispatch_shape_with_query
+    above for the full explanation). DataPrep.run() (districts/karpathy_lab/data_prep.py)
+    also has NO query fallback — "how do I preprocess a dataset for training?" still
+    hits the error stub. LIVE BUG, documented here rather than papered over.
+    """
+    result = await data_prep.run({
+        "type": "ask_data_prep",
+        "params": {
+            "query": "How do I preprocess a text dataset before tokenizing it for training?",
+            "content": "How do I preprocess a text dataset before tokenizing it for training?",
+            "source": "api_command",
+        },
+    })
+    assert result["status"] == "error"
+    assert "unhandled type" in result["error"]
     assert "supported" in result
 
 
@@ -227,4 +270,23 @@ async def test_progress_tracker_run_unhandled_type_returns_structured_error(prog
     result = await progress_tracker.run({"type": "unknown_kind", "params": {}})
     assert result["status"] == "error"
     assert "unknown_kind" in result["error"]
+    assert "supported" in result
+
+
+async def test_progress_tracker_run_real_dispatch_shape_with_query(progress_tracker):
+    """Real production dispatch shape (see test_architecture_builder_run_real_dispatch_shape_with_query
+    above for the full explanation). ProgressTracker.run() (districts/karpathy_lab/progress_tracker.py)
+    also has NO query fallback — "how is my current training run going?" still hits
+    the error stub. LIVE BUG, documented here rather than papered over.
+    """
+    result = await progress_tracker.run({
+        "type": "ask_progress_tracker",
+        "params": {
+            "query": "How is my current training run going, any issues?",
+            "content": "How is my current training run going, any issues?",
+            "source": "api_command",
+        },
+    })
+    assert result["status"] == "error"
+    assert "unhandled type" in result["error"]
     assert "supported" in result
