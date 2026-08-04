@@ -83,6 +83,33 @@ async def test_feedback_analyst_run_unhandled_type_returns_error_shape():
     assert "agent" not in result
 
 
+@pytest.mark.asyncio
+async def test_feedback_analyst_run_real_dispatch_shape_with_query():
+    """Real production dispatch shape (core/city/governor.py _dispatch_to_district /
+    core/api/routers/commands.py): the governor's classifier invents a task_type per
+    request and puts the user's actual free-text message in params["query"]/["content"].
+    FeedbackAnalyst.run() (districts/interview_prep/feedback_analyst.py) has NO query
+    fallback after its structured branches — unlike districts/languages/*_coach.py
+    (already fixed), it ignores params["query"]/["content"] entirely and falls straight
+    to the error stub even when the caller supplied a real question. This is a LIVE BUG:
+    a real user asking "how did I do in my last mock interview?" gets an error, not an
+    answer. This test documents CURRENT (broken) behavior so it doesn't regress silently
+    further, and to make the bug visible to future readers of this suite.
+    """
+    agent = FeedbackAnalyst()
+    result = await agent.run({
+        "type": "ask_feedback_analyst",
+        "params": {
+            "query": "How did I do in my last mock interview and what should I improve?",
+            "content": "How did I do in my last mock interview and what should I improve?",
+            "source": "api_command",
+        },
+    })
+    assert result["status"] == "error"
+    assert "unhandled type" in result["error"]
+    assert "supported" in result
+
+
 # ---------------------------------------------------------------------------
 # ReportGenerator
 # ---------------------------------------------------------------------------
@@ -123,6 +150,29 @@ async def test_report_generator_run_unhandled_type_returns_error_shape():
     assert "unhandled type" in result["error"]
     assert "supported" in result
     assert "agent" not in result
+
+
+@pytest.mark.asyncio
+async def test_report_generator_run_real_dispatch_shape_with_query():
+    """Real production dispatch shape (see feedback_analyst's equivalent test above for
+    the full explanation). ReportGenerator.run() (districts/interview_prep/report_generator.py)
+    also has NO query fallback — a real user asking "can you generate my interview
+    progress report?" still hits the error stub because the governor's invented
+    task_type doesn't exactly match "session_report"/"progress_report"/"export_report"/
+    "company_specific". LIVE BUG, documented here rather than papered over.
+    """
+    agent = ReportGenerator()
+    result = await agent.run({
+        "type": "generate_my_report",
+        "params": {
+            "query": "Can you generate my interview progress report for this month?",
+            "content": "Can you generate my interview progress report for this month?",
+            "source": "api_command",
+        },
+    })
+    assert result["status"] == "error"
+    assert "unhandled type" in result["error"]
+    assert "supported" in result
 
 
 if __name__ == "__main__":
