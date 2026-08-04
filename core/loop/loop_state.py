@@ -98,13 +98,23 @@ def get_runtime() -> dict:
 
     Falls back to the cross-process heartbeat file when this process isn't
     the one running the loop (API process case).
+
+    Includes "pid" — which process actually owns the running loop. 2026-08-05:
+    added because callers could not previously tell "the loop is running HERE"
+    from "the loop is running in some OTHER process", and that distinction is
+    what core/api/app.py needs to refuse to start a duplicate brain. Purely
+    additive; existing consumers reading tick_count/running/start_time are
+    unaffected.
     """
+    import os
+
     with _rt_lock:
         if _rt_running:
             return {
                 "tick_count": _rt_tick_count,
                 "running": _rt_running,
                 "start_time": _rt_start_time,
+                "pid": os.getpid(),
             }
     hb = _read_heartbeat()
     if hb:
@@ -112,12 +122,14 @@ def get_runtime() -> dict:
             "tick_count": int(hb.get("tick_count", 0)),
             "running": True,
             "start_time": str(hb.get("start_time", "")),
+            "pid": hb.get("pid"),
         }
     with _rt_lock:
         return {
             "tick_count": _rt_tick_count,
             "running": _rt_running,
             "start_time": _rt_start_time,
+            "pid": os.getpid() if _rt_running else None,
         }
 
 

@@ -190,6 +190,45 @@ async def lifespan(app: FastAPI):
     loop_thread = None
     app.state.autonomous_loop = None
     if os.environ.get("VECTOR_API_RUN_LOOP") == "1":
+        # 2026-08-05: refuse to start a SECOND brain if another process is
+        # already running one. Measured live: an orphaned
+        # `python run_vector.py loop` (PID 44684, alive ~17h, unmanaged by
+        # any script) was running concurrently with the API process, and
+        # between them they held 90 simultaneous connections to an Ollama
+        # backend configured OLLAMA_MAX_LOADED_MODELS=1 — i.e. dozens of
+        # requests queued against something that serves one at a time. Two
+        # brains also means two writers contending for the same SQLCipher
+        # file and the same process-wide _write_lock.
+        #
+        # This became load-bearing the moment vector_watchdog.ps1 started
+        # setting VECTOR_API_RUN_LOOP=1 (see that script's 2026-08-04 note):
+        # before, a watchdog restart produced an API with no brain, so a
+        # stray `loop` process was the ONLY brain and nothing collided.
+        # After, every watchdog restart would have added a second one.
+        #
+        # vector_autostart.bat's own guard only checks "is port 8000
+        # listening", which by construction cannot see a loop-only process
+        # (it never binds a port) — that gap is exactly how the orphan
+        # survived. The heartbeat file already carries a pid and a 10s
+        # freshness window, so it's the cheapest correct signal available.
+        _other = None
+        try:
+            from core.loop.loop_state import get_runtime as _get_rt
+
+            _rt = _get_rt()
+            if _rt.get("running") and _rt.get("pid") and _rt["pid"] != os.getpid():
+                _other = _rt["pid"]
+        except Exception as _e:  # never let the guard itself block startup
+            logger.debug("[VECTOR][api] loop-duplication check skipped: {}", _e)
+
+        if _other:
+            logger.warning(
+                "[VECTOR][api] NOT starting in-process brain — another autonomous "
+                "loop is already live in PID {} (fresh heartbeat). Running two "
+                "brains doubles Ollama/DB contention. Stop the other process to "
+                "let this one own the loop.", _other,
+            )
+    if os.environ.get("VECTOR_API_RUN_LOOP") == "1" and not _other:
         try:
             import threading
             from core.loop.autonomous_loop import AutonomousLoop
