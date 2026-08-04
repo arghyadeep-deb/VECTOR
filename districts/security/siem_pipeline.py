@@ -204,6 +204,24 @@ class SIEMPipeline(AgentBase):
         if task_type == "process_event_async":
             return {"status": "ok", "triggered": await self.async_process_event(params.get("event", params))}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "give me a summary of recent SIEM activity and any triggered
+        # alerts" previously hit the bare "unhandled type" error stub.
+        # Route it to the same get_stats() this agent already treats as its
+        # safe, argument-free DEFAULT when task_type is entirely absent (see
+        # task_type = task.get("type") or "stats" above) — read-only, never
+        # ingests a fabricated event or executes a playbook from free text.
+        query = (
+            params.get("query") or params.get("content")
+            or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            # get_stats() already folds in alerts_total/alerts_by_severity,
+            # so it answers both a "summary" and an "any alerts?" question
+            # with one real, read-only call.
+            return {"status": "ok", **self.get_stats()}
+
         return {
             "status": "error",
             "error": f"unhandled type: {task_type}",

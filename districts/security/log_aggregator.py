@@ -221,6 +221,21 @@ class LogAggregator(AgentBase):
         if task_type == "prune_retention":
             return {"status": "ok", "deleted": self.prune_retention(**params)}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "show me the recent error logs from the system" previously hit the
+        # bare "unhandled type" error stub. Route it to the READ-ONLY,
+        # no-required-argument query()/stats() capabilities — never prune
+        # (deletes real log rows) from unmatched free text.
+        query = (
+            params.get("query") or params.get("content")
+            or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            level = "ERROR" if "error" in q else "WARNING" if "warn" in q else None
+            return {"status": "ok", "logs": self.query(level=level, limit=params.get("limit", 100))}
+
         return {
             "status": "error",
             "error": f"unhandled type: {task_type}",

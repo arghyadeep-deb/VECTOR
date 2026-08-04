@@ -264,6 +264,25 @@ class AlertManager(AgentBase):
         if task_type == "escalate":
             return {"status": "ok", "updated": self.escalate(params.get("alert_id", ""))}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "are there any security alerts I should know about right now?"
+        # previously hit the bare "unhandled type" error stub. Route it to
+        # the READ-ONLY, no-required-argument list_alerts/digest/stats
+        # capabilities — never acknowledge/resolve/escalate a real alert
+        # from unmatched free text.
+        query = (
+            params.get("query") or params.get("content")
+            or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            if any(w in q for w in ("digest", "last 24", "past day", "today")):
+                return {"status": "ok", "digest": self.get_digest()}
+            if any(w in q for w in ("alert", "know about", "should i")):
+                return {"status": "ok", "alerts": self.get_alerts(limit=params.get("limit", 20))}
+            return {"status": "ok", **self.get_stats()}
+
         return {
             "status": "error",
             "error": f"unhandled type: {task_type}",

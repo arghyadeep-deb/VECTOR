@@ -263,6 +263,21 @@ class DetectionRules(AgentBase):
         if task_type == "hot_reload":
             return {"status": "ok", "rules_loaded": self.hot_reload()}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "what detection rules do you currently have loaded?" previously
+        # hit the bare "unhandled type" error stub. Route it to the same
+        # list_rules() this agent already treats as its safe, argument-free
+        # DEFAULT when task_type is entirely absent (see task_type =
+        # task.get("type") or "list_rules" above) — read-only, no side
+        # effects.
+        query = (
+            params.get("query") or params.get("content")
+            or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            return {"status": "ok", "rules_loaded": len(self._rules), "rules": [r.id for r in self._rules]}
+
         return {
             "status": "error",
             "error": f"unhandled type: {task_type}",

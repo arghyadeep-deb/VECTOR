@@ -327,6 +327,32 @@ Translation:"""
         if task_type == "translate_captions":
             return self.translate_captions(p.get("captions", {}), p.get("target_language", ""))
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "can you generate captions for my video transcript?" previously
+        # hit the bare "unhandled type" error stub. Every real capability
+        # here needs an actual transcript/video_path/captions object we
+        # don't have from free text alone — only take a branch when the
+        # caller actually supplied the input; never invent transcript text
+        # or guess a video path. Otherwise answer with a grounded
+        # explanation instead of an error stub.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            if p.get("transcript"):
+                return self.generate_captions(p["transcript"], p.get("style", "standard"))
+            if p.get("video_path"):
+                return self.generate_subtitles(p["video_path"], p.get("style", "standard"), p.get("output_format", "srt"))
+            return {
+                "status": "ok",
+                "response": (
+                    "Send me the video transcript text (params.transcript) and I'll "
+                    "generate timed caption blocks, or a video_path if you want me to "
+                    "transcribe and caption it directly."
+                ),
+            }
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

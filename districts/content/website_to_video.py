@@ -211,6 +211,31 @@ class WebsiteToVideoAgent(AgentBase):
                 output_path=p.get("output", "out_alpha.webm"),
                 model=p.get("model", "u2net_human"),
             )
+
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "can you turn my landing page into a short promo video?" previously
+        # hit the bare "unhandled type" error stub. Every real capability
+        # here (capture_url/title_card/data_viz/remove_bg) renders video or
+        # processes media — a real, resource-consuming job — and there is no
+        # safe read-only capability to fall back to. Never guess one from
+        # free text; answer with a grounded explanation of what's needed
+        # instead of an error stub.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            return {
+                "status": "ok",
+                "response": (
+                    "I can capture a URL as a narrated video (capture_url + url), "
+                    "render a title card (title_card + title), render a data "
+                    "visualization (data_viz + title/data), or remove a background "
+                    "from an image/video (remove_bg + input). Tell me which one and "
+                    "give me the required input — I won't start a render without it."
+                ),
+            }
+
         return {
             "status": "error",
             "error": f"unhandled type '{action}'",

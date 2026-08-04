@@ -209,6 +209,38 @@ class DataPrep(AgentBase):
         if task_type == "tokenize_data":
             return self.tokenize_data(p.get("text_path", ""), p.get("vocab_size", 8000))
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "how do I preprocess a text dataset before tokenizing it for
+        # training?" previously hit the bare "unhandled type" error stub.
+        # Unlike the languages/interview_prep coaches, DataPrep has NO safe
+        # no-argument capability: download_dataset() makes a real network
+        # call, preprocess_data()/tokenize_data() need a real file on disk.
+        # Only take those branches when the caller actually supplied the
+        # required path/name (never guess a path or trigger a download from
+        # free text); otherwise answer with a grounded explanation instead
+        # of an error stub, per the content-district safety contract.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            if p.get("input_path") and p.get("output_path"):
+                return self.preprocess_data(p["input_path"], p["output_path"])
+            if p.get("text_path"):
+                return self.tokenize_data(p["text_path"], p.get("vocab_size", 8000))
+            if p.get("dataset_name"):
+                return self.download_dataset(p["dataset_name"])
+            return {
+                "status": "ok",
+                "response": (
+                    "I can preprocess a text file (preprocess_data with input_path + "
+                    "output_path), tokenize a text file into a char-level vocab "
+                    "(tokenize_data with text_path), or download a known dataset "
+                    "(download_dataset with dataset_name: tiny_shakespeare/wikitext-2/"
+                    "openwebtext/pile). Tell me which one and give me the path or name."
+                ),
+            }
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

@@ -226,6 +226,7 @@ class NetworkMonitor(AgentBase):
     async def run(self, task: dict | None = None) -> dict:
         task = task or {}
         task_type = task.get("type") or "report"
+        params = task.get("params") or {}
         supported = ["blocklist", "connection_rate", "port_scan", "report", "scan"]
 
         if task_type in ("report", "generate_report"):
@@ -238,6 +239,22 @@ class NetworkMonitor(AgentBase):
             return {"status": "ok", "matches": self.check_blocklist()}
         if task_type == "connection_rate":
             return {"status": "ok", **self.track_connection_rate()}
+
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "is my network being scanned or attacked right now?" previously
+        # hit the bare "unhandled type" error stub. Route it to the same
+        # generate_report() this agent already treats as its safe,
+        # argument-free DEFAULT when task_type is entirely absent (see
+        # task_type = task.get("type") or "report" above) — passive, local
+        # netstat/blocklist inspection only, no external probing, no
+        # process kill, no firewall change.
+        query = (
+            params.get("query") or params.get("content")
+            or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            return {"status": "ok", **self.generate_report()}
 
         return {
             "status": "error",

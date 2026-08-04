@@ -590,6 +590,23 @@ class Uploader(AgentBase):
         if task_type == "cancel_scheduled_upload":
             return {"status": "ok", "cancelled": self.cancel_scheduled_upload(p.get("schedule_id", ""))}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "show me my recent upload history across platforms" previously hit
+        # the bare "unhandled type" error stub. Route it to the READ-ONLY,
+        # no-required-argument history/schedule lookups — never trigger a
+        # real upload_to_youtube/instagram/tiktok/twitter (RED-tier,
+        # owner-approval-gated publish) or schedule_upload from unmatched
+        # free text.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            if "schedul" in q:
+                return {"status": "ok", "scheduled": self.get_scheduled_uploads(p.get("status"))}
+            return {"status": "ok", "history": self.get_upload_history(p.get("platform"), p.get("limit", 50))}
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":

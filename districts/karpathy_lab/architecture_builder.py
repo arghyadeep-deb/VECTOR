@@ -232,6 +232,33 @@ hardware:
             result = self.estimate_compute(p.get("architecture", {}))
             return {"status": "ok", **result}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "what transformer architecture would you recommend for a small
+        # model?" previously hit the bare "unhandled type" error stub even
+        # though a perfectly good question was supplied. Same bug class as
+        # districts/languages/hindi_coach.py. Route it to a real capability:
+        # generate_config/estimate_compute need an existing architecture
+        # dict we don't have from free text, so only take those branches
+        # when the caller actually supplied one; otherwise default to
+        # design_architecture() — no required args, local compute only (no
+        # GPU job, no subprocess, no external side effect), same as every
+        # other design_architecture call.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            if p.get("architecture") and any(w in q for w in ("compute", "flops", "vram", "memory", "gpu")):
+                result = self.estimate_compute(p["architecture"])
+                return {"status": "ok", **result}
+            if p.get("architecture") and "config" in q:
+                result = self.generate_config(p["architecture"])
+                return {"status": "ok", **result}
+            model_type = next((t for t in self.supported_architectures if t in q), p.get("model_type", "transformer"))
+            result = self.design_architecture(model_type, p.get("params", {}))
+            return {"status": "ok", **result}
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

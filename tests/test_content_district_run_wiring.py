@@ -84,11 +84,13 @@ async def test_media_studio_agent_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (core/city/governor.py _dispatch_to_district /
     core/api/routers/commands.py): the governor's classifier invents a task_type per
     request and puts the user's actual free-text message in params["query"]/["content"].
-    MediaStudioAgent.run() (districts/content/media_studio_agent.py) has NO query
-    fallback after its structured branches — a real "what image/video models do you
-    have available?" still hits the error stub because the governor's invented
-    task_type doesn't exactly match one of the fixed action strings. LIVE BUG,
-    documented here rather than papered over.
+    This test originally documented a LIVE BUG: MediaStudioAgent.run()
+    (districts/content/media_studio_agent.py) had no query fallback after its
+    structured branches, so "what image/video models do you have available?" hit the
+    error stub. Fixed 2026-08-05 — routes to the READ-ONLY, no-required-argument
+    list_models()/media_status() capabilities; never triggers a real GPU render job
+    (generate_image/generate_video/lipsync/...) from unmatched free text. Flipped
+    from documenting the bug to asserting the fix.
     """
     agent = MediaStudioAgent()
     result = await agent.run({
@@ -99,9 +101,8 @@ async def test_media_studio_agent_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert "error" not in result, f"a real free-text question must not return the error stub: {result}"
+    assert "cloud_models" in result
 
 
 # ---------------------------------------------------------------------------
@@ -137,11 +138,13 @@ async def test_video_generator_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_video_generator_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). VideoGenerator.run() (districts/content/video_generator.py)
-    also has NO query fallback — "can you suggest some tags for my AI tools video?"
-    still hits the error stub because the invented task_type doesn't match
-    title_thumbnail/generate_tags/render_html. LIVE BUG, documented here rather than
-    papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    VideoGenerator.run() (districts/content/video_generator.py) had no query fallback,
+    so "can you suggest some tags for my AI tools video?" hit the error stub because
+    the invented task_type didn't match title_thumbnail/generate_tags/render_html.
+    Fixed 2026-08-05 — keyword-routed to generate_tags() (never render_html_to_video,
+    a real GPU render job, from unmatched free text). Flipped from documenting the bug
+    to asserting the fix.
     """
     agent = VideoGenerator()
     result = await agent.run({
@@ -152,9 +155,8 @@ async def test_video_generator_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "tags" in result
 
 
 # ---------------------------------------------------------------------------
@@ -174,17 +176,18 @@ async def test_video_pipeline_agent_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_video_pipeline_agent_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). VideoPipelineAgent.run()
-    (districts/content/video_pipeline.py) has a query fallback (answer_content_question)
-    — but it is gated on `task_type == ""` specifically (an EXACTLY empty string), not
-    on "any unmatched/invented type". The real governor dispatch shape always supplies
-    a non-empty, classifier-invented task_type string (see module docstring: "the
-    governor's classifier invents a task_type per request") — it is never the empty
-    string in practice. So this fallback, as written, never actually fires for real
-    chat traffic: a genuine "what's a good topic for my next AI video?" with a
-    plausible non-empty invented type still falls through to the error stub. This is a
-    LIVE BUG — a narrower variant of the same bug class, not fully fixed despite
-    looking fixed — documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    VideoPipelineAgent.run() (districts/content/video_pipeline.py) had a query
+    fallback (answer_content_question) but it was gated on `task_type == ""`
+    specifically (an EXACTLY empty string), not on "any unmatched/invented type". The
+    real governor dispatch shape always supplies a non-empty, classifier-invented
+    task_type string, so the fallback never actually fired for real chat traffic — a
+    genuine "what's a good topic for my next AI video?" fell through to the error
+    stub despite the fallback looking like it should have caught it. Fixed 2026-08-05
+    — the gate now fires on any task_type other than the exact structured matches
+    (create_and_upload/job_status/job_queue/job_history); create_and_upload (the real
+    render+upload job) still only fires on an exact match, unchanged. Flipped from
+    documenting the bug to asserting the fix.
     """
     agent = VideoPipelineAgent()
     result = await agent.run({
@@ -195,9 +198,8 @@ async def test_video_pipeline_agent_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "response" in result
 
 
 @pytest.mark.asyncio
@@ -262,11 +264,15 @@ async def test_website_to_video_agent_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_website_to_video_agent_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). WebsiteToVideoAgent.run()
-    (districts/content/website_to_video.py) also has NO query fallback — "can you turn
-    this website into a video?" still hits the error stub because the invented
-    task_type doesn't match capture_url/title_card/data_viz/remove_bg. LIVE BUG,
-    documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    WebsiteToVideoAgent.run() (districts/content/website_to_video.py) had no query
+    fallback, so "can you turn this website into a video?" hit the error stub because
+    the invented task_type didn't match capture_url/title_card/data_viz/remove_bg.
+    Fixed 2026-08-05: every real capability here renders video/processes media (a
+    real, resource-consuming job) and there is no safe read-only capability to fall
+    back to, so per the safety contract it never guesses one — it now returns a
+    grounded {"status": "ok", "response": ...} explaining what's needed instead of an
+    error stub. Flipped from documenting the bug to asserting the fix.
     """
     agent = WebsiteToVideoAgent()
     result = await agent.run({
@@ -277,9 +283,8 @@ async def test_website_to_video_agent_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") == "ok", f"a real free-text question must not return the error stub: {result}"
+    assert "response" in result
 
 
 # ---------------------------------------------------------------------------
@@ -311,9 +316,14 @@ async def test_caption_generator_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_caption_generator_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). CaptionGenerator.run() (districts/content/caption_generator.py)
-    also has NO query fallback — "can you generate captions for my video transcript?"
-    still hits the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    CaptionGenerator.run() (districts/content/caption_generator.py) had no query
+    fallback, so "can you generate captions for my video transcript?" hit the error
+    stub. Fixed 2026-08-05: every real capability here needs a real transcript/
+    video_path/captions object we don't have from free text alone, so it never
+    invents one — it now returns a grounded {"status": "ok", "response": ...}
+    explaining what input it needs instead of an error stub. Flipped from documenting
+    the bug to asserting the fix.
     """
     agent = CaptionGenerator()
     result = await agent.run({
@@ -324,9 +334,8 @@ async def test_caption_generator_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") == "ok", f"a real free-text question must not return the error stub: {result}"
+    assert "response" in result
 
 
 # ---------------------------------------------------------------------------
@@ -365,9 +374,12 @@ async def test_content_scheduler_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_content_scheduler_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). ContentScheduler.run() (districts/content/content_scheduler.py)
-    also has NO query fallback — "what's currently scheduled to be posted?" still
-    hits the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    ContentScheduler.run() (districts/content/content_scheduler.py) had no query
+    fallback, so "what's currently scheduled to be posted?" hit the error stub. Fixed
+    2026-08-05 — routes to the READ-ONLY, no-required-argument get_summary(); never
+    triggers schedule_post() or run_pending() (a real, RED-tier publish) from
+    unmatched free text. Flipped from documenting the bug to asserting the fix.
     """
     agent = ContentScheduler()
     result = await agent.run({
@@ -378,9 +390,8 @@ async def test_content_scheduler_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert "error" not in result, f"a real free-text question must not return the error stub: {result}"
+    assert isinstance(result, dict)
 
 
 # ---------------------------------------------------------------------------
@@ -423,9 +434,13 @@ async def test_uploader_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_uploader_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). Uploader.run() (districts/content/uploader.py)
-    also has NO query fallback — "show me my recent upload history" still hits the
-    error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    Uploader.run() (districts/content/uploader.py) had no query fallback, so "show me
+    my recent upload history" hit the error stub. Fixed 2026-08-05 — routes to the
+    READ-ONLY, no-required-argument get_upload_history()/get_scheduled_uploads();
+    never triggers a real upload_to_youtube/instagram/tiktok/twitter (RED-tier,
+    owner-approval-gated publish) from unmatched free text. Flipped from documenting
+    the bug to asserting the fix.
     """
     agent = Uploader()
     result = await agent.run({
@@ -436,9 +451,8 @@ async def test_uploader_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "history" in result
 
 
 # ---------------------------------------------------------------------------
@@ -469,9 +483,14 @@ async def test_video_merger_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_video_merger_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). VideoMerger.run() (districts/content/video_merger.py)
-    also has NO query fallback — "can you merge my clips together with transitions?"
-    still hits the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    VideoMerger.run() (districts/content/video_merger.py) had no query fallback, so
+    "can you merge my clips together with transitions?" hit the error stub. Fixed
+    2026-08-05: every real capability here spawns a real ffmpeg subprocess against
+    real files on disk, and there is no safe read-only capability to fall back to, so
+    it never guesses a clips_dir/video_path — it now returns a grounded {"status":
+    "ok", "response": ...} explaining what's needed instead of an error stub. Flipped
+    from documenting the bug to asserting the fix.
     """
     agent = VideoMerger()
     result = await agent.run({
@@ -482,9 +501,8 @@ async def test_video_merger_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") == "ok", f"a real free-text question must not return the error stub: {result}"
+    assert "response" in result
 
 
 # ---------------------------------------------------------------------------
@@ -524,9 +542,13 @@ async def test_voice_generator_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_voice_generator_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_media_studio_agent_run_real_dispatch_shape_with_query
-    above for the full explanation). VoiceGenerator.run() (districts/content/voice_generator.py)
-    also has NO query fallback — "what voices are available for narration?" still
-    hits the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    VoiceGenerator.run() (districts/content/voice_generator.py) had no query
+    fallback, so "what voices are available for narration?" hit the error stub.
+    Fixed 2026-08-05 — routes to the READ-ONLY, no-required-argument
+    get_available_voices(); never triggers a real TTS render, paid ElevenLabs voice
+    cloning, or an ffmpeg subprocess from unmatched free text. Flipped from
+    documenting the bug to asserting the fix.
     """
     agent = VoiceGenerator()
     result = await agent.run({
@@ -537,9 +559,8 @@ async def test_voice_generator_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "voices" in result
 
 
 if __name__ == "__main__":

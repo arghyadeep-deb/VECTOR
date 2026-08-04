@@ -398,6 +398,33 @@ Return recommended posting times with reasoning.
             result = self.generate_title_thumbnail(topic, count=p.get("count", 5))
             return {**result, "status": "ok" if result.get("status") == "success" else "error"}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "can you suggest some tags for my new AI tools video?" previously
+        # hit the bare "unhandled type" error stub. Route it to whichever
+        # real capability the query actually asks for; never trigger
+        # render_html_to_video (a real GPU render job) from unmatched free
+        # text — that stays gated behind an exact type match above.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            topic = p.get("topic", query)
+            if any(w in q for w in ("title", "thumbnail")):
+                result = self.generate_title_thumbnail(topic, count=p.get("count", 5))
+                return {**result, "status": "ok" if result.get("status") == "success" else "error"}
+            if "b-roll" in q or "broll" in q or "footage" in q:
+                return {"status": "ok", "suggestions": self.suggest_broll(topic)}
+            if "schedul" in q or ("post" in q and "time" in q):
+                return self.suggest_scheduling(topic)
+            if "description" in q:
+                return self.generate_video_description(p.get("script", topic), platform=p.get("platform", "youtube"))
+            # default: tag suggestions — cheapest, safest real capability,
+            # no required args beyond the query text itself.
+            tags = self.generate_tags(topic, count=p.get("count", 15))
+            return {"status": "ok", "tags": tags}
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
     def _get_timestamp(self) -> str:

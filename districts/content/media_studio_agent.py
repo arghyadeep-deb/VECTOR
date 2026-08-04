@@ -176,6 +176,24 @@ class MediaStudioAgent(AgentBase):
             return await self.get_status()
         elif action == "list_models":
             return await self.list_models(p.get("category"))
+
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "what image and video generation models do you have available?"
+        # previously hit the bare "unhandled type" error stub. This agent's
+        # real capabilities (generate_image/generate_video/lipsync/upscale/
+        # background_remove) are all real GPU render jobs — never trigger
+        # one from an unmatched free-text query. Route to the two READ-ONLY,
+        # no-required-argument capabilities instead: media_status/list_models.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            if any(w in q for w in ("status", "health", "wan2gp", "up and running", "working")):
+                return await self.get_status()
+            return await self.list_models(p.get("category"))
+
         return {
             "status": "error",
             "error": f"unhandled type '{action}'",

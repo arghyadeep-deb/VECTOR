@@ -190,6 +190,20 @@ class ContentScheduler(AgentBase):
         if task_type == "summary":
             return self.get_summary()
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "what's currently scheduled to be posted this week?" previously
+        # hit the bare "unhandled type" error stub. Route it to the
+        # READ-ONLY, no-required-argument get_summary() — never trigger
+        # schedule_post() (creates a real job) or run_pending() (PUBLISHES
+        # to Dev.to/Hashnode/Medium, a RED-tier action) from unmatched free
+        # text.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            return self.get_summary()
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":

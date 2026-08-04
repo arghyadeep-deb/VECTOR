@@ -64,11 +64,14 @@ async def test_alert_manager_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (core/city/governor.py _dispatch_to_district /
     core/api/routers/commands.py): the governor's classifier invents a task_type per
     request and puts the user's actual free-text message in params["query"]/["content"].
-    AlertManager.run() (districts/security/alert_manager.py) has NO query fallback
-    after its structured branches — a real "are there any security alerts I should
-    know about?" still hits the error stub because the governor's invented task_type
-    doesn't exactly match one of {stats, list_alerts, digest, acknowledge, resolve,
-    escalate}. LIVE BUG, documented here rather than papered over.
+    This test originally documented a LIVE BUG: AlertManager.run()
+    (districts/security/alert_manager.py) had no query fallback after its structured
+    branches, so "are there any security alerts I should know about?" hit the error
+    stub because the invented task_type didn't exactly match one of {stats,
+    list_alerts, digest, acknowledge, resolve, escalate}. Fixed 2026-08-05 — routes
+    to the READ-ONLY, no-required-argument stats/list_alerts/digest capabilities;
+    never acknowledges/resolves/escalates a real alert from unmatched free text.
+    Flipped from documenting the bug to asserting the fix.
     """
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
@@ -82,9 +85,8 @@ async def test_alert_manager_run_real_dispatch_shape_with_query():
                 "source": "api_command",
             },
         })
-        assert result["status"] == "error"
-        assert "unhandled type" in result["error"]
-        assert "supported" in result
+        assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+        assert "alerts" in result
     finally:
         Path(tmp.name).unlink(missing_ok=True)
 
@@ -116,9 +118,12 @@ async def test_detection_rules_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_detection_rules_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_alert_manager_run_real_dispatch_shape_with_query
-    above for the full explanation). DetectionRules.run() (districts/security/detection_rules.py)
-    also has NO query fallback — "what detection rules do you have loaded?" still hits
-    the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    DetectionRules.run() (districts/security/detection_rules.py) had no query
+    fallback, so "what detection rules do you have loaded?" hit the error stub.
+    Fixed 2026-08-05 — routes to the same list_rules() this agent already treats as
+    its safe, argument-free DEFAULT when task_type is entirely absent. Flipped from
+    documenting the bug to asserting the fix.
     """
     dr = DetectionRules()
     result = await dr.run({
@@ -129,9 +134,8 @@ async def test_detection_rules_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "rules_loaded" in result
 
 
 # ---------------------------------------------------------------------------
@@ -160,10 +164,14 @@ async def test_incident_playbook_runner_run_unhandled_type_returns_error_shape()
 @pytest.mark.asyncio
 async def test_incident_playbook_runner_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_alert_manager_run_real_dispatch_shape_with_query
-    above for the full explanation). IncidentPlaybookRunner.run()
-    (districts/security/incident_playbook_runner.py) also has NO query fallback —
-    "what incident response playbooks are available?" still hits the error stub.
-    LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    IncidentPlaybookRunner.run() (districts/security/incident_playbook_runner.py) had
+    no query fallback, so "what incident response playbooks are available?" hit the
+    error stub. Fixed 2026-08-05 — routes to the same list_playbooks() this agent
+    already treats as its safe, argument-free DEFAULT when task_type is entirely
+    absent; never triggers execute_playbook() (runs real actions: block_ip,
+    kill_process, run_antivirus, ...) from unmatched free text. Flipped from
+    documenting the bug to asserting the fix.
     """
     ipr = IncidentPlaybookRunner()
     result = await ipr.run({
@@ -174,9 +182,8 @@ async def test_incident_playbook_runner_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "playbooks" in result
 
 
 # ---------------------------------------------------------------------------
@@ -217,14 +224,18 @@ async def test_log_aggregator_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_log_aggregator_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_alert_manager_run_real_dispatch_shape_with_query
-    above for the full explanation). LogAggregator.run() (districts/security/log_aggregator.py)
-    also has NO query fallback — "show me recent error logs" still hits the error stub.
-    LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    LogAggregator.run() (districts/security/log_aggregator.py) had no query fallback,
+    so "show me recent error logs" hit the error stub. Fixed 2026-08-05 — routes to
+    the READ-ONLY, no-required-argument query() (level-filtered from the query text);
+    never prunes real log rows from unmatched free text. Flipped from documenting the
+    bug to asserting the fix.
     """
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
     try:
         agg = LogAggregator(db_path=tmp.name)
+        agg._store_event(LogEvent(service="test", level="ERROR", message="disk write failed"))
         result = await agg.run({
             "type": "ask_log_aggregator",
             "params": {
@@ -233,9 +244,10 @@ async def test_log_aggregator_run_real_dispatch_shape_with_query():
                 "source": "api_command",
             },
         })
-        assert result["status"] == "error"
-        assert "unhandled type" in result["error"]
-        assert "supported" in result
+        assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+        assert "logs" in result
+        assert len(result["logs"]) == 1
+        assert result["logs"][0]["level"] == "ERROR"
     finally:
         Path(tmp.name).unlink(missing_ok=True)
 
@@ -266,9 +278,13 @@ async def test_network_monitor_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_network_monitor_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_alert_manager_run_real_dispatch_shape_with_query
-    above for the full explanation). NetworkMonitor.run() (districts/security/network_monitor.py)
-    also has NO query fallback — "is my network being scanned right now?" still hits
-    the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    NetworkMonitor.run() (districts/security/network_monitor.py) had no query
+    fallback, so "is my network being scanned right now?" hit the error stub. Fixed
+    2026-08-05 — routes to the same generate_report() this agent already treats as
+    its safe, argument-free DEFAULT when task_type is entirely absent: passive, local
+    netstat/blocklist inspection only, no external probing, no process kill, no
+    firewall change. Flipped from documenting the bug to asserting the fix.
     """
     nm = NetworkMonitor()
     result = await nm.run({
@@ -279,9 +295,8 @@ async def test_network_monitor_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "total_connections" in result
 
 
 # ---------------------------------------------------------------------------
@@ -319,9 +334,13 @@ async def test_siem_pipeline_run_unhandled_type_returns_error_shape():
 @pytest.mark.asyncio
 async def test_siem_pipeline_run_real_dispatch_shape_with_query():
     """Real production dispatch shape (see test_alert_manager_run_real_dispatch_shape_with_query
-    above for the full explanation). SIEMPipeline.run() (districts/security/siem_pipeline.py)
-    also has NO query fallback — "give me a summary of SIEM activity" still hits the
-    error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    SIEMPipeline.run() (districts/security/siem_pipeline.py) had no query fallback,
+    so "give me a summary of SIEM activity" hit the error stub. Fixed 2026-08-05 —
+    routes to the same get_stats() this agent already treats as its safe,
+    argument-free DEFAULT when task_type is entirely absent; never ingests a
+    fabricated event or executes a playbook from unmatched free text. Flipped from
+    documenting the bug to asserting the fix.
     """
     tmp_dir = tempfile.mkdtemp()
     db_path = str(Path(tmp_dir) / "logs.db")
@@ -335,9 +354,9 @@ async def test_siem_pipeline_run_real_dispatch_shape_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", f"a real free-text question must not return the error stub: {result}"
+    assert "rules_loaded" in result
+    assert "alerts_total" in result
 
 
 if __name__ == "__main__":

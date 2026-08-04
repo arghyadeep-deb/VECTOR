@@ -397,6 +397,29 @@ class VideoMerger(AgentBase):
         if task_type == "add_subtitles":
             return self.add_subtitles(p.get("video_path", ""), p.get("subtitle_path", ""), p.get("output_path"), p.get("style", "default"))
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "can you merge my video clips together with smooth transitions?"
+        # previously hit the bare "unhandled type" error stub. Every real
+        # capability here spawns a real ffmpeg subprocess against real files
+        # on disk — there is no safe read-only capability to fall back to.
+        # Never guess a clips_dir/video_path from free text; answer with a
+        # grounded explanation instead of an error stub.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            return {
+                "status": "ok",
+                "response": (
+                    "I can merge clips (merge_clips + clips_dir/output_path), add "
+                    "background music, add transitions, trim, extract audio, or burn "
+                    "subtitles into a video — all need a real video_path/clips_dir on "
+                    "disk. Tell me which operation and give me the file path(s); I "
+                    "won't run ffmpeg without one."
+                ),
+            }
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 

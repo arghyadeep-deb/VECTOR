@@ -373,6 +373,19 @@ class VoiceGenerator(AgentBase):
         if task_type == "text_to_ssml":
             return {"status": "ok", "ssml": self.text_to_ssml(p.get("text", ""), p.get("breaks"))}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "what voices are available for narrating my video?" previously hit
+        # the bare "unhandled type" error stub. Route it to the READ-ONLY,
+        # no-required-argument get_available_voices() — never trigger a
+        # real TTS render, voice cloning (paid ElevenLabs API), or an
+        # ffmpeg subprocess (adjust_voice_speed) from unmatched free text.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            return {"status": "ok", "voices": self.get_available_voices()}
+
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
 if __name__ == "__main__":

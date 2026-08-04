@@ -390,6 +390,24 @@ class IncidentPlaybookRunner(AgentBase):
             incident = await self.execute_playbook(playbook, params.get("evidence", {}), params.get("alert_id", ""))
             return {"status": "ok", "incident": incident.model_dump(mode="json")}
 
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "what incident response playbooks are available?" previously hit
+        # the bare "unhandled type" error stub. Route it to the same
+        # list_playbooks() this agent already treats as its safe,
+        # argument-free DEFAULT when task_type is entirely absent (see
+        # task_type = task.get("type") or "list_playbooks" above) —
+        # read-only. Never trigger execute_playbook() (runs real actions:
+        # block_ip, kill_process, run_antivirus, ...) from unmatched free
+        # text — that stays gated behind an exact type match AND an
+        # explicit playbook_id above.
+        query = (
+            params.get("query") or params.get("content")
+            or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            return {"status": "ok", "playbooks_loaded": len(self._playbooks), "playbooks": list(self._playbooks.keys())}
+
         return {
             "status": "error",
             "error": f"unhandled type: {task_type}",

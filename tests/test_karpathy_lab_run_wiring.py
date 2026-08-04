@@ -100,12 +100,14 @@ async def test_architecture_builder_run_real_dispatch_shape_with_query(architect
     """Real production dispatch shape (core/city/governor.py _dispatch_to_district /
     core/api/routers/commands.py): the governor's classifier invents a task_type per
     request and puts the user's actual free-text message in params["query"]/["content"].
-    ArchitectureBuilder.run() (districts/karpathy_lab/architecture_builder.py) has NO
-    query fallback after its structured branches — a real "what transformer
-    architecture would you recommend for a small model?" still hits the error stub
-    because the governor's invented task_type doesn't exactly match
-    design_architecture/generate_config/estimate_compute. LIVE BUG, documented here
-    rather than papered over.
+    This test originally documented a LIVE BUG: ArchitectureBuilder.run() had no query
+    fallback after its structured branches, so "what transformer architecture would you
+    recommend for a small model?" hit the error stub even though the invented task_type
+    just didn't exactly match design_architecture/generate_config/estimate_compute.
+    Fixed 2026-08-05 (same pattern as districts/languages/*_coach.py) — the query is
+    keyword-routed to a real capability, defaulting to design_architecture() (no
+    required args, local compute only, no GPU job/subprocess/external side effect).
+    Flipped from documenting the bug to asserting the fix.
     """
     result = await architecture_builder.run({
         "type": "ask_architecture_builder",
@@ -115,9 +117,12 @@ async def test_architecture_builder_run_real_dispatch_shape_with_query(architect
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", (
+        f"a real free-text question must not return the error stub: {result}"
+    )
+    # design_architecture() output — real generated config, not a canned shape.
+    assert result["type"] == "transformer"
+    assert "config" in result
 
 
 # ── DataPrep ──────────────────────────────────────────────────────────────────
@@ -186,9 +191,14 @@ async def test_data_prep_run_unhandled_type_returns_structured_error(data_prep):
 
 async def test_data_prep_run_real_dispatch_shape_with_query(data_prep):
     """Real production dispatch shape (see test_architecture_builder_run_real_dispatch_shape_with_query
-    above for the full explanation). DataPrep.run() (districts/karpathy_lab/data_prep.py)
-    also has NO query fallback — "how do I preprocess a dataset for training?" still
-    hits the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    DataPrep.run() (districts/karpathy_lab/data_prep.py) had no query fallback, so
+    "how do I preprocess a dataset for training?" hit the error stub. Fixed 2026-08-05:
+    DataPrep has NO safe no-argument capability (download_dataset makes a real network
+    call, preprocess_data/tokenize_data need real file paths we don't have from free
+    text) so per the safety contract it never guesses a destructive default — it now
+    returns a grounded {"status": "ok", "response": ...} explaining what it can do and
+    what input it needs. Flipped from documenting the bug to asserting the fix.
     """
     result = await data_prep.run({
         "type": "ask_data_prep",
@@ -198,9 +208,11 @@ async def test_data_prep_run_real_dispatch_shape_with_query(data_prep):
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") == "ok", (
+        f"a real free-text question must not return the error stub: {result}"
+    )
+    assert "response" in result
+    assert "preprocess" in result["response"].lower() or "tokenize" in result["response"].lower()
 
 
 # ── ProgressTracker ───────────────────────────────────────────────────────────
@@ -275,10 +287,18 @@ async def test_progress_tracker_run_unhandled_type_returns_structured_error(prog
 
 async def test_progress_tracker_run_real_dispatch_shape_with_query(progress_tracker):
     """Real production dispatch shape (see test_architecture_builder_run_real_dispatch_shape_with_query
-    above for the full explanation). ProgressTracker.run() (districts/karpathy_lab/progress_tracker.py)
-    also has NO query fallback — "how is my current training run going?" still hits
-    the error stub. LIVE BUG, documented here rather than papered over.
+    above for the full explanation). This test originally documented a LIVE BUG:
+    ProgressTracker.run() (districts/karpathy_lab/progress_tracker.py) had no query
+    fallback, so "how is my current training run going?" hit the error stub. Fixed
+    2026-08-05 — the query now routes to the read-only get_progress()/
+    generate_report() against the most recently started run (self._current_run, or
+    the latest run in the DB), never starting a new run from free text. Flipped from
+    documenting the bug to asserting the fix.
     """
+    await progress_tracker.run({
+        "type": "start_run",
+        "params": {"run_name": "wiring-query-test", "config": {"training": {"max_steps": 50}}},
+    })
     result = await progress_tracker.run({
         "type": "ask_progress_tracker",
         "params": {
@@ -287,6 +307,9 @@ async def test_progress_tracker_run_real_dispatch_shape_with_query(progress_trac
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result.get("status") != "error", (
+        f"a real free-text question must not return the error stub: {result}"
+    )
+    # get_progress() output — real stored data, not a canned shape.
+    assert result["run_name"] == "wiring-query-test"
+    assert "progress_percent" in result

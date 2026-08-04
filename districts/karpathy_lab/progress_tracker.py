@@ -142,6 +142,20 @@ class ProgressTracker(AgentBase):
 
         return log_entry
 
+    def _get_latest_run_name(self) -> str | None:
+        """Read-only lookup of the most recently started run, for the free-text
+        dispatch fallback below — no side effects, no required args."""
+        with self._lock:
+            conn = self._get_conn()
+            try:
+                cursor = conn.execute(
+                    "SELECT run_name FROM training_runs ORDER BY start_time DESC LIMIT 1"
+                )
+                row = cursor.fetchone()
+            finally:
+                conn.close()
+        return row[0] if row else None
+
     def get_progress(self, run_name: str) -> dict:
         logger.info(f"[VECTOR][karpathy_lab] Getting progress for run: {run_name}")
         with self._lock:
@@ -279,6 +293,32 @@ class ProgressTracker(AgentBase):
             if "error" in report:
                 return {**report, "status": "error"}
             return {**report, "run_status": report.get("status"), "status": "ok"}
+
+        # 2026-08-05: real chat dispatch arrives as an LLM-invented task_type
+        # with the user's actual question in params["query"]/["content"] —
+        # "how is my current training run going, any issues?" previously hit
+        # the bare "unhandled type" error stub. Route it to the read-only
+        # get_progress()/generate_report() capabilities against the most
+        # recently started run (self._current_run if this instance started
+        # one, else the latest run in the DB) — no writes, no required args,
+        # never starts a new run from free text.
+        query = (
+            p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or ""
+        ).strip()
+        if query:
+            q = query.lower()
+            run_name = p.get("run_name") or self._current_run or self._get_latest_run_name()
+            if not run_name:
+                return {
+                    "status": "ok",
+                    "response": "No training runs have been started yet. Start one with a run_name and config to track progress.",
+                }
+            if any(w in q for w in ("report", "summary")):
+                report = self.generate_report(run_name)
+                if "error" in report:
+                    return {**report, "status": "error"}
+                return {**report, "run_status": report.get("status"), "status": "ok"}
+            return self.get_progress(run_name)
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 

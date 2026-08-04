@@ -731,13 +731,29 @@ class VideoPipelineAgent(AgentBase):
         # (the documented "create_and_upload"/"" default) still runs it
         # exactly as before; real free text with no explicit topic gets
         # answered in words instead.
+        #
+        # 2026-08-05: this gate only fired when task_type was the EXACT
+        # empty string. Real chat dispatch always supplies a non-empty,
+        # classifier-invented task_type (e.g. "ask_video_pipeline"), so
+        # "what's a good topic for my next AI video?" never matched and fell
+        # through to the unhandled-type error instead of getting a safe
+        # answer — a narrower variant of the same bug class. Broadened to
+        # fire on ANY unmatched task_type, not just "". This makes the
+        # pipeline safer, not less safe: create_and_upload (the real
+        # render+upload job) still only fires on an EXACT
+        # "create_and_upload"/"" match below — unchanged.
         query = (
             p.get("query")
+            or p.get("content")
             or task.get("query")
             or task.get("text")
             or ""
         ).strip()
-        if task_type == "" and query and not p.get("topic"):
+        if (
+            query
+            and not p.get("topic")
+            and task_type not in ("create_and_upload", "job_status", "job_queue", "job_history")
+        ):
             answer = await self.answer_content_question(query)
             if answer:
                 return {"status": "ok", "response": answer}
