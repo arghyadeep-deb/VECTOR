@@ -13,6 +13,7 @@ import sys
 import json
 import uuid
 import datetime
+import threading
 
 
 from loguru import logger
@@ -85,6 +86,11 @@ class EvolutionEngine:
         logger.debug(
             f"[VECTOR][evolution] constructor registered: {agent_name} → {agent_class.__name__}"
         )
+
+    def get_constructor(self, agent_name: str) -> type | None:
+        """Return the class registered for agent_name via register_constructor(),
+        or None if nothing is registered for that name."""
+        return self._agent_constructors.get(agent_name)
 
     # ── legacy dict-based API (called by AgentRegistry.deregister) ────────────
 
@@ -411,10 +417,35 @@ class EvolutionEngine:
                 "generation":  getattr(agent, "generation", 1),
                 "final_hp":    getattr(agent, "health_points", 0),
                 "ghost_memory": getattr(agent, "ghost_memory", {}),
+                # 2026-08-05 fix — see AgentRegistry.deregister()/_persist_ghost:
+                # capabilities live outside ghost_memory and must be carried
+                # explicitly so a ghost read back later still has them.
+                "capabilities": list(getattr(agent, "capabilities", [])),
             }
             get_registry()._persist_ghost(ghost)
         except Exception as e:
             logger.error(f"[VECTOR][evolution] _persist_agent_history failed: {e}")
+
+
+# ── singleton ─────────────────────────────────────────────────────────────────
+# Session-lifetime EvolutionEngine so register_constructor()'s
+# agent_name → class map (populated by AgentRegistry.register(), 2026-08-05
+# fix) actually persists across calls — EvolutionEngine() on its own
+# creates a fresh instance with an empty map every time, which is why the
+# constructor registry was previously dead in production.
+
+_evolution_engine_singleton: "EvolutionEngine | None" = None
+_evolution_engine_lock = threading.Lock()
+
+
+def get_evolution_engine() -> "EvolutionEngine":
+    """Global singleton EvolutionEngine — mirrors agent_registry.get_registry()."""
+    global _evolution_engine_singleton
+    if _evolution_engine_singleton is None:
+        with _evolution_engine_lock:
+            if _evolution_engine_singleton is None:
+                _evolution_engine_singleton = EvolutionEngine()
+    return _evolution_engine_singleton
 
 
 # ── entry point ───────────────────────────────────────────────────────────────

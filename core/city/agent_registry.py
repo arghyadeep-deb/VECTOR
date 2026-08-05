@@ -34,16 +34,71 @@ class AgentRegistry:
     def register(self, agent) -> None:
         """Register a living agent in the city."""
         self._agents[agent.id] = agent
+        # Wire EvolutionEngine.register_constructor() into the real
+        # register->die->deregister lifecycle (2026-08-05 fix) — it existed
+        # but was never called in production. Best-effort / non-fatal: the
+        # actual successor-reconstruction in deregister() below uses
+        # type(agent) directly (always correct, no lookup-miss risk), this
+        # just makes the pre-existing constructor registry genuinely
+        # populated for any other consumer of EvolutionEngine.spawn_from_ghost
+        # / check_and_evolve (and for tests asserting the wiring is live).
+        try:
+            from core.city.evolution_engine import get_evolution_engine
+            get_evolution_engine().register_constructor(agent.name, type(agent))
+        except Exception as e:
+            logger.debug(f"[VECTOR][agent_registry] constructor registration skipped for {agent.name}: {e}")
         logger.info(
             f"[VECTOR][agent_registry] +{agent.name} ({agent.district}) "
             f"HP={agent.health_points} gen={agent.generation}"
         )
 
+    def _instantiate_successor(self, agent_class: type, agent, new_id: str, new_gen: int):
+        """Build a fresh instance of agent_class, trying the constructor
+        shapes actually used across VECTOR's ~130 district agent classes.
+
+        declarative_manifest.ManifestLoader.instantiate_all() always builds
+        district agents with `cls()` (zero args) — most subclasses (e.g.
+        CodingSwarm, ArchitectBot(ghost=None)) hardcode their own id/name/
+        district internally. A smaller set never override __init__ at all
+        and need AgentBase's own (agent_id, name, district, generation=)
+        signature. Try both; TypeError (signature mismatch) tries the next
+        shape. Any OTHER exception is a real bug inside that class's
+        __init__ and is left to propagate — masking it as "no constructor
+        matched" would hide the actual failure from the loud log in
+        deregister()'s except block.
+        """
+        last_exc: Exception | None = None
+        for build in (
+            lambda: agent_class(),
+            lambda: agent_class(agent_id=new_id, name=agent.name, district=agent.district, generation=new_gen),
+            lambda: agent_class(new_id, agent.name, agent.district, new_gen),
+        ):
+            try:
+                return build()
+            except TypeError as e:
+                last_exc = e
+                continue
+        raise TypeError(f"no supported constructor shape for {agent_class.__name__}: {last_exc}")
+
     def deregister(self, agent_id: str) -> None:
-        """Remove agent on death. Ghost saved, successor spawned (RULE 9 — Darwinism is real)."""
+        """Remove agent on death. Ghost saved, successor spawned as the SAME
+        class as the agent that died (RULE 9 — Darwinism is real, and a
+        successor must do REAL WORK, not silently come back as a bare
+        AgentBase stub with zero capabilities and a fake 'ok' run() —
+        2026-08-05 fix)."""
         agent = self._agents.pop(agent_id, None)
         if not agent:
             return
+        agent_class = type(agent)
+        # capabilities are injected by ManifestLoader AFTER construction
+        # (declarative_manifest.instantiate_all: `instance.capabilities =
+        # list(entry.get("capabilities", []))`) — never set inside a
+        # district class's own __init__. So they must be carried through
+        # the ghost explicitly, or ANY successor (reconstructed class or
+        # the RULE-9 bare-AgentBase fallback) comes back with
+        # capabilities=[] and governor.dispatch()'s capability match
+        # silently stops routing real work to it.
+        agent_capabilities = list(getattr(agent, "capabilities", []))
         ghost_data = {
             "name": agent.name,
             "district": agent.district,
@@ -53,6 +108,7 @@ class AgentRegistry:
             "lessons_learned": getattr(agent, "lessons", []),
             "best_decisions": getattr(agent, "best_decisions", []),
             "personality_traits": getattr(agent, "personality_traits", {}),
+            "capabilities": agent_capabilities,
         }
         self._persist_ghost(agent)
         logger.info(
@@ -62,20 +118,34 @@ class AgentRegistry:
         try:
             import uuid as _uuid
             from core.city.evolution_engine import EvolutionEngine
-            from core.city.agent_base import AgentBase
             blueprint = EvolutionEngine().spawn_successor(ghost_data)
-            successor = AgentBase(
-                str(_uuid.uuid4()),
-                blueprint["name"],
-                agent.district,
-                generation=blueprint["generation"],
+
+            new_id = str(_uuid.uuid4())
+            successor = self._instantiate_successor(
+                agent_class, agent, new_id, blueprint["generation"]
             )
+            successor.generation = blueprint["generation"]
+            successor.district = agent.district
+            successor.name = agent.name
             successor.health_points = blueprint["starting_hp"]
             successor.model = successor._calculate_model()
+            successor.capabilities = list(agent_capabilities)
             successor.inherit_ghost(ghost_data)
             self.register(successor)
+            logger.info(
+                f"[VECTOR][agent_registry] {agent.name} successor spawned as "
+                f"{type(successor).__name__} gen={successor.generation} "
+                f"HP={successor.health_points} capabilities={len(successor.capabilities)}"
+            )
         except Exception as e:
-            logger.error(f"[VECTOR][agent_registry] evolution spawn failed: {e}")
+            logger.error(
+                f"[VECTOR][agent_registry] {agent.name} successor reconstruction "
+                f"FAILED for class {agent_class.__name__}: {e} — downgrading to a "
+                f"bare AgentBase so the district stays staffed (RULE 9). This "
+                f"agent will do NO REAL WORK (fake 'ok' run(), no capabilities) "
+                f"until the process restarts and re-bootstraps it from the "
+                f"manifest — fix the constructor mismatch."
+            )
             # Fallback: plain gen+1 AgentBase so the district stays staffed (RULE 9)
             try:
                 import uuid as _uuid
@@ -86,6 +156,7 @@ class AgentRegistry:
                     agent.district,
                     generation=agent.generation + 1,
                 )
+                successor.capabilities = list(agent_capabilities)
                 successor.inherit_ghost(ghost_data)
                 self.register(successor)
                 logger.info(f"[VECTOR][agent_registry] fallback spawn: {agent.name} gen={successor.generation}")
@@ -110,6 +181,7 @@ class AgentRegistry:
                 generation = agent.get("generation")
                 final_hp = agent.get("final_hp") or agent.get("health_points")
                 ghost_memory = agent.get("ghost_memory")
+                caps = agent.get("capabilities")
             else:
                 agent_id = agent.id
                 agent_name = agent.name
@@ -117,6 +189,17 @@ class AgentRegistry:
                 generation = agent.generation
                 final_hp = agent.health_points
                 ghost_memory = agent.ghost_memory
+                caps = getattr(agent, "capabilities", None)
+
+            # Carry capabilities into the persisted ghost row (2026-08-05 fix)
+            # so a ghost read back via get_dead_ghosts() — e.g. after a
+            # process restart — still yields correct capabilities. die()'s
+            # ghost_memory dict (agent_base.py, out of scope here) doesn't
+            # include this key, so add it defensively without mutating the
+            # caller's own dict. Existing ghost rows without the key are
+            # unaffected — callers already do `.get("capabilities", [])`.
+            if isinstance(ghost_memory, dict) and caps and "capabilities" not in ghost_memory:
+                ghost_memory = {**ghost_memory, "capabilities": list(caps)}
 
             from core.memory.episodic import get_db_connection
             conn = get_db_connection()
