@@ -324,7 +324,17 @@ class DocGenerator(AgentBase):
                     self.deduct_points(30, "weekly summary write failed")
                     return {"status": "error", "reason": "write failed"}
 
-            elif task_type == "changelog":
+            elif task_type in ("changelog", "generate_changelog"):
+                # 2026-07-29 KNOWN_ISSUES: the real production
+                # /documentation/changelog route (core/api/routers/
+                # documentation.py) and DISTRICT_TASK_MAP (core/city/
+                # governor.py) both dispatch task_type="generate_changelog",
+                # which never matched this handler's original bare
+                # "changelog" check — every changelog request, routed
+                # correctly or not, fell to the `else` branch's "unknown
+                # task type" error. Accept both spellings rather than
+                # picking one canonical name and risking missing another
+                # caller elsewhere that already relies on the other.
                 content = self.generate_changelog()
                 ok = self.write_document(content, "changelog")
                 if ok:

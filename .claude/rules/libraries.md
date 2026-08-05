@@ -15,9 +15,15 @@ httpx                — async HTTP
 ## Memory & Storage
 ```
 sqlcipher3           — SQLite with AES-256 encryption (primary local DB)
-chromadb             — vector embeddings
-lightrag             — upgraded RAG system (replaces ChromaDB-only)
-supabase             — primary cloud DB
+lightrag             — upgraded RAG system (core/memory/obsidian_sync.py; internal
+                        vector store is nano-vectordb, not chromadb — the chromadb
+                        SDK was removed from requirements.txt 2026-08-05, zero
+                        direct imports repo-wide)
+supabase             — primary cloud DB, reached via raw httpx REST calls against
+                        PostgREST (`{SUPABASE_URL}/rest/v1/...`), NOT the supabase-py
+                        SDK — the SDK packages (supabase, postgrest, storage3,
+                        supabase-auth, supabase-functions, realtime) were removed
+                        from requirements.txt 2026-08-05, zero direct imports
 keyring              — API key storage (never store in .env files on server)
 watchdog             — file system monitoring for Obsidian sync
 ```
