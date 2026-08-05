@@ -419,6 +419,12 @@ async def ws_command_http(request: WSCommandRequest):
         task = {
             "type": intent["type"],
             "params": {"query": request.text, "content": request.text, "source": "ws_http"},
+            # 2026-07-29 KNOWN_ISSUES (Governor capability-match misrouting)
+            # — see commands.py's identical marker for the full rationale;
+            # lets dispatch() add an honest capability-miss caveat only for
+            # chat-originated, LLM-invented task_types, never for the 100+
+            # established routes with stable task_type strings.
+            "_llm_classified": True,
         }
         if intent.get("district"):
             task["district"] = intent["district"]

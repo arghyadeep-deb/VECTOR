@@ -440,6 +440,18 @@ async def _stream_respond(websocket, text: str, orb) -> tuple[str, float]:
     buf = ""
     seq = 0
     speaking = False
+    # KNOWN_ISSUES #4 (2026-07-30): this pipeline is genuinely incremental —
+    # sentence 1 is synthesized and sent while the LLM is still generating
+    # sentence 2+, so buffering the WHOLE response first (like realtime.py's
+    # _stream_chat, which turned out to already collect the full text before
+    # any TTS) would defeat the entire point of this path. Cheaper
+    # compromise: gate only the FIRST sentence on the same deterministic
+    # Devanagari check text chat (#35) already has. If it fails, raise here
+    # (before any audio is sent) so the caller's existing except-block falls
+    # back to the batch path below, which now carries its own full
+    # translate-retry backstop — one sentence of extra latency, not the
+    # whole reply, and still a hard guarantee overall.
+    checked_first_sentence = False
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         async with client.stream(
@@ -465,6 +477,13 @@ async def _stream_respond(websocket, text: str, orb) -> tuple[str, float]:
                     await websocket.send_json({"type": "response_partial", "text": full_text})
                     sentence, buf = _pop_sentence(buf)
                     if sentence:
+                        if not checked_first_sentence:
+                            checked_first_sentence = True
+                            from core.city.governor import _is_mostly_devanagari
+                            if _is_mostly_devanagari(sentence):
+                                raise RuntimeError(
+                                    "first sentence failed English-only policy check"
+                                )
                         if not speaking:
                             speaking = True
                             await orb("speaking")
@@ -536,6 +555,19 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
         )
         if r.status_code == 200:
             response = r.json().get("response", "Done.")
+            # KNOWN_ISSUES #4 (2026-07-30): this is the batch fallback that
+            # both the streaming path (on a first-sentence policy failure)
+            # and the caller's own transport-error handling land on — give
+            # it the same hard English-only guarantee text chat (#35) has,
+            # since a fully-collected response (stream=False, same as here)
+            # is exactly the shape that backstop was built for. Runs in this
+            # executor thread (no existing event loop), so asyncio.run() is
+            # safe here.
+            try:
+                from core.city.governor import _ensure_english_response
+                response = asyncio.run(_ensure_english_response(response))
+            except Exception as e:
+                logger.warning(f"[VECTOR][voice_ws] English-only backstop skipped: {e}")
             if pe is not None:
                 try:
                     validation = pe.validate_response(response, text)

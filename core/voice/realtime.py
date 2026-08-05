@@ -740,6 +740,20 @@ class RealtimeConversation:
                         if payload.get("done"):
                             break
 
+        # KNOWN_ISSUES #4 (2026-07-30): unlike voice_ws.py's _stream_respond,
+        # `tokens` here is already the FULL response text by this point in
+        # both branches above (provider_client's .chat() is not incremental;
+        # the ollama-direct httpx fallback fully drains its stream into
+        # `tokens` before this line is reached) — the "streaming" below is
+        # only sentence-chunked TTS playback, not incremental generation. So
+        # a deterministic English-only check, same guarantee text chat (#35)
+        # already has, is a normal pre-check here, not a buffering tradeoff.
+        try:
+            from core.city.governor import _ensure_english_response
+            tokens = await _ensure_english_response(tokens)
+        except Exception as e:
+            logger.warning(f"[VECTOR][realtime] English-only backstop skipped: {e}")
+
         # Stream tokens into sentence-chunked TTS
         for token in tokens:
             if self._cancel_speak.is_set():

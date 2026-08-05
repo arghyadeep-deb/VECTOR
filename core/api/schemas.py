@@ -12,6 +12,11 @@ class CommandRequest(BaseModel):
     text: str
     source: str = "text"
     priority: str = "normal"
+    # 2026-07-29: optional per-session rolling conversational buffer
+    # (core.memory.session_buffer). Callers that never set this see
+    # IDENTICAL behavior to before this field existed — every buffer
+    # read/write in commands.py is gated on `if body.session_id`.
+    session_id: Optional[str] = None
 
 class VoiceRequest(BaseModel):
     # Voice request would typically be multipart/form-data
