@@ -71,6 +71,35 @@ class ReasoningMemory:
             "goal_ids": goal_ids,
         }
 
+    def _touch_chains(self, conn, chain_ids: list[str]) -> None:
+        """Reinforce genuinely-reused reasoning chains (Ebbinghaus decay,
+        core.memory.decay) — same model as EpisodicMemory._touch_episodes:
+        reset last_touch=now and grow stability_days on each real reuse via
+        inject_past_reasoning()/search_chains(), so chains VECTOR keeps
+        actually finding useful survive the forgetting pass longer than
+        chains nobody ever looks at again. Best-effort."""
+        if not chain_ids:
+            return
+        try:
+            from core.memory.decay import reinforce
+            import datetime as _dt
+            now = _dt.datetime.now(_dt.timezone.utc).isoformat()
+            qs = ",".join("?" for _ in chain_ids)
+            rows = conn.execute(
+                f"SELECT chain_id, stability_days FROM reasoning_chains WHERE chain_id IN ({qs})",
+                chain_ids,
+            ).fetchall()
+            current = {r[0]: r[1] for r in rows}
+            for cid in chain_ids:
+                new_stability = reinforce(current.get(cid))
+                conn.execute(
+                    "UPDATE reasoning_chains SET stability_days = ?, last_touch = ? WHERE chain_id = ?",
+                    (new_stability, now, cid),
+                )
+            conn.commit()
+        except Exception as e:
+            logger.debug(f"[VECTOR][reasoning_memory] reinforcement touch skipped: {e}")
+
     def search_chains(self, query: str, limit: int = 5, min_reward: float | None = None) -> list[dict]:
         """Retrieve reasoning chains related to a query.
 
@@ -102,7 +131,9 @@ class ReasoningMemory:
                     LIMIT ?""",
                 tuple(params),
             ).fetchall()
-            return [self._row_to_chain(row) for row in rows]
+            chains = [self._row_to_chain(row) for row in rows]
+            self._touch_chains(conn, [c["id"] for c in chains])
+            return chains
         except Exception as e:
             logger.error(f"[VECTOR][reasoning_memory] search_chains failed: {e}")
             return []

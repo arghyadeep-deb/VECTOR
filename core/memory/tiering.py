@@ -43,8 +43,24 @@ EPHEMERAL_EVENT_TYPES = frozenset({
     "observe", "observation",# raw sensor ticks
 })
 
-# Days of retention for EPHEMERAL_EVENT_TYPES (vs the default 90 for bulk).
-EPHEMERAL_RETENTION_DAYS = 14
+# 2026-07-29: forgetting switched from a fixed calendar-day cliff to
+# Ebbinghaus decay (R = e^(-t/S), see core.memory.decay) — "when decay ≈ 0
+# we can evict that data, not based on a fixed N days" (owner's framing).
+# These are the *starting* stability (S, in days) for freshly-written rows;
+# genuine reuse reinforces S upward per-row from there (decay.reinforce()),
+# so a row that keeps getting recalled can legitimately outlive these
+# defaults. Chosen so an unreinforced row decays below
+# decay.EVICTION_THRESHOLD (0.05) at roughly the same point the old fixed
+# cutoffs did (t ≈ 3*S at R=0.05): EPHEMERAL_STABILITY_DAYS=5 -> ~15d
+# (was 14d fixed); BULK_STABILITY_DAYS=30 -> ~90d (was 90d fixed).
+EPHEMERAL_STABILITY_DAYS = 5.0
+BULK_STABILITY_DAYS = 30.0
+
+# Backward-compat alias — nothing else in this codebase reads this anymore
+# (episodic.py's prune_old_episodes was rewritten to use decay.py directly),
+# kept only so an external/vendored script importing the old name doesn't
+# hard-crash; prefer EPHEMERAL_STABILITY_DAYS in new code.
+EPHEMERAL_RETENTION_DAYS = 15
 
 TIER_CRITICAL = "critical"
 TIER_BULK = "bulk"

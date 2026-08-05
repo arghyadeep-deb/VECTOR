@@ -349,7 +349,7 @@ def close_db_connection() -> None:
     """Intentional shutdown of the singleton: close, clear, and reset the
     episodic circuit breaker so a later get_db_connection() starts clean
     (an intentional close is not a failure)."""
-    global _db_connection
+    global _db_connection, _DB_KEY
     with _db_lock:
         if _db_connection is not None:
             try:
@@ -358,6 +358,19 @@ def close_db_connection() -> None:
                 logger.warning("[VECTOR] silent swallow")
                 pass
             _db_connection = None
+        # The resolved key is part of the singleton's identity, not just an
+        # input to opening it once: _get_db_key() caches its result in
+        # _DB_KEY and returns early on every later call, so it never re-reads
+        # VECTOR_DB_KEY/CONFIG/keyring after the first resolution in this
+        # process. If we clear _db_connection without also clearing _DB_KEY,
+        # the next get_db_connection() opens a fresh connection but keys it
+        # with a STALE key — e.g. a test that monkeypatches VECTOR_DB_KEY for
+        # isolation, closes the connection at teardown, and lets monkeypatch
+        # restore the real env var: the next connection (real production
+        # vector_memory.db) would still be opened with the test's key and
+        # fail with "hmac check failed" / "file is not a database". Clearing
+        # both together inside the same lock keeps the pair in lockstep.
+        _DB_KEY = None
     try:
         from core.resilience.circuit_breaker import CircuitState
         cb = get_registry().get("episodic_memory")
@@ -562,12 +575,54 @@ def _create_tables(conn):
             model TEXT NOT NULL DEFAULT 'all-MiniLM-L6-v2',
             created_at TEXT
         )""",
+        # 2026-07-29: per-session rolling conversational buffer (core.memory.
+        # session_buffer) — short-lived turn-by-turn recency, deliberately
+        # NOT routed through the decay/tiering system: it's capped by row
+        # count per session (rolling window), not Ebbinghaus stability, and
+        # is never treated as durable long-term memory.
+        """CREATE TABLE IF NOT EXISTS session_turns (
+            id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            timestamp TEXT NOT NULL
+        )""",
+        """CREATE INDEX IF NOT EXISTS idx_session_turns_session
+           ON session_turns(session_id, timestamp)""",
     ]
     for table in tables:
         try:
             conn.execute(table)
         except sqlite3.OperationalError as e:
             logger.error(f"Table creation failed: {e}")
+    _ensure_decay_columns(conn)
+
+
+# 2026-07-29: Ebbinghaus decay (core.memory.decay) needs two extra columns on
+# each bulk table it manages — stability_days (S) and last_touch (resets on
+# genuine recall, not just at write time). SQLite has no "ADD COLUMN IF NOT
+# EXISTS", so check PRAGMA table_info first; safe to call on every startup.
+_DECAY_TABLES = ("episodic_memory", "reasoning_chains")
+
+
+def _ensure_decay_columns(conn) -> None:
+    for table in _DECAY_TABLES:
+        try:
+            cols = {row[1] for row in conn.execute(f'PRAGMA table_info("{table}")').fetchall()}
+        except sqlite3.OperationalError:
+            continue  # table doesn't exist yet on this connection — fine, next create_tables pass adds columns too
+        if not cols:
+            continue
+        if "stability_days" not in cols:
+            try:
+                conn.execute(f'ALTER TABLE "{table}" ADD COLUMN stability_days REAL')
+            except sqlite3.OperationalError as e:
+                logger.warning(f"[VECTOR][memory] could not add stability_days to {table}: {e}")
+        if "last_touch" not in cols:
+            try:
+                conn.execute(f'ALTER TABLE "{table}" ADD COLUMN last_touch TEXT')
+            except sqlite3.OperationalError as e:
+                logger.warning(f"[VECTOR][memory] could not add last_touch to {table}: {e}")
 
 
 @contextmanager
@@ -664,15 +719,28 @@ class EpisodicMemory:
         tags_json = json.dumps(tags) if tags else None
         context_json = json.dumps(context) if context else None
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        
+
+        # Ebbinghaus decay (core.memory.decay): every row starts with a
+        # stability (S) appropriate to its event type — ephemeral telemetry
+        # decays fast unless reinforced, everything else decays slower.
+        # last_touch starts equal to timestamp and moves forward on genuine
+        # recall (see recall()/search_semantic()).
+        try:
+            from core.memory import tiering as _tiering
+            from core.memory.decay import initial_stability_days
+            _is_ephemeral = event_type in _tiering.ephemeral_event_types()
+            stability_days = initial_stability_days(_is_ephemeral)
+        except Exception:
+            stability_days = 30.0
+
         try:
             def _do_store():
                 with get_temp_cursor() as cursor:
                     cursor.execute("""
                         INSERT INTO episodic_memory
-                        (id, event_type, content, tags, context_snapshot, timestamp, source)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (event_id, event_type, content, tags_json, context_json, timestamp, source))
+                        (id, event_type, content, tags, context_snapshot, timestamp, source, stability_days, last_touch)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (event_id, event_type, content, tags_json, context_json, timestamp, source, stability_days, timestamp))
                     cursor.execute("""
                         INSERT INTO episodic_memory_fts
                         (id, event_type, content, tags, source, timestamp, context_snapshot)
@@ -723,83 +791,109 @@ class EpisodicMemory:
         protect_event_types: "set[str] | None" = None,
         vacuum: "bool | None" = None,
     ) -> int:
-        """Forget raw episodes older than ``retention_days``.
+        """Forget episodes whose Ebbinghaus retention has decayed below
+        ``decay.EVICTION_THRESHOLD`` (core.memory.decay: R = e^(-t/S)).
 
-        Decay/forgetting (roadmap #7): once ConsolidationBot has summarized old
-        episodes into semantic_memory + mem0, the raw rows are redundant and
-        otherwise grow the DB unbounded in 24/7 operation. Deletes from all
-        three backing stores (episodic_memory, the FTS index, embeddings).
-        Protected event types are kept forever; high-frequency telemetry
-        (``tiering.EPHEMERAL_EVENT_TYPES``) is forgotten after the much shorter
-        ``EPHEMERAL_RETENTION_DAYS`` so a single observe-loop or leaked test
-        can't grow the DB without bound. Returns rows deleted.
+        2026-07-29: replaced the previous fixed-calendar-day cliff. Owner's
+        framing: "when decay ≈ 0 we can evict that data — not based on a
+        fixed N days." A row's clock (``last_touch``) resets and its
+        stability (``stability_days``, S) grows every time it's genuinely
+        recalled (see ``_touch_episodes``/``recall()``/``search_semantic()``),
+        so a frequently-reused row can legitimately outlive
+        ``retention_days`` — only truly-forgotten rows (never revisited) get
+        pruned on schedule.
 
-        ``vacuum`` reclaims the freed pages back to the OS (plain ``VACUUM`` —
-        SQLCipher-safe, unlike ``VACUUM INTO`` which writes a plaintext copy).
-        Default (None) → auto-VACUUM only when ≥ ``_VACUUM_ROW_THRESHOLD`` rows
-        were forgotten.
+        ``retention_days`` is kept for backward compatibility with existing
+        callers (ConsolidationBot, db_maintenance.py, tests): it still gates
+        the initial SQL candidate scan (by original ``timestamp``, a cheap
+        over-inclusive net — a row can only be evicted by the decay check
+        below, never purely by this scan) and still supplies the bulk-tier
+        fallback stability (retention_days/3, so R hits the eviction
+        threshold at roughly the same day retention_days used to be a hard
+        cutoff) for legacy rows written before this migration that have no
+        stored ``stability_days``. ``retention_days<=0`` remains a no-op, as
+        before.
+
+        Deletes from all three backing stores (episodic_memory, the FTS
+        index, embeddings). Protected event types are kept forever
+        regardless of decay. Returns rows deleted.
+
+        ``vacuum`` reclaims freed pages back to the OS (plain ``VACUUM`` —
+        SQLCipher-safe, unlike ``VACUUM INTO`` which writes a plaintext
+        copy). Default (None) → auto-VACUUM only when ≥
+        ``_VACUUM_ROW_THRESHOLD`` rows were forgotten.
         """
         if retention_days <= 0:
             return 0
+        from core.memory.decay import should_evict, DEFAULT_STABILITY_DAYS
         try:
             from core.memory import tiering as _tiering
             protected = set(_tiering.protected_event_types())
             ephemeral = set(_tiering.ephemeral_event_types()) - protected
-            ephemeral_days = int(getattr(_tiering, "EPHEMERAL_RETENTION_DAYS", 14))
+            ephemeral_stability = float(getattr(_tiering, "EPHEMERAL_STABILITY_DAYS", 5.0))
         except Exception:
             protected = set(self._PROTECTED_EVENT_TYPES)
             ephemeral = set()
-            ephemeral_days = 14
+            ephemeral_stability = 5.0
         if protect_event_types:
             protected |= set(protect_event_types)
             ephemeral -= set(protect_event_types)
+        bulk_fallback_stability = max(retention_days / 3.0, 1.0)
+
         now = datetime.datetime.now(datetime.timezone.utc)
-        # ISO-8601 sorts lexicographically → safe string compare
-        cutoff = (now - datetime.timedelta(days=retention_days)).isoformat()
-        # Ephemeral window never exceeds the bulk window.
-        eph_cutoff = (
-            now - datetime.timedelta(days=min(ephemeral_days, retention_days))
-        ).isoformat()
+        # ISO-8601 sorts lexicographically -> safe string compare. This is a
+        # cheap, deliberately over-inclusive candidate net — it only needs to
+        # NOT exclude anything the decay check below would evict, not to
+        # decide eviction itself. Everything younger than this can't have
+        # decayed below threshold under any stability this module assigns,
+        # so skipping it is safe and keeps the scan cheap on a large table.
+        candidate_cutoff = (now - datetime.timedelta(days=retention_days)).isoformat()
+
+        def _elapsed_days(last_touch: str | None, timestamp: str) -> float:
+            ref = last_touch or timestamp
+            try:
+                ref_dt = datetime.datetime.fromisoformat(ref)
+                if ref_dt.tzinfo is None:
+                    ref_dt = ref_dt.replace(tzinfo=datetime.timezone.utc)
+                return (now - ref_dt).total_seconds() / 86400.0
+            except Exception:
+                return float(retention_days) + 1.0  # unparsable -> treat as stale, evict
 
         def _do_prune() -> int:
             with get_temp_cursor() as cursor:
-                ids: "set" = set()
-                # Pass A — bulk events past retention_days. Skip protected (never)
-                # and ephemeral (handled with a shorter window in Pass B).
-                skip = protected | ephemeral
-                if skip:
-                    ph = ",".join("?" for _ in skip)
-                    cursor.execute(
-                        "SELECT id FROM episodic_memory "
-                        f"WHERE timestamp < ? AND event_type NOT IN ({ph})",
-                        (cutoff, *skip),
-                    )
-                else:
-                    cursor.execute(
-                        "SELECT id FROM episodic_memory WHERE timestamp < ?", (cutoff,)
-                    )
-                ids.update(r[0] for r in cursor.fetchall())
-                # Pass B — high-frequency telemetry past the short window.
-                if ephemeral:
-                    ephp = ",".join("?" for _ in ephemeral)
-                    cursor.execute(
-                        "SELECT id FROM episodic_memory "
-                        f"WHERE timestamp < ? AND event_type IN ({ephp})",
-                        (eph_cutoff, *ephemeral),
-                    )
-                    ids.update(r[0] for r in cursor.fetchall())
+                skip = protected
+                ph = ",".join("?" for _ in skip) if skip else ""
+                where_skip = f"AND event_type NOT IN ({ph})" if skip else ""
+                cursor.execute(
+                    "SELECT id, event_type, timestamp, last_touch, stability_days "
+                    f"FROM episodic_memory WHERE timestamp < ? {where_skip}",
+                    (candidate_cutoff, *skip),
+                )
+                rows = cursor.fetchall()
+
+                ids: list[str] = []
+                for eid, event_type, timestamp, last_touch, stability_days in rows:
+                    if stability_days is None:
+                        stability_days = (
+                            ephemeral_stability if event_type in ephemeral
+                            else bulk_fallback_stability
+                        )
+                    elapsed = _elapsed_days(last_touch, timestamp)
+                    if should_evict(elapsed, stability_days):
+                        ids.append(eid)
+
                 if not ids:
                     return 0
                 # Shared helper: chunks base deletes under the bound-variable
                 # limit and rebuilds FTS in one pass for large batches.
-                return _delete_episodes_by_ids(cursor, list(ids))
+                return _delete_episodes_by_ids(cursor, ids)
 
         try:
             deleted = _with_cb(_do_prune)
             if deleted:
                 logger.info(
                     f"[VECTOR][episodic] forgot {deleted} episodes "
-                    f"(bulk>{retention_days}d, ephemeral>{min(ephemeral_days, retention_days)}d; "
+                    f"(Ebbinghaus decay, candidate scan>{retention_days}d; "
                     f"protected: {sorted(protected)})"
                 )
                 should_vacuum = vacuum if vacuum is not None else (deleted >= self._VACUUM_ROW_THRESHOLD)
@@ -843,6 +937,33 @@ class EpisodicMemory:
         except Exception as e:
             logger.warning(f"[VECTOR][episodic] VACUUM skipped: {e}")
             return False
+
+    def _touch_episodes(self, ids: list[str]) -> None:
+        """Reinforce genuinely-recalled rows (Ebbinghaus decay, core.memory.decay):
+        reset last_touch=now and grow stability_days multiplicatively, so
+        memories that keep getting reused decay slower and can outlive a
+        fixed-day cutoff, while unused ones fade on schedule. Best-effort —
+        never lets a reinforcement failure break the caller's actual recall."""
+        if not ids:
+            return
+        try:
+            from core.memory.decay import reinforce
+            now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            with get_temp_cursor() as cursor:
+                qs = ",".join("?" for _ in ids)
+                cursor.execute(
+                    f"SELECT id, stability_days FROM episodic_memory WHERE id IN ({qs})",
+                    ids,
+                )
+                current = {r[0]: r[1] for r in cursor.fetchall()}
+                for eid in ids:
+                    new_stability = reinforce(current.get(eid))
+                    cursor.execute(
+                        "UPDATE episodic_memory SET stability_days = ?, last_touch = ? WHERE id = ?",
+                        (new_stability, now, eid),
+                    )
+        except Exception as e:
+            logger.debug(f"[VECTOR][episodic] reinforcement touch skipped: {e}")
 
     def recall(self, query, limit=5, event_type=None) -> list[dict]:
         try:
@@ -957,6 +1078,7 @@ class EpisodicMemory:
                     "timestamp": row[5],
                     "source": row[6],
                 })
+            self._touch_episodes([r["id"] for r in result])
             return result
         except CircuitBreakerOpenError:
             logger.warning("[VECTOR][episodic] circuit open — recall returning empty")
@@ -1022,13 +1144,22 @@ class EpisodicMemory:
             steps_json = json.dumps(steps)
             is_training = 1 if reward > 0.7 else 0
             timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            # Ebbinghaus decay: reasoning_chains is a bulk table (not in
+            # tiering.CRITICAL_TABLES), so it starts at the standard bulk
+            # stability and decays like episodic_memory unless reinforced by
+            # inject_past_reasoning() actually reusing it.
+            try:
+                from core.memory import tiering as _tiering
+                stability_days = _tiering.BULK_STABILITY_DAYS
+            except Exception:
+                stability_days = 30.0
             def _do():
                 with get_temp_cursor() as cursor:
                     cursor.execute("""
                         INSERT INTO reasoning_chains
-                        (chain_id, situation, goal_ids, steps, action_taken, outcome, reward, is_training_data, timestamp)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (chain_id, situation, goal_ids_json, steps_json, action, outcome, reward, is_training, timestamp))
+                        (chain_id, situation, goal_ids, steps, action_taken, outcome, reward, is_training_data, timestamp, stability_days, last_touch)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (chain_id, situation, goal_ids_json, steps_json, action, outcome, reward, is_training, timestamp, stability_days, timestamp))
                 return chain_id
             return _with_cb(_do)
         except CircuitBreakerOpenError:
@@ -1241,6 +1372,7 @@ class EpisodicMemory:
                         "timestamp": row[5],
                         "source": row[6],
                     })
+            self._touch_episodes([r["id"] for r in results])
             return results
 
         except Exception as e:
