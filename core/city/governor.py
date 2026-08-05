@@ -139,8 +139,12 @@ _COUNCIL_TASK_TYPES: frozenset[str] = frozenset({
 # project's hard rules forbid it, so this must not depend on the LLM council
 # happening to reject it. This deterministic pre-check forces any such request
 # onto the conversational path, which reliably answers with a clear "I can't
-# execute trades / move money" refusal (confirmed live) and is guarded against
-# false completion claims by commands.py's _defabricate_llm_answer() (#13).
+# execute trades / move money" refusal (confirmed live) and — since 2026-08-06
+# — is guarded against false completion claims by _answer_conversationally()'s
+# own call to core.security.anti_fabrication.defabricate_llm_answer() (#13);
+# before that fix this comment's claim was aspirational, not actually true —
+# see that module's docstring for the full /command vs /ws/command divergence
+# this closed.
 _UNSUPPORTED_EXECUTION_RE = re.compile(
     r"\b("
     r"(execute|place|make|carry\s+out|complete|confirm)\s+(a\s+|the\s+)?trade"
@@ -1843,6 +1847,22 @@ class Governor:
 
         if not response:
             return {"status": "error", "response": "", "error": "empty LLM response"}
+
+        # 2026-08-06 (command/websocket divergence audit): same deterministic
+        # backstop as commands.py's _llm_answer() (KNOWN_ISSUES #13) — this
+        # method never calls a tool either, so any sentence claiming
+        # something was actually stored/sent/scheduled/executed is
+        # unconditionally false. Previously ONLY wired into commands.py's own
+        # _llm_answer(), meaning a fabricated "✅ Stored." confirmation was
+        # stripped when a plain question hit /command's fast path, but
+        # shipped unfiltered whenever the exact same question landed here —
+        # every /ws/command request, and any /command request that
+        # classify_chat_intent() routed to Governor.dispatch()'s
+        # answer_question branch instead of the fast path's direct
+        # _llm_answer() call. See core/security/anti_fabrication.py for the
+        # full rationale (moved there — shared — to avoid a core->api import).
+        from core.security.anti_fabrication import defabricate_llm_answer
+        response = defabricate_llm_answer(response, query)
 
         # 2026-07-28 KNOWN_ISSUES #35 follow-up: same deterministic backstop
         # as commands.py's _llm_answer() — the English-only system-prompt

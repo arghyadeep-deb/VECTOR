@@ -405,6 +405,32 @@ async def ws_command_http(request: WSCommandRequest):
     from core.memory.episodic import EpisodicMemory
     import httpx
 
+    # Security: scan for prompt injection BEFORE any processing — mirrors the
+    # boundary check in commands.py::command_endpoint(). Divergence found
+    # 2026-08-06 while auditing /command vs /ws/command: this endpoint used
+    # to hand `request.text` straight to classify_chat_intent() (an LLM call)
+    # with zero scanning, and only relied on the scan_text() call INSIDE
+    # governor.dispatch() (core/city/governor.py) — which runs after the
+    # classifier has already seen the raw, unscanned text. That's a real
+    # ordering gap: the classifier LLM call is "processing" too, and an
+    # injection payload could steer its task_type/district choice before the
+    # deterministic guard ever runs, even though the eventual dispatch was
+    # still correctly blocked. Scan first, exactly like every other real
+    # boundary in this codebase (commands.py, governor.py's own dispatch(),
+    # email_received.py, realtime.py) already does.
+    try:
+        from core.security.prompt_injection import scan_text
+        _scan = scan_text(request.text, context="ws_command_http")
+        if not _scan.clean:
+            logger.warning("[VECTOR][ws] prompt injection blocked at /ws/command: {}", _scan)
+            return WSCommandResponse(
+                response="Input blocked: prompt injection detected",
+                success=False,
+                error="prompt_injection",
+            )
+    except Exception as _scan_err:
+        logger.debug("[VECTOR][ws] prompt injection scan skipped: {}", _scan_err)
+
     try:
         # Route through the full intelligence pipeline via governor
         governor = GovernorCouncil()

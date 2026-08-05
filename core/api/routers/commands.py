@@ -607,52 +607,20 @@ def _detect_intent_action(text: str) -> dict | None:
 
 # 2026-07-22 KNOWN_ISSUES #13 (real fix, not another prompt tweak): two
 # escalating rounds of anti-fabrication system-prompt instructions (still
-# above, kept as a first line of defense) reduced but did NOT eliminate
+# below, kept as a first line of defense) reduced but did NOT eliminate
 # confident false completion claims — a repeat live test still got "Noted.
 # Fox preference stored in permanent memory." (no checkmark, same lie).
 # Prompting is probabilistic; this class of claim is provably false 100% of
 # the time out of _llm_answer(), because this function has literally no
 # tool-calling — there is never a "corresponding tool call this turn" to
 # check against, there is NEVER one. So: deterministic post-hoc filter.
-# Approach (b) — routing store/send/schedule requests through
-# Governor.dispatch() instead — was considered and rejected for this
-# specific failure mode: DISTRICT_TASK_MAP (core/city/governor.py) has no
-# "memory"/store district or task_type at all, so classify_chat_intent()
-# would reject a "store this in memory" request (no valid district ->
-# REJECTED -> falls back to answer_question) and it would land right back
-# on this same _llm_answer() path regardless. Action-shaped requests that
-# DO have a real district (send_email, schedule_*, etc.) are already
-# correctly diverted upstream in command_endpoint() via classify_chat_intent
-# before _llm_answer() is ever called — see the fast-path branch above. This
-# filter is therefore the correct backstop for the specific gap: claims
-# about actions that have no real handler to route to in the first place.
-_CHECKMARK_RE = re.compile(r"[✅✔️☑]\s*")
-
-# Verbs that, in a first-person/implicit-subject completion claim, assert an
-# action was actually carried out. Deliberately narrower than every possible
-# synonym (skips generic "done"/"completed"/"created"/"added" etc. — those
-# false-positive too easily on ordinary factual answers, e.g. "Python was
-# created by Guido van Rossum") — scoped to the verbs actually observed in
-# the live fabrication bug plus close, low-ambiguity synonyms.
-_FABRICATED_COMPLETION_RE = re.compile(
-    r"(?P<neg>\b(?:not|never|n['’]t|cannot|can['’]t|won['’]t|"
-    r"didn['’]t|doesn['’]t|isn['’]t|wasn['’]t|"
-    r"couldn['’]t|unable to|without)\b\s*(?:\w+\s+){0,4})?"
-    r"\b(?P<verb>stored|saved|sent|scheduled|posted|executed|updated|"
-    r"recorded|logged|persisted|remembered|confirmed)\b",
-    re.IGNORECASE,
-)
-
-# Only engage the filter when the user's own message plausibly asked for an
-# action — keeps it from mangling unrelated factual answers that happen to
-# contain one of the verbs above (e.g. "Napoleon was sent to Elba").
-_ACTION_REQUEST_HINT_RE = re.compile(
-    r"\b(store|save|remember|remind|send|email|schedule|post|publish|"
-    r"execute|run|update|record|log|persist)\b",
-    re.IGNORECASE,
-)
-
-_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+# 2026-08-06: moved to core/security/anti_fabrication.py (shared) so
+# governor.py's _answer_conversationally() — the equivalent pure-text answer
+# path reached via /ws/command and any /command request classify_chat_intent
+# routes to Governor.dispatch()'s answer_question branch — gets the exact
+# same deterministic guard instead of shipping fabricated claims unfiltered.
+# See that module's docstring for the full divergence rationale.
+from core.security.anti_fabrication import defabricate_llm_answer
 
 # 2026-07-28 KNOWN_ISSUES #35 follow-up: the English-only system-prompt
 # instruction added to _llm_answer()'s messages below is NOT reliably
@@ -746,52 +714,6 @@ async def _ensure_english_answer(answer: str) -> str:
         "fallback instead of the untranslated answer."
     )
     return _ENGLISH_FALLBACK_MESSAGE
-
-
-def _defabricate_llm_answer(response: str, user_text: str) -> str:
-    """Strip fabricated action-completion claims from a pure-text LLM reply.
-
-    _llm_answer() never calls a tool, so any sentence claiming something was
-    actually stored/sent/scheduled/executed/etc. is unconditionally false —
-    there's no "no corresponding tool call" check needed because there is
-    categorically never a tool call from this function. Drops the offending
-    sentence(s) (unless the claim is itself negated, e.g. "I can't confirm
-    that was saved" — that's an honest hedge, not a fabrication) and appends
-    an explicit caveat so the user isn't left with a false impression.
-    """
-    if not response:
-        return response
-
-    had_checkmark = bool(_CHECKMARK_RE.search(response))
-    stripped = _CHECKMARK_RE.sub("", response)
-
-    if not _ACTION_REQUEST_HINT_RE.search(user_text or ""):
-        return stripped if had_checkmark else response
-
-    sentences = _SENTENCE_SPLIT_RE.split(stripped)
-    kept, dropped = [], []
-    for s in sentences:
-        m = _FABRICATED_COMPLETION_RE.search(s)
-        if m and not m.group("neg"):
-            dropped.append(s.strip())
-            continue
-        kept.append(s)
-
-    if not dropped:
-        return stripped if had_checkmark else response
-
-    logger.warning(
-        "[VECTOR][api][command] KNOWN_ISSUES #13 filter stripped fabricated "
-        "completion claim(s) from _llm_answer output: {}", dropped,
-    )
-    result = " ".join(s for s in kept if s.strip()).strip()
-    caveat = (
-        "Heads up, sir — I don't have tool-calling in this reply path, so "
-        "nothing above was actually stored, sent, scheduled, or executed. "
-        "I've only noted it in this conversation; there's currently no way "
-        "for me to confirm it was carried out from here."
-    )
-    return f"{result}\n\n{caveat}" if result else caveat
 
 
 async def _llm_answer(text: str, hydration: str) -> str:
@@ -896,9 +818,9 @@ async def _llm_answer(text: str, hydration: str) -> str:
         if not answer:
             return "I'm here, sir — could you rephrase that?"
         # Deterministic backstop for KNOWN_ISSUES #13 — see
-        # _defabricate_llm_answer() docstring above for why prompting alone
-        # (the instructions just above in `messages`) isn't sufficient.
-        answer = _defabricate_llm_answer(answer, text)
+        # core/security/anti_fabrication.py's docstring for why prompting
+        # alone (the instructions just above in `messages`) isn't sufficient.
+        answer = defabricate_llm_answer(answer, text)
         # Deterministic backstop for KNOWN_ISSUES #35 — see
         # _ensure_english_answer() docstring above for why the English-only
         # system-prompt instruction above isn't reliably followed either.
