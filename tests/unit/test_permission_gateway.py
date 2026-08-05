@@ -11,11 +11,24 @@ from core.metering.rate_limiter import GCRARateLimiter, operation_cost
 GREEN_ACTIONS = ["search_web", "play_music", "set_timer", "read_calendar",
                  "take_screenshot", "check_weather", "check_attendance",
                  "respond", "widget_open"]
-YELLOW_ACTIONS = ["send_message_routine", "create_calendar_event", "commit_code",
-                  "download_file", "set_reminder", "write_note_personal", "run_tests"]
+# NOTE: these lists are a hand-maintained copy of the tiers in core/config.py.
+# That duplication is deliberate (they assert real gateway BEHAVIOUR per tier,
+# not just that config equals itself) but it means a tier change in config must
+# be mirrored here — otherwise this file fails with a confusing
+# "assert 'RED' == 'YELLOW'".
+YELLOW_ACTIONS = ["create_calendar_event", "commit_code",
+                  "set_reminder", "write_note_personal", "run_tests"]
 RED_ACTIONS = ["send_email", "delete_files", "execute_code",
                "financial_transaction", "push_github", "deploy_production",
-               "overwrite_note_personal"]
+               "overwrite_note_personal",
+               # 2026-08-05 hardening — both promoted YELLOW -> RED because as
+               # YELLOW they auto-executed with no owner confirmation under
+               # VECTOR_YELLOW_AUTO_CONFIRM=1:
+               #   download_file          — arbitrary fetch-to-disk
+               #   send_message_routine   — sends a real message to a real person
+               # See tests/test_red_interactive_tools_bypass.py for the full
+               # lock-in of that change.
+               "download_file", "send_message_routine"]
 FORBIDDEN_ACTIONS = ["format_drive", "mass_delete", "share_private_data"]
 ALL_ACTIONS = GREEN_ACTIONS + YELLOW_ACTIONS + RED_ACTIONS + FORBIDDEN_ACTIONS
 

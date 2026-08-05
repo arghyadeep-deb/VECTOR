@@ -204,31 +204,42 @@ def chat(
     _start = time.time()
     try:
         import ollama
-        client = ollama.Client(host=CONFIG["ollama_host"], timeout=timeout)
-        _opts = {"temperature": temperature}
-        if num_predict is not None:
-            _opts["num_predict"] = num_predict
-        _kwargs = {"model": model, "messages": messages,
-                   "keep_alive": keep_alive, "options": _opts}
-        if think is not None:
-            _kwargs["think"] = think
+        # 2026-08-05 (connection-leak fix): must be `with ... as client:`, not a
+        # bare assignment. ollama.Client() builds a full httpx.Client() with its
+        # own connection pool (see ollama._client.BaseClient.__init__); httpx.Client
+        # has no __del__, and its internal object graph is cyclic, so an
+        # unclosed client's socket is NOT reclaimed by refcounting when `client`
+        # goes out of scope — only a cyclic-GC sweep collects it, which is
+        # unbounded in timing. Every call site here used to leak one ESTABLISHED
+        # TCP connection to 127.0.0.1:11434 per invocation; confirmed live via
+        # `Get-NetTCPConnection` climbing from 7 (fresh process) to 100 (25h
+        # uptime) with zero drain, and reproduced in isolation (gc.disable() +
+        # drop refs -> connections stay open; only gc.collect() closes them).
+        with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
+            _opts = {"temperature": temperature}
+            if num_predict is not None:
+                _opts["num_predict"] = num_predict
+            _kwargs = {"model": model, "messages": messages,
+                       "keep_alive": keep_alive, "options": _opts}
+            if think is not None:
+                _kwargs["think"] = think
 
-        def _call():
-            try:
-                return client.chat(**_kwargs)
-            except TypeError:
-                # Older ollama-python without the `think` kwarg — retry without.
-                _kwargs.pop("think", None)
-                return client.chat(**_kwargs)
+            def _call():
+                try:
+                    return client.chat(**_kwargs)
+                except TypeError:
+                    # Older ollama-python without the `think` kwarg — retry without.
+                    _kwargs.pop("think", None)
+                    return client.chat(**_kwargs)
 
-        if _energy_monitor is not None:
-            with _energy_monitor.sample() as _energy:
+            if _energy_monitor is not None:
+                with _energy_monitor.sample() as _energy:
+                    response = _wrap_with_circuit_breaker("ollama", _call)
+                _record_telemetry(model, time.time() - _start, response, _energy)
+            else:
                 response = _wrap_with_circuit_breaker("ollama", _call)
-            _record_telemetry(model, time.time() - _start, response, _energy)
-        else:
-            response = _wrap_with_circuit_breaker("ollama", _call)
-            _record_telemetry(model, time.time() - _start, response, None)
-        return response.get("message", {}).get("content", "")
+                _record_telemetry(model, time.time() - _start, response, None)
+            return response.get("message", {}).get("content", "")
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model}")
         fallback = _multi_backend_fallback(model, messages, timeout)
@@ -253,17 +264,18 @@ def chat_stream(
     keep_alive = keep_alive or DEFAULT_KEEP_ALIVE
     try:
         import ollama
-        client = ollama.Client(host=CONFIG["ollama_host"], timeout=timeout)
-        stream = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-            model=model,
-            messages=messages,
-            stream=True,
-            keep_alive=keep_alive,
-        ))
-        for chunk in stream:
-            token = chunk.get("message", {}).get("content", "")
-            if token:
-                yield token
+        # See chat()'s comment above — must close the client (connection-leak fix).
+        with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
+            stream = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
+                model=model,
+                messages=messages,
+                stream=True,
+                keep_alive=keep_alive,
+            ))
+            for chunk in stream:
+                token = chunk.get("message", {}).get("content", "")
+                if token:
+                    yield token
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model} stream")
         yield ""
@@ -313,16 +325,17 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
     for model in to_warm:
         try:
             import ollama
-            client = ollama.Client(host=CONFIG["ollama_host"], timeout=60.0)
-            if "embed" in model.lower():
-                _wrap_with_circuit_breaker("ollama", lambda: client.embeddings(model=model, prompt="ping", keep_alive=keep_alive))
-            else:
-                _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-                    model=model,
-                    messages=[{"role": "user", "content": "."}],
-                    options={"num_predict": 1},
-                    keep_alive=keep_alive,
-                ))
+            # See chat()'s comment above — must close the client (connection-leak fix).
+            with ollama.Client(host=CONFIG["ollama_host"], timeout=60.0) as client:
+                if "embed" in model.lower():
+                    _wrap_with_circuit_breaker("ollama", lambda: client.embeddings(model=model, prompt="ping", keep_alive=keep_alive))
+                else:
+                    _wrap_with_circuit_breaker("ollama", lambda: client.chat(
+                        model=model,
+                        messages=[{"role": "user", "content": "."}],
+                        options={"num_predict": 1},
+                        keep_alive=keep_alive,
+                    ))
             with _warm_lock:
                 _warmed.add(model)
             results[model] = True
