@@ -122,24 +122,81 @@
   // ---- WebSocket adapter (spec §7) --------------------------------------
   // Auth token is sent as the first JSON message after connection (not in URL)
   // to avoid leaking credentials to server logs, proxies, and browser history.
+  //
+  // Reconnect: on an unexpected close (laptop sleep/wake, Cloudflare tunnel
+  // rotation, a brief network blip) each named socket retries on its own
+  // exponential backoff (1s -> 30s cap, jittered) so /ws, /ws/voice/stream
+  // and the gesture/camera feeds self-heal instead of staying dead until a
+  // manual reconnect or page reload. A deliberate close (disconnect(), or a
+  // socket being replaced by a fresh connect()) is flagged via ws._intentional
+  // so it never triggers a retry. Exactly one reconnect timer is ever live
+  // per socket name (cleared before every re-schedule / on success / on
+  // teardown) and reconnects reuse the existing WebSocket instance/handler
+  // pattern rather than adding new listeners, so nothing accumulates across
+  // however many reconnects happen on this long-lived page.
   const sockets = {};
+  const wsSpecs = {};           // name -> { url, onMsg, authToken } — replayed on reconnect
+  const reconnectTimers = {};   // name -> setTimeout id
+  const reconnectAttempts = {}; // name -> consecutive failed-reconnect count
+  let teardownAll = false;      // set by disconnect(); suppresses every pending/future reconnect
+  const RECONNECT_BASE_MS = 1000;
+  const RECONNECT_MAX_MS = 30000;
+
+  function clearReconnectTimer(name){
+    if(reconnectTimers[name] != null){ clearTimeout(reconnectTimers[name]); delete reconnectTimers[name]; }
+  }
+
+  function scheduleReconnect(name){
+    if(teardownAll || !wsSpecs[name]) return; // app-level disconnect, or never configured
+    clearReconnectTimer(name);
+    const attempt = (reconnectAttempts[name] || 0) + 1;
+    reconnectAttempts[name] = attempt;
+    const backoff = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, attempt - 1));
+    const delay = backoff * (0.5 + Math.random() * 0.5); // 50-100% jitter — avoid synchronized retries
+    if(typeof api.setRuntimeMode === 'function'){
+      api.setRuntimeMode('degraded', 'ws ' + name + ' disconnected · retrying in ' + Math.round(delay / 1000) + 's');
+    }
+    reconnectTimers[name] = setTimeout(() => {
+      delete reconnectTimers[name];
+      if(teardownAll) return;
+      const spec = wsSpecs[name];
+      if(!spec) return;
+      openWS(name, spec.url, spec.onMsg, spec.authToken);
+    }, delay);
+  }
+
   function openWS(name, url, onMsg, authToken){
     try{
+      // Replacing an existing socket for this name (reconnect, or a fresh
+      // connect() while one is still open): flag it intentional first so its
+      // own onclose doesn't also schedule a competing reconnect.
+      clearReconnectTimer(name);
+      const prev = sockets[name];
+      if(prev){ prev._intentional = true; try{ prev.close(); }catch(_){} }
+
+      wsSpecs[name] = { url, onMsg, authToken };
       const ws = new WebSocket(url);
       ws.onmessage = e => { let d; try{ d=JSON.parse(e.data); }catch(_){ return; } onMsg(d, ws); };
-      ws.onclose  = () => emit('ws:close', { name });
+      ws.onclose  = () => {
+        emit('ws:close', { name });
+        if(ws._intentional) return; // deliberate close — do not retry
+        scheduleReconnect(name);
+      };
       ws.onerror  = () => emit('ws:error', { name });
       ws.onopen   = () => {
+        reconnectAttempts[name] = 0;
+        clearReconnectTimer(name);
         // Send auth handshake as first message if a token is configured
         if(authToken) ws.send(JSON.stringify({ auth: 'Bearer ' + authToken }));
         emit('ws:open', { name });
       };
       sockets[name] = ws; return ws;
-    }catch(e){ console.warn('[VECTOR] ws fail', name, e); }
+    }catch(e){ console.warn('[VECTOR] ws fail', name, e); scheduleReconnect(name); }
   }
 
   async function connect(cfg){
     CFG = Object.assign(CFG, cfg);
+    teardownAll = false; // re-arm reconnect in case a previous disconnect() ran
     // CSRF for browser mutations
     try{ const c = await http('/csrf-token'); CFG.csrf = c.csrf_token; }catch(e){}
     const wsbase = CFG.ws || CFG.base.replace(/^http/,'ws');
@@ -180,7 +237,13 @@
     emit('connected', CFG);
     return sockets;
   }
-  function disconnect(){ Object.values(sockets).forEach(ws=>{ try{ws.close();}catch(_){}}); }
+  function disconnect(){
+    teardownAll = true; // suppress every pending/future reconnect attempt
+    Object.keys(reconnectTimers).forEach(clearReconnectTimer);
+    Object.values(sockets).forEach(ws=>{ ws._intentional = true; try{ws.close();}catch(_){} });
+    Object.keys(wsSpecs).forEach(k => delete wsSpecs[k]);
+    Object.keys(reconnectAttempts).forEach(k => delete reconnectAttempts[k]);
+  }
 
   // ---- raw socket access (for binary streams e.g. mic audio) -------------
   function wsConnected(name){ const ws = sockets[name]; return !!ws && ws.readyState === WebSocket.OPEN; }

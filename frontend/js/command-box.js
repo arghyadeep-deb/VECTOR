@@ -36,6 +36,14 @@
     _toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 3200);
   }
 
+  // Generation counter: every send() gets the next value. A response is only
+  // allowed to touch the UI while its own value still matches `seq` — i.e.
+  // while it's still the most recent command in flight. This is what lets a
+  // late answer be shown (instead of silently discarded, the old bug) while
+  // also guaranteeing a *stale* late answer from an earlier command can never
+  // overwrite — or be mistaken for — the reply to a command sent after it.
+  let seq = 0;
+
   async function send() {
     const text = input.value.trim();
     if (!text) return;
@@ -57,36 +65,60 @@
     }
 
     input.value = '';
+    const mySeq = ++seq;
     btn.disabled = true;
     showToast('thinking…', true);
+
+    // Client-side "still working" notice at 35s — the brain's heavy compute
+    // can stall the HTTP response for a long time (server-side cap is 120s;
+    // real p99 latencies reach ~105s), and the bar shouldn't look frozen on
+    // "thinking…" the whole time. Unlike the old Promise.race version, this
+    // does NOT cancel or stop listening to the real request — it only
+    // updates the toast and re-enables the button so the user can fire off
+    // another command while this one keeps working in the background.
+    // A second, longer backstop covers the (rare) case where the request
+    // never settles at all, so the bar never gets stuck silently forever.
+    let settled = false;
+    let wasSlow = false;
+    const softTimer = setTimeout(() => {
+      if (settled || mySeq !== seq) return; // already done, or superseded by a newer command
+      wasSlow = true;
+      showToast('VECTOR is busy — still working, try again in a moment', false);
+      btn.disabled = false;
+    }, 35000);
+    const hardTimer = setTimeout(() => {
+      if (settled || mySeq !== seq) return;
+      showToast('✕ still no response — the request may have failed', false);
+    }, 150000); // 120s server cap + margin; purely informational, request keeps listening past this too
+
     try {
-      // Race against a 35s cap so a slow/stalled backend never leaves the bar
-      // stuck on "sending…" forever (the brain's heavy compute can stall the
-      // HTTP server for many seconds; without this the user sees no resolution).
-      const r = await Promise.race([
-        V.command(text, 'normal'),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 35000)),
-      ]);
+      const r = await V.command(text, 'normal');
+      settled = true;
+      clearTimeout(softTimer); clearTimeout(hardTimer);
+      if (mySeq !== seq) return; // a newer command now owns the bar — don't show this as its reply
+
       if (r && r.command_id) {
         showToast('↑ queued · ' + r.command_id.slice(0, 8), true);
       } else if (r && (r.response || r.text || r.result)) {
         // Show VECTOR's ACTUAL answer (was discarded before — you'd ask a
-        // question and never see the reply). Speaks + captions it.
-        const answer = r.response || r.text || r.result;
-        showToast('✓ done', true);
-        if (V.say) V.say(String(answer)); else if (V.caption) V.caption(String(answer));
+        // question and never see the reply). Speaks + captions it, marked
+        // as delayed if it arrived after the "still working" notice fired.
+        const answer = String(r.response || r.text || r.result);
+        showToast(wasSlow ? '✓ delayed reply' : '✓ done', true);
+        const spoken = wasSlow ? '(delayed reply) ' + answer : answer;
+        if (V.say) V.say(spoken); else if (V.caption) V.caption(spoken);
       } else if (r && (r.ok || r.status === 'queued')) {
         showToast('✓ sent', true);
       } else {
         showToast(r && r.detail ? r.detail : '✓ sent', true);
       }
     } catch (e) {
-      const msg = String(e && e.message === 'timeout'
-        ? 'VECTOR is busy — still working, try again in a moment'
-        : ('✕ ' + String(e))).slice(0, 70);
-      showToast(msg, false);
+      settled = true;
+      clearTimeout(softTimer); clearTimeout(hardTimer);
+      if (mySeq !== seq) return; // stale failure for a superseded command — nothing to show
+      showToast(('✕ ' + String((e && e.message) || e)).slice(0, 70), false);
     } finally {
-      btn.disabled = false;
+      if (mySeq === seq) btn.disabled = false;
     }
   }
 

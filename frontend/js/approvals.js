@@ -119,6 +119,11 @@
 
   V.on('connected', ()=>{ connected = true; clearInterval(timer); timer = setInterval(poll, 4000); poll(); });
   V.on('ws:close', ({name})=>{ if(name==='main') connected = false; });
+  // 'main' auto-reconnects after a drop (vector-core.js backoff) and re-fires
+  // 'ws:open' — without this, a single blip would permanently stop approval
+  // polling for the rest of the session (only the one-time 'connected' event
+  // used to turn it back on).
+  V.on('ws:open', ({name})=>{ if(name==='main') connected = true; });
 
   global.VectorApprovals = { poll, get count(){ return shown.size; } };
 })(window);
