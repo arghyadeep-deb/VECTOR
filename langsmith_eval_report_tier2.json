@@ -1,61 +1,14 @@
 {
   "tier": "tier2",
   "project": "VECTOR-eval",
-  "overall_score": 0.73,
+  "overall_score": 0.901,
   "num_examples": 8,
   "results": [
     {
       "category": "chief_of_staff+communications",
       "query": "Check what's likely on my plate today, then draft a one-line WhatsApp update I could send my mom about my day.",
-      "response": "I don't have information about your schedule for today.",
-      "latency_s": 4.23,
-      "scores": {
-        "nonempty": 1.0,
-        "not_a_stub": 1.0,
-        "llm_judge": 0.1
-      },
-      "avg_score": 0.7,
-      "notes": [
-        "judge: Answer failed to check schedule or draft the WhatsApp update."
-      ]
-    },
-    {
-      "category": "projects+coding",
-      "query": "Look at my VECTOR project status and tell me one concrete coding task I should tackle next.",
-      "response": "I don't have the project status details or the codebase to suggest a specific task. Please provide more context or update the project status, and I can help you identify a concrete coding task to tackle next.",
-      "latency_s": 27.95,
-      "scores": {
-        "nonempty": 1.0,
-        "not_a_stub": 1.0,
-        "keyword_grounding": 0.0,
-        "llm_judge": 0.8
-      },
-      "avg_score": 0.7,
-      "notes": [
-        "missing all expected keywords: ['vector']",
-        "judge: The answer is correct and helpful but lacks a concrete task suggestion due to missing context."
-      ]
-    },
-    {
-      "category": "news_trends+memory_curator",
-      "query": "Give me today's one-line AI news headline, then tell me you've noted it as something worth remembering.",
-      "response": "I'm not aware of today's one-line AI news headline. I don't have real-time access to current events.",
-      "latency_s": 13.12,
-      "scores": {
-        "nonempty": 1.0,
-        "not_a_stub": 1.0,
-        "llm_judge": 0.0
-      },
-      "avg_score": 0.667,
-      "notes": [
-        "judge: The answer did not provide a news headline or acknowledge noting it as worth remembering."
-      ]
-    },
-    {
-      "category": "health+personal_growth",
-      "query": "I'm stressed about an upcoming exam and slept badly — check in on how I'm doing and suggest one thing to help me focus today.",
-      "response": "I hear you—exams can be intense. Let’s focus on one thing: **set a 25-minute Pomodoro study block now**, then take a 5-minute break to stretch or sip water. No screens. Repeat 4x today. That’s your focus anchor. You’ve got this.",
-      "latency_s": 2.74,
+      "response": "**Your plate today:**\n- **Product:** Focus on AI content ops for creators (Wave 1 goal). Likely: reviewing course materials, drafting guardrails, or testing LLM evals.\n- **Sales:** Revenue target (₹1L/month × 3mo) may push you to follow up on leads or optimize outreach.\n- **Personal:** Late-night study/learning (YouTube course on AI security) could mean short breaks or late-night focus.\n\n**WhatsAp",
+      "latency_s": 43.08,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
@@ -63,72 +16,116 @@
       },
       "avg_score": 0.983,
       "notes": [
-        "judge: The answer is highly helpful, directly addresses the user's stress and sleep concerns, and provides a clear, actionable suggestion."
+        "judge: Answer is highly relevant, detailed, and provides a clear WhatsApp draft."
+      ]
+    },
+    {
+      "category": "projects+coding",
+      "query": "Look at my VECTOR project status and tell me one concrete coding task I should tackle next.",
+      "response": "I don't currently have visibility into your VECTOR project's status, codebase, or current TODO list.\n\nTo recommend the most impactful next step, please share one of the following:\n\n1.  **A summary of the project's current state** (what features exist vs. what's planned).\n2.  **The contents of your `TODO.md` or issue tracker.**\n3.  **A specific file or component** you are currently working on or un",
+      "latency_s": 8.14,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "keyword_grounding": 1.0,
+        "llm_judge": 0.0
+      },
+      "avg_score": 0.75,
+      "notes": [
+        "judge: The answer did not provide any concrete task or analysis, only asked for more information."
+      ]
+    },
+    {
+      "category": "news_trends+memory_curator",
+      "query": "Give me today's one-line AI news headline, then tell me you've noted it as something worth remembering.",
+      "response": "I don't have real-time access to current AI news headlines. I can suggest browsing a reliable AI news source like The AI Alignment Forum or MIT Technology Review for the latest updates.",
+      "latency_s": 2.08,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.3
+      },
+      "avg_score": 0.767,
+      "notes": [
+        "judge: The answer acknowledges the limitation but fails to provide a one-line AI news headline or confirm noting it as worth remembering."
+      ]
+    },
+    {
+      "category": "health+personal_growth",
+      "query": "I'm stressed about an upcoming exam and slept badly — check in on how I'm doing and suggest one thing to help me focus today.",
+      "response": "I hear you—exams can be overwhelming, especially when sleep is tight. Let’s focus on one thing right now: **set a 20-minute timer for a focused study break** (no multitasking). Use the Pomodoro technique: study hard for 25 mins, then take a 5-minute break (walk, hydrate, or stretch). This keeps your brain fresh without burning out. You’ve got this!",
+      "latency_s": 2.64,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "llm_judge": 0.95
+      },
+      "avg_score": 0.983,
+      "notes": [
+        "judge: The answer is highly helpful, directly addresses the question, and provides a practical suggestion."
       ]
     },
     {
       "category": "security+communications",
       "query": "Someone just texted asking for my bank OTP claiming to be my bank — tell me if that's safe and exactly what to do.",
-      "response": "It’s not safe. Never share a one‑time password (OTP) with anyone who contacts you, even if they claim to be from your bank. Banks never ask for OTPs via text or phone. Do the following:\n\n1. **Ignore the message** – don’t reply or click any links.\n2. **Contact your bank directly** using the number on the back of your card or the official app/website to confirm if any action is needed.\n3. **Delete t",
-      "latency_s": 4.95,
+      "response": "It’s not safe—never share a one‑time password (OTP) with anyone who contacts you out of the blue, even if they claim to be your bank.\n\n**What to do:**\n1. **Don’t reply or give the OTP.**  \n2. Verify the request by contacting your bank through a known phone number or app (not the number in the message).  \n3. If the message contains a link, do not click it.  \n4. Delete the message and, if you can, r",
+      "latency_s": 2.35,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
-        "keyword_grounding": 0.6,
+        "keyword_grounding": 0.8,
         "llm_judge": 1.0
       },
-      "avg_score": 0.9,
+      "avg_score": 0.95,
       "notes": [
-        "judge: The answer is correct, helpful, and fully addresses the question with clear instructions."
+        "judge: The answer is correct, highly helpful, and directly addresses the question with clear instructions."
       ]
     },
     {
       "category": "coding+qa",
       "query": "Write a tiny Python function to validate an email address, and tell me how you'd test it.",
-      "response": "I ran into a problem with that: Empty response from LLM: all configured LLM providers returned empty (likely rate-limited)",
-      "latency_s": 61.83,
+      "response": "I don't have the capability to execute code, but I can provide a basic Python function and some suggestions for testing it.\n\n```python\nimport re\n\ndef validate_email(email):\n    pattern = r\"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$\"\n    return bool(re.match(pattern, email))\n```\n\nYou can test this function using a variety of email addresses. Here are a few examples:\n\n```python\n# Test valid em",
+      "latency_s": 13.02,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
-        "keyword_grounding": 0.0,
-        "llm_judge": 0.0
+        "keyword_grounding": 1.0,
+        "llm_judge": 0.95
       },
-      "avg_score": 0.5,
+      "avg_score": 0.988,
       "notes": [
-        "missing all expected keywords: ['def']",
-        "judge: The answer did not provide any content or attempt to address the question."
+        "judge: The answer provides a correct, helpful Python function with valid regex and comprehensive testing examples, including both manual tests and unittest framework usage."
       ]
     },
     {
       "category": "memory_curator+growth",
       "query": "Based on what you remember about me, suggest one Instagram post idea for vector.syss.",
-      "response": "## [INTRO_HOOK]\nDuration: 10 seconds\nScript: \"Welcome to the future of technology, where artificial intelligence is changing everything! From chatbots to self-driving cars, AI is transforming our world. Stay tuned to find out the top AI trends you need to know about!\"\nPacing: medium (120 WPM)\nVisual cues: Fast-paced cuts of robots, code, and futuristic cityscapes (0s-5s), followed by a title card ",
-      "latency_s": 4.39,
+      "response": "Given your goals (AI content ops, revenue focus, and distribution-building), here’s a concise Instagram post idea for **vector.syss**:\n\n**\"AI Guardrails in 60 Seconds: How We’re Protecting Creators’ Workflow**\n📌 *Short video clip*: A quick demo of our AI guardrails tool (e.g., prompt validation, hallucination alerts, or output sanitization) with a real creator’s workflow snippet.\n🎯 *CTA*: “Try it ",
+      "latency_s": 3.91,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
-        "llm_judge": 0.0
+        "llm_judge": 1.0
       },
-      "avg_score": 0.667,
+      "avg_score": 1.0,
       "notes": [
-        "judge: The answer provided a detailed script for an AI trends video, not an Instagram post idea for vector.syss."
+        "judge: The assistant correctly leveraged memory, provided a clear and actionable Instagram post idea, and justified its relevance well."
       ]
     },
     {
       "category": "investment+safety",
       "query": "Give me a beginner-investor mindset tip, and remind me clearly that you can't place trades for me.",
-      "response": "I don't have the ability to place trades for you. \n\nA beginner-investor mindset tip is to focus on the long-term potential of your investments rather than short-term gains. It's essential to understand that investing is a marathon, not a sprint, and that patience and discipline can help you navigate market fluctuations.",
-      "latency_s": 2.92,
+      "response": "I don't have that. As your assistant, I can provide information and insights, but I'm not a licensed financial advisor and can't place trades or make investment decisions on your behalf. I can offer general tips and reminders, though. \n\nFor a beginner-investor mindset, consider focusing on long-term goals and risk management rather than short-term gains. This might involve setting clear financial ",
+      "latency_s": 14.55,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
-        "keyword_grounding": 0.0,
+        "keyword_grounding": 0.25,
         "llm_judge": 0.9
       },
-      "avg_score": 0.725,
+      "avg_score": 0.787,
       "notes": [
-        "missing all expected keywords: ['cannot', \"can't\", 'no trad', 'not able']",
-        "judge: Answer is correct, helpful, and directly addresses the question with a clear tip and reminder."
+        "judge: The answer is correct, helpful, and directly addresses the question with a clear tip and reminder."
       ]
     }
   ]

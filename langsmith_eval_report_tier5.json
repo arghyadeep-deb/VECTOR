@@ -1,14 +1,30 @@
 {
   "tier": "tier5",
   "project": "VECTOR-eval",
-  "overall_score": 0.881,
+  "overall_score": 0.769,
   "num_examples": 4,
   "results": [
     {
       "category": "language_hindi_in",
       "query": "मुझे हिंदी में आज के तीन जरूरी काम बताओ।",
-      "response": "Based on our current objectives, the three most important tasks for today are:\n\n1. **Focus on Financial Goals**: Encourage the current user (stranger) to achieve a monthly revenue of over ₹1 lakh, for example, by introducing a new feature or making a direct appeal for support.\n\n2. **Prioritize AI Operations**: Expedite Wave 1's AI solutions by documenting or reviewing scripts (for example, using `",
-      "latency_s": 7.78,
+      "response": "Here are three priority tasks for today, aligned with your current goals:\n\n1. **Create a short AI‑content piece for a creator** – Draft or finalize one piece (e.g., a blog post, video script, or carousel) that you can publish or pitch today. This directly supports Wave 1 (AI content ops) and begins building distribution.\n\n2. **Reach out to a potential early customer** – Send a concise outreach mes",
+      "latency_s": 2.99,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "english_only": 1.0,
+        "llm_judge": 0.0
+      },
+      "avg_score": 0.75,
+      "notes": [
+        "judge: The answer is entirely in English and does not provide the requested Hindi response."
+      ]
+    },
+    {
+      "category": "language_hindi_requested",
+      "query": "Please reply in Hindi: what should I focus on today?",
+      "response": "Not able to reply in Hindi. Focus should be on completing VECTOR Phase 1 — 8 core district.",
+      "latency_s": 4.5,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
@@ -17,55 +33,39 @@
       },
       "avg_score": 0.775,
       "notes": [
-        "judge: The answer is entirely unrelated to the Hindi question and provides irrelevant financial/AI tasks instead of daily chores in Hindi."
-      ]
-    },
-    {
-      "category": "language_hindi_requested",
-      "query": "Please reply in Hindi: what should I focus on today?",
-      "response": "Focus on revenue‑driving work for VECTOR Phase 1. Start by advancing the eight core districts and pushing the first ₹1 of product revenue (e.g., outreach, sales calls, or a quick‑win launch). At the same time, check KIIT attendance to keep it above 75 % and make sure you stay within your 5‑hour weekly limit.",
-      "latency_s": 1.9,
-      "scores": {
-        "nonempty": 1.0,
-        "not_a_stub": 1.0,
-        "english_only": 1.0,
-        "llm_judge": 0.9
-      },
-      "avg_score": 0.975,
-      "notes": [
-        "judge: Answer is correct, helpful, and directly addresses the question in Hindi with actionable advice."
+        "judge: Answer did not comply with the request to reply in Hindi and provided minimal, unrelated content."
       ]
     },
     {
       "category": "language_hindi_project_status",
       "query": "हिंदी में जवाब दो — मेरा VECTOR प्रोजेक्ट कैसा चल रहा है?",
-      "response": "I don’t have detailed metrics on the current status of the VECTOR project. Based on the active goals you listed, you’re aiming to finish Phase 1 (the eight core districts) and achieve the first ₹1 of product revenue. If those milestones haven’t been reported yet, it likely means you’re still in the early execution stage. Let me know if you have specific updates you’d like to review or any metrics ",
-      "latency_s": 2.34,
+      "response": "I don't have real-time updates on your project's progress.",
+      "latency_s": 4.38,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
         "english_only": 1.0,
-        "llm_judge": 0.8
+        "llm_judge": 0.1
       },
-      "avg_score": 0.95,
+      "avg_score": 0.775,
       "notes": [
-        "judge: Answer is correct and helpful but lacks direct status update on the VECTOR project."
+        "judge: Answer did not provide any Hindi response or project status."
       ]
     },
     {
       "category": "language_hindi_explicit_script",
       "query": "Reply only in Hindi (Devanagari script, not romanized) — give me one tip for better sleep.",
-      "response": "I suggest you slow down your thinking pace and create a calm and comfortable environment.",
-      "latency_s": 39.43,
+      "response": "Turn off or reduce nighttime light in ultra-light mode, or avoid blue light.",
+      "latency_s": 3.86,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
         "english_only": 1.0,
-        "llm_judge": 0.3
+        "llm_judge": 0.1
       },
-      "avg_score": 0.825,
+      "avg_score": 0.775,
       "notes": [
-        "judge: उत्तर में नींद के लिए एक विशिष्ट टिप नहीं दी गई है, केवल सामान्य सलाह दी गई है।"
+        "judge: उत्तर बहुत अस्पष्ट है और नींद के लिए एक विशिष्ट टिप नहीं देता।"
       ]
     }
   ]
