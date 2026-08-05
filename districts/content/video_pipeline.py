@@ -554,16 +554,21 @@ class VideoPipelineAgent(AgentBase):
             token = CONFIG["api_keys"].get("pushover_token", "")
             user  = CONFIG["api_keys"].get("pushover_user", "")
             if token and user:
-                await httpx.AsyncClient().post(
-                    "https://api.pushover.net/1/messages.json",
-                    data={
-                        "token": token, "user": user,
-                        "title": "VECTOR: Video Ready",
-                        "message": f"'{title}' renders done. Uploading in {delay}min. Cancel: send 'cancel {job_id[:8]}' to VECTOR.",
-                        "priority": 0,
-                    },
-                    timeout=10,
-                )
+                # 2026-08-05: was `await httpx.AsyncClient().post(...)` — that
+                # constructs a client (and its connection pool) and never
+                # closes it, leaking a pool per notification. Every other
+                # httpx call site in this codebase uses `async with`; these
+                # two in this file were the only bare ones.
+                async with httpx.AsyncClient(timeout=10) as _client:
+                    await _client.post(
+                        "https://api.pushover.net/1/messages.json",
+                        data={
+                            "token": token, "user": user,
+                            "title": "VECTOR: Video Ready",
+                            "message": f"'{title}' renders done. Uploading in {delay}min. Cancel: send 'cancel {job_id[:8]}' to VECTOR.",
+                            "priority": 0,
+                        },
+                    )
         except Exception:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
         logger.info("[VECTOR][video_pipeline] notified owner: '{}' uploading in {}min", title, delay)
@@ -575,16 +580,18 @@ class VideoPipelineAgent(AgentBase):
             user  = CONFIG["api_keys"].get("pushover_user", "")
             if token and user:
                 links = " | ".join(filter(None, [yt_url, ig_url]))
-                await httpx.AsyncClient().post(
-                    "https://api.pushover.net/1/messages.json",
-                    data={
-                        "token": token, "user": user,
-                        "title": "VECTOR: Uploaded!",
-                        "message": f"'{title}' is live!\n{links}",
-                        "priority": 0, "url": yt_url or ig_url or "",
-                    },
-                    timeout=10,
-                )
+                # 2026-08-05: same unclosed-client leak as
+                # _notify_pending_upload above — see that comment.
+                async with httpx.AsyncClient(timeout=10) as _client:
+                    await _client.post(
+                        "https://api.pushover.net/1/messages.json",
+                        data={
+                            "token": token, "user": user,
+                            "title": "VECTOR: Uploaded!",
+                            "message": f"'{title}' is live!\n{links}",
+                            "priority": 0, "url": yt_url or ig_url or "",
+                        },
+                    )
         except Exception:
             logger.debug("[VECTOR] suppressed exception", exc_info=True)
 
