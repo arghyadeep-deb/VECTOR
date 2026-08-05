@@ -111,3 +111,63 @@ def test_sanitized_marker_would_not_match_bypass_condition():
     forged = sanitize_proposed_by("api_command")
     assert "run_shell_command" in RED_INTERACTIVE_TOOLS
     assert forged not in ("api_command", "voice")
+
+
+# ---------------------------------------------------------------------------
+# 2026-08-05 follow-up: outward-facing messaging + the never-implemented sandbox
+# ---------------------------------------------------------------------------
+
+def test_send_message_routine_is_red_with_owner_bypass():
+    """Sending a real message to a real person must not auto-confirm.
+
+    It dispatches to the communications district and actually sends. As
+    YELLOW it auto-executed after ~10s with no confirmation under
+    VECTOR_YELLOW_AUTO_CONFIRM=1 — and the autonomous loop is live again, so
+    an LLM-invented task_type could send outward under the owner's name
+    unattended. It keeps the owner-initiated bypass so a send the owner
+    explicitly asks for is still instant.
+    """
+    assert "send_message_routine" in RED
+    assert "send_message_routine" not in YELLOW
+    assert "send_message_routine" in RED_INTERACTIVE_TOOLS
+    # Not OWNER_APPROVAL_ONLY: that set is for irreversible money/deploy/
+    # publish actions that should cost a phone tap even when owner-typed.
+    assert "send_message_routine" not in OWNER_APPROVAL_ONLY
+
+
+def test_commit_code_intentionally_stays_yellow():
+    """commit_code is deliberately NOT promoted.
+
+    Git commits are local and revertible, and .claude/rules/code_style.md
+    explicitly wants VECTOR auto-committing ("Commit every day — minimum 1
+    commit before sleep"). Gating it would break a documented workflow. This
+    test exists so the omission reads as a decision, not an oversight.
+    """
+    assert "commit_code" in YELLOW
+    assert "commit_code" not in RED
+
+
+def test_execute_code_sandbox_is_not_silently_restorable():
+    """execute_code must not pretend a working sandbox exists.
+
+    Verified 2026-08-05: sandboxed execution was never implemented — three
+    independent things are missing (ContainerRunner not exported from
+    core/sandbox/__init__.py; ContainerRunner.run() takes a dict and has no
+    language/timeout_seconds params, so the old call was type-incompatible;
+    the vector-sandbox:latest image was never built). The handler now refuses
+    explicitly instead of reporting a merely-"unavailable" sandbox.
+
+    This pins the two invariants that matter: execute_code is still RED, and
+    core.sandbox still does not export ContainerRunner — so if someone "fixes"
+    the export alone, believing that re-enables the feature, this fails and
+    points them at the other two missing pieces.
+    """
+    assert "execute_code" in RED
+
+    import core.sandbox as _sandbox
+    assert not hasattr(_sandbox, "ContainerRunner"), (
+        "core.sandbox now exports ContainerRunner — exporting it ALONE does not "
+        "make execute_code work: the call signature still mismatches and the "
+        "vector-sandbox image must exist. See permission_gateway.py's "
+        "execute_code branch before re-enabling."
+    )

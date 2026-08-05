@@ -155,6 +155,15 @@ RED_INTERACTIVE_TOOLS = {
     'pc_type', 'pc_click', 'pc_launch_app', 'launch_app',
     'code_task', 'code_generate', 'code_fix', 'code_debug',
     'download_file',
+    # 2026-08-05: send_message_routine promoted YELLOW -> RED (it sends a real
+    # message to a real person and was auto-confirming). Included here rather
+    # than left bare-RED so the owner explicitly asking VECTOR to send
+    # something still goes immediately, exactly as it did as YELLOW — only
+    # autonomous/LLM-originated sends now require a real approval. It is
+    # deliberately NOT in OWNER_APPROVAL_ONLY: that set is for irreversible
+    # money/deploy/publish actions where even an owner-typed command should
+    # cost a phone tap.
+    'send_message_routine',
 }
 
 class PermissionGateway:
@@ -904,31 +913,51 @@ class PermissionGateway:
                 # FAIL CLOSED: if the sandbox is unavailable we refuse to run —
                 # code must NEVER execute unsandboxed on the host.
                 code = action.params.get("code", "")
-                language = action.params.get("language", "python")
                 if not code:
                     result["status"] = "rejected"
                     result["reason"] = "no code provided"
                 else:
-                    try:
-                        from core.sandbox import ContainerRunner  # type: ignore
-                        runner = ContainerRunner()
-                        sandbox_result = await asyncio.to_thread(
-                            runner.run,
-                            code,
-                            language=language,
-                            timeout_seconds=int(action.params.get("timeout", 30)),
-                        )
-                        result["status"] = "ok"
-                        result["stdout"] = (getattr(sandbox_result, "stdout", "") or "")[:2000]
-                        result["stderr"] = (getattr(sandbox_result, "stderr", "") or "")[:1000]
-                        result["exit_code"] = getattr(sandbox_result, "exit_code", 0)
-                        result["sandbox"] = "container"
-                    except Exception as _sandbox_err:
-                        # Sandbox not available — FAIL CLOSED, never run unsandboxed
-                        logger.error(f"[VECTOR][gateway] sandbox unavailable — refusing to execute code: {_sandbox_err}")
-                        result["status"] = "error"
-                        result["sandbox"] = "unavailable"
-                        result["error"] = f"code execution blocked: no sandbox available ({_sandbox_err})"
+                    # 2026-08-05 (audit): this branch previously did
+                    #   from core.sandbox import ContainerRunner
+                    #   runner.run(code, language=..., timeout_seconds=...)
+                    # and caught the failure in a bare `except`, reporting
+                    # "sandbox unavailable". That message implied a working
+                    # sandbox that was merely absent. It is not — sandboxed
+                    # execution was never actually implemented here. THREE
+                    # independent things are missing, verified 2026-08-05:
+                    #   1. `ContainerRunner` is not exported from
+                    #      core/sandbox/__init__.py (it lives in
+                    #      core/sandbox/runner.py), so the import always
+                    #      raised ImportError.
+                    #   2. Even with the import fixed the call is
+                    #      type-incompatible: ContainerRunner.run() takes
+                    #      (input_data: dict, *, workspace, mounts, secrets,
+                    #      env). It has NO `language` or `timeout_seconds`
+                    #      parameter, and `code` here is a str, not a dict.
+                    #   3. Its DEFAULT_IMAGE "vector-sandbox:latest" has never
+                    #      been built on this machine.
+                    # Net effect: execute_code has NEVER once run anything.
+                    # It always fell into the except and refused — which is
+                    # the CORRECT outcome, reached by accident.
+                    #
+                    # Keeping the refusal (fail closed is right for arbitrary
+                    # code execution) but making it honest, so nobody
+                    # "restores" a sandbox that was never there. Implementing
+                    # this properly means: export ContainerRunner, adapt the
+                    # call to its real dict-based signature, build the
+                    # vector-sandbox image, and only then re-enable — a
+                    # deliberate feature, not a bug fix.
+                    logger.warning(
+                        "[VECTOR][gateway] execute_code refused: sandboxed execution is "
+                        "NOT IMPLEMENTED (see core/loop/permission_gateway.py). Code is "
+                        "never run unsandboxed on the host."
+                    )
+                    result["status"] = "rejected"
+                    result["sandbox"] = "not_implemented"
+                    result["reason"] = (
+                        "code execution is not implemented — sandboxed execution was never "
+                        "wired up, and VECTOR will not run code unsandboxed on the host"
+                    )
             elif action.action_type in ("code_task", "code_review_vc", "code_generate",
                                         "code_fix", "code_debug", "run_tests"):
                 try:

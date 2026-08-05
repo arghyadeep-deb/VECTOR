@@ -88,7 +88,12 @@ class PermissionConfig(BaseModel):
         "hand_trader", "hand_lead", "hand_vault_sync",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
-        "send_message_routine", "create_calendar_event", "commit_code",
+        # commit_code stays YELLOW deliberately: git commits are local and
+        # revertible, and .claude/rules/code_style.md explicitly wants VECTOR
+        # auto-committing ("Commit every day — minimum 1 commit before
+        # sleep"). Gating it behind a phone tap would break a documented,
+        # intended workflow. send_message_routine was moved to RED below.
+        "create_calendar_event", "commit_code",
         "set_reminder", "write_note_personal",
         "pc_screenshot",
         "monthly_report", "finance_report", "journal", "weekly_journal",
@@ -126,6 +131,15 @@ class PermissionConfig(BaseModel):
         "pc_type", "pc_click", "pc_launch_app", "launch_app",    # synthetic input / app launch
         "code_task", "code_generate", "code_fix", "code_debug",  # code write + execute paths
         "download_file",                                         # arbitrary fetch-to-disk
+        # 2026-08-05: moved from YELLOW. This dispatches to the communications
+        # district and actually SENDS a message to a real person. As YELLOW it
+        # auto-executed after ~10s with no confirmation whenever
+        # VECTOR_YELLOW_AUTO_CONFIRM=1 — and as of today the autonomous loop is
+        # live again, so an LLM-invented task_type could send something
+        # outward, under the owner's name, unattended. Owner-typed/spoken
+        # sends still go instantly via the RED_INTERACTIVE_TOOLS bypass; only
+        # autonomous ones now wait for a real Pushover approval.
+        "send_message_routine",                                  # sends a real message to a real person
     ])
     # Trust ladder — earned autonomy for YELLOW actions (core/loop/trust_ladder.py).
     # N consecutive explicit approvals with zero bad outcomes → auto-execute;
