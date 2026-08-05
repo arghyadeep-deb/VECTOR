@@ -204,3 +204,9 @@ models/wake/positive_all/
 # fixed 2026-07-28 to be colocated with the real SQLite DB instead of
 # ~/.vector_ca (see core/engine/memory_tree/tree_builder.py).
 /memory_tree/
+
+# Vendored ponytail plugin — owner does not want this published.
+# Kept on disk (core/inference/ponytail_guard.py reads
+# ponytail/skills/ponytail/SKILL.md at runtime and degrades gracefully via
+# its OSError guard if absent), just not tracked in git.
+ponytail/
