@@ -116,6 +116,40 @@ new VECTOR defects.
    own thread. Confirm with a thread dump (`VECTOR_THREAD_DUMP_SEC`, now
    wired) at the next stall before treating this as established.
 
+   **UPDATE 2026-08-06 03:31 — the detection worked, and the MemoryTree
+   hypothesis is only PARTIALLY validated. The stall still recurs.**
+
+   The watchdog caught a real recurrence unattended, hours after the
+   detection shipped:
+
+       03:31:14 | LOOP STALE: heartbeat age=48.9s tick_count=2266 pid=33480
+                  matches the live listener -- brain thread appears hung.
+       03:31:14 | UNHEALTHY: port 8000 bound and /health returned 200, but
+                  the loop heartbeat is stale for the pid actually listening
+       03:31:14 | Killed PID 33480
+       03:31:18 | Restart launched (PID 53616)
+
+   Note `/health` returned **200** — the exact blind spot this issue is
+   about. The staleness check caught it, the pid cross-check confirmed the
+   heartbeat belonged to the live listener rather than a leftover, and
+   recovery was automatic. That machinery is validated in production.
+
+   But the numbers say the root cause is still open:
+
+       OLD build: 1921 ticks over ~5.5h   =   349 ticks/hour
+       NEW build: 2266 ticks over ~35min  = 3,885 ticks/hour  (11.1x faster)
+
+   Off-loading the MemoryTree save removed a genuine bottleneck — throughput
+   is up 11x — but the loop still hangs, just after far less wall-clock time
+   and far more work. So MemoryTree was **a** bottleneck, not **the** root
+   cause. Do not close this issue on the strength of that fix.
+
+   Next step, now in progress: the live process has been restarted with
+   `VECTOR_THREAD_DUMP_SEC=60`, so the next stall writes all thread stacks to
+   `data/logs/thread_dumps.log`. Read the dump written closest to the stall
+   and look at what the loop thread is blocked in. Given the recurrence
+   interval above, expect a capture within roughly an hour of running.
+
    Why it matters: this is the SAME user-visible failure as the launch-path
    bug fixed in 98f026c72 ("looks alive, brain-dead"), but a different cause.
    `/health` cannot detect it. The heartbeat file can — it has a 10-second
