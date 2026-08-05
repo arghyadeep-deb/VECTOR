@@ -71,13 +71,18 @@ class ReasoningMemory:
             "goal_ids": goal_ids,
         }
 
-    def _touch_chains(self, conn, chain_ids: list[str]) -> None:
+    def _touch_chains(self, cursor, chain_ids: list[str]) -> None:
         """Reinforce genuinely-reused reasoning chains (Ebbinghaus decay,
         core.memory.decay) — same model as EpisodicMemory._touch_episodes:
         reset last_touch=now and grow stability_days on each real reuse via
         inject_past_reasoning()/search_chains(), so chains VECTOR keeps
         actually finding useful survive the forgetting pass longer than
-        chains nobody ever looks at again. Best-effort."""
+        chains nobody ever looks at again. Best-effort.
+
+        Takes a cursor from the caller's get_temp_cursor() block (not its own
+        connection) so this stays inside the same _write_lock hold as the
+        read that found these chain_ids — commit happens once, when that
+        enclosing `with get_temp_cursor()` block exits."""
         if not chain_ids:
             return
         try:
@@ -85,18 +90,17 @@ class ReasoningMemory:
             import datetime as _dt
             now = _dt.datetime.now(_dt.timezone.utc).isoformat()
             qs = ",".join("?" for _ in chain_ids)
-            rows = conn.execute(
+            rows = cursor.execute(
                 f"SELECT chain_id, stability_days FROM reasoning_chains WHERE chain_id IN ({qs})",
                 chain_ids,
             ).fetchall()
             current = {r[0]: r[1] for r in rows}
             for cid in chain_ids:
                 new_stability = reinforce(current.get(cid))
-                conn.execute(
+                cursor.execute(
                     "UPDATE reasoning_chains SET stability_days = ?, last_touch = ? WHERE chain_id = ?",
                     (new_stability, now, cid),
                 )
-            conn.commit()
         except Exception as e:
             logger.debug(f"[VECTOR][reasoning_memory] reinforcement touch skipped: {e}")
 
@@ -110,8 +114,13 @@ class ReasoningMemory:
         if limit <= 0:
             return []
         try:
-            conn = self._get_mem().conn
-            time_column = self._time_column(conn)
+            # get_temp_cursor() (core.memory.episodic) resolves the shared
+            # singleton connection fresh per call and holds _write_lock for the
+            # whole block — the old self._get_mem().conn pattern cached a
+            # connection snapshot from EpisodicMemory() construction time
+            # (stale after any singleton close/reopen, same class of defect as
+            # KNOWN_ISSUES #21) and issued raw conn.execute() outside any lock.
+            from core.memory.episodic import get_temp_cursor
             params: list[object] = []
             where = []
             if query:
@@ -122,17 +131,19 @@ class ReasoningMemory:
                 where.append("reward >= ?")
                 params.append(float(min_reward))
             where_sql = f"WHERE {' AND '.join(where)}" if where else ""
-            params.append(limit)
-            rows = conn.execute(
-                f"""SELECT chain_id, situation, steps, action_taken, outcome, reward, {time_column}, goal_ids
-                    FROM reasoning_chains
-                    {where_sql}
-                    ORDER BY reward DESC, {time_column} DESC
-                    LIMIT ?""",
-                tuple(params),
-            ).fetchall()
-            chains = [self._row_to_chain(row) for row in rows]
-            self._touch_chains(conn, [c["id"] for c in chains])
+            with get_temp_cursor() as cursor:
+                time_column = self._time_column(cursor)
+                query_params = list(params) + [limit]
+                rows = cursor.execute(
+                    f"""SELECT chain_id, situation, steps, action_taken, outcome, reward, {time_column}, goal_ids
+                        FROM reasoning_chains
+                        {where_sql}
+                        ORDER BY reward DESC, {time_column} DESC
+                        LIMIT ?""",
+                    tuple(query_params),
+                ).fetchall()
+                chains = [self._row_to_chain(row) for row in rows]
+                self._touch_chains(cursor, [c["id"] for c in chains])
             return chains
         except Exception as e:
             logger.error(f"[VECTOR][reasoning_memory] search_chains failed: {e}")
@@ -179,21 +190,22 @@ class ReasoningMemory:
     def get_recent(self, limit: int = 20, situation: str = "") -> list[dict]:
         """D2 — Return the most recent reasoning chains for the decision trace panel."""
         try:
-            conn = self._get_mem().conn
-            time_column = self._time_column(conn)
-            if situation:
-                rows = conn.execute(
-                    f"SELECT chain_id, situation, steps, action_taken, outcome, reward, {time_column} "
-                    "FROM reasoning_chains WHERE situation LIKE ? "
-                    f"ORDER BY {time_column} DESC LIMIT ?",
-                    (f"%{situation[:50]}%", limit),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    f"SELECT chain_id, situation, steps, action_taken, outcome, reward, {time_column} "
-                    f"FROM reasoning_chains ORDER BY {time_column} DESC LIMIT ?",
-                    (limit,),
-                ).fetchall()
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cursor:
+                time_column = self._time_column(cursor)
+                if situation:
+                    rows = cursor.execute(
+                        f"SELECT chain_id, situation, steps, action_taken, outcome, reward, {time_column} "
+                        "FROM reasoning_chains WHERE situation LIKE ? "
+                        f"ORDER BY {time_column} DESC LIMIT ?",
+                        (f"%{situation[:50]}%", limit),
+                    ).fetchall()
+                else:
+                    rows = cursor.execute(
+                        f"SELECT chain_id, situation, steps, action_taken, outcome, reward, {time_column} "
+                        f"FROM reasoning_chains ORDER BY {time_column} DESC LIMIT ?",
+                        (limit,),
+                    ).fetchall()
             result = []
             for r in rows:
                 steps_list = json.loads(r[2]) if r[2] else []
@@ -213,12 +225,13 @@ class ReasoningMemory:
 
     def get_stats(self) -> dict:
         try:
-            conn = self._get_mem().conn
-            total = conn.execute("SELECT COUNT(*) FROM reasoning_chains").fetchone()[0]
-            training = conn.execute(
-                "SELECT COUNT(*) FROM reasoning_chains WHERE is_training_data=1"
-            ).fetchone()[0]
-            avg_row = conn.execute("SELECT AVG(reward) FROM reasoning_chains").fetchone()[0]
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cursor:
+                total = cursor.execute("SELECT COUNT(*) FROM reasoning_chains").fetchone()[0]
+                training = cursor.execute(
+                    "SELECT COUNT(*) FROM reasoning_chains WHERE is_training_data=1"
+                ).fetchone()[0]
+                avg_row = cursor.execute("SELECT AVG(reward) FROM reasoning_chains").fetchone()[0]
             avg_reward = float(avg_row) if avg_row else 0.0
             return {
                 "total_chains": total,

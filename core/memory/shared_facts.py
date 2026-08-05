@@ -15,6 +15,7 @@ from core.memory.db_utils import apply_pragmas
 import sqlite3
 import json
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from loguru import logger
 from core.memory.db_utils import configured_db_path
@@ -35,11 +36,67 @@ class SharedFacts:
             cls._instance = cls()
         return cls._instance
 
-    def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
+    @staticmethod
+    def _row_class(conn):
+        """sqlite3.Row rejects sqlcipher cursors — pick the driver's own Row.
+
+        Same trap documented in districts/emergency/log.py:_row_class() and
+        districts/data_analytics/data_engineer.py:_open_db(): sqlite3.Row raises
+        "Row() argument 1 must be sqlite3.Cursor, not sqlcipher3.dbapi2.Cursor"
+        when handed a cursor from the sqlcipher3/pysqlcipher3 driver.
+        """
+        mod = type(conn).__module__
+        if mod.startswith("sqlcipher3"):
+            from sqlcipher3 import dbapi2
+            return dbapi2.Row
+        if mod.startswith("pysqlcipher3"):
+            from pysqlcipher3 import dbapi2
+            return dbapi2.Row
+        return sqlite3.Row
+
+    def _open_conn(self) -> sqlite3.Connection:
+        """Open a connection to self._db — SQLCipher-keyed when the main DB is
+        encrypted (2026-08-05 fix: this used to open the encrypted DB with plain
+        sqlite3.connect(), which raised "file is not a database" on every call —
+        the entire Gap-8 shared-fact store was a silent no-op in production).
+
+        Not the shared singleton from episodic.get_db_connection(): every method
+        below opens+closes its own connection per operation (see _conn()), so
+        handing out and having callers close the shared singleton would take the
+        rest of VECTOR's memory access down with it. An own keyed connection is
+        the right shape here, matching the existing precedent in
+        districts/emergency/log.py:_open_conn() and
+        districts/data_analytics/data_engineer.py:_open_db().
+        """
+        conn = None
+        try:
+            from core.memory import episodic
+            if getattr(episodic, "_USE_SQLCIPHER", False):
+                conn = episodic._open_sqlcipher_connection(self._db)
+        except Exception as e:
+            logger.warning(
+                "[VECTOR][shared_facts] SQLCipher open failed, falling back to plain sqlite: {}", e
+            )
+            conn = None
+        if conn is None:
+            conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
         apply_pragmas(conn)
-        conn.row_factory = sqlite3.Row
+        conn.row_factory = self._row_class(conn)
         return conn
+
+    @contextmanager
+    def _conn(self):
+        """Context manager yielding a connection: commits/rolls back like the
+        old `with self._conn() as conn:` call sites expect, and additionally
+        closes the connection afterward (each call opens a fresh one — nothing
+        else reuses or closes it, so not closing here would leak a connection,
+        plus a SQLCipher key derivation, on every SharedFacts call)."""
+        conn = self._open_conn()
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     def _init_db(self) -> None:
         with self._conn() as conn:

@@ -18,14 +18,7 @@ class PolicyMemory:
     DEFAULT_SCORE = float(CONFIG.get("policy_default_score", 0.5))
 
     def __init__(self):
-        self._mem = None
         logger.info("[VECTOR][policy] initialized")
-
-    def _get_mem(self):
-        if self._mem is None:
-            from core.memory.episodic import EpisodicMemory
-            self._mem = EpisodicMemory()
-        return self._mem
 
     @staticmethod
     def make_situation_hash(context: dict | str) -> str:
@@ -43,12 +36,20 @@ class PolicyMemory:
         Returns DEFAULT_SCORE if no data yet.
         """
         try:
-            conn = self._get_mem().conn
-            row = conn.execute(
-                "SELECT avg_reward, sample_count FROM policy_memory "
-                "WHERE action_type=? AND situation_hash=?",
-                (action_type, situation_hash),
-            ).fetchone()
+            # get_temp_cursor() (core.memory.episodic) resolves the shared
+            # singleton connection fresh on every call and holds _write_lock
+            # for the duration — a cached EpisodicMemory().conn (the old
+            # self._get_mem().conn pattern) goes stale if the singleton is
+            # ever closed/reopened (KNOWN_ISSUES #21-class defect), and raw
+            # conn.execute() outside _write_lock races other threads on the
+            # one shared connection.
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cursor:
+                row = cursor.execute(
+                    "SELECT avg_reward, sample_count FROM policy_memory "
+                    "WHERE action_type=? AND situation_hash=?",
+                    (action_type, situation_hash),
+                ).fetchone()
             if row:
                 avg_reward, count = row
                 logger.debug(
@@ -69,30 +70,39 @@ class PolicyMemory:
         """
         reward = max(0.0, min(1.0, reward))
         try:
-            conn = self._get_mem().conn
-            row = conn.execute(
-                "SELECT avg_reward, sample_count FROM policy_memory "
-                "WHERE action_type=? AND situation_hash=?",
-                (action_type, situation_hash),
-            ).fetchone()
-
-            if row:
-                old_avg, n = row
-                new_avg = (old_avg * n + reward) / (n + 1)
-                conn.execute(
-                    "UPDATE policy_memory SET avg_reward=?, sample_count=?, "
-                    "last_updated=datetime('now') "
+            # The whole read-modify-write online average must happen inside a
+            # single _write_lock hold, or two threads updating the same
+            # (action_type, situation_hash) can both read the same (old_avg, n)
+            # and the second commit silently clobbers the first's update —
+            # a lost-update race that degrades the RULE 7 learning signal with
+            # no error and no log line. get_temp_cursor() holds _write_lock for
+            # its whole `with` block, so this is now atomic across threads
+            # (still process-local only — see core.memory.episodic._write_lock's
+            # own docs; it is not cross-process protection).
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cursor:
+                row = cursor.execute(
+                    "SELECT avg_reward, sample_count FROM policy_memory "
                     "WHERE action_type=? AND situation_hash=?",
-                    (new_avg, n + 1, action_type, situation_hash),
-                )
-            else:
-                conn.execute(
-                    "INSERT INTO policy_memory "
-                    "(action_type, situation_hash, avg_reward, sample_count, last_updated) "
-                    "VALUES (?, ?, ?, 1, datetime('now'))",
-                    (action_type, situation_hash, reward),
-                )
-            conn.commit()
+                    (action_type, situation_hash),
+                ).fetchone()
+
+                if row:
+                    old_avg, n = row
+                    new_avg = (old_avg * n + reward) / (n + 1)
+                    cursor.execute(
+                        "UPDATE policy_memory SET avg_reward=?, sample_count=?, "
+                        "last_updated=datetime('now') "
+                        "WHERE action_type=? AND situation_hash=?",
+                        (new_avg, n + 1, action_type, situation_hash),
+                    )
+                else:
+                    cursor.execute(
+                        "INSERT INTO policy_memory "
+                        "(action_type, situation_hash, avg_reward, sample_count, last_updated) "
+                        "VALUES (?, ?, ?, 1, datetime('now'))",
+                        (action_type, situation_hash, reward),
+                    )
             logger.debug(f"[VECTOR][policy] updated {action_type} reward={reward:.3f}")
         except Exception as e:
             logger.error(f"[VECTOR][policy] update_from_outcome failed: {e}")
@@ -100,11 +110,13 @@ class PolicyMemory:
     def get_top_actions(self, limit: int = 10) -> list[dict]:
         """Top-performing action types with ≥3 samples, by avg reward."""
         try:
-            rows = self._get_mem().conn.execute(
-                "SELECT action_type, avg_reward, sample_count FROM policy_memory "
-                "WHERE sample_count >= 3 ORDER BY avg_reward DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cursor:
+                rows = cursor.execute(
+                    "SELECT action_type, avg_reward, sample_count FROM policy_memory "
+                    "WHERE sample_count >= 3 ORDER BY avg_reward DESC LIMIT ?",
+                    (limit,),
+                ).fetchall()
             return [{"action": r[0], "avg_reward": round(r[1], 3), "samples": r[2]} for r in rows]
         except Exception as e:
             logger.error(f"[VECTOR][policy] get_top_actions failed: {e}")
@@ -112,9 +124,10 @@ class PolicyMemory:
 
     def get_stats(self) -> dict:
         try:
-            conn = self._get_mem().conn
-            total = conn.execute("SELECT COUNT(*) FROM policy_memory").fetchone()[0]
-            avg = conn.execute("SELECT AVG(avg_reward) FROM policy_memory").fetchone()[0] or 0.0
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cursor:
+                total = cursor.execute("SELECT COUNT(*) FROM policy_memory").fetchone()[0]
+                avg = cursor.execute("SELECT AVG(avg_reward) FROM policy_memory").fetchone()[0] or 0.0
             return {"total_entries": total, "overall_avg_reward": round(float(avg), 3)}
         except Exception as e:
             logger.error(f"[VECTOR][policy] get_stats failed: {e}")

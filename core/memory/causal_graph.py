@@ -57,9 +57,25 @@ class CausalGraph:
         from core.memory.episodic import get_db_connection
         return get_db_connection()
 
+    def _shared_write_lock(self):
+        """episodic._write_lock is the only thing that serializes concurrent
+        threads against the shared singleton SQLite connection (see
+        episodic.get_temp_cursor()'s docstring) — every conn.execute() below
+        against the shared DB (self._json_path is None) used to bypass it
+        entirely, same class of bug as core.memory.policy's lost-update race.
+        self._lock alone only serializes within one CausalGraph instance, not
+        across other threads/instances/modules sharing the singleton
+        connection. No-op for the isolated json_path (private in-memory,
+        per-instance) mode, where there is no shared connection to race."""
+        if self._json_path:
+            from contextlib import nullcontext
+            return nullcontext()
+        from core.memory.episodic import get_db_write_lock
+        return get_db_write_lock()
+
     def _init_db(self):
         try:
-            with self._lock:
+            with self._lock, self._shared_write_lock():
                 conn = self._conn()
                 with conn:
                     conn.execute("""
@@ -87,7 +103,7 @@ class CausalGraph:
 
     def _load(self):
         try:
-            with self._lock:
+            with self._lock, self._shared_write_lock():
                 conn = self._conn()
                 cursor = conn.execute("SELECT id, type, label, metadata, created_at, weight FROM causal_nodes")
                 for row in cursor.fetchall():
@@ -136,7 +152,7 @@ class CausalGraph:
 
     def _upsert_node_db(self, node: dict):
         try:
-            with self._lock:
+            with self._lock, self._shared_write_lock():
                 conn = self._conn()
                 with conn:
                     conn.execute(
@@ -151,7 +167,7 @@ class CausalGraph:
 
     def _delete_node_db(self, node_id: str):
         try:
-            with self._lock:
+            with self._lock, self._shared_write_lock():
                 conn = self._conn()
                 with conn:
                     conn.execute("DELETE FROM causal_nodes WHERE id = ?", (node_id,))
@@ -161,7 +177,7 @@ class CausalGraph:
 
     def _insert_edge_db(self, edge: dict):
         try:
-            with self._lock:
+            with self._lock, self._shared_write_lock():
                 conn = self._conn()
                 with conn:
                     conn.execute(
@@ -175,7 +191,7 @@ class CausalGraph:
 
     def _update_edge_strength_db(self, from_id: str, to_id: str, strength: float):
         try:
-            with self._lock:
+            with self._lock, self._shared_write_lock():
                 conn = self._conn()
                 with conn:
                     conn.execute(

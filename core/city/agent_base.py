@@ -323,10 +323,15 @@ class AgentBase:
         self._facts[key] = value
         try:
             from core.memory.shared_facts import SharedFacts
-            SharedFacts().set(key, value, source=self.name)
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+            # SharedFacts.set()'s real kwarg is source_agent=, not source= —
+            # the old source= silently raised TypeError on every call (swallowed
+            # below), so cross-agent fact sharing never actually persisted.
+            SharedFacts().set(key, value, source_agent=self.name)
+        except Exception as e:
+            # Must not raise (agents can't crash because the fact store is
+            # down) but must not lie about success either — log the real
+            # error so this class of failure is visible going forward.
+            logger.warning("[VECTOR][city] SharedFacts.set({!r}) failed for {}: {}", key, self.name, e)
 
     def recall_fact(self, key: str, default=None):
         """Recall a local/shared fact, returning default when unavailable."""
@@ -336,7 +341,8 @@ class AgentBase:
             from core.memory.shared_facts import SharedFacts
             value = SharedFacts().get(key)
             return default if value is None else value
-        except Exception:
+        except Exception as e:
+            logger.warning("[VECTOR][city] SharedFacts.get({!r}) failed for {}: {}", key, self.name, e)
             return default
 
     async def request_agent_help(self, target_agent: str, task: dict) -> dict:
