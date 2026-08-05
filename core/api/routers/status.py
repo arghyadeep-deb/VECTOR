@@ -12,6 +12,7 @@ __all__ = [
     "system_metrics",
 ]
 
+import asyncio
 import time
 import datetime as dt
 from typing import Any
@@ -23,6 +24,7 @@ import httpx
 
 from core.api.schemas import StatusResponse, HealthResponse
 from core.api.crud import get_memory_stats
+from core.api.cache import health_cache
 from core.config import CONFIG
 
 router = APIRouter(tags=["status"])
@@ -184,9 +186,22 @@ async def system_metrics():
         "uptime_seconds": get_uptime_seconds(),
     }
 
+def _format_health_error(e: Exception) -> str:
+    """Render an exception for a /health check field, distinguishing timeouts
+    (whose str() is often empty, e.g. httpx.ReadTimeout) from real failures."""
+    detail = str(e).strip() or "no details (likely a timeout)"
+    return f"error: {type(e).__name__}: {detail}"
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health_endpoint():
-    """Detailed health check for monitoring."""
+    """Detailed health check for monitoring. Cached briefly (health_cache TTL)
+    so repeated polling — e.g. the watchdog's health loop — doesn't re-run the
+    Ollama probe and the SQLite stats query on every hit."""
+    cached = health_cache.get("status_health")
+    if cached is not None:
+        return cached
+
     import datetime
     checks = {}
 
@@ -196,23 +211,29 @@ async def health_endpoint():
             r = await client.get(f"{_OLLAMA_HOST}/api/tags")
             checks["ollama"] = "ok" if r.status_code == 200 else f"http_{r.status_code}"
     except Exception as e:
-        checks["ollama"] = f"error: {e}"
+        checks["ollama"] = _format_health_error(e)
 
-    # Check SQLite
+    # Check SQLite — off the event loop. get_memory_stats() constructs
+    # EpisodicMemory() and runs several sequential SELECT COUNT(*) queries
+    # under the shared episodic _write_lock; running it inline here would
+    # block every other coroutine on this loop (including the Ollama probe
+    # above) for the duration.
     try:
-        memory_stats = get_memory_stats()
+        memory_stats = await asyncio.to_thread(get_memory_stats)
         checks["sqlite"] = "ok" if memory_stats and "error" not in memory_stats else "error"
     except Exception as e:
-        checks["sqlite"] = f"error: {e}"
+        checks["sqlite"] = _format_health_error(e)
 
     all_ok = all(v == "ok" for v in checks.values())
 
-    return HealthResponse(
+    result = HealthResponse(
         status="ok" if all_ok else "degraded",
         checks=checks,
         timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
         version="1.0.0",
     )
+    health_cache.set("status_health", result)
+    return result
 
 async def _check_ollama_models() -> dict:
     """Dynamically check which Ollama models are loaded."""
