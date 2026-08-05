@@ -5,6 +5,31 @@ import asyncio
 import tempfile
 
 
+@pytest.fixture(autouse=True)
+def _isolated_curator_db(tmp_path, monkeypatch):
+    """Never let these tests touch the owner's real memory DB.
+
+    2026-08-06: this file was the SEVENTH found writing into production. It
+    escaped the earlier isolation sweep (commits 730136d08, 60a707302)
+    because it never names EpisodicMemory or get_db_connection — it writes
+    through `ConsolidationBot()._memory.store(...)`, so a grep for the
+    obvious symbols missed it. Caught by watching the live row count instead:
+    `source='test'` went 28,083 -> 28,111 during a test run, and the new rows
+    were literally "vault note test event N" / "hp change test event N" from
+    the cases below.
+
+    Same pattern as tests/unit/test_memory_decay.py::isolated_episodic. The
+    bots build their own EpisodicMemory lazily at construction time, which is
+    inside each test, so redirecting the env here is enough to catch them.
+    """
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "curator_test.db"))
+    monkeypatch.setenv("VECTOR_DB_KEY", "test_key_isolated")
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    yield
+    ep.close_db_connection()
+
+
 # ── ConsolidationBot ──────────────────────────────────────────────────────────
 
 def test_consolidation_bot_init():
