@@ -132,6 +132,22 @@ def _wrap_with_circuit_breaker(name: str, func, *args, **kwargs):
 _warmed: set[str] = set()
 _warm_lock = threading.Lock()
 
+# â”€â”€ Concurrency bound â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# OLLAMA_MAX_LOADED_MODELS=1 (.claude/rules/models.md, 12GB RTX 5070 Ti) means
+# the daemon holds exactly ONE model resident and serves every request off a
+# single decode slot. Nothing here ever bounded how many requests VECTOR
+# itself fired at it concurrently — two brain processes were once observed
+# holding 90 simultaneous connections against a backend that serves one model
+# at a time. This is the sync-side half of the fix (chat/chat_stream/
+# warm_models all call `ollama.Client(...)` synchronously via the `ollama`
+# package, which is not awaitable, so a threading.Semaphore is the correct
+# primitive here — NOT an asyncio.Semaphore, which only guards coroutines on
+# one event loop and would silently do nothing for calls made from worker
+# threads). CONFIG["ollama_max_concurrent"] (default 2) is shared with the
+# separate asyncio.Semaphore in provider_client.py; see that file's comment
+# for why the two are independent instances rather than one shared lock.
+_OLLAMA_SYNC_SEMAPHORE = threading.Semaphore(CONFIG["ollama_max_concurrent"])
+
 
 def _is_airllm_model(model: str) -> bool:
     return any(m in model.lower() for m in _AIRLLM_MODELS)
@@ -215,31 +231,39 @@ def chat(
         # `Get-NetTCPConnection` climbing from 7 (fresh process) to 100 (25h
         # uptime) with zero drain, and reproduced in isolation (gc.disable() +
         # drop refs -> connections stay open; only gc.collect() closes them).
-        with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
-            _opts = {"temperature": temperature}
-            if num_predict is not None:
-                _opts["num_predict"] = num_predict
-            _kwargs = {"model": model, "messages": messages,
-                       "keep_alive": keep_alive, "options": _opts}
-            if think is not None:
-                _kwargs["think"] = think
+        # Concurrency bound: block here (never drop the call) until a slot
+        # frees up. This is exactly the backpressure OLLAMA_MAX_LOADED_MODELS=1
+        # needs — a caller waits its turn instead of piling onto a daemon that
+        # can only actually serve requests off one resident model at a time.
+        # Held only across the actual request/response round-trip below, not
+        # across personality injection / AirLLM routing above, so those stay
+        # unbounded (they don't touch Ollama).
+        with _OLLAMA_SYNC_SEMAPHORE:
+            with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
+                _opts = {"temperature": temperature}
+                if num_predict is not None:
+                    _opts["num_predict"] = num_predict
+                _kwargs = {"model": model, "messages": messages,
+                           "keep_alive": keep_alive, "options": _opts}
+                if think is not None:
+                    _kwargs["think"] = think
 
-            def _call():
-                try:
-                    return client.chat(**_kwargs)
-                except TypeError:
-                    # Older ollama-python without the `think` kwarg — retry without.
-                    _kwargs.pop("think", None)
-                    return client.chat(**_kwargs)
+                def _call():
+                    try:
+                        return client.chat(**_kwargs)
+                    except TypeError:
+                        # Older ollama-python without the `think` kwarg — retry without.
+                        _kwargs.pop("think", None)
+                        return client.chat(**_kwargs)
 
-            if _energy_monitor is not None:
-                with _energy_monitor.sample() as _energy:
+                if _energy_monitor is not None:
+                    with _energy_monitor.sample() as _energy:
+                        response = _wrap_with_circuit_breaker("ollama", _call)
+                    _record_telemetry(model, time.time() - _start, response, _energy)
+                else:
                     response = _wrap_with_circuit_breaker("ollama", _call)
-                _record_telemetry(model, time.time() - _start, response, _energy)
-            else:
-                response = _wrap_with_circuit_breaker("ollama", _call)
-                _record_telemetry(model, time.time() - _start, response, None)
-            return response.get("message", {}).get("content", "")
+                    _record_telemetry(model, time.time() - _start, response, None)
+                return response.get("message", {}).get("content", "")
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model}")
         fallback = _multi_backend_fallback(model, messages, timeout)
@@ -260,22 +284,39 @@ def chat_stream(
     timeout: float = 120.0,
     keep_alive: str | None = None,
 ):
-    """Yield tokens one by one from Ollama streaming chat."""
+    """Yield tokens one by one from Ollama streaming chat.
+
+    Concurrency note: the semaphore below is held for the ENTIRE duration the
+    caller spends iterating this generator, not just the instant the request
+    is issued — deliberately. The resource being protected is Ollama's single
+    decode slot (OLLAMA_MAX_LOADED_MODELS=1), and a caller mid-stream really
+    is occupying that slot for as long as it keeps pulling tokens, so a slot
+    that released early would let a second caller pile a second generation
+    onto the same one-model daemon while the first is still mid-stream —
+    exactly the over-subscription this bound exists to prevent. This does
+    mean a slow consumer holds a slot longer; that is the correct trade-off
+    here, not a bug. Ordinary generator cleanup (StopIteration, an exception,
+    or an explicit .close()) runs the `with` block's __exit__ and releases it;
+    a caller that abandons partial iteration without closing the generator
+    relies on CPython's refcounting GC to call __del__ -> close(), same
+    caveat already documented for the connection leak fix above.
+    """
     keep_alive = keep_alive or DEFAULT_KEEP_ALIVE
     try:
         import ollama
-        # See chat()'s comment above — must close the client (connection-leak fix).
-        with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
-            stream = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-                model=model,
-                messages=messages,
-                stream=True,
-                keep_alive=keep_alive,
-            ))
-            for chunk in stream:
-                token = chunk.get("message", {}).get("content", "")
-                if token:
-                    yield token
+        with _OLLAMA_SYNC_SEMAPHORE:
+            # See chat()'s comment above — must close the client (connection-leak fix).
+            with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
+                stream = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
+                    model=model,
+                    messages=messages,
+                    stream=True,
+                    keep_alive=keep_alive,
+                ))
+                for chunk in stream:
+                    token = chunk.get("message", {}).get("content", "")
+                    if token:
+                        yield token
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model} stream")
         yield ""
@@ -325,17 +366,23 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
     for model in to_warm:
         try:
             import ollama
-            # See chat()'s comment above — must close the client (connection-leak fix).
-            with ollama.Client(host=CONFIG["ollama_host"], timeout=60.0) as client:
-                if "embed" in model.lower():
-                    _wrap_with_circuit_breaker("ollama", lambda: client.embeddings(model=model, prompt="ping", keep_alive=keep_alive))
-                else:
-                    _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-                        model=model,
-                        messages=[{"role": "user", "content": "."}],
-                        options={"num_predict": 1},
-                        keep_alive=keep_alive,
-                    ))
+            # Models are warmed one at a time in this loop already (sequential,
+            # not spawned as concurrent threads), so the semaphore below never
+            # nests — it just makes warm-up share the same bound as regular
+            # chat() traffic instead of being able to pile an unbounded warm-up
+            # burst on top of live requests at startup.
+            with _OLLAMA_SYNC_SEMAPHORE:
+                # See chat()'s comment above — must close the client (connection-leak fix).
+                with ollama.Client(host=CONFIG["ollama_host"], timeout=60.0) as client:
+                    if "embed" in model.lower():
+                        _wrap_with_circuit_breaker("ollama", lambda: client.embeddings(model=model, prompt="ping", keep_alive=keep_alive))
+                    else:
+                        _wrap_with_circuit_breaker("ollama", lambda: client.chat(
+                            model=model,
+                            messages=[{"role": "user", "content": "."}],
+                            options={"num_predict": 1},
+                            keep_alive=keep_alive,
+                        ))
             with _warm_lock:
                 _warmed.add(model)
             results[model] = True

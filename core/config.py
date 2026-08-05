@@ -527,6 +527,21 @@ class VectorSettings(BaseSettings):
     VECTOR_DEBUG: bool = False
     VECTOR_VAULT_PATH: str = str(Path.home() / "V.E.C.T.O.R Brain")
     OLLAMA_HOST: str = "http://127.0.0.1:11434"
+    # 2026-08-05 (concurrency-bound fix): OLLAMA_MAX_LOADED_MODELS=1 on this
+    # 12GB RTX 5070 Ti (.claude/rules/models.md) means the Ollama daemon holds
+    # exactly ONE model resident and serves requests against a single decode
+    # slot; nothing on VECTOR's side ever bounded how many requests it fired
+    # at Ollama concurrently, and two brain processes were once observed
+    # holding 90 simultaneous connections against it — dozens of requests
+    # queued against something inherently serial, risking VRAM/KV-cache
+    # thrash. Default=2: 1 would fully serialize every Ollama call in the
+    # process (including background warm_models() calls racing a live chat
+    # request) with no benefit, since Ollama's OWN default OLLAMA_NUM_PARALLEL
+    # is 4 request-slots time-sliced over the one resident model; 2 keeps a
+    # small amount of real overlap (e.g. an embedding call alongside a chat
+    # call) while cutting the worst observed blowup (90) by >40x. Override via
+    # OLLAMA_MAX_CONCURRENT in .env if VRAM headroom changes (e.g. bigger GPU).
+    OLLAMA_MAX_CONCURRENT: int = Field(2, ge=1, le=16)
     VECTOR_DB_KEY: SecretStr = SecretStr("")
 
     # API keys — SecretStr prevents values leaking into logs or repr()
@@ -806,6 +821,13 @@ CONFIG: dict = {
     "db_path": _BASE_DIR / "vector_memory.db",
     "db_key": _secret(_s.VECTOR_DB_KEY.get_secret_value()),
     "ollama_host": _normalize_base_url(_s.OLLAMA_HOST),
+    # Process-wide bound on concurrent in-flight requests to the Ollama
+    # daemon — see OLLAMA_MAX_CONCURRENT field comment on VectorSettings for
+    # the full rationale. Consumed by core/inference/ollama_safe.py (sync
+    # threading.Semaphore) and core/inference/provider_client.py (async
+    # asyncio.Semaphore) — two separate primitives sized off this one number,
+    # not one shared lock (see comments at each call site for why).
+    "ollama_max_concurrent": _s.OLLAMA_MAX_CONCURRENT,
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "cf_worker_url": _s.CF_WORKER_URL,
     "oauth": {

@@ -35,14 +35,53 @@ import json
 import os
 import re
 import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 
 from loguru import logger
 
+from core.config import CONFIG
 from core.inference.llm_providers import (
     LLMProvider, PROVIDERS, TIER_ROUTING,
     get_provider, configured_providers, route_for_tier,
 )
+
+
+# â”€â”€ Concurrency bound (async side) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Async twin of the threading.Semaphore in core/inference/ollama_safe.py.
+# _call_openai_compat() is the path this file uses to reach Ollama (the
+# "ollama" provider's driver is "openai_compat" — see ProviderClient._call());
+# it's a plain async coroutine using httpx.AsyncClient, so an asyncio.Semaphore
+# is the correct primitive (a threading.Semaphore would block the whole event
+# loop thread on .acquire(), stalling every other coroutine, not just Ollama
+# callers). This is intentionally a SEPARATE instance from ollama_safe's
+# semaphore rather than one shared lock: a threading.Semaphore and an
+# asyncio.Semaphore cannot be unified without either blocking the event loop
+# (using the threading one from async code) or requiring sync callers to run
+# inside the event loop (using the asyncio one from a plain thread) — both
+# are real deadlock/stall risks for a codebase where the same process runs
+# both sync agent code and the async district/API layer concurrently. Both
+# semaphores are sized off the same CONFIG["ollama_max_concurrent"] value, so
+# worst case total in-flight Ollama requests from this process is bounded at
+# 2x that number (sync path + async path each capped independently) — still
+# a >20x cut from the 90-connection blowup this fix responds to, without the
+# complexity/deadlock surface of forcing one primitive across two runtimes.
+_OLLAMA_ASYNC_SEMAPHORE = asyncio.Semaphore(CONFIG["ollama_max_concurrent"])
+
+
+@asynccontextmanager
+async def _ollama_async_bound(prov: "LLMProvider"):
+    """No-op for every provider except "ollama" — cloud APIs don't share
+    Ollama's single-resident-model constraint (OLLAMA_MAX_LOADED_MODELS=1)
+    and already have their own key-pool/rate-limit/circuit-breaker gating.
+    Held for the full request/response round-trip; _call_openai_compat()
+    always sends stream=False, so there is no long-lived streaming hold to
+    reason about here (unlike ollama_safe.chat_stream())."""
+    if getattr(prov, "slug", None) != "ollama":
+        yield
+        return
+    async with _OLLAMA_ASYNC_SEMAPHORE:
+        yield
 
 
 _LEAKED_REASONING_RE = re.compile(
@@ -660,8 +699,9 @@ class ProviderClient:
         url = f"{base_url.rstrip('/')}/chat/completions"
         self._ssrf_check(url)
 
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            resp = await client.post(url, json=payload, headers=headers)
+        async with _ollama_async_bound(prov):
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                resp = await client.post(url, json=payload, headers=headers)
 
         if resp.status_code != 200:
             raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
