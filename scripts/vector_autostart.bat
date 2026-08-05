@@ -22,4 +22,19 @@ REM VECTOR_API_RUN_LOOP=1 -> the api server also runs the full autonomous brain.
 REM VECTOR_ENV=production  -> serve the lean prod HUD (also set in .env; belt+braces).
 set VECTOR_API_RUN_LOOP=1
 set VECTOR_ENV=production
+
+REM ── Log rotation ────────────────────────────────────────────────────────
+REM 2026-08-05: this log had no rotation and was found at 671 MB (last 3000
+REM lines archived to vector_autostart.log.lasttail-20260805.txt before this
+REM fix). Keep exactly one generation of history: once the live log exceeds
+REM ~50MB, roll it to .log.1 (overwriting any previous .log.1) before this
+REM run starts appending to a fresh file. Plain cmd, no PowerShell needed.
+set "LOGFILE=%LOGDIR%\vector_autostart.log"
+set LOGSIZE=0
+if exist "%LOGFILE%" for %%A in ("%LOGFILE%") do set LOGSIZE=%%~zA
+if %LOGSIZE% GTR 52428800 (
+  if exist "%LOGFILE%.1" del /f /q "%LOGFILE%.1"
+  ren "%LOGFILE%" "vector_autostart.log.1"
+)
+
 python run_vector.py api --host 0.0.0.0 --port 8000 >> "%LOGDIR%\vector_autostart.log" 2>&1

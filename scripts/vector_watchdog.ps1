@@ -23,6 +23,18 @@ $base = "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase"
 $log = Join-Path $base "watchdog.log"
 $graceFile = Join-Path $base "watchdog_last_restart.marker"
 
+# 2026-08-05: Add-Content appends forever with no bound. The sibling
+# vector_autostart.log had the same shape and was found at 671 MB. Roll once
+# per invocation, before the first write: past 10 MB the current log becomes
+# .log.1 (replacing any previous .log.1) and logging restarts from empty.
+# One generation of history is deliberate — same policy as vector_autostart.bat.
+if (Test-Path $log) {
+    if ((Get-Item $log).Length -gt 10MB) {
+        Remove-Item "$log.1" -Force -ErrorAction SilentlyContinue
+        Move-Item $log "$log.1" -Force -ErrorAction SilentlyContinue
+    }
+}
+
 function Write-Log($msg) {
     $stamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Add-Content -Path $log -Value "$stamp | $msg"
