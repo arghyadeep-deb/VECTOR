@@ -73,6 +73,41 @@ new VECTOR defects.
 
 ## Needs engineering work
 
+0. **OPEN, live-observed 2026-08-05: the autonomous loop thread stops ticking
+   after several hours while the API process stays up and healthy.** Root
+   cause NOT established — recording evidence only, deliberately not guessing.
+
+   Observed: process started 11:43 local, brain verified ticking (ticks 10 ->
+   56 in 25s). ~5.5 hours later the heartbeat file
+   (`data/loop_heartbeat.json`) was frozen at `tick_count: 1921, running:
+   true, pid: 16648` with an mtime 894 seconds old, while `/health` still
+   answered `{"status":"ok"}` and the process was alive and serving HTTP.
+
+   Diagnostics captured at the time:
+   - process alive, 95 threads, 1.1 GB working set
+   - **0 seconds of CPU consumed over a 20-second sample** — the loop thread
+     is blocked, not spinning
+   - stderr's last line was a `memory_tree ingest` from `governor_dispatch`,
+     then silence; no traceback, no exception logged
+   - `memory_tree.json` was only 321 KB and untouched since Jul 28, and no
+     `.tmp` file existed — so this is NOT the MemoryTree save bottleneck
+     described in the old plan doc
+
+   Why it matters: this is the SAME user-visible failure as the launch-path
+   bug fixed in 98f026c72 ("looks alive, brain-dead"), but a different cause.
+   `/health` cannot detect it. The heartbeat file can — it has a 10-second
+   staleness rule (`_HEARTBEAT_MAX_AGE_SEC`) that already knows the loop is
+   gone, but nothing surfaces that as an alert or restarts on it.
+
+   Two concrete next steps, in order:
+   1. Make the staleness observable: have `/health` (or the watchdog) fail or
+      warn when the heartbeat is older than the max age. Today the watchdog
+      only checks that port 8000 is LISTENING, which is exactly the signal
+      that stays green during this failure.
+   2. Get a thread dump at the moment of the stall (faulthandler dump on a
+      timer, or `faulthandler.register` on a signal) to find what the loop
+      thread is blocked on. Without that, any root cause is speculation.
+
 10. **Live-reproduced: "remember X" from the real HUD chat misroutes to
    `chief_of_staff`, not `memory_curator` — the exact Governor capability-
    match/HP-lottery failure mode already flagged as deliberately deferred,
