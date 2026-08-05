@@ -68,9 +68,39 @@ class DataEngineer(AgentBase):
             logger.warning(f"[VECTOR][data_engineer] DB not found at {self.VECTOR_DB_PATH}")
             return None
         try:
-            conn = sqlite3.connect(str(self.VECTOR_DB_PATH), check_same_thread=False)
+            # 2026-08-05: this used plain sqlite3.connect() against the main DB,
+            # which is SQLCipher-encrypted — so every call failed with
+            # "file is not a database". It was failing silently-ish in a loop:
+            # 612 such errors in a single live run's log, meaning every
+            # data_engineer pipeline check has been a no-op.
+            #
+            # Callers of _open_db() close the connection they get (see the
+            # conn.close() calls below), so the shared singleton from
+            # get_db_connection() must NOT be handed out here — closing it
+            # would take the rest of VECTOR's memory access down with it.
+            # An own keyed connection is the right shape, matching the existing
+            # precedent in districts/emergency/log.py:_open_conn().
+            conn = None
+            row_factory = sqlite3.Row
+            try:
+                from core.memory import episodic
+                if getattr(episodic, "_USE_SQLCIPHER", False):
+                    conn = episodic._open_sqlcipher_connection(str(self.VECTOR_DB_PATH))
+                    # The Row class must come from the SAME driver as the
+                    # connection: sqlite3.Row raises
+                    # "Row() argument 1 must be sqlite3.Cursor, not
+                    # sqlcipher3.dbapi2.Cursor" on a sqlcipher cursor. Same
+                    # reason districts/emergency/log.py carries a _row_factory().
+                    from sqlcipher3 import dbapi2 as _sqlcipher_dbapi
+                    row_factory = _sqlcipher_dbapi.Row
+            except Exception as e:
+                logger.warning(f"[VECTOR][data_engineer] SQLCipher open failed, trying plain sqlite: {e}")
+                conn = None
+                row_factory = sqlite3.Row
+            if conn is None:
+                conn = sqlite3.connect(str(self.VECTOR_DB_PATH), check_same_thread=False)
             apply_pragmas(conn)
-            conn.row_factory = sqlite3.Row
+            conn.row_factory = row_factory
             return conn
         except Exception as e:
             logger.error(f"[VECTOR][data_engineer] DB open failed: {e}")
