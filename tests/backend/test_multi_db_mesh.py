@@ -12,6 +12,31 @@ from core.memory import tiering
 from core.memory.multi_db_manager import MultiDBManager
 
 
+@pytest.fixture(autouse=True)
+def _isolated_mesh_db(tmp_path, monkeypatch):
+    """Never let these tests touch the real memory DB.
+
+    MultiDBManager does not go through EpisodicMemory()/get_db_connection() —
+    it resolves its own path via core.memory.db_utils.configured_db_path() and
+    opens it directly (multi_db_manager.py:656-661, 704-706). That made this
+    file invisible to the isolation sweep that fixed the EpisodicMemory-based
+    tests in 730136d08, so it kept writing straight into the owner's live
+    vector_memory.db: rows with source='cloud', event_type='observation',
+    backdated to 2020-01-01/2030-01-01 by the last-write-wins cases below.
+
+    configured_db_path() re-reads the env on every call and caches nothing, so
+    pointing VECTOR_DB_PATH at tmp_path is enough to redirect the manager.
+    close_db_connection() before and after keeps the episodic singleton (and,
+    since 8dfe36bce, its cached key) in lockstep with the swapped path.
+    """
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "mesh_test.db"))
+    monkeypatch.setenv("VECTOR_DB_KEY", "test_key_isolated")
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    yield
+    ep.close_db_connection()
+
+
 def _now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
 
