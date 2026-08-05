@@ -270,7 +270,15 @@ class AvatarVoice:
             if err and isinstance(err, str):
                 return f"I ran into a problem with that: {err}"
             status = output.get("status", "")
-            if status in ("no_agents", "error", "failed"):
+            # KNOWN_ISSUES #10: "no_capable_agent" is governor.dispatch()'s
+            # honest-refusal status for an LLM-classified chat action with no
+            # capability match anywhere in the city (see governor.py) — same
+            # "be honest, don't fake a completion" family as no_agents/error/
+            # failed. In practice the `err` branch above already catches this
+            # (that result always carries a `reason` string), but listed here
+            # too so this stays correct even if a future caller ever emits
+            # this status without a reason.
+            if status in ("no_agents", "no_capable_agent", "error", "failed"):
                 return (
                     "I wasn't able to complete that one — nothing came back "
                     "from the part of me that handles it. Want me to try a "

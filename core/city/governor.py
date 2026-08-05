@@ -1230,6 +1230,68 @@ def _snap_to_known_task_type(invented: str, district: str, query_text: str = "")
     return invented
 
 
+def _authoritative_district_from_text(text: str, district: str) -> tuple[str, str] | None:
+    """KNOWN_ISSUES #10 (capability-match/HP-lottery misroute): the
+    exact-task_type-match correction below (`task_type in DISTRICT_TASK_MAP`)
+    only fires when the LLM's own invented task_type string happens to equal
+    a DISTRICT_TASK_MAP key verbatim. Live-caught failure: "Remember that my
+    favorite color is teal" landed in `chief_of_staff` because the LLM
+    invented a task_type like "save_preference" that never equals the
+    literal key "remember" — even though the user's own words did, and
+    DISTRICT_TASK_MAP already declares "remember" -> memory_curator. That
+    exact-match correction can never catch a case like this no matter how
+    long the map grows, because it only ever looks at the LLM's guess, never
+    the user's actual words.
+
+    Same "a literal word the user actually typed is more trustworthy than an
+    LLM's invented guess" principle already proven live for
+    `_snap_to_known_task_type()`'s within-district text check (2026-07-30,
+    KNOWN_ISSUES #3) — applied here BEFORE the LLM's district guess is
+    trusted at all, scanning every district's keys, not just the one the LLM
+    already (possibly wrongly) picked.
+
+    Deliberately conservative, mirroring precedents already proven live
+    elsewhere in this file:
+    - Excludes self-referential keys (a district's own bare name reused as
+      one of its own task_type keys, e.g. "security", "health") — the
+      2026-07-30 audit fix already established these are the weakest
+      possible signal (a word appearing in a sentence about the THEME, not
+      necessarily a request to route there).
+    - Requires the match to be unambiguous: if the text contains words
+      belonging to two different districts, this returns None rather than
+      guess which one the user meant — same principle as
+      `_snap_to_known_task_type()`'s `len(text_matches) == 1` gate.
+    - Only ever called after `classify_chat_intent()` has already accepted
+      the message as a real, confident action (is_action, confidence>=0.6,
+      valid district, non-empty task_type) — never runs on plain
+      conversation, so a stray topical word in an ordinary question can't
+      trigger it.
+
+    Returns (authoritative_district, authoritative_task_type) when exactly
+    one distinct district is implied by the matched word(s) and it differs
+    from `district`; otherwise None.
+    """
+    text_words = set(re.findall(r"[a-z0-9]+", text.lower()))
+    matched_keys = sorted(
+        k for k in (text_words & DISTRICT_TASK_MAP.keys())
+        if k not in _SELF_REFERENTIAL_DISTRICT_KEYS
+    )
+    if not matched_keys:
+        return None
+    matched_districts = {DISTRICT_TASK_MAP[k] for k in matched_keys}
+    if len(matched_districts) != 1:
+        return None
+    authoritative_district = next(iter(matched_districts))
+    if authoritative_district == district:
+        return None
+    # Several matched keys can agree on the same district (e.g. both
+    # "remember" and "recall" present) — pick the shortest as the
+    # canonical/most general form, same tie-break convention already used
+    # by _snap_to_known_task_type().
+    authoritative_key = min(matched_keys, key=len)
+    return authoritative_district, authoritative_key
+
+
 async def classify_chat_intent(text: str) -> dict:
     """Decide whether a raw chat message (from /command or the HUD terminal)
     is (a) a question/conversation VECTOR should just answer in words, or
@@ -1371,7 +1433,21 @@ async def classify_chat_intent(text: str) -> dict:
         # same "deterministic correction on top of the LLM classifier"
         # pattern as _snap_to_known_task_type itself, just one step earlier
         # (correcting district before task_type gets snapped against it).
-        if (
+        # KNOWN_ISSUES #10: check the raw query text FIRST, before trusting
+        # the LLM's own task_type string — see _authoritative_district_from_
+        # text()'s docstring for the full "Remember X" repro this closes.
+        text_correction = _authoritative_district_from_text(text, district)
+        if text_correction:
+            new_district, new_task_type = text_correction
+            _debug_classify_intent(
+                text, raw,
+                f"TEXT-AUTHORITATIVE CORRECTION {district!r} -> {new_district!r} "
+                f"(literal query word {new_task_type!r} maps here; was "
+                f"task_type={task_type!r}, district={district!r})",
+            )
+            district = new_district
+            task_type = new_task_type
+        elif (
             task_type in DISTRICT_TASK_MAP
             and DISTRICT_TASK_MAP[task_type] != district
             and task_type not in _SELF_REFERENTIAL_DISTRICT_KEYS
@@ -1992,33 +2068,110 @@ class Governor:
                     # always beat trading_conductor, silently never running the
                     # real trading_analysis pipeline). Prefer an agent whose
                     # manifest-declared capabilities include this task_type;
-                    # fall back to HP-pick when none declare a match.
+                    # HP breaks ties only AMONG capable agents.
                     #
                     # Task A.3 (governor-wiring-and-ambient-perception.md) initially
                     # tried an "honest miss" here (no run + no HP when capable is
-                    # empty), on the theory that running a non-capable agent
-                    # fake-succeeds and poisons the HP signal. Verified against
-                    # the real call sites before shipping it (per project rule:
-                    # verify, don't trust) — it broke the majority of sampled
-                    # real API routes (db_optimize, budget_analyze, list_expenses,
-                    # screen_call, image_prompt, ...), because the manifest's
-                    # `capabilities` tags are descriptive themes ("finance",
-                    # "budgeting") written for the capability-PREFERENCE feature,
-                    # not literal task_type strings, while 100+ existing
-                    # core/api/routers/*.py call sites dispatch with exact
-                    # task_type strings that were never re-aligned to that
-                    # vocabulary. An honest miss there is a functional regression,
-                    # not a fix. Using the spec's documented fallback instead:
-                    # keep running (capable or agents), just don't award the
-                    # Darwinian +50 HP for a run that wasn't capability-matched.
+                    # empty) for EVERY dispatch, on the theory that running a
+                    # non-capable agent fake-succeeds and poisons the HP signal.
+                    # Verified against the real call sites before shipping it
+                    # (per project rule: verify, don't trust) — it broke the
+                    # majority of sampled real API routes (db_optimize,
+                    # budget_analyze, list_expenses, screen_call, image_prompt,
+                    # ...), because the manifest's `capabilities` tags are
+                    # descriptive themes ("finance", "budgeting") written for
+                    # the capability-PREFERENCE feature, not literal task_type
+                    # strings, while 100+ existing core/api/routers/*.py call
+                    # sites dispatch with exact task_type strings an agent
+                    # already handles correctly via its own internal branching,
+                    # never re-aligned to that vocabulary. An honest miss for
+                    # THOSE routes is a functional regression, not a fix — they
+                    # keep the old "capable or agents" HP-pick, unconditionally.
+                    #
+                    # KNOWN_ISSUES #10 (Governor capability-match/HP-lottery
+                    # misroute — live-caught: "Remember that my favorite color
+                    # is teal" landed in chief_of_staff, which has zero agents
+                    # capable of it; chief_of_staff's highest-HP agent just ran
+                    # its own unrelated default action — a daily brief — and
+                    # returned it looking exactly as confident as a real
+                    # answer). That's a DIFFERENT class of call than the
+                    # established routes above: task["_llm_classified"] (set
+                    # only by classify_chat_intent()'s two chat callers —
+                    # commands.py, websocket.py) marks a task_type that was
+                    # freshly LLM-invented from free chat text this exact call,
+                    # with no established history of any agent handling it
+                    # correctly — precisely the class #10 (and the 4 sibling
+                    # misroutes logged 2026-07-29) came from, and precisely NOT
+                    # what Task A.3 protects. For THIS class only:
+                    #   1. If no agent in the (possibly LLM-mis-guessed)
+                    #      `district` is capable, search the WHOLE city for one
+                    #      that actually declares this task_type as a
+                    #      capability — the manifest is the real "who can do
+                    #      what" mechanism; classify_chat_intent()'s district
+                    #      guess is just a guess, and a capable agent
+                    #      elsewhere is who should run this, not a same-
+                    #      district non-match. (This is what makes "remember
+                    #      X" reach memory_curator's consolidation_bot even
+                    #      when the LLM guessed chief_of_staff — no hardcoded
+                    #      "remember" check, just capability lookup.)
+                    #   2. If NO agent anywhere declares the capability, refuse
+                    #      honestly (status="no_capable_agent" + a real reason
+                    #      string) instead of running the district's HP-lottery
+                    #      winner and letting its unrelated default output
+                    #      pass as a confident answer. Matches the established
+                    #      honest-refusal style already used elsewhere in this
+                    #      codebase (permission_gateway.py's execute_code
+                    #      branch: "rejected"/"not_implemented" + a real
+                    #      `reason`, never a silently-wrong success).
+                    # This supersedes the older "run the HP-lottery winner
+                    # anyway and prepend a caveat" approach for _llm_classified
+                    # tasks (removed here) — a caveat on a confidently wrong
+                    # answer is strictly worse than either routing correctly
+                    # or refusing honestly.
                     capable = [
                         a for a in agents
                         if task_type in getattr(a, "capabilities", [])
                     ]
-                    agent = max(capable or agents, key=lambda a: a.health_points)
                     capability_match = bool(capable)
 
-                    if hasattr(agent, "run"):
+                    if capable:
+                        agent = max(capable, key=lambda a: a.health_points)
+                    elif task.get("_llm_classified"):
+                        city_capable = [
+                            a for a in self._get_registry().get_all_agents()
+                            if task_type in getattr(a, "capabilities", [])
+                        ]
+                        if city_capable:
+                            agent = max(city_capable, key=lambda a: a.health_points)
+                            district = getattr(agent, "district", district)
+                            capability_match = True
+                            logger.info(
+                                f"[VECTOR][governor] '{task_type}' had no "
+                                f"capable agent in guessed district — "
+                                f"re-routed to {getattr(agent, 'name', '?')} "
+                                f"in {district} (real capability match)"
+                            )
+                        else:
+                            agent = None
+                    else:
+                        # Established route (not LLM-classified freeform chat)
+                        # — Task A.3's unconditional fallback, unchanged.
+                        agent = max(agents, key=lambda a: a.health_points)
+
+                    if agent is None:
+                        logger.warning(
+                            f"[VECTOR][governor] no capable agent anywhere for "
+                            f"'{task_type}' (guessed district: {district}) — "
+                            f"refusing honestly instead of HP-lottery guessing"
+                        )
+                        result = {
+                            "status": "no_capable_agent",
+                            "reason": (
+                                f"no agent declares the capability to handle "
+                                f"'{task_type}'"
+                            ),
+                        }
+                    elif hasattr(agent, "run"):
                         result = await agent.run(task)
                     else:
                         result = {
@@ -2027,63 +2180,6 @@ class Governor:
                             "agent": getattr(agent, "name", ""),
                             "district": district,
                         }
-
-                    # 2026-07-29 KNOWN_ISSUES (Governor capability-match
-                    # misrouting — 4 confirmed live instances: projects+
-                    # coding -> literal "Count: 0"; security+communications
-                    # (a bank-OTP-scam safety question) -> email_agent's
-                    # generic inbox-status branch; growth+content+safety
-                    # (Instagram growth-plan ask) -> an unrelated full
-                    # YouTube-script; agency (client-pitch request) -> an
-                    # unrelated "2024 social media trends" essay). Root
-                    # cause: when no agent in `district` declares this
-                    # task_type as a capability, the HP-lottery winner above
-                    # still runs its OWN generic default/status action and
-                    # returns it looking just as confident as a real answer
-                    # — nothing here or in AvatarVoice ever told the owner
-                    # the answer might not actually match the ask.
-                    #
-                    # Deliberately NOT touching agent selection or the
-                    # capability-match/HP-lottery fallback itself (Task A.3,
-                    # above) — that's proven load-bearing for 100+ existing
-                    # API routes that dispatch a stable task_type an agent
-                    # handles correctly via its own internal branching even
-                    # though the manifest's `capabilities` tags are thematic
-                    # ("finance", "budgeting"), not literal task_type
-                    # strings, and were never re-aligned to match. Blindly
-                    # captioning every non-capability-matched run would put
-                    # a false "might not match" disclaimer on those already-
-                    # correct routes too.
-                    #
-                    # Scoped instead to task["_llm_classified"] — set only by
-                    # classify_chat_intent()'s two chat callers (commands.py,
-                    # websocket.py), where task_type is freshly LLM-invented
-                    # from free text on this exact call and has no
-                    # established history of any agent handling it
-                    # correctly. That's precisely the class all 4 repro'd
-                    # cases came from, and precisely NOT the 100+ established
-                    # routes Task A.3 protects.
-                    if (
-                        not capability_match
-                        and task.get("_llm_classified")
-                        and isinstance(result, dict)
-                        and result.get("status") in ("ok", "success")
-                    ):
-                        _caveat = (
-                            f"Heads up, sir — {getattr(agent, 'name', 'this agent')} "
-                            f"in the {district} district doesn't have a dedicated "
-                            f"capability for this specific request, so the answer "
-                            f"below may not be a close match to what you asked."
-                        )
-                        _priority_keys = ("response", "result", "content", "message", "text", "output")
-                        _hit_key = next(
-                            (k for k in _priority_keys if isinstance(result.get(k), str) and result.get(k)),
-                            None,
-                        )
-                        if _hit_key:
-                            result[_hit_key] = f"{_caveat}\n\n{result[_hit_key]}"
-                        else:
-                            result["capability_note"] = _caveat
 
             # ── Avatar layer: format raw district output through AvatarVoice ──
             try:
