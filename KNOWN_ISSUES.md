@@ -89,9 +89,32 @@ new VECTOR defects.
      is blocked, not spinning
    - stderr's last line was a `memory_tree ingest` from `governor_dispatch`,
      then silence; no traceback, no exception logged
-   - `memory_tree.json` was only 321 KB and untouched since Jul 28, and no
+   - ~~`memory_tree.json` was only 321 KB and untouched since Jul 28, and no
      `.tmp` file existed — so this is NOT the MemoryTree save bottleneck
-     described in the old plan doc
+     described in the old plan doc~~
+
+     **CORRECTION (2026-08-05, same day): the above was WRONG — it read the
+     wrong file, and MemoryTree is back to being the prime suspect.**
+     `~/.vector_ca/memory_tree/memory_tree.json` (321 KB, Jul 28) is a
+     LEGACY path. The file the live process actually writes is
+     `<repo>/memory_tree/memory_tree.json`, which is **8.76 MB and was
+     modified today**, growing in lockstep with `vector_memory.db`. So the
+     multi-MB synchronous save is real and happening, and ruling it out on
+     the legacy file's size/mtime was an error. Nothing else in the original
+     evidence changes.
+
+   **SUSPECTED root cause (not yet proven — 2026-08-05 memory audit):**
+   `governor.dispatch()` runs on the loop's single event-loop thread and does
+   not off-load its memory writes. It synchronously calls
+   `EpisodicMemory.store()` -> `MemoryTree.ingest()`, whose debounced save
+   performs a multi-MB `write_text()` + `os.replace()` with no
+   `asyncio.to_thread` and no timeout — the one blocking-I/O class in that
+   hot path that never received the `to_thread` treatment applied everywhere
+   else in `autonomous_loop.py`. This fits every recorded symptom: the last
+   log line was a memory_tree ingest via `governor_dispatch`, then 0% CPU
+   (blocked on I/O, not spinning), no exception, HTTP still served from its
+   own thread. Confirm with a thread dump (`VECTOR_THREAD_DUMP_SEC`, now
+   wired) at the next stall before treating this as established.
 
    Why it matters: this is the SAME user-visible failure as the launch-path
    bug fixed in 98f026c72 ("looks alive, brain-dead"), but a different cause.
