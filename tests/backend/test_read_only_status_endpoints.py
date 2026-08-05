@@ -152,6 +152,158 @@ def test_health_endpoint_caches_result_within_ttl(monkeypatch) -> None:
     status_module.health_cache.invalidate("status_health")
 
 
+def _patch_fast_ollama_sqlite(monkeypatch) -> None:
+    """Keep the ollama/sqlite branches fast + deterministically "ok" so these
+    loop-liveness tests are only exercising the loop check, matching the
+    pattern the pre-existing tests above already use."""
+    import httpx
+
+    from core.api.routers import status as status_module
+
+    class OkClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def get(self, *_args, **_kwargs):
+            class _Resp:
+                status_code = 200
+
+                def json(self):
+                    return {"models": []}
+
+            return _Resp()
+
+    monkeypatch.setattr(httpx, "AsyncClient", OkClient)
+    monkeypatch.setattr(status_module, "get_memory_stats", lambda: {"episodic_memory": 0})
+
+
+def test_health_endpoint_loop_running_fresh(monkeypatch, tmp_path) -> None:
+    """State 1/3: a fresh heartbeat -> checks["loop"] == "ok", overall status
+    stays "ok". Exercised honestly by pointing VECTOR_TEST_DATA_DIR at a temp
+    dir and writing a real heartbeat file through loop_state's own
+    _write_heartbeat() -- never touches the live process's heartbeat."""
+    import time
+
+    from core.api.routers import status as status_module
+    from core.loop import loop_state
+
+    monkeypatch.setenv("VECTOR_TEST_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("VECTOR_API_RUN_LOOP", raising=False)
+    status_module.health_cache.invalidate("status_health")
+    _patch_fast_ollama_sqlite(monkeypatch)
+
+    # Write a fresh heartbeat directly (bypasses the 2s in-process throttle).
+    loop_state._hb_last_write = 0.0
+    loop_state._write_heartbeat(tick_count=42, running=True, start_time="2026-08-05T00:00:00+00:00")
+
+    response = asyncio.run(status_module.health_endpoint())
+
+    assert response.checks["loop"] == "ok", response.checks
+    assert response.status == "ok", response.model_dump()
+    assert response.loop_detail is not None
+    assert response.loop_detail["tick_count"] == 42
+    assert response.loop_detail["age_sec"] is not None and response.loop_detail["age_sec"] < 5
+    assert response.loop_detail["run_loop_opt_out"] is False
+
+    status_module.health_cache.invalidate("status_health")
+
+
+def test_health_endpoint_loop_stale_flips_status_degraded(monkeypatch, tmp_path) -> None:
+    """State 2/3: a heartbeat that WAS fresh and has since gone stale ->
+    checks["loop"] == "stale" and overall status flips to "degraded". This is
+    the exact live-observed failure from KNOWN_ISSUES.md #0: heartbeat frozen
+    at tick_count=1921 for 894s while /health kept answering ok."""
+    import json
+    import time
+
+    from core.api.routers import status as status_module
+    from core.loop import loop_state
+
+    monkeypatch.setenv("VECTOR_TEST_DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("VECTOR_API_RUN_LOOP", raising=False)
+    status_module.health_cache.invalidate("status_health")
+    _patch_fast_ollama_sqlite(monkeypatch)
+
+    # Write a heartbeat whose ts is older than _HEARTBEAT_MAX_AGE_SEC --
+    # simulates exactly the live incident (frozen tick_count, old mtime).
+    hb_path = loop_state._heartbeat_path()
+    hb_path.parent.mkdir(parents=True, exist_ok=True)
+    stale_ts = time.time() - (loop_state._HEARTBEAT_MAX_AGE_SEC + 884)  # 894s old, matching the live incident
+    hb_path.write_text(json.dumps({
+        "tick_count": 1921,
+        "running": True,
+        "start_time": "2026-08-05T00:00:00+00:00",
+        "pid": 16648,
+        "ts": stale_ts,
+    }), encoding="utf-8")
+
+    response = asyncio.run(status_module.health_endpoint())
+
+    assert response.checks["loop"] == "stale", response.checks
+    assert response.status == "degraded", (
+        "a stale loop heartbeat MUST flip overall status away from 'ok' -- "
+        "that is the entire point of KNOWN_ISSUES.md #0's fix"
+    )
+    assert response.loop_detail["tick_count"] == 1921
+    assert response.loop_detail["pid"] == 16648
+    assert response.loop_detail["age_sec"] >= loop_state._HEARTBEAT_MAX_AGE_SEC
+
+    status_module.health_cache.invalidate("status_health")
+
+
+def test_health_endpoint_loop_not_started_does_not_flip_status(monkeypatch, tmp_path) -> None:
+    """State 3/3a: no heartbeat file at all (e.g. VECTOR_API_RUN_LOOP=0,
+    legitimate API-only deployment, or a loop still cold-booting) ->
+    checks["loop"] == "not_started" and overall status stays "ok". Must NOT
+    report unhealthy just for having no brain."""
+    from core.api.routers import status as status_module
+
+    monkeypatch.setenv("VECTOR_TEST_DATA_DIR", str(tmp_path))  # empty dir -- no heartbeat file
+    monkeypatch.setenv("VECTOR_API_RUN_LOOP", "0")
+    status_module.health_cache.invalidate("status_health")
+    _patch_fast_ollama_sqlite(monkeypatch)
+
+    response = asyncio.run(status_module.health_endpoint())
+
+    assert response.checks["loop"] == "not_started", response.checks
+    assert response.status == "ok", (
+        "an explicit VECTOR_API_RUN_LOOP=0 API-only deployment must not be "
+        f"reported unhealthy for having no brain: {response.model_dump()}"
+    )
+    assert response.loop_detail["run_loop_opt_out"] is True
+    assert response.loop_detail["age_sec"] is None
+    assert response.loop_detail["pid"] is None
+
+    status_module.health_cache.invalidate("status_health")
+
+
+def test_health_endpoint_loop_not_started_cold_boot_case(monkeypatch, tmp_path) -> None:
+    """State 3/3b: same "not_started" outcome for the OTHER legitimate
+    reason -- VECTOR_API_RUN_LOOP=1 (brain SHOULD be running) but no
+    heartbeat has been written yet because the loop is still cold-booting.
+    Must also not flip status, or every normal boot would false-positive."""
+    from core.api.routers import status as status_module
+
+    monkeypatch.setenv("VECTOR_TEST_DATA_DIR", str(tmp_path))  # empty dir -- no heartbeat file yet
+    monkeypatch.setenv("VECTOR_API_RUN_LOOP", "1")
+    status_module.health_cache.invalidate("status_health")
+    _patch_fast_ollama_sqlite(monkeypatch)
+
+    response = asyncio.run(status_module.health_endpoint())
+
+    assert response.checks["loop"] == "not_started", response.checks
+    assert response.status == "ok", response.model_dump()
+    assert response.loop_detail["run_loop_opt_out"] is False
+
+    status_module.health_cache.invalidate("status_health")
+
+
 def test_health_endpoint_runs_memory_stats_off_the_event_loop(monkeypatch) -> None:
     """get_memory_stats() must be dispatched via asyncio.to_thread so a slow,
     lock-holding SQLite query cannot block the whole event loop (which would

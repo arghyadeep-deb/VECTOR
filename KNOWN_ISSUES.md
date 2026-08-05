@@ -108,6 +108,61 @@ new VECTOR defects.
       timer, or `faulthandler.register` on a signal) to find what the loop
       thread is blocked on. Without that, any root cause is speculation.
 
+   **DETECTION + DIAGNOSIS shipped 2026-08-05 (root cause still NOT found —
+   this only makes the next occurrence visible instead of silent):**
+
+   - **`/health` now reports loop liveness**, distinguishing three states
+     (`core/loop/loop_state.py:get_loop_liveness()`, wired into
+     `core/api/routers/status.py:health_endpoint()`): `"ok"` (fresh
+     heartbeat), `"stale"` (heartbeat older than `_HEARTBEAT_MAX_AGE_SEC` —
+     the exact failure this issue describes), `"not_started"` (no heartbeat
+     file yet — covers both a legitimate `VECTOR_API_RUN_LOOP=0` API-only
+     deployment and a loop still cold-booting; deliberately does NOT flip
+     health). A `"stale"` loop DOES flip overall `/health` status away from
+     `"ok"` — that was the whole gap. Response now also carries
+     `loop_detail: {tick_count, age_sec, pid, run_loop_opt_out}` for
+     debugging from the HUD. Root-cause note: the existing
+     `loop_state.get_runtime()` couldn't be reused for this check — its
+     in-process fast path returns the module-level `_rt_running` flag, which
+     is set `True` once and never reset when the loop thread hangs (a
+     deadlocked thread just stops calling `update_runtime()`), so it would
+     have reported "running" for the entire ~5.5 hours this bug was live.
+     `get_loop_liveness()` always reads the on-disk heartbeat file directly
+     instead, which is the one signal that actually stops advancing.
+   - **`scripts/vector_watchdog.ps1` now also restarts on a stale loop**,
+     not just a dead port/timed-out `/health`. It cross-checks the stale
+     heartbeat's own recorded pid against whichever pid is actually holding
+     port 8000 before acting, so a leftover heartbeat file from a
+     just-killed process (during the existing 3-minute boot grace window)
+     can't cause a restart loop, and it never fires in `VECTOR_API_RUN_LOOP=0`
+     mode (heartbeat file is never created there, so state is always
+     `"not_started"`, never `"stale"`).
+   - **Opt-in thread-stack dump** (`core/loop/thread_dump.py`), wired at both
+     loop entry points (`run_vector.py:run_loop()` for standalone `loop`
+     mode, `core/api/app.py`'s in-process brain-thread startup for `api`
+     mode). OFF by default. **To arm it for the next occurrence:**
+     ```powershell
+     $env:VECTOR_THREAD_DUMP_SEC = "300"    # dump every 5 min; lower for a faster catch
+     python run_vector.py api --host 0.0.0.0
+     ```
+     or `setx VECTOR_THREAD_DUMP_SEC 300` so a watchdog-launched restart
+     picks it up too. Dumps go to `data/logs/thread_dumps.log` (never
+     stdout — that's already ~12MB of uvicorn access logs). Verified working
+     standalone: `python core/loop/thread_dump.py`.
+   - Watchdog launch mechanism, checked live 2026-08-05: **it does exist and
+     is running** — Windows Task Scheduler task `VECTOR-Watchdog` (installed
+     via `scripts/install_watchdog_task.ps1` / `INSTALL_WATCHDOG3.bat`),
+     firing every 5 minutes, `LastTaskResult=0`. `watchdog.log` has real
+     entries from today including a legitimate down-detect-and-restart at
+     06:31:16. (No persistent "watchdog process" is expected between runs —
+     Task Scheduler launches the script, it exits, and the next trigger
+     fires 5 minutes later; that's the intended design, not a gap.)
+   - Not done: the actual root cause of what blocks the loop thread. Next
+     time `/health` reports `checks.loop == "stale"` (or the watchdog log
+     shows a `LOOP STALE` restart), check `data/logs/thread_dumps.log` if
+     `VECTOR_THREAD_DUMP_SEC` was armed — that's the artifact this whole fix
+     exists to produce.
+
 10. **Live-reproduced: "remember X" from the real HUD chat misroutes to
    `chief_of_staff`, not `memory_curator` — the exact Governor capability-
    match/HP-lottery failure mode already flagged as deliberately deferred,

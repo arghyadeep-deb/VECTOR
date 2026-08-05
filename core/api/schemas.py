@@ -82,6 +82,14 @@ class HealthResponse(BaseModel):
     checks: Dict[str, str]
     timestamp: str
     version: str
+    # 2026-08-05 (KNOWN_ISSUES #0): checks["loop"] carries the short tri-state
+    # ("ok" | "stale" | "not_started") that decides whether `status` flips;
+    # loop_detail carries the debug payload (heartbeat age, owning pid, tick
+    # count, whether this deployment opted out via VECTOR_API_RUN_LOOP=0) so
+    # the HUD/a human can tell WHY without re-deriving it from the heartbeat
+    # file. Optional + defaulted so existing consumers of checks/status are
+    # unaffected.
+    loop_detail: Optional[Dict[str, Any]] = None
 
 class AgentListResponse(BaseModel):
     agents: List[Dict[str, Any]]

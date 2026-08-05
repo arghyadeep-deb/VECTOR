@@ -64,12 +64,70 @@ if ($listener) {
     }
 }
 
+# ── Loop-heartbeat check (2026-08-05, KNOWN_ISSUES.md #0) ─────────────────
+# Port-open + /health-200 is EXACTLY the signal that stayed green for hours
+# while the autonomous loop thread was silently deadlocked (0s CPU over a
+# 20s sample, heartbeat frozen at a fixed tick_count). /health now reports
+# checks.loop ("ok" | "stale" | "not_started") + loop_detail (age_sec, pid,
+# tick_count, run_loop_opt_out) — see core/api/routers/status.py. Treat a
+# "stale" loop as unhealthy too, restarting on it exactly like a dead port.
+$loopUnhealthy = $false
 if ($healthy) {
+    try {
+        $body = $resp.Content | ConvertFrom-Json
+        $loopState = $body.checks.loop
+        $loopDetail = $body.loop_detail
+        if ($loopState -eq "stale") {
+            # Startup false-positive guard: right after THIS script restarts
+            # VECTOR, the OLD process's heartbeat file is still sitting on
+            # disk (the new process hasn't ticked yet — cold boot has been
+            # observed to take up to ~71s, e.g. a Whisper large-v3 load) and
+            # will correctly read back as "stale" for as long as the new
+            # loop takes to write its first heartbeat. The existing 3-minute
+            # grace-marker window below already covers most of that, but as
+            # a second, independent check: cross-reference the heartbeat's
+            # own recorded pid against whichever pid is ACTUALLY holding
+            # port 8000 right now. If they differ, this "stale" reading is a
+            # leftover from a process that's already gone — not evidence
+            # that the CURRENTLY LISTENING process is hung — so don't act
+            # on it. Only a stale heartbeat whose pid matches the live
+            # listener is unambiguous evidence that THIS process's loop
+            # thread is stuck.
+            $currentPid = $null
+            if ($listener) { $currentPid = ($listener | Select-Object -First 1).OwningProcess }
+            $heartbeatPid = $loopDetail.pid
+            if ($heartbeatPid -and $currentPid -and ([int64]$heartbeatPid -eq [int64]$currentPid)) {
+                $loopUnhealthy = $true
+                Write-Log "LOOP STALE: heartbeat age=$($loopDetail.age_sec)s tick_count=$($loopDetail.tick_count) pid=$heartbeatPid matches the live listener -- brain thread appears hung."
+            } else {
+                Write-Log "loop heartbeat reports stale (age=$($loopDetail.age_sec)s, pid=$heartbeatPid) but does not match live listener pid=$currentPid -- leftover from a prior process, still booting. Not treating as unhealthy."
+            }
+        }
+        # $loopState -eq "not_started" is NOT treated as unhealthy here:
+        # it is indistinguishable from a legitimate VECTOR_API_RUN_LOOP=0
+        # API-only run (loop_detail.run_loop_opt_out true) and from a loop
+        # still cold-booting, and status.py already keeps /health's own
+        # `status` at "ok" for that case for the same reason (see its
+        # comment). Restarting on "not_started" would fight an intentional
+        # API-only deployment forever.
+    } catch {
+        # /health body didn't parse as expected (e.g. hitting an old build
+        # without the loop check, or a genuinely malformed response) — don't
+        # let a parsing hiccup by itself trigger a restart; the pre-existing
+        # port+200 check above already gates $healthy independently.
+        Write-Log "loop-heartbeat check skipped: could not parse /health body ($($_.Exception.Message))"
+    }
+}
+
+if ($healthy -and -not $loopUnhealthy) {
     # Quiet on success — don't spam the log every 5 minutes when things are fine.
     exit 0
 }
 
 # ── Grace period: don't kill a restart that's still booting ───────────────
+# Covers BOTH failure modes now (dead port/hung HTTP, and a stale-but-live
+# loop heartbeat): a fresh restart's loop can take up to ~71s to write its
+# first heartbeat (Whisper large-v3 load observed), well inside this window.
 if (Test-Path $graceFile) {
     $lastRestart = Get-Content $graceFile -Raw | ForEach-Object { [datetime]::Parse($_.Trim()) }
     $elapsed = (Get-Date) - $lastRestart
@@ -79,8 +137,10 @@ if (Test-Path $graceFile) {
     }
 }
 
-if ($listener) {
-    Write-Log "UNHEALTHY: port 8000 bound (pid(s): $($listener.OwningProcess -join ',')) but /health did not return 200 within 10s -- likely hung. Restarting."
+if ($loopUnhealthy) {
+    Write-Log "UNHEALTHY: port 8000 bound and /health returned 200, but the loop heartbeat is stale for the pid that's actually listening -- brain thread hung. Restarting."
+} elseif ($listener) {
+    Write-Log "UNHEALTHY: port 8000 bound (pid(s): $($listener.OwningProcess -join ',')) but /health did not return 200 within 45s -- likely hung. Restarting."
 } else {
     Write-Log "DOWN: nothing listening on port 8000. Starting."
 }

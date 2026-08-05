@@ -239,6 +239,17 @@ async def lifespan(app: FastAPI):
             import threading
             from core.loop.autonomous_loop import AutonomousLoop
 
+            # Opt-in thread-stack dump on a timer (KNOWN_ISSUES.md #0: the
+            # loop thread has been observed to silently deadlock with no
+            # traceback). Off unless VECTOR_THREAD_DUMP_SEC is set. Enabled
+            # here (not inside _run_brain) so it's armed before the thread
+            # starts and covers every thread in the process, not just this one.
+            try:
+                from core.loop.thread_dump import enable_if_requested as _enable_thread_dump
+                _enable_thread_dump()
+            except Exception as _e:
+                logger.warning("[VECTOR][api] thread_dump setup skipped: {}", _e)
+
             def _run_brain():
                 try:
                     inst = AutonomousLoop()

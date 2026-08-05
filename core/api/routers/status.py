@@ -224,13 +224,61 @@ async def health_endpoint():
     except Exception as e:
         checks["sqlite"] = _format_health_error(e)
 
-    all_ok = all(v == "ok" for v in checks.values())
+    # Check the autonomous loop heartbeat (2026-08-05, KNOWN_ISSUES.md #0):
+    # the loop thread was observed to silently deadlock — process alive, 95
+    # threads, 1.1GB RSS, but 0s of CPU over a 20s sample — while `/health`
+    # kept answering {"status": "ok"} because nothing checked heartbeat
+    # freshness. loop_state.py's heartbeat file already has a staleness rule
+    # (_HEARTBEAT_MAX_AGE_SEC); this is what finally surfaces it.
+    #
+    # get_loop_liveness() (not loop_state.get_runtime()) is used deliberately:
+    # get_runtime()'s in-process fast path returns the module-level
+    # `_rt_running` flag, which is set True once and never reset when the
+    # loop thread hangs — it would have reported "running" for the entire
+    # ~5.5 hours this bug was live. get_loop_liveness() always reads the
+    # on-disk heartbeat file directly instead, which is the one signal that
+    # genuinely stops advancing the moment the loop thread hangs.
+    loop_detail: dict | None = None
+    try:
+        from core.loop.loop_state import get_loop_liveness
+        live = get_loop_liveness()
+        # live["state"] is "running" | "stale" | "not_started"; the health
+        # check's own vocabulary is "ok" | "stale" | "not_started" to match
+        # the "ok"/"error: ..." convention the ollama/sqlite checks already use.
+        checks["loop"] = {"running": "ok", "stale": "stale", "not_started": "not_started"}[live["state"]]
+        loop_detail = {
+            "tick_count": live["tick_count"],
+            "age_sec": live["age_sec"],
+            "pid": live["pid"],
+            "run_loop_opt_out": live["run_loop_opt_out"],
+        }
+    except Exception as e:
+        checks["loop"] = _format_health_error(e)
+
+    # Whether a stale loop heartbeat flips overall `status` away from "ok":
+    # YES, deliberately. The entire point of this fix is that "status: ok"
+    # while the brain is dead is what let this hide for days undetected —
+    # ollama/sqlite being reachable says nothing about whether the
+    # observe->think->act->reflect loop is still ticking.
+    # "not_started" does NOT flip status: it is indistinguishable from a
+    # legitimate VECTOR_API_RUN_LOOP=0 API-only deployment (no brain by
+    # design — must not report unhealthy for that) and from a loop still
+    # cold-booting (observed up to ~71s for a Whisper large-v3 load before
+    # the first tick). Only "stale" — a heartbeat that WAS fresh and has
+    # since gone quiet — is unambiguous evidence of a hang.
+    all_ok = (
+        checks.get("ollama") == "ok"
+        and checks.get("sqlite") == "ok"
+        and checks.get("loop") != "stale"
+        and not str(checks.get("loop", "")).startswith("error")
+    )
 
     result = HealthResponse(
         status="ok" if all_ok else "degraded",
         checks=checks,
         timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
         version="1.0.0",
+        loop_detail=loop_detail,
     )
     health_cache.set("status_health", result)
     return result

@@ -81,6 +81,89 @@ def _read_heartbeat() -> Optional[dict]:
         return None
 
 
+def get_loop_liveness() -> dict:
+    """Return the loop's liveness independent of which process is asking.
+
+    KNOWN_ISSUES.md issue 0 (2026-08-05): the loop thread was observed to
+    silently deadlock (0s CPU over a 20s sample) while `/health` kept
+    answering `{"status": "ok"}` for hours. The reason `/health` couldn't
+    see it: `get_runtime()`'s in-process fast path returns as soon as the
+    module-level `_rt_running` flag is True — and that flag is set once
+    when the loop starts and is NEVER reset to False by a hung thread (a
+    deadlocked thread simply stops calling `update_runtime()`; it doesn't
+    call anything that would flip the flag back). Since `VECTOR_API_RUN_LOOP=1`
+    is now the default for `run_vector.py api`, the loop runs IN the same
+    process as the API almost always, so that fast path is exactly the one
+    that was hiding this bug.
+
+    This function deliberately ignores that fast path and always reads the
+    on-disk heartbeat file directly, because the heartbeat file is the one
+    signal that genuinely stops updating the moment the loop thread hangs —
+    `_write_heartbeat()` is called from `update_runtime()` on every tick,
+    in-process or not.
+
+    Returns:
+        {
+          "state": "running" | "stale" | "not_started",
+          "tick_count": int,
+          "age_sec": float | None,   # seconds since the last heartbeat write;
+                                      # None only when no heartbeat file exists at all
+          "pid": int | None,         # pid that wrote the last heartbeat (may be a
+                                      # now-dead pid if state == "stale")
+          "run_loop_opt_out": bool,  # True iff VECTOR_API_RUN_LOOP=0 is set in
+                                      # this process's environment — the legitimate
+                                      # API-only deployment case
+        }
+
+    "not_started" deliberately covers BOTH the legitimate API-only opt-out
+    AND a loop that simply hasn't ticked once yet (cold boot — observed up
+    to ~71s for a Whisper large-v3 load before the first tick can fire).
+    Heartbeat-file content alone cannot tell those two apart, and treating
+    "no heartbeat yet" as a failure would false-positive on every normal
+    boot. Only a heartbeat that WAS fresh and has since gone stale (state
+    == "stale") is unambiguous evidence of a hang — see status.py's
+    health_endpoint() for how that distinction is used to decide whether to
+    flip overall /health status.
+    """
+    import json
+    import os
+    import time
+
+    opt_out = os.environ.get("VECTOR_API_RUN_LOOP") == "0"
+
+    try:
+        with open(_heartbeat_path(), encoding="utf-8") as f:
+            hb = json.load(f)
+    except Exception:
+        return {
+            "state": "not_started",
+            "tick_count": 0,
+            "age_sec": None,
+            "pid": None,
+            "run_loop_opt_out": opt_out,
+        }
+
+    try:
+        age = time.time() - float(hb.get("ts", 0))
+    except (TypeError, ValueError):
+        return {
+            "state": "not_started",
+            "tick_count": 0,
+            "age_sec": None,
+            "pid": None,
+            "run_loop_opt_out": opt_out,
+        }
+
+    state = "running" if age <= _HEARTBEAT_MAX_AGE_SEC else "stale"
+    return {
+        "state": state,
+        "tick_count": int(hb.get("tick_count", 0) or 0),
+        "age_sec": round(age, 1),
+        "pid": hb.get("pid"),
+        "run_loop_opt_out": opt_out,
+    }
+
+
 def update_runtime(*, tick_count: int, running: bool, start_time: str = "") -> None:
     """Called by AutonomousLoop on each tick and on start/stop."""
     global _rt_tick_count, _rt_running, _rt_start_time

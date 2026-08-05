@@ -431,6 +431,14 @@ async def run_loop() -> None:
     """Start the autonomous loop. Runs until interrupted."""
     asyncio.get_running_loop().set_exception_handler(_asyncio_exception_handler)
 
+    # Opt-in thread-stack dump on a timer (KNOWN_ISSUES.md #0) — off unless
+    # VECTOR_THREAD_DUMP_SEC is set. See core/loop/thread_dump.py.
+    try:
+        from core.loop.thread_dump import enable_if_requested as _enable_thread_dump
+        _enable_thread_dump()
+    except Exception as e:
+        logger.warning("[VECTOR][loop] thread_dump setup skipped: {}", e)
+
     # Populate the agent registry before the loop starts — otherwise every
     # governor dispatch returns {"status": "no_agents"}.
     try:
