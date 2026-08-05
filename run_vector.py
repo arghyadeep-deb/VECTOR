@@ -506,6 +506,24 @@ def main() -> int:
         _start_background_services()
 
     if args.mode == "api":
+        # Default the autonomous brain ON for `run_vector.py api` — this is THE
+        # production entry point every launcher (vector_autostart.bat,
+        # vector_watchdog.ps1, or a manual start) ultimately runs, and the three
+        # launch paths do not agree on setting VECTOR_API_RUN_LOOP themselves.
+        # A manual/undocumented launch previously produced an API that answered
+        # /health "ok" while core.loop.loop_state.get_runtime() showed no loop
+        # running at all — VECTOR looked alive and was brain-dead for days.
+        # setdefault (not a hard assignment) is deliberate: an explicit
+        # VECTOR_API_RUN_LOOP=0 still wins, so API-only runs stay possible, and
+        # launchers that already export "1" are unaffected. This must run
+        # BEFORE core.api.app's lifespan reads the flag (i.e. before run_api()
+        # imports/creates the app) or the gate sees the old value.
+        #
+        # This default does NOT belong in .env: `import core.config` loads
+        # .env into os.environ as a side effect, so a .env-based default would
+        # spin a real autonomous brain during `pytest` — exactly what the
+        # gate in core/api/app.py exists to prevent.
+        os.environ.setdefault("VECTOR_API_RUN_LOOP", "1")
         run_api(args.host, args.port)
         return 0
 

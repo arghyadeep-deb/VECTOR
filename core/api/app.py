@@ -179,7 +179,13 @@ async def lifespan(app: FastAPI):
 
     # Optionally run the FULL autonomous brain (observe→think→act→reflect) inside
     # this same process, so one `api` server = brain + LAN-accessible interface.
-    # Gated by VECTOR_API_RUN_LOOP=1 so tests / plain-API use don't spin the loop.
+    # Gated by VECTOR_API_RUN_LOOP=1. Tests still don't set this (they import
+    # core.api directly, never through run_vector.py's CLI), so they still don't
+    # spin the loop. As of 2026-08-05, `run_vector.py api` itself now defaults
+    # this to "1" via os.environ.setdefault() before create_app() is called
+    # (see run_vector.py's `args.mode == "api"` branch) — autonomy no longer
+    # depends on which launcher script started the process. To opt out of the
+    # in-process brain for a plain-API run, set VECTOR_API_RUN_LOOP=0 explicitly.
     # Used by: python run_vector.py api --host 0.0.0.0 (LAN full-access launch).
     #
     # CRITICAL (2026-07-11): the loop runs in its OWN thread with its OWN event
