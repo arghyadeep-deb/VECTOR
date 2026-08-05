@@ -210,3 +210,6 @@ models/wake/positive_all/
 # ponytail/skills/ponytail/SKILL.md at runtime and degrades gracefully via
 # its OSError guard if absent), just not tracked in git.
 ponytail/
+
+# deepeval local tool state (telemetry/cache, not source)
+.deepeval/
