@@ -172,18 +172,37 @@
 
     async function loadTelemetry(){
       try{
-        const j = await apiGet('/health/system');
+        // 2026-08-05: was GET /health/system, whose payload is NESTED
+        // ({status, checks:{system:{cpu_percent, mem_used_percent}, loop:{tick_count}}, ...}).
+        // Every field read here lived at the top level of a DIFFERENT
+        // endpoint, so `j.cpu_percent` etc. were all undefined. Because the
+        // fetch still returned 200 no exception fired, so this took the
+        // success branch and rendered a permanent CPU 0% / VRAM 0% / temp —
+        // while labelling itself "LIVE · backend metrics".
+        //
+        // GET /system (core/api/routers/status.py:135 system_metrics) returns
+        // exactly the fields this widget wants, flat: cpu_percent,
+        // memory_percent, gpu_percent, gpu_mem_percent, gpu_temp_c,
+        // uptime_seconds. Two corrections beyond the shape fix:
+        //   - VRAM now reads gpu_mem_percent (real GPU memory). It previously
+        //     read memory_percent, i.e. system RAM mislabelled as VRAM.
+        //   - temp reads gpu_temp_c; there is no `gpu_temp` field anywhere.
+        // `active_model` and `loop_tick` exist on NEITHER endpoint — the tick
+        // is owned by backend.js's /loop/status poll, so this no longer
+        // pretends to set it.
+        const j = await apiGet('/system');
         source('live', 'LIVE · backend metrics');
-        const cpu = j.cpu_percent || 0;
-        const vram = j.memory_percent || 0;
-        const temp = j.gpu_temp || 0;
-        set('[data-cpu]', cpu.toFixed(0)+'%');   bar('[data-cpu-bar]', cpu);
-        set('[data-vram]', vram.toFixed(0)+'%');  bar('[data-vram-bar]', vram);
+        // Nullish (not ||) so a real 0 renders as 0, while a MISSING field
+        // renders '—' instead of silently masquerading as a genuine zero —
+        // that masking is precisely what hid this bug.
+        const cpu  = j.cpu_percent      ?? null;
+        const vram = j.gpu_mem_percent  ?? null;
+        const temp = j.gpu_temp_c       ?? null;
+        set('[data-cpu]',  cpu  != null ? cpu.toFixed(0)+'%'  : '—'); bar('[data-cpu-bar]',  cpu  ?? 0);
+        set('[data-vram]', vram != null ? vram.toFixed(0)+'%' : '—'); bar('[data-vram-bar]', vram ?? 0);
         set('[data-temp]', temp ? temp.toFixed(0)+'°C' : '—');
         bar('[data-temp-bar]', temp ? Math.max(0,(temp-40)/40*100) : 0);
-        if(j.loop_tick != null) set('[data-tick]', j.loop_tick);
         if(j.uptime_seconds != null) set('[data-up]', fmtUptime(j.uptime_seconds));
-        if(j.active_model) set('[data-model]', j.active_model);
       }catch(e){
         source('simulated', 'SIMULATED · backend metrics unavailable');
         if(typeof V.setRuntimeMode === 'function') V.setRuntimeMode('degraded', 'telemetry backend unavailable');

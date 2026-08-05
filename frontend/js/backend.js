@@ -339,9 +339,14 @@
     poll('/status', 5000, data => {
       if (!data) return;
       setTel('[data-up]', fmtUptime(data.uptime_seconds));
-      if (data.agents) {
-        setTel('[data-tick]', String(_tick++));
-      }
+      // 2026-08-05: this used to do setTel('[data-tick]', String(_tick++)) —
+      // a purely client-side counter displayed as if it were the autonomous
+      // loop's real tick count. The /loop/status poll below (8s) writes the
+      // REAL tick_count to the same element, so the number visibly oscillated
+      // between a fabricated value and the true one. A fake liveness number is
+      // worse than none: it made a dead loop look like a running one, which is
+      // exactly the failure that hid the loop being down for days. The real
+      // value now has sole ownership of [data-tick].
     });
 
     // /world/snapshot — 5s — unified live context shared by HUD panels
