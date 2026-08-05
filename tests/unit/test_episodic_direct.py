@@ -7,6 +7,23 @@ from unittest.mock import patch, MagicMock
 from core.memory.episodic import EpisodicMemory, get_db_connection, get_temp_cursor
 
 
+@pytest.fixture(autouse=True)
+def _isolated_episodic_db(tmp_path, monkeypatch):
+    """Fresh, isolated SQLite DB for every test in this file.
+
+    This file previously had NO isolation — every EpisodicMemory()/
+    get_db_connection() call here ran against the owner's live production
+    vector_memory.db. Mirrors tests/unit/test_memory_decay.py's
+    isolated_episodic fixture.
+    """
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "episodic_direct_test.db"))
+    monkeypatch.setenv("VECTOR_DB_KEY", "test_key_episodic_direct")
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    yield
+    ep.close_db_connection()
+
+
 class TestEpisodicMemoryBasic:
     """Test EpisodicMemory CRUD — no mocks of internal DB operations."""
 

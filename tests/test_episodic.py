@@ -5,8 +5,21 @@ from core.memory.episodic import EpisodicMemory
 
 
 @pytest.fixture
-def mem():
-    return EpisodicMemory()
+def mem(tmp_path, monkeypatch):
+    """Fresh, isolated SQLite DB per test — never touches the real memory DB.
+
+    Mirrors tests/unit/test_memory_decay.py's isolated_episodic fixture:
+    this file previously had NO isolation at all, so every test ran against
+    the owner's live production vector_memory.db (confirmed: 28,083 rows with
+    source='test' in production, 7.2% of episodic memory).
+    """
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "episodic_test.db"))
+    monkeypatch.setenv("VECTOR_DB_KEY", "test_key_episodic")
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    memory = EpisodicMemory()
+    yield memory
+    ep.close_db_connection()
 
 
 def test_store_and_recall(mem):

@@ -6,6 +6,25 @@ import datetime
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _isolated_episodic_db(tmp_path, monkeypatch):
+    """Fresh, isolated SQLite DB for every test in this file.
+
+    The two decay tests below previously constructed EpisodicMemory() (and
+    wrote rows with source="test") with no isolation at all, running against
+    the owner's live production vector_memory.db. Mirrors
+    tests/unit/test_memory_decay.py's isolated_episodic fixture. Harmless
+    no-op for the TaskLedger tests further down, which use their own
+    tmp_path-scoped sqlite file and never touch episodic memory.
+    """
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "memory_quality_test.db"))
+    monkeypatch.setenv("VECTOR_DB_KEY", "test_key_memory_quality")
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    yield
+    ep.close_db_connection()
+
+
 # ── #7a: forgetting / decay ───────────────────────────────────────────────────
 
 def _insert_dated(mem, event_id: str, event_type: str, content: str, days_ago: int):

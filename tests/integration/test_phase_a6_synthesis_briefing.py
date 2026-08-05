@@ -9,7 +9,11 @@ are cleaned up in tearDownClass.
 from __future__ import annotations
 
 import inspect
+import os
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
 
 _MARKER = "A6_TEST_XDOM_PATTERN"
@@ -49,6 +53,25 @@ class TestGetRecentPatterns(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Isolated, throwaway DB — this class used to seed rows straight into
+        # the owner's live production vector_memory.db (that's the exact
+        # "A6_TEST_XDOM_PATTERN" leak this file's own docstring describes).
+        # tearDownClass cleanup made the pollution temporary, not zero: a
+        # crash/interrupt between setUpClass and tearDownClass left the rows
+        # behind. Mirrors tests/unit/test_memory_decay.py's isolated_episodic
+        # fixture, adapted for unittest.TestCase (no monkeypatch fixture
+        # available at class scope, so os.environ is saved/restored by hand —
+        # same approach already used by test_phase_c2_semantic_recall.py).
+        import core.memory.episodic as ep
+        cls._tmp_dir = tempfile.mkdtemp()
+        cls._saved_env = {
+            "VECTOR_DB_PATH": os.environ.get("VECTOR_DB_PATH"),
+            "VECTOR_DB_KEY": os.environ.get("VECTOR_DB_KEY"),
+        }
+        os.environ["VECTOR_DB_PATH"] = str(Path(cls._tmp_dir) / "a6_test.db")
+        os.environ["VECTOR_DB_KEY"] = "test_key_a6_synthesis"
+        ep.close_db_connection()
+
         _cleanup_seeded_rows()  # remove residue from any previous run
         cls._test_rows = _seed(count=3, source=_TEST_SOURCE)
         cls._probe_rows = _seed(count=2, source=_PROBE_SOURCE)
@@ -56,6 +79,14 @@ class TestGetRecentPatterns(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         _cleanup_seeded_rows()
+        import core.memory.episodic as ep
+        ep.close_db_connection()
+        for key, value in cls._saved_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+        shutil.rmtree(cls._tmp_dir, ignore_errors=True)
 
     def _make_bridge(self):
         from core.brain.synthesis_bridge import SynthesisBridge

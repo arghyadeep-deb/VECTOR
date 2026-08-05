@@ -6,11 +6,50 @@ All tests run without live network or live LLM (mocked where required).
 """
 import asyncio
 import datetime
+import os
+import shutil
 import tempfile
 import unittest
 import uuid
 from pathlib import Path
 from unittest.mock import patch, AsyncMock, MagicMock
+
+
+# Module-level isolation: several tests below (TestResearchEpisodicIntegration
+# and the "*_event_stored" assertions in TestResearchHub/TestPaperReader/
+# TestNewsAggregator/TestWebScout) exercise real code paths that call the
+# real EpisodicMemory().store() — e.g. ResearchHub.daily_digest(),
+# WebScout.research(). With no isolation this wrote real event_type rows
+# ("research", "news_brief", "paper_brief", "daily_research_digest") straight
+# into the owner's live production vector_memory.db on every test run.
+# Mirrors tests/unit/test_memory_decay.py's isolated_episodic fixture, using
+# setUpModule/tearDownModule (unittest has no monkeypatch fixture) — same
+# save/restore-os.environ approach test_phase_c2_semantic_recall.py already
+# uses elsewhere in this suite.
+_SAVED_ENV: dict = {}
+_TMP_DIR: str = ""
+
+
+def setUpModule():
+    global _TMP_DIR
+    import core.memory.episodic as ep
+    _TMP_DIR = tempfile.mkdtemp()
+    _SAVED_ENV["VECTOR_DB_PATH"] = os.environ.get("VECTOR_DB_PATH")
+    _SAVED_ENV["VECTOR_DB_KEY"] = os.environ.get("VECTOR_DB_KEY")
+    os.environ["VECTOR_DB_PATH"] = str(Path(_TMP_DIR) / "spec09_research_test.db")
+    os.environ["VECTOR_DB_KEY"] = "test_key_spec09_research"
+    ep.close_db_connection()
+
+
+def tearDownModule():
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    for key, value in _SAVED_ENV.items():
+        if value is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = value
+    shutil.rmtree(_TMP_DIR, ignore_errors=True)
 
 
 def _run(coro):
