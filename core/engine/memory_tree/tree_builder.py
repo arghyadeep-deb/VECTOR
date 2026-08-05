@@ -24,6 +24,7 @@ __all__ = [
 
 
 import atexit
+import concurrent.futures
 import hashlib
 import json
 import os
@@ -199,6 +200,25 @@ class MemoryTree:
         self._last_save_ts = time.monotonic()
         self._last_saved_stat: tuple[int, int] | None = None
 
+        # Guards mutation of self._sources (ingest()/prune_old_chunks()) so a
+        # background save's snapshot pass (_build_snapshot) never reads the
+        # tree structure mid-mutation. Cheap: only ever held for in-memory
+        # dict/list bookkeeping, never across I/O.
+        self._data_lock = threading.Lock()
+        # Bookkeeping for the async debounced save (see _queue_async_save).
+        self._save_state_lock = threading.Lock()
+        self._save_in_flight = False
+        self._pending_future: "concurrent.futures.Future | None" = None
+        # Exactly one background worker: the disk write this offloads
+        # (multi-MB write_text + os.replace, see _write_snapshot) is the
+        # actual blocking-I/O hazard being fixed here. Capping at 1 worker
+        # means this can never spawn more than a single extra OS thread per
+        # MemoryTree instance no matter how fast ingest() debounce trips
+        # fire — see _queue_async_save()'s in-flight coalescing.
+        self._save_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="memtree-save"
+        )
+
         self._load()
 
     # â”€â”€ Ingestion â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -241,24 +261,35 @@ class MemoryTree:
         )
 
         key = f"{source_kind}:{source_id}"
-        if key not in self._sources:
-            self._sources[key] = MemorySource(source_kind=source_kind, source_id=source_id)
+        with self._data_lock:
+            if key not in self._sources:
+                self._sources[key] = MemorySource(source_kind=source_kind, source_id=source_id)
 
-        source = self._sources[key]
-        node = source.get_or_create_node(topic)
-        node.add_chunk(chunk, max_chunks=self._max_chunks_per_topic)
-        source.updated_at = datetime.now(timezone.utc).isoformat()
+            source = self._sources[key]
+            node = source.get_or_create_node(topic)
+            node.add_chunk(chunk, max_chunks=self._max_chunks_per_topic)
+            source.updated_at = datetime.now(timezone.utc).isoformat()
 
         # Debounced save: a full read/parse/rewrite of the whole tree file on
-        # EVERY ingest() was the root cause of a real 90+s hang under
-        # concurrent EpisodicMemory.store() calls (200 calls x full-file
-        # round-trip each). Save every N ingests or every T seconds,
-        # whichever first, with flush() available for a guaranteed
-        # durable checkpoint. MemoryTree ingestion is already best-effort/
-        # non-fatal from episodic.py's perspective (the SQL episodic_memory
-        # table is the real source of truth, written first) so losing the
-        # last few seconds of this derived index on an ungraceful kill is
-        # an acceptable tradeoff for removing the per-call I/O cost.
+        # EVERY ingest() was the original root cause of a real 90+s hang
+        # under concurrent EpisodicMemory.store() calls (200 calls x
+        # full-file round-trip each). Save every N ingests or every T
+        # seconds, whichever first — but the write itself is now handed off
+        # to a background thread (_queue_async_save) instead of running
+        # inline here, because even a DEBOUNCED synchronous write_text() +
+        # os.replace() of a multi-MB file was later found to be able to
+        # block the caller indefinitely (KNOWN_ISSUES #0: this call chain,
+        # reached from governor.dispatch() on the autonomous loop's single
+        # event-loop thread, is the suspected cause of a 5.5h loop stall —
+        # 0% CPU, no exception, last log line was exactly this ingest()).
+        # flush() is available for a guaranteed durable, synchronous
+        # checkpoint (used on shutdown). MemoryTree ingestion is already
+        # best-effort/non-fatal from episodic.py's perspective (the SQL
+        # episodic_memory table is the real source of truth, written first
+        # via get_temp_cursor() before this is ever reached) so a save that
+        # is merely DELAYED by being queued behind a slow prior write is an
+        # acceptable tradeoff — see _queue_async_save() for exactly what is
+        # and is not guaranteed about a queued save actually landing.
         self._dirty = True
         self._ingests_since_save += 1
         now = time.monotonic()
@@ -266,16 +297,49 @@ class MemoryTree:
             self._ingests_since_save >= self._save_every_n
             or (now - self._last_save_ts) >= self._save_interval_s
         ):
-            self._save()
+            self._queue_async_save()
         logger.debug("[VECTOR][memory_tree] ingested chunk topic={} source={}", topic, source_id[:16])
         return chunk
 
     def flush(self) -> bool:
-        """Force a save if there are unsaved ingests. Returns True if a save happened."""
+        """Force a save and BLOCK until it is durably on disk.
+
+        Unlike the debounced auto-save triggered from ingest() (which is
+        offloaded to a background thread so callers never block — see
+        _queue_async_save()), flush() is the explicit, synchronous,
+        guaranteed-durable path: used by close()/close_shared_tree()/atexit
+        on shutdown and by callers (tests, prune_old_chunks()) that need to
+        know the write has actually landed before proceeding.
+
+        Waits for any save already in flight on the background thread first
+        (so this doesn't race its own writer), then performs one final
+        synchronous save of anything still dirty (e.g. ingested after that
+        in-flight snapshot was taken). Returns True if a save happened.
+        """
+        pending = self._pending_future
+        if pending is not None:
+            try:
+                pending.result(timeout=30)
+            except Exception as e:
+                logger.warning(
+                    "[VECTOR][memory_tree] pending background save did not "
+                    "finish before flush() (waited 30s): {} — proceeding "
+                    "with a fresh synchronous save anyway", e,
+                )
         if self._dirty:
             self._save()
             return True
         return False
+
+    def close(self) -> None:
+        """Full shutdown: guarantee durability, then release the background
+        save thread. Wired into close_shared_tree() / atexit so a graceful
+        process exit never drops pending MemoryTree state and never leaks
+        the save-executor thread. Safe to call multiple times."""
+        try:
+            self.flush()
+        finally:
+            self._save_executor.shutdown(wait=True, cancel_futures=False)
 
     def ingest_document(
         self,
@@ -430,7 +494,18 @@ class MemoryTree:
     def _db_path(self) -> Path:
         return self._db_dir / "memory_tree.json"
 
-    def _save(self) -> None:
+    def _build_snapshot(self) -> dict:
+        """Serialize the current in-memory tree into a plain JSON-able dict.
+
+        Caller should hold self._data_lock while calling this (both
+        _queue_async_save() and _save() do) so the snapshot is internally
+        consistent even if another thread is mid-ingest(). This is pure CPU
+        work over already-in-memory objects — no I/O — so it is safe to run
+        on the calling thread without risking an indefinite block; the part
+        that CAN hang indefinitely (write_text + os.replace of a
+        multi-MB file, e.g. under antivirus/disk contention) is
+        _write_snapshot(), which runs off-thread in the normal path.
+        """
         data = {}
         for key, source in self._sources.items():
             data[key] = {
@@ -447,14 +522,28 @@ class MemoryTree:
                     for topic, node in source.nodes.items()
                 },
             }
-        # Atomic write: plain write_text over the live file left torn JSON when the
-        # autonomous loop, MCP server, and tests saved concurrently ("Extra data" /
-        # empty-file corruption, found 2026-07-08). temp + os.replace is atomic on
-        # Windows and POSIX; the lock serializes writers within this process only —
-        # _SAVE_LOCK is a threading.Lock, no protection against a second OS process.
-        # True cross-process locking is deliberately deferred (this store's
-        # documented architecture is in-process singleton, see autonomous_loop);
-        # this best-effort check just makes a lost update loud instead of silent.
+        return data
+
+    def _write_snapshot(self, data: dict) -> None:
+        """The actual (potentially slow) disk write for a snapshot already
+        captured by _build_snapshot(). Runs on the background save-executor
+        thread in the normal (debounced auto-save) path; also called
+        synchronously from _save() (flush()/shutdown/explicit callers).
+
+        Atomic write: plain write_text over the live file left torn JSON
+        when the autonomous loop, MCP server, and tests saved concurrently
+        ("Extra data" / empty-file corruption, found 2026-07-08). temp +
+        os.replace is atomic on Windows and POSIX; _SAVE_LOCK serializes
+        writers WITHIN this process only (it is a threading.Lock, no
+        protection against a second OS process — deliberate, this store's
+        documented architecture is in-process singleton, see
+        autonomous_loop) — but it does matter now that a background save
+        can be in flight at the same time a synchronous flush() call fires
+        on another thread; without this lock those two writes could
+        interleave their write_text() calls into the same tmp-file path
+        collision window. This best-effort mtime/size check just makes a
+        lost update loud instead of silent.
+        """
         path = self._db_path()
         try:
             if self._last_saved_stat is not None and path.exists():
@@ -478,9 +567,104 @@ class MemoryTree:
             except Exception:
                 self._last_saved_stat = None
 
+    def _save(self) -> None:
+        """Synchronous, blocking, guaranteed-durable save — builds a fresh
+        snapshot and writes it on the CALLING thread. Used by flush() (and
+        therefore close()/close_shared_tree()/atexit/tests), never by the
+        debounced auto-save inside ingest() — that path uses
+        _queue_async_save() instead so the caller never blocks on I/O."""
+        with self._data_lock:
+            data = self._build_snapshot()
+        self._write_snapshot(data)
         self._dirty = False
         self._ingests_since_save = 0
         self._last_save_ts = time.monotonic()
+
+    def _queue_async_save(self) -> None:
+        """Non-blocking debounced save: snapshot the tree cheaply on the
+        calling thread, then hand the slow part (disk write) off to a
+        single-worker background executor so the caller — typically the
+        autonomous loop's event-loop thread via
+        EpisodicMemory.store() -> ingest() -> here — never blocks on
+        write_text()/os.replace(). This is the fix for KNOWN_ISSUES #0's
+        suspected root cause: a stalled synchronous write on this exact
+        call chain blocking the whole loop thread for hours.
+
+        DURABILITY CONTRACT (read before assuming more than this promises):
+          - The SQL `episodic_memory` table, written synchronously via
+            get_temp_cursor() in EpisodicMemory.store() BEFORE this is ever
+            reached, is the real source of truth. MemoryTree is always a
+            best-effort DERIVED index on top of it — this was true before
+            this fix and remains true after.
+          - Once a snapshot is captured and its save is accepted onto the
+            executor's queue, it WILL be written (the executor's single
+            worker processes every submitted job; nothing is silently
+            dropped from the queue). If the write itself raises, the
+            exception is caught in _on_save_done() and self._dirty is set
+            back to True so the NEXT debounce trip (or an explicit
+            flush()) retries it — a failed write is retried, not lost.
+          - What is NOT guaranteed: a save that is only QUEUED (not yet
+            written) at the moment of an ungraceful process kill (SIGKILL,
+            power loss, crash) is lost — exactly the same
+            best-effort-relative-to-SQL guarantee the old synchronous
+            debounce already documented (losing "the last few seconds of
+            this derived index"). What changes with this fix is only WHEN
+            the write happens (off-thread, possibly slightly delayed
+            behind a prior slow write) — not whether an ungraceful kill can
+            lose it. flush()/close()/close_shared_tree() (wired to atexit)
+            remain the only path that guarantees a GRACEFUL shutdown does
+            not drop pending state.
+          - At most one save is ever in flight per MemoryTree instance
+            (self._save_in_flight, checked under _save_state_lock) and the
+            executor itself is capped at max_workers=1 — this can never
+            spawn more than a single extra OS thread for this tree no
+            matter how fast ingest() debounce trips fire. If a save is
+            already in flight when this is called, this is a cheap no-op:
+            the new data is already marked dirty and will be picked up by
+            a future debounce trip (ingests keep accumulating against
+            self._sources normally; nothing about ingest() itself blocks).
+        """
+        with self._save_state_lock:
+            if self._save_in_flight:
+                return
+            self._save_in_flight = True
+
+        with self._data_lock:
+            snapshot = self._build_snapshot()
+
+        self._dirty = False
+        self._ingests_since_save = 0
+        self._last_save_ts = time.monotonic()
+
+        try:
+            future = self._save_executor.submit(self._write_snapshot, snapshot)
+        except RuntimeError:
+            # Executor already shut down (e.g. close() ran concurrently with
+            # a final ingest) — write synchronously right here rather than
+            # silently dropping this snapshot. Still off the debounce's
+            # normal fast path, but correctness (never lose an accepted
+            # snapshot) wins over the no-block guarantee in this edge case.
+            with self._save_state_lock:
+                self._save_in_flight = False
+            self._write_snapshot(snapshot)
+            return
+
+        self._pending_future = future
+        future.add_done_callback(self._on_save_done)
+
+    def _on_save_done(self, future: "concurrent.futures.Future") -> None:
+        exc = future.exception()
+        if exc is not None:
+            logger.error(
+                "[VECTOR][memory_tree] background save failed: {} — marking "
+                "dirty again so the next debounce trip or flush() retries it",
+                exc,
+            )
+            self._dirty = True
+        with self._save_state_lock:
+            self._save_in_flight = False
+            if self._pending_future is future:
+                self._pending_future = None
 
     def _cleanup_orphaned_tmp_files(self, p: Path) -> None:
         """Best-effort removal of memory_tree.json.tmp<pid> siblings left by a
@@ -556,22 +740,23 @@ class MemoryTree:
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
         removed = 0
-        for source in self._sources.values():
-            for node in source.nodes.values():
-                kept = []
-                for chunk in node.chunks:
-                    try:
-                        created = datetime.fromisoformat(chunk.created_at)
-                        if created.tzinfo is None:
-                            created = created.replace(tzinfo=timezone.utc)
-                    except (ValueError, TypeError):
-                        kept.append(chunk)
-                        continue
-                    if created >= cutoff:
-                        kept.append(chunk)
-                    else:
-                        removed += 1
-                node.chunks = kept
+        with self._data_lock:
+            for source in self._sources.values():
+                for node in source.nodes.values():
+                    kept = []
+                    for chunk in node.chunks:
+                        try:
+                            created = datetime.fromisoformat(chunk.created_at)
+                            if created.tzinfo is None:
+                                created = created.replace(tzinfo=timezone.utc)
+                        except (ValueError, TypeError):
+                            kept.append(chunk)
+                            continue
+                        if created >= cutoff:
+                            kept.append(chunk)
+                        else:
+                            removed += 1
+                    node.chunks = kept
         if removed:
             self._dirty = True
             self.flush()
@@ -597,19 +782,26 @@ def get_shared_tree(db_dir: Path | None = None, wiki_dir: Path | None = None) ->
     with _tree_lock:
         if _tree_singleton is None:
             _tree_singleton = MemoryTree(db_dir=db_dir, wiki_dir=wiki_dir)
-            atexit.register(_tree_singleton.flush)
+            # close() (not just flush()) so a graceful process exit also
+            # waits for any in-flight background save and shuts down the
+            # save-executor thread cleanly instead of leaking it.
+            atexit.register(_tree_singleton.close)
         return _tree_singleton
 
 
 def close_shared_tree() -> None:
-    """Mirrors close_db_connection(): intentional reset for tests/shutdown."""
+    """Mirrors close_db_connection(): intentional reset for tests/shutdown.
+    Calls close() (flush any pending/dirty state, then shut down the
+    per-instance background save thread) rather than just flush(), so
+    repeated get_shared_tree()/close_shared_tree() cycles — e.g. across many
+    test files — never accumulate live save-executor threads."""
     global _tree_singleton
     with _tree_lock:
         if _tree_singleton is not None:
             try:
-                _tree_singleton.flush()
+                _tree_singleton.close()
             except Exception:
-                logger.warning("[VECTOR][memory_tree] flush-on-close failed", exc_info=True)
+                logger.warning("[VECTOR][memory_tree] close() failed", exc_info=True)
             _tree_singleton = None
 
 

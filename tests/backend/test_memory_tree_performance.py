@@ -79,7 +79,14 @@ class TestDebounce:
             tree.ingest("test", "src", f"chunk {i}", topic="t")
         assert not path.exists(), "must not save before the count threshold"
 
-        tree.ingest("test", "src", "chunk 4", topic="t")  # 5th ingest
+        tree.ingest("test", "src", "chunk 4", topic="t")  # 5th ingest: trips
+        # the debounce, which now queues the write on a background thread
+        # (see TestAsyncSave for the "caller doesn't block" proof) instead
+        # of writing inline — wait for that specific save to land before
+        # asserting the file exists.
+        pending = tree._pending_future
+        assert pending is not None, "5th ingest must have queued a background save"
+        pending.result(timeout=5)
         assert path.exists(), "must save once the count threshold is reached"
 
     def test_flush_forces_a_save(self, tmp_path):
@@ -91,6 +98,149 @@ class TestDebounce:
         assert tree.flush() is True
         assert tree._db_path().exists()
         assert tree.flush() is False, "flush() with nothing dirty must be a no-op"
+
+
+class TestAsyncSave:
+    """Regression coverage for KNOWN_ISSUES #0's suspected root cause: a
+    synchronous, un-offloaded multi-MB write_text()+os.replace() inside the
+    debounced MemoryTree save, reached from governor.dispatch() on the
+    autonomous loop's single event-loop thread via
+    EpisodicMemory.store() -> ingest(). The fix moves the actual disk write
+    onto a single-worker background thread so ingest() (and therefore
+    store()) returns fast regardless of how large or slow the write is."""
+
+    def test_debounced_save_does_not_block_the_caller(self, tmp_path, monkeypatch):
+        """Prove the caller returns fast even when the underlying write is
+        made deliberately slow — this is meaningless unless the write
+        genuinely happens off the calling thread, so it directly exercises
+        the mechanism (not just the debounce counters)."""
+        import threading
+        import time as _time
+
+        tree = MemoryTree(db_dir=tmp_path / "db", wiki_dir=tmp_path / "wiki")
+        tree._save_every_n = 5
+        tree._save_interval_s = 999
+
+        write_thread_name = {}
+        real_write = MemoryTree._write_snapshot
+
+        def slow_write(self, data):
+            write_thread_name["name"] = threading.current_thread().name
+            _time.sleep(1.0)  # simulate a stalled disk / AV-intercepted write
+            return real_write(self, data)
+
+        monkeypatch.setattr(MemoryTree, "_write_snapshot", slow_write)
+
+        for i in range(4):
+            tree.ingest("test", "src", f"chunk {i}", topic="t")
+
+        t0 = time.monotonic()
+        tree.ingest("test", "src", "chunk 4", topic="t")  # 5th ingest: trips debounce
+        elapsed = time.monotonic() - t0
+
+        assert elapsed < 0.5, (
+            f"ingest() blocked for {elapsed:.2f}s waiting on a 1s write — "
+            "the debounced save must be offloaded, not inline"
+        )
+
+        pending = tree._pending_future
+        assert pending is not None
+        pending.result(timeout=5)
+        assert write_thread_name["name"] != threading.current_thread().name, (
+            "the slow write must have run on a background thread, not the caller's thread"
+        )
+        assert not write_thread_name["name"].startswith("MainThread")
+        tree.close()
+
+    def test_data_lands_on_disk_after_async_save_completes(self, tmp_path):
+        """Proves the async path isn't just fast, it's actually correct:
+        once the background write completes, the ingested chunk is really
+        on disk (not silently dropped)."""
+        import json as _json
+
+        tree = MemoryTree(db_dir=tmp_path / "db", wiki_dir=tmp_path / "wiki")
+        tree._save_every_n = 3
+        tree._save_interval_s = 999
+
+        tree.ingest("test", "src", "alpha", topic="t")
+        tree.ingest("test", "src", "beta", topic="t")
+        tree.ingest("test", "src", "gamma-trips-debounce", topic="t")
+
+        pending = tree._pending_future
+        assert pending is not None, "3rd ingest must have queued the async save"
+        pending.result(timeout=5)
+
+        on_disk = _json.loads(tree._db_path().read_text(encoding="utf-8"))
+        contents = [
+            c["content"]
+            for node in on_disk["test:src"]["nodes"].values()
+            for c in node["chunks"]
+        ]
+        assert contents == ["alpha", "beta", "gamma-trips-debounce"]
+        tree.close()
+
+    def test_at_most_one_background_save_thread_per_tree(self, tmp_path):
+        """Guards the 'must not spawn an unbounded number of threads' bar:
+        hammering ingest() fast enough to trip the debounce repeatedly must
+        never create more than a single extra OS thread for this tree."""
+        import threading
+
+        tree = MemoryTree(db_dir=tmp_path / "db", wiki_dir=tmp_path / "wiki")
+        tree._save_every_n = 2
+        tree._save_interval_s = 999
+
+        before = {t.name for t in threading.enumerate()}
+        for i in range(60):  # trips the debounce ~30 times back to back
+            tree.ingest("test", "src", f"chunk {i}", topic="t")
+        tree.flush()
+        after = {t.name for t in threading.enumerate()}
+
+        new_threads = [n for n in (after - before) if n.startswith("memtree-save")]
+        assert len(new_threads) <= 1, f"expected at most 1 save thread, found {new_threads}"
+        tree.close()
+
+    def test_flush_on_close_does_not_drop_pending_state(self, tmp_path, monkeypatch):
+        """The shutdown/flush path: even if a background save is currently
+        in flight when close() is called, close() must wait for it and
+        guarantee everything ingested is durable before returning — this is
+        the 'graceful exit does not drop pending state' requirement."""
+        import json as _json
+        import time as _time
+
+        tree = MemoryTree(db_dir=tmp_path / "db", wiki_dir=tmp_path / "wiki")
+        tree._save_every_n = 2
+        tree._save_interval_s = 999
+
+        real_write = MemoryTree._write_snapshot
+
+        def slow_write(self, data):
+            _time.sleep(0.3)
+            return real_write(self, data)
+
+        monkeypatch.setattr(MemoryTree, "_write_snapshot", slow_write)
+
+        tree.ingest("test", "src", "one", topic="t")
+        tree.ingest("test", "src", "two-trips-debounce", topic="t")  # queues a slow async save
+        tree.ingest("test", "src", "three-after-snapshot", topic="t")  # ingested after the snapshot was taken
+
+        tree.close()  # must block until durable, including the post-snapshot ingest
+
+        on_disk = _json.loads(tree._db_path().read_text(encoding="utf-8"))
+        contents = [
+            c["content"]
+            for node in on_disk["test:src"]["nodes"].values()
+            for c in node["chunks"]
+        ]
+        assert contents == ["one", "two-trips-debounce", "three-after-snapshot"], (
+            "close() must not drop data ingested after the in-flight snapshot was taken"
+        )
+
+        # close() must also release the background thread — no leaked worker.
+        import threading
+        assert not any(
+            t.name.startswith("memtree-save") and t.is_alive()
+            for t in threading.enumerate()
+        )
 
 
 class TestGrowthBound:
