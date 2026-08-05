@@ -182,45 +182,50 @@ class OllamaModelfileTrainer:
         }
 
         try:
-            client = ollama.Client(self.ollama_host)
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — ollama.Client()
+            # wraps an httpx.Client() whose socket is only reclaimed by a
+            # cyclic-GC sweep, not refcounting, if left unclosed. The client is
+            # reused across the whole training loop (many calls, one socket),
+            # so the `with` block spans the loop rather than each call.
+            with ollama.Client(self.ollama_host) as client:
+                available_models = [m["name"] for m in client.list().get("models", [])]
+                if base_model not in available_models:
+                    logger.warning(f"[OpenMythos] Base model {base_model} not available, pulling...")
+                    client.pull(base_model)
 
-            available_models = [m["name"] for m in client.list().get("models", [])]
-            if base_model not in available_models:
-                logger.warning(f"[OpenMythos] Base model {base_model} not available, pulling...")
-                client.pull(base_model)
+                with open(dataset_path, "r", encoding="utf-8") as f:
+                    training_data = [json.loads(line) for line in f if line.strip()]
 
-            with open(dataset_path, "r", encoding="utf-8") as f:
-                training_data = [json.loads(line) for line in f if line.strip()]
+                total_steps = len(training_data)
+                logger.info(f"[OpenMythos] Training on {total_steps} examples for {epochs} epochs")
 
-            total_steps = len(training_data)
-            logger.info(f"[OpenMythos] Training on {total_steps} examples for {epochs} epochs")
+                for epoch in range(epochs):
+                    logger.info(f"[OpenMythos] Epoch {epoch + 1}/{epochs}")
+                    progress = ((epoch + 1) / epochs) * 100
+                    self.training_runs[run_id]["progress"] = progress
 
-            for epoch in range(epochs):
-                logger.info(f"[OpenMythos] Epoch {epoch + 1}/{epochs}")
-                progress = ((epoch + 1) / epochs) * 100
-                self.training_runs[run_id]["progress"] = progress
+                    for idx, example in enumerate(training_data):
+                        if idx % 10 == 0:
+                            logger.debug(f"[OpenMythos] Step {idx}/{total_steps}")
 
-                for idx, example in enumerate(training_data):
-                    if idx % 10 == 0:
-                        logger.debug(f"[OpenMythos] Step {idx}/{total_steps}")
+                        instruction = example.get("instruction", "")
+                        input_text = example.get("input", "")
+                        output_text = example.get("output", "")
 
-                    instruction = example.get("instruction", "")
-                    input_text = example.get("input", "")
-                    output_text = example.get("output", "")
+                        prompt = f"Instruction: {instruction}\n"
+                        if input_text:
+                            prompt += f"Input: {input_text}\n"
+                        prompt += f"Output: {output_text}"
 
-                    prompt = f"Instruction: {instruction}\n"
-                    if input_text:
-                        prompt += f"Input: {input_text}\n"
-                    prompt += f"Output: {output_text}"
-
-                    try:
-                        response = client.generate(
-                            model=base_model,
-                            prompt=prompt,
-                            options={"temperature": 0.3, "num_predict": 50},
-                        )
-                    except Exception as e:
-                        logger.debug(f"[OpenMythos] Generation step: {e}")
+                        try:
+                            response = client.generate(
+                                model=base_model,
+                                prompt=prompt,
+                                options={"temperature": 0.3, "num_predict": 50},
+                            )
+                        except Exception as e:
+                            logger.debug(f"[OpenMythos] Generation step: {e}")
 
             self.training_runs[run_id].update({
                 "status": "completed",
@@ -291,18 +296,20 @@ class OllamaModelfileTrainer:
                     f.write("PARAMETER top_p 0.9\n")
                     f.write("SYSTEM You are V.E.C.T.O.R., a helpful AI assistant.\n")
 
-            client = ollama.Client(self.ollama_host)
-            try:
-                client.create(
-                    model=model_name,
-                    path=str(model_path),
-                    modelfile=str(modelfile_path),
-                )
-                logger.info(f"[OpenMythos] Model {model_name} exported to Ollama")
-                return {"success": True, "model_name": model_name}
-            except Exception as e:
-                logger.warning(f"[OpenMythos] Direct export failed, trying manual: {e}")
-                return {"success": True, "model_name": model_name, "path": str(model_path)}
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment.
+            with ollama.Client(self.ollama_host) as client:
+                try:
+                    client.create(
+                        model=model_name,
+                        path=str(model_path),
+                        modelfile=str(modelfile_path),
+                    )
+                    logger.info(f"[OpenMythos] Model {model_name} exported to Ollama")
+                    return {"success": True, "model_name": model_name}
+                except Exception as e:
+                    logger.warning(f"[OpenMythos] Direct export failed, trying manual: {e}")
+                    return {"success": True, "model_name": model_name, "path": str(model_path)}
 
         except Exception as e:
             logger.error(f"[OpenMythos] Export failed: {e}")
@@ -352,27 +359,30 @@ class OllamaModelfileTrainer:
         logger.info(f"[OpenMythos] Evaluating model {model_name}")
 
         try:
-            client = ollama.Client(self.ollama_host)
             results = []
 
             with open(eval_data_path, "r", encoding="utf-8") as f:
                 eval_data = [json.loads(line) for line in f if line.strip()]
 
-            for item in eval_data[:10]:
-                prompt = item.get("instruction", "")
-                if item.get("input"):
-                    prompt += f"\n{item.get('input')}"
-                expected = item.get("output", "")
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — client is reused
+            # across the whole evaluation loop (one socket, many calls).
+            with ollama.Client(self.ollama_host) as client:
+                for item in eval_data[:10]:
+                    prompt = item.get("instruction", "")
+                    if item.get("input"):
+                        prompt += f"\n{item.get('input')}"
+                    expected = item.get("output", "")
 
-                response = client.generate(model=model_name, prompt=prompt)
-                actual = response.get("response", "")
+                    response = client.generate(model=model_name, prompt=prompt)
+                    actual = response.get("response", "")
 
-                similarity = self._compute_similarity(expected, actual)
-                results.append({
-                    "expected": expected[:100],
-                    "actual": actual[:100],
-                    "similarity": similarity,
-                })
+                    similarity = self._compute_similarity(expected, actual)
+                    results.append({
+                        "expected": expected[:100],
+                        "actual": actual[:100],
+                        "similarity": similarity,
+                    })
 
             avg_similarity = sum(r["similarity"] for r in results) / len(results) if results else 0
             logger.info(f"[OpenMythos] Evaluation complete: {avg_similarity:.2%} similarity")

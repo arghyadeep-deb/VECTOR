@@ -186,8 +186,12 @@ class ModelRouter:
                         logger.warning("[ModelRouter] Failed to read {}: {}", manifest, e)
         try:
             import ollama
-            client = ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"))
-            local_models = client.list()
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — ollama.Client()
+            # wraps an httpx.Client() whose socket is only reclaimed by a
+            # cyclic-GC sweep, not refcounting, if left unclosed.
+            with ollama.Client(host=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")) as client:
+                local_models = client.list()
             for model in local_models.get("models", []):
                 name = model.get("name", "")
                 if name not in [a.get("name", "") for a in adapters]:

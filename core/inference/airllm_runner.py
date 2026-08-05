@@ -117,13 +117,16 @@ class AirLLMRunner:
         """Load model using standard Ollama."""
         try:
             import ollama
-            client = ollama.Client(self.ollama_host)
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — ollama.Client()
+            # wraps an httpx.Client() whose socket is only reclaimed by a
+            # cyclic-GC sweep, not refcounting, if left unclosed.
+            with ollama.Client(self.ollama_host) as client:
+                available_models = [m["name"] for m in client.list().get("models", [])]
 
-            available_models = [m["name"] for m in client.list().get("models", [])]
-
-            if model_name not in available_models:
-                logger.info(f"[AirLLM] Pulling model {model_name} from Ollama")
-                client.pull(model_name)
+                if model_name not in available_models:
+                    logger.info(f"[AirLLM] Pulling model {model_name} from Ollama")
+                    client.pull(model_name)
 
             self.loaded_model = model_name
             self.model_info = {
@@ -226,18 +229,21 @@ class AirLLMRunner:
         """Generate using Ollama."""
         try:
             import ollama
-            client = ollama.Client(self.ollama_host)
-
-            response = client.generate(
-                model=self.loaded_model,
-                prompt=prompt,
-                options={
-                    "num_predict": max_tokens,
-                    "temperature": temperature,
-                    "top_p": top_p,
-                    "top_k": top_k,
-                },
-            )
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — ollama.Client()
+            # wraps an httpx.Client() whose socket is only reclaimed by a
+            # cyclic-GC sweep, not refcounting, if left unclosed.
+            with ollama.Client(self.ollama_host) as client:
+                response = client.generate(
+                    model=self.loaded_model,
+                    prompt=prompt,
+                    options={
+                        "num_predict": max_tokens,
+                        "temperature": temperature,
+                        "top_p": top_p,
+                        "top_k": top_k,
+                    },
+                )
 
             return {
                 "success": True,

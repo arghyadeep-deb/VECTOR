@@ -24,8 +24,10 @@ class SelfEvolver:
         """Analyze a single decision and suggest improvements."""
         try:
             import ollama
-            client = ollama.Client(host=self._ollama_host)
-
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — ollama.Client()
+            # wraps an httpx.Client() whose socket is only reclaimed by a
+            # cyclic-GC sweep, not refcounting, if left unclosed.
             prompt = f"Analyze this V.E.C.T.O.R. decision for improvements:\n\n"
             prompt += f"Action: {decision.get('action_type', 'unknown')}\n"
             prompt += f"Reasoning: {decision.get('reasoning_chain', 'N/A')[:500]}\n"
@@ -33,11 +35,12 @@ class SelfEvolver:
             prompt += f"Confidence: {decision.get('confidence', 0.5)}\n\n"
             prompt += "Provide: 1) What went well, 2) What could improve, 3) Rule/policy update suggestion"
 
-            response = client.chat(
-                model=self._reasoning_model,
-                messages=[{"role": "user", "content": prompt}],
-                options={"temperature": 0.3, "num_predict": 600}
-            )
+            with ollama.Client(host=self._ollama_host) as client:
+                response = client.chat(
+                    model=self._reasoning_model,
+                    messages=[{"role": "user", "content": prompt}],
+                    options={"temperature": 0.3, "num_predict": 600}
+                )
 
             analysis = response["message"]["content"]
             evolution_entry = {

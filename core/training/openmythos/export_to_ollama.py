@@ -136,25 +136,28 @@ class OllamaExporter:
             return {"success": False, "error": "Model not found"}
 
         try:
-            client = ollama.Client(self.ollama_host)
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — ollama.Client()
+            # wraps an httpx.Client() whose socket is only reclaimed by a
+            # cyclic-GC sweep, not refcounting, if left unclosed.
+            with ollama.Client(self.ollama_host) as client:
+                modelfile_path = model_path / "Modelfile"
+                if modelfile_path.exists():
+                    with open(modelfile_path, "r") as f:
+                        modelfile_content = f.read()
 
-            modelfile_path = model_path / "Modelfile"
-            if modelfile_path.exists():
-                with open(modelfile_path, "r") as f:
-                    modelfile_content = f.read()
-
-                logger.info(f"[OpenMythos] Creating model {model_name} from Modelfile")
-                client.create(
-                    model=model_name,
-                    modelfile=modelfile_content,
-                    path=str(model_path),
-                )
-            else:
-                logger.info(f"[OpenMythos] Creating model {model_name} from path")
-                client.create(
-                    model=model_name,
-                    path=str(model_path),
-                )
+                    logger.info(f"[OpenMythos] Creating model {model_name} from Modelfile")
+                    client.create(
+                        model=model_name,
+                        modelfile=modelfile_content,
+                        path=str(model_path),
+                    )
+                else:
+                    logger.info(f"[OpenMythos] Creating model {model_name} from path")
+                    client.create(
+                        model=model_name,
+                        path=str(model_path),
+                    )
 
             logger.info(f"[OpenMythos] Model {model_name} pushed to Ollama")
             return {"success": True, "model_name": model_name}
@@ -171,8 +174,9 @@ class OllamaExporter:
             List of model information dicts
         """
         try:
-            client = ollama.Client(self.ollama_host)
-            response = client.list()
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py).
+            with ollama.Client(self.ollama_host) as client:
+                response = client.list()
             models = response.get("models", [])
 
             logger.info(f"[OpenMythos] Found {len(models)} Ollama models")
@@ -192,10 +196,14 @@ class OllamaExporter:
             Dict with pull status
         """
         try:
-            client = ollama.Client(self.ollama_host)
             logger.info(f"[OpenMythos] Pulling model: {model_name}")
 
-            response = client.pull(model_name)
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py). Not
+            # streamed (stream defaults False), so `response` is a fully
+            # resolved Mapping by the time the client closes — safe to
+            # iterate after the `with` block exits.
+            with ollama.Client(self.ollama_host) as client:
+                response = client.pull(model_name)
             for part in response:
                 status = part.get("status", "")
                 logger.debug(f"[OpenMythos] Pull status: {status}")
@@ -217,8 +225,9 @@ class OllamaExporter:
             Dict with deletion status
         """
         try:
-            client = ollama.Client(self.ollama_host)
-            client.delete(model_name)
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py).
+            with ollama.Client(self.ollama_host) as client:
+                client.delete(model_name)
 
             local_path = self.registry_path / model_name
             if local_path.exists():
@@ -241,8 +250,13 @@ class OllamaExporter:
             Dict with model information
         """
         try:
-            client = ollama.Client(self.ollama_host)
-            response = client.show(model_name)
+            # 2026-08-05 connection-leak fix (same as the other sites in this
+            # file): must be `with ... as client:`, not a bare assignment —
+            # ollama.Client() wraps an httpx.Client with its own pool, and
+            # httpx.Client has no __del__, so an unclosed one leaks its socket
+            # until a cyclic-GC sweep happens to collect it.
+            with ollama.Client(self.ollama_host) as client:
+                response = client.show(model_name)
 
             return {
                 "success": True,

@@ -30,24 +30,27 @@ class CouncilBrain:
         """
         try:
             import ollama
-            client = ollama.Client(host=self._ollama_host, timeout=5.0)
+            # 2026-08-05 (connection-leak fix, same as ollama_safe.py): must be
+            # `with ... as client:`, not a bare assignment — ollama.Client()
+            # wraps an httpx.Client() whose socket is only reclaimed by a
+            # cyclic-GC sweep, not refcounting, if left unclosed.
+            with ollama.Client(host=self._ollama_host, timeout=5.0) as client:
+                stage1_responses = []
+                for member in self._council_members:
+                    resp = client.chat(
+                        model=member,
+                        messages=[{"role": "user", "content": question}],
+                        options={"temperature": 0.7, "num_predict": 500}
+                    )
+                    stage1_responses.append(resp["message"]["content"])
 
-            stage1_responses = []
-            for member in self._council_members:
-                resp = client.chat(
-                    model=member,
-                    messages=[{"role": "user", "content": question}],
-                    options={"temperature": 0.7, "num_predict": 500}
+                ranked = sorted(stage1_responses, key=len, reverse=True)
+                synthesize_prompt = f"Question: {question}\n\nResponses from council members:\n" + "\n".join(f"- {r}" for r in ranked)
+                verdict_resp = client.chat(
+                    model=self._council_model,
+                    messages=[{"role": "user", "content": synthesize_prompt}],
+                    options={"temperature": 0.3, "num_predict": 800}
                 )
-                stage1_responses.append(resp["message"]["content"])
-
-            ranked = sorted(stage1_responses, key=len, reverse=True)
-            synthesize_prompt = f"Question: {question}\n\nResponses from council members:\n" + "\n".join(f"- {r}" for r in ranked)
-            verdict_resp = client.chat(
-                model=self._council_model,
-                messages=[{"role": "user", "content": synthesize_prompt}],
-                options={"temperature": 0.3, "num_predict": 800}
-            )
 
             return {
                 "stage1": stage1_responses,
