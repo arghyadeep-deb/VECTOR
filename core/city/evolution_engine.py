@@ -299,7 +299,17 @@ class EvolutionEngine:
             agent_id = getattr(agent, "id", None)
             if agent_id is None:
                 continue
-            self._record_death(agent)
+            # Log the death event only here — deregister() below
+            # unconditionally persists its own ghost row from the live
+            # agent object (AgentRegistry.deregister() -> _persist_ghost()),
+            # so calling the full _record_death() (which also persists a
+            # ghost) would just write the same agent_history row twice.
+            # If deregister() somehow doesn't run (agent_id lookup miss,
+            # etc.) the ghost is simply not persisted for this cull pass —
+            # same as the pre-existing behavior when deregister() itself
+            # fails, since its ghost write happens before its risky
+            # successor-spawn logic and does not raise.
+            self._log_death_event(agent)
             try:
                 self._registry.deregister(agent_id)
             except Exception as e:
@@ -369,7 +379,33 @@ class EvolutionEngine:
     # ── private helpers ───────────────────────────────────────────────────────
 
     def _record_death(self, agent) -> None:
-        """Store an agent_death event in episodic memory."""
+        """Store an agent_death event in episodic memory AND persist the
+        ghost row (agent_history).
+
+        Callers that will immediately follow up with
+        AgentRegistry.deregister() (which unconditionally persists its own
+        ghost row from the live agent object — see
+        AgentRegistry.deregister()/_persist_ghost()) should call
+        _log_death_event() instead of this method, to avoid writing the
+        same agent_history row twice. See cull_bottom() below — its
+        double-write was harmless (INSERT OR REPLACE is idempotent, and
+        deregister()'s object-shaped ghost always lands last) but redundant.
+        spawn_from_ghost()/check_and_evolve() do NOT call deregister(), so
+        they still need the full _record_death() (event + ghost persist).
+        """
+        try:
+            self._log_death_event(agent)
+            self._persist_agent_history(agent)
+        except Exception as e:
+            logger.error(f"[VECTOR][evolution] _record_death failed: {e}")
+
+    def _log_death_event(self, agent) -> None:
+        """Store just the agent_death episodic event — no ghost persist.
+
+        Split out of _record_death() so cull_bottom() can log the death
+        event without also writing a redundant agent_history row that
+        deregister() is about to write anyway.
+        """
         try:
             mem = self._get_memory()
             content = (
@@ -383,9 +419,8 @@ class EvolutionEngine:
                 tags=["evolution", "death", getattr(agent, "district", "unknown")],
                 source="evolution_engine",
             )
-            self._persist_agent_history(agent)
         except Exception as e:
-            logger.error(f"[VECTOR][evolution] _record_death failed: {e}")
+            logger.error(f"[VECTOR][evolution] _log_death_event failed: {e}")
 
     def _record_birth(self, agent) -> None:
         """Store an agent_birth event in episodic memory."""

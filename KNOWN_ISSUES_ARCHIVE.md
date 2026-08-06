@@ -2968,3 +2968,40 @@ should only be run against a stopped backend.
 `core/city/governor.py`, `districts/qa/doc_generator.py`,
 `tests/unit/test_memory_decay.py` (new, 13 tests),
 `tests/unit/test_memory_router.py` (new, 17 tests).
+
+---
+
+## Issue #38 (was KNOWN_ISSUES.md #8): 9 overnight commits stuck local — `git push` failed with no GitHub credentials — RESOLVED, was stale (2026-08-06)
+
+**Status:** Resolved/closed. The commits were pushed cleanly in a later
+session; this entry was found stale during a routine cleanup pass and is
+archived verbatim below, with the closing note at the bottom.
+
+**Original entry (KNOWN_ISSUES.md, filed 2026-08-04, verbatim):**
+
+> 8. **9 overnight commits (2026-08-03/04) are local only — `git push` failed.**
+>    Branch `production-hardening-complete`, commits `a16d2eb09` through
+>    `3f4c7f51f` (9 commits: Phase 1 routing, Phase 2 memory, Phase 3
+>    guardrails, Phase 5 idempotency, Phase 6 vendored-integration fix, in that
+>    dependency order — see the section below for what each contains). Pushing
+>    from the sandboxed dev environment failed: `fatal: could not read
+>    Username for 'https://github.com': No such device or address` — no
+>    GitHub credentials are available in that sandbox, and per this project's
+>    own safety rules the agent will not handle/enter credentials on your
+>    behalf. **You need to either run `git push origin
+>    production-hardening-complete` yourself from a machine with GitHub auth
+>    configured, or provide a way to authenticate.** Nothing has been force-
+>    pushed or rewritten — this is a plain fast-forward push once you're
+>    authenticated.
+
+**Closing note (2026-08-06):** stale — root cause was a credential-less
+sandbox, not a code defect, and it resolved itself once someone pushed from
+an authenticated machine. Verified before closing: 62 commits have landed on
+`origin/production-hardening-complete` since the original 9
+(`a16d2eb09`..`3f4c7f51f`, `git log 3f4c7f51f..origin/production-hardening-
+complete` = 62), `git log origin/production-hardening-complete..HEAD` returns
+empty (nothing local-only remains — `HEAD` and the remote tip are the exact
+same commit), and at the point this was verified the working tree was clean
+(no pending edits) before other concurrent work in this session began. No
+force-push or history rewrite was involved anywhere in this — the original 9
+commits (and everything after) landed as plain fast-forwards.

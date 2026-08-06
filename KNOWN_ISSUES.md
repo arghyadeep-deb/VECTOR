@@ -5,7 +5,15 @@ non-bug/design limitation) has been removed. Full history, including every
 root-cause trace and verification detail for the ~50 issues that have been
 closed, is preserved verbatim in **`KNOWN_ISSUES_ARCHIVE.md`**.
 
-Last cleaned up: 2026-08-04 — overnight session added #8 (git push blocker,
+Last cleaned up: 2026-08-06 — closed #8 (git push blocker): stale. 62 commits
+have landed on `origin/production-hardening-complete` since the 9 that
+originally got stuck, `git log origin/production-hardening-complete..HEAD` is
+empty (HEAD == remote tip, nothing local-only remains), and the working tree
+was confirmed clean before this session's other work began — full original
+entry + closing note archived verbatim in `KNOWN_ISSUES_ARCHIVE.md`
+(Issue #38).
+
+Previous cleanup, 2026-08-04 — overnight session added #8 (git push blocker,
 needs owner) and #9 (live re-verification of tonight's Phase 1-6 changes,
 needs live backend); #3, #4, #5, #6 fixed and live-verified against a
 freshly restarted backend on 2026-07-30; #1/#2 genuinely need the owner; #7
@@ -32,21 +40,6 @@ new VECTOR defects.
    `localhost` or `https://` — WebAuthn requires a secure context), then run
    `VECTORAuth.register()` then `VECTORAuth.login()` in the browser console
    (no UI button wired yet — optional follow-up). See archive issue #34.
-
-8. **9 overnight commits (2026-08-03/04) are local only — `git push` failed.**
-   Branch `production-hardening-complete`, commits `a16d2eb09` through
-   `3f4c7f51f` (9 commits: Phase 1 routing, Phase 2 memory, Phase 3
-   guardrails, Phase 5 idempotency, Phase 6 vendored-integration fix, in that
-   dependency order — see the section below for what each contains). Pushing
-   from the sandboxed dev environment failed: `fatal: could not read
-   Username for 'https://github.com': No such device or address` — no
-   GitHub credentials are available in that sandbox, and per this project's
-   own safety rules the agent will not handle/enter credentials on your
-   behalf. **You need to either run `git push origin
-   production-hardening-complete` yourself from a machine with GitHub auth
-   configured, or provide a way to authenticate.** Nothing has been force-
-   pushed or rewritten — this is a plain fast-forward push once you're
-   authenticated.
 
 9. **Tonight's Phase 1-6/8 fixes are verified against a scratch copy of the
    real DB + real code paths, not the actual live API/websocket/voice

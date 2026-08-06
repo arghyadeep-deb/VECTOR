@@ -19,13 +19,18 @@ Adding a new DB:
 """
 from __future__ import annotations
 
-from core.memory.db_utils import apply_pragmas
+from core.memory.db_utils import apply_pragmas, configured_db_path
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
 from loguru import logger
+
+# path_template value used by the three registry entries that alias the
+# main SQLCipher-encrypted memory DB (core.episodic / core.collections /
+# core.causal_graph) rather than a genuinely separate district file.
+_MAIN_DB_TEMPLATE = "vector_memory.db"
 
 
 @dataclass
@@ -156,24 +161,89 @@ def _project_root() -> Path:
     return Path(__file__).parent.parent.parent
 
 
+def _row_class(conn) -> type:
+    """sqlite3.Row rejects sqlcipher cursors — pick the driver's own Row.
+
+    Same trap documented in districts/emergency/log.py:_row_class() and
+    core/memory/shared_facts.py:_row_class(): sqlite3.Row raises
+    "Row() argument 1 must be sqlite3.Cursor, not sqlcipher3.dbapi2.Cursor"
+    when handed a cursor from the sqlcipher3/pysqlcipher3 driver. The Row
+    class must always come from the same driver module as the connection.
+    """
+    mod = type(conn).__module__
+    if mod.startswith("sqlcipher3"):
+        from sqlcipher3 import dbapi2
+        return dbapi2.Row
+    if mod.startswith("pysqlcipher3"):
+        from pysqlcipher3 import dbapi2
+        return dbapi2.Row
+    return sqlite3.Row
+
+
 def get_district_db(key: str, check_same_thread: bool = False) -> sqlite3.Connection:
     """Open a registered district DB by registry key.
 
     Usage:
         conn = get_district_db("districts.health.metrics")
         conn.execute("SELECT ...")
+
+    "core.episodic" / "core.collections" / "core.causal_graph" all point
+    their path_template at "vector_memory.db" — that is the main
+    SQLCipher-encrypted memory DB (already owned by core.memory.episodic),
+    not a genuinely separate district file. Opening it with plain
+    sqlite3.connect() (the old behavior here) raises
+    "file is not a database" the moment SQLCipher is active — this was a
+    latent landmine (2026-08-05 memory-persistence audit, Finding #4):
+    unreachable in production because nothing called get_district_db() with
+    those keys, but it would have hit the exact same failure mode already
+    fixed for core/memory/shared_facts.py and
+    districts/data_analytics/data_engineer.py (see those files' 2026-08-05/06
+    fix comments) the moment a future caller followed this module's own
+    documented usage pattern with one of the three core.* keys.
+
+    Every OTHER registry entry (data/{name}.db, data/emergency_log.db,
+    data/health/{name}.db, ...) is a genuinely separate, unencrypted file —
+    those keep opening with plain sqlite3.connect() exactly as before.
     """
     entry = REGISTRY.get(key)
     if entry is None:
         raise KeyError(f"DB '{key}' not in registry. Register it in core/memory/db_registry.py first.")
 
-    name = key.split(".")[-1]
-    rel_path = entry.path_template.replace("{name}", name)
-    abs_path = _project_root() / rel_path
-    abs_path.parent.mkdir(parents=True, exist_ok=True)
+    if entry.path_template == _MAIN_DB_TEMPLATE:
+        # Alias of the main encrypted DB — resolve through the same source
+        # of truth core.memory.episodic uses (configured_db_path(), which
+        # honors VECTOR_DB_PATH for tests/repair) rather than re-deriving
+        # "<project_root>/vector_memory.db" independently, so this never
+        # drifts from the file get_db_connection() actually opens.
+        abs_path = configured_db_path()
+        abs_path.parent.mkdir(parents=True, exist_ok=True)
+        rel_path = _MAIN_DB_TEMPLATE
 
-    conn = sqlite3.connect(str(abs_path), check_same_thread=check_same_thread)
-    apply_pragmas(conn, foreign_keys=True)
+        conn = None
+        try:
+            from core.memory import episodic
+            if getattr(episodic, "_USE_SQLCIPHER", False):
+                conn = episodic._open_sqlcipher_connection(str(abs_path))
+        except Exception as e:
+            logger.warning(
+                "[VECTOR][db_registry] SQLCipher open failed for '{}', falling back to plain sqlite: {}",
+                key, e,
+            )
+            conn = None
+        if conn is None:
+            conn = sqlite3.connect(str(abs_path), check_same_thread=check_same_thread)
+            apply_pragmas(conn, foreign_keys=True)
+        conn.row_factory = _row_class(conn)
+    else:
+        name = key.split(".")[-1]
+        rel_path = entry.path_template.replace("{name}", name)
+        abs_path = _project_root() / rel_path
+        abs_path.parent.mkdir(parents=True, exist_ok=True)
+
+        conn = sqlite3.connect(str(abs_path), check_same_thread=check_same_thread)
+        apply_pragmas(conn, foreign_keys=True)
+        conn.row_factory = _row_class(conn)
+
     logger.debug("[VECTOR][db_registry] opened '{}' (v{}) at {}", key, entry.schema_version, rel_path)
     return conn
 
