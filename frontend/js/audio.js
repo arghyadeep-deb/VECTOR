@@ -188,8 +188,8 @@
     });
     V.on('audio', d=>enqueueServerAudio(d));
     V.on('widget:open', ()=>SND.open());
-    V.on('widget:close', ()=>SND.close());
-    V.on('workspace', ({open})=>open?chord([660,990],.3):SND.close());
+    V.on('widget:close', ()=>{ /* sound disabled */ });
+    V.on('workspace', ({open})=>open?chord([660,990],.3):{ /* sound disabled */ });
   }
 
   // ---- server (Kokoro) audio playback queue ------------------------------
