@@ -83,6 +83,27 @@ def enable_if_requested() -> Optional[str]:
             logs_dir.mkdir(parents=True, exist_ok=True)
             dump_path = logs_dir / "thread_dumps.log"
 
+            # Roll before opening. Measured: ~850 KB/hour at a 60s interval, and
+            # once the watchdog arms this on every restart (2026-08-06, active
+            # P0 hunt) it runs continuously. Unbounded append is a mistake this
+            # repo has already paid for — vector_autostart.log was found at
+            # 671 MB with no rotation. Same one-generation policy as that fix
+            # and vector_watchdog.ps1: past 25 MB the current file becomes
+            # .log.1, replacing any previous .1.
+            #
+            # Rolling here (at arm time, before the handle is opened) rather
+            # than mid-run is deliberate: faulthandler writes into the raw fd,
+            # so renaming the file underneath a live dump would send stacks to
+            # a file nobody is looking at.
+            try:
+                if dump_path.exists() and dump_path.stat().st_size > 25 * 1024 * 1024:
+                    prev = dump_path.with_suffix(dump_path.suffix + ".1")
+                    if prev.exists():
+                        prev.unlink()
+                    dump_path.rename(prev)
+            except Exception as _roll_err:  # never let rotation break diagnostics
+                logger.warning("[VECTOR][thread_dump] dump-log rotation skipped: {}", _roll_err)
+
             # Append mode + line-buffered-ish: faulthandler writes straight into
             # the raw file descriptor, bypassing loguru entirely, so the file
             # must stay open for the life of the process.

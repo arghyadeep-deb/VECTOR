@@ -205,6 +205,25 @@ try {
     # sufficient and keeps parity with autostart.bat.
     $env:VECTOR_API_RUN_LOOP = "1"
     $env:VECTOR_ENV = "production"
+
+    # 2026-08-06, ACTIVE P0 HUNT (KNOWN_ISSUES #0) — remove this block once the
+    # loop-stall root cause is found.
+    #
+    # The whole point of the thread-dump instrumentation is to capture the loop
+    # thread's stack AT a stall. But a stall is exactly what makes this script
+    # restart VECTOR, and a restart launched from here does not inherit whatever
+    # env the previous (manually started) process had. Observed tonight: dumps
+    # were armed by hand on pid 6008, that process ended at 04:46, the watchdog
+    # relaunched it, and dumps went silently OFF — leaving instrumentation that
+    # looked armed and captured nothing. Setting it here means diagnosis
+    # survives precisely the restarts caused by the bug being diagnosed.
+    #
+    # Deliberately NOT put in .env: `import core.config` loads .env into
+    # os.environ as a side effect, and this repo already rejected that route for
+    # VECTOR_API_RUN_LOOP for the same reason (see run_vector.py's comment).
+    # Cost is ~850 KB/hour of stacks into data/logs/thread_dumps.log, which
+    # thread_dump.py bounds; acceptable while a P0 is open, not forever.
+    $env:VECTOR_THREAD_DUMP_SEC = "60"
     $proc = Start-Process -FilePath $pythonExe -ArgumentList "run_vector.py api --host 0.0.0.0" `
         -WorkingDirectory $base -WindowStyle Hidden `
         -RedirectStandardOutput $startOutLog -RedirectStandardError $startErrLog `
