@@ -23,6 +23,7 @@ class ContactManager(AgentBase):
             district="relationships",
             generation=1
         )
+        self.capabilities = ["communication", "contact", "relationships"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self._lock = threading.RLock()

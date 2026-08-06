@@ -27,6 +27,7 @@ class ProgressTracker(AgentBase):
             district="projects",
             generation=generation,
         )
+        self.capabilities = ["progress", "project", "tracking"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

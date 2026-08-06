@@ -56,6 +56,10 @@ class BacktestAgent(AgentBase):
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
+        self.capabilities = [
+            "vt_research", "quant_research", "vt_backtest", "shadow_account",
+            "vt_swarm", "vt_skills", "vt_export",
+        ]
         logger.info("[VECTOR][vt_agent] ready gen={} hp={}", generation, self.health_points)
 
     # ── Helpers ──────────────────────────────────────────────────────────────

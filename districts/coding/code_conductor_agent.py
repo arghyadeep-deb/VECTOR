@@ -51,6 +51,8 @@ class CodeConductorAgent(AgentBase):
         )
         if ghost:
             self.inherit_ghost(ghost)
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["code_conduct", "str_replace", "code_map", "code_accuracy_test"]
         self._memory  = EpisodicMemory()
         self._context = ContextEngine()
         self._cwd = CONFIG.get("coding", {}).get("repo_path", os.getcwd())

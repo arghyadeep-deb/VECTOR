@@ -21,6 +21,7 @@ class HabitFinder(AgentBase):
             district="pattern_detective",
             generation=1
         )
+        self.capabilities = ["habit", "pattern", "pattern_detective"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.habit_patterns = {}

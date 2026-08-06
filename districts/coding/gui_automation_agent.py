@@ -48,6 +48,8 @@ class GUIAutomationAgent(AgentBase):
         )
         if ghost:
             self.inherit_ghost(ghost)
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["gui_task", "vision_control", "desktop_task", "browser_task", "web_task", "click_screen"]
         self._memory  = EpisodicMemory()
         self._context = ContextEngine()
         cfg = CONFIG.get("vision_control", {})

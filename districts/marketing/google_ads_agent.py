@@ -71,6 +71,7 @@ class GoogleAdsAgent(AgentBase, SkillMixin):
             district="marketing",
             generation=generation,
         )
+        self.capabilities = ["ads", "audit", "copy", "google_ads", "landing", "marketing", "performance"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

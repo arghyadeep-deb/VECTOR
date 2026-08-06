@@ -31,6 +31,7 @@ class GrowthHacker(AgentBase, SkillMixin):
 
     def __init__(self):
         super().__init__(agent_id="growth_hacker_001", name="GrowthHacker", district="marketing")
+        self.capabilities = ["funnel_analysis", "growth", "marketing", "north_star", "plan", "score_idea", "viral_loop"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         self._skill_prompt = load_skill("marketing-ideas", "analytics", "cro")

@@ -34,6 +34,7 @@ class ConsolidationBot(AgentBase):
             district="memory_curator",
             generation=generation,
         )
+        self.capabilities = ["consolidate", "entity_add", "knowledge_query", "memory", "memory_curator", "memory_stored", "recall", "relation_add", "remember", "save_note", "store_findings", "who"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

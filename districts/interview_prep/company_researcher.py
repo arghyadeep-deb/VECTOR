@@ -33,6 +33,7 @@ class CompanyResearcher(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "CompanyResearcher", "interview_prep")
+        self.capabilities = ["company", "interview", "research"]
         if ghost:
             self.inherit_ghost(ghost)
 

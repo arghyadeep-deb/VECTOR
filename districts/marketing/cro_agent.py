@@ -32,6 +32,7 @@ class CROAgent(AgentBase, SkillMixin):
 
     def __init__(self):
         super().__init__(agent_id="cro_agent_001", name="CROAgent", district="marketing")
+        self.capabilities = ["conversion", "cro", "marketing"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._skill_prompt = load_skill("cro", "copywriting", "analytics")

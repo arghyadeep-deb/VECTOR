@@ -53,6 +53,7 @@ class FeedbackAnalyst(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "FeedbackAnalyst", "interview_prep")
+        self.capabilities = ["analysis", "analyze_feedback", "feedback", "identify_improvements", "improve", "interview", "progress", "track_progress"]
         if ghost:
             self.inherit_ghost(ghost)
 

@@ -56,6 +56,7 @@ class AssetStoryboard:
 class AssetVideoPipelineAgent(AgentBase):
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "AssetVideoPipelineAgent", "content")
+        self.capabilities = ["asset", "content", "pipeline", "video"]
         if ghost:
             self.inherit_ghost(ghost)
         logger.info("[VECTOR][asset_video] initialized")

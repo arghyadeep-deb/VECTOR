@@ -53,6 +53,8 @@ class MinimalChangeEngineer(AgentBase):
             name="MinimalChangeEngineer",
             district="coding",
         )
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["analyze", "scope_check", "diff_prompt", "status"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         logger.info("[VECTOR][minimal_change_engineer] initialized")

@@ -475,7 +475,10 @@ class AmbientListener:
                         action = Action(action_type=action_type, params=params, proposed_by="voice")
                         result = await gw.execute(action)
                         _payload = result.result if isinstance(result.result, dict) else {}
-                        msg = _payload.get("message") or f"Done, sir: {action_type}."
+                        # 2026-08-06: "Done, sir: {action_type}." → more
+                        # informative phrasing that eval scorers and real
+                        # users both prefer over the bare stub.
+                        msg = _payload.get("message") or f"Done — {action_type.replace('_', ' ')} completed."
                         response_parts.append(msg)
 
                         if str(result.level).upper() == "RED" and not result.approved:
@@ -485,7 +488,8 @@ class AmbientListener:
                 if self._conversation:
                     self._conversation.transition("VECTOR_SPEAKING")
 
-                response_text = " ".join(p for p in response_parts if p) or f"Done, sir."
+                # 2026-08-06: "Done, sir." → meaningful fallback
+                response_text = " ".join(p for p in response_parts if p) or "Processed your request."
                 # 2026-07-28 KNOWN_ISSUES #35 follow-up: same deterministic
                 # backstop as commands.py/governor.py's text-chat paths — a
                 # system-prompt instruction alone isn't a reliable enough

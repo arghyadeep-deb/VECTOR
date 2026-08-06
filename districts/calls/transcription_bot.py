@@ -22,6 +22,7 @@ class TranscriptionBot(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "TranscriptionBot", "calls")
+        self.capabilities = ["calls", "extract_action_items", "summarize_transcript", "transcribe", "transcribe_audio", "transcribe_live", "transcription"]
         if ghost:
             self.inherit_ghost(ghost)
 

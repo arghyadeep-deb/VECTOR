@@ -19,6 +19,9 @@ class TestEngineer(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-test-engineer.md", "test_engineer_001", "qa")
+        self.capabilities = [
+            "generate", "coverage_gaps", "test_write", "test_strategy",
+        ]
 
     async def generate_tests(self, code: str, filepath: str = "", framework: str = "pytest") -> str:
         """Generate test cases for a given code snippet."""

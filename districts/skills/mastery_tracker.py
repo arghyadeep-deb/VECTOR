@@ -21,6 +21,7 @@ class MasteryTracker(AgentBase):
             district="skills",
             generation=1
         )
+        self.capabilities = ["learn", "mastery", "skills"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.mastery_levels = {}

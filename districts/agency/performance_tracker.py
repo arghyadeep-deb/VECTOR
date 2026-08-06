@@ -19,6 +19,7 @@ class PerformanceTracker(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "PerformanceTracker", "agency")
+        self.capabilities = ["acknowledge_alert", "active_alerts", "agency", "alert_anomaly", "get_comparison", "get_metric_summary", "get_trend", "performance", "remove_metric", "track_metric", "tracking"]
         if ghost:
             self.inherit_ghost(ghost)
 

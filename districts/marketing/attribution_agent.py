@@ -11,6 +11,7 @@ class AttributionAgent(AgentBase):
     """Multi-touch attribution auditor — Consent Mode V2, sGTM, CAPI health."""
     def __init__(self):
         super().__init__("attribution_001", "AttributionAgent", "marketing")
+        self.capabilities = ["attribution", "audit_consent_mode", "marketing"]
 
     async def audit_consent_mode(self, ga4_data: dict | None = None) -> dict:
         """Audit Consent Mode V2 setup — modeled conversions, consent signals."""

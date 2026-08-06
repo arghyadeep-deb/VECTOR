@@ -36,6 +36,7 @@ class MockInterviewer(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "MockInterviewer", "interview_prep")
+        self.capabilities = ["interview", "mock_interview"]
         if ghost:
             self.inherit_ghost(ghost)
 

@@ -55,6 +55,7 @@ class DataRedactor(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="data_redactor_001", name="DataRedactor", district="security")
+        self.capabilities = ["cloud_safety", "data_redact", "privacy", "redact_messages", "redact_text", "security"]
         self._memory: EpisodicMemory | None = None
         logger.info("[VECTOR][redactor] initialized with {} patterns", len(_PATTERNS))
 

@@ -39,6 +39,7 @@ class TaxCalendar(AgentBase):
             district="finance",
             generation=generation,
         )
+        self.capabilities = ["deadline", "finance", "tax"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

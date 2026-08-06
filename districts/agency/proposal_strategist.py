@@ -33,6 +33,7 @@ class ProposalStrategist(AgentBase):
     def __init__(self):
         super().__init__(agent_id="proposal_strategist_001",
                          name="ProposalStrategist", district="agency")
+        self.capabilities = ["agency", "proposal", "roi", "sales", "structure"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][proposal] initialized")

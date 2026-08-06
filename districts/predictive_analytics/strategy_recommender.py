@@ -44,6 +44,7 @@ class StrategyRecommender(AgentBase):
             name="strategy_recommender",
             district="predictive_analytics",
         )
+        self.capabilities = ["detect_anomalies", "energy_level", "forecast", "health", "predict", "predictive_analytics", "recommend", "simulate", "strategy"]
         # Task A.4 (governor-wiring-and-ambient-perception.md): the district's
         # only AgentBase had no run() of its own, so governor.dispatch() hit
         # AgentBase's generic fake-success stub regardless of task type. This

@@ -44,6 +44,7 @@ class HedgeBotAgent(AgentBase):
             district="investment",
             generation=generation,
         )
+        self.capabilities = ["hedge", "hedge_run", "hedge_status", "hedge_trade", "investment", "solana_execute", "solana_holdings", "solana_order", "token_price", "token_search"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

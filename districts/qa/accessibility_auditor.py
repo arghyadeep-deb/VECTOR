@@ -42,6 +42,7 @@ class AccessibilityAuditor(AgentBase):
             district="qa",
             generation=generation,
         )
+        self.capabilities = ["a11y", "accessibility", "aria_fix", "audit", "contrast", "keyboard", "qa"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

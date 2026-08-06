@@ -29,6 +29,7 @@ class DailyReviewer(AgentBase):
             district="reflection",
             generation=generation,
         )
+        self.capabilities = ["daily_review", "journal", "reflect", "reflection", "review", "task_completed"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
@@ -258,6 +259,12 @@ class DailyReviewer(AgentBase):
 
     async def run(self, task: dict) -> dict:
         """Governor dispatch interface."""
+        # 2026-08-06: run() used to fall through to self.review() (full
+        # nightly pipeline — writes Obsidian note, mutates policy memory)
+        # for ANY unmatched task_type with no query text. Now gated
+        # behind an explicit task_type; unmatched types with no query
+        # return a grounded status instead of triggering side effects.
+        task_type = task.get("type", "")
         query = (
             (task.get("params") or {}).get("query")
             or task.get("query")
@@ -270,8 +277,12 @@ class DailyReviewer(AgentBase):
                 self.award_points(10, "reflection_question_answered")
                 return {"status": "ok", "response": answer, "agent": self.name}
 
-        ok = await self.review()
-        return {"status": "ok" if ok else "error", "agent": self.name}
+        if task_type == "review":
+            ok = await self.review()
+            return {"status": "ok" if ok else "error", "agent": self.name}
+
+        # No query and no explicit review request — return status, no side effects
+        return {"status": "ok", "response": "DailyReviewer ready. Use task_type='review' to run the nightly review, or ask a question.", "agent": self.name}
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][daily_reviewer] run_forever — fires at 02:00")

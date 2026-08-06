@@ -140,7 +140,13 @@ async def test_dedup_across_pipeline():
 
 
 @pytest.mark.asyncio
-async def test_runbook_escalation_chain():
+async def test_runbook_escalation_chain(monkeypatch):
+    # 2026-08-06: mock subprocess.run to prevent real Ollama subprocess spawn
+    # (ollama list / ollama serve) which hangs when Ollama is not running.
+    import subprocess as _sp
+    _fake_result = _sp.CompletedProcess(args=[], returncode=0, stdout=b"", stderr=b"")
+    monkeypatch.setattr(_sp, "run", lambda *a, **k: _fake_result)
+
     detector = EmergencyDetector()
     classifier = SeverityClassifier()
     runbook = RunbookExecutor()

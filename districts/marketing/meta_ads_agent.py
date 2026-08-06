@@ -66,6 +66,7 @@ class MetaAdsAgent(AgentBase, SkillMixin):
             district="marketing",
             generation=generation,
         )
+        self.capabilities = ["ads", "audit", "creative", "fatigue", "marketing", "meta_ads", "roas"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

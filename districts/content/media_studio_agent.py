@@ -38,6 +38,7 @@ class MediaStudioAgent(AgentBase):
             district="content",
             generation=generation,
         )
+        self.capabilities = ["animate_image", "background_remove", "content", "generate", "generate_i2i", "generate_image", "generate_video", "lipsync", "list_models", "media", "media_status", "status", "upscale"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

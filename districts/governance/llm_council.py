@@ -43,6 +43,7 @@ class LLMCouncil(AgentBase):
             district="governance",
             generation=generation,
         )
+        self.capabilities = ["council", "decision", "decision_made", "governance", "high", "high_stakes", "security_alert", "vote"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

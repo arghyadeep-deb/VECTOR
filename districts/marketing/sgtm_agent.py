@@ -13,6 +13,7 @@ class SGTMAgent(AgentBase):
     """Server-side Google Tag Manager health monitor and optimizer."""
     def __init__(self):
         super().__init__("sgtm_001", "SGTMAgent", "marketing")
+        self.capabilities = ["health_check", "marketing", "server_side", "sgtm"]
 
     async def health_check(self, container_url: str = "", data: dict | None = None) -> dict:
         """Check sGTM container health — hit rate, tag firing, CAPI coverage."""

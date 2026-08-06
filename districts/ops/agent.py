@@ -42,6 +42,7 @@ class OpsSwarm(AgentBase):
         agent_id = "ops-swarm-001"
         name = "OpsSwarm"
         super().__init__(agent_id=agent_id, name=name, district=DISTRICT)
+        self.capabilities = ["general", "type"]
         self.health_points = 1200
         self._agents: dict[str, AgentBase] = {}
         self._agent_roles: dict[str, str] = {}

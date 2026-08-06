@@ -50,6 +50,7 @@ class DataEngineer(AgentBase):
             district="data_analytics",
             generation=generation,
         )
+        self.capabilities = ["INT", "bronze_to_silver", "contract", "data_analytics", "etl", "health", "id", "pipeline", "profile"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

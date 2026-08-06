@@ -31,6 +31,7 @@ class DocGenerator(AgentBase):
             district="documentation",
             generation=generation,
         )
+        self.capabilities = ["changelog", "district_report", "docs", "documentation", "generate", "generate_docs", "weekly_summary"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

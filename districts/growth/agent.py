@@ -27,6 +27,7 @@ class GrowthAgent(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="growth_agent", name="growth_agent", district="growth")
+        self.capabilities = ["general"]
 
     async def run(self, task: dict) -> dict:
         self.last_active = datetime.datetime.utcnow().isoformat()

@@ -22,6 +22,7 @@ class ConceptExtractor(AgentBase):
             district="learning",
             generation=1
         )
+        self.capabilities = ["before", "concept", "extract", "extract_concepts", "learn", "learning", "suggest_prerequisites"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.concept_graph = {}

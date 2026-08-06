@@ -29,6 +29,7 @@ class ZKSteward(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="zk_steward_001", name="ZKSteward", district="personal_growth")
+        self.capabilities = ["notes", "personal_growth", "zettelkasten"]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._vault_path = Path(CONFIG.get("vault_path") or CONFIG.get("obsidian", {}).get("vault_path") or str(Path.home() / "Desktop" / "V.E.C.T.O.R" / "V.E.C.T.O.R. Brain"))

@@ -22,6 +22,7 @@ class NoteOrganizer(AgentBase):
             district="learning",
             generation=1
         )
+        self.capabilities = ["learning", "link", "link_notes", "notes", "organis", "organize", "organize_notes", "summarize_notes"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.notes_index = {}

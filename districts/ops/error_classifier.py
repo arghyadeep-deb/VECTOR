@@ -78,6 +78,7 @@ class ErrorClassifier(AgentBase):
     def __init__(self):
         super().__init__(agent_id="error_classifier_001",
                          name="ErrorClassifier", district="ops")
+        self.capabilities = ["batch", "classify", "critical", "retry_check"]
         self._memory: EpisodicMemory | None = None
         self._error_history: list[dict] = []
         logger.info("[VECTOR][error_clf] initialized with {} rules", len(_ERROR_RULES))

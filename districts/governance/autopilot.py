@@ -58,6 +58,7 @@ class Autopilot(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="autopilot_001", name="Autopilot", district="governance")
+        self.capabilities = ["ambient", "autopilot", "classify", "directive", "governance"]
         self._memory: EpisodicMemory | None = None
         self._governor = None
         logger.info("[VECTOR][autopilot] initialized (max_depth={})", self.MAX_CHAIN_DEPTH)

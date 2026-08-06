@@ -60,6 +60,7 @@ class VectorIntelAgent(AgentBase):
             name="VectorIntelAgent",
             district="intelligence",
         )
+        self.capabilities = ["flights", "gdelt", "intel", "intelligence", "military_flights", "security_alert", "surveillance", "vessels"]
         self._skill_prompt = _load_skill()
         self._available    = False
         self._sb           = None

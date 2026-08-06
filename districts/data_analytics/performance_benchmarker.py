@@ -49,6 +49,7 @@ class PerformanceBenchmarker(AgentBase):
             district="data_analytics",
             generation=generation,
         )
+        self.capabilities = ["benchmark", "data_analytics", "decision", "memory", "ok", "ollama", "performance", "routing"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

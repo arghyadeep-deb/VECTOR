@@ -20,6 +20,7 @@ class VoiceGenerator(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VoiceGenerator", "content")
+        self.capabilities = ["adjust_voice_speed", "clone_voice", "content", "generate", "generate_batch", "generate_in_my_voice", "generate_voice", "get_voices", "text_to_ssml", "tts", "voice"]
         if ghost:
             self.inherit_ghost(ghost)
 

@@ -14,6 +14,7 @@ Usage:
     python scripts/langsmith_vector_eval.py tier2
     python scripts/langsmith_vector_eval.py tier3
     python scripts/langsmith_vector_eval.py all
+    python scripts/langsmith_vector_eval.py all --no-langsmith   # skip LangSmith tracing
 """
 from __future__ import annotations
 
@@ -46,7 +47,34 @@ except Exception as e:
 
 import functools
 import httpx
-from langsmith import Client, traceable
+
+# 2026-08-06: LangSmith free-tier monthly trace quota gets exhausted — the
+# eval should still work without LangSmith tracing (local scoring + JSON
+# reports are the real output; LangSmith is just a nice-to-have trace
+# viewer). --no-langsmith skips all LangSmith imports/calls so the eval
+# runs even when the quota is exhausted or no API key is configured.
+_USE_LANGSMITH = "--no-langsmith" not in sys.argv
+if _USE_LANGSMITH:
+    try:
+        from langsmith import Client, traceable
+    except ImportError:
+        print("[WARN] langsmith not installed — running without trace ingestion")
+        _USE_LANGSMITH = False
+else:
+    # Strip the flag from argv so argparse (if added later) doesn't choke
+    sys.argv = [a for a in sys.argv if a != "--no-langsmith"]
+
+# No-op decorator when LangSmith is disabled — the real @traceable wraps
+# the function with trace ingestion; this just passes through.
+def _no_traceable(*args, **kwargs):
+    def decorator(fn):
+        return fn
+    # Support both @traceable and @traceable(...) forms
+    if len(args) == 1 and callable(args[0]) and not kwargs:
+        return args[0]
+    return decorator
+
+traceable = traceable if _USE_LANGSMITH else _no_traceable
 
 # Flush every print immediately — stdout is redirected to a log file when
 # launched via .bat, and Python fully block-buffers redirected output by
@@ -525,8 +553,10 @@ def run_tier(tier: str, only_categories: set[str] | None = None) -> dict:
     examples = TIERS[tier]
     if only_categories:
         examples = [e for e in examples if e["category"] in only_categories]
-    client = Client()
-    get_or_create_dataset(client, tier, TIERS[tier])
+    # 2026-08-06: only create LangSmith datasets when tracing is enabled
+    if _USE_LANGSMITH:
+        client = Client()
+        get_or_create_dataset(client, tier, TIERS[tier])
 
     print(f"\n{'='*70}\nTIER: {tier}  ({len(examples)} prompts)  VECTOR_BASE={VECTOR_BASE}  auth={'yes' if VECTOR_API_KEY else 'NO KEY'}\n{'='*70}")
 
@@ -683,9 +713,15 @@ def run_concurrency_test() -> dict:
 
 
 def main() -> None:
-    if not os.environ.get("LANGSMITH_API_KEY") and not os.environ.get("LANGCHAIN_API_KEY"):
-        print("[FATAL] No LANGSMITH_API_KEY / LANGCHAIN_API_KEY set — aborting.")
-        sys.exit(1)
+    # 2026-08-06: only require LangSmith keys when tracing is enabled.
+    # --no-langsmith runs the eval purely locally (JSON reports + scoring).
+    if _USE_LANGSMITH:
+        if not os.environ.get("LANGSMITH_API_KEY") and not os.environ.get("LANGCHAIN_API_KEY"):
+            print("[FATAL] No LANGSMITH_API_KEY / LANGCHAIN_API_KEY set — aborting.")
+            print("  Hint: pass --no-langsmith to run without LangSmith trace ingestion.")
+            sys.exit(1)
+    else:
+        print("[INFO] Running without LangSmith — local scoring + JSON reports only.")
 
     which = sys.argv[1] if len(sys.argv) > 1 else "all"
 
@@ -711,7 +747,10 @@ def main() -> None:
     print(f"\n{'='*70}\nSUMMARY ACROSS TIERS")
     for rep in all_reports:
         print(f"  {rep['tier']:8s} overall={rep['overall_score']:.3f}  n={rep['num_examples']}")
-    print(f"View traces: https://smith.langchain.com  (project: {PROJECT_NAME})")
+    if _USE_LANGSMITH:
+        print(f"View traces: https://smith.langchain.com  (project: {PROJECT_NAME})")
+    else:
+        print("LangSmith tracing disabled — reports saved as JSON files only.")
     print("EVAL_DONE_MARKER")
 
 

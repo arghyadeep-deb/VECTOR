@@ -18,6 +18,8 @@ class ObraCodeReviewer(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-obra-code-reviewer.md", "obra_code_reviewer_001", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["review", "code_review"]
 
     async def run(self, task: dict) -> dict:
         try:

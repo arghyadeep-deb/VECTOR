@@ -93,6 +93,11 @@ class CodeReviewer(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "CodeReviewer", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = [
+            "code_review", "review_diff", "review_file", "review_code",
+            "check_syntax", "lint",
+        ]
         if ghost:
             self.inherit_ghost(ghost)
         logger.info("[VECTOR][code_reviewer] CodeReviewer initialized")

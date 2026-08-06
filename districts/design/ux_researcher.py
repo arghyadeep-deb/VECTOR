@@ -27,6 +27,7 @@ class UXResearcher(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="ux_researcher_001", name="UXResearcher", district="design")
+        self.capabilities = ["analyze", "design", "intermediate", "journey", "persona", "plan", "research", "ux"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         logger.info("[VECTOR][ux_researcher] initialized")

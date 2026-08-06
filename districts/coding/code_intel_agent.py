@@ -87,6 +87,23 @@ class CodeIntelAgent(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="code_intel_001", name="CodeIntelAgent", district="coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = [
+            "vc_search", "code_search", "semantic_search",
+            "vc_index", "code_index", "index_codebase",
+            "vc_update",
+            "vc_graph", "vc_graph_build", "dependency_graph", "code_graph",
+            "vc_graph_query", "vc_graph_circular",
+            "vc_impact", "blast_radius", "impact_analysis",
+            "vc_flow", "call_flow", "execution_flow",
+            "vc_symbol", "symbol_lookup", "find_symbol", "vc_symbols",
+            "vc_watch", "codebase_watch",
+            "vc_context", "code_context", "context_artifacts", "vc_context_search",
+            "vc_visualize", "vc_graph_visualize",
+            "vc_status", "code_status",
+            "vc_health", "code_health", "codebase_health",
+            "vc_projects", "code_projects",
+        ]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._project_path = str(_CODEBASE_ROOT)

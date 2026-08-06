@@ -21,6 +21,8 @@ class CodeExplorer(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-code-explorer.md", "code_explorer_001", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["explain", "structure"]
 
     def get_imports(self, filepath: str) -> list[str]:
         """Extract all imports from a Python file."""

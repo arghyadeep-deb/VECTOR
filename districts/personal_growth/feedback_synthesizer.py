@@ -28,6 +28,7 @@ class FeedbackSynthesizer(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="feedback_synth_001", name="FeedbackSynthesizer", district="personal_growth")
+        self.capabilities = ["feedback", "none", "personal_growth", "synthesis"]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")

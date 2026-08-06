@@ -31,6 +31,7 @@ class PatternFinder(AgentBase):
             district="memory_curator",
             generation=generation,
         )
+        self.capabilities = ["consolidate", "memory", "memory_curator", "pattern", "recall"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

@@ -39,6 +39,7 @@ class RecruitmentBot(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="recruitment_bot_001", name="RecruitmentBot", district="interview_prep")
+        self.capabilities = ["analyze_jd", "brief", "hiring", "interview", "outreach", "recruitment", "review_resume", "track"]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
@@ -165,8 +166,43 @@ class RecruitmentBot(AgentBase):
         except Exception as e:
             return f"Brief generation failed: {e}"
 
+    async def _answer_recruitment_question(self, query: str) -> str:
+        """Answer a free-text question about placement/recruitment grounded
+        in the owner's real profile — never writes an Obsidian note.
+        This is the fallback for anything that doesn't match a known
+        task_type, following the design-district #33 fix pattern."""
+        profile_summary = (
+            f"Owner: {self.OWNER_PROFILE['name']}, {self.OWNER_PROFILE['degree']}, "
+            f"{self.OWNER_PROFILE['college']}, {self.OWNER_PROFILE['year']}. "
+            f"Skills: {', '.join(self.OWNER_PROFILE['skills'][:5])}. "
+            f"Target roles: {', '.join(self.OWNER_PROFILE['target_roles'])}."
+        )
+        prompt = (
+            f"You are VECTOR's recruitment/placement coach for Arghyadeep. "
+            f"Answer the owner's question using this profile context — do not "
+            f"invent data:\n\n{profile_summary}\n\n"
+            f"Question: {query}\n\n"
+            f"Be specific and actionable. Do not write a full placement brief "
+            f"unless that's exactly what was asked for."
+        )
+        try:
+            result = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            return (result or "").strip() or "I need a bit more context to help with placement questions."
+        except Exception as e:
+            logger.warning(f"[VECTOR][recruitment_bot] answer failed: {e}")
+            return "I ran into a problem answering that — try again in a moment."
+
     async def run(self, task: dict) -> dict:
-        task_type = task.get("type", "brief")
+        # 2026-08-06: run() always fell through to generate_placement_brief()
+        # (writes an Obsidian note) for ANY unmatched task_type, ignoring
+        # free-text questions entirely — same bug class as design district's #33.
+        task_type = task.get("type", "")
+        query = (
+            (task.get("params") or {}).get("query")
+            or task.get("params", {}).get("content")
+            or task.get("query")
+            or ""
+        ).strip()
         try:
             if task_type == "analyze_jd":
                 result = await self.analyze_job_description(
@@ -203,14 +239,27 @@ class RecruitmentBot(AgentBase):
                 self.award_points(10, "application_tracked")
                 return {"status": "ok", "tracked": True}
 
-            else:  # brief
-                brief = await self.generate_placement_brief()
-                try:
-                    self._get_obsidian().write_note("Placement", "Placement Brief", brief)
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
-                self.award_points(40, "placement_brief_generated")
-                return {"status": "ok", "brief": brief}
+            elif task_type not in ("brief",) and query:
+                # Free-text question — answer it grounded in owner profile,
+                # don't silently write an Obsidian journal note.
+                answer = await self._answer_recruitment_question(query)
+                if answer:
+                    self.award_points(15, "recruitment_question_answered")
+                    return {"status": "ok", "response": answer}
+
+            elif task_type == "brief" or not query:
+                # Explicit brief request, or no query at all — safe default
+                if task_type == "brief":
+                    brief = await self.generate_placement_brief()
+                    try:
+                        self._get_obsidian().write_note("Placement", "Placement Brief", brief)
+                    except Exception:
+                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    self.award_points(40, "placement_brief_generated")
+                    return {"status": "ok", "brief": brief}
+
+            # No query, no explicit brief — return status, no side effects
+            return {"status": "ok", "response": "RecruitmentBot ready. Ask a placement question or use task_type='brief' for a full placement brief."}
 
         except Exception as e:
             logger.error("[VECTOR][recruitment_bot] {}", e)

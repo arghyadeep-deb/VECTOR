@@ -37,6 +37,7 @@ class WebsiteToVideoAgent(AgentBase):
             district="content",
             generation=generation,
         )
+        self.capabilities = ["capture_url", "content", "data_viz", "remove_bg", "title_card", "video", "website"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

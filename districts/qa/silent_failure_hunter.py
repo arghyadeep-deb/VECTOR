@@ -21,6 +21,7 @@ class SilentFailureHunter(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-silent-failure-hunter.md", "silent_failure_hunter_001", "qa")
+        self.capabilities = ["file", "qa", "scan", "silent_failure", "test"]
 
     def scan_python_file(self, filepath: str) -> list[dict]:
         """AST-based scan for silent failure patterns in a Python file."""

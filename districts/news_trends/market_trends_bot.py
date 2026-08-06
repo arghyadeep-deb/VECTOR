@@ -21,6 +21,7 @@ class MarketTrendsBot(AgentBase):
             district="news_trends",
             generation=1
         )
+        self.capabilities = ["market", "news_trends", "trends", "venture_pipeline"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.tracked_trends = {}

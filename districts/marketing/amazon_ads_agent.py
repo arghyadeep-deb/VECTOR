@@ -11,6 +11,7 @@ class AmazonAdsAgent(AgentBase):
     """Amazon retail media auditor and optimizer."""
     def __init__(self):
         super().__init__("amazon_ads_001", "AmazonAdsAgent", "marketing")
+        self.capabilities = ["ads", "amazon_ads", "audit", "marketing"]
 
     async def audit(self, account_data: dict | None = None) -> dict:
         """Audit Amazon Ads account — ACOS, TACOS, spend efficiency."""

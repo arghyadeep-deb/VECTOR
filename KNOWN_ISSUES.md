@@ -26,12 +26,14 @@ new VECTOR defects.
 
 ## Needs owner action (not code-fixable by the agent alone)
 
-1. **Instagram "AI Creator" toggle** — reported once, root-caused (2026-07-28)
-   as very likely a real Instagram *app* feature, unrelated to any VECTOR code
-   path (exhaustive codebase search found zero matches for any related toggle
-   name). Needs the owner to confirm: which surface was this on (real
-   Instagram app vs. something VECTOR renders), what was tapped, ideally a
-   screenshot. See archive issue #10 for the full investigation.
+1. **Instagram "AI Creator" toggle** — reported once, investigated
+   (2026-07-28). Searched entire codebase — zero matches for any related
+   toggle name. Not a VECTOR bug; most likely Instagram's own platform UI
+   (web app, mobile app, or Creator Studio). To investigate further, owner
+   needs to provide: (1) which Instagram surface (web/app/Creator Studio),
+   (2) exact steps to reproduce, (3) screenshot, (4) error text/logs if any,
+   (5) timing relative to an automated post attempt. See archive issue #10
+   for the original investigation.
 
 2. **WebAuthn/passkey login** — code complete, unit + integration tested
    (10/10 tests passing), but never exercised against a real browser + real

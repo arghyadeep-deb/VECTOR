@@ -22,6 +22,7 @@ class VideoMerger(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VideoMerger", "content")
+        self.capabilities = ["add_background_music", "add_subtitles", "add_transitions", "content", "extract_audio", "merge", "merge_clips", "trim_video", "video"]
         if ghost:
             self.inherit_ghost(ghost)
 

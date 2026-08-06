@@ -17,6 +17,12 @@ class GitBot(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "GitBot", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = [
+            "commit_code", "git_commit", "git_push", "git_status", "check_git",
+            "git_log", "recent_commits", "create_branch", "git_diff",
+            "analyze_codebase", "gitnexus", "gitnexus_impact", "impact_analysis",
+        ]
         if ghost:
             self.inherit_ghost(ghost)
         self._gateway = PermissionGateway()

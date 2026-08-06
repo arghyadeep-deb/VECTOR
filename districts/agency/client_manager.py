@@ -25,6 +25,7 @@ class ClientManager(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ClientManager", "agency")
+        self.capabilities = ["add_client", "agency", "client", "client_summary", "delete_client", "get_at_risk_clients", "get_client", "get_top_clients", "list_clients", "sales", "track_engagement", "update_client"]
         if ghost:
             self.inherit_ghost(ghost)
 

@@ -43,6 +43,7 @@ class BudgetAnalyst(AgentBase):
             district="finance",
             generation=generation,
         )
+        self.capabilities = ["budget", "budget_check", "budget_status", "finance", "money"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

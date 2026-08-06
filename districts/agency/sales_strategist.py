@@ -35,6 +35,7 @@ class SalesStrategist(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="sales_strategist_001", name="SalesStrategist", district="agency")
+        self.capabilities = ["agency", "outbound", "outreach", "pipeline", "qualify", "sales"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][sales] initialized")

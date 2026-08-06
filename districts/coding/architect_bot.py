@@ -16,6 +16,15 @@ class ArchitectBot(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ArchitectBot", "coding")
+        # 2026-08-06: governor capability-based routing requires agents to
+        # declare what task_types they handle. Without this, write_code /
+        # read_code / code_question queries get "no agent declares the
+        # capability" errors even though ArchitectBot.answer_question()
+        # handles them fine. See governor.py:2151-2154 (capability lookup).
+        self.capabilities = [
+            "architecture", "write_code", "read_code", "code_question",
+            "scan_codebase", "scan", "code_search", "ask_architecture",
+        ]
         if ghost:
             self.inherit_ghost(ghost)
         logger.info("[VECTOR][architect_bot] ArchitectBot initialized")

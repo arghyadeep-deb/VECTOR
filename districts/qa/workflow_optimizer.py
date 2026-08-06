@@ -30,6 +30,7 @@ class WorkflowOptimizer(AgentBase):
             district="qa",
             generation=generation,
         )
+        self.capabilities = ["analyze", "automate", "low", "optimize", "qa", "roi", "sop", "workflow"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

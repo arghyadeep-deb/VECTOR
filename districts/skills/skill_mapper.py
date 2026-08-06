@@ -21,6 +21,7 @@ class SkillMapper(AgentBase):
             district="skills",
             generation=1
         )
+        self.capabilities = ["learn", "skill_map", "skills"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.skill_maps = {}

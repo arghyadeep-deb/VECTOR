@@ -17,6 +17,7 @@ _MAX_SCAN_HISTORY = 500
 class MarketScanner(StartupAgentBase):
     def __init__(self):
         super().__init__("MarketScanner")
+        self.capabilities = ["market", "mine_social", "startups", "venture_pipeline"]
         self.scan_history = []
         logger.info("[VECTOR][startups] MarketScanner ready")
 

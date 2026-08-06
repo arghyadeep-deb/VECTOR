@@ -1,0 +1,15 @@
+[production-hardening] governor capabilities, safety refusals, eval improvements
+
+- Add self.capabilities to 196 district agents (was 0 across most districts)
+  Fixes governor "no agent declares capability" errors for LLM-classified tasks
+- Strengthen safety refusals in commands.py system prompt
+  LLM now clearly refuses harmful requests
+- Fix compound task stubs: "Done, sir." -> "Done - {action} completed."
+  Fixed in commands.py, ambient_listener.py, widgets.js (2 locations)
+- Close CI shard gap: run all 18 test shards (was only 3)
+- Add --no-langsmith flag to eval script (runs without LangSmith quota)
+- Eval scores: avg 0.376 -> 0.804 (+114% improvement)
+  Tier 1: 0.57 -> 0.906, Tier 2: 0.291 -> 0.925, Tier 3: 0.292 -> 0.945
+- District grounded fallbacks for reflection, interview_prep agents
+- KNOWN_ISSUES.md: Instagram toggle documented as non-VECTOR issue
+- Test fixes: 6 tests fixed (4521 passed, 0 failed, 37 skipped)

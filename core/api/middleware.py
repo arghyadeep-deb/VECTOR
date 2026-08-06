@@ -77,7 +77,11 @@ _PUBLIC_PATHS = {"/", "/status", "/health", "/docs", "/openapi.json", "/redoc",
                  # login_page). Carries no VECTOR data or district output —
                  # just a button that calls the three public webauthn paths
                  # above. /hud/ itself stays gated; see that route's comment.
-                 "/login"}
+                 "/login",
+                 # JWT login is public — it's how you GET a token in the first
+                 # place. /auth/jwt/refresh, /revoke, /logout, /sessions, /me
+                 # stay behind auth (they REQUIRE a valid token).
+                 "/auth/jwt/login"}
 
 # Allowed origins — localhost only (no external origins)
 _ALLOWED_ORIGINS = {
@@ -190,11 +194,38 @@ def _verify_webauthn_jwt(token: str) -> bool:
         return False
 
 
+def _verify_jwt_access_token(token: str) -> bool:
+    """Accept a JWT access token issued by /auth/jwt/login or /auth/jwt/refresh.
+    Checks signature, expiry, type, and revocation blacklist.
+    Returns True if the token is valid and not revoked."""
+    if token.count(".") != 2:
+        return False  # not JWT-shaped
+    try:
+        from core.collections.auth import JWTManager, AuthError
+        from core.security.token_blacklist import get_blacklist
+
+        jwt_mgr = JWTManager()
+        claims = jwt_mgr.verify(token, expected_type="access")
+
+        # Check revocation
+        jti = claims.get("jti", "")
+        blacklist = get_blacklist()
+        if blacklist.is_globally_revoked():
+            return False
+        if jti and blacklist.is_revoked(jti):
+            return False
+
+        return True
+    except Exception:
+        return False
+
+
 async def auth_middleware(request: Request, call_next):
     """Require Bearer token for all non-public endpoints.
     FIX #7: When no API key is set, only allow localhost connections (not any process).
-    """
-    api_key = os.environ.get("VECTOR_API_KEY", "")
+    Uses get_secret() so keyring is checked as fallback (not just env)."""
+    from core.security.secrets_manager import get_secret
+    api_key = get_secret("VECTOR_API_KEY")
     api_key_enabled = bool(api_key)
 
     # Skip auth for public paths
@@ -237,12 +268,13 @@ async def auth_middleware(request: Request, call_next):
 
     # Constant-time comparison — avoids leaking the key via response timing.
     # A request can also authenticate with a passkey-issued session JWT
-    # (see /auth/webauthn/login/verify) instead of the long-lived static
-    # key — added so the owner isn't stuck pasting/copying VECTOR_API_KEY
-    # for interactive browser use, which is exactly what led to a real key
-    # leak this session.
+    # (see /auth/webauthn/login/verify) or a JWT access token (see
+    # /auth/jwt/login) instead of the long-lived static key.
     key_matches = bool(provided) and hmac.compare_digest(provided, api_key)
-    if not key_matches and not (provided and _verify_webauthn_jwt(provided)):
+    jwt_valid = bool(provided) and (
+        _verify_jwt_access_token(provided) or _verify_webauthn_jwt(provided)
+    )
+    if not key_matches and not jwt_valid:
         return JSONResponse(
             status_code=401,
             headers={"WWW-Authenticate": "Bearer"},
@@ -415,7 +447,8 @@ async def csrf_middleware(request: Request, call_next):
         if request.url.path in _PUBLIC_PATHS:
             return await call_next(request)
         # Skip CSRF for API key authenticated requests (non-browser clients)
-        if os.environ.get("VECTOR_API_KEY", "") and request.headers.get("Authorization", "").startswith("Bearer "):
+        from core.security.secrets_manager import get_secret
+        if get_secret("VECTOR_API_KEY") and request.headers.get("Authorization", "").startswith("Bearer "):
             return await call_next(request)
 
         # Skip CSRF for WebSocket upgrades

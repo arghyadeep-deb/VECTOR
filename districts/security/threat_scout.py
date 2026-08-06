@@ -48,6 +48,7 @@ class ThreatScout(AgentBase):
             name="ThreatScout",
             district="security",
         )
+        self.capabilities = ["low", "malware", "scan", "scan_prompt", "security", "security_scan", "ssrf_check", "system_error", "taint_check", "threat", "threat_level"]
         self._malware = MalwareDetector()
         if ghost:
             self.inherit_ghost(ghost)

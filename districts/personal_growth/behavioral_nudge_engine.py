@@ -44,6 +44,7 @@ class BehavioralNudgeEngine(AgentBase):
             district="personal_growth",
             generation=generation,
         )
+        self.capabilities = ["behavior", "high", "nudge", "personal_growth"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

@@ -61,6 +61,7 @@ class EmailAgent(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="email_agent_001", name="EmailAgent", district="communications")
+        self.capabilities = ["communications", "delete", "discard_draft", "draft_email", "draft_reply", "email", "forward", "get", "list", "mark_read", "message", "move", "new_email", "notify", "poll_inbox", "reply", "search", "send_email", "store_incoming", "thread", "update_draft", "user_interaction"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.models.focus if hasattr(CONFIG, "models") else "vector-focus"
         self._db_path = Path(EMAIL_DB_PATH)

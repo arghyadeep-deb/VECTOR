@@ -15,6 +15,7 @@ from districts.startups._base import StartupAgentBase
 class RevenueModeler(StartupAgentBase):
     def __init__(self):
         super().__init__("RevenueModeler")
+        self.capabilities = ["revenue", "startups", "venture_pipeline"]
         self.models: dict = {}
         logger.info("[VECTOR][startups] RevenueModeler ready")
 

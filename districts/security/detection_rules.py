@@ -47,6 +47,7 @@ class RuleMatch:
 class DetectionRules(AgentBase):
     def __init__(self, rules_dir: str | None = None):
         super().__init__(str(uuid.uuid4()), "DetectionRules", "security")
+        self.capabilities = ["detection", "hot_reload", "list_rules", "match_event", "security", "threat"]
         from core.runtime_paths import data_path
 
         self._rules_dir = Path(rules_dir) if rules_dir else data_path("security", "rules")

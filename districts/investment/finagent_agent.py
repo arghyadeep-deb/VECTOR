@@ -76,6 +76,7 @@ class FinAgentAgent(AgentBase):
             district="investment",
             generation=generation,
         )
+        self.capabilities = ["ANTHROPIC_API_KEY", "BacktestingPyProvider", "alpha_discovery", "comps", "corporate_finance", "fairness", "finagent", "geopolitics_analysis", "investment", "investor_analysis", "launch_terminal", "merger", "quant_backtest", "startup", "terminal_status", "trading"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory   = EpisodicMemory()

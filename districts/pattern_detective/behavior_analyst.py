@@ -21,6 +21,7 @@ class BehaviorAnalyst(AgentBase):
             district="pattern_detective",
             generation=1
         )
+        self.capabilities = ["behavior", "pattern", "pattern_detective"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.behavior_profiles = {}

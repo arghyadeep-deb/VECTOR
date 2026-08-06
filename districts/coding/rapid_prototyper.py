@@ -132,6 +132,8 @@ class RapidPrototyper(AgentBase):
             name="RapidPrototyper",
             district="coding",
         )
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["stack_select", "plan", "analyze", "status"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         logger.info("[VECTOR][rapid_prototyper] initialized")

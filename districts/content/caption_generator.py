@@ -66,6 +66,7 @@ class CaptionGenerator(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "CaptionGenerator", "content")
+        self.capabilities = ["caption", "content", "generate", "generate_captions", "generate_highlight_captions", "generate_subtitles", "translate_captions", "video"]
         if ghost:
             self.inherit_ghost(ghost)
 

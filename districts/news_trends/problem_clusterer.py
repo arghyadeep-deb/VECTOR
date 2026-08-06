@@ -81,6 +81,7 @@ class ProblemClusterer(AgentBase):
             name="ProblemClusterer",
             district="news_trends",
         )
+        self.capabilities = ["cluster_problems", "ers", "news_trends", "venture_pipeline"]
         vcfg = CONFIG.get("venture", {})
         self.sim_threshold = float(vcfg.get("cluster_similarity", 0.72))
         self.jaccard_threshold = float(vcfg.get("cluster_jaccard", 0.30))

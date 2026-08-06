@@ -30,6 +30,7 @@ class FundamentalsBot(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "FundamentalsBot", "investment")
+        self.capabilities = ["analyze_financials", "check_valuation", "compare_to_sector", "corporate_finance", "dividend_analysis", "fundamental_analysis", "investment", "overvalued", "undervalued"]
         if ghost:
             self.inherit_ghost(ghost)
 

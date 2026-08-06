@@ -38,6 +38,7 @@ class SEOAgent(AgentBase, SkillMixin):
             district="marketing",
             generation=generation,
         )
+        self.capabilities = ["broken_links", "full_audit", "geo_optimize", "keyword_research", "marketing", "pagespeed", "schema_markup", "seo"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

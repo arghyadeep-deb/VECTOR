@@ -23,6 +23,7 @@ class KIITScraper(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "KIITScraper", "time_calendar")
+        self.capabilities = ["attendance", "calendar", "check_attendance", "class", "kiit", "schedule"]
         if ghost:
             self.inherit_ghost(ghost)
         self._browser = None

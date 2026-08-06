@@ -21,6 +21,7 @@ class AINewsBot(AgentBase):
             district="news_trends",
             generation=1
         )
+        self.capabilities = ["ai_news", "mine_social", "news", "news_trends", "venture_pipeline"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.news_cache = []

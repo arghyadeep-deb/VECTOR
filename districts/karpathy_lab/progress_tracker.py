@@ -26,6 +26,7 @@ class ProgressTracker(AgentBase):
             district="karpathy_lab",
             generation=1
         )
+        self.capabilities = ["generate_report", "get_progress", "log_step", "progress", "project", "report", "start_run", "tracking"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self._lock = threading.RLock()

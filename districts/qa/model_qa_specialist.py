@@ -29,6 +29,7 @@ class ModelQASpecialist(AgentBase):
             district="qa",
             generation=generation,
         )
+        self.capabilities = ["audit", "bias", "drift", "evaluate", "model_qa", "qa", "report"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

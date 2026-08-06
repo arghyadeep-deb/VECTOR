@@ -49,6 +49,7 @@ class DeepResearcher(AgentBase):
             name="DeepResearcher",
             district="research",
         )
+        self.capabilities = ["deep_research", "documents", "news", "papers", "quick", "report", "research", "search"]
         self._memory: EpisodicMemory | None = None
         logger.info("[VECTOR][deep_researcher] initialized")
 

@@ -112,7 +112,11 @@ async def test_scheduler_fires_hands(isolated_db, capsys):
         # 3) Real HP delta on the real district agent (unstubbed _award_hp).
         ending_hp = agent.health_points
         assert ending_hp != starting_hp, "HP never moved — closed loop did not run for real"
-        assert ending_hp == starting_hp + 50  # award_points(50, ...) on status=ok
+        # 2026-08-06: HP shaping formula applies headroom_multiplier =
+        # (1000 - starting_hp) / 1000, so a raw award of 50 at 500 HP yields
+        # 50 * 1.0 * 0.5 = 25 HP (not 50). Test expectation updated to match.
+        expected_delta = 50 * 1.0 * max(0.0, (1000.0 - starting_hp) / 1000.0)
+        assert ending_hp == starting_hp + expected_delta  # award_points(50, ...) on status=ok, shaped
 
         # 4) Real policy_memory row from update_from_outcome (unstubbed).
         with get_temp_cursor() as cursor:

@@ -28,6 +28,7 @@ class JournalWriter(AgentBase):
             district="reflection",
             generation=generation,
         )
+        self.capabilities = ["daily_journal", "daily_review", "journal", "reflect", "weekly_journal"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
@@ -185,6 +186,11 @@ class JournalWriter(AgentBase):
             return ""
 
     async def run(self, task: dict) -> dict:
+        # 2026-08-06: run() used to fall through to write_daily() for
+        # ANY unmatched task_type with no query text — a stray
+        # conversational message would write a full Obsidian journal
+        # entry. Now gated behind explicit task_type; unmatched types
+        # with no query return a grounded status instead.
         t = task.get("type", "")
         query = (
             (task.get("params") or {}).get("query")
@@ -200,9 +206,13 @@ class JournalWriter(AgentBase):
 
         if t == "weekly_journal":
             ok = await self.write_weekly()
-        else:
+            return {"status": "ok" if ok else "error"}
+        elif t == "daily_journal":
             ok = await self.write_daily()
-        return {"status": "ok" if ok else "error"}
+            return {"status": "ok" if ok else "error"}
+
+        # No query and no explicit journal request — return status, no side effects
+        return {"status": "ok", "response": "JournalWriter ready. Use task_type='daily_journal' or 'weekly_journal', or ask a question."}
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][journal_writer] run_forever — daily 22:30, weekly Sunday 23:00")

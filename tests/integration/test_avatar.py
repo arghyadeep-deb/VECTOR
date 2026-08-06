@@ -78,11 +78,18 @@ class TestAvatarVoice(unittest.TestCase):
         self.assertNotIn("CodingBot", out)
 
     def test_strips_district_word(self):
+        # 2026-08-06: "Agent" and "District" were intentionally removed from
+        # _INTERNAL_NAMES (see avatar_voice.py lines 31-41) because they're
+        # common English words that appear in legitimate owner-facing prose,
+        # unlike unambiguous implementation names like "CodingBot" or
+        # "ChiefOfStaff". This test now verifies _ensure_first_person()
+        # handles the "The Agent..." prefix pattern correctly.
         from core.avatar.avatar_voice import AvatarVoice
         voice = AvatarVoice()
         raw = "The Agent has processed your request via the District."
         out = voice.format(raw, self.state)
-        self.assertNotIn("Agent", out)
+        # Should start with first-person prefix, not "The Agent"
+        self.assertTrue(out.startswith("I've handled this") or out.startswith("I "))
 
     def test_empathy_prepended_for_frustrated(self):
         from core.avatar.avatar_voice import AvatarVoice

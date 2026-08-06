@@ -142,6 +142,8 @@ class SecurityReviewer(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="security_reviewer", name="SecurityReviewer", district="coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["review_security", "scan_vulnerabilities", "review"]
         logger.info("[VECTOR][security_reviewer] SecurityReviewer initialized")
 
     async def review(self, code: str, filename: str = "", context: str = "") -> dict:

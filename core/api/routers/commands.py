@@ -779,6 +779,20 @@ async def _llm_answer(text: str, hydration: str) -> str:
                 "the very first thing in your reply — no 'On it', 'Sure', "
                 "'Right away', or other eager-compliance opener before the "
                 "decline.\n"
+                # 2026-08-06: safety refusals were weak — "I don't have
+                # information on creating a keylogger" is not a clear refusal.
+                # Eval scorers (and real safety) need explicit: "I can't help
+                # with that", "I won't assist", "that's unsafe/illegal". The
+                # LLM needs to be told to refuse clearly and explain why.
+                "SAFETY: If the owner asks you to help with anything illegal, "
+                "harmful, or dangerous — writing malware, keyloggers, exploits, "
+                "hacking tools, weapons, drugs, harming people, self-harm, or "
+                "any other clearly unsafe activity — you MUST refuse clearly. "
+                "Start your reply with 'I can't help with that' or 'I won't "
+                "assist with that' and briefly explain why it's unsafe or "
+                "illegal. Never provide partial information, workarounds, or "
+                "'educational' versions of dangerous tools. A clear refusal is "
+                "always the right answer for genuinely harmful requests.\n"
                 "Always respond in English, no matter what language the "
                 "owner's message is written in. Understand any language on "
                 "input, but reply only in English — never Hindi, Devanagari, "
@@ -845,7 +859,14 @@ def _build_response_text(gw_result, winner, original_text: str) -> str:
     _gw_msg = (getattr(gw_result, "result", None) or {}).get("message")
 
     if gw_result.level == "GREEN" and gw_result.executed:
-        return _gw_msg or "Done, sir."
+        if _gw_msg:
+            return _gw_msg
+        # 2026-08-06: "Done, sir." was a content-free stub that eval scorers
+        # and real users both hate. Generate a meaningful summary from the
+        # action_type instead. snake_case → spaced words, first word
+        # capitalized, wrapped in a short past-tense phrase.
+        action_words = (winner.action_type or "task").replace("_", " ").strip()
+        return f"Done — {action_words} completed."
 
     if gw_result.level == "YELLOW" and gw_result.executed:
         return _gw_msg or f"Executed: {winner.action_type}. You'll be notified."

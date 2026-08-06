@@ -21,6 +21,7 @@ class DataFlowAuditor(AgentBase):
             district="privacy",
             generation=1
         )
+        self.capabilities = ["audit", "data_flow", "privacy"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.data_flows = []

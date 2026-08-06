@@ -22,6 +22,7 @@ class GapAnalyst(AgentBase):
             district="skills",
             generation=1
         )
+        self.capabilities = ["analysis", "analyze_gaps", "gap", "prioritize_gaps", "skills", "suggest_learning_path"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.analyzed_gaps = {}

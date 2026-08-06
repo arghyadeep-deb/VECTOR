@@ -17,6 +17,7 @@ _MAX_COMPETITOR_MOVES = 500
 class CompetitorSpy(StartupAgentBase):
     def __init__(self):
         super().__init__("CompetitorSpy")
+        self.capabilities = ["competitor", "startups", "venture_pipeline"]
         self.competitor_profiles: dict = {}
         self.movement_history: dict = {}
         logger.info("[VECTOR][startups] CompetitorSpy ready")

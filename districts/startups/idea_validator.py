@@ -14,6 +14,7 @@ from districts.startups._base import StartupAgentBase
 class IdeaValidator(StartupAgentBase):
     def __init__(self):
         super().__init__("IdeaValidator")
+        self.capabilities = ["STRONG", "idea", "startups", "validate", "venture_pipeline", "viability"]
         self.validated_ideas = {}
         logger.info("[VECTOR][startups] IdeaValidator ready")
 

@@ -22,6 +22,7 @@ class VideoIngestor(AgentBase):
             district="learning",
             generation=1
         )
+        self.capabilities = ["course", "ingest", "learn", "learning", "video"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         from core.runtime_paths import data_path

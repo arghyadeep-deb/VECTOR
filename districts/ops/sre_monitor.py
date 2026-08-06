@@ -46,6 +46,7 @@ class SREMonitor(AgentBase):
             district="ops",
             generation=generation,
         )
+        self.capabilities = ["chaos", "health", "high_cpu", "monitor", "ops", "slo", "sre"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

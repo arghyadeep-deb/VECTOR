@@ -52,6 +52,7 @@ class StockAnalyst(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "StockAnalyst", "investment")
+        self.capabilities = ["equity_research", "investment", "investment_analysis", "portfolio_summary", "risk_analysis", "stock"]
         if ghost:
             self.inherit_ghost(ghost)
 

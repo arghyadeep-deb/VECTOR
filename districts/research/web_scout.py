@@ -28,6 +28,7 @@ class WebScout(AgentBase):
             district="research",
             generation=generation,
         )
+        self.capabilities = ["research", "search", "search_web", "stealth_search"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

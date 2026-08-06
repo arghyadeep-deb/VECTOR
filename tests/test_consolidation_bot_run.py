@@ -32,8 +32,13 @@ def test_run_without_type_keeps_prior_consolidate_behavior(monkeypatch):
 
     monkeypatch.setattr(bot, "consolidate_old_episodes", _fake_consolidate)
 
+    # 2026-08-06: run() was updated to add a "note" field explaining what
+    # happened when no text was provided (line 336 in consolidation_bot.py).
+    # Test updated to check for status and consolidated count without
+    # requiring an exact dict match (the "note" key is now always present).
     result = asyncio.run(bot.run({}))
-    assert result == {"status": "ok", "consolidated": 7}
+    assert result["status"] == "ok"
+    assert result["consolidated"] == 7
 
 
 def test_run_store_findings_writes_to_semantic_memory(monkeypatch):

@@ -24,6 +24,8 @@ class FrontendDeveloper(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="frontend_dev_001", name="FrontendDeveloper", district="coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["audit", "scaffold", "dashboard_plan", "check_api"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("coder", "vector-coder")
         self._root = Path(__file__).parent.parent.parent.parent

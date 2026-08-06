@@ -105,6 +105,7 @@ class FederationAgent(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="federation_agent_001", name="FederationAgent", district="governance")
+        self.capabilities = ["broadcast", "delegate", "federation", "governance", "receive", "register_peer"]
         self._memory: EpisodicMemory | None = None
         self._peers: dict[str, str] = dict(_DEFAULT_PEERS)
         logger.info("[VECTOR][federation] initialized with {} peers: {}", len(self._peers), list(self._peers.keys()))

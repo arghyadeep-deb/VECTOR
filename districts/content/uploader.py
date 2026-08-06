@@ -26,6 +26,7 @@ class Uploader(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "Uploader", "content")
+        self.capabilities = ["#", "cancel_scheduled_upload", "content", "execute_scheduled_uploads", "instagram", "schedule_upload", "scheduled_uploads", "upload", "upload_history", "upload_instagram", "upload_tiktok", "upload_twitter", "upload_youtube", "youtube"]
         if ghost:
             self.inherit_ghost(ghost)
 

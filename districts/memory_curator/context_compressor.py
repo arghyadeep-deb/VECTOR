@@ -66,6 +66,7 @@ class ContextCompressor(AgentBase):
     def __init__(self):
         super().__init__(agent_id="context_compressor_001",
                          name="ContextCompressor", district="memory_curator")
+        self.capabilities = ["compress", "context", "memory", "prune", "remember"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("fast", "vector-fast")
         logger.info("[VECTOR][ctx_compress] initialized")

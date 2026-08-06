@@ -70,6 +70,14 @@ class CodingSwarm(AgentBase):
         agent_id = "coding-swarm-001"
         name = "CodingSwarm"
         super().__init__(agent_id=agent_id, name=name, district=DISTRICT)
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = [
+            "code_review", "architecture", "code_explore", "refactor",
+            "performance", "test", "bug", "frontend", "backend",
+            "database", "mlops", "git", "rapid_prototype", "conductor",
+            "code_intel", "gui_automation", "developer_advocate",
+            "onboarding", "minimal_change",
+        ]
         self.health_points = 1500
         self._agents: dict[str, AgentBase] = {}
         self._agent_roles: dict[str, str] = {}

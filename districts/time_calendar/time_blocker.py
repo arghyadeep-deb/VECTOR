@@ -48,6 +48,7 @@ class TimeBlocker(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "TimeBlocker", "time_calendar")
+        self.capabilities = ["calendar", "peak", "schedule", "time", "time_block"]
         if ghost:
             self.inherit_ghost(ghost)
         self._queue: list[dict] = []

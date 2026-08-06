@@ -22,6 +22,7 @@ class ContentScheduler(AgentBase):
             name="ContentScheduler",
             district="content",
         )
+        self.capabilities = ["content", "publish", "run_pending", "schedule", "schedule_post", "summary"]
         self._tracker = None
         self._publisher = None
         self._analytics = None

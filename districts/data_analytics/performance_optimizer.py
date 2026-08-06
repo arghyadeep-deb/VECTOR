@@ -23,6 +23,7 @@ class PerformanceOptimizer(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-performance-optimizer.md", "performance_optimizer_001", "data_analytics")
+        self.capabilities = ["analyze", "data_analytics", "optimize", "performance"]
 
     def profile_callable(self, func, *args, runs: int = 3, **kwargs) -> dict:
         """Profile a callable and return top hotspots."""

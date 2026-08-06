@@ -19,6 +19,8 @@ class DeveloperAdvocate(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-specialized-developer-advocate.md", "developer_advocate_001", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["tutorial", "dx_audit"]
 
     async def write_tutorial(self, topic: str, target_audience: str = "intermediate developers",
                               format: str = "blog") -> str:

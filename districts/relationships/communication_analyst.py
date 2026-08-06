@@ -21,6 +21,7 @@ class CommunicationAnalyst(AgentBase):
             district="relationships",
             generation=1
         )
+        self.capabilities = ["analysis", "communication", "relationships"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.communication_profiles = {}

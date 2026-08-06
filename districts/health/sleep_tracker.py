@@ -31,6 +31,7 @@ class SleepTracker(AgentBase):
             district="health",
             generation=generation,
         )
+        self.capabilities = ["fatigue", "health", "sleep"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

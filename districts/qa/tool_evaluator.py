@@ -39,6 +39,7 @@ class ToolEvaluator(AgentBase):
             district="qa",
             generation=generation,
         )
+        self.capabilities = ["adoption_cost", "compare", "evaluate", "qa", "report", "tool_eval"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

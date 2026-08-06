@@ -51,6 +51,7 @@ class ResearchSwarm(AgentBase):
         agent_id = "research-swarm-001"
         name = "ResearchSwarm"
         super().__init__(agent_id=agent_id, name=name, district=DISTRICT)
+        self.capabilities = ["general", "type"]
         self.health_points = 900
         self._agents: dict[str, AgentBase] = {}
         self._agent_roles: dict[str, str] = {}

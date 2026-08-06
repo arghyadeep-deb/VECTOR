@@ -32,6 +32,7 @@ class ReportGenerator(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ReportGenerator", "interview_prep")
+        self.capabilities = ["company_specific", "export_report", "generate", "html", "interview", "json", "progress_report", "report", "session", "session_report"]
         if ghost:
             self.inherit_ghost(ghost)
 

@@ -22,6 +22,7 @@ class EnglishCoach(AgentBase):
             district="languages",
             generation=1
         )
+        self.capabilities = ["english", "generate_sentences", "grammar_check", "language", "languages", "learn", "practice_vocabulary", "track_progress"]
         self.language = "english"
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()

@@ -103,6 +103,7 @@ class UPIParser(AgentBase):
             district="finance",
             generation=generation,
         )
+        self.capabilities = ["finance", "money", "payment", "upi"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

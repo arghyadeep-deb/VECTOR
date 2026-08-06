@@ -47,6 +47,7 @@ class BiometricsAggregator(AgentBase):
             district="health",
             generation=generation,
         )
+        self.capabilities = ["biometrics", "get_daily_summary", "get_recent_activities", "get_recent_summary", "health", "metrics", "source"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

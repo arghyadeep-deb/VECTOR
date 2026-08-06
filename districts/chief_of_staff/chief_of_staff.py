@@ -53,6 +53,7 @@ class ChiefOfStaff(AgentBase):
             district="chief_of_staff",
             generation=generation,
         )
+        self.capabilities = ["brief", "chief_of_staff", "consistency_check", "evening_brief", "executive_brief", "governance", "morning_brief", "route", "scan", "subconscious"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

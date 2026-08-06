@@ -52,6 +52,7 @@ class AICitationStrategist(AgentBase, SkillMixin):
     def __init__(self):
         super().__init__(agent_id="ai_citation_strategist_001",
                          name="AICitationStrategist", district="marketing")
+        self.capabilities = ["aeo_strategy", "ai_citation", "audit", "citation", "competitors", "content", "marketing", "task_completion"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._skill_prompt = load_skill("ai-seo", "schema")

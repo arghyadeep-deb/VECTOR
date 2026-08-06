@@ -20,6 +20,8 @@ class AddyCodeReviewer(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-addy-code-reviewer.md", "addy_code_reviewer_001", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["review_diff", "review_file"]
 
     async def review_diff(self, diff: str, context: str = "") -> dict:
         """Review a git diff and return structured feedback."""

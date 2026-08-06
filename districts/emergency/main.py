@@ -36,6 +36,7 @@ class EmergencyResponseSystem(AgentBase):
             name="emergency_response",
             district="emergency",
         )
+        self.capabilities = ["CRITICAL", "detect_anomaly", "escalate_emergency", "health", "runbook"]
         self._config = CONFIG.get("emergency", {})
         self._detector = EmergencyDetector()
         self._classifier = SeverityClassifier()

@@ -27,6 +27,7 @@ class FPAAnalyst(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="fpa_analyst_001", name="FPAAnalyst", district="finance")
+        self.capabilities = ["analysis", "budget", "finance", "forecast", "fpa", "narrative", "okr_budget", "variance"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         logger.info("[VECTOR][fpa] initialized")

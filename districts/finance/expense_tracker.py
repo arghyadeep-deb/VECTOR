@@ -25,6 +25,7 @@ class ExpenseTracker(AgentBase):
             district="finance",
             generation=generation,
         )
+        self.capabilities = ["budget", "expense", "finance", "money", "monthly_report"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

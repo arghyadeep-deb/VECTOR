@@ -33,6 +33,7 @@ class SIEMPipeline(AgentBase):
         incidents_db_path: str | None = None,
     ) -> None:
         super().__init__(str(uuid.uuid4()), "SIEMPipeline", "security")
+        self.capabilities = ["alerts", "process_event", "process_event_async", "security", "siem", "source", "stats", "threat"]
         self.log_aggregator = LogAggregator(db_path=db_path)
         self.detection_rules = DetectionRules(rules_dir=rules_dir)
         self.playbook_runner = IncidentPlaybookRunner(

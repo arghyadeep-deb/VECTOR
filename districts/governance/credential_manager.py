@@ -37,6 +37,7 @@ class CredentialManager(AgentBase):
     def __init__(self):
         super().__init__(agent_id="credential_manager_001",
                          name="CredentialManager", district="governance")
+        self.capabilities = ["credential", "governance", "security", "template", "validate"]
         self._memory: EpisodicMemory | None = None
         logger.info("[VECTOR][cred_mgr] initialized")
 

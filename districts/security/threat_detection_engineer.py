@@ -130,6 +130,7 @@ class ThreatDetectionEngineer(AgentBase):
             name="ThreatDetectionEngineer",
             district="security",
         )
+        self.capabilities = ["analyze_logs", "coverage_map", "report", "scan_prompt", "security", "security_scan", "sigma_rule", "ssrf_check", "threat"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._attack_techniques: dict[str, dict] = _ATTACK_TECHNIQUES

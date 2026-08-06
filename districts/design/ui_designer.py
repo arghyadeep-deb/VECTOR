@@ -68,6 +68,7 @@ class UIDesigner(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="ui_designer_001", name="UIDesigner", district="design")
+        self.capabilities = ["audit", "component", "css_variables", "dashboard", "design", "interface", "search_corpus", "ui"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][ui_designer] initialized")

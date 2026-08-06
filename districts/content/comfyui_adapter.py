@@ -96,6 +96,7 @@ class ComfyUIAdapter(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ComfyUIAdapter", "content")
+        self.capabilities = ["comfyui", "content", "generate", "image", "ok"]
         if ghost:
             self.inherit_ghost(ghost)
 

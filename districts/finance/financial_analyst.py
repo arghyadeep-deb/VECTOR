@@ -28,6 +28,7 @@ class FinancialAnalyst(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="financial_analyst_001", name="FinancialAnalyst", district="finance")
+        self.capabilities = ["analysis", "break_even", "business_model", "dcf", "finance", "financial", "money"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         logger.info("[VECTOR][financial_analyst] initialized")

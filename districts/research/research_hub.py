@@ -57,6 +57,7 @@ class ResearchHub(AgentBase):
             district="research",
             generation=generation,
         )
+        self.capabilities = ["daily_digest", "find", "find_api", "get_hn", "get_india_stocks", "research", "search", "search_arxiv", "search_web", "task_completed"]
         if ghost:
             self.inherit_ghost(ghost)
         logger.info(f"[VECTOR][research_hub] ready gen={generation} hp={self.health_points}")

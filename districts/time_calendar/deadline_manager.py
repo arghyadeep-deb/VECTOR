@@ -33,6 +33,7 @@ class DeadlineManager(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "DeadlineManager", "time_calendar")
+        self.capabilities = ["calendar", "deadline", "deadline_check", "off", "peak", "schedule"]
         if ghost:
             self.inherit_ghost(ghost)
         self._service = None

@@ -30,6 +30,7 @@ class ProductManager(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="product_manager_001", name="ProductManager", district="governance")
+        self.capabilities = ["brief", "council", "decision", "product", "rice", "roadmap"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         logger.info("[VECTOR][pm] initialized")

@@ -30,6 +30,7 @@ class DocWriter(AgentBase):
             district="projects",
             generation=generation,
         )
+        self.capabilities = ["documentation", "project", "write"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

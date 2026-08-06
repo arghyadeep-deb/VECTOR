@@ -36,6 +36,7 @@ class HomeAssistantAgent(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="home_assistant_agent", name="home_assistant_agent", district="home_assistant")
+        self.capabilities = ["general", "ha_status"]
         self._config = HAConfig()
         self._connector = HAConnector(self._config)
         self._entity_manager = EntityManager()

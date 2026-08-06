@@ -33,6 +33,7 @@ class NewsAggregator(AgentBase):
             district="research",
             generation=generation,
         )
+        self.capabilities = ["daily_digest", "get_recent", "get_top_stories", "news", "research"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

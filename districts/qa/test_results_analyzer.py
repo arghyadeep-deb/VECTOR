@@ -27,6 +27,10 @@ class TestResultsAnalyzer(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="test_analyzer_001", name="TestResultsAnalyzer", district="qa")
+        self.capabilities = [
+            "test_results", "test_analyze", "smoke_test", "integration_test",
+            "test_trend", "detect_regressions",
+        ]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")

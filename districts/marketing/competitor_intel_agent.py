@@ -32,6 +32,7 @@ class CompetitorIntelAgent(AgentBase, SkillMixin):
 
     def __init__(self):
         super().__init__(agent_id="competitor_intel_001", name="CompetitorIntelAgent", district="marketing")
+        self.capabilities = ["competitor", "intel", "marketing"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._skill_prompt = load_skill("competitor-profiling", "competitors")

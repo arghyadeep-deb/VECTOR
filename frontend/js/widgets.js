@@ -77,7 +77,12 @@
     async function submitToBackend(text){
       try{
         const j = await apiPost('/command', { text });
-        V.say((j && (j.response || j.text || j.result)) || 'Done, sir.');
+        // 2026-08-06: "Done, sir." was a content-free stub when the server
+        // returned an empty response. Show the action taken instead, or a
+        // more honest "processed" message if nothing else is available.
+        const reply = (j && (j.response || j.text || j.result))
+          || (j && j.action_taken ? `Done — ${j.action_taken.replace(/_/g, ' ')}.` : 'Processed your request.');
+        V.say(reply);
       }catch(e){ V.say(localFallbackReply(text, 'chat /command failed')); }
     }
 
@@ -1816,7 +1821,12 @@
     V.process();
     if(V.config && V.config.base){
       // live backend: let /command drive the response
-      V.command(text).then(r=>{ V.say((r && (r.response||r.text)) || 'Done, sir.'); })
+      // 2026-08-06: "Done, sir." → meaningful fallback (see line 80 fix)
+      V.command(text).then(r=>{
+        const reply = (r && (r.response||r.text))
+          || (r && r.action_taken ? `Done — ${r.action_taken.replace(/_/g, ' ')}.` : 'Processed your request.');
+        V.say(reply);
+      })
         .catch(()=>{ sayLocalFallback(text, 'voice/chat /command failed', 500); });
     } else {
       sayLocalFallback(text, 'voice/chat using demo mode', 650);

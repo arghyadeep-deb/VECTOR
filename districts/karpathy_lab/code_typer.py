@@ -26,6 +26,7 @@ class CodeTyper(AgentBase):
             district="karpathy_lab",
             generation=generation,
         )
+        self.capabilities = ["karpathy_lab"]
         if ghost:
             self.inherit_ghost(ghost)
 

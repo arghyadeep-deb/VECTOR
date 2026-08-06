@@ -48,6 +48,7 @@ class ImagePromptEngineer(AgentBase):
     def __init__(self):
         super().__init__(agent_id="image_prompt_engineer_001",
                          name="ImagePromptEngineer", district="design")
+        self.capabilities = ["build", "cinematic", "deconstruct", "design", "image", "prompt", "variations"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][image_prompt] initialized")

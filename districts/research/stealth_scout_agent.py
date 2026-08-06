@@ -44,6 +44,7 @@ class StealthScoutAgent(AgentBase):
             district="research",
             generation=generation,
         )
+        self.capabilities = ["list_engines", "research", "scrape", "scrape_stealth", "scrape_url", "stealth_scrape", "stealth_search", "stealth_snapshot", "youtube_transcript"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

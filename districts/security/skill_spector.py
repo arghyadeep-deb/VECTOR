@@ -20,6 +20,7 @@ class SkillSpector(AgentBase):
             name="SkillSpector",
             district="security",
         )
+        self.capabilities = ["scan", "security", "security_scan"]
         if ghost:
             self.inherit_ghost(ghost)
         logger.info("[VECTOR][skill_spector] initialized")

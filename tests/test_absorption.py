@@ -78,9 +78,12 @@ class TestPersonModelAbsorption:
         assert pm.delete_profile("DeleteMe") is True
         assert "Deleteme" not in pm.list_profiles()
 
-    def test_style_generation_falls_back_gracefully(self):
+    def test_style_generation_falls_back_gracefully(self, monkeypatch):
         """Even without Ollama, generate_response_style returns original text."""
         from vectorcode.src.persona import PersonModel
+        # Mock ollama.chat to raise (simulates Ollama offline — triggers fallback)
+        import ollama
+        monkeypatch.setattr(ollama, "chat", lambda **kw: (_ for _ in ()).throw(ConnectionError("offline")))
         pm = PersonModel()
         pm.learn_from_messages("StyleTestPerson", [{"content": "hey what's up bro"}])
         result = pm.generate_response_style("StyleTestPerson", "Hello friend")
@@ -367,8 +370,11 @@ class TestNeuralRouterAbsorption:
 class TestQueenCoordinatorAbsorption:
     """Validates QueenCoordinator now covers VECTOR's Queen.ts features."""
 
-    def test_single_shot_decompose_preserved(self):
+    def test_single_shot_decompose_preserved(self, monkeypatch):
         from vectorcode.src.queen import QueenCoordinator
+        from vectorcode.src import queen as _queen_mod
+        # Mock chat() to return valid JSON so we don't hit real Ollama
+        monkeypatch.setattr(_queen_mod, "chat", lambda *a, **k: '{"subtasks": [{"task": "build login endpoint", "domain": "backend"}]}')
         q = QueenCoordinator()
         result = q.decompose("build a login endpoint with JWT auth")
         assert isinstance(result, list)

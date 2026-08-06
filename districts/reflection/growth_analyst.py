@@ -29,6 +29,7 @@ class GrowthAnalyst(AgentBase):
             district="reflection",
             generation=generation,
         )
+        self.capabilities = ["analyse", "analysis", "growth", "progress", "reflect"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
@@ -203,6 +204,12 @@ class GrowthAnalyst(AgentBase):
             return ""
 
     async def run(self, task: dict) -> dict:
+        # 2026-08-06: run() used to fall through to self.analyse() (full
+        # weekly growth analysis — writes Obsidian note, stores semantic
+        # memory) for ANY unmatched task_type with no query text. Now
+        # gated behind an explicit task_type; unmatched types with no
+        # query return a grounded status instead of triggering side effects.
+        task_type = task.get("type", "")
         query = (
             (task.get("params") or {}).get("query")
             or task.get("query")
@@ -215,8 +222,12 @@ class GrowthAnalyst(AgentBase):
                 self.award_points(10, "reflection_question_answered")
                 return {"status": "ok", "response": answer, "agent": self.name}
 
-        ok = await self.analyse()
-        return {"status": "ok" if ok else "error"}
+        if task_type == "analyse":
+            ok = await self.analyse()
+            return {"status": "ok" if ok else "error"}
+
+        # No query and no explicit analyse request — return status, no side effects
+        return {"status": "ok", "response": "GrowthAnalyst ready. Use task_type='analyse' to run the weekly analysis, or ask a question."}
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][growth_analyst] run_forever — Sunday 02:30")

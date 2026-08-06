@@ -23,6 +23,7 @@ class CourseTracker(AgentBase):
             district="learning",
             generation=1
         )
+        self.capabilities = ["add_course", "course", "generate_report", "get_progress", "learn", "learning", "log_lesson", "progress"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self._lock = threading.RLock()

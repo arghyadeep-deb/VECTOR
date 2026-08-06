@@ -21,6 +21,7 @@ class PrivacyEnforcer(AgentBase):
             district="privacy",
             generation=1
         )
+        self.capabilities = ["data_flow", "enforce", "privacy"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.pii_patterns = {

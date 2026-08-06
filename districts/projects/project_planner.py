@@ -28,6 +28,7 @@ class ProjectPlanner(AgentBase):
             district="projects",
             generation=generation,
         )
+        self.capabilities = ["deadline_check", "plan", "progress", "project"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

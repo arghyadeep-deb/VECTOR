@@ -26,6 +26,7 @@ class EmailIntelligence(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="email_intel_001", name="EmailIntelligence", district="communications")
+        self.capabilities = ["communications", "draft_reply", "email", "message", "send_email"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][email_intel] initialized")

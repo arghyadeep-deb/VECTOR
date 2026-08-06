@@ -22,6 +22,7 @@ class ArchitectureBuilder(AgentBase):
             district="karpathy_lab",
             generation=1
         )
+        self.capabilities = ["compute", "design_architecture", "estimate_compute", "generate_config", "karpathy_lab"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.supported_architectures = ["transformer", "lstm", "moe", "mamba", "hyena"]

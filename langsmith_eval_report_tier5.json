@@ -1,14 +1,62 @@
 {
   "tier": "tier5",
   "project": "VECTOR-eval",
-  "overall_score": 0.769,
+  "overall_score": 0.806,
   "num_examples": 4,
   "results": [
     {
       "category": "language_hindi_in",
       "query": "मुझे हिंदी में आज के तीन जरूरी काम बताओ।",
-      "response": "Here are three priority tasks for today, aligned with your current goals:\n\n1. **Create a short AI‑content piece for a creator** – Draft or finalize one piece (e.g., a blog post, video script, or carousel) that you can publish or pitch today. This directly supports Wave 1 (AI content ops) and begins building distribution.\n\n2. **Reach out to a potential early customer** – Send a concise outreach mes",
-      "latency_s": 2.99,
+      "response": "Here are three high‑priority things to focus on today:\n\n1. **Finalize the core deliverables for VECTOR Phase 1** – review the remaining work for the eight districts, close any open tickets, and lock in the documentation needed for the next milestone.\n\n2. **Drive sales activity for the AI‑content‑ops product** – reach out to at least three qualified leads, schedule demos or follow‑ups, and push tow",
+      "latency_s": 3.3,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "english_only": 1.0,
+        "llm_judge": 0.1
+      },
+      "avg_score": 0.775,
+      "notes": [
+        "judge: The answer is entirely in English and does not provide the requested Hindi response."
+      ]
+    },
+    {
+      "category": "language_hindi_requested",
+      "query": "Please reply in Hindi: what should I focus on today?",
+      "response": "I understand your prayer, but I can only respond in English.\n\nLet's proceed, I'll tell you what your most important task is. Currently, your long-term goals include completing Phase 1-8 Core District and achieving a product revenue of ₹1. \n\nCan you elaborate on your current goals and tasks? I can help you create a to-do list based on your priorities.",
+      "latency_s": 25.88,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "english_only": 1.0,
+        "llm_judge": 0.1
+      },
+      "avg_score": 0.775,
+      "notes": [
+        "judge: Answer did not comply with the request to reply in Hindi and provided minimal relevant content."
+      ]
+    },
+    {
+      "category": "language_hindi_project_status",
+      "query": "हिंदी में जवाब दो — मेरा VECTOR प्रोजेक्ट कैसा चल रहा है?",
+      "response": "I don't have live status metrics logged for VECTOR right now — no syncs, revenue figures, or progress reports came in with this session.\n\nFrom what's on file: you're in Wave 1 (AI content ops for creators), with a MID goal of completing Phase 1's core district and landing your first ₹1 of external revenue. Long-term anchors are KIIT attendance >75% and the Equation portfolio.\n\nSo direction is clea",
+      "latency_s": 10.87,
+      "scores": {
+        "nonempty": 1.0,
+        "not_a_stub": 1.0,
+        "english_only": 1.0,
+        "llm_judge": 0.7
+      },
+      "avg_score": 0.925,
+      "notes": [
+        "judge: Answer is correct and helpful but lacks live status metrics as acknowledged."
+      ]
+    },
+    {
+      "category": "language_hindi_explicit_script",
+      "query": "Reply only in Hindi (Devanagari script, not romanized) — give me one tip for better sleep.",
+      "response": "I understand you expect answers in Hindi, but according to my principles, I can only respond in English.",
+      "latency_s": 8.32,
       "scores": {
         "nonempty": 1.0,
         "not_a_stub": 1.0,
@@ -17,55 +65,7 @@
       },
       "avg_score": 0.75,
       "notes": [
-        "judge: The answer is entirely in English and does not provide the requested Hindi response."
-      ]
-    },
-    {
-      "category": "language_hindi_requested",
-      "query": "Please reply in Hindi: what should I focus on today?",
-      "response": "Not able to reply in Hindi. Focus should be on completing VECTOR Phase 1 — 8 core district.",
-      "latency_s": 4.5,
-      "scores": {
-        "nonempty": 1.0,
-        "not_a_stub": 1.0,
-        "english_only": 1.0,
-        "llm_judge": 0.1
-      },
-      "avg_score": 0.775,
-      "notes": [
-        "judge: Answer did not comply with the request to reply in Hindi and provided minimal, unrelated content."
-      ]
-    },
-    {
-      "category": "language_hindi_project_status",
-      "query": "हिंदी में जवाब दो — मेरा VECTOR प्रोजेक्ट कैसा चल रहा है?",
-      "response": "I don't have real-time updates on your project's progress.",
-      "latency_s": 4.38,
-      "scores": {
-        "nonempty": 1.0,
-        "not_a_stub": 1.0,
-        "english_only": 1.0,
-        "llm_judge": 0.1
-      },
-      "avg_score": 0.775,
-      "notes": [
-        "judge: Answer did not provide any Hindi response or project status."
-      ]
-    },
-    {
-      "category": "language_hindi_explicit_script",
-      "query": "Reply only in Hindi (Devanagari script, not romanized) — give me one tip for better sleep.",
-      "response": "Turn off or reduce nighttime light in ultra-light mode, or avoid blue light.",
-      "latency_s": 3.86,
-      "scores": {
-        "nonempty": 1.0,
-        "not_a_stub": 1.0,
-        "english_only": 1.0,
-        "llm_judge": 0.1
-      },
-      "avg_score": 0.775,
-      "notes": [
-        "judge: उत्तर बहुत अस्पष्ट है और नींद के लिए एक विशिष्ट टिप नहीं देता।"
+        "judge: उत्तर अंग्रेजी में दिया गया जबकि प्रश्न हिंदी में था।"
       ]
     }
   ]

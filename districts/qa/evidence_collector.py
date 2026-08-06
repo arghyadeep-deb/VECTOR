@@ -27,6 +27,7 @@ class EvidenceCollector(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="evidence_collector_001", name="EvidenceCollector", district="qa")
+        self.capabilities = ["evidence", "qa", "screenshot"]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._root = Path(__file__).parent.parent.parent.parent

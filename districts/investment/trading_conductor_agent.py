@@ -66,6 +66,7 @@ class TradingConductorAgent(AgentBase):
             district="investment",
             generation=generation,
         )
+        self.capabilities = ["execute_trade", "investment", "investment_analysis", "market_research", "paper_trade", "past_performance", "place_order", "trading"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

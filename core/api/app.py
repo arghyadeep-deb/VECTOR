@@ -380,6 +380,8 @@ def create_app() -> FastAPI:
         # Passkey / fingerprint / Windows Hello authentication (alternative to
         # the static VECTOR_API_KEY bearer token)
         webauthn_auth,
+        # JWT authentication with access + refresh tokens (primary interactive auth)
+        auth_jwt,
         # Unified world model
         world,
         # Safe autonomous execution contract
@@ -475,6 +477,7 @@ def create_app() -> FastAPI:
     app.include_router(gateway.router)
     app.include_router(keys.router)
     app.include_router(webauthn_auth.router)
+    app.include_router(auth_jwt.router)
     app.include_router(world.router)
     app.include_router(executor.router)
     app.include_router(missions.router)

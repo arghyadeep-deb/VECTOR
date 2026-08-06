@@ -35,6 +35,7 @@ class VideoGenerator(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VideoGenerator", "content")
+        self.capabilities = ["content", "generate", "generate_tags", "render_html", "title", "title_thumbnail", "variables", "video"]
         if ghost:
             self.inherit_ghost(ghost)
 

@@ -27,6 +27,8 @@ class DatabaseOptimizer(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="db_optimizer_001", name="DatabaseOptimizer", district="coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["schema", "benchmark", "full_audit"]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")

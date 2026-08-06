@@ -24,6 +24,7 @@ class CallScreener(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "CallScreener", "calls")
+        self.capabilities = ["add_call_contact", "call", "call_history", "calls", "list_call_contacts", "screen"]
         if ghost:
             self.inherit_ghost(ghost)
 

@@ -24,6 +24,7 @@ class ScienceAgent(AgentBase):
             district="science",
             generation=generation,
         )
+        self.capabilities = ["cad", "causal_query", "chemistry", "experiment", "research", "science", "simulate"]
         if ghost:
             self.inherit_ghost(ghost)
         self._physics = None

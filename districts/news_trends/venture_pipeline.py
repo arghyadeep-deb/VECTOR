@@ -47,6 +47,7 @@ class VenturePipeline(AgentBase):
             name="VenturePipeline",
             district="news_trends",
         )
+        self.capabilities = ["cluster_problems", "mine_social", "news_trends", "venture_pipeline"]
         vcfg = CONFIG.get("venture", {})
         self.max_ideas = int(vcfg.get("max_validated_ideas", 3))
         self.data_dir = Path(vcfg.get("data_dir", "data/venture"))

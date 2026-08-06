@@ -43,6 +43,7 @@ class LogEvent(BaseModel):
 class LogAggregator(AgentBase):
     def __init__(self, db_path: str | None = None):
         super().__init__(str(uuid.uuid4()), "LogAggregator", "security")
+        self.capabilities = ["WARNING", "audit_log", "audit_search", "audit_tail", "log", "prune_retention", "query", "security", "stats"]
         from core.runtime_paths import data_path
 
         self._db_path = db_path or str(data_path("security", "logs.db"))

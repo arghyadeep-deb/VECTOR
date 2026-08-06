@@ -19,6 +19,8 @@ class RefactorCleaner(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-refactor-cleaner.md", "refactor_cleaner_001", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["scan", "refactor", "dead_code"]
 
     async def find_dead_code(self, codebase_path: str = ".") -> dict:
         """Scan a codebase for dead code patterns using Python AST."""

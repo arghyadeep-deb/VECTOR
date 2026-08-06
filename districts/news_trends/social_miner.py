@@ -78,6 +78,7 @@ class SocialMiner(AgentBase):
             name="SocialMiner",
             district="news_trends",
         )
+        self.capabilities = ["mine_social", "news_trends", "social", "venture_pipeline"]
         vcfg = CONFIG.get("venture", {})
         self.subreddits: list[str] = list(vcfg.get("subreddits", _DEFAULT_SUBREDDITS))
         self.days: int = int(vcfg.get("window_days", 30))

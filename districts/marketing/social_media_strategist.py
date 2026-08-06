@@ -43,6 +43,7 @@ class SocialMediaStrategist(AgentBase, SkillMixin):
     def __init__(self):
         super().__init__(agent_id="social_media_strategist_001",
                          name="SocialMediaStrategist", district="marketing")
+        self.capabilities = ["analyze", "calendar", "linkedin", "marketing", "social", "social_media", "twitter_thread"]
         self._memory: EpisodicMemory | None = None
         self._skill_prompt = load_skill("social", "content-strategy", "copywriting")
         from core.prompt_library import get_library as _gl

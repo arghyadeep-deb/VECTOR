@@ -50,6 +50,8 @@ class PythonReviewer(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="python_reviewer", name="PythonReviewer", district="coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["review_python", "check_pep8", "review"]
         logger.info("[VECTOR][python_reviewer] PythonReviewer initialized")
 
     async def review(self, code: str, filename: str = "", context: str = "") -> dict:

@@ -30,6 +30,7 @@ class ExerciseLogger(AgentBase):
             district="health",
             generation=generation,
         )
+        self.capabilities = ["exercise", "health"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

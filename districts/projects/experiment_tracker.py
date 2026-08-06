@@ -30,6 +30,7 @@ class ExperimentTracker(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="experiment_tracker_001", name="ExperimentTracker", district="projects")
+        self.capabilities = ["analyze", "create", "experiment", "observe", "project", "seed", "tracking"]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")

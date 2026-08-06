@@ -40,6 +40,7 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
 
     def __init__(self):
         super().__init__(agent_id="ads_orchestrator_001", name="AdsOrchestratorAgent", district="marketing")
+        self.capabilities = ["ads", "ads_audit", "ads_budget", "ads_competitor", "ads_create", "ads_creative", "ads_dna", "ads_generate", "ads_google_audit", "ads_landing", "ads_math", "ads_photoshoot", "ads_plan", "ads_report", "ads_test", "marketing", "orchestrate"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._skill_prompt = load_skill("ads", "ad-creative", "cro")

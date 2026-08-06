@@ -21,6 +21,7 @@ class OpportunitySpotter(AgentBase):
             district="news_trends",
             generation=1
         )
+        self.capabilities = ["cluster_problems", "mine_social", "news_trends", "opportunity", "venture_pipeline"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         self.tracked_opportunities = {}

@@ -36,6 +36,7 @@ class TechnicalBot(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "TechnicalBot", "investment")
+        self.capabilities = ["calculate_indicators", "detect_patterns", "get_price_data", "investment", "technical_analysis", "trading_analysis"]
         if ghost:
             self.inherit_ghost(ghost)
 

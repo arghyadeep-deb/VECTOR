@@ -30,6 +30,7 @@ class VoiceResponder(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "VoiceResponder", "calls")
+        self.capabilities = ["calls", "generate_response", "get_available_voices", "get_response_history", "respond", "respond_to_audio", "text_to_speech", "voice"]
         if ghost:
             self.inherit_ghost(ghost)
 

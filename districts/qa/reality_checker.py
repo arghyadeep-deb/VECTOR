@@ -45,6 +45,7 @@ class RealityChecker(AgentBase):
             district="qa",
             generation=generation,
         )
+        self.capabilities = ["qa", "reality_check", "verify"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

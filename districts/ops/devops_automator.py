@@ -51,6 +51,7 @@ class DevOpsAutomator(AgentBase):
             district="ops",
             generation=generation,
         )
+        self.capabilities = ["backup_db", "cf_status", "cleanup_logs", "deploy", "devops", "ops", "restart"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

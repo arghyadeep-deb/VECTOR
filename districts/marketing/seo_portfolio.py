@@ -42,6 +42,7 @@ class SEOPortfolioAgent(AgentBase, SkillMixin):
             district="marketing",
             generation=generation,
         )
+        self.capabilities = ["improve_page", "investigate_drop", "marketing", "onboard", "portfolio", "portfolio_review", "seo", "weekly_review"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

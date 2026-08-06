@@ -29,8 +29,10 @@ _AUTH_DISABLED_WARNED = False
 def _api_key() -> str:
     """Read the key at call time — middleware.py already does; a module-global
     frozen at import made the documented no-key/localhost mode unreachable once
-    the process imported with .env loaded (and untestable via monkeypatch)."""
-    return os.environ.get("VECTOR_API_KEY", "")
+    the process imported with .env loaded (and untestable via monkeypatch).
+    Uses get_secret() so keyring is checked as fallback (not just env)."""
+    from core.security.secrets_manager import get_secret
+    return get_secret("VECTOR_API_KEY")
 
 
 def verify_api_key(

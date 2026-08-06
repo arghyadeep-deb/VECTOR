@@ -22,6 +22,7 @@ class DataPrep(AgentBase):
             district="karpathy_lab",
             generation=1
         )
+        self.capabilities = ["download_dataset", "karpathy_lab", "preprocess_data", "tokenize_data"]
         self.memory = EpisodicMemory()
         self.obsidian = ObsidianSync()
         from core.runtime_paths import data_path

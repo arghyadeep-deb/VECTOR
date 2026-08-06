@@ -18,6 +18,7 @@ class ComplianceAuditor(PromptAgent):
 
     def __init__(self):
         super().__init__("vector-compliance-auditor.md", "compliance_auditor_001", "governance")
+        self.capabilities = ["audit", "audit_log", "audit_verify", "compliance"]
 
     async def audit_data_handling(self, code: str, standard: str = "GDPR") -> dict:
         """Audit code for compliance with a specific standard."""

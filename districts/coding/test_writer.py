@@ -20,6 +20,10 @@ class TestWriter(AgentBase):
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "TestWriter", "coding")
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = [
+            "write_tests", "generate_tests", "test_coverage", "find_untested",
+        ]
         if ghost:
             self.inherit_ghost(ghost)
         self._test_dir = Path(CONFIG.get("coding", {}).get("repo_path", ".")) / "tests"

@@ -19,6 +19,7 @@ class HealthAdvisor(AgentBase):
             name="health_advisor",
             district="health",
         )
+        self.capabilities = ["advice", "health", "health_check", "health_recommendations"]
         self._use_llm: bool = CONFIG.get("health", {}).get("advisor_use_llm", False)
         self._max_recs: int = CONFIG.get("health", {}).get("advisor_max_recommendations", 5)
 

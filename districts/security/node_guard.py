@@ -44,6 +44,7 @@ class NodeGuard(AgentBase):
             name="NodeGuard",
             district="security",
         )
+        self.capabilities = ["bytes_sent", "connections", "laddr", "malware", "node_guard", "python.exe", "scan", "security"]
         if ghost:
             self.inherit_ghost(ghost)
         logger.info("[VECTOR][node_guard] NodeGuard initialised")

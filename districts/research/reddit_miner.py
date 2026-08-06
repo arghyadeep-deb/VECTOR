@@ -38,6 +38,7 @@ class RedditMiner(AgentBase):
             district="research",
             generation=generation,
         )
+        self.capabilities = ["reddit", "research", "search"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

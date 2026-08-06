@@ -31,6 +31,7 @@ class TechnicalWriter(AgentBase):
             district="documentation",
             generation=generation,
         )
+        self.capabilities = ["api_reference", "district_readme", "docs", "document_module", "documentation", "generate_docs", "write"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

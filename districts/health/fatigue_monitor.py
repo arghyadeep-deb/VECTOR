@@ -31,6 +31,7 @@ class FatigueMonitor(AgentBase):
             district="health",
             generation=generation,
         )
+        self.capabilities = ["check_fatigue", "fatigue", "health", "health_alert"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

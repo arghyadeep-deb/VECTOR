@@ -185,6 +185,7 @@ class VideoPipelineAgent(AgentBase):
             district="content",
             generation=generation,
         )
+        self.capabilities = ["content", "create_and_upload", "instagram", "job_history", "job_queue", "job_status", "pipeline", "posted", "video", "youtube"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory  = EpisodicMemory()

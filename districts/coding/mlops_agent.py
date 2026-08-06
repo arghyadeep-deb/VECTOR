@@ -109,6 +109,8 @@ class MLOpsAgent(AgentBase):
         )
         if ghost:
             self.inherit_ghost(ghost)
+        # 2026-08-06: governor capability declarations — see architect_bot.py
+        self.capabilities = ["ml_research", "hf_train", "hf_dataset", "hf_hub", "github_ml", "ml_plan"]
         self._memory = EpisodicMemory()
         logger.info("[VECTOR][vector_mlops] ready gen={} hp={}", generation, self.health_points)
 

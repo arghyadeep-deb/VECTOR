@@ -42,6 +42,7 @@ class AutoresearchRunner(AgentBase):
             district="karpathy_lab",
             generation=generation,
         )
+        self.capabilities = ["karpathy_lab", "run_experiment_cycle"]
         if ghost:
             self.inherit_ghost(ghost)
 

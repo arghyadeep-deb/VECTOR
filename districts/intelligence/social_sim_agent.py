@@ -48,6 +48,7 @@ class SocialSimAgent(AgentBase):
             district="intelligence",
             generation=generation,
         )
+        self.capabilities = ["agent_interview", "build_graph", "build_ontology", "generate_personas", "intelligence", "run_simulation", "simulation", "simulation_report", "social_sim", "social_simulate"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

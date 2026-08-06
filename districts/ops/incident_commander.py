@@ -45,6 +45,7 @@ class IncidentCommander(AgentBase):
             district="ops",
             generation=generation,
         )
+        self.capabilities = ["P1", "P2", "detect", "incident", "incident_command", "ops", "post_mortem", "triage"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory: EpisodicMemory | None = None

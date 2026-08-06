@@ -39,6 +39,7 @@ class ContentCreator(AgentBase, SkillMixin):
 
     def __init__(self):
         super().__init__(agent_id="content_creator_001", name="ContentCreator", district="marketing")
+        self.capabilities = ["blog", "brief", "calendar", "content", "create", "marketing", "newsletter", "repurpose"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         self._skill_prompt = load_skill("copywriting", "content-strategy")

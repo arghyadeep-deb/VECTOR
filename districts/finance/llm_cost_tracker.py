@@ -39,6 +39,7 @@ class LLMCostTracker(AgentBase):
     def __init__(self):
         super().__init__(agent_id="llm_cost_tracker_001",
                          name="LLMCostTracker", district="finance")
+        self.capabilities = ["budget", "budget_check", "budget_record", "cost", "estimate", "finance", "project"]
         self._memory: EpisodicMemory | None = None
         self._budget_usd = DEFAULT_BUDGET_USD
         logger.info("[VECTOR][cost_tracker] initialized, budget=${}", self._budget_usd)

@@ -29,6 +29,7 @@ class PaperReader(AgentBase):
             district="research",
             generation=generation,
         )
+        self.capabilities = ["paper", "research", "search_arxiv"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

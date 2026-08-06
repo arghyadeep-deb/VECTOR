@@ -23,6 +23,9 @@ class APITester(AgentBase):
 
     def __init__(self):
         super().__init__(agent_id="api_tester_001", name="APITester", district="qa")
+        self.capabilities = [
+            "api_test", "api_health", "full_suite", "single",
+        ]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._base_url = CONFIG.get("api", {}).get("base_url", "http://127.0.0.1:8000")

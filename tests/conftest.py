@@ -25,6 +25,12 @@ _TEST_DATA_DIR = Path(__file__).resolve().parents[1] / "test_tmp" / "vector_pyte
 _TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("VECTOR_TEST_DATA_DIR", str(_TEST_DATA_DIR))
 
+# Centralized sys.path setup — eliminates the need for per-test sys.path.insert hacks.
+# The repo root is 1 level above tests/.
+_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
+
 
 @pytest.fixture(autouse=True)
 def _reset_permission_gateway_singleton():

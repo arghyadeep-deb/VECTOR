@@ -44,6 +44,7 @@ class AnalyticsReporter(AgentBase):
             district="data_analytics",
             generation=generation,
         )
+        self.capabilities = ["analytics", "data_analytics", "error", "governor_dispatch", "ok", "report"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

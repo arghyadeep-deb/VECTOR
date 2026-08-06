@@ -43,6 +43,7 @@ class Incident(BaseModel):
 class IncidentPlaybookRunner(AgentBase):
     def __init__(self, playbooks_dir: str | None = None, db_path: str | None = None):
         super().__init__(str(uuid.uuid4()), "IncidentPlaybookRunner", "security")
+        self.capabilities = ["execute_playbook", "incident", "list_incidents", "list_playbooks", "rollback", "security"]
         self._playbooks_dir = Path(playbooks_dir) if playbooks_dir else data_path("security", "playbooks")
         self._packaged_playbooks_dir = Path(__file__).parent / "data" / "playbooks"
         self._db_path = db_path or str(data_path("security", "incidents.db"))

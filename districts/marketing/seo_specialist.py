@@ -40,6 +40,7 @@ class SEOSpecialist(AgentBase, SkillMixin):
 
     def __init__(self):
         super().__init__(agent_id="seo_specialist_001", name="SEOSpecialist", district="marketing")
+        self.capabilities = ["audit", "cannibalization", "critical", "keywords", "marketing", "optimize", "report", "seo"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         self._skill_prompt = load_skill("seo-audit", "ai-seo", "content-strategy")
