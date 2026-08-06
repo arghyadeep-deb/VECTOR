@@ -65,7 +65,7 @@
     speak:()=>blip(880,.08,'sine',.07),
     lock:()=>{ /* standby sound disabled per user request */ },
     open:()=>blip(1040,.06,'triangle',.06),
-    close:()=>blip(360,.08,'sine',.06),
+    close:()=>{ /* standby/close sound disabled per user request */ },
     alert:()=>{ blip(300,.16,'sawtooth',.12); setTimeout(()=>blip(300,.16,'sawtooth',.12),200); }
   };
 
