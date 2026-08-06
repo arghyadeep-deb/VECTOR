@@ -868,7 +868,27 @@ class PermissionGateway:
                         result["status"] = "error"
                         result["error"] = "no url provided"
                     else:
-                        _ssrf = SSRFGuard(resolve_dns=True).check_url(url)
+                        # 2026-08-06 (loop-stall root-cause hunt, KNOWN_ISSUES
+                        # #0): resolve_dns=True makes check_url() call
+                        # socket.getaddrinfo() synchronously with no timeout.
+                        # That's a real syscall directly on this coroutine's
+                        # thread (the loop's event-loop thread in production);
+                        # a hung/unreachable DNS resolver would block it
+                        # indefinitely with 0% CPU. Move it to a thread and
+                        # bound the wait so a DNS hang degrades to "download
+                        # blocked" instead of freezing the whole loop.
+                        try:
+                            _ssrf = await asyncio.wait_for(
+                                asyncio.to_thread(SSRFGuard(resolve_dns=True).check_url, url),
+                                timeout=CONFIG.get("ssrf_dns_resolve_timeout_sec", 5.0),
+                            )
+                        except asyncio.TimeoutError:
+                            logger.warning(
+                                "[VECTOR][permission_gateway] SSRF DNS resolution timed out for {}", url,
+                            )
+                            result["status"] = "error"
+                            result["error"] = "SSRF DNS resolution timed out"
+                            return result
                         if not _ssrf.safe:
                             result["status"] = "error"
                             result["error"] = f"SSRF blocked: {_ssrf.reason}"

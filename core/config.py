@@ -62,6 +62,25 @@ class LoopConfig(BaseModel):
     command_poll_sec: float = Field(3.0, ge=0.5, le=60.0)   # remote command relay poll (Phase 4)
     reflect_hour: int = Field(2, ge=0, le=23)
     reflect_minute: int = Field(0, ge=0, le=59)
+    # 2026-08-06 (loop-stall root-cause hunt, KNOWN_ISSUES #0): observe_tick
+    # (15s) and think_tick (60s) already had asyncio.timeout coverage;
+    # reflect_tick had none, despite calling out to DailyReviewer,
+    # SelfImprovementCycle, ConsolidationBot, EvolutionEngine, etc. — any one
+    # of those hanging would freeze the loop thread with no bound at all.
+    # Generous because reflect legitimately does more work than a normal
+    # tick (nightly cycle, not a 10s poll).
+    reflect_tick_timeout_sec: float = Field(600.0, ge=30.0, le=3600.0)
+    # Per-agent ceiling on governor.dispatch()'s `await agent.run(task)` —
+    # the one call on the dispatch hot path with no timeout of its own
+    # (previously relied entirely on the outer think_tick 60s budget, which
+    # can't isolate WHICH agent/district hung, and doesn't apply at all to
+    # dispatches made outside think_tick, e.g. from event fan-out). Kept
+    # under the 60s think_tick budget so a hung agent is attributed by name
+    # before the outer timeout would fire anyway. NOTE: this bounds the wait,
+    # not the underlying call — a genuinely synchronous blocking call inside
+    # agent.run() (no `await` point) cannot be cancelled by asyncio; see
+    # governor.py's dispatch() comment.
+    agent_dispatch_timeout_sec: float = Field(45.0, ge=5.0, le=300.0)
 
 
 class PermissionConfig(BaseModel):
@@ -542,6 +561,21 @@ class VectorSettings(BaseSettings):
     # call) while cutting the worst observed blowup (90) by >40x. Override via
     # OLLAMA_MAX_CONCURRENT in .env if VRAM headroom changes (e.g. bigger GPU).
     OLLAMA_MAX_CONCURRENT: int = Field(2, ge=1, le=16)
+    # 2026-08-06 (loop-stall root-cause fix, KNOWN_ISSUES #0): grace window
+    # added on top of the caller's `timeout` in
+    # core/inference/vectorcode_llm.py::chat() before its background-thread
+    # future is given up on. See that call site for why the executor is no
+    # longer used as a context manager (the old `with` form's blocking
+    # shutdown() defeated this timeout entirely).
+    VC_LLM_THREAD_GRACE_SEC: float = Field(15.0, ge=0.0, le=120.0)
+    # 2026-08-06 (loop-stall root-cause hunt, KNOWN_ISSUES #0): bounds
+    # core/loop/permission_gateway.py's `download_file` action, which calls
+    # SSRFGuard(resolve_dns=True) -> socket.getaddrinfo() synchronously.
+    # getaddrinfo has no built-in timeout and runs directly on whatever
+    # thread calls it (the asyncio event-loop thread here) — a hung/
+    # unreachable DNS resolver would freeze the whole loop indefinitely with
+    # 0% CPU. See permission_gateway.py's download_file handler.
+    SSRF_DNS_RESOLVE_TIMEOUT_SEC: float = Field(5.0, ge=0.5, le=30.0)
     VECTOR_DB_KEY: SecretStr = SecretStr("")
 
     # API keys — SecretStr prevents values leaking into logs or repr()
@@ -828,6 +862,8 @@ CONFIG: dict = {
     # asyncio.Semaphore) — two separate primitives sized off this one number,
     # not one shared lock (see comments at each call site for why).
     "ollama_max_concurrent": _s.OLLAMA_MAX_CONCURRENT,
+    "vc_llm_thread_grace_sec": _s.VC_LLM_THREAD_GRACE_SEC,
+    "ssrf_dns_resolve_timeout_sec": _s.SSRF_DNS_RESOLVE_TIMEOUT_SEC,
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "cf_worker_url": _s.CF_WORKER_URL,
     "oauth": {

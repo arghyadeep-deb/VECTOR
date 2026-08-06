@@ -589,8 +589,35 @@ def chat(
             )
             return r.content
 
-        with _cf.ThreadPoolExecutor(max_workers=1) as _pool:
-            result = _pool.submit(_asyncio.run, _async_call()).result(timeout=timeout + 15)
+        # 2026-08-06 (loop-stall root-cause fix, KNOWN_ISSUES #0): this used to
+        # be `with _cf.ThreadPoolExecutor(max_workers=1) as _pool:` — a plain
+        # context manager. That made the `.result(timeout=...)` below a FAKE
+        # bound: Future.result(timeout=) does stop THIS thread from waiting
+        # and raises concurrent.futures.TimeoutError on schedule, but leaving
+        # the `with` block (whether via that exception or normally) runs
+        # ThreadPoolExecutor.__exit__ -> shutdown(wait=True), which blocks
+        # this same thread again — this time with NO timeout — until the
+        # background asyncio.run(_async_call()) call actually finishes.
+        # chat() is a plain sync function called directly (no `await`, no
+        # `asyncio.to_thread`) from inside ~112 district agents' async run()
+        # methods, so "this thread" is routinely the single autonomous-loop
+        # event-loop thread. ProviderClient's own retry/fallback chain across
+        # multiple providers can legitimately run for minutes under
+        # rate-limit/cooldown conditions, so the old code could silently
+        # re-block the loop thread for far longer than `timeout + grace`
+        # implied, with the eventual TimeoutError never even reaching the
+        # `except Exception as _pc_err:` below — exactly the "0% CPU, no
+        # exception logged, heartbeat frozen" signature this issue describes.
+        # Fix: don't use the executor as a context manager. shutdown(wait=False)
+        # lets the orphaned worker thread finish on its own time in the
+        # background instead of blocking the caller; its result (if any) is
+        # simply discarded.
+        _grace = CONFIG.get("vc_llm_thread_grace_sec", 15.0)
+        _pool = _cf.ThreadPoolExecutor(max_workers=1)
+        try:
+            result = _pool.submit(_asyncio.run, _async_call()).result(timeout=timeout + _grace)
+        finally:
+            _pool.shutdown(wait=False)
         if result:
             logger.debug("[VECTOR][vc_llm] ProviderClient responded via {} ({} chars)",
                          _pc_model or tier, len(result))

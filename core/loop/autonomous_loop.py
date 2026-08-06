@@ -1302,7 +1302,20 @@ class AutonomousLoop:
                     remaining -= 1.0
 
                 if self._running and datetime.datetime.now(datetime.timezone.utc).hour == reflect_hour:
-                    await self._reflect_tick()
+                    # 2026-08-06 (loop-stall root-cause hunt, KNOWN_ISSUES #0):
+                    # observe_tick (15s) and think_tick (60s) already had
+                    # asyncio.timeout coverage; this one didn't, despite
+                    # calling out to DailyReviewer, SelfImprovementCycle,
+                    # ConsolidationBot, EvolutionEngine, and more — any one
+                    # hanging froze the loop thread with literally no bound.
+                    try:
+                        async with asyncio.timeout(CONFIG["loop"]["reflect_tick_timeout_sec"]):
+                            await self._reflect_tick()
+                    except asyncio.TimeoutError:
+                        logger.warning(
+                            "[VECTOR][reflect] tick timed out (>{}s) — skipping",
+                            CONFIG["loop"]["reflect_tick_timeout_sec"],
+                        )
 
             except Exception as e:
                 _capture_loop_error(e, "reflect_loop")

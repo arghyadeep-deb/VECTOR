@@ -2192,7 +2192,44 @@ class Governor:
                             ),
                         }
                     elif hasattr(agent, "run"):
-                        result = await agent.run(task)
+                        # 2026-08-06 (loop-stall root-cause hunt, KNOWN_ISSUES
+                        # #0): this was the one call on the dispatch hot path
+                        # with no timeout of its own — it relied entirely on
+                        # think_tick's outer 60s asyncio.timeout, which (a)
+                        # doesn't cover dispatches made outside think_tick
+                        # (e.g. event fan-out, voice intents) and (b) can't
+                        # tell you WHICH agent hung, only that the whole tick
+                        # did. Bounding it here directly attributes a stuck
+                        # agent by name in the log before the outer timeout
+                        # would fire anyway. NOTE: this bounds the *wait*, not
+                        # the call — asyncio.timeout cancels at the next
+                        # await/suspension point in the agent's coroutine; a
+                        # genuinely synchronous blocking call inside agent.run()
+                        # (no await point — e.g. a sync HTTP client, a
+                        # threading.Lock.acquire() with no timeout, blocking
+                        # file I/O) freezes the single event-loop thread and
+                        # this timeout cannot preempt it, because the timer
+                        # callback that would fire the cancellation runs on
+                        # that same frozen thread. This is defense-in-depth
+                        # for the (many) agent code paths that ARE proper
+                        # async/await, not a guarantee against every hang.
+                        try:
+                            result = await asyncio.wait_for(
+                                agent.run(task),
+                                timeout=CONFIG["loop"]["agent_dispatch_timeout_sec"],
+                            )
+                        except asyncio.TimeoutError:
+                            logger.warning(
+                                "[VECTOR][governor] agent '{}' ({}) timed out after {}s on task '{}'",
+                                getattr(agent, "name", "?"), district,
+                                CONFIG["loop"]["agent_dispatch_timeout_sec"], task_type,
+                            )
+                            result = {
+                                "status": "timeout",
+                                "reason": f"agent.run() exceeded {CONFIG['loop']['agent_dispatch_timeout_sec']}s",
+                                "agent": getattr(agent, "name", ""),
+                                "district": district,
+                            }
                     else:
                         result = {
                             "status": "error",

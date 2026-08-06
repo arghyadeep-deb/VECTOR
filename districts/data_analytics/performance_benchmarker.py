@@ -434,21 +434,35 @@ class PerformanceBenchmarker(AgentBase):
         task_type = task.get("type", "full_benchmark")
         params = task.get("params", {})
 
+        # 2026-08-06 (loop-stall root-cause hunt, KNOWN_ISSUES #0): these
+        # benchmark_* methods are plain sync functions — benchmark_ollama_latency
+        # in particular makes real, synchronous, un-awaited LLM calls
+        # (up to n x timeout=30s each) straight through ollama_safe/
+        # vectorcode_llm. run() is a governor-dispatched coroutine, so calling
+        # them directly here executes them on the same event-loop thread that
+        # runs the rest of VECTOR's autonomous loop, freezing it for the full
+        # duration of every call (and, if Ollama itself is wedged, for far
+        # longer than any of this method's own timeouts imply — see
+        # vectorcode_llm.py's chat() fix for why "has a timeout parameter"
+        # doesn't always mean "actually bounded"). asyncio.to_thread moves the
+        # blocking work off the loop thread so the rest of VECTOR keeps
+        # ticking while a benchmark runs.
         try:
             if task_type == "ollama":
-                result = self.benchmark_ollama_latency(
+                result = await asyncio.to_thread(
+                    self.benchmark_ollama_latency,
                     model=params.get("model", _FOCUS),
                     n=params.get("n", 3),
                 )
                 payload = {"status": "ok", "task": task_type, "result": result}
             elif task_type == "decision":
-                result = self.benchmark_decision_engine(n=params.get("n", 5))
+                result = await asyncio.to_thread(self.benchmark_decision_engine, n=params.get("n", 5))
                 payload = {"status": "ok", "task": task_type, "result": result}
             elif task_type == "memory":
-                result = self.benchmark_memory_ops(n=params.get("n", 10))
+                result = await asyncio.to_thread(self.benchmark_memory_ops, n=params.get("n", 10))
                 payload = {"status": "ok", "task": task_type, "result": result}
             elif task_type == "routing":
-                result = self.benchmark_routing(n=params.get("n", 5))
+                result = await asyncio.to_thread(self.benchmark_routing, n=params.get("n", 5))
                 payload = {"status": "ok", "task": task_type, "result": result}
             else:
                 # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
@@ -471,8 +485,8 @@ class PerformanceBenchmarker(AgentBase):
                         return {"status": "ok", "response": answer, "hp": self.health_points}
 
                 # Default: full benchmark suite
-                results = self.run_full_benchmark()
-                written = self.write_benchmark_report(results)
+                results = await asyncio.to_thread(self.run_full_benchmark)
+                written = await asyncio.to_thread(self.write_benchmark_report, results)
                 self._memory.store(
                     event_type="benchmark_completed",
                     content=f"Full benchmark at {results.get('timestamp')}",
