@@ -63,7 +63,7 @@
     listen:()=>blip(720,.1,'triangle',.12),
     process:()=>{ blip(520,.07,'square',.05); setTimeout(()=>blip(640,.07,'square',.05),70); },
     speak:()=>blip(880,.08,'sine',.07),
-    lock:()=>chord([520,390],.4),
+    lock:()=>{ /* standby sound disabled per user request */ },
     open:()=>blip(1040,.06,'triangle',.06),
     close:()=>blip(360,.08,'sine',.06),
     alert:()=>{ blip(300,.16,'sawtooth',.12); setTimeout(()=>blip(300,.16,'sawtooth',.12),200); }
