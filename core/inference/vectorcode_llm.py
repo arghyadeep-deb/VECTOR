@@ -26,6 +26,7 @@ from __future__ import annotations
 
 __all__ = [
     "chat",
+    "achat",
     "chat_stream",
     "get_session_usage",
     "ProviderName",
@@ -486,6 +487,93 @@ def _messages_to_text(messages: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
+# â”€â”€ Running-event-loop guard (KNOWN_ISSUES #0 Part 2) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+#
+# chat() is a plain sync function. Called with no `await`/`asyncio.to_thread`
+# from a thread that owns a RUNNING asyncio event loop — the exact shape of
+# every district agent's async run() method — it blocks that loop for up to
+# `timeout + vc_llm_thread_grace_sec` seconds (fccdeb91f). ~112 files do this
+# today (`grep -rl "vectorcode_llm import.*chat"`, 2026-08-06). This section
+# makes that antipattern loud instead of silently fixing all 112 call sites,
+# which is a far bigger change than this bug warrants and could itself take
+# VECTOR down. See achat() below for the correct async-native replacement.
+
+_LOOP_WARNING_LAST: dict[str, float] = {}
+_LOOP_WARNING_LOCK = threading.Lock()
+
+
+def _caller_site() -> str:
+    """Identify the frame that called into chat() from outside this module.
+
+    Walks raw frame objects (f_back / f_code attributes only) rather than
+    `inspect.stack()` or `traceback.extract_stack()` — both of those read
+    and cache source lines for every frame by default, which is wasted work
+    on a path that may run on every single one of ~112 call sites. Frame
+    attribute access is effectively free by comparison.
+    """
+    try:
+        _this_file = os.path.abspath(__file__)
+        frame = sys._getframe(2)  # skip this function + _warn_if_running_loop
+        while frame is not None:
+            if os.path.abspath(frame.f_code.co_filename) != _this_file:
+                return f"{frame.f_code.co_filename}:{frame.f_lineno} (in {frame.f_code.co_name})"
+            frame = frame.f_back
+    except Exception:
+        pass
+    return "<unknown caller>"
+
+
+def _warn_if_running_loop(model: str) -> None:
+    """Warn (or, in strict mode, raise) when chat() is called synchronously
+    from a thread that already has a running asyncio event loop.
+
+    Silent and free when there is no running loop on this thread (the normal,
+    unchanged case for every existing caller and for the whole sync test
+    suite) — `asyncio.get_running_loop()` raising RuntimeError is the
+    standard, documented way to detect this.
+
+    Deliberately does NOT raise by default: those ~112 call sites are live in
+    production; turning them all into exceptions overnight is a much bigger
+    change than this bug warrants and risks taking VECTOR down. Instead this
+    is LOUD — it names the exact calling file/line so offenders are
+    enumerable from the logs and can be migrated to `achat()` incrementally.
+    Rate-limited PER CALL SITE (CONFIG["vc_llm_loop_guard_cooldown_sec"], not
+    globally) so an already-known hot offender doesn't drown the logs while a
+    brand-new one is still always caught on its first hit.
+
+    Opt-in strict mode — CONFIG["vc_llm_loop_guard_strict"] / env
+    VC_LLM_LOOP_GUARD_STRICT=1 — raises instead of warning, unconditionally
+    (never rate-limited: a test asserting this behaves the same way every
+    run). Intended for tests/CI so the antipattern can't grow silently;
+    deliberately not the production default (flipping it there would turn a
+    warning into a simultaneous outage across all ~112 sites at once).
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return  # normal case: no running loop on this thread — nothing to warn about
+
+    site = _caller_site()
+    message = (
+        f"[VECTOR][vc_llm] BLOCKING CALL: chat(model={model!r}) called "
+        f"synchronously from {site} while a RUNNING asyncio event loop owns "
+        f"this thread — this call will block that loop for up to "
+        f"timeout+grace seconds (KNOWN_ISSUES #0). Migrate this call site to "
+        f"`await achat(...)`."
+    )
+    if CONFIG.get("vc_llm_loop_guard_strict", False):
+        raise RuntimeError(message)
+
+    cooldown = float(CONFIG.get("vc_llm_loop_guard_cooldown_sec", 300.0))
+    now = time.time()
+    with _LOOP_WARNING_LOCK:
+        last = _LOOP_WARNING_LAST.get(site, 0.0)
+        if cooldown > 0 and (now - last) < cooldown:
+            return
+        _LOOP_WARNING_LAST[site] = now
+    logger.warning(message)
+
+
 # â”€â”€ Main chat function — drop-in for ollama_safe.chat() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 def chat(
@@ -517,6 +605,8 @@ def chat(
     """
     if not messages:
         return ""
+
+    _warn_if_running_loop(model)
 
     # Ponytail minimal-code ladder — injected once here so all ~25 coding agents build
     # lean (no-op for non-coding domains; degrades to no-op if the plugin is absent).
@@ -632,6 +722,127 @@ def chat(
         ("ollama",      _try_ollama),
     ]:
         result = _fn(model, messages, timeout, temperature)
+        if result:
+            return result
+
+    logger.warning(f"[VECTOR][vc_llm] all providers failed for {model}")
+    return ""
+
+
+# ── Async-native twin of chat() (KNOWN_ISSUES #0 Part 2) ────────────────────
+
+async def achat(
+    model: str,
+    messages: list[dict],
+    timeout: float = 30.0,
+    *,
+    provider: ProviderName = "auto",
+    allow_cloud: bool = True,
+    district: str | None = None,
+    sensitive: bool = False,
+    temperature: float = 0.7,
+    domain: str = "",
+) -> str:
+    """Async-native replacement for chat() — call this from inside an async
+    district agent's run() method instead.
+
+    chat()'s primary path already does the real work asynchronously
+    (`ProviderClient.chat()` is a coroutine); the sync chat() only exists to
+    call that from non-async code, and to do so it round-trips through a
+    ThreadPoolExecutor + a second nested `asyncio.run()` just to come back
+    and block the CALLING thread's own event loop for up to
+    `timeout + vc_llm_thread_grace_sec` seconds (see fccdeb91f and
+    `_warn_if_running_loop()` above). achat() removes that round-trip
+    entirely: it `await`s the same coroutine directly on the caller's own
+    running event loop — no second thread, no second loop, nothing to block.
+
+    The synchronous legacy fallback chain (only reached if ProviderClient's
+    own multi-provider chain raises) still shells out to blocking SDK/httpx
+    calls, so those run via `asyncio.to_thread` here — this function never
+    blocks the caller's loop at any point, at any stage of the chain.
+
+    Same signature, same behaviour, and the same never-raises / returns ""
+    on total failure contract as chat() — just reachable with `await`
+    instead of a thread hop. Prefer this in every async run() method; chat()
+    should only be called from genuinely synchronous code that owns no
+    event loop of its own.
+    """
+    if not messages:
+        return ""
+
+    # Ponytail minimal-code ladder — same injection chat() does.
+    try:
+        from core.inference.ponytail_guard import inject as _ponytail_inject
+        messages = _ponytail_inject(messages, domain=domain, model=model)
+    except Exception:
+        pass
+
+    if provider == "gemini":
+        return await asyncio.to_thread(_try_gemini, model, messages, timeout, temperature)
+    if provider == "anthropic":
+        return await asyncio.to_thread(_try_anthropic, model, messages, timeout, temperature)
+    if provider == "openrouter":
+        return await asyncio.to_thread(_try_openrouter, model, messages, timeout, temperature)
+    if provider == "ollama":
+        return await asyncio.to_thread(_try_ollama, model, messages, timeout, temperature)
+
+    # ── Sensitivity check (local-only override) ─────────────────────────────
+    local_only = False
+    try:
+        from core.inference.route_policy import decide_route
+        _prompt = _messages_to_text(messages)
+        _plan = await asyncio.to_thread(decide_route, _prompt, district=district, sensitive=sensitive)
+        local_only = _plan.local_only
+        logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
+    except Exception as e:
+        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
+
+    if local_only or not allow_cloud:
+        result = await asyncio.to_thread(_try_ollama, model, messages, timeout, temperature)
+        if not result and not local_only:
+            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
+        return result
+
+    # ── Domain alignment (Step 8) — same resolution chat() does.
+    _domain = ""
+    if os.environ.get("VECTOR_DOMAIN_ROUTING") != "0" and "pytest" not in sys.modules:
+        _domain = _resolve_domain(model, domain)
+        if _domain:
+            try:
+                from core.inference.model_catalog import domain_local_only
+                if domain_local_only(_domain):
+                    _domain = ""   # e.g. security → stay on the local path below
+            except Exception:
+                pass
+
+    # ── Primary: await ProviderClient directly — no thread, no nested loop ──
+    tier = _model_to_tier(model)
+    _pc_model = f"domain:{_domain}" if _domain else None
+    try:
+        from core.inference.provider_client import ProviderClient as _PC
+        r = await _PC().chat(
+            messages=messages,
+            model=_pc_model,
+            tier=tier,
+            temperature=temperature,
+            max_tokens=4096,
+            caller_id=f"vc_llm_{(_domain or model)[:24]}",
+        )
+        result = r.content
+        if result:
+            logger.debug("[VECTOR][vc_llm] ProviderClient responded via {} ({} chars)",
+                         _pc_model or tier, len(result))
+            return result
+    except Exception as _pc_err:
+        logger.warning(f"[VECTOR][vc_llm] ProviderClient failed ({_pc_model or tier}): {_pc_err} — trying legacy chain")
+
+    # ── Fallback: legacy direct-provider chain, off the loop via to_thread ──
+    for _slug, _fn in [
+        ("gemini",      _try_gemini),
+        ("openrouter",  _try_openrouter),
+        ("ollama",      _try_ollama),
+    ]:
+        result = await asyncio.to_thread(_fn, model, messages, timeout, temperature)
         if result:
             return result
 

@@ -576,6 +576,32 @@ class VectorSettings(BaseSettings):
     # unreachable DNS resolver would freeze the whole loop indefinitely with
     # 0% CPU. See permission_gateway.py's download_file handler.
     SSRF_DNS_RESOLVE_TIMEOUT_SEC: float = Field(5.0, ge=0.5, le=30.0)
+    # 2026-08-06 (KNOWN_ISSUES #0 Part 1 follow-up): core/inference/ollama_safe.py's
+    # module-level threading.Semaphore (bound = OLLAMA_MAX_CONCURRENT) used to be
+    # acquired via `with _OLLAMA_SYNC_SEMAPHORE:`, which blocks forever with no
+    # timeout. That was ranked secondary in the original hunt because it needs a
+    # slot-holder to already be stuck — but fccdeb91f proved a holder CAN hang
+    # indefinitely (the exact ThreadPoolExecutor-shutdown bug it fixed one layer
+    # up), so a hang here would queue every other Ollama caller behind it too,
+    # turning one stuck call into many. Default 60s: comfortably above a normal
+    # chat() call (default timeout=8s) and above chat_stream()'s documented
+    # deliberate full-duration slot hold, while still bounding a genuinely stuck
+    # holder instead of blocking forever.
+    OLLAMA_SEMAPHORE_TIMEOUT_SEC: float = Field(60.0, ge=1.0, le=300.0)
+    # 2026-08-06 (KNOWN_ISSUES #0 Part 2): core/inference/vectorcode_llm.py's
+    # chat() is a plain sync function; called from a thread that owns a RUNNING
+    # asyncio event loop (i.e. from inside an async `run()` without `await`/
+    # `asyncio.to_thread`) it blocks that loop for up to timeout+grace seconds.
+    # ~112 files do this today. Default False = warn-only (loud, rate-limited
+    # per call site) so production isn't turned into a mass outage by flipping
+    # 112 call sites into exceptions overnight; set True (or env
+    # VC_LLM_LOOP_GUARD_STRICT=1) in tests/CI to fail fast instead and prevent
+    # the antipattern from growing.
+    VC_LLM_LOOP_GUARD_STRICT: bool = False
+    # How often (seconds) the same call site is allowed to re-log the blocking-
+    # call warning above. Per-site, not global — a new offender is always caught
+    # on its first hit; a hot, already-known offender doesn't drown the logs.
+    VC_LLM_LOOP_GUARD_COOLDOWN_SEC: float = Field(300.0, ge=0.0, le=3600.0)
     VECTOR_DB_KEY: SecretStr = SecretStr("")
 
     # API keys — SecretStr prevents values leaking into logs or repr()
@@ -863,6 +889,9 @@ CONFIG: dict = {
     # not one shared lock (see comments at each call site for why).
     "ollama_max_concurrent": _s.OLLAMA_MAX_CONCURRENT,
     "vc_llm_thread_grace_sec": _s.VC_LLM_THREAD_GRACE_SEC,
+    "ollama_semaphore_timeout_sec": _s.OLLAMA_SEMAPHORE_TIMEOUT_SEC,
+    "vc_llm_loop_guard_strict": _s.VC_LLM_LOOP_GUARD_STRICT,
+    "vc_llm_loop_guard_cooldown_sec": _s.VC_LLM_LOOP_GUARD_COOLDOWN_SEC,
     "ssrf_dns_resolve_timeout_sec": _s.SSRF_DNS_RESOLVE_TIMEOUT_SEC,
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "cf_worker_url": _s.CF_WORKER_URL,

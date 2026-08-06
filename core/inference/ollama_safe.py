@@ -238,7 +238,27 @@ def chat(
         # Held only across the actual request/response round-trip below, not
         # across personality injection / AirLLM routing above, so those stay
         # unbounded (they don't touch Ollama).
-        with _OLLAMA_SYNC_SEMAPHORE:
+        # 2026-08-06 (KNOWN_ISSUES #0 Part 1): `with _OLLAMA_SYNC_SEMAPHORE:`
+        # blocks forever with no timeout. That was ranked secondary when first
+        # found because it needs a slot-holder to already be stuck — but
+        # fccdeb91f proved a holder CAN hang indefinitely (the exact
+        # ThreadPoolExecutor-shutdown bug that fix addresses one layer up), so
+        # a hang here would queue every other Ollama caller behind it too,
+        # turning one stuck call into many. Bounded acquire instead; on
+        # timeout, fall back exactly like a dead Ollama daemon does below
+        # (_multi_backend_fallback, then "" — never raises, never fabricates a
+        # response: chat()'s existing failure contract, not a new one).
+        _sem_timeout = CONFIG.get("ollama_semaphore_timeout_sec", 60.0)
+        if not _OLLAMA_SYNC_SEMAPHORE.acquire(timeout=_sem_timeout):
+            logger.warning(
+                f"[VECTOR][ollama_safe] semaphore acquire timed out after "
+                f"{_sem_timeout}s for model={model} — all "
+                f"{CONFIG['ollama_max_concurrent']} Ollama concurrency slot(s) "
+                f"are still held, a caller is likely stuck (see KNOWN_ISSUES #0). "
+                f"Falling back without touching Ollama."
+            )
+            return _multi_backend_fallback(model, messages, timeout)
+        try:
             with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
                 _opts = {"temperature": temperature}
                 if num_predict is not None:
@@ -264,6 +284,8 @@ def chat(
                     response = _wrap_with_circuit_breaker("ollama", _call)
                     _record_telemetry(model, time.time() - _start, response, None)
                 return response.get("message", {}).get("content", "")
+        finally:
+            _OLLAMA_SYNC_SEMAPHORE.release()
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model}")
         fallback = _multi_backend_fallback(model, messages, timeout)
@@ -296,33 +318,50 @@ def chat_stream(
     exactly the over-subscription this bound exists to prevent. This does
     mean a slow consumer holds a slot longer; that is the correct trade-off
     here, not a bug. Ordinary generator cleanup (StopIteration, an exception,
-    or an explicit .close()) runs the `with` block's __exit__ and releases it;
-    a caller that abandons partial iteration without closing the generator
-    relies on CPython's refcounting GC to call __del__ -> close(), same
-    caveat already documented for the connection leak fix above.
+    or an explicit .close()) runs the surrounding try/finally and releases
+    the slot; a caller that abandons partial iteration without closing the
+    generator relies on CPython's refcounting GC to call __del__ -> close(),
+    same caveat already documented for the connection leak fix above.
     """
     keep_alive = keep_alive or DEFAULT_KEEP_ALIVE
+    # See chat()'s comment above (KNOWN_ISSUES #0 Part 1) — bounded acquire,
+    # not `with _OLLAMA_SYNC_SEMAPHORE:`. A stream call deliberately holds its
+    # slot for the whole iteration (see docstring above), so a stuck holder
+    # here is exactly the scenario the timeout exists to catch; on timeout we
+    # yield "" and stop, the same honest-failure shape already used below for
+    # a circuit-breaker-open or a hard Ollama failure.
+    _sem_timeout = CONFIG.get("ollama_semaphore_timeout_sec", 60.0)
+    if not _OLLAMA_SYNC_SEMAPHORE.acquire(timeout=_sem_timeout):
+        logger.warning(
+            f"[VECTOR][ollama_safe] semaphore acquire timed out after "
+            f"{_sem_timeout}s for {model} stream — all "
+            f"{CONFIG['ollama_max_concurrent']} Ollama concurrency slot(s) "
+            f"are still held, a caller is likely stuck (see KNOWN_ISSUES #0)."
+        )
+        yield ""
+        return
     try:
         import ollama
-        with _OLLAMA_SYNC_SEMAPHORE:
-            # See chat()'s comment above — must close the client (connection-leak fix).
-            with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
-                stream = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-                    model=model,
-                    messages=messages,
-                    stream=True,
-                    keep_alive=keep_alive,
-                ))
-                for chunk in stream:
-                    token = chunk.get("message", {}).get("content", "")
-                    if token:
-                        yield token
+        # See chat()'s comment above — must close the client (connection-leak fix).
+        with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
+            stream = _wrap_with_circuit_breaker("ollama", lambda: client.chat(
+                model=model,
+                messages=messages,
+                stream=True,
+                keep_alive=keep_alive,
+            ))
+            for chunk in stream:
+                token = chunk.get("message", {}).get("content", "")
+                if token:
+                    yield token
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model} stream")
         yield ""
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} stream failed: {e}")
         yield ""
+    finally:
+        _OLLAMA_SYNC_SEMAPHORE.release()
 
 
 def _airllm_chat(model: str, messages: list[dict]) -> str:
@@ -364,25 +403,38 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
         to_warm = [m for m in targets if m not in _warmed]
 
     for model in to_warm:
+        # See chat()'s comment above (KNOWN_ISSUES #0 Part 1) — bounded
+        # acquire, not `with _OLLAMA_SYNC_SEMAPHORE:`. Models are warmed one
+        # at a time in this loop already (sequential, not spawned as
+        # concurrent threads), so this never nests — it just makes warm-up
+        # share the same bound as regular chat() traffic instead of being
+        # able to pile an unbounded warm-up burst on top of live requests at
+        # startup. On timeout, treat it exactly like any other warm-up
+        # failure below (results[model] = False) and move on to the next
+        # model rather than blocking startup forever.
+        _sem_timeout = CONFIG.get("ollama_semaphore_timeout_sec", 60.0)
+        if not _OLLAMA_SYNC_SEMAPHORE.acquire(timeout=_sem_timeout):
+            results[model] = False
+            logger.warning(
+                f"[VECTOR][ollama_safe] semaphore acquire timed out after "
+                f"{_sem_timeout}s warming {model} — all "
+                f"{CONFIG['ollama_max_concurrent']} Ollama concurrency slot(s) "
+                f"are still held, a caller is likely stuck (see KNOWN_ISSUES #0)."
+            )
+            continue
         try:
             import ollama
-            # Models are warmed one at a time in this loop already (sequential,
-            # not spawned as concurrent threads), so the semaphore below never
-            # nests — it just makes warm-up share the same bound as regular
-            # chat() traffic instead of being able to pile an unbounded warm-up
-            # burst on top of live requests at startup.
-            with _OLLAMA_SYNC_SEMAPHORE:
-                # See chat()'s comment above — must close the client (connection-leak fix).
-                with ollama.Client(host=CONFIG["ollama_host"], timeout=60.0) as client:
-                    if "embed" in model.lower():
-                        _wrap_with_circuit_breaker("ollama", lambda: client.embeddings(model=model, prompt="ping", keep_alive=keep_alive))
-                    else:
-                        _wrap_with_circuit_breaker("ollama", lambda: client.chat(
-                            model=model,
-                            messages=[{"role": "user", "content": "."}],
-                            options={"num_predict": 1},
-                            keep_alive=keep_alive,
-                        ))
+            # See chat()'s comment above — must close the client (connection-leak fix).
+            with ollama.Client(host=CONFIG["ollama_host"], timeout=60.0) as client:
+                if "embed" in model.lower():
+                    _wrap_with_circuit_breaker("ollama", lambda: client.embeddings(model=model, prompt="ping", keep_alive=keep_alive))
+                else:
+                    _wrap_with_circuit_breaker("ollama", lambda: client.chat(
+                        model=model,
+                        messages=[{"role": "user", "content": "."}],
+                        options={"num_predict": 1},
+                        keep_alive=keep_alive,
+                    ))
             with _warm_lock:
                 _warmed.add(model)
             results[model] = True
@@ -390,6 +442,8 @@ def warm_models(models: list[str] | None = None, keep_alive: str = "30m") -> dic
         except Exception as e:
             results[model] = False
             logger.warning(f"[VECTOR][ollama_safe] warm-up failed for {model}: {e}")
+        finally:
+            _OLLAMA_SYNC_SEMAPHORE.release()
 
     if results:
         ok = sum(1 for v in results.values() if v)
