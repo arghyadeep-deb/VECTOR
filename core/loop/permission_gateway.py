@@ -929,55 +929,42 @@ class PermissionGateway:
                     "Wire a specific safe implementation before enabling."
                 )
             elif action.action_type == "execute_code":
-                # Real isolated execution via core/sandbox (WASM/Docker).
-                # FAIL CLOSED: if the sandbox is unavailable we refuse to run —
-                # code must NEVER execute unsandboxed on the host.
+                # 2026-08-07: execute_code now uses VectorSandbox from
+                # core/sandbox/vector_sandbox.py — subprocess isolation with
+                # timeouts, output truncation, and environment filtering.
+                # FAIL CLOSED: if the sandbox raises, we refuse.
                 code = action.params.get("code", "")
+                language = action.params.get("language", "python")
+                timeout = float(action.params.get("timeout", 30))
                 if not code:
                     result["status"] = "rejected"
                     result["reason"] = "no code provided"
                 else:
-                    # 2026-08-05 (audit): this branch previously did
-                    #   from core.sandbox import ContainerRunner
-                    #   runner.run(code, language=..., timeout_seconds=...)
-                    # and caught the failure in a bare `except`, reporting
-                    # "sandbox unavailable". That message implied a working
-                    # sandbox that was merely absent. It is not — sandboxed
-                    # execution was never actually implemented here. THREE
-                    # independent things are missing, verified 2026-08-05:
-                    #   1. `ContainerRunner` is not exported from
-                    #      core/sandbox/__init__.py (it lives in
-                    #      core/sandbox/runner.py), so the import always
-                    #      raised ImportError.
-                    #   2. Even with the import fixed the call is
-                    #      type-incompatible: ContainerRunner.run() takes
-                    #      (input_data: dict, *, workspace, mounts, secrets,
-                    #      env). It has NO `language` or `timeout_seconds`
-                    #      parameter, and `code` here is a str, not a dict.
-                    #   3. Its DEFAULT_IMAGE "vector-sandbox:latest" has never
-                    #      been built on this machine.
-                    # Net effect: execute_code has NEVER once run anything.
-                    # It always fell into the except and refused — which is
-                    # the CORRECT outcome, reached by accident.
-                    #
-                    # Keeping the refusal (fail closed is right for arbitrary
-                    # code execution) but making it honest, so nobody
-                    # "restores" a sandbox that was never there. Implementing
-                    # this properly means: export ContainerRunner, adapt the
-                    # call to its real dict-based signature, build the
-                    # vector-sandbox image, and only then re-enable — a
-                    # deliberate feature, not a bug fix.
-                    logger.warning(
-                        "[VECTOR][gateway] execute_code refused: sandboxed execution is "
-                        "NOT IMPLEMENTED (see core/loop/permission_gateway.py). Code is "
-                        "never run unsandboxed on the host."
-                    )
-                    result["status"] = "rejected"
-                    result["sandbox"] = "not_implemented"
-                    result["reason"] = (
-                        "code execution is not implemented — sandboxed execution was never "
-                        "wired up, and VECTOR will not run code unsandboxed on the host"
-                    )
+                    try:
+                        from core.sandbox import get_sandbox, SandboxConfig
+                        sandbox = get_sandbox(SandboxConfig(timeout_secs=timeout))
+                        if language == "python":
+                            sr = await sandbox.run_code_safe(code, timeout=timeout)
+                        else:
+                            # Non-Python languages: write to temp file and run
+                            sr = await sandbox.run_shell(code, timeout=timeout)
+                        result["status"] = "ok" if sr.success else "error"
+                        result["output"] = sr.output
+                        result["stdout"] = sr.stdout
+                        result["stderr"] = sr.stderr
+                        result["exit_code"] = sr.exit_code
+                        result["elapsed_secs"] = round(sr.elapsed_secs, 2)
+                        result["timed_out"] = sr.timed_out
+                        result["sandbox"] = "vector_sandbox"
+                        if sr.timed_out:
+                            result["reason"] = f"code timed out after {timeout}s"
+                        elif not sr.success:
+                            result["reason"] = sr.stderr[:500] if sr.stderr else "non-zero exit"
+                    except Exception as e:
+                        logger.warning("[VECTOR][gateway] execute_code sandbox failed: {}", e)
+                        result["status"] = "rejected"
+                        result["sandbox"] = "error"
+                        result["reason"] = f"sandbox execution failed: {e}"
             elif action.action_type in ("code_task", "code_review_vc", "code_generate",
                                         "code_fix", "code_debug", "run_tests"):
                 try:
