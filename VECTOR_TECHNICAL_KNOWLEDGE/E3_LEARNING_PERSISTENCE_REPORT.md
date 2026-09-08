@@ -97,4 +97,4 @@ REGRESSION: 0 (no production code changed)
 VERDICT: E3 COMPLETE
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `03641167c5597c9f3730912f6f41e12fe1803324`
