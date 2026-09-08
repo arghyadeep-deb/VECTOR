@@ -106,4 +106,4 @@ NEW REGRESSIONS: 0 (no production code changed)
 VERDICT: E1 COMPLETE
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `48f3279d7de62450d2202ffc5dc68b546fbe6d50`
