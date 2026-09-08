@@ -144,4 +144,4 @@ NEW REGRESSIONS: 0 (all 7 "new" failures independently reproduced in isolation a
 VERDICT: E4 COMPLETE
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `1c8b0728b00d51009c419b6ac19fb0d9fe48b947`
