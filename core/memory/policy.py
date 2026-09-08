@@ -211,6 +211,30 @@ class PolicyMemory:
         except Exception as e:
             logger.error(f"[VECTOR][policy] record_suppression failed: {e}")
 
+    def get_veto_count(self, action_type: str, situation_hash: str) -> int:
+        """
+        E4 (update-rule audit) — read side of record_suppression()'s veto_count
+        column. This column has existed since Task 89 (D3) and this method's
+        own docstring already stated the intent ("so decision_engine's
+        get_score() / future tooling can see... how often has this exact
+        canonical situation been suppressed") but nothing ever actually read
+        it until now — confirmed by repo-wide audit to be write-only (INERT)
+        before this method existed. Returns 0 for no data, exactly like
+        get_score() returns DEFAULT_SCORE for no data — never raises.
+        """
+        try:
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cursor:
+                row = cursor.execute(
+                    "SELECT veto_count FROM policy_memory WHERE action_type=? AND situation_hash=?",
+                    (action_type, situation_hash),
+                ).fetchone()
+            if row and row[0] is not None:
+                return int(row[0])
+        except Exception as e:
+            logger.error(f"[VECTOR][policy] get_veto_count failed: {e}")
+        return 0
+
     def get_top_actions(self, limit: int = 10) -> list[dict]:
         """Top-performing action types with ≥3 samples, by avg reward."""
         try:

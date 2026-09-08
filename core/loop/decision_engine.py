@@ -319,6 +319,38 @@ class DecisionEngine:
             logger.debug("[VECTOR][decision_engine] correction penalty skipped: {}", e)
             return 0.0
 
+    def _veto_penalty(self, situation_hash: str, candidate: Candidate) -> float:
+        """E4 (update-rule audit) — bounded [0.0, 0.10] penalty from
+        PolicyMemory.get_veto_count() for this exact canonical situation.
+
+        `veto_count` (Task 89/D3) has existed since R4/R5 specifically to
+        track counterfactual-vetoed proposals SEPARATELY from avg_reward —
+        but nothing ever read it for scoring (confirmed INERT by direct
+        repo-wide audit; see VECTOR_TECHNICAL_KNOWLEDGE/E4_UPDATE_RULE_REPORT.md).
+        A candidate whose exact situation has been vetoed many times before
+        currently scores no differently than one that has never been
+        vetoed at all — this closes that gap with the smallest possible
+        wiring, reusing the existing column rather than adding a new one.
+
+        Deliberately a SOFT, bounded nudge, not a hard block: an
+        aggressively rising veto_count already has its own hard
+        avoidance mechanism (CounterfactualMemory.should_avoid()'s
+        Jaccard-similarity check, which can outright block execution) —
+        this only makes an already-frequently-vetoed situation slightly
+        less likely to keep winning the ranking in the first place,
+        mirroring the same bounded-penalty pattern as bias_penalty,
+        epistemic_penalty, and correction_penalty. Capped at 0.10 so it
+        can shift a close ranking but never dominate the 5-factor formula
+        on its own."""
+        try:
+            if not CONFIG.get("veto_scoring", True):
+                return 0.0
+            veto_count = self._get_policy().get_veto_count(candidate.action_type, situation_hash)
+            return round(min(0.10, veto_count * 0.02), 4)
+        except Exception as e:
+            logger.debug("[VECTOR][decision_engine] veto penalty skipped: {}", e)
+            return 0.0
+
     def _finite(self, value: float, default: float = 0.0) -> float:
         try:
             value = float(value)
@@ -481,6 +513,7 @@ class DecisionEngine:
         cost_penalty = min(1.0, estimated_cost / 10.0)
         bias_penalty = self._bias_penalty(candidate)
         correction_penalty = self._correction_penalty(candidate)
+        veto_penalty = self._veto_penalty(situation_hash, candidate)
 
         total = (
             self.W_GOAL * goal_score
@@ -491,6 +524,7 @@ class DecisionEngine:
             - self.W_COST * cost_penalty
             - bias_penalty
             - correction_penalty
+            - veto_penalty
         )
 
         # Epistemic dampening (JARVIS Gap 3) — post-score multiplier.
@@ -515,6 +549,10 @@ class DecisionEngine:
             candidate.reasoning_chain.append(
                 {"factor": "owner_correction", "value": correction_penalty, "weight": -1.0}
             )
+        if veto_penalty > 0.0:
+            candidate.reasoning_chain.append(
+                {"factor": "veto_history", "value": veto_penalty, "weight": -1.0}
+            )
         if epistemic_factor < 1.0:
             candidate.reasoning_chain.append(
                 {"factor": "epistemic_confidence", "value": epistemic_conf,
@@ -532,6 +570,8 @@ class DecisionEngine:
             candidate.reasoning_steps.append(f"meta_cognition bias_penalty={bias_penalty:.3f}")
         if correction_penalty > 0.0:
             candidate.reasoning_steps.append(f"owner_correction penalty={correction_penalty:.3f}")
+        if veto_penalty > 0.0:
+            candidate.reasoning_steps.append(f"veto_history penalty={veto_penalty:.3f}")
         if epistemic_factor < 1.0:
             candidate.reasoning_steps.append(
                 f"epistemic_factor={epistemic_factor:.2f} "
