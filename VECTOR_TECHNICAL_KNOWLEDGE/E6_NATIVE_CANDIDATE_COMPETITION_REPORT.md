@@ -160,4 +160,4 @@ VERDICT: "NATIVE CANDIDATE COMPETITION IS THE CURRENT LEARNING BOTTLENECK."
 E6 COMPLETE. Do NOT implement candidate diversity tonight.
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `cea541f531c1c49bdb28510098b26d7fd5cafca3`
