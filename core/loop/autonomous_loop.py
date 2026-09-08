@@ -1596,10 +1596,30 @@ class AutonomousLoop:
             completed = 1.0 if result.get("status") == "completed" else 0.0
             reward = 0.7 if completed else 0.3
             try:
-                import hashlib, json
                 pm = self._get_policy()
-                sk = f"plan_step:{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
-                h = hashlib.sha256(sk.encode()).hexdigest()[:12]
+                # E2 (outcome attribution audit): this used to hash a
+                # "plan_step:"-prefixed key locally (hashlib.sha256(f"plan_step:
+                # {action_type}:{json.dumps(params, sort_keys=True)}")) instead
+                # of PolicyMemory's own canonical make_situation_hash(). That
+                # was a SEPARATE identity namespace from every other writer/
+                # reader in this codebase (decision_engine._score_candidate()'s
+                # get_score(), the main _act_on() reward writer, the
+                # VectorCode reward writer) -- a reward learned from executing
+                # a plan step could never be read back by DecisionEngine
+                # scoring the same (action_type, params) as a regular
+                # candidate, and vice versa. Task 89 (D2) identified this
+                # exact writer as a 4th non-canonical caller and explicitly
+                # deferred it as an "identity-merge design question" rather
+                # than silently leaving it undocumented. Per PolicyMemory's
+                # own identity model -- (action_type, params) is a reusable
+                # SITUATION, independent of what proposed it -- there is no
+                # stated reason a plan-driven execution of the same action
+                # should be tracked separately from a spontaneous one, so
+                # this reconnects it to the same canonical identity every
+                # other writer already uses. No plan_step:-prefixed historical
+                # rows are affected or migrated -- they simply stop being
+                # written to going forward.
+                h = pm.make_situation_hash(winner.action_type, winner.params)
                 pm.update_from_outcome(winner.action_type, h, reward)
             except Exception as _pm_err:
                 logger.debug(f"[VECTOR][act] plan step policy update skipped: {_pm_err}")
