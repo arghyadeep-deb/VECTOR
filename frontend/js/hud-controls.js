@@ -76,7 +76,17 @@
       ['chat',      'CHAT',      () => V.openWidget('chat')],
       ['goals',     'GOALS',     () => V.openWidget('goals')],
       ['approvals', 'APPROVALS', () => V.openWidget('approvals')],
-      ['screen',    'PANELS',    () => V.toggleWorkspace()],
+      ['screen',    'PANELS',    () => {
+        // Opening the workspace with nothing in it is a dead end (76_HUD_VISUAL_AUDIT.md
+        // F5) — the Command Center is the discovery layer, so surface it here instead of
+        // an empty canvas. Only when truly nothing is open; toggling closed, or reopening
+        // a workspace that already has panels in it, behaves exactly as before.
+        if (!V.isWorkspaceOpen && document.querySelectorAll('#workspace .widget').length === 0) {
+          V.openWidget('commandcenter');
+        } else {
+          V.toggleWorkspace();
+        }
+      }],
       ['sound',     'SOUND',     toggleSound, null, true]
     ];
 

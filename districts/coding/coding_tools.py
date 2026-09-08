@@ -19,10 +19,29 @@ from pathlib import Path
 
 from loguru import logger
 
+
+# ── F-5: coding-grant gate ────────────────────────────────────────────────────
+def _require_coding_grant(fn_name: str) -> bool:
+    """Return True if a gateway-approved code execution grant is active in the
+    current context. File-write helpers refuse (returning an error dict) when
+    this is False, so a direct importer that bypasses the gateway cannot write
+    files via these helpers. The grant is set by the autonomous loop after a
+    code_* action is approved (core.loop.permission_gateway.set_coding_grant)."""
+    try:
+        from core.loop.permission_gateway import is_coding_grant_active
+        return is_coding_grant_active()
+    except Exception as _e:
+        logger.debug(f"[VECTOR][coding_tools] coding-grant check unavailable for {fn_name}: {_e}")
+        return False
+
+
 # ── search_replace ────────────────────────────────────────────────────────────
 
 def apply_search_replace(file_path: str, search: str, replace: str) -> dict:
     """Apply a search/replace block to a file. Returns {success, diff, error}."""
+    if not _require_coding_grant("apply_search_replace"):
+        logger.warning("[VECTOR][coding_tools] apply_search_replace blocked — no active coding grant (gateway code_* approval required)")
+        return {"success": False, "error": "coding grant not active — call from within a gateway-approved code_* execution"}
     try:
         from core.coding_assistant.core.tools.builtins.search_replace import (
             SearchReplaceBlock,
@@ -126,6 +145,9 @@ def read_code_file(file_path: str, start_line: int | None = None,
 
 def write_code_file(file_path: str, content: str, create_dirs: bool = True) -> dict:
     """Write a file. Creates parent dirs if needed. Returns {success, file}."""
+    if not _require_coding_grant("write_code_file"):
+        logger.warning("[VECTOR][coding_tools] write_code_file blocked — no active coding grant (gateway code_* approval required)")
+        return {"success": False, "error": "coding grant not active — call from within a gateway-approved code_* execution"}
     try:
         p = Path(file_path)
         if create_dirs:
@@ -177,6 +199,9 @@ def multiedit_file(file_path: str, edits: list[dict]) -> dict:
     Each edit: {old_string, new_string, replace_all (optional)}.
     Returns {success, applied, failed, diff}.
     """
+    if not _require_coding_grant("multiedit_file"):
+        logger.warning("[VECTOR][coding_tools] multiedit_file blocked — no active coding grant (gateway code_* approval required)")
+        return {"success": False, "error": "coding grant not active — call from within a gateway-approved code_* execution"}
     try:
         from core.jcode.tools.multiedit import multiedit
         return multiedit(file_path, edits)
@@ -191,6 +216,9 @@ def apply_codex_patch(patch_text: str, base_dir: str = ".") -> dict:
     Supports Add File, Delete File, Update File (with Move to).
     Returns {success, results, touched_files}.
     """
+    if not _require_coding_grant("apply_codex_patch"):
+        logger.warning("[VECTOR][coding_tools] apply_codex_patch blocked — no active coding grant (gateway code_* approval required)")
+        return {"success": False, "error": "coding grant not active — call from within a gateway-approved code_* execution"}
     try:
         from core.jcode.tools.apply_patch import apply_patch
         return apply_patch(patch_text, base_dir)
@@ -251,6 +279,10 @@ async def run_code_safely(
 if __name__ == "__main__":
     # Smoke tests
     import tempfile, os
+
+    # F-5: the write helpers require an active coding grant. Set it for the self-test.
+    from core.loop.permission_gateway import set_coding_grant
+    set_coding_grant(True)
 
     # search_replace
     with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:

@@ -263,6 +263,7 @@ class ChannelRuntime:
                     {"role": "user", "content": message},
                 ],
                 timeout=30.0,
+                caller_id="channel_runtime_fallback",
             )
         except Exception as e:
             logger.warning("[VECTOR][channel_runtime] Ollama fallback failed: {}", e)

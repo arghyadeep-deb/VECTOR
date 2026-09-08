@@ -1,0 +1,63 @@
+{
+  "scenario": {
+    "label": "policy_influenced",
+    "situation": {},
+    "goals": null,
+    "candidates": [
+      {
+        "action_type": "search_web",
+        "params": {
+          "q": "policy_demo"
+        },
+        "goal_ids": [],
+        "confidence": 0.5,
+        "urgency": 0.5,
+        "timing_score": 1.0,
+        "estimated_cost_inr": 0.0,
+        "source": "system"
+      },
+      {
+        "action_type": "check_calendar",
+        "params": {},
+        "goal_ids": [],
+        "confidence": 0.5,
+        "urgency": 0.5,
+        "timing_score": 1.0,
+        "estimated_cost_inr": 0.0,
+        "source": "system"
+      }
+    ],
+    "policy_updates": [
+      {
+        "action_type": "search_web",
+        "params": {
+          "q": "policy_demo"
+        },
+        "reward": 0.95,
+        "note": ""
+      }
+    ],
+    "counterfactual_rejections": [],
+    "epistemic_beliefs": [],
+    "apply_counterfactual_veto": true,
+    "metadata": {}
+  },
+  "expected": {
+    "fingerprint": {
+      "selected_action": "search_web",
+      "selected_params": {
+        "q": "policy_demo"
+      },
+      "ranking": [
+        "search_web",
+        "check_calendar"
+      ],
+      "candidate_scores": {
+        "search_web": 0.58,
+        "check_calendar": 0.49
+      },
+      "counterfactual_vetoed": false
+    },
+    "fingerprint_hash": "0ef9fe30b295da9fffeeab3b5c86327a5b9ebbf70e6fefad4d58a1fde0f67145"
+  }
+}

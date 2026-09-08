@@ -148,6 +148,113 @@ class PermissionConfig(BaseModel):
         "gui_task", "click_screen", "desktop_task",              # VLM-driven desktop control
         "browser_task", "vision_control",                        # VLM-driven browser control
         "pc_type", "pc_click", "pc_launch_app", "launch_app",    # synthetic input / app launch
+        # Task 58B remediation (VECTOR_TECHNICAL_KNOWLEDGE/58B_FINAGENT_
+        # TERMINAL_PERMISSION_REMEDIATION.md): FinAgentAgent.launch_terminal()
+        # can trigger a real native cmake/build (auto_build=True) and a real
+        # subprocess.Popen() launch of the compiled terminal binary — the
+        # same class of consequential, resource-consuming, app-launch side
+        # effect launch_app already represents. Was previously unclassified
+        # (UNKNOWN → blocked at the gateway, but reachable unguarded via
+        # FinAgentAgent.run() directly, which called the launcher with no
+        # gateway step at all). NOT added to RED_INTERACTIVE_TOOLS below —
+        # unlike launch_app, nothing in the codebase routes an owner-typed/
+        # spoken command directly to this action_type; it is only reachable
+        # via FinAgentAgent, an agent-internal capability, so the standard
+        # owner-approval (Pushover/HUD/council) RED flow is correct, not the
+        # interactive bypass.
+        "launch_terminal",
+        # Task 58C remediation (VECTOR_TECHNICAL_KNOWLEDGE/58C_MLOPS_HF_TRAIN_
+        # PERMISSION_REMEDIATION.md): MLOpsAgent.hf_train() submits a caller-
+        # supplied Python script for REMOTE execution on HuggingFace Jobs
+        # cloud infrastructure, using the owner's HF credentials and
+        # incurring real (potentially GPU-tier) billing — a strictly more
+        # consequential class than execute_code's local sandboxed execution
+        # (comparable in severity to financial_transaction: real external
+        # cost, real remote code execution, under the owner's account). Was
+        # previously unclassified (UNKNOWN → blocked at the gateway, but
+        # reachable unguarded via MLOpsAgent.run() directly, which called
+        # the HF Jobs submission helper with no gateway step at all). NOT
+        # added to RED_INTERACTIVE_TOOLS below — same reasoning as
+        # launch_terminal: nothing routes an owner-typed/spoken command
+        # directly to this action_type; it is only reachable via MLOpsAgent,
+        # an agent-internal capability, so the standard owner-approval
+        # (Pushover/HUD/council) RED flow is correct, not the interactive
+        # bypass.
+        "hf_train",
+        # Task 58D remediation (VECTOR_TECHNICAL_KNOWLEDGE/58D_KARPATHY_
+        # AUTORESEARCH_PERMISSION_REMEDIATION.md, closing Task 59 Finding D):
+        # AutoresearchRunner.run_experiment_cycle() asks the local reasoning
+        # LLM to propose a change to train.py, WRITES that LLM-generated
+        # Python straight to disk, and EXECUTES it via a real, unsandboxed
+        # subprocess.run() — the same class of ungated local code execution
+        # as launch_terminal's build/launch, minus a sandbox boundary
+        # (execute_code's VectorSandbox path was not reused here: it has no
+        # GPU/CUDA env passthrough or long-running-training support without
+        # a larger redesign, which is out of scope for closing this one
+        # bypass — see the remediation doc's Remediation Design section).
+        # Was previously unclassified (UNKNOWN → blocked at the gateway, but
+        # reachable unguarded via AutoresearchRunner.run() directly, which
+        # called the write-then-execute loop with no gateway step at all).
+        # NOT added to RED_INTERACTIVE_TOOLS below — same reasoning as
+        # launch_terminal/hf_train: nothing routes an owner-typed/spoken
+        # command directly to this action_type; it is only reachable via
+        # AutoresearchRunner, an agent-internal capability, so the standard
+        # owner-approval (Pushover/HUD/council) RED flow is correct, not the
+        # interactive bypass.
+        "run_experiment_cycle",
+        # Task 58E remediation (VECTOR_TECHNICAL_KNOWLEDGE/58E_VECTOR_BACKTEST_
+        # STRATEGY_PERMISSION_REMEDIATION.md, closing a Task 59 high-risk
+        # residual): BacktestAgent.vt_backtest(strategy_code=...) writes
+        # caller-supplied Python and invokes the vendored vector_backtest
+        # runner, which dynamically imports and instantiates it as a
+        # SignalEngine — real local code execution, no PermissionGateway
+        # sandbox. Gated unconditionally (not only when strategy_code is
+        # given): the runner unconditionally requires code/signal_engine.py
+        # to exist and there is no default/fallback engine in the current
+        # architecture, so every functional invocation of this capability
+        # depends on caller-supplied code reaching that path one way or
+        # another — see the remediation doc's Remediation Design section.
+        # Was previously unclassified (UNKNOWN → blocked at the gateway, but
+        # reachable unguarded via BacktestAgent.run() directly). NOT added
+        # to RED_INTERACTIVE_TOOLS below — same reasoning as launch_terminal/
+        # hf_train/run_experiment_cycle: nothing routes an owner-typed/
+        # spoken command directly to this action_type; it is only reachable
+        # via BacktestAgent, an agent-internal capability, so the standard
+        # owner-approval (Pushover/HUD/council) RED flow is correct, not the
+        # interactive bypass.
+        "vt_backtest",
+        # Task 58F remediation (VECTOR_TECHNICAL_KNOWLEDGE/58F_INCIDENT_
+        # PLAYBOOK_DESTRUCTIVE_ACTION_PERMISSION_REMEDIATION.md, closing the
+        # Task 59 incident-playbook residual): IncidentPlaybookRunner's
+        # destructive handlers ran real, unsandboxed OS-level operations
+        # (netsh firewall rule add/delete; taskkill by PID/name — the latter
+        # unrestricted, able to target any process) with caller/evidence-
+        # controlled targets and zero PermissionGateway involvement.
+        # Reachable via Governor's ordinary exact-match capability routing
+        # to IncidentPlaybookRunner ("execute_playbook" is a declared
+        # capability) — previously unclassified (UNKNOWN → blocked at the
+        # gateway, but reachable unguarded via IncidentPlaybookRunner.
+        # execute_playbook()/run() directly, which called these handlers
+        # with no gateway step at all). Gated at the individual destructive
+        # HANDLER level (not the top-level execute_playbook/run_playbook
+        # capability) so the playbook system's read-only/notification steps
+        # (log_evidence, notify, capture_process_snapshot,
+        # escalate_to_human) — and a future genuinely-autonomous SIEM
+        # auto-response pipeline (districts/security/siem_pipeline.py,
+        # confirmed dormant/not-currently-bootstrapped this task, but built
+        # for exactly this purpose) — are not forced through an owner-
+        # approval gate for actions that were never dangerous, per the
+        # remediation doc's Phase 2/Chosen Security Boundary sections.
+        # isolate_process is not separately listed: it delegates internally
+        # to the same kill_process handler, which is now gated once, at the
+        # shared implementation, covering both.  NOT added to
+        # RED_INTERACTIVE_TOOLS below — same reasoning as every prior
+        # 58-series finding: nothing routes an owner-typed/spoken command
+        # directly to these action_types; they are only reachable via
+        # IncidentPlaybookRunner, an agent-internal capability, so the
+        # standard owner-approval (Pushover/HUD/council) RED flow is
+        # correct, not the interactive bypass.
+        "block_ip", "unblock_ip", "kill_process",
         "code_task", "code_generate", "code_fix", "code_debug",  # code write + execute paths
         "download_file",                                         # arbitrary fetch-to-disk
         # 2026-08-05: moved from YELLOW. This dispatches to the communications
@@ -602,6 +709,13 @@ class VectorSettings(BaseSettings):
     # call warning above. Per-site, not global — a new offender is always caught
     # on its first hit; a hot, already-known offender doesn't drown the logs.
     VC_LLM_LOOP_GUARD_COOLDOWN_SEC: float = Field(300.0, ge=0.0, le=3600.0)
+    # Task 89B (event-fanout remediation): per-edge cooldown in
+    # core/loop/autonomous_loop.py::_fanout_handler. An "edge" is
+    # (source_event_type, target_district, target_task_type); firing an
+    # edge starts this cooldown regardless of the downstream dispatch's
+    # outcome (success/failure/no_agents all consume it identically). Not
+    # persisted — a process restart resets all cooldowns by design.
+    FANOUT_EDGE_COOLDOWN_SEC: float = Field(120.0, ge=0.0, le=3600.0)
     VECTOR_DB_KEY: SecretStr = SecretStr("")
 
     # API keys — SecretStr prevents values leaking into logs or repr()
@@ -893,6 +1007,7 @@ CONFIG: dict = {
     "vc_llm_loop_guard_strict": _s.VC_LLM_LOOP_GUARD_STRICT,
     "vc_llm_loop_guard_cooldown_sec": _s.VC_LLM_LOOP_GUARD_COOLDOWN_SEC,
     "ssrf_dns_resolve_timeout_sec": _s.SSRF_DNS_RESOLVE_TIMEOUT_SEC,
+    "fanout_edge_cooldown_sec": _s.FANOUT_EDGE_COOLDOWN_SEC,
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "cf_worker_url": _s.CF_WORKER_URL,
     "oauth": {
@@ -1148,6 +1263,13 @@ CONFIG: dict = {
     },
     "task_queue": {
         "max_concurrent": 8,
+    },
+    "intent_matcher": {
+        "enabled": True,
+        "examples_path": "data/intent_examples.json",
+        "similarity_threshold": 0.85,
+        "embedding_model": "nomic-embed-text",
+        "cache_embeddings": True,
     },
     "memory_tree": {
         # A full read/parse/rewrite of the whole tree file on every single

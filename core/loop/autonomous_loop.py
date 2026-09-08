@@ -3,6 +3,7 @@ import asyncio
 import datetime
 import hashlib
 import json
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable
 
@@ -84,6 +85,50 @@ def _record_job_run(event) -> None:
                         getattr(event, "job_id", "?"), e)
 
 
+# ── Task 89B: event fan-out cooldown / dedup ────────────────────────────────
+# Prevents AutonomousLoop._fanout_handler from re-firing the same downstream
+# dispatch over and over inside a tight event cycle (e.g. the marketing <->
+# data_analytics <-> strategy/content/marketing loop through ANALYTICS_READY,
+# and the content <-> qa loop through CONTENT_REVIEWED). This is dedup on top
+# of the existing EVENT_TRIGGER_MAP structure only — it does not change which
+# edges exist, only how often each one is allowed to fire.
+#
+# Edge identity = (source_event_type, target_district, target_task_type) — a
+# plain 3-tuple, matching the (district, task_type, params_template) shape
+# get_downstream_tasks() already returns, plus the event that triggered it.
+#
+# Cooldown state is a bare in-process module-level dict (mirrors the existing
+# module-level helpers in this file, e.g. _cron_last_run-style bookkeeping
+# used elsewhere in the loop) — no persistence, no DB table. A process
+# restart naturally clears it, which is the correct, desired behavior: a
+# freshly started loop should not inherit stale cooldowns from a prior run.
+_FANOUT_EDGE_COOLDOWN_SEC: float = CONFIG.get("fanout_edge_cooldown_sec", 120.0)
+_fanout_edge_last_fired: dict[tuple[str, str, str], float] = {}
+
+
+def _fanout_edge_should_fire(edge: tuple[str, str, str]) -> bool:
+    """Decide whether a fan-out edge may dispatch right now, and if so,
+    atomically start its cooldown.
+
+    The timestamp is recorded the moment the edge is ACCEPTED — i.e. BEFORE
+    governor.dispatch() is called, not after any result is known. Success,
+    failure, and no-agent-available outcomes all consume the cooldown
+    identically; none of them get to bypass or shorten it. Returns False
+    (and logs at DEBUG — this is expected, frequent traffic shaping, not an
+    error) if the edge is still inside its cooldown window.
+    """
+    now = time.monotonic()
+    last_fired = _fanout_edge_last_fired.get(edge)
+    if last_fired is not None and (now - last_fired) < _FANOUT_EDGE_COOLDOWN_SEC:
+        logger.debug(
+            "[VECTOR][event_fanout] edge {} still cooling down ({:.1f}s remaining) — dropping dispatch",
+            edge, _FANOUT_EDGE_COOLDOWN_SEC - (now - last_fired),
+        )
+        return False
+    _fanout_edge_last_fired[edge] = now
+    return True
+
+
 class AutonomousLoop:
     """
     RULE 2 — THE LOOP NEVER STOPS.
@@ -120,9 +165,29 @@ class AutonomousLoop:
         if self._event_bus is None:
             from core.event_bus.bus import get_event_bus
             self._event_bus = await get_event_bus()
-            from core.event_bus.worker_pool import WorkerPool
-            self._worker_pool = WorkerPool(max_workers=10)
+            # Only create a WorkerPool if run_forever hasn't already created one
+            if self._worker_pool is None:
+                from core.event_bus.worker_pool import WorkerPool
+                self._worker_pool = WorkerPool(max_workers=10, name="event_bus")
         return self._event_bus
+
+    def _tracked_task(self, coro, name: str = "") -> asyncio.Task:
+        """Create an asyncio.Task that logs unhandled exceptions instead of
+        silently swallowing them. The task handle is stored in _background_tasks
+        (pruned on completion) so it's not garbage-collected mid-execution."""
+        task = asyncio.create_task(coro, name=f"tracked_{name}")
+        if not hasattr(self, "_background_tasks"):
+            self._background_tasks: set[asyncio.Task] = set()
+        self._background_tasks.add(task)
+
+        def _on_done(t: asyncio.Task) -> None:
+            self._background_tasks.discard(t)
+            if not t.cancelled() and t.exception():
+                logger.warning("[VECTOR][autonomous_loop] background task {!r} failed: {}",
+                               name, t.exception())
+
+        task.add_done_callback(_on_done)
+        return task
 
     async def _fanout_handler(self, event) -> None:
         """Fan-out event to subscribed agents with gather + timeout, then trigger downstream tasks."""
@@ -133,7 +198,7 @@ class AutonomousLoop:
             et = event.event_type.value if event.event_type else ""
             # Event-driven think wake: voice input never waits for the 10s poll
             if et == "voice_input":
-                asyncio.create_task(self.wake_think())
+                self._tracked_task(self.wake_think(), "wake_think")
             targets = [
                 agent for agent in registry.get_all_agents()
                 if et in agent.subscribed_events
@@ -152,9 +217,12 @@ class AutonomousLoop:
             if event.event_type:
                 governor = self._get_governor()
                 for district, task_type, params_template in get_downstream_tasks(event.event_type):
+                    edge = (et, district, task_type)
+                    if not _fanout_edge_should_fire(edge):
+                        continue
                     params = {k: (v.format(event_type=et, event_data=str(getattr(event, 'data', {})))) for k, v in params_template.items()}
                     task = {"type": task_type, "district": district, "params": params, "source_event": et}
-                    asyncio.create_task(governor.dispatch(task))
+                    self._tracked_task(governor.dispatch(task), f"dispatch_{district}_{task_type}")
         except Exception as e:
             logger.debug("[VECTOR][autonomous_loop] fan-out handler error: {}", e)
 
@@ -411,6 +479,35 @@ class AutonomousLoop:
                 rq = RetryQueue.get()
                 for item in rq.pop_due(limit=5):
                     try:
+                        # F-10: retried actions previously skipped the act-layer's
+                        # pre-filters (Counterfactual/ThreatDetector/RedTeam) because
+                        # they call gw.execute() directly. Run the cheap pre-filters
+                        # here so a retry can't bypass a counterfactual block or a
+                        # known-threat action. The gateway itself still enforces the
+                        # tier gate (the authoritative check); this is defense-in-depth.
+                        import json as _json
+                        _proposal = f"{item.action_type} {_json.dumps(item.params, default=str)}"
+                        _skip = False
+                        try:
+                            from core.memory.counterfactual import CounterfactualMemory
+                            _cf = CounterfactualMemory()
+                            _should_avoid, _cf_score, _cf_reason = _cf.should_avoid(_proposal, threshold=0.7)
+                            if _should_avoid and _cf_score > 0.7:
+                                logger.warning(
+                                    "[VECTOR][retry] {} dropped — counterfactual block (score={:.2f}): {}",
+                                    item.action_type, _cf_score, _cf_reason[:80],
+                                )
+                                rq.requeue_or_dlq(item, f"counterfactual block: {_cf_reason[:120]}")
+                                _skip = True
+                        except Exception as _cf_err:
+                            logger.debug("[VECTOR][retry] counterfactual pre-filter skipped: {}", _cf_err)
+                        if _skip:
+                            continue
+                        # ThreatDetector scan on the action description
+                        if self._scan_threats(_proposal, context="retry"):
+                            logger.warning("[VECTOR][retry] {} dropped — ThreatDetector flagged it", item.action_type)
+                            rq.requeue_or_dlq(item, "blocked by ThreatDetector on retry")
+                            continue
                         gw = self._get_gateway()
                         action = Action(
                             action_type=item.action_type,
@@ -479,6 +576,40 @@ class AutonomousLoop:
                 return None
         return None
 
+    @staticmethod
+    def _cron_last_run_db(job_id: str) -> datetime.datetime | None:
+        """Read the last fire time for a cron job from SQLite (survives restarts)."""
+        try:
+            from core.memory.episodic import get_db_connection
+            conn = get_db_connection()
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS cron_dedup "
+                "(job_id TEXT PRIMARY KEY, fired_at TEXT)"
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT fired_at FROM cron_dedup WHERE job_id = ?", (job_id,)
+            ).fetchone()
+            if row:
+                return datetime.datetime.fromisoformat(row[0])
+        except Exception as e:
+            logger.debug("[VECTOR][cron] dedup read failed: {}", e)
+        return None
+
+    @staticmethod
+    def _cron_mark_fired_db(job_id: str) -> None:
+        """Record that a cron job fired now (persisted to SQLite)."""
+        try:
+            from core.memory.episodic import get_temp_cursor
+            now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            with get_temp_cursor() as cursor:
+                cursor.execute(
+                    "INSERT OR REPLACE INTO cron_dedup (job_id, fired_at) VALUES (?, ?)",
+                    (job_id, now_iso),
+                )
+        except Exception as e:
+            logger.debug("[VECTOR][cron] dedup write failed: {}", e)
+
     async def _fire_vnative_cron_jobs(self) -> None:
         """Check and fire VECTOR-native cron job entries at their scheduled times."""
         entries: list[tuple[str, str, Callable]] = []
@@ -503,10 +634,11 @@ class AutonomousLoop:
                 continue
             hour, minute = parsed
             if now.hour == hour and now.minute == minute:
-                last = self._cron_last_run.get(job_id)
+                # Dedup: check SQLite for last fire time (survives restarts)
+                last = self._cron_last_run_db(job_id)
                 window_start = now.replace(second=0, microsecond=0)
                 if last is None or last < window_start:
-                    self._cron_last_run[job_id] = now
+                    self._cron_mark_fired_db(job_id)
                     logger.info(f"[VECTOR][cron] firing {job_id}")
                     try:
                         result = fn()
@@ -545,8 +677,10 @@ class AutonomousLoop:
     def _emit_crash_signal(self, exc: Exception) -> None:
         try:
             from districts.emergency.main import _emit
-            import asyncio
-            asyncio.create_task(_emit("system", "process_crash", True, "autonomous_loop", {"error": str(exc)[:200]}))
+            self._tracked_task(
+                _emit("system", "process_crash", True, "autonomous_loop", {"error": str(exc)[:200]}),
+                "crash_signal",
+            )
         except Exception:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
@@ -727,6 +861,18 @@ class AutonomousLoop:
         # Run in thread — get_world_state() calls ScreenObserver.observe() (blocking OCR)
         world_state = await asyncio.to_thread(self._get_context().get_world_state)
 
+        # EpistemicTracker: track beliefs at the exact point VECTOR has formed
+        # semantic assessments from raw sense data + memory retrieval (Gap 3).
+        # This is where INFORMATION → BELIEF happens.
+        try:
+            ctx = self._get_context()
+            if hasattr(ctx, "track_beliefs"):
+                updated = ctx.track_beliefs(world_state)
+                if updated:
+                    logger.debug(f"[VECTOR][think] epistemic beliefs updated: {updated}")
+        except Exception as _eb:
+            logger.debug(f"[VECTOR][think] epistemic belief tracking skipped: {_eb}")
+
         actions = self._get_goals().generate_immediate_actions(limit=4)
         if not actions:
             return
@@ -778,6 +924,15 @@ class AutonomousLoop:
                     source="think_loop",
                 )
             )
+
+        # ── Plan candidates: next ready steps from active plans ──────────────
+        try:
+            plan_candidates = self._get_plan_candidates()
+            if plan_candidates:
+                candidates.extend(plan_candidates)
+                logger.debug(f"[VECTOR][think] {len(plan_candidates)} plan step candidates added")
+        except Exception as _pc_err:
+            logger.debug(f"[VECTOR][think] plan candidates suppressed: {_pc_err}")
 
         # Avatar on_think: 5% persona nudge based on current mood (mirrors causal_score blending)
         if getattr(self, '_avatar', None) is not None:
@@ -879,6 +1034,14 @@ class AutonomousLoop:
                     logger.debug("[VECTOR][act] proactive surfacing skipped: {}", _pa_err)
                 return
 
+            # ── Plan step routing — execute through PlanRunner, still via gateway ──
+            if winner.source and winner.source.startswith("plan:"):
+                try:
+                    await self._act_on_plan_step(winner)
+                except Exception as _ps_err:
+                    logger.error(f"[VECTOR][act] plan step execution failed: {_ps_err}")
+                return
+
             # VectorCode routing — coding actions go through permission_gateway first, then bridge
             # RULE 3: LLM has ZERO direct access — gateway always gates, even for VectorCode tasks
             _VC_ACTION_TYPES = {"code_task", "code_review_vc", "code_generate", "code_fix", "code_debug"}
@@ -891,7 +1054,16 @@ class AutonomousLoop:
                         if _level == "FORBIDDEN":
                             logger.warning(f"[VECTOR][act] VectorCode action '{winner.action_type}' is FORBIDDEN — blocked")
                             return
-                        if _level == "RED":
+                        # 53_PERMISSION_BOUNDARY_INTEGRITY.md Finding 2 — see
+                        # the identical fix in the skill-matching block below
+                        # for the full rationale. No _VC_ACTION_TYPES member
+                        # is currently classified YELLOW (all are RED or
+                        # GREEN — see core/config.py), so this is a
+                        # consistency/defense-in-depth fix, not an active
+                        # bypass today; kept identical to the skill-matching
+                        # block so a future YELLOW addition here can't
+                        # silently reintroduce the same gap.
+                        if _level in ("RED", "YELLOW"):
                             from core.loop.permission_gateway import Action as _GWAction
                             _gw_result = await gw.execute(_GWAction(
                                 action_type=winner.action_type,
@@ -899,20 +1071,30 @@ class AutonomousLoop:
                                 proposed_by="think_loop",
                             ))
                             if not _gw_result.approved:
-                                logger.warning(f"[VECTOR][act] RED VectorCode action '{winner.action_type}' denied: {_gw_result.reason}")
+                                logger.warning(f"[VECTOR][act] {_level} VectorCode action '{winner.action_type}' denied: {_gw_result.reason}")
                                 return
-                        # GREEN / YELLOW / UNKNOWN → proceed to bridge
+                        # GREEN / UNKNOWN → proceed to bridge
                     from districts.coding.vectorcode_bridge import get_bridge
                     bridge = get_bridge()
                     if bridge.is_available():
-                        vc_result = await bridge.run_task(
-                            winner.params.get("title", winner.action_type),
-                            mode="run",
-                        )
+                        # F-5: mark the context as gateway-approved for code
+                        # execution so coding_tools file-write helpers accept calls
+                        # from this path. Reset after the bridge runs.
+                        from core.loop.permission_gateway import set_coding_grant
+                        set_coding_grant(True)
+                        try:
+                            vc_result = await bridge.run_task(
+                                winner.params.get("title", winner.action_type),
+                                mode="run",
+                            )
+                        finally:
+                            set_coding_grant(False)
                         reward = 0.8 if vc_result.get("status") == "ok" else 0.3
                         pm = self._get_policy()
-                        sk = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
-                        h = hashlib.sha256(sk.encode()).hexdigest()[:12]
+                        # Task 89 (D2): canonical (action_type, params) identity,
+                        # shared with decision_engine.py's reader — see
+                        # PolicyMemory.make_situation_hash()'s docstring.
+                        h = pm.make_situation_hash(winner.action_type, winner.params)
                         pm.update_from_outcome(winner.action_type, h, reward)
                         logger.info(f"[VECTOR][act] VectorCode {winner.action_type} → {vc_result.get('status')} reward={reward}")
                         return
@@ -971,18 +1153,27 @@ class AutonomousLoop:
                         proposal=_proposal,
                         reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
                     )
-                    # RULE 7 — without this, policy_score for this action never
-                    # drops, so decision_engine keeps proposing the exact same
-                    # already-rejected action every cycle forever (confirmed
-                    # live during a 2026-06-24 soak run: every ~10s, same
-                    # winner, same auto-block, no learning).
+                    # Task 89 (D3) — suppression/reward channel separation.
+                    # This used to call update_from_outcome(..., reward=0.05):
+                    # a hardcoded literal blended into the SAME avg_reward
+                    # cumulative mean real 5-factor/VectorCode outcomes
+                    # accumulate into -- a control-flow constant permanently
+                    # contaminating the real reward signal. record_suppression()
+                    # tracks vetoes in a separate veto_count column instead,
+                    # never touching avg_reward/sample_count. CounterfactualMemory's
+                    # own `rejections` table (record_rejection() above) already
+                    # captures full veto detail; this is not a duplicate of that
+                    # -- it exists only so a suppression-only row is
+                    # distinguishable from a real-outcome row under the same
+                    # canonical (action_type, params) identity decision_engine
+                    # reads from (PolicyMemory.make_situation_hash()).
                     try:
-                        _sit_hash = hashlib.sha256(
-                            f"{winner.action_type}:{sorted(winner.params.items())}".encode()
-                        ).hexdigest()[:12]
-                        self._get_policy().update_from_outcome(winner.action_type, _sit_hash, reward=0.05)
+                        _sit_hash = self._get_policy().make_situation_hash(
+                            winner.action_type, winner.params
+                        )
+                        self._get_policy().record_suppression(winner.action_type, _sit_hash)
                     except Exception as _pen_err:
-                        logger.warning("[VECTOR][counterfactual] policy penalty failed: {}", _pen_err)
+                        logger.warning("[VECTOR][counterfactual] suppression record failed: {}", _pen_err)
                     return
                 elif 0.4 < _cf_score <= 0.7 and _cf_reason:
                     logger.info(
@@ -1057,7 +1248,17 @@ class AutonomousLoop:
                                     f"[VECTOR][skills] '{winner.action_type}' is FORBIDDEN — skill '{skill.name}' blocked"
                                 )
                                 return
-                            if _level == "RED":
+                            # 53_PERMISSION_BOUNDARY_INTEGRITY.md Finding 2:
+                            # this only checked RED, so a YELLOW-classified
+                            # action_type matched to a skill silently got
+                            # GREEN (no-confirmation) treatment instead of
+                            # the owner-confirmation/trust-ladder flow
+                            # gw.execute() already implements for YELLOW —
+                            # gw.execute() itself is the single source of
+                            # truth for what YELLOW requires, so routing it
+                            # through the same call RED already uses is the
+                            # complete fix (no new logic).
+                            if _level in ("RED", "YELLOW"):
                                 from core.loop.permission_gateway import Action as _GWAction
                                 _sk_gw = await gw.execute(_GWAction(
                                     action_type=winner.action_type,
@@ -1066,11 +1267,21 @@ class AutonomousLoop:
                                 ))
                                 if not _sk_gw.approved:
                                     logger.warning(
-                                        f"[VECTOR][skills] RED skill '{skill.name}' denied: {_sk_gw.reason}"
+                                        f"[VECTOR][skills] {_level} skill '{skill.name}' denied: {_sk_gw.reason}"
                                     )
                                     _skill_allowed = False
                         if _skill_allowed:
-                            skill_result = sm.execute(skill.name, winner.params)
+                            # F-5: a matched skill that writes code runs within
+                            # the gateway-approved code context.
+                            from core.loop.permission_gateway import set_coding_grant
+                            _is_code_skill = winner.action_type in _VC_ACTION_TYPES
+                            if _is_code_skill:
+                                set_coding_grant(True)
+                            try:
+                                skill_result = sm.execute(skill.name, winner.params)
+                            finally:
+                                if _is_code_skill:
+                                    set_coding_grant(False)
                             if skill_result and getattr(skill_result, "status", None) != "error":
                                 result = {"status": "ok", "skill": skill.name}
                                 _skill_executed = True
@@ -1108,37 +1319,49 @@ class AutonomousLoop:
                 )
 
                 pm = self._get_policy()
-                situation_key = f"{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
-                h = hashlib.sha256(situation_key.encode()).hexdigest()[:12]
+                # Task 89 (D2): canonical (action_type, params) identity,
+                # shared with decision_engine.py's reader — see
+                # PolicyMemory.make_situation_hash()'s docstring.
+                h = pm.make_situation_hash(winner.action_type, winner.params)
                 pm.update_from_outcome(winner.action_type, h, reward)
+
+                # Epistemic belief update (JARVIS Gap 3): record the outcome
+                # confidence for this action's domain so future scoring can
+                # dampen uncertain/stale domains.
+                try:
+                    self._get_decision().record_epistemic_belief(
+                        winner.action_type,
+                        result.get("status", "unknown"),
+                        reward,
+                    )
+                except Exception as _eb_err:
+                    logger.debug("[VECTOR][act] epistemic belief update skipped: {}", _eb_err)
 
                 # Close the neural learning loop: train the policy network on the
                 # real reward for the action it observed at decision time.
                 try:
-                    self._get_decision_engine().record_outcome(reward)
+                    self._get_decision().record_outcome(reward)
                 except Exception as _ne:
-                    logger.debug(f"[VECTOR][act] neural record_outcome skipped: {_ne}")
+                    logger.warning(f"[VECTOR][act] neural record_outcome failed: {_ne}")
 
-                # Goal feedback loop: a successful action on a linked goal advances its progress.
-                # Reward-scaled increment so high-reward outcomes move the goal more.
+                # Goal feedback loop: REMOVED 2026-09-08 (Task 89C — goal progress semantics).
+                # This block used to call gs.update_goal_progress() with a reward-scaled
+                # increment on every successful action linked to a goal. Because
+                # update_goal_progress() unconditionally sets status="completed" once
+                # progress >= 1.0 (with no completion-criterion check), pure reward
+                # accumulation could — and did — silently auto-complete goals that were
+                # never meant to have a one-time "done" state (e.g. a recurring/habitual
+                # goal). See VECTOR_TECHNICAL_KNOWLEDGE/89C_GOAL_PROGRESS.md for the full
+                # writeup. Progress is no longer mutated here; explicit callers (human/API)
+                # still use update_goal_progress() exactly as before. We keep a
+                # observability-only log noting which goals this reward was associated
+                # with — no goal.progress mutation happens here anymore.
                 if winner.goal_ids and completed >= 1.0:
-                    try:
-                        gs = self._get_goals()
-                        _increment = round(0.10 * reward, 3)  # up to +0.10 per successful action
-                        for _gid in winner.goal_ids:
-                            _goal = next((g for g in gs.get_active_goals() if g["id"] == _gid), None)
-                            if _goal is not None:
-                                _new_progress = min(1.0, _goal.get("progress", 0.0) + _increment)
-                                gs.update_goal_progress(
-                                    _gid, _new_progress,
-                                    note=f"+{_increment} from {winner.action_type} (reward={reward:.2f})",
-                                )
-                                logger.info(
-                                    "[VECTOR][goal] '{}' progress {:.2f} → {:.2f} (+{} via {})",
-                                    _gid, _goal.get("progress", 0.0), _new_progress, _increment, winner.action_type,
-                                )
-                    except Exception as _gp_err:
-                        logger.warning("[VECTOR][goal] progress update suppressed: {}", _gp_err)
+                    logger.debug(
+                        "[VECTOR][goal] reward={:.3f} associated with goal_ids={} via {} "
+                        "(progress NOT updated — reward-driven goal completion removed, Task 89C)",
+                        reward, winner.goal_ids, winner.action_type,
+                    )
 
                 # Gap 6: record action -> outcome causal edge so the graph populates over time
                 try:
@@ -1251,6 +1474,115 @@ class AutonomousLoop:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         return None
 
+    # ── Plan system integration ──────────────────────────────────────────────
+
+    def _get_plan_store(self):
+        """Lazy-init PlanStore singleton."""
+        if getattr(self, "_plan_store", None) is None:
+            from core.runtime.plans import get_plan_store
+            self._plan_store = get_plan_store()
+        return self._plan_store
+
+    def _get_plan_candidates(self) -> list:
+        """Get next ready steps from all active plans as Candidate objects.
+
+        Each ready step becomes a Candidate with source="plan:{plan_id}:{step_id}"
+        and a +0.05 urgency bonus (plan momentum). The existing decision engine
+        scores these alongside goal candidates — no separate path.
+        """
+        from core.loop.decision_engine import Candidate
+
+        plan_store = self._get_plan_store()
+        candidates = []
+        for plan in plan_store.active_plans():
+            for step in plan.next_ready_steps(limit=2):
+                c = Candidate(
+                    action_type=step.action_type,
+                    params={**step.params, "_plan_id": plan.id, "_step_id": step.id},
+                    goal_ids=[plan.goal_id] if plan.goal_id else [],
+                    confidence=step.confidence,
+                    urgency=min(1.0, 0.55 + 0.05),  # plan momentum bonus
+                    timing_score=1.0,
+                    estimated_cost_inr=step.estimated_cost_inr,
+                    source=f"plan:{plan.id}:{step.id}",
+                )
+                candidates.append(c)
+        return candidates
+
+    async def _act_on_plan_step(self, winner: "Candidate") -> None:
+        """Execute a plan step through PlanRunner (which uses the permission gateway).
+
+        Called from _act_on when winner.source starts with 'plan:'.
+        Still goes through the gateway — PlanRunner.execute_step() calls
+        AutonomousExecutor which wraps permission_gateway.
+        """
+        source_parts = winner.source.split(":")
+        if len(source_parts) < 3:
+            logger.warning(f"[VECTOR][act] malformed plan source: {winner.source}")
+            return
+        plan_id, step_id = source_parts[1], source_parts[2]
+
+        plan_store = self._get_plan_store()
+        plan = plan_store.get(plan_id)
+        if plan is None:
+            logger.warning(f"[VECTOR][act] plan {plan_id} not found — skipping")
+            return
+        step = plan.get_step(step_id)
+        if step is None:
+            logger.warning(f"[VECTOR][act] step {step_id} not found in plan {plan_id}")
+            return
+
+        try:
+            from core.runtime.plans import PlanRunner
+            runner = PlanRunner(store=plan_store)
+            result = await runner.execute_step(plan, step)
+            logger.info(
+                "[VECTOR][act] plan step {}:{} → {} (plan={:.0%}, status={})",
+                plan_id, step_id,
+                result.get("status"), result.get("plan_progress", 0),
+                result.get("plan_status"),
+            )
+
+            # Update policy (RULE 7) — same reward shape as _act_on
+            completed = 1.0 if result.get("status") == "completed" else 0.0
+            reward = 0.7 if completed else 0.3
+            try:
+                import hashlib, json
+                pm = self._get_policy()
+                sk = f"plan_step:{winner.action_type}:{json.dumps(winner.params, sort_keys=True, default=str)}"
+                h = hashlib.sha256(sk.encode()).hexdigest()[:12]
+                pm.update_from_outcome(winner.action_type, h, reward)
+            except Exception as _pm_err:
+                logger.debug(f"[VECTOR][act] plan step policy update skipped: {_pm_err}")
+
+            # Epistemic belief update
+            try:
+                self._get_decision().record_epistemic_belief(
+                    winner.action_type,
+                    result.get("status", "unknown"),
+                    reward,
+                )
+            except Exception:
+                pass
+
+            # Goal progress on completion: REMOVED 2026-09-08 (Task 89C, lead-integration
+            # follow-up — the plan-step twin of the main reward block's "Goal feedback
+            # loop", same reward-scaled-increment / unconditional-auto-complete defect,
+            # not present in Agent C's stale worktree base so not caught by that agent's
+            # own diff; found and fixed during T89 lead integration by applying the exact
+            # same, already-tested C1 fix). Progress is no longer mutated here; explicit
+            # callers (human/API) still use update_goal_progress() exactly as before. See
+            # VECTOR_TECHNICAL_KNOWLEDGE/89C_GOAL_PROGRESS.md.
+            if completed and plan.goal_id:
+                logger.debug(
+                    "[VECTOR][goal] reward={:.3f} associated with goal_id={} via plan step {} "
+                    "(progress NOT updated — reward-driven goal completion removed, Task 89C)",
+                    reward, plan.goal_id, step_id,
+                )
+
+        except Exception as e:
+            logger.error(f"[VECTOR][act] plan step execution error: {e}")
+
     # ─── Reflect ──────────────────────────────────────────────────────────────
 
     def _notify_user(self, text: str) -> None:
@@ -1272,11 +1604,61 @@ class AutonomousLoop:
         can adapt the LLM response style to the addressed person's preferences.
         Stores person_id as _current_person_id; returns it for testability.
         Default is 'owner' -- the primary user of this VECTOR instance.
+
+        Also runs correction detection: if the owner is correcting VECTOR's
+        previous response, the correction is stored as a lesson for future use.
         Never raises.
         """
         self._current_person_id = person_id
         logger.debug("[VECTOR][loop] user input from person={} len={}", person_id, len(text))
+
+        # ── Correction detection (owner only) ────────────────────────────
+        if person_id == "owner":
+            try:
+                self._detect_and_store_correction(text)
+            except Exception as _cl_err:
+                logger.debug("[VECTOR][loop] correction detection suppressed: {}", _cl_err)
+
         return person_id
+
+    def _detect_and_store_correction(self, utterance: str) -> None:
+        """Check if the owner's utterance is a correction and store it as a lesson.
+
+        Retrieves the most recent VECTOR response from episodic_memory to use as
+        the 'wrong_behavior' context for lesson extraction.
+        """
+        try:
+            from core.memory.correction_learner import CorrectionLearner
+            learner = CorrectionLearner()
+
+            # Get VECTOR's last response as context for the correction
+            prior_response = ""
+            try:
+                mem = self._get_memory()
+                recent = mem.recall("", limit=3, event_type="vector_response")
+                if recent:
+                    prior_response = recent[0].get("content", "")[:300]
+            except Exception:
+                pass
+
+            context = {
+                "situation": getattr(self, '_current_action_type', 'conversation') or "conversation",
+                "person_id": "owner",
+            }
+
+            lesson = learner.process_owner_message(
+                utterance=utterance,
+                prior_vector_response=prior_response,
+                context=context,
+            )
+            if lesson is not None:
+                logger.info(
+                    "[VECTOR][loop] correction stored: domain={} lesson='{}'",
+                    lesson.domain,
+                    lesson.lesson[:60],
+                )
+        except Exception as e:
+            logger.debug("[VECTOR][loop] correction detection failed: {}", e)
 
     async def reflect_loop(self):
         """2AM daily reflection. Never crashes."""
@@ -1335,6 +1717,35 @@ class AutonomousLoop:
         except Exception as e:
             logger.error(f"[VECTOR][reflect] DailyReviewer failed: {e}")
 
+        # ── Plan review: pause stale plans, abandon low-confidence plans ──────
+        try:
+            from core.runtime.plans import get_plan_store
+            _plan_store = get_plan_store()
+            _now = datetime.datetime.now(datetime.timezone.utc)
+            for _plan in _plan_store.active_plans():
+                _age_days = (_now - datetime.datetime.fromisoformat(_plan.created_at)).days
+                # Abandon low-confidence plans that have exhausted replan budget
+                if _plan.confidence < 0.3 and _plan.replan_count >= 2 and _plan.status == "active":
+                    _plan.status = "abandoned"
+                    _plan.record_event("abandoned_reflect", "Low confidence after multiple replans (2AM review)")
+                    _plan_store.save()
+                    logger.info("[VECTOR][reflect] plan {} abandoned (conf={:.2f}, replans={})", _plan.id, _plan.confidence, _plan.replan_count)
+                # Pause stale plans (>30 days old and still active)
+                elif _age_days > 30 and _plan.status == "active":
+                    _plan.status = "paused"
+                    _plan.record_event("paused_reflect", f"Stale plan ({_age_days}d old, 2AM review)")
+                    _plan_store.save()
+                    logger.info("[VECTOR][reflect] plan {} paused (age={}d)", _plan.id, _age_days)
+                # Decay epistemic confidence for plan steps that haven't run recently
+                elif _age_days > 7:
+                    for _step in _plan.steps:
+                        if _step.status == "planned" and _step.confidence > 0.3:
+                            _step.confidence = round(_step.confidence * 0.95, 3)  # 5% decay per week
+                    _plan.update_progress()
+                    _plan_store.save()
+        except Exception as _pr_err:
+            logger.debug(f"[VECTOR][reflect] plan review suppressed: {_pr_err}")
+
         try:
             now = datetime.datetime.now(datetime.timezone.utc)
             if now.weekday() == 6:
@@ -1390,6 +1801,29 @@ class AutonomousLoop:
             mc.close()
         except Exception as _mc_err:
             logger.warning("[VECTOR][reflect] MetaCognition reflect failed: {}", _mc_err)
+
+        # Epistemic decay — age all beliefs so stale information triggers
+        # dampening in future decisions (JARVIS Gap 3).
+        try:
+            decayed = self._get_decision().decay_epistemic()
+            if decayed > 0:
+                logger.info("[VECTOR][reflect] epistemic decay: {} beliefs aged", decayed)
+        except Exception as _ep_err:
+            logger.warning("[VECTOR][reflect] epistemic decay failed: {}", _ep_err)
+
+        # Correction lesson maintenance — expire stale unvalidated lessons
+        try:
+            from core.memory.correction_learner import CorrectionLearner
+            _cl = CorrectionLearner()
+            _expired = _cl.expire_old_lessons(max_age_days=90)
+            _total = len(_cl.list_all_lessons(limit=200))
+            if _expired > 0 or _total > 0:
+                logger.info(
+                    "[VECTOR][reflect] correction_learner: {} active lessons, {} expired",
+                    _total, _expired,
+                )
+        except Exception as _cl_err:
+            logger.debug("[VECTOR][reflect] correction learner maintenance suppressed: {}", _cl_err)
 
         try:
             from scripts.db_backup import run_backup
@@ -2232,8 +2666,10 @@ class AutonomousLoop:
                             _stuck = get_stuck_detector().feed(
                                 obs_result.get("raw_text", snippet), activity)
                             if _stuck:
-                                asyncio.create_task(
-                                    self._coding_companion_nudge(_stuck, _vc_session))
+                                self._tracked_task(
+                                    self._coding_companion_nudge(_stuck, _vc_session),
+                                    "coding_nudge",
+                                )
                     except Exception as _cc_err:
                         logger.debug("[VECTOR][sense] stuck detection skipped: {}", _cc_err)
             except Exception as _se:
@@ -2507,13 +2943,40 @@ class AutonomousLoop:
                 if engine is None:
                     continue
                 context = self._get_context().get_world_state()
-                hypotheses = engine.generate_hypotheses(context)
+                # ContextEngine.get_world_state() always returns a dict (its
+                # declared -> dict return type, and every other of its 6+
+                # callers — decision_engine.py, planner.py, chief_of_staff.py,
+                # etc. — treat it as one via dict access). HypothesisEngine.
+                # generate_hypotheses(observation: str) is consistently
+                # string-typed instead: its own signature, its prompt
+                # template, its observation[:50] logging slice, and every
+                # OTHER caller (t06_proactive_cognition.py, this module's own
+                # __main__ self-test) all pass a plain string. Convert here,
+                # at the boundary closest to the mismatch, using the same
+                # str(world_state)[:500] convention
+                # districts/chief_of_staff/subconscious_loop.py already uses
+                # to turn get_world_state()'s dict into LLM-prompt text — no
+                # new serialization format introduced. See
+                # VECTOR_TECHNICAL_KNOWLEDGE/56_HYPOTHESIS_OBSERVATION_
+                # CONTRACT.md.
+                observation = str(context)[:500]
+                hypotheses = await engine.generate_hypotheses(observation)
                 if not hypotheses:
                     continue
                 for h in hypotheses if isinstance(hypotheses, list) else [hypotheses]:
                     confidence = h.get("confidence", 0.0) if isinstance(h, dict) else 0.0
                     if confidence >= 0.85:
-                        content = h.get("hypothesis", str(h)) if isinstance(h, dict) else str(h)
+                        # HypothesisEngine.generate_hypotheses() returns the
+                        # generated text under the "text" key (see
+                        # core/brain/hypothesis_engine.py) — that is the
+                        # established field name (also read internally by the
+                        # engine's own SuggestionQueue enqueue call and its
+                        # __main__ self-test). "hypothesis" was never a real
+                        # key on this dict, so this branch always fell
+                        # through to str(h) before this fix. See
+                        # VECTOR_TECHNICAL_KNOWLEDGE/55_HYPOTHESIS_PIPELINE_
+                        # REMEDIATION.md.
+                        content = h.get("text", str(h)) if isinstance(h, dict) else str(h)
                         logger.info(f"[VECTOR][hypothesis] High-confidence insight (conf={confidence:.2f}): {content[:120]}")
                         self._get_memory().store(
                             event_type="hypothesis",
@@ -2678,9 +3141,28 @@ class AutonomousLoop:
         return self._active_task_count
 
     def stop(self) -> None:
-        """Graceful stop for tests only. Never call in production."""
+        """Graceful stop — cleans up worker pool, scheduler, and background tasks."""
         self._running = False
-        logger.info("[VECTOR][autonomous_loop] stopped")
+        # Cancel tracked background tasks
+        bg_tasks = getattr(self, "_background_tasks", set())
+        for task in list(bg_tasks):
+            if not task.done():
+                task.cancel()
+        bg_tasks.clear()
+        # Shutdown worker pool (async — schedule if we're in a running loop)
+        if self._worker_pool is not None:
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._worker_pool.shutdown(wait=False))
+            except RuntimeError:
+                pass  # no running loop — pool will be GC'd
+        # Shutdown APScheduler
+        if getattr(self, "_callable_scheduler", None) is not None:
+            try:
+                self._callable_scheduler.shutdown(wait=False)
+            except Exception:
+                pass
+        logger.info("[VECTOR][autonomous_loop] stopped (cleanup complete)")
 
     @property
     def uptime_seconds(self) -> int:

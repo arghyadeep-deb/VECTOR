@@ -282,7 +282,31 @@ class GoalSystem:
         self._goals.append(entry)
         self._persist()
         logger.info(f"[VECTOR][goal_system] new goal: {goal_id} — {title}")
+
+        # Trigger plan decomposition for MID/LONG goals (fire-and-forget)
+        if horizon.upper() in ("MID", "LONG"):
+            try:
+                import asyncio
+                loop = asyncio.get_running_loop()
+                if loop is not None:
+                    loop.create_task(self._decompose_to_plan(goal_id, title))
+            except RuntimeError:
+                pass  # no running loop — plan will be created on next think tick
+
         return goal_id
+
+    async def _decompose_to_plan(self, goal_id: str, title: str) -> None:
+        """Decompose a goal into a multi-step plan. Called when MID/LONG goals are added."""
+        try:
+            from core.runtime.plans import decompose_goal_to_plan, get_plan_store
+            plan = await decompose_goal_to_plan(goal_id, title, proposed_by="goal_system")
+            if plan is not None:
+                plan.status = "active"
+                plan.record_event("activated", f"Auto-activated for goal {goal_id}")
+                get_plan_store().add(plan)
+                logger.info(f"[VECTOR][goal_system] plan {plan.id} created for goal {goal_id} ({len(plan.steps)} steps)")
+        except Exception as e:
+            logger.warning(f"[VECTOR][goal_system] plan decomposition failed for {goal_id}: {e}")
 
     def complete_goal(self, goal_id: str) -> bool:
         return self.update_goal_progress(goal_id, 1.0)

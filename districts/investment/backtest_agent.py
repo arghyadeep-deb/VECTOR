@@ -37,6 +37,7 @@ ensure_paths()
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
+from core.loop.permission_gateway import PermissionGateway, Action
 from loguru import logger
 
 class BacktestAgent(AgentBase):
@@ -56,6 +57,7 @@ class BacktestAgent(AgentBase):
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
+        self._gateway = PermissionGateway()
         self.capabilities = [
             "vt_research", "quant_research", "vt_backtest", "shadow_account",
             "vt_swarm", "vt_skills", "vt_export",
@@ -143,8 +145,58 @@ class BacktestAgent(AgentBase):
         engines: daily, china_a, global_equity, crypto, forex,
                  china_futures, global_futures, options_portfolio, composite
         sources: auto (recommended), tushare, yfinance, akshare, ccxt, okx, futu
+
+        RED-gated (58E remediation — VECTOR_TECHNICAL_KNOWLEDGE/58E_VECTOR_
+        BACKTEST_STRATEGY_PERMISSION_REMEDIATION.md): strategy_code, when
+        supplied, is real caller-controlled Python that the vendored backtest
+        runner dynamically imports and instantiates as a SignalEngine — no
+        sandbox. Gated unconditionally, not only when strategy_code is
+        truthy: the runner unconditionally requires code/signal_engine.py to
+        exist with no default/fallback engine, so every functional call to
+        this method depends on code reaching that path one way or another.
+        Neither the strategy-code write nor bt_main() may be reached unless
+        gate_result.approved is True.
         """
         logger.info("[VECTOR][vt_agent] vt_backtest: {} {} {}-{}", engine, codes[:3], start_date, end_date)
+
+        try:
+            gate_result = await self._gateway.execute(Action(
+                action_type="vt_backtest",
+                params={
+                    "codes": codes,
+                    "start_date": start_date,
+                    "end_date": end_date,
+                    "source": source,
+                    "engine": engine,
+                    "interval": interval,
+                    "has_strategy_code": bool(strategy_code),
+                    "strategy_code": strategy_code or "",
+                    "summary": (
+                        f"Run backtest engine={engine!r} source={source!r} on "
+                        f"{codes} ({start_date}..{end_date})"
+                        + (
+                            f" — executes {len(strategy_code)} chars of caller-"
+                            f"supplied Python as the trading signal engine "
+                            f"(dynamically imported and instantiated by the "
+                            f"backtest runner, no sandbox)."
+                            if strategy_code else
+                            " — no caller-supplied strategy code for this call."
+                        )
+                    ),
+                },
+                proposed_by=self.name,
+            ))
+        except Exception as e:
+            # Fail closed — never let a gateway-unreachable condition fall
+            # through to a real strategy-code write/execution (mirrors
+            # hedgebot_agent.py's solana_swap_execute pattern).
+            logger.error("[VECTOR][vt_agent] gateway unavailable — refusing vt_backtest: {}", e)
+            return {"status": "blocked", "reason": f"gateway unavailable: {e}"}
+
+        if not gate_result.approved:
+            logger.warning("[VECTOR][vt_agent] vt_backtest blocked by gateway: {}", gate_result.reason)
+            return {"status": "blocked", "reason": gate_result.reason}
+
         loop = asyncio.get_event_loop()
 
         def _run():

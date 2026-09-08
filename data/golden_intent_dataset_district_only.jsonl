@@ -1,0 +1,737 @@
+{"text": "quiz me on french vocabulary", "district": "languages"}
+{"text": "practice hindi vocabulary", "district": "languages"}
+{"text": "quiz me on japanese words", "district": "languages"}
+{"text": "help me practice bengali", "district": "languages"}
+{"text": "test my spanish vocabulary", "district": "languages"}
+{"text": "quiz me on hindi words", "district": "languages"}
+{"text": "practice japanese with me", "district": "languages"}
+{"text": "help me learn french vocabulary", "district": "languages"}
+{"text": "help me scope a startup idea", "district": "startups"}
+{"text": "validate my startup idea", "district": "startups"}
+{"text": "think through this market opportunity", "district": "startups"}
+{"text": "scope out this side project", "district": "startups"}
+{"text": "analyze this business idea", "district": "startups"}
+{"text": "should i pursue this startup", "district": "startups"}
+{"text": "evaluate my product idea", "district": "startups"}
+{"text": "is this market worth entering", "district": "startups"}
+{"text": "what are my current goals", "district": "brain"}
+{"text": "show me my goals", "district": "brain"}
+{"text": "how am i doing on my goals", "district": "brain"}
+{"text": "what are my main goals right now", "district": "brain"}
+{"text": "whats my goal progress", "district": "brain"}
+{"text": "am i making progress on my goals", "district": "brain"}
+{"text": "list my current objectives", "district": "brain"}
+{"text": "whats my goal status", "district": "brain"}
+{"text": "study transformers with me for 30 minutes", "district": "karpathy_lab"}
+{"text": "lets do a deep learning study session", "district": "karpathy_lab"}
+{"text": "help me study neural networks", "district": "karpathy_lab"}
+{"text": "30 minute study session on ml", "district": "karpathy_lab"}
+{"text": "lets study together", "district": "karpathy_lab"}
+{"text": "help me understand backpropagation", "district": "karpathy_lab"}
+{"text": "teach me about attention mechanisms", "district": "karpathy_lab"}
+{"text": "lets go through the karpathy playlist", "district": "karpathy_lab"}
+{"text": "sketch a settings screen layout", "district": "design"}
+{"text": "design a dashboard mockup", "district": "design"}
+{"text": "create a ui mockup for login", "district": "design"}
+{"text": "sketch the home screen layout", "district": "design"}
+{"text": "design a mobile app interface", "district": "design"}
+{"text": "mockup a settings page", "district": "design"}
+{"text": "create a wireframe for the dashboard", "district": "design"}
+{"text": "sketch out the user profile screen", "district": "design"}
+{"text": "generate a performance report", "district": "data_analytics"}
+{"text": "put together a metrics summary", "district": "data_analytics"}
+{"text": "create an analytics report", "district": "data_analytics"}
+{"text": "show me how ive been performing", "district": "data_analytics"}
+{"text": "compile a performance summary", "district": "data_analytics"}
+{"text": "generate metrics report", "district": "data_analytics"}
+{"text": "create a data analysis summary", "district": "data_analytics"}
+{"text": "put together my performance metrics", "district": "data_analytics"}
+{"text": "analyze my habit patterns", "district": "pattern_detective"}
+{"text": "track my productive habits", "district": "pattern_detective"}
+{"text": "what are my daily habit patterns", "district": "pattern_detective"}
+{"text": "analyze my productivity patterns", "district": "pattern_detective"}
+{"text": "track my behavior patterns", "district": "pattern_detective"}
+{"text": "whats my weekly productivity pattern", "district": "pattern_detective"}
+{"text": "analyze my work habits", "district": "pattern_detective"}
+{"text": "show me my habit tracking data", "district": "pattern_detective"}
+{"text": "do a weekly review", "district": "reflection"}
+{"text": "look back at my week", "district": "reflection"}
+{"text": "review my past week", "district": "reflection"}
+{"text": "whats been happening this week", "district": "reflection"}
+{"text": "reflect on my week", "district": "reflection"}
+{"text": "analyze my week", "district": "reflection"}
+{"text": "how did my week go", "district": "reflection"}
+{"text": "show me my weekly patterns", "district": "reflection"}
+{"text": "check if everything is running smoothly", "district": "ops"}
+{"text": "system status check", "district": "ops"}
+{"text": "are there any system issues", "district": "ops"}
+{"text": "whats the system health", "district": "ops"}
+{"text": "check vector status", "district": "ops"}
+{"text": "is everything working", "district": "ops"}
+{"text": "run a system diagnostic", "district": "ops"}
+{"text": "whats the operational status", "district": "ops"}
+{"text": "remind me to call mom tomorrow", "district": "time_calendar"}
+{"text": "schedule a meeting at 3pm", "district": "time_calendar"}
+{"text": "add to my calendar", "district": "time_calendar"}
+{"text": "set a reminder for friday", "district": "time_calendar"}
+{"text": "whats on my calendar tomorrow", "district": "time_calendar"}
+{"text": "show my upcoming events", "district": "time_calendar"}
+{"text": "create a calendar event", "district": "time_calendar"}
+{"text": "remind me about the deadline", "district": "time_calendar"}
+{"text": "draft a message to john", "district": "communications"}
+{"text": "send an email to my boss", "district": "communications"}
+{"text": "write a whatsapp message", "district": "communications"}
+{"text": "compose a telegram message", "district": "communications"}
+{"text": "draft an email response", "district": "communications"}
+{"text": "send a discord message", "district": "communications"}
+{"text": "write a slack message", "district": "communications"}
+{"text": "message my team on teams", "district": "communications"}
+{"text": "review my code", "district": "coding"}
+{"text": "write a python function", "district": "coding"}
+{"text": "debug this error", "district": "coding"}
+{"text": "architect this module", "district": "coding"}
+{"text": "write unit tests", "district": "coding"}
+{"text": "refactor this code", "district": "coding"}
+{"text": "create a new component", "district": "coding"}
+{"text": "fix this bug", "district": "coding"}
+{"text": "search for recent ai papers", "district": "research"}
+{"text": "find research on transformers", "district": "research"}
+{"text": "look up arxiv papers", "district": "research"}
+{"text": "research this topic", "district": "research"}
+{"text": "find information about", "district": "research"}
+{"text": "search the web for", "district": "research"}
+{"text": "look up recent news on", "district": "research"}
+{"text": "find academic papers on", "district": "research"}
+{"text": "analyze this stock", "district": "investment"}
+{"text": "whats the market sentiment", "district": "investment"}
+{"text": "review my portfolio", "district": "investment"}
+{"text": "analyze tesla stock", "district": "investment"}
+{"text": "whats the nse trend", "district": "investment"}
+{"text": "evaluate this investment", "district": "investment"}
+{"text": "check stock performance", "district": "investment"}
+{"text": "market analysis report", "district": "investment"}
+{"text": "track my sleep last night", "district": "health"}
+{"text": "analyze my sleep data", "district": "health"}
+{"text": "whats my exercise plan", "district": "health"}
+{"text": "monitor my health metrics", "district": "health"}
+{"text": "how did i sleep", "district": "health"}
+{"text": "check my fatigue level", "district": "health"}
+{"text": "whats my wellness score", "district": "health"}
+{"text": "analyze my exercise routine", "district": "health"}
+{"text": "whats my budget this month", "district": "finance"}
+{"text": "track my expenses", "district": "finance"}
+{"text": "analyze my spending", "district": "finance"}
+{"text": "whats my tax status", "district": "finance"}
+{"text": "show my financial summary", "district": "finance"}
+{"text": "budget for next month", "district": "finance"}
+{"text": "track my upi transactions", "district": "finance"}
+{"text": "whats my cash flow", "district": "finance"}
+{"text": "remember that i prefer", "district": "memory_curator"}
+{"text": "what did i tell you about", "district": "memory_curator"}
+{"text": "recall my preferences", "district": "memory_curator"}
+{"text": "store this in memory", "district": "memory_curator"}
+{"text": "whats the most important thing you remember", "district": "memory_curator"}
+{"text": "consolidate my memories", "district": "memory_curator"}
+{"text": "what do you know about me", "district": "memory_curator"}
+{"text": "search my memory for", "district": "memory_curator"}
+{"text": "write a youtube script", "district": "content"}
+{"text": "create an instagram caption", "district": "content"}
+{"text": "generate video content", "district": "content"}
+{"text": "write a blog post", "district": "content"}
+{"text": "create social media content", "district": "content"}
+{"text": "draft a youtube video", "district": "content"}
+{"text": "write content for linkedin", "district": "content"}
+{"text": "generate tiktok script", "district": "content"}
+{"text": "whats my project status", "district": "projects"}
+{"text": "track my project deadlines", "district": "projects"}
+{"text": "whats due this week", "district": "projects"}
+{"text": "show project progress", "district": "projects"}
+{"text": "manage my projects", "district": "projects"}
+{"text": "whats the vector project status", "district": "projects"}
+{"text": "upcoming project deadlines", "district": "projects"}
+{"text": "project timeline check", "district": "projects"}
+{"text": "what skills do i have", "district": "skills"}
+{"text": "track my skill progress", "district": "skills"}
+{"text": "whats my skill level in", "district": "skills"}
+{"text": "analyze my skill gaps", "district": "skills"}
+{"text": "what should i learn next", "district": "skills"}
+{"text": "show my mastery levels", "district": "skills"}
+{"text": "skill development plan", "district": "skills"}
+{"text": "whats my proficiency in", "district": "skills"}
+{"text": "grow my instagram account", "district": "growth"}
+{"text": "social media growth plan", "district": "growth"}
+{"text": "how to get more followers", "district": "growth"}
+{"text": "content strategy for growth", "district": "growth"}
+{"text": "engagement improvement plan", "district": "growth"}
+{"text": "audience growth tactics", "district": "growth"}
+{"text": "viral content strategy", "district": "growth"}
+{"text": "how to increase reach", "district": "growth"}
+{"text": "plan a marketing campaign", "district": "marketing"}
+{"text": "create a marketing strategy", "district": "marketing"}
+{"text": "marketing budget allocation", "district": "marketing"}
+{"text": "target audience analysis", "district": "marketing"}
+{"text": "ad campaign design", "district": "marketing"}
+{"text": "marketing channel strategy", "district": "marketing"}
+{"text": "brand positioning plan", "district": "marketing"}
+{"text": "competitor marketing analysis", "district": "marketing"}
+{"text": "prepare for mock interview", "district": "interview_prep"}
+{"text": "practice coding interview", "district": "interview_prep"}
+{"text": "research company culture", "district": "interview_prep"}
+{"text": "system design interview prep", "district": "interview_prep"}
+{"text": "behavioral interview questions", "district": "interview_prep"}
+{"text": "interview preparation plan", "district": "interview_prep"}
+{"text": "common interview questions", "district": "interview_prep"}
+{"text": "company research report", "district": "interview_prep"}
+{"text": "watch this video course", "district": "learning"}
+{"text": "extract notes from video", "district": "learning"}
+{"text": "learn a new concept", "district": "learning"}
+{"text": "study this tutorial", "district": "learning"}
+{"text": "course progress check", "district": "learning"}
+{"text": "summarize this lecture", "district": "learning"}
+{"text": "learning path recommendation", "district": "learning"}
+{"text": "track my learning progress", "district": "learning"}
+{"text": "threat scan my system", "district": "security"}
+{"text": "check for malware", "district": "security"}
+{"text": "security audit report", "district": "security"}
+{"text": "vulnerability assessment", "district": "security"}
+{"text": "firewall status check", "district": "security"}
+{"text": "security threat analysis", "district": "security"}
+{"text": "system security review", "district": "security"}
+{"text": "intrusion detection check", "district": "security"}
+{"text": "privacy audit my data", "district": "privacy"}
+{"text": "what data do you store", "district": "privacy"}
+{"text": "delete my personal data", "district": "privacy"}
+{"text": "gdpr compliance check", "district": "privacy"}
+{"text": "pii detection scan", "district": "privacy"}
+{"text": "data flow analysis", "district": "privacy"}
+{"text": "privacy policy review", "district": "privacy"}
+{"text": "data protection assessment", "district": "privacy"}
+{"text": "emergency protocol", "district": "emergency"}
+{"text": "someone is breaking in", "district": "emergency"}
+{"text": "emergency contact", "district": "emergency"}
+{"text": "help me its urgent", "district": "emergency"}
+{"text": "security breach detected", "district": "emergency"}
+{"text": "emergency response plan", "district": "emergency"}
+{"text": "call emergency services", "district": "emergency"}
+{"text": "urgent security issue", "district": "emergency"}
+{"text": "turn off smart lights", "district": "home_assistant"}
+{"text": "adjust thermostat", "district": "home_assistant"}
+{"text": "lock the doors", "district": "home_assistant"}
+{"text": "smart home status", "district": "home_assistant"}
+{"text": "control my smart devices", "district": "home_assistant"}
+{"text": "home automation check", "district": "home_assistant"}
+{"text": "iot device control", "district": "home_assistant"}
+{"text": "smart home diagnostics", "district": "home_assistant"}
+{"text": "screen this phone call", "district": "calls"}
+{"text": "transcribe my voicemail", "district": "calls"}
+{"text": "call summary", "district": "calls"}
+{"text": "who called me", "district": "calls"}
+{"text": "phone call log", "district": "calls"}
+{"text": "voicemail transcription", "district": "calls"}
+{"text": "call screening", "district": "calls"}
+{"text": "recent calls", "district": "calls"}
+{"text": "council decision on", "district": "governance"}
+{"text": "policy recommendation", "district": "governance"}
+{"text": "governance review", "district": "governance"}
+{"text": "council vote", "district": "governance"}
+{"text": "policy analysis", "district": "governance"}
+{"text": "governance report", "district": "governance"}
+{"text": "decision framework", "district": "governance"}
+{"text": "policy implementation", "district": "governance"}
+{"text": "coordinate with external agency", "district": "agency"}
+{"text": "agency task delegation", "district": "agency"}
+{"text": "external partner communication", "district": "agency"}
+{"text": "agency status report", "district": "agency"}
+{"text": "vendor coordination", "district": "agency"}
+{"text": "outsourced task tracking", "district": "agency"}
+{"text": "agency performance review", "district": "agency"}
+{"text": "partner integration", "district": "agency"}
+{"text": "qa test this feature", "district": "qa"}
+{"text": "quality assurance check", "district": "qa"}
+{"text": "test coverage report", "district": "qa"}
+{"text": "bug report", "district": "qa"}
+{"text": "test case generation", "district": "qa"}
+{"text": "regression testing", "district": "qa"}
+{"text": "qa validation", "district": "qa"}
+{"text": "test automation", "district": "qa"}
+{"text": "predict future trends", "district": "predictive_analytics"}
+{"text": "forecast next quarter", "district": "predictive_analytics"}
+{"text": "predictive model training", "district": "predictive_analytics"}
+{"text": "time series analysis", "district": "predictive_analytics"}
+{"text": "demand forecasting", "district": "predictive_analytics"}
+{"text": "predictive analytics report", "district": "predictive_analytics"}
+{"text": "future scenario modeling", "district": "predictive_analytics"}
+{"text": "prediction accuracy check", "district": "predictive_analytics"}
+{"text": "scientific research paper", "district": "science"}
+{"text": "scientific experiment design", "district": "science"}
+{"text": "hypothesis testing", "district": "science"}
+{"text": "scientific literature review", "district": "science"}
+{"text": "research methodology", "district": "science"}
+{"text": "scientific data analysis", "district": "science"}
+{"text": "peer review analysis", "district": "science"}
+{"text": "scientific publication", "district": "science"}
+{"text": "personal growth plan", "district": "personal_growth"}
+{"text": "self improvement goals", "district": "personal_growth"}
+{"text": "habit formation strategy", "district": "personal_growth"}
+{"text": "mindfulness practice", "district": "personal_growth"}
+{"text": "personal development tracking", "district": "personal_growth"}
+{"text": "growth mindset coaching", "district": "personal_growth"}
+{"text": "self reflection exercise", "district": "personal_growth"}
+{"text": "personal growth journal", "district": "personal_growth"}
+{"text": "contact management", "district": "relationships"}
+{"text": "who should i reconnect with", "district": "relationships"}
+{"text": "relationship status check", "district": "relationships"}
+{"text": "network analysis", "district": "relationships"}
+{"text": "communication patterns", "district": "relationships"}
+{"text": "contact list organization", "district": "relationships"}
+{"text": "relationship building tips", "district": "relationships"}
+{"text": "social network mapping", "district": "relationships"}
+{"text": "latest ai news", "district": "news_trends"}
+{"text": "tech trends this week", "district": "news_trends"}
+{"text": "industry news summary", "district": "news_trends"}
+{"text": "market trends analysis", "district": "news_trends"}
+{"text": "emerging technology news", "district": "news_trends"}
+{"text": "news aggregation", "district": "news_trends"}
+{"text": "trend forecasting", "district": "news_trends"}
+{"text": "opportunity spotting", "district": "news_trends"}
+{"text": "chief of staff briefing", "district": "chief_of_staff"}
+{"text": "priority management", "district": "chief_of_staff"}
+{"text": "daily agenda review", "district": "chief_of_staff"}
+{"text": "executive summary", "district": "chief_of_staff"}
+{"text": "task prioritization", "district": "chief_of_staff"}
+{"text": "schedule optimization", "district": "chief_of_staff"}
+{"text": "strategic planning", "district": "chief_of_staff"}
+{"text": "executive coordination", "district": "chief_of_staff"}
+{"text": "whats my progress on Maintain KIIT attendance above 75%", "district": "brain"}
+{"text": "am i achieving Maintain KIIT attendance above 75%", "district": "brain"}
+{"text": "show me status of Maintain KIIT attendance above 75%", "district": "brain"}
+{"text": "whats my progress on Complete Karpathy playlist — 30 min/day", "district": "brain"}
+{"text": "am i achieving Complete Karpathy playlist — 30 min/day", "district": "brain"}
+{"text": "show me status of Complete Karpathy playlist — 30 min/day", "district": "brain"}
+{"text": "whats my progress on Complete VECTOR Phase 1 — 8 core districts", "district": "brain"}
+{"text": "am i achieving Complete VECTOR Phase 1 — 8 core districts", "district": "brain"}
+{"text": "show me status of Complete VECTOR Phase 1 — 8 core districts", "district": "brain"}
+{"text": "whats my progress on KIIT placement preparation — DSA + System Design", "district": "brain"}
+{"text": "am i achieving KIIT placement preparation — DSA + System Design", "district": "brain"}
+{"text": "show me status of KIIT placement preparation — DSA + System Design", "district": "brain"}
+{"text": "whats my progress on Commit code every single day — no exceptions", "district": "brain"}
+{"text": "am i achieving Commit code every single day — no exceptions", "district": "brain"}
+{"text": "show me status of Commit code every single day — no exceptions", "district": "brain"}
+{"text": "whats my progress on First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)", "district": "brain"}
+{"text": "am i achieving First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)", "district": "brain"}
+{"text": "show me status of First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)", "district": "brain"}
+{"text": "whats my progress on Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2", "district": "brain"}
+{"text": "am i achieving Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2", "district": "brain"}
+{"text": "show me status of Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2", "district": "brain"}
+{"text": "quiz me on french vocabulary?", "district": "languages"}
+{"text": "practice hindi vocabulary?", "district": "languages"}
+{"text": "quiz me on japanese words?", "district": "languages"}
+{"text": "help me practice bengali?", "district": "languages"}
+{"text": "test the spanish vocabulary", "district": "languages"}
+{"text": "test my spanish vocabulary?", "district": "languages"}
+{"text": "quiz me on hindi words?", "district": "languages"}
+{"text": "practice japanese with me?", "district": "languages"}
+{"text": "help me learn french vocabulary?", "district": "languages"}
+{"text": "help me scope a startup idea?", "district": "startups"}
+{"text": "validate the startup idea", "district": "startups"}
+{"text": "validate my startup idea?", "district": "startups"}
+{"text": "think through this market opportunity?", "district": "startups"}
+{"text": "scope out this side project?", "district": "startups"}
+{"text": "analyze this business idea?", "district": "startups"}
+{"text": "should i pursue this startup?", "district": "startups"}
+{"text": "evaluate the product idea", "district": "startups"}
+{"text": "evaluate my product idea?", "district": "startups"}
+{"text": "is this market worth entering?", "district": "startups"}
+{"text": "what are the current goals", "district": "brain"}
+{"text": "what are my current goals?", "district": "brain"}
+{"text": "show me the goals", "district": "brain"}
+{"text": "display me my goals", "district": "brain"}
+{"text": "show me my goals?", "district": "brain"}
+{"text": "how am i doing on the goals", "district": "brain"}
+{"text": "how am i doing on my goals?", "district": "brain"}
+{"text": "what are the main goals right now", "district": "brain"}
+{"text": "what are my main goals right now?", "district": "brain"}
+{"text": "whats the goal progress", "district": "brain"}
+{"text": "whats my goal progress?", "district": "brain"}
+{"text": "am i making progress on the goals", "district": "brain"}
+{"text": "am i making progress on my goals?", "district": "brain"}
+{"text": "list the current objectives", "district": "brain"}
+{"text": "list my current objectives?", "district": "brain"}
+{"text": "whats the goal status", "district": "brain"}
+{"text": "whats my goal status?", "district": "brain"}
+{"text": "study transformers with me for 30 minutes?", "district": "karpathy_lab"}
+{"text": "lets do a deep learning study session?", "district": "karpathy_lab"}
+{"text": "help me study neural networks?", "district": "karpathy_lab"}
+{"text": "30 minute study session on ml?", "district": "karpathy_lab"}
+{"text": "lets study together?", "district": "karpathy_lab"}
+{"text": "help me understand backpropagation?", "district": "karpathy_lab"}
+{"text": "teach me about attention mechanisms?", "district": "karpathy_lab"}
+{"text": "lets go through the karpathy playlist?", "district": "karpathy_lab"}
+{"text": "sketch a settings screen layout?", "district": "design"}
+{"text": "design a dashboard mockup?", "district": "design"}
+{"text": "create a ui mockup for login?", "district": "design"}
+{"text": "sketch the home screen layout?", "district": "design"}
+{"text": "design a mobile app interface?", "district": "design"}
+{"text": "mockup a settings page?", "district": "design"}
+{"text": "create a wireframe for the dashboard?", "district": "design"}
+{"text": "sketch out the user profile screen?", "district": "design"}
+{"text": "generate a performance report?", "district": "data_analytics"}
+{"text": "put together a metrics summary?", "district": "data_analytics"}
+{"text": "create an analytics report?", "district": "data_analytics"}
+{"text": "display me how ive been performing", "district": "data_analytics"}
+{"text": "show me how ive been performing?", "district": "data_analytics"}
+{"text": "compile a performance summary?", "district": "data_analytics"}
+{"text": "generate metrics report?", "district": "data_analytics"}
+{"text": "create a data analysis summary?", "district": "data_analytics"}
+{"text": "put together the performance metrics", "district": "data_analytics"}
+{"text": "put together my performance metrics?", "district": "data_analytics"}
+{"text": "analyze the habit patterns", "district": "pattern_detective"}
+{"text": "analyze my habit patterns?", "district": "pattern_detective"}
+{"text": "track the productive habits", "district": "pattern_detective"}
+{"text": "track my productive habits?", "district": "pattern_detective"}
+{"text": "what are the daily habit patterns", "district": "pattern_detective"}
+{"text": "what are my daily habit patterns?", "district": "pattern_detective"}
+{"text": "analyze the productivity patterns", "district": "pattern_detective"}
+{"text": "analyze my productivity patterns?", "district": "pattern_detective"}
+{"text": "track the behavior patterns", "district": "pattern_detective"}
+{"text": "track my behavior patterns?", "district": "pattern_detective"}
+{"text": "whats the weekly productivity pattern", "district": "pattern_detective"}
+{"text": "whats my weekly productivity pattern?", "district": "pattern_detective"}
+{"text": "analyze the work habits", "district": "pattern_detective"}
+{"text": "analyze my work habits?", "district": "pattern_detective"}
+{"text": "show me the habit tracking data", "district": "pattern_detective"}
+{"text": "display me my habit tracking data", "district": "pattern_detective"}
+{"text": "show me my habit tracking data?", "district": "pattern_detective"}
+{"text": "do a weekly review?", "district": "reflection"}
+{"text": "look back at the week", "district": "reflection"}
+{"text": "look back at my week?", "district": "reflection"}
+{"text": "review the past week", "district": "reflection"}
+{"text": "review my past week?", "district": "reflection"}
+{"text": "whats been happening this week?", "district": "reflection"}
+{"text": "reflect on the week", "district": "reflection"}
+{"text": "reflect on my week?", "district": "reflection"}
+{"text": "analyze the week", "district": "reflection"}
+{"text": "analyze my week?", "district": "reflection"}
+{"text": "how did the week go", "district": "reflection"}
+{"text": "how did my week go?", "district": "reflection"}
+{"text": "show me the weekly patterns", "district": "reflection"}
+{"text": "display me my weekly patterns", "district": "reflection"}
+{"text": "show me my weekly patterns?", "district": "reflection"}
+{"text": "check if everything is running smoothly?", "district": "ops"}
+{"text": "system status check?", "district": "ops"}
+{"text": "are there any system issues?", "district": "ops"}
+{"text": "whats the system health?", "district": "ops"}
+{"text": "check vector status?", "district": "ops"}
+{"text": "is everything working?", "district": "ops"}
+{"text": "run a system diagnostic?", "district": "ops"}
+{"text": "whats the operational status?", "district": "ops"}
+{"text": "remind me to call mom tomorrow?", "district": "time_calendar"}
+{"text": "schedule a meeting at 3pm?", "district": "time_calendar"}
+{"text": "add to the calendar", "district": "time_calendar"}
+{"text": "add to my calendar?", "district": "time_calendar"}
+{"text": "set a reminder for friday?", "district": "time_calendar"}
+{"text": "whats on the calendar tomorrow", "district": "time_calendar"}
+{"text": "whats on my calendar tomorrow?", "district": "time_calendar"}
+{"text": "show the upcoming events", "district": "time_calendar"}
+{"text": "display my upcoming events", "district": "time_calendar"}
+{"text": "show my upcoming events?", "district": "time_calendar"}
+{"text": "create a calendar event?", "district": "time_calendar"}
+{"text": "remind me about the deadline?", "district": "time_calendar"}
+{"text": "draft a message to john?", "district": "communications"}
+{"text": "send an email to the boss", "district": "communications"}
+{"text": "send an email to my boss?", "district": "communications"}
+{"text": "write a whatsapp message?", "district": "communications"}
+{"text": "compose a telegram message?", "district": "communications"}
+{"text": "draft an email response?", "district": "communications"}
+{"text": "send a discord message?", "district": "communications"}
+{"text": "write a slack message?", "district": "communications"}
+{"text": "message the team on teams", "district": "communications"}
+{"text": "message my team on teams?", "district": "communications"}
+{"text": "review the code", "district": "coding"}
+{"text": "review my code?", "district": "coding"}
+{"text": "write a python function?", "district": "coding"}
+{"text": "debug this error?", "district": "coding"}
+{"text": "architect this module?", "district": "coding"}
+{"text": "write unit tests?", "district": "coding"}
+{"text": "refactor this code?", "district": "coding"}
+{"text": "create a new component?", "district": "coding"}
+{"text": "fix this bug?", "district": "coding"}
+{"text": "search for recent ai papers?", "district": "research"}
+{"text": "find research on transformers?", "district": "research"}
+{"text": "look up arxiv papers?", "district": "research"}
+{"text": "research this topic?", "district": "research"}
+{"text": "find information about?", "district": "research"}
+{"text": "search the web for?", "district": "research"}
+{"text": "look up recent news on?", "district": "research"}
+{"text": "find academic papers on?", "district": "research"}
+{"text": "analyze this stock?", "district": "investment"}
+{"text": "whats the market sentiment?", "district": "investment"}
+{"text": "review the portfolio", "district": "investment"}
+{"text": "review my portfolio?", "district": "investment"}
+{"text": "analyze tesla stock?", "district": "investment"}
+{"text": "whats the nse trend?", "district": "investment"}
+{"text": "evaluate this investment?", "district": "investment"}
+{"text": "check stock performance?", "district": "investment"}
+{"text": "market analysis report?", "district": "investment"}
+{"text": "track the sleep last night", "district": "health"}
+{"text": "track my sleep last night?", "district": "health"}
+{"text": "analyze the sleep data", "district": "health"}
+{"text": "analyze my sleep data?", "district": "health"}
+{"text": "whats the exercise plan", "district": "health"}
+{"text": "whats my exercise plan?", "district": "health"}
+{"text": "monitor the health metrics", "district": "health"}
+{"text": "monitor my health metrics?", "district": "health"}
+{"text": "how did i sleep?", "district": "health"}
+{"text": "check the fatigue level", "district": "health"}
+{"text": "check my fatigue level?", "district": "health"}
+{"text": "whats the wellness score", "district": "health"}
+{"text": "whats my wellness score?", "district": "health"}
+{"text": "analyze the exercise routine", "district": "health"}
+{"text": "analyze my exercise routine?", "district": "health"}
+{"text": "whats the budget this month", "district": "finance"}
+{"text": "whats my budget this month?", "district": "finance"}
+{"text": "track the expenses", "district": "finance"}
+{"text": "track my expenses?", "district": "finance"}
+{"text": "analyze the spending", "district": "finance"}
+{"text": "analyze my spending?", "district": "finance"}
+{"text": "whats the tax status", "district": "finance"}
+{"text": "whats my tax status?", "district": "finance"}
+{"text": "show the financial summary", "district": "finance"}
+{"text": "display my financial summary", "district": "finance"}
+{"text": "show my financial summary?", "district": "finance"}
+{"text": "budget for next month?", "district": "finance"}
+{"text": "track the upi transactions", "district": "finance"}
+{"text": "track my upi transactions?", "district": "finance"}
+{"text": "whats the cash flow", "district": "finance"}
+{"text": "whats my cash flow?", "district": "finance"}
+{"text": "remember that i prefer?", "district": "memory_curator"}
+{"text": "what did i tell you about?", "district": "memory_curator"}
+{"text": "recall the preferences", "district": "memory_curator"}
+{"text": "recall my preferences?", "district": "memory_curator"}
+{"text": "store this in memory?", "district": "memory_curator"}
+{"text": "whats the most important thing you remember?", "district": "memory_curator"}
+{"text": "consolidate the memories", "district": "memory_curator"}
+{"text": "consolidate my memories?", "district": "memory_curator"}
+{"text": "what do you know about me?", "district": "memory_curator"}
+{"text": "search the memory for", "district": "memory_curator"}
+{"text": "search my memory for?", "district": "memory_curator"}
+{"text": "write a youtube script?", "district": "content"}
+{"text": "create an instagram caption?", "district": "content"}
+{"text": "generate video content?", "district": "content"}
+{"text": "write a blog post?", "district": "content"}
+{"text": "create social media content?", "district": "content"}
+{"text": "draft a youtube video?", "district": "content"}
+{"text": "write content for linkedin?", "district": "content"}
+{"text": "generate tiktok script?", "district": "content"}
+{"text": "whats the project status", "district": "projects"}
+{"text": "whats my project status?", "district": "projects"}
+{"text": "track the project deadlines", "district": "projects"}
+{"text": "track my project deadlines?", "district": "projects"}
+{"text": "whats due this week?", "district": "projects"}
+{"text": "display project progress", "district": "projects"}
+{"text": "show project progress?", "district": "projects"}
+{"text": "manage the projects", "district": "projects"}
+{"text": "manage my projects?", "district": "projects"}
+{"text": "whats the vector project status?", "district": "projects"}
+{"text": "upcoming project deadlines?", "district": "projects"}
+{"text": "project timeline check?", "district": "projects"}
+{"text": "what skills do i have?", "district": "skills"}
+{"text": "track the skill progress", "district": "skills"}
+{"text": "track my skill progress?", "district": "skills"}
+{"text": "whats the skill level in", "district": "skills"}
+{"text": "whats my skill level in?", "district": "skills"}
+{"text": "analyze the skill gaps", "district": "skills"}
+{"text": "analyze my skill gaps?", "district": "skills"}
+{"text": "what should i learn next?", "district": "skills"}
+{"text": "show the mastery levels", "district": "skills"}
+{"text": "display my mastery levels", "district": "skills"}
+{"text": "show my mastery levels?", "district": "skills"}
+{"text": "skill development plan?", "district": "skills"}
+{"text": "whats the proficiency in", "district": "skills"}
+{"text": "whats my proficiency in?", "district": "skills"}
+{"text": "grow the instagram account", "district": "growth"}
+{"text": "grow my instagram account?", "district": "growth"}
+{"text": "social media growth plan?", "district": "growth"}
+{"text": "how to get more followers?", "district": "growth"}
+{"text": "content strategy for growth?", "district": "growth"}
+{"text": "engagement improvement plan?", "district": "growth"}
+{"text": "audience growth tactics?", "district": "growth"}
+{"text": "viral content strategy?", "district": "growth"}
+{"text": "how to increase reach?", "district": "growth"}
+{"text": "plan a marketing campaign?", "district": "marketing"}
+{"text": "create a marketing strategy?", "district": "marketing"}
+{"text": "marketing budget allocation?", "district": "marketing"}
+{"text": "target audience analysis?", "district": "marketing"}
+{"text": "ad campaign design?", "district": "marketing"}
+{"text": "marketing channel strategy?", "district": "marketing"}
+{"text": "brand positioning plan?", "district": "marketing"}
+{"text": "competitor marketing analysis?", "district": "marketing"}
+{"text": "prepare for mock interview?", "district": "interview_prep"}
+{"text": "practice coding interview?", "district": "interview_prep"}
+{"text": "research company culture?", "district": "interview_prep"}
+{"text": "system design interview prep?", "district": "interview_prep"}
+{"text": "behavioral interview questions?", "district": "interview_prep"}
+{"text": "interview preparation plan?", "district": "interview_prep"}
+{"text": "common interview questions?", "district": "interview_prep"}
+{"text": "company research report?", "district": "interview_prep"}
+{"text": "watch this video course?", "district": "learning"}
+{"text": "extract notes from video?", "district": "learning"}
+{"text": "learn a new concept?", "district": "learning"}
+{"text": "study this tutorial?", "district": "learning"}
+{"text": "course progress check?", "district": "learning"}
+{"text": "summarize this lecture?", "district": "learning"}
+{"text": "learning path recommendation?", "district": "learning"}
+{"text": "track the learning progress", "district": "learning"}
+{"text": "track my learning progress?", "district": "learning"}
+{"text": "threat scan the system", "district": "security"}
+{"text": "threat scan my system?", "district": "security"}
+{"text": "check for malware?", "district": "security"}
+{"text": "security audit report?", "district": "security"}
+{"text": "vulnerability assessment?", "district": "security"}
+{"text": "firewall status check?", "district": "security"}
+{"text": "security threat analysis?", "district": "security"}
+{"text": "system security review?", "district": "security"}
+{"text": "intrusion detection check?", "district": "security"}
+{"text": "privacy audit the data", "district": "privacy"}
+{"text": "privacy audit my data?", "district": "privacy"}
+{"text": "what data do you store?", "district": "privacy"}
+{"text": "delete the personal data", "district": "privacy"}
+{"text": "delete my personal data?", "district": "privacy"}
+{"text": "gdpr compliance check?", "district": "privacy"}
+{"text": "pii detection scan?", "district": "privacy"}
+{"text": "data flow analysis?", "district": "privacy"}
+{"text": "privacy policy review?", "district": "privacy"}
+{"text": "data protection assessment?", "district": "privacy"}
+{"text": "emergency protocol?", "district": "emergency"}
+{"text": "someone is breaking in?", "district": "emergency"}
+{"text": "emergency contact?", "district": "emergency"}
+{"text": "help me its urgent?", "district": "emergency"}
+{"text": "security breach detected?", "district": "emergency"}
+{"text": "emergency response plan?", "district": "emergency"}
+{"text": "call emergency services?", "district": "emergency"}
+{"text": "urgent security issue?", "district": "emergency"}
+{"text": "turn off smart lights?", "district": "home_assistant"}
+{"text": "adjust thermostat?", "district": "home_assistant"}
+{"text": "lock the doors?", "district": "home_assistant"}
+{"text": "smart home status?", "district": "home_assistant"}
+{"text": "control the smart devices", "district": "home_assistant"}
+{"text": "control my smart devices?", "district": "home_assistant"}
+{"text": "home automation check?", "district": "home_assistant"}
+{"text": "iot device control?", "district": "home_assistant"}
+{"text": "smart home diagnostics?", "district": "home_assistant"}
+{"text": "screen this phone call?", "district": "calls"}
+{"text": "transcribe the voicemail", "district": "calls"}
+{"text": "transcribe my voicemail?", "district": "calls"}
+{"text": "call summary?", "district": "calls"}
+{"text": "who called me?", "district": "calls"}
+{"text": "phone call log?", "district": "calls"}
+{"text": "voicemail transcription?", "district": "calls"}
+{"text": "call screening?", "district": "calls"}
+{"text": "recent calls?", "district": "calls"}
+{"text": "council decision on?", "district": "governance"}
+{"text": "policy recommendation?", "district": "governance"}
+{"text": "governance review?", "district": "governance"}
+{"text": "council vote?", "district": "governance"}
+{"text": "policy analysis?", "district": "governance"}
+{"text": "governance report?", "district": "governance"}
+{"text": "decision framework?", "district": "governance"}
+{"text": "policy implementation?", "district": "governance"}
+{"text": "coordinate with external agency?", "district": "agency"}
+{"text": "agency task delegation?", "district": "agency"}
+{"text": "external partner communication?", "district": "agency"}
+{"text": "agency status report?", "district": "agency"}
+{"text": "vendor coordination?", "district": "agency"}
+{"text": "outsourced task tracking?", "district": "agency"}
+{"text": "agency performance review?", "district": "agency"}
+{"text": "partner integration?", "district": "agency"}
+{"text": "qa test this feature?", "district": "qa"}
+{"text": "quality assurance check?", "district": "qa"}
+{"text": "test coverage report?", "district": "qa"}
+{"text": "bug report?", "district": "qa"}
+{"text": "test case generation?", "district": "qa"}
+{"text": "regression testing?", "district": "qa"}
+{"text": "qa validation?", "district": "qa"}
+{"text": "test automation?", "district": "qa"}
+{"text": "predict future trends?", "district": "predictive_analytics"}
+{"text": "forecast next quarter?", "district": "predictive_analytics"}
+{"text": "predictive model training?", "district": "predictive_analytics"}
+{"text": "time series analysis?", "district": "predictive_analytics"}
+{"text": "demand forecasting?", "district": "predictive_analytics"}
+{"text": "predictive analytics report?", "district": "predictive_analytics"}
+{"text": "future scenario modeling?", "district": "predictive_analytics"}
+{"text": "prediction accuracy check?", "district": "predictive_analytics"}
+{"text": "scientific research paper?", "district": "science"}
+{"text": "scientific experiment design?", "district": "science"}
+{"text": "hypothesis testing?", "district": "science"}
+{"text": "scientific literature review?", "district": "science"}
+{"text": "research methodology?", "district": "science"}
+{"text": "scientific data analysis?", "district": "science"}
+{"text": "peer review analysis?", "district": "science"}
+{"text": "scientific publication?", "district": "science"}
+{"text": "personal growth plan?", "district": "personal_growth"}
+{"text": "self improvement goals?", "district": "personal_growth"}
+{"text": "habit formation strategy?", "district": "personal_growth"}
+{"text": "mindfulness practice?", "district": "personal_growth"}
+{"text": "personal development tracking?", "district": "personal_growth"}
+{"text": "growth mindset coaching?", "district": "personal_growth"}
+{"text": "self reflection exercise?", "district": "personal_growth"}
+{"text": "personal growth journal?", "district": "personal_growth"}
+{"text": "contact management?", "district": "relationships"}
+{"text": "who should i reconnect with?", "district": "relationships"}
+{"text": "relationship status check?", "district": "relationships"}
+{"text": "network analysis?", "district": "relationships"}
+{"text": "communication patterns?", "district": "relationships"}
+{"text": "contact list organization?", "district": "relationships"}
+{"text": "relationship building tips?", "district": "relationships"}
+{"text": "social network mapping?", "district": "relationships"}
+{"text": "latest ai news?", "district": "news_trends"}
+{"text": "tech trends this week?", "district": "news_trends"}
+{"text": "industry news summary?", "district": "news_trends"}
+{"text": "market trends analysis?", "district": "news_trends"}
+{"text": "emerging technology news?", "district": "news_trends"}
+{"text": "news aggregation?", "district": "news_trends"}
+{"text": "trend forecasting?", "district": "news_trends"}
+{"text": "opportunity spotting?", "district": "news_trends"}
+{"text": "chief of staff briefing?", "district": "chief_of_staff"}
+{"text": "priority management?", "district": "chief_of_staff"}
+{"text": "daily agenda review?", "district": "chief_of_staff"}
+{"text": "executive summary?", "district": "chief_of_staff"}
+{"text": "task prioritization?", "district": "chief_of_staff"}
+{"text": "schedule optimization?", "district": "chief_of_staff"}
+{"text": "strategic planning?", "district": "chief_of_staff"}
+{"text": "executive coordination?", "district": "chief_of_staff"}
+{"text": "whats the progress on Maintain KIIT attendance above 75%", "district": "brain"}
+{"text": "whats my progress on Maintain KIIT attendance above 75%?", "district": "brain"}
+{"text": "am i achieving Maintain KIIT attendance above 75%?", "district": "brain"}
+{"text": "display me status of Maintain KIIT attendance above 75%", "district": "brain"}
+{"text": "show me status of Maintain KIIT attendance above 75%?", "district": "brain"}
+{"text": "whats the progress on Complete Karpathy playlist — 30 min/day", "district": "brain"}
+{"text": "whats my progress on Complete Karpathy playlist — 30 min/day?", "district": "brain"}
+{"text": "am i achieving Complete Karpathy playlist — 30 min/day?", "district": "brain"}
+{"text": "display me status of Complete Karpathy playlist — 30 min/day", "district": "brain"}
+{"text": "show me status of Complete Karpathy playlist — 30 min/day?", "district": "brain"}
+{"text": "whats the progress on Complete VECTOR Phase 1 — 8 core districts", "district": "brain"}
+{"text": "whats my progress on Complete VECTOR Phase 1 — 8 core districts?", "district": "brain"}
+{"text": "am i achieving Complete VECTOR Phase 1 — 8 core districts?", "district": "brain"}
+{"text": "display me status of Complete VECTOR Phase 1 — 8 core districts", "district": "brain"}
+{"text": "show me status of Complete VECTOR Phase 1 — 8 core districts?", "district": "brain"}
+{"text": "whats the progress on KIIT placement preparation — DSA + System Design", "district": "brain"}
+{"text": "whats my progress on KIIT placement preparation — DSA + System Design?", "district": "brain"}
+{"text": "am i achieving KIIT placement preparation — DSA + System Design?", "district": "brain"}
+{"text": "display me status of KIIT placement preparation — DSA + System Design", "district": "brain"}
+{"text": "show me status of KIIT placement preparation — DSA + System Design?", "district": "brain"}
+{"text": "whats the progress on Commit code every single day — no exceptions", "district": "brain"}
+{"text": "whats my progress on Commit code every single day — no exceptions?", "district": "brain"}
+{"text": "am i achieving Commit code every single day — no exceptions?", "district": "brain"}
+{"text": "display me status of Commit code every single day — no exceptions", "district": "brain"}
+{"text": "show me status of Commit code every single day — no exceptions?", "district": "brain"}
+{"text": "whats the progress on First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)", "district": "brain"}
+{"text": "whats my progress on First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)?", "district": "brain"}
+{"text": "am i achieving First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)?", "district": "brain"}
+{"text": "display me status of First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)", "district": "brain"}
+{"text": "show me status of First ₹1 of product revenue from a stranger — wedge: AI content ops for creators (customer #1: father's accounts)?", "district": "brain"}
+{"text": "whats the progress on Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2", "district": "brain"}
+{"text": "whats my progress on Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2?", "district": "brain"}
+{"text": "am i achieving Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2?", "district": "brain"}
+{"text": "display me status of Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2", "district": "brain"}
+{"text": "show me status of Equation portfolio: graduate product 1 (₹1L+/month × 3 months, ≤5 hrs/week owner time, churn <10%) before starting product 2?", "district": "brain"}

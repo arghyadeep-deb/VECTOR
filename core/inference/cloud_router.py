@@ -281,7 +281,9 @@ class CloudRouter:
     # ── Internal helpers ──────────────────────────────────────────────────
 
     def _check_budget(self, limit_usd: float) -> tuple[bool, str]:
-        """Return (ok, reason) — True means cloud is affordable."""
+        """Return (ok, reason) — True means cloud is affordable.
+        Fails CLOSED: if the budget meter is unavailable or errors, cloud is
+        blocked (return False) to prevent runaway spend."""
         try:
             from core.metering.budget_meter import get_budget_meter
             meter = get_budget_meter()
@@ -293,21 +295,33 @@ class CloudRouter:
                 return False, f"session budget cap ${limit_usd:.2f} reached (spent ${status.daily_spent:.4f})"
             return True, ""
         except Exception as e:
-            logger.debug("[VECTOR][cloud_router] budget check skipped: {}", e)
-            return True, ""  # fail-open: if meter unavailable, allow cloud
+            logger.warning("[VECTOR][cloud_router] budget check failed (fail-closed): {}", e)
+            return False, f"budget meter unavailable: {e}"
 
     def _best_cloud_provider(self) -> str | None:
-        """Return the highest-priority configured cloud provider slug, or None."""
+        """Return the highest-priority configured free-tier cloud provider slug, or None.
+
+        VECTOR runtime is free-tier only (owner decision 2026-07-08).  This
+        method selects from providers with ``free=True``, skipping local
+        providers (ollama / lmstudio / vllm) since the cloud router's job is
+        to route *off-device* when local capacity is insufficient.
+        """
         try:
             from core.inference.llm_providers import PROVIDERS
-            priority_order = ["anthropic", "openai", "gemini", "groq", "deepseek", "mistral"]
+            # Active free-tier cloud providers in priority order.
+            # Paid providers (anthropic, openai, deepseek) excluded — owner
+            # has no paid API keys at runtime.
+            priority_order = [
+                "gemini", "groq", "cerebras", "github_models", "cloudflare",
+                "opencode_zen", "zai", "openrouter", "llm7", "cohere", "nvidia",
+            ]
             for slug in priority_order:
                 p = PROVIDERS.get(slug)
-                if p and p.is_configured and not p.free:
+                if p and p.is_configured and p.free:
                     return slug
-            # fallback: any configured non-local provider
+            # fallback: any configured free cloud provider (skip local)
             for slug, p in PROVIDERS.items():
-                if p.is_configured and not p.free:
+                if p.is_configured and p.free and "localhost" not in p.base_url and "127.0.0.1" not in p.base_url:
                     return slug
         except Exception as e:
             logger.debug("[VECTOR][cloud_router] provider lookup failed: {}", e)

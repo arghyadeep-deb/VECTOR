@@ -166,7 +166,7 @@ class GCRARateLimiter:
                 reason=f"Rate limit exceeded for {operation} (retry in {retry_after:.1f}s)",
             )
 
-        remaining = max(0, int((self._burst - cost * (1 + retry_after * self._rate)) / 1))
+        remaining = max(0, int(self._burst - cost))
         return RateLimitResult(allowed=True, tokens_remaining=remaining)
 
     def reset(self, caller_id: str) -> None:

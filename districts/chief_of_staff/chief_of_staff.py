@@ -494,8 +494,13 @@ class ChiefOfStaff(AgentBase):
                     f"district '{district}' dying — max HP={max_hp}"
                 )
                 try:
-                    engine = EvolutionEngine(registry=reg)
-                    evo_result = await engine.check_and_evolve(alive_agents)
+                    # Use singleton — has constructors registered at boot.
+                    # A fresh EvolutionEngine() has zero constructors.
+                    # Also pass ALL agents (not just alive) so check_and_evolve()
+                    # can find hp==0 agents to respawn — it only evolves dead ones.
+                    from core.city.evolution_engine import get_evolution_engine
+                    engine = get_evolution_engine()
+                    evo_result = await engine.check_and_evolve(agents)
                     evolution_results[district] = evo_result
                     logger.info(
                         f"[VECTOR][chief_of_staff] evolution triggered for "

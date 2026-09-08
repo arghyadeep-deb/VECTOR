@@ -7,7 +7,8 @@
   const V = global.VECTOR;
   const WIDGETS = [
     'chat','music','map','webcam','telemetry','market','goals','goalplanner',
-    'districts','council','security','memory','approvals','finance',
+    'districts','council','security','memory','memoryexplorer','cognition',
+    'experiment','agentatlas','commandcenter','approvals','finance',
     'contentscheduler','answerengine','voicestudio','codegraph',
     // 'city3d' intentionally NOT listed — dropped from the prod bundle
     // (tools/build_frontend.py: heavy three.js view, not part of the lean

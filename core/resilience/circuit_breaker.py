@@ -85,6 +85,19 @@ class CircuitBreaker:
                 return False
             return False
 
+    def would_allow(self) -> bool:
+        """Pure-read check — returns whether a call *would* be allowed right
+        now WITHOUT mutating state (no OPEN→HALF_OPEN transition, no
+        _half_open_retries increment).  Use this for pre-flight gating where
+        the caller will consume exactly one slot separately via can_proceed()."""
+        if self.state == CircuitState.CLOSED:
+            return True
+        if self.state == CircuitState.OPEN:
+            return time.time() - self.last_failure_time >= self.config.recovery_timeout
+        if self.state == CircuitState.HALF_OPEN:
+            return self._half_open_retries < self.config.half_open_max_retries
+        return False
+
     async def _can_proceed(self) -> bool:
         """Backward-compatible alias for older tests/callers."""
         return await self.can_proceed()

@@ -139,6 +139,16 @@ class HandRunner:
             logger.warning("[VECTOR][hands] HP award failed for {}: {}", hand.name, e)
 
     def _update_policy(self, hand: Hand, result: HandResult) -> None:
+        # Task 89 (D1) — DEPRECATED / DO-NOT-CONNECT, left as-is intentionally.
+        # This key (`sha256(f"hand:{hand.name}")`, no params at all) does not
+        # match decision_engine.py's reader (PolicyMemory.make_situation_hash(
+        # action_type, params)) and never will just by reformatting it: no
+        # Candidate object is ever constructed anywhere in candidate-generation
+        # code (goal_system.py, autonomous_loop.py's proactive/prediction
+        # branches) with an action_type equal to a hand's name, so a row
+        # written here is structurally unreachable by the reader regardless of
+        # key format. Fixing the format alone would not make it reachable, so
+        # it is deliberately left unconnected rather than half-fixed.
         try:
             from core.memory.policy import PolicyMemory
             import hashlib

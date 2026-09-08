@@ -366,15 +366,37 @@ class EvolutionEngine:
         }
 
     def get_best_practices(self, agent_name: str) -> list[str]:
-        """Extract best practices from all generations of an agent."""
+        """Extract best practices from all generations of an agent.
+
+        Queries agent_history for the ghost_memory JSON which stores
+        best_decisions from each generation. The in-memory _evolution_log
+        only stores a count (lessons_inherited), not the actual decisions —
+        so we must go to the database.
+        """
         practices = []
-        for e in self._evolution_log:
-            if e.get("name") == agent_name:
-                # Log stores decisions under "decisions_inherited" (check both for compat)
-                for d in e.get("decisions_inherited", e.get("decisions", [])):
-                    if d.get("reward", 0) > 0.8:
-                        practices.append(d.get("description", ""))
-        return list(set(p for p in practices if p))
+        try:
+            from core.memory.episodic import get_db_connection, close_db_connection
+            conn = get_db_connection()
+            try:
+                rows = conn.execute(
+                    "SELECT ghost_memory FROM agent_history WHERE agent_name = ?",
+                    (agent_name,)
+                ).fetchall()
+                for (ghost_json,) in rows:
+                    if not ghost_json:
+                        continue
+                    import json as _json
+                    ghost = _json.loads(ghost_json)
+                    for d in ghost.get("best_decisions", []):
+                        if d.get("reward", 0) > 0.6:
+                            desc = d.get("decision", d.get("description", ""))
+                            if desc:
+                                practices.append(str(desc))
+            finally:
+                close_db_connection(conn)
+        except Exception as e:
+            logger.warning("[VECTOR][evolution] get_best_practices query failed for {}: {}", agent_name, e)
+        return list(set(practices))
 
     # ── private helpers ───────────────────────────────────────────────────────
 

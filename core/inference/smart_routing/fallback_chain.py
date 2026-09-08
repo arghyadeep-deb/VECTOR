@@ -59,7 +59,7 @@ def _should_retry(error: Exception) -> bool:
         return False
     if any(e in msg for e in _RETRYABLE_ERRORS):
         return True
-    return True  # retry by default on unknown errors
+    return False  # unknown errors: don't retry (safe default)
 
 
 async def execute_with_fallback(

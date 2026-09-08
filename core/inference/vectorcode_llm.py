@@ -141,7 +141,8 @@ def _calc_cost(model: str, input_tok: int, output_tok: int) -> float:
 
 
 def _record_usage(provider: str, model: str, messages: list[dict],
-                  response: str, latency_ms: float, success: bool) -> None:
+                  response: str, latency_ms: float, success: bool,
+                  *, caller_id: str = "vc_llm_legacy_chain") -> None:
     input_tok = sum(_estimate_tokens(m.get("content", "")) for m in messages)
     output_tok = _estimate_tokens(response)
     cost = _calc_cost(model, input_tok, output_tok)
@@ -157,6 +158,36 @@ def _record_usage(provider: str, model: str, messages: list[dict],
             f"[VECTOR][vc_llm] {provider}/{model}: "
             f"{input_tok}in+{output_tok}out tok, ${cost:.6f}"
         )
+    # Inference observability — only for providers that never touch
+    # ProviderClient or ollama_safe.chat() (gemini/anthropic/openrouter
+    # legacy direct calls). Ollama is excluded here because _try_ollama()
+    # delegates to ollama_safe.chat(), which already records this call —
+    # recording again here would double-count it in inference_calls.
+    if provider != "ollama":
+        try:
+            from core.metering.inference_observability import (
+                get_inference_observability, extract_domain, is_autonomous_caller,
+            )
+            get_inference_observability().record(
+                caller_id=caller_id,
+                domain=extract_domain(caller_id, model),
+                tier="",
+                provider=provider,
+                model=model,
+                input_tokens=input_tok,
+                output_tokens=output_tok,
+                latency_ms=latency_ms,
+                is_ollama=False,
+                is_autonomous=is_autonomous_caller(caller_id),
+                status="ok" if success else "error",
+                # _estimate_tokens() is always a char-count heuristic (~4
+                # chars/token) — this legacy chain has no access to any
+                # provider's real usage field, so every row from here is
+                # explicitly marked non-exact for report-time distinction.
+                metadata={"token_exact": False},
+            )
+        except Exception:
+            pass  # observability must never break the call path
 
 
 def get_session_usage() -> dict:
@@ -233,8 +264,8 @@ def _pool_key(env_var: str, fallback: str = "") -> str:
         k = get_pool(env_var).next_key()
         if k:
             return k
-    except Exception:
-        logger.warning("[VECTOR] silent swallow")
+    except Exception as e:
+        logger.warning("[VECTOR][key_pool] key fetch failed for {}, using fallback: {}", env_var, e)
         pass
     return fallback
 

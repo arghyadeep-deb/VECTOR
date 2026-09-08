@@ -25,6 +25,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.loop.context_engine import ContextEngine
+from core.loop.permission_gateway import PermissionGateway, Action
 from districts.investment.vector_finagent.terminal_launcher import FinAgentTerminalLauncher
 from loguru import logger
 
@@ -81,6 +82,7 @@ class FinAgentAgent(AgentBase):
             self.inherit_ghost(ghost)
         self._memory   = EpisodicMemory()
         self._context  = ContextEngine()
+        self._gateway  = PermissionGateway()
         self._launcher = FinAgentTerminalLauncher()
         self._personas = _load_investor_personas()
         logger.info("[VECTOR][finagent_agent] ready gen={} hp={}", generation, self.health_points)
@@ -496,7 +498,37 @@ class FinAgentAgent(AgentBase):
         return result
 
     async def launch_terminal(self, auto_build: bool = False) -> dict:
-        """Launch the native C++/Qt6 financial terminal."""
+        """Launch the native C++/Qt6 financial terminal.
+
+        RED-gated (58B remediation — VECTOR_TECHNICAL_KNOWLEDGE/58B_FINAGENT_
+        TERMINAL_PERMISSION_REMEDIATION.md): both the real native build
+        (auto_build=True → real cmake/build subprocess.run) and the real
+        terminal binary launch (subprocess.Popen) are consequential side
+        effects that must not occur without owner approval. auto_build is
+        forwarded as an explicit param on the SAME gated Action so the
+        approver sees whether a build will be triggered before approving —
+        one RED approval intentionally covers both build and launch, since
+        they are both downstream consequences of the single "launch the
+        terminal" request. Neither ensure_built() nor launch() may be
+        reached unless gate_result.approved is True.
+        """
+        try:
+            gate_result = await self._gateway.execute(Action(
+                action_type="launch_terminal",
+                params={"auto_build": auto_build},
+                proposed_by=self.name,
+            ))
+        except Exception as e:
+            # Fail closed — never let a gateway-unreachable condition fall
+            # through to a real build/launch (mirrors hedgebot_agent.py's
+            # solana_swap_execute pattern).
+            logger.error("[VECTOR][finagent_agent] gateway unavailable — refusing launch_terminal: {}", e)
+            return {"status": "blocked", "reason": f"gateway unavailable: {e}"}
+
+        if not gate_result.approved:
+            logger.warning("[VECTOR][finagent_agent] launch_terminal blocked by gateway: {}", gate_result.reason)
+            return {"status": "blocked", "reason": gate_result.reason}
+
         await self._launcher.ensure_built(auto_build=auto_build)
         st = self._launcher.status()
         if not st["binary_built"]:

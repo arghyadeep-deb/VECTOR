@@ -20,23 +20,27 @@ class SemanticMemory:
                           tags: list[str] | None = None,
                           category: str = "concept",
                           confidence: float = 0.8) -> dict:
-        """Store a concept. Upserts by key."""
+        """Store a concept. Upserts by key.
+
+        Uses get_temp_cursor() to serialize writes through _write_lock,
+        preventing "database is locked" errors under concurrent access.
+        """
+        from core.memory.episodic import get_temp_cursor
         value = json.dumps({
             "definition": definition,
             "tags": tags or [],
         })
         now = datetime.utcnow().isoformat()
         try:
-            conn = self._get_conn()
-            conn.execute(
-                """INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
-                   VALUES (?, ?, ?, ?, ?)
-                   ON CONFLICT(key) DO UPDATE SET
-                       value=excluded.value, category=excluded.category,
-                       confidence=excluded.confidence, updated_at=excluded.updated_at""",
-                (concept, value, category, confidence, now),
-            )
-            conn.commit()
+            with get_temp_cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(key) DO UPDATE SET
+                           value=excluded.value, category=excluded.category,
+                           confidence=excluded.confidence, updated_at=excluded.updated_at""",
+                    (concept, value, category, confidence, now),
+                )
         except Exception as e:
             logger.error(f"[VECTOR][semantic] add_concept failed: {e}")
         logger.info(f"[VECTOR][semantic] stored: {concept}")
@@ -44,19 +48,22 @@ class SemanticMemory:
 
     def store(self, key: str, value: str, category: str = "fact",
               confidence: float = 0.8) -> None:
-        """Low-level key-value store into semantic_memory."""
+        """Low-level key-value store into semantic_memory.
+
+        Uses get_temp_cursor() to serialize writes through _write_lock.
+        """
+        from core.memory.episodic import get_temp_cursor
         now = datetime.utcnow().isoformat()
         try:
-            conn = self._get_conn()
-            conn.execute(
-                """INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
-                   VALUES (?, ?, ?, ?, ?)
-                   ON CONFLICT(key) DO UPDATE SET
-                       value=excluded.value, confidence=excluded.confidence,
-                       updated_at=excluded.updated_at""",
-                (key, value, category, confidence, now),
-            )
-            conn.commit()
+            with get_temp_cursor() as cursor:
+                cursor.execute(
+                    """INSERT INTO semantic_memory (key, value, category, confidence, updated_at)
+                       VALUES (?, ?, ?, ?, ?)
+                       ON CONFLICT(key) DO UPDATE SET
+                           value=excluded.value, confidence=excluded.confidence,
+                           updated_at=excluded.updated_at""",
+                    (key, value, category, confidence, now),
+                )
         except Exception as e:
             logger.error(f"[VECTOR][semantic] store failed: {e}")
 

@@ -26,6 +26,12 @@ class ConsolidationBot(AgentBase):
     # been summarized into semantic_memory + mem0. 3x the consolidation window so
     # nothing is forgotten before it has been consolidated.
     RETENTION_DAYS = 90
+    # Minimum gap between event-triggered consolidations.  A research burst that
+    # stores 20 episodes would otherwise fire 20 full consolidation passes (each
+    # fetching up to 200 episodes, making an LLM call, writing a semantic_memory
+    # row, and running the forgetting pass).  6 h keeps the first pass and
+    # suppresses the rest; run_forever()'s 24 h cycle still runs weekly on top.
+    CONSOLIDATION_COOLDOWN_HOURS = 6
 
     def __init__(self, generation: int = 1, ghost: dict | None = None):
         super().__init__(
@@ -54,19 +60,48 @@ class ConsolidationBot(AgentBase):
         except Exception as _e:
             self._mem0 = None
             logger.warning(f"[VECTOR][consolidation_bot] mem0 init failed: {_e}")
+        # Concurrency guard: 3 sources can trigger consolidation simultaneously
+        # (handle_event on every memory_stored/research_complete, run_forever
+        # weekly Monday loop, autonomous_loop 2AM Monday reflect). Without this
+        # lock they all fetch the same episodes and write key
+        # 'consolidation:{today}' — last writer wins via ON CONFLICT DO UPDATE,
+        # silently discarding the others.
+        self._consolidation_lock = asyncio.Lock()
+        self._last_consolidation_date: datetime.date | None = None
+        self._last_consolidation_time: datetime.datetime | None = None
         logger.info(f"[VECTOR][consolidation_bot] ready gen={generation} hp={self.health_points}")
         # Phase 2B: subscribe to memory events
         self.subscribe_to("memory_stored")
         self.subscribe_to("research_complete")
 
     async def handle_event(self, event: dict) -> dict:
-        """Phase 2B: Run consolidation when memory fills up."""
+        """Phase 2B: Run consolidation when memory fills up.
+
+        Rate-limited: skips if fewer than CONSOLIDATION_COOLDOWN_HOURS have
+        elapsed since the last event-triggered consolidation.  Without this,
+        a research burst that stores 20 episodes fires 20 full consolidation
+        passes (each fetching 200 episodes, making an LLM call, and running
+        the forgetting pass).  consolidate_old_episodes() has its own date +
+        lock guard as defense-in-depth for scheduled/concurrent callers.
+        """
         await super().handle_event(event)
         et = event.get("event_type", "")
         if et in ("memory_stored", "research_complete"):
+            now = datetime.datetime.now(datetime.timezone.utc)
+            if (
+                self._last_consolidation_time is not None
+                and (now - self._last_consolidation_time)
+                < datetime.timedelta(hours=self.CONSOLIDATION_COOLDOWN_HOURS)
+            ):
+                logger.debug(
+                    f"[VECTOR][consolidation_bot] consolidation cooldown active "
+                    f"({self.CONSOLIDATION_COOLDOWN_HOURS}h), skipping: {et}"
+                )
+                return {"status": "skipped", "agent": self.name, "event": et, "reason": "cooldown"}
             try:
                 logger.info(f"[VECTOR][consolidation_bot] event-triggered consolidation: {et}")
                 await self.run({"type": "consolidate", "params": {"source": "event"}})
+                self._last_consolidation_time = now
             except Exception as e:
                 logger.debug(f"[VECTOR][consolidation_bot] handle_event failed: {e}")
         return {"status": "handled", "agent": self.name, "event": et}
@@ -123,6 +158,24 @@ class ConsolidationBot(AgentBase):
 
     async def consolidate_old_episodes(self) -> int:
         """Compress episodes older than CONSOLIDATION_DAYS into semantic_memory summaries."""
+        # Non-blocking dedup: if another coroutine is already consolidating, or
+        # we already consolidated today, skip silently rather than queuing.
+        if self._last_consolidation_date == datetime.date.today():
+            logger.debug("[VECTOR][consolidation_bot] consolidation already done today — skipping")
+            return 0
+        if self._consolidation_lock.locked():
+            logger.debug("[VECTOR][consolidation_bot] consolidation already in progress — skipping")
+            return 0
+        async with self._consolidation_lock:
+            # Double-check after acquiring lock (another coroutine may have
+            # finished while we waited — though with locked() guard above we
+            # shouldn't have waited at all).
+            if self._last_consolidation_date == datetime.date.today():
+                return 0
+            return await self._consolidate_old_episodes_impl()
+
+    async def _consolidate_old_episodes_impl(self) -> int:
+        """Inner consolidation logic — called with _consolidation_lock held."""
         episodes = self._fetch_old_episodes(self.CONSOLIDATION_DAYS)
         if not episodes:
             logger.info("[VECTOR][consolidation_bot] no old episodes to consolidate")
@@ -137,8 +190,8 @@ class ConsolidationBot(AgentBase):
         try:
             if os.getenv("VECTOR_MEMORY_CURATOR_LLM") != "1":
                 raise RuntimeError("memory curator LLM disabled; set VECTOR_MEMORY_CURATOR_LLM=1 to enable")
-            from core.inference.vectorcode_llm import chat
-            summary = chat(
+            from core.inference.vectorcode_llm import achat
+            summary = await achat(
                 model=CONFIG["models"]["reasoning"],
                 messages=[
                     {"role": "system", "content": hydration},
@@ -151,7 +204,7 @@ class ConsolidationBot(AgentBase):
                         ),
                     },
                 ],
-                timeout=2.0,
+                timeout=60.0,
             )
             if not summary:
                 raise RuntimeError("empty model response")
@@ -161,8 +214,24 @@ class ConsolidationBot(AgentBase):
             last_ts = episodes[-1]["timestamp"][:10]
             summary = f"Compressed {len(episodes)} episodes ({first_ts} to {last_ts})"
 
+        # Placeholder detection: if the summary is the fallback placeholder (not
+        # real LLM output), flag low confidence so downstream consumers know
+        # this is metadata, not actual semantic content. Without this, the
+        # placeholder gets stored at confidence=0.8 alongside real facts, and
+        # after prune_old_episodes() deletes the raw episodes (RETENTION_DAYS=90),
+        # only the placeholder survives as the permanent "summary" — irreversibly
+        # losing the actual episodic content.
+        _is_placeholder = summary.startswith("Compressed") and "episodes" in summary
+        _confidence = 0.3 if _is_placeholder else 0.8
+        if _is_placeholder:
+            logger.warning(
+                f"[VECTOR][consolidation_bot] storing placeholder summary "
+                f"(confidence={_confidence}) — LLM inference failed, raw episodes "
+                f"will be pruned in {self.RETENTION_DAYS}d without real consolidation"
+            )
+
         key = f"consolidation:{datetime.date.today().isoformat()}"
-        self._memory.remember(key, summary, category="consolidation", confidence=0.8)
+        self._memory.remember(key, summary, category="consolidation", confidence=_confidence)
         self._store_to_mem0(f"Memory consolidation [{key}]: {summary[:400]}")
         self._memory.store_chain(
             situation="memory_consolidation",
@@ -193,10 +262,24 @@ class ConsolidationBot(AgentBase):
         except Exception as e:
             logger.warning(f"[VECTOR][consolidation_bot] memory_tree forgetting pass skipped: {e}")
 
+        self._last_consolidation_date = datetime.date.today()
+        self._last_consolidation_time = datetime.datetime.now(datetime.timezone.utc)
         return len(episodes)
 
     async def write_daily_reflection(self) -> bool:
         """Summarize last 24h of episodic memory → write to Obsidian Reflections/."""
+        # Same concurrency guard as consolidate_old_episodes — the 2AM reflect
+        # in autonomous_loop and run_forever's Monday loop can both call this
+        # simultaneously. Uses the same lock so a concurrent consolidation
+        # blocks reflection too (they write overlapping date-keyed state).
+        if self._consolidation_lock.locked():
+            logger.debug("[VECTOR][consolidation_bot] reflection skipped — consolidation in progress")
+            return False
+        async with self._consolidation_lock:
+            return await self._write_daily_reflection_impl()
+
+    async def _write_daily_reflection_impl(self) -> bool:
+        """Inner reflection logic — called with _consolidation_lock held."""
         episodes = self._fetch_recent_episodes(hours=self.REFLECTION_HOURS)
         date_str = datetime.date.today().isoformat()
         title = f"Daily Reflection — {date_str}"
@@ -214,8 +297,8 @@ class ConsolidationBot(AgentBase):
             try:
                 if os.getenv("VECTOR_MEMORY_CURATOR_LLM") != "1":
                     raise RuntimeError("memory curator LLM disabled; set VECTOR_MEMORY_CURATOR_LLM=1 to enable")
-                from core.inference.vectorcode_llm import chat
-                reflection = chat(
+                from core.inference.vectorcode_llm import achat
+                reflection = await achat(
                     model=CONFIG["models"]["reasoning"],
                     messages=[
                         {"role": "system", "content": hydration},
@@ -228,7 +311,7 @@ class ConsolidationBot(AgentBase):
                             ),
                         },
                     ],
-                    timeout=2.0,
+                    timeout=60.0,
                 )
                 if not reflection:
                     raise RuntimeError("empty model response")

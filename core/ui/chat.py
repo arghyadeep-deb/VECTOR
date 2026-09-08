@@ -276,6 +276,7 @@ def _handle_command(cmd: str, console: "Console") -> bool:
                         {"role": "user",   "content": arg},
                     ],
                     timeout=600.0,
+                    caller_id="terminal_ui_bg_task",
                 )
 
             tq = TaskQueue.get()
@@ -379,7 +380,7 @@ def _chat_with_vector(user_input: str, history: list[dict], console: "Console") 
     messages += history[-10:]  # keep last 10 exchanges for context
     messages.append({"role": "user", "content": user_input})
 
-    response = chat(model=_MODEL, messages=messages, timeout=120.0) or "…"
+    response = chat(model=_MODEL, messages=messages, timeout=120.0, caller_id="terminal_ui_chat") or "…"
 
     # RULE 8 — store in episodic memory
     try:

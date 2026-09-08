@@ -16,6 +16,7 @@ from __future__ import annotations
 
 __all__ = ["BulkSender", "BulkMessage", "BulkResult"]
 
+import hashlib
 import time
 from dataclasses import dataclass, field
 from typing import Any
@@ -37,6 +38,42 @@ _RATE_LIMITS: dict[str, float] = {
     "webhook":           10.0,
     "default":            2.0,
 }
+
+
+class _SentRegistry:
+    """Short-lived dedup registry — prevents the same (channel, recipient, content)
+    from being sent twice within a TTL window. Shared across BulkSender instances
+    so overlapping send_bulk calls don't duplicate messages."""
+
+    _entries: dict[str, float] = {}
+    _ttl_seconds = 3600  # 1 hour
+
+    @classmethod
+    def _key(cls, channel_id: str, recipient: str, content: str) -> str:
+        body_hash = hashlib.sha256(content.encode()).hexdigest()[:16]
+        return f"{channel_id}:{recipient}:{body_hash}"
+
+    @classmethod
+    def was_sent(cls, channel_id: str, recipient: str, content: str) -> bool:
+        key = cls._key(channel_id, recipient, content)
+        sent_at = cls._entries.get(key)
+        if sent_at is None:
+            return False
+        if (time.monotonic() - sent_at) > cls._ttl_seconds:
+            del cls._entries[key]
+            return False
+        return True
+
+    @classmethod
+    def mark_sent(cls, channel_id: str, recipient: str, content: str) -> None:
+        key = cls._key(channel_id, recipient, content)
+        cls._entries[key] = time.monotonic()
+        # Periodic cleanup: remove entries older than TTL
+        if len(cls._entries) > 1000:
+            cutoff = time.monotonic() - cls._ttl_seconds
+            expired = [k for k, v in cls._entries.items() if v < cutoff]
+            for k in expired:
+                del cls._entries[k]
 
 
 @dataclass
@@ -90,6 +127,7 @@ class BulkSender:
         messages: list[BulkMessage],
         *,
         dry_run: bool = False,
+        dedup: bool = True,
     ) -> BulkResult:
         """
         Send all messages respecting rate limits.
@@ -97,6 +135,10 @@ class BulkSender:
         Args:
             messages: List of BulkMessage to send.
             dry_run:  If True, log but do not send. Returns all as skipped.
+            dedup:    If True (default), skip messages already sent within the
+                      last hour (same channel + recipient + content). Prevents
+                      duplicates when send_bulk is called with overlapping
+                      recipient lists.
         """
         result = BulkResult(total=len(messages))
         start = time.monotonic()
@@ -108,6 +150,13 @@ class BulkSender:
                 result.skipped.append(msg.recipient)
                 continue
 
+            # Dedup: skip if this exact message was recently sent
+            if dedup and _SentRegistry.was_sent(self._channel_id, msg.recipient, msg.content):
+                result.skipped.append(msg.recipient)
+                logger.debug("[VECTOR][bulk] dedup skip [{}/{}] → {}",
+                             i + 1, len(messages), msg.recipient[:20])
+                continue
+
             try:
                 ok = self._channel.send(
                     msg.recipient,
@@ -117,6 +166,8 @@ class BulkSender:
                 )
                 if ok:
                     result.sent.append(msg.recipient)
+                    if dedup:
+                        _SentRegistry.mark_sent(self._channel_id, msg.recipient, msg.content)
                     logger.debug("[VECTOR][bulk] sent [{}/{}] → {}",
                                  i + 1, len(messages), msg.recipient[:20])
                 else:

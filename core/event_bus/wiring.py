@@ -148,7 +148,13 @@ EVENT_TRIGGER_MAP: dict[EventType, list[tuple[str, str, dict]]] = {
         ("data_analytics", "analyze_campaign_metrics", {"campaign_source": "{event_type}"}),
     ],
     EventType.ANALYTICS_READY: [
-        ("strategy", "review_analytics_insights", {"analytics_source": "{event_type}"}),
+        # Task 89B: ("strategy", "review_analytics_insights", ...) retired
+        # 2026-09-08 — verified zero registered agents for the "strategy"
+        # district (no `strategy:` key in config/agent_manifest.yaml, and
+        # AgentRegistry.get_by_district() does exact-string match, so no
+        # baseline agent is ever created for it either). Every dispatch to
+        # this edge logged "no agents in strategy" and wasted a fan-out slot
+        # with zero possible effect. See VECTOR_TECHNICAL_KNOWLEDGE/89B_EVENT_FANOUT.md.
         ("content", "optimize_from_analytics", {"analytics_source": "{event_type}"}),
         ("marketing", "adjust_campaign_from_analytics", {"analytics_source": "{event_type}"}),
     ],

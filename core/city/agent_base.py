@@ -292,12 +292,34 @@ class AgentBase:
         return {"status": "ok", "agent": self.name, "task": task}
 
     def get_system_prompt(self) -> str:
-        """Return a compact system prompt for generic agent interactions."""
-        return (
-            f"You are {self.name}, a VECTOR agent in the {self.district} district. "
-            f"Generation {self.generation}, HP {self.health_points}. "
-            f"{self.get_voice_style()}"
-        )
+        """Return a compact system prompt for generic agent interactions.
+
+        Includes inherited lessons and best decisions from ghost memory so
+        successors actually benefit from predecessor experience (RULE 9 —
+        Darwinian evolution). Without this, gen-N agents behave identically
+        to gen-1 regardless of how many lessons they inherited.
+        """
+        parts = [
+            f"You are {self.name}, a VECTOR agent in the {self.district} district.",
+            f"Generation {self.generation}, HP {self.health_points}.",
+            self.get_voice_style(),
+        ]
+
+        # Inherited wisdom — lessons from deceased predecessors
+        if self.lessons:
+            lessons_text = "; ".join(str(l) for l in self.lessons[-10:])
+            parts.append(f"You inherit these lessons from your predecessors: {lessons_text}.")
+
+        # Proven decisions — high-reward choices to replicate
+        if self.best_decisions:
+            best = self.best_decisions[-5:]
+            decisions_text = "; ".join(
+                f"{d.get('decision', d)} (reward={d.get('reward', 0):.1f})"
+                for d in best
+            )
+            parts.append(f"Your predecessors' best decisions: {decisions_text}.")
+
+        return " ".join(parts)
 
     def vchat(self, messages: list[dict] | str) -> str:
         """Small LLM helper with an Ollama-safe fallback path."""
@@ -311,7 +333,7 @@ class AgentBase:
                 logger.debug("[VECTOR][city] district_llm fallback for {}: {}", self.name, e)
         try:
             from core.inference.ollama_safe import chat
-            return chat(messages)
+            return chat(messages, caller_id=f"agent_{self.name}"[:64])
         except Exception as e:
             logger.debug("[VECTOR][city] vchat fallback for {}: {}", self.name, e)
             if isinstance(messages, str):

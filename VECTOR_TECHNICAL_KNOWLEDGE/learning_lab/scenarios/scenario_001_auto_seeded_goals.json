@@ -1,0 +1,34 @@
+{
+  "scenario": {
+    "label": "auto_seeded_goals_baseline",
+    "situation": {},
+    "goals": null,
+    "candidates": "auto",
+    "policy_updates": [],
+    "counterfactual_rejections": [],
+    "epistemic_beliefs": [],
+    "apply_counterfactual_veto": true,
+    "metadata": {}
+  },
+  "expected": {
+    "fingerprint": {
+      "selected_action": "analyze_progress",
+      "selected_params": {
+        "goal_id": "g_kiit_attendance",
+        "title": "Start: Maintain KIIT attendance above 75%"
+      },
+      "ranking": [
+        "analyze_progress",
+        "analyze_progress",
+        "research_topic",
+        "analyze_progress"
+      ],
+      "candidate_scores": {
+        "analyze_progress": 0.72,
+        "research_topic": 0.72
+      },
+      "counterfactual_vetoed": false
+    },
+    "fingerprint_hash": "59779395f83bc39a3e9a1ce25916f96c390bb1f225d1d0bf9ee599f1456c92cf"
+  }
+}

@@ -27,6 +27,27 @@ def _jaccard(a: str, b: str) -> float:
     return len(sa & sb) / len(sa | sb)
 
 
+def _decay_factor(created_at_iso: str, decay_days: float = 7.0) -> float:
+    """T4: exponential staleness decay. A rejection's influence halves every
+    `decay_days` days, so a spurious rejection (e.g. during a provider failure)
+    stops poisoning future attempts after ~3-4 half-lives. Returns 1.0 for a
+    fresh entry, trending toward 0 for old ones. On any parse error → 1.0
+    (fail-safe: treat unparseable timestamp as fresh, not stale)."""
+    if not created_at_iso or decay_days <= 0:
+        return 1.0
+    try:
+        created = datetime.fromisoformat(created_at_iso)
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        age_days = (datetime.now(timezone.utc) - created).total_seconds() / 86400.0
+        if age_days <= 0:
+            return 1.0
+        import math
+        return math.exp(-age_days / decay_days)
+    except Exception:
+        return 1.0
+
+
 class CounterfactualMemory:
     """
     Stores hypothetical scenarios and rejected decisions.
@@ -196,7 +217,12 @@ class CounterfactualMemory:
         logger.info(f"[VECTOR][counterfactual] Rejection recorded: {decision_id} — {reason[:60]}")
         return rid
 
-    def get_similar_rejections(self, proposal: str, limit: int = 5) -> list[dict]:
+    def get_similar_rejections(self, proposal: str, limit: int = 5,
+                               decay_days: float = 7.0) -> list[dict]:
+        """T4: rejections are staleness-decayed — a rejection's match score is
+        weighted by exp(-age/decay_days), so old/spurious rejections fade and
+        stop blocking similar valid actions forever. Results are ranked by the
+        decayed score; the raw row is returned (caller can inspect created_at)."""
         try:
             with self._lock:
                 rows = self._conn.execute(
@@ -206,26 +232,53 @@ class CounterfactualMemory:
             for row in rows:
                 sim = _jaccard(proposal, row["proposal"])
                 if sim > 0.15:
-                    scored.append((sim, dict(row)))
+                    decayed = sim * _decay_factor(row["created_at"], decay_days)
+                    scored.append((decayed, sim, dict(row)))
             scored.sort(key=lambda x: x[0], reverse=True)
-            return [r for _, r in scored[:limit]]
+            return [r for _, _, r in scored[:limit]]
         except Exception as e:
             logger.warning(f"[VECTOR][counterfactual] get_similar_rejections failed: {e}")
             return []
 
-    def should_avoid(self, proposal: str, threshold: float = 0.4) -> tuple[bool, float, str]:
+    def should_avoid(self, proposal: str, threshold: float = 0.4,
+                     decay_days: float = 7.0) -> tuple[bool, float, str]:
         """
         Returns (should_avoid, confidence, reason).
         True if a similar proposal was previously rejected with high similarity.
+
+        T4: confidence is the staleness-decayed similarity — a fresh rejection
+        near the threshold blocks, but the same rejection weeks old does not.
+        A spurious rejection during a provider failure (T9) therefore stops
+        poisoning the action after ~3-4 half-lives (decay_days default 7).
         """
-        similar = self.get_similar_rejections(proposal, limit=3)
+        similar = self.get_similar_rejections(proposal, limit=3, decay_days=decay_days)
         if not similar:
             return False, 0.0, ""
         best = similar[0]
         sim = _jaccard(proposal, best["proposal"])
-        if sim >= threshold:
-            return True, round(sim, 3), best["reason"]
-        return False, round(sim, 3), ""
+        decayed = sim * _decay_factor(best.get("created_at", ""), decay_days)
+        if decayed >= threshold:
+            return True, round(decayed, 3), best["reason"]
+        return False, round(decayed, 3), ""
+
+    def prune_stale(self, max_age_days: float = 90.0) -> int:
+        """T4: delete rejections older than max_age_days. Returns count deleted.
+        Call periodically (e.g. from the 2AM reflect) to bound table growth."""
+        try:
+            cutoff = (datetime.now(timezone.utc).timestamp() - max_age_days * 86400.0)
+            with self._lock:
+                cur = self._conn.execute(
+                    "DELETE FROM rejections WHERE "
+                    "strftime('%s', created_at) < ?", (cutoff,)
+                )
+                self._conn.commit()
+                n = cur.rowcount
+            if n:
+                logger.info(f"[VECTOR][counterfactual] pruned {n} stale rejections (>{max_age_days}d)")
+            return n
+        except Exception as e:
+            logger.warning(f"[VECTOR][counterfactual] prune_stale failed: {e}")
+            return 0
 
     def learn_from_outcome(
         self,

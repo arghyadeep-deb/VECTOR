@@ -34,6 +34,7 @@ ensure_paths()
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
+from core.loop.permission_gateway import PermissionGateway, Action
 from loguru import logger
 
 # 2026-07-30 audit fix (Phase 6 — vendored integration reachability):
@@ -112,6 +113,7 @@ class MLOpsAgent(AgentBase):
         # 2026-08-06: governor capability declarations — see architect_bot.py
         self.capabilities = ["ml_research", "hf_train", "hf_dataset", "hf_hub", "github_ml", "ml_plan"]
         self._memory = EpisodicMemory()
+        self._gateway = PermissionGateway()
         logger.info("[VECTOR][vector_mlops] ready gen={} hp={}", generation, self.health_points)
 
     # ── Helpers ───────────────────────────────────────────────────────────────
@@ -326,8 +328,48 @@ class MLOpsAgent(AgentBase):
         hardware: cpu-basic, cpu-upgrade, nvidia-t4-small, nvidia-t4-medium,
                   nvidia-a10g-small, nvidia-a100-large
         script: Python training script content (will be uploaded then executed)
+
+        RED-gated (58C remediation — VECTOR_TECHNICAL_KNOWLEDGE/58C_MLOPS_
+        HF_TRAIN_PERMISSION_REMEDIATION.md): this submits caller-supplied
+        Python for REAL remote execution on HuggingFace Jobs, under the
+        owner's HF credentials, at real billing cost. All consequential,
+        caller-controlled parameters (script, hardware, timeout, repo_id,
+        requirements) are included in the gated Action so the approver sees
+        exactly what would run, where, and on what hardware/duration — never
+        an unqualified "run training". The real remote submission
+        (hf_jobs_handler) may only be reached after gate_result.approved.
         """
         logger.info("[VECTOR][vector_mlops] hf_train: {} on {}", repo_id, hardware)
+
+        try:
+            gate_result = await self._gateway.execute(Action(
+                action_type="hf_train",
+                params={
+                    "script": script,
+                    "repo_id": repo_id,
+                    "hardware": hardware,
+                    "timeout": timeout,
+                    "requirements": requirements or [],
+                    "summary": (
+                        f"Submit HF Jobs training run: repo_id={repo_id!r}, "
+                        f"hardware={hardware!r}, timeout={timeout}s, "
+                        f"script={len(script)} chars, "
+                        f"requirements={requirements or []}"
+                    ),
+                },
+                proposed_by=self.name,
+            ))
+        except Exception as e:
+            # Fail closed — never let a gateway-unreachable condition fall
+            # through to a real remote job submission (mirrors
+            # hedgebot_agent.py's solana_swap_execute pattern).
+            logger.error("[VECTOR][vector_mlops] gateway unavailable — refusing hf_train: {}", e)
+            return {"status": "blocked", "reason": f"gateway unavailable: {e}"}
+
+        if not gate_result.approved:
+            logger.warning("[VECTOR][vector_mlops] hf_train blocked by gateway: {}", gate_result.reason)
+            return {"status": "blocked", "reason": gate_result.reason}
+
         loop = asyncio.get_event_loop()
 
         def _run():

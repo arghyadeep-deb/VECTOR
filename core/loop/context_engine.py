@@ -7,6 +7,10 @@ ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
+try:
+    from core.brain.epistemic_tracker import EpistemicTracker
+except Exception:
+    EpistemicTracker = None
 
 _SENSE_CACHE: dict = {
     "screen_summary": "",
@@ -45,6 +49,7 @@ class ContextEngine:
     def __init__(self):
         self._memory = None
         self._goals = None
+        self._epistemic = EpistemicTracker() if EpistemicTracker else None
         # Sense cache: populated by autonomous_loop._sense_tick() or update_sense_cache().
         # Keys written by FaceDetector: face.detected, face.identity, face.fatigue
         # Keys written by ScreenObserver: screen_summary
@@ -141,6 +146,100 @@ class ContextEngine:
             "phone_notification_count": int(phone_data.get("notification_count", 0)),
         }
 
+    # ── Epistemic belief formation (Gap 3) ──────────────────────────────────
+    # Called by autonomous_loop._think_tick() AFTER get_world_state() so beliefs
+    # are tracked at the point where VECTOR has formed semantic assessments from
+    # raw sense data. Tracks only non-trivial, actionable beliefs with evidence.
+
+    def track_beliefs(self, world_state: dict) -> list[str]:
+        """Extract and track semantic beliefs from world_state.
+
+        Called at the exact point where VECTOR has formed assessments from
+        raw sense data + memory retrieval. Only tracks beliefs with meaningful
+        confidence derived from evidence, not every trivial observation.
+
+        Returns list of belief keys that were updated.
+        """
+        if not self._epistemic or not CONFIG.get("epistemic", {}).get("enabled", True):
+            return []
+
+        updated = []
+        now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+        # 1. Presence belief — only if face detector actually ran (not "unknown")
+        presence = world_state.get("presence", "unknown")
+        if presence in ("present", "absent"):
+            identity = world_state.get("owner_identity", "")
+            fatigue = world_state.get("fatigue_score", 0.0)
+            belief_text = f"owner_{presence}"
+            if identity:
+                belief_text += f"_as_{identity}"
+            if fatigue > 0.0:
+                belief_text += f"_fatigue_{fatigue:.2f}"
+            confidence = 0.9 if presence == "present" else 0.7
+            claim_id = f"belief:presence:{presence}"
+            try:
+                self._epistemic.update_belief(claim_id, belief_text, confidence, "face_detector")
+                updated.append(claim_id)
+            except Exception as e:
+                logger.debug(f"[VECTOR][context_engine] presence belief update failed: {e}")
+
+        # 2. KIIT attendance belief — only if scraper has fresh data
+        if "attendance" in str(world_state.get("goal_summary", "")).lower():
+            # Check if we have recent episodic data about attendance
+            attendance_episodes = [ep for ep in world_state.get("recent_episodes", [])
+                                 if "attendance" in ep.lower() or "kiit" in ep.lower()]
+            if attendance_episodes:
+                claim_id = "belief:kiit_attendance:current"
+                belief_text = "kiit_attendance_data_recently_verified"
+                confidence = 0.8
+                try:
+                    self._epistemic.update_belief(claim_id, belief_text, confidence, "kiit_scraper")
+                    updated.append(claim_id)
+                except Exception as e:
+                    logger.debug(f"[VECTOR][context_engine] kiit belief update failed: {e}")
+
+        # 3. Screen activity belief — only if screen_summary is non-empty
+        screen = world_state.get("screen_summary", "")
+        if screen and len(screen) > 20:
+            # Extract a high-level activity classification
+            activity = "active_coding" if any(k in screen.lower() for k in ("code", "def ", "class ", "import ")) else \
+                      "active_browsing" if any(k in screen.lower() for k in ("http", "www", "browser")) else \
+                      "active_terminal" if any(k in screen.lower() for k in ("$ ", "> ", "cmd", "powershell")) else \
+                      "active_other"
+            claim_id = f"belief:screen_activity:{activity}"
+            confidence = 0.7
+            try:
+                self._epistemic.update_belief(claim_id, activity, confidence, "screen_observer")
+                updated.append(claim_id)
+            except Exception as e:
+                logger.debug(f"[VECTOR][context_engine] screen belief update failed: {e}")
+
+        # 4. Goal progress belief — only for active goals with measurable progress
+        goal_summary = world_state.get("goal_summary", "")
+        if goal_summary:
+            claim_id = "belief:goals:active_progress"
+            confidence = 0.6  # Lower confidence — goals are aspirational
+            try:
+                self._epistemic.update_belief(claim_id, goal_summary[:200], confidence, "goal_system")
+                updated.append(claim_id)
+            except Exception as e:
+                logger.debug(f"[VECTOR][context_engine] goals belief update failed: {e}")
+
+        # 5. Memory health belief — only if episodic stats indicate degradation
+        mem_stats = world_state.get("memory_stats", {})
+        if isinstance(mem_stats, dict) and mem_stats.get("total_episodes", 0) > 0:
+            health = "healthy" if mem_stats.get("total_episodes", 0) > 100 else "building"
+            claim_id = f"belief:memory:health"
+            confidence = 0.7
+            try:
+                self._epistemic.update_belief(claim_id, f"episodic_{health}", confidence, "memory_stats")
+                updated.append(claim_id)
+            except Exception as e:
+                logger.debug(f"[VECTOR][context_engine] memory belief update failed: {e}")
+
+        return updated
+
     def _person_context_line(self, person_id: str, topic: str = "current task") -> str:
         try:
             from core.brain.person_model import PersonModel
@@ -172,6 +271,23 @@ class ContextEngine:
                     close()
         except Exception as e:
             logger.debug("[VECTOR][context_engine] person context unavailable: {}", e)
+            return ""
+
+    def _correction_lessons_line(self, query: str = "", domain: str = "") -> str:
+        """Retrieve applicable owner-correction lessons for session hydration.
+
+        Queries CorrectionLearner for lessons matching the current situation.
+        Returns a formatted block or "" if none found. Never raises.
+        """
+        try:
+            from core.memory.correction_learner import CorrectionLearner
+            learner = CorrectionLearner()
+            return learner.build_injection_line(
+                current_situation=query,
+                domain=domain,
+            )
+        except Exception as e:
+            logger.debug("[VECTOR][context_engine] correction lessons unavailable: {}", e)
             return ""
 
     def session_hydration_prompt(self, extra_context: dict | None = None) -> str:
@@ -261,6 +377,20 @@ class ContextEngine:
             )
             if about:
                 lines.append(about)
+
+        # ── Owner correction lessons (correction_learner) ─────────────────
+        # Injects applicable lessons when the owner previously corrected VECTOR.
+        # Retrieves from episodic_memory (event_type="correction_lesson") keyed
+        # off domain + situation from the current query/context.
+        try:
+            cl_line = self._correction_lessons_line(
+                query=str(query or ""),
+                domain=str((extra_context or {}).get("domain", "")),
+            )
+            if cl_line:
+                lines.append(cl_line)
+        except Exception:
+            logger.debug("[VECTOR][context_engine] correction lessons unavailable")
 
         if extra_context:
             for k, v in extra_context.items():

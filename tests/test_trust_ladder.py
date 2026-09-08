@@ -124,7 +124,8 @@ def gateway_with_ladder(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_promoted_yellow_auto_executes(gateway_with_ladder):
+async def test_promoted_yellow_auto_executes(gateway_with_ladder, monkeypatch):
+    monkeypatch.delenv("VECTOR_YELLOW_AUTO_CONFIRM", raising=False)
     gw, ladder = gateway_with_ladder
     ladder.promote("set_reminder")
     result = await gw.execute(Action("set_reminder", {"text": "test"}, "pytest"))
@@ -134,7 +135,12 @@ async def test_promoted_yellow_auto_executes(gateway_with_ladder):
 
 
 @pytest.mark.asyncio
-async def test_unpromoted_yellow_still_gated(gateway_with_ladder):
+async def test_unpromoted_yellow_still_gated(gateway_with_ladder, monkeypatch):
+    # 2026-08-12: isolate from .env state — VECTOR_YELLOW_AUTO_CONFIRM=1 in
+    # the owner's .env would auto-approve YELLOW actions, bypassing the trust
+    # ladder gate this test is verifying. Same fix as
+    # tests/unit/test_permission_gateway_extra.py:53-55.
+    monkeypatch.delenv("VECTOR_YELLOW_AUTO_CONFIRM", raising=False)
     gw, ladder = gateway_with_ladder
     # No promotion → normal YELLOW flow: pytest timeout (0.01s) → rejected.
     result = await gw.execute(Action("set_reminder", {"text": "test"}, "pytest"))
@@ -178,9 +184,14 @@ async def test_disabled_ladder_restores_old_behavior(gateway_with_ladder, monkey
 async def _when_pending(gw, action_type: str, fn, tries: int = 5000):
     """Poll until the gateway registers the pending event, then act on it.
     (The event only exists once _wait_for_confirmation starts; the notify
-    call before it may spend real wall time, so poll on the clock.)"""
+    call before it may spend real wall time, so poll on the clock.)
+
+    F-1: pending approvals are keyed by a unique id (action_type#seq), not the
+    bare action_type, so poll get_pending() for the action_type rather than the
+    raw _pending_events key. confirm_action()/reject() still accept the bare
+    action_type and resolve it when a single instance is pending."""
     for _ in range(tries):
-        if action_type in gw._pending_events:
+        if any(p.get("action_type") == action_type for p in gw.get_pending()):
             return fn()
         await asyncio.sleep(0.001)
     raise AssertionError(f"{action_type} never became pending")
@@ -195,7 +206,8 @@ def _silence_notify(gw):
 
 
 @pytest.mark.asyncio
-async def test_explicit_approval_feeds_streak(gateway_with_ladder):
+async def test_explicit_approval_feeds_streak(gateway_with_ladder, monkeypatch):
+    monkeypatch.delenv("VECTOR_YELLOW_AUTO_CONFIRM", raising=False)
     gw, ladder = gateway_with_ladder
     _silence_notify(gw)
     task = asyncio.create_task(
@@ -208,7 +220,8 @@ async def test_explicit_approval_feeds_streak(gateway_with_ladder):
 
 
 @pytest.mark.asyncio
-async def test_explicit_rejection_feeds_ladder(gateway_with_ladder):
+async def test_explicit_rejection_feeds_ladder(gateway_with_ladder, monkeypatch):
+    monkeypatch.delenv("VECTOR_YELLOW_AUTO_CONFIRM", raising=False)
     gw, ladder = gateway_with_ladder
     _silence_notify(gw)
     task = asyncio.create_task(

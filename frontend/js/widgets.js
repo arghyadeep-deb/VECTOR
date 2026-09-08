@@ -33,7 +33,9 @@
     memory:[2,64], council:[40,55], security:[40,4], map:[26,20],
     music:[40,70], chat:[2,30], webcam:[60,40],
     approvals:[66,55], librechat:[4,4], openwebui:[4,4],
-    finance:[64,30], contentscheduler:[2,30], answerengine:[30,20], goalplanner:[4,55]
+    finance:[64,30], contentscheduler:[2,30], answerengine:[30,20], goalplanner:[4,55],
+    memoryexplorer:[24,20], cognition:[20,10], experiment:[46,12], agentatlas:[16,8],
+    commandcenter:[14,6]
   };
 
   // ---- chrome wrapper -----------------------------------------------------
@@ -504,6 +506,711 @@
     setInterval(()=>{ if(w.isConnected) loadMemory(); }, 8000);
     return w;
   };
+
+  // ==========================================================================
+  // Memory Explorer — Task 73. Separates VECTOR's memory subsystems and, for
+  // each, distinguishes STORED / RETRIEVED (live, where a real endpoint exists)
+  // from INFLUENCING / LEARNING / ADAPTING (a static architecture assessment
+  // sourced from the Task 71/72 source-level audits — never inferred from a
+  // row count alone). This split exists specifically so this panel cannot
+  // accidentally claim "learning" merely because a database row changed.
+  // ==========================================================================
+  const MEMORY_SUBSYSTEMS = [
+    { id:'episodic', name:'EPISODIC', endpoint:'/memory/recent?limit=1',
+      countPath:d=>(d.memories||d.events||(Array.isArray(d)?d:[])).length,
+      assessment:{ influencing:'YES', learning:'—', adapting:'—',
+        note:'Ground-truth event log. Feeds anticipation (episode-pattern) and reasoning retrieval — both confirmed live consumers.' } },
+    { id:'semantic', name:'SEMANTIC', endpoint:null,
+      assessment:{ influencing:'UNCONFIRMED', learning:'NO', adapting:'NO',
+        note:'Real UPSERT write activity confirmed (loop_state checkpoints), but row count never grows and no consumer of that data back into a decision was found. Storage ≠ learning.' } },
+    { id:'policy', name:'POLICY', endpoint:null,
+      assessment:{ influencing:'YES', learning:'YES (mechanism)', adapting:'NOT DEMONSTRATED',
+        note:'Real write→read loop (20% decision weight). Unbounded cumulative average with no decay — a high-sample-count entry is architecturally frozen. See Task 71/72.' } },
+    { id:'counterfactual', name:'COUNTERFACTUAL', endpoint:null,
+      assessment:{ influencing:'PARTIAL', learning:'YES (mechanism)', adapting:'NOT DEMONSTRATED',
+        note:'Blocks a chosen candidate after selection only — never consulted during candidate generation. Staleness decay exists but is self-defeating for a repeated candidate (Task 72 §2.2).' } },
+    { id:'reasoning', name:'REASONING', endpoint:'/brain/reasoning/chains?limit=1',
+      countPath:d=>(d.chains||d.decisions||(Array.isArray(d)?d:[])).length,
+      assessment:{ influencing:'YES (read-only)', learning:'NO', adapting:'NO',
+        note:'reasoning_bank is read every scoring cycle; zero write-back path exists from the live decision loop (Task 71 T71-M05).' } },
+    { id:'epistemic', name:'EPISTEMIC', endpoint:'/brain/epistemic/summary',
+      countPath:d=>(d.beliefs||d.count!=null?d.count:(Array.isArray(d)?d.length:null)),
+      assessment:{ influencing:'PARTIAL', learning:'YES (mechanism)', adapting:'UNCONFIRMED',
+        note:'Two independent write pathways found (Task 72 §2.3). One closes a real read→dampen loop but was traced to never fire for the dominant observed action.' } },
+    { id:'skill', name:'SKILL', endpoint:null,
+      assessment:{ influencing:'UNKNOWN', learning:'UNKNOWN', adapting:'UNKNOWN',
+        note:'No writer located in any audit pass to date. Genuinely unknown, not assumed absent.' } },
+  ];
+  F.memoryexplorer = function(){
+    const wrap = el('div','memx');
+    wrap.appendChild(el('div','memx-hint',
+      'STORED / RETRIEVED are live where a source exists. INFLUENCING / LEARNING / ADAPTING are a static source-audit assessment (Task 71–72) — never inferred from a row count.'));
+    const grid = el('div','memx-grid');
+    wrap.appendChild(grid);
+    MEMORY_SUBSYSTEMS.forEach(s=>{
+      const row = el('div','memx-row');
+      row.appendChild(el('div','memx-name', s.name));
+      const stored = el('div','memx-stat', s.endpoint ? '<span class="memx-live">● LIVE</span> <span class="memx-count">—</span>' : '<span class="memx-nolive">○ NO LIVE SOURCE</span>');
+      row.appendChild(stored);
+      const badges = el('div','memx-badges',
+        `<span class="memx-badge" data-k="influencing">INFL <b>${escapeHtml(s.assessment.influencing)}</b></span>`+
+        `<span class="memx-badge" data-k="learning">LEARN <b>${escapeHtml(s.assessment.learning)}</b></span>`+
+        `<span class="memx-badge" data-k="adapting">ADAPT <b>${escapeHtml(s.assessment.adapting)}</b></span>`);
+      row.appendChild(badges);
+      row.appendChild(el('div','memx-note', s.assessment.note));
+      grid.appendChild(row);
+      if(s.endpoint){
+        apiGet(s.endpoint).then(d=>{
+          const n = s.countPath ? s.countPath(d) : null;
+          const c = stored.querySelector('.memx-count');
+          if(c) c.textContent = (n==null?'—':n) + (n!=null?' recent':'');
+        }).catch(()=>{
+          const liveEl = stored.querySelector('.memx-live');
+          if(liveEl){ liveEl.textContent='○'; liveEl.className='memx-nolive'; liveEl.nextElementSibling && (liveEl.nextElementSibling.textContent='offline'); }
+        });
+      }
+    });
+    const w = shell('memoryexplorer','MEMORY · TRUTH TABLE', wrap, 'memx-panel');
+    return w;
+  };
+
+  // ==========================================================================
+  // Cognition Panel — Task 73. Visualizes the real pipeline stage order.
+  // A stage only shows ACTIVE/RECENT when a real backend signal supports it;
+  // everything else shows UNKNOWN — never fabricated as if it executed.
+  // ==========================================================================
+  const COGNITION_STAGES = ['OBSERVATION','CONTEXT','MEMORY','GOALS','CANDIDATES','SCORING','DECISION','PERMISSION','ACTION','OUTCOME','LEARNING'];
+  F.cognition = function(){
+    const wrap = el('div','cog');
+    wrap.appendChild(el('div','cog-hint','Stage order reflects the real production dataflow (Task 72 §3). A stage shows a state only when a live backend signal exists for it.'));
+    const rail = el('div','cog-rail');
+    wrap.appendChild(rail);
+    const chips = {};
+    COGNITION_STAGES.forEach((s,i)=>{
+      const chip = el('div','cog-chip unknown', `<span class="cog-n">${i+1}</span><span class="cog-lbl">${s}</span><span class="cog-state">UNKNOWN</span>`);
+      rail.appendChild(chip);
+      chips[s]=chip;
+      if(i<COGNITION_STAGES.length-1) rail.appendChild(el('div','cog-arrow','↓'));
+    });
+    const detail = el('div','cog-detail');
+    wrap.appendChild(detail);
+    function setStage(name, state, text){
+      const c = chips[name]; if(!c) return;
+      c.className = 'cog-chip '+state;
+      const st = c.querySelector('.cog-state'); if(st) st.textContent = state.toUpperCase();
+      if(text) c.title = text;
+    }
+    async function refresh(){
+      try{
+        const goals = await apiGet('/brain/goals');
+        const list = goals.goals || goals || [];
+        if(Array.isArray(list) && list.length) setStage('GOALS','active', list.length+' active goal(s)');
+      }catch(e){}
+      try{
+        const chains = await apiGet('/brain/reasoning/chains?limit=1');
+        const list = chains.chains || chains.decisions || (Array.isArray(chains)?chains:[]);
+        if(Array.isArray(list) && list.length){
+          setStage('DECISION','recent','Most recent decision available');
+          const d = list[0];
+          detail.innerHTML = `<div class="row-kv"><span class="k">LAST DECISION</span><span class="v">${escapeHtml(d.action||d.action_type||d.summary||'—')}</span></div>`+
+            (d.score!=null?`<div class="row-kv"><span class="k">SCORE</span><span class="v">${Number(d.score).toFixed(2)}</span></div>`:'');
+        }
+      }catch(e){}
+      try{
+        const pend = await apiGet('/gateway/pending');
+        const list = pend.pending || pend.items || (Array.isArray(pend)?pend:[]);
+        setStage('PERMISSION', Array.isArray(list)&&list.length ? 'waiting' : 'idle', (list||[]).length+' pending');
+      }catch(e){}
+    }
+    const w = shell('cognition','COGNITIVE PIPELINE', wrap, 'cog-panel');
+    refresh();
+    setInterval(()=>{ if(w.isConnected) refresh(); }, 12000);
+    return w;
+  };
+
+  // ==========================================================================
+  // Experiment Observatory — Task 73. READ-ONLY. Never issues a write call.
+  // Deliberately keeps "telemetry-labelled autonomous" and "behaviorally-
+  // inferred unattended" as two separate, explicitly-labelled rows — the
+  // running experiment has already shown these are not the same number
+  // (Task 65–66).
+  // ==========================================================================
+  F.experiment = function(){
+    const wrap = el('div','xobs');
+    wrap.appendChild(el('div','xobs-hint','Read-only observer. This panel cannot approve, deny, or otherwise mutate the running experiment.'));
+    const grid = el('div','xobs-grid');
+    wrap.appendChild(grid);
+    function row(label, value, id){
+      const r = el('div','row-kv'); r.dataset.xk = id||'';
+      r.innerHTML = `<span class="k">${escapeHtml(label)}</span><span class="v">${escapeHtml(value)}</span>`;
+      grid.appendChild(r);
+    }
+    row('SEGMENT','see VECTOR_TECHNICAL_KNOWLEDGE/69','segment');
+    row('UPTIME','—','uptime');
+    row('LOOP TICKS','—','ticks');
+    row('INFERENCE CALLS (session)','—','infer');
+    row('GATEWAY EVENTS (session)','—','gw');
+    grid.appendChild(el('div','xobs-sep','AUTONOMY LABELLING — kept separate on purpose'));
+    row('TELEMETRY-LABELLED AUTONOMOUS','requires backend aggregation — not yet exposed','tel-auto');
+    row('BEHAVIORALLY-INFERRED UNATTENDED','requires backend aggregation — not yet exposed','beh-auto');
+    wrap.appendChild(el('div','xobs-note',
+      'Segment-level counters (gateway_audit deltas, action repertoire, candidate diversity, policy/epistemic change) require a dedicated read-only backend endpoint that does not exist yet — see VECTOR_TECHNICAL_KNOWLEDGE/73_FRONTEND_DATA_CONTRACTS.md. Nothing below is fabricated to fill the gap.'));
+    function setRow(id, val){ const r=grid.querySelector(`[data-xk="${id}"] .v`); if(r) r.textContent=val; }
+    async function refresh(){
+      try{ const s = await apiGet('/status'); if(s && s.uptime_seconds!=null){
+        const sec = Math.floor(s.uptime_seconds);
+        setRow('uptime', [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':'));
+      }}catch(e){ setRow('uptime','offline'); }
+      try{ const l = await apiGet('/loop/status'); const t = l && (l.tick_count??l.ticks);
+        if(t!=null) setRow('ticks', String(t)); }catch(e){}
+      try{ const inf = await apiGet('/inference/stats'); if(inf){
+        const n = inf.total_calls ?? inf.calls ?? null;
+        if(n!=null) setRow('infer', String(n));
+      }}catch(e){}
+      try{ const sec2 = await apiGet('/security/status'); if(sec2 && Array.isArray(sec2.audit_log)){
+        setRow('gw', String(sec2.audit_log.length)+' in window');
+      }}catch(e){}
+    }
+    const w = shell('experiment','EXPERIMENT OBSERVATORY · READ-ONLY', wrap, 'xobs-panel');
+    refresh();
+    setInterval(()=>{ if(w.isConnected) refresh(); }, 15000);
+    return w;
+  };
+
+  // ==========================================================================
+  // Agent / District Civilization Atlas — Task 74.
+  // VECTOR → GOVERNOR → DISTRICTS → AGENTS → CAPABILITIES → TASKS, navigable.
+  // Merges two REAL, DIFFERENT backend registries (core.city.agent_registry
+  // via /agents, and vectorcode.src.agents.registry via /a2a/agents — see
+  // 74_AGENT_ATLAS_AUDIT.md §1) rather than inventing a unified shape. Never
+  // issues a POST — /city/dispatch and /a2a/.../invoke are real but
+  // consequential and are never called from here.
+  // ==========================================================================
+  F.agentatlas = function(){
+    const wrap = el('div','atlas');
+    const crumb = el('div','atlas-crumb');
+    const body  = el('div','atlas-body');
+    const filterRow = el('div','atlas-filter',
+      `<input class="atlas-fx" placeholder="filter district / agent / capability…" />`);
+    wrap.appendChild(crumb); wrap.appendChild(filterRow); wrap.appendChild(body);
+
+    // ── state (panel-local, not global — cleared on close) ─────────────────
+    const S = { agents:[], a2a:[], districtsShape:null, view:'macro', district:null, agent:null, filter:'' };
+    const ACTIVITY_CAP = 30;
+    const activity = []; // ring buffer of real WS events only
+
+    filterRow.querySelector('.atlas-fx').addEventListener('input', e=>{
+      S.filter = e.target.value.trim().toLowerCase();
+      render();
+    });
+
+    // ── real WS activity, passive only — never polled/fabricated ───────────
+    // Confirmed-real event types per 74_AGENT_ATLAS_AUDIT.md §5.
+    function pushActivity(kind, text, meta){
+      activity.unshift({ kind, text, meta: meta||{}, when: new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) });
+      if(activity.length > ACTIVITY_CAP) activity.length = ACTIVITY_CAP;
+      if(S.view==='agent' || S.view==='district') renderActivityOnly();
+    }
+    V.on('state_event', ev=>{
+      if(!ev || !ev.event_type) return;
+      const d = ev.data || {};
+      if(ev.event_type==='AGENT_HP_CHANGED') pushActivity('AGENT_ACTIVE', 'HP changed', { agent_id:d.agent_id });
+      else if(ev.event_type==='TASK_ROUTED') pushActivity('TASK_STARTED', (d.from_district||'?')+' → '+(d.to_district||'?'), { district:d.to_district });
+      else if(ev.event_type==='DECISION_MADE') pushActivity('DECISION', d.action||d.task||'decision made', {});
+      else if(ev.event_type==='ANOMALY_DETECTED') pushActivity('ERROR', 'anomaly detected', {});
+    });
+    V.on('decision_made', msg=>{ const d=msg&&(msg.data||msg.decision||msg); if(d) pushActivity('DECISION', d.action||d.summary||d.id||'decision', {}); });
+
+    // ── merge /agents (live HP registry) + /a2a/agents (declared capabilities) ─
+    function mergeAgents(live, declared){
+      const byName = new Map();
+      declared.forEach(d=>{ byName.set((d.name||'').toLowerCase(), { declared:d }); });
+      const out = [];
+      live.forEach(a=>{
+        const key = (a.name||'').toLowerCase();
+        const match = byName.get(key);
+        out.push({
+          id: a.id || a.agent_id, name: a.name || 'agent', district: a.district || 'unknown',
+          generation: a.generation, health_points: a.health_points,
+          status: a.status || null,                     // HP-tier lifecycle label — NOT execution state
+          model: a.model || null, last_active: a.last_active || null,
+          capabilities: match ? (match.declared.capabilities||[]) : null,   // null = no declared source found
+          description: match ? match.declared.description : null,
+        });
+      });
+      // declared-only agents (no live registry entry) — still show them, honestly marked
+      declared.forEach(d=>{
+        const key=(d.name||'').toLowerCase();
+        if(!live.some(a=>(a.name||'').toLowerCase()===key)){
+          out.push({ id:null, name:d.name, district:d.district||'unknown', generation:null,
+            health_points:null, status:null, model:d.model||null, last_active:null,
+            capabilities:d.capabilities||[], description:d.description, declaredOnly:true });
+        }
+      });
+      return out;
+    }
+
+    async function loadAll(){
+      let live = [], declared = [];
+      try{ const j = await apiGet('/agents'); live = j.agents || (Array.isArray(j)?j:[]); }
+      catch(e){ live = []; }
+      try{ const j2 = await apiGet('/a2a/agents'); declared = j2.agents || []; }
+      catch(e){ declared = []; }
+      try{ const j3 = await apiGet('/city/districts'); S.districtsShape = j3; }
+      catch(e){ S.districtsShape = null; }
+      S.agents = mergeAgents(live, declared);
+      render();
+    }
+
+    function districtGroups(){
+      const g = {};
+      S.agents.forEach(a=>{
+        const d = a.district || 'unknown';
+        (g[d] = g[d]||[]).push(a);
+      });
+      return g;
+    }
+
+    function hpTierLabel(status){
+      if(!status) return 'UNKNOWN';
+      return status.toUpperCase();
+    }
+    function hpColor(status){
+      if(status==='elite'||status==='strong') return 'var(--ok)';
+      if(status==='healthy') return 'var(--accent-soft)';
+      if(status==='weakened') return 'var(--warn)';
+      if(status==='critical'||status==='dead') return 'var(--danger)';
+      return 'var(--txt-faint)';
+    }
+    function matchesFilter(text){
+      if(!S.filter) return true;
+      return String(text||'').toLowerCase().includes(S.filter);
+    }
+
+    function setCrumb(parts){
+      // Real <button>s, not clickable <span>s (76_HUD_VISUAL_AUDIT.md F2) — matches
+      // Command Center's breadcrumb (widgets.js F.commandcenter setCrumb), which shares
+      // this same visual class via .atlas-cr, .cc-cr in widgets.css.
+      crumb.innerHTML = '';
+      parts.forEach((p,i)=>{
+        const cur = i===parts.length-1;
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'atlas-cr'+(cur?' cur':''); b.textContent = p.label;
+        if(cur) b.disabled = true;
+        else b.addEventListener('click', e=>{ e.stopPropagation(); p.go && p.go(); });
+        crumb.appendChild(b);
+        if(i < parts.length-1) crumb.appendChild(el('span','atlas-sep','›'));
+      });
+    }
+
+    function renderActivityOnly(){
+      const list = body.querySelector('.atlas-activity-list');
+      if(!list) return;
+      const relevant = activity.filter(ev=>{
+        if(S.view==='agent' && S.agent) return !ev.meta.agent_id || ev.meta.agent_id===S.agent.id;
+        if(S.view==='district' && S.district) return !ev.meta.district || ev.meta.district===S.district;
+        return true;
+      }).slice(0,15);
+      list.innerHTML = relevant.length
+        ? relevant.map(ev=>`<div class="atlas-ev"><span class="ew">${ev.when}</span><span class="et">${esc2(ev.kind)}</span><span class="ec">${esc2(ev.text)}</span></div>`).join('')
+        : `<div class="ve-offline">no observed events yet this session</div>`;
+    }
+    function esc2(s){ return escapeHtml(s); }
+
+    // ── MACRO MAP ────────────────────────────────────────────────────────────
+    function renderMacro(){
+      setCrumb([{label:'VECTOR'},{label:'GOVERNOR'},{label:'DISTRICTS'}]);
+      const groups = districtGroups();
+      const names = Object.keys(groups).filter(n=>matchesFilter(n) || groups[n].some(a=>matchesFilter(a.name)));
+      if(!S.agents.length){ body.innerHTML = '<div class="ve-offline">◌ VECTOR offline — no agent data</div>'; return; }
+      const grid = el('div','atlas-grid');
+      names.sort().forEach(name=>{
+        const list = groups[name];
+        const alive = list.filter(a=>a.status && a.status!=='dead').length;
+        const known = list.filter(a=>a.status).length;
+        const card = el('div','atlas-card',
+          `<div class="ac-name">${escapeHtml(name.toUpperCase())}</div>
+           <div class="ac-count">${list.length} agent${list.length===1?'':'s'}</div>
+           <div class="ac-health">${known? alive+' / '+known+' alive' : 'HEALTH UNKNOWN'}</div>`);
+        card.addEventListener('click', ()=>{ S.district=name; S.view='district'; render(); });
+        grid.appendChild(card);
+      });
+      body.innerHTML=''; body.appendChild(grid);
+    }
+
+    // ── DISTRICT VIEW ────────────────────────────────────────────────────────
+    function renderDistrictView(){
+      const name = S.district;
+      setCrumb([
+        {label:'VECTOR', go:()=>{S.view='macro';render();}},
+        {label:'GOVERNOR', go:()=>{S.view='macro';render();}},
+        {label:name.toUpperCase(), go:()=>{S.view='district';render();}},
+      ]);
+      const groups = districtGroups();
+      const list = (groups[name]||[]).filter(a=>matchesFilter(a.name)||matchesFilter((a.capabilities||[]).join(' ')));
+      const rows = list.map(a=>{
+        const status = hpTierLabel(a.status);
+        return `<div class="atlas-agent-row" data-id="${escapeHtml(a.id||a.name)}">
+          <div class="aar-name">${escapeHtml(a.name)}</div>
+          <div class="aar-status" style="color:${hpColor(a.status)}">${status}</div>
+          <div class="aar-caps">${a.capabilities==null ? 'CAPABILITIES UNKNOWN' : (a.capabilities.length? a.capabilities.slice(0,3).map(escapeHtml).join(' · ') : 'no declared capabilities')}</div>
+          <div class="aar-task">TASK: NOT OBSERVED</div>
+        </div>`;
+      }).join('');
+      body.innerHTML = `
+        <div class="atlas-district-hdr">
+          <div class="row-kv"><span class="k">STATUS</span><span class="v">${list.length} agent(s) registered</span></div>
+        </div>
+        <div class="atlas-agent-list">${rows || '<div class="ve-offline">no agents match filter</div>'}</div>
+        <div class="atlas-sep-lbl">ACTIVITY (this session, district-scoped)</div>
+        <div class="atlas-activity-list"></div>`;
+      body.querySelectorAll('.atlas-agent-row').forEach(row=>{
+        row.addEventListener('click', ()=>{
+          const id = row.dataset.id;
+          const a = list.find(x=>String(x.id||x.name)===id);
+          if(a){ S.agent=a; S.view='agent'; render(); }
+        });
+      });
+      renderActivityOnly();
+    }
+
+    // ── AGENT INSPECTOR ──────────────────────────────────────────────────────
+    function renderAgentView(){
+      const a = S.agent;
+      setCrumb([
+        {label:'VECTOR', go:()=>{S.view='macro';render();}},
+        {label:'GOVERNOR', go:()=>{S.view='macro';render();}},
+        {label:(a.district||'?').toUpperCase(), go:()=>{S.view='district';render();}},
+        {label:a.name.toUpperCase()},
+      ]);
+      const caps = a.capabilities;
+      const capsHtml = caps==null
+        ? '<div class="ve-offline">no declared-capability source found for this agent (not in /a2a/agents)</div>'
+        : (caps.length ? caps.map(c=>`<div class="atlas-cap-row">
+             <span class="cap-name">${escapeHtml(c)}</span>
+             <span class="cap-badge decl">DECLARED</span>
+             <span class="cap-badge unk" title="cannot be distinguished from declared without invocation">USAGE: UNKNOWN</span>
+           </div>`).join('')
+           : '<div class="ve-offline">agent declares zero capabilities</div>');
+      body.innerHTML = `
+        <div class="atlas-inspect-hdr">AGENT</div>
+        <div class="row-kv"><span class="k">NAME</span><span class="v">${escapeHtml(a.name)}</span></div>
+        <div class="row-kv"><span class="k">DISTRICT</span><span class="v">${escapeHtml(a.district||'—')}</span></div>
+        <div class="row-kv"><span class="k">STATUS</span><span class="v" style="color:${hpColor(a.status)}">${hpTierLabel(a.status)}${a.declaredOnly?' (declared only — not in live registry)':''}</span></div>
+        <div class="row-kv"><span class="k">HEALTH POINTS</span><span class="v">${a.health_points!=null?Math.round(a.health_points):'UNKNOWN'}</span></div>
+        <div class="row-kv"><span class="k">GENERATION</span><span class="v">${a.generation!=null?('G'+a.generation):'UNKNOWN'}</span></div>
+        <div class="row-kv"><span class="k">CURRENT TASK</span><span class="v">NOT OBSERVED</span></div>
+        <div class="row-kv"><span class="k">LAST ACTIVITY</span><span class="v">${a.last_active?escapeHtml(String(a.last_active)):'UNKNOWN'}</span></div>
+        <div class="row-kv"><span class="k">MODEL</span><span class="v">${a.model?escapeHtml(a.model):'UNKNOWN'}</span></div>
+        <div class="row-kv"><span class="k">PROVIDER</span><span class="v">UNKNOWN</span></div>
+        <div class="row-kv"><span class="k">PERMISSION TIER</span><span class="v">NOT CLASSIFIED AT AGENT LEVEL — VECTOR classifies by action_type, not by agent</span></div>
+        <div class="atlas-sep-lbl">CAPABILITIES</div>
+        <div class="atlas-cap-list">${capsHtml}</div>
+        <div class="atlas-sep-lbl">ACTIVITY (this session, agent-scoped)</div>
+        <div class="atlas-activity-list"></div>
+        <div class="atlas-sep-lbl">DEPENDENCIES</div>
+        <div class="row-kv"><span class="k">MODEL</span><span class="v">${a.model?escapeHtml(a.model):'UNKNOWN'}</span></div>
+        <div class="row-kv"><span class="k">TOOLS/PROVIDERS</span><span class="v">NO LIVE SOURCE — see 74_AGENT_ATLAS.md §13</span></div>`;
+      renderActivityOnly();
+    }
+
+    function render(){
+      if(S.view==='district' && S.district) renderDistrictView();
+      else if(S.view==='agent' && S.agent) renderAgentView();
+      else renderMacro();
+    }
+
+    const w = shell('agentatlas','CIVILIZATION ATLAS', wrap, 'atlas-panel');
+    loadAll();
+    setInterval(()=>{ if(w.isConnected) loadAll(); }, 20000);   // same order as F.districts' own 10-20s convention
+    return w;
+  };
+
+  // ==========================================================================
+  // Command Center — Task 75. A navigation layer OVER the existing panel
+  // registry (F, POS, PANEL_MATCHERS, WIDGETS, VECTOR_DATA) — introduces no
+  // new backend calls, no new polling, no second routing system. Every "OPEN"
+  // action here is the same V.openWidget(id) call PANEL_MATCHERS already uses.
+  // ==========================================================================
+
+  // Friendly display names + search aliases for known panels. Purely frontend
+  // metadata — never asserts a panel exists; every reference below is checked
+  // against the real F[id] factory map at render/search time and silently
+  // skipped if absent, so this list can drift ahead of reality without ever
+  // rendering a broken entry.
+  const PANEL_META = {
+    cognition:{label:'Cognition', alias:'reasoning pipeline decision'},
+    brainpanel:{label:'Brain + Reasoning', alias:'hypotheses epistemic persons'},
+    memory:{label:'Memory', alias:'episodic events'},
+    memoryexplorer:{label:'Memory Explorer', alias:'learning truth table levels'},
+    knowledgepanel:{label:'Knowledge Graph', alias:'graph wiki'},
+    goals:{label:'Goals', alias:'objectives horizons'},
+    goalplanner:{label:'Goal Planner', alias:'planning horizons'},
+    missioncontrol:{label:'Mission Control', alias:'missions plan run'},
+    workpanel:{label:'Workflow + Projects', alias:'tasks scheduler queue'},
+    agentatlas:{label:'Civilization Atlas', alias:'agents civilization map'},
+    districts:{label:'Agent Districts', alias:'agents'},
+    agentspanel:{label:'Agents + A2A', alias:'a2a roster'},
+    security:{label:'Permission Gate', alias:'threat'},
+    approvals:{label:'Approvals', alias:'pending permission queue'},
+    council:{label:'LLM Council', alias:'deliberation'},
+    privacypanel:{label:'Privacy + Keys', alias:'redaction oauth'},
+    telemetry:{label:'Telemetry', alias:'cpu ram system'},
+    corepanel:{label:'Core Systems', alias:'brain loop inference voice'},
+    camerapanel:{label:'Camera', alias:'vision sensing'},
+    pccontrol:{label:'PC Control', alias:'sensing screenshot'},
+    healthpanel:{label:'Health', alias:'fatigue sleep biometrics'},
+    webcam:{label:'Vision Feed', alias:'camera sensing'},
+    chat:{label:'Conversation', alias:'talk message'},
+    voicestudio:{label:'Voice Studio', alias:'tts clone'},
+    finance:{label:'Investment + Trading', alias:'portfolio'},
+    trading:{label:'Trading', alias:'investment analyze'},
+    backtest:{label:'Backtest', alias:'strategy'},
+    hedgebot:{label:'Hedgebot', alias:'hedge geopolitics'},
+    market:{label:'Market Ticker', alias:'stock nifty'},
+    codeintel:{label:'Code Intel', alias:'repository symbols'},
+    codegraph:{label:'Code Graph', alias:'knowledge graph'},
+    researchpanel:{label:'Research', alias:'search papers reddit'},
+    answerengine:{label:'Answer Engine', alias:'search'},
+    vectorcodepanel:{label:'VectorCode', alias:'launch'},
+    mediastudio:{label:'Media Studio', alias:'generation'},
+    comfyui:{label:'ComfyUI', alias:'image video'},
+    hyperframes:{label:'Hyperframes', alias:'video render'},
+    contentpanel:{label:'Content Ops', alias:'schedule ads seo news'},
+    designpanel:{label:'Design', alias:'component spec tokens'},
+    music:{label:'Music', alias:'spotify play'},
+    features:{label:'Backend Features', alias:'endpoints system'},
+    platformpanel:{label:'Platform', alias:'collections governance sandbox mcp'},
+    analyticspanel:{label:'Analytics', alias:'etl benchmark report'},
+    experiment:{label:'Experiment Observatory', alias:'segment 2 autonomy'},
+  };
+  function panelLabel(id){ return (PANEL_META[id]&&PANEL_META[id].label) || id; }
+  function panelExists(id){ return typeof F[id]==='function'; }
+
+  // Domain taxonomy — frontend-only grouping metadata. Every panel id listed
+  // is filtered against panelExists() before render, so a domain silently
+  // shrinks (never breaks) if a panel is renamed/removed upstream.
+  const DOMAINS = [
+    { id:'cognition',      label:'COGNITION',      panels:['cognition','brainpanel'] },
+    { id:'memory',         label:'MEMORY',         panels:['memory','memoryexplorer','knowledgepanel'] },
+    { id:'goals',          label:'GOALS',          panels:['goals','goalplanner'] },
+    { id:'planning',       label:'PLANNING',       panels:['missioncontrol','workpanel'] },
+    { id:'civilization',   label:'CIVILIZATION',   panels:['agentatlas','districts','agentspanel'] },
+    { id:'security',       label:'SECURITY',       panels:['security','approvals','council','privacypanel'] },
+    { id:'inference',      label:'INFERENCE',      panels:['telemetry','corepanel'] },
+    { id:'sensing',        label:'SENSING',        panels:['camerapanel','pccontrol','healthpanel','webcam'] },
+    { id:'communication',  label:'COMMUNICATION',  panels:['chat','voicestudio'] },
+    { id:'finance',        label:'FINANCE',        panels:['finance','trading','backtest','hedgebot','market'] },
+    { id:'knowledge',      label:'KNOWLEDGE',      panels:['codeintel','codegraph','researchpanel','answerengine','vectorcodepanel'] },
+    { id:'media',          label:'MEDIA',          panels:['mediastudio','comfyui','hyperframes','contentpanel','designpanel','music'] },
+    { id:'system',         label:'SYSTEM',         panels:['features','platformpanel','analyticspanel'] },
+    { id:'experiment',     label:'EXPERIMENT',     panels:['experiment'] },
+  ];
+  function domainPanels(dom){ return dom.panels.filter(panelExists); }
+
+  // Real-only summary chip per domain — reads already-loaded VECTOR_DATA, no
+  // new fetch. Returns null (rendered as UNKNOWN) when no real source exists
+  // for that domain — never a fabricated aggregate "health".
+  function domainSummary(domId){
+    try{
+      if(domId==='civilization' && Array.isArray(D.agents) && D.agents.length){
+        const alive = D.agents.filter(a=>(a.health_points!=null?a.health_points:(a.tier!=='GHOST'?1:0))>0).length;
+        return alive+' / '+D.agents.length+' alive';
+      }
+      if(domId==='security' && Array.isArray(D.APPROVALS)) return D.APPROVALS.length+' pending';
+      if(domId==='goals' && D.GOALS){
+        const n = (D.GOALS.LONG||[]).length+(D.GOALS.MID||[]).length+(D.GOALS.SHORT||[]).length;
+        return n+' active';
+      }
+      if(domId==='inference' && D.INFERENCE && (D.INFERENCE.active_model||D.INFERENCE.current_model||D.INFERENCE.model))
+        return String(D.INFERENCE.active_model||D.INFERENCE.current_model||D.INFERENCE.model);
+      if(domId==='finance' && Array.isArray(D.STOCKS_LIVE) && D.STOCKS_LIVE.length) return D.STOCKS_LIVE.length+' quotes live';
+    }catch(e){}
+    return null; // → UNKNOWN
+  }
+
+  F.commandcenter = function(){
+    const wrap = el('div','cc');
+    const S = { view:'home', domain:null, q:'' };
+    const RECENT_CAP = 8;
+    let recent = [];               // session-local only — no backend/localStorage persistence
+    const pinned = new Set();      // session-local only
+
+    // ── context strip: only real, already-loaded values ─────────────────────
+    const ctx = el('div','cc-ctx');
+    function renderCtx(){
+      const goal = (D.GOALS && ((D.GOALS.MID&&D.GOALS.MID[0])||(D.GOALS.LONG&&D.GOALS.LONG[0])||(D.GOALS.SHORT&&D.GOALS.SHORT[0])));
+      const decision = Array.isArray(D.DECISIONS) && D.DECISIONS[0];
+      const model = D.INFERENCE && (D.INFERENCE.active_model||D.INFERENCE.current_model||D.INFERENCE.model);
+      const pend = Array.isArray(D.APPROVALS) ? D.APPROVALS.length : null;
+      const chip = (k,v)=>`<span class="cc-chip"><b>${k}</b>${v?escapeHtml(String(v)):'UNKNOWN'}</span>`;
+      ctx.innerHTML =
+        chip('GOAL ', goal ? goal.title : null) +
+        chip('DECISION ', decision ? (decision.action||decision.action_type||decision.summary) : null) +
+        chip('MODEL ', model) +
+        chip('APPROVALS ', pend!=null ? pend : null);
+    }
+
+    // ── search (client-side only; reuses V.openWidget, not a new router) ────
+    const searchRow = el('div','cc-search-row', `<input class="cc-search" type="text" placeholder="search panels… (Ctrl/Cmd+K)" aria-label="Search panels" />`);
+    const searchInput = searchRow.querySelector('.cc-search');
+    searchInput.addEventListener('input', ()=>{ S.q = searchInput.value.trim().toLowerCase(); S.view = S.q ? 'search' : 'home'; render(); });
+    // Escape with an active query clears it locally (stopped here so the panel
+    // doesn't also close); Escape with nothing to clear must fall through to
+    // shell()'s own keydown handler so the panel can still close — the old
+    // unconditional stopPropagation() below made Escape a no-op the moment the
+    // search box had focus (its default state, auto-focused on open), a real
+    // keyboard trap (77_FRONTEND_FINAL_ACCEPTANCE.md). Every other key still
+    // stops propagation as before, so normal typing can't leak to global
+    // shortcuts.
+    searchInput.addEventListener('keydown', e=>{
+      if(e.key==='Escape'){
+        if(S.q){ searchInput.value=''; S.q=''; S.view='home'; render(); e.stopPropagation(); }
+        return;
+      }
+      e.stopPropagation();
+    });
+
+    const crumb = el('nav','cc-crumb'); crumb.setAttribute('aria-label','Command Center navigation');
+    const body  = el('div','cc-body');
+    wrap.appendChild(searchRow); wrap.appendChild(crumb); wrap.appendChild(ctx); wrap.appendChild(body);
+
+    function btn(cls, text, onClick, extraAttrs){
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = cls; b.textContent = text;
+      if(extraAttrs) Object.keys(extraAttrs).forEach(k=>b.setAttribute(k, extraAttrs[k]));
+      b.addEventListener('click', e=>{ e.stopPropagation(); onClick(); });
+      return b;
+    }
+    function openPanel(id){ V.openWidget(id); }
+
+    function setCrumb(){
+      crumb.innerHTML = '';
+      crumb.appendChild(btn('cc-cr'+(S.view==='home'?' cur':''), 'VECTOR CENTER', ()=>{ S.view='home'; S.domain=null; render(); }));
+      // Only show the domain segment while actually viewing that domain — search
+      // spans every domain (renderSearch() queries all of DOMAINS), so carrying a
+      // stale domain crumb into the SEARCH view would wrongly imply the results
+      // are scoped to it (77_FRONTEND_FINAL_ACCEPTANCE.md).
+      if(S.domain && S.view==='domain'){
+        const dom = DOMAINS.find(d=>d.id===S.domain);
+        crumb.appendChild(document.createTextNode(' › '));
+        crumb.appendChild(btn('cc-cr cur', dom.label, ()=>{}));
+      }
+      if(S.view==='search'){
+        crumb.appendChild(document.createTextNode(' › '));
+        crumb.appendChild(btn('cc-cr cur', 'SEARCH', ()=>{}));
+      }
+    }
+
+    function renderRow(id){
+      const row = el('div','cc-panel-row');
+      row.appendChild(btn('cc-open', panelLabel(id), ()=>openPanel(id), {'aria-label':'Open '+panelLabel(id)}));
+      const isPinned = pinned.has(id);
+      row.appendChild(btn('cc-pin'+(isPinned?' on':''), isPinned?'★':'☆', ()=>{
+        if(pinned.has(id)) pinned.delete(id); else pinned.add(id);
+        render();
+      }, {'aria-label':(isPinned?'Unpin ':'Pin ')+panelLabel(id), 'aria-pressed':String(isPinned)}));
+      return row;
+    }
+
+    function renderHome(){
+      body.innerHTML = '';
+      const live_ids = Object.keys(live).filter(id=>id!=='commandcenter');
+      if(live_ids.length){
+        body.appendChild(el('div','cc-sec-lbl','ACTIVE'));
+        const row = el('div','cc-chiprow');
+        live_ids.forEach(id=> row.appendChild(btn('cc-mini', panelLabel(id), ()=>openPanel(id))));
+        body.appendChild(row);
+      }
+      if(pinned.size){
+        body.appendChild(el('div','cc-sec-lbl','PINNED'));
+        const row = el('div','cc-chiprow');
+        Array.from(pinned).filter(panelExists).forEach(id=> row.appendChild(btn('cc-mini', panelLabel(id), ()=>openPanel(id))));
+        body.appendChild(row);
+      }
+      if(recent.length){
+        body.appendChild(el('div','cc-sec-lbl','RECENT'));
+        const row = el('div','cc-chiprow');
+        recent.filter(panelExists).forEach(id=> row.appendChild(btn('cc-mini', panelLabel(id), ()=>openPanel(id))));
+        body.appendChild(row);
+      }
+      body.appendChild(el('div','cc-sec-lbl','DOMAINS'));
+      const grid = el('div','cc-grid');
+      DOMAINS.forEach(dom=>{
+        const count = domainPanels(dom).length;
+        if(!count) return; // only include domains with real, currently-existing panels
+        const summary = domainSummary(dom.id);
+        const card = el('div','cc-dcard');
+        card.appendChild(btn('cc-dcard-btn',
+          dom.label+'\n'+count+' panel'+(count===1?'':'s')+'\n'+(summary || 'STATUS UNKNOWN'),
+          ()=>{ S.domain=dom.id; S.view='domain'; render(); },
+          {'aria-label':'Open '+dom.label+' domain'}));
+        grid.appendChild(card);
+      });
+      body.appendChild(grid);
+    }
+
+    function renderDomain(){
+      body.innerHTML = '';
+      const dom = DOMAINS.find(d=>d.id===S.domain);
+      if(!dom){ S.view='home'; renderHome(); return; }
+      const ids = domainPanels(dom);
+      const list = el('div','cc-panel-list');
+      if(!ids.length) list.innerHTML = '<div class="ve-offline">no panels currently registered in this domain</div>';
+      ids.forEach(id=> list.appendChild(renderRow(id)));
+      body.appendChild(list);
+    }
+
+    function renderSearch(){
+      body.innerHTML = '';
+      const q = S.q;
+      const matches = [];
+      DOMAINS.forEach(dom=>{
+        domainPanels(dom).forEach(id=>{
+          const meta = PANEL_META[id]||{};
+          const hay = (id+' '+(meta.label||'')+' '+(meta.alias||'')+' '+dom.label).toLowerCase();
+          if(hay.includes(q)) matches.push(id);
+        });
+      });
+      const uniq = Array.from(new Set(matches));
+      if(!uniq.length){ body.innerHTML = '<div class="ve-offline">no panel matches "'+escapeHtml(q)+'"</div>'; return; }
+      const list = el('div','cc-panel-list');
+      uniq.forEach(id=> list.appendChild(renderRow(id)));
+      body.appendChild(list);
+    }
+
+    function render(){
+      renderCtx(); setCrumb();
+      if(S.view==='search') renderSearch();
+      else if(S.view==='domain') renderDomain();
+      else renderHome();
+    }
+
+    const w = shell('commandcenter','COMMAND CENTER', wrap, 'cc-panel');
+
+    // Recent = real widget:open events only, deduped, capped, session-local.
+    // Guarded on w.isConnected (same convention every existing panel's own
+    // setInterval callback already uses) so a closed-and-reopened Command
+    // Center doesn't accumulate active handlers across a long session.
+    V.on('widget:open', ev=>{
+      if(!w.isConnected) return;
+      if(!ev || !ev.id || ev.id==='commandcenter') return;
+      recent = [ev.id].concat(recent.filter(x=>x!==ev.id)).slice(0, RECENT_CAP);
+      if(S.view==='home') render();
+    });
+    render();
+    setTimeout(()=>{ searchInput.focus(); }, 160); // after the scan-lock open animation
+    return w;
+  };
+
+  // Ctrl/Cmd+K — command-palette entry point. Confirmed unbound anywhere else
+  // in the codebase (75_COMMAND_CENTER_AUDIT.md §3) before adding this.
+  document.addEventListener('keydown', e=>{
+    if((e.ctrlKey||e.metaKey) && (e.key==='k'||e.key==='K')){
+      e.preventDefault();
+      V.openWidget('commandcenter');
+    }
+  });
 
   F.webcam = function(){
     const wrap = el('div');
@@ -1765,9 +2472,14 @@
     ['goalplanner', /\b(goal planner|planner|horizons)\b/],
     ['voicestudio', /\b(voice studio|voice clone|tts studio)\b/],
     ['codegraph', /\b(code graph|knowledge graph|graph panel)\b/],
+    ['commandcenter', /\b(command center|control center|command palette|navigate|domains?|home screen)\b/],
+    ['agentatlas', /\b(civilization|atlas|agent atlas|district atlas|civilization atlas)\b/],
     ['districts', /\b(district|districts|agent|agents)\b/],
     ['security', /\b(security|permission gate|threat)\b/],
     ['council', /\b(council|llm council)\b/],
+    ['memoryexplorer', /\b(memory levels?|memory truth|learning evidence|memory explorer)\b/],
+    ['cognition', /\b(cognition|cognitive pipeline|thinking pipeline|decision pipeline)\b/],
+    ['experiment', /\b(experiment|segment 2|observatory|experiment observatory)\b/],
     ['memory', /\b(memory|episodic|events?)\b/],
     ['telemetry', /\b(telemetry|system|cpu|ram|vram)\b/],
     ['market', /\b(market|stock|nifty|ticker)\b/],

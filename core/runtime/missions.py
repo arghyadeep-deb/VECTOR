@@ -673,8 +673,10 @@ class MissionPlanAdvisor:
     def _call_model(self, objective: str, max_steps: int) -> str:
         try:
             chat_fn = self.chat_fn
+            _kwargs = {}
             if chat_fn is None:
                 from core.inference.ollama_safe import chat as chat_fn
+                _kwargs["caller_id"] = "runtime_missions_planner"
 
             messages = [
                 {"role": "system", "content": self.SYSTEM_PROMPT},
@@ -689,7 +691,7 @@ class MissionPlanAdvisor:
                     ),
                 },
             ]
-            return str(chat_fn(model=self._model_name(), messages=messages, timeout=20.0) or "")
+            return str(chat_fn(model=self._model_name(), messages=messages, timeout=20.0, **_kwargs) or "")
         except Exception:
             return ""
 

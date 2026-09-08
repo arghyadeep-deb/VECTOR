@@ -136,21 +136,54 @@ def test_auth_failure_permanently_disables_regardless_of_wait():
 
 
 def test_auth_disable_can_be_manually_reset():
-    """AUTH disables at the provider level ("*"), matching the original
-    semantics: target_model becomes "*" for AUTH failures regardless of
-    which model triggered it (an invalid API key blocks the whole
-    provider, not just one model) -- so reset() must target that same
-    provider-level key."""
+    """AUTH disables at the (provider, model) level — a 401 on one model
+    must not kill sibling models on the same provider. reset() targets
+    the same (provider, model) key that record_failure() added."""
     from core.inference.provider_health import FailureKind
 
     mgr = _fresh_manager()
 
     async def _run():
         await mgr.record_failure("openai", "gpt-4", kind=FailureKind.AUTH, error="401")
-        mgr.reset("openai", "*")
-        return await mgr.can_try("openai", "gpt-4")
+        # The auth failure only disabled (openai, gpt-4) — sibling models work
+        sibling_ok = await mgr.can_try("openai", "gpt-4o")
+        # The failed model is blocked
+        failed_blocked = not await mgr.can_try("openai", "gpt-4")
+        # Reset the specific model that was disabled
+        mgr.reset("openai", "gpt-4")
+        after_reset = await mgr.can_try("openai", "gpt-4")
+        return sibling_ok, failed_blocked, after_reset
 
-    assert asyncio.run(_run()) is True
+    sibling_ok, failed_blocked, after_reset = asyncio.run(_run())
+    assert sibling_ok is True
+    assert failed_blocked is True
+    assert after_reset is True
+
+
+def test_auth_failure_does_not_kill_sibling_models():
+    """Regression: AUTH failure on one model must NOT disable every model
+    on the provider. Previously target_model was forced to '*' which put
+    (provider, '*') in _disabled, and can_try() checked that key first —
+    one expired key blocked all 50+ models. Fixed 2026-08-12."""
+    from core.inference.provider_health import FailureKind
+
+    mgr = _fresh_manager()
+
+    async def _run():
+        # Single expired key on gpt-4
+        await mgr.record_failure("openai", "gpt-4", kind=FailureKind.AUTH, error="401 unauthorized")
+        # 50+ sibling models must still be tryable
+        results = {}
+        for model in ("gpt-4o", "gpt-4-turbo", "o3", "o4-mini"):
+            results[model] = await mgr.can_try("openai", model)
+        # The failed model itself must be blocked
+        results["gpt-4"] = await mgr.can_try("openai", "gpt-4")
+        return results
+
+    results = asyncio.run(_run())
+    for model in ("gpt-4o", "gpt-4-turbo", "o3", "o4-mini"):
+        assert results[model] is True, f"{model} should not be blocked by gpt-4's auth failure"
+    assert results["gpt-4"] is False, "the model with the auth failure must remain blocked"
 
 
 def test_bad_request_does_not_trip_circuit():
@@ -220,6 +253,43 @@ def test_classify_error_maps_common_strings():
     assert mgr.classify_error("Connection timeout") == FailureKind.NETWORK
     assert mgr.classify_error("400 Bad Request") == FailureKind.BAD_REQUEST
     assert mgr.classify_error("something weird") == FailureKind.UNKNOWN
+
+
+def test_classify_error_status_codes_dont_match_inside_numbers():
+    """Regression: substring '400' in classify_error() matched inside model
+    names (gpt-oss-1200b → '1**400**b'), token counts ('processed 400
+    tokens'), URLs, etc. A 500 error mentioning '400' would be misclassified
+    as BAD_REQUEST — which does NOT trip the circuit (sets HEALTHY), so
+    genuine server failures got silently retried forever without backoff.
+    Fixed with word-boundary regex matching."""
+    mgr = _fresh_manager()
+    from core.inference.provider_health import FailureKind
+
+    # Model names containing '400' must NOT be classified as BAD_REQUEST
+    assert mgr.classify_error("model gpt-oss-1200b not available") != FailureKind.BAD_REQUEST
+    assert mgr.classify_error("model-4001 unknown") != FailureKind.BAD_REQUEST
+
+    # Token counts containing '400' must NOT be classified as BAD_REQUEST
+    assert mgr.classify_error("processed 400 tokens successfully") != FailureKind.BAD_REQUEST
+
+    # A 500 error that mentions '400 tokens' must be SERVER_ERROR, not BAD_REQUEST
+    assert mgr.classify_error("500 Internal Server Error after processing 400 tokens") == FailureKind.SERVER_ERROR
+
+    # Port numbers / request IDs containing '400' must NOT match
+    assert mgr.classify_error("connection refused on port 8400") != FailureKind.BAD_REQUEST
+    assert mgr.classify_error("request_id abc400def failed") != FailureKind.BAD_REQUEST
+
+    # Legitimate 400 status codes MUST still be classified as BAD_REQUEST
+    assert mgr.classify_error("HTTP 400 Bad Request") == FailureKind.BAD_REQUEST
+    assert mgr.classify_error("status code: 400") == FailureKind.BAD_REQUEST
+    assert mgr.classify_error("returned 400: invalid request") == FailureKind.BAD_REQUEST
+
+    # Same word-boundary fix applies to other status codes
+    assert mgr.classify_error("model-4010 auth") != FailureKind.AUTH  # '401' inside '4010'
+    assert mgr.classify_error("request-4291") != FailureKind.RATE_LIMIT  # '429' inside '4291'
+    assert mgr.classify_error("HTTP 401 Unauthorized") == FailureKind.AUTH
+    assert mgr.classify_error("429 rate limit exceeded") == FailureKind.RATE_LIMIT
+    assert mgr.classify_error("502 Bad Gateway") == FailureKind.SERVER_ERROR
 
 
 def test_snapshot_returns_expected_shape():

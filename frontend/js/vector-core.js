@@ -93,6 +93,13 @@
   function openWorkspace(){ if(workspaceOpen) return; workspaceOpen=true;
     wakeIfNeeded(); STAGE().classList.add('docked','wsopen');
     if(['locked','boot'].includes(state)) go('idle');
+    // armIdleLock() only otherwise runs inside go() — if state was already
+    // 'idle' the line above is a no-op (go() short-circuits on same state),
+    // so the idle-lock timer armed *before* the workspace opened would
+    // survive and could still fire lock() (closing the workspace + hiding
+    // whatever panel the user just opened) while they're actively looking
+    // at it. Re-evaluate explicitly (77_FRONTEND_FINAL_ACCEPTANCE.md).
+    armIdleLock();
     emit('workspace', { open:true }); }
   function closeWorkspace(){ if(!workspaceOpen) return; workspaceOpen=false;
     const s=STAGE(); s.classList.remove('wsopen');

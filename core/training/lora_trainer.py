@@ -88,7 +88,10 @@ class LoRATrainer:
                 def __init__(self, encodings):
                     self.encodings = encodings
                 def __getitem__(self, idx):
-                    return {k: v[idx] for k, v in self.encodings.items()}
+                    item = {k: v[idx] for k, v in self.encodings.items()}
+                    # For causal LM, labels are the same as input_ids (shifted)
+                    item["labels"] = item["input_ids"].clone()
+                    return item
                 def __len__(self):
                     return len(self.encodings.input_ids)
             train_dataset = TextDataset(encodings)

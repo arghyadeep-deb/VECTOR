@@ -9,11 +9,20 @@ from core.config import CONFIG
 class PhoneController:
     """ADB bridge for Android ambient node.
 
-    Read-only by default — write ops (send_keyevent) must be called only after
-    permission_gateway approval (RED tier).
+    Read-only by default — write ops (send_keyevent/tap/swipe/type_text/
+    launch_app/unlock) must be called only after permission_gateway approval
+    (RED tier). F-7: write primitives now require a gateway-minted control
+    token (PermissionGateway.grant_control) so a direct caller that imports
+    PhoneController cannot bypass the gate.
     """
 
     def __init__(self):
+        # F-7: capability-token gate for write primitives.
+        self._control_action_types = (
+            "instagram_post_via_phone", "youtube_upload_via_phone",
+            "pc_click", "click_screen", "gui_task", "desktop_task", "vision_control",
+            "pc_type", "launch_app", "play_music",
+        )
         self._adb_path: str = CONFIG.get("control", {}).get("adb_path", "adb")
         # Resolve adb (2026-07-21): the scheduled-task environment often lacks
         # adb on PATH, so a bare "adb" silently fails. Fall back to the
@@ -60,6 +69,20 @@ class PhoneController:
         except Exception as e:
             logger.error(f"[VECTOR][phone_controller] _run_adb error: {e}")
             return (False, str(e))
+
+    def _verify_control_token(self, token, *allowed_action_types) -> bool:
+        """F-7: verify a gateway-minted control token. Direct callers without a
+        valid token are refused by the write primitives below."""
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            gw = PermissionGateway()
+        except Exception as _e:
+            logger.warning(f"[VECTOR][phone_controller] gateway unavailable — control token check fails closed: {_e}")
+            return False
+        for _a in allowed_action_types:
+            if gw.verify_control(token, _a):
+                return True
+        return False
 
     def _check_connection(self) -> bool:
         """Parse `adb devices` to determine if a device is attached."""
@@ -232,11 +255,11 @@ class PhoneController:
             logger.error(f"[VECTOR][phone_controller] get_sms_recent error: {e}")
             return []
 
-    def send_keyevent(self, keycode: int) -> bool:
-        """Send an Android key event.
-
-        RED-tier action — ONLY call after permission_gateway has approved.
-        """
+    def send_keyevent(self, keycode: int, *, control_token: str | None = None) -> bool:
+        """Send an Android key event. F-7: requires a gateway control token."""
+        if not self._verify_control_token(control_token, *self._control_action_types):
+            logger.warning("[VECTOR][phone_controller] send_keyevent blocked — no valid control token")
+            return False
         try:
             if not self._connected:
                 logger.warning("[VECTOR][phone_controller] send_keyevent: phone not connected")
@@ -255,19 +278,26 @@ class PhoneController:
 
     # ------------------------------------------------------------------
     # Interaction primitives — the app-automation layer (IG posting, WA replies).
-    # All RED-tier writes: ONLY call after permission_gateway approval.
+    # F-7: all RED-tier writes require a gateway control token.
     # ------------------------------------------------------------------
 
-    def tap(self, x: int, y: int) -> bool:
-        """Tap screen coordinate (x, y)."""
+    def tap(self, x: int, y: int, *, control_token: str | None = None) -> bool:
+        """Tap screen coordinate (x, y). F-7: requires a gateway control token."""
+        if not self._verify_control_token(control_token, *self._control_action_types):
+            logger.warning("[VECTOR][phone_controller] tap blocked — no valid control token")
+            return False
         if not self._connected:
             return False
         ok, _ = self._run_adb("shell", "input", "tap", str(int(x)), str(int(y)), timeout=10)
         logger.info(f"[VECTOR][phone_controller] tap ({x},{y}) {'ok' if ok else 'FAIL'}")
         return ok
 
-    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300) -> bool:
-        """Swipe from (x1,y1) to (x2,y2) over duration_ms. Also used for scroll."""
+    def swipe(self, x1: int, y1: int, x2: int, y2: int, duration_ms: int = 300,
+              *, control_token: str | None = None) -> bool:
+        """Swipe from (x1,y1) to (x2,y2) over duration_ms. F-7: requires a control token."""
+        if not self._verify_control_token(control_token, *self._control_action_types):
+            logger.warning("[VECTOR][phone_controller] swipe blocked — no valid control token")
+            return False
         if not self._connected:
             return False
         ok, _ = self._run_adb(
@@ -278,10 +308,13 @@ class PhoneController:
         logger.info(f"[VECTOR][phone_controller] swipe ({x1},{y1})->({x2},{y2}) {'ok' if ok else 'FAIL'}")
         return ok
 
-    def type_text(self, text: str) -> bool:
-        """Type text into the focused field. ASCII/basic only — `input text`
-        can't do emoji/newlines (Android limitation).
+    def type_text(self, text: str, *, control_token: str | None = None) -> bool:
+        """Type text into the focused field. F-7: requires a gateway control token.
+        ASCII/basic only — `input text` can't do emoji/newlines (Android limitation).
         ponytail: install ADBKeyboard IME later if captions need emoji/unicode."""
+        if not self._verify_control_token(control_token, *self._control_action_types):
+            logger.warning("[VECTOR][phone_controller] type_text blocked — no valid control token")
+            return False
         if not self._connected:
             return False
         # `input text` treats spaces specially: encode as %s, escape shell-risky chars.
@@ -292,8 +325,11 @@ class PhoneController:
         logger.info(f"[VECTOR][phone_controller] type_text ({len(text)} chars) {'ok' if ok else 'FAIL'}")
         return ok
 
-    def launch_app(self, package: str) -> bool:
-        """Launch an app by package name (e.g. com.instagram.android)."""
+    def launch_app(self, package: str, *, control_token: str | None = None) -> bool:
+        """Launch an app by package name (e.g. com.instagram.android). F-7: requires a control token."""
+        if not self._verify_control_token(control_token, *self._control_action_types):
+            logger.warning("[VECTOR][phone_controller] launch_app blocked — no valid control token")
+            return False
         if not self._connected:
             return False
         ok, _ = self._run_adb(
@@ -315,13 +351,16 @@ class PhoneController:
         m = re.search(r"mCurrentFocus=Window\{[^}]*\s+([\w.]+)/", out)
         return m.group(1) if m else ""
 
-    def unlock(self) -> bool:
-        """Wake + swipe up to dismiss a no-PIN lock screen. (For PIN locks, the
-        owner must set screen lock to None — VECTOR does not store a PIN.)"""
+    def unlock(self, *, control_token: str | None = None) -> bool:
+        """Wake + swipe up to dismiss a no-PIN lock screen. F-7: requires a control token.
+        (For PIN locks, the owner must set screen lock to None — VECTOR does not store a PIN.)"""
+        if not self._verify_control_token(control_token, *self._control_action_types):
+            logger.warning("[VECTOR][phone_controller] unlock blocked — no valid control token")
+            return False
         if not self._connected:
             return False
-        self.send_keyevent(224)  # KEYCODE_WAKEUP
-        return self.swipe(360, 1200, 360, 300, 250)
+        self.send_keyevent(224, control_token=control_token)  # KEYCODE_WAKEUP
+        return self.swipe(360, 1200, 360, 300, 250, control_token=control_token)
 
 
 # ----------------------------------------------------------------------

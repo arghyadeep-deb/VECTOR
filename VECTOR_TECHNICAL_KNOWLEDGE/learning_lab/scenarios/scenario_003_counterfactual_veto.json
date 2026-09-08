@@ -1,0 +1,50 @@
+{
+  "scenario": {
+    "label": "counterfactual_veto_demo",
+    "situation": {},
+    "goals": null,
+    "candidates": [
+      {
+        "action_type": "delete_logs",
+        "params": {
+          "target": "all"
+        },
+        "goal_ids": [],
+        "confidence": 0.9,
+        "urgency": 0.5,
+        "timing_score": 1.0,
+        "estimated_cost_inr": 0.0,
+        "source": "system"
+      }
+    ],
+    "policy_updates": [],
+    "counterfactual_rejections": [
+      {
+        "proposal": "delete_logs {\"target\": \"all\"}",
+        "reason": "Too destructive \u2014 irreversible",
+        "decision_id": "seed",
+        "context": {},
+        "created_at_days_ago": 0.0
+      }
+    ],
+    "epistemic_beliefs": [],
+    "apply_counterfactual_veto": true,
+    "metadata": {}
+  },
+  "expected": {
+    "fingerprint": {
+      "selected_action": "delete_logs",
+      "selected_params": {
+        "target": "all"
+      },
+      "ranking": [
+        "delete_logs"
+      ],
+      "candidate_scores": {
+        "delete_logs": 0.59
+      },
+      "counterfactual_vetoed": true
+    },
+    "fingerprint_hash": "8d8efd3666feaa96bfc9e6625e8cf627d9fe7bf015246b04bba410376c139c5f"
+  }
+}

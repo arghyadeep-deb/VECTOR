@@ -117,17 +117,29 @@ class AgentRegistry:
         )
         try:
             import uuid as _uuid
-            from core.city.evolution_engine import EvolutionEngine
-            blueprint = EvolutionEngine().spawn_successor(ghost_data)
+            from core.city.evolution_engine import get_evolution_engine
+            # Must use the singleton — it has constructors registered at boot
+            # (line 47). A fresh EvolutionEngine() has zero constructors, so
+            # spawn_successor() returns None and we fall through to the bare
+            # AgentBase fallback — meaning successors NEVER inherit lessons or
+            # capabilities, making Darwinian evolution dead code.
+            engine = get_evolution_engine()
+            successor_agent = engine.spawn_successor(ghost_data)
+
+            if successor_agent is None:
+                raise RuntimeError(
+                    f"EvolutionEngine.spawn_successor returned None for "
+                    f"{agent.name} — no constructor registered"
+                )
 
             new_id = str(_uuid.uuid4())
             successor = self._instantiate_successor(
-                agent_class, agent, new_id, blueprint["generation"]
+                agent_class, agent, new_id, successor_agent.generation
             )
-            successor.generation = blueprint["generation"]
+            successor.generation = successor_agent.generation
             successor.district = agent.district
             successor.name = agent.name
-            successor.health_points = blueprint["starting_hp"]
+            successor.health_points = successor_agent.health_points
             successor.model = successor._calculate_model()
             successor.capabilities = list(agent_capabilities)
             successor.inherit_ghost(ghost_data)

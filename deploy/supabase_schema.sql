@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS policy_memory (
     avg_reward double precision,
     sample_count integer DEFAULT 0,
     last_updated text,
+    veto_count integer DEFAULT 0,
     PRIMARY KEY (action_type, situation_hash)
 );
 

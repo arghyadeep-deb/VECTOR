@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 from core.config import CONFIG
 from core.runtime_paths import data_path
 from core.city.agent_base import AgentBase
+from core.loop.permission_gateway import PermissionGateway, Action
 
 
 @dataclass
@@ -48,6 +49,7 @@ class IncidentPlaybookRunner(AgentBase):
         self._packaged_playbooks_dir = Path(__file__).parent / "data" / "playbooks"
         self._db_path = db_path or str(data_path("security", "incidents.db"))
         self._lock = threading.RLock()
+        self._gateway = PermissionGateway()
         self._playbooks: dict[str, Any] = {}
         self._event_queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=1000)
         self._running = False
@@ -207,10 +209,43 @@ class IncidentPlaybookRunner(AgentBase):
             return {"status": "error", "message": f"unknown action: {action}"}
         return await handler(params, evidence, incident_id)
 
+    async def _gate_destructive_action(self, action_type: str, params: dict, incident_id: str) -> dict | None:
+        """RED-gate a destructive incident-response primitive before any
+        real side effect (58F remediation — VECTOR_TECHNICAL_KNOWLEDGE/58F_
+        INCIDENT_PLAYBOOK_DESTRUCTIVE_ACTION_PERMISSION_REMEDIATION.md).
+
+        Returns None if approved (caller may proceed to the real side
+        effect); returns an {"status": "error", ...} dict if the caller
+        must stop here — this exact shape so execute_playbook()'s existing
+        `result.get("status") == "error"` failure/rollback detection treats
+        an unauthorized or gateway-unreachable destructive step as a real
+        failure, with no change needed to that pre-existing logic.
+        """
+        try:
+            gate_result = await self._gateway.execute(Action(
+                action_type=action_type,
+                params={**params, "incident_id": incident_id},
+                proposed_by=self.name,
+            ))
+        except Exception as e:
+            logger.error("[VECTOR][incident_playbook] gateway unavailable — refusing {}: {}", action_type, e)
+            return {"status": "error", "message": f"blocked: permission gateway unavailable: {e}"}
+        if not gate_result.approved:
+            logger.warning("[VECTOR][incident_playbook] {} blocked by gateway: {}", action_type, gate_result.reason)
+            return {"status": "error", "message": f"blocked by permission gateway: {gate_result.reason}"}
+        return None
+
     async def _action_block_ip(self, params: dict, evidence: dict, incident_id: str) -> dict:
         ip = params.get("ip", evidence.get("target", ""))
         if not ip:
             return {"status": "error", "message": "no IP specified"}
+        blocked = await self._gate_destructive_action(
+            "block_ip",
+            {"ip": ip, "summary": f"Add outbound firewall block rule for {ip} (incident {incident_id[:8]})"},
+            incident_id,
+        )
+        if blocked is not None:
+            return blocked
         try:
             rule_name = f"VECTOR_Block_{ip.replace('.', '_')}"
             subprocess.run(
@@ -228,6 +263,13 @@ class IncidentPlaybookRunner(AgentBase):
         ip = params.get("ip", evidence.get("target", ""))
         if not ip:
             return {"status": "error", "message": "no IP specified"}
+        blocked = await self._gate_destructive_action(
+            "unblock_ip",
+            {"ip": ip, "summary": f"Remove outbound firewall block rule for {ip} (incident {incident_id[:8]})"},
+            incident_id,
+        )
+        if blocked is not None:
+            return blocked
         try:
             rule_name = f"VECTOR_Block_{ip.replace('.', '_')}"
             subprocess.run(
@@ -260,8 +302,23 @@ class IncidentPlaybookRunner(AgentBase):
             return {"status": "error", "message": str(e)}
 
     async def _action_kill_process(self, params: dict, evidence: dict, incident_id: str) -> dict:
+        # Also the shared implementation _action_isolate_process() delegates
+        # to — gating here covers both the "kill_process" and "isolate"
+        # playbook actions with a single gate (58F remediation).
         pid = params.get("pid", 0)
         name = params.get("name", "")
+        if not pid and not name:
+            return {"status": "error", "message": "no pid or name"}
+        blocked = await self._gate_destructive_action(
+            "kill_process",
+            {
+                "pid": pid or None, "name": name or None,
+                "summary": f"Force-kill process {pid or name!r} (incident {incident_id[:8]})",
+            },
+            incident_id,
+        )
+        if blocked is not None:
+            return blocked
         try:
             if pid:
                 subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW)

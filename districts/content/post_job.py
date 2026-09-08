@@ -306,6 +306,62 @@ class PostJobTracker:
             ).fetchall()
         return {r["status"]: r["cnt"] for r in rows}
 
+    # ── T10: per-platform publish visibility ─────────────────────────────────
+
+    def status_by_title(self, title: str) -> dict[str, str]:
+        """T10: for a given title, map each platform to its latest job status.
+        Directly answers '1 of 2 platforms published' vs '0 of 2' — the
+        partial-execution state the autonomy audit flagged as invisible.
+        Returns {platform: status} for the most recent job per platform."""
+        with self._lock, self._connect() as conn:
+            rows = conn.execute(
+                "SELECT platform, status, updated_at FROM post_jobs "
+                "WHERE title = ? ORDER BY updated_at DESC", (title,),
+            ).fetchall()
+        latest: dict[str, str] = {}
+        for r in rows:
+            if r["platform"] not in latest:  # first row per platform = most recent
+                latest[r["platform"]] = r["status"]
+        return latest
+
+    def partial_publishes(self, title: str | None = None) -> list[dict[str, Any]]:
+        """T10: surface titles where some platforms published and others
+        failed/cancelled — the partial-execution state that needs a compensating
+        action or manual review (irreversible public side effect already live on
+        the published platforms). If `title` is given, checks only that title;
+        otherwise scans all titles. Returns a list of
+        {title, platforms: {platform: status}, published_count, total_count}."""
+        results: list[dict[str, Any]] = []
+        with self._lock, self._connect() as conn:
+            if title is not None:
+                titles = [title]
+            else:
+                titles = [r["title"] for r in conn.execute(
+                    "SELECT DISTINCT title FROM post_jobs"
+                ).fetchall()]
+            for t in titles:
+                rows = conn.execute(
+                    "SELECT platform, status FROM post_jobs WHERE title=? "
+                    "ORDER BY updated_at DESC", (t,),
+                ).fetchall()
+                latest: dict[str, str] = {}
+                for r in rows:
+                    if r["platform"] not in latest:
+                        latest[r["platform"]] = r["status"]
+                if not latest:
+                    continue
+                published = sum(1 for s in latest.values() if s == JobStatus.PUBLISHED)
+                failed = sum(1 for s in latest.values() if s in (JobStatus.FAILED, JobStatus.CANCELLED))
+                # Partial = at least one published AND at least one failed/cancelled
+                if published > 0 and failed > 0:
+                    results.append({
+                        "title": t,
+                        "platforms": latest,
+                        "published_count": published,
+                        "total_count": len(latest),
+                    })
+        return results
+
     # ── Internals ──────────────────────────────────────────────────────────────
 
     def _update(
@@ -408,6 +464,16 @@ if __name__ == "__main__":
         assert s.get("published") == 1
         assert s.get("failed") == 1
 
-        print("OK post_job.py — state machine, retry exhaustion, error log verified")
+        # T10: per-platform publish visibility + partial-publish detection.
+        jid_yt = tracker.create("youtube", "PartialTest", {"x": 1})
+        jid_med = tracker.create("medium", "PartialTest", {"x": 1})
+        tracker.mark_publishing(jid_yt); tracker.mark_published(jid_yt, url="https://yt")
+        tracker.mark_publishing(jid_med); tracker.mark_failed(jid_med, error="403")
+        ps = tracker.status_by_title("PartialTest")
+        assert ps.get("youtube") == "published" and ps.get("medium") == "failed", ps
+        partials = tracker.partial_publishes(title="PartialTest")
+        assert len(partials) == 1 and partials[0]["published_count"] == 1, partials
+
+        print("OK post_job.py — state machine, retry exhaustion, error log, per-platform visibility verified")
     finally:
         shutil.rmtree(d, ignore_errors=True)

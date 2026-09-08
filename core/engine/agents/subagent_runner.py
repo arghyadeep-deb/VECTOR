@@ -144,6 +144,7 @@ class SubagentRunner:
                 model=CONFIG["models"].get("focus", "vector-focus"),
                 messages=messages,
                 timeout=60.0,
+                caller_id="subagent_runner",
             )
         except Exception as e:
             logger.warning("[VECTOR][subagent_runner] Ollama unavailable: {}", e)

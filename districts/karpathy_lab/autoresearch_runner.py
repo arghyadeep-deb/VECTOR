@@ -23,6 +23,7 @@ from pathlib import Path
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
+from core.loop.permission_gateway import PermissionGateway, Action
 
 
 class AutoresearchRunner(AgentBase):
@@ -46,6 +47,7 @@ class AutoresearchRunner(AgentBase):
         if ghost:
             self.inherit_ghost(ghost)
 
+        self._gateway = PermissionGateway()
         self._runs_dir = Path(CONFIG["karpathy"]["runs_dir"])
         self._data_dir = Path(CONFIG["karpathy"]["data_dir"])
         self._runs_dir.mkdir(parents=True, exist_ok=True)
@@ -220,9 +222,47 @@ class AutoresearchRunner(AgentBase):
         """
         Run one full experiment cycle: baseline + up to MAX_EXPERIMENTS improvements.
         Returns summary of all experiments.
+
+        RED-gated (58D remediation — VECTOR_TECHNICAL_KNOWLEDGE/58D_KARPATHY_
+        AUTORESEARCH_PERMISSION_REMEDIATION.md, closing Task 59 Finding D):
+        this whole cycle — including the baseline run of the existing
+        train.py, every LLM-proposed rewrite of it, and the real local
+        subprocess execution of each version — is one consequential local
+        code-execution operation and is authorized as a single unit before
+        any of it happens. Neither the baseline subprocess run, nor any
+        write to train.py, nor any later subprocess run may occur unless
+        gate_result.approved is True.
         """
         if not self._train_script.exists():
             return {"status": "no_train_script", "message": str(self._train_script)}
+
+        try:
+            gate_result = await self._gateway.execute(Action(
+                action_type="run_experiment_cycle",
+                params={
+                    "max_experiments": self.MAX_EXPERIMENTS_PER_RUN,
+                    "time_budget_minutes_per_run": self.TIME_BUDGET_MINUTES,
+                    "train_script": str(self._train_script),
+                    "summary": (
+                        f"Run a Karpathy autoresearch cycle: a baseline run of the "
+                        f"current train.py, then up to {self.MAX_EXPERIMENTS_PER_RUN} "
+                        f"LLM-proposed rewrites of it (~{self.TIME_BUDGET_MINUTES} min "
+                        f"each), each written to disk and executed locally as a real "
+                        f"Python subprocess, unsandboxed."
+                    ),
+                },
+                proposed_by=self.name,
+            ))
+        except Exception as e:
+            # Fail closed — never let a gateway-unreachable condition fall
+            # through to a real local write/execute (mirrors
+            # hedgebot_agent.py's solana_swap_execute pattern).
+            logger.error("[VECTOR][autoresearch] gateway unavailable — refusing run_experiment_cycle: {}", e)
+            return {"status": "blocked", "reason": f"gateway unavailable: {e}"}
+
+        if not gate_result.approved:
+            logger.warning("[VECTOR][autoresearch] run_experiment_cycle blocked by gateway: {}", gate_result.reason)
+            return {"status": "blocked", "reason": gate_result.reason}
 
         # Create a git branch for this experiment cycle
         cycle_tag = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -387,9 +427,16 @@ if __name__ == "__main__":
         assert runner.name == "AutoresearchRunner"
         assert runner.district == "karpathy_lab"
 
-        # Smoke: no train.py → returns graceful status
+        # Smoke: either no train.py (graceful status, pre-gate) or train.py
+        # exists and the 58D RED gate correctly refuses without real owner
+        # approval (this script runs no mocks and taps nothing, so an
+        # unapproved RED request must come back "blocked", never proceed to
+        # a real write/execute) — both are safe, side-effect-free outcomes.
+        # Which branch fires depends on whether this machine already has a
+        # train.py at runner._train_script (a real, valid environment state,
+        # not something this smoke test should assume away).
         result = await runner.run_experiment_cycle()
-        assert result.get("status") == "no_train_script"
+        assert result.get("status") in ("no_train_script", "blocked"), result
 
         summary = runner._parse_training_output(
             "---\nval_bpb:          0.9979\ntraining_seconds: 300.1\npeak_vram_mb:     45060.2\n---"

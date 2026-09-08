@@ -58,6 +58,7 @@ class LLMProvider:
     context_window: int = 128_000
     supports_tools: bool = True
     supports_vision: bool = False
+    supports_stream: bool = True
     rate_limit_rpm: int = 60
     pricing_per_1m: dict = field(default_factory=lambda: {"input": 0.0, "output": 0.0})
     notes: str = ""
@@ -424,20 +425,6 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         context_window=8_000,
         pricing_per_1m={"input":0.0,"output":0.0},
         notes="Free tier via Cloudflare Workers. Good for VECTOR cloud deployment.",
-    ),
-
-    # ── Cohere Command R ─────────────────────────────────────────────────────
-    LLMProvider(
-        slug="cohere-rag",
-        name="Cohere (RAG-optimized)",
-        base_url="https://api.cohere.com/v2",
-        api_key_env="COHERE_API_KEY",
-        driver="openai_compat",
-        default_model="command-a-03-2025",
-        models=["command-a-03-2025","command-a-translate-08-2025","command-a-vision-07-2025"],
-        context_window=128_000,
-        pricing_per_1m={"input":0.0,"output":0.0},
-        notes="Duplicate entry — primary Cohere block above is authoritative.",
     ),
 
     # ── Cerebras (ultra-fast, free) ───────────────────────────────────────────

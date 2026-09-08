@@ -209,8 +209,8 @@ def _register_domain_pool_models() -> None:
         from core.inference.model_pool import MODEL_POOL
         for name, dom in (_domains or {}).items():
             key = f"domain:{name}"
-            if dom.chain and key not in MODEL_POOL:
-                MODEL_POOL[key] = list(dom.chain)
+            if dom.chain:
+                MODEL_POOL[key] = list(dom.chain)  # always refresh (supports reload)
         logger.debug(f"[VECTOR][catalog] registered {len(_domains or {})} domain pools")
     except Exception as e:
         logger.debug(f"[VECTOR][catalog] domain pool registration skipped: {e}")

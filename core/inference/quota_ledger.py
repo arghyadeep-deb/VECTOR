@@ -152,18 +152,28 @@ class QuotaLedger:
             return 0.0
         reqs, toks = self._counters(provider, bucket)
         mreqs, mtoks = self._minute_counters(provider, bucket)
-        fractions = []
+        # Separate daily and per-minute fractions: they have fundamentally
+        # different time horizons.  A brief RPM burst (e.g. 5/5 on Cerebras)
+        # must NOT deprioritize a provider for the rest of the UTC day when
+        # 99% of the daily budget is unused.  When daily limits exist they are
+        # the primary deprioritization signal; per-minute limits only drive
+        # deprioritization for providers with NO daily limits (e.g. Mistral).
+        daily_fractions: list[float] = []
+        minute_fractions: list[float] = []
         if limits.requests_per_day:
-            fractions.append(reqs / limits.requests_per_day)
+            daily_fractions.append(reqs / limits.requests_per_day)
         if limits.tokens_per_day:
-            fractions.append(toks / limits.tokens_per_day)
+            daily_fractions.append(toks / limits.tokens_per_day)
         if limits.neurons_per_day:          # neurons ≈ tokens heuristic
-            fractions.append(toks / limits.neurons_per_day)
+            daily_fractions.append(toks / limits.neurons_per_day)
         if limits.requests_per_min:
-            fractions.append(mreqs / limits.requests_per_min)
+            minute_fractions.append(mreqs / limits.requests_per_min)
         if limits.tokens_per_min:
-            fractions.append(mtoks / limits.tokens_per_min)
-        return max(fractions) if fractions else 0.0
+            minute_fractions.append(mtoks / limits.tokens_per_min)
+        daily_sat = max(daily_fractions) if daily_fractions else 0.0
+        if daily_fractions:
+            return daily_sat
+        return max(minute_fractions) if minute_fractions else 0.0
 
     def saturation(self, provider: str, model: str | None = None) -> float:
         """Worst-case fraction of any applicable free-tier limit. 0.0 when no
@@ -218,12 +228,15 @@ class QuotaLedger:
 
 # Module singleton
 _ledger: QuotaLedger | None = None
+_ledger_lock = __import__("threading").Lock()
 
 
 def get_quota_ledger() -> QuotaLedger:
     global _ledger
     if _ledger is None:
-        _ledger = QuotaLedger()
+        with _ledger_lock:
+            if _ledger is None:  # double-checked locking
+                _ledger = QuotaLedger()
     return _ledger
 
 

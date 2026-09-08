@@ -83,6 +83,35 @@ class Planner:
         actions = self.plan(limit=1)
         return actions[0] if actions else None
 
+    def get_active_plans(self) -> list[dict]:
+        """Return summary of active multi-step plans.
+
+        Plans are managed by PlanStore (core.runtime.plans) and wired into
+        _think_tick() as additional candidates. This method exposes them for
+        the HUD dashboard and diagnostic tools.
+        """
+        try:
+            from core.runtime.plans import get_plan_store
+            store = get_plan_store()
+            return [
+                {
+                    "id": p.id,
+                    "goal_id": p.goal_id,
+                    "objective": p.objective,
+                    "status": p.status,
+                    "progress": p.progress,
+                    "confidence": p.confidence,
+                    "total_steps": len(p.steps),
+                    "completed_steps": sum(1 for s in p.steps if s.status == "completed"),
+                    "ready_steps": [s.id for s in p.next_ready_steps()],
+                    "replan_count": p.replan_count,
+                }
+                for p in store.active_plans()
+            ]
+        except Exception as e:
+            logger.warning(f"[VECTOR][planner] get_active_plans failed: {e}")
+            return []
+
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")

@@ -263,6 +263,10 @@ class ProviderClient:
           4. Tries providers in order until one succeeds
           5. (optional) Consistency enforcement -- rewrite off-character responses
         """
+        # -- Observability: start timer for end-to-end latency ----------------
+        _obs_started = time.perf_counter()
+        _obs_providers_tried = 0
+
         # -- Context budget compaction ------------------------------------------
         # Headroom-inspired: oversized messages get compacted to a head/tail
         # preview + retrieval handle before they ever reach a provider. No-op
@@ -306,7 +310,7 @@ class ProviderClient:
             rl = get_rate_limiter()
             rl_result = rl.check(caller_id, "llm_message")
             if not rl_result:
-                wait_ms = getattr(rl_result, "retry_after_ms", 0) or 0
+                wait_ms = getattr(rl_result, "retry_after_secs", 0.0) * 1000.0
                 logger.warning(
                     "[VECTOR][provider_client] rate limit hit caller={} wait={:.0f}ms",
                     caller_id, wait_ms,
@@ -443,7 +447,9 @@ class ProviderClient:
             logger.debug("[VECTOR][provider_client] quota ledger unavailable: {}", _qe)
 
         last_error = ""
+        _last_error_kind = ""
         for _prov, target_model in _pairs:
+            _obs_providers_tried += 1
             if _prov is None:
                 continue
             try:
@@ -482,7 +488,7 @@ class ProviderClient:
                     if _prov.slug not in ("ollama", "lmstudio", "vllm"):
                         _est = (result.input_tokens + result.output_tokens) or (
                             sum(len(m.get("content") or "") for m in messages) // 4
-                            + max_tokens // 2)
+                            + len(result.content or "") // 4)
                         get_quota_ledger().record(_prov.slug, target_model, tokens=_est)
                 except Exception:
                     pass
@@ -520,12 +526,49 @@ class ProviderClient:
                         )
                     except Exception as _ve:
                         logger.warning("[VECTOR][provider_client] consistency check failed: {}", _ve)
+                # -- Observability: record successful call -------------------------
+                try:
+                    from core.metering.inference_observability import get_inference_observability, extract_domain, is_autonomous_caller
+                    _obs_latency = (time.perf_counter() - _obs_started) * 1000
+                    # Every driver (_call_openai_compat/_call_anthropic/_call_gemini)
+                    # populates input_tokens/output_tokens straight from the
+                    # provider's own usage field in its API response — these are
+                    # always exact when non-zero. A provider that omits usage
+                    # entirely (rare; some self-hosted OpenAI-compat backends)
+                    # leaves both at their CompletionResult default of 0, which
+                    # this flag also correctly reports as "not exact" (no
+                    # estimate is substituted here — the row simply carries 0).
+                    _obs_retries_from_pool = getattr(result, "_retry_attempts", None)
+                    get_inference_observability().record(
+                        caller_id=caller_id,
+                        district=district or "",
+                        domain=extract_domain(caller_id, model),
+                        tier=tier,
+                        provider=result.provider,
+                        model=result.model,
+                        input_tokens=result.input_tokens,
+                        output_tokens=result.output_tokens,
+                        latency_ms=_obs_latency,
+                        providers_tried=_obs_providers_tried,
+                        is_ollama=(result.provider == "ollama"),
+                        is_autonomous=is_autonomous_caller(caller_id),
+                        sensitive=sensitive,
+                        status="ok",
+                        metadata={
+                            "token_exact": bool(result.input_tokens or result.output_tokens),
+                            **({"retry_attempts": _obs_retries_from_pool}
+                               if _obs_retries_from_pool is not None else {}),
+                        },
+                    )
+                except Exception:
+                    pass  # observability must never break the call path
                 return result
             except Exception as e:
                 last_error = str(e)
                 _err_low = last_error.lower()
                 if _health is not None:
                     _kind = _health.classify_error(e)
+                    _last_error_kind = getattr(_kind, "value", str(_kind))
                     await _health.record_failure(_prov.slug, target_model, kind=_kind, error=last_error)
                 if _mark_cooldown and (
                     "429" in last_error
@@ -541,6 +584,30 @@ class ProviderClient:
                     _prov.slug, str(e)[:80],
                 )
                 continue
+
+        # -- Observability: record all-providers-failed -----------------------
+        try:
+            from core.metering.inference_observability import get_inference_observability, extract_domain, is_autonomous_caller
+            _obs_latency = (time.perf_counter() - _obs_started) * 1000
+            get_inference_observability().record(
+                caller_id=caller_id,
+                district=district or "",
+                domain=extract_domain(caller_id, model),
+                tier=tier,
+                provider="",
+                model=model or "",
+                input_tokens=0,
+                output_tokens=0,
+                latency_ms=_obs_latency,
+                providers_tried=_obs_providers_tried,
+                is_ollama=False,
+                is_autonomous=is_autonomous_caller(caller_id),
+                sensitive=sensitive,
+                status="error",
+                error_kind=_last_error_kind or "unknown",
+            )
+        except Exception:
+            pass  # observability must never break the call path
 
         raise RuntimeError(f"All providers failed. Last error: {last_error}")
 
@@ -570,7 +637,15 @@ class ProviderClient:
         for attempt in range(max_retries):
             key = pool.next_key()
             try:
-                return await self._call(prov, model, messages, temperature, max_tokens, tools, api_key=key)
+                result = await self._call(prov, model, messages, temperature, max_tokens, tools, api_key=key)
+                # Observability only — `attempt` is this loop's own counter,
+                # already computed for logging below; stamping it onto the
+                # result (same pattern as the existing _tool_calls attribute)
+                # exposes "how many within-provider attempts did this call
+                # take" without changing what is returned, retried, or timed.
+                # attempt=0 means it succeeded on the first try (no retries).
+                result._retry_attempts = attempt  # type: ignore[attr-defined]
+                return result
             except Exception as e:
                 err = str(e)
                 low = err.lower()

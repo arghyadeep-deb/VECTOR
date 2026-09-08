@@ -71,13 +71,19 @@ async def test_provider_health_cools_down_and_recovers_model():
 
 
 @pytest.mark.asyncio
-async def test_provider_health_disables_provider_on_auth_failure():
+async def test_provider_health_disables_model_on_auth_failure():
+    """AUTH failure disables only the specific (provider, model) pair,
+    not the entire provider. Sibling models remain available."""
     health = ProviderHealthManager()
 
     await health.record_failure("openai", "gpt-4o-mini", kind=FailureKind.AUTH, error="401")
 
+    # The specific model that got the auth error is disabled
     assert not await health.can_try("openai", "gpt-4o-mini")
-    assert health.state("openai", "*").health == RouteHealth.DISABLED
+    assert health.state("openai", "gpt-4o-mini").health == RouteHealth.DISABLED
+    # Sibling models on the same provider are unaffected
+    assert await health.can_try("openai", "gpt-4o")
+    assert health.state("openai", "*").health != RouteHealth.DISABLED
 
 
 def test_provider_capability_registry_exposes_existing_providers():

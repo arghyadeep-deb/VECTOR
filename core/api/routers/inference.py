@@ -60,7 +60,7 @@ async def inference_run(model: str, prompt: str, system: str = ""):
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        response = chat(model=model, messages=messages, timeout=60.0)
+        response = chat(model=model, messages=messages, timeout=60.0, caller_id="api_inference_run")
         if not response:
             return {"status": "error", "error": "Model returned empty response — check Ollama status"}
         return {"status": "ok", "model": model, "response": response}

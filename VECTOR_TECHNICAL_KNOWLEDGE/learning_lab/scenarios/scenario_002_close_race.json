@@ -1,0 +1,52 @@
+{
+  "scenario": {
+    "label": "close_race",
+    "situation": {},
+    "goals": null,
+    "candidates": [
+      {
+        "action_type": "search_web",
+        "params": {
+          "q": "l4t"
+        },
+        "goal_ids": [],
+        "confidence": 0.6,
+        "urgency": 0.5,
+        "timing_score": 1.0,
+        "estimated_cost_inr": 0.0,
+        "source": "system"
+      },
+      {
+        "action_type": "check_calendar",
+        "params": {},
+        "goal_ids": [],
+        "confidence": 0.62,
+        "urgency": 0.5,
+        "timing_score": 1.0,
+        "estimated_cost_inr": 0.0,
+        "source": "system"
+      }
+    ],
+    "policy_updates": [],
+    "counterfactual_rejections": [],
+    "epistemic_beliefs": [],
+    "apply_counterfactual_veto": true,
+    "metadata": {}
+  },
+  "expected": {
+    "fingerprint": {
+      "selected_action": "check_calendar",
+      "selected_params": {},
+      "ranking": [
+        "check_calendar",
+        "search_web"
+      ],
+      "candidate_scores": {
+        "check_calendar": 0.52,
+        "search_web": 0.515
+      },
+      "counterfactual_vetoed": false
+    },
+    "fingerprint_hash": "5bb3fdf0bdf41788b27ca09a282f3ceaafbe5444abc5a2f8e46aa00c7a70d54e"
+  }
+}

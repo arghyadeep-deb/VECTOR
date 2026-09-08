@@ -6,6 +6,7 @@ __all__ = [
 
 import smtplib
 import base64
+import hashlib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
@@ -44,12 +45,70 @@ def _list_str(val: str | list[str] | None) -> str:
     return ", ".join(val) if isinstance(val, list) else val
 
 
+def _email_dedup_hash(params: SendEmailParams) -> str:
+    """Hash (to, subject, body) for dedup — prevents duplicate sends on retry."""
+    to_key = _list_str(params.to)
+    body_key = params.html or params.text or ""
+    raw = f"{to_key}|{params.subject}|{body_key}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:24]
+
+
+def _check_email_dedup(dedup_hash: str, window_hours: int = 24) -> bool:
+    """Return True if this email was already sent within the window."""
+    try:
+        from core.memory.episodic import get_db_connection, get_temp_cursor
+        conn = get_db_connection()
+        # Ensure table exists (idempotent)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS email_dedup "
+            "(dedup_hash TEXT PRIMARY KEY, sent_at TEXT)"
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT sent_at FROM email_dedup WHERE dedup_hash = ?", (dedup_hash,)
+        ).fetchone()
+        if not row:
+            return False
+        from datetime import datetime, timedelta
+        sent_at = datetime.fromisoformat(row[0])
+        return (datetime.utcnow() - sent_at) < timedelta(hours=window_hours)
+    except Exception as e:
+        logger.warning(f"[VECTOR][email_sender] dedup check failed: {e}")
+        return False  # fail open — better to send twice than never
+
+
+def _record_email_dedup(dedup_hash: str) -> None:
+    """Record that this email was sent."""
+    try:
+        from core.memory.episodic import get_temp_cursor
+        from datetime import datetime
+        with get_temp_cursor() as cursor:
+            cursor.execute(
+                "INSERT OR REPLACE INTO email_dedup (dedup_hash, sent_at) VALUES (?, ?)",
+                (dedup_hash, datetime.utcnow().isoformat()),
+            )
+    except Exception as e:
+        logger.warning(f"[VECTOR][email_sender] dedup record failed: {e}")
+
+
 def send_email(params: SendEmailParams) -> dict[str, str]:
     """Send an email via SMTP using config credentials.
 
     Mirrors the Cloudflare Email Service binding API surface.
     Falls back to logging if SMTP is not configured (development mode).
+
+    Dedup: hashes (to, subject, body) and skips if the same email was sent
+    within the last 24 hours — prevents duplicates when retries fire.
     """
+    # Dedup check — skip if this exact email was recently sent
+    dedup_hash = _email_dedup_hash(params)
+    if _check_email_dedup(dedup_hash):
+        logger.info(
+            f"[VECTOR][email_sender] Duplicate suppressed (hash={dedup_hash[:8]}…) "
+            f"to={_list_str(params.to)} subject={params.subject!r}"
+        )
+        return {"message_id": "", "status": "duplicate_suppressed"}
+
     smtp_host = CONFIG.get("SMTP_HOST", "")
     smtp_port = int(CONFIG.get("SMTP_PORT", 587))
     smtp_user = CONFIG.get("SMTP_USER", "")
@@ -89,6 +148,7 @@ def send_email(params: SendEmailParams) -> dict[str, str]:
 
     if not smtp_host:
         logger.warning("[VECTOR][email_sender] SMTP not configured — email queued locally only")
+        _record_email_dedup(dedup_hash)
         return {"message_id": message_id}
 
     all_recipients = []
@@ -109,6 +169,7 @@ def send_email(params: SendEmailParams) -> dict[str, str]:
                 server.login(smtp_user, smtp_pass)
             server.sendmail(_addr_str(params.from_addr), all_recipients, msg.as_string())
         logger.info(f"[VECTOR][email_sender] Sent to {all_recipients} via {smtp_host}")
+        _record_email_dedup(dedup_hash)
     except smtplib.SMTPException as e:
         logger.error(f"[VECTOR][email_sender] SMTP error: {e}")
         raise

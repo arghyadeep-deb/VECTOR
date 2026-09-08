@@ -173,7 +173,11 @@ class TestExecuteActionStubs:
     async def test_write_note_personal_returns_ok(self):
         g = PermissionGateway()
         result = await g._execute_action(Action("write_note_personal", {"title": "Note"}, "test"))
-        assert result["status"] == "ok"
+        # F-4: a write_note_personal with no vault configured / no content is a
+        # silent no-op and now reports "error" (not "ok") so a trust-ladder-
+        # promoted write demotes on this outcome instead of persistently
+        # swallowing notes with zero owner signal. title is always echoed.
+        assert result["status"] == "error"
         assert result["title"] == "Note"
 
     async def test_send_email_returns_ok(self):

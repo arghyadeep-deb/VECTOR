@@ -139,13 +139,17 @@ Verified: `tests/test_collections.py` 55 passed (data CRUD, safe-filter injectio
 | Ollama safe (RULE 11 updated) | `core/inference/ollama_safe.py` + `core/inference/provider_client.py` | ✅ Ollama primary; 27 cloud providers via API keys (RULE 11 updated 2026-05-17) |
 | Provider registry (27 providers) | `core/inference/llm_providers.py` | ✅ Anthropic, Gemini, OpenAI, Groq, DeepSeek, Mistral, OpenRouter, Together, Fireworks, Perplexity, Cohere, Azure, Cloudflare, vLLM, HF, Replicate, Anyscale, Cerebras, SambaNova, NVIDIA, Moonshot, Zhipu, Baidu, Yi, LMStudio, Ollama + 1 more |
 
-**VECTOR Gaps not yet built (architecture.md marks these Year 2):**
-| Gap | Module | Notes |
-|----|--------|-------|
-| Gap 4 | `counterfactual.py` | ❌ Learns from rejected decisions — Year 2 |
-| Gap 6 | `causal_graph.py` | ❌ Causal reasoning — Year 2 |
-| Gap 7 | `person_model.py` | ❌ Theory of mind per person — Year 2 |
-| Gap 8 | `meta_cognition.py` | ❌ Monthly bias detection — Year 2 |
+**VECTOR Gaps — Status (corrected 2026-08-13 by cognitive integration audit):**
+| Gap | Module | Status | Notes |
+|----|--------|--------|-------|
+| Gap 1 | `synthesis_bridge.py` | ✅ WIRED | Cross-domain pattern detection in 2AM reflect |
+| Gap 2 | `red_team_agent.py` | ✅ WIRED | attack_plan() for RED-tier actions |
+| Gap 3 | `epistemic_tracker.py` | ⚠️ ORPHANED | Fully implemented, SQLite-backed, but NOT called from autonomous_loop |
+| Gap 4 | `counterfactual.py` | ✅ WIRED | should_avoid() blocks similar-rejected actions |
+| Gap 5 | `hypothesis_engine.py` | ✅ WIRED | hypothesis_loop every 4h → SuggestionQueue |
+| Gap 6 | `causal_graph.py` | ✅ WIRED | Records action→outcome edges in reflect |
+| Gap 7 | `person_model.py` | ✅ WIRED | ContextEngine._person_context_line() → hydration |
+| Gap 8 | `meta_cognition.py` | ✅ WIRED | get_monthly_report() in 2AM reflect |
 
 ---
 
@@ -289,17 +293,17 @@ Verified: `tests/test_collections.py` 55 passed (data CRUD, safe-filter injectio
 
 ---
 
-## Cloud Deployment ⚠️ CODE DONE — NOT YET DEPLOYED
+## Cloud Deployment ✅ DEPLOYED (Cloudflare + Supabase)
 
 | Component | Code | Deploy |
 |-----------|------|--------|
-| Fly.io brain server | ✅ `cloud/brain_server/main.py` FastAPI + /status | ❌ Run: `fly launch` in cloud/brain_server/ |
-| Cloudflare Worker API | ✅ `api/src/` + `wrangler.toml` | ❌ Run: `wrangler deploy` in api/ |
-| Cloudflare D1/R2/KV | ✅ Config in wrangler.toml | ❌ Provision via Cloudflare dashboard |
-| Supabase cloud DB | ✅ Config in core/config.py | ❌ Create project + run migrations |
-| Next.js Dashboard | ❌ `dashboard/src` missing | ❌ Not built yet |
-| Phone Termux node | ✅ `phone_node/ambient_server.py` + `setup.sh` | ❌ Run setup.sh on Android |
-
+| Fly.io brain server | ❌ Not built (owner declined — requires card) | N/A — Cloudflare Worker has full endpoint parity |
+| Cloudflare Worker API | ✅ `api/src/` + `wrangler.toml` | ✅ **LIVE** — confirmed with real authenticated requests |
+| Cloudflare D1/R2/KV | ✅ Config in wrangler.toml | ✅ **PROVISIONED** — D1 has 7 tables incl. `command_queue`, KV active |
+| Supabase cloud DB | ✅ Config in core/config.py + credentials in .env | ✅ **CONFIGURED** — schema at deploy/supabase_schema.sql |
+| Next.js Dashboard | ❌ `dashboard/src` missing | ❌ Not built (HUD frontend serves the dashboard role) |
+| Phone ADB posting | ✅ `phone_controller.py` + automation | ✅ **DONE** — Oppo A31 ADB-connected, Instagram/YouTube/WhatsApp working |
+| Phone Termux node | ✅ `phone_node/ambient_server.py` + `setup.sh` | ❌ Owner-only: needs Termux setup on phone |
 ---
 
 ## Tests ✅ ALL PASSING

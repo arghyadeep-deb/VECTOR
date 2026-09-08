@@ -67,12 +67,14 @@
     input.value = '';
     const mySeq = ++seq;
     btn.disabled = true;
-    showToast('thinking…', true);
+    showToast('processing…', true);
 
     // Client-side "still working" notice at 35s — the brain's heavy compute
     // can stall the HTTP response for a long time (server-side cap is 120s;
     // real p99 latencies reach ~105s), and the bar shouldn't look frozen on
-    // "thinking…" the whole time. Unlike the old Promise.race version, this
+    // "processing…" the whole time — matches the orb's own PROCESSING state
+    // label (vector-core.js) rather than an invented cognitive term. Unlike
+    // the old Promise.race version, this
     // does NOT cancel or stop listening to the real request — it only
     // updates the toast and re-enables the button so the user can fire off
     // another command while this one keeps working in the background.

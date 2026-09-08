@@ -735,6 +735,7 @@ async def web_chat(body: dict):
             model=CONFIG["models"]["focus"],
             messages=messages,
             timeout=120.0,
+            caller_id="web_ui_chat",
         ) or "No response from model."
 
         try:
@@ -774,7 +775,8 @@ async def web_chat_ws(websocket: WebSocket):
         messages.append({"role": "user", "content": user_message})
 
         full = ""
-        for token in chat_stream(model=CONFIG["models"]["focus"], messages=messages):
+        for token in chat_stream(model=CONFIG["models"]["focus"], messages=messages,
+                                 caller_id="web_ui_ws_chat"):
             if token:
                 full += token
                 await websocket.send_json({"type": "token", "text": token})
@@ -927,6 +929,7 @@ async def web_tasks_submit(req: dict):
                     {"role": "user",   "content": query},
                 ],
                 timeout=600.0,
+                caller_id="web_ui_task",
             )
 
         task_id = TaskQueue.get().submit(

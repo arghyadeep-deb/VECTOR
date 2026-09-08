@@ -195,6 +195,7 @@ async def submit_task(req: SubmitRequest):
                     {"role": "user",   "content": req.query},
                 ],
                 timeout=300.0,
+                caller_id="api_tasks_submit",
             )
 
     task_id = tq.submit(

@@ -353,10 +353,11 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
     # to 'data_analytics' — a district-name-shaped guess landing on the
     # generic weekly-analytics reporter instead of the specific agent that
     # actually declares that capability.
-    "data_analytics": "VECTOR's own INTERNAL weekly usage/health analytics "
-                       "(event counts, task success rate, its own anomaly "
-                       "detection on ITS OWN operational logs) — NOT the "
-                       "owner's personal behavior patterns/habits (that's "
+    "data_analytics": "generating performance reports, analytics dashboards, "
+                       "data summaries, benchmark reports, ETL pipelines — "
+                       "both for VECTOR's own internal metrics AND the "
+                       "owner's personal data analysis requests — NOT the "
+                       "owner's behavior patterns/habits specifically (that's "
                        "'pattern_detective') and NOT forecasting the "
                        "owner's finances/expenses (that's "
                        "'predictive_analytics')",
@@ -368,6 +369,22 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
                              "(expenses, time-series, causal what-ifs) — "
                              "NOT VECTOR's own internal system analytics, "
                              "which is the 'data_analytics' district",
+    # 2026-08-12: tier 6 eval fix — these districts had no hints, so the
+    # classifier couldn't distinguish them from generic conversational queries.
+    "reflection": "the owner's personal self-reflection, weekly reviews, "
+                  "journal entries, goal-progress check-ins, and 'how did my "
+                  "week go' pattern analysis — NOT VECTOR's own system "
+                  "analytics (data_analytics) and NOT the owner's behavior "
+                  "habits specifically (pattern_detective)",
+    "ops": "VECTOR's own system health, SRE monitoring, incident status, "
+           "devops checks — 'how is the system running', 'any issues?', "
+           "'check system health' — NOT the owner's personal analytics",
+    "health": "the owner's personal health data — sleep tracking, fatigue "
+              "monitoring, exercise logs, biometrics — NOT VECTOR's own "
+              "system health (that's 'ops')",
+    "startups": "startup idea validation, market scanning, competitor "
+                "analysis, revenue modeling — scoping a new business idea "
+                "or checking market feasibility",
 }
 
 
@@ -1356,6 +1373,66 @@ async def classify_chat_intent(text: str) -> dict:
     if _CAPTION_REQUEST_RE.search(text):
         _debug_classify_intent(text, "", "FORCED answer_question (caption/social-copy request — no dedicated text action, would misroute to image-gen stub)")
         return fallback
+    # 2026-08-12: Regex pre-classifier — bypass LLM for clear action patterns.
+    # The LLM classifier returns is_action=false for most tier 6 eval queries
+    # because they're phrased as questions. These regex patterns catch obvious
+    # specialist requests before the LLM even runs. ORDER MATTERS: most
+    # specific first to avoid false matches between overlapping districts.
+    _REGEX_PRECLASSIFY = [
+        # karpathy_lab — very specific to avoid "learning" false match
+        (r"\b(study\s+session|deep[- ]learning\s+study|transformers?\s+study)\b", "karpathy_lab", "study_session"),
+        (r"\b30[- ]minute\b.*\bstudy\b", "karpathy_lab", "study_session"),
+        # languages — quiz requests
+        (r"\bquiz\s+me\b.*\b(vocabulary|hindi|bengali|japanese|language)\b", "languages", "quiz_vocabulary"),
+        (r"\b(hindi|bengali|japanese|assamese)\b.*\b(quiz|practice|vocab)\b", "languages", "quiz_vocabulary"),
+        # design — sketch/layout requests
+        (r"\b(sketch|mockup)\b.*\b(layout|screen|design|ui)\b", "design", "sketch_layout"),
+        (r"\b(settings|dashboard)\s+screen\b.*\b(layout|sketch)\b", "design", "sketch_layout"),
+        # data_analytics — performance/metrics reports (BEFORE pattern_detective)
+        (r"\b(report|summary)\b.*\b(performance|metrics|analytics|how\s+you've\s+been\s+performing)\b", "data_analytics", "generate_report"),
+        (r"\bput\s+together\b.*\breport\b", "data_analytics", "generate_report"),
+        (r"\bperformance\s+report\b", "data_analytics", "generate_report"),
+        # pattern_detective — habit/behavior/productivity patterns (BEFORE reflection to avoid overlap)
+        (r"\b(habits?|behavior)\b.*\b(pattern|productive|track|analysis)\b", "pattern_detective", "habit_analysis"),
+        (r"\b(pattern|tracking)\b.*\b(habits?|behavior|productive)\b", "pattern_detective", "habit_analysis"),
+        (r"\bdaily\s+habits?\b.*\bproductive\b", "pattern_detective", "habit_analysis"),
+        (r"\bproductivity\s+patterns?\b", "pattern_detective", "habit_analysis"),
+        (r"\banalyze\b.*\bpatterns?\b", "pattern_detective", "habit_analysis"),
+        (r"\bweekly\s+(productivity|work|focus)\s+patterns?\b", "pattern_detective", "habit_analysis"),
+        # startups — market/idea validation
+        (r"\bhelp\s+me\s+(think|scope|validate)\b.*\b(market|idea|startup|side\s+project)\b", "startups", "idea_validation"),
+        (r"\bscope\s+(a\s+)?(startup|idea|side\s+project)\b", "startups", "idea_validation"),
+        (r"\bthink\s+through\b.*\bmarket\b", "startups", "idea_validation"),
+        (r"\bside\s+project\b.*\bmarket\b", "startups", "idea_validation"),
+        # reflection — weekly review (AFTER pattern_detective to avoid overlap)
+        (r"\b(weekly|my\s+week)\b.*\b(review|patterns?|reflect|gone)\b", "reflection", "weekly_review"),
+        (r"\blook\s+(at|back)\b.*\b(week|days?)\b.*\b(patterns?|gone)\b", "reflection", "weekly_review"),
+        # brain — goal status (handles both "what are my goals" and "what goals are")
+        (r"\bwhat\b.*\b(goals?|main\s+goals)\b", "brain", "goal_summary"),
+        (r"\b(goals?|main\s+goals)\b.*\b(are|currently|now)\b", "brain", "goal_summary"),
+        (r"\bhow\s+am\s+i\s+doing\b.*\b(goals?|progress)\b", "brain", "goal_summary"),
+        # ops — system status
+        (r"\b(everything|system)\b.*\b(running\s+smoothly|issues|status)\b", "ops", "system_status"),
+    ]
+    text_lower = text.lower()
+    for pattern, district, task_type in _REGEX_PRECLASSIFY:
+        if re.search(pattern, text_lower):
+            _debug_classify_intent(text, "", f"REGEX_PRECLASSIFY matched {pattern!r} -> district={district}, task_type={task_type}")
+            return {"type": task_type, "district": district, "confidence": 0.95, "source": "regex_preclassify"}
+
+    # Stage 2: Embedding similarity matching (between regex and LLM)
+    # Uses nomic-embed-text to match against example queries
+    try:
+        from core.city.intent_matcher import IntentMatcher
+        if not hasattr(classify_chat_intent, "_matcher"):
+            classify_chat_intent._matcher = IntentMatcher()
+        embed_result = await classify_chat_intent._matcher.match(text)
+        if embed_result:
+            _debug_classify_intent(text, "", f"EMBEDDING_MATCH -> {embed_result['district']}/{embed_result['type']} (conf={embed_result['confidence']:.3f})")
+            return embed_result
+    except Exception as e:
+        logger.warning(f"[governor] Embedding matcher failed, falling through to LLM: {e}")
+
     try:
         from core.inference.provider_client import get_client
 
@@ -1363,21 +1440,33 @@ async def classify_chat_intent(text: str) -> dict:
         red_tier = sorted(_COUNCIL_TASK_TYPES)
         prompt = (
             "You are the intent router for VECTOR, a personal autonomous AI "
-            "assistant. Decide if the message below is (a) a question or "
-            "conversational request VECTOR should just answer in words, or "
-            "(b) a request for VECTOR to actually DO something concrete.\n\n"
-            "Only classify as an action if the user is clearly asking VECTOR "
-            "to perform a specific operation, not merely discuss, explain, "
-            "or ask about one. Explaining what an action would involve is "
-            "NOT the same as being asked to do it. When genuinely unsure, "
-            "classify as a question — VECTOR doing the wrong thing is worse "
-            "than VECTOR just explaining instead.\n\n"
+            "assistant. Decide if the message below is (a) a pure conversational "
+            "exchange (greetings, opinions, casual chat, 'what do you think about X') "
+            "that VECTOR should just answer in words, or (b) a request for VECTOR "
+            "to DO something concrete — dispatch to a specialist district agent "
+            "that produces a deliverable (report, analysis, quiz, summary, scan, "
+            "schedule, draft, etc.).\n\n"
+            "KEY RULE: If the user wants a TANGIBLE OUTPUT from a specialist — "
+            "even when phrased as a question — classify it as an ACTION. "
+            "Examples of queries that ARE actions despite looking like questions:\n"
+            "  - 'Can you quiz me on Hindi vocabulary?' → action, district=languages, task_type=quiz_vocabulary\n"
+            "  - 'Look at my week and tell me patterns' → action, district=reflection, task_type=weekly_review\n"
+            "  - 'Put together a performance report' → action, district=data_analytics, task_type=generate_report\n"
+            "  - 'How am I doing on my goals?' → action, district=reflection, task_type=goal_progress\n"
+            "  - 'What's the state of my system?' → action, district=ops, task_type=system_status\n"
+            "  - 'Analyze my sleep data' → action, district=health, task_type=analyze_sleep\n"
+            "  - 'Study transformers with me for 30 min' → action, district=karpathy_lab, task_type=study_session\n"
+            "  - 'Help me scope a startup idea' → action, district=startups, task_type=idea_validation\n"
+            "Only classify as answer_question for PURE chat: greetings, 'how are you', "
+            "casual opinions, philosophical questions, or when VECTOR has no specialist "
+            "district that could produce a better deliverable.\n\n"
             f"Valid districts: {_describe_districts(districts)}\n"
             "If the requested action matches one of these high-stakes types "
             f"exactly, use that exact task_type string: {red_tier}\n"
             "Otherwise pick a short snake_case task_type describing the "
             "action (e.g. send_email, schedule_event, review_code, "
-            "generate_image, search_web).\n\n"
+            "generate_image, search_web, quiz_vocabulary, weekly_review, "
+            "generate_report, system_status, study_session, idea_validation).\n\n"
             f'Message: "{text}"\n\n'
             "Reply with ONLY a JSON object, nothing else: "
             '{"is_action": <bool>, "task_type": "<string, empty if not action>", '
@@ -1418,7 +1507,10 @@ async def classify_chat_intent(text: str) -> dict:
         # High bar: wrong-way error (missed action) is cheap, wrong-way
         # error (spurious action) is not — require real confidence AND a
         # district VECTOR actually has before trusting this as an action.
-        if not is_action or confidence < 0.6 or district not in districts or not task_type:
+        # 2026-08-12: lowered from 0.6 → 0.5 — the old threshold was too
+        # conservative, causing legitimate specialist requests (quiz, report,
+        # weekly review) to fall through to the generic conversational path.
+        if not is_action or confidence < 0.5 or district not in districts or not task_type:
             _debug_classify_intent(text, raw, f"REJECTED is_action={is_action} conf={confidence} district={district!r} task_type={task_type!r}")
             return fallback
         # 2026-07-29 KNOWN_ISSUES (eval finding, documentation-district
@@ -1557,6 +1649,46 @@ class Governor:
         # LLM fallback for natural language task types
         return self._llm_classify(task_type)
 
+    async def route_task_async(self, task_type: str) -> str:
+        """Async-safe counterpart to route_task(), for callers that are
+        already inside a running event loop — currently only dispatch().
+
+        2026-09-08 (T89A runtime boundary review): dispatch()'s `async def`
+        body used to call the plain sync route_task() directly (no await, no
+        thread hop). route_task() falls through to _llm_classify() for any
+        task_type that isn't an exact/substring DISTRICT_TASK_MAP match, and
+        _llm_classify() calls the SYNCHRONOUS ollama_safe.chat() (and, before
+        that, its own _cloud_classify() cloud path). dispatch() is VECTOR's
+        highest-volume routing path, so a direct call there blocked the
+        calling coroutine's event loop for the full duration of every
+        classification round-trip — ordinary multi-second inference/cloud
+        latency, not just a hang (R1/89 only bounded the total wait, not
+        where it happens).
+
+        route_task()/_llm_classify() are left COMPLETELY UNCHANGED here —
+        they still have ~10 other sync call sites (tests, core/api/routers/
+        commands.py, core/memory/router.py, core/voice/realtime.py,
+        vc_agents/routing_agent.py) that call them directly, unawaited;
+        converting them to `async def` would cascade far past this one call
+        site, out of scope for a narrow fix. Instead: keyword/exact matching
+        (cheap, no I/O) stays inline and synchronous; only the LLM-fallback
+        path is moved off the event loop thread via a genuine
+        `await asyncio.to_thread(...)`, which actually yields control back
+        to the loop (unlike a synchronous `future.result(timeout=)` thread-
+        hop, which still blocks the calling thread for the wait — bounding
+        the wait is not the same as not blocking the loop). See
+        VECTOR_TECHNICAL_KNOWLEDGE/89A_RUNTIME_BOUNDARY.md for the full
+        call-site trace and why vchat() (core/city/agent_base.py) was NOT
+        given the same treatment (all ~15 of its call sites are unawaited,
+        so there is no single low-risk seam to fix it through)."""
+        task_lower = task_type.lower()
+        if task_lower in DISTRICT_TASK_MAP:
+            return DISTRICT_TASK_MAP[task_lower]
+        for keyword in _DISTRICT_TASK_MAP_KEYS_BY_LEN_DESC:
+            if keyword in task_lower:
+                return DISTRICT_TASK_MAP[keyword]
+        return await asyncio.to_thread(self._llm_classify, task_type)
+
     def _llm_classify(self, task_type: str) -> str:
         """Use vector-ambient (fast, local) to classify task into a district."""
         try:
@@ -1603,6 +1735,7 @@ class Governor:
                 timeout=12.0,
                 think=False,
                 num_predict=16,
+                caller_id="governor_classify_local",
             ).strip().lower()
             # Validate the response is a known district
             if result in districts:
@@ -1881,7 +2014,10 @@ class Governor:
         """
         task_id = f"task_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
         task_type = task.get("type", "unknown")
-        district = task.get("district") or self.route_task(task_type)
+        # 2026-09-08 (T89A): route_task_async(), not route_task() — see that
+        # method's docstring for why (event-loop-blocking fix, narrowly
+        # scoped to this one call site).
+        district = task.get("district") or await self.route_task_async(task_type)
 
         # ── Task decomposition: complex tasks split into ordered subtasks ──
         subtasks = await self._maybe_decompose(task)

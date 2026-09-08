@@ -596,6 +596,29 @@ def _create_tables(conn):
         except sqlite3.OperationalError as e:
             logger.error(f"Table creation failed: {e}")
     _ensure_decay_columns(conn)
+    _ensure_policy_columns(conn)
+
+
+# Task 89 (D3, suppression/reward channel separation): policy_memory needs a
+# veto_count column so a counterfactual-veto's suppression event can be
+# recorded WITHOUT being blended into avg_reward — the cumulative mean real
+# outcomes (5-factor reward, VectorCode reward) accumulate into. Historical
+# rows (including the ~29,000-sample analyze_progress row) are untouched:
+# ALTER TABLE ADD COLUMN only adds the column with existing rows getting
+# veto_count=NULL, never rewriting avg_reward/sample_count/situation_hash on
+# any existing row. See core/memory/policy.py::PolicyMemory.record_suppression().
+def _ensure_policy_columns(conn) -> None:
+    try:
+        cols = {row[1] for row in conn.execute('PRAGMA table_info("policy_memory")').fetchall()}
+    except sqlite3.OperationalError:
+        return  # table doesn't exist yet on this connection — next create_tables pass adds it
+    if not cols:
+        return
+    if "veto_count" not in cols:
+        try:
+            conn.execute('ALTER TABLE "policy_memory" ADD COLUMN veto_count INTEGER DEFAULT 0')
+        except sqlite3.OperationalError as e:
+            logger.warning(f"[VECTOR][memory] could not add veto_count to policy_memory: {e}")
 
 
 # 2026-07-29: Ebbinghaus decay (core.memory.decay) needs two extra columns on

@@ -190,6 +190,10 @@ class Uploader(AgentBase):
         if not _approved:
             return {"status": "blocked", "platform": "instagram", "reason": _reason or "owner did not approve publish"}
 
+        # Track partial success: if container was created but publish failed,
+        # we can resume from the publish step on retry (don't create another container).
+        partial_creation_id: str | None = None
+
         try:
             instagram_token = self._api_credentials.get("instagram_access_token", "")
             instagram_account_id = self._api_credentials.get("instagram_account_id", "")
@@ -218,6 +222,7 @@ class Uploader(AgentBase):
 
                 result = response.json()
                 creation_id = result.get("id")
+                partial_creation_id = creation_id  # phase 1 succeeded
 
                 publish_url = f"https://graph.facebook.com/v18.0/{instagram_account_id}/media_publish"
                 publish_data = {
@@ -244,6 +249,17 @@ class Uploader(AgentBase):
 
         except Exception as e:
             logger.error(f"[VECTOR][uploader] Instagram upload failed: {e}")
+            # If container was created but publish failed, return partial status
+            # with the creation_id so retry can resume from the publish step
+            # instead of creating a duplicate container.
+            if partial_creation_id:
+                return {
+                    "status": "partial",
+                    "platform": "instagram",
+                    "creation_id": partial_creation_id,
+                    "error": str(e),
+                    "retry_with": {"creation_id": partial_creation_id},
+                }
 
         return self._simulate_upload("instagram", video_path, caption)
 
@@ -470,56 +486,66 @@ class Uploader(AgentBase):
     async def execute_scheduled_uploads(self) -> list[dict]:
         """
         Execute all pending scheduled uploads.
+
+        Sets status='uploading' BEFORE the upload starts to prevent concurrent
+        callers from picking up the same item (TOCTOU race). If the upload
+        succeeds, status becomes 'executed'; on failure, 'failed'.
         """
         now = datetime.now(timezone.utc)
         executed = []
 
-        pending = [u for u in self._scheduled_uploads if u["status"] == "pending"]
+        # Atomically claim pending items by transitioning to 'uploading' first.
+        # This prevents two concurrent callers from both picking up the same
+        # pending item and uploading it twice.
+        pending = []
+        for u in self._scheduled_uploads:
+            if u["status"] == "pending":
+                scheduled_dt = datetime.fromisoformat(
+                    u["scheduled_time"].replace("Z", "+00:00")
+                )
+                if scheduled_dt <= now:
+                    u["status"] = "uploading"
+                    pending.append(u)
 
         for schedule in pending:
             try:
-                scheduled_dt = datetime.fromisoformat(
-                    schedule["scheduled_time"].replace("Z", "+00:00")
-                )
+                if schedule["platform"] == "youtube":
+                    result = await self.upload_to_youtube(
+                        schedule["video_path"],
+                        schedule["metadata"].get("title", "Untitled"),
+                        schedule["metadata"].get("description", ""),
+                        schedule["metadata"].get("tags", []),
+                        scheduled_time=schedule["scheduled_time"]
+                    )
+                elif schedule["platform"] == "instagram":
+                    result = await self.upload_to_instagram(
+                        schedule["video_path"],
+                        schedule["metadata"].get("caption", ""),
+                        schedule["metadata"].get("hashtags", [])
+                    )
+                elif schedule["platform"] == "tiktok":
+                    result = await self.upload_to_tiktok(
+                        schedule["video_path"],
+                        schedule["metadata"].get("caption", ""),
+                        schedule["metadata"].get("hashtags", [])
+                    )
+                elif schedule["platform"] == "twitter":
+                    result = await self.upload_to_twitter(
+                        schedule["video_path"],
+                        schedule["metadata"].get("caption", "")
+                        or schedule["metadata"].get("title", ""),
+                        schedule["metadata"].get("hashtags", [])
+                    )
+                else:
+                    result = self._simulate_upload(
+                        schedule["platform"],
+                        schedule["video_path"],
+                        schedule["metadata"].get("title", "")
+                    )
 
-                if scheduled_dt <= now:
-                    if schedule["platform"] == "youtube":
-                        result = await self.upload_to_youtube(
-                            schedule["video_path"],
-                            schedule["metadata"].get("title", "Untitled"),
-                            schedule["metadata"].get("description", ""),
-                            schedule["metadata"].get("tags", []),
-                            scheduled_time=schedule["scheduled_time"]
-                        )
-                    elif schedule["platform"] == "instagram":
-                        result = await self.upload_to_instagram(
-                            schedule["video_path"],
-                            schedule["metadata"].get("caption", ""),
-                            schedule["metadata"].get("hashtags", [])
-                        )
-                    elif schedule["platform"] == "tiktok":
-                        result = await self.upload_to_tiktok(
-                            schedule["video_path"],
-                            schedule["metadata"].get("caption", ""),
-                            schedule["metadata"].get("hashtags", [])
-                        )
-                    elif schedule["platform"] == "twitter":
-                        result = await self.upload_to_twitter(
-                            schedule["video_path"],
-                            schedule["metadata"].get("caption", "")
-                            or schedule["metadata"].get("title", ""),
-                            schedule["metadata"].get("hashtags", [])
-                        )
-                    else:
-                        result = self._simulate_upload(
-                            schedule["platform"],
-                            schedule["video_path"],
-                            schedule["metadata"].get("title", "")
-                        )
-
-                    schedule["status"] = "executed"
-                    schedule["result"] = result
-                    executed.append(result)
+                schedule["status"] = "executed"
+                schedule["result"] = result
+                executed.append(result)
 
             except Exception as e:
                 logger.error(f"[VECTOR][uploader] Failed to execute scheduled upload: {e}")

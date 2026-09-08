@@ -6,27 +6,45 @@ _act_on()'s CounterfactualMemory.should_avoid() gate to immediately
 auto-block it ("similar to past rejection") and return early -- forever,
 with the loop never trying anything else.
 
-Root cause: core/loop/autonomous_loop.py::_act_on()'s counterfactual
-auto-block branch (around line 941-957) returns early WITHOUT ever calling
-core/memory/policy.py::PolicyMemory.update_from_outcome() -- the exact
-mechanism (RULE 7) decision_engine.py relies on to stop a repeatedly-bad
-action from winning again. Every other _act_on() outcome path (VectorCode
-routing, governor dispatch) calls update_from_outcome() with a real reward;
-only the counterfactual-block path skipped it. Since policy_score never
-dropped, decision_engine kept scoring "analyze_progress" the same way every
-cycle, it kept winning, kept getting blocked, in a permanent, non-learning
-loop.
+ORIGINAL fix (superseded by Task 89 D3, see below): the counterfactual-block
+branch called policy.update_from_outcome(action_type, situation_hash,
+reward=0.05) -- a hardcoded literal blended into the same avg_reward
+cumulative mean real 5-factor/VectorCode outcomes accumulate into. This did
+stop the infinite-reproposal loop (policy_score dropped, letting other
+candidates win), but it did so by permanently contaminating the real reward
+signal with a control-flow constant that has no relationship to any actual
+outcome -- a veto and a genuinely bad execution became indistinguishable in
+avg_reward.
 
-Fixed: the counterfactual-block branch now calls
-policy.update_from_outcome(action_type, situation_hash, reward=0.05) using
-the exact same situation_hash formula decision_engine.py's own
-_make_situation_hash() uses (sha256 of "action_type:sorted(params.items())",
-truncated to 12 chars) -- so the penalty lands on the same policy_memory
-row decision_engine reads from on the next cycle, genuinely lowering this
-action's avg_reward and letting other candidates win instead.
+Task 89 (D3) — suppression/reward channel separation: the counterfactual-block
+branch now calls policy.record_suppression(action_type, situation_hash)
+instead. This increments a separate `veto_count` column and leaves
+avg_reward/sample_count completely untouched by vetoes -- avg_reward is now
+reserved exclusively for real outcomes (VectorCode reward, 5-factor reward).
+CounterfactualMemory's own `rejections` table (asserted below, unchanged)
+already records every veto in full detail; record_suppression() does not
+duplicate that -- it only makes suppression-vs-outcome distinguishable under
+PolicyMemory's own canonical (action_type, params) identity.
+
+Residual, explicitly out-of-scope risk: because avg_reward no longer drops on
+veto, a candidate whose OTHER four scoring factors (goal_alignment,
+confidence, urgency, timing) never change between cycles could in principle
+keep winning and keep getting vetoed indefinitely, since nothing in
+decision_engine's candidate generation or scoring changed here (Task 89's
+scope explicitly excludes DecisionEngine's scoring weights, candidate
+generation logic, and the "Goal feedback loop" section of
+autonomous_loop.py). The real, durable fix for that class of loop is
+decoupling goal.progress from the reward formula so more/different
+candidates become eligible over time (tracked separately, not this task) --
+suppressing the veto's contamination of avg_reward here is a prerequisite
+for that fix to mean anything, not a substitute for it.
+
+Mirrors decision_engine.py's reader via PolicyMemory.make_situation_hash()
+directly (the same canonical function both the reader and this test's
+writer now call) rather than reimplementing the hash formula locally --
+that reimplementation is exactly the kind of format drift Task 89 fixed.
 """
 import asyncio
-import hashlib
 import sys
 import tempfile
 import uuid
@@ -35,13 +53,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
-def _situation_hash(action_type: str, params: dict) -> str:
-    """Mirrors decision_engine.py::_make_situation_hash() exactly."""
-    key = f"{action_type}:{sorted(params.items())}"
-    return hashlib.sha256(key.encode()).hexdigest()[:12]
-
-
-def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
+def test_counterfactual_auto_block_records_suppression_not_reward(monkeypatch):
     from core.loop.autonomous_loop import AutonomousLoop
     from core.loop.decision_engine import Candidate
     from core.memory.counterfactual import CounterfactualMemory
@@ -66,7 +78,7 @@ def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
 
         pm = PolicyMemory()
         params: dict = {}
-        sit_hash = _situation_hash(action_type, params)
+        sit_hash = pm.make_situation_hash(action_type, params)
         score_before = pm.get_score(action_type, sit_hash)
 
         assert score_before == pm.DEFAULT_SCORE, "no policy row should exist yet (sanity check)"
@@ -75,13 +87,34 @@ def test_counterfactual_auto_block_penalizes_policy_score(monkeypatch):
         asyncio.run(loop._act_on(candidate))
 
         score_after = pm.get_score(action_type, sit_hash)
-        assert score_after != pm.DEFAULT_SCORE, (
-            "policy.update_from_outcome() must be called on counterfactual "
-            "auto-block -- a real row must now exist with a penalized reward, "
-            f"not still be reading the untouched default ({pm.DEFAULT_SCORE})"
+        assert score_after == pm.DEFAULT_SCORE, (
+            "Task 89 (D3): a counterfactual veto must NOT change avg_reward -- "
+            f"expected the untouched default ({pm.DEFAULT_SCORE}), got {score_after}. "
+            "If this fails, the veto path is writing through update_from_outcome() "
+            "again instead of record_suppression()."
         )
-        assert score_after < 0.3, (
-            f"auto-blocked actions must get a clearly negative reward, got {score_after}"
+
+        # Suppression must still be genuinely recorded -- just in a separate
+        # channel (veto_count), not avg_reward.
+        from core.memory.episodic import get_temp_cursor
+        with get_temp_cursor() as cursor:
+            row = cursor.execute(
+                "SELECT veto_count, avg_reward, sample_count FROM policy_memory "
+                "WHERE action_type=? AND situation_hash=?",
+                (action_type, sit_hash),
+            ).fetchone()
+        assert row is not None, "record_suppression() must create a policy_memory row"
+        veto_count, avg_reward, sample_count = row
+        assert veto_count == 1, f"expected veto_count=1, got {veto_count}"
+        assert avg_reward is None, f"expected avg_reward untouched (NULL), got {avg_reward}"
+        assert sample_count == 0, f"expected sample_count untouched (0), got {sample_count}"
+
+        # CounterfactualMemory's own rejections table is unchanged by this
+        # task -- the veto is still recorded there, in full, exactly as before.
+        assert cf.should_avoid(f"{action_type} {{}}", threshold=0.7)[0], (
+            "CounterfactualMemory.should_avoid() must still recognize the "
+            "recorded rejection -- record_suppression() is additive, not a "
+            "replacement for CounterfactualMemory's own tracking"
         )
     finally:
         cf.close()

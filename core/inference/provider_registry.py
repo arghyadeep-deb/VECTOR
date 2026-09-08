@@ -56,7 +56,7 @@ def list_provider_capabilities() -> list[ProviderCapability]:
             provider=slug,
             default_model=provider.default_model,
             models=tuple(provider.models),
-            supports_stream=True,
+            supports_stream=bool(getattr(provider, 'supports_stream', True)),
             supports_tools=bool(provider.supports_tools),
             supports_vision=bool(provider.supports_vision),
             context_window=int(provider.context_window),

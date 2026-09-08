@@ -556,6 +556,36 @@ class EmailAgent(AgentBase):
                 return {"status": "ok", "email_id": email_id}
 
             elif task_type in ("reply", "send_reply"):
+                # 53_PERMISSION_BOUNDARY_INTEGRITY.md Finding 1: this branch
+                # called handle_reply_email() -> core/email/sender.py's real
+                # smtplib.SMTP send directly, with NO PermissionGateway check
+                # — a live, RED-tier "send_email" bypass reachable from any
+                # governor.dispatch({"type": "reply", ...}) call (both the
+                # autonomous fallthrough in _act_on() and the classify_chat_
+                # intent() fast path in commands.py/websocket.py), even
+                # though this same class's send_reply() method already
+                # implements this exact gate correctly. Reuse that gate here
+                # — same Action shape, same fail-closed behavior — rather
+                # than inventing a new one.
+                _preview_to = task.get("to", "")
+                _preview_subject = task.get("subject", "")
+                try:
+                    from core.loop.permission_gateway import PermissionGateway, Action
+                    _gate_result = await PermissionGateway().execute(Action(
+                        action_type="send_email",
+                        params={
+                            "to": _preview_to, "subject": _preview_subject,
+                            "preview": (task.get("text") or task.get("html") or "")[:200],
+                        },
+                        proposed_by="email_agent",
+                    ))
+                except Exception as _gw_err:
+                    logger.error("[VECTOR][email_agent] gateway unreachable — reply blocked (fail-closed): {}", _gw_err)
+                    return {"status": "blocked", "reason": "gateway_unreachable"}
+                if not getattr(_gate_result, "approved", False):
+                    logger.info("[VECTOR][email_agent] reply send not approved")
+                    return {"status": "blocked", "reason": "not_approved"}
+
                 from districts.communications.reply_forward import handle_reply_email
                 result = handle_reply_email(
                     mailbox_id=task.get("mailbox_id", CONFIG.get("EMAIL_ADDRESS", "")),
@@ -573,6 +603,25 @@ class EmailAgent(AgentBase):
                 return {"status": "ok", **result}
 
             elif task_type == "forward":
+                # Same Finding 1 gate as "reply"/"send_reply" above — forward
+                # is an equally real outbound send via the same sender path.
+                try:
+                    from core.loop.permission_gateway import PermissionGateway, Action
+                    _gate_result = await PermissionGateway().execute(Action(
+                        action_type="send_email",
+                        params={
+                            "to": task.get("to", ""), "subject": task.get("subject", ""),
+                            "preview": (task.get("text") or task.get("html") or "")[:200],
+                        },
+                        proposed_by="email_agent",
+                    ))
+                except Exception as _gw_err:
+                    logger.error("[VECTOR][email_agent] gateway unreachable — forward blocked (fail-closed): {}", _gw_err)
+                    return {"status": "blocked", "reason": "gateway_unreachable"}
+                if not getattr(_gate_result, "approved", False):
+                    logger.info("[VECTOR][email_agent] forward send not approved")
+                    return {"status": "blocked", "reason": "not_approved"}
+
                 from districts.communications.reply_forward import handle_forward_email
                 result = handle_forward_email(
                     mailbox_id=task.get("mailbox_id", CONFIG.get("EMAIL_ADDRESS", "")),

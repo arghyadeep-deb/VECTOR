@@ -102,15 +102,22 @@ class ContentArm:
             logger.debug("[VECTOR][growth][armA] live-task trigger no-op")
 
     # -- publish (gated) ----------------------------------------------
-    async def _gated_publish(self, reel: str, well: str) -> None:
+    async def _gated_publish(self, reel: str, well: str) -> dict:
         """Publish only when explicitly enabled. Default (``auto_publish`` off):
         hold the reel and notify the owner to post manually -- nothing auto-uploads.
         When enabled, ask the permission gateway for owner approval and upload only
-        if it returns True (fails closed on timeout/rejection)."""
+        if it returns True (fails closed on timeout/rejection).
+
+        Returns a dict tracking per-platform results so callers can retry only
+        failed platforms.
+        """
+        platform_results: dict[str, str] = {}  # platform -> "ok" | "failed" | "skipped"
+
         if not CONFIG["growth"].get("auto_publish", False):
             logger.info("[VECTOR][growth][armA] auto_publish off -- reel held for owner: {}", reel)
             await self._instagram_publisher()(reel)  # manual path = notify owner
-            return
+            platform_results["instagram"] = "notified_owner"
+            return {"platforms": platform_results, "reel": reel}
 
         approved = False
         try:
@@ -126,24 +133,34 @@ class ContentArm:
 
         if not approved:
             logger.info("[VECTOR][growth][armA] publish not approved -- reel held: {}", reel)
-            return
+            return {"platforms": platform_results, "reel": reel, "approved": False}
 
-        # Owner approved -> fire the real uploads.
-        await self._publish_youtube(reel, well)
-        await self._instagram_publisher()(reel)
+        # Owner approved -> fire the real uploads, tracking per-platform results.
+        yt_ok = await self._publish_youtube(reel, well)
+        platform_results["youtube"] = "ok" if yt_ok else "failed"
 
-    async def _publish_youtube(self, reel: str, well: str) -> None:
+        ig_ok = await self._instagram_publisher_safe(reel)
+        platform_results["instagram"] = "ok" if ig_ok else "failed"
+
+        succeeded = sum(1 for v in platform_results.values() if v == "ok")
+        logger.info("[VECTOR][growth][armA] publish complete: {}/{} platforms — {}",
+                     succeeded, len(platform_results), platform_results)
+        return {"platforms": platform_results, "reel": reel, "approved": True}
+
+    async def _publish_youtube(self, reel: str, well: str) -> bool:
         """Publish a Short. youtube_mode='phone' drives the app on the device
         (no OAuth needed — account logged in on the phone); 'api' uses the
-        official Data API Uploader (needs Google OAuth creds)."""
+        official Data API Uploader (needs Google OAuth creds).
+        Returns True on success, False on failure."""
         if CONFIG["growth"].get("youtube_mode", "phone") == "phone":
             try:
                 from districts.content.phone_poster import PhonePoster
                 res = await PhonePoster().post_youtube(reel, caption=CONFIG["growth"]["brand_line"])
                 logger.info("[VECTOR][growth][armA] YouTube phone-post result: {}", res)
+                return bool(res)
             except Exception as exc:
                 logger.warning("[VECTOR][growth][armA] youtube phone post unavailable: {}", exc)
-            return
+                return False
         try:
             from districts.content.uploader import Uploader
             title = CONFIG["growth"]["brand_line"]
@@ -154,8 +171,22 @@ class ContentArm:
             )
             status = res.get("status") if isinstance(res, dict) else res
             logger.info("[VECTOR][growth][armA] YouTube upload result: {}", status)
+            return status in ("uploaded", "published", True, "ok")
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] youtube publish unavailable: {}", exc)
+            return False
+
+    async def _instagram_publisher_safe(self, reel: str) -> bool:
+        """Execute the IG publish strategy and return bool success.
+        Unlike _instagram_publisher() (which returns a callable), this runs
+        the callable and reports success/failure for per-platform tracking."""
+        try:
+            publisher = self._instagram_publisher()
+            await publisher(reel)
+            return True
+        except Exception as exc:
+            logger.warning("[VECTOR][growth][armA] IG publish failed: {}", exc)
+            return False
 
     def _instagram_publisher(self):
         """Return the IG publish strategy. 'manual' = human-in-the-loop (default);

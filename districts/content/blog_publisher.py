@@ -21,6 +21,7 @@ from __future__ import annotations
 
 __all__ = ["BlogPublisher", "PublishResult"]
 
+import hashlib
 from dataclasses import dataclass
 from typing import Any
 
@@ -29,6 +30,49 @@ ensure_paths()
 
 from loguru import logger
 from core.config import CONFIG
+
+
+def _blog_dedup_hash(platform: str, title: str) -> str:
+    """Hash (platform, title) for dedup — prevents publishing the same post twice."""
+    raw = f"{platform}|{title}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:24]
+
+
+def _check_blog_dedup(dedup_hash: str, window_hours: int = 24) -> bool:
+    """Return True if this post was already published within the window."""
+    try:
+        from core.memory.episodic import get_db_connection
+        conn = get_db_connection()
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS blog_dedup "
+            "(dedup_hash TEXT PRIMARY KEY, published_at TEXT)"
+        )
+        conn.commit()
+        row = conn.execute(
+            "SELECT published_at FROM blog_dedup WHERE dedup_hash = ?", (dedup_hash,)
+        ).fetchone()
+        if not row:
+            return False
+        from datetime import datetime, timedelta
+        published_at = datetime.fromisoformat(row[0])
+        return (datetime.utcnow() - published_at) < timedelta(hours=window_hours)
+    except Exception as e:
+        logger.warning(f"[VECTOR][blog] dedup check failed: {e}")
+        return False  # fail open
+
+
+def _record_blog_dedup(dedup_hash: str) -> None:
+    """Record that this post was published."""
+    try:
+        from core.memory.episodic import get_temp_cursor
+        from datetime import datetime
+        with get_temp_cursor() as cursor:
+            cursor.execute(
+                "INSERT OR REPLACE INTO blog_dedup (dedup_hash, published_at) VALUES (?, ?)",
+                (dedup_hash, datetime.utcnow().isoformat()),
+            )
+    except Exception as e:
+        logger.warning(f"[VECTOR][blog] dedup record failed: {e}")
 
 try:
     import httpx
@@ -107,6 +151,12 @@ class BlogPublisher:
         if not self._devto_key:
             return PublishResult(platform="devto", success=False,
                                  error="DEVTO_API_KEY not configured")
+        # Dedup: skip if this title was already published to devto recently
+        dedup_hash = _blog_dedup_hash("devto", title)
+        if _check_blog_dedup(dedup_hash):
+            logger.info("[VECTOR][blog] Dev.to duplicate suppressed: {!r}", title)
+            return PublishResult(platform="devto", success=True,
+                                 error="duplicate_suppressed")
         try:
             article: dict[str, Any] = {
                 "title": title,
@@ -134,6 +184,7 @@ class BlogPublisher:
                 data = resp.json()
                 url = data.get("url", "")
                 post_id = str(data.get("id", ""))
+                _record_blog_dedup(dedup_hash)
                 logger.info("[VECTOR][blog] Dev.to published: {}", url)
                 return PublishResult(platform="devto", success=True, url=url, post_id=post_id)
             return PublishResult(
@@ -169,6 +220,12 @@ class BlogPublisher:
         if not self._hashnode_pub_id:
             return PublishResult(platform="hashnode", success=False,
                                  error="HASHNODE_PUBLICATION_ID not configured")
+        # Dedup: skip if this title was already published to hashnode recently
+        dedup_hash = _blog_dedup_hash("hashnode", title)
+        if _check_blog_dedup(dedup_hash):
+            logger.info("[VECTOR][blog] Hashnode duplicate suppressed: {!r}", title)
+            return PublishResult(platform="hashnode", success=True,
+                                 error="duplicate_suppressed")
         try:
             tag_slugs = [{"slug": t.lower().replace(" ", "-"), "name": t}
                          for t in (tags or [])]
@@ -211,6 +268,7 @@ class BlogPublisher:
                 post = body.get("data", {}).get("publishPost", {}).get("post", {})
                 url = post.get("url", "")
                 post_id = post.get("id", "")
+                _record_blog_dedup(dedup_hash)
                 logger.info("[VECTOR][blog] Hashnode published: {}", url)
                 return PublishResult(platform="hashnode", success=True, url=url, post_id=post_id)
             return PublishResult(
@@ -246,6 +304,12 @@ class BlogPublisher:
         if not self._medium_token:
             return PublishResult(platform="medium", success=False,
                                  error="MEDIUM_TOKEN not configured")
+        # Dedup: skip if this title was already published to medium recently
+        dedup_hash = _blog_dedup_hash("medium", title)
+        if _check_blog_dedup(dedup_hash):
+            logger.info("[VECTOR][blog] Medium duplicate suppressed: {!r}", title)
+            return PublishResult(platform="medium", success=True,
+                                 error="duplicate_suppressed")
         try:
             headers = {
                 "Authorization": f"Bearer {self._medium_token}",
@@ -285,6 +349,7 @@ class BlogPublisher:
                 data = post_resp.json().get("data", {})
                 url = data.get("url", "")
                 post_id = data.get("id", "")
+                _record_blog_dedup(dedup_hash)
                 logger.info("[VECTOR][blog] Medium published: {}", url)
                 return PublishResult(platform="medium", success=True, url=url, post_id=post_id)
             return PublishResult(

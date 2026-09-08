@@ -209,6 +209,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
 # ── Provider cooldown tracker ──────────────────────────────────────────────────
 # Maps provider_slug -> datetime when cooldown expires (UTC)
 _COOLDOWNS: dict[str, datetime] = {}
+_COOLDOWN_LOCK = __import__("threading").Lock()  # protects _COOLDOWNS
 
 
 def is_logical_model(name: str) -> bool:
@@ -219,7 +220,8 @@ def is_logical_model(name: str) -> bool:
 def mark_cooldown(provider_slug: str, seconds: int = 120) -> None:
     """Mark a provider as rate-limited for `seconds` seconds."""
     until = datetime.now(timezone.utc) + timedelta(seconds=seconds)
-    _COOLDOWNS[provider_slug] = until
+    with _COOLDOWN_LOCK:
+        _COOLDOWNS[provider_slug] = until
     logger.warning(
         "[VECTOR][model_pool] {} rate-limited — cooling down {}s",
         provider_slug, seconds,
@@ -227,13 +229,14 @@ def mark_cooldown(provider_slug: str, seconds: int = 120) -> None:
 
 
 def _is_cooling_down(provider_slug: str) -> bool:
-    until = _COOLDOWNS.get(provider_slug)
-    if until is None:
-        return False
-    if datetime.now(timezone.utc) >= until:
-        _COOLDOWNS.pop(provider_slug, None)
-        return False
-    return True
+    with _COOLDOWN_LOCK:
+        until = _COOLDOWNS.get(provider_slug)
+        if until is None:
+            return False
+        if datetime.now(timezone.utc) >= until:
+            _COOLDOWNS.pop(provider_slug, None)
+            return False
+        return True
 
 
 def get_backends(
@@ -262,9 +265,11 @@ def get_backends(
 def cooldown_status() -> dict[str, str]:
     """Return remaining cooldown seconds per provider (for diagnostics)."""
     now = datetime.now(timezone.utc)
+    with _COOLDOWN_LOCK:
+        items = list(_COOLDOWNS.items())
     return {
         slug: f"{int((until - now).total_seconds())}s remaining"
-        for slug, until in list(_COOLDOWNS.items())
+        for slug, until in items
         if until > now
     }
 

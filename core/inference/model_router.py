@@ -93,7 +93,8 @@ class TaskClassifier:
                 f"Classify this task into one domain: coding, research, voice, personality, or general. "
                 f"Respond with only the domain word.\n\nTask: {task_text}"
             )
-            response = chat(model="vector-fast", messages=[{"role": "user", "content": prompt}], timeout=15.0)
+            response = chat(model="vector-fast", messages=[{"role": "user", "content": prompt}], timeout=15.0,
+                            caller_id="model_router_classify")
             domain = response.strip().lower()
             if domain in self._keyword_map:
                 return ClassificationResult(domain=domain, confidence=0.85, method="llm")

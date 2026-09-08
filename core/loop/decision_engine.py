@@ -1,7 +1,6 @@
 import sys
 import asyncio
 import datetime
-import hashlib
 import math
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -265,11 +264,126 @@ class DecisionEngine:
         return min(1.0, score)
 
     def _make_situation_hash(self, candidate: Candidate) -> str:
-        key = f"{candidate.action_type}:{sorted(candidate.params.items())}"
-        return hashlib.sha256(key.encode()).hexdigest()[:12]
+        """
+        Task 89 (D2) — delegates to PolicyMemory.make_situation_hash(), the
+        single canonical identity function shared by this reader and every
+        connected writer in autonomous_loop.py. Previously this method had
+        its OWN independent formula (`f"{action_type}:{sorted(params.items())}"`,
+        Python repr of a sorted list of tuples) which matched only the
+        counterfactual-veto writer and none of the real-outcome writers,
+        which used `json.dumps(params, sort_keys=True, default=str)` — two
+        different serializations of the same logical situation, hashing
+        differently, silently preventing real rewards from ever being read
+        back by this method. See core/memory/policy.py's docstring for the
+        full "v2:"-prefixed canonicalization and why no migration is needed.
+        """
+        return self._get_policy().make_situation_hash(candidate.action_type, candidate.params)
+
+    def _epistemic_penalty(self, candidate: Candidate) -> tuple[float, float]:
+        """Epistemic confidence dampening (JARVIS Gap 3).
+
+        Returns (factor, confidence) where factor is a multiplier in [0.70, 1.0]:
+        - Unknown domain (no belief) → 1.0 (neutral — not penalised for ignorance)
+        - Stale belief (TTL expired) → 0.70 (heavy — information may be wrong)
+        - Low confidence (<0.3) → 0.80
+        - Medium confidence (0.3-0.5) → 0.90
+        - High confidence (≥0.5) → 1.0 (well-known domain, no dampening)
+
+        The penalty is applied as a post-score multiplier so the 5-factor
+        formula stays intact.  A factor of 1.0 means no change.
+        """
+        try:
+            if not CONFIG.get("epistemic_scoring", True):
+                return 1.0, 0.0
+            epistemic = self._get_epistemic()
+            if epistemic is None:
+                return 1.0, 0.0
+            domain = candidate.action_type.split("_")[0]
+            claim_id = f"action_domain:{domain}"
+            belief = epistemic.get_belief(claim_id)
+            if belief is None:
+                # Unknown domain — neutral.  We don't penalise first-time actions.
+                return 1.0, 0.0
+            if belief.get("stale"):
+                logger.debug(
+                    "[VECTOR][decision_engine] epistemic STALE for '{}': "
+                    "last_verified={}, ttl={}h — dampening 0.70",
+                    domain, belief.get("last_verified", "?"),
+                    belief.get("ttl_hours", 72),
+                )
+                return 0.70, 0.0
+            conf = belief.get("current_confidence", belief.get("confidence", 0.5))
+            if conf < 0.3:
+                return 0.80, conf
+            if conf < 0.5:
+                return 0.90, conf
+            return 1.0, conf
+        except Exception as e:
+            logger.debug("[VECTOR][decision_engine] epistemic_penalty skipped: {}", e)
+            return 1.0, 0.0
+
+    def record_epistemic_belief(self, action_type: str, outcome_status: str,
+                                reward: float) -> None:
+        """Record epistemic belief about an action domain after execution.
+
+        Called by autonomous_loop._act_on() AFTER every action outcome.
+        High reward → confidence rises in this domain.
+        Low reward → confidence falls, making future actions in this domain
+        score lower (epistemic dampening kicks in).
+        """
+        try:
+            if not CONFIG.get("epistemic_scoring", True):
+                return
+            epistemic = self._get_epistemic()
+            if epistemic is None:
+                return
+            domain = action_type.split("_")[0]
+            claim_id = f"action_domain:{domain}"
+            # Clamp reward to [0, 1] — same scale as epistemic confidence
+            confidence = max(0.0, min(1.0, reward))
+            epistemic.merge_belief(
+                claim_id,
+                f"last_outcome={outcome_status}",
+                confidence,
+                "act_loop",
+            )
+            logger.debug(
+                "[VECTOR][decision_engine] epistemic belief updated: "
+                "{} → conf={:.3f} (reward={:.3f})",
+                claim_id, confidence, reward,
+            )
+        except Exception as e:
+            logger.debug("[VECTOR][decision_engine] record_epistemic_belief skipped: {}", e)
+
+    def decay_epistemic(self) -> int:
+        """Apply confidence decay to all epistemic beliefs.
+
+        Called by autonomous_loop._reflect_tick() during the 2AM reflection.
+        Ages beliefs so stale information triggers dampening in future decisions.
+        Returns the number of beliefs whose confidence was updated.
+        """
+        try:
+            if not CONFIG.get("epistemic_scoring", True):
+                return 0
+            epistemic = self._get_epistemic()
+            if epistemic is None:
+                return 0
+            count = epistemic.decay_all()
+            stale = epistemic.check_staleness()
+            if stale:
+                logger.info(
+                    "[VECTOR][decision_engine] epistemic decay: {} beliefs updated, "
+                    "{} now stale: {}",
+                    count, len(stale), stale[:5],
+                )
+            return count
+        except Exception as e:
+            logger.debug("[VECTOR][decision_engine] decay_epistemic skipped: {}", e)
+            return 0
 
     def _score_candidate(self, candidate: Candidate) -> float:
-        """Apply the 5-factor formula. Mutates candidate with computed scores."""
+        """Apply the 5-factor formula + epistemic dampening.
+        Mutates candidate with computed scores."""
         situation_hash = self._make_situation_hash(candidate)
 
         # RULE 7 — get_score() BEFORE every decision
@@ -295,6 +409,12 @@ class DecisionEngine:
             - self.W_COST * cost_penalty
             - bias_penalty
         )
+
+        # Epistemic dampening (JARVIS Gap 3) — post-score multiplier.
+        # If the action domain has stale or uncertain beliefs, reduce the score.
+        epistemic_factor, epistemic_conf = self._epistemic_penalty(candidate)
+        total *= epistemic_factor
+
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
         candidate.reasoning_chain = [
             {"factor": "goal_alignment", "value": goal_score, "weight": self.W_GOAL},
@@ -308,6 +428,11 @@ class DecisionEngine:
             candidate.reasoning_chain.append(
                 {"factor": "meta_cognition", "value": bias_penalty, "weight": -1.0}
             )
+        if epistemic_factor < 1.0:
+            candidate.reasoning_chain.append(
+                {"factor": "epistemic_confidence", "value": epistemic_conf,
+                 "weight": epistemic_factor}
+            )
         candidate.reasoning_steps.extend([
             f"goal_alignment={goal_score:.3f}",
             f"confidence={confidence:.3f}",
@@ -318,6 +443,11 @@ class DecisionEngine:
         ])
         if bias_penalty > 0.0:
             candidate.reasoning_steps.append(f"meta_cognition bias_penalty={bias_penalty:.3f}")
+        if epistemic_factor < 1.0:
+            candidate.reasoning_steps.append(
+                f"epistemic_factor={epistemic_factor:.2f} "
+                f"(conf={epistemic_conf:.3f})"
+            )
         candidate.reasoning_steps.append(f"FINAL score={candidate.total_score:.4f}")
         return candidate.total_score
 

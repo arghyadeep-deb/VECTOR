@@ -81,6 +81,39 @@ def test_per_model_isolation(led):
     assert not led.deprioritized("groq", "llama-3.3-70b-versatile")
 
 
+# ── per-minute vs daily time-horizon separation (regression) ─────────────────
+
+def test_rpm_burst_does_not_deprioritize_when_daily_budget_unused(led, clock):
+    """Cerebras: tokens_per_day=1M, requests_per_min=5, tokens_per_min=30K.
+    A burst of 5 requests (hitting 100% RPM) with only ~30K/1M daily tokens
+    used must NOT deprioritize — 97% of the daily budget is still unused."""
+    # 5 requests using 6K tokens each = 30K tokens (3% of 1M/day)
+    for _ in range(5):
+        led.record("cerebras", "zai-glm-4.7", tokens=6_000)
+    # Per-minute: 5/5 RPM = 100%, 30K/30K TPM = 100%
+    # Daily:       5/2400 req = 0.2%, 30K/1M tok = 3%
+    # Bug: old max(fractions) returned 1.0 → deprioritized
+    # Fix: daily limits govern when they exist → saturation ≈ 3%
+    assert not led.deprioritized("cerebras", "zai-glm-4.7")
+    assert led.saturation("cerebras", "zai-glm-4.7") < 0.10  # well under 90%
+
+
+def test_per_minute_only_provider_still_deprioritizes(led, clock):
+    """Mistral has only per-minute limits — a burst should still deprioritize."""
+    # ministral-3b: 750 req/min, no daily limits
+    for _ in range(700):
+        led.record("mistral", "ministral-3b-2512")
+    assert led.deprioritized("mistral", "ministral-3b-2512")  # 93.3% of RPM
+
+
+def test_daily_limit_still_deprioritizes_regardless_of_rpm(led):
+    """Daily saturation should deprioritize even if per-minute is low."""
+    # Groq: requests_per_day=14400, tokens_per_min=6000
+    _fill(led, "groq", "llama-3.1-8b-instant", requests=13_500, tokens=100)
+    # Daily: 13500/14400 = 93.75% → deprioritized
+    assert led.deprioritized("groq", "llama-3.1-8b-instant")
+
+
 # ── reorder semantics ────────────────────────────────────────────────────────
 
 def test_reorder_stable_partition_ollama_pinned(led):

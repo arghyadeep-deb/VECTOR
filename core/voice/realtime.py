@@ -228,6 +228,7 @@ def classify_intent_llm(text: str) -> str | None:
                 temperature=0.0,
                 think=False,
                 num_predict=32,
+                caller_id="voice_intent",
             ).strip()
         if not result:
             return None

@@ -102,13 +102,18 @@ class PhonePoster:
         if not approved:
             return {"status": "blocked", "reason": "owner did not approve"}
 
+        # F-7: mint a control token after approval; the gated phone primitives
+        # (unlock/tap/swipe/type_text/launch_app) require it.
+        from core.loop.permission_gateway import PermissionGateway
+        _ct = PermissionGateway().grant_control("instagram_post_via_phone", uses=32, ttl=300)
+
         # 3. Device not connected → hold + notify (never lose the reel)
         if not self._pc.is_connected():
             return {"status": "error", "reason": "phone not connected"}
 
         # 4. Push media + open IG share composer via intent
         try:
-            self._pc.unlock()
+            self._pc.unlock(control_token=_ct)
             ok, _ = self._pc._run_adb("push", media_path, _REMOTE_MEDIA, timeout=60)
             if not ok:
                 return {"status": "error", "reason": "adb push of media failed"}
@@ -133,7 +138,7 @@ class PhonePoster:
             from core.control.social_safety import record_post
             if isinstance(share_tap, (list, tuple)) and len(share_tap) == 2:
                 tx, ty = _jitter(int(share_tap[0]), int(share_tap[1]))
-                self._pc.tap(tx, ty)
+                self._pc.tap(tx, ty, control_token=_ct)
                 await _human_pause(2.5, 4.5)
                 record_post(handle, media_path=media_path, caption=caption)
                 return {"status": "posted", "reason": "shared via calibrated tap"}
@@ -184,11 +189,15 @@ class PhonePoster:
         if not approved:
             return {"status": "blocked", "reason": "owner did not approve"}
 
+        # F-7: mint a control token after approval for the gated phone primitives.
+        from core.loop.permission_gateway import PermissionGateway
+        _ct = PermissionGateway().grant_control("youtube_upload_via_phone", uses=32, ttl=300)
+
         if not self._pc.is_connected():
             return {"status": "error", "reason": "phone not connected"}
 
         try:
-            self._pc.unlock()
+            self._pc.unlock(control_token=_ct)
             ok, _ = self._pc._run_adb("push", media_path, _REMOTE_MEDIA, timeout=60)
             if not ok:
                 return {"status": "error", "reason": "adb push of media failed"}

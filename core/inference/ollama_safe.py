@@ -189,6 +189,8 @@ def chat(
     temperature: float = 0.7,
     think: bool | None = None,
     num_predict: int | None = None,
+    *,
+    caller_id: str = "ollama_safe_direct",
 ) -> str:
     """Return Ollama chat text, or empty string on failure/timeout.
 
@@ -203,6 +205,10 @@ def chat(
                essential for short classification calls (a thinking model
                burns 100+ hidden tokens before a one-line answer: ~7s → ~2s).
         num_predict: hard cap on generated tokens (None = model default).
+        caller_id: observability tag — identifies which of the ~10 direct
+                   callers (agent_base, governor, model_router, realtime
+                   voice, ...) issued this call. Default "ollama_safe_direct"
+                   when a caller doesn't pass one; never affects routing.
     """
     messages = _inject_personality(messages)
 
@@ -210,6 +216,9 @@ def chat(
     if _is_airllm_model(model):
         result = _airllm_chat(model, messages)
         if result:
+            _record_observability(
+                caller_id, model, "airllm", result, 0.0, status="ok",
+            )
             return result
         # If AirLLM failed, still try Ollama (may have a smaller variant available)
 
@@ -257,7 +266,13 @@ def chat(
                 f"are still held, a caller is likely stuck (see KNOWN_ISSUES #0). "
                 f"Falling back without touching Ollama."
             )
-            return _multi_backend_fallback(model, messages, timeout)
+            fallback = _multi_backend_fallback(model, messages, timeout, caller_id=caller_id)
+            if not fallback:
+                _record_observability(
+                    caller_id, model, "ollama", "", (time.time() - _start) * 1000,
+                    status="error", error_kind="semaphore_timeout",
+                )
+            return fallback
         try:
             with ollama.Client(host=CONFIG["ollama_host"], timeout=timeout) as client:
                 _opts = {"temperature": temperature}
@@ -283,20 +298,37 @@ def chat(
                 else:
                     response = _wrap_with_circuit_breaker("ollama", _call)
                     _record_telemetry(model, time.time() - _start, response, None)
-                return response.get("message", {}).get("content", "")
+                content = response.get("message", {}).get("content", "")
+                _record_observability(
+                    caller_id, model, "ollama", content,
+                    (time.time() - _start) * 1000,
+                    status="ok" if content else "empty_content",
+                    input_tokens=int(response.get("prompt_eval_count", 0) or 0),
+                    output_tokens=int(response.get("eval_count", 0) or 0),
+                )
+                return content
         finally:
             _OLLAMA_SYNC_SEMAPHORE.release()
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model}")
-        fallback = _multi_backend_fallback(model, messages, timeout)
+        fallback = _multi_backend_fallback(model, messages, timeout, caller_id=caller_id)
+        if not fallback:
+            _record_observability(
+                caller_id, model, "ollama", "", (time.time() - _start) * 1000,
+                status="error", error_kind="circuit_breaker_open",
+            )
         return fallback
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} unavailable: {e}")
         # Multi-backend fallback — try LiteLLM (OpenAI-compatible / Apple FM / Gemma C++)
         # if ollama can't serve. This makes VECTOR resilient to a stopped daemon.
-        fallback = _multi_backend_fallback(model, messages, timeout)
+        fallback = _multi_backend_fallback(model, messages, timeout, caller_id=caller_id)
         if fallback:
             return fallback
+        _record_observability(
+            caller_id, model, "ollama", "", (time.time() - _start) * 1000,
+            status="error", error_kind=type(e).__name__,
+        )
         return ""
 
 
@@ -305,6 +337,8 @@ def chat_stream(
     messages: list[dict],
     timeout: float = 120.0,
     keep_alive: str | None = None,
+    *,
+    caller_id: str = "ollama_safe_stream",
 ):
     """Yield tokens one by one from Ollama streaming chat.
 
@@ -331,6 +365,7 @@ def chat_stream(
     # yield "" and stop, the same honest-failure shape already used below for
     # a circuit-breaker-open or a hard Ollama failure.
     _sem_timeout = CONFIG.get("ollama_semaphore_timeout_sec", 60.0)
+    _stream_start = time.time()
     if not _OLLAMA_SYNC_SEMAPHORE.acquire(timeout=_sem_timeout):
         logger.warning(
             f"[VECTOR][ollama_safe] semaphore acquire timed out after "
@@ -338,8 +373,15 @@ def chat_stream(
             f"{CONFIG['ollama_max_concurrent']} Ollama concurrency slot(s) "
             f"are still held, a caller is likely stuck (see KNOWN_ISSUES #0)."
         )
+        _record_observability(
+            caller_id, model, "ollama", "", (time.time() - _stream_start) * 1000,
+            status="error", error_kind="semaphore_timeout",
+        )
         yield ""
         return
+    _full_text = ""
+    _prompt_eval_count = 0
+    _eval_count = 0
     try:
         import ollama
         # See chat()'s comment above — must close the client (connection-leak fix).
@@ -353,12 +395,35 @@ def chat_stream(
             for chunk in stream:
                 token = chunk.get("message", {}).get("content", "")
                 if token:
+                    _full_text += token
                     yield token
+                # The final chunk (done=True) carries the same
+                # prompt_eval_count/eval_count fields as the non-streaming
+                # response — capture them for exact token counts instead of
+                # falling back to the char-count estimate in
+                # _record_observability(). Never affects what is yielded.
+                if chunk.get("done"):
+                    _prompt_eval_count = int(chunk.get("prompt_eval_count", 0) or 0)
+                    _eval_count = int(chunk.get("eval_count", 0) or 0)
+        _record_observability(
+            caller_id, model, "ollama", _full_text, (time.time() - _stream_start) * 1000,
+            status="ok" if _full_text else "empty_content",
+            input_tokens=_prompt_eval_count,
+            output_tokens=_eval_count,
+        )
     except CircuitBreakerOpenError:
         logger.warning(f"[VECTOR][ollama_safe] circuit breaker open for {model} stream")
+        _record_observability(
+            caller_id, model, "ollama", _full_text, (time.time() - _stream_start) * 1000,
+            status="error", error_kind="circuit_breaker_open",
+        )
         yield ""
     except Exception as e:
         logger.warning(f"[VECTOR][ollama_safe] {model} stream failed: {e}")
+        _record_observability(
+            caller_id, model, "ollama", _full_text, (time.time() - _stream_start) * 1000,
+            status="error", error_kind=type(e).__name__,
+        )
         yield ""
     finally:
         _OLLAMA_SYNC_SEMAPHORE.release()
@@ -591,18 +656,20 @@ def _record_telemetry(model: str, latency_s: float, response: dict, energy) -> N
 # â”€â”€ Multi-backend fallback (LiteLLM / Apple FM / Gemma C++) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 
-def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) -> str:
-    """When the local Ollama daemon is unavailable, try alternative engines
-    in order of preference: LiteLLM (OpenAI-compatible) → Apple Foundation
-    Models (macOS Sonoma+) → Gemma C++ binary.
-
-    Returns empty string if no fallback succeeds.
-    """
-    fallback_messages = _to_vectorcode_messages(messages)
-
+def _attempt_all_fallback_engines(
+    model: str, fallback_messages, *, caller_id: str,
+) -> str:
+    """Sequentially try LiteLLM -> Apple Foundation Models -> Gemma C++.
+    Unbounded by design (a slow/hung engine.generate() call blocks this
+    function for as long as the engine takes) -- callers must bound their
+    own wait via _multi_backend_fallback()'s deadline, not this function.
+    Returns empty string if no fallback succeeds. Order and per-engine
+    behavior are unchanged from before the R1 remediation (Task 88);
+    only the caller-side bounding changed."""
     # Try LiteLLM
     litellm_model = os.getenv("VECTOR_LITELLM_FALLBACK_MODEL", "").strip() or model
     if _is_litellm_candidate(litellm_model):
+        _t0 = time.time()
         try:
             from vectorcode.src.vc_engine.litellm import LiteLLMEngine  # type: ignore
             engine = LiteLLMEngine()
@@ -610,6 +677,10 @@ def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) ->
             text = (result or {}).get("content") or (result or {}).get("text", "")
             if text:
                 logger.info(f"[VECTOR][ollama_safe] fallback: litellm -> {litellm_model}")
+                _record_observability(
+                    caller_id, litellm_model, "litellm_fallback", text,
+                    (time.time() - _t0) * 1000, status="ok",
+                )
                 return text
         except Exception as exc:
             logger.debug(f"[VECTOR][ollama_safe] litellm fallback unavailable: {exc}")
@@ -617,6 +688,7 @@ def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) ->
         logger.debug(f"[VECTOR][ollama_safe] litellm fallback skipped for local model: {model}")
 
     # Try Apple Foundation Models (macOS Sonoma+ only)
+    _t0 = time.time()
     try:
         from vectorcode.src.vc_engine.apple_fm_shim import AppleFMEngine  # type: ignore
         engine = AppleFMEngine()
@@ -624,11 +696,16 @@ def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) ->
         text = (result or {}).get("content") or (result or {}).get("text", "")
         if text:
             logger.info(f"[VECTOR][ollama_safe] fallback: apple_fm -> {model}")
+            _record_observability(
+                caller_id, model, "apple_fm_fallback", text,
+                (time.time() - _t0) * 1000, status="ok",
+            )
             return text
     except Exception as exc:
         logger.debug(f"[VECTOR][ollama_safe] apple_fm fallback unavailable: {exc}")
 
     # Try Gemma C++ (very small footprint)
+    _t0 = time.time()
     try:
         from vectorcode.src.vc_engine.gemma_cpp import GemmaCppEngine  # type: ignore
         engine = GemmaCppEngine()
@@ -636,11 +713,135 @@ def _multi_backend_fallback(model: str, messages: list[dict], timeout: float) ->
         text = (result or {}).get("content") or (result or {}).get("text", "")
         if text:
             logger.info(f"[VECTOR][ollama_safe] fallback: gemma_cpp -> {model}")
+            _record_observability(
+                caller_id, model, "gemma_cpp_fallback", text,
+                (time.time() - _t0) * 1000, status="ok",
+            )
             return text
     except Exception as exc:
         logger.debug(f"[VECTOR][ollama_safe] gemma_cpp fallback unavailable: {exc}")
 
     return ""
+
+
+def _multi_backend_fallback(
+    model: str, messages: list[dict], timeout: float,
+    *, caller_id: str = "ollama_safe_direct",
+) -> str:
+    """When the local Ollama daemon is unavailable, try alternative engines
+    in order of preference: LiteLLM (OpenAI-compatible) → Apple Foundation
+    Models (macOS Sonoma+) → Gemma C++ binary.
+
+    Returns empty string if no fallback succeeds.
+
+    2026-09 (Task 88, R1 runtime remediation -- KNOWN_ISSUES class: a
+    parameter accepted at a boundary and silently discarded, same family as
+    the hypothesis/text key mismatch and the sorted()/json.dumps() policy-key
+    mismatch): `timeout` used to be accepted here and never referenced --
+    none of the three engine.generate() calls received it and none of them
+    were wrapped in a circuit breaker, so a hung engine (network stall inside
+    LiteLLM's litellm.completion(), a stuck pygemma.completion() native call,
+    ...) blocked this synchronous function, and therefore its caller's
+    thread, indefinitely. This is reachable from the event-loop thread via
+    Governor._llm_classify() and AgentBase.vchat(), both of which call
+    ollama_safe.chat() synchronously from inside `async def` functions.
+
+    Fix: the actual three-engine attempt now runs on a dedicated worker
+    thread and this function bounds its WAIT on that thread to `timeout`
+    seconds via Future.result(timeout=...) -- never asyncio.wait_for (this
+    function is synchronous and may be called from a thread with no running
+    event loop). Engine order, per-engine try/except behavior, and the
+    total-failure `return ""` contract are byte-for-byte unchanged from
+    before this fix; only the caller-side wait is now bounded.
+
+    KNOWN LIMITATION (residual, not solved by this fix, see Task 88 report):
+    bounding the WAIT does not CANCEL the underlying engine call. Python
+    threads cannot be forcibly terminated. If `_attempt_all_fallback_engines`
+    is still inside e.g. `litellm.completion(...)` or
+    `self._gemma.completion(prompt)` when the deadline is reached, that
+    native/network call keeps running in the background, on its own thread,
+    until it finishes or the process exits -- it is simply no longer being
+    waited on, and its eventual result (if any) is discarded. Each call
+    creates its own single-thread executor (not a shared pool), so a
+    stuck call cannot exhaust a shared thread-pool slot needed by a later,
+    independent fallback attempt; it can only leak its own one thread.
+    """
+    fallback_messages = _to_vectorcode_messages(messages)
+
+    from concurrent.futures import ThreadPoolExecutor
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(
+        _attempt_all_fallback_engines, model, fallback_messages, caller_id=caller_id,
+    )
+    try:
+        return future.result(timeout=timeout)
+    except TimeoutError:
+        logger.warning(
+            f"[VECTOR][ollama_safe] multi-backend fallback exceeded its {timeout}s "
+            f"deadline for model={model} -- abandoning the wait and returning the "
+            f"honest empty-string failure (chat()'s existing contract, not a new "
+            f"one). KNOWN LIMITATION: the underlying engine call is NOT cancelled "
+            f"and may continue running in the background on its own thread until "
+            f"it completes or the process exits; see KNOWN_ISSUES / Task 88."
+        )
+        _record_observability(
+            caller_id, model, "fallback", "", timeout * 1000,
+            status="timeout", error_kind="fallback_deadline_exceeded",
+        )
+        return ""
+    finally:
+        # wait=False: do not block here on a possibly-still-running worker --
+        # that would silently reintroduce the exact unbounded wait this fix
+        # exists to remove. The (single, per-call) executor and its thread
+        # are released for GC once the worker eventually returns.
+        executor.shutdown(wait=False)
+
+
+def _record_observability(
+    caller_id: str,
+    model: str,
+    provider: str,
+    content: str,
+    latency_ms: float,
+    *,
+    status: str = "ok",
+    error_kind: str = "",
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+) -> None:
+    """Best-effort inference_calls record for ollama_safe's direct-call
+    bypass path (does not route through ProviderClient.chat()). Never
+    raises into the caller — observability must not break inference.
+    Estimates tokens from char count // 4 when the caller didn't supply
+    exact input_tokens/output_tokens (e.g. AirLLM/fallback engines that
+    return plain text with no token-count field at all). The exact/estimated
+    distinction is recorded in metadata.token_exact so reports never
+    silently blend provider-reported and estimated counts."""
+    try:
+        from core.metering.inference_observability import (
+            get_inference_observability, extract_domain, is_autonomous_caller,
+        )
+        token_exact = bool(input_tokens or output_tokens)
+        if not token_exact and content:
+            output_tokens = max(1, len(content) // 4)
+        get_inference_observability().record(
+            caller_id=caller_id,
+            domain=extract_domain(caller_id, model),
+            tier="",
+            provider=provider,
+            model=model,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            latency_ms=latency_ms,
+            is_ollama=(provider == "ollama"),
+            is_autonomous=is_autonomous_caller(caller_id),
+            status=status,
+            error_kind=error_kind,
+            metadata={"token_exact": token_exact},
+        )
+    except Exception:
+        pass  # observability must never break the call path
 
 
 def _to_vectorcode_messages(messages: list[dict]):

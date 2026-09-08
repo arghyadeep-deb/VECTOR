@@ -4,6 +4,7 @@ Routes through provider_client (reasoning tier: github_models → groq → llm7 
 """
 from __future__ import annotations
 
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -11,6 +12,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.config import CONFIG
+
+# Matches the trailing "CONFIDENCE: <n>" marker the prompt asks the LLM to
+# emit (same self-rated-confidence convention core/brain/anticipation.py and
+# core/brain/council.py already use via a JSON field — adapted here to this
+# engine's free-text response format instead of JSON).
+_CONFIDENCE_RE = re.compile(r"CONFIDENCE:\s*([0-9]*\.?[0-9]+)", re.IGNORECASE)
 
 
 class HypothesisEngine:
@@ -45,22 +52,46 @@ class HypothesisEngine:
         )
         return result.content
 
+    @staticmethod
+    def _extract_confidence(content: str) -> tuple[str, float]:
+        """Parse the LLM's self-rated confidence from the trailing
+        "CONFIDENCE: <n>" marker requested in the prompt, and strip that
+        marker out of the returned text so it doesn't bleed into the
+        human-facing hypothesis content.
+
+        Falls back to 0.5 (below hypothesis_loop()'s 0.85 storage gate) if
+        the LLM omits or malforms the marker — an unparseable response is
+        correctly suppressed rather than silently treated as high-confidence.
+        See VECTOR_TECHNICAL_KNOWLEDGE/55_HYPOTHESIS_PIPELINE_REMEDIATION.md
+        for why this replaced a hardcoded confidence=0.7 constant.
+        """
+        match = _CONFIDENCE_RE.search(content)
+        if not match:
+            return content.strip(), 0.5
+        confidence = max(0.0, min(1.0, float(match.group(1))))
+        text = content[: match.start()].rstrip()
+        return text, confidence
+
     async def generate_hypotheses(self, observation: str, count: int = 3) -> dict:
         """Generate hypotheses from an observation."""
         prompt = (
             f"Given this observation, generate {count} hypotheses:\n\n{observation}\n\n"
             "For each hypothesis provide: id, hypothesis_text, why_it_might_be_true, "
-            "how_to_test, expected_evidence"
+            "how_to_test, expected_evidence\n\n"
+            "After the hypotheses, on its own final line, state your overall "
+            "confidence in these hypotheses as exactly: CONFIDENCE: <a number "
+            "between 0.0 and 1.0>"
         )
         try:
             content = await self._call(prompt, temperature=0.5, max_tokens=800)
+            text, confidence = self._extract_confidence(content)
             hypothesis = {
                 "id":          str(len(self._hypotheses) + 1),
                 "observation": observation,
-                "text":        content,
+                "text":        text,
                 "timestamp":   datetime.utcnow().isoformat(),
                 "status":      "generated",
-                "confidence":  0.7,
+                "confidence":  confidence,
             }
             self._hypotheses.append(hypothesis)
             logger.info("[VECTOR][hypothesis_engine] Generated hypothesis from: {}...", observation[:50])

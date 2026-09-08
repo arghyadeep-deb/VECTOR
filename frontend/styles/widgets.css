@@ -1081,3 +1081,174 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ============================================================================
+   Task 73 — Memory Explorer / Cognition Panel / Experiment Observatory.
+   Reuses the existing token set (--accent, --ok, --warn, --danger, --txt-mute,
+   --txt-faint, --line) and the existing 8-11px / .1-.16em label rhythm — no
+   new palette introduced.
+   ========================================================================== */
+
+/* -- Memory Explorer --------------------------------------------------- */
+.memx-panel .w-body{ width:380px; }
+.memx-hint,.cog-hint,.xobs-hint{
+  font-size:8px; line-height:1.5; letter-spacing:.02em; color:var(--txt-faint);
+  padding-bottom:6px; margin-bottom:6px; border-bottom:1px dashed rgba(0,207,255,.12);
+}
+.memx-row{ padding:6px 0; border-bottom:1px dashed rgba(0,207,255,.1); }
+.memx-row:last-child{ border-bottom:0; }
+.memx-name{ font-size:10px; letter-spacing:.14em; color:var(--accent-soft); }
+.memx-stat{ font-size:9px; color:var(--txt-mute); margin-top:2px; }
+.memx-live{ color:var(--ok); }
+.memx-nolive{ color:var(--txt-faint); }
+.memx-count{ color:var(--txt); margin-left:4px; }
+.memx-badges{ display:flex; gap:5px; margin-top:4px; flex-wrap:wrap; }
+.memx-badge{ font-size:8px; letter-spacing:.06em; color:var(--txt-mute); border:1px solid var(--line); padding:1px 5px; }
+.memx-badge b{ color:var(--txt); font-weight:600; margin-left:3px; }
+.memx-note{ font-size:9px; color:var(--txt-mute); line-height:1.4; margin-top:4px; }
+
+/* -- Cognition Panel ------------------------------------------------------ */
+.cog-panel .w-body{ width:340px; }
+.cog-rail{ display:flex; flex-direction:column; align-items:stretch; }
+.cog-chip{
+  display:flex; align-items:center; gap:8px; padding:5px 8px;
+  border:1px solid var(--line); background:rgba(0,0,0,.25);
+}
+.cog-chip .cog-n{ font-size:8px; color:var(--txt-faint); width:12px; }
+.cog-chip .cog-lbl{ font-size:9px; letter-spacing:.12em; color:var(--txt); flex:1; }
+.cog-chip .cog-state{ font-size:8px; letter-spacing:.08em; color:var(--txt-faint); }
+.cog-chip.active .cog-state,.cog-chip.recent .cog-state{ color:var(--ok); }
+.cog-chip.waiting .cog-state{ color:var(--warn); }
+.cog-chip.blocked .cog-state,.cog-chip.failed .cog-state{ color:var(--danger); }
+.cog-arrow{ text-align:center; font-size:9px; color:var(--txt-faint); padding:1px 0; }
+.cog-detail{ margin-top:8px; padding-top:6px; border-top:1px dashed rgba(0,207,255,.12); }
+
+/* -- Experiment Observatory ------------------------------------------------ */
+.xobs-panel .w-body{ width:340px; }
+.xobs-sep{
+  font-size:8px; letter-spacing:.16em; color:var(--txt-faint);
+  margin:8px 0 4px; padding-top:6px; border-top:1px dashed rgba(0,207,255,.12);
+}
+.xobs-note{ font-size:9px; color:var(--txt-mute); line-height:1.4; margin-top:8px; }
+
+/* -- Agent / District Civilization Atlas (Task 74) ------------------------ */
+.atlas-panel .w-body{ width:420px; max-height:520px; overflow-y:auto; }
+/* Breadcrumb — shared with Command Center's .cc-crumb/.cc-cr (76_HUD_VISUAL_AUDIT.md F2).
+   Both are real <button>s; this reset covers the default UA button chrome. */
+.atlas-crumb,.cc-crumb{ font-size:9px; letter-spacing:.08em; color:var(--txt-mute); margin-bottom:6px; }
+.atlas-cr,.cc-cr{
+  font-family:inherit; background:none; border:0; margin:0; padding:2px 0;
+  color:var(--txt-mute); font-size:9px; letter-spacing:.08em; cursor:pointer;
+}
+.atlas-cr:hover,.cc-cr:hover{ color:var(--accent-soft); }
+.atlas-cr.cur,.cc-cr.cur{ color:var(--accent-soft); cursor:default; }
+.atlas-sep{ margin:0 4px; color:var(--txt-faint); }
+.atlas-filter{ margin-bottom:8px; }
+.atlas-fx{
+  width:100%; background:rgba(0,0,0,.35); border:1px solid var(--line); color:var(--txt);
+  font-family:var(--mono); font-size:10px; letter-spacing:.04em; padding:5px 7px; outline:none;
+}
+.atlas-fx:focus{ border-color:var(--accent); box-shadow:0 0 0 1px rgba(0,207,255,.25); }
+.atlas-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.atlas-card{
+  border:1px solid var(--line); background:rgba(0,0,0,.28); padding:8px 9px; cursor:pointer;
+  transition:border-color .15s;
+}
+.atlas-card:hover{ border-color:var(--accent); }
+.ac-name{ font-size:10px; letter-spacing:.12em; color:var(--accent-soft); }
+.ac-count{ font-size:9px; color:var(--txt-mute); margin-top:3px; }
+.ac-health{ font-size:8px; letter-spacing:.06em; color:var(--txt-faint); margin-top:4px; }
+.atlas-district-hdr{ margin-bottom:6px; }
+.atlas-agent-list{ display:flex; flex-direction:column; gap:5px; max-height:220px; overflow-y:auto; }
+.atlas-agent-row{
+  border:1px solid var(--line); background:rgba(0,0,0,.22); padding:6px 8px; cursor:pointer;
+  display:grid; grid-template-columns:1fr auto; gap:2px 8px;
+}
+.atlas-agent-row:hover{ border-color:var(--accent); }
+.aar-name{ font-size:10px; color:var(--txt); grid-column:1; }
+.aar-status{ font-size:8px; letter-spacing:.08em; grid-column:2; text-align:right; }
+.aar-caps{ font-size:8px; color:var(--txt-faint); grid-column:1 / -1; }
+.aar-task{ font-size:8px; color:var(--txt-faint); grid-column:1 / -1; }
+.atlas-sep-lbl{
+  font-size:8px; letter-spacing:.16em; color:var(--txt-faint); margin:10px 0 4px;
+  padding-top:6px; border-top:1px dashed rgba(0,207,255,.12);
+}
+.atlas-activity-list{ display:flex; flex-direction:column; gap:3px; max-height:140px; overflow-y:auto; }
+.atlas-ev{ font-size:8px; color:var(--txt-mute); display:flex; gap:6px; }
+.atlas-ev .ew{ color:var(--txt-faint); min-width:56px; }
+.atlas-ev .et{ color:var(--accent-soft); letter-spacing:.08em; }
+.atlas-inspect-hdr{ font-size:9px; letter-spacing:.16em; color:var(--txt-faint); margin-bottom:4px; }
+.atlas-cap-list{ display:flex; flex-direction:column; gap:4px; }
+.atlas-cap-row{ display:flex; align-items:center; gap:6px; font-size:9px; color:var(--txt); }
+.cap-name{ flex:1; }
+.cap-badge{ font-size:7px; letter-spacing:.08em; padding:1px 5px; border:1px solid var(--line); }
+.cap-badge.decl{ color:var(--accent-soft); border-color:rgba(0,207,255,.3); }
+.cap-badge.unk{ color:var(--txt-faint); }
+
+/* -- Command Center (Task 75) ---------------------------------------------
+   All interactive elements here are real <button>s per the task's own
+   stricter accessibility bar — reset to match the existing div-based
+   controls visually, with an explicit, visible :focus-visible state that
+   the rest of the pre-75 codebase does not consistently provide. */
+.cc-panel .w-body{ width:460px; max-height:560px; overflow-y:auto; }
+.cc button{ font-family:var(--mono); background:none; }
+.cc button:focus-visible{
+  outline:1px solid var(--accent); outline-offset:2px;
+  box-shadow:0 0 0 3px rgba(0,207,255,.18);
+}
+.cc-search-row{ margin-bottom:8px; }
+.cc-search{
+  width:100%; background:rgba(0,0,0,.35); border:1px solid var(--line); color:var(--txt);
+  font-family:var(--mono); font-size:11px; letter-spacing:.03em; padding:6px 8px; outline:none;
+}
+.cc-search:focus{ border-color:var(--accent); box-shadow:0 0 0 1px rgba(0,207,255,.25); }
+/* .cc-crumb/.cc-cr are defined above, shared with .atlas-crumb/.atlas-cr. */
+.cc-ctx{ display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; padding-bottom:8px; border-bottom:1px dashed rgba(0,207,255,.12); }
+.cc-chip{ font-size:8px; letter-spacing:.04em; color:var(--txt-mute); border:1px solid var(--line); padding:2px 6px; }
+.cc-chip b{ color:var(--txt-faint); font-weight:600; letter-spacing:.1em; margin-right:4px; }
+/* Section-divider label — same role and now same treatment as .atlas-sep-lbl
+   (76_HUD_VISUAL_AUDIT.md F3): dashed top border, except above the first section. */
+.cc-sec-lbl{
+  font-size:8px; letter-spacing:.16em; color:var(--txt-faint); margin:10px 0 4px;
+  padding-top:6px; border-top:1px dashed rgba(0,207,255,.12);
+}
+.cc-sec-lbl:first-child{ margin-top:0; padding-top:0; border-top:0; }
+.cc-chiprow{ display:flex; flex-wrap:wrap; gap:5px; margin-bottom:4px; }
+.cc-mini{
+  border:1px solid var(--line); background:rgba(0,0,0,.25); color:var(--txt);
+  font-size:9px; letter-spacing:.03em; padding:3px 8px; cursor:pointer;
+}
+.cc-mini:hover{ border-color:var(--accent); color:var(--accent-soft); }
+.cc-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+.cc-dcard{ display:contents; }
+.cc-dcard-btn{
+  width:100%; text-align:left; border:1px solid var(--line); background:rgba(0,0,0,.28);
+  color:var(--txt); padding:9px 10px; cursor:pointer; white-space:pre-line; line-height:1.6;
+  font-size:10px; letter-spacing:.1em; transition:border-color .15s;
+}
+.cc-dcard-btn:hover{ border-color:var(--accent); }
+.cc-panel-list{ display:flex; flex-direction:column; gap:5px; }
+.cc-panel-row{ display:flex; align-items:center; gap:6px; border:1px solid var(--line); background:rgba(0,0,0,.22); padding:5px 7px; }
+.cc-open{
+  flex:1; text-align:left; border:0; background:none; color:var(--txt); cursor:pointer;
+  font-size:10px; letter-spacing:.04em; padding:2px 0;
+}
+.cc-open:hover{ color:var(--accent-soft); }
+.cc-pin{ border:1px solid var(--line); background:none; color:var(--txt-faint); font-size:11px; cursor:pointer; padding:1px 6px; line-height:1.4; }
+.cc-pin.on{ color:var(--warn); border-color:rgba(245,158,11,.4); }
+
+/* Narrow-window fix for all five Task 73-75 panels (76_HUD_VISUAL_AUDIT.md F4): their
+   .w-body had an unconditional fixed pixel width that could exceed the outer .widget's
+   own mobile clamp (widgets.css ~line 510, width:min(calc(100vw - 48px),400px)) and get
+   silently clipped by .widget{overflow:hidden}. width:100% makes .w-body always match
+   whatever width the outer shell already correctly resolved to, at any viewport size —
+   the same convention every pre-73 panel's .w-body already relies on. */
+@media (max-width:640px){
+  .memx-panel .w-body,
+  .cog-panel .w-body,
+  .xobs-panel .w-body,
+  .atlas-panel .w-body,
+  .cc-panel .w-body{ width:100%; }
+  .cc-grid,
+  .atlas-grid{ grid-template-columns:1fr; }
+}

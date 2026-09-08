@@ -2,6 +2,7 @@ import sys
 
 __all__ = [
     "Action",
+    "COUNCIL_AUTO_PROCEED_ALLOWED",
     "FORBIDDEN",
     "GatewayResult",
     "GREEN",
@@ -17,6 +18,7 @@ from core.config import CONFIG
 from core.runtime_paths import data_path
 from loguru import logger
 import asyncio, datetime, httpx, os, re, shlex
+import contextvars
 from dataclasses import dataclass, field
 
 # RED-tier enforcement: Pushover phone notifications + optional Queen consensus
@@ -97,6 +99,26 @@ OWNER_APPROVAL_ONLY = {
 _OWNER_TRUST_MARKERS = frozenset({'api_command', 'voice'})
 
 
+# F-5: coding-grant contextvar. Set active by the autonomous loop / gateway when
+# a code_* action has been approved, so coding_tools file-write helpers can
+# enforce they're only called within a gateway-approved code execution context
+# (not directly by an arbitrary importer). Async-context-scoped: propagates to
+# awaited coroutines (bridge.run_task), does not leak across create_task
+# boundaries that copy context.
+_CODING_GRANT = contextvars.ContextVar("vector_coding_grant_active", default=False)
+
+
+def set_coding_grant(active: bool):
+    """Mark the current async context as having an active gateway-approved
+    code execution grant. Called by the loop after a code_* action is approved."""
+    _CODING_GRANT.set(bool(active))
+
+
+def is_coding_grant_active() -> bool:
+    """True if the current context is within a gateway-approved code execution."""
+    return bool(_CODING_GRANT.get())
+
+
 def sanitize_proposed_by(value: str, *, fallback: str = 'untrusted_client') -> str:
     """Neutralise reserved owner-trust markers arriving from client input.
 
@@ -166,6 +188,18 @@ RED_INTERACTIVE_TOOLS = {
     'send_message_routine',
 }
 
+# F-9 (autonomy safety audit 2026-08-13): CouncilBrain's auto-proceed path
+# (confidence >= 0.75) could authorize RED actions with real external side
+# effects purely on an LLM judgment over attacker-influenceable params/context
+# — with ZERO owner signal. Confirmed eligible today: execute_code, send_email,
+# overwrite_note_personal. Auto-proceed is now OPT-IN: only action_types in
+# this set may be auto-executed on a council "proceed". Default empty = every
+# RED action defers to a real Pushover owner approval. The council's REJECT
+# vote is preserved (still feeds CounterfactualMemory) — only auto-PROCEED is
+# gated. Add an action here only after an explicit owner decision that the
+# council alone may authorize it.
+COUNCIL_AUTO_PROCEED_ALLOWED: frozenset[str] = frozenset()
+
 class PermissionGateway:
     # Process-wide shared instance. Pending YELLOW/RED approvals live per-instance,
     # so every entry path (API routers via app.state, remote-command relay,
@@ -206,10 +240,164 @@ class PermissionGateway:
             return
         self._pg_initialized = True
         self.audit_log = []
+        # F-1: pending approvals are keyed by a UNIQUE id (action_type#seq),
+        # not action_type alone — two concurrent same-type RED actions no longer
+        # collide on the same asyncio.Event. confirm_action()/approve() resolve
+        # the unique id; confirm_action() keeps backward-compat for callers
+        # that only know the action_type (resolves unambiguously when a single
+        # instance is pending, refuses when ambiguous — fail-safe).
         self._pending_events: dict[str, asyncio.Event] = {}
-        # Tracks full metadata for actions currently awaiting owner approval (RED tier)
         self._pending_actions: dict[str, dict] = {}
+        self._pending_seq: int = 0
+        self._rejected: set[str] = set()
+        # F-6/F-7: capability tokens for PC/phone control-plane ops. A district
+        # that has received gateway approval calls grant_control() to mint a
+        # one-shot (multi-use, TTL-bounded) token it then passes to the
+        # controller write methods. Controllers verify via verify_control() —
+        # a direct caller with no token is refused. This converts the prior
+        # soft _gateway_approved kwarg (any caller could pass True) into a
+        # gateway-minted capability.
+        self._control_grants: dict[str, tuple[str, float, int]] = {}
+        # F-8: durable audit log (SQLite append-only). The in-memory ring is
+        # kept for fast access; every entry is also persisted so forensic
+        # evidence survives restarts and the 500-entry cap no longer loses
+        # history.
+        self._init_audit_store()
+        # F-3: re-hydrate pending approvals persisted before a prior crash.
+        # Their awaiting coroutines are dead (cannot be set), so they are
+        # surfaced as "interrupted" for the owner to reject/clear — never
+        # silently lost.
+        self._init_pending_store()
+        self._rehydrate_pending()
         logger.info('[VECTOR][gateway] Permission gateway initialised')
+
+    # ── F-1: unique pending ids ──────────────────────────────────────────────
+
+    def _make_pending_id(self, action_type: str) -> str:
+        self._pending_seq += 1
+        return f"{action_type}#{self._pending_seq}"
+
+    def _resolve_pending_id(self, action_type_or_id: str) -> str | None:
+        """Map a caller-supplied id (which may be a bare action_type for
+        backward-compat) to the unique pending id. Returns None if not found
+        or if ambiguous (multiple pending instances of the same action_type —
+        caller must use the full unique id)."""
+        if action_type_or_id in self._pending_events:
+            return action_type_or_id
+        # Backward-compat: caller passed a bare action_type. Resolve only when
+        # exactly one instance is pending; ambiguity is fail-safe (None).
+        matches = [pid for pid, meta in self._pending_actions.items()
+                   if meta.get("action_type") == action_type_or_id]
+        if len(matches) == 1:
+            return matches[0]
+        return None
+
+    # ── F-3: durable pending-approval store ──────────────────────────────────
+
+    def _init_pending_store(self) -> None:
+        try:
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cur:
+                cur.execute(
+                    "CREATE TABLE IF NOT EXISTS pending_approvals ("
+                    "id TEXT PRIMARY KEY, action_type TEXT NOT NULL, "
+                    "params TEXT NOT NULL, proposed_by TEXT NOT NULL, "
+                    "level TEXT NOT NULL, registered_at TEXT NOT NULL, "
+                    "interrupted INTEGER NOT NULL DEFAULT 0)"
+                )
+        except Exception as e:
+            logger.debug(f"[VECTOR][gateway] pending_approvals table init skipped: {e}")
+
+    def _persist_pending(self, pending_id: str, entry: dict) -> None:
+        try:
+            import json as _json
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cur:
+                cur.execute(
+                    "INSERT OR REPLACE INTO pending_approvals "
+                    "(id, action_type, params, proposed_by, level, registered_at, interrupted) "
+                    "VALUES (?, ?, ?, ?, ?, ?, 0)",
+                    (pending_id, entry.get("action_type", ""),
+                     _json.dumps(entry.get("params", {}), default=str),
+                     entry.get("proposed_by", ""), entry.get("level", ""),
+                     entry.get("timestamp", "")),
+                )
+        except Exception as e:
+            logger.debug(f"[VECTOR][gateway] pending persist skipped: {e}")
+
+    def _unpersist_pending(self, pending_id: str) -> None:
+        try:
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cur:
+                cur.execute("DELETE FROM pending_approvals WHERE id = ?", (pending_id,))
+        except Exception as e:
+            logger.debug(f"[VECTOR][gateway] pending unpersist skipped: {e}")
+
+    def _rehydrate_pending(self) -> None:
+        """On startup, load any pending approvals left by a crashed process.
+        Their waiters are dead — mark interrupted so the owner can clear them
+        via reject(). They are never auto-approved."""
+        try:
+            from core.memory.episodic import get_db_connection
+            conn = get_db_connection()
+            rows = conn.execute(
+                "SELECT id, action_type, params, proposed_by, level, registered_at "
+                "FROM pending_approvals"
+            ).fetchall()
+        except Exception as e:
+            logger.debug(f"[VECTOR][gateway] pending rehydrate skipped: {e}")
+            return
+        for r in rows:
+            import json as _json
+            pid = r[0] if not isinstance(r, dict) else r["id"]
+            # Use dict-style access defensively; sqlite3.Row supports both.
+            def _g(k, i):
+                return r[k] if hasattr(r, "keys") else r[i]
+            entry = {
+                "id": pid,
+                "action_type": _g("action_type", 1),
+                "params": _json.loads(_g("params", 2)) if _g("params", 2) else {},
+                "proposed_by": _g("proposed_by", 3),
+                "level": _g("level", 4),
+                "timestamp": _g("registered_at", 5),
+                "interrupted": True,
+            }
+            self._pending_actions[pid] = entry
+            logger.warning(
+                f"[VECTOR][gateway] rehydrated interrupted pending approval "
+                f"'{pid}' (action_type={entry['action_type']}) — reject via HUD to clear"
+            )
+
+    # ── F-8: durable audit log ───────────────────────────────────────────────
+
+    def _init_audit_store(self) -> None:
+        try:
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cur:
+                cur.execute(
+                    "CREATE TABLE IF NOT EXISTS gateway_audit ("
+                    "seq INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, "
+                    "action_type TEXT NOT NULL, level TEXT NOT NULL, "
+                    "approved INTEGER NOT NULL, executed INTEGER NOT NULL, "
+                    "proposed_by TEXT NOT NULL, reason TEXT NOT NULL DEFAULT '')"
+                )
+        except Exception as e:
+            logger.debug(f"[VECTOR][gateway] gateway_audit table init skipped: {e}")
+
+    def _persist_audit(self, entry: dict) -> None:
+        try:
+            from core.memory.episodic import get_temp_cursor
+            with get_temp_cursor() as cur:
+                cur.execute(
+                    "INSERT INTO gateway_audit (ts, action_type, level, approved, "
+                    "executed, proposed_by, reason) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (entry.get("timestamp", ""), entry.get("action_type", ""),
+                     entry.get("level", ""), int(bool(entry.get("approved"))),
+                     int(bool(entry.get("executed"))), entry.get("proposed_by", ""),
+                     entry.get("reason", "")),
+                )
+        except Exception as e:
+            logger.debug(f"[VECTOR][gateway] audit persist skipped: {e}")
 
     def _get_trust(self):
         """Trust ladder (earned autonomy for YELLOW). None if disabled/unavailable —
@@ -262,7 +450,18 @@ class PermissionGateway:
             if (_trust is not None and self._trust_recording_active()
                     and _trust.is_promoted(action.action_type)):
                 exec_result = await self._execute_action(action)
-                _failed = exec_result.get("status") == "error" or "error" in exec_result
+                # F-4: broadened failure detection. The prior check
+                # (status=="error" or "error" in result) missed subtle
+                # wrong-but-non-error outcomes (blocked status, explicit
+                # success:False, a write action that no-op'd without writing).
+                # These now demote a trust-ladder-promoted YELLOW so a silent
+                # failure can't keep auto-executing with no owner signal.
+                _failed = (
+                    exec_result.get("status") in ("error", "blocked", "failed")
+                    or "error" in exec_result
+                    or exec_result.get("success") is False
+                    or exec_result.get("blocked") is True
+                )
                 if _failed:
                     # Failure while trusted → instant demotion + loud notify.
                     _trust.record_bad_outcome(action.action_type)
@@ -381,7 +580,8 @@ class PermissionGateway:
                 return result
             # verdict == "defer" → fall through to owner approval via Pushover
             _ip = self._get_local_ip()
-            _aid = action.action_type
+            # F-1: unique id so concurrent same-type RED approvals don't collide.
+            _aid = self._make_pending_id(action.action_type)
             _approve_url = f"http://{_ip}:8000/gateway/approve/{_aid}"
             _reject_url  = f"http://{_ip}:8000/gateway/reject/{_aid}"
             # Prefer a human-readable summary if the action provides one (e.g. a
@@ -406,7 +606,7 @@ class PermissionGateway:
             )
             _red_timeout = 1 if "pytest" in sys.modules else 300
             try:
-                confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=_red_timeout)
+                confirmed = await asyncio.wait_for(self._wait_for_confirmation(action, pending_id=_aid), timeout=_red_timeout)
             except asyncio.TimeoutError:
                 confirmed = False
                 logger.warning(f"[VECTOR][gateway] RED action {action.action_type} timed out after 5min — rejected for safety")
@@ -447,8 +647,10 @@ class PermissionGateway:
         # same /gateway/approve|reject/{id} URLs the HUD Approvals panel and
         # confirm_action() both understand.
         _ip = self._get_local_ip()
-        _approve_url = f"http://{_ip}:8000/gateway/approve/{action_type}"
-        _reject_url = f"http://{_ip}:8000/gateway/reject/{action_type}"
+        # F-1: unique id so concurrent same-type request_approval calls don't collide.
+        _aid = self._make_pending_id(action_type)
+        _approve_url = f"http://{_ip}:8000/gateway/approve/{_aid}"
+        _reject_url = f"http://{_ip}:8000/gateway/reject/{_aid}"
         await self._notify(
             f'VECTOR wants to: {action_type}\n{summary}\n\nTap Approve or open Reject URL.',
             priority=2,
@@ -458,7 +660,7 @@ class PermissionGateway:
         await self._notify(f'Reject: {_reject_url}', priority=0)
 
         try:
-            confirmed = await asyncio.wait_for(self._wait_for_confirmation(action), timeout=_red_timeout)
+            confirmed = await asyncio.wait_for(self._wait_for_confirmation(action, pending_id=_aid), timeout=_red_timeout)
         except asyncio.TimeoutError:
             confirmed = False
             logger.warning(f"[VECTOR][gateway] request_approval for {action_type} timed out — rejected for safety")
@@ -518,9 +720,20 @@ class PermissionGateway:
                 "[VECTOR][gateway] Council verdict={} conf={:.2f} for action={}",
                 verdict, confidence, action.action_type,
             )
-            # Auto-proceed only when council is confident enough
+            # Auto-proceed only when council is confident enough AND the action is
+            # explicitly allowlisted (F-9). Non-allowlisted RED actions downgrade
+            # a council "proceed" to "defer" so the owner still gets a Pushover
+            # approval — an LLM judgment over attacker-influenceable params is
+            # never sufficient alone to execute a real external side effect.
             if verdict == "proceed" and confidence >= 0.75:
-                return "proceed"
+                if action.action_type in COUNCIL_AUTO_PROCEED_ALLOWED:
+                    return "proceed"
+                logger.info(
+                    "[VECTOR][gateway] council 'proceed' for RED '{}' downgraded to "
+                    "'defer' — not in COUNCIL_AUTO_PROCEED_ALLOWED (owner approval required)",
+                    action.action_type,
+                )
+                return "defer"
             if verdict == "reject":
                 logger.warning("[VECTOR][gateway] Council REJECTED {}: {}", action.action_type, rationale[:80])
                 # Gap 4: feed the council's verdict into CounterfactualMemory so
@@ -571,6 +784,38 @@ class PermissionGateway:
             self._write_audit(Action(action_type, params, source), r)
             return r
         return await self.execute(Action(action_type, params, source))
+
+    # ── F-6/F-7: control-plane capability tokens ─────────────────────────────
+    def grant_control(self, action_type: str, *, uses: int = 64, ttl: float = 300.0) -> str:
+        """Mint a capability token a district passes to PC/phone controller
+        write methods after it has received gateway approval. The token is
+        multi-use (a posting flow drives many taps) and TTL-bounded. Returns
+        the opaque token string."""
+        import secrets as _secrets, time as _time
+        token = _secrets.token_hex(8)
+        self._control_grants[token] = (action_type, _time.time() + ttl, uses)
+        logger.info(f"[VECTOR][gateway] control grant issued for '{action_type}' (uses={uses}, ttl={ttl}s)")
+        return token
+
+    def verify_control(self, token: str | None, action_type: str) -> bool:
+        """Verify (and consume one use of) a control capability token. Returns
+        False if missing, expired, exhausted, or mismatched — controllers
+        must refuse the write on False."""
+        import time as _time
+        if not token:
+            return False
+        rec = self._control_grants.get(token)
+        if rec is None:
+            return False
+        granted_action, expiry, uses = rec
+        if _time.time() > expiry or uses <= 0 or granted_action != action_type:
+            if _time.time() > expiry or uses <= 0:
+                self._control_grants.pop(token, None)
+            return False
+        self._control_grants[token] = (granted_action, expiry, uses - 1)
+        if uses - 1 <= 0:
+            self._control_grants.pop(token, None)
+        return True
 
 
     def _classify(self, action_type) -> str:
@@ -664,7 +909,8 @@ class PermissionGateway:
                 try:
                     from core.control.pc_controller import PCController
                     _app = action.params.get("app") or action.params.get("app_name") or "spotify"
-                    _r = PCController().play_music(_app)
+                    _tok = self.grant_control("play_music", uses=4, ttl=60)
+                    _r = PCController().play_music(_app, control_token=_tok)
                     result["status"] = "ok" if _r.get("ok") else "error"
                     result.update(_r)
                     result["message"] = f"Playing music on {_app.capitalize()}, sir."
@@ -750,8 +996,12 @@ class PermissionGateway:
                         result["status"] = "ok"
                         result["path"] = str(note_path)
                     else:
-                        result["status"] = "ok"
-                        result["note"] = "vault not configured or no content"
+                        # F-4: a silent "ok" here would NOT demote a trust-ladder-
+                        # promoted write_note_personal, so a misconfigured vault
+                        # could persistently swallow notes with zero owner signal.
+                        # Report error so the trust ladder demotes on this outcome.
+                        result["status"] = "error"
+                        result["error"] = "vault not configured or no content — note not written"
                 except Exception as _e:
                     result["status"] = "error"
                     result["error"] = str(_e)
@@ -1039,9 +1289,11 @@ class PermissionGateway:
             elif action.action_type == "launch_app":
                 try:
                     from core.control.pc_controller import PCController
+                    _tok = self.grant_control("launch_app", uses=1, ttl=60)
                     _launch = PCController().launch_app(
                         action.params.get("app_name", ""),
                         action.params.get("args", []),
+                        control_token=_tok,
                     )
                     result["status"] = "ok" if _launch.get("launched") else "error"
                     result.update(_launch)
@@ -1059,10 +1311,11 @@ class PermissionGateway:
                         result["ast_warnings"] = _ast_warnings
                     else:
                         from core.control.pc_controller import PCController
+                        _tok = self.grant_control("run_shell_command", uses=1, ttl=60)
                         _shell = PCController().run_shell_command(
                             _cmd,
                             action.params.get("timeout", 30),
-                            _gateway_approved=True,
+                            control_token=_tok,
                         )
                         result["status"] = "ok" if _shell.get("exit_code", 1) == 0 else "error"
                         result.update(_shell)
@@ -1272,37 +1525,51 @@ class PermissionGateway:
         except Exception as e:
             logger.warning(f'[VECTOR][gateway] Pushover failed: {e}')
 
-    async def _wait_for_confirmation(self, action, timeout=30) -> bool:
-        key = action.action_type
+    async def _wait_for_confirmation(self, action, timeout=30, pending_id=None) -> bool:
+        # F-1: key by a unique id so concurrent same-type RED actions don't
+        # overwrite each other's asyncio.Event. pending_id is generated by the
+        # caller (execute()/request_approval()) BEFORE the Pushover notify so
+        # the approval URL carries it; fall back to generating one here for
+        # any direct caller (none today, but keeps the signature safe).
+        if pending_id is None:
+            pending_id = self._make_pending_id(action.action_type)
         event = asyncio.Event()
-        self._pending_events[key] = event
+        self._pending_events[pending_id] = event
         # Record full action metadata so the HUD approvals panel can surface it
-        self._pending_actions[key] = {
-            "id": key,
+        self._pending_actions[pending_id] = {
+            "id": pending_id,
             "action_type": action.action_type,
             "params": action.params,
             "proposed_by": action.proposed_by,
             "level": self._classify(action.action_type),
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
+        self._persist_pending(pending_id, self._pending_actions[pending_id])
         try:
             # Do NOT nest wait_for here — the outer wait_for in execute() owns the timeout.
             # Nested wait_for causes spurious TimeoutError on Python 3.13 when the outer
             # cancels this coroutine.  Just await the event directly.
             await event.wait()
             # Check if the HUD explicitly rejected this action
-            if hasattr(self, '_rejected') and key in self._rejected:
-                self._rejected.discard(key)
+            if pending_id in self._rejected:
+                self._rejected.discard(pending_id)
                 return False
             return True
         except asyncio.CancelledError:
             raise
         finally:
-            self._pending_events.pop(key, None)
-            self._pending_actions.pop(key, None)
+            self._pending_events.pop(pending_id, None)
+            self._pending_actions.pop(pending_id, None)
+            self._unpersist_pending(pending_id)
 
     def confirm_action(self, action_type) -> bool:
-        event = self._pending_events.get(action_type)
+        """Backward-compat entrypoint: confirm by action_type. Resolves to the
+        unique pending id; refuses if multiple instances of the same action_type
+        are pending (ambiguous — caller must use the full unique id via approve())."""
+        pid = self._resolve_pending_id(action_type)
+        if pid is None:
+            return False
+        event = self._pending_events.get(pid)
         if event:
             event.set()
             return True
@@ -1315,30 +1582,46 @@ class PermissionGateway:
         return list(self._pending_actions.values())
 
     def approve(self, action_id: str) -> dict:
-        """Approve a pending action by its ID (action_type is the ID)."""
-        event = self._pending_events.get(action_id)
+        """Approve a pending action by its unique id. Also accepts a bare
+        action_type when unambiguous (backward-compat with Pushover links that
+        predate unique ids — though new links carry the full id)."""
+        pid = self._resolve_pending_id(action_id)
+        if pid is None:
+            return {"status": "not_found", "id": action_id}
+        event = self._pending_events.get(pid)
         if event:
             event.set()
-            logger.info(f"[VECTOR][gateway] Owner approved action '{action_id}' via HUD")
-            return {"status": "approved", "id": action_id}
+            logger.info(f"[VECTOR][gateway] Owner approved action '{pid}' via HUD")
+            return {"status": "approved", "id": pid}
+        # F-3: an interrupted (rehydrated) pending action has no live Event —
+        # it cannot be approved (its waiter is dead). Refuse so the owner is
+        # forced to reject/clear it rather than believe it will execute.
+        meta = self._pending_actions.get(pid)
+        if meta and meta.get("interrupted"):
+            logger.warning(f"[VECTOR][gateway] cannot approve interrupted pending '{pid}' — reject to clear")
+            return {"status": "interrupted", "id": pid,
+                    "reason": "awaiting coroutine died on restart; reject to clear"}
         return {"status": "not_found", "id": action_id}
 
     def reject(self, action_id: str) -> dict:
-        """Reject (cancel) a pending action by its ID without executing it."""
-        event = self._pending_events.get(action_id)
+        """Reject (cancel) a pending action by its unique id without executing it."""
+        pid = self._resolve_pending_id(action_id)
+        if pid is None:
+            return {"status": "not_found", "id": action_id}
+        event = self._pending_events.get(pid)
         if event:
-            # Remove from pending map first so the finally block doesn't double-pop
-            self._pending_actions.pop(action_id, None)
-            # Setting the event with the action removed causes _wait_for_confirmation
-            # to return True. We need the inverse — cancel the task by removing the
-            # event and leaving it unset so asyncio.wait_for times out.
-            # The cleanest approach: store a rejection flag alongside the event.
-            if not hasattr(self, '_rejected'):
-                self._rejected: set[str] = set()
-            self._rejected.add(action_id)
+            self._pending_actions.pop(pid, None)
+            self._rejected.add(pid)
             event.set()  # unblock the wait; _wait_for_confirmation checks _rejected
-            logger.warning(f"[VECTOR][gateway] Owner rejected action '{action_id}' via HUD")
-            return {"status": "rejected", "id": action_id}
+            logger.warning(f"[VECTOR][gateway] Owner rejected action '{pid}' via HUD")
+            return {"status": "rejected", "id": pid}
+        # F-3: clear an interrupted (rehydrated) pending action even though it
+        # has no live Event — the owner rejecting it should remove the stale record.
+        if pid in self._pending_actions:
+            self._pending_actions.pop(pid, None)
+            self._unpersist_pending(pid)
+            logger.info(f"[VECTOR][gateway] cleared interrupted pending '{pid}' via reject")
+            return {"status": "cleared", "id": pid}
         return {"status": "not_found", "id": action_id}
 
     def _write_audit(self, action, result):
@@ -1353,6 +1636,8 @@ class PermissionGateway:
         }
         self.audit_log.append(entry)
         self.audit_log = self.audit_log[-500:]
+        # F-8: durable copy survives restarts; the in-memory ring is for fast access.
+        self._persist_audit(entry)
 
     def get_audit_log(self, limit=50) -> list:
         return self.audit_log[-limit:]
@@ -1418,9 +1703,12 @@ if __name__ == '__main__':
         r4 = await gw.execute(Action('write_note_personal', {'title': 'test'}, 'obsidian_sync'))
         assert r4.level == 'YELLOW', f"Expected YELLOW, got {r4.level}"
         task = asyncio.create_task(gw.execute(Action('overwrite_note_personal', {'title': 'test'}, 'obsidian_sync')))
-        # Poll until the RED task registers its confirmation event (normally <10ms, cap at 10s)
+        # Poll until the RED task registers its confirmation event (normally <10ms, cap at 10s).
+        # F-1: pending ids are now unique (action_type#seq), so poll get_pending()
+        # for the action_type rather than the raw key.
         deadline = asyncio.get_running_loop().time() + 10.0
-        while 'overwrite_note_personal' not in gw._pending_events:
+        while not any(p.get("action_type") == 'overwrite_note_personal'
+                      for p in gw.get_pending()):
             await asyncio.sleep(0.01)
             if asyncio.get_running_loop().time() > deadline:
                 break
