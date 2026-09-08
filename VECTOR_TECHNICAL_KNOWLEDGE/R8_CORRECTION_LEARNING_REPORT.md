@@ -327,4 +327,4 @@ MATURITY: S5 (behaviorally verified) for correction→DecisionEngine influence;
 VERDICT: R8 COMPLETE
 ```
 
-**FINAL HEAD:** recorded below after commit.
+**FINAL HEAD:** `ff6922f6b2f5aeda33053605a27e877758ad2cc5`
