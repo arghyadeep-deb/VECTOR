@@ -261,12 +261,22 @@ def load_goal() -> str | None:
         return None
 
 
-def save_decision(action_type: str, params: dict, score: float) -> None:
+def save_decision(action_type: str, params: dict, score: float,
+                   decision_id: str = "", candidate_id: str = "") -> None:
+    """
+    R7 (Task 92): decision_id/candidate_id are optional, additive JSON keys —
+    the payload is already a schemaless JSON blob (`json.dumps(...)`), so old
+    readers (`load_decision()`) that don't know about these keys are
+    unaffected, and a call site that hasn't been updated to pass them keeps
+    working exactly as before (empty string, not a crash).
+    """
     try:
         payload = json.dumps({
             "action_type": action_type,
             "params": params,
             "score": score,
+            "decision_id": decision_id,
+            "candidate_id": candidate_id,
             "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }, default=str)
         _mem().remember(_DECISION_KEY, payload, category="loop_state", confidence=1.0)

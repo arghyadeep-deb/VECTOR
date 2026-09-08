@@ -716,6 +716,20 @@ class VectorSettings(BaseSettings):
     # outcome (success/failure/no_agents all consume it identically). Not
     # persisted — a process restart resets all cooldowns by design.
     FANOUT_EDGE_COOLDOWN_SEC: float = Field(120.0, ge=0.0, le=3600.0)
+    # Task 91 (R6) — candidate-selection staleness-only diversity guard.
+    # core/loop/decision_engine.py::_select_staleness_aware_winner(). A
+    # candidate identity (canonical situation_hash, same one policy_memory
+    # already keys on) that has been the actual evaluate() winner for this
+    # many CONSECUTIVE calls is considered stale; the next distinct,
+    # already-scored candidate is chosen instead if one exists — nothing is
+    # ever invented. Small default: low enough to actually engage during
+    # normal operation (the think loop runs on a short fixed cadence against
+    # a fairly static goal/candidate set, so 5 consecutive repeats of the
+    # exact same pick is genuine repetition, not legitimate persistence),
+    # high enough that ordinary short tests/one-off evaluate() calls never
+    # trigger it. Not persisted — process-local only, resets on restart by
+    # design (same rationale as FANOUT_EDGE_COOLDOWN_SEC above).
+    CANDIDATE_STALENESS_STREAK: int = Field(5, ge=1, le=1000)
     VECTOR_DB_KEY: SecretStr = SecretStr("")
 
     # API keys — SecretStr prevents values leaking into logs or repr()
@@ -1008,6 +1022,7 @@ CONFIG: dict = {
     "vc_llm_loop_guard_cooldown_sec": _s.VC_LLM_LOOP_GUARD_COOLDOWN_SEC,
     "ssrf_dns_resolve_timeout_sec": _s.SSRF_DNS_RESOLVE_TIMEOUT_SEC,
     "fanout_edge_cooldown_sec": _s.FANOUT_EDGE_COOLDOWN_SEC,
+    "candidate_staleness_streak": _s.CANDIDATE_STALENESS_STREAK,
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "cf_worker_url": _s.CF_WORKER_URL,
     "oauth": {

@@ -2,6 +2,7 @@ import sys
 import asyncio
 import datetime
 import math
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from vectorcode.src.bootstrap import ensure_paths
@@ -21,6 +22,17 @@ class Candidate:
     timing_score: float = 1.0
     estimated_cost_inr: float = 0.0
     source: str = "system"
+    # R7 (Task 92) — instance identity, NOT a policy/situation identity.
+    # candidate_id: unique per Candidate object the moment it is constructed
+    # (every generated/scored candidate gets one, whether or not it ever
+    # wins). decision_id: which evaluate() call this candidate belongs to —
+    # "" until DecisionEngine.evaluate() assigns it (a Candidate built
+    # outside evaluate(), e.g. in isolated tests, legitimately has no
+    # decision yet). Neither is ever used as, or derived from,
+    # PolicyMemory.make_situation_hash()'s reusable (action_type, params)
+    # identity — see decision_id's own note on DecisionEngine.evaluate().
+    candidate_id: str = field(default_factory=lambda: "c:" + uuid.uuid4().hex)
+    decision_id: str = ""
     # Computed during scoring
     goal_alignment: float = 0.0
     policy_score: float = 0.5
@@ -42,6 +54,10 @@ class Decision:
     timestamp: str = field(default_factory=lambda: datetime.datetime.utcnow().isoformat())
     evaluated: int = 0
     reasoning_chain: list[str] = field(default_factory=list)
+    # R7 (Task 92) — one decision_id per evaluate() call; every candidate in
+    # `all_candidates` (including `winner`) is stamped with this same value
+    # via Candidate.decision_id. See DecisionEngine.evaluate().
+    decision_id: str = field(default_factory=lambda: "d:" + uuid.uuid4().hex)
 
 
 class DecisionEngine:
@@ -77,6 +93,13 @@ class DecisionEngine:
         self._last_neural = None          # {"state": np.ndarray, "action": int}
         self._action_index: dict[str, int] = {}  # action_type -> stable action id
         self._neural_action_dim = 16
+        # R6 (Task 91) — staleness-only candidate diversity. Process-local,
+        # not persisted: a restart clears all streaks by design. Tracks how
+        # many CONSECUTIVE evaluate() calls ended with the same (action_type,
+        # params) identity as the final winner. See
+        # _select_staleness_aware_winner() for the full contract.
+        self._winner_streak_hash: str | None = None
+        self._winner_streak_count: int = 0
         logger.info("[VECTOR][decision_engine] initialized")
 
     def _get_reasoning_bank(self):
@@ -451,12 +474,81 @@ class DecisionEngine:
         candidate.reasoning_steps.append(f"FINAL score={candidate.total_score:.4f}")
         return candidate.total_score
 
+    def _select_staleness_aware_winner(self, ranked: list[Candidate]) -> Candidate:
+        """
+        R6 (Task 91) — candidate diversity, STALENESS-ONLY.
+
+        Definition of "stale": the exact same (action_type, params) identity
+        — via the canonical PolicyMemory.make_situation_hash() this class
+        already reuses for policy lookups (_make_situation_hash) — has been
+        the FINAL winner of `candidate_staleness_streak` or more CONSECUTIVE
+        evaluate() calls. This is about repeated-selection history, not
+        wall-clock time: a candidate that has never won, or that alternates
+        with others, is never stale no matter how much time passes.
+
+        When the top-ranked candidate is stale, the next candidate in
+        `ranked` with a DIFFERENT identity becomes the winner instead — it
+        was already scored by the real 5-factor formula (goal_alignment +
+        confidence + policy + urgency + timing - cost, plus bias/epistemic
+        dampening) earlier in evaluate(); nothing is invented, no new
+        Candidate is constructed, and action_type is never changed. If every
+        candidate in `ranked` shares the stale identity (e.g. a single
+        candidate, or duplicates of it), the stale candidate remains the
+        winner unchanged — R6 must never fabricate a substitute just to
+        satisfy diversity, and must never turn "no safe alternative" into
+        "no decision" when the existing contract (decision_engine always
+        returns a real winner for a non-empty candidate list) says otherwise.
+
+        "Meaningful change" is simply: a DIFFERENT identity actually won.
+        The streak counter tracks the most recent real winner, so the moment
+        anything else wins even once, the previous winner's suppression
+        pressure resets — the next time its identity resurfaces as the top
+        scorer it is evaluated fresh, not permanently blacklisted.
+        """
+        top = ranked[0]
+        top_hash = self._make_situation_hash(top)
+        threshold = int(CONFIG.get("candidate_staleness_streak", 5))
+
+        is_stale = (
+            top_hash == self._winner_streak_hash
+            and self._winner_streak_count >= threshold
+        )
+
+        winner = top
+        if is_stale:
+            alternative = None
+            for alt in ranked[1:]:
+                if self._make_situation_hash(alt) != top_hash:
+                    alternative = alt
+                    break
+            if alternative is not None:
+                logger.info(
+                    "[VECTOR][decision_engine] R6 staleness: '{}' suppressed "
+                    "after {} consecutive wins (threshold={}) — selecting "
+                    "'{}' (score={:.3f}) instead",
+                    top.action_type, self._winner_streak_count, threshold,
+                    alternative.action_type, alternative.total_score,
+                )
+                winner = alternative
+            # else: no distinct alternative exists among the real scored
+            # candidates — preserve existing behavior, do NOT invent one.
+
+        winner_hash = self._make_situation_hash(winner)
+        if winner_hash == self._winner_streak_hash:
+            self._winner_streak_count += 1
+        else:
+            self._winner_streak_hash = winner_hash
+            self._winner_streak_count = 1
+        return winner
+
     async def evaluate(self, candidates: list[Candidate]) -> Decision:
         """Score all candidates. Return winner. Log ALL including rejected."""
         if not candidates:
             logger.warning("[VECTOR][decision_engine] no candidates provided")
             noop = Candidate("noop", {}, source="fallback")
-            return Decision(winner=noop, all_candidates=[], reasoning="No candidates", evaluated=0)
+            noop_decision = Decision(winner=noop, all_candidates=[], reasoning="No candidates", evaluated=0)
+            noop.decision_id = noop_decision.decision_id  # R7 — keep winner/Decision ids consistent
+            return noop_decision
 
         # RULE 1 — inject world-state context before scoring. Was previously
         # only used to hydrate LLM calls made *after* a winner was already
@@ -488,8 +580,24 @@ class DecisionEngine:
             self._score_candidate(c)
 
         ranked = sorted(candidates, key=lambda c: c.total_score, reverse=True)
-        winner = ranked[0]
+        winner = self._select_staleness_aware_winner(ranked)
         self._decision_count += 1
+
+        # R7 (Task 92) — one decision_id per evaluate() CALL (an event/
+        # instance identifier), stamped onto every candidate scored in this
+        # call — including the winner and every rejected candidate. This is
+        # deliberately NOT the same value as any candidate's situation_hash
+        # (PolicyMemory.make_situation_hash(action_type, params)): the same
+        # (action_type, params) pair can appear across many different
+        # decision_ids over time (that reusable identity is what
+        # PolicyMemory learns against); decision_id instead answers "which
+        # exact evaluate() call produced this candidate/outcome?". Every
+        # Candidate already carries its own unique candidate_id from
+        # construction (see the dataclass) — decision_id here only records
+        # *which decision occurrence* that candidate_id belongs to.
+        decision_id = "d:" + uuid.uuid4().hex
+        for c in ranked:
+            c.decision_id = decision_id
 
         # Neural learning loop: record (state, action) for this decision so
         # record_outcome() can train the network on the real reward later.
@@ -517,7 +625,12 @@ class DecisionEngine:
                 self._last_neural = None
                 logger.debug("[VECTOR][decision_engine] neural state build skipped: {}", e)
 
-        # Log ALL candidates including rejected — RULE 8
+        # Log ALL candidates including rejected — RULE 8. R7 (Task 92): each
+        # logged row now also carries decision_id + candidate_id, giving the
+        # "candidate_generated/scored" and "candidate_selected" correlation
+        # states an existing, queryable record — no schema change, since
+        # EpisodicMemory.store()'s `context` is already a schemaless JSON
+        # column.
         mem = self._get_memory()
         for c in ranked:
             status = "winner" if c is winner else "rejected"
@@ -530,6 +643,9 @@ class DecisionEngine:
                     "goal_alignment": c.goal_alignment,
                     "policy": c.policy_score,
                     "confidence": c.confidence,
+                    "decision_id": c.decision_id,
+                    "candidate_id": c.candidate_id,
+                    "candidate_status": status,
                 },
                 source="decision_engine",
             )
@@ -549,6 +665,7 @@ class DecisionEngine:
             reasoning=reasoning,
             evaluated=len(candidates),
             reasoning_chain=[reasoning],
+            decision_id=decision_id,
         )
 
 

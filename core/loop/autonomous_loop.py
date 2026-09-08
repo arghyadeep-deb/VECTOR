@@ -340,15 +340,24 @@ class AutonomousLoop:
             logger.debug(f"[VECTOR][guidance] threat scan error: {e}")
         return False
 
-    def _record_external_rejection(self, action_type: str, params: dict, reason: str) -> None:
+    def _record_external_rejection(self, action_type: str, params: dict, reason: str,
+                                    decision_id: str = "", candidate_id: str = "") -> None:
         """Gap 4: feed genuine external rejections (ThreatDetector, RedTeam, council,
         Pushover owner approval) into CounterfactualMemory so should_avoid() learns
-        from them — not just from its own auto-blocks."""
+        from them — not just from its own auto-blocks.
+
+        R7 (Task 92): decision_id/candidate_id are optional so any existing or
+        future caller that doesn't have a real DecisionEngine decision behind it
+        (this method predates R7) keeps working unchanged — CounterfactualMemory's
+        `rejections.decision_id` column falls back to the old `action_type`
+        behavior when no real decision_id is supplied, exactly as before R7.
+        """
         try:
             from core.memory.counterfactual import CounterfactualMemory
             proposal = f"{action_type} {json.dumps(params, default=str)}"
             CounterfactualMemory().record_rejection(
-                decision_id=action_type, proposal=proposal, reason=reason[:200],
+                decision_id=decision_id or action_type, proposal=proposal, reason=reason[:200],
+                context={"candidate_id": candidate_id} if candidate_id else None,
             )
         except Exception as e:
             logger.debug(f"[VECTOR][counterfactual] external rejection record skipped: {e}")
@@ -1149,9 +1158,15 @@ class AutonomousLoop:
                         winner.action_type, _cf_score, _cf_reason[:80],
                     )
                     _cf.record_rejection(
-                        decision_id=winner.action_type,
+                        # R7 (Task 92): pass the real per-decision-occurrence ID
+                        # instead of the bare action_type (falls back to
+                        # action_type only if this winner was never produced by
+                        # DecisionEngine.evaluate() — same degraded behavior as
+                        # before R7, never a crash).
+                        decision_id=winner.decision_id or winner.action_type,
                         proposal=_proposal,
                         reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
+                        context={"candidate_id": winner.candidate_id} if winner.candidate_id else None,
                     )
                     # Task 89 (D3) — suppression/reward channel separation.
                     # This used to call update_from_outcome(..., reward=0.05):
@@ -1188,7 +1203,10 @@ class AutonomousLoop:
             action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
             if self._scan_threats(action_desc, context="act"):
                 logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
-                self._record_external_rejection(winner.action_type, winner.params, "blocked by ThreatDetector")
+                self._record_external_rejection(
+                    winner.action_type, winner.params, "blocked by ThreatDetector",
+                    decision_id=winner.decision_id, candidate_id=winner.candidate_id,
+                )
                 return
 
             # RedTeamAgent adversarial review for RED-level actions (VECTOR Gap 2)
@@ -1210,7 +1228,10 @@ class AutonomousLoop:
                                 f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
                                 f"{_rt_reason}"
                             )
-                            self._record_external_rejection(winner.action_type, winner.params, f"red_team: {_rt_reason}")
+                            self._record_external_rejection(
+                                winner.action_type, winner.params, f"red_team: {_rt_reason}",
+                                decision_id=winner.decision_id, candidate_id=winner.candidate_id,
+                            )
                             return
                         elif verdict.startswith("MODIFY"):
                             logger.info(
@@ -1379,15 +1400,29 @@ class AutonomousLoop:
 
                 try:
                     from core.loop.loop_state import save_decision
-                    save_decision(winner.action_type, winner.params, winner.total_score)
+                    save_decision(
+                        winner.action_type, winner.params, winner.total_score,
+                        decision_id=winner.decision_id, candidate_id=winner.candidate_id,
+                    )
                 except Exception as _sd_err:
                     logger.warning("[VECTOR][loop] save_decision suppressed: {}", _sd_err)
 
                 if winner.reasoning_chain:
+                    # R7 (Task 92): "candidate_executed" correlation — append a
+                    # correlation marker to the existing reasoning_chain JSON
+                    # list (steps) rather than adding a new column/table. This
+                    # is a per-call INSERT (reasoning_chains.chain_id is fresh
+                    # every time — not an aggregate row like policy_memory), so
+                    # attaching per-occurrence identity here is safe.
                     self._get_memory().store_chain(
                         situation=winner.action_type,
                         goal_ids=winner.goal_ids,
-                        steps=winner.reasoning_chain,
+                        steps=winner.reasoning_chain + [{
+                            "correlation": {
+                                "decision_id": winner.decision_id,
+                                "candidate_id": winner.candidate_id,
+                            }
+                        }],
                         action=winner.action_type,
                         outcome=f"status={result.get('status')} reward={reward}",
                         reward=reward,
