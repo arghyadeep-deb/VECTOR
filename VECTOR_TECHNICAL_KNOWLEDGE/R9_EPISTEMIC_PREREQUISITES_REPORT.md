@@ -333,4 +333,4 @@ MATURITY: S5 for the pre-existing action_domain loop; S4 for the newly-fixed pla
 VERDICT: R9 COMPLETE
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `9cd5af002598fad3cb2aea820b9566e1ebf99520`
