@@ -139,4 +139,4 @@ REGRESSION: 0 new failures (2 pre-existing test_planning.py baseline failures re
 VERDICT: E2 COMPLETE
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `f6ae7d223229b7edf5577cc271daa2703df93be8`
