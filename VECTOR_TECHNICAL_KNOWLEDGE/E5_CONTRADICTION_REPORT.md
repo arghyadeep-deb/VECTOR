@@ -177,4 +177,4 @@ GOVERNANCE: unaffected (source-text proven)
 VERDICT: E5 COMPLETE
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `91da51b23ccdd2e6a07ab1a44b24ef34cc546b77`
