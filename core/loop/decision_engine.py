@@ -86,6 +86,7 @@ class DecisionEngine:
         self._neural_trainer = None
         self._epistemic = None
         self._metacognition = None
+        self._correction_learner = None
         self._mc_bias_cache = None
         self._mc_cache_time = 0.0
         self._decision_count = 0
@@ -154,6 +155,17 @@ class DecisionEngine:
             from core.memory.episodic import EpisodicMemory
             self._memory = EpisodicMemory()
         return self._memory
+
+    def _get_correction_learner(self):
+        """R8 — explicit owner-correction lessons, bounded decision-path influence."""
+        if self._correction_learner is None:
+            try:
+                from core.memory.correction_learner import CorrectionLearner
+                self._correction_learner = CorrectionLearner()
+            except Exception as e:
+                logger.debug("[VECTOR][decision_engine] correction_learner unavailable: {}", e)
+                self._correction_learner = False
+        return None if self._correction_learner is False else self._correction_learner
 
     def _get_neural_trainer(self):
         if self._neural_trainer is None:
@@ -259,6 +271,24 @@ class DecisionEngine:
             return max(0.0, min(1.0, penalty))
         except Exception as e:
             logger.debug("[VECTOR][decision_engine] bias penalty skipped: {}", e)
+            return 0.0
+
+    def _correction_penalty(self, candidate: Candidate) -> float:
+        """R8 — bounded [0.0, 0.12] penalty from a real, persisted, explicit
+        owner correction lesson whose situation exactly matches this
+        candidate's action_type. See
+        CorrectionLearner.get_correction_penalty()'s docstring for the full
+        exact-match/no-LLM-interpretation rationale and why this is
+        deliberately independent of validate_lesson()'s VALIDATED status."""
+        try:
+            if not CONFIG.get("correction_scoring", True):
+                return 0.0
+            learner = self._get_correction_learner()
+            if learner is None:
+                return 0.0
+            return learner.get_correction_penalty(candidate.action_type)
+        except Exception as e:
+            logger.debug("[VECTOR][decision_engine] correction penalty skipped: {}", e)
             return 0.0
 
     def _finite(self, value: float, default: float = 0.0) -> float:
@@ -422,6 +452,7 @@ class DecisionEngine:
         estimated_cost = self._finite(candidate.estimated_cost_inr, 0.0)
         cost_penalty = min(1.0, estimated_cost / 10.0)
         bias_penalty = self._bias_penalty(candidate)
+        correction_penalty = self._correction_penalty(candidate)
 
         total = (
             self.W_GOAL * goal_score
@@ -431,6 +462,7 @@ class DecisionEngine:
             + self.W_TIMING * timing_score
             - self.W_COST * cost_penalty
             - bias_penalty
+            - correction_penalty
         )
 
         # Epistemic dampening (JARVIS Gap 3) — post-score multiplier.
@@ -451,6 +483,10 @@ class DecisionEngine:
             candidate.reasoning_chain.append(
                 {"factor": "meta_cognition", "value": bias_penalty, "weight": -1.0}
             )
+        if correction_penalty > 0.0:
+            candidate.reasoning_chain.append(
+                {"factor": "owner_correction", "value": correction_penalty, "weight": -1.0}
+            )
         if epistemic_factor < 1.0:
             candidate.reasoning_chain.append(
                 {"factor": "epistemic_confidence", "value": epistemic_conf,
@@ -466,6 +502,8 @@ class DecisionEngine:
         ])
         if bias_penalty > 0.0:
             candidate.reasoning_steps.append(f"meta_cognition bias_penalty={bias_penalty:.3f}")
+        if correction_penalty > 0.0:
+            candidate.reasoning_steps.append(f"owner_correction penalty={correction_penalty:.3f}")
         if epistemic_factor < 1.0:
             candidate.reasoning_steps.append(
                 f"epistemic_factor={epistemic_factor:.2f} "

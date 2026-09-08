@@ -159,6 +159,15 @@ class AutonomousLoop:
         self._tier_before = self._degradation.current_tier
         self._event_bus = None
         self._worker_pool = None
+        # R8 (Task 93/overnight pipeline): the action_type _act_on() most
+        # recently attempted -- consumed by _detect_and_store_correction() so
+        # a correction lesson's `situation` field actually reflects the real
+        # action being corrected, instead of the constant fallback
+        # "conversation" every real production correction previously got
+        # (this attribute was read via getattr(..., 'conversation') but never
+        # ASSIGNED anywhere before R8 -- see R8_CORRECTION_LEARNING_REPORT.md
+        # §"root cause").
+        self._current_action_type: str | None = None
         logger.info("[VECTOR][autonomous_loop] initialized")
 
     async def _get_event_bus(self):
@@ -1015,6 +1024,11 @@ class AutonomousLoop:
         RULE 7 — update_from_outcome() AFTER every action.
         """
         self._active_task_count += 1
+        # R8: record what VECTOR is acting on so a correction the owner makes
+        # right after this action carries the real action_type as its lesson
+        # `situation`, not the constant "conversation" fallback (see __init__
+        # docstring on this attribute).
+        self._current_action_type = winner.action_type
         try:
             await self._publish_event(EventType.AGENT_STATE_CHANGED, {
                 "action_type": winner.action_type,

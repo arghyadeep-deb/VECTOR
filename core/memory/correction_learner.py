@@ -626,6 +626,61 @@ class CorrectionLearner:
         except Exception as e:
             logger.debug(f"[VECTOR][correction_learner] validate_lesson failed: {e}")
 
+    # -- Decision-path influence (R8) -------------------------------------------
+
+    def get_correction_penalty(self, action_type: str) -> float:
+        """R8 — bounded, deterministic decision-path influence.
+
+        Returns a penalty in [0.0, 0.12] for DecisionEngine to SUBTRACT from
+        a candidate's weighted total_score, IF a real, persisted, still-valid
+        (non-expired, non-contradicted) owner correction lesson exists whose
+        `situation` field is an EXACT match for `action_type`.
+
+        Why exact match, not domain/keyword matching: `lesson.situation` is
+        populated by autonomous_loop._act_on() with the literal action_type
+        that was just attempted (see `_current_action_type`) when the owner
+        corrects it. Matching exactly — no substring/keyword/semantic
+        interpretation of the lesson text — is what keeps this mechanism
+        honest: a correction about `send_email` can never accidentally
+        penalize `send_email_bulk` or any other unrelated action_type, and
+        no LLM call is used to "interpret" what the correction meant.
+
+        Why this is NOT the same as validate_lesson()'s VALIDATED status:
+        this only requires the lesson to have cleared MIN_STORE_CONFIDENCE
+        (0.7) at DETECTION time — the same bar every persisted correction
+        already meets. It deliberately does NOT require
+        validation_status == VALIDATED, because that status is driven by
+        validate_lesson(outcome_good), which is an OUTCOME/reward-linked
+        reinforcement signal with zero production callers today (see R8
+        report) — gating decision-influence on it would make this mechanism
+        silently inert in practice, AND would blur explicit-correction
+        learning with reward learning, which R8 explicitly must not do.
+
+        Bounded and safe: max 0.12, matching the existing bias_penalty scale
+        in DecisionEngine._score_candidate(). Cannot make a FORBIDDEN/RED/
+        YELLOW action GREEN (permission tier is a static action_type lookup,
+        entirely independent of this score) and cannot elevate a candidate
+        past the permission classification of its own action_type.
+        """
+        try:
+            candidates = self.retrieve_applicable_lessons(current_situation=action_type, limit=10)
+        except Exception as e:
+            logger.debug(f"[VECTOR][correction_learner] get_correction_penalty retrieval failed: {e}")
+            return 0.0
+
+        matching = [
+            lesson for lesson in candidates
+            if lesson.situation == action_type and lesson.confidence >= MIN_STORE_CONFIDENCE
+        ]
+        if not matching:
+            return 0.0
+
+        # Multiple matching lessons: use the single highest-confidence one,
+        # never sum them — prevents duplicate/repeated corrections from
+        # uncontrollably stacking penalty (R8 test M).
+        best = max(matching, key=lambda l: l.confidence)
+        return round(min(0.12, best.confidence * 0.15), 4)
+
     # -- Context injection ----------------------------------------------------
 
     def build_injection_line(
