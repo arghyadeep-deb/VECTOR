@@ -323,7 +323,34 @@ class LessonExtractor:
         # Build the generalized lesson
         lesson = self._build_lesson(detection, prior_vector_response, domain)
 
-        # Build situation hash for dedup
+        # Build situation hash for dedup.
+        #
+        # E5 (contradiction audit) — investigated, and deliberately did NOT
+        # change this to hash only (domain, situation). Doing so WOULD make
+        # _consolidate()'s confidence-gated supersession branch reachable
+        # for genuine contradictions (e.g. "the deadline is Friday" vs "the
+        # deadline is Monday") -- but a direct regression test proved it
+        # also incorrectly collapses independent, non-contradictory
+        # corrections that merely share a broad situation (e.g. "use httpx",
+        # "always use type hints", and "prefer async over sync" are all
+        # real, simultaneously-valid tips for situation="coding", not
+        # competing answers to one question -- confirmed by the pre-existing
+        # tests/integration/test_correction_integration.py::
+        # test_multiple_corrections_same_domain, which correctly expects
+        # all 3 to remain independently retrievable). Distinguishing "a
+        # different answer to the same question" from "an additional,
+        # compatible tip for the same broad context" requires semantic
+        # judgment this codebase's existing non-LLM mechanisms (exact hash,
+        # keyword tags, Jaccard word-overlap -- all tried) cannot reliably
+        # provide: "Friday" and "Monday" share no lexical overlap either, so
+        # a similarity-based test could not distinguish the two cases any
+        # better than domain+situation grouping does. See
+        # VECTOR_TECHNICAL_KNOWLEDGE/E5_CONTRADICTION_REPORT.md for the full
+        # investigation -- this is reported as a genuine, unresolved
+        # architectural question, not silently guessed at. The hash keeps
+        # its original, fine-grained form (includes the correction text)
+        # so existing correct behavior (independent tips staying
+        # independent) is preserved.
         sit_hash = hashlib.sha256(
             f"{domain}:{situation}:{detection.correction_text[:100]}".encode()
         ).hexdigest()[:16]
@@ -460,7 +487,21 @@ class CorrectionLearner:
         )
 
     def _find_duplicate(self, lesson: CorrectionLesson) -> CorrectionLesson | None:
-        """Check if a lesson with the same situation_hash already exists."""
+        """Check if a lesson with the same situation_hash already exists.
+
+        E5 (contradiction audit): _consolidate() never updates a stored row
+        in place -- every call re-stores a fresh row, so several historical
+        snapshots of the same logical (situation_hash-identified) lesson can
+        coexist. Returning the FIRST match encountered (mem.recall()'s own
+        order, not guaranteed to be the newest) could hand consolidation a
+        STALE base state -- e.g. the original, pre-reinforcement confidence
+        instead of the current one -- silently underselling how much
+        reinforcement/supersession has already happened. Scanning all
+        matches and keeping the highest-(confidence, timestamp) one applies
+        the exact same authority rule retrieve_applicable_lessons() now
+        uses, so both paths agree on what "the current state of this
+        situation" means.
+        """
         try:
             mem = self._get_memory()
             results = mem.recall(
@@ -468,13 +509,17 @@ class CorrectionLearner:
                 limit=10,
                 event_type="correction_lesson",
             )
+            best: CorrectionLesson | None = None
             for r in results:
                 try:
                     existing = CorrectionLesson.from_storage_content(r.get("content", ""))
-                    if existing.situation_hash == lesson.situation_hash:
-                        return existing
+                    if existing.situation_hash != lesson.situation_hash:
+                        continue
+                    if best is None or (existing.confidence, existing.timestamp) > (best.confidence, best.timestamp):
+                        best = existing
                 except Exception:
                     continue
+            return best
         except Exception as e:
             logger.debug(f"[VECTOR][correction_learner] dedup check failed: {e}")
         return None
@@ -557,9 +602,33 @@ class CorrectionLearner:
             except Exception:
                 continue
 
+        # E5 (contradiction audit) — dedup by situation_hash BEFORE sorting/
+        # limiting. _consolidate() never updates a row in place: every
+        # process_owner_message() call (initial store AND every later
+        # reinforcement/supersession) does its own fresh mem.store(), so
+        # episodic_memory can hold several accumulated snapshots of the SAME
+        # logical lesson (identified by situation_hash) at different points
+        # in its history. Without this, retrieve_applicable_lessons() could
+        # surface an old, already-superseded snapshot alongside its own
+        # replacement as if they were two independent, unrelated lessons —
+        # "stores both, selects none" instead of "stores both, selects one".
+        # Selecting the highest-confidence snapshot (ties broken by most
+        # recent timestamp) is exactly the same authority rule
+        # _consolidate()'s own supersession logic already uses — this does
+        # not invent a second one.
+        latest_by_situation: dict[str, CorrectionLesson] = {}
+        for lesson in lessons:
+            key = lesson.situation_hash or lesson.id  # no hash -> never collapse with another
+            current = latest_by_situation.get(key)
+            if current is None:
+                latest_by_situation[key] = lesson
+            elif (lesson.confidence, lesson.timestamp) > (current.confidence, current.timestamp):
+                latest_by_situation[key] = lesson
+        deduped = list(latest_by_situation.values())
+
         # Sort by confidence (highest first), limit results
-        lessons.sort(key=lambda l: l.confidence, reverse=True)
-        return lessons[:limit]
+        deduped.sort(key=lambda l: l.confidence, reverse=True)
+        return deduped[:limit]
 
     def mark_applied(self, lesson_id: str) -> None:
         """Record that a lesson was retrieved and applied."""
