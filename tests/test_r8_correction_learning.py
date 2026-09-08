@@ -532,6 +532,40 @@ class TestNoRewardConflation:
         assert penalty <= 0.12
 
 
+@pytest.mark.unit
+class TestCorrectionPenaltyBoundedWait:
+    """R9 follow-up (discovered during R9's own regression pass, same
+    session): _correction_penalty() calls into a real EpisodicMemory.recall()
+    (FTS5 query), which under real-world DB size/lock contention was
+    observed to be slow enough to hang a combined test run past pytest's
+    90s per-test timeout. Fixed by reusing R1's exact bounded-wait pattern
+    (ThreadPoolExecutor + future.result(timeout=)) so a slow/stuck lookup
+    can never block DecisionEngine's synchronous scoring hot path."""
+
+    async def test_slow_correction_lookup_does_not_block_scoring(self, engine_with_learner):
+        import time as _time
+
+        e = engine_with_learner
+        e._learner.get_correction_penalty = lambda action_type: (_time.sleep(2.0), 0.1)[1]
+
+        original_timeout = CONFIG.get("correction_penalty_timeout_sec")
+        CONFIG["correction_penalty_timeout_sec"] = 0.2  # short timeout for a fast test
+        try:
+            start = _time.monotonic()
+            penalty = e._correction_penalty(make_candidate("slow_action"))
+            elapsed = _time.monotonic() - start
+        finally:
+            CONFIG["correction_penalty_timeout_sec"] = original_timeout
+
+        assert penalty == 0.0, "a timed-out lookup must degrade to 'no correction found', not raise"
+        assert elapsed < 1.5, f"the bounded wait must not let a slow lookup block scoring (took {elapsed:.2f}s)"
+
+    def test_correction_penalty_timeout_config_present_and_bounded(self):
+        value = CONFIG.get("correction_penalty_timeout_sec")
+        assert value is not None
+        assert 0.05 <= value <= 10.0
+
+
 if __name__ == "__main__":
     import asyncio
     import sys

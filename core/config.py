@@ -730,6 +730,14 @@ class VectorSettings(BaseSettings):
     # trigger it. Not persisted — process-local only, resets on restart by
     # design (same rationale as FANOUT_EDGE_COOLDOWN_SEC above).
     CANDIDATE_STALENESS_STREAK: int = Field(5, ge=1, le=1000)
+    # R8/R9 follow-up — bounds core/loop/decision_engine.py::_correction_penalty()'s
+    # EpisodicMemory.recall() call (a real FTS5 query, potentially slow against
+    # a large production DB) so it can never block the synchronous per-candidate
+    # scoring hot path past this deadline. Same bounded-wait pattern as R1's
+    # core/inference/ollama_safe.py::_multi_backend_fallback fix. On timeout,
+    # the candidate is scored as if no correction lesson matched (0.0 penalty)
+    # -- an honest degrade, never a crash, never a false penalty.
+    CORRECTION_PENALTY_TIMEOUT_SEC: float = Field(1.5, ge=0.05, le=10.0)
     VECTOR_DB_KEY: SecretStr = SecretStr("")
 
     # API keys — SecretStr prevents values leaking into logs or repr()
@@ -1023,6 +1031,7 @@ CONFIG: dict = {
     "ssrf_dns_resolve_timeout_sec": _s.SSRF_DNS_RESOLVE_TIMEOUT_SEC,
     "fanout_edge_cooldown_sec": _s.FANOUT_EDGE_COOLDOWN_SEC,
     "candidate_staleness_streak": _s.CANDIDATE_STALENESS_STREAK,
+    "correction_penalty_timeout_sec": _s.CORRECTION_PENALTY_TIMEOUT_SEC,
     "allowed_origins": _s.ALLOWED_ORIGINS,
     "cf_worker_url": _s.CF_WORKER_URL,
     "oauth": {

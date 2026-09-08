@@ -279,14 +279,42 @@ class DecisionEngine:
         candidate's action_type. See
         CorrectionLearner.get_correction_penalty()'s docstring for the full
         exact-match/no-LLM-interpretation rationale and why this is
-        deliberately independent of validate_lesson()'s VALIDATED status."""
+        deliberately independent of validate_lesson()'s VALIDATED status.
+
+        R9 follow-up (found during R9's own regression pass, same session):
+        `get_correction_penalty()` calls into EpisodicMemory.recall() (a real
+        FTS5 query against the shared production DB), which under real-world
+        DB size/lock contention can be slow. _score_candidate() is a
+        synchronous hot path scoring EVERY candidate on EVERY decision — an
+        unbounded wait here would reintroduce exactly the class of problem
+        R1 (Task 88, core/inference/ollama_safe.py::_multi_backend_fallback)
+        already fixed elsewhere in this codebase. Reuses that exact same
+        bounded-wait pattern: single-thread executor, future.result(timeout=),
+        never blocks the decision path past the deadline. On timeout, treat
+        it as "no correction found" (0.0) -- an honest degrade, not a crash,
+        and never a false penalty."""
         try:
             if not CONFIG.get("correction_scoring", True):
                 return 0.0
             learner = self._get_correction_learner()
             if learner is None:
                 return 0.0
-            return learner.get_correction_penalty(candidate.action_type)
+
+            from concurrent.futures import ThreadPoolExecutor
+            timeout = float(CONFIG.get("correction_penalty_timeout_sec", 1.5))
+            executor = ThreadPoolExecutor(max_workers=1)
+            future = executor.submit(learner.get_correction_penalty, candidate.action_type)
+            try:
+                return future.result(timeout=timeout)
+            except TimeoutError:
+                logger.warning(
+                    "[VECTOR][decision_engine] correction_penalty lookup exceeded "
+                    "{}s for '{}' -- treating as no-correction-found rather than "
+                    "blocking the decision path", timeout, candidate.action_type,
+                )
+                return 0.0
+            finally:
+                executor.shutdown(wait=False)
         except Exception as e:
             logger.debug("[VECTOR][decision_engine] correction penalty skipped: {}", e)
             return 0.0

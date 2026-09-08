@@ -75,6 +75,14 @@ def engine():
     e._get_context_engine = MagicMock()
     e._get_context_engine().get_world_state.return_value = {}
     e._get_metacognition = MagicMock(return_value=None)
+    # R8/R9: stub the correction-learner getter too -- otherwise every
+    # evaluate() call in this file's many-iteration tests (e.g. 300 rapid
+    # decisions) does a real, bounded-but-nonzero-latency EpisodicMemory
+    # lookup, which adds up across a tight loop even though no single call
+    # can hang (see core/loop/decision_engine.py::_correction_penalty()'s
+    # timeout bound). Matches how every other subsystem getter here is
+    # already stubbed for isolation.
+    e._get_correction_learner = MagicMock(return_value=None)
     return e
 
 
@@ -308,6 +316,7 @@ class TestAdversarial:
         e1._get_reasoning_bank = MagicMock(return_value=None)
         e1._get_neural_trainer = MagicMock(return_value=None)
         e1._get_context_engine = MagicMock(); e1._get_context_engine().get_world_state.return_value = {}
+        e1._get_correction_learner = MagicMock(return_value=None)
 
         e2._get_policy = MagicMock()
         e2._get_policy().make_situation_hash.side_effect = PolicyMemory.make_situation_hash
@@ -318,6 +327,7 @@ class TestAdversarial:
         e2._get_reasoning_bank = MagicMock(return_value=None)
         e2._get_neural_trainer = MagicMock(return_value=None)
         e2._get_context_engine = MagicMock(); e2._get_context_engine().get_world_state.return_value = {}
+        e2._get_correction_learner = MagicMock(return_value=None)
 
         def factory():
             return [
@@ -411,6 +421,7 @@ if __name__ == "__main__":
         e._get_reasoning_bank = MagicMock(return_value=None)
         e._get_neural_trainer = MagicMock(return_value=None)
         e._get_context_engine = MagicMock(); e._get_context_engine().get_world_state.return_value = {}
+        e._get_correction_learner = MagicMock(return_value=None)
 
         def factory():
             return [

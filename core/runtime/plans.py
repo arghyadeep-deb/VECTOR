@@ -585,7 +585,19 @@ def verify_step_outcome(step: PlanStep, report_status: str, report_result: Any =
         try:
             from core.brain.epistemic_tracker import EpistemicTracker
             tracker = EpistemicTracker()
-            current_conf = tracker.get_confidence(step.action_type)
+            # R9: was tracker.get_confidence(step.action_type) -- a bare
+            # action_type ("check_attendance") never matches any real claim
+            # id, since every actual epistemic writer/reader in this codebase
+            # (core/loop/decision_engine.py's _epistemic_penalty() /
+            # record_epistemic_belief()) keys claims as
+            # "action_domain:<action_type.split('_')[0]>". A bare-action_type
+            # lookup always returned 0.0 (unknown claim), so this branch
+            # could never pass for any positive min_confidence -- a dead
+            # reader/writer identity mismatch, not a design choice. Reuses
+            # the exact same domain-derivation convention decision_engine.py
+            # already uses, rather than inventing a second one.
+            domain = step.action_type.split("_")[0]
+            current_conf = tracker.get_confidence(f"action_domain:{domain}")
             tracker.close()
             return current_conf >= min_conf
         except Exception:

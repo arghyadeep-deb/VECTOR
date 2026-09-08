@@ -88,6 +88,12 @@ def engine():
     e._get_neural_trainer = MagicMock(return_value=None)
     e._get_context_engine = MagicMock()
     e._get_context_engine().get_world_state.return_value = {}
+    # R8/R9: stub the correction-learner getter -- otherwise every
+    # evaluate() call (this file's uniqueness tests run up to 300 in a
+    # loop) does a real, bounded-but-nonzero-latency EpisodicMemory lookup
+    # that adds up. Matches every other subsystem getter already stubbed
+    # here.
+    e._get_correction_learner = MagicMock(return_value=None)
     return e
 
 
@@ -239,6 +245,7 @@ async def _make_winner_via_real_evaluate(action_type, params=None):
     e._get_neural_trainer = MagicMock(return_value=None)
     e._get_context_engine = MagicMock()
     e._get_context_engine().get_world_state.return_value = {}
+    e._get_correction_learner = MagicMock(return_value=None)
     decision = await e.evaluate([make_candidate(action_type, params=params)])
     return decision.winner
 
@@ -478,6 +485,7 @@ if __name__ == "__main__":
         e._get_reasoning_bank = MagicMock(return_value=None)
         e._get_neural_trainer = MagicMock(return_value=None)
         e._get_context_engine = MagicMock(); e._get_context_engine().get_world_state.return_value = {}
+        e._get_correction_learner = MagicMock(return_value=None)
 
         d1 = await e.evaluate([make_candidate("A"), make_candidate("B")])
         d2 = await e.evaluate([make_candidate("A"), make_candidate("B")])
