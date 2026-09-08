@@ -181,4 +181,4 @@ MATURITY: S5 for the full decision->candidate->outcome->persistence->retrieval c
 VERDICT: R10 COMPLETE
 ```
 
-**FINAL HEAD:** recorded after commit, below.
+**FINAL HEAD:** `a79ed99aafe116f5e12c0e77cb75586847f33f42`
