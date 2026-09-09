@@ -1,6 +1,29 @@
 """
 E6 — Native Candidate Competition. THE FINAL LEARNING GATE.
 
+============================================================
+UPDATE 2026-09-09 (R11 — Native Goal Strategy Candidate Generation): see
+VECTOR_TECHNICAL_KNOWLEDGE/R11_NATIVE_GOAL_STRATEGY_CANDIDATE_GENERATION_REPORT.md
+============================================================
+This file's own headline conclusion below ("NATIVE CANDIDATE COMPETITION
+DOES NOT EXIST TODAY") was TRUE, verified live, at the time this file was
+written — it is preserved here unmodified as an accurate historical record
+of that finding and audit, exactly as this whole session's convention has
+been (see e.g. R8's report, never rewritten by R9's follow-on fix). R11
+closed the exact bottleneck items 1/2/4 describe below: goals whose tags map
+to >= 2 known action_types now genuinely produce that many distinct
+candidates (see tests/test_r11_native_goal_strategy_candidates.py for the
+new coverage). Items 3 ("0 active plans") and the GOAL_ACTION_MAP 2-value
+fallback ceiling are UNCHANGED by R11 and remain accurate. Only ONE test in
+this file (`test_think_tick_tag_to_action_dict_is_unreachable_dead_code`)
+asserted something that is no longer true for the reason it now correctly
+fails for (the mapping moved, not "became reachable in place") — it has
+been replaced below with its accurate successor; every other test in this
+file remains a correct, unmodified regression check (the empty-tags fallback
+case in `test_all_short_horizon_actions_share_the_identical_action_type`
+deliberately used goals with NO tags, so it is untouched by, and still
+correctly describes, the fallback path R11 preserves).
+
 Question: can VECTOR's REAL candidate-generation pipeline naturally produce
 at least TWO meaningfully different action types for the SAME decision
 context?
@@ -154,15 +177,21 @@ class TestNativeCandidateGenerationAudit:
             f"action_type regardless of content, got {distinct_types}"
         )
 
-    def test_think_tick_tag_to_action_dict_is_unreachable_dead_code(self):
-        """Direct source proof: _TAG_TO_ACTION exists in autonomous_loop.py
-        but the candidate-building loop can never populate a non-empty
-        `tags` list from generate_immediate_actions()'s real output shape."""
+    def test_think_tick_no_longer_contains_the_dead_tag_mapping(self):
+        """UPDATED by R11: direct source proof that the dead _TAG_TO_ACTION
+        dict + its unreachable remap loop are GONE from _think_tick() --
+        they moved to core.brain.goal_system (see
+        test_r11_native_goal_strategy_candidates.py for proof the mapping
+        is now genuinely reachable there, not just relocated-but-still-dead)."""
         import inspect
         import core.loop.autonomous_loop as al
         src = inspect.getsource(al.AutonomousLoop._think_tick)
-        assert "_TAG_TO_ACTION" in src  # confirms the dict really exists in this method
-        assert 'tags = a.get("tags", [])' in src  # confirms it reads a key that's never set
+        assert "_TAG_TO_ACTION" not in src
+        assert 'tags = a.get("tags", [])' not in src
+        assert 'action_type=a["action_type"]' in src, (
+            "the candidate-building loop must now use generate_immediate_actions()'s "
+            "already-resolved action_type directly"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════

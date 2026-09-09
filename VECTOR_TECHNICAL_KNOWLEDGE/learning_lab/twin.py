@@ -42,7 +42,12 @@ the full write-up):
   auto_candidates_from_goals() below, each a faithful line-for-line port of
   one narrow, cited slice of that file):
     - autonomous_loop.py:1090-1126  → counterfactual_veto()
-    - autonomous_loop.py:858-878    → auto_candidates_from_goals()
+    - autonomous_loop.py:894-918    → auto_candidates_from_goals() (UPDATED
+      2026-09-09 by R11 — see that function's own comment; the goal→action
+      tag resolution it used to (faithfully, deliberately) reproduce as
+      dead code now lives, and genuinely runs, in
+      core.brain.goal_system.GoalSystem.generate_immediate_actions() —
+      this adapter is now a straight pass-through of that method's output)
 
   EXCLUDED (out of scope for "the smallest meaningful decision surface" —
   see 78_DIGITAL_TWIN_LAB.md §5 for why each is excluded):
@@ -82,46 +87,41 @@ def make_situation_hash(action_type: str, params: dict) -> str:
     return hashlib.sha256(key.encode()).hexdigest()[:12]
 
 
-# ── Adapter 1: goal actions -> real Candidates (autonomous_loop.py:832-878) ──
+# ── Adapter 1: goal actions -> real Candidates (autonomous_loop.py:894-918) ──
 #
-# Faithful port of _think_tick()'s goal→candidate translation. Deliberately
-# INCLUDES the dead _TAG_TO_ACTION lookup, because reproducing it (and
-# leaving it dead) is what makes the twin's candidate diversity match real
-# production behavior instead of a "fixed" version of it — see
-# 78_DIGITAL_TWIN_LAB.md §7 (Decision Engine / analyze_progress findings).
-_TAG_TO_ACTION = {
-    "kiit": "check_attendance", "attendance": "check_attendance",
-    "git": "git_status", "coding": "code_task", "build": "code_task",
-    "research": "daily_digest", "ml": "search_arxiv", "karpathy": "search_arxiv",
-    "learning": "search_arxiv", "finance": "monthly_report", "health": "check_fatigue",
-    "placement": "search_web", "interview": "search_web", "dsa": "search_web",
-    "memory": "consolidate", "reflection": "daily_review", "debug": "code_task",
-    "fix": "code_task", "implement": "code_task", "write_code": "code_task",
-    "code_review": "code_review_vc", "refactor": "code_task",
-}
-
-
+# UPDATED 2026-09-09 (R11 — Native Goal Strategy Candidate Generation; see
+# VECTOR_TECHNICAL_KNOWLEDGE/R11_NATIVE_GOAL_STRATEGY_CANDIDATE_GENERATION_REPORT.md):
+# this used to deliberately reproduce a dead `_TAG_TO_ACTION` lookup here
+# (per the original 78_DIGITAL_TWIN_LAB.md §7 note this comment replaces),
+# because `generate_immediate_actions()`'s own returned dicts never carried
+# a "tags" key in production at the time, so the twin's job — faithfully
+# reproducing REAL behavior, not a hand-fixed version of it — meant
+# reproducing that dead-code path too.
+#
+# R11 fixed the underlying bottleneck: `core.brain.goal_system.
+# GoalSystem.generate_immediate_actions()` now resolves each goal's own
+# tags into one or more concrete action_type strategies ITSELF (see that
+# method's docstring), so every action dict's `"action_type"` key already
+# carries the final, correct value — including, for a goal like
+# `g_daily_commit` (tags=["git","habit","coding"]), MULTIPLE distinct
+# action dicts for the ONE goal (git_status AND code_task), which is
+# exactly the genuine candidate diversity this whole lab exists to help
+# verify. Reproducing the OLD dead remap loop here would now be reproducing
+# behavior that no longer exists in production — the opposite of this
+# function's stated purpose — so it has been removed, matching the
+# equivalent, identically-motivated change in
+# `core/loop/autonomous_loop.py::_think_tick()`.
 def auto_candidates_from_goals(goal_system) -> list[CandidateSpec]:
     """Real `GoalSystem.generate_immediate_actions()` + the exact
-    autonomous_loop.py:858-878 translation into Candidate fields.
-
-    NOTE (verified by reading goal_system.py directly, 2026-09-03): the dicts
-    `generate_immediate_actions()` returns never include a "tags" key — only
-    "goal_id"/"title"/"action"/"action_type"/"urgency"/"source" — so
-    `a.get("tags", [])` below is always `[]` and `_TAG_TO_ACTION` can never
-    fire in production either. That is reproduced here verbatim, not fixed,
-    because the twin's job is to reproduce real behavior."""
+    autonomous_loop.py `_think_tick()` action-dict → Candidate-field
+    translation (now a straight 1:1 pass-through, since
+    `generate_immediate_actions()` already resolves the final action_type
+    per strategy — see the module comment above)."""
     actions = goal_system.generate_immediate_actions(limit=4)
     out: list[CandidateSpec] = []
     for a in actions:
-        tags = a.get("tags", [])
-        action_type = a["action"]
-        for tag in tags:
-            if tag in _TAG_TO_ACTION:
-                action_type = _TAG_TO_ACTION[tag]
-                break
         out.append(CandidateSpec(
-            action_type=action_type,
+            action_type=a["action_type"],
             params={"goal_id": a["goal_id"], "title": a["title"]},
             goal_ids=[a["goal_id"]],
             urgency={"high": 0.9, "medium": 0.5, "low": 0.2}.get(a.get("urgency", "low"), 0.5),

@@ -16,11 +16,86 @@ from core.config import CONFIG
 # SHORT → "research_topic" (GREEN, safe read-only query)
 # MID   → "analyze_progress" (GREEN, analysis only)
 # LONG  → "analyze_progress" (GREEN, analysis only)
+# This remains the FALLBACK for a goal whose tags map to no known strategy
+# below — every goal always gets at least this one candidate.
 GOAL_ACTION_MAP: dict[str, str] = {
     "SHORT": "research_topic",
     "MID":   "analyze_progress",
     "LONG":  "analyze_progress",
 }
+
+# R11 (Native Goal Strategy Candidate Generation) — the trustworthy subset of
+# goal tags this codebase already knows how to route to a real, concrete
+# action_type. This dict used to live in core/loop/autonomous_loop.py's
+# _think_tick(), where it was genuinely DEAD CODE: generate_immediate_actions()
+# never propagated a goal's own "tags" field into the returned action dicts,
+# so the remap loop that consumed it could never fire (see
+# VECTOR_TECHNICAL_KNOWLEDGE/R11_NATIVE_GOAL_STRATEGY_CANDIDATE_GENERATION_REPORT.md
+# for the full audit trail). It has moved here because "which action_type(s)
+# genuinely apply to this goal's content" is goal semantics (RULE 6), not
+# orchestration -- and this is the one place that can decide to propose
+# MULTIPLE distinct candidates for one goal, which a single-pass remap loop
+# structurally cannot (it can only ever replace one action_type with
+# another).
+#
+# Every VALUE below is an already-existing, already-permission-classified
+# action_type (core/config.py's PermissionConfig.green/yellow/red) with an
+# already-wired Governor route (core/city/governor.py's DISTRICT_TASK_MAP) --
+# moving this table does not invent a single new action type, permission
+# tier, or execution path. Candidate generation only ever creates OPTIONS;
+# it has no bearing on what tier an action_type is classified at.
+_TAG_TO_ACTION_TYPE: dict[str, str] = {
+    "kiit": "check_attendance", "attendance": "check_attendance",
+    "git": "git_status", "coding": "code_task", "build": "code_task",
+    "research": "daily_digest", "ml": "search_arxiv", "karpathy": "search_arxiv",
+    "learning": "search_arxiv", "finance": "monthly_report", "health": "check_fatigue",
+    "placement": "search_web", "interview": "search_web", "dsa": "search_web",
+    "memory": "consolidate", "reflection": "daily_review", "debug": "code_task",
+    "fix": "code_task", "implement": "code_task", "write_code": "code_task",
+    "code_review": "code_review_vc", "refactor": "code_task",
+}
+
+# Bounds how many distinct tag-derived strategies ONE goal can propose in a
+# single generate_immediate_actions() call, independent of the caller's own
+# `limit` (which caps the TOTAL across all goals). Protects against a goal
+# tagged with many distinct-action-type tags flooding the decision with an
+# unbounded candidate set for a single goal alone. 3 comfortably covers every
+# real PRESEEDED_GOALS case (richest today: 2 distinct types) with headroom.
+_MAX_STRATEGIES_PER_GOAL = 3
+
+
+def _tag_derived_action_types(tags) -> list[str]:
+    """Return the distinct, order-stable, KNOWN action_types this goal's own
+    tags legitimately map to via `_TAG_TO_ACTION_TYPE` -- or `[]` if none of
+    its tags are in that trustworthy table (the caller then falls back to
+    `GOAL_ACTION_MAP`).
+
+    Safety, by construction (no try/except needed for any of these):
+    - Unknown tags are silently ignored (plain dict `.get()`).
+    - Non-string / malformed / unhashable tags (a nested list or dict
+      accidentally stored as a "tag") are silently skipped via the
+      `isinstance(tag, str)` guard -- `tag in _TAG_TO_ACTION_TYPE` is never
+      attempted on anything that could raise.
+    - `tags` itself being `None`, missing, or a non-list is tolerated
+      (`tags or []`) -- iterating a stray string here only ever hits its
+      individual characters, none of which can collide with a real
+      multi-character tag key, so this degrades to "no known tags", never a
+      crash or a false match.
+    - Duplicate tags, or several different tags that map to the SAME
+      action_type, collapse to exactly ONE entry: a dict-as-ordered-set is
+      used (not a plain `set`) so the result is deterministic across runs
+      for the same goal, rather than depending on hash-randomized set
+      iteration order.
+    - Bounded to `_MAX_STRATEGIES_PER_GOAL` distinct types.
+    """
+    seen: dict[str, None] = {}
+    for tag in (tags or []):
+        if not isinstance(tag, str):
+            continue
+        action_type = _TAG_TO_ACTION_TYPE.get(tag)
+        if action_type is not None:
+            seen[action_type] = None
+    return list(seen)[:_MAX_STRATEGIES_PER_GOAL]
 
 PRESEEDED_GOALS = [
     {
@@ -213,31 +288,50 @@ class GoalSystem:
         """
         RULE 6 — Planner reads this. Not world state. Not user commands. Goals.
         Returns SHORT-horizon actions and kickstarters for stalled LONG/MID goals.
+
+        R11 (Native Goal Strategy Candidate Generation): when a goal's own
+        `tags` field maps to one or more KNOWN, legitimate action_types (via
+        `_tag_derived_action_types()` — see that function's own docstring
+        for the exact trust/safety rules), one action dict is emitted PER
+        distinct strategy — e.g. a goal tagged `["git", "coding"]` proposes
+        BOTH a `git_status` check and a `code_task`, giving DecisionEngine a
+        genuine choice instead of a single horizon-derived default. A goal
+        whose tags map to nothing known falls back to the original
+        `GOAL_ACTION_MAP` horizon default, exactly as before this change —
+        this is a strict superset of the prior behavior (every goal that
+        previously produced exactly one action dict still does, unless its
+        tags are now recognized), never a narrower one.
         """
         actions = []
 
         for goal in self.get_active_goals("SHORT"):
-            action_type = GOAL_ACTION_MAP.get("SHORT", "research_topic")
-            actions.append({
-                "goal_id": goal["id"],
-                "title": goal["title"],
-                "action": action_type,
-                "action_type": action_type,
-                "urgency": "high",
-                "source": "SHORT_goal",
-            })
+            strategies = _tag_derived_action_types(goal.get("tags")) or [
+                GOAL_ACTION_MAP.get("SHORT", "research_topic")
+            ]
+            for action_type in strategies:
+                actions.append({
+                    "goal_id": goal["id"],
+                    "title": goal["title"],
+                    "action": action_type,
+                    "action_type": action_type,
+                    "urgency": "high",
+                    "source": "SHORT_goal",
+                })
 
         for goal in self.get_active_goals():
             if goal.get("progress", 0) == 0.0 and goal["horizon"] in ("LONG", "MID"):
-                action_type = GOAL_ACTION_MAP.get(goal["horizon"], "analyze_progress")
-                actions.append({
-                    "goal_id": goal["id"],
-                    "title": f"Start: {goal['title']}",
-                    "action": action_type,
-                    "action_type": action_type,
-                    "urgency": "medium",
-                    "source": f"{goal['horizon']}_unstarter",
-                })
+                strategies = _tag_derived_action_types(goal.get("tags")) or [
+                    GOAL_ACTION_MAP.get(goal["horizon"], "analyze_progress")
+                ]
+                for action_type in strategies:
+                    actions.append({
+                        "goal_id": goal["id"],
+                        "title": f"Start: {goal['title']}",
+                        "action": action_type,
+                        "action_type": action_type,
+                        "urgency": "medium",
+                        "source": f"{goal['horizon']}_unstarter",
+                    })
 
         return actions[:limit]
 

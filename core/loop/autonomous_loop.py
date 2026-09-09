@@ -895,44 +895,26 @@ class AutonomousLoop:
         if not actions:
             return
 
-        # Map goal tags to concrete routable action types
-        _TAG_TO_ACTION = {
-            "kiit": "check_attendance",
-            "attendance": "check_attendance",
-            "git": "git_status",
-            "coding": "code_task",
-            "build": "code_task",
-            "research": "daily_digest",
-            "ml": "search_arxiv",
-            "karpathy": "search_arxiv",
-            "learning": "search_arxiv",
-            "finance": "monthly_report",
-            "health": "check_fatigue",
-            "placement": "search_web",
-            "interview": "search_web",
-            "dsa": "search_web",
-            "memory": "consolidate",
-            "reflection": "daily_review",
-            "debug": "code_task",
-            "fix": "code_task",
-            "implement": "code_task",
-            "write_code": "code_task",
-            "code_review": "code_review_vc",
-            "refactor": "code_task",
-        }
-
+        # R11 (Native Goal Strategy Candidate Generation): the tag→action_type
+        # semantic mapping that used to live here was genuinely dead code —
+        # generate_immediate_actions()'s own returned dicts never carried a
+        # "tags" key, so this loop's old `a.get("tags", [])` was always []
+        # and its remap-on-first-match logic could never fire (see
+        # VECTOR_TECHNICAL_KNOWLEDGE/R11_NATIVE_GOAL_STRATEGY_CANDIDATE_GENERATION_REPORT.md
+        # for the full audit). It has moved to
+        # core.brain.goal_system.GoalSystem.generate_immediate_actions()
+        # itself — the correct layer for goal-CONTENT semantics per RULE 6 —
+        # where it can propose SEVERAL distinct real strategies for one goal
+        # (a single first-match-wins remap loop structurally cannot). Each
+        # action dict's "action_type" here is therefore already the final,
+        # fully-resolved value (tag-derived, or the GOAL_ACTION_MAP horizon
+        # fallback); this loop's only remaining job is the existing 1:1
+        # dict → Candidate translation.
         candidates = []
         for a in actions:
-            # Derive a concrete action type from goal tags
-            tags = a.get("tags", [])
-            action_type = a["action"]  # default
-            for tag in tags:
-                if tag in _TAG_TO_ACTION:
-                    action_type = _TAG_TO_ACTION[tag]
-                    break
             candidates.append(
                 Candidate(
-                    action_type=action_type,
+                    action_type=a["action_type"],
                     params={"goal_id": a["goal_id"], "title": a["title"]},
                     goal_ids=[a["goal_id"]],
                     urgency={"high": 0.9, "medium": 0.5, "low": 0.2}.get(
