@@ -42,7 +42,12 @@ def _now_iso() -> str:
 
 
 def isolated_goal_system_with_tags(tags):
-    gs = GoalSystem()
+    # R12-H (2026-09-09): __new__ bypasses __init__'s real-DB read/write
+    # (_load_or_seed -> _merge_new_seeds -> _persist) entirely, rather than
+    # racing to override _persist/_goals after GoalSystem() has already run
+    # against the live production goal store.
+    gs = GoalSystem.__new__(GoalSystem)
+    gs._memory = None
     gs._persist = lambda: None
     gs._goals = [{
         "id": "g_e2e_trace", "title": "Commit code every day", "horizon": "SHORT",

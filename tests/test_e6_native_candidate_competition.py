@@ -129,9 +129,17 @@ class TestNativeCandidateGenerationAudit:
         """Real GoalSystem, but with persistence fully neutralized and its
         in-memory goal list replaced by test-controlled fake entries --
         NEVER writes to the real/live goal store. generate_immediate_actions()
-        itself (the method under test) is called completely for real."""
+        itself (the method under test) is called completely for real.
+
+        R12-H (2026-09-09): constructing via GoalSystem() would run __init__ ->
+        _load_or_seed() -> _merge_new_seeds() -> _persist() against the REAL
+        production goal store BEFORE this method's own overrides below ever run
+        -- safe only by accident, as long as PRESEEDED_GOALS never gains an id
+        this store doesn't already have. Bypassing __init__ via __new__ removes
+        the real-DB touch entirely rather than racing to override it after."""
         from core.brain.goal_system import GoalSystem
-        gs = GoalSystem()
+        gs = GoalSystem.__new__(GoalSystem)
+        gs._memory = None
         gs._persist = lambda: None  # safety net: no real write, ever
         gs._goals = []  # replace real loaded goals with a fully test-controlled set
         return gs

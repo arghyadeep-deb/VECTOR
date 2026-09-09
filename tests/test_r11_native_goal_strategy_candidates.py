@@ -79,8 +79,15 @@ def isolated_goal_system() -> GoalSystem:
     real/live goal store. `generate_immediate_actions()` itself (the method
     under test) runs completely for real. Matches
     tests/test_e6_native_candidate_competition.py's own established pattern
-    exactly."""
-    gs = GoalSystem()
+    exactly.
+
+    R12-H (2026-09-09): GoalSystem() would run __init__'s real-DB
+    _load_or_seed()/_merge_new_seeds()/_persist() chain before the overrides
+    below ever take effect -- safe historically only because PRESEEDED_GOALS
+    hadn't changed since this file was written. __new__ removes the real-DB
+    touch entirely instead of relying on that coincidence."""
+    gs = GoalSystem.__new__(GoalSystem)
+    gs._memory = None
     gs._persist = lambda: None
     gs._goals = []
     return gs
