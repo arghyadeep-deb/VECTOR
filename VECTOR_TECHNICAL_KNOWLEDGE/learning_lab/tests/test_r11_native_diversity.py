@@ -37,10 +37,14 @@ def test_auto_candidates_from_goals_now_yields_real_native_diversity():
 
         specs = auto_candidates_from_goals(engine._goals)
 
+        # R12 (2026-09-09): "coding" now natively contributes a second
+        # strategy of its own (read_code, alongside code_task -- see
+        # core/brain/goal_system.py's _TAG_TO_ADDITIONAL_ACTION_TYPE) --
+        # 3 distinct real strategies for this goal's real tags, up from 2.
         distinct_types = {s.action_type for s in specs}
-        assert distinct_types == {"git_status", "code_task"}, (
-            f"expected the real production path to naturally propose both a "
-            f"git_status and a code_task strategy for this goal's real tags, "
+        assert distinct_types == {"git_status", "code_task", "read_code"}, (
+            f"expected the real production path to naturally propose "
+            f"git_status, code_task, AND read_code for this goal's real tags, "
             f"got {distinct_types}"
         )
 
@@ -68,10 +72,12 @@ def test_auto_mode_scenario_end_to_end_through_the_real_twin():
     trace = twin.run(scenario)
 
     assert trace.error is None, f"twin run failed: {trace.error}"
+    # R12: "coding" alone now natively contributes 2 strategies (code_task +
+    # read_code) alongside "git" -> git_status -- 3 total, up from 2.
     generated_types = {c["action_type"] for c in trace.generated_candidates}
-    assert generated_types == {"git_status", "code_task"}
+    assert generated_types == {"git_status", "code_task", "read_code"}
     assert trace.selected_action in generated_types
-    assert len(trace.candidates) == 2
+    assert len(trace.candidates) == 3
 
 
 if __name__ == "__main__":

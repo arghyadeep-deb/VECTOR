@@ -125,10 +125,16 @@ class TestEndToEndTrace:
         non-approval / Pushover timeout produces) -- proving execution is
         stopped at the authorization boundary and never reaches the
         VectorCode bridge."""
-        gs = isolated_goal_system_with_tags(["coding"])  # -> code_task only
+        # R12 (2026-09-09): "coding" now natively produces 2 real strategies
+        # (code_task + read_code, see core/brain/goal_system.py's
+        # _TAG_TO_ADDITIONAL_ACTION_TYPE) -- this test specifically needs
+        # the RED one, so it biases the winner via confidence rather than
+        # assuming a single candidate.
+        gs = isolated_goal_system_with_tags(["coding"])
         candidates = native_candidates(gs)
-        assert len(candidates) == 1
-        assert candidates[0].action_type == "code_task"
+        assert {c.action_type for c in candidates} == {"code_task", "read_code"}
+        for c in candidates:
+            c.confidence = 0.9 if c.action_type == "code_task" else 0.1
 
         decision = await engine.evaluate(candidates)
         assert decision.winner.action_type == "code_task"

@@ -123,12 +123,17 @@ class TestEdgeCases:
         assert actions[0]["action_type"] == "check_attendance"
 
     def test_c_goal_with_multiple_valid_tags_mapping_to_distinct_types(self):
+        """R12 (2026-09-09): "coding" now legitimately contributes TWO
+        strategies of its own (code_task + read_code, see
+        _TAG_TO_ADDITIONAL_ACTION_TYPE) on top of "git"'s one -- 3 total,
+        not 2. Updated from the pre-R12 expectation of exactly {"git_status",
+        "code_task"} to reflect this real, intentional capability increase."""
         gs = isolated_goal_system()
         gs._goals.append(make_goal("g_c", "Multi tag goal", "SHORT", tags=["git", "coding"]))
         actions = gs.generate_immediate_actions(limit=10)
         distinct_types = {a["action_type"] for a in actions}
-        assert distinct_types == {"git_status", "code_task"}
-        assert len(actions) == 2  # exactly one candidate per distinct type, no duplication
+        assert distinct_types == {"git_status", "code_task", "read_code"}
+        assert len(actions) == 3  # exactly one candidate per distinct type, no duplication
 
     def test_d_duplicate_tags_collapse_to_one_candidate(self):
         gs = isolated_goal_system()
@@ -198,11 +203,19 @@ class TestEdgeCases:
         assert len(actions) == 1
 
     def test_l_goal_where_multiple_candidates_are_genuinely_applicable(self):
+        """R12 (2026-09-09): tags changed from ["git","coding","finance"] to
+        ["git","finance","kiit"] -- "coding" now itself contributes 2 types
+        (see test_c), which would collide with this test's own
+        _MAX_STRATEGIES_PER_GOAL cap and obscure its actual purpose (proving
+        that SEVERAL DIFFERENT TAGS each contribute a genuinely distinct,
+        uninterfered-with type). "kiit" is untouched by R12's new table, so
+        this keeps the original 3-distinct-tags-3-distinct-types demonstration
+        clean."""
         gs = isolated_goal_system()
-        gs._goals.append(make_goal("g_l", "Multi strategy goal", "SHORT", tags=["git", "coding", "finance"]))
+        gs._goals.append(make_goal("g_l", "Multi strategy goal", "SHORT", tags=["git", "finance", "kiit"]))
         actions = gs.generate_immediate_actions(limit=10)
         distinct_types = {a["action_type"] for a in actions}
-        assert distinct_types == {"git_status", "code_task", "monthly_report"}
+        assert distinct_types == {"git_status", "monthly_report", "check_attendance"}
 
     def test_m_duplicate_semantic_candidates_collapse(self):
         """5 different tags that ALL map to the same action_type (code_task)
@@ -242,15 +255,17 @@ class TestEdgeCases:
     def test_p_real_preseeded_goals_produce_expected_native_diversity(self):
         """Existing PRODUCTION goal objects (the owner's real PRESEEDED_GOALS
         content), not synthetic minimal dicts. g_daily_commit's real tags
-        (["git", "habit", "coding"]) are the richest real case: 2 distinct
-        known action_types (git -> git_status, coding -> git_status... wait,
-        coding -> code_task; habit is unknown -> ignored)."""
+        (["git", "habit", "coding"]) are the richest real case: git ->
+        git_status, coding -> code_task (primary) + read_code (R12's
+        additional strategy, see _TAG_TO_ADDITIONAL_ACTION_TYPE); habit is
+        unknown -> ignored. 3 distinct known action_types as of R12 (was 2
+        pre-R12) -- exactly at _MAX_STRATEGIES_PER_GOAL."""
         from core.brain.goal_system import PRESEEDED_GOALS
         gs = isolated_goal_system()
         gs._goals = [g.copy() for g in PRESEEDED_GOALS]
         actions = gs.generate_immediate_actions(limit=50)
         daily_commit_actions = [a for a in actions if a["goal_id"] == "g_daily_commit"]
-        assert {a["action_type"] for a in daily_commit_actions} == {"git_status", "code_task"}
+        assert {a["action_type"] for a in daily_commit_actions} == {"git_status", "code_task", "read_code"}
 
     def test_q_generation_uses_the_real_goal_object_shape_not_a_reimplementation(self):
         """Confirms this test file calls the REAL generate_immediate_actions()
@@ -344,7 +359,9 @@ class TestBehavioralProof:
 
         assert len(candidates) >= 2, "the real candidate generator must produce >= 2 candidates"
         distinct_types = {c.action_type for c in candidates}
-        assert distinct_types == {"git_status", "code_task"}
+        # R12: "coding" now also contributes read_code (see test_c) -- 3
+        # distinct real strategies for this goal, up from 2 pre-R12.
+        assert distinct_types == {"git_status", "code_task", "read_code"}
 
         decision = await engine.evaluate(candidates)
         assert decision.winner is not None
@@ -366,32 +383,38 @@ class TestBehavioralProof:
 
         Tags are given in "coding" (code_task) precedence for scenario A --
         with a uniform default policy_score, code_task wins the resulting
-        near-tie by ranking order, proving BOTH natively generated
-        candidates are real, scoreable, competing options, not one silently
-        dominant by construction. Scenario B then applies a poor policy
-        score specifically to code_task's own real situation_hash (computed
-        the same way DecisionEngine itself would), flipping the winner to
-        git_status."""
+        near-tie by ranking order, proving all THREE natively generated
+        candidates (R12: "coding" -> code_task + read_code, "git" ->
+        git_status) are real, scoreable, competing options, not one
+        silently dominant by construction. Scenario B applies a poor policy
+        score to BOTH of "coding"'s own real situation_hashes (code_task AND
+        read_code, computed the same way DecisionEngine itself would),
+        flipping the winner to git_status -- modeling "a real learned
+        preference against coding-derived strategies this time" rather than
+        against a single action_type in isolation, and keeping the winner
+        deterministic across 3 real candidates instead of leaving two of
+        them tied at the same default score."""
         gs = isolated_goal_system()
         goal = make_goal(
             "g_native_2", "Commit code every day", "SHORT", tags=["coding", "git"],
         )
 
         candidates_a = real_candidates_for_goal(gs, goal)
+        assert {c.action_type for c in candidates_a} == {"code_task", "read_code", "git_status"}
         decision_a = await engine.evaluate(candidates_a)
         assert decision_a.winner.action_type == "code_task", (
             "sanity check: with a uniform policy score, natively generated code_task "
             "(listed first per the goal's tag order) must win the tie"
         )
 
-        code_task_candidate = next(c for c in candidates_a if c.action_type == "code_task")
-        code_task_hash = PolicyMemory.make_situation_hash(
-            code_task_candidate.action_type, code_task_candidate.params
-        )
+        coding_derived_hashes = {
+            PolicyMemory.make_situation_hash(c.action_type, c.params)
+            for c in candidates_a if c.action_type in ("code_task", "read_code")
+        }
 
         def score_side_effect(action_type, situation_hash):
-            if action_type == "code_task" and situation_hash == code_task_hash:
-                return 0.0  # a poor learned score for this exact real situation
+            if situation_hash in coding_derived_hashes:
+                return 0.0  # a poor learned score for these exact real situations
             return 0.5
 
         engine._get_policy().get_score.side_effect = score_side_effect
@@ -400,7 +423,7 @@ class TestBehavioralProof:
         decision_b = await engine.evaluate(candidates_b)
 
         assert decision_b.winner.action_type == "git_status", (
-            "a genuine score difference must flip the winner between the SAME two "
+            "a genuine score difference must flip the winner between the SAME "
             "natively generated candidates"
         )
         assert decision_a.winner.action_type != decision_b.winner.action_type
@@ -449,17 +472,23 @@ class TestR6R7StillWork:
         )
 
     async def test_r7_provenance_assigned_to_natively_generated_candidates(self, engine):
+        """R12: ["git","coding"] now natively produces 3 candidates (was 2)
+        -- generalized to check ALL of them rather than hardcoding indices
+        [0]/[1], so this test keeps working regardless of how many
+        legitimate strategies a given tag combination produces."""
         gs = isolated_goal_system()
         goal = make_goal("g_r7_native", "Commit code every day", "SHORT", tags=["git", "coding"])
         candidates = real_candidates_for_goal(gs, goal)
-        assert len(candidates) == 2
+        assert len(candidates) == 3
         # candidate_id already assigned at construction (dataclass default_factory)
-        assert candidates[0].candidate_id != candidates[1].candidate_id
-        assert candidates[0].candidate_id and candidates[1].candidate_id
+        candidate_ids = [c.candidate_id for c in candidates]
+        assert len(set(candidate_ids)) == len(candidate_ids), "every candidate_id must be distinct"
+        assert all(candidate_ids), "every candidate must have a non-empty candidate_id"
 
         decision = await engine.evaluate(candidates)
         # every candidate in this decision shares the same decision_id
-        assert candidates[0].decision_id == candidates[1].decision_id == decision.decision_id
+        assert len({c.decision_id for c in candidates}) == 1
+        assert candidates[0].decision_id == decision.decision_id
         assert decision.decision_id.startswith("d:")
 
 

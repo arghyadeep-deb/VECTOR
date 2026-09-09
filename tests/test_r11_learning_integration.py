@@ -125,12 +125,21 @@ def _native_candidates(gs: GoalSystem) -> list[Candidate]:
 
 @pytest.mark.asyncio
 async def test_native_candidates_learning_survives_a_real_restart_and_flips_the_winner(isolated_vector_db):
+    """R12 (2026-09-09): "coding" now natively contributes TWO real
+    strategies (code_task + read_code, see core/brain/goal_system.py's
+    _TAG_TO_ADDITIONAL_ACTION_TYPE) alongside "git" -> git_status -- 3 real
+    candidates for this goal, up from 2 pre-R12. The learning write is
+    applied to BOTH of "coding"'s real situations (not just code_task
+    alone), modeling "a real learned preference against coding-derived
+    strategies this cycle" and keeping the post-restart winner
+    deterministic (git_status) rather than leaving read_code and git_status
+    tied at the default score."""
     gs = _isolated_goal_system_with_probe_goal(tags=["coding", "git"])  # code_task listed first
     e1 = _isolated_engine()
 
     # ---- 1/2/3: real native generation + real DecisionEngine, baseline ----
     baseline_candidates = _native_candidates(gs)
-    assert {c.action_type for c in baseline_candidates} == {"code_task", "git_status"}
+    assert {c.action_type for c in baseline_candidates} == {"code_task", "git_status", "read_code"}
     baseline_decision = await e1.evaluate(baseline_candidates)
     assert baseline_decision.winner.action_type == "code_task", (
         "sanity check: with no learned history, natively generated code_task "
@@ -139,16 +148,18 @@ async def test_native_candidates_learning_survives_a_real_restart_and_flips_the_
     baseline_decision_id = baseline_decision.decision_id
     baseline_candidate_ids = {c.action_type: c.candidate_id for c in baseline_candidates}
 
-    # ---- 4: a real, legitimate PolicyMemory write for code_task's REAL situation ----
-    code_task_candidate = next(c for c in baseline_candidates if c.action_type == "code_task")
+    # ---- 4: a real, legitimate PolicyMemory write for BOTH of "coding"'s REAL situations ----
+    coding_derived = [c for c in baseline_candidates if c.action_type in ("code_task", "read_code")]
     pm = e1._get_policy()
-    sit_hash = pm.make_situation_hash(code_task_candidate.action_type, code_task_candidate.params)
-    for _ in range(8):
-        pm.update_from_outcome(code_task_candidate.action_type, sit_hash, 0.02)  # consistently poor real outcome
-    score_after_learning = pm.get_score(code_task_candidate.action_type, sit_hash)
-    assert score_after_learning < PolicyMemory.DEFAULT_SCORE, (
-        "the real reward signal must have genuinely lowered code_task's learned policy score"
-    )
+    scores_after_learning: dict[str, float] = {}
+    for cand in coding_derived:
+        sit_hash = pm.make_situation_hash(cand.action_type, cand.params)
+        for _ in range(8):
+            pm.update_from_outcome(cand.action_type, sit_hash, 0.02)  # consistently poor real outcome
+        scores_after_learning[cand.action_type] = pm.get_score(cand.action_type, sit_hash)
+        assert scores_after_learning[cand.action_type] < PolicyMemory.DEFAULT_SCORE, (
+            f"the real reward signal must have genuinely lowered {cand.action_type}'s learned policy score"
+        )
 
     # ---- 5: genuine restart ----
     from core.memory.episodic import close_db_connection
@@ -158,7 +169,7 @@ async def test_native_candidates_learning_survives_a_real_restart_and_flips_the_
     gs2 = GoalSystem()  # reloads from the SAME isolated persisted store
     e2 = _isolated_engine()
     after_restart_candidates = _native_candidates(gs2)
-    assert {c.action_type for c in after_restart_candidates} == {"code_task", "git_status"}, (
+    assert {c.action_type for c in after_restart_candidates} == {"code_task", "git_status", "read_code"}, (
         "the goal itself, and its tag-derived candidate set, must survive the restart unchanged"
     )
     after_restart_decision = await e2.evaluate(after_restart_candidates)
@@ -166,25 +177,28 @@ async def test_native_candidates_learning_survives_a_real_restart_and_flips_the_
     # ---- 7: winner changed ----
     assert after_restart_decision.winner.action_type == "git_status", (
         "persistent, real PolicyMemory learning must survive a genuine restart and flip "
-        "the winner between the SAME two natively generated candidates"
+        "the winner between the SAME natively generated candidates"
     )
 
     # ---- 8a: R7 provenance -- this is a genuinely DIFFERENT decision occurrence ----
     assert after_restart_decision.decision_id != baseline_decision_id
     after_restart_candidate_ids = {c.action_type: c.candidate_id for c in after_restart_candidates}
-    assert after_restart_candidate_ids["code_task"] != baseline_candidate_ids["code_task"]
-    assert after_restart_candidate_ids["git_status"] != baseline_candidate_ids["git_status"]
+    for action_type in ("code_task", "git_status", "read_code"):
+        assert after_restart_candidate_ids[action_type] != baseline_candidate_ids[action_type]
 
-    # ---- 8b: exact persisted score value survives, not just "some" change ----
-    after_restart_code_task_candidate = next(c for c in after_restart_candidates if c.action_type == "code_task")
-    assert after_restart_code_task_candidate.policy_score == pytest.approx(score_after_learning, abs=0.01)
+    # ---- 8b: exact persisted score values survive, not just "some" change ----
+    after_restart_by_type = {c.action_type: c for c in after_restart_candidates}
+    for action_type, expected_score in scores_after_learning.items():
+        assert after_restart_by_type[action_type].policy_score == pytest.approx(expected_score, abs=0.01)
 
 
 @pytest.mark.asyncio
 async def test_control_unrelated_goal_natively_generated_candidate_is_unaffected(isolated_vector_db):
-    """Confound control: a DIFFERENT goal's natively generated code_task
-    candidate (distinct params -> distinct situation_hash) must be
-    completely unaffected by the learning applied to the probe goal above."""
+    """Confound control: a DIFFERENT goal's natively generated candidates
+    (distinct params -> distinct situation_hashes) must be completely
+    unaffected by the learning applied to the probe goal above. R12: tags
+    ["coding"] alone now natively produces 2 candidates (code_task +
+    read_code) -- both checked, not just code_task."""
     gs = GoalSystem()
     gs._goals = [{
         "id": "g_r11_unrelated_probe", "title": "An entirely unrelated goal",
@@ -195,16 +209,16 @@ async def test_control_unrelated_goal_natively_generated_candidate_is_unaffected
 
     e = _isolated_engine()
     candidates = _native_candidates(gs)
-    assert len(candidates) == 1
-    assert candidates[0].action_type == "code_task"
+    assert {c.action_type for c in candidates} == {"code_task", "read_code"}
 
     pm = e._get_policy()
-    sit_hash = pm.make_situation_hash(candidates[0].action_type, candidates[0].params)
-    score = pm.get_score(candidates[0].action_type, sit_hash)
-    assert score == PolicyMemory.DEFAULT_SCORE, (
-        "an unrelated goal's natively generated candidate must show NO learned "
-        "influence from the probe goal's own real, isolated policy history"
-    )
+    for cand in candidates:
+        sit_hash = pm.make_situation_hash(cand.action_type, cand.params)
+        score = pm.get_score(cand.action_type, sit_hash)
+        assert score == PolicyMemory.DEFAULT_SCORE, (
+            f"an unrelated goal's natively generated {cand.action_type} candidate must "
+            "show NO learned influence from the probe goal's own real, isolated policy history"
+        )
 
 
 @pytest.mark.asyncio

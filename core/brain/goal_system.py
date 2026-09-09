@@ -55,20 +55,68 @@ _TAG_TO_ACTION_TYPE: dict[str, str] = {
     "code_review": "code_review_vc", "refactor": "code_task",
 }
 
+# R12 (Native Strategy Semantics, 2026-09-09) — legitimate SECOND strategies
+# for tags that, via _TAG_TO_ACTION_TYPE alone, would collapse an entire
+# goal to exactly one action_type even when several of its tags are known
+# (e.g. a goal tagged ["coding","build"] previously produced only
+# "code_task" twice-over, not two distinct options). A separate, additive
+# table -- rather than widening _TAG_TO_ACTION_TYPE's own values from `str`
+# to `str | list[str]` -- was chosen deliberately: it makes zero changes to
+# the existing, already-adversarially-tested primary table (R11's own tests
+# assume scalar values, e.g. `set(_TAG_TO_ACTION_TYPE.values())`), and it
+# keeps "the one canonical action for this tag" (R11) structurally distinct
+# from "an additional legitimate alternative" (R12).
+#
+# Each mapping below is a genuinely DIFFERENT strategic approach to the
+# goal, not a cosmetic rephrasing of the same action -- see
+# VECTOR_TECHNICAL_KNOWLEDGE/R12_NATIVE_STRATEGY_SEMANTICS_REPORT.md
+# section 7 for the full semantic justification behind each one:
+#
+#   "coding"/"build" -> read_code: read/verify the code (GREEN, read-only,
+#     routed to the "coding" district, real handlers in
+#     districts/coding/coding_tools.py + architect_bot.py) is a genuinely
+#     distinct alternative to code_task (RED, modify/implement, routed via
+#     the VectorCode execution bridge) -- "look before touching" is a real
+#     strategic choice with different cost/risk/urgency, not a relabeling.
+#   "karpathy" -> code_task: the Karpathy playlist is explicitly a
+#     hands-on coding curriculum (districts/karpathy_lab/code_typer.py
+#     exists specifically to type along with it) -- "practice by writing
+#     code" is a real alternative to "search_arxiv" (research more before
+#     practicing), not the same action under a different name.
+#   "dsa" -> code_task: DSA interview prep fundamentally means solving
+#     problems by writing code -- "practice" is a real alternative to
+#     "search_web" (research prep material).
+#
+# Every value here, like every value in _TAG_TO_ACTION_TYPE, is an
+# already-existing, already-permission-classified, already-Governor-routed
+# action_type. No new action type, permission tier, or execution path is
+# introduced by this table.
+_TAG_TO_ADDITIONAL_ACTION_TYPE: dict[str, str] = {
+    "coding": "read_code",
+    "build": "read_code",
+    "karpathy": "code_task",
+    "dsa": "code_task",
+}
+
 # Bounds how many distinct tag-derived strategies ONE goal can propose in a
 # single generate_immediate_actions() call, independent of the caller's own
 # `limit` (which caps the TOTAL across all goals). Protects against a goal
 # tagged with many distinct-action-type tags flooding the decision with an
 # unbounded candidate set for a single goal alone. 3 comfortably covers every
-# real PRESEEDED_GOALS case (richest today: 2 distinct types) with headroom.
+# real PRESEEDED_GOALS case (richest today, post-R12: 3 distinct types, for
+# g_daily_commit's ["git","habit","coding"] -> git_status + code_task +
+# read_code) with zero headroom to spare -- widen deliberately, not by
+# accident, if a future goal legitimately needs a 4th.
 _MAX_STRATEGIES_PER_GOAL = 3
 
 
 def _tag_derived_action_types(tags) -> list[str]:
     """Return the distinct, order-stable, KNOWN action_types this goal's own
-    tags legitimately map to via `_TAG_TO_ACTION_TYPE` -- or `[]` if none of
-    its tags are in that trustworthy table (the caller then falls back to
-    `GOAL_ACTION_MAP`).
+    tags legitimately map to via `_TAG_TO_ACTION_TYPE` (the one canonical
+    action per tag) and `_TAG_TO_ADDITIONAL_ACTION_TYPE` (R12's genuinely
+    distinct second strategy for a subset of those tags) -- or `[]` if none
+    of its tags are in either trustworthy table (the caller then falls back
+    to `GOAL_ACTION_MAP`).
 
     Safety, by construction (no try/except needed for any of these):
     - Unknown tags are silently ignored (plain dict `.get()`).
@@ -81,11 +129,12 @@ def _tag_derived_action_types(tags) -> list[str]:
       individual characters, none of which can collide with a real
       multi-character tag key, so this degrades to "no known tags", never a
       crash or a false match.
-    - Duplicate tags, or several different tags that map to the SAME
-      action_type, collapse to exactly ONE entry: a dict-as-ordered-set is
-      used (not a plain `set`) so the result is deterministic across runs
-      for the same goal, rather than depending on hash-randomized set
-      iteration order.
+    - Duplicate tags, several different tags that map to the SAME
+      action_type, or a tag whose additional strategy duplicates another
+      tag's primary one, all collapse to exactly ONE entry: a
+      dict-as-ordered-set is used (not a plain `set`) so the result is
+      deterministic across runs for the same goal, rather than depending on
+      hash-randomized set iteration order.
     - Bounded to `_MAX_STRATEGIES_PER_GOAL` distinct types.
     """
     seen: dict[str, None] = {}
@@ -95,6 +144,9 @@ def _tag_derived_action_types(tags) -> list[str]:
         action_type = _TAG_TO_ACTION_TYPE.get(tag)
         if action_type is not None:
             seen[action_type] = None
+        additional = _TAG_TO_ADDITIONAL_ACTION_TYPE.get(tag)
+        if additional is not None:
+            seen[additional] = None
     return list(seen)[:_MAX_STRATEGIES_PER_GOAL]
 
 PRESEEDED_GOALS = [
