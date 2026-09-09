@@ -678,10 +678,10 @@ Starting HEAD:
 7408c4b14ca5e16a83a4bfdc46081c7fc41866d0
 
 Ending HEAD:
-<FILLED AFTER COMMIT>
+083f6d765edcd67619b3fe460493dd8b0a71420b
 
 Repository:
-<FILLED AFTER FINAL CHECK>
+CLEAN
 
 Real scenario:
 g_daily_commit-pattern goal (tags=["git","coding"]) -- git_status (GREEN) vs read_code (GREEN) vs code_task (RED, never autonomously executed)
