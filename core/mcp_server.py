@@ -211,6 +211,26 @@ def main():
         logger.warning(f"[VECTOR][mcp] SSE binding to {args.host} — NOT localhost! "
                        "Set VECTOR_MCP_API_KEY env var for auth, or use 127.0.0.1 for safety.")
 
+    # P0-D (M1c/M1d, 2026-09-09): this is unconditional and unmissable by design,
+    # not gated on transport/host. Task 60's own dedicated red-team audit already
+    # established this server exposes 14+ tools -- including db_quarantine, email
+    # deletion, and browser actions -- with NO PermissionGateway enforcement and a
+    # fail-open security wrapper (VECTOR_TECHNICAL_KNOWLEDGE/60_FINAL_PRE_EXPERIMENT_
+    # AUTONOMOUS_SIDE_EFFECT_RED_TEAM.md). This is a pre-existing, known, deliberately
+    # out-of-scope-for-remediation gap (Task 60 classified it "Class A / user-only",
+    # not reachable from the autonomous loop) -- this warning does not weaken or
+    # redesign any capability, it only makes the risk unmissable to whoever is about
+    # to actually start serving, since M1c's own audit found this reachable from a
+    # routine "does this file still work" developer invocation with no prior warning
+    # at all. See VECTOR_TECHNICAL_KNOWLEDGE/M1c_DEVELOPMENT_TEST_ISOLATION_SAFETY_
+    # AUDIT.md (finding P0-D) for the full history.
+    logger.warning(
+        "[VECTOR][mcp] Starting MCP server with UNGATED tools (no PermissionGateway "
+        "enforcement) -- includes db_quarantine, email deletion, and browser actions. "
+        "Only connect trusted clients. See Task 60's own red-team finding for the full "
+        "scope of this known, pre-existing gap."
+    )
+
     mcp = _make_server()
     logger.info(f"[VECTOR][mcp] starting transport={args.transport}")
 

@@ -133,13 +133,22 @@ class AgentRegistry:
                 )
 
             new_id = str(_uuid.uuid4())
+            # M1e (2026-09-09): spawn_successor() returns a dict blueprint by
+            # design (core/city/evolution_engine.py's own docstring + its
+            # __main__ self-test both use dict-key access) -- this call site
+            # was the one place still doing attribute access on it, which
+            # raised on every real agent death and silently downgraded every
+            # successor to a bare, capability-stripped AgentBase stub. No
+            # "health_points" key exists in the blueprint; the HP field is
+            # named "starting_hp". See
+            # VECTOR_TECHNICAL_KNOWLEDGE/M1E_DEVELOPMENT_FOUNDATION_REPORT.md.
             successor = self._instantiate_successor(
-                agent_class, agent, new_id, successor_agent.generation
+                agent_class, agent, new_id, successor_agent["generation"]
             )
-            successor.generation = successor_agent.generation
+            successor.generation = successor_agent["generation"]
             successor.district = agent.district
             successor.name = agent.name
-            successor.health_points = successor_agent.health_points
+            successor.health_points = successor_agent["starting_hp"]
             successor.model = successor._calculate_model()
             successor.capabilities = list(agent_capabilities)
             successor.inherit_ghost(ghost_data)

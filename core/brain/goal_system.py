@@ -417,7 +417,39 @@ class GoalSystem:
 
 
 if __name__ == "__main__":
+    import os
+    import tempfile
+
     sys.stdout.reconfigure(encoding="utf-8")
+
+    # R12 (2026-09-09): this self-test used to construct a real GoalSystem()
+    # and call mutating methods (update_goal_progress, add_goal) against
+    # whatever goal store VECTOR_DB_PATH resolved to -- which, without this
+    # override, is the OWNER'S REAL PRODUCTION goal store (core.config's
+    # module-level dotenv load, triggered by the `from core.config import
+    # CONFIG` at the top of this very file, already sets os.environ
+    # ["VECTOR_DB_PATH"] from .env's own real "vector_memory.db" default
+    # by the time this __main__ block runs -- an `if "VECTOR_DB_PATH" not
+    # in os.environ` guard here is therefore always false and a no-op; the
+    # override below must be UNCONDITIONAL). Running this file directly
+    # already polluted real goal data TWICE during this program (R11's own
+    # incident, and a second one caused by an earlier, insufficiently
+    # verified version of this exact guard -- see
+    # VECTOR_TECHNICAL_KNOWLEDGE/COGNITIVE_EVOLUTION_ORCHESTRATOR.md M1b
+    # for the full disclosure). Forcing an isolated DB here keeps this a
+    # REAL, unmocked end-to-end test of GoalSystem's own logic per this
+    # repo's code-style convention, without that hazard.
+    _tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    _tmp_db.close()
+    os.environ["VECTOR_DB_PATH"] = _tmp_db.name
+    os.environ["VECTOR_DB_KEY"] = "self-test-only-key-not-for-production"
+
+    from core.memory.db_utils import configured_db_path
+    assert str(configured_db_path()) == _tmp_db.name, (
+        "isolation override did not take effect -- refusing to construct "
+        "GoalSystem() against a possibly-real DB path"
+    )
+
     gs = GoalSystem()
     active = gs.get_active_goals()
     actions = gs.generate_immediate_actions()

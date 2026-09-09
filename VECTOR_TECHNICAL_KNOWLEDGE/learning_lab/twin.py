@@ -79,12 +79,23 @@ class _NullContextEngine:
 
 
 def make_situation_hash(action_type: str, params: dict) -> str:
-    """Byte-for-byte identical to DecisionEngine._make_situation_hash — kept
-    here as a free function so scenario-authoring code (PolicyUpdateSpec,
-    experiments) can compute the same hash a real Candidate would get,
-    without needing a DecisionEngine instance."""
-    key = f"{action_type}:{sorted(params.items())}"
-    return hashlib.sha256(key.encode()).hexdigest()[:12]
+    """The same hash a real Candidate's policy lookup would get, computable
+    here as a free function without needing a DecisionEngine instance.
+
+    M1e (2026-09-09): this used to be a hand-duplicated re-implementation of
+    the formula (`f"{action_type}:{sorted(params.items())}"`), which fell
+    silently out of sync when Task 89 (D2) introduced PolicyMemory's own
+    canonical `"v2:"`-prefixed hash. Every write through this lab function
+    landed under a key `DecisionEngine`'s real scoring path never looks up,
+    so `get_score()` always returned `DEFAULT_SCORE` regardless of any real
+    write -- root-caused as the cause of
+    `test_policy_reward_moves_score_in_the_expected_direction`'s failure and
+    of `level4_experiment.py`'s own "FAIL at RETRIEVAL" verdict, both
+    documented in
+    VECTOR_TECHNICAL_KNOWLEDGE/M1E_DEVELOPMENT_FOUNDATION_REPORT.md. Now
+    delegates to the real function directly, so it can never drift again."""
+    from core.memory.policy import PolicyMemory
+    return PolicyMemory.make_situation_hash(action_type, params)
 
 
 # ── Adapter 1: goal actions -> real Candidates (autonomous_loop.py:894-918) ──

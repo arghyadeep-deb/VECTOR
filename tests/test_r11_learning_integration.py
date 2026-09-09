@@ -31,28 +31,22 @@ CANDIDATES themselves coming from the real, fixed R11 generator, closing
 the exact gap E6 found: LAB (hand-built candidates) vs NATIVE (candidates
 the real production pipeline actually produces).
 
-Per .claude/rules/testing.md and this session's own established convention
-(tests/test_e1_persistent_learning.py, tests/test_r10_decision_provenance.py,
-tests/test_task89c_goal_progress.py), PolicyMemory has no db_path override —
-it always uses the shared episodic-memory singleton connection — so this
-file sets VECTOR_DB_PATH before any VECTOR import and must be run standalone,
-never mixed into a combined pytest session with other files that import
-core.memory.episodic first.
+Per .claude/rules/testing.md, PolicyMemory has no db_path override -- it
+always uses the shared episodic-memory singleton connection.
 
-Run standalone:
-    pytest tests/test_r11_learning_integration.py -v
+M1e (2026-09-09): isolation now uses the `isolated_vector_db` fixture
+(tests/conftest.py) instead of a module-level `os.environ["VECTOR_DB_PATH"]`
+assignment. The old pattern ran at pytest COLLECTION time and leaked into
+every test that ran afterward in the same process for the rest of the
+session -- root-caused in
+VECTOR_TECHNICAL_KNOWLEDGE/M1E_DEVELOPMENT_FOUNDATION_REPORT.md. This file
+can now safely run as part of a combined suite -- it no longer requires
+standalone execution.
 """
 from __future__ import annotations
 
-import os
 import sys
-import tempfile
 from pathlib import Path
-
-_TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-_TMP_DB.close()
-os.environ["VECTOR_DB_PATH"] = _TMP_DB.name
-os.environ.setdefault("VECTOR_DB_KEY", "test-only-key-not-for-production-r11")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -130,7 +124,7 @@ def _native_candidates(gs: GoalSystem) -> list[Candidate]:
 
 
 @pytest.mark.asyncio
-async def test_native_candidates_learning_survives_a_real_restart_and_flips_the_winner():
+async def test_native_candidates_learning_survives_a_real_restart_and_flips_the_winner(isolated_vector_db):
     gs = _isolated_goal_system_with_probe_goal(tags=["coding", "git"])  # code_task listed first
     e1 = _isolated_engine()
 
@@ -187,7 +181,7 @@ async def test_native_candidates_learning_survives_a_real_restart_and_flips_the_
 
 
 @pytest.mark.asyncio
-async def test_control_unrelated_goal_natively_generated_candidate_is_unaffected():
+async def test_control_unrelated_goal_natively_generated_candidate_is_unaffected(isolated_vector_db):
     """Confound control: a DIFFERENT goal's natively generated code_task
     candidate (distinct params -> distinct situation_hash) must be
     completely unaffected by the learning applied to the probe goal above."""
@@ -214,7 +208,7 @@ async def test_control_unrelated_goal_natively_generated_candidate_is_unaffected
 
 
 @pytest.mark.asyncio
-async def test_control_restart_with_no_learning_applied_does_not_flip_the_winner():
+async def test_control_restart_with_no_learning_applied_does_not_flip_the_winner(isolated_vector_db):
     """No-learning control: the exact same restart mechanics (real
     close_db_connection + reopen, natively regenerated candidates) but with
     NO PolicyMemory update applied between runs -- the winner must NOT flip,

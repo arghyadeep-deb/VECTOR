@@ -32,33 +32,28 @@ around _act_on()). This file proves that removal:
 
 Per this project's testing convention (.claude/rules/testing.md: "SQLite
 episodic_memory — use a test DB, not mocks"), this suite uses a REAL
-GoalSystem backed by an isolated temp-file SQLite DB (VECTOR_DB_PATH
-override, set before any VECTOR module import) rather than mocking
+GoalSystem backed by an isolated temp-file SQLite DB rather than mocking
 goal_system.py or episodic storage. Only unrelated heavy subsystems
 (governor.dispatch, policy memory, episodic recall/store_chain) are stubbed
 so the test exercises the real reward-computation + goal-feedback code path
 in _act_on() without triggering real district dispatch, network calls, or
 Pushover notifications.
 
-Run in isolation (NOT as part of the full suite — see Task 89 instructions):
-    pytest tests/test_task89c_goal_progress.py -v
+M1e (2026-09-09): isolation now uses the `isolated_vector_db` fixture
+(tests/conftest.py) instead of a module-level `os.environ["VECTOR_DB_PATH"]`
+assignment. The old pattern ran at pytest COLLECTION time (before any test
+executes) and leaked into every test that ran afterward in the same pytest
+process for the rest of the session, with no restoration -- root-caused as
+part of VECTOR_TECHNICAL_KNOWLEDGE/M1E_DEVELOPMENT_FOUNDATION_REPORT.md. The
+new fixture isolates per-test via `monkeypatch` (guaranteed restore) and
+resets the EpisodicMemory singleton connection on setup/teardown. This file
+can now safely run as part of a combined suite -- it no longer requires
+standalone execution.
 """
 from __future__ import annotations
 
-import os
 import sys
-import tempfile
 from pathlib import Path
-
-# --- Redirect VECTOR's memory DB to an isolated temp file BEFORE any VECTOR
-# module import touches core.memory.episodic (module-level singleton
-# connection + singleton DB key). Must happen at import time of this file,
-# and this file must be run in isolation (not mixed into a session where
-# another test module already opened the real/default DB).
-_TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-_TMP_DB.close()
-os.environ["VECTOR_DB_PATH"] = _TMP_DB.name
-os.environ.setdefault("VECTOR_DB_KEY", "test-only-key-not-for-production-task89c")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -84,7 +79,7 @@ def make_winner(action_type="test_action_89c", goal_ids=None, params=None):
 
 
 @pytest.fixture
-def loop_with_fake_governor():
+def loop_with_fake_governor(isolated_vector_db):
     """Real AutonomousLoop + real GoalSystem (temp DB). Only the governor
     dispatch (district execution), policy memory, and episodic
     recall/store_chain are stubbed — none of those are what this task
@@ -144,7 +139,7 @@ async def test_repeated_reward_never_completes_goal(loop_with_fake_governor):
 
 
 @pytest.mark.unit
-def test_explicit_update_goal_progress_still_completes():
+def test_explicit_update_goal_progress_still_completes(isolated_vector_db):
     """C6 — the pre-existing explicit (human/API) completion mechanism must
     still work exactly as before: update_goal_progress()'s unconditional
     progress>=1.0 -> status="completed" transition is untouched."""
@@ -228,7 +223,7 @@ async def test_generate_immediate_actions_not_shrunk_by_reward_processing(loop_w
 
 
 @pytest.mark.unit
-def test_historical_goal_state_read_back_unchanged():
+def test_historical_goal_state_read_back_unchanged(isolated_vector_db):
     """C3/C7 — historical progress/status values are not migrated or
     rewritten merely by loading GoalSystem again. Simulates a goal that was
     already at progress=0.076 (or completed) before this fix — that value

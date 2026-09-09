@@ -37,7 +37,12 @@ from twin import DigitalTwin, build_isolated_engine
 
 
 def _situation_hash(action_type: str, params: dict) -> str:
-    return hashlib.sha256(f"{action_type}:{sorted(params.items())}".encode()).hexdigest()[:12]
+    """M1e (2026-09-09): was a hand-duplicated, since-stale re-implementation
+    of PolicyMemory's hash formula -- see twin.py::make_situation_hash's own
+    updated docstring for the full incident this caused (this module's own
+    "FAIL at RETRIEVAL" verdict). Delegates to the real function now."""
+    from core.memory.policy import PolicyMemory
+    return PolicyMemory.make_situation_hash(action_type, params)
 
 
 @dataclass

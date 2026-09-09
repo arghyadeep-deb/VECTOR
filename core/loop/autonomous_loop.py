@@ -3222,22 +3222,115 @@ class AutonomousLoop:
         return int((datetime.datetime.now(datetime.timezone.utc) - self._start_time).total_seconds())
 
 
-async def _smoke_test() -> int:
+async def _smoke_test() -> dict:
+    """Bounded, isolated self-test (P0-A remediation — M1c/M1d, 2026-09-09).
+
+    The previous version of this self-test called the REAL
+    AutonomousLoop.run_forever() for 2 real seconds against real, unisolated
+    GoalSystem/PolicyMemory/EpisodicMemory/Governor/PermissionGateway
+    instances -- think_loop()'s immediate first tick would construct a real
+    GoalSystem and could produce a real winning candidate, meaning a real
+    GREEN-tier action (real district dispatch, real LLM calls) could
+    genuinely execute within that window. See
+    VECTOR_TECHNICAL_KNOWLEDGE/M1c_DEVELOPMENT_TEST_ISOLATION_SAFETY_AUDIT.md
+    (finding P0-A) and M1d_DEVELOPMENT_TEST_SAFETY_REMEDIATION.md for the
+    full incident/remediation history.
+
+    This version never calls run_forever()/observe_loop()/think_loop() --
+    the real tick methods are exactly what touched real stores and could
+    execute a real action, so this self-test does not exercise them at all
+    (per the "prefer a bounded isolated test over a real run_forever() path"
+    principle). It instead proves two things a REAL run would have to be
+    true for it to be a valid smoke test:
+      (1) construction is genuinely lazy -- __init__ does not eagerly touch
+          any real persistent store (every lazy-getter-backed attribute is
+          still None right after AutonomousLoop()), and start/stop toggles
+          `_running` cleanly with no tick ever invoked;
+      (2) the actual safety boundary this self-test exists to protect --
+          _act_on() genuinely stops a RED-classified candidate before any
+          execution bridge -- using a fully stubbed PermissionGateway. This
+          reuses the exact pattern already proven in
+          tests/test_r11_end_to_end_trace.py rather than reinventing it.
+    """
     loop = AutonomousLoop()
 
-    async def _stop(secs: float) -> None:
-        await asyncio.sleep(secs)
-        loop.stop()
+    # (1) No real persistent store may be eagerly constructed at __init__.
+    _lazy_attrs = (
+        "_context_engine", "_goal_system", "_decision_engine", "_governor",
+        "_gateway", "_policy", "_memory", "_red_team", "_hypothesis_engine",
+        "_ambient", "_event_bus", "_worker_pool",
+    )
+    for _attr in _lazy_attrs:
+        actual = getattr(loop, _attr, None)
+        if actual is not None:
+            raise AssertionError(
+                f"AutonomousLoop() eagerly constructed self.{_attr} = {actual!r} "
+                "at __init__ -- this self-test's isolation assumption no longer "
+                "holds; refusing to proceed rather than risk touching real state."
+            )
 
-    await asyncio.gather(loop.run_forever(), _stop(2), return_exceptions=True)
-    return loop._tick_count
+    assert loop._running is False
+    loop._running = True   # toggled directly -- no real tick method invoked
+    loop.stop()
+    assert loop._running is False
+
+    # (2) Prove a RED candidate genuinely stops before the execution bridge,
+    # with the real _act_on() code path but a fully stubbed gateway/bridge --
+    # no real GoalSystem/PolicyMemory/EpisodicMemory/Governor construction,
+    # no real LLM call, no real district dispatch.
+    from unittest.mock import AsyncMock, MagicMock
+    from core.loop.decision_engine import Candidate
+
+    fake_gateway = MagicMock()
+    fake_gateway.classify = MagicMock(return_value="RED")
+    denied_result = MagicMock()
+    denied_result.approved = False
+    denied_result.reason = "M1d smoke test -- no real approval requested"
+    fake_gateway.execute = AsyncMock(return_value=denied_result)
+    loop._gateway = fake_gateway
+
+    bridge_reached = {"value": False}
+
+    class _BridgeGuard:
+        def is_available(self):
+            bridge_reached["value"] = True  # would only be reached past the gate
+            return False
+
+    import districts.coding.vectorcode_bridge as vcb
+    original_get_bridge = vcb.get_bridge
+    vcb.get_bridge = lambda: _BridgeGuard()
+    try:
+        red_candidate = Candidate(
+            action_type="code_task",
+            params={"probe": "M1d smoke test — never executed for real"},
+            goal_ids=[],
+            urgency=0.5,
+            confidence=0.5,
+            source="smoke_test",
+        )
+        await loop._act_on(red_candidate)
+    finally:
+        vcb.get_bridge = original_get_bridge
+
+    fake_gateway.execute.assert_called_once()
+    if bridge_reached["value"]:
+        raise AssertionError(
+            "a RED action reached the code-execution bridge during this "
+            "smoke test -- the authorization boundary did not hold"
+        )
+
+    return {
+        "lazy_construction_clean": True,
+        "lifecycle_ok": True,
+        "red_action_blocked_before_bridge": True,
+    }
 
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
-    ticks = asyncio.run(_smoke_test())
-    ok = ticks >= 0
+    result = asyncio.run(_smoke_test())
+    ok = all(result.values())
     print(
-        f"✅ autonomous_loop OK — {ticks} observe ticks in 2s, started+stopped cleanly"
-        if ok else "❌ FAILED"
+        f"✅ autonomous_loop OK — isolated smoke test passed: {result}"
+        if ok else f"❌ FAILED — {result}"
     )

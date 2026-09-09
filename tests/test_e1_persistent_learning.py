@@ -31,22 +31,21 @@ running the real 5-factor formula).
 
 Per .claude/rules/testing.md, this is a real SQLite round-trip (PolicyMemory
 has no db_path override -- it always uses the shared real episodic-memory
-connection), so this file follows the same isolation convention as
-tests/test_task89c_goal_progress.py / tests/test_r10_decision_provenance.py:
-VECTOR_DB_PATH is set before any VECTOR import, and this file must be run
-standalone.
+connection).
+
+M1e (2026-09-09): isolation now uses the `isolated_vector_db` fixture
+(tests/conftest.py) instead of a module-level `os.environ["VECTOR_DB_PATH"]`
+assignment. The old pattern ran at pytest COLLECTION time and leaked into
+every test that ran afterward in the same process for the rest of the
+session -- root-caused in
+VECTOR_TECHNICAL_KNOWLEDGE/M1E_DEVELOPMENT_FOUNDATION_REPORT.md. This file
+can now safely run as part of a combined suite -- it no longer requires
+standalone execution.
 """
 from __future__ import annotations
 
-import os
 import sys
-import tempfile
 from pathlib import Path
-
-_TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-_TMP_DB.close()
-os.environ["VECTOR_DB_PATH"] = _TMP_DB.name
-os.environ.setdefault("VECTOR_DB_KEY", "test-only-key-not-for-production-e1")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -84,7 +83,7 @@ def _isolated_engine() -> DecisionEngine:
 
 
 @pytest.mark.asyncio
-async def test_e1_experience_causes_persistent_behavior_change_across_restart():
+async def test_e1_experience_causes_persistent_behavior_change_across_restart(isolated_vector_db):
     action_a = "e1_action_a"
     action_b = "e1_action_b"
     params = {}
@@ -138,7 +137,7 @@ async def test_e1_experience_causes_persistent_behavior_change_across_restart():
 
 
 @pytest.mark.asyncio
-async def test_e1_control_unrelated_situation_unaffected():
+async def test_e1_control_unrelated_situation_unaffected(isolated_vector_db):
     """Control: the bad-outcome learning for e1_action_a/params={} must not
     leak into an unrelated action_type or unrelated params."""
     e = _isolated_engine()
@@ -155,7 +154,7 @@ async def test_e1_control_unrelated_situation_unaffected():
 
 
 @pytest.mark.asyncio
-async def test_e1_control_duplicate_update_averages_not_amplifies():
+async def test_e1_control_duplicate_update_averages_not_amplifies(isolated_vector_db):
     """Control: repeating the SAME reward value N times converges to that
     value (a real online average), it does not runaway/amplify beyond the
     real reward's own magnitude."""
@@ -173,7 +172,7 @@ async def test_e1_control_duplicate_update_averages_not_amplifies():
 
 
 @pytest.mark.asyncio
-async def test_e1_control_old_update_still_counts_correctly_after_restart():
+async def test_e1_control_old_update_still_counts_correctly_after_restart(isolated_vector_db):
     """Control: an update recorded BEFORE the simulated restart is not lost
     or double-counted -- the average across the full real history remains
     mathematically correct after reopening."""

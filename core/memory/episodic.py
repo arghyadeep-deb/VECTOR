@@ -1438,7 +1438,43 @@ class EpisodicMemory:
         logger.info("Episodic memory connection closed")
 
 if __name__ == '__main__':
+    import tempfile
+
     sys.stdout.reconfigure(encoding="utf-8")
+
+    # P0-B remediation (M1c/M1d, 2026-09-09): this self-test used to
+    # construct a real EpisodicMemory() with no isolation at all -- not even
+    # a broken guard -- and its store()/remember()/store_chain() calls below
+    # ran for real: overwriting the real "owner_name" semantic-memory fact
+    # with a hardcoded value, inserting a fabricated "Checked KIIT
+    # attendance" episodic row, and writing fabricated content into
+    # `reasoning_chains` -- one of the five memory tables
+    # .claude/rules/memory.md documents as becoming REAL LLM training data
+    # and marks "never touch". See
+    # VECTOR_TECHNICAL_KNOWLEDGE/M1c_DEVELOPMENT_TEST_ISOLATION_SAFETY_AUDIT.md
+    # (finding P0-B) for the full history.
+    #
+    # This self-test still needs a REAL EpisodicMemory instance (it exists
+    # to test this module's own logic, so mocking would defeat its purpose)
+    # -- but now against an explicit, disposable temp DB, following the same
+    # unconditional-override + hard-assert-before-construction pattern
+    # established in core/brain/goal_system.py's own P0 fix (a conditional
+    # "if not already set" guard is NOT safe here: core.config's
+    # module-level dotenv load, triggered by the `from core.config import
+    # CONFIG` at the top of this file, already sets os.environ
+    # ["VECTOR_DB_PATH"] from .env's real production default before this
+    # block ever runs).
+    _tmp_db = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+    _tmp_db.close()
+    os.environ["VECTOR_DB_PATH"] = _tmp_db.name
+    os.environ["VECTOR_DB_KEY"] = "self-test-only-key-not-for-production"
+
+    from core.memory.db_utils import configured_db_path
+    assert str(configured_db_path()) == _tmp_db.name, (
+        "isolation override did not take effect -- refusing to construct "
+        "EpisodicMemory() against a possibly-real DB path"
+    )
+
     mem = EpisodicMemory()
     id1 = mem.store('test', 'VECTOR started for first time', ['init','test'])
     id2 = mem.store('task', 'Checked KIIT attendance', ['kiit','attendance'])

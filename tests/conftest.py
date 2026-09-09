@@ -69,3 +69,57 @@ def _reset_permission_gateway_singleton():
         PermissionGateway._shared = None
     except Exception:
         pass
+
+
+@pytest.fixture
+def isolated_vector_db(tmp_path, monkeypatch):
+    """M1e (2026-09-09): correct, reusable per-test VECTOR_DB_PATH isolation.
+
+    Use this instead of setting `os.environ["VECTOR_DB_PATH"]` at module level.
+    Module-level sets run once at COLLECTION time -- pytest imports every
+    specified test module before running any test in any of them -- so a
+    module-level override leaks into every test that runs afterward in the
+    same process, for the rest of the session, regardless of file-listing
+    order. This is the confirmed root cause of a severe cross-suite
+    regression documented in
+    VECTOR_TECHNICAL_KNOWLEDGE/M1d_DEVELOPMENT_TEST_SAFETY_REMEDIATION.md
+    (the reverted P0-C attempt) and independently root-caused again in
+    VECTOR_TECHNICAL_KNOWLEDGE/M1E_DEVELOPMENT_FOUNDATION_REPORT.md.
+
+    This fixture instead sets the override via `monkeypatch` at TEST-RUN time
+    (inside setup/teardown, not collection) -- monkeypatch guarantees the
+    original value is restored after the test regardless of pass/fail/error,
+    immune to collection-order effects entirely.
+
+    It also resets `core.memory.episodic`'s process-wide singleton DB
+    connection (`close_db_connection()`, which clears both the connection and
+    the cached encryption key) on both setup and teardown -- required because
+    `EpisodicMemory`'s singleton caches its connection on FIRST use in the
+    process; without this reset, a later `VECTOR_DB_PATH` change has no
+    effect on an already-open connection, silently defeating isolation for
+    any test that runs after another test (or the leaking pattern above) has
+    already opened a connection.
+
+    Adopted by: tests/test_e1_persistent_learning.py,
+    tests/test_r10_decision_provenance.py,
+    tests/test_task89c_goal_progress.py,
+    tests/test_r11_learning_integration.py.
+
+    Does NOT isolate EpistemicTracker/CounterfactualMemory (they ignore
+    VECTOR_DB_PATH entirely -- isolate those separately via their own
+    explicit `db_path=` constructor kwarg).
+    """
+    import core.memory.episodic as ep
+
+    db_path = str(tmp_path / "isolated_vector.db")
+    monkeypatch.setenv("VECTOR_DB_PATH", db_path)
+    monkeypatch.setenv("VECTOR_DB_KEY", "isolated-test-key-not-for-production")
+    try:
+        ep.close_db_connection()
+    except Exception:
+        pass
+    yield db_path
+    try:
+        ep.close_db_connection()
+    except Exception:
+        pass

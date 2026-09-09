@@ -26,20 +26,20 @@ Per .claude/rules/testing.md ("SQLite episodic_memory -- use a test DB, not
 mocks"), this is a genuine SQLite round-trip against real tables, not an
 assertion about mock call arguments.
 
-Run standalone:
-    pytest tests/test_r10_decision_provenance.py -v
+M1e (2026-09-09): isolation now uses the `isolated_vector_db` fixture
+(tests/conftest.py) instead of a module-level `os.environ["VECTOR_DB_PATH"]`
+assignment. The old pattern ran at pytest COLLECTION time and leaked into
+every test that ran afterward in the same process for the rest of the
+session -- root-caused in
+VECTOR_TECHNICAL_KNOWLEDGE/M1E_DEVELOPMENT_FOUNDATION_REPORT.md. This file
+can now safely run as part of a combined suite -- it no longer requires
+standalone execution.
 """
 from __future__ import annotations
 
-import os
 import sys
 import tempfile
 from pathlib import Path
-
-_TMP_DB = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
-_TMP_DB.close()
-os.environ["VECTOR_DB_PATH"] = _TMP_DB.name
-os.environ.setdefault("VECTOR_DB_KEY", "test-only-key-not-for-production-r10")
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -76,7 +76,7 @@ def _query_reasoning_chains(like_pattern: str) -> list[tuple]:
 
 
 @pytest.fixture
-def loop_with_fakes():
+def loop_with_fakes(isolated_vector_db):
     """Real AutonomousLoop._act_on() + REAL EpisodicMemory (isolated temp
     db) + REAL DecisionEngine.evaluate(). Only Governor/PolicyMemory are
     stubbed -- neither is part of what R10 is proving."""
