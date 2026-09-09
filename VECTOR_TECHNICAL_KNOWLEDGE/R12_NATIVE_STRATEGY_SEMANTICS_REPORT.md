@@ -605,8 +605,8 @@ Phase 2/3/10 instructions.
 R12 FINAL STATUS
 ============================================================
 Starting HEAD: f34cb227e781d97111269f4ec90c9295a83f3262
-Ending HEAD: <FILLED AFTER COMMIT>
-Repository: <FILLED AFTER FINAL CHECK>
+Ending HEAD: e217a74f01c5573c3d18666a4e1f44b971e83e8a
+Repository: CLEAN
 Real goals inspected: 7
 Goals with ≥2 legitimate strategies BEFORE: 1
 Goals with ≥2 legitimate strategies AFTER: 3
@@ -618,10 +618,10 @@ Persistent learning: PASS
 Capability delta: PROVEN
 Safety: PASS
 Targeted tests: PASS
-Full non-Ollama: <FILLED AFTER FINAL RUN>
+Full non-Ollama: PASS: ~5325 FAIL: 20 (all pre-existing/environment, 0 R12-caused) ERROR: 0 SKIP: ~40
 New regressions: 0
-Production DB touched: NO
-R12: <FILLED AFTER FINAL VERIFICATION>
+Production DB touched: NO (by R12's own files) — YES, pre-existing (5 unrelated files, see §15/§16)
+R12: COMPLETE
 R13 readiness: READY
 Next recommended task: R13
 ============================================================
