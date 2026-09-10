@@ -15,13 +15,13 @@ worktree, R14 lineage intact, no active VECTOR/autonomous-loop process (see
 
 ## 2. Ending HEAD
 
-`<FILLED AFTER COMMIT>`
+`a60ccae08b08f864ff711618aa7c7d7afd9d6a09`
 
 ---
 
 ## 3. Repository State
 
-`<FILLED AFTER FINAL CHECK>` — expected CLEAN.
+CLEAN
 
 ---
 
@@ -391,10 +391,10 @@ Starting HEAD:
 589f6039afddf8bb8eb260f11114bd7120893ea8
 
 Ending HEAD:
-<FILLED AFTER COMMIT>
+a60ccae08b08f864ff711618aa7c7d7afd9d6a09
 
 Repository:
-<FILLED AFTER FINAL CHECK>
+CLEAN
 
 R15:
 PROVEN
