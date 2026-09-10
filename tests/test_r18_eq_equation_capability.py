@@ -586,9 +586,11 @@ class TestProductionDBSafety:
             "districts/startups/idea_validator.py", "tests/test_r18_eq_equation_capability.py",
             "tests/test_r12_native_strategy_semantics.py",
             "VECTOR_TECHNICAL_KNOWLEDGE/R18_EQ_EQUATION_CAPABILITY_REPORT.md",
-            # R19 (in progress) -- see VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md
+            # R19 (committed 1b7c4f395) + R20 (in progress) -- see
+            # VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md
             "core/loop/permission_gateway.py", "core/runtime/plans.py",
             "tests/test_r19_capability_composition.py",
+            "tests/test_r20_autonomous_adaptation.py",
             "VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_ORCHESTRATOR_LEDGER.md",
             "VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md",
         }
