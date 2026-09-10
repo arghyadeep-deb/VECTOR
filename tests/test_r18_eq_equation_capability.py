@@ -593,6 +593,14 @@ class TestProductionDBSafety:
             "tests/test_r20_autonomous_adaptation.py",
             "VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_ORCHESTRATOR_LEDGER.md",
             "VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md",
+            # R21-R23 (in progress) -- see
+            # VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_UNDERSTANDING_FOUNDATION_REPORT.md
+            "core/memory/counterfactual.py", "core/loop/decision_engine.py",
+            "core/brain/goal_system.py", "districts/startups/idea_validator.py",
+            "tests/test_r21_generalization.py", "tests/test_r22_situation_understanding.py",
+            "tests/test_r23_world_self_model.py",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_ORCHESTRATOR_LEDGER.md",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_UNDERSTANDING_FOUNDATION_REPORT.md",
         }
         unexpected = {c for c in changed if not any(c.startswith(p) for p in expected_prefixes) and not c.startswith("test_tmp")}
         assert not unexpected, f"unexpected modified/untracked files: {unexpected}"

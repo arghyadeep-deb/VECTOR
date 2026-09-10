@@ -218,18 +218,50 @@ class CounterfactualMemory:
         return rid
 
     def get_similar_rejections(self, proposal: str, limit: int = 5,
-                               decay_days: float = 7.0) -> list[dict]:
+                               decay_days: float = 7.0,
+                               scope_to_action_type: bool = True) -> list[dict]:
         """T4: rejections are staleness-decayed — a rejection's match score is
         weighted by exp(-age/decay_days), so old/spurious rejections fade and
         stop blocking similar valid actions forever. Results are ranked by the
-        decayed score; the raw row is returned (caller can inspect created_at)."""
+        decayed score; the raw row is returned (caller can inspect created_at).
+
+        R21 (2026-09-10): `scope_to_action_type` (default True — the safe
+        default every existing caller now gets without needing to opt in)
+        restricts matching to rejections whose OWN stored proposal starts
+        with the same action_type as `proposal`. Before this, the underlying
+        query was a completely unscoped `SELECT * FROM rejections` compared
+        by raw token-Jaccard against every rejection ever recorded, for any
+        goal, any action_type. Every real proposal in this codebase is built
+        as `f"{action_type} {json.dumps(params)}"` (autonomous_loop.py's
+        `_act_on()`/`_record_external_rejection()`), so two DIFFERENT
+        action_types sharing a similar params shape (e.g. the same "topic"/
+        "duration_min" keys) could Jaccard-match at a high score purely by
+        JSON-structure coincidence, even though the actions themselves are
+        unrelated -- confirmed empirically: two real proposals differing
+        ONLY in action_type ("script" vs "idea_validate", identical params)
+        scored 0.75, comfortably above the 0.7 veto threshold `_act_on()`
+        actually uses. This is the real, pre-existing cross-action-type
+        contamination gap identified during R21's own read-only safety
+        audit (see VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_UNDERSTANDING_
+        FOUNDATION_REPORT.md) -- generalization within the SAME action_type
+        (a genuinely related, materially-different situation) is preserved
+        and is exactly what real transfer should do; generalization ACROSS
+        unrelated action_types was never a deliberate design decision and is
+        now closed by default. Pass `scope_to_action_type=False` only for a
+        deliberate, explicit cross-action-type query (no real production
+        caller does this today)."""
         try:
+            target_action_type = proposal.split(" ", 1)[0].strip().lower() if scope_to_action_type else None
             with self._lock:
                 rows = self._conn.execute(
                     "SELECT * FROM rejections ORDER BY created_at DESC"
                 ).fetchall()
             scored = []
             for row in rows:
+                if target_action_type is not None:
+                    row_action_type = (row["proposal"] or "").split(" ", 1)[0].strip().lower()
+                    if row_action_type != target_action_type:
+                        continue
                 sim = _jaccard(proposal, row["proposal"])
                 if sim > 0.15:
                     decayed = sim * _decay_factor(row["created_at"], decay_days)
@@ -241,7 +273,8 @@ class CounterfactualMemory:
             return []
 
     def should_avoid(self, proposal: str, threshold: float = 0.4,
-                     decay_days: float = 7.0) -> tuple[bool, float, str]:
+                     decay_days: float = 7.0,
+                     scope_to_action_type: bool = True) -> tuple[bool, float, str]:
         """
         Returns (should_avoid, confidence, reason).
         True if a similar proposal was previously rejected with high similarity.
@@ -250,8 +283,14 @@ class CounterfactualMemory:
         near the threshold blocks, but the same rejection weeks old does not.
         A spurious rejection during a provider failure (T9) therefore stops
         poisoning the action after ~3-4 half-lives (decay_days default 7).
+
+        R21: `scope_to_action_type` (default True) — see
+        `get_similar_rejections()`'s own docstring for the real
+        cross-action-type contamination this closes by default.
         """
-        similar = self.get_similar_rejections(proposal, limit=3, decay_days=decay_days)
+        similar = self.get_similar_rejections(
+            proposal, limit=3, decay_days=decay_days, scope_to_action_type=scope_to_action_type,
+        )
         if not similar:
             return False, 0.0, ""
         best = similar[0]

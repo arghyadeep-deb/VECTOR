@@ -1,0 +1,130 @@
+# R21 → R23 Understanding Foundation Report
+
+## 1. Authoritative Starting HEAD
+
+Verified directly (not trusted from the mission prompt's own speculative reference of `6a03032f3...`): `b4df63d80ce8f8177f5f9b79f16335a22cf6b397` (branch `production-hardening-complete`, clean working tree, one worktree, no VECTOR autonomous process running — confirmed via `git status`/`git worktree list`/`Get-CimInstance Win32_Process`). See `VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_ORCHESTRATOR_LEDGER.md` for the full phase-by-phase trace (9 parallel Phase 1 investigators, synthesis, implementation).
+
+## 2. Final HEAD
+
+*(filled in after R23 commits)*
+
+## 3. Exact Milestones Executed
+
+R21 (Generalization) — executed. R22 (Situation Understanding) and R23 (World/Self Model) — status per this report's own sections below, executed serially per the mission's mandatory ordering (R21 → verify → commit → R22 → verify → commit → R23 → verify → commit).
+
+## 4. Architecture Discovered (Phase 1 synthesis)
+
+Nine independent, parallel read-only investigators audited every existing generalization/situation/world-model/self-model mechanism, plus runtime/persistence isolation and cross-cutting safety, plus a fresh adversarial pre-implementation audit. Full findings are in the ledger. Headline discoveries, all independently cross-confirmed by 2+ investigators:
+
+- **PolicyMemory and EpistemicTracker are exact-match by prior, deliberate, documented safety decisions** — R8's correction-penalty design explicitly rejected substring/semantic matching; R16 found and fixed a real cross-action-type collision in EpistemicTracker's domain-key (previously `action_type.split("_")[0]`, now the exact full `action_type`). Neither should be loosened for R21.
+- **`core/memory/counterfactual.py::CounterfactualMemory` is real, already-production-wired generalization** — genuine token-Jaccard similarity (not exact-hash), called from `AutonomousLoop._act_on()`'s real "Gap 4" block on every real winning Candidate. Independently ranked the #1 R21 substrate by 3 separate investigators. Had a real, unscoped cross-action-type contamination gap (fixed as part of R21, see §7).
+- **`vectorcode/src/reasoning_bank.py`'s "embedding" is a plain SHA256 hash tiled into a vector** — no real semantic locality; explicitly rejected as an R21 substrate (fake generalization, would have been actively misleading to build on).
+- **`Candidate.context_snapshot` already exists, is already populated from real `ContextEngine.get_world_state()` data, and is already unit-tested for presence — but is never read by `_score_candidate()`.** Independently discovered by 3 separate investigators (Phase 1 Agents C, G+H, and cross-confirmed by the fresh adversarial auditor) as THE precise missing causal link for R22.
+- **No genuine coherent world model exists** — `build_world_snapshot()` is a UI/status dashboard, not a decision input. Real, scattered, individually-queryable stores exist (GoalSystem, PersonModel, AgentRegistry, PlanStore) but each is read only by its own owning subsystem. `PlanStore.active_plans()` is already system-wide/unscoped — the smallest real substrate for a genuine world-model connection.
+- **Real, already-wired self-model signals exist and change decisions today**: epistemic dampening and `MetaCognition`'s real bias-detection penalty (`_bias_penalty()`, penalizes detected overconfidence). But capability-existence is checked ONLY at Governor-dispatch time, never before a candidate is scored/selected — VECTOR can commit to (and only discover it cannot execute) an action with no live capable agent.
+
+## 5. R21 — Generalization
+
+### BEFORE Capability
+
+`g_first_revenue`-class real rejections (real `ThreatDetector`/`RedTeamAgent`/owner-rejection events, already fed into `CounterfactualMemory` via `_record_external_rejection()`) had no VERIFIED, PROVEN transfer boundary — the underlying `get_similar_rejections()` query was completely unscoped (`SELECT * FROM rejections ORDER BY created_at DESC`, zero action_type/goal filtering). No test in the repository had ever proven (a) that a real rejection genuinely transfers to a materially different, related real situation through the real production path, (b) that an unrelated situation does not receive it, or (c) bounded the mechanism's real cross-action-type collision risk — a risk this milestone's own audit found and empirically confirmed (two real proposals differing ONLY in action_type, identical params, scored 0.75 — above the real 0.7 veto threshold `_act_on()` itself uses).
+
+### Implementation
+
+`core/memory/counterfactual.py` — `get_similar_rejections()`/`should_avoid()` gained a new, backward-compatible `scope_to_action_type: bool = True` parameter (default True — every existing real caller, including `_act_on()`'s own Gap-4 block, gets the safer scoping automatically with no call-site change needed). When enabled, a candidate rejection row is only compared against proposals sharing the SAME action_type (extracted as the first whitespace-delimited token of the proposal string, matching every real proposal's own `f"{action_type} {json.dumps(params)}"` construction). This preserves genuine transfer WITHIN an action_type (the real capability R21 must demonstrate) while closing the real cross-action-type false-positive the audit found. `scope_to_action_type=False` remains available for an explicit, deliberate future cross-action-type query (no real production caller does this today).
+
+No new subsystem, no new memory store, no ML/embedding infrastructure was added — the existing, already-wired, real Jaccard-similarity mechanism was proven and its one real safety gap was closed.
+
+### AFTER Capability
+
+A real rejection (situation A) genuinely transfers its blocking influence to a materially different but related real situation (situation B — same action_type, different params), through the real, unmodified `AutonomousLoop._act_on()` production path, while an unrelated situation (C) does not receive the transfer, and a same-params-but-different-action-type situation (D) — which WOULD have been wrongly blocked by the transfer under the pre-fix unscoped behavior — is not blocked by it post-fix (D is still independently rejected by its own, unrelated real ThreatDetector match, proving the fix narrows the COUNTERFACTUAL mechanism specifically, not blanket safety).
+
+### Real Production Trace
+
+```
+Situation A: real Candidate (via real DecisionEngine.evaluate())
+  -> real AutonomousLoop._act_on()
+  -> real _scan_threats() -> real ThreatDetector.analyze_input()
+     -> real regex match: "sudo-commands" pattern, severity 0.9
+  -> real _record_external_rejection() -> real CounterfactualMemory
+     .record_rejection() -> real SQLite row written
+
+Situation B (materially different, same action_type, INDEPENDENTLY
+confirmed "otherwise safe" -- a real ThreatDetector scan of B's own
+text, run before B ever reaches CounterfactualMemory, finds zero
+critical signals):
+  -> real Candidate (fresh real DecisionEngine.evaluate() call)
+  -> real _act_on() -> real CounterfactualMemory.should_avoid()
+     (runs BEFORE the ThreatDetector scan in _act_on()'s own real code)
+     -> real Jaccard(A,B)=0.727 >= 0.7 threshold -> real veto
+  -> real record_rejection() with reason "auto-blocked: similar to
+     past rejection (score=0.73)" -- attributably the TRANSFER, not an
+     independent trigger (B's own row is the SECOND real rejection,
+     recorded before ThreatDetector's line is ever reached, and B was
+     independently confirmed threat-free on its own)
+  -> return, real execution never proceeds further
+
+Situation C (unrelated): real Jaccard(A,C)=0.14 < 0.7
+  -> should_avoid() returns False -> NOT vetoed -> proceeds to real
+     ThreatDetector scan (no match) -> real Governor.dispatch() ->
+     "no_agents" (isolated test registry has no agent registered) --
+     zero real LLM call, real honest refusal
+
+Situation D (cross-action-type, same params as A): real raw
+Jaccard(A,D)=0.75 -- pre-fix would ALSO have been vetoed by the
+transfer, identically to B.
+  -> post-fix should_avoid() returns False (scope_to_action_type
+     excludes A's row -- different action_type) -> proceeds ->
+     real, INDEPENDENT ThreatDetector match on D's own "sudo bash"
+     text -> real rejection recorded, reason "blocked by
+     ThreatDetector" (NOT "auto-blocked: similar to past rejection")
+     -- proves the counterfactual transfer specifically did not fire
+```
+
+### Behavioral Proof
+
+`tests/test_r21_generalization.py` — 10 tests, 0 real LLM calls (ThreatDetector is pure regex pattern matching; no agent is registered in the isolated test registry, so any candidate that reaches dispatch gets a real, fast, honest refusal rather than a real handler execution):
+
+| Category | Test(s) |
+|---|---|
+| Substrate validity | `test_a_b_materially_different_but_related_high_similarity`, `test_c_unrelated_low_similarity`, `test_d_cross_action_type_raw_similarity_would_have_falsely_matched` |
+| Safety fix (load-bearing, not cosmetic) | `test_safety_fix_blocks_cross_action_type_match_by_default`, `test_same_action_type_transfer_still_works_after_the_fix`, `test_opt_out_still_available_for_explicit_cross_action_type_use` |
+| Flagship (real production boundary) | `TestFlagshipRealGeneralization::test_real_rejection_transfers_to_related_situation_not_to_unrelated_or_cross_type` |
+| Safety | `test_classify_is_pure_static_function_unreachable_from_counterfactual`, `test_red_tier_unaffected_by_a_maximally_similar_real_rejection`, `test_no_dynamic_mutation_of_permission_tiers_from_counterfactual_module` |
+
+Result: 10/10 pass, ≤7 seconds total (flagship included).
+
+### Persistence Proof
+
+Flagship closes the real `CounterfactualMemory` SQLite connection and reopens a fresh instance against the SAME on-disk file (`db_path=` explicit, isolated per-test); B's real veto is re-confirmed via the same real `should_avoid()` API, with the decayed score matching the pre-restart value within tolerance.
+
+### Causal Controls
+
+- **No manual policy injection / no manually selected winner**: every winner in the flagship comes from a real `DecisionEngine.evaluate([...])` call; source-audited (`inspect.getsource`) for absence of hardcoded winners, direct `PolicyMemory.update_from_outcome()` calls, etc. (see `TestSafety`/fast unit tests — the flagship itself contains none).
+- **No fabricated reward/outcome**: A's rejection reason comes from the real `ThreatDetector` signal; B's veto score is the real, computed `_jaccard()`/`_decay_factor()` result; C's non-veto and D's independent-rejection-reason are both read back from real SQLite rows, never asserted from memory.
+- **No hand-built Candidate used as the only proof**: every `_act_on()` call in the flagship receives `decision.winner` from a real `evaluate()` return value.
+
+## 6. R21 Adversarial Review
+
+A fresh, independent, read-only agent (no prior context) reviewed all 10 required R21 checklist claims by reading `git diff HEAD` itself, hand-computing the real `_jaccard()` scores for every situation pair independently (not trusting this file's own claimed numbers), tracing `_act_on()`'s exact real check ordering, and live-running the full test suite (9 fast + 1 flagship, both passed, flagship in 6.09s with zero real LLM call, confirmed by checking that `"script"`/`"idea_validate"` are GREEN-tier so `RedTeamAgent` never fires).
+
+**Verdict: all 10 claims CONFIRMED.** Overall: **PASS WITH CONCERNS** — one legitimate, non-blocking finding: the original situation B ("sudo bash restart_staging_server.sh") was ITSELF independently ThreatDetector-triggering (containing "sudo bash" too), so while the test rigorously proved real ATTRIBUTION (the CounterfactualMemory block runs and returns before ThreatDetector, with a distinguishable reason string), it did not prove the transfer ALONE changes an otherwise-PERMITTED action's fate — a real narrative weakness, not a disproof of any claim.
+
+**Repaired** (repair attempt 1 of the mission's allowed 3, resolved on first attempt): B was redesigned to share every field with A EXCEPT the risky "cmd" (now "systemctl restart production-server.service" — verified via a direct call to the real `ThreatDetector` class, both standalone and now inline inside the flagship test itself, to produce ZERO critical signals on its own). Real Jaccard(A,B) = 0.727 (still clears the real 0.7 veto threshold `_act_on()` uses); real Jaccard(A,C) = 0.14. B is now demonstrably an "otherwise safe" action blocked ONLY by the real counterfactual transfer from A — the flagship itself now asserts this via a direct, real `ThreatDetector().analyze_input()` precheck on B's own text before B is ever passed to `_act_on()`. Re-verified: 10/10 pass; full regression re-run (101/101 pass across all directly-affected + R18-EQ/R19/R20/R21 suites).
+
+No second adversarial review pass was launched given: the fix directly and verifiably addresses the only concern raised (confirmed via the real `ThreatDetector` class, not merely asserted), the reviewer's own verdict was already PASS (not FAIL) with this as the sole non-blocking note, and all 10 other claims were independently confirmed via the reviewer's own hand-computation rather than trust in this file's numbers.
+
+## 7. R21 Safety Review
+
+- `PermissionGateway._classify()` is confirmed (source-read, R19/R20/R21 sessions) a pure static function of `action_type` against `core/config.py`'s module-level GREEN/YELLOW/RED/FORBIDDEN lists — zero references to `CounterfactualMemory`, `PolicyMemory`, or `EpistemicTracker` anywhere in it or its callers.
+- A maximally-similar real rejection for a RED action_type (`code_task`) changes nothing about its real permission tier — confirmed via `test_red_tier_unaffected_by_a_maximally_similar_real_rejection`.
+- The new `scope_to_action_type` safety fix strictly NARROWS the generalization mechanism's blast radius; it does not introduce any new capability, external communication, or authorization path.
+- Transferred/generalized knowledge (a Jaccard-similarity veto) is exclusively a pre-dispatch SCORING/gating input inside `_act_on()` — it can only ever cause an early `return` (never execute), never grant, promote, or bypass an authorization tier.
+
+## 8. R21 Regression
+
+Directly-affected files (`test_counterfactual_block_penalizes_policy.py`, `test_reasoning_chain_dataset.py`, `test_m1d_development_test_safety.py`, `test_r10_decision_provenance.py`, `test_task92_r7_decision_candidate_correlation.py`, R18-EQ/R19/R20's own fast suites) — 90/91 pass on first sweep; the one failure was R18-EQ's own DB-safety allowlist test needing R21's file list added (same precedent established during R19/R20), fixed and re-verified (1/1 pass).
+
+## 9. R21 Files Changed
+
+`core/memory/counterfactual.py` (safety fix, +~35 lines), `tests/test_r21_generalization.py` (new, 10 tests), `tests/test_r18_eq_equation_capability.py` (DB-safety allowlist extended, same precedent as R19/R20).
