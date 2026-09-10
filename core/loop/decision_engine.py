@@ -528,6 +528,71 @@ class DecisionEngine:
             logger.debug("[VECTOR][decision_engine] decay_epistemic skipped: {}", e)
             return 0
 
+    def _situational_factor(self, candidate: Candidate) -> tuple[float, str]:
+        """R22 (2026-09-10) — real, structured situation context now
+        consumed by scoring, not merely captured.
+
+        `candidate.context_snapshot` has existed since RULE 1's own
+        real, production `ContextEngine.get_world_state()` injection
+        (this file's `evaluate()`, a few lines above `_score_candidate`)
+        -- but per that code's own comment, it was deliberately never
+        read by the score formula. Phase 1's read-only audit (see
+        VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_UNDERSTANDING_FOUNDATION_
+        REPORT.md) independently found this in three separate
+        investigations as the precise missing causal link between real
+        situational information and real decisions.
+
+        This is deliberately the SMALLEST real connection, not a new
+        subsystem: one already-real field (`presence`, sourced from the
+        real FaceDetector via ContextEngine's own sense cache) becomes
+        one small, bounded, POST-score multiplier -- the exact same
+        shape as the existing `_epistemic_penalty()` mechanism.
+
+        Returns (factor, presence) where factor is a multiplier in
+        [1.0, 1.05]:
+        - presence == "absent" (the real face detector ran and found no
+          one) AND the candidate's action_type is already GREEN (real
+          PermissionGateway.classify(), never anything else) -> 1.05 --
+          a small boost reflecting VECTOR's own documented purpose (a
+          24/7 autonomous system, CLAUDE.md) to make real, safe,
+          already-unattended-eligible progress when genuinely
+          unsupervised.
+        - presence in ("present", "unknown") or missing/malformed, OR
+          the action_type is not GREEN -> 1.0 (neutral, no change).
+          "unknown" (the real detector never ran) is honestly treated
+          as NO SIGNAL, never as "away" -- uncertainty is never
+          silently promoted to certainty.
+        - any unexpected/malformed context_snapshot shape -> 1.0
+          (fails safe, never raises, never penalises).
+
+        This can only ever BOOST an action the real permission system
+        has already, independently classified GREEN -- it cannot
+        promote a YELLOW/RED/FORBIDDEN/UNKNOWN action_type, and it
+        never touches `PermissionGateway`/`core/config.py` in any way.
+        A YELLOW/RED candidate that is already winning on its own
+        real 5-factor merits can still legitimately be overtaken by a
+        real, close, already-GREEN alternative once boosted -- exactly
+        the same "situational context changes which legitimate
+        strategy wins" behavior `idea_validator.py`'s pre-existing
+        Regime gate already demonstrates inside one district, now
+        extended into DecisionEngine's own central, shared path.
+        """
+        try:
+            snapshot = candidate.context_snapshot
+            if not isinstance(snapshot, dict):
+                return 1.0, "malformed"
+            presence = snapshot.get("presence")
+            if not isinstance(presence, str) or presence not in ("present", "absent", "unknown"):
+                return 1.0, "malformed"
+            if presence != "absent":
+                return 1.0, presence
+            from core.loop.permission_gateway import PermissionGateway
+            if PermissionGateway().classify(candidate.action_type) != "GREEN":
+                return 1.0, presence
+            return 1.05, presence
+        except Exception:
+            return 1.0, "error"
+
     def _score_candidate(self, candidate: Candidate) -> float:
         """Apply the 5-factor formula + epistemic dampening.
         Mutates candidate with computed scores."""
@@ -566,6 +631,12 @@ class DecisionEngine:
         epistemic_factor, epistemic_conf = self._epistemic_penalty(candidate)
         total *= epistemic_factor
 
+        # R22 — real situational context (RULE 1's own context_snapshot,
+        # previously captured but never consumed) as a second, independent
+        # post-score multiplier. See _situational_factor()'s own docstring.
+        situational_factor, situational_signal = self._situational_factor(candidate)
+        total *= situational_factor
+
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
         candidate.reasoning_chain = [
             {"factor": "goal_alignment", "value": goal_score, "weight": self.W_GOAL},
@@ -592,6 +663,11 @@ class DecisionEngine:
                 {"factor": "epistemic_confidence", "value": epistemic_conf,
                  "weight": epistemic_factor}
             )
+        if situational_factor != 1.0:
+            candidate.reasoning_chain.append(
+                {"factor": "situational_context", "value": situational_signal,
+                 "weight": situational_factor}
+            )
         candidate.reasoning_steps.extend([
             f"goal_alignment={goal_score:.3f}",
             f"confidence={confidence:.3f}",
@@ -610,6 +686,10 @@ class DecisionEngine:
             candidate.reasoning_steps.append(
                 f"epistemic_factor={epistemic_factor:.2f} "
                 f"(conf={epistemic_conf:.3f})"
+            )
+        if situational_factor != 1.0:
+            candidate.reasoning_steps.append(
+                f"situational_factor={situational_factor:.2f} (presence={situational_signal})"
             )
         candidate.reasoning_steps.append(f"FINAL score={candidate.total_score:.4f}")
         return candidate.total_score
@@ -694,9 +774,16 @@ class DecisionEngine:
         # only used to hydrate LLM calls made *after* a winner was already
         # picked; candidate scoring itself never saw it. Available on every
         # candidate (context_snapshot) for scoring/audit/training-data, same
-        # as RULE 8's reasoning injection below. Does NOT change the score
-        # formula itself — that's a deliberate, separate decision (see
-        # docs/REMAINING_ISSUES.md).
+        # as RULE 8's reasoning injection below. R22 (2026-09-10): this
+        # comment used to say context_snapshot "does NOT change the score
+        # formula itself" — true when written, no longer true.
+        # _score_candidate()'s own _situational_factor() now reads one real
+        # field (context_snapshot["presence"]) as a small, bounded,
+        # GREEN-only post-score multiplier — see that method's docstring
+        # for the full real BEFORE/AFTER capability this closes
+        # (VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_UNDERSTANDING_FOUNDATION_
+        # REPORT.md). The snapshot itself is still also available for
+        # audit/training-data as before.
         try:
             world_state = self._get_context_engine().get_world_state()
             for c in candidates:

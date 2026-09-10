@@ -128,3 +128,91 @@ Directly-affected files (`test_counterfactual_block_penalizes_policy.py`, `test_
 ## 9. R21 Files Changed
 
 `core/memory/counterfactual.py` (safety fix, +~35 lines), `tests/test_r21_generalization.py` (new, 10 tests), `tests/test_r18_eq_equation_capability.py` (DB-safety allowlist extended, same precedent as R19/R20).
+
+---
+
+# R22 — Situation Understanding
+
+## 10. R22 BEFORE Capability
+
+`DecisionEngine.evaluate()` already, before this milestone, called the real, production `ContextEngine.get_world_state()` (RULE 1) and attached the real, structured result to every `Candidate` as `c.context_snapshot` — already unit-tested for presence (`tests/test_decision_engine.py::test_context_snapshot_populated_on_candidates`, pre-existing). But `_score_candidate()`, called immediately after, never read it — the code's own pre-existing comment admitted this outright ("Does NOT change the score formula itself — that's a deliberate, separate decision"). Two REAL, materially different real action_types with different real situational context (e.g. whether the owner is genuinely present) scored, and were decided between, IDENTICALLY — the distinction was captured but structurally lost before it could ever change a real decision. The one pre-existing real counter-example (`idea_validator.py`'s Regime gate) lives entirely inside one district handler's own business logic, never reaching `DecisionEngine`'s own central, shared scoring path.
+
+## 11. R22 Implementation
+
+`core/loop/decision_engine.py::DecisionEngine._situational_factor()` — one new, small, bounded, POST-score multiplier, architecturally identical in shape to the pre-existing `_epistemic_penalty()`. Reads exactly one already-real field (`context_snapshot["presence"]`, sourced from the real FaceDetector via `ContextEngine`'s sense cache — values `"present"`/`"absent"`/`"unknown"`). When `presence == "absent"` AND the candidate's action_type is already GREEN (checked via the real, unmodified `PermissionGateway.classify()` — never any other mechanism), the candidate's score is multiplied by `1.05`. `"present"` and the honest `"unknown"` (detector never ran) both apply zero adjustment — uncertainty is never silently promoted to certainty. Any malformed/unexpected `context_snapshot` shape returns `1.0` (fails safe, never raises). A non-GREEN candidate is never boosted, by construction — the guard checks `PermissionGateway.classify()` before ever considering a boost.
+
+Semantics are deliberately the smallest defensible mapping, tied directly to VECTOR's own documented purpose (CLAUDE.md: "a Darwinian multi-agent autonomous AI running 24/7") rather than an invented, action-type-specific business rule — this extends the Regime gate's own already-legitimate "real situational fact changes a real decision" pattern into `DecisionEngine`'s central, shared path (per the Phase 1 fresh adversarial investigator's own explicit caution against re-labeling the Regime gate's pattern as new without this exact generalization).
+
+No new subsystem, no new memory store, no new sensor/data-collection point was added — the existing, already-real, already-populated field was proven and connected.
+
+## 12. R22 AFTER Capability
+
+Two real, materially different action_types (`idea_validate`, GREEN; `commit_code`, YELLOW), with real, controlled `confidence` values chosen so the real, unmodified-by-R22 formula gives `commit_code` a narrow real lead — a real, close race, not a landslide (`commit_code`=0.4125 vs `idea_validate`=0.40 when not boosted). The real, unmodified `DecisionEngine.evaluate()` now genuinely flips the winner based on real, different situational context: `commit_code` wins when `presence="present"`; `idea_validate` wins when `presence="absent"` (0.42 > 0.4125) — the real 1.05x boost applied only to the already-GREEN candidate is what causes the flip.
+
+## 13. R22 Real Production Trace
+
+```
+DecisionEngine.evaluate(candidates)
+  -> real ContextEngine.get_world_state()            [only this ONE external
+     -> real world_state dict, c.context_snapshot      sensor boundary is
+        = world_state for every candidate               isolated per-test]
+  -> real _score_candidate(c) for every candidate
+     -> real 5-factor formula (goal_alignment, confidence,
+        policy_score, urgency, timing, cost)
+     -> real _epistemic_penalty()                     [pre-existing]
+     -> real _situational_factor(c)                   [R22, new]
+        -> reads c.context_snapshot["presence"]
+        -> real PermissionGateway.classify(c.action_type)
+        -> 1.05x if GREEN+absent, else 1.0x
+  -> real ranked = sorted(candidates, key=total_score)
+  -> real winner = _select_staleness_aware_winner(ranked)
+```
+
+## 14. R22 Behavioral Proof
+
+`tests/test_r22_situation_understanding.py` — 20 tests, 0 real LLM calls (pure scoring, no dispatch/execution):
+
+| Category | Test(s) |
+|---|---|
+| Mechanics (bounded, GREEN-only, uncertainty-safe) | `TestSituationalFactorMechanics` (6 tests, incl. 8 parametrized malformed-input cases) |
+| BEFORE — missing distinction proven | `TestBeforeMissingDistinction::test_pre_r22_formula_component_is_blind_to_context` |
+| AFTER / Flagship — real winner flip | `TestFlagshipSituationalDecisionChange` (2 tests: real flip + a no-difference control) |
+| Safety | `TestSafety` (3 tests) |
+
+Result: 20/20 pass, ≤8 seconds total.
+
+## 15. R22 Persistence
+
+Not claimed — `_situational_factor()` is a pure, stateless, per-evaluate()-call function of `context_snapshot` (itself freshly populated every real `evaluate()` call from a live sensor read); there is no new persistent state to prove restart-survival for. (Per the mission's own gate: "Persistence: Required whenever the capability claims persistent state" — this capability does not.)
+
+## 16. R22 Causal Controls
+
+- **No hardcoded expected answer**: the flagship asserts on `decision.winner.action_type`, a real, computed value from a real `evaluate()` call — never bypassed.
+- **Novel/unseen situation**: this exact confidence pairing (0.5 vs 0.55) and action_type pair, under this specific controlled context, is not duplicated by any pre-existing fixture (confirmed via `test_decision_engine.py`'s own existing `context_snapshot` test only asserting field PRESENCE, never scoring behavior).
+- **Control**: `test_control_no_context_difference_no_winner_change` — identical real context across two real `evaluate()` calls produces a stable winner, ruling out hidden randomness.
+- **Isolation technique legitimacy**: `_FixedWorldStateContextEngine` supplies a fixed, real-shaped return value ONLY for `ContextEngine.get_world_state()` (the one genuinely external, sensor-dependent, non-deterministic call) — every other real production function (`evaluate()`, `_score_candidate()`, `_situational_factor()`, real ranking/winner-selection) runs completely unmodified and unmocked, matching this repo's own established "isolate only the deepest external dependency" precedent (R18-EQ's LLM-provider chain, R19's PostJobTracker path isolation) — not "manually injecting a belief."
+
+## 17. R22 Adversarial Review
+
+A fresh, independent, read-only agent (no prior context) reviewed all 10 required R22 checklist claims. It independently re-derived the flagship's exact arithmetic by hand from the real 5-factor weights (`W_GOAL=0.30, W_CONF=0.25, W_POLICY=0.20, W_URGENCY=0.15, W_TIMING=0.10, W_COST=0.05`) and real defaults (`Candidate.timing_score` defaults to 1.0; `PolicyMemory.DEFAULT_SCORE=0.5`; `goal_score=0` since the probe goal id matches no real seeded goal) — reproducing `idea_validate=0.40`, `commit_code=0.4125`, boosted `idea_validate=0.42` exactly, independently confirming the numbers are "real, generic defaults falling out of the formula, not scenario-specific hacks." It compared `_FixedWorldStateContextEngine`'s stand-in dict key-for-key against the real `ContextEngine.get_world_state()` (confirmed identical 17-key shape). It ran the real regression suite itself (31/31 pass) and confirmed the pre-existing `test_context_snapshot_populated_on_candidates` test already existed and already asserted `context_snapshot` population before this milestone (R22 did not invent that pre-existing fact).
+
+**Verdict: all 10 claims CONFIRMED. Overall: PASS.**
+
+One cosmetic finding (repaired, not a functional defect): the pre-existing comment above `evaluate()`'s real-world-state injection said context_snapshot "does NOT change the score formula itself" — accurate when originally written, no longer accurate after R22's own wiring. Fixed: the comment now points to `_situational_factor()`'s own docstring and this report for the real capability it closes. Re-verified: 31/31 pass (`test_decision_engine.py` + `test_r22_situation_understanding.py`).
+
+No repair cycle was needed for any of the 10 substantive claims — the reviewer's only other note (the 1.05x magnitude being "a judgment call rather than derived from data") was explicitly acknowledged as "reasonable and low-risk given the GREEN-only, bounded [1.0, 1.05] guard" and "acceptable for a first-cut milestone," not a defect requiring repair.
+
+## 18. R22 Safety Review
+
+- `PermissionGateway._classify()` unaffected — `_situational_factor()`'s diff contains zero mutation of `GREEN`/`YELLOW`/`RED`/`FORBIDDEN` (source-audited: no `X.append(`, no `X =` assignment to a classification variable).
+- A YELLOW (`commit_code`) or RED (`code_task`) candidate can never receive the boost — the guard checks `PermissionGateway.classify()` before ever considering it, confirmed both by direct source reading and by `TestSafety::test_yellow_action_never_boosted_even_when_absent`/`test_red_action_never_boosted_even_when_absent`.
+- The factor is strictly bounded `[1.0, 1.05]` — never a penalty, never unbounded (`test_boost_is_bounded_and_never_negative`).
+- Uncertainty (`"unknown"`) is never treated as the boosted state (`test_unknown_presence_is_not_falsely_treated_as_certainty`).
+
+## 19. R22 Regression
+
+Directly-affected files (`test_decision_engine.py`, `test_r10_decision_provenance.py`, `test_task91_r6_candidate_diversity.py`, `test_task92_r7_decision_candidate_correlation.py`, `test_r15_autonomous_green_to_green_switching.py`, `test_r16_epistemic_decision_integration.py`, `test_r17_plan_derived_strategy_diversity.py`, R18-EQ/R19/R20/R21's own fast suites) — 177/177 pass, zero regression.
+
+## 20. R22 Files Changed
+
+`core/loop/decision_engine.py` (+~75 lines: `_situational_factor()` + wiring into `_score_candidate()`'s formula/reasoning_chain/reasoning_steps), `tests/test_r22_situation_understanding.py` (new, 20 tests).
