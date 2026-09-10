@@ -132,7 +132,14 @@ class TestEpistemicCognitiveLoop(unittest.TestCase):
                         "Repeated failures should dampen future scores")
 
     def test_stale_belief_triggers_heavy_dampening(self):
-        """Belief past TTL → stale → 0.70 factor."""
+        """Belief past TTL → stale → 0.70 factor.
+
+        R16 (2026-09-10): the candidate's action_type must exactly match
+        the belief key's domain now that domain is the full action_type
+        (previously "oldaction_test" incidentally matched "oldaction" via
+        the removed action_type.split("_")[0] grouping -- see
+        decision_engine.py's _epistemic_penalty() docstring).
+        """
         # Create a belief and backdate it past TTL
         self.engine._epistemic.update_belief(
             "action_domain:oldaction", "old outcome", 0.9, "test", ttl_hours=1
@@ -146,7 +153,7 @@ class TestEpistemicCognitiveLoop(unittest.TestCase):
         self.engine._epistemic._conn.commit()
         self.engine._epistemic._beliefs["action_domain:oldaction"]["created_at"] = old_ts
 
-        c = _make_candidate("oldaction_test")
+        c = _make_candidate("oldaction")
         factor, conf = self.engine._epistemic_penalty(c)
 
         self.assertEqual(factor, 0.70)
@@ -204,9 +211,24 @@ class TestEpistemicCognitiveLoop(unittest.TestCase):
                                 "Score should recover after repeated success")
 
     def test_different_domains_independent(self):
-        """Beliefs in one domain don't affect another."""
-        self.engine.record_epistemic_belief("domain_a", "failed", 0.1)
-        self.engine.record_epistemic_belief("domain_b", "ok", 0.9)
+        """Beliefs in one domain don't affect another.
+
+        R16 (2026-09-10): domain is now the exact, full action_type (see
+        decision_engine.py's _epistemic_penalty()/record_epistemic_belief()
+        docstrings) rather than action_type.split("_")[0] -- the original
+        fixture names here ("domain_a"/"domain_a_action",
+        "domain_b"/"domain_b_action") were written under the OLD, buggy
+        first-token-split scheme, where both pairs collapsed to the SAME
+        domain ("domain") purely by coincidence of sharing a first word --
+        this test was accidentally not testing what its own name claims
+        (it never actually recorded a belief under the same exact
+        action_type it queried). Fixed to record and query the SAME exact
+        action_type per domain, matching how every other test in this file
+        already does it (see test_successful_action_builds_confidence,
+        test_failed_action_reduces_confidence, etc.).
+        """
+        self.engine.record_epistemic_belief("domain_a_action", "failed", 0.1)
+        self.engine.record_epistemic_belief("domain_b_action", "ok", 0.9)
 
         c_a = _make_candidate("domain_a_action")
         c_b = _make_candidate("domain_b_action")

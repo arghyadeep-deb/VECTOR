@@ -165,12 +165,21 @@ class TestEpistemicPenalty:
         assert factor == 1.0
 
     def test_domain_extracted_from_action_type(self, epistemic_engine):
-        """Domain is first segment of action_type (before underscore)."""
+        """Domain is the exact, full action_type.
+
+        R16 (2026-09-10): domain used to be action_type.split("_")[0],
+        which silently collapsed unrelated real action_types sharing a
+        first word (daily_digest/daily_review -> "daily"; check_attendance/
+        check_calendar/check_fatigue -> "check"; search_web/search_arxiv ->
+        "search") into one shared epistemic bucket -- a real, confirmed
+        collision defect, not a deliberate generalization (see
+        decision_engine.py's _epistemic_penalty() docstring). Domain is now
+        identical to the candidate's own action_type -- no splitting."""
         engine, mock_ep = epistemic_engine
         mock_ep.get_belief.return_value = None
         c = _make_candidate("code_review_vc")
         engine._epistemic_penalty(c)
-        mock_ep.get_belief.assert_called_with("action_domain:code")
+        mock_ep.get_belief.assert_called_with("action_domain:code_review_vc")
 
 
 # ── _score_candidate() integration with epistemic ─────────────────────────
@@ -264,12 +273,16 @@ class TestRecordEpistemicBelief:
     """Test belief recording after action outcomes."""
 
     def test_high_reward_creates_belief(self, epistemic_engine):
-        """High reward → high confidence belief."""
+        """High reward → high confidence belief.
+
+        R16 (2026-09-10): claim_id domain is now the exact, full
+        action_type ("search_web"), not the split first token ("search")
+        -- see decision_engine.py's record_epistemic_belief() docstring."""
         engine, mock_ep = epistemic_engine
         engine.record_epistemic_belief("search_web", "ok", 0.9)
         mock_ep.merge_belief.assert_called_once()
         args = mock_ep.merge_belief.call_args
-        assert args[0][0] == "action_domain:search"  # claim_id
+        assert args[0][0] == "action_domain:search_web"  # claim_id
         assert abs(args[0][2] - 0.9) < 0.01          # confidence
         assert args[0][3] == "act_loop"               # source
 

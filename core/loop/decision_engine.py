@@ -404,6 +404,34 @@ class DecisionEngine:
 
         The penalty is applied as a post-score multiplier so the 5-factor
         formula stays intact.  A factor of 1.0 means no change.
+
+        R16 (2026-09-10) — the "domain" key used to be
+        `action_type.split("_")[0]`, grouping every action_type by its
+        first underscore-delimited token. That was never a deliberate,
+        curated domain taxonomy — it was an accidental side effect that
+        silently collapsed unrelated real action_types into one shared
+        epistemic bucket purely because they happen to start with the same
+        word: `daily_digest` (research district) and `daily_review` (2AM
+        reflection) both collapsed to `"daily"`; `check_attendance`,
+        `check_calendar`, and `check_fatigue` (three unrelated districts)
+        all collapsed to `"check"`; `search_web` and `search_arxiv`
+        collapsed to `"search"`. A real bad outcome for one of these would
+        silently dampen a totally unrelated action_type's score — this was
+        live, reachable, unintentional over-generalization, not a
+        hypothetical risk (confirmed reproducible via
+        `tests/integration/test_epistemic_integration.py::
+        test_different_domains_independent`, which failed before this fix
+        because its own two fixture action_types, `domain_a_action` and
+        `domain_b_action`, happened to collide the same way).
+        The domain is now the exact, full `action_type` — identical
+        granularity to `PolicyMemory.make_situation_hash()`'s own
+        per-action_type identity discipline, and consistent with this
+        repo's own established principle that cross-action generalization
+        must be an explicit, curated decision (see
+        `core/brain/goal_system.py`'s `_TAG_TO_ACTION_TYPE` table), never
+        an accidental string-splitting side effect. No architecture
+        change: still one flat `claims` row per key, still read via the
+        same `get_belief()`/`merge_belief()` calls.
         """
         try:
             if not CONFIG.get("epistemic_scoring", True):
@@ -411,7 +439,7 @@ class DecisionEngine:
             epistemic = self._get_epistemic()
             if epistemic is None:
                 return 1.0, 0.0
-            domain = candidate.action_type.split("_")[0]
+            domain = candidate.action_type
             claim_id = f"action_domain:{domain}"
             belief = epistemic.get_belief(claim_id)
             if belief is None:
@@ -443,6 +471,12 @@ class DecisionEngine:
         High reward → confidence rises in this domain.
         Low reward → confidence falls, making future actions in this domain
         score lower (epistemic dampening kicks in).
+
+        R16 (2026-09-10): "domain" is the exact, full `action_type` — see
+        `_epistemic_penalty()`'s docstring for why the previous
+        `action_type.split("_")[0]` grouping was removed (a real,
+        confirmed cross-action-type collision defect, not a deliberate
+        generalization).
         """
         try:
             if not CONFIG.get("epistemic_scoring", True):
@@ -450,7 +484,7 @@ class DecisionEngine:
             epistemic = self._get_epistemic()
             if epistemic is None:
                 return
-            domain = action_type.split("_")[0]
+            domain = action_type
             claim_id = f"action_domain:{domain}"
             # Clamp reward to [0, 1] — same scale as epistemic confidence
             confidence = max(0.0, min(1.0, reward))

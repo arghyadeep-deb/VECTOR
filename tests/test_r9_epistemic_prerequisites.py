@@ -153,7 +153,12 @@ class TestStalenessAndContradiction:
         """A stale belief's decision-path influence is capped at a FIXED 0.70
         dampening factor -- it never gets worse than that no matter how old,
         and it is not the identity ("1.0 == no effect") the moment it's
-        stale, so it cannot silently keep dominating as if fresh."""
+        stale, so it cannot silently keep dominating as if fresh.
+
+        R16 (2026-09-10): the candidate's action_type must exactly match
+        the belief key's domain now that domain is the full action_type,
+        not action_type.split("_")[0] (see decision_engine.py's
+        _epistemic_penalty() docstring for why the split was removed)."""
         tracker.update_belief("action_domain:old", "x", 0.9, "test", ttl_hours=0)
         # ttl_hours=0 -> immediately stale (age_hours > 0 is true almost instantly)
         import time
@@ -164,7 +169,7 @@ class TestStalenessAndContradiction:
 
         c = DecisionEngine()
         c._get_epistemic = MagicMock(return_value=tracker)
-        factor, conf = c._epistemic_penalty(make_candidate("old_action"))
+        factor, conf = c._epistemic_penalty(make_candidate("old"))
         assert factor == 0.70  # fixed, bounded dampening -- not 0.0, not creeping lower over time
 
     def test_f_contradiction_is_deterministic_last_write_wins(self, tracker):
