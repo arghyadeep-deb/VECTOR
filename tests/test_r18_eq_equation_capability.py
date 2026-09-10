@@ -563,9 +563,17 @@ class TestProductionDBSafety:
         assert isolated_vector_db != "vector_memory.db"
 
     def test_git_worktree_confirms_only_expected_files_modified(self):
-        """Static, non-destructive confirmation this milestone's production
-        diff is exactly the three files the report documents -- catches an
-        accidental unrelated edit before commit."""
+        """Static, non-destructive confirmation the working tree only
+        contains files a known, documented milestone actually touched --
+        catches an accidental unrelated edit before commit. R18-EQ's own
+        diff is already committed (see git log); the R18-EQ-era expected
+        set below is kept for historical record. R19 (2026-09-10,
+        VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md) is the current
+        in-progress milestone at the time this test runs against a dirty
+        tree, so its own real, documented files are included too -- this is
+        the expected, recurring shape of this check (each milestone's own
+        report documents its own file list; a file outside ALL of them is
+        still a real accidental-edit signal)."""
         import subprocess
         repo_root = Path(__file__).resolve().parents[1]
         out = subprocess.run(
@@ -573,10 +581,16 @@ class TestProductionDBSafety:
         ).stdout
         changed = {line[3:].strip() for line in out.splitlines() if line.strip()}
         expected_prefixes = {
+            # R18-EQ (committed)
             "core/config.py", "core/brain/goal_system.py",
             "districts/startups/idea_validator.py", "tests/test_r18_eq_equation_capability.py",
             "tests/test_r12_native_strategy_semantics.py",
             "VECTOR_TECHNICAL_KNOWLEDGE/R18_EQ_EQUATION_CAPABILITY_REPORT.md",
+            # R19 (in progress) -- see VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md
+            "core/loop/permission_gateway.py", "core/runtime/plans.py",
+            "tests/test_r19_capability_composition.py",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_ORCHESTRATOR_LEDGER.md",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md",
         }
         unexpected = {c for c in changed if not any(c.startswith(p) for p in expected_prefixes) and not c.startswith("test_tmp")}
         assert not unexpected, f"unexpected modified/untracked files: {unexpected}"

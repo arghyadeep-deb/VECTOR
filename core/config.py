@@ -120,6 +120,24 @@ class PermissionConfig(BaseModel):
         # irreversible side effect, matching this list's existing GREEN
         # content/research/analysis entries exactly.
         "script", "idea_validate",
+        # R19 (2026-09-10): "schedule_post" already had a real handler
+        # (districts/content/content_scheduler.py::ContentScheduler
+        # .schedule_post()) and real, exact-match Governor routing
+        # (DISTRICT_TASK_MAP: "schedule_post" -> "content") but was never
+        # classified — same defect class as the script/idea_validate entry
+        # above. Verified safe by direct source read: schedule_post() ONLY
+        # creates a local PostJob row via PostJobTracker.create() (SQLite,
+        # no network call) — it never publishes anything itself. The actual
+        # external, irreversible publish is a SEPARATE method
+        # (ContentScheduler.run_pending()) gated behind its OWN, separate,
+        # already-RED "content_publish" action_type requiring real
+        # PermissionGateway owner approval (fail-closed on gateway error) —
+        # schedule_post's own dispatch path never reaches it. This entry
+        # enables the R19 script -> schedule_post composition (real
+        # structural data handoff: generate_script()'s real "content" field
+        # becomes schedule_post()'s real "content" payload, not a
+        # coincidental same-named-but-unused pass-through).
+        "schedule_post",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and

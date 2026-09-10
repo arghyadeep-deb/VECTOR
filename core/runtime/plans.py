@@ -62,6 +62,14 @@ class PlanStep:
     action_type: str
     params: dict[str, Any] = field(default_factory=dict)
     depends_on: list[str] = field(default_factory=list)
+    # R19: explicit, declared references to a real prior step's real output
+    # field -- {target_param_key: "<dep_step_id>.<output_field>"}. Resolved
+    # at dispatch time in PlanRunner.execute_step() (only once every id in
+    # depends_on is guaranteed "completed" -- see next_ready_steps()'s own
+    # gating), never stored back into `params`, never read from any global/
+    # implicit state. This is real data handoff (structured field lookup on
+    # the dependency's actual_outcome["result"] dict), not string-scraping.
+    param_bindings: dict[str, str] = field(default_factory=dict)
     expected_outcome: str = ""
     verification: dict[str, Any] = field(default_factory=lambda: {"type": "status_check"})
     status: str = "planned"  # planned|ready|running|completed|failed|skipped|blocked
@@ -90,6 +98,7 @@ class PlanStep:
             action_type=str(d.get("action_type") or "respond"),
             params=d.get("params") if isinstance(d.get("params"), dict) else {},
             depends_on=list(d.get("depends_on") or []),
+            param_bindings=d.get("param_bindings") if isinstance(d.get("param_bindings"), dict) else {},
             expected_outcome=str(d.get("expected_outcome") or ""),
             verification=d.get("verification") if isinstance(d.get("verification"), dict) else {"type": "status_check"},
             status=str(d.get("status") or "planned"),
@@ -553,6 +562,48 @@ def get_plan_store() -> PlanStore:
 
 
 # ---------------------------------------------------------------------------
+# R19: step-to-step real data handoff
+# ---------------------------------------------------------------------------
+
+
+def _resolve_step_params(plan: "Plan", step: PlanStep) -> dict[str, Any]:
+    """Build the real params dict to dispatch `step` with, resolving any
+    declared `param_bindings` against its real, already-completed
+    dependencies' real stored output.
+
+    Called only from execute_step(), i.e. only once next_ready_steps()'s
+    own DAG gating has already guaranteed every id in step.depends_on has
+    status == "completed" -- so every binding's dependency step is real and
+    resolvable here, not merely hoped to be.
+
+    Returns a NEW dict (step.params is never mutated) -- `params` stays the
+    plan's own static, persisted, human-auditable declaration; the resolved
+    values are transient, computed fresh at dispatch time from the
+    dependency's real actual_outcome["result"] dict (see execute_step()'s
+    own comment on why that field now exists). An unresolvable binding
+    (missing dependency, missing field, or the dependency's own result not
+    a dict) is silently skipped -- the step then dispatches with whatever
+    static params.get(key) already provided (or none), rather than crashing
+    the whole step on a malformed/stale binding; a step whose GENUINELY
+    required field failed to resolve will simply fail its own real
+    downstream handler validation / verify_step_outcome() check, which is
+    the same honest failure mode any other bad real input already gets.
+    """
+    resolved = dict(step.params)
+    for target_key, source_ref in (step.param_bindings or {}).items():
+        if not isinstance(source_ref, str) or "." not in source_ref:
+            continue
+        dep_id, _, field_name = source_ref.partition(".")
+        dep_step = plan.get_step(dep_id)
+        if dep_step is None or dep_step.status != "completed" or not dep_step.actual_outcome:
+            continue
+        dep_result = dep_step.actual_outcome.get("result")
+        if isinstance(dep_result, dict) and field_name in dep_result:
+            resolved[target_key] = dep_result[field_name]
+    return resolved
+
+
+# ---------------------------------------------------------------------------
 # Outcome verification
 # ---------------------------------------------------------------------------
 
@@ -712,6 +763,63 @@ async def decompose_goal_to_plan(
         plan.record_event("circular_deps_flattened", "Circular dependencies detected and flattened to sequential")
 
     plan.record_event("created", f"Plan created with {len(steps)} steps for goal {goal_id}")
+    return plan
+
+
+def build_wedge_content_plan(
+    goal_id: str,
+    topic: str,
+    platforms: list[str] | None = None,
+    duration_min: float = 5.0,
+) -> Plan:
+    """R19: deterministic (NO LLM call) 2-step real composition --
+    `script` (real ScriptGenerator LLM call, produces a real "content"
+    field) -> `schedule_post` (real ContentScheduler local job creation,
+    consumes that real "content" field as its actual payload via
+    PlanStep.param_bindings).
+
+    Deliberately NOT built through decompose_goal_to_plan()'s LLM path
+    (MissionPlanAdvisor): that path can invent a non-existent action_type
+    (a real, observed risk in this codebase, per this function's sibling
+    `_get_epistemic_confidence`'s own callers) -- both action_types here are
+    already real, already-permission-classified, already-Governor-routed
+    (see core/config.py and core/city/governor.py's DISTRICT_TASK_MAP), so
+    a hand-declared, deterministic step list is the honest, non-fabricated
+    choice, not a shortcut around real decomposition.
+
+    Only "script"'s params are static (topic/duration_min come from the
+    caller, not invented); "schedule_post"'s "content" is deliberately
+    ABSENT from its static params -- it is resolved at dispatch time,
+    real-to-real, via param_bindings (see _resolve_step_params()), never a
+    hard-coded test value."""
+    step1 = PlanStep(
+        id="step-1",
+        action_type="script",
+        params={"topic": topic, "duration_min": duration_min},
+        depends_on=[],
+        expected_outcome="A real video script is generated for the topic",
+        verification={"type": "status_check"},
+    )
+    step2 = PlanStep(
+        id="step-2",
+        action_type="schedule_post",
+        params={"title": topic, "platforms": platforms or ["devto"]},
+        depends_on=["step-1"],
+        param_bindings={"content": "step-1.content"},
+        expected_outcome="The real script generated in step-1 is scheduled as a local post job",
+        verification={"type": "status_check"},
+    )
+    plan = Plan(
+        id=f"plan-{uuid.uuid4().hex[:10]}",
+        goal_id=goal_id,
+        objective=f"Wedge content pipeline: script -> schedule_post for '{topic}'",
+        status="planned",
+        steps=[step1, step2],
+        created_at=_now(),
+        updated_at=_now(),
+        proposed_by="r19_wedge_content_composition",
+    )
+    plan.record_event("created", f"Deterministic wedge-content plan created (2 steps) for goal {goal_id}")
     return plan
 
 
@@ -882,7 +990,7 @@ class PlanRunner:
         try:
             report = await executor.execute(
                 action_type=step.action_type,
-                params=step.params,
+                params=_resolve_step_params(plan, step),
                 proposed_by=f"plan:{plan.id}",
             )
         except Exception as e:
@@ -903,6 +1011,14 @@ class PlanRunner:
             "status": report_status,
             "summary": report_reason,
             "verification_passed": passed,
+            # R19: the real handler's real structured result (e.g.
+            # ScriptGenerator's {"content":..., "topic":..., ...}) used to
+            # be discarded here -- only status/summary/verification_passed
+            # were kept, leaving no real way for a dependent step to
+            # consume this step's real output. Preserved (additively, no
+            # existing key removed) so param_bindings resolution
+            # (_resolve_step_params()) has a real, structured value to read.
+            "result": report_result if isinstance(report_result, dict) else {},
         }
         step.completed_at = _now()
 

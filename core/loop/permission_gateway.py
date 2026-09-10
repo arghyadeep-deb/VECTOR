@@ -43,6 +43,22 @@ GREEN = CONFIG['permission']['green']
 YELLOW = CONFIG['permission']['yellow']
 RED = CONFIG['permission']['red']
 FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
+
+# R19 (2026-09-10): action_types a real PlanStep may legitimately carry as
+# part of a composed multi-step strategy (core/runtime/plans.py::PlanRunner
+# .execute_step() -> AutonomousExecutor.execute() -> this class's execute()
+# -> _execute_action()). Before this, _execute_action()'s only generic
+# dispatch-to-Governor path was the "hand_"-prefix branch below — an
+# arbitrary action_type like "script"/"schedule_post" fell through to the
+# final `else` and returned "not_implemented", even though the exact same
+# action_type already executes correctly via AutonomousLoop._act_on()'s
+# OTHER (native goal candidate) dispatch path. Deliberately a narrow,
+# explicit allowlist (not "any non-hand_ action_type") — each entry must
+# already be real (real handler, real DISTRICT_TASK_MAP route, real
+# permission tier in core/config.py) before being added here; see
+# VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md for the composition
+# capability this unblocks (script -> schedule_post).
+_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post"}
 # 2026-07-30 audit fix (Phase 3 — guardrails): every RED-tier action_type
 # EXCEPT the ones listed here can be auto-executed on an LLM council
 # "proceed" verdict alone (see _handle_red_tier() / the `level == 'RED'`
@@ -1342,6 +1358,25 @@ class PermissionGateway:
                 except Exception as _pe:
                     result["status"] = "error"
                     result["error"] = str(_pe)
+            elif action.action_type in _PLAN_COMPOSABLE_ACTION_TYPES:
+                # R19: real plan-step action_types (see module-level
+                # constant's docstring for the exact gap this closes).
+                # Mirrors the hand_ block below exactly: once the tier gate
+                # above (FORBIDDEN/capability/GREEN-auto or YELLOW/RED
+                # approval) has already decided to execute, the real work
+                # routes through governor -> district agent, same as every
+                # other action.
+                try:
+                    from core.city.governor import Governor
+                    dispatch_result = await Governor().dispatch({
+                        "type": action.action_type,
+                        "params": action.params,
+                    })
+                    result["status"] = dispatch_result.get("status", "ok")
+                    result.update(dispatch_result)
+                except Exception as _pc_err:
+                    result["status"] = "error"
+                    result["error"] = str(_pc_err)
             elif action.action_type.startswith("hand_"):
                 # Hand Execution Engine (hands/runner.py) — Hand action types
                 # are pre-classified in core/config.py PermissionConfig per
