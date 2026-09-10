@@ -1380,14 +1380,23 @@ class AutonomousLoop:
                         reward, winner.goal_ids, winner.action_type,
                     )
 
-                # Gap 6: record action -> outcome causal edge so the graph populates over time
+                # Gap 6 / R24: record a real, STATE-SCOPED action -> outcome
+                # causal edge so the graph populates over time with genuine
+                # "under state S, action A produced outcome B" knowledge,
+                # not an unscoped "A produced B in general" correlation log.
+                # State key reuses the SAME real, already-proven presence
+                # field R22's _situational_factor() consumes (see
+                # causal_state_key()'s own docstring) -- winner.context_snapshot
+                # is already populated by DecisionEngine.evaluate()'s RULE 1
+                # injection by the time a winner reaches this point.
                 try:
-                    from core.memory.causal_graph import CausalGraph
+                    from core.memory.causal_graph import CausalGraph, causal_state_key
                     _cg = CausalGraph()
-                    _action_id = f"action:{winner.action_type}"
+                    _state_key = causal_state_key(getattr(winner, "context_snapshot", None))
+                    _action_id = f"action:{winner.action_type}@{_state_key}"
                     _outcome_id = f"outcome:{result.get('status', 'unknown')}"
                     if _cg.get_node(_action_id) is None:
-                        _cg.add_node(_action_id, "action", winner.action_type)
+                        _cg.add_node(_action_id, "action", winner.action_type, metadata={"state_key": _state_key})
                     if _cg.get_node(_outcome_id) is None:
                         _cg.add_node(_outcome_id, "outcome", result.get("status", "unknown"))
                     _cg.add_edge(_action_id, _outcome_id, strength=max(0.0, min(1.0, reward)), label="action_outcome")

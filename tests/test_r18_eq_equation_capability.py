@@ -607,6 +607,17 @@ class TestProductionDBSafety:
             "tests/test_r16_epistemic_decision_integration.py",
             "VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_ORCHESTRATOR_LEDGER.md",
             "VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_UNDERSTANDING_FOUNDATION_REPORT.md",
+            # R24-R26 (in progress) -- see
+            # VECTOR_TECHNICAL_KNOWLEDGE/R24_R26_ORCHESTRATOR_LEDGER.md
+            "core/memory/causal_graph.py", "core/loop/autonomous_loop.py",
+            "core/causal/causal_reasoner.py",
+            "tests/test_r24_causal_reasoning.py",
+            "tests/test_r25_mental_simulation.py",
+            "tests/test_r26_cognitive_integration.py",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R24_R26_ORCHESTRATOR_LEDGER.md",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R24_CAUSAL_REASONING_REPORT.md",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R25_MENTAL_SIMULATION_REPORT.md",
+            "VECTOR_TECHNICAL_KNOWLEDGE/R26_COGNITIVE_INTEGRATION_REPORT.md",
         }
         unexpected = {c for c in changed if not any(c.startswith(p) for p in expected_prefixes) and not c.startswith("test_tmp")}
         assert not unexpected, f"unexpected modified/untracked files: {unexpected}"

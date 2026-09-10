@@ -77,6 +77,12 @@ class DecisionEngine:
     W_TIMING = 0.10
     W_COST = 0.05
 
+    # R24 — minimum real observation count (CausalGraph edge hit_count)
+    # before a causal signal is trusted at all. Mirrors PolicyMemory's own
+    # `rank_actions()` precedent (sample_count >= 3) for when an aggregate
+    # is statistically meaningful rather than a near-arbitrary n=1 read.
+    CAUSAL_MIN_OBSERVATIONS = 3
+
     def __init__(self):
         self._policy = None
         self._goals = None
@@ -695,6 +701,95 @@ class DecisionEngine:
             return 1.0, "continues_active_plan"
         return 0.97, "new_work_while_plans_active"
 
+    def _get_causal_graph(self):
+        """R24 causal reasoning: a FRESH `CausalGraph()` instance every
+        call, deliberately NOT cached on `self` like the other lazy
+        getters. `CausalGraph` is not a module-level singleton (unlike
+        `AgentRegistry`/`PlanStore`) -- the real production writer
+        (`autonomous_loop.py`'s post-outcome Gap-6/R24 block) already
+        constructs a fresh instance on every real action, and each
+        instance loads its full node/edge set from the shared SQLite
+        connection at construction time. Caching an instance here would
+        silently go stale the moment ANY new real edge is written by that
+        writer between two `evaluate()` calls -- exactly the kind of
+        staleness R24's own flagship test needs to NOT have to fight."""
+        from core.memory.causal_graph import CausalGraph
+        return CausalGraph()
+
+    def _causal_factor(self, candidate: Candidate) -> tuple[float, str]:
+        """R24 causal reasoning -- a real, bounded, post-score multiplier
+        reading VECTOR's own real, accumulated action -> outcome causal
+        history (`core/memory/causal_graph.py::CausalGraph`), state-scoped
+        by `causal_state_key(candidate.context_snapshot)` (the SAME real
+        antecedent-state key the real production writer in
+        `autonomous_loop.py` now uses -- see that function's own
+        docstring). This answers a genuinely different question from
+        every other factor in this file: "what has REPEATEDLY,
+        CAUSALLY (VECTOR itself performed the action; this is not passive
+        co-occurrence) followed from doing this, under conditions like
+        now" -- not R21's text-similarity-to-past-REJECTIONS, not R22's
+        raw current situational reading, not R23's live
+        capability/workload facts, none of which carry any memory of
+        past OUTCOME quality.
+
+        Distinguishes correlation from a usable causal signal via TWO
+        real, non-negotiable requirements the underlying data must meet
+        (both directly closing gaps this milestone's own Phase 1
+        investigators -- independently, including a fresh adversarial
+        reviewer -- identified in the pre-R24 graph):
+
+        1. STATE-SCOPED: only edges from THIS candidate's own real
+           action_type, under a matching real state key, are read --
+           history accumulated under a materially different real state
+           never leaks in (Scope Control).
+        2. OBSERVATION-GATED: the combined real `hit_count` across all of
+           this action-under-this-state's real outcome edges must be
+           >= `CAUSAL_MIN_OBSERVATIONS` before the factor ever deviates
+           from neutral -- a single overwritten/last-write strength (the
+           pre-R24 graph's own limitation) or a thin n=1/n=2 sample is
+           never presented as a confident causal claim, mirroring this
+           codebase's own established `PolicyMemory.rank_actions()`
+           `sample_count >= 3` precedent for when an aggregate is
+           statistically meaningful.
+
+        Returns (factor, signal) where factor is a multiplier in
+        [0.95, 1.05] -- symmetric and small (never a primary decision
+        driver on its own, matching this file's other bounded correction
+        factors): a real, well-observed history of GOOD outcomes (mean
+        strength near 1.0) nudges up toward 1.05; a real, well-observed
+        history of POOR outcomes (mean strength near 0.0) nudges down
+        toward 0.95; anything sparse, absent, or errored stays neutral
+        1.0. Never touches PermissionGateway/core/config.py/Governor's
+        own routing logic in any way -- purely a scoring input, and (per
+        the mission's own explicit constraint) a PREDICTION of good/bad
+        outcome is never itself an authorization.
+        """
+        try:
+            cg = self._get_causal_graph()
+            state_key = self._causal_state_key(candidate)
+            action_id = f"action:{candidate.action_type}@{state_key}"
+            outcomes = cg.get_outcomes(action_id)
+        except Exception:
+            return 1.0, "error"
+        if not outcomes:
+            return 1.0, "no_causal_history"
+        total_hits = sum(int(e.get("hit_count", 1)) for e in outcomes)
+        if total_hits < self.CAUSAL_MIN_OBSERVATIONS:
+            return 1.0, f"insufficient_observations({total_hits})"
+        weighted_strength = sum(
+            e["strength"] * int(e.get("hit_count", 1)) for e in outcomes
+        ) / total_hits
+        factor = 1.0 + (weighted_strength - 0.5) * 0.1
+        factor = max(0.95, min(1.05, factor))
+        return factor, f"strength={weighted_strength:.2f},n={total_hits}"
+
+    def _causal_state_key(self, candidate: Candidate) -> str:
+        """Thin wrapper so `_causal_factor()`'s own import stays lazy and
+        this file never hard-imports `core.memory.causal_graph` at module
+        load time (matching every other lazy-getter's own pattern here)."""
+        from core.memory.causal_graph import causal_state_key
+        return causal_state_key(getattr(candidate, "context_snapshot", None))
+
     def _score_candidate(self, candidate: Candidate) -> float:
         """Apply the 5-factor formula + epistemic dampening.
         Mutates candidate with computed scores."""
@@ -747,6 +842,12 @@ class DecisionEngine:
         workload_factor, workload_signal = self._workload_factor(candidate)
         total *= workload_factor
 
+        # R24 — real, state-scoped, observation-gated causal history as a
+        # fifth, independent, bounded post-score multiplier. See
+        # _causal_factor()'s own docstring for the full real capability.
+        causal_factor, causal_signal = self._causal_factor(candidate)
+        total *= causal_factor
+
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
         candidate.reasoning_chain = [
             {"factor": "goal_alignment", "value": goal_score, "weight": self.W_GOAL},
@@ -788,6 +889,11 @@ class DecisionEngine:
                 {"factor": "world_model_workload", "value": workload_signal,
                  "weight": workload_factor}
             )
+        if causal_factor != 1.0:
+            candidate.reasoning_chain.append(
+                {"factor": "causal_prediction", "value": causal_signal,
+                 "weight": causal_factor}
+            )
         candidate.reasoning_steps.extend([
             f"goal_alignment={goal_score:.3f}",
             f"confidence={confidence:.3f}",
@@ -818,6 +924,10 @@ class DecisionEngine:
         if workload_factor != 1.0:
             candidate.reasoning_steps.append(
                 f"workload_factor={workload_factor:.2f} ({workload_signal})"
+            )
+        if causal_factor != 1.0:
+            candidate.reasoning_steps.append(
+                f"causal_factor={causal_factor:.2f} ({causal_signal})"
             )
         candidate.reasoning_steps.append(f"FINAL score={candidate.total_score:.4f}")
         return candidate.total_score
