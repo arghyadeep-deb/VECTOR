@@ -55,4 +55,20 @@ Design: g_first_revenue's two R18-EQ strategies (idea_validate, script) ARE the 
 
 Verdict for the required distinction: **AUTONOMOUS SELECTION = PROVEN** (real, unsteered, independently-evaluated choice every cycle — confirmed by construction: no bias_toward, identical confidence, `is`-identity winner assertions, R6 structurally ruled out via fresh-engine-per-cycle). **REAL OUTCOME/REWARD/PERSISTENCE (mechanism) = PROVEN.** **CROSS-CYCLE POLICY-DRIVEN ADAPTATION OF THIS SPECIFIC (plan-sourced) STRATEGY = NOT PROVEN in this run**, with an exact, real, pre-existing architectural reason identified (not R6, not a mystery, not this milestone's own defect) — matching the mission's explicit "if only R6 changes the winner, report AUTONOMOUS EXPLORATION=PROVEN, POLICY LEARNING=NOT PROVEN, do not inflate" instruction, adapted to the actual (different, non-R6) mechanism found here. Full learning-level classification (L0-L5) in the master report.
 
+## Phase 6 — R20 Commit, Final Cross-Subsystem Audit, Repair
+
+R20 committed: `82bd43fa0`. Fresh, independent final cross-subsystem audit launched post-commit (per mission ordering). Audited 10 subsystems for unintended weakening/alteration by R19+R20: GoalSystem, PlanStore/PlanRunner, Candidate/DecisionEngine, PolicyMemory, EpistemicTracker, CounterfactualMemory, AutonomousLoop, Governor, PermissionGateway, startup/content capabilities — **all PASS**, confirmed via direct `git diff --stat` between the R18-EQ and R20 tips (every claimed-untouched file byte-identical; every claimed-additive change in `plans.py`/`permission_gateway.py` confirmed to be exactly the 4 and 1 hunks respectively, with all pre-existing DAG/recovery/retry/FORBIDDEN/tier-routing logic independently confirmed unmodified).
+
+Two material findings, both repaired/addressed (repair attempt 1 of 3 allowed; resolved on first attempt):
+- **Finding A** (documented, not fixed — pre-existing, predates R11-R20 per `git log -S`): plan-step execution (`_act_on_plan_step()`) bypasses `_act_on()`'s CounterfactualMemory/ThreatDetector soft-safety checks. Not introduced by R19/R20; PermissionGateway's hard GREEN/YELLOW/RED gate unaffected and independently confirmed intact. Documented in master report §21/§24/§25/§26 with a concrete, prioritized future-fix recommendation, per this arc's own "do not silently fix unrelated architecture" rule.
+- **Finding B** (fixed): `test_control_4_and_6_flagship_source_contains_no_steering_or_manual_reward`'s own name collided with this session's `-k "not Flagship"` shorthand, silently self-excluding from every fast-suite run (including the R20 adversarial review's own run) and hiding a false-positive substring-match bug (`"winner ="` incorrectly flagged the flagship's own real `winner = decision.winner` line). Fixed: renamed, check rewritten as a positive requirement + concrete steering patterns. Committed `6a03032f3`. Re-verified: 9/9 pass.
+
+Final HEAD: `6a03032f3bcf20cb4dc938be37cf67562f64bc5c`.
+
+**R19 gate**: CAPABILITY DELTA=PROVEN, tests=20/20 PASS, adversarial review=PASS, regression=clean, committed=`1b7c4f395`. ✅
+**R20 gate**: AUTONOMOUS SELECTION=PROVEN, tests=10/10 PASS (post-fix), adversarial review=PASS, regression=clean, committed=`82bd43fa0` (+ repair commit `6a03032f3`). ✅
+**Final cross-subsystem audit**: PASS with 2 findings, both addressed (1 fixed, 1 documented per established precedent). ✅
+
+R19→R20 wave complete. Per the mission's explicit instruction: NOT starting R21.
+
 This table is updated as each phase completes.
