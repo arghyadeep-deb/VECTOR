@@ -200,10 +200,27 @@ class TestCapabilityDelta:
         vp1 = next(r for r in rows if r[0] == "g_vector_phase1")
         assert vp1[2] == set() and vp1[3] == set()
 
-        # The 2 Equation goals and g_kiit_attendance honestly remain
-        # single-strategy -- no legitimate second action exists for them in
-        # the current vocabulary; R12 does not fabricate one.
-        unchanged = {"g_kiit_attendance", "g_first_revenue", "g_equation_portfolio"}
+        # g_kiit_attendance honestly remains single-strategy -- no
+        # legitimate second action exists for it in the current vocabulary;
+        # R12 does not fabricate one.
+        #
+        # R18-EQ (2026-09-10): g_first_revenue/g_equation_portfolio are
+        # DELIBERATELY no longer in this "honestly remains single-strategy"
+        # set. At R12 time they genuinely had zero real strategies (see
+        # R12_NATIVE_STRATEGY_SEMANTICS_REPORT.md section 6, which this
+        # assertion originally encoded). A later milestone
+        # (R18_EQ_EQUATION_CAPABILITY_REPORT.md) found two real,
+        # already-existing VECTOR capabilities the goals' own tags/title
+        # point at (ScriptGenerator via "wedge", IdeaValidator via
+        # "startups") and mapped them -- this is this file's own
+        # `_before_r12_strategies()` picking up that live table change too
+        # (it aliases the real module-level _TAG_TO_ACTION_TYPE dict, not a
+        # frozen R12-era snapshot), so the "before" and "after" columns for
+        # these 2 goals are no longer meaningfully distinguishable by this
+        # particular test -- the real capability delta they represent is
+        # covered by tests/test_r18_eq_equation_capability.py's own
+        # dedicated BEFORE/AFTER proof instead.
+        unchanged = {"g_kiit_attendance"}
         for r in rows:
             if r[0] in unchanged:
                 assert len(r[3]) <= 1, (

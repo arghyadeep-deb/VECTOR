@@ -53,6 +53,36 @@ _TAG_TO_ACTION_TYPE: dict[str, str] = {
     "memory": "consolidate", "reflection": "daily_review", "debug": "code_task",
     "fix": "code_task", "implement": "code_task", "write_code": "code_task",
     "code_review": "code_review_vc", "refactor": "code_task",
+    # R18-EQ (2026-09-10) — the Equation/wealth goals (g_first_revenue,
+    # g_equation_portfolio) previously had ZERO real strategies: none of
+    # their tags ("revenue","equation","wedge","startups","portfolio")
+    # mapped to anything, so both fell through to the generic horizon
+    # fallback (analyze_progress) every cycle -- see
+    # VECTOR_TECHNICAL_KNOWLEDGE/R12_NATIVE_STRATEGY_SEMANTICS_REPORT.md
+    # section 6, which explicitly (and correctly) refused to invent a
+    # mapping for these tags rather than fabricate fake diversity.
+    # This adds exactly two, deliberately narrow, semantically-grounded
+    # mappings -- not "revenue -> arbitrary action" (which R12 rejected),
+    # but tags that name a REAL, ALREADY-EXISTING VECTOR capability the
+    # goal's own text already points at:
+    #   "wedge" -> script: g_first_revenue's own title literally says
+    #     'wedge: AI content ops for creators' -- districts/content/
+    #     script_generator.py::ScriptGenerator is real, already-shipped
+    #     content-ops machinery, not invented for this mapping.
+    #   "startups" -> idea_validate: districts/startups/idea_validator.py
+    #     ::IdeaValidator is real, pre-existing venture-validation
+    #     machinery ("Validate this startup idea... Governing law -- The
+    #     Equation" -- its own prompt already cites the same Equation
+    #     doctrine these goals are governed by). "produce content" vs
+    #     "validate the idea first" is a genuine strategic choice with
+    #     different real consequences, not a cosmetic rephrasing.
+    # Both action_types already existed, already had real handlers, and
+    # already had real, exact-match Governor routing (DISTRICT_TASK_MAP)
+    # -- they were simply never added to any permission tier (see
+    # core/config.py's R18-EQ comment), making them UNKNOWN-and-therefore-
+    # always-blocked despite being fully built. No new action type, no new
+    # handler, no new district was created.
+    "wedge": "script", "startups": "idea_validate",
 }
 
 # R12 (Native Strategy Semantics, 2026-09-09) — legitimate SECOND strategies

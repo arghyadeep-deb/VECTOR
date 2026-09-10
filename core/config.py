@@ -105,6 +105,21 @@ class PermissionConfig(BaseModel):
         # no owner gate (matches each Hand's own requires_approval flag).
         "hand_researcher", "hand_collector", "hand_predictor",
         "hand_trader", "hand_lead", "hand_vault_sync",
+        # R18-EQ (2026-09-10): "script" and "idea_validate" already had real
+        # handlers (districts/content/script_generator.py::ScriptGenerator,
+        # districts/startups/idea_validator.py::IdeaValidator) and real,
+        # exact-match Governor routing (core/city/governor.py's
+        # DISTRICT_TASK_MAP: "script" -> "content", "idea_validate" ->
+        # "startups") but were never added to any permission tier — the
+        # same "real capability, unclassified, therefore UNKNOWN, therefore
+        # always blocked at the gateway" pattern this file's own Task
+        # 58B/58C/58D remediations already fixed for other action_types.
+        # Both are purely local (an LLM-drafted video script; an LLM-scored
+        # startup-idea validation, both written only to in-memory/episodic
+        # state) — no external communication, no financial transaction, no
+        # irreversible side effect, matching this list's existing GREEN
+        # content/research/analysis entries exactly.
+        "script", "idea_validate",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and

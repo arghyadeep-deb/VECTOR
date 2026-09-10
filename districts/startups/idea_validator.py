@@ -14,7 +14,18 @@ from districts.startups._base import StartupAgentBase
 class IdeaValidator(StartupAgentBase):
     def __init__(self):
         super().__init__("IdeaValidator")
-        self.capabilities = ["STRONG", "idea", "startups", "validate", "venture_pipeline", "viability"]
+        # R18-EQ (2026-09-10): "idea_validate" (the real task_type/
+        # action_type core/city/governor.py's DISTRICT_TASK_MAP routes to
+        # this district, and the real action_type the Equation goals'
+        # native "startups" tag now maps to -- core/brain/goal_system.py)
+        # was missing from this list. Without it, governor.py's capability-
+        # based routing (`task_type in agent.capabilities`) finds no
+        # capable agent and falls back to an HP-lottery pick among every
+        # agent in the "startups" district (CompetitorSpy, MarketScanner,
+        # RevenueModeler, ...) -- not reliably IdeaValidator, the actual
+        # real handler for this task_type. Same fix pattern already applied
+        # to architect_bot.py/git_bot.py for the identical reason.
+        self.capabilities = ["STRONG", "idea", "idea_validate", "startups", "validate", "venture_pipeline", "viability"]
         self.validated_ideas = {}
         logger.info("[VECTOR][startups] IdeaValidator ready")
 
