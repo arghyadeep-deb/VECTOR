@@ -338,14 +338,37 @@ class TestCausalControls:
             candidates, _ = _both_neutral_candidates(plan_store, confidence=0.5)
             assert {c.action_type for c in candidates} == {"idea_validate", "script"}
 
-    def test_control_4_and_6_flagship_source_contains_no_steering_or_manual_reward(self):
+    def test_control_4_and_6_real_execution_source_contains_no_steering_or_manual_reward(self):
         """CONTROL 4 (no experimenter-selected winner) + CONTROL 6 (no
-        manual reward): source-level self-audit of the flagship test
-        function itself."""
+        manual reward): source-level self-audit of the real-execution
+        (flagship) test function itself.
+
+        Final cross-subsystem audit finding (2026-09-10): the original
+        version of this test forbade the bare substring "winner =", which
+        is a false positive -- it also matches this OWN test's ORIGINAL
+        name (which contained "flagship", so `-k "not Flagship"` -- the
+        shorthand this whole session used to skip the real-LLM-calling
+        test -- accidentally deselected THIS control too, letting the bug
+        hide through every fast-suite run). Renamed away from "flagship"
+        for exactly this reason, and, more importantly, the check itself
+        matches the flagship's own legitimate `winner = decision.winner`
+        line. Fixed to POSITIVELY require that exact real-winner-extraction
+        line is present (proving the winner comes from DecisionEngine's
+        own real return value) and to forbid only concrete steering
+        patterns (a literal hardcoded action_type string, or indexing a
+        candidates list directly) instead of the bare word "winner"."""
         src = inspect.getsource(
             TestFlagshipAutonomousAdaptation.test_vector_chooses_executes_learns_and_reconsiders_across_real_restarts
         )
-        for forbidden in ("bias_toward", "winner =", ".confidence = 0.9", ".confidence = 0.1", "update_from_outcome("):
+        assert "winner = decision.winner" in src, (
+            "the flagship must extract its winner from DecisionEngine.evaluate()'s "
+            "own real return value, not from anywhere else"
+        )
+        for forbidden in (
+            "bias_toward", "winner = candidates[", 'winner = "script"', "winner = 'script'",
+            'winner = "idea_validate"', "winner = 'idea_validate'",
+            ".confidence = 0.9", ".confidence = 0.1", "update_from_outcome(",
+        ):
             assert forbidden not in src, f"flagship must not contain: {forbidden}"
         # The only two `.confidence` assignments allowed anywhere in the
         # helper functions are the identical, neutral, pre-decision values
