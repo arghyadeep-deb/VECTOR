@@ -294,7 +294,7 @@ Not started, and not to be started per this milestone's own scope. For a future 
 ---
 
 START HEAD: fe31e6a18ab0fa4781f2800fbfe62e8c9bf2cc17
-END HEAD: *(filled in after commit)*
+END HEAD: 72e05387921e4da76206e0e243df27fde26e0bb8
 CAPABILITY DELTA: PROVEN
 FILES CHANGED: core/config.py, core/brain/goal_system.py, districts/startups/idea_validator.py, tests/test_r12_native_strategy_semantics.py, tests/test_r18_eq_equation_capability.py (new)
 TARGETED TESTS: tests/test_r18_eq_equation_capability.py — 23/23 pass
