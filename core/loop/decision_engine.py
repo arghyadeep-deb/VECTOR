@@ -87,6 +87,8 @@ class DecisionEngine:
         self._epistemic = None
         self._metacognition = None
         self._correction_learner = None
+        self._agent_registry = None
+        self._plan_store = None
         self._mc_bias_cache = None
         self._mc_cache_time = 0.0
         self._decision_count = 0
@@ -137,6 +139,24 @@ class DecisionEngine:
             from core.loop.context_engine import ContextEngine
             self._context_engine = ContextEngine()
         return self._context_engine
+
+    def _get_agent_registry(self):
+        """R23 self-model: the real, live AgentRegistry singleton -- the
+        SAME one Governor.dispatch() itself reads for capability routing.
+        No new registry, no new state."""
+        if self._agent_registry is None:
+            from core.city.agent_registry import get_registry
+            self._agent_registry = get_registry()
+        return self._agent_registry
+
+    def _get_plan_store(self):
+        """R23 world-model: the real, live PlanStore singleton -- the SAME
+        one AutonomousLoop._get_plan_store()/_get_plan_candidates() itself
+        reads. No new store, no new state."""
+        if self._plan_store is None:
+            from core.runtime.plans import get_plan_store
+            self._plan_store = get_plan_store()
+        return self._plan_store
 
     def _get_policy(self):
         if self._policy is None:
@@ -593,6 +613,88 @@ class DecisionEngine:
         except Exception:
             return 1.0, "error"
 
+    def _capability_factor(self, candidate: Candidate) -> tuple[float, str]:
+        """R23 self-model — a real check of what VECTOR itself currently
+        CAN do, consumed at scoring time (before any commitment is made),
+        not merely discovered afterward.
+
+        Governor.dispatch() (core/city/governor.py) already performs a
+        real, honest "no_capable_agent" refusal when no live agent
+        declares a task_type's capability -- but only AFTER a winning
+        Candidate has already been selected and dispatch has already been
+        attempted. Phase 1's self-model audit found `goal_system.py`/
+        `decision_engine.py` never consult agent capabilities before
+        THAT point: VECTOR could commit to (score highest, "win") a
+        candidate for a capability that does not currently exist,
+        discovering the gap only at dispatch. This factor makes the SAME
+        real fact Governor already has -- queried from the SAME real,
+        live `AgentRegistry` singleton, never a new capability list --
+        available one step earlier, so a real, already-capable
+        alternative can legitimately outrank an incapable one on its own
+        merits, before any commitment.
+
+        Returns (factor, signal) where factor is a multiplier in
+        [0.85, 1.0]:
+        - some live agent's `capabilities` already includes this exact
+          action_type -> 1.0 (neutral -- capability confirmed, no change)
+        - no live agent currently declares it -> 0.85 (a real, bounded
+          self-knowledge penalty -- NOT a hard block; Governor's own
+          honest refusal remains the real, final authority on whether
+          dispatch actually proceeds -- this NEVER replaces or bypasses
+          it, only informs ranking one step earlier)
+        - registry unavailable/errors -> 1.0 (fails safe: VECTOR must
+          never penalise a candidate merely because IT couldn't check
+          its own capability list -- an inability to self-inspect is not
+          evidence of incapability)
+
+        Never touches PermissionGateway/core/config.py/Governor's own
+        routing logic in any way -- purely a scoring input.
+        """
+        try:
+            registry = self._get_agent_registry()
+            agents = registry.get_all_agents()
+        except Exception:
+            return 1.0, "error"
+        for agent in agents:
+            if candidate.action_type in getattr(agent, "capabilities", []):
+                return 1.0, "capable"
+        return 0.85, "no_capable_agent"
+
+    def _workload_factor(self, candidate: Candidate) -> tuple[float, str]:
+        """R23 world-model — a real, already-existing, system-wide fact
+        (how much committed work VECTOR currently has in flight) now
+        consumed at scoring time.
+
+        `PlanStore.active_plans()` (core/runtime/plans.py) is already
+        real and already system-wide/unscoped (Phase 1's world-model
+        audit found this exact property) -- but was, before R23, only
+        ever read by a plan's OWN owning goal (`_get_plan_candidates()`).
+        No new store, no new state, no new query shape.
+
+        Returns (factor, signal) where factor is a multiplier in
+        [0.97, 1.0]:
+        - VECTOR has at least one real active Plan in flight AND this
+          candidate is NOT itself a continuation of an existing plan
+          (`source` does not start with "plan:") -> 0.97 -- a small,
+          real-world-state-driven preference for finishing committed
+          work over starting something new, never a hard block.
+        - this candidate IS a real plan-step continuation, OR no active
+          plans exist at all -> 1.0 (neutral; nothing to prioritise
+          finishing over).
+        - PlanStore unavailable/errors -> 1.0 (fails safe).
+        """
+        try:
+            store = self._get_plan_store()
+            active = store.active_plans()
+        except Exception:
+            return 1.0, "error"
+        if not active:
+            return 1.0, "no_active_plans"
+        source = candidate.source or ""
+        if source.startswith("plan:"):
+            return 1.0, "continues_active_plan"
+        return 0.97, "new_work_while_plans_active"
+
     def _score_candidate(self, candidate: Candidate) -> float:
         """Apply the 5-factor formula + epistemic dampening.
         Mutates candidate with computed scores."""
@@ -637,6 +739,14 @@ class DecisionEngine:
         situational_factor, situational_signal = self._situational_factor(candidate)
         total *= situational_factor
 
+        # R23 — real self-model (capability existence) and real world-model
+        # (current in-flight commitments) as two further, independent,
+        # bounded post-score multipliers. See each method's own docstring.
+        capability_factor, capability_signal = self._capability_factor(candidate)
+        total *= capability_factor
+        workload_factor, workload_signal = self._workload_factor(candidate)
+        total *= workload_factor
+
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
         candidate.reasoning_chain = [
             {"factor": "goal_alignment", "value": goal_score, "weight": self.W_GOAL},
@@ -668,6 +778,16 @@ class DecisionEngine:
                 {"factor": "situational_context", "value": situational_signal,
                  "weight": situational_factor}
             )
+        if capability_factor != 1.0:
+            candidate.reasoning_chain.append(
+                {"factor": "self_model_capability", "value": capability_signal,
+                 "weight": capability_factor}
+            )
+        if workload_factor != 1.0:
+            candidate.reasoning_chain.append(
+                {"factor": "world_model_workload", "value": workload_signal,
+                 "weight": workload_factor}
+            )
         candidate.reasoning_steps.extend([
             f"goal_alignment={goal_score:.3f}",
             f"confidence={confidence:.3f}",
@@ -690,6 +810,14 @@ class DecisionEngine:
         if situational_factor != 1.0:
             candidate.reasoning_steps.append(
                 f"situational_factor={situational_factor:.2f} (presence={situational_signal})"
+            )
+        if capability_factor != 1.0:
+            candidate.reasoning_steps.append(
+                f"capability_factor={capability_factor:.2f} ({capability_signal})"
+            )
+        if workload_factor != 1.0:
+            candidate.reasoning_steps.append(
+                f"workload_factor={workload_factor:.2f} ({workload_signal})"
             )
         candidate.reasoning_steps.append(f"FINAL score={candidate.total_score:.4f}")
         return candidate.total_score

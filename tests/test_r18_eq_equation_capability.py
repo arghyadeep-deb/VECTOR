@@ -599,6 +599,12 @@ class TestProductionDBSafety:
             "core/brain/goal_system.py", "districts/startups/idea_validator.py",
             "tests/test_r21_generalization.py", "tests/test_r22_situation_understanding.py",
             "tests/test_r23_world_self_model.py",
+            # R23 also required a real regression repair to a PRIOR
+            # milestone's test (R16) -- see this file's own docstring note
+            # above the failing assertion for why: R23's real, new
+            # `_capability_factor()` legitimately changed which candidate
+            # wins in that test's isolated 2-agent scenario.
+            "tests/test_r16_epistemic_decision_integration.py",
             "VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_ORCHESTRATOR_LEDGER.md",
             "VECTOR_TECHNICAL_KNOWLEDGE/R21_R23_UNDERSTANDING_FOUNDATION_REPORT.md",
         }

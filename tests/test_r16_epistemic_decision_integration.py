@@ -136,22 +136,40 @@ class TestEpistemicProductionPathFlagship:
         real_epistemic._conn.commit()
 
         # ---- 4: AFTER staleness -- real, unbiased, fresh decision ----
-        # MAJOR EMPIRICAL FINDING (discovered by this test, not assumed):
+        # EMPIRICAL FINDING (discovered by this test, not assumed):
         # git_status's real, dampened score (0.409 * 0.70 = 0.286) drops
-        # BELOW code_task's untouched 0.4 -- epistemic staleness alone,
+        # BELOW both remaining candidates -- epistemic staleness alone,
         # with zero bias, zero PolicyMemory change, and zero R6 streak
-        # involvement, autonomously flips the winner from a GREEN action
-        # to a RED one. This is a genuine, unsteered epistemic-driven
-        # winner change -- exactly the kind of "changes behavior" (S4/S5)
-        # evidence this mission asked for, and it surfaces the identical
-        # safety question R14's own R6 finding did: an autonomously-
-        # surfaced RED winner must still never auto-execute.
+        # involvement, autonomously flips the winner away from git_status.
+        # R23 (2026-09-10) added a second real, independent post-score
+        # signal -- `_capability_factor()`, a genuine self-model check
+        # against the live AgentRegistry -- which now ALSO applies here:
+        # this scenario's isolated registry (GitBot + ArchitectBot only,
+        # see `isolated_agent_registry`) has no live agent declaring
+        # "code_task" (confirmed: no district agent in this codebase ever
+        # has), so code_task is honestly penalised 0.4*0.85=0.34, while
+        # ArchitectBot genuinely declares "read_code" (factor=1.0,
+        # untouched at ~0.388). The real winner is therefore read_code,
+        # not code_task -- this is R23's capability signal working
+        # correctly, not a defect; fabricating a "code_task" capability
+        # on either agent just to preserve the old assertion would be
+        # exactly the kind of manufactured cognition both R21-R23's and
+        # this file's own mission forbid. Because read_code is itself
+        # GREEN-tier (`core/config.py`), the real flip here is GREEN
+        # (git_status, epistemically dampened) -> GREEN (read_code, its
+        # real merit + real capability) -- not the GREEN->RED escalation
+        # originally observed pre-R23. Phase 12 below independently
+        # proves the GREEN->RED safety boundary using a simulated RED
+        # classification, so that real safety property remains covered
+        # even though the real winner here is no longer RED-tier.
         gs3 = isolated_probe_goal_system(goal_id=goal_id)
         decision_3 = await engine.evaluate(native_candidates(gs3, confidence=0.5))
-        assert decision_3.winner.action_type == "code_task", (
+        assert decision_3.winner.action_type == "read_code", (
             "epistemic staleness dampens git_status's real score (0.409*0.70"
-            "=0.286) below code_task's untouched 0.4 -- a genuine, unsteered "
-            "epistemic-driven winner change from GREEN to RED"
+            "=0.286) below both code_task (0.4*0.85=0.34, real R23 capability "
+            "penalty -- no live agent declares code_task) and read_code "
+            "(0.388*1.0, ArchitectBot genuinely capable) -- read_code wins "
+            "on real, unsteered merit"
         )
         git_status_candidate_3 = next(c for c in decision_3.all_candidates if c.action_type == "git_status")
         factors_3 = {f["factor"]: f["value"] for f in git_status_candidate_3.reasoning_chain}
@@ -167,8 +185,12 @@ class TestEpistemicProductionPathFlagship:
             "before staleness -- attributable to epistemic dampening alone"
         )
 
-        # ---- Phase 12 safety proof: the autonomously (epistemic-)surfaced
-        #      RED winner must still never auto-execute ----
+        # ---- Phase 12 safety proof: an autonomously (epistemic-)surfaced
+        #      RED winner must still never auto-execute. decision_3's REAL
+        #      winner (read_code) is itself GREEN-tier (see the R23 note
+        #      above), so this phase simulates a RED classification via a
+        #      mocked gateway to independently prove the boundary still
+        #      holds regardless of which real winner triggers it. ----
         from unittest.mock import AsyncMock, MagicMock
         fake_gateway = MagicMock()
         fake_gateway.classify = MagicMock(return_value="RED")
