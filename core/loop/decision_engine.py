@@ -41,9 +41,19 @@ class Candidate:
     reasoning_steps: list[str] = field(default_factory=list)
     reasoning_chain: list[dict] = field(default_factory=list)
     # RULE 1 — world-state snapshot injected before scoring (ContextEngine).
-    # Available to scoring/audit, but does NOT currently change the score
-    # formula itself — see DecisionEngine.evaluate() docstring.
+    # R22 (2026-09-10) made this a real scoring input via
+    # _situational_factor() -- see that method's own docstring for the
+    # current real capability (this comment previously said it "does NOT
+    # currently change the score formula itself," which stopped being true
+    # at that point).
     context_snapshot: dict = field(default_factory=dict)
+    # R25 — structured, inspectable pre-decision consequence prediction,
+    # populated by DecisionEngine.evaluate()'s own pre-scoring enrichment
+    # step (mirroring RULE 1/RULE 8's own seam) BEFORE _score_candidate()
+    # runs, then read (never re-derived) by _simulation_factor(). See
+    # _simulate_consequence()'s own docstring for the real substrate and
+    # honesty gates.
+    simulated_consequence: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -82,6 +92,26 @@ class DecisionEngine:
     # `rank_actions()` precedent (sample_count >= 3) for when an aggregate
     # is statistically meaningful rather than a near-arbitrary n=1 read.
     CAUSAL_MIN_OBSERVATIONS = 3
+
+    # R25 — same honesty gate, applied to the real, categorical
+    # outcome-TYPE distribution _simulate_consequence() reads (distinct
+    # from R24's own blended scalar). See that method's own docstring.
+    SIMULATION_MIN_OBSERVATIONS = 3
+
+    # R25 — real, generic outcome-node labels this codebase's OWN
+    # production code already produces for a genuinely failed/undispatchable
+    # real action (core/city/governor.py's own honest dispatch-failure
+    # statuses: "no_agents" when the routed district has zero live agents,
+    # "no_capable_agent" when live agents exist but none declares the
+    # capability, "timeout" when agent.run() exceeds the real dispatch
+    # timeout, "error" for any other dispatch-layer failure). NOT a
+    # fabricated taxonomy -- these are the exact real strings
+    # core/loop/autonomous_loop.py's own writer already turns into real
+    # outcome:<status> nodes today.
+    SIMULATION_BAD_OUTCOME_LABELS = frozenset({
+        "outcome:no_agents", "outcome:no_capable_agent", "outcome:timeout",
+        "outcome:error", "outcome:failed",
+    })
 
     def __init__(self):
         self._policy = None
@@ -790,6 +820,101 @@ class DecisionEngine:
         from core.memory.causal_graph import causal_state_key
         return causal_state_key(getattr(candidate, "context_snapshot", None))
 
+    def _simulate_consequence(self, candidate: Candidate) -> dict:
+        """R25 mental simulation -- a real, structured, INSPECTABLE
+        pre-decision prediction, populated BEFORE scoring (mirroring RULE
+        1/RULE 8's own pre-scoring seam), distinct in shape from R24's
+        `_causal_factor()`: R24 answers "what reward has this action
+        tended to earn" as one blended scalar; this answers "what is the
+        real, empirically-observed CHANCE this specific action, under
+        this specific state, lands on a real, known-bad outcome TYPE" --
+        a categorical risk estimate over real, DISTINCT outcome nodes
+        (`CausalGraph.get_outcomes()`'s full edge list), not a re-read of
+        the same blended average.
+
+        This is NOT a forward/generative world-model rollout -- it is a
+        real, honest retrieval against VECTOR's own real accumulated
+        experience, exactly as far as that experience actually goes. Per
+        this milestone's own Phase 1 investigation (VECTOR_TECHNICAL_
+        KNOWLEDGE/R24_R26_ORCHESTRATOR_LEDGER.md's R25 discovery,
+        including a fresh adversarial pre-implementation reviewer who
+        empirically queried the real production DB and found EVERY real
+        causal edge in production currently has hit_count=1): this will
+        honestly return "insufficient_data"/"no_history" far more often
+        than "predicted" in a freshly-running or lightly-used real
+        system. That is the correct, honest behavior -- fabricating a
+        confident prediction from n=1 data would be exactly the
+        "predicted_state" fabrication the mission's own R25 anti-
+        hallucination rule forbids.
+
+        Returns a dict with one of:
+        - {"status": "error"} -- graph unavailable, fails safe.
+        - {"status": "no_history"} -- zero real edges from this
+          candidate's own state-scoped action node.
+        - {"status": "insufficient_data", "n_observations": N} -- real
+          edges exist but combined hit_count < SIMULATION_MIN_OBSERVATIONS.
+        - {"status": "predicted", "n_observations": N,
+           "outcome_distribution": {outcome_node_id: real_probability, ...},
+           "bad_outcome_probability": real_probability} -- a real,
+          non-fabricated categorical distribution over DISTINCT real
+          outcome nodes this exact action_type+state has actually landed
+          on, weighted by each edge's real hit_count.
+        """
+        try:
+            cg = self._get_causal_graph()
+            state_key = self._causal_state_key(candidate)
+            action_id = f"action:{candidate.action_type}@{state_key}"
+            edges = cg.get_outcomes(action_id)
+        except Exception:
+            return {"status": "error"}
+        if not edges:
+            return {"status": "no_history"}
+        total_hits = sum(int(e.get("hit_count", 1)) for e in edges)
+        if total_hits < self.SIMULATION_MIN_OBSERVATIONS:
+            return {"status": "insufficient_data", "n_observations": total_hits}
+        outcome_distribution = {
+            e["to"]: int(e.get("hit_count", 1)) / total_hits for e in edges
+        }
+        bad_hits = sum(
+            int(e.get("hit_count", 1)) for e in edges
+            if e["to"] in self.SIMULATION_BAD_OUTCOME_LABELS
+        )
+        return {
+            "status": "predicted",
+            "n_observations": total_hits,
+            "outcome_distribution": outcome_distribution,
+            "bad_outcome_probability": round(bad_hits / total_hits, 4),
+        }
+
+    def _simulation_factor(self, candidate: Candidate) -> tuple[float, str]:
+        """R25 -- a real, bounded, PENALTY-ONLY post-score multiplier that
+        reads (never re-derives) `candidate.simulated_consequence`
+        (populated pre-scoring by `_simulate_consequence()`, see that
+        method's own docstring for the real substrate/honesty gates).
+
+        Deliberately penalty-only (never a boost, unlike R22's
+        `_situational_factor()`): a real, empirically-observed chance of
+        landing on a known-bad outcome should only ever count AGAINST a
+        candidate, never for one -- predicting a good outcome is not
+        itself evidence of anything beyond "no real reason for concern
+        was found," which is already the neutral default.
+
+        Returns (factor, signal) where factor is a multiplier in
+        [0.90, 1.0]: a real, well-observed `bad_outcome_probability` of
+        1.0 (every real observation was a real known-bad outcome) bottoms
+        out at 0.90; anything not `"predicted"` (error, no_history,
+        insufficient_data) stays neutral 1.0 -- VECTOR is never penalised
+        merely for lacking enough real experience to judge.
+        """
+        sim = getattr(candidate, "simulated_consequence", None) or {}
+        status = sim.get("status")
+        if status != "predicted":
+            return 1.0, status or "no_simulation"
+        bad_p = float(sim.get("bad_outcome_probability", 0.0))
+        factor = 1.0 - bad_p * 0.15
+        factor = max(0.90, min(1.0, factor))
+        return factor, f"bad_outcome_probability={bad_p:.2f},n={sim.get('n_observations')}"
+
     def _score_candidate(self, candidate: Candidate) -> float:
         """Apply the 5-factor formula + epistemic dampening.
         Mutates candidate with computed scores."""
@@ -848,6 +973,13 @@ class DecisionEngine:
         causal_factor, causal_signal = self._causal_factor(candidate)
         total *= causal_factor
 
+        # R25 — real, structured pre-decision consequence prediction
+        # (already populated by evaluate()'s own pre-scoring seam) as a
+        # sixth, independent, bounded, penalty-only post-score multiplier.
+        # See _simulation_factor()'s own docstring.
+        simulation_factor, simulation_signal = self._simulation_factor(candidate)
+        total *= simulation_factor
+
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
         candidate.reasoning_chain = [
             {"factor": "goal_alignment", "value": goal_score, "weight": self.W_GOAL},
@@ -894,6 +1026,11 @@ class DecisionEngine:
                 {"factor": "causal_prediction", "value": causal_signal,
                  "weight": causal_factor}
             )
+        if simulation_factor != 1.0:
+            candidate.reasoning_chain.append(
+                {"factor": "simulated_consequence", "value": simulation_signal,
+                 "weight": simulation_factor}
+            )
         candidate.reasoning_steps.extend([
             f"goal_alignment={goal_score:.3f}",
             f"confidence={confidence:.3f}",
@@ -928,6 +1065,10 @@ class DecisionEngine:
         if causal_factor != 1.0:
             candidate.reasoning_steps.append(
                 f"causal_factor={causal_factor:.2f} ({causal_signal})"
+            )
+        if simulation_factor != 1.0:
+            candidate.reasoning_steps.append(
+                f"simulation_factor={simulation_factor:.2f} ({simulation_signal})"
             )
         candidate.reasoning_steps.append(f"FINAL score={candidate.total_score:.4f}")
         return candidate.total_score
@@ -1040,6 +1181,18 @@ class DecisionEngine:
                         c.reasoning_steps = [past_snippet]
             except Exception as _rb_err:
                 logger.warning("[VECTOR][decision_engine] RULE 8 inject failed: {}", _rb_err)
+
+        # R25 — real, structured, pre-scoring consequence prediction (see
+        # _simulate_consequence()'s own docstring). Populated BEFORE
+        # scoring, same seam as RULE 1/RULE 8 above, so the prediction
+        # itself is independently inspectable/auditable on each candidate
+        # regardless of how _simulation_factor() later consumes it.
+        for c in candidates:
+            try:
+                c.simulated_consequence = self._simulate_consequence(c)
+            except Exception as _sim_err:
+                logger.warning("[VECTOR][decision_engine] R25 simulation inject failed: {}", _sim_err)
+                c.simulated_consequence = {"status": "error"}
 
         for c in candidates:
             self._score_candidate(c)
