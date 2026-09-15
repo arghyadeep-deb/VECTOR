@@ -124,6 +124,13 @@ async def command_endpoint(
         # generation, the decision engine, and the permission gateway, none
         # of which decide anything when there's no action to take.)
         intent_action = _detect_intent_action(body.text)
+        # RR-1: set only when classify_chat_intent() below classifies a real
+        # action — surfaced in the final CommandResponse.district field the
+        # same way the old, now-removed GovernorCouncil().dispatch() branch
+        # used to (gov_result.get("district")). Stage-0 keyword-matched
+        # actions have no district concept and leave this None, unchanged
+        # from before RR-1.
+        district_hint = None
 
         # Fast path: a "respond" intent has NO action to decide or execute —
         # skip goal-candidate generation, decision engine, and permission
@@ -148,112 +155,96 @@ async def command_endpoint(
             # session for /ws/command) is reused here as the real gate: it's
             # deliberately conservative and only reports an action when
             # confident, so plain conversation is unaffected.
-            from core.city.governor import classify_chat_intent, GovernorCouncil
+            from core.city.governor import classify_chat_intent
             gov_intent = await classify_chat_intent(body.text)
             if gov_intent.get("type") != "answer_question":
-                governor = GovernorCouncil()
-                gov_task = {
-                    "type": gov_intent["type"],
-                    "params": {"query": body.text, "content": body.text, "source": "api_command"},
-                    # 2026-07-29 KNOWN_ISSUES (Governor capability-match
-                    # misrouting: projects+coding "Count: 0",
-                    # security+communications inbox stub, growth+content+
-                    # safety unrelated YouTube script, agency wrong topic) —
-                    # lets Governor.dispatch() tell "this task_type was
-                    # freshly LLM-invented from chat text" apart from "this
-                    # is one of the 100+ established routes with a stable,
-                    # long-existing task_type string" (documentation.py,
-                    # etc.). Only the former gets the honest capability-miss
-                    # caveat below — see dispatch()'s own comment for why
-                    # the latter must stay untouched (Task A.3 precedent).
-                    "_llm_classified": True,
+                # RR-1 (2026-09-15, see VECTOR_TECHNICAL_KNOWLEDGE/
+                # RR0_ROOT_CAUSE_ARCHITECTURE_REPORT.md P1-1 and
+                # RR1_OWNER_COMMAND_INTEGRATION_REPORT.md): this used to build
+                # a bespoke `gov_task` dict and call GovernorCouncil().
+                # dispatch() directly here — bypassing Candidate construction,
+                # DecisionEngine.evaluate(), and PermissionGateway.execute()
+                # entirely (RG-C's own finding: candidates_evaluated=0,
+                # action_taken=null, district=null for a real owner action
+                # request). Reassigning `intent_action` to the classifier's
+                # own output and falling through (no return here) routes this
+                # exact same information through the identical canonical
+                # Candidate -> DecisionEngine.evaluate() -> PermissionGateway.
+                # execute() pipeline Step 3-8 below already uses for Stage-0
+                # keyword-matched actions — same PolicyMemory/CausalGraph
+                # learning, same GREEN/YELLOW/RED/FORBIDDEN authority, no
+                # second parallel action-execution path.
+                #
+                # Known, deliberate consequence: core/config.py's permission
+                # GREEN/YELLOW/RED lists were built around AutonomousLoop's
+                # own candidate vocabulary (read_code, analyze_progress, ...),
+                # not the full space of established district task_types
+                # classify_chat_intent can name (system_status,
+                # review_content, track_campaign_performance, ...). Any such
+                # task_type not yet in one of those lists now classifies
+                # PermissionGateway-side as UNKNOWN, which is BLOCKED by
+                # existing, intentional design ("UNKNOWN — default to RED,
+                # never silently allow", permission_gateway.py) rather than
+                # silently executed the way the removed GovernorCouncil()
+                # .dispatch() bypass used to. This is the correct, safe
+                # outcome for RR-1's own "PermissionGateway must be
+                # authoritative; a denied action must remain denied"
+                # requirement — expanding config.py's tier coverage for
+                # these real, already-safe-by-design district capabilities
+                # is a natural follow-up, explicitly out of RR-1's scope (a
+                # config change, not this integration fix).
+                district_hint = gov_intent.get("district")
+                intent_action = {
+                    "action_type": gov_intent["type"],
+                    "params": {
+                        "query": body.text,
+                        "content": body.text,
+                        "source": "api_command",
+                        **({"district": district_hint} if district_hint else {}),
+                    },
                 }
-                if gov_intent.get("district"):
-                    gov_task["district"] = gov_intent["district"]
-                gov_result = await governor.dispatch(gov_task)
-                # 2026-07-22 KNOWN_ISSUES #16 follow-up (found via post-fix eval
-                # regression check): this had its own weaker 3-way fallback
-                # (response -> output -> bare str(status)) that duplicated, and
-                # didn't benefit from, the shared rendering fix already made in
-                # avatar_voice.py's _extract_text() (issue #15). Reproduced live:
-                # a RED-tier task (overwrite_note_personal, memory_curator) whose
-                # governor.dispatch() result had no response/output key fell to
-                # str(status) and the user got the bare word "error" back — no
-                # context, worse than the old stub. Reuse the same renderer here
-                # so this path gets the same honest-fallback / substantive-field
-                # rendering as every district's normal output, instead of a
-                # second, inferior copy of the same logic.
-                from core.avatar.avatar_voice import AvatarVoice
-                gov_response_text = AvatarVoice()._extract_text(gov_result)
+                # Falls through to Step 3 below — `intent_action` is now
+                # truthy and non-"respond", so it takes the exact same
+                # single-Candidate "an order, not a suggestion" path Stage-0
+                # keyword matches already use.
+            else:
+                response_text = await _llm_answer(body.text, hydration)
 
-                gov_chain_id = store_reasoning_chain(
+                chain_id = store_reasoning_chain(
                     situation=body.text[:100],
                     goal_ids=[],
                     steps=[
                         f"user_input: {body.text[:50]}",
-                        f"governor_route: district={gov_result.get('district')} type={gov_intent['type']}",
-                        f"status: {gov_result.get('status')}",
+                        "fast_path: respond intent — decision engine + gateway skipped",
+                        "action: respond",
                     ],
-                    action=gov_intent["type"],
-                    outcome=str(gov_result.get("status", "completed")),
-                    reward=0.8 if gov_result.get("status") == "ok" else 0.4,
+                    action="respond",
+                    outcome="answered",
+                    reward=0.8,
                 )
+
                 episodic_mem.store(
                     event_type="api_command",
-                    content=(
-                        f"command: {body.text[:80]} -> governor "
-                        f"district={gov_result.get('district')} type={gov_intent['type']}"
-                    ),
-                    tags=["command", "governor_route", gov_intent["type"]],
-                    context={"user_text": body.text, "chain_id": gov_chain_id},
+                    content=f"command: {body.text[:80]} -> winner: respond (fast_path)",
+                    tags=["command", "respond", "fast_path"],
+                    context={
+                        "user_text": body.text,
+                        "chain_id": chain_id,
+                    },
                     source="api_command",
                 )
-                _remember_turn(session_id, body.text, gov_response_text)
+
+                _remember_turn(session_id, body.text, response_text)
                 return CommandResponse(
-                    response=gov_response_text,
-                    action_taken=gov_intent["type"],
-                    candidates_evaluated=1,
-                    winner_score=float(gov_intent.get("confidence", 0.0)),
+                    response=response_text,
+                    action_taken=None,
+                    candidates_evaluated=0,
+                    winner_score=0.0,
                     memory_updated=True,
                     processing_ms=int((time.perf_counter() - start) * 1000),
-                    district=gov_result.get("district"),
                 )
-
-            response_text = await _llm_answer(body.text, hydration)
-
-            chain_id = store_reasoning_chain(
-                situation=body.text[:100],
-                goal_ids=[],
-                steps=[
-                    f"user_input: {body.text[:50]}",
-                    "fast_path: respond intent — decision engine + gateway skipped",
-                    "action: respond",
-                ],
-                action="respond",
-                outcome="answered",
-                reward=0.8,
-            )
-
-            episodic_mem.store(
-                event_type="api_command",
-                content=f"command: {body.text[:80]} -> winner: respond (fast_path)",
-                tags=["command", "respond", "fast_path"],
-                context={
-                    "user_text": body.text,
-                    "chain_id": chain_id,
-                },
-                source="api_command",
-            )
-
-            _remember_turn(session_id, body.text, response_text)
-            return CommandResponse(
-                response=response_text,
-                action_taken=None,
-                candidates_evaluated=0,
-                winner_score=0.0,
-                memory_updated=True,
-                processing_ms=int((time.perf_counter() - start) * 1000),
-            )
+            # (action-classified case falls through to Step 3 below —
+            # intent_action was reassigned above, nothing returned here)
 
         # Step 3: Generate candidate actions from goal system (RULE 6)
         from core.brain.goal_system import GoalSystem
@@ -362,6 +353,12 @@ async def command_endpoint(
             winner_score=decision.winner.total_score,
             memory_updated=True,
             processing_ms=int((time.perf_counter() - start) * 1000),
+            # RR-1: district_hint is set only for classify_chat_intent-routed
+            # actions (see Step 2 above) — Stage-0 keyword-matched actions
+            # have no district concept and leave this None, matching the
+            # pre-RR-1 CommandResponse.district docstring/behavior for that
+            # case exactly.
+            district=district_hint,
         )
 
     except HTTPException:
