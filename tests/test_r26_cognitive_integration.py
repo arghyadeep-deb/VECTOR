@@ -227,8 +227,18 @@ class TestPlanStepCausalGap:
 class TestFullCognitiveLoop:
 
     async def test_thirteen_step_real_production_chain(
-        self, isolated_vector_db, isolated_r26_registry, tmp_path,
+        self, isolated_vector_db, isolated_r26_registry, tmp_path, monkeypatch,
     ):
+        # This flagship's real loop._act_on() calls run the real Gap-4
+        # CounterfactualMemory veto block, whose default constructor
+        # resolves via core.runtime_paths.data_path() -- NOT redirected
+        # by isolated_vector_db (a documented, pre-existing fixture
+        # limitation; see R21's own flagship). Without this, a real
+        # rejection could land in the real production
+        # data/counterfactual.db. monkeypatch auto-restores on teardown.
+        import core.runtime_paths as runtime_paths_module
+        monkeypatch.setattr(runtime_paths_module, "get_data_root", lambda: tmp_path)
+
         isolated_r26_registry.register(GitBot())
         engine = build_isolated_engine(str(tmp_path / "epi.db"))
         engine._plan_store = MagicMock(active_plans=lambda: [])
@@ -333,7 +343,7 @@ class TestFullCognitiveLoop:
         #      ONE real, traceable, unbroken chain leading into it. ----
 
     async def test_ablation_removing_a_cognitive_stage_changes_the_result(
-        self, isolated_vector_db, isolated_r26_registry, tmp_path,
+        self, isolated_vector_db, isolated_r26_registry, tmp_path, monkeypatch,
     ):
         """At least one meaningful ablation: removing R25's own simulation
         stage from an otherwise-identical real decision changes the real
@@ -342,6 +352,11 @@ class TestFullCognitiveLoop:
         evidence for this integration claim, run once more here as part
         of R26's own explicit required deliverable rather than only
         living in R25's own test file."""
+        # Same real Gap-4 CounterfactualMemory isolation this file's other
+        # real-_act_on() tests need -- see test_thirteen_step_real_
+        # production_chain's own comment for the full rationale.
+        import core.runtime_paths as runtime_paths_module
+        monkeypatch.setattr(runtime_paths_module, "get_data_root", lambda: tmp_path)
         isolated_r26_registry.register(GitBot())
         engine = build_isolated_engine(str(tmp_path / "epi_ablation.db"))
         engine._plan_store = MagicMock(active_plans=lambda: [])

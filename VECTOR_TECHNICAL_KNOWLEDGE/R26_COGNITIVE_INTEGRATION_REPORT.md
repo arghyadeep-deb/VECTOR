@@ -6,7 +6,7 @@
 
 ## 2. Ending HEAD
 
-*(filled in after commit — see the ledger's Phase 5 entry)*
+`789ca61a08b50050a7d136769526bb5a0d0ea292` — committed, working tree clean (except pre-existing, unrelated untracked files from concurrent repo activity — see §12). This is also the final HEAD of the full R24→R26 wave; two fresh, independent cross-subsystem auditors inspect the complete diff from the wave's original starting HEAD (`96048b1d3068ff93e8f97c59ac8f4774fd8149ac`) to this commit next.
 
 ## 3. R26 Is NOT a Feature-Accumulation Phase
 

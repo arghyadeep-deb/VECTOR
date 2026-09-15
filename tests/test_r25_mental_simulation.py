@@ -237,8 +237,18 @@ class TestBeforeMissingDistinction:
 class TestFlagshipMentalSimulation:
 
     async def test_real_categorical_risk_history_changes_a_later_real_decision(
-        self, isolated_vector_db, isolated_r25_registry, tmp_path,
+        self, isolated_vector_db, isolated_r25_registry, tmp_path, monkeypatch,
     ):
+        # This flagship's real loop._act_on() calls run the real Gap-4
+        # CounterfactualMemory veto block, whose default constructor
+        # resolves via core.runtime_paths.data_path() -- NOT redirected
+        # by isolated_vector_db (a documented, pre-existing fixture
+        # limitation; see R21's own flagship). Without this, a real
+        # rejection could land in the real production
+        # data/counterfactual.db. monkeypatch auto-restores on teardown.
+        import core.runtime_paths as runtime_paths_module
+        monkeypatch.setattr(runtime_paths_module, "get_data_root", lambda: tmp_path)
+
         engine = build_isolated_engine(str(tmp_path / "epi.db"))
         engine._plan_store = MagicMock(active_plans=lambda: [])
         loop = build_isolated_loop(engine)

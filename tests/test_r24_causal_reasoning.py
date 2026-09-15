@@ -304,8 +304,19 @@ class TestBeforeMissingDistinction:
 class TestFlagshipCausalReasoning:
 
     async def test_real_accumulated_history_changes_a_later_real_decision(
-        self, isolated_vector_db, isolated_r24_registry, tmp_path,
+        self, isolated_vector_db, isolated_r24_registry, tmp_path, monkeypatch,
     ):
+        # This flagship's real loop._act_on() calls run the real Gap-4
+        # CounterfactualMemory veto block, whose default constructor
+        # resolves via core.runtime_paths.data_path() -- NOT redirected
+        # by isolated_vector_db (a documented, pre-existing fixture
+        # limitation; see R21's own flagship, which established this
+        # exact isolation). Without it, a real rejection could land in
+        # the real production data/counterfactual.db. monkeypatch
+        # auto-restores on teardown regardless of pass/fail.
+        import core.runtime_paths as runtime_paths_module
+        monkeypatch.setattr(runtime_paths_module, "get_data_root", lambda: tmp_path)
+
         isolated_r24_registry.register(GitBot())
         engine = build_isolated_engine(str(tmp_path / "epi.db"))
         engine._plan_store = MagicMock(active_plans=lambda: [])
@@ -387,7 +398,7 @@ class TestFlagshipCausalReasoning:
         assert causal_entry_absent is None, "no_causal_history stays neutral -> no reasoning_chain entry"
 
     async def test_intervention_control_winner_follows_the_dispatched_candidate_not_a_hardcoded_name(
-        self, isolated_vector_db, isolated_r24_registry, tmp_path,
+        self, isolated_vector_db, isolated_r24_registry, tmp_path, monkeypatch,
     ):
         """Swap which real action_type accumulates the favorable real
         history (git_log this time, not git_status) and swap the base
@@ -395,6 +406,9 @@ class TestFlagshipCausalReasoning:
         candidate with real history, proving this isn't a hardcoded
         `action_type == "git_status"` special case anywhere in
         `_causal_factor()`."""
+        import core.runtime_paths as runtime_paths_module
+        monkeypatch.setattr(runtime_paths_module, "get_data_root", lambda: tmp_path)
+
         isolated_r24_registry.register(GitBot())
         engine = build_isolated_engine(str(tmp_path / "epi_swap.db"))
         engine._plan_store = MagicMock(active_plans=lambda: [])
