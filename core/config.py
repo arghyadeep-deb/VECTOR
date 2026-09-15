@@ -138,6 +138,30 @@ class PermissionConfig(BaseModel):
         # becomes schedule_post()'s real "content" payload, not a
         # coincidental same-named-but-unused pass-through).
         "schedule_post",
+        # RR-1.5 (2026-09-15, VECTOR_TECHNICAL_KNOWLEDGE/
+        # RR1_5_PERMISSION_VOCABULARY_REPORT.md): RR-1 unified owner
+        # /command actions classify_chat_intent() recognizes onto this same
+        # GREEN/YELLOW/RED/FORBIDDEN vocabulary — its own production
+        # validation then exposed that most REAL, established district
+        # task_types classify_chat_intent can name were never classified at
+        # all (UNKNOWN -> correctly fail-closed-blocked). Of 19 such
+        # task_types individually source-verified for this remediation,
+        # only these 2 had a confirmed, exact, genuinely read-only real
+        # implementation — the other 17 (including system_status, which has
+        # NO implementation anywhere in the codebase under that name) are
+        # deliberately left UNKNOWN: no exact capability-string match, a
+        # confirmed stub, or insufficient evidence, per this task's own
+        # "do not classify merely to remove UNKNOWN warnings" rule.
+        # "list_districts": a dedicated, real, read-only endpoint
+        # (core/api/routers/city.py) that enumerates Governor's own
+        # internal district/agent registry — no mutation, no external call.
+        # "test_feature": APITester.run()'s real default path
+        # (districts/qa/api_tester.py) — a local-only HTTP self-diagnostic
+        # loop hitting VECTOR's own /health,/status,/agents,/command
+        # endpoints via httpx against its own base URL; writes only its own
+        # episodic log/Obsidian report and its own HP, never touches an
+        # external network or owner data.
+        "list_districts", "test_feature",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
