@@ -110,7 +110,7 @@ class DecisionEngine:
     # outcome:<status> nodes today.
     SIMULATION_BAD_OUTCOME_LABELS = frozenset({
         "outcome:no_agents", "outcome:no_capable_agent", "outcome:timeout",
-        "outcome:error", "outcome:failed",
+        "outcome:error", "outcome:failed", "outcome:blocked",
     })
 
     def __init__(self):

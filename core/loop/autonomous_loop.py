@@ -1625,6 +1625,35 @@ class AutonomousLoop:
             except Exception:
                 pass
 
+            # R26 (Cognitive Integration audit): the main _act_on() path has
+            # written real, state-scoped causal edges (Gap 6 / R24) since
+            # R24 shipped, but this plan-step path -- reached whenever
+            # winner.source starts with "plan:" (see _act_on()'s own early
+            # dispatch above) -- never did, despite writing the SAME
+            # PolicyMemory/EpistemicTracker updates just above. That meant
+            # R24's causal factor and R25's simulation factor were
+            # permanently blind to any real experience gained through plan
+            # execution -- a genuine "learning not correlated to
+            # causal/simulation state" gap the R26 architecture audit was
+            # explicitly asked to find. Real, distinct outcome statuses
+            # here (`step.status`: "completed"/"failed"/"blocked", richer
+            # than the main path's often-unknown status) make this a
+            # genuinely informative real signal once connected, not a
+            # cosmetic parity fix. Same real writer shape as the main path.
+            try:
+                from core.memory.causal_graph import CausalGraph, causal_state_key
+                _cg = CausalGraph()
+                _state_key = causal_state_key(getattr(winner, "context_snapshot", None))
+                _action_id = f"action:{winner.action_type}@{_state_key}"
+                _outcome_id = f"outcome:{result.get('status', 'unknown')}"
+                if _cg.get_node(_action_id) is None:
+                    _cg.add_node(_action_id, "action", winner.action_type, metadata={"state_key": _state_key})
+                if _cg.get_node(_outcome_id) is None:
+                    _cg.add_node(_outcome_id, "outcome", result.get("status", "unknown"))
+                _cg.add_edge(_action_id, _outcome_id, strength=max(0.0, min(1.0, reward)), label="action_outcome")
+            except Exception as _cg_err:
+                logger.warning("[VECTOR][loop] plan-step causal_graph record suppressed: {}", _cg_err)
+
             # Goal progress on completion: REMOVED 2026-09-08 (Task 89C, lead-integration
             # follow-up — the plan-step twin of the main reward block's "Goal feedback
             # loop", same reward-scaled-increment / unconditional-auto-complete defect,
