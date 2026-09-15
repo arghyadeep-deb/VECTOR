@@ -6,7 +6,7 @@
 
 ## 2. Ending HEAD
 
-*(filled in after commit — see the ledger's Phase 4 entry)*
+`473fd22c57988879bf0ee8f310da1ef7eb3905eb` — committed, working tree clean (except pre-existing, unrelated untracked files from concurrent repo activity — see §12).
 
 ## 3. BEFORE Capability
 
