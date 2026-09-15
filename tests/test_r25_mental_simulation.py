@@ -59,7 +59,22 @@ from districts.coding.git_bot import GitBot
 from tests.test_r13_production_learning_validation import build_isolated_engine, build_isolated_loop
 
 PROBE_GOAL_ID = "g_r25_probe"
-CONF_GIT_STATUS = 0.3
+# RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/RR2_MEANINGFUL_UTILITY_REPORT.md):
+# was 0.3. RR-2 corrected _act_on()'s reward formula so an unknown-
+# goal-progress outcome no longer defaults to a fabricated 0.5 (it now
+# contributes 0 to the weighted sum), which lowered every real executed
+# action's absolute reward -- including git_status's own seeded 3-win/
+# 2-no_agents history below. At the old 0.3, git_status's real,
+# RR-2-corrected PolicyMemory score no longer narrowly out-scored
+# git_log's untried default in the baseline (both-ablated) condition,
+# collapsing this flagship's three-phase design before R25 was even
+# reached. Retuned to the real value where git_status's own
+# formula+PolicyMemory merits narrowly lead again pre-R25 (confirmed via
+# direct evaluate() runs against the real, corrected reward formula) --
+# not a fabricated number, a recalibration of the race's own candidate
+# confidence to restore the real narrow-lead condition this test's
+# narrative depends on.
+CONF_GIT_STATUS = 0.55
 CONF_GIT_LOG = 0.4
 
 

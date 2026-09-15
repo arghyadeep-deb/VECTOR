@@ -104,14 +104,41 @@ class TestRewardWriterHonesty:
     drift out of sync with the report."""
 
     def test_main_reward_path_uses_a_real_weighted_formula(self):
+        # RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/RR2_MEANINGFUL_UTILITY_REPORT.md):
+        # this test used to pin the exact bug RR-2 fixes -- E2's own audit
+        # documented `result.get("goal_progress", 0.5)` as "the one
+        # HARDCODED sub-component of an otherwise real, computed reward"
+        # and asserted its continued presence so it "does not hide that it
+        # exists". RG-D/RR-0 later proved this exact fallback fabricated a
+        # "half advanced my goal" credit for every action with NO attached
+        # goal (e.g. repeated read_code), inflating its reward to ~0.755.
+        # RR-2 removed the fallback: unknown goal_progress now contributes
+        # 0 (not a fabricated 0.5) to the weighted sum, verified via
+        # explicit key-presence checking rather than a `.get(..., default)`.
+        # This test now pins the FIX instead of the bug it replaced.
         import core.loop.autonomous_loop as al
         src = inspect.getsource(al.AutonomousLoop._act_on)
         assert "uf * 0.40" in src
         assert "goal_progress * 0.25" in src
-        assert 'result.get("goal_progress", 0.5)' in src, (
-            "the goal_progress default-to-0.5 fallback must remain visible in "
-            "source -- this is the one HARDCODED sub-component of an otherwise "
-            "real, computed reward; E2 does not hide that it exists"
+        # The literal old-bug string still appears in this function's own
+        # RR-2 explanatory comment (quoting what the bug used to look like)
+        # -- so the "gone" check must look only at executable statements,
+        # not prose, the same way r16's own AST-based attack test does.
+        import ast
+        import textwrap
+        tree = ast.parse(textwrap.dedent(src))
+        func_body = tree.body[0].body
+        if func_body and isinstance(func_body[0], ast.Expr) and isinstance(func_body[0].value, ast.Constant):
+            func_body = func_body[1:]
+        code_only = ast.unparse(ast.Module(body=func_body, type_ignores=[]))
+        assert 'result.get(\'goal_progress\', 0.5)' not in code_only, (
+            "the old goal_progress default-to-0.5 fallback (RG-D/RR-0's "
+            "proven fabricated-positive-reward bug) must be gone from the "
+            "real executable code (comments may still discuss it)"
+        )
+        assert '_goal_progress_known' in code_only, (
+            "goal_progress must now be read via explicit key-presence "
+            "checking, not a silently-defaulting .get(..., 0.5) fallback"
         )
 
     def test_vectorcode_reward_is_a_documented_hardcoded_binary(self):

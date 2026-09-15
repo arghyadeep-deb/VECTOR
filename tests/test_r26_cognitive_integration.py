@@ -380,9 +380,36 @@ class TestFullCognitiveLoop:
         engine._winner_streak_count = 0
 
         def race():
+            # RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+            # RR2_MEANINGFUL_UTILITY_REPORT.md): git_status confidence was
+            # 0.3, mirroring R25's own flagship. RR-2 corrected
+            # _act_on()'s reward formula so unknown-goal-progress no
+            # longer defaults to a fabricated 0.5, lowering the absolute
+            # reward (and therefore PolicyMemory score) of every real
+            # executed action -- including git_status's seeded 3-win/
+            # 2-no_agents history above. At 0.3, git_status's real,
+            # RR-2-corrected score no longer even narrowly out-scored
+            # git_log's untried default with the simulation stage
+            # ablated, so BOTH the ablated and real-simulation runs
+            # converged on git_log -- the ablation stopped being
+            # load-bearing not because R25 broke, but because the race
+            # was no longer close.
+            #
+            # Unlike R25's own flagship (which ablates BOTH R24's causal
+            # factor and R25's simulation factor for its baseline), this
+            # test only ever ablates the simulation factor -- R24's real
+            # causal factor is active in BOTH branches here, and it reads
+            # the exact same real 40%-no_agents history, so it already
+            # applies its own (smaller) real penalty to git_status even
+            # with simulation ablated. Retuned to 0.65 (found by directly
+            # running evaluate() against the real, corrected formula with
+            # R24 real/R25 ablated in both branches -- not a fabricated
+            # number) so git_status still narrowly leads with only the
+            # simulation stage ablated, and the real simulation factor's
+            # additional penalty still flips the winner to git_log.
             return [
                 Candidate(action_type="git_status", params={"goal_id": PROBE_GOAL_ID},
-                          confidence=0.3, urgency=0.5, source="think_loop"),
+                          confidence=0.65, urgency=0.5, source="think_loop"),
                 Candidate(action_type="git_log", params={"goal_id": PROBE_GOAL_ID},
                           confidence=0.4, urgency=0.5, source="think_loop"),
             ]

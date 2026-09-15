@@ -48,34 +48,36 @@ isolation as R13):
   in generation order -- git_status (from tag "git", processed before
   "coding"'s code_task/read_code). git_status is GREEN -- safe to execute
   autonomously without any human/test override. Real execution (real
-  GitBot.get_status()) -> real reward 0.545 (see R13 report S5/S9 for why
-  git_status's real reward is honestly capped by a real return-shape gap
-  in git_bot.py, not fabricated). Persisted.
+  GitBot.get_status()) -> real reward, pre-RR-2 0.545 (honestly capped by
+  a real return-shape gap in git_bot.py, not fabricated). Persisted.
 
-  Cycle 2+ (fresh process, fresh DecisionEngine, still zero bias): the
-  SAME git_status candidate now scores 0.409 (policy=0.545, having been
-  reinforced by cycle 1's real, above-default reward) vs code_task/
-  read_code's still-untouched 0.4 (policy=0.5 default) -- git_status wins
-  again, by a WIDER margin than the original tie. Confirmed stable across
-  7 real autonomous cycles: git_status wins every single time, reward
-  converges on 0.545, margin over the untouched alternatives widens
-  slightly each cycle.
+  RR-2 UPDATE (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+  RR2_MEANINGFUL_UTILITY_REPORT.md): the paragraph below described a real,
+  but now DELIBERATELY REMOVED, architectural property -- that the reward
+  floor for any non-failing dispatch (~0.545 under the OLD fabricated
+  goal_progress=0.5 default) sat always above PolicyMemory.DEFAULT_SCORE
+  (0.5), guaranteeing an autonomously-selected GREEN action could only
+  ever reinforce itself. Under the corrected formula (see
+  TestRewardQualityAudit.test_reward_floor_no_longer_guarantees_
+  reinforcement) that floor is ~0.42 -- now BELOW default. This file's own
+  assertions (score_after_cycle_1 != DEFAULT_SCORE, etc.) were written
+  direction-agnostically and still hold either way; whether git_status's
+  real cycle-2+ total_score still exceeds the untouched alternatives'
+  frozen-at-default score, or is now overtaken by one of them, is no
+  longer assumed here -- both are legitimate, honestly-observable
+  outcomes this test does not force in either direction. Historical
+  narrative (kept for provenance, not re-verified numerically): under the
+  OLD formula git_status won 7/7 real autonomous cycles with a widening
+  margin, reward converging on 0.545.
 
-This is a genuine, honest empirical finding, not an assumption: under the
-current reward formula (whose floor for any dispatch that doesn't
-outright fail is ~0.545, always above PolicyMemory.DEFAULT_SCORE=0.5 --
-see this file's TestRewardQualityAudit) and the current DecisionEngine's
-pure-argmax (no exploration/epsilon-greedy) selection, an autonomously-
-selected, successfully-executing GREEN action can only ever REINFORCE
-itself -- it structurally cannot be overtaken by an untried alternative
-frozen at the default score. This file proves the full autonomous
-select->act->observe->reward->persist->reselect loop is real (Phase 6-9)
-while being explicit that this specific scenario demonstrates
-REINFORCEMENT, not a strategy SWITCH -- exactly the distinction Phase 10
-of this mission anticipates and explicitly sanctions as a valid, non-
-forced finding: "AUTONOMOUS LEARNING LOOP PROVEN BUT AUTONOMOUS
-EXPLORATION UNPROVEN." No random exploration was added to manufacture a
-flip -- the mission explicitly forbids this.
+This file proves the full autonomous select->act->observe->reward->
+persist->reselect loop is real (Phase 6-9) regardless of which specific
+direction (reinforcement vs. a possible switch) the corrected reward
+formula now produces empirically -- that distinction was, and remains,
+explicitly out of this file's own claim (Phase 10: "AUTONOMOUS LEARNING
+LOOP PROVEN BUT AUTONOMOUS EXPLORATION UNPROVEN"). No random exploration
+was added to manufacture or prevent a flip -- the mission explicitly
+forbids this.
 """
 from __future__ import annotations
 
@@ -239,7 +241,14 @@ class TestAutonomousLearningFlagship:
         # ---- Phase 5: REAL OUTCOME / REWARD ----
         h_1 = pm.make_situation_hash(winner_1_type, {"goal_id": goal_id, "title": PROBE_GOAL_TITLE})
         score_after_cycle_1 = pm.get_score(winner_1_type, h_1)
-        assert score_after_cycle_1 > PolicyMemory.DEFAULT_SCORE, (
+        # RR-2: git_status's real completed=0.0 (no "status" key) now yields
+        # a below-default reward (~0.42), not above -- the old ">" direction
+        # was itself an artifact of the fabricated goal_progress=0.5 default
+        # this task removed (see test_reward_floor_no_longer_guarantees_
+        # reinforcement). The test's real intent -- "the real executed
+        # outcome must have genuinely moved the learned score away from
+        # default" -- is preserved via "!=", without assuming a direction.
+        assert score_after_cycle_1 != PolicyMemory.DEFAULT_SCORE, (
             "the real executed outcome must have genuinely moved the learned "
             "score away from default"
         )
@@ -268,12 +277,12 @@ class TestAutonomousLearningFlagship:
         winner_2_type = decision_2.winner.action_type
 
         # ---- Honest reporting: did the WINNER change? ----
-        # Empirically (see module docstring): it does not, under this
-        # scenario -- the reward formula's floor for a successful dispatch
-        # (~0.545) exceeds DEFAULT_SCORE (0.5), so a real, successfully-
-        # executing autonomous choice can only reinforce itself; an
-        # untried alternative frozen at 0.5 can never overtake it through
-        # pure exploitation alone. This is reported honestly, not forced.
+        # RR-2 update (see module docstring): the reward formula's floor
+        # for a successful-but-evidence-unknown dispatch is now ~0.42,
+        # BELOW DEFAULT_SCORE (0.5) -- unlike the old formula, this no
+        # longer guarantees a real, successfully-executing autonomous
+        # choice can only reinforce itself. Whichever way this resolves is
+        # reported honestly below, not forced in either direction.
         winner_changed = winner_2_type != winner_1_type
 
         # What DID demonstrably change: the winner's own internal scoring.
@@ -489,9 +498,15 @@ class TestCausalControls:
         for factor in ("goal_alignment", "confidence", "urgency", "timing_score", "cost_penalty"):
             assert factors_1[factor] == factors_2[factor], f"{factor} must not change -- only policy_score may"
         assert factors_1["policy_score"] != factors_2["policy_score"]
-        assert factors_2["policy_score"] > factors_1["policy_score"], (
-            "the real, above-default reward must have raised the policy_score"
-        )
+        # RR-2: this scenario's real winner (git_status) has real
+        # completed=0.0 (GitBot.get_status() carries no "status" key), so
+        # its corrected reward (~0.42) is now BELOW default (0.5) rather
+        # than above -- the old ">" direction assumed the pre-RR-2 fixed
+        # goal_progress=0.5 default, which guaranteed any non-failing
+        # dispatch's floor sat above default. This control's real claim --
+        # ONLY policy_score changes, attributably, for the same candidate
+        # identity -- is fully preserved by the "!=" above; the direction
+        # is no longer asserted.
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -699,26 +714,34 @@ class TestRewardQualityAudit:
         for src in (inspect.getsource(GitBot.get_status), inspect.getsource(ArchitectBot.run)):
             assert "goal_progress" not in src
 
-    def test_reward_floor_explains_reinforcement_not_exploration(self):
-        """Structural audit explaining WHY this scenario reinforces rather
-        than explores: for ANY action whose real dispatch does not hit an
-        outright failure/blocked/no_agents/error/timeout result, the
-        5-factor formula's floor is uf(0.3)*0.40 + goal_progress(0.5)*0.25
-        + not_overridden(1)*0.15 + not_corrected(1)*0.15 + completed(0)*0.05
-        = 0.545 -- always above PolicyMemory.DEFAULT_SCORE (0.5). This is
-        a genuine, real architectural property (not a bug) that explains,
-        without requiring a fix, why an autonomously-selected, successfully
-        -executing action can only ever reinforce itself under a pure-
-        argmax DecisionEngine with no exploration term. Documented here as
-        a deferred reward-quality finding, per this mission's explicit
-        'first determine whether it materially compromises the R14 causal
-        claim... if not, document and defer' instruction -- it does not:
-        R14's claim is about autonomous SELECTION and LEARNING FROM
-        CONSEQUENCES, not about EXPLORATION (explicitly a separate,
-        unclaimed capability per Phase 10)."""
-        floor = 0.3 * 0.40 + 0.5 * 0.25 + 1.0 * 0.15 + 1.0 * 0.15 + 0.0 * 0.05
-        assert floor == pytest.approx(0.545, abs=0.001)
-        assert floor > PolicyMemory.DEFAULT_SCORE
+    def test_reward_floor_no_longer_guarantees_reinforcement(self):
+        """RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        RR2_MEANINGFUL_UTILITY_REPORT.md) update: this test used to prove
+        the OPPOSITE of what it now asserts -- that for ANY action whose
+        real dispatch does not hit an outright failure, the 5-factor
+        formula's floor (uf(0.3)*.40 + goal_progress(0.5, the OLD fabricated
+        default)*.25 + not_overridden(1)*.15 + not_corrected(1)*.15 +
+        completed(0)*.05 = 0.42) sat ALWAYS above PolicyMemory.DEFAULT_SCORE
+        (0.5) -- a genuine architectural property that guaranteed even a
+        technically-executed-but-zero-evidence action could only ever
+        reinforce itself, never fall below neutral. That property is
+        EXACTLY RG-D's own root cause (RR-0 traced it precisely to this
+        fabricated 0.5 default) and is now deliberately, correctly removed:
+        with goal_progress UNKNOWN contributing 0 (not 0.5) when no real
+        evidence exists, the SAME floor is uf(0.3)*.40 + 0*.25 + 1.0*.15 +
+        1.0*.15 + 0*.05 = 0.42 -- now genuinely BELOW DEFAULT_SCORE. R14's
+        own causal claim (autonomous SELECTION and LEARNING FROM
+        CONSEQUENCES) is unaffected by this -- it was never about
+        EXPLORATION (Phase 10, explicitly out of scope then and now) -- but
+        the specific "guaranteed self-reinforcement" property this test
+        documented is gone, which is the intended, verified RR-2 outcome."""
+        floor = 0.3 * 0.40 + 0.0 * 0.25 + 1.0 * 0.15 + 1.0 * 0.15 + 0.0 * 0.05
+        assert floor == pytest.approx(0.42, abs=0.001)
+        assert floor < PolicyMemory.DEFAULT_SCORE, (
+            "RR-2 must remove the old guaranteed-reinforcement floor -- a "
+            "technically-executed, zero-evidence action's reward should no "
+            "longer sit above neutral by construction"
+        )
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -804,7 +827,12 @@ class TestAdversarialReview:
         h = pm.make_situation_hash(d.winner.action_type, {"goal_id": goal_id, "title": PROBE_GOAL_TITLE})
         from core.memory.episodic import close_db_connection
         close_db_connection()
-        assert pm.get_score(d.winner.action_type, h) > PolicyMemory.DEFAULT_SCORE
+        # RR-2: the deterministic winner in this scenario (git_status) now
+        # scores below DEFAULT_SCORE (real completed=0.0, no fabricated
+        # goal_progress credit) -- "!=" preserves this test's real intent
+        # (a real outcome moved the score away from default) without
+        # assuming the pre-RR-2 direction.
+        assert pm.get_score(d.winner.action_type, h) != PolicyMemory.DEFAULT_SCORE
 
     async def test_attack_6_wrong_db(self, isolated_vector_db, isolated_agent_registry, tmp_path):
         import os

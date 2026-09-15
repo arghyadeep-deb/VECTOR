@@ -1318,7 +1318,32 @@ class AutonomousLoop:
 
                 # 5-factor RL reward (Architecture.md spec):
                 completed = 1.0 if result.get("status") in ("ok", "executed") else 0.0
-                goal_progress = float(result.get("goal_progress", 0.5))
+                # RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+                # RR2_MEANINGFUL_UTILITY_REPORT.md): goal_progress must be
+                # evidence-based, never a fabricated neutral default. This
+                # used to be `float(result.get("goal_progress", 0.5))` --
+                # since no production action handler ever populates this
+                # key (RR-0's own exhaustive grep confirmed zero writers),
+                # every action silently received a fake "half advanced my
+                # goal" credit regardless of whether it had any attached
+                # goal at all. That is the exact, proven root cause of
+                # RG-D's repeated read_code (goal_alignment=0.00, no
+                # attached goal) earning ~0.755 reward -- structurally
+                # indistinguishable from a real, evidenced 0.5-progress
+                # outcome. Distinguish "no evidence was ever provided"
+                # (UNKNOWN) from a real, explicit 0.0-1.0 value via
+                # EXPLICIT KEY PRESENCE, not a fallback default. UNKNOWN
+                # contributes 0 to this weighted term -- a conservative,
+                # non-rewarding treatment, never silently promoted to
+                # "known positive" (the old bug) NOR conflated with a real,
+                # evidenced "known zero" in the numeric reward alone; the
+                # unknown/known distinction itself is preserved separately
+                # in this action's own reasoning_chain steps below (RULE 8
+                # observability), not collapsed away.
+                _goal_progress_known = (
+                    "goal_progress" in result and result.get("goal_progress") is not None
+                )
+                goal_progress = float(result["goal_progress"]) if _goal_progress_known else 0.0
                 not_overridden = 0.0 if result.get("overridden") else 1.0
                 not_corrected = 0.0 if result.get("corrected") else 1.0
                 # Use real user feedback if available, else estimate from result
@@ -1427,6 +1452,14 @@ class AutonomousLoop:
                                 "decision_id": winner.decision_id,
                                 "candidate_id": winner.candidate_id,
                             }
+                        }, {
+                            # RR-2: preserve the unknown/known distinction
+                            # for observability even though the single
+                            # blended `reward` float cannot carry it —
+                            # "unknown" must never read back indistinguishable
+                            # from a real, evidenced "known zero".
+                            "goal_progress_evidence": "known" if _goal_progress_known else "unknown",
+                            "goal_progress_value": goal_progress if _goal_progress_known else None,
                         }],
                         action=winner.action_type,
                         outcome=f"status={result.get('status')} reward={reward}",

@@ -113,11 +113,15 @@ def test_real_outcome_persisted_and_round_trips_through_reader(monkeypatch):
     class _FakeGovernor:
         async def dispatch(self, task):
             # A clean "ok" outcome, no override/correction -> completed=1.0,
-            # not_overridden=1.0, not_corrected=1.0. goal_progress defaults to
-            # 0.5 (result.get("goal_progress", 0.5)). No user_feedback in
+            # not_overridden=1.0, not_corrected=1.0. No user_feedback in
             # episodic memory for this fresh, uuid-unique action_type -> uf=0.7.
-            # reward = 0.7*0.40 + 0.5*0.25 + 1.0*0.15 + 1.0*0.15 + 1.0*0.05
-            #        = 0.28 + 0.125 + 0.15 + 0.15 + 0.05 = 0.755
+            # RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+            # RR2_MEANINGFUL_UTILITY_REPORT.md): goal_progress is no longer
+            # defaulted to a fabricated 0.5 when the result carries no
+            # explicit "goal_progress" key (as here) -- unknown progress
+            # evidence now contributes 0 to this weighted term, never a fake
+            # positive. reward = 0.7*0.40 + 0.0*0.25 + 1.0*0.15 + 1.0*0.15 + 1.0*0.05
+            #        = 0.28 + 0.0 + 0.15 + 0.15 + 0.05 = 0.63
             return {"status": "ok"}
 
     monkeypatch.setattr(loop, "_get_governor", lambda: _FakeGovernor())
@@ -127,7 +131,7 @@ def test_real_outcome_persisted_and_round_trips_through_reader(monkeypatch):
 
     asyncio.run(loop._act_on(candidate))
 
-    expected_reward = 0.7 * 0.40 + 0.5 * 0.25 + 1.0 * 0.15 + 1.0 * 0.15 + 1.0 * 0.05
+    expected_reward = 0.7 * 0.40 + 0.0 * 0.25 + 1.0 * 0.15 + 1.0 * 0.15 + 1.0 * 0.05
 
     # Round trip: the SAME decision's canonical identity, computed fresh via
     # the reader's own path (DecisionEngine._make_situation_hash ->

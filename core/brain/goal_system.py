@@ -354,9 +354,47 @@ class GoalSystem:
             self._persist()
         return pruned
 
+    def _enforce_completion_invariant(self) -> int:
+        """RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        RR2_MEANINGFUL_UTILITY_REPORT.md): `update_goal_progress()`'s own
+        unconditional rule -- progress >= 1.0 forces status="completed" --
+        IS this class's own, already-intended completion semantics (see
+        that method's docstring; untouched here). RG-D/RR-0 found
+        `g_daily_commit` persisted with progress=1.0 while status remained
+        "active", a combination `update_goal_progress()` itself can never
+        produce in a single call, and `goals_v1` (`self._persist()`) is the
+        only writer anywhere in this codebase (confirmed by exhaustive
+        grep, both at Task 89C and again for RR-2) -- so this state can
+        only have arisen from a historical runtime sequence, not from any
+        currently-reachable code path. See the report's own Section 7 for
+        the forensic trace (best-effort; not fully reconstructable from
+        git history alone, which tracks code, not past runtime DB writes).
+
+        Rather than silently patch the database with a one-off script,
+        this defensively re-applies the EXISTING, authoritative writer's
+        own rule at the authoritative read boundary every active-goal
+        lookup already goes through -- self-healing any goal found in
+        this exact state via the same sanctioned method that would have
+        produced a consistent result had it been the sole path all along.
+        Never a raw field mutation; never a new writer.
+        """
+        healed = 0
+        for goal in self._goals:
+            if goal.get("status") == "active" and float(goal.get("progress", 0.0) or 0.0) >= 1.0:
+                gid, progress = goal["id"], float(goal["progress"])
+                logger.warning(
+                    "[VECTOR][goal_system] completion invariant violated: '{}' had "
+                    "progress={} status=active -- correcting via update_goal_progress() (RR-2)",
+                    gid, progress,
+                )
+                self.update_goal_progress(gid, progress, note="RR-2 completion invariant enforcement")
+                healed += 1
+        return healed
+
     def get_active_goals(self, horizon: str | None = None) -> list[dict]:
         """Return active goals sorted by priority. Prunes expired goals first."""
         self._prune_expired()
+        self._enforce_completion_invariant()
         goals = [g for g in self._goals if g.get("status") == "active"]
         if horizon:
             goals = [g for g in goals if g.get("horizon") == horizon.upper()]

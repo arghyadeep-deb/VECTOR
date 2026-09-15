@@ -61,8 +61,25 @@ from districts.coding.git_bot import GitBot
 from tests.test_r13_production_learning_validation import build_isolated_engine, build_isolated_loop
 
 PROBE_GOAL_ID = "g_r24_probe"
-CONF_GIT_STATUS = 0.3
-CONF_GIT_LOG = 0.6
+# RR-2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/RR2_MEANINGFUL_UTILITY_REPORT.md):
+# was 0.3/0.6. RR-2 corrected _act_on()'s reward formula so an unknown-
+# goal-progress outcome no longer defaults to a fabricated 0.5, lowering
+# the real reward (and PolicyMemory score) this flagship's own seeded
+# git_status/git_log history earns per action from ~0.825 to 0.70, and
+# correspondingly shrinking R24's own causal-factor multiplier (which
+# scales with that same strength) from 1.0325 to 1.02. At the old 0.3/0.6
+# gap, git_status's real formula+PolicyMemory+causal merits could no
+# longer overcome git_log's larger raw confidence edge even with the
+# real causal boost applied -- collapsing both this file's own flagship
+# (git_status never re-took the lead) and its intervention-control twin
+# (the swapped-roles race never flipped to git_log either). Retuned to
+# 0.4/0.58 (found by directly running evaluate() against the real,
+# corrected formula) so the causally-boosted candidate still narrowly
+# retakes the lead in both directions -- not a fabricated number, a
+# recalibration of the race's own candidate confidence to restore the
+# real narrow-margin condition this test's narrative depends on.
+CONF_GIT_STATUS = 0.4
+CONF_GIT_LOG = 0.58
 
 
 class _FixedWorldStateContextEngine:
@@ -348,11 +365,14 @@ class TestFlagshipCausalReasoning:
         edges = cg.get_outcomes("action:git_status@present")
         assert edges, "the real writer must have created a real, state-scoped edge"
         assert edges[0]["hit_count"] == 3
-        assert edges[0]["strength"] == pytest.approx(0.825, abs=0.01)
+        # RR-2: was 0.825 -- the real reward for this repeated,
+        # unknown-goal-progress action is now 0.70 (unknown progress no
+        # longer defaults to a fabricated 0.5). See module-level RR-2 note.
+        assert edges[0]["strength"] == pytest.approx(0.70, abs=0.01)
 
         pm = loop._get_policy()
         h = pm.make_situation_hash("git_status", {"goal_id": PROBE_GOAL_ID})
-        assert pm.get_score("git_status", h) == pytest.approx(0.825, abs=0.01)
+        assert pm.get_score("git_status", h) == pytest.approx(0.70, abs=0.01)
 
         # ---- L0 ABLATION / COMPETING-FACTOR CONTROL: the SAME real,
         #      accumulated PolicyMemory data, with ONLY the causal factor
@@ -380,7 +400,10 @@ class TestFlagshipCausalReasoning:
         gs = next(c for c in decision_present.all_candidates if c.action_type == "git_status")
         causal_entry = next((s for s in gs.reasoning_chain if s["factor"] == "causal_prediction"), None)
         assert causal_entry is not None
-        assert causal_entry["weight"] == pytest.approx(1.0325, abs=0.001)
+        # RR-2: was 1.0325 -- the causal factor is 1.0 + (strength-0.5)*0.1;
+        # with the real, RR-2-corrected strength now 0.70 (not 0.825),
+        # the real factor is 1.02. See module-level RR-2 note.
+        assert causal_entry["weight"] == pytest.approx(1.02, abs=0.001)
 
         # ---- SCOPE CONTROL: under a DIFFERENT real state (git_status was
         #      NEVER dispatched under "absent"), the exact same real,
@@ -424,10 +447,14 @@ class TestFlagshipCausalReasoning:
             decision = await engine.evaluate([c])
             await loop._act_on(decision.winner)
 
-        # Swapped confidences: now git_status (0.6) has the real formula
-        # merit edge, git_log (0.3) has the real accumulated favorable
-        # causal history.
-        decision = await engine.evaluate(_race_candidates(conf_status=0.6, conf_log=0.3))
+        # Swapped confidences: now git_status (CONF_GIT_LOG, the higher
+        # value) has the real formula merit edge, git_log (CONF_GIT_STATUS,
+        # the lower value) has the real accumulated favorable causal
+        # history. RR-2: was the literal 0.6/0.3 -- now reuses the same
+        # module-level constants (0.58/0.4) the non-swapped flagship above
+        # was itself recalibrated to, so both directions of this race are
+        # tuned to the same real, RR-2-corrected margin.
+        decision = await engine.evaluate(_race_candidates(conf_status=CONF_GIT_LOG, conf_log=CONF_GIT_STATUS))
         assert decision.winner.action_type == "git_log", (
             "the real accumulated favorable history now belongs to "
             "git_log -- the winner must follow it, not stay pinned to "

@@ -53,14 +53,14 @@ ArchitectBot -- registered):
   -- biasing a real, pre-execution Candidate field, never the outcome/reward
   itself, exactly the same legitimate methodology R11/R12 already
   established) drives a REAL ArchitectBot.scan_codebase_with_graph() call,
-  which genuinely returns {"status": "ok", ...} -> real reward 0.755.
+  which genuinely returns {"status": "ok", ...} -> real reward 0.63.
 
   Executing git_status for real (same confidence-bias technique) drives a
   REAL GitBot.get_status() call -- which genuinely returns
   {branch, modified, staged, untracked, ahead, behind} with NO "status" key
   at all. `_act_on()`'s `completed = 1.0 if result.get("status") in ("ok",
   "executed") else 0.0` therefore reads None -> completed=0.0 -> real
-  reward 0.545. This is a real, honestly-discovered production nuance
+  reward 0.42. This is a real, honestly-discovered production nuance
   (git_bot.py's return-shape doesn't match the reward calculator's expected
   schema for this one handler) -- NOT a bug R13 fixes (out of scope; the
   reward is still real and non-fabricated, still varies meaningfully via
@@ -70,8 +70,8 @@ ArchitectBot -- registered):
 
   After exactly ONE real execution of each: a fresh, neutral (confidence
   tied again) DecisionEngine.evaluate() on freshly regenerated native
-  candidates now picks read_code (score=0.451, policy=0.755) over
-  git_status (score=0.409, policy=0.545) and code_task (score=0.4,
+  candidates now picks read_code (score=0.451, policy=0.63) over
+  git_status (score=0.409, policy=0.42) and code_task (score=0.4,
   policy=0.5, untouched, never executed -- RED, never autonomously run).
 
 That is the flagship proof this file formalizes, with the required controls,
@@ -260,8 +260,8 @@ class TestFlagshipProductionLearning:
     ):
         """The R13 flagship. Deliberately uses BOTH of g_daily_commit's real
         GREEN strategies (git_status, read_code) rather than picking the
-        'nicer' one -- git_status's real reward is honestly lower (0.545 vs
-        read_code's 0.755) because of a real, pre-existing asymmetry in
+        'nicer' one -- git_status's real reward is honestly lower (0.42 vs
+        read_code's 0.63) because of a real, pre-existing asymmetry in
         git_bot.py's return shape (no "status" key), not because either
         reward was hand-tuned. This is IMPORTANT: it proves the reward
         genuinely comes from running the real code and observing whatever
@@ -308,10 +308,10 @@ class TestFlagshipProductionLearning:
 
         h_read = pm.make_situation_hash("read_code", {"goal_id": PROBE_GOAL_ID, "title": PROBE_GOAL_TITLE})
         score_read_after_1 = pm.get_score("read_code", h_read)
-        assert score_read_after_1 == pytest.approx(0.755, abs=0.01), (
+        assert score_read_after_1 == pytest.approx(0.63, abs=0.01), (
             f"expected read_code's real reward (uf=0.7 since completed, "
             f"goal_progress default 0.5, not_overridden/not_corrected 1.0 each, "
-            f"completed=1.0) to compute to ~0.755, got {score_read_after_1}"
+            f"completed=1.0) to compute to ~0.63, got {score_read_after_1}"
         )
 
         # ---- 8a: outcome attribution -- reasoning_chains readback ----
@@ -319,7 +319,7 @@ class TestFlagshipProductionLearning:
         assert attribution_a is not None, "R7 correlation must be readable back from reasoning_chains"
         assert attribution_a["candidate_id"] == candidate_id_a
         assert attribution_a["action_taken"] == "read_code"
-        assert attribution_a["reward"] == pytest.approx(0.755, abs=0.01)
+        assert attribution_a["reward"] == pytest.approx(0.63, abs=0.01)
         assert "status=ok" in attribution_a["outcome"]
 
         # ---- 4: real native candidates again, real decision, execute git_status ----
@@ -337,16 +337,16 @@ class TestFlagshipProductionLearning:
 
         h_git = pm.make_situation_hash("git_status", {"goal_id": PROBE_GOAL_ID, "title": PROBE_GOAL_TITLE})
         score_git_after_1 = pm.get_score("git_status", h_git)
-        assert score_git_after_1 == pytest.approx(0.545, abs=0.01), (
+        assert score_git_after_1 == pytest.approx(0.42, abs=0.01), (
             f"expected git_status's real reward (uf=0.3 since real result carries "
-            f"no 'status' key -> completed=0.0) to compute to ~0.545, got {score_git_after_1}"
+            f"no 'status' key -> completed=0.0) to compute to ~0.42, got {score_git_after_1}"
         )
 
         attribution_b = read_reasoning_chain_for_decision(decision_id_b)
         assert attribution_b is not None
         assert attribution_b["candidate_id"] == candidate_id_b
         assert attribution_b["action_taken"] == "git_status"
-        assert attribution_b["reward"] == pytest.approx(0.545, abs=0.01)
+        assert attribution_b["reward"] == pytest.approx(0.42, abs=0.01)
 
         # ---- 8b: wrong-candidate protection -- a's outcome never touched b's row ----
         assert attribution_a["chain_id"] != attribution_b["chain_id"]
@@ -375,8 +375,8 @@ class TestFlagshipProductionLearning:
         assert winner_after == "read_code", (
             f"after real autonomous experience with both GREEN legs, a fresh, "
             f"neutral (tied-confidence) evaluation must prefer read_code "
-            f"(real learned reward 0.755) over git_status (real learned "
-            f"reward 0.545) and over untouched code_task (default 0.5) -- "
+            f"(real learned reward 0.63) over git_status (real learned "
+            f"reward 0.42) and over untouched code_task (default 0.5) -- "
             f"got {winner_after}"
         )
         # The capability-delta claim: real experience changed a real,
@@ -433,7 +433,7 @@ class TestCausalControls:
         await loop._act_on(decision.winner)
 
         h_probe = pm.make_situation_hash("git_status", {"goal_id": "g_r13_control_b_probe", "title": PROBE_GOAL_TITLE})
-        assert pm.get_score("git_status", h_probe) == pytest.approx(0.545, abs=0.01)
+        assert pm.get_score("git_status", h_probe) == pytest.approx(0.42, abs=0.01)
 
         gs_unrelated = isolated_probe_goal_system(goal_id="g_r13_control_b_unrelated", title="An entirely unrelated goal")
         unrelated_candidates = native_candidates(gs_unrelated, confidence=0.5)
@@ -497,8 +497,8 @@ class TestCausalControls:
         assert attr_1["candidate_id"] != decision_2.winner.candidate_id
         assert attr_2["candidate_id"] == decision_2.winner.candidate_id
         assert attr_2["candidate_id"] != decision_1.winner.candidate_id
-        assert attr_1["action_taken"] == "read_code" and attr_1["reward"] == pytest.approx(0.755, abs=0.01)
-        assert attr_2["action_taken"] == "git_status" and attr_2["reward"] == pytest.approx(0.545, abs=0.01)
+        assert attr_1["action_taken"] == "read_code" and attr_1["reward"] == pytest.approx(0.63, abs=0.01)
+        assert attr_2["action_taken"] == "git_status" and attr_2["reward"] == pytest.approx(0.42, abs=0.01)
 
     async def test_control_e_repeatability_across_multiple_runs(self, isolated_vector_db, isolated_agent_registry, tmp_path):
         """Run the same real execution 3 times -- the real reward for a
@@ -521,10 +521,10 @@ class TestCausalControls:
             h = pm.make_situation_hash("git_status", {"goal_id": "g_r13_control_e", "title": PROBE_GOAL_TITLE})
             observed_rewards.append(pm.get_score("git_status", h))
 
-        # Converging toward 0.545 (each individual execution's real reward),
+        # Converging toward 0.42 (each individual execution's real reward),
         # never diverging -- proves the signal is a stable, real, repeatable
         # measurement, not noise.
-        assert all(abs(r - 0.545) < 0.02 for r in observed_rewards), observed_rewards
+        assert all(abs(r - 0.42) < 0.02 for r in observed_rewards), observed_rewards
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -588,13 +588,13 @@ class TestMultiCycle:
         assert len(candidate_ids) == 6, "every cycle's winner must be a fresh, non-colliding candidate_id"
         assert winners == targets, "winner must match the biased target every cycle (bias correctly steers real execution)"
 
-        # Outcome/reward distribution: read_code cycles converge on 0.755,
-        # git_status cycles converge on 0.545 -- two clearly separated,
+        # Outcome/reward distribution: read_code cycles converge on 0.63,
+        # git_status cycles converge on 0.42 -- two clearly separated,
         # stable clusters, not noise.
         read_rewards = [r for w, r in zip(winners, rewards) if w == "read_code"]
         git_rewards = [r for w, r in zip(winners, rewards) if w == "git_status"]
-        assert all(abs(r - 0.755) < 0.02 for r in read_rewards)
-        assert all(abs(r - 0.545) < 0.02 for r in git_rewards)
+        assert all(abs(r - 0.63) < 0.02 for r in read_rewards)
+        assert all(abs(r - 0.42) < 0.02 for r in git_rewards)
 
         # Final neutral decision after 6 real cycles: read_code should now
         # win comfortably (its converged policy score is clearly higher).
@@ -721,7 +721,7 @@ class TestAdversarialReview:
         close_db_connection()
         # SAME pm instance, after a real restart -- must still read correctly
         # (no stale cached connection/value).
-        assert pm.get_score("git_status", h) == pytest.approx(0.545, abs=0.01)
+        assert pm.get_score("git_status", h) == pytest.approx(0.42, abs=0.01)
 
     async def test_attack_6_hash_mismatch(self):
         """The writer (_act_on()) and reader (DecisionEngine._score_candidate())
@@ -827,8 +827,18 @@ class TestAdversarialReview:
         engine2 = build_isolated_engine(str(tmp_path / "epistemic2.db"))
         neutral = native_candidates(gs2, confidence=0.5)
         d2 = await engine2.evaluate(neutral)
-        winner_factors = {f["factor"]: f["value"] for f in d2.winner.reasoning_chain}
-        assert winner_factors["policy_score"] == pytest.approx(0.545, abs=0.01)
+        # RR-2: git_status's real, learned reward (~0.42) is now BELOW the
+        # untouched alternatives' default (0.5), so it no longer wins this
+        # second, neutral evaluation outright (read_code/code_task, frozen
+        # at policy=0.5, now win the tie instead) -- a real, correct
+        # consequence of removing the old fabricated-0.5 floor, not an R6
+        # staleness artifact. This test's actual claim (a real, non-zero,
+        # non-R6 policy factor for git_status specifically) is checked
+        # directly against git_status's own candidate, not whichever
+        # candidate happens to win.
+        git_status_candidate = next(c for c in d2.all_candidates if c.action_type == "git_status")
+        factors = {f["factor"]: f["value"] for f in git_status_candidate.reasoning_chain}
+        assert factors["policy_score"] == pytest.approx(0.42, abs=0.01)
 
     async def test_attack_14_reward_hardcoding(self):
         """The flagship never calls update_from_outcome() with a literal
@@ -931,7 +941,7 @@ class TestAdversarialReview:
         d2 = await fresh_engine.evaluate(neutral)
         # find git_status's own candidate among all_candidates for the policy value
         git_candidate = next(cc for cc in d2.all_candidates if cc.action_type == "git_status")
-        assert git_candidate.policy_score == pytest.approx(0.545, abs=0.01)
+        assert git_candidate.policy_score == pytest.approx(0.42, abs=0.01)
 
     async def test_attack_20_safety_tier_bypass(self, isolated_vector_db, isolated_agent_registry, tmp_path):
         """Duplicate, narrower confirmation of TestSafety: even the winner

@@ -107,9 +107,13 @@ def isolated_r15_agent_registry():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# Flagship: fully autonomous (bias-free) GREEN→GREEN switching, via the
-# real, existing R6 staleness-diversity mechanism, on a real GREEN-only
-# native candidate set.
+# Flagship: fully autonomous (bias-free) GREEN→GREEN switching on a real
+# GREEN-only native candidate set. RR-2 update: the switch is now driven
+# by real, corrected reward learning (git_status's real reward legitimately
+# scores below the untouched alternative's default after just one real
+# execution) rather than R6's mechanical 5-win exhaustion, which never
+# gets a chance to fire in this scenario any more. See the RR-2 comment
+# on the flagship assertion below for the full explanation.
 # ═══════════════════════════════════════════════════════════════════════════
 
 @pytest.mark.asyncio
@@ -167,35 +171,51 @@ class TestGreenToGreenFlagship:
 
         winners = [c["winner"] for c in cycles]
 
-        # ---- The actual capability delta: a real, autonomous, unsteered
-        #      switch from one GREEN strategy to a DIFFERENT GREEN strategy. ----
-        assert winners == ["git_status"] * 5 + ["consolidate"], (
-            f"expected the real R6 staleness mechanism to autonomously "
-            f"switch from git_status to consolidate on cycle 6 (both real, "
-            f"both GREEN) -- got {winners}. If this repo's exact scoring/"
-            f"config/generation-order ever changes, this assertion (not the "
-            f"underlying capability) needs re-verification against real "
-            f"behavior, never silently loosened."
+        # ---- RR-2 UPDATE (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        #      RR2_MEANINGFUL_UTILITY_REPORT.md): the actual capability
+        #      delta observed here is STRONGER than the original R6-
+        #      staleness-driven design assumed. Before RR-2, git_status's
+        #      reward floor (~0.545, from a fabricated goal_progress=0.5
+        #      default for unknown evidence) sat ABOVE PolicyMemory.
+        #      DEFAULT_SCORE (0.5), so git_status could only ever be
+        #      dislodged by R6's mechanical 5-win exhaustion. Under the
+        #      corrected formula, git_status's real reward (~0.42, real
+        #      completed=0.0 -- GitBot.get_status() carries no "status"
+        #      key) sits BELOW default -- so on cycle 2, the untried
+        #      `consolidate` (still at default 0.5) genuinely outscores it
+        #      on real, evidenced merit alone. R6 never gets a chance to
+        #      fire in this scenario any more; the switch is now
+        #      REWARD-DRIVEN, not mechanically forced -- a real, honest,
+        #      and arguably more meaningful finding than the original
+        #      design targeted. ----
+        assert winners == ["git_status"] + ["consolidate"] * 5, (
+            f"expected git_status to win cycle 1 (tie-break default), then "
+            f"lose to consolidate from cycle 2 onward once its own real, "
+            f"below-default reward is learned -- got {winners}. If this "
+            f"repo's exact scoring/config/generation-order ever changes, "
+            f"this assertion (not the underlying capability) needs "
+            f"re-verification against real behavior, never silently "
+            f"loosened."
         )
         assert len(decision_ids) == 6 and len(candidate_ids) == 6, "every real cycle mints fresh, non-colliding IDs"
 
         # ---- Real outcomes for BOTH strategies, both genuinely executed ----
         git_status_reward = next(c["reward"] for c in cycles if c["winner"] == "git_status")
         consolidate_reward = next(c["reward"] for c in cycles if c["winner"] == "consolidate")
-        assert git_status_reward == pytest.approx(0.545, abs=0.01)
-        assert consolidate_reward == pytest.approx(0.755, abs=0.01), (
+        assert git_status_reward == pytest.approx(0.42, abs=0.01)
+        assert consolidate_reward == pytest.approx(0.63, abs=0.01), (
             "consolidate's real reward (uf=0.7 since ConsolidationBot genuinely "
             "returns status='ok' on a real, empty, isolated episodic-memory "
             "scan) -- a real, non-fabricated, independently-computed outcome"
         )
 
-        # ---- Outcome attribution for the switch itself ----
-        switch_decision_id = cycles[5]["decision_id"]
+        # ---- Outcome attribution for the switch itself (now cycle 2, index 1) ----
+        switch_decision_id = cycles[1]["decision_id"]
         attribution = read_reasoning_chain_for_decision(switch_decision_id)
         assert attribution is not None
         assert attribution["action_taken"] == "consolidate"
-        assert attribution["candidate_id"] == cycles[5]["candidate_id"]
-        assert attribution["reward"] == pytest.approx(0.755, abs=0.01)
+        assert attribution["candidate_id"] == cycles[1]["candidate_id"]
+        assert attribution["reward"] == pytest.approx(0.63, abs=0.01)
 
         # ---- Persistence: the switch survives a real restart ----
         from core.memory.episodic import close_db_connection
@@ -205,14 +225,14 @@ class TestGreenToGreenFlagship:
         after_restart = await engine2.evaluate(native_candidates(gs2, confidence=0.5))
         h_git = pm.make_situation_hash("git_status", {"goal_id": goal_id, "title": R15_TITLE})
         h_con = pm.make_situation_hash("consolidate", {"goal_id": goal_id, "title": R15_TITLE})
-        assert pm.get_score("git_status", h_git) == pytest.approx(0.545, abs=0.01)
-        assert pm.get_score("consolidate", h_con) == pytest.approx(0.755, abs=0.01)
+        assert pm.get_score("git_status", h_git) == pytest.approx(0.42, abs=0.01)
+        assert pm.get_score("consolidate", h_con) == pytest.approx(0.63, abs=0.01)
         # NOTE: engine2 is a FRESH DecisionEngine -- its own _winner_streak_count
         # resets to 0 on construction (process-local, not persisted -- see
         # R14's report §12), so the post-restart winner is decided by the
         # (now real, persisted, learned) policy scores alone, not by a
         # carried-over streak. consolidate's higher real learned score
-        # (0.755 vs 0.545) legitimately makes it the winner here too.
+        # (0.63 vs 0.42) legitimately makes it the winner here too.
         assert after_restart.winner.action_type == "consolidate"
 
 
@@ -247,21 +267,22 @@ class TestCausalControls:
     async def test_control_b_streak_resets_after_a_real_switch(
         self, isolated_vector_db, isolated_r15_agent_registry, tmp_path,
     ):
-        """Per _select_staleness_aware_winner()'s own real, documented
-        contract: once something else wins, the previous winner's
-        suppression pressure resets -- it is not a permanent blacklist,
-        and there is no artificial "force it back" rule either. What
-        ACTUALLY happens on cycle 7 (empirically discovered by this test,
-        not assumed): `consolidate`'s real, learned reward (0.755) is
-        genuinely HIGHER than `git_status`'s (0.545), so once R6's forced
-        cycle-6 trial gives `consolidate` its first real sample,
-        PolicyMemory's own real learning -- not R6, not a reset rule --
-        keeps it winning on cycle 7 too, because it legitimately scores
-        better. This is a stronger, more honest finding than "it reverts
-        after one try": VECTOR's real experience of the alternative
-        strategy revealed it was actually the better real choice, and
-        real learning (not forced exploration) is what sustains the
-        switch afterward."""
+        """RR-2 UPDATE: what ACTUALLY happens over 7 real cycles
+        (empirically discovered by this test, not assumed) is a richer,
+        composite finding showing BOTH real mechanisms operating
+        correctly together: git_status wins cycle 1 (tie-break default),
+        earning a real, evidenced reward of ~0.42 (BELOW PolicyMemory.
+        DEFAULT_SCORE, since GitBot.get_status() carries no "status" key
+        -> completed=0.0). From cycle 2, the untried `consolidate` (still
+        at default 0.5) genuinely outscores git_status's own real,
+        learned, below-default reward -- pure PolicyMemory learning, not
+        R6 -- and wins 5 CONSECUTIVE times (cycles 2-6). At cycle 7, R6's
+        real, unmodified staleness-diversity mechanism fires exactly as
+        designed (5 consecutive wins reached) and mechanically forces
+        `git_status` back in for one cycle, confirmed via the real log
+        line ("R6 staleness: 'consolidate' suppressed after 5 consecutive
+        wins"). Both mechanisms are real, both fire for their own real
+        reason, and neither masks the other."""
         goal_id = f"{R15_GOAL_ID_PREFIX}_control_b"
         engine = build_isolated_engine(str(tmp_path / "epistemic.db"))
         loop = build_isolated_loop(engine)
@@ -271,12 +292,11 @@ class TestCausalControls:
             decision = await engine.evaluate(native_candidates(gs, confidence=0.5))
             winners.append(decision.winner.action_type)
             await loop._act_on(decision.winner)
-        assert winners[:5] == ["git_status"] * 5
-        assert winners[5] == "consolidate"
-        assert winners[6] == "consolidate", (
-            "consolidate's real learned reward (0.755) genuinely exceeds "
-            "git_status's (0.545) -- real PolicyMemory learning, not the "
-            "R6 streak mechanism, sustains the switch on cycle 7"
+        assert winners == ["git_status"] + ["consolidate"] * 5 + ["git_status"], (
+            "expected: cycle 1 git_status (tie-break), cycles 2-6 "
+            "consolidate (reward-driven, 5 consecutive real wins), cycle 7 "
+            "git_status (R6's real 5-consecutive-win staleness suppression "
+            "firing exactly as designed) -- got " + str(winners)
         )
 
     async def test_control_c_wrong_candidate_attribution(
