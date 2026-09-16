@@ -295,19 +295,74 @@ async def session_message(session_id: str, body: SessionMessageRequest) -> dict:
 # â"€â"€ Internal dispatch â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 
 
-async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
-    """Try multiple paths to actually run the agent.
+def _resolve_action_type(task: dict | str, params: dict) -> str | None:
+    """RR-3.7A (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+    RR3_7A_A2A_AUTHORIZATION_REPORT.md): deterministically extract the real
+    action_type PermissionGateway must classify, or return None to fail
+    closed. Never guesses via an LLM (mission Section 6).
 
-    Order:
-      0. Existence check — raise 404 immediately if agent not in registry
-      1. Direct vectorcode.src.a2a.client.invoke (if absorbed module wired)
-      2. Look up agent in registry, instantiate via class_name, call .run()
-      3. Return placeholder if nothing succeeds
+    `task` (InvokeRequest) is free-form `dict | str`; `params` may also
+    carry a type/action key (SessionMessageRequest has no task field at
+    all, so this always returns None for session messages -- see Section
+    19 of the report: every session message therefore fails closed to a
+    non-executing response, never a silent guess).
+
+    Checked in order, first match wins, matching the literal key
+    convention Governor.dispatch()'s own task dicts use ("type") and the
+    one alternate convention observed in real district agent run()
+    implementations ("action"):
+      task["type"], task["action"], params["type"], params["action"]
+    A bare string `task` (no dict, no structured field) never resolves.
     """
-    # 0) Fast existence check — prevents A2AClient from returning 200 for unknown agents
+    if isinstance(task, dict):
+        for key in ("type", "action"):
+            val = task.get(key)
+            if isinstance(val, str) and val:
+                return val
+    for key in ("type", "action"):
+        val = params.get(key)
+        if isinstance(val, str) and val:
+            return val
+    return None
+
+
+async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
+    """Authorize and execute an A2A request through the SAME canonical
+    authorization boundary /command and /ws/command use.
+
+    RR-3.7A: this function used to instantiate the caller-named agent and
+    call `instance.run(task_payload)` directly -- zero PermissionGateway,
+    zero Governor, zero action-type classification of any kind. Confirmed
+    by source: every currently-materializable agent behind this registry
+    (vectorcode.src.agents.registry, a DISTINCT registry from the real
+    district-agent core.city.agent_registry Governor/PermissionGateway
+    route to) either doesn't exist as an importable class at all
+    (coding.yaml's 5 definitions) or resolves to a dynamically-generated
+    wrapper (agent_types.py's ~60 classes) that never overrides
+    AgentBase.run() -- so today this gap is latent, not live-dangerous,
+    but the architectural gap itself (no authorization boundary at all)
+    was real and would become immediately exploitable the moment any real
+    capability is ever registered here.
+
+    Fixed by treating the caller-named agent as informational only (used
+    for the existence check below, matching prior behavior/API contract)
+    and routing the REAL execution decision through
+    PermissionGateway.execute() -- the single authorization+execution
+    boundary already used by /command and /ws/command. instance.run() is
+    never called after authorization: PermissionGateway.execute() IS the
+    execution (via its own internal dispatcher), eliminating any
+    double-dispatch risk by construction rather than by careful sequencing.
+    If no deterministic action_type can be extracted from the request,
+    this fails closed -- no Gateway call, no execution, an honest response
+    only (Section 6: never guess via an LLM).
+    """
+    # 0) Fast existence check — prevents a request naming an unknown agent
+    # from silently proceeding; also the source of the requested agent's
+    # own metadata for the audit-trail params below.
     try:
         from vectorcode.src.agents.registry import get_registry
-        if get_registry().get(agent_name) is None:
+        defn = get_registry().get(agent_name)
+        if defn is None:
             raise HTTPException(
                 status_code=404, detail=f"agent '{agent_name}' not in registry",
             )
@@ -315,53 +370,65 @@ async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
         raise
     except Exception:
         logger.exception("[VECTOR] silent swallow")
-        pass  # Registry unavailable — fall through to A2AClient attempt
+        defn = None  # Registry unavailable — fall through, action-type check below still fail-closes
 
-    # 1) Try absorbed A2A client
-    try:
-        from vectorcode.src.a2a.client import A2AClient  # type: ignore
-        client = A2AClient()
-        if hasattr(client, "invoke"):
-            result = client.invoke(agent_name, task, params=params)
-            if asyncio.iscoroutine(result):
-                result = await result
-            if result is not None:
-                return result
-    except Exception as e:
-        logger.debug(f"[VECTOR][a2a] A2A client unavailable: {e}")
+    # 1) Deterministic action-identity extraction — fail closed if absent.
+    action_type = _resolve_action_type(task, params)
+    if action_type is None:
+        return {
+            "status": "blocked",
+            "reason": "no_deterministic_action_identity",
+            "note": (
+                "could not determine a real action_type from this request "
+                "(expects task={'type': '<action_type>', ...} or a 'type'/"
+                "'action' key in params) -- refusing to guess or execute"
+            ),
+            "agent": agent_name,
+        }
 
-    # 2) Try VECTOR's own agent registry — instantiate + call .run()
+    # 2) Route through the real, unmodified PermissionGateway -- the same
+    # authorization+execution boundary /command and /ws/command use. The
+    # requested agent's identity is preserved as informational params only
+    # (never determines which code executes -- Gateway's own real tier
+    # resolution and _execute_action()/Governor routing does).
     try:
-        from vectorcode.src.agents.registry import get_registry
-        reg = get_registry()
-        defn = reg.get(agent_name)
-        if defn is None:
-            raise HTTPException(
-                status_code=404, detail=f"agent '{agent_name}' not in registry",
-            )
-        # Try to materialize an instance
-        instance = await _materialize_agent(defn)
-        if instance is None:
-            return {
-                "status": "ack",
-                "note": f"agent definition found but no instance materializable",
-                "agent": agent_name,
-                "task": task,
-                "params": params,
-            }
-        # Build a task dict (some agents accept str, some dict)
-        task_payload = task if isinstance(task, dict) else {"task": task, **params}
-        if hasattr(instance, "run"):
-            result = instance.run(task_payload)
-            if asyncio.iscoroutine(result):
-                result = await result
-            return result
-        return {"status": "ok", "note": "agent has no run() method", "agent": agent_name}
+        from core.loop.permission_gateway import PermissionGateway, Action
+        gw_params = dict(params)
+        if isinstance(task, dict):
+            gw_params = {**task, **gw_params}
+        gw_params["_a2a_requested_agent"] = agent_name
+        gateway_result = await PermissionGateway().execute(Action(
+            action_type=action_type,
+            params=gw_params,
+            proposed_by="a2a",
+        ))
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"[VECTOR][a2a] dispatch fallback failed: {e}")
+        logger.warning(f"[VECTOR][a2a] gateway dispatch failed: {e}")
         return {"status": "error", "error": str(e), "agent": agent_name}
+
+    result = dict(gateway_result.result or {})
+    if not gateway_result.approved:
+        return {
+            "status": "blocked",
+            "reason": gateway_result.reason,
+            "tier": gateway_result.level,
+            "agent": agent_name,
+            "action_type": action_type,
+        }
+    if result.get("status") == "not_implemented":
+        # Never report approved+executed as success when nothing real happened.
+        return {
+            "status": "not_implemented",
+            "note": result.get("note") or f"'{action_type}' is not implemented",
+            "agent": agent_name,
+            "action_type": action_type,
+        }
+    result.setdefault("status", "ok")
+    result["agent"] = agent_name
+    result["action_type"] = action_type
+    return result
 
 
 async def _materialize_agent(defn: Any) -> Any:
