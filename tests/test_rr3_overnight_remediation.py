@@ -311,6 +311,60 @@ def test_rr3_2_repeated_exception_connects_to_epistemic_and_changes_future_score
     assert pm_score < 0.5, f"PolicyMemory must also reflect the degraded exception-derived reward, got {pm_score}"
 
 
+def test_rr3_2_repeated_exception_flips_a_real_winner_without_r6(tmp_path):
+    """L4 proof (mission capability ladder, Section 25): repeated real
+    exceptions for one action_type must be able to change WHICH candidate
+    wins a real evaluate() call, not just move an internal score number.
+    Constructs two competing candidates with near-identical raw scores,
+    degrades one via repeated real exceptions, then re-evaluates a FRESH
+    pair (same two action_types, brand-new Candidate objects) in ONE
+    evaluate() call -- R6 cannot be the cause here because R6 only ever
+    swaps a candidate that has already WON several consecutive evaluate()
+    calls; this test never lets the exception-experienced action_type win
+    any evaluate() call at all before the final, decisive one."""
+    from core.loop.decision_engine import Candidate
+
+    action_a = f"test_rr3_flip_a_{uuid.uuid4().hex[:8]}"
+    action_b = f"test_rr3_flip_b_{uuid.uuid4().hex[:8]}"
+    loop, engine = _make_isolated_loop(tmp_path, governor_raises=RuntimeError("simulated real crash"))
+
+    # Baseline: with no history for either action_type, confirm they start
+    # exactly tied (same params/confidence/urgency) so any later difference
+    # is attributable ONLY to the epistemic penalty this fix adds.
+    baseline_pair = [
+        Candidate(action_type=action_a, params={}, goal_ids=[], confidence=0.6, urgency=0.5),
+        Candidate(action_type=action_b, params={}, goal_ids=[], confidence=0.6, urgency=0.5),
+    ]
+    baseline_decision = asyncio.run(engine.evaluate(baseline_pair))
+    baseline_scores = {c.action_type: c.total_score for c in baseline_decision.all_candidates}
+    assert baseline_scores[action_a] == pytest.approx(baseline_scores[action_b], abs=1e-9), (
+        "the two action_types must start perfectly tied for this to be a clean test"
+    )
+
+    # Degrade ONLY action_a via repeated real exceptions. Each of these is
+    # its own isolated _act_on() call with a single candidate -- action_a
+    # never competes against action_b here, so R6 (which operates on
+    # per-evaluate() winner streaks) has no opportunity to touch either
+    # action_type's standing at all.
+    asyncio.run(_run_n_times(loop, action_a, 6))
+
+    # Decisive call: brand-new Candidate objects for both action_types,
+    # same confidence/urgency as baseline, competing for the first time.
+    final_pair = [
+        Candidate(action_type=action_a, params={}, goal_ids=[], confidence=0.6, urgency=0.5),
+        Candidate(action_type=action_b, params={}, goal_ids=[], confidence=0.6, urgency=0.5),
+    ]
+    final_decision = asyncio.run(engine.evaluate(final_pair))
+
+    assert final_decision.winner.action_type == action_b, (
+        f"the real epistemic penalty on '{action_a}' must be enough to flip a real "
+        f"evaluate() winner toward the untouched '{action_b}' -- got winner="
+        f"{final_decision.winner.action_type}. This is not R6 (neither action_type "
+        f"ever won a prior evaluate() call in this test) and not PolicyMemory alone "
+        f"(both started with identical, tied scores)."
+    )
+
+
 def test_rr3_2_epistemic_penalty_survives_restart(tmp_path):
     """Mission Section 14, Test H: failure-learning persistence must survive
     a process restart, not just live in an in-memory cache. Writes a belief
