@@ -159,7 +159,9 @@ class CredentialManager(AgentBase):
                 self.award_points(5, "template_generated")
                 return {"status": "ok", "template": template}
 
-            else:  # scan, or an unmatched task_type carrying a free-text question
+            elif task_type == "scan":  # this file's own deliberate, self-tested
+                                        # action_type (see __main__ smoke test
+                                        # below, `agent.run({"type": "scan"})`)
                 query = (
                     (task.get("params") or {}).get("query")
                     or task.get("query")
@@ -188,6 +190,43 @@ class CredentialManager(AgentBase):
                 )
                 self.award_points(15, "credentials_scanned")
                 return {"status": "ok", "credentials": result}
+
+            else:
+                # RR-3.7B.1 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+                # RR3_7B1_AMBIGUITY_AUTOPILOT_CLOSURE_REPORT.md): this used
+                # to be the same `else` branch "scan" fell into, so ANY
+                # unrecognized/misrouted task_type (e.g. Governor's HP-
+                # lottery fallback selecting CredentialManager for a
+                # completely unrelated governance-district action such as
+                # privacy.py's "gdpr_check", which has no exact capability
+                # match anywhere and no PermissionGateway boundary) silently
+                # ran the real scan_available_providers() call -- which
+                # returns each configured provider's key_prefix (first 8
+                # chars of a real API key) in the HTTP response body. A
+                # free-text question is still answered here (safe,
+                # LLM-grounded, no key material) exactly as before; anything
+                # else now gets an honest "unhandled type" error, matching
+                # the dominant pattern every other district agent in this
+                # codebase already uses for an unrecognized type, instead of
+                # defaulting into a real, key-material-bearing action.
+                query = (
+                    (task.get("params") or {}).get("query")
+                    or task.get("query")
+                    or task.get("text")
+                    or ""
+                ).strip()
+                if query:
+                    answer = await self.answer_credential_question(query)
+                    if answer:
+                        self._get_memory().store(
+                            event_type="credential_question_answered",
+                            content=f"CredentialManager answered: {query[:80]}",
+                            tags=["governance", "credentials"],
+                            source="credential_manager",
+                        )
+                        self.award_points(10, "credential_question_answered")
+                        return {"status": "ok", "response": answer}
+                return {"status": "error", "error": f"unhandled type '{task_type}'"}
 
         except Exception as e:
             logger.error("[VECTOR][cred_mgr] {}", e)

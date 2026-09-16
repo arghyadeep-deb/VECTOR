@@ -110,8 +110,31 @@ class Autopilot(AgentBase):
         task_type = initial_task.get("type", "unknown")
         logger.info("[VECTOR][autopilot] chain depth={} dispatching {}", chain_depth, task_type)
 
+        # RR-3.7B.1 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        # RR3_7B1_AMBIGUITY_AUTOPILOT_CLOSURE_REPORT.md): the depth guard
+        # above only bounds the RECURSIVE PYTHON CALL below
+        # (run_chain(follow_on, chain_depth+1)) -- it does NOT bound this
+        # dispatch. `initial_task["type"]` reaching Governor.dispatch() can
+        # itself resolve straight back to THIS agent: "autopilot_trigger"
+        # is Autopilot's own declared capability (config/agent_manifest.yaml),
+        # so POST /governance/autopilot/trigger -> Governor.dispatch()
+        # deterministically re-selects Autopilot -> Autopilot.run() ->
+        # this same run_chain() again, at chain_depth=0 every time (run()
+        # never threaded a depth through), because chain_depth is a plain
+        # Python argument that does NOT survive a Governor.dispatch()
+        # round-trip -- the guard above never sees the depth advance on
+        # this self-referential edge, independent of the (correctly
+        # depth-tracked) chain-to-next-district recursion below. Stamping
+        # the depth onto the dispatched task itself is the only channel
+        # that survives that round-trip; run()'s own "chain" branch reads
+        # it back (see below) so a re-entrant Autopilot.run() sees how deep
+        # this already is. Harmless for the legitimate cross-district chain
+        # path -- the receiving agent there is never Autopilot and simply
+        # ignores an unrecognised "autopilot_depth" param key.
+        dispatch_task = {**initial_task, "autopilot_depth": chain_depth + 1}
+
         # Execute current task
-        result = await gov.dispatch(initial_task)
+        result = await gov.dispatch(dispatch_task)
 
         self._get_memory().store(
             event_type="autopilot_chain_step",
@@ -200,7 +223,18 @@ class Autopilot(AgentBase):
                         self.award_points(10, "governance_question_answered")
                         return {"status": "ok", "response": answer}
 
-                result = await self.run_chain(task)
+                # RR-3.7B.1: read back any depth run_chain() stamped onto
+                # this task on a previous, self-referential dispatch (see
+                # run_chain()'s own comment) -- without this, a re-entrant
+                # Autopilot.run() always starts run_chain() at depth 0,
+                # defeating MAX_CHAIN_DEPTH entirely for this edge. Fails
+                # safe on anything malformed/adversarial: non-int, bool
+                # (a bool subclasses int in Python), or negative all
+                # collapse to 0 rather than ever widening the guard.
+                incoming_depth = task.get("autopilot_depth", 0)
+                if not isinstance(incoming_depth, int) or isinstance(incoming_depth, bool) or incoming_depth < 0:
+                    incoming_depth = 0
+                result = await self.run_chain(task, chain_depth=incoming_depth)
                 return {"status": "ok", **result}
 
         except Exception as e:
