@@ -30,7 +30,16 @@ class ExerciseLogger(AgentBase):
             district="health",
             generation=generation,
         )
-        self.capabilities = ["exercise", "health"]
+        # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "log_exercise"
+        # added -- Governor.dispatch()'s agent selection is an EXACT match
+        # on `task_type in agent.capabilities` (governor.py); without this,
+        # correct DISTRICT_TASK_MAP routing to "health" (also added this
+        # mission) still left the actual executing agent to an HP-lottery
+        # among health-district agents, confirmed live in production to
+        # sometimes pick FatigueMonitor instead of this agent's own real
+        # `run()` branch for this exact type.
+        self.capabilities = ["exercise", "health", "log_exercise"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

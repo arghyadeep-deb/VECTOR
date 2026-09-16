@@ -25,10 +25,44 @@ class CreateProjectReq(BaseModel):
 @router.post("/create")
 async def create_project(body: CreateProjectReq):
     """Create project with roadmap and milestones."""
-    from core.city.governor import GovernorCouncil
-    gov = GovernorCouncil()
+    # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+    # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): this used to call
+    # governor.dispatch({"type": "create_project", ...}) directly -- zero
+    # PermissionGateway anywhere in the path -- despite "create_project"
+    # being a real, YELLOW-tier (core/config.py), side-effecting action:
+    # districts/projects/project_planner.py::ProjectPlanner.run() has an
+    # exact `task["type"]=="create_project"` branch that writes a real
+    # episodic-memory row AND a real Obsidian note file to disk, with
+    # caller-supplied name/goal/deadline flowing directly into file content.
+    # Fixed by routing through the same canonical Candidate ->
+    # DecisionEngine.evaluate() -> PermissionGateway.execute() pipeline
+    # RR-3.6/RR-3.7A already established -- proposed_by="structured_api"
+    # (deliberately distinct from "api_command"/"voice" so this does NOT
+    # inherit YELLOW pre-confirmation).
+    from core.loop.decision_engine import DecisionEngine, Candidate
+    from core.loop.permission_gateway import PermissionGateway, Action
     try:
-        return await gov.dispatch({"type": "create_project", "params": body.model_dump()})
+        candidate = Candidate(
+            action_type="create_project",
+            params=body.model_dump(),
+            goal_ids=[],
+            urgency=0.3,
+            confidence=0.9,
+            source="structured_api",
+        )
+        decision = await DecisionEngine().evaluate([candidate])
+        winner = decision.winner
+        gateway_result = await PermissionGateway().execute(Action(
+            action_type=winner.action_type,
+            params=winner.params,
+            proposed_by="structured_api",
+        ))
+        result = gateway_result.result or {}
+        if not gateway_result.approved:
+            return {"status": "blocked", "reason": gateway_result.reason, "level": gateway_result.level}
+        if result.get("status") == "not_implemented":
+            return {"status": "not_implemented", "note": result.get("note")}
+        return result
     except Exception as e:
         logger.error("[VECTOR][projects] create_project failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e))

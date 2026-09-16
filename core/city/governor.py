@@ -565,6 +565,18 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "sleep": "health",
     "fatigue": "health",
     "check_fatigue": "health",
+    # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+    # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "log_exercise" had
+    # no DISTRICT_TASK_MAP entry at all (confirmed by grep), so after
+    # closing this action's authorization gap (core/api/routers/health.py),
+    # a live production probe showed it still nondeterministically fell to
+    # _llm_classify() -- one run landed in "learning" instead of "health",
+    # where the district's HP-winning agent (CourseTracker, not the real
+    # ExerciseLogger) ran with no declared capability match. A real,
+    # single, unambiguous exact-key route (same fix class as RR-3.5A's
+    # "idea_validate" -> "startups") structurally eliminates this
+    # wrong-district risk for this one, now-authorized action_type.
+    "log_exercise": "health",
     "finance": "finance",
     "budget": "finance",
     "money": "finance",

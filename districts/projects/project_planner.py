@@ -28,7 +28,15 @@ class ProjectPlanner(AgentBase):
             district="projects",
             generation=generation,
         )
-        self.capabilities = ["deadline_check", "plan", "progress", "project"]
+        # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "create_project"
+        # added -- Governor.dispatch()'s agent selection is an EXACT match
+        # on `task_type in agent.capabilities` (governor.py); without this,
+        # correct district routing to "projects" (the existing "project"
+        # substring DISTRICT_TASK_MAP key, unchanged) still left the actual
+        # executing agent to an HP-lottery among projects-district agents,
+        # by the exact same mechanism confirmed live for log_exercise/health.
+        self.capabilities = ["deadline_check", "plan", "progress", "project", "create_project"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()

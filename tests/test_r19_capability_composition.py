@@ -374,15 +374,23 @@ class TestGovernorAndPermission:
         RR3_5_FOUNDATION_CLOSURE_REPORT.md) added "idea_validate" to this
         same allowlist -- a third, individually source-verified, GREEN-tier
         entry (real handler, real single unambiguous DISTRICT_TASK_MAP
-        route), not a loosening of the allowlist's shape. The real security
-        invariant this test protects -- no RED action ever reachable via
-        this delegation path -- is unchanged and re-verified below; only
-        the exact-membership snapshot grows by the one new, deliberately
-        authorized entry.
+        route), not a loosening of the allowlist's shape. RR-3.7B
+        (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md) added
+        "log_exercise"/"create_project" -- two individually source-verified,
+        YELLOW-tier entries (real handlers, real exact task_type branches)
+        closing structured-router authorization gaps in health.py/
+        projects.py. The real security invariant this test protects -- no
+        RED action ever reachable via this delegation path -- is unchanged
+        and re-verified below; only the exact-membership snapshot grows by
+        each new, deliberately authorized entry.
         """
         from core.loop.permission_gateway import _PLAN_COMPOSABLE_ACTION_TYPES
         from core.config import CONFIG
-        assert _PLAN_COMPOSABLE_ACTION_TYPES == {"script", "schedule_post", "idea_validate"}
+        assert _PLAN_COMPOSABLE_ACTION_TYPES == {
+            "script", "schedule_post", "idea_validate",
+            "log_exercise", "create_project",
+        }
         for red_action in CONFIG["permission"]["red"]:
             assert red_action not in _PLAN_COMPOSABLE_ACTION_TYPES
 

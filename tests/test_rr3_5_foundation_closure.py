@@ -37,10 +37,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_rr3_5a_idea_validate_in_plan_composable_allowlist():
     """The narrow, explicit allowlist now includes idea_validate, and
-    nothing else was added alongside it (no scope creep)."""
+    nothing else was added alongside it by RR-3.5A (no scope creep). RR-3.7B
+    (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+    RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md) later added
+    "log_exercise"/"create_project" for an unrelated fix -- asserting
+    superset containment (not exact equality) so that legitimate later
+    growth doesn't spuriously fail this mission's own scope check."""
     from core.loop.permission_gateway import _PLAN_COMPOSABLE_ACTION_TYPES
     assert "idea_validate" in _PLAN_COMPOSABLE_ACTION_TYPES
-    assert _PLAN_COMPOSABLE_ACTION_TYPES == {"script", "schedule_post", "idea_validate"}
+    assert {"script", "schedule_post", "idea_validate"} <= _PLAN_COMPOSABLE_ACTION_TYPES
 
 
 def test_rr3_5a_idea_validation_mismatched_string_still_blocked():

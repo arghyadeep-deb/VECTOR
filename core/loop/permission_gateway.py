@@ -58,7 +58,31 @@ FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
 # permission tier in core/config.py) before being added here; see
 # VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md for the composition
 # capability this unblocks (script -> schedule_post).
-_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate"}
+_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate", "log_exercise", "create_project"}
+# RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+# RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "log_exercise" and
+# "create_project" added to this same narrow, explicit, individually-
+# verified allowlist. Both were confirmed real S4 authorization gaps:
+# core/api/routers/health.py::log_exercise and
+# core/api/routers/projects.py::create_project called
+# `Governor.dispatch()` directly with a hardcoded action_type and zero
+# PermissionGateway anywhere in the path, despite both being real,
+# YELLOW-tier (core/config.py), side-effecting handlers --
+# districts/health/exercise_logger.py::ExerciseLogger.run() (exact
+# `task["type"]=="log_exercise"` branch -> real episodic-memory write) and
+# districts/projects/project_planner.py::ProjectPlanner.run() (exact
+# `task["type"]=="create_project"` branch -> real episodic-memory write
+# AND a real Obsidian note file write, with caller-supplied name/goal/
+# deadline flowing directly into file content). Both routers were fixed to
+# call Candidate -> DecisionEngine.evaluate() -> PermissionGateway.execute()
+# first (proposed_by="structured_api", deliberately distinct from
+# "api_command"/"voice" so neither gets YELLOW pre-confirmation -- see
+# permission_gateway.py's own `action.proposed_by in ("api_command",
+# "voice")` branch above); this entry is what lets a Gateway-approved
+# execution still reach the real, already-correct district-agent handler
+# via Governor.dispatch() afterward, instead of falling through to
+# `_execute_action()`'s final `not_implemented` -- exactly the same
+# pattern as "idea_validate" above, and for the identical reason.
 # RR-3.5A (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
 # RR3_5_FOUNDATION_CLOSURE_REPORT.md): "idea_validate" added to this same
 # narrow, explicit, individually-verified allowlist -- not a general

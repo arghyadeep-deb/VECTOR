@@ -253,7 +253,17 @@ districts:
       class: districts.health.exercise_logger.ExerciseLogger
       model: vector-focus
       description: Exercise session logging and streak tracking
-      capabilities: [health, exercise, logging]
+      # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+      # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "log_exercise"
+      # added. This manifest is the real, authoritative capabilities source
+      # at bootstrap -- ManifestLoader.register_all() overwrites the
+      # in-code self.capabilities set in exercise_logger.py's own __init__
+      # (confirmed live: without this entry, Governor.dispatch()'s exact
+      # `task_type in agent.capabilities` match failed and the health
+      # district's HP-lottery picked FatigueMonitor instead of this agent
+      # for the "log_exercise" action_type, even after DISTRICT_TASK_MAP
+      # routing was fixed to the correct district).
+      capabilities: [health, exercise, logging, log_exercise]
 
     # Cleanup batch (2026-06-22): already correctly wired — run() reads
     # flat sources/obsidian keys (not task["type"], since this is a
@@ -337,7 +347,11 @@ districts:
       class: districts.projects.project_planner.ProjectPlanner
       model: vector-reasoning
       description: Project scaffolding, timeline, and milestone planning
-      capabilities: [projects, planning, milestones]
+      # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+      # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "create_project"
+      # added -- same real bootstrap-time capabilities source and same
+      # reason as exercise_logger's manifest entry above.
+      capabilities: [projects, planning, milestones, create_project]
 
     # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
     - name: experiment_tracker
