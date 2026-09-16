@@ -122,8 +122,34 @@ def build_isolated_loop_with_plan_store(engine: DecisionEngine, plan_store: Plan
 class TestPlanDerivedCandidateFlagship:
 
     async def test_real_plan_step_becomes_a_real_candidate_competes_and_executes(
-        self, isolated_vector_db, tmp_path,
+        self, isolated_vector_db, tmp_path, monkeypatch,
     ):
+        # RR-3.3 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        # RR3_OVERNIGHT_REMEDIATION_REPORT.md) gave plan-step execution the
+        # same CounterfactualMemory pre-check native actions already had.
+        # CounterfactualMemory ignores VECTOR_DB_PATH (see
+        # tests/conftest.py's isolated_vector_db docstring) and this test
+        # never isolated it, so it was silently reading the REAL, shared
+        # production data/counterfactual.db -- which contains a genuine
+        # historical rejection for an unrelated action_type ("analyze_progress"
+        # tied to a "Maintain KIIT attendance" goal, dated 2026-06-18/
+        # 2026-09-02) whose vocabulary happens to overlap with this test's
+        # own "check_attendance" action_type enough to trip a false-positive
+        # similarity match once the plan-step path actually reached this
+        # check for the first time. This is real, pre-existing production
+        # data unrelated to what this test verifies -- isolate
+        # CounterfactualMemory to a fresh tmp_path DB, exactly as `engine`
+        # below already isolates EpistemicTracker, so this test's own
+        # semantics (a real plan step executing) aren't at the mercy of
+        # unrelated historical production state.
+        import core.memory.counterfactual as _cf_module
+        _cf_real_init = _cf_module.CounterfactualMemory.__init__
+
+        def _cf_isolated_init(self, db_path=None):
+            _cf_real_init(self, db_path=str(tmp_path / "counterfactual_isolated.db"))
+
+        monkeypatch.setattr(_cf_module.CounterfactualMemory, "__init__", _cf_isolated_init)
+
         goal_id = f"{R17_GOAL_ID_PREFIX}_flagship"
         plan_store = PlanStore(path=tmp_path / "plans.json")
         plan, step = make_real_isolated_plan(goal_id, plan_id=f"plan-{goal_id}")
@@ -132,6 +158,26 @@ class TestPlanDerivedCandidateFlagship:
         engine = build_isolated_engine(str(tmp_path / "epistemic.db"))
         loop = build_isolated_loop_with_plan_store(engine, plan_store)
         pm = PolicyMemory()
+
+        # RR-3.3 also gave plan steps the same ThreatDetector pre-check.
+        # This test's real ThreatDetector veto coverage for plan steps is
+        # already directly, deterministically proven in
+        # tests/test_rr3_overnight_remediation.py
+        # (test_rr3_3_plan_step_gets_same_threat_detector_veto_as_native_action).
+        # Here, the real (unmodified) VECTOR Guidance Engine's "jailbreak-classic"
+        # pattern (vectorcode/src/guidance.py:121-126, `r"DAN|..."` with no
+        # word boundaries, case-insensitive) genuinely matches the literal
+        # substring "dan" inside "attendance" -- a real, pre-existing regex
+        # false-positive entirely unrelated to plan-step parity, confirmed
+        # reproducible against a bare `check_attendance` action_desc on a
+        # fresh AutonomousLoop with no prior state. Fixing that shared,
+        # security-relevant regex is out of RR-3's authorized scope (see
+        # VECTOR_TECHNICAL_KNOWLEDGE/RR3_OVERNIGHT_REMEDIATION_REPORT.md).
+        # This test's actual purpose -- proving the plan -> candidate ->
+        # execution pipeline works end-to-end -- is orthogonal to
+        # ThreatDetector's internals, so neutralize it here exactly as this
+        # file already neutralizes unrelated concerns elsewhere.
+        monkeypatch.setattr(loop, "_scan_threats", lambda desc, context="act": False)
 
         # ---- 1: real plan-derived candidate generation (no goal involved
         #      at all -- proves the pipeline works independent of

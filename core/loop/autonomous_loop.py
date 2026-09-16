@@ -999,6 +999,126 @@ class AutonomousLoop:
                 self._trace_collector.capture(event=event, **data)
             except Exception: logger.debug("[VECTOR][loop] exception suppressed")
 
+    async def _run_soft_safety_checks(self, winner: "Candidate") -> bool:
+        """RR-3.3 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        RR3_OVERNIGHT_REMEDIATION_REPORT.md): the three soft, pre-gateway
+        safety filters shared by both the native action path and the
+        plan-step path -- CounterfactualMemory rejection-similarity veto,
+        ThreatDetector content scan, RedTeamAgent adversarial review for
+        RED-tier actions. Extracted verbatim from _act_on()'s previous
+        inline block (only the three `return` statements became `return
+        False`) so both callers share IDENTICAL veto/logging/suppression
+        semantics -- no reimplementation, no behavior change for the
+        native path. Returns False if `winner` was vetoed (already logged
+        and recorded by this method); True if it's safe to proceed to
+        execution. These are additional pre-gateway filters, not the
+        authorization boundary itself -- the hard PermissionGateway tier
+        gate (GREEN/YELLOW/RED/FORBIDDEN) runs downstream of this, in both
+        the native governor.dispatch() path and PlanRunner/AutonomousExecutor,
+        and is completely unaffected by this method either way.
+        """
+        # Gap 4: CounterfactualMemory -- block proposals similar to past rejections
+        try:
+            from core.memory.counterfactual import CounterfactualMemory
+            _proposal = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
+            _cf = CounterfactualMemory()
+            _should_avoid, _cf_score, _cf_reason = _cf.should_avoid(_proposal, threshold=0.7)
+            if _should_avoid and _cf_score > 0.7:
+                logger.warning(
+                    "[VECTOR][counterfactual] action '{}' blocked (score={:.2f}): {}",
+                    winner.action_type, _cf_score, _cf_reason[:80],
+                )
+                _cf.record_rejection(
+                    # R7 (Task 92): pass the real per-decision-occurrence ID
+                    # instead of the bare action_type (falls back to
+                    # action_type only if this winner was never produced by
+                    # DecisionEngine.evaluate() — same degraded behavior as
+                    # before R7, never a crash).
+                    decision_id=winner.decision_id or winner.action_type,
+                    proposal=_proposal,
+                    reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
+                    context={"candidate_id": winner.candidate_id} if winner.candidate_id else None,
+                )
+                # Task 89 (D3) — suppression/reward channel separation.
+                # This used to call update_from_outcome(..., reward=0.05):
+                # a hardcoded literal blended into the SAME avg_reward
+                # cumulative mean real 5-factor/VectorCode outcomes
+                # accumulate into -- a control-flow constant permanently
+                # contaminating the real reward signal. record_suppression()
+                # tracks vetoes in a separate veto_count column instead,
+                # never touching avg_reward/sample_count. CounterfactualMemory's
+                # own `rejections` table (record_rejection() above) already
+                # captures full veto detail; this is not a duplicate of that
+                # -- it exists only so a suppression-only row is
+                # distinguishable from a real-outcome row under the same
+                # canonical (action_type, params) identity decision_engine
+                # reads from (PolicyMemory.make_situation_hash()).
+                try:
+                    _sit_hash = self._get_policy().make_situation_hash(
+                        winner.action_type, winner.params
+                    )
+                    self._get_policy().record_suppression(winner.action_type, _sit_hash)
+                except Exception as _pen_err:
+                    logger.warning("[VECTOR][counterfactual] suppression record failed: {}", _pen_err)
+                return False
+            elif 0.4 < _cf_score <= 0.7 and _cf_reason:
+                logger.info(
+                    "[VECTOR][counterfactual] caution for '{}' (score={:.2f}): {}",
+                    winner.action_type, _cf_score, _cf_reason[:80],
+                )
+                winner.params = {**winner.params, "_cf_caution": _cf_reason[:120]}
+        except Exception as _cf_err:
+            logger.debug("[VECTOR][counterfactual] check skipped: {}", _cf_err)
+
+        # ThreatDetector: scan action description before execution (guidance.py)
+        action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
+        if self._scan_threats(action_desc, context="act"):
+            logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
+            self._record_external_rejection(
+                winner.action_type, winner.params, "blocked by ThreatDetector",
+                decision_id=winner.decision_id, candidate_id=winner.candidate_id,
+            )
+            return False
+
+        # RedTeamAgent adversarial review for RED-level actions (VECTOR Gap 2)
+        _RED_ACTION_TYPES = set(CONFIG.get("permission", {}).get("red", []))
+        if winner.action_type in _RED_ACTION_TYPES:
+            red_team = self._get_red_team()
+            if red_team is not None:
+                try:
+                    review = await red_team.attack_plan({
+                        "action_type": winner.action_type,
+                        "params": winner.params,
+                        "goal_ids": winner.goal_ids,
+                        "score": winner.total_score,
+                    })
+                    verdict = str(review.get("verdict", "APPROVED")).upper()
+                    if verdict.startswith("BLOCKED"):
+                        _rt_reason = review.get('reason', 'adversarial review failed')
+                        logger.warning(
+                            f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
+                            f"{_rt_reason}"
+                        )
+                        self._record_external_rejection(
+                            winner.action_type, winner.params, f"red_team: {_rt_reason}",
+                            decision_id=winner.decision_id, candidate_id=winner.candidate_id,
+                        )
+                        return False
+                    elif verdict.startswith("MODIFY"):
+                        logger.info(
+                            f"[VECTOR][red_team] RED action '{winner.action_type}' MODIFIED: "
+                            f"{review.get('modification', '')}"
+                        )
+                        # Apply suggested modification to params if provided
+                        if "modified_params" in review:
+                            winner.params = {**winner.params, **review["modified_params"]}
+                    else:
+                        logger.debug(f"[VECTOR][red_team] RED action '{winner.action_type}' APPROVED")
+                except Exception as rte:
+                    logger.warning(f"[VECTOR][red_team] review failed (proceeding): {rte}")
+
+        return True
+
     async def _act_on(self, winner: "Candidate") -> None:
         """
         Route winner to governor (which routes to permission_gateway).
@@ -1042,6 +1162,22 @@ class AutonomousLoop:
             # ── Plan step routing — execute through PlanRunner, still via gateway ──
             if winner.source and winner.source.startswith("plan:"):
                 try:
+                    # RR-3.3 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+                    # RR3_OVERNIGHT_REMEDIATION_REPORT.md): plan steps used
+                    # to reach the hard PermissionGateway (unchanged, still
+                    # authoritative) but skip the three NATIVE soft
+                    # pre-checks entirely, since this branch returned before
+                    # ever reaching them. Plan-step candidates carry every
+                    # field these checks consume (action_type/params/
+                    # goal_ids/total_score), and are arguably MORE in need
+                    # of a fresh check than a spontaneous candidate: a plan
+                    # step may have been authored well before a relevant
+                    # rejection pattern existed, and its params are resolved
+                    # from prior step outputs not fully known at authoring
+                    # time. Defense-in-depth parity, not an authorization
+                    # change -- PermissionGateway's tier gate is untouched.
+                    if not await self._run_soft_safety_checks(winner):
+                        return
                     await self._act_on_plan_step(winner)
                 except Exception as _ps_err:
                     logger.error(f"[VECTOR][act] plan step execution failed: {_ps_err}")
@@ -1142,105 +1278,17 @@ class AutonomousLoop:
             # Gap 17: Comms — broadcast action result to configured channels after execution.
             # This is done post-execution (see _broadcast_result below).
 
-            # Gap 4: CounterfactualMemory -- block proposals similar to past rejections
-            try:
-                from core.memory.counterfactual import CounterfactualMemory
-                _proposal = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
-                _cf = CounterfactualMemory()
-                _should_avoid, _cf_score, _cf_reason = _cf.should_avoid(_proposal, threshold=0.7)
-                if _should_avoid and _cf_score > 0.7:
-                    logger.warning(
-                        "[VECTOR][counterfactual] action '{}' blocked (score={:.2f}): {}",
-                        winner.action_type, _cf_score, _cf_reason[:80],
-                    )
-                    _cf.record_rejection(
-                        # R7 (Task 92): pass the real per-decision-occurrence ID
-                        # instead of the bare action_type (falls back to
-                        # action_type only if this winner was never produced by
-                        # DecisionEngine.evaluate() — same degraded behavior as
-                        # before R7, never a crash).
-                        decision_id=winner.decision_id or winner.action_type,
-                        proposal=_proposal,
-                        reason=f"auto-blocked: similar to past rejection (score={_cf_score:.2f})",
-                        context={"candidate_id": winner.candidate_id} if winner.candidate_id else None,
-                    )
-                    # Task 89 (D3) — suppression/reward channel separation.
-                    # This used to call update_from_outcome(..., reward=0.05):
-                    # a hardcoded literal blended into the SAME avg_reward
-                    # cumulative mean real 5-factor/VectorCode outcomes
-                    # accumulate into -- a control-flow constant permanently
-                    # contaminating the real reward signal. record_suppression()
-                    # tracks vetoes in a separate veto_count column instead,
-                    # never touching avg_reward/sample_count. CounterfactualMemory's
-                    # own `rejections` table (record_rejection() above) already
-                    # captures full veto detail; this is not a duplicate of that
-                    # -- it exists only so a suppression-only row is
-                    # distinguishable from a real-outcome row under the same
-                    # canonical (action_type, params) identity decision_engine
-                    # reads from (PolicyMemory.make_situation_hash()).
-                    try:
-                        _sit_hash = self._get_policy().make_situation_hash(
-                            winner.action_type, winner.params
-                        )
-                        self._get_policy().record_suppression(winner.action_type, _sit_hash)
-                    except Exception as _pen_err:
-                        logger.warning("[VECTOR][counterfactual] suppression record failed: {}", _pen_err)
-                    return
-                elif 0.4 < _cf_score <= 0.7 and _cf_reason:
-                    logger.info(
-                        "[VECTOR][counterfactual] caution for '{}' (score={:.2f}): {}",
-                        winner.action_type, _cf_score, _cf_reason[:80],
-                    )
-                    winner.params = {**winner.params, "_cf_caution": _cf_reason[:120]}
-            except Exception as _cf_err:
-                logger.debug("[VECTOR][counterfactual] check skipped: {}", _cf_err)
-
-            # ThreatDetector: scan action description before execution (guidance.py)
-            action_desc = f"{winner.action_type} {json.dumps(winner.params, default=str)}"
-            if self._scan_threats(action_desc, context="act"):
-                logger.warning(f"[VECTOR][guidance] action '{winner.action_type}' blocked by ThreatDetector")
-                self._record_external_rejection(
-                    winner.action_type, winner.params, "blocked by ThreatDetector",
-                    decision_id=winner.decision_id, candidate_id=winner.candidate_id,
-                )
+            # RR-3.3 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+            # RR3_OVERNIGHT_REMEDIATION_REPORT.md): these three soft
+            # pre-execution safety checks used to live inline here only --
+            # the plan-step branch above (`winner.source.startswith("plan:")`)
+            # returned before ever reaching them, so a plan step could
+            # execute something native action execution would soft-veto.
+            # Extracted into _run_soft_safety_checks() so both paths share
+            # the exact same veto/logging/suppression logic (no PermissionGateway
+            # change, no planner redesign -- pure reuse).
+            if not await self._run_soft_safety_checks(winner):
                 return
-
-            # RedTeamAgent adversarial review for RED-level actions (VECTOR Gap 2)
-            _RED_ACTION_TYPES = set(CONFIG.get("permission", {}).get("red", []))
-            if winner.action_type in _RED_ACTION_TYPES:
-                red_team = self._get_red_team()
-                if red_team is not None:
-                    try:
-                        review = await red_team.attack_plan({
-                            "action_type": winner.action_type,
-                            "params": winner.params,
-                            "goal_ids": winner.goal_ids,
-                            "score": winner.total_score,
-                        })
-                        verdict = str(review.get("verdict", "APPROVED")).upper()
-                        if verdict.startswith("BLOCKED"):
-                            _rt_reason = review.get('reason', 'adversarial review failed')
-                            logger.warning(
-                                f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
-                                f"{_rt_reason}"
-                            )
-                            self._record_external_rejection(
-                                winner.action_type, winner.params, f"red_team: {_rt_reason}",
-                                decision_id=winner.decision_id, candidate_id=winner.candidate_id,
-                            )
-                            return
-                        elif verdict.startswith("MODIFY"):
-                            logger.info(
-                                f"[VECTOR][red_team] RED action '{winner.action_type}' MODIFIED: "
-                                f"{review.get('modification', '')}"
-                            )
-                            # Apply suggested modification to params if provided
-                            if "modified_params" in review:
-                                winner.params = {**winner.params, **review["modified_params"]}
-                        else:
-                            logger.debug(f"[VECTOR][red_team] RED action '{winner.action_type}' APPROVED")
-                    except Exception as rte:
-                        logger.warning(f"[VECTOR][red_team] review failed (proceeding): {rte}")
 
             try:
                 # Phase 3B: check VectorCode Skills system before governor dispatch
@@ -1381,14 +1429,32 @@ class AutonomousLoop:
                 # Epistemic belief update (JARVIS Gap 3): record the outcome
                 # confidence for this action's domain so future scoring can
                 # dampen uncertain/stale domains.
-                try:
-                    self._get_decision().record_epistemic_belief(
-                        winner.action_type,
-                        result.get("status", "unknown"),
-                        reward,
-                    )
-                except Exception as _eb_err:
-                    logger.debug("[VECTOR][act] epistemic belief update skipped: {}", _eb_err)
+                # RR-3.2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+                # RR3_OVERNIGHT_REMEDIATION_REPORT.md): "blocked" (a
+                # Governor-internal security-policy veto -- taint/prompt-
+                # injection scanning; never a PermissionGateway RED/YELLOW
+                # denial, which correctly never reaches this point at all)
+                # and "no_capable_agent" (no agent anywhere declares this
+                # capability -- a ROUTING gap) are NOT evidence the
+                # capability itself misbehaves. Feeding them into the same
+                # epistemic-confidence learning as a genuine error/failed/
+                # timeout would teach "this action doesn't work" from a
+                # security refusal or a routing gap -- the exact
+                # authorization-denial/execution-failure conflation this
+                # architecture must not make. Skip the belief write
+                # entirely for these two shapes (leaves confidence
+                # unchanged) rather than inventing a neutral value
+                # merge_belief()'s real EMA has no concept of.
+                _epistemic_status = result.get("status", "unknown")
+                if _epistemic_status not in ("blocked", "no_capable_agent"):
+                    try:
+                        self._get_decision().record_epistemic_belief(
+                            winner.action_type,
+                            _epistemic_status,
+                            reward,
+                        )
+                    except Exception as _eb_err:
+                        logger.debug("[VECTOR][act] epistemic belief update skipped: {}", _eb_err)
 
                 # Close the neural learning loop: train the policy network on the
                 # real reward for the action it observed at decision time.
@@ -1527,6 +1593,36 @@ class AutonomousLoop:
                     "error": str(e)[:200],
                 })
                 _capture_loop_error(e, "act_loop", district=str(getattr(winner, 'district', '') if 'winner' in dir() else ''))
+                # RR-3.2 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+                # RR3_OVERNIGHT_REMEDIATION_REPORT.md): an uncaught exception
+                # here used to reach ONLY the RetryQueue push below (pure
+                # infrastructure resilience -- replays the identical
+                # action_type/params on a backoff timer, never consulted by
+                # PolicyMemory/EpistemicTracker/CausalGraph). Repeated real
+                # crashes for the same action_type therefore produced ZERO
+                # decision-relevant learning, unlike a status="error"/
+                # "failed" result, which already dampens that action_type's
+                # future candidate score via the proven epistemic-confidence
+                # mechanism (see record_epistemic_belief below). This
+                # reuses that SAME existing mechanism and the SAME reward
+                # value the normal path already computes for a genuine
+                # failure (no real user feedback -> uf=0.3, completed=0.0,
+                # goal_progress=0 unknown, not_overridden=not_corrected=1.0
+                # -> reward = 0.3*0.40+1.0*0.15+1.0*0.15 = 0.42) -- not an
+                # invented penalty, the existing "failed" reward applied to
+                # a shape that previously skipped it entirely. Uses status
+                # "error" (never "blocked"/"no_capable_agent", so this is
+                # NOT skipped by the shape-differentiation guard above --
+                # an exception is a genuine capability malfunction signal).
+                try:
+                    _exc_action_type = getattr(winner, "action_type", "unknown")
+                    _exc_reward = 0.3 * 0.40 + 0.0 * 0.25 + 1.0 * 0.15 + 1.0 * 0.15 + 0.0 * 0.05
+                    _exc_pm = self._get_policy()
+                    _exc_hash = _exc_pm.make_situation_hash(_exc_action_type, getattr(winner, "params", {}))
+                    _exc_pm.update_from_outcome(_exc_action_type, _exc_hash, _exc_reward)
+                    self._get_decision().record_epistemic_belief(_exc_action_type, "error", _exc_reward)
+                except Exception as _exc_learn_err:
+                    logger.debug("[VECTOR][act] exception-path failure learning skipped: {}", _exc_learn_err)
                 # Gap 4: push to retry queue instead of silently dropping
                 try:
                     from core.queue.retry_queue import RetryQueue
