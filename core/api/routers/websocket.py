@@ -400,7 +400,7 @@ async def ws_command_http(request: WSCommandRequest):
     from core.loop.context_engine import ContextEngine
     from core.brain.goal_system import GoalSystem
     from core.loop.decision_engine import DecisionEngine, Candidate
-    from core.loop.permission_gateway import PermissionGateway
+    from core.loop.permission_gateway import PermissionGateway, Action
     from core.city.governor import GovernorCouncil, classify_chat_intent
     from core.memory.episodic import EpisodicMemory
     import httpx
@@ -432,38 +432,98 @@ async def ws_command_http(request: WSCommandRequest):
         logger.debug("[VECTOR][ws] prompt injection scan skipped: {}", _scan_err)
 
     try:
-        # Route through the full intelligence pipeline via governor
-        governor = GovernorCouncil()
-        # 2026-07-21 KNOWN_ISSUES #1: this used to hardcode every request to
-        # task_type="answer_question", which Governor.dispatch() special-cases
-        # to skip district routing entirely — meaning nothing typed in chat
-        # could ever reach a real district agent. classify_chat_intent()
-        # decides per-message whether this is plain Q&A or a real action;
-        # it defaults to answer_question on any doubt, so this is additive,
-        # not a regression of the stub-answer fix that method exists for.
+        # RR-3.6 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        # RR3_6_AUTHORIZATION_BOUNDARY_REPORT.md): this endpoint used to
+        # build a raw `task` dict and call `governor.dispatch(task)`
+        # DIRECTLY — zero Candidate, zero DecisionEngine.evaluate(), zero
+        # PermissionGateway.execute() anywhere in this function (both
+        # imported above but never used -- confirmed dead imports).
+        # Governor's own RED-tier Council review is advisory-only (a
+        # rejection only logs "proceeding with caution" and execution
+        # continues -- core/city/governor.py's own dispatch()), and
+        # classify_chat_intent()'s own LLM prompt is explicitly instructed
+        # to emit exact RED-tier task_type strings when applicable. Together
+        # this was a live, runtime-reachable path to execute RED-tier
+        # actions (confirmed real agent capabilities exist for at least
+        # push_github/send_email/overwrite_note_personal) with NO
+        # PermissionGateway tier check at all.
+        #
+        # Fixed by routing through the exact same canonical
+        # Candidate -> DecisionEngine.evaluate() -> PermissionGateway.execute()
+        # pipeline RR-1 already established for /command
+        # (core/api/routers/commands.py) -- same PolicyMemory/CausalGraph
+        # learning, same GREEN/YELLOW/RED/FORBIDDEN/UNKNOWN authority, no
+        # second parallel authorization system. The conversational
+        # (`answer_question`) branch is deliberately left calling
+        # governor.dispatch() directly, unchanged -- it has no side effect
+        # (Governor's own `_answer_conversationally()` special-case) and is
+        # not part of the authorization boundary this fix closes.
         intent = await classify_chat_intent(request.text)
-        task = {
-            "type": intent["type"],
-            "params": {"query": request.text, "content": request.text, "source": "ws_http"},
-            # 2026-07-29 KNOWN_ISSUES (Governor capability-match misrouting)
-            # — see commands.py's identical marker for the full rationale;
-            # lets dispatch() add an honest capability-miss caveat only for
-            # chat-originated, LLM-invented task_types, never for the 100+
-            # established routes with stable task_type strings.
-            "_llm_classified": True,
-        }
-        if intent.get("district"):
-            task["district"] = intent["district"]
-        result = await governor.dispatch(task)
-        response_text = result.get("response") or result.get("output") or str(result.get("status", "executed"))
-        result_district = result.get("district")
-        result_task_type = intent.get("type")
 
-        if result.get("status") == "error":
+        if intent.get("type") == "answer_question":
+            governor = GovernorCouncil()
+            task = {
+                "type": "answer_question",
+                "params": {"query": request.text, "content": request.text, "source": "ws_http"},
+            }
+            result = await governor.dispatch(task)
+            response_text = result.get("response") or result.get("output") or str(result.get("status", "executed"))
+            return WSCommandResponse(
+                response=response_text, success=True,
+                district=result.get("district"), task_type="answer_question",
+            )
+
+        candidate = Candidate(
+            action_type=intent["type"],
+            params={
+                "query": request.text, "content": request.text, "source": "ws_http",
+                **({"district": intent["district"]} if intent.get("district") else {}),
+            },
+            goal_ids=[],
+            urgency=0.9,
+            confidence=0.85,
+            source="user_intent",
+        )
+        decision = await DecisionEngine().evaluate([candidate])
+        winner = decision.winner
+        gateway_result = await PermissionGateway().execute(Action(
+            action_type=winner.action_type,
+            params=winner.params,
+            proposed_by="ws_http",
+        ))
+        result = gateway_result.result or {}
+        result_status = result.get("status")
+        result_district = intent.get("district")
+        result_task_type = winner.action_type
+
+        if result_status == "error":
             return WSCommandResponse(
                 response=result.get("error", "command failed"), success=False,
                 district=result_district, task_type=result_task_type,
             )
+
+        if not gateway_result.approved:
+            # RED/YELLOW pending confirmation, RED rejected/timed out,
+            # FORBIDDEN, or UNKNOWN — never a side effect either way.
+            return WSCommandResponse(
+                response=gateway_result.reason or "not authorized",
+                success=False, error=gateway_result.level,
+                district=result_district, task_type=result_task_type,
+            )
+
+        if result_status == "not_implemented":
+            # RR-3.6 Section 15: approved+executed must never be reported as
+            # success when nothing real happened downstream.
+            return WSCommandResponse(
+                response=result.get("note") or f"'{winner.action_type}' is not implemented",
+                success=False, error="not_implemented",
+                district=result_district, task_type=result_task_type,
+            )
+
+        response_text = (
+            result.get("response") or result.get("output") or result.get("message")
+            or str(result_status or "executed")
+        )
 
         # Store in memory
         try:
