@@ -317,7 +317,14 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float, temperatu
         logger.warning(f"[VECTOR][vc_llm] circuit breaker open for gemini")
         return ""
     except Exception as e:
-        logger.warning(f"[VECTOR][vc_llm] Gemini failed: {e}")
+        # RR-3.7C: the request URL above embeds the real Gemini key as
+        # `?key=<value>` (the Gemini REST API's own auth mechanism -- no
+        # header-based alternative here); httpx's HTTPStatusError.__str__()
+        # includes the full request URL, so a raw f"{e}" put the real key
+        # straight into this log line. Sanitized at the point of logging --
+        # see core/inference/error_sanitize.py for the full root-cause trace.
+        from core.inference.error_sanitize import sanitize_provider_error
+        logger.warning(f"[VECTOR][vc_llm] Gemini failed: {sanitize_provider_error(str(e))}")
         return ""
 
 

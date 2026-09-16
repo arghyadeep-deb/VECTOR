@@ -816,24 +816,72 @@ class RealtimeConversation:
     # ── Phase 4: governor handoff ─────────────────────────────────────────────
 
     async def _run_action(self, task_type: str, text: str) -> None:
+        # RR-3.7C (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        # RR3_7C_FINAL_INGRESS_AUTHORIZATION_FREEZE_REPORT.md): this used to
+        # call Governor().dispatch() DIRECTLY -- zero Candidate, zero
+        # DecisionEngine.evaluate(), zero PermissionGateway.execute() -- the
+        # exact same bypass shape RR-3.6 already found and fixed for
+        # /ws/command (core/api/routers/websocket.py::ws_command_http).
+        # classify_intent()/classify_intent_llm() can hand this a task_type
+        # that is YELLOW or RED tier (e.g. "code_task" is in
+        # PermissionGateway's RED_INTERACTIVE_TOOLS), and Governor.dispatch()'s
+        # own Council review for RED-tier types is advisory-only -- a
+        # rejection only logs "proceeding with caution" and execution
+        # continues. Fixed by routing through the exact same canonical
+        # Candidate -> DecisionEngine.evaluate() -> PermissionGateway.execute()
+        # pipeline RR-3.6 established, proposed_by="voice" -- this is not a
+        # new identity: it is the SAME literal string
+        # permission_gateway.py's own RED tier already special-cases
+        # ("Typed by the authenticated owner ... or SPOKEN after the wake
+        # word on the owner's own machine. The command itself IS the
+        # confirmation"), and config.py's own 2026-08-04 RED-tier hardening
+        # comment for code_task/code_generate/code_fix/code_debug explicitly
+        # anticipates this exact caller: "owner-typed/voice commands still
+        # pre-confirm instantly". Correctly meaningful now that this
+        # endpoint requires network-level authentication (see voice_ws.py's
+        # RR-3.7C fix) -- "voice" was never a safe default identity for an
+        # unauthenticated caller, only for one the server has verified.
         try:
-            from core.city.governor import Governor
-            result = await Governor().dispatch({
-                "type": task_type,
-                "params": {"query": text, "user_message": text},
-                "source": "voice_realtime",
-            })
-            status = result.get("status", "unknown")
-            if status == "ok":
+            from core.loop.decision_engine import DecisionEngine, Candidate
+            from core.loop.permission_gateway import PermissionGateway, Action
+
+            candidate = Candidate(
+                action_type=task_type,
+                params={"query": text, "user_message": text, "source": "voice_realtime"},
+                goal_ids=[],
+                urgency=0.7,
+                confidence=0.75,
+                source="voice_intent",
+            )
+            decision = await DecisionEngine().evaluate([candidate])
+            winner = decision.winner
+            gateway_result = await PermissionGateway().execute(Action(
+                action_type=winner.action_type,
+                params=winner.params,
+                proposed_by="voice",
+            ))
+            result = gateway_result.result or {}
+
+            if not gateway_result.approved:
+                status = "blocked"
+                summary = gateway_result.reason or "not authorized"
+            elif result.get("status") == "not_implemented":
+                status = "not_implemented"
+                summary = result.get("note") or f"'{winner.action_type}' is not implemented"
+            elif result.get("status") == "ok":
+                status = "ok"
                 summary = str(
                     result.get("summary")
                     or result.get("message")
                     or f"{task_type.replace('_', ' ')} finished."
                 )[:280]
-            elif status == "no_agents":
+            elif result.get("status") == "no_agents":
+                status = "no_agents"
                 summary = f"No agent is registered for {task_type.replace('_', ' ')} yet."
             else:
+                status = result.get("status", "unknown")
                 summary = f"{task_type.replace('_', ' ')} came back with status {status}."
+
             if not self._closed:
                 await self._safe_send({"type": "action_result", "task_type": task_type,
                                        "status": status, "text": summary})

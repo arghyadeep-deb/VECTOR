@@ -41,6 +41,42 @@ router = APIRouter(prefix="/ws/voice", tags=["voice"])
 @router.websocket("/stream")
 async def voice_stream(websocket: WebSocket):
     await websocket.accept()
+
+    # RR-3.7C (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+    # RR3_7C_FINAL_INGRESS_AUTHORIZATION_FREEZE_REPORT.md): this endpoint had
+    # ZERO authentication -- confirmed via direct Starlette source read that
+    # `app.middleware("http")`-registered middleware (including the app's own
+    # auth_middleware) unconditionally bypasses every WebSocket connection
+    # (BaseHTTPMiddleware.__call__: `if scope["type"] != "http": await
+    # self.app(...); return`), so the global HTTP auth gate never runs here.
+    # /ws/command (core/api/routers/websocket.py::vector_ws) already
+    # established the correct, canonical compensating pattern for this exact
+    # Starlette limitation: an explicit require_auth_handshake() call inside
+    # the handler itself. Reused verbatim here -- no new auth mechanism.
+    #
+    # This mattered beyond generic unauthenticated access: the "Fast path 0"
+    # branch below (try_device_action()) hardcodes
+    # `proposed_by="api_command"` on the resulting PermissionGateway Action --
+    # the exact identity permission_gateway.py's RED tier treats as
+    # "typed/spoken by the authenticated owner, the command IS the
+    # confirmation" for RED_INTERACTIVE_TOOLS (which includes "launch_app",
+    # the one action_type reachable here). Combined with zero authentication,
+    # any network client that could open this socket could cause a real,
+    # unconfirmed PCController.launch_app() call (opening spotify/chrome/
+    # firefox/vscode/obsidian/notepad/calc/terminal/task_manager on the
+    # owner's own machine) with no owner involvement at all.
+    #
+    # Both real frontend clients already send the matching handshake message
+    # on connect (frontend/js/vector-core.js's openWS() passes `tok` for the
+    # 'voice' socket, frontend/js/voice_duplex.js sends it directly) -- this
+    # was a half-wired gap, not a missing frontend feature. This fix does not
+    # change client-visible behavior for an already-correctly-configured
+    # client.
+    from core.api.routers.websocket import require_auth_handshake
+    if not await require_auth_handshake(websocket):
+        logger.warning("[VECTOR][voice_ws] connection rejected — auth handshake failed")
+        return
+
     chunks: list[bytes] = []
     logger.info("[VECTOR][voice_ws] Client connected")
 
@@ -195,6 +231,19 @@ async def voice_duplex(websocket: WebSocket):
                       action_ack / action_result / proactive / done
     """
     await websocket.accept()
+
+    # RR-3.7C: same reasoning and same reused mechanism as voice_stream()
+    # above -- this endpoint also had zero network-level authentication
+    # (confirmed: app.middleware("http")-registered auth_middleware never
+    # runs for WebSocket connections). frontend/js/voice_duplex.js already
+    # sends the matching `{"auth": "Bearer <key>"}` handshake message on
+    # connect (line 134) -- this was a half-wired gap on the server side
+    # only, not a missing frontend feature.
+    from core.api.routers.websocket import require_auth_handshake
+    if not await require_auth_handshake(websocket):
+        logger.warning("[VECTOR][voice_ws] duplex connection rejected — auth handshake failed")
+        return
+
     logger.info("[VECTOR][voice_ws] duplex client connected")
 
     async def _orb(state: str) -> None:

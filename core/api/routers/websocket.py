@@ -34,8 +34,29 @@ from core.config import CONFIG
 
 router = APIRouter(prefix="/ws", tags=["websocket"])
 
-# Authentication token (same as HTTP)
-WS_API_KEY = CONFIG.get("vector_api_key", "")
+# Authentication token (same as HTTP).
+# RR-3.7C (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+# RR3_7C_FINAL_INGRESS_AUTHORIZATION_FREEZE_REPORT.md): `CONFIG.get(
+# "vector_api_key", "")` was a GUARANTEED-EMPTY lookup in every deployment
+# -- `core/config.py` defines no field named "vector_api_key" at any
+# nesting level (confirmed by grep: zero matches, in this file or any
+# other). This meant `require_auth_handshake()`'s own `if not WS_API_KEY:
+# return True` ("no auth required in dev mode") branch was ALWAYS taken,
+# regardless of whether a real VECTOR_API_KEY was configured -- silently
+# disabling the auth handshake for every WebSocket endpoint that relies on
+# it (this endpoint's own vector_ws, and, as of this same mission,
+# core/api/routers/voice_ws.py's two endpoints too), independent of and in
+# addition to the voice_ws.py-specific gap this mission closes. The
+# correct, already-used-elsewhere lookup is
+# core/security/secrets_manager.get_secret("VECTOR_API_KEY") -- the exact
+# mechanism core/api/middleware.py::auth_middleware already uses for the
+# HTTP auth gate (confirmed live: HTTP requests without a valid bearer
+# token were correctly rejected throughout this whole RR-3.x mission
+# series, while WS connections with no auth message at all were silently
+# accepted -- the two auth gates were never actually equivalent in
+# practice despite the comment above claiming so).
+from core.security.secrets_manager import get_secret
+WS_API_KEY = get_secret("VECTOR_API_KEY")
 
 
 async def require_auth_handshake(websocket: WebSocket) -> bool:

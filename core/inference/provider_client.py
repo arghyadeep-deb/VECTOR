@@ -564,7 +564,19 @@ class ProviderClient:
                     pass  # observability must never break the call path
                 return result
             except Exception as e:
-                last_error = str(e)
+                # RR-3.7C (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+                # RR3_7C_FINAL_INGRESS_AUTHORIZATION_FREEZE_REPORT.md):
+                # _call_gemini() above builds a request URL of the form
+                # ".../generateContent?key=<real_key>" (Gemini's own REST
+                # auth mechanism); httpx.HTTPStatusError.__str__() includes
+                # the full request URL, so an unsanitized str(e) here would
+                # carry the real key into both the warning below and the
+                # "All providers failed" RuntimeError raised further down --
+                # both consume `last_error`, so sanitizing once at this
+                # single capture point closes both. See
+                # core/inference/error_sanitize.py for the full trace.
+                from core.inference.error_sanitize import sanitize_provider_error
+                last_error = sanitize_provider_error(str(e))
                 _err_low = last_error.lower()
                 if _health is not None:
                     _kind = _health.classify_error(e)
