@@ -120,7 +120,21 @@ _PROMPT_INJECTION_PATTERNS: List[Tuple[str, re.Pattern, float]] = [
      0.85),
     ("jailbreak-classic",
      re.compile(
-         r"DAN|do\s+anything\s+now|pretend\s+you\s+have\s+no\s+restrictions"
+         # RR-3.5D (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+         # RR3_5_FOUNDATION_CLOSURE_REPORT.md): bare `DAN` (no word
+         # boundary) genuinely matched the substring "dan" inside real,
+         # benign words -- "attendance", "Jordan", "Sudan", "dance",
+         # "danger", confirmed reproducible and confirmed live via a real
+         # plan-step action_type ("check_attendance") in production-shaped
+         # testing. `\bDAN\b` preserves every malicious variant this
+         # pattern is meant to catch (DAN, "enable DAN mode", "you are now
+         # DAN", punctuation-adjacent forms like "DAN!") while eliminating
+         # the false positives -- verified by direct regex testing against
+         # both sets before this change, isolated to this one alternative;
+         # every other pattern in this file's pattern lists was checked and
+         # found already boundary-safe (multi-word phrases naturally
+         # bounded by `\s+`).
+         r"\bDAN\b|do\s+anything\s+now|pretend\s+you\s+have\s+no\s+restrictions"
          r"|you\s+have\s+no\s+guidelines",
          re.I),
      0.95),
