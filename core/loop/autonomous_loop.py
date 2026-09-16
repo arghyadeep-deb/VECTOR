@@ -1286,7 +1286,18 @@ class AutonomousLoop:
                                     logger.warning(
                                         f"[VECTOR][skills] {_level} skill '{skill.name}' denied: {_sk_gw.reason}"
                                     )
-                                    _skill_allowed = False
+                                    # RR-3.1 (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+                                    # RR3_OVERNIGHT_REMEDIATION_REPORT.md): a denied
+                                    # RED/YELLOW skill action used to only clear
+                                    # _skill_allowed, leaving _skill_executed False —
+                                    # which fell through to the general
+                                    # `if not _skill_executed:` branch below and
+                                    # dispatched the SAME action_type/params via
+                                    # governor.dispatch(), an ungated path (unlike
+                                    # the FORBIDDEN case just above, which correctly
+                                    # `return`s). A gateway denial must actually stop
+                                    # execution, not just skip one execution route.
+                                    return
                         if _skill_allowed:
                             # F-5: a matched skill that writes code runs within
                             # the gateway-approved code context.
