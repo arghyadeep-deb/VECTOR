@@ -368,10 +368,21 @@ class TestGovernorAndPermission:
         """Category O (adversarial): the new _execute_action() dispatch
         branch must be a small, explicit allowlist -- never "any non-hand_
         action_type" -- so a RED action can never reach Governor.dispatch()
-        through this specific new path merely by being routed via a plan."""
+        through this specific new path merely by being routed via a plan.
+
+        RR-3.5A (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+        RR3_5_FOUNDATION_CLOSURE_REPORT.md) added "idea_validate" to this
+        same allowlist -- a third, individually source-verified, GREEN-tier
+        entry (real handler, real single unambiguous DISTRICT_TASK_MAP
+        route), not a loosening of the allowlist's shape. The real security
+        invariant this test protects -- no RED action ever reachable via
+        this delegation path -- is unchanged and re-verified below; only
+        the exact-membership snapshot grows by the one new, deliberately
+        authorized entry.
+        """
         from core.loop.permission_gateway import _PLAN_COMPOSABLE_ACTION_TYPES
         from core.config import CONFIG
-        assert _PLAN_COMPOSABLE_ACTION_TYPES == {"script", "schedule_post"}
+        assert _PLAN_COMPOSABLE_ACTION_TYPES == {"script", "schedule_post", "idea_validate"}
         for red_action in CONFIG["permission"]["red"]:
             assert red_action not in _PLAN_COMPOSABLE_ACTION_TYPES
 

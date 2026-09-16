@@ -58,7 +58,26 @@ FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
 # permission tier in core/config.py) before being added here; see
 # VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md for the composition
 # capability this unblocks (script -> schedule_post).
-_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post"}
+_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate"}
+# RR-3.5A (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
+# RR3_5_FOUNDATION_CLOSURE_REPORT.md): "idea_validate" added to this same
+# narrow, explicit, individually-verified allowlist -- not a general
+# district-dispatch policy change. Verified real per this set's own
+# criterion above: real handler (districts/startups/idea_validator.py::
+# IdeaValidator.capabilities includes "idea_validate"), real single
+# unambiguous DISTRICT_TASK_MAP route ("idea_validate" -> "startups", never
+# LLM-guessed, so Governor.dispatch()'s wrong-district HP-lottery risk
+# structurally cannot arise for this entry), real GREEN permission tier
+# (core/config.py). Before this, "idea_validate" was reachable via
+# AutonomousLoop._act_on()'s native goal-candidate path (which calls
+# governor.dispatch() directly) but hit `_execute_action()`'s final
+# `not_implemented` when reached via /command's PermissionGateway.execute()
+# path -- despite GREEN approval, nothing real ever happened, and
+# command_endpoint() reported it as executed=True anyway (a confirmed,
+# real fake-success shape). This closes that gap for this one, fully
+# source-verified action_type only -- it does NOT alias or unblock
+# "idea_validation" (the distinct, mismatched regex-preclassify string),
+# which remains correctly UNKNOWN/blocked.
 # 2026-07-30 audit fix (Phase 3 — guardrails): every RED-tier action_type
 # EXCEPT the ones listed here can be auto-executed on an LLM council
 # "proceed" verdict alone (see _handle_red_tier() / the `level == 'RED'`
