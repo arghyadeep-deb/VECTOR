@@ -21,8 +21,6 @@ __all__ = [
 
 import asyncio
 import time
-import hashlib
-import json
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -39,11 +37,6 @@ from core.api.crud import store_episode, update_policy, store_reasoning_chain
 router = APIRouter(prefix="/command", tags=["commands"])
 
 START_TIME_DICT = {"time": None}
-
-
-def _make_situation_hash(params: dict) -> str:
-    key = json.dumps(params, sort_keys=True, default=str)
-    return hashlib.md5(key.encode()).hexdigest()[:12]
 
 
 def _init_start_time():
@@ -157,6 +150,71 @@ async def command_endpoint(
             # confident, so plain conversation is unaffected.
             from core.city.governor import classify_chat_intent
             gov_intent = await classify_chat_intent(body.text)
+
+            # POST-RGC2 REPAIR (2026-09-17, VECTOR_TECHNICAL_KNOWLEDGE/
+            # POST_RGC2_OWNER_COGNITION_REPAIR_REPORT.md, F-C2-1/F-C2-4):
+            # classify_chat_intent() failing (timeout, unparseable output, a
+            # provider-layer exception) used to be silently indistinguishable
+            # from it successfully determining the message is pure
+            # conversation — both returned the same bare
+            # {"type": "answer_question"}. RG-C2 demonstrated the
+            # consequence directly: an owner request that explicitly asked
+            # VECTOR to "dig up recent papers" hit this exact failure mode,
+            # fell through to the `_llm_answer()` branch below with no
+            # signal that classification never completed, and the resulting
+            # LLM call confidently fabricated 5 specific arXiv citations —
+            # independently verified, all 5 pointing to unrelated or
+            # nonexistent papers — as though real retrieval had occurred.
+            # A classifier INFRASTRUCTURE failure is not semantic evidence
+            # the owner wanted conversation, so it must never reach the same
+            # free-form LLM call that produced that fabrication. Handled
+            # here, before the "respond" branch, with a deterministic,
+            # honest message and zero LLM call — the smallest closure of
+            # this exact, demonstrated seam (not a general hallucination
+            # fix; a genuinely successful "this is conversation"
+            # classification below is completely unaffected).
+            if gov_intent.get("classification_failed"):
+                response_text = (
+                    "I wasn't able to work out how to handle that request in time "
+                    "(classification did not complete) — could you try again or "
+                    "rephrase it?"
+                )
+                chain_id = store_reasoning_chain(
+                    situation=body.text[:100],
+                    goal_ids=[],
+                    steps=[
+                        f"user_input: {body.text[:50]}",
+                        f"classification_failed: {gov_intent.get('failure_reason', 'unknown')}",
+                        "action: honest_failure — no LLM call (retrieval/fabrication guard)",
+                    ],
+                    action="classification_failed",
+                    outcome="classification_failed",
+                    reward=0.2,
+                )
+                episodic_mem.store(
+                    event_type="api_command",
+                    content=(
+                        f"command: {body.text[:80]} -> classification_failed "
+                        f"({gov_intent.get('failure_reason', 'unknown')})"
+                    ),
+                    tags=["command", "classification_failed", gov_intent.get("failure_reason", "unknown")],
+                    context={
+                        "user_text": body.text,
+                        "chain_id": chain_id,
+                        "failure_reason": gov_intent.get("failure_reason"),
+                    },
+                    source="api_command",
+                )
+                _remember_turn(session_id, body.text, response_text)
+                return CommandResponse(
+                    response=response_text,
+                    action_taken=None,
+                    candidates_evaluated=0,
+                    winner_score=0.0,
+                    memory_updated=True,
+                    processing_ms=int((time.perf_counter() - start) * 1000),
+                )
+
             if gov_intent.get("type") != "answer_question":
                 # RR-1 (2026-09-15, see VECTOR_TECHNICAL_KNOWLEDGE/
                 # RR0_ROOT_CAUSE_ARCHITECTURE_REPORT.md P1-1 and
@@ -301,7 +359,21 @@ async def command_endpoint(
         gateway_result = await perm_gateway.execute(action)
 
         # Step 6: Update policy from outcome (RULE 7)
-        situation_hash = _make_situation_hash(decision.winner.params)
+        # POST-RGC2 REPAIR (2026-09-17, F-C2-2): was this file's own local,
+        # non-canonical _make_situation_hash(params) (MD5, params-only) —
+        # completely different from PolicyMemory.make_situation_hash(
+        # action_type, params)'s canonical "v2:"-prefixed SHA-256 identity,
+        # which is what DecisionEngine's own _score_candidate() reads via
+        # get_score() when scoring a later candidate for this same
+        # (action_type, params) pair. RG-C2 confirmed live: a real
+        # check_attendance reward was durably persisted but under a hash
+        # DecisionEngine's own reader could never address — every /command
+        # reward was silently orphaned from ever influencing a future
+        # decision. Using the single canonical identity function closes
+        # that loop (see tests/test_postrgc2_situation_hash_identity.py's
+        # closed-loop write-then-later-read proof).
+        from core.memory.policy import PolicyMemory
+        situation_hash = PolicyMemory.make_situation_hash(decision.winner.action_type, decision.winner.params)
         reward = 0.8 if gateway_result.approved else 0.2
         update_policy(decision.winner.action_type, situation_hash, reward)
 
@@ -926,7 +998,15 @@ async def feedback_endpoint(
     reward_map = {5: 1.0, 4: 0.8, 3: 0.6, 2: 0.3, 1: 0.0}
     reward = reward_map[rating]
 
-    situation_hash = body.get("situation_hash") or _make_situation_hash({"action": action_type})
+    # POST-RGC2 REPAIR (2026-09-17, F-C2-2): was _make_situation_hash({"action":
+    # action_type}) — this file's own non-canonical local helper, applied to
+    # a shape ({"action": ...}) that didn't even match ITS OWN other call
+    # site's shape. Falls back to the canonical function's own documented
+    # empty-params convention (matching how get_score() callers elsewhere
+    # address an action_type with no specific params) when the caller
+    # supplies no explicit situation_hash.
+    from core.memory.policy import PolicyMemory
+    situation_hash = body.get("situation_hash") or PolicyMemory.make_situation_hash(action_type, {})
 
     # Update RL policy with real user feedback (RULE 7)
     update_policy(action_type, situation_hash, reward)

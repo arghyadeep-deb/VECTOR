@@ -23,6 +23,29 @@ def _debug_classify_intent(text: str, raw_llm_output: str, verdict) -> None:
     )
 
 
+def _classifier_failed(reason: str) -> dict:
+    """POST-RGC2 REPAIR (VECTOR_TECHNICAL_KNOWLEDGE/
+    POST_RGC2_OWNER_COGNITION_REPAIR_REPORT.md, F-C2-1/F-C2-4): a classifier
+    INFRASTRUCTURE failure (timeout, unparseable LLM output, or a
+    provider-layer exception) is epistemically different from the classifier
+    successfully running and determining the message is pure conversation —
+    RG-C2 demonstrated that conflating the two (both silently returning the
+    same bare `{"type": "answer_question"}`) let a genuinely executable
+    request (e.g. "dig up recent papers") fall through to a conversational
+    LLM answer with no signal that classification never actually completed,
+    which in turn fabricated specific, unverifiable citations as though real
+    retrieval had occurred (RG-C2 O1).
+
+    Still returns type="answer_question" — every existing caller that only
+    checks `.get("type")` (commands.py's action-vs-respond branch,
+    /ws/command, etc.) sees IDENTICAL behavior to before this fix: an
+    infrastructure failure still fails safe to conversation, never to a
+    silently-invented action. The two new keys are additive and opt-in for a
+    caller that wants to distinguish "genuinely conversational" from
+    "classification could not complete" — see commands.py's own handling."""
+    return {"type": "answer_question", "classification_failed": True, "failure_reason": reason}
+
+
 _STOPWORDS = frozenset({
     "what", "is", "my", "the", "a", "an", "and", "or", "of", "to", "in", "on",
     "for", "with", "that", "this", "you", "your", "i", "me", "do", "does",
@@ -1490,9 +1513,27 @@ async def classify_chat_intent(text: str) -> dict:
         # (2026-07-19 note there) against exactly this — a cold Ollama model
         # load leaving a request hanging 90+ seconds. Since this call now
         # runs in front of EVERY /command fast-path message, an unguarded
-        # hang here blocks that whole path, not just the classifier. 12s is
-        # generous for a "fast" tier call; on timeout, fail safe to
-        # answer_question exactly like every other failure mode here.
+        # hang here blocks that whole path, not just the classifier.
+        #
+        # POST-RGC2 REPAIR (2026-09-17, F-C2-1): the 12s ceiling set here
+        # predates (2026-07-21) the "JARVIS-parity latency pass" (2026-07-23,
+        # see ReliableProvider.__init__'s own comment on this file's sibling
+        # `_answer_conversationally()`) that properly characterized this
+        # exact call shape's real worst-case latency — a single slow-but-
+        # not-erroring provider inside provider_client.chat()'s own
+        # multi-provider fallback chain (up to 3 retries x up to 60s/attempt
+        # each, across however many providers route_policy orders) — and
+        # fixed _answer_conversationally()'s own, functionally IDENTICAL
+        # single `get_client().chat(tier="fast", ...)` call to timeout=45.0
+        # accordingly. This function never received that same fix. RG-C2
+        # (VECTOR_TECHNICAL_KNOWLEDGE/RGC2_OWNER_OBJECTIVE_COGNITION_REALITY_
+        # GATE_REPORT.md) behaviorally confirmed the consequence: 4 of 5
+        # frozen owner objectives independently hit this exact 12s ceiling
+        # under real (sometimes degraded — a real provider-health circuit-
+        # breaker event was observed live) provider conditions, silently
+        # collapsing genuinely executable requests to conversational text.
+        # Aligned to the sibling's own already-precedented value — no new
+        # timeout mechanism introduced.
         try:
             result = await asyncio.wait_for(
                 get_client().chat(
@@ -1500,17 +1541,17 @@ async def classify_chat_intent(text: str) -> dict:
                     tier="fast",
                     caller_id="governor_classify_chat_intent",
                 ),
-                timeout=12.0,
+                timeout=45.0,
             )
         except asyncio.TimeoutError:
-            _debug_classify_intent(text, "", "TIMEOUT (12s)")
-            return fallback
+            _debug_classify_intent(text, "", "TIMEOUT (45s)")
+            return _classifier_failed("timeout")
         raw = (result.content or "").strip()
         _debug_classify_intent(text, raw, None)
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if not match:
             _debug_classify_intent(text, raw, "NO_JSON_MATCH")
-            return fallback
+            return _classifier_failed("invalid_output")
         parsed = json.loads(match.group(0))
         is_action = bool(parsed.get("is_action"))
         district = str(parsed.get("district", "")).strip().lower()
@@ -1591,7 +1632,7 @@ async def classify_chat_intent(text: str) -> dict:
     except Exception as e:
         _debug_classify_intent(text, "", f"EXCEPTION: {e!r}")
         logger.warning(f"[VECTOR][governor] classify_chat_intent failed, defaulting to answer_question: {e}")
-        return fallback
+        return _classifier_failed("provider_error")
 
 
 class Governor:
