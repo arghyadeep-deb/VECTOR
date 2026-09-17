@@ -138,6 +138,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"[VECTOR][api] Ollama check failed: {e}")
 
+    # OWNER ROUTING CLOSURE (2026-09-17, F3): prewarm IntentMatcher's
+    # embedding bootstrap in the background at startup instead of letting
+    # the first owner /command pay that cost (RGC2R_RGD2_COMBINED_REALITY_
+    # GATE_REPORT.md Section 8 measured 103.90s live on a fresh process).
+    # Creates the SAME singleton governor.classify_chat_intent()'s Stage 2
+    # lazily creates on first use (identical `hasattr` guard), so whichever
+    # runs first — this prewarm or a real command — shares one instance and
+    # one background task; nothing is embedded twice.
+    try:
+        from core.city import governor as _governor_mod
+        from core.city.intent_matcher import IntentMatcher
+        if not hasattr(_governor_mod.classify_chat_intent, "_matcher"):
+            _governor_mod.classify_chat_intent._matcher = IntentMatcher()
+        asyncio.create_task(_governor_mod.classify_chat_intent._matcher.prewarm())
+        logger.info("[VECTOR][api] IntentMatcher prewarm task started")
+    except Exception as e:
+        logger.warning(f"[VECTOR][api] IntentMatcher prewarm failed to start: {e}")
+
     # Start nudge engine cron
     nudge_task = None
     try:

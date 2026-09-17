@@ -1286,6 +1286,63 @@ def _snap_to_known_task_type(invented: str, district: str, query_text: str = "")
     return invented
 
 
+def _canonical_district_from_task_type(task_type: str) -> tuple[str, str] | None:
+    """OWNER ROUTING CLOSURE (2026-09-17, F1): generalizes
+    `_snap_to_known_task_type()`'s within-district word-overlap match to
+    search EVERY district's known keys, not just one the LLM classifier
+    already (possibly wrongly) picked. Exists as the last-resort signal
+    for an invented task_type that has no exact `DISTRICT_TASK_MAP` key
+    and no literal word in the owner's own text
+    (`_authoritative_district_from_text` — checked first, before this) —
+    e.g. RGC2R_RGD2_COMBINED_REALITY_GATE_REPORT.md's C1
+    ('research_literature_scan') would already be resolved by one of those
+    two stronger signals in practice; this exists for the residual case
+    where only the task_type's own words carry any signal at all.
+
+    Deliberately conservative — RGC2R_RGD2 Section 6 requires that a
+    dangerous or unrelated invented task_type must NEVER fuzzy-snap into
+    an unrelated real capability merely because one short, generic word
+    happens to overlap something real (e.g. 'data' in 'data_viz'):
+
+    - Words shorter than 5 characters are dropped before matching — this
+      filters exactly the class of short, generic, cross-domain-common
+      tokens ('data', 'scan', 'user', 'now', 'all', 'task', ...) that
+      would otherwise produce spurious, low-precision matches.
+    - Self-referential keys are excluded (same precedent as
+      `_snap_to_known_task_type`/`_authoritative_district_from_text`).
+    - The match must be UNAMBIGUOUS: if the (length-filtered) overlap is
+      tied across two or more DIFFERENT districts, this returns None —
+      fail closed — rather than guess between them. A tie between two
+      keys in the SAME district is fine (existing shorter-key tie-break).
+
+    Returns (district, canonical_task_type) or None."""
+    words = {w for w in task_type.split("_") if len(w) >= 5}
+    if not words:
+        return None
+    best_overlap = 0
+    best_by_district: dict[str, str] = {}
+    for district, keys in _DISTRICT_KEYS.items():
+        for key in keys:
+            if key in _SELF_REFERENTIAL_DISTRICT_KEYS:
+                continue
+            overlap = len(words & set(key.split("_")))
+            if overlap == 0:
+                continue
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_by_district = {district: key}
+            elif overlap == best_overlap:
+                if district in best_by_district:
+                    if len(key) < len(best_by_district[district]):
+                        best_by_district[district] = key
+                else:
+                    best_by_district[district] = key
+    if best_overlap == 0 or len(best_by_district) != 1:
+        return None
+    (district, key), = best_by_district.items()
+    return district, key
+
+
 def _authoritative_district_from_text(text: str, district: str) -> tuple[str, str] | None:
     """KNOWN_ISSUES #10 (capability-match/HP-lottery misroute): the
     exact-task_type-match correction below (`task_type in DISTRICT_TASK_MAP`)
@@ -1442,6 +1499,19 @@ async def classify_chat_intent(text: str) -> dict:
         # reflection — weekly review (AFTER pattern_detective to avoid overlap)
         (r"\b(weekly|my\s+week)\b.*\b(review|patterns?|reflect|gone)\b", "reflection", "weekly_review"),
         (r"\blook\s+(at|back)\b.*\b(week|days?)\b.*\b(patterns?|gone)\b", "reflection", "weekly_review"),
+        # reflection — daily review (OWNER ROUTING CLOSURE, 2026-09-17, F2):
+        # RGC2R_RGD2_COMBINED_REALITY_GATE_REPORT.md's C3 ("...a look back at
+        # how today's gone and any thoughts worth flagging.") fell all the
+        # way through to the LLM classifier and was judged is_action=false,
+        # despite daily_review/reflect being real, GREEN-tier capabilities —
+        # the weekly pattern above already covers this exact shape of
+        # request for WEEK framing, there was simply no symmetric pattern
+        # for TODAY/DAY framing. Same two-signal rigor as the weekly
+        # pattern (a today/day reference AND a review/reflect-ish term must
+        # BOTH be present) — not a bare single-keyword match, so a stray
+        # "today" in an ordinary opinion question ("what do you think about
+        # today?") does not spuriously trigger this.
+        (r"\b(today|the\s+day)\b.*\b(review|reflect|gone|went|worth\s+(noting|flagging)|thoughts?)\b", "reflection", "daily_review"),
         # brain — goal status (handles both "what are my goals" and "what goals are")
         (r"\bwhat\b.*\b(goals?|main\s+goals)\b", "brain", "goal_summary"),
         (r"\b(goals?|main\s+goals)\b.*\b(are|currently|now)\b", "brain", "goal_summary"),
@@ -1458,10 +1528,16 @@ async def classify_chat_intent(text: str) -> dict:
     # Stage 2: Embedding similarity matching (between regex and LLM)
     # Uses nomic-embed-text to match against example queries
     try:
-        from core.city.intent_matcher import IntentMatcher
+        from core.city.intent_matcher import IntentMatcher, COMMAND_PATH_WAIT_SECONDS
         if not hasattr(classify_chat_intent, "_matcher"):
             classify_chat_intent._matcher = IntentMatcher()
-        embed_result = await classify_chat_intent._matcher.match(text)
+        # OWNER ROUTING CLOSURE (2026-09-17, F3): bounded wait — a fresh
+        # process's one-time ~100s embedding bootstrap (RGC2R_RGD2_
+        # COMBINED_REALITY_GATE_REPORT.md Section 8) must never block an
+        # owner's first /command that long. The bootstrap itself is not
+        # cancelled (IntentMatcher.match() shields its shared background
+        # task), so it keeps running and later requests use it once ready.
+        embed_result = await classify_chat_intent._matcher.match(text, wait_timeout=COMMAND_PATH_WAIT_SECONDS)
         if embed_result:
             _debug_classify_intent(text, "", f"EMBEDDING_MATCH -> {embed_result['district']}/{embed_result['type']} (conf={embed_result['confidence']:.3f})")
             return embed_result
@@ -1558,12 +1634,28 @@ async def classify_chat_intent(text: str) -> dict:
         task_type = str(parsed.get("task_type", "")).strip().lower()
         confidence = float(parsed.get("confidence", 0.0))
         # High bar: wrong-way error (missed action) is cheap, wrong-way
-        # error (spurious action) is not — require real confidence AND a
-        # district VECTOR actually has before trusting this as an action.
+        # error (spurious action) is not — require real confidence and a
+        # non-empty task_type before trusting this as an action at all.
         # 2026-08-12: lowered from 0.6 → 0.5 — the old threshold was too
         # conservative, causing legitimate specialist requests (quiz, report,
         # weekly review) to fall through to the generic conversational path.
-        if not is_action or confidence < 0.5 or district not in districts or not task_type:
+        # OWNER ROUTING CLOSURE (2026-09-17, F1): the `district not in
+        # districts` check used to live HERE, ahead of every correction
+        # mechanism below — so an invented district string rejected the
+        # whole classification immediately, before _authoritative_district_
+        # from_text()/the exact-task_type mapping/_canonical_district_from_
+        # task_type() ever got a chance to run. RGC2R_RGD2_COMBINED_REALITY_
+        # GATE_REPORT.md demonstrated this live: 3 of 4 fresh owner probes
+        # produced a high-confidence, semantically correct task_type
+        # alongside a district string that doesn't exist in
+        # DISTRICT_TASK_MAP (knowledge_engineering, communication,
+        # project_management) — all three would have been resolvable by
+        # the very next lines, had they been allowed to run. Moved the
+        # validity check to AFTER the correction attempts; behavior for an
+        # already-valid district is unchanged (the corrections already ran
+        # unconditionally either way), and an invented district now gets a
+        # real chance at canonicalization before being rejected.
+        if not is_action or confidence < 0.5 or not task_type:
             _debug_classify_intent(text, raw, f"REJECTED is_action={is_action} conf={confidence} district={district!r} task_type={task_type!r}")
             return fallback
         # 2026-07-29 KNOWN_ISSUES (eval finding, documentation-district
@@ -1607,6 +1699,28 @@ async def classify_chat_intent(text: str) -> dict:
                 f"(task_type={task_type!r} has an authoritative mapping)",
             )
             district = DISTRICT_TASK_MAP[task_type]
+        elif district not in districts:
+            # OWNER ROUTING CLOSURE (F1): neither of the two stronger,
+            # already-proven signals above resolved an invalid district —
+            # last resort before rejecting: does the invented task_type's
+            # OWN vocabulary unambiguously point at one real district's
+            # known capabilities? Deliberately conservative (see
+            # _canonical_district_from_task_type()'s own docstring for the
+            # security reasoning) — returns None far more often than not.
+            canonical = _canonical_district_from_task_type(task_type)
+            if canonical:
+                new_district, new_task_type = canonical
+                _debug_classify_intent(
+                    text, raw,
+                    f"TASK-TYPE-WORD CANONICALIZED {district!r} -> {new_district!r} "
+                    f"(task_type={task_type!r} word-overlaps known key "
+                    f"{new_task_type!r})",
+                )
+                district = new_district
+                task_type = new_task_type
+        if district not in districts:
+            _debug_classify_intent(text, raw, f"REJECTED (unresolvable district) district={district!r} task_type={task_type!r}")
+            return fallback
         # 2026-07-21 KNOWN_ISSUES #1 follow-up (found via live trace):
         # confirmed live that classify_chat_intent can correctly fire and
         # Governor.dispatch() correctly routes it to the right district —

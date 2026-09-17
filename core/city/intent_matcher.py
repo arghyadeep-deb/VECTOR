@@ -8,6 +8,7 @@ Pipeline position: Stage 2 (between regex pre-classifier and LLM fallback).
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import time
 from pathlib import Path
@@ -16,6 +17,18 @@ from typing import Optional
 from loguru import logger
 
 __all__ = ["IntentMatcher"]
+
+# OWNER ROUTING CLOSURE (2026-09-17, F3): how long a single owner /command
+# request will wait on a still-loading embedding bootstrap before falling
+# through to the (already-bounded, 45s-ceiling) LLM classifier for THIS
+# request only. The bootstrap itself is never cancelled by this — it keeps
+# running as a shared background task (see _get_or_start_init_task), so a
+# later request finds it ready (or further along) without paying the cost
+# again. See governor.py's classify_chat_intent() Stage 2 call site, the
+# only caller that passes this. Not sourced from core/config.py CONFIG —
+# kept as a local literal with an explanatory comment, consistent with this
+# file's sibling timeout constants in governor.py (12.0/45.0).
+COMMAND_PATH_WAIT_SECONDS = 3.0
 
 
 class IntentMatcher:
@@ -35,6 +48,10 @@ class IntentMatcher:
         self._similarity_threshold = 0.85
         self._model = "nomic-embed-text"
         self._ollama_host = "http://127.0.0.1:11434"
+        # OWNER ROUTING CLOSURE (F3): the embedding bootstrap is a single
+        # shared background Task, created lazily on first use (or via
+        # prewarm()) and never re-created — see _get_or_start_init_task().
+        self._init_task: Optional["asyncio.Task[bool]"] = None
 
         # Load examples on init
         self._load_examples()
@@ -103,11 +120,22 @@ class IntentMatcher:
                 return 0.0
             return dot / (norm_a * norm_b)
 
-    async def _ensure_embeddings_loaded(self) -> bool:
-        """Lazy-load embeddings for all examples on first call."""
-        if self._embeddings is not None:
-            return True
+    async def _do_load_embeddings(self) -> bool:
+        """The actual one-time embedding bootstrap. Runs as a single shared
+        background Task (see _get_or_start_init_task) — self._embeddings is
+        published atomically only once the whole pass is complete.
 
+        OWNER ROUTING CLOSURE (2026-09-17, F3): the original version set
+        `self._embeddings = []` (non-None) BEFORE this loop started, so a
+        second concurrent caller's `self._embeddings is not None` check
+        could see "already loaded" while the list was still being filled —
+        a real correctness bug (index into a still-partial list), not just
+        the ~100s of unbounded latency RGC2R_RGD2_COMBINED_REALITY_GATE_
+        REPORT.md Section 8 measured live (103.90s / 499 examples). Building
+        into a local list and assigning self._embeddings only at the end
+        closes both: nothing observes a non-None-but-incomplete state, and
+        every caller during the load shares this same Task object (never a
+        duplicate embedding pass) via _get_or_start_init_task()."""
         if not self._examples:
             logger.warning("[IntentMatcher] No examples loaded")
             return False
@@ -115,32 +143,91 @@ class IntentMatcher:
         logger.info(f"[IntentMatcher] Embedding {len(self._examples)} examples...")
         start = time.time()
 
-        self._embeddings = []
+        embeddings: list[list[float]] = []
         for example in self._examples:
             text = example.get("text", "")
             embedding = await self._embed(text)
             if embedding:
-                self._embeddings.append(embedding)
+                embeddings.append(embedding)
             else:
                 # If embedding fails, use zero vector (will never match)
-                self._embeddings.append([0.0] * 768)
+                embeddings.append([0.0] * 768)
 
         elapsed = time.time() - start
+        self._embeddings = embeddings
         logger.info(f"[IntentMatcher] Embedded {len(self._examples)} examples in {elapsed:.2f}s")
         return True
 
-    async def match(self, text: str) -> Optional[dict]:
+    def _get_or_start_init_task(self) -> "asyncio.Task[bool]":
+        """Return the shared embedding-bootstrap Task, creating it on first
+        call. Synchronous, no `await` between the check and the assignment,
+        so this is race-free under asyncio's single-threaded cooperative
+        scheduling even when called from multiple concurrently-gathered
+        coroutines."""
+        if self._init_task is None:
+            self._init_task = asyncio.ensure_future(self._do_load_embeddings())
+        return self._init_task
+
+    async def prewarm(self) -> None:
+        """Kick off the background embedding load without blocking the
+        caller. Intended to be called once, at application startup
+        (core/api/app.py's lifespan), via `asyncio.create_task(matcher.
+        prewarm())` — safe to call more than once or concurrently with
+        match(); all callers share the same underlying task."""
+        self._get_or_start_init_task()
+
+    async def _ensure_embeddings_loaded(self) -> bool:
+        """Back-compat wrapper: waits out the full bootstrap unconditionally
+        (equivalent to match()'s default wait_timeout=None behavior)."""
+        if self._embeddings is not None:
+            return True
+        return await self._get_or_start_init_task()
+
+    async def match(self, text: str, *, wait_timeout: Optional[float] = None) -> Optional[dict]:
         """Match query against example embeddings.
 
         Args:
             text: User query text.
+            wait_timeout: OWNER ROUTING CLOSURE (F3). None (default)
+                preserves the original behavior — wait out the full
+                embedding bootstrap unconditionally, exactly as every
+                existing caller (tests, scripts/calibrate_intent_
+                threshold.py, this module's own __main__ demo) already
+                relies on. A float bounds how long THIS call waits on a
+                still-loading bootstrap before returning None gracefully —
+                the shared background task is NOT cancelled (via
+                asyncio.shield), so it keeps running and a later call
+                reuses it. governor.py's real /command path is the only
+                caller that passes a bound (COMMAND_PATH_WAIT_SECONDS).
 
         Returns:
             {"type": task_type, "district": district, "confidence": float, "source": "embedding_match"}
-            or None if no match above threshold.
+            or None if no match above threshold, or embeddings are not
+            ready within wait_timeout, or the bootstrap itself failed.
         """
-        if not await self._ensure_embeddings_loaded():
-            return None
+        if self._embeddings is None:
+            task = self._get_or_start_init_task()
+            if wait_timeout is None:
+                try:
+                    loaded = await task
+                except Exception as e:
+                    logger.warning(f"[IntentMatcher] embedding bootstrap failed: {e}")
+                    return None
+            else:
+                try:
+                    loaded = await asyncio.wait_for(asyncio.shield(task), timeout=wait_timeout)
+                except asyncio.TimeoutError:
+                    logger.info(
+                        f"[IntentMatcher] embeddings still loading after "
+                        f"{wait_timeout:.2f}s (background load continues) — "
+                        f"skipping match for this request"
+                    )
+                    return None
+                except Exception as e:
+                    logger.warning(f"[IntentMatcher] embedding bootstrap failed: {e}")
+                    return None
+            if not loaded:
+                return None
 
         # Embed the query
         query_embedding = await self._embed(text)
