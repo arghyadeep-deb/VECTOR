@@ -152,7 +152,24 @@ async def command_endpoint(
             # deliberately conservative and only reports an action when
             # confident, so plain conversation is unaffected.
             from core.city.governor import classify_chat_intent
-            gov_intent = await classify_chat_intent(body.text)
+            # OWNER PAPER-RETRIEVAL ROUTING CLOSURE: a recent/current academic-paper
+            # request with a concrete topic is recognised DETERMINISTICALLY (T1's
+            # current_information_plan + action-verb guard) and goes straight to
+            # the existing real capability `search_arxiv` through the normal
+            # Candidate -> DecisionEngine -> PermissionGateway path below. It must
+            # not depend on the general LLM classifier finishing (45 s timeout) or
+            # answering exactly `answer_question` (it can answer the unregistered
+            # `research_papers`, which the gateway blocks as UNKNOWN). Anything
+            # ambiguous returns None here and keeps the old classifier path.
+            _paper_topic = paper_retrieval_topic(body.text)
+            if _paper_topic:
+                gov_intent = {
+                    "type": "search_arxiv", "district": "research", "confidence": 0.9,
+                    "raw_task_type": None, "identity": "current_info_route",
+                    "topic": _paper_topic,
+                }
+            else:
+                gov_intent = _fold_paper_retrieval_alias(await classify_chat_intent(body.text), body.text)
 
             # POST-RGC2 REPAIR (2026-09-17, VECTOR_TECHNICAL_KNOWLEDGE/
             # POST_RGC2_OWNER_COGNITION_REPAIR_REPORT.md, F-C2-1/F-C2-4):
@@ -726,6 +743,7 @@ from core.security.anti_fabrication import (
     current_information_decline_reply,
     current_information_plan,
     defabricate_llm_answer,
+    paper_retrieval_topic,
     remove_unsupported_action_claims,
 )
 
@@ -821,6 +839,27 @@ async def _ensure_english_answer(answer: str) -> str:
         "fallback instead of the untranslated answer."
     )
     return _ENGLISH_FALLBACK_MESSAGE
+
+
+# Task types the LLM classifier emits for "search academic papers". They are NOT
+# permission-registered (the gateway blocks them as UNKNOWN); the authorized,
+# already-proven capability is `search_arxiv`.
+_PAPER_RETRIEVAL_ALIASES = frozenset({"research_papers", "research_papers_search"})
+
+
+def _fold_paper_retrieval_alias(gov_intent: dict, text: str) -> dict:
+    """Fold a classifier `research_papers*` verdict onto the authorized
+    `search_arxiv` — only when the text is genuinely a paper-retrieval request
+    with a concrete topic and no action verb (paper_retrieval_topic). Anything
+    else is returned unchanged, so an ambiguous alias still fails closed."""
+    if (gov_intent.get("type") not in _PAPER_RETRIEVAL_ALIASES
+            and gov_intent.get("raw_task_type") not in _PAPER_RETRIEVAL_ALIASES):
+        return gov_intent
+    topic = paper_retrieval_topic(text, require_recency=False)
+    if not topic:
+        return gov_intent
+    return {**gov_intent, "type": "search_arxiv", "district": "research",
+            "identity": "alias_to_search_arxiv", "topic": topic}
 
 
 async def _llm_answer(text: str, hydration: str) -> str:

@@ -37,6 +37,7 @@ __all__ = [
     "requires_current_information",
     "current_information_plan",
     "current_information_decline_reply",
+    "paper_retrieval_topic",
 ]
 
 _CHECKMARK_RE = re.compile(r"[✅✔️☑]\s*")
@@ -78,8 +79,19 @@ _CREATIVE_OR_LOCAL_RE = re.compile(
     r"our\s+(?:code|repo|project))\b",
     re.IGNORECASE,
 )
-_PAPER_RE = re.compile(r"\b(?:papers?|research|studies|study|published|literature|preprints?|arxiv)\b", re.IGNORECASE)
+# "published" alone is NOT an academic cue ("news ... published this week" is not a paper
+# request); it counts only alongside one of these nouns.
+_PAPER_RE = re.compile(r"\b(?:papers?|research|studies|study|literature|preprints?|arxiv)\b", re.IGNORECASE)
 _TOPIC_MARKER_RE = re.compile(r"\b(?:on|about|regarding|concerning|around)\s+(?P<topic>[^?.!]+)", re.IGNORECASE)
+# A trailing task clause ("... , and summarize it for me", "... and explain the result",
+# "..., please") is an instruction about what to do with the answer, not part of the
+# topic — cut it off so its verb can never be mistaken for the subject.
+_TOPIC_TASK_CLAUSE_RE = re.compile(
+    r"(?:,|\s+(?:and|then|so|but)\s+(?:please\s+)?(?:summari[sz]e|explain|tell|list|give|show|write|compare|"
+    r"describe|walk|break|outline|pull|find|check|let|send|email|save|store|post|share)\b"
+    r"|\s+please\b|\s+for\s+me\b).*$",
+    re.IGNORECASE,
+)
 _TOPIC_NOISE = frozenset({
     "this", "that", "these", "those", "the", "a", "an", "it", "its", "general", "particular",
     "specific", "certain", "some", "any", "area", "areas", "field", "fields", "topic", "topics",
@@ -118,7 +130,8 @@ def _research_topic(user_text: str) -> str | None:
     matches = list(_TOPIC_MARKER_RE.finditer(user_text or ""))
     if not matches:
         return None
-    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9\-\+\.]*", matches[-1].group("topic"))
+    phrase = _TOPIC_TASK_CLAUSE_RE.sub("", matches[-1].group("topic"))
+    words = re.findall(r"[A-Za-z0-9][A-Za-z0-9\-\+\.]*", phrase)
     kept = [w for w in words if w.lower() not in _TOPIC_NOISE]
     return " ".join(kept[:6]) if kept else None
 
@@ -137,6 +150,40 @@ def current_information_plan(user_text: str) -> dict | None:
             return {"mode": "retrieve", "topic": topic}
         return {"mode": "decline", "reply": CURRENT_INFO_NO_TOPIC_REPLY}
     return {"mode": "decline", "reply": CURRENT_INFO_UNVERIFIED_REPLY}
+
+
+# An imperative that asks VECTOR to DO something with the papers (send / post /
+# schedule / save / deploy ...) makes the request an action, not a retrieval —
+# the deterministic paper route must not swallow it (fail closed: the normal
+# classifier path decides).
+_PAPER_ROUTE_ACTION_RE = re.compile(
+    r"\b(?:send|email|mail|forward|share|tweet|post|publish|schedule|remind|save|store|remember|"
+    r"download|export|commit|push|deploy|delete|remove|cancel|book|buy|install|launch|upload|execute|"
+    r"run\s+(?:the|a|my))\b",
+    re.IGNORECASE,
+)
+
+
+def paper_retrieval_topic(user_text: str, *, require_recency: bool = True) -> str | None:
+    """The concrete topic when `user_text` is genuinely an academic-paper
+    RETRIEVAL request that the existing real capability (`search_arxiv`) can
+    serve, else None (fail closed). Deterministic — no LLM.
+
+    require_recency=True (the pre-classifier route): the request must also be a
+    current-information request (recency + external marker) per
+    current_information_plan(). require_recency=False (alias fold after the
+    classifier already said "paper search"): academic cue + a named topic,
+    not creative/owner-local. Either way an action verb (send/post/schedule/...)
+    disqualifies it."""
+    t = user_text or ""
+    if _PAPER_ROUTE_ACTION_RE.search(t):
+        return None
+    if require_recency:
+        plan = current_information_plan(t)
+        return plan["topic"] if plan and plan.get("mode") == "retrieve" else None
+    if _CREATIVE_OR_LOCAL_RE.search(t) or not _PAPER_RE.search(t):
+        return None
+    return _research_topic(t)
 
 
 def current_information_decline_reply(user_text: str) -> str | None:
