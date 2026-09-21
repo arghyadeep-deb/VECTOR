@@ -29,3 +29,9 @@ class TestVectorSettings:
         from core.config import CONFIG
         assert "version" in CONFIG
         assert "allowed_origins" in CONFIG
+
+    def test_models_config_r1_and_cloud_coder_defaults(self):
+        from core.config import ModelsConfig
+        config = ModelsConfig()
+        assert config.r1 == "vector-r1"
+        assert config.cloud_coder == "vector-dev"
