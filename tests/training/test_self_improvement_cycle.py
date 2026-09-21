@@ -5,6 +5,7 @@ Tests the SelfImprovementCycle end-to-end with a small model and seeded data.
 Validates that eval gates reject bad models and approve good ones.
 """
 import pytest
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 
@@ -94,3 +95,97 @@ def test_eval_gate_approves_improvement():
 
     assert ratio < 1.0, f"Expected improvement (ratio < 1.0), got {ratio:.2f}"
     assert ratio < 1.5, "Should pass the 1.5x gate"
+
+
+# ---------------------------------------------------------------------------
+# _deploy_best adapter selection (lowest final_loss wins)
+# ---------------------------------------------------------------------------
+
+class _FakeTrainer:
+    """Fake trainer: serves a fixed adapter list and records deploy calls."""
+
+    def __init__(self, adapters):
+        self.adapters_dir = Path("fake_adapters_dir")
+        self._adapters = adapters
+        self.deployed_paths = []
+
+    def list_adapters(self):
+        return self._adapters
+
+    def deploy_to_ollama(self, save_path):
+        self.deployed_paths.append(save_path)
+        return True
+
+
+def _make_cycle(adapters):
+    """Build a cycle without running __init__ (no real trainer/harness/paths)."""
+    from core.training.self_improvement_cycle import SelfImprovementCycle
+
+    cycle = object.__new__(SelfImprovementCycle)
+    cycle.trainer = _FakeTrainer(adapters)
+    return cycle
+
+
+@pytest.mark.training
+def test_deploy_best_selects_lowest_final_loss():
+    adapters = [
+        {"name": "high", "training_result": {"final_loss": 2.0}},
+        {"name": "low", "training_result": {"final_loss": 0.3}},
+        {"name": "mid", "training_result": {"final_loss": 1.1}},
+    ]
+    cycle = _make_cycle(adapters)
+
+    result = cycle._deploy_best()
+
+    expected_path = str(cycle.trainer.adapters_dir / "low")
+    assert result == {"deployed": True, "adapter": "low", "path": expected_path}
+    assert cycle.trainer.deployed_paths == [expected_path]
+
+
+@pytest.mark.training
+def test_deploy_best_lowest_loss_wins_when_all_above_one():
+    """Regression: the old `or 1.0` default must not distort real losses."""
+    adapters = [
+        {"name": "worse", "training_result": {"final_loss": 5.0}},
+        {"name": "better", "training_result": {"final_loss": 3.0}},
+    ]
+    cycle = _make_cycle(adapters)
+
+    assert cycle._deploy_best()["adapter"] == "better"
+
+
+@pytest.mark.training
+@pytest.mark.parametrize("missing_result", [
+    {"name": "missing_key", "training_result": {}},
+    {"name": "none_loss", "training_result": {"final_loss": None}},
+    {"name": "no_training_result"},
+    {"name": "none_training_result", "training_result": None},
+    {"name": "nan_loss", "training_result": {"final_loss": float("nan")}},
+])
+def test_deploy_best_missing_loss_never_beats_real_loss(missing_result):
+    real = {"name": "real", "training_result": {"final_loss": 9.0}}
+    for adapters in ([missing_result, real], [real, missing_result]):
+        cycle = _make_cycle(list(adapters))
+        assert cycle._deploy_best()["adapter"] == "real"
+
+
+@pytest.mark.training
+def test_deploy_best_zero_loss_is_a_real_loss():
+    adapters = [
+        {"name": "missing", "training_result": {}},
+        {"name": "zero", "training_result": {"final_loss": 0.0}},
+        {"name": "some", "training_result": {"final_loss": 0.5}},
+    ]
+    cycle = _make_cycle(adapters)
+
+    assert cycle._deploy_best()["adapter"] == "zero"
+
+
+@pytest.mark.training
+def test_deploy_best_empty_list_returns_no_adapters():
+    cycle = _make_cycle([])
+
+    result = cycle._deploy_best()
+
+    assert result == {"deployed": False, "reason": "no_adapters"}
+    assert cycle.trainer.deployed_paths == []
