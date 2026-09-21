@@ -70,6 +70,17 @@ class IntentMatcher:
             logger.error(f"[IntentMatcher] Failed to load examples: {e}")
             self._examples = []
 
+    def _embed_sync(self, text: str) -> Optional[list[float]]:
+        """Blocking ollama embedding call — run via asyncio.to_thread, never on the loop."""
+        import ollama
+        client = ollama.Client(host=self._ollama_host, timeout=10.0)
+        response = client.embeddings(model=self._model, prompt=text)
+        embedding = response.get("embedding", [])
+        if len(embedding) != 768:
+            logger.warning(f"[IntentMatcher] Embedding dimension mismatch: {len(embedding)} != 768")
+            return None
+        return embedding
+
     async def _embed(self, text: str) -> Optional[list[float]]:
         """Embed text using nomic-embed-text via Ollama.
 
@@ -84,13 +95,12 @@ class IntentMatcher:
             return self._embedding_cache[text]
 
         try:
-            import ollama
-            client = ollama.Client(host=self._ollama_host, timeout=10.0)
-            response = client.embeddings(model=self._model, prompt=text)
-            embedding = response.get("embedding", [])
-
-            if len(embedding) != 768:
-                logger.warning(f"[IntentMatcher] Embedding dimension mismatch: {len(embedding)} != 768")
+            # ollama.Client is synchronous: called directly inside `async def` it
+            # blocks the whole event loop for the duration of the HTTP call (the
+            # ~100 s prewarm froze uvicorn until it finished). Run it in a worker
+            # thread; embeddings are still issued one at a time by the caller.
+            embedding = await asyncio.to_thread(self._embed_sync, text)
+            if embedding is None:
                 return None
 
             # Cache the embedding

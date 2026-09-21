@@ -21,6 +21,7 @@ Covers:
 RULE 11: no external LLM APIs.
 """
 import sys
+import re
 import asyncio
 import datetime
 try:
@@ -40,6 +41,13 @@ _HEADERS = {
     "User-Agent": "VECTOR/1.0 (research-hub; +https://github.com/ArghyadeepDeb/VECTOR)",
     "Accept": "application/json",
 }
+
+
+# arXiv boolean operators + filler words that would make an AND query match nothing.
+_ARXIV_STOPWORDS = frozenset({
+    "and", "or", "not", "andnot", "a", "an", "the", "of", "on", "in", "for", "to", "with",
+    "about", "like", "any", "some", "new", "recent", "latest", "papers", "paper",
+})
 
 
 class ResearchHub(AgentBase):
@@ -343,14 +351,28 @@ class ResearchHub(AgentBase):
         ArXiv paper search via official XML API (no key needed).
         category examples: cs.AI, cs.LG, cs.CL, stat.ML
         """
-        search_query = f"ti:{query} OR abs:{query}"
+        # PRE-RG-D2 (Target B, correction pass): an unquoted `ti:X OR abs:X` with a
+        # multi-word topic is not parsed by arXiv as that topic — real retrieval
+        # returned the newest papers of ANY subject. Each content term becomes an
+        # explicit `all:` AND term (alphanumerics only, so the text cannot inject
+        # arXiv query syntax; boolean words / filler dropped).
+        terms = [
+            t for t in re.findall(r"[A-Za-z0-9]+", query)
+            if t.lower() not in _ARXIV_STOPWORDS
+        ]
+        if not terms:
+            return []
+        search_query = " AND ".join(f"all:{t}" for t in terms)
         if category:
             search_query = f"cat:{category} AND ({search_query})"
 
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
                 resp = await client.get(
-                    "http://export.arxiv.org/api/query",
+                    # PRE-RG-D2 (Target B): the http:// endpoint now answers with an
+                    # EMPTY 301 redirect (ET.fromstring("") -> swallowed -> always []);
+                    # https:// returns the Atom feed. PaperReader already uses https.
+                    "https://export.arxiv.org/api/query",
                     params={
                         "search_query": search_query,
                         "start": 0,

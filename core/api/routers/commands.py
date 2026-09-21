@@ -726,6 +726,7 @@ from core.security.anti_fabrication import (
     current_information_decline_reply,
     current_information_plan,
     defabricate_llm_answer,
+    remove_unsupported_action_claims,
 )
 
 # 2026-07-28 KNOWN_ISSUES #35 follow-up: the English-only system-prompt
@@ -974,6 +975,11 @@ async def _llm_answer(text: str, hydration: str) -> str:
         # core/security/anti_fabrication.py's docstring for why prompting
         # alone (the instructions just above in `messages`) isn't sufficient.
         answer = defabricate_llm_answer(answer, text)
+        # PRE-RG-D2 (Target A): future promises / progressive / "Action Taken"
+        # narration are fabrications too. This path executes nothing, so the
+        # authoritative execution trace is empty — the LLM's own sentence is
+        # not evidence that anything was (or will be) done.
+        answer = remove_unsupported_action_claims(answer, action_evidence=[])
         # Deterministic backstop for KNOWN_ISSUES #35 — see
         # _ensure_english_answer() docstring above for why the English-only
         # system-prompt instruction above isn't reliably followed either.
@@ -1030,15 +1036,26 @@ def _render_readonly_evidence(action_type: str, result: dict) -> str | None:
         ]
         return "Most recent commits (from the repository history just now): " + " | ".join(lines)
     if action_type == "search_arxiv":
-        papers = result.get("papers") or []
+        # Two agents declare `search_arxiv` and Governor.dispatch may pick
+        # either: PaperReader answers under `papers` (authors: str,
+        # relevance-ordered), ResearchHub under `results` (authors: list,
+        # `published` date, newest-first). Render whichever real evidence
+        # came back — never a paraphrase, never a guess.
+        papers = result.get("papers") or result.get("results") or []
         if not papers:
             return ("I couldn't retrieve any arXiv results for that right now, so I can't tell you what has "
                     "been published — I won't guess at it.")
+
+        def _authors(p):
+            a = p.get("authors")
+            return ", ".join(a) if isinstance(a, (list, tuple)) else (a or "unknown authors")
+
         lines = [
-            f"{i}) {p.get('title', '(untitled)')} — {p.get('authors', 'unknown authors')} — {p.get('url', '')}"
+            f"{i}) {p.get('title', '(untitled)')} — {_authors(p)}"
+            f"{' (' + p['published'] + ')' if p.get('published') else ''} — {p.get('url', '')}"
             for i, p in enumerate(papers[:5], start=1)
         ]
-        return ("arXiv results retrieved just now (relevance-ordered, not necessarily the newest): "
+        return ("arXiv results retrieved just now (from the arXiv API, not from memory): "
                 + " | ".join(lines))
     return None
 

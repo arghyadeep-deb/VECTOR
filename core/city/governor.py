@@ -2336,8 +2336,14 @@ class Governor:
         # answer_question branch instead of the fast path's direct
         # _llm_answer() call. See core/security/anti_fabrication.py for the
         # full rationale (moved there — shared — to avoid a core->api import).
-        from core.security.anti_fabrication import defabricate_llm_answer
+        from core.security.anti_fabrication import (
+            defabricate_llm_answer, remove_unsupported_action_claims,
+        )
         response = defabricate_llm_answer(response, query)
+        # PRE-RG-D2 (Target A): same shared check as commands.py's
+        # _llm_answer() — no tool ran on this path, so the authoritative
+        # execution trace is empty.
+        response = remove_unsupported_action_claims(response, action_evidence=[])
 
         # 2026-07-28 KNOWN_ISSUES #35 follow-up: same deterministic backstop
         # as commands.py's _llm_answer() — the English-only system-prompt

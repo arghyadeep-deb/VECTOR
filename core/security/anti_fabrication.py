@@ -33,6 +33,7 @@ import re
 
 __all__ = [
     "defabricate_llm_answer",
+    "remove_unsupported_action_claims",
     "requires_current_information",
     "current_information_plan",
     "current_information_decline_reply",
@@ -219,6 +220,186 @@ def defabricate_llm_answer(response: str, user_text: str) -> str:
         "for me to confirm it was carried out from here."
     )
     return f"{result}\n\n{caveat}" if result else caveat
+
+
+# ── PRE-RG-D2 FINAL CLOSURE (2026-09-22, Target A): unsupported action claims ─
+#
+# defabricate_llm_answer() strips a narrow set of past-tense completion verbs
+# and only when the owner's message hints at an action. The live frozen
+# matrix (V1_TRUST_..._REPORT.md §14 #1) showed the same fabrication in other
+# shapes with NO action routed or executed: a future commitment ("I'll ping
+# you in 60 seconds"), and an invented "Action Taken:" narration. The LLM's
+# own sentence is not evidence that anything happened.
+#
+# remove_unsupported_action_claims() classifies sentence SHAPES (first-person
+# / VECTOR subject + action verb in a past, progressive or future form; a
+# small set of "the deployment is running" state claims; "Action Taken:"
+# headers) and checks each against AUTHORITATIVE evidence: `action_evidence`
+# is the command's real execution trace ([] on a pure-text reply path, where
+# nothing can have run). Unsupported claims are removed and an honest note is
+# appended. Advice/hypothetical/ordinary language is untouched: no
+# first-person action subject, an earlier "if/could/would/…" guard on future
+# forms, or a negation, means it is not a claim.
+_SUCCESS_STATUSES = frozenset({"ok", "executed", "completed", "success", "scheduled"})
+_SCHEDULING_TOKENS = frozenset({"remind", "reminder", "timer", "alarm", "schedule", "calendar"})
+# claim stem synonyms per evidence-action token (5-char stems)
+_CLAIM_FAMILIES = {
+    "remind": {"remin", "ping", "notif", "alert", "nudge"},
+    "reminder": {"remin", "ping", "notif", "alert", "nudge"},
+    "timer": {"timer", "alarm", "remin", "ping"},
+    "alarm": {"timer", "alarm", "remin", "ping"},
+    "email": {"email", "mail", "messa", "send", "sent"},
+    "send": {"send", "sent", "email", "messa"},
+    "message": {"messa", "send", "sent", "text"},
+    "schedule": {"sched", "post", "publ", "book"},
+    "post": {"post", "publ", "sched"},
+    "calendar": {"calen", "event", "meeti", "appoi", "sched", "book"},
+    "deploy": {"deplo", "relea", "ship"},
+    "production": {"deplo", "relea", "ship"},
+    "execute": {"execu", "run", "ran"},
+    "code": {"execu", "run", "ran"},
+}
+_STRONG_PAST = (r"sent|emailed|scheduled|deployed|executed|booked|published|notified|pinged|reminded|texted|"
+                r"messaged|queued|triggered|cancel(?:l)?ed|dispatched|posted")
+_STRONG_BASE = r"send|email|schedule|deploy|execute|book|publish|notify|ping|remind|text|message|queue|trigger|cancel|dispatch|alert|post"
+_STRONG_PROG = (r"sending|emailing|scheduling|deploying|executing|booking|publishing|notifying|pinging|"
+                r"reminding|texting|messaging|queue?ing|triggering|cancel(?:l)?ing|dispatching|posting")
+_AMBIG_PAST = r"created|saved|stored|set|updated|added|logged|recorded|deleted|removed|started|launched|ran|opened|closed"
+_AMBIG_BASE = r"create|save|store|set|update|add|log|record|delete|remove|start|launch|run|open|close"
+_AMBIG_PROG = r"creating|saving|storing|setting|updating|adding|logging|recording|deleting|removing|starting|launching|running|opening"
+_ACTION_OBJECT_RE = re.compile(
+    r"\b(?:reminders?|timers?|alarms?|notes?|events?|entry|entries|tasks?|jobs?|calendar|schedule|files?|records?|"
+    r"backups?|builds?|scripts?|tests?|notifications?|meetings?|appointments?|deadlines?|goals?|projects?|drafts?|"
+    r"emails?|messages?|releases?|deployments?|reservations?|tickets?|standups?|invites?|orders?)\b",
+    re.IGNORECASE,
+)
+_SUBJ = r"\b(?:I|VECTOR|we)\b"
+_ADV = r"(?:\s+(?:just|already|now|successfully|also|then|shortly|promptly|definitely|went\s+ahead\s+and))*"
+_PAST_STRONG_RE = re.compile(rf"{_SUBJ}(?:['’]ve|\s+have|\s+had)?{_ADV}\s+(?:{_STRONG_PAST})\b", re.IGNORECASE)
+_PAST_AMBIG_RE = re.compile(rf"{_SUBJ}(?:['’]ve|\s+have|\s+had)?{_ADV}\s+(?:{_AMBIG_PAST})\b", re.IGNORECASE)
+_PROG_STRONG_RE = re.compile(rf"\b(?:I['’]m|I\s+am|VECTOR\s+is|we['’]re|we\s+are){_ADV}\s+(?:{_STRONG_PROG})\b", re.IGNORECASE)
+_PROG_AMBIG_RE = re.compile(rf"\b(?:I['’]m|I\s+am|VECTOR\s+is|we['’]re|we\s+are){_ADV}\s+(?:{_AMBIG_PROG})\b", re.IGNORECASE)
+_FUT_AUX = r"(?:['’]ll|\s+will|\s+shall|['’]m\s+going\s+to|\s+am\s+going\s+to|\s+is\s+going\s+to)"
+_FUTURE_STRONG_RE = re.compile(
+    rf"\b(?:I|VECTOR){_FUT_AUX}{_ADV}\s+(?:(?:{_STRONG_BASE})\b|get\s+back\s+to\s+you|follow\s+up|circle\s+back|check\s+in\s+(?:with|on))"
+    rf"|\blet\s+me\s+(?:{_STRONG_BASE})\b",
+    re.IGNORECASE,
+)
+_FUTURE_AMBIG_RE = re.compile(
+    rf"\b(?:I|VECTOR){_FUT_AUX}{_ADV}\s+(?:{_AMBIG_BASE})\b|\blet\s+me\s+(?:{_AMBIG_BASE})\b",
+    re.IGNORECASE,
+)
+_STATE_RE = re.compile(
+    r"\b(?:the|your|that|this)\s+(?:deployment|reminder|email|message|timer|alarm|job|upload|backup|download|"
+    r"notification|meeting|appointment|build|release)\s+(?:is|are)\s+(?:now\s+|currently\s+|already\s+)?"
+    r"(?:running|underway|in\s+progress|scheduled|queued|set|being\s+\w+ed)\b"
+    r"|\b(?:your|that)\s+(?:\w+\s+){0,2}(?:has|have)\s+been\s+(?:sent|scheduled|queued|deployed|booked|triggered|"
+    r"cancel(?:l)?ed|created|saved)\b",
+    re.IGNORECASE,
+)
+_BARE_DONE_RE = re.compile(r"^\W*(?:done|all\s+set|consider\s+it\s+done|on\s+it|will\s+do)\W*$", re.IGNORECASE)
+_HEADER_RE = re.compile(
+    r"\*{0,2}\s*actions?\s+(?:taken|performed|completed)\s*(?::\s*\*{0,2}|\*{0,2}\s*:)"
+    r"|\*{0,2}\s*what\s+i\s+did\s*(?::\s*\*{0,2}|\*{0,2}\s*:)",
+    re.IGNORECASE,
+)
+_NEGATION_RE = re.compile(r"\b(?:not|never|n['’]t|cannot|unable|without)\b", re.IGNORECASE)
+_HYPOTHETICAL_BEFORE_RE = re.compile(
+    r"\b(?:if|could|would|might|may|should|whether|unless|suggest|recommend|consider|happy\s+to|"
+    r"want\s+me\s+to|like\s+me\s+to)\b",
+    re.IGNORECASE,
+)
+_LINE_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+ACTION_CLAIM_HEADER_REPLY = (
+    "I didn't take any action on that, sir — this was only a text reply and nothing was executed "
+    "or scheduled. Tell me specifically what you'd like done and I'll route it through a real "
+    "capability if one exists."
+)
+ACTION_CLAIM_NOTE = (
+    "To be clear, sir — I haven't scheduled, sent or run anything from this reply; it's text only. "
+    "Ask me directly and I'll route it through a real capability if one exists."
+)
+
+
+def _stems(text: str) -> set[str]:
+    return {w[:5] for w in re.findall(r"[a-z]+", text.lower()) if len(w) >= 2}
+
+
+def _evidence_supports(sentence: str, kind: str, action_evidence) -> bool:
+    """True when authoritative evidence backs this claim: a SUCCESSFUL
+    execution of a lexically-matching action (or its synonym family); a
+    future commitment additionally needs scheduling state."""
+    claim = _stems(sentence)
+    for rec in action_evidence or []:
+        if str(rec.get("status", "")).lower() not in _SUCCESS_STATUSES:
+            continue
+        tokens = [t for t in str(rec.get("action_type", "")).lower().split("_") if t]
+        action_stems = {t[:5] for t in tokens}
+        for t in tokens:
+            action_stems |= _CLAIM_FAMILIES.get(t, set())
+        if not (claim & action_stems):
+            continue
+        if kind == "future" and not (
+            rec.get("scheduled") or str(rec.get("status", "")).lower() == "scheduled"
+            or _SCHEDULING_TOKENS & set(tokens)
+        ):
+            continue
+        return True
+    return False
+
+
+def _claim_kind(sentence: str) -> str | None:
+    """'past' | 'future' | None — the shape of an action claim in `sentence`
+    after the negation / earlier-hypothetical guards."""
+    has_object = bool(_ACTION_OBJECT_RE.search(sentence))
+    for rx, ambiguous in ((_PAST_STRONG_RE, False), (_PAST_AMBIG_RE, True),
+                          (_PROG_STRONG_RE, False), (_PROG_AMBIG_RE, True), (_STATE_RE, False)):
+        if rx.search(sentence) and (has_object or not ambiguous) and not _NEGATION_RE.search(sentence):
+            return "past"
+    if _BARE_DONE_RE.match(sentence):
+        return "past"
+    for rx, ambiguous in ((_FUTURE_STRONG_RE, False), (_FUTURE_AMBIG_RE, True)):
+        m = rx.search(sentence)
+        if m and (has_object or not ambiguous):
+            if _NEGATION_RE.search(sentence[: m.start()]) or _HYPOTHETICAL_BEFORE_RE.search(sentence[: m.start()]):
+                continue
+            return "future"
+    return None
+
+
+def remove_unsupported_action_claims(response: str, action_evidence=None) -> str:
+    """Remove statements that VECTOR did / is doing / will do something when
+    `action_evidence` (the authoritative execution/scheduling trace; empty on
+    a pure-text path) does not back them. See the block comment above."""
+    if not response:
+        return response
+    if _HEADER_RE.search(response):
+        from loguru import logger
+        logger.warning("[VECTOR][anti_fabrication] 'Action Taken' narration with no execution evidence — "
+                       "replaced with an honest capability response")
+        return ACTION_CLAIM_HEADER_REPLY
+
+    dropped: list[str] = []
+    out_lines: list[str] = []
+    for line in response.split("\n"):
+        kept: list[str] = []
+        for sentence in _LINE_SENTENCE_SPLIT_RE.split(line):
+            kind = _claim_kind(sentence) if sentence.strip() else None
+            if kind and not _evidence_supports(sentence, kind, action_evidence):
+                dropped.append(sentence.strip())
+                continue
+            kept.append(sentence)
+        out_lines.append(" ".join(kept))
+    if not dropped:
+        return response
+
+    from loguru import logger
+    logger.warning("[VECTOR][anti_fabrication] removed unsupported action claim(s) (no matching "
+                   "execution/scheduling evidence): {}", dropped)
+    result = "\n".join(out_lines)
+    result = re.sub(r"\n{3,}", "\n\n", result).strip()
+    return f"{result}\n\n{ACTION_CLAIM_NOTE}" if result else ACTION_CLAIM_NOTE
 
 
 if __name__ == "__main__":
