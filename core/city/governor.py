@@ -1,3 +1,4 @@
+import functools
 import json
 import re
 import sys
@@ -436,6 +437,12 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "code": "coding",
     "git": "coding",
     "git_status": "coding",
+    # V1 TRUST CLOSURE (T3): exact routes for the other read-only GitBot
+    # capabilities that were GREEN-registered and agent-declared but had no
+    # DISTRICT_TASK_MAP entry (Governor.dispatch had to guess their district).
+    "check_git": "coding",
+    "git_log": "coding",
+    "recent_commits": "coding",
     "review": "coding",
     "bug": "coding",
     "refactor": "coding",
@@ -1343,6 +1350,80 @@ def _canonical_district_from_task_type(task_type: str) -> tuple[str, str] | None
     return district, key
 
 
+_FORBIDDEN_ACTIONS_FALLBACK = ("format_drive", "mass_delete", "share_private_data")
+
+# V1 TRUST CLOSURE (T3): explicit, deterministic canonical identities for
+# task_types that are real DISTRICT_TASK_MAP keys but are NOT the executable
+# capability's own name. Each entry is source-verified: the target is
+# GREEN-registered, has a real handler that declares it as a capability, and
+# the alias's meaning is unambiguous. Permission then applies to the
+# canonical executable identity (never the alias). Deliberately tiny and
+# explicit — not a fuzzy matcher.
+#   research_papers -> search_arxiv : PaperReader declares ["paper",
+#       "research", "search_arxiv"]; nothing declares "research_papers", so
+#       Governor.dispatch could never have found a handler for the alias.
+_TASK_IDENTITY_ALIASES = {"research_papers": "search_arxiv"}
+
+
+@functools.lru_cache(maxsize=1)
+def _known_action_identities() -> frozenset[str]:
+    """V1 TRUST CLOSURE (2026-09-21, T2): every action_type VECTOR already
+    holds an authoritative identity for — the routing vocabulary
+    (`DISTRICT_TASK_MAP` keys), the permission vocabulary
+    (`CONFIG["permission"]` GREEN/YELLOW/RED + PermissionGateway's FORBIDDEN)
+    and the council/RED vocabulary. A classifier-produced task_type that is
+    in this set is an EXACT known action identity: routing may derive its
+    district, but must never rewrite the identity itself (see
+    `classify_chat_intent()`)."""
+    names = set(DISTRICT_TASK_MAP) | set(_COUNCIL_TASK_TYPES)
+    perm = CONFIG.get("permission", {}) or {}
+    for tier in ("green", "yellow", "red"):
+        names |= set(perm.get(tier, []) or [])
+    try:
+        from core.loop.permission_gateway import FORBIDDEN
+        names |= set(FORBIDDEN)
+    except Exception:
+        names |= set(_FORBIDDEN_ACTIONS_FALLBACK)
+    return frozenset(names)
+
+
+@functools.lru_cache(maxsize=1)
+def _elevated_risk_words() -> frozenset[str]:
+    """Words (>=4 chars) that occur in RED/FORBIDDEN/council/owner-approval/
+    interactive-RED action names but in NO GREEN action name, minus words so
+    common across the whole permission vocabulary (>2 names) that they carry
+    no risk signal on their own ('create', 'launch', 'task'). Derived from
+    the live permission config, not a hand-written keyword list — it moves
+    when the tiers move."""
+    perm = CONFIG.get("permission", {}) or {}
+    elevated_names = set(perm.get("red", []) or []) | set(_COUNCIL_TASK_TYPES)
+    try:
+        from core.loop.permission_gateway import (
+            FORBIDDEN, OWNER_APPROVAL_ONLY, RED_INTERACTIVE_TOOLS,
+        )
+        elevated_names |= set(FORBIDDEN) | set(OWNER_APPROVAL_ONLY) | set(RED_INTERACTIVE_TOOLS)
+    except Exception:
+        elevated_names |= set(_FORBIDDEN_ACTIONS_FALLBACK)
+
+    def _words(name: str) -> set[str]:
+        return {w for w in name.split("_") if len(w) >= 4}
+
+    green_words = set().union(*[_words(n) for n in (perm.get("green", []) or [])]) if perm.get("green") else set()
+    all_names = elevated_names | set(perm.get("yellow", []) or []) | set(perm.get("green", []) or [])
+    freq: dict[str, int] = {}
+    for n in all_names:
+        for w in _words(n):
+            freq[w] = freq.get(w, 0) + 1
+    elevated_words = set().union(*[_words(n) for n in elevated_names]) if elevated_names else set()
+    return frozenset(w for w in elevated_words - green_words if freq.get(w, 0) <= 2)
+
+
+def _is_risk_elevated_label(task_type: str) -> bool:
+    """True when an (unknown/invented) task_type label carries words from the
+    RED/FORBIDDEN vocabulary — e.g. `delete_everything_now`."""
+    return bool({w for w in task_type.split("_") if len(w) >= 4} & _elevated_risk_words())
+
+
 def _authoritative_district_from_text(text: str, district: str) -> tuple[str, str] | None:
     """KNOWN_ISSUES #10 (capability-match/HP-lottery misroute): the
     exact-task_type-match correction below (`task_type in DISTRICT_TASK_MAP`)
@@ -1518,6 +1599,19 @@ async def classify_chat_intent(text: str) -> dict:
         (r"\bhow\s+am\s+i\s+doing\b.*\b(goals?|progress)\b", "brain", "goal_summary"),
         # ops — system status
         (r"\b(everything|system)\b.*\b(running\s+smoothly|issues|status)\b", "ops", "system_status"),
+        # coding — read-only repository state/history (V1 TRUST CLOSURE, T3).
+        # OWNER_ROUTING_CLOSURE_REPORT.md V4 ("...anything worth flagging
+        # that's shifted in the codebase recently?") reached a real district
+        # only via an invented label that word-overlapped `index_codebase` —
+        # a 300s index BUILD, not a status query. These map the owner's
+        # possessive/definite "the/our/my/this codebase|repo" + a change or
+        # status word onto the exact, GREEN, read-only GitBot identities
+        # (`recent_commits`, `git_status`). Requiring the determiner keeps
+        # an abstract opinion question ("monolith vs microservices
+        # codebase") out of the route.
+        (r"\b(?:the|our|my|this)\s+(?:codebase|code\s?base|repo|repository)\b.*\b(?:changed|changes|shifted|updated|updates|new|recent|recently|lately)\b", "coding", "recent_commits"),
+        (r"\b(?:changed|changes|shifted|updated|updates|new|recent|recently|lately)\b.*\b(?:the|our|my|this)\s+(?:codebase|code\s?base|repo|repository)\b", "coding", "recent_commits"),
+        (r"\b(?:the|our|my|this)\s+(?:git\s+)?(?:repo|repository|codebase|working\s+tree)\b.*\b(?:status|state|uncommitted|dirty)\b|\b(?:git\s+status|uncommitted\s+changes)\b|\b(?:state|status)\s+of\s+(?:the|our|my|this)\s+(?:git\s+)?(?:repo|repository|codebase|working\s+tree)\b", "coding", "git_status"),
     ]
     text_lower = text.lower()
     for pattern, district, task_type in _REGEX_PRECLASSIFY:
@@ -1677,34 +1771,90 @@ async def classify_chat_intent(text: str) -> dict:
         # KNOWN_ISSUES #10: check the raw query text FIRST, before trusting
         # the LLM's own task_type string — see _authoritative_district_from_
         # text()'s docstring for the full "Remember X" repro this closes.
+        #
+        # V1 TRUST CLOSURE (2026-09-21, T2 — action identity preservation):
+        # OWNER_ROUTING_CLOSURE_REPORT.md Sections 17/26 demonstrated live
+        # that the text-word and snap corrections below rewrote an EXACT,
+        # correctly-identified RED task_type into a different action
+        # (push_github->code, send_email->email, deploy_production->deploy,
+        # execute_code->script — the last one then actually ran the
+        # unrelated GREEN `script` action) because an incidental word in the
+        # owner's sentence collided with another capability's name. Routing
+        # may clarify the DISTRICT; it must never rewrite an exact known
+        # action IDENTITY. Two rules, both derived from the live routing +
+        # permission vocabularies rather than hand-written lists:
+        #   1. task_type already an exact known action identity -> immutable;
+        #      only its district is derived (authoritative mapping first).
+        #   2. task_type an unknown/invented label that carries RED/FORBIDDEN
+        #      vocabulary words -> its identity may not be replaced by a
+        #      (possibly lower-tier) registered action either; district may
+        #      still be corrected. It stays unknown, so PermissionGateway
+        #      fails it closed (UNKNOWN) instead of running a substitute.
+        # Genuinely unknown, non-risk-elevated labels keep the pre-existing
+        # (KNOWN_ISSUES #3/#10) canonicalization exactly as before.
+        raw_task_type = task_type
+        if task_type in _TASK_IDENTITY_ALIASES:
+            _debug_classify_intent(
+                text, raw,
+                f"ALIAS {task_type!r} -> {_TASK_IDENTITY_ALIASES[task_type]!r} "
+                f"(explicit canonical executable identity)",
+            )
+            task_type = _TASK_IDENTITY_ALIASES[task_type]
+        identity_locked = task_type in _known_action_identities()
+        risk_elevated_label = (not identity_locked) and _is_risk_elevated_label(task_type)
+
+        if identity_locked:
+            if task_type in DISTRICT_TASK_MAP and (
+                task_type not in _SELF_REFERENTIAL_DISTRICT_KEYS or district not in districts
+            ):
+                if DISTRICT_TASK_MAP[task_type] != district:
+                    _debug_classify_intent(
+                        text, raw,
+                        f"DISTRICT CORRECTED {district!r} -> {DISTRICT_TASK_MAP[task_type]!r} "
+                        f"(task_type={task_type!r} has an authoritative mapping; identity locked)",
+                    )
+                district = DISTRICT_TASK_MAP[task_type]
+            elif district not in districts:
+                canonical_d = _canonical_district_from_task_type(task_type)
+                district = canonical_d[0] if canonical_d else ""
+            _debug_classify_intent(
+                text, raw,
+                f"ACCEPTED type={task_type} district={district or '(none)'} conf={confidence} "
+                f"(identity locked)",
+            )
+            accepted = {"type": task_type, "confidence": confidence,
+                        "raw_task_type": raw_task_type,
+                        "identity": "alias" if task_type != raw_task_type else "locked"}
+            if district:
+                accepted["district"] = district
+            return accepted
+
         text_correction = _authoritative_district_from_text(text, district)
         if text_correction:
             new_district, new_task_type = text_correction
-            _debug_classify_intent(
-                text, raw,
-                f"TEXT-AUTHORITATIVE CORRECTION {district!r} -> {new_district!r} "
-                f"(literal query word {new_task_type!r} maps here; was "
-                f"task_type={task_type!r}, district={district!r})",
-            )
-            district = new_district
-            task_type = new_task_type
-        elif (
-            task_type in DISTRICT_TASK_MAP
-            and DISTRICT_TASK_MAP[task_type] != district
-            and task_type not in _SELF_REFERENTIAL_DISTRICT_KEYS
-        ):
-            _debug_classify_intent(
-                text, raw,
-                f"DISTRICT CORRECTED {district!r} -> {DISTRICT_TASK_MAP[task_type]!r} "
-                f"(task_type={task_type!r} has an authoritative mapping)",
-            )
-            district = DISTRICT_TASK_MAP[task_type]
+            if risk_elevated_label:
+                _debug_classify_intent(
+                    text, raw,
+                    f"TEXT-AUTHORITATIVE DISTRICT-ONLY CORRECTION {district!r} -> {new_district!r} "
+                    f"(task_type={task_type!r} carries RED-vocabulary words; identity NOT "
+                    f"replaced by {new_task_type!r})",
+                )
+                district = new_district
+            else:
+                _debug_classify_intent(
+                    text, raw,
+                    f"TEXT-AUTHORITATIVE CORRECTION {district!r} -> {new_district!r} "
+                    f"(literal query word {new_task_type!r} maps here; was "
+                    f"task_type={task_type!r}, district={district!r})",
+                )
+                district = new_district
+                task_type = new_task_type
         elif district not in districts:
-            # OWNER ROUTING CLOSURE (F1): neither of the two stronger,
-            # already-proven signals above resolved an invalid district —
-            # last resort before rejecting: does the invented task_type's
-            # OWN vocabulary unambiguously point at one real district's
-            # known capabilities? Deliberately conservative (see
+            # OWNER ROUTING CLOSURE (F1): the stronger, already-proven text
+            # signal above didn't resolve an invalid district — last resort
+            # before rejecting: does the invented task_type's OWN vocabulary
+            # unambiguously point at one real district's known
+            # capabilities? Deliberately conservative (see
             # _canonical_district_from_task_type()'s own docstring for the
             # security reasoning) — returns None far more often than not.
             canonical = _canonical_district_from_task_type(task_type)
@@ -1714,10 +1864,12 @@ async def classify_chat_intent(text: str) -> dict:
                     text, raw,
                     f"TASK-TYPE-WORD CANONICALIZED {district!r} -> {new_district!r} "
                     f"(task_type={task_type!r} word-overlaps known key "
-                    f"{new_task_type!r})",
+                    f"{new_task_type!r}"
+                    f"{'; district only — RED-vocabulary label keeps its identity' if risk_elevated_label else ''})",
                 )
                 district = new_district
-                task_type = new_task_type
+                if not risk_elevated_label:
+                    task_type = new_task_type
         if district not in districts:
             _debug_classify_intent(text, raw, f"REJECTED (unresolvable district) district={district!r} task_type={task_type!r}")
             return fallback
@@ -1737,12 +1889,17 @@ async def classify_chat_intent(text: str) -> dict:
         # always falling back to generic/highest-HP. Local word-overlap
         # match, no extra LLM call (this already runs on every fast-path
         # message — a second LLM round trip here isn't worth the latency).
-        snapped = _snap_to_known_task_type(task_type, district, query_text=text)
-        if snapped != task_type:
-            _debug_classify_intent(text, raw, f"SNAPPED {task_type!r} -> {snapped!r} (district={district})")
-            task_type = snapped
+        if not risk_elevated_label:
+            snapped = _snap_to_known_task_type(task_type, district, query_text=text)
+            if snapped != task_type:
+                _debug_classify_intent(text, raw, f"SNAPPED {task_type!r} -> {snapped!r} (district={district})")
+                task_type = snapped
         _debug_classify_intent(text, raw, f"ACCEPTED type={task_type} district={district} conf={confidence}")
-        return {"type": task_type, "district": district, "confidence": confidence}
+        return {
+            "type": task_type, "district": district, "confidence": confidence,
+            "raw_task_type": raw_task_type,
+            "identity": "guarded" if risk_elevated_label else ("canonicalized" if task_type != raw_task_type else "llm"),
+        }
     except Exception as e:
         _debug_classify_intent(text, "", f"EXCEPTION: {e!r}")
         logger.warning(f"[VECTOR][governor] classify_chat_intent failed, defaulting to answer_question: {e}")
@@ -2022,6 +2179,17 @@ class Governor:
         if not query:
             return {"status": "error", "response": "", "error": "empty query"}
 
+        # V1 TRUST CLOSURE (T1): same deterministic floor as commands.py's
+        # _llm_answer() — this path has no retrieval either, so a request
+        # that depends on current external information gets the honest
+        # inability reply instead of free-generated "what's new" claims.
+        from core.security.anti_fabrication import current_information_decline_reply
+        _decline = current_information_decline_reply(query)
+        if _decline:
+            logger.info("[VECTOR][governor] current-information request answered with honest inability "
+                        "(no retrieval evidence) — free generation suppressed")
+            return {"status": "ok", "response": _decline}
+
         try:
             from core.loop.context_engine import ContextEngine
             hydration = ContextEngine().session_hydration_prompt(extra_context={"query": query})
@@ -2071,6 +2239,13 @@ class Governor:
             "away', or other eager-compliance opener before the decline. "
             "State the boundary plainly, then (if useful) what you can do "
             "instead.",
+            # V1 TRUST CLOSURE (T1): information that CHANGES over time is not
+            # "general knowledge" — see the deterministic floor above.
+            "Information that changes over time (latest/new/recent releases, "
+            "versions, papers, news, prices) is outside what you can know in "
+            "this reply — you have no live source, so say plainly you can't "
+            "verify current information; never present specific recent "
+            "products, versions, papers or events as current.",
             # 2026-07-21 LangSmith eval finding: in a project-status query
             # where VECTOR had no real data, it fabricated a plausible-looking
             # status instead of saying it didn't know. Fixed by making

@@ -191,9 +191,17 @@ class TestOwnerCommandControl:
         text = "vector, enumerate every district you're running right now"
         assert commands_router._detect_intent_action(text)["action_type"] == "respond"
 
+        # V1 TRUST CLOSURE (T3, 2026-09-21): this test used `list_districts`,
+        # which is GREEN-registered but has NO PermissionGateway._execute_action
+        # handler — it only ever "passed" because /command reported the
+        # gateway's `not_implemented` result as executed (a phantom success,
+        # now refused: see tests/test_v1_trust_t3_permission_vocabulary.py).
+        # The intent here — a classify-routed GREEN action that genuinely
+        # executes — is preserved with `set_timer`, a GREEN action that has
+        # a real handler.
         with patch(
             "core.city.governor.classify_chat_intent",
-            AsyncMock(return_value={"type": "list_districts", "district": "governance", "confidence": 0.9}),
+            AsyncMock(return_value={"type": "set_timer", "district": "governance", "confidence": 0.9}),
         ):
             resp = await commands_router.command_endpoint(
                 body=CommandRequest(text=text),
@@ -205,7 +213,7 @@ class TestOwnerCommandControl:
         ep.close_db_connection()
 
         assert resp.candidates_evaluated >= 1
-        assert resp.action_taken == "list_districts"
+        assert resp.action_taken == "set_timer"
         assert resp.district == "governance"
 
 

@@ -59,6 +59,30 @@ FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
 # VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md for the composition
 # capability this unblocks (script -> schedule_post).
 _PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate", "log_exercise", "create_project"}
+# V1 TRUST CLOSURE (2026-09-21, T3, VECTOR_TECHNICAL_KNOWLEDGE/
+# V1_TRUST_ACTION_IDENTITY_PERMISSION_CLOSURE_REPORT.md): a SEPARATE,
+# equally narrow allowlist (deliberately not folded into
+# _PLAN_COMPOSABLE_ACTION_TYPES above — that set is pinned by exact-equality
+# tests and means "actions a plan step may carry") for the READ-ONLY
+# capabilities the owner path demonstrably needed. Each was GREEN-registered
+# (core/config.py) with a real district handler but had NO route here, so
+# /command's Candidate -> DecisionEngine -> Gateway path reached
+# `_execute_action`'s final `not_implemented` and then reported
+# "Done — X completed." (a phantom success):
+#   git_status / check_git       -> GitBot.get_status()         (read-only)
+#   git_log / recent_commits     -> GitBot.get_recent_commits() (read-only)
+#   search_arxiv                 -> PaperReader.search_papers() (read-only
+#                                   arXiv query, keyless, structured evidence)
+# Each: real handler declared in the agent's own `capabilities`, exact
+# DISTRICT_TASK_MAP route (never LLM-guessed), existing explicit GREEN tier
+# (no tier was changed or added). NOT added, on purpose: `index_codebase`
+# (its handler runs a 300s MCP subprocess that BUILDS an index — a write,
+# not a status query; stays UNKNOWN/fail-closed) and `daily_review`/
+# `reflect` (DailyReviewer.run answers with an LLM reflection answer, not a
+# grounded review — reporting that as a review would be a fabrication).
+_OWNER_READONLY_DISPATCH_ACTION_TYPES = frozenset(
+    {"git_status", "check_git", "git_log", "recent_commits", "search_arxiv"}
+)
 # RR-3.7B (2026-09-16, VECTOR_TECHNICAL_KNOWLEDGE/
 # RR3_7B_STRUCTURED_ROUTER_AUTHORIZATION_REPORT.md): "log_exercise" and
 # "create_project" added to this same narrow, explicit, individually-
@@ -1420,6 +1444,22 @@ class PermissionGateway:
                 except Exception as _pc_err:
                     result["status"] = "error"
                     result["error"] = str(_pc_err)
+            elif action.action_type in _OWNER_READONLY_DISPATCH_ACTION_TYPES:
+                # V1 TRUST CLOSURE (T3): verified read-only capabilities (see
+                # the constant's docstring). The tier gate above has already
+                # authorized this exact action_type (GREEN); the dispatched
+                # type is the authorized type, unchanged.
+                try:
+                    from core.city.governor import Governor
+                    dispatch_result = await Governor().dispatch({
+                        "type": action.action_type,
+                        "params": action.params,
+                    })
+                    result["status"] = dispatch_result.get("status", "ok")
+                    result.update(dispatch_result)
+                except Exception as _ro_err:
+                    result["status"] = "error"
+                    result["error"] = str(_ro_err)
             elif action.action_type.startswith("hand_"):
                 # Hand Execution Engine (hands/runner.py) — Hand action types
                 # are pre-classified in core/config.py PermissionConfig per

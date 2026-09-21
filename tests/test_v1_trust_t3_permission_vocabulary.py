@@ -1,0 +1,302 @@
+"""V1 TRUST CLOSURE — T3 (permission / handler vocabulary alignment) tests.
+
+Background (OWNER_ROUTING_CLOSURE_REPORT.md Sections 23/28): owner routing
+could now resolve real capabilities and reach Candidate -> DecisionEngine,
+but three independently maintained vocabularies had drifted apart:
+
+  1. routing      — `DISTRICT_TASK_MAP` (task_type -> district)
+  2. permission   — `CONFIG["permission"]` GREEN/YELLOW/RED tiers
+  3. execution    — `PermissionGateway._execute_action`'s handlers (the only
+                    owner-path route to a real district agent is its narrow,
+                    individually-verified `_PLAN_COMPOSABLE_ACTION_TYPES`
+                    dispatch allowlist)
+
+Findings proven by these tests (source-traced 2026-09-21):
+  * Real, read-only GREEN capabilities with real district handlers
+    (`git_status`/`check_git`/`git_log`/`recent_commits` -> GitBot,
+    `search_arxiv` -> PaperReader) had NO owner-path execution route:
+    `_execute_action` fell through to `not_implemented`.
+  * `/command` reported such a `not_implemented` execution as
+    "Done — X completed." with `action_taken=X` and a 0.8 policy reward —
+    a phantom success (`/ws/command` already refuses this: RR-3.6 §15).
+  * `research_papers` (a real DISTRICT_TASK_MAP key) had no permission tier
+    and no handler; the real executable capability is `search_arxiv`.
+  * `index_codebase` is deliberately NOT registered: its real handler runs a
+    300s MCP subprocess that BUILDS an index (a write), it is not a
+    read-only status query — UNKNOWN (fail closed) is the correct tier.
+
+Nothing here relaxes a tier: RED/YELLOW/FORBIDDEN membership is asserted
+frozen, and no capability is added to GREEN.
+
+Per .claude/rules/testing.md only external boundaries are mocked (LLM,
+phone notification, `Governor.dispatch` = the district-agent boundary);
+PermissionGateway tier + dispatch-allowlist logic and `command_endpoint`
+run as real production code.
+"""
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from core.api.routers import commands as commands_router
+from core.api.schemas import CommandRequest
+from core.city import governor
+from core.city.governor import Governor
+from core.city.intent_matcher import IntentMatcher
+from core.config import CONFIG
+from core.loop.decision_engine import DecisionEngine
+from core.loop.permission_gateway import Action, PermissionGateway
+
+
+@pytest.fixture(autouse=True)
+def _no_embedding_match():
+    with patch.object(IntentMatcher, "match", new=AsyncMock(return_value=None)):
+        yield
+
+
+class _FakeCompletionResult:
+    def __init__(self, content: str):
+        self.content = content
+
+
+def _mock_client(content: str):
+    async def _chat(*args, **kwargs):
+        return _FakeCompletionResult(content)
+    fake = AsyncMock()
+    fake.chat = _chat
+    return fake
+
+
+def _llm(task_type: str, district: str, confidence: float = 0.95) -> str:
+    return (
+        '{"is_action": true, "task_type": "%s", "district": "%s", "confidence": %s}'
+        % (task_type, district, confidence)
+    )
+
+
+# ── 1/2. Verified real, read-only capabilities are executable from the owner
+#        path (and retrieval capability required by T1) ─────────────────────
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("action_type", ["git_status", "check_git", "git_log", "recent_commits", "search_arxiv"])
+async def test_verified_readonly_capability_reaches_its_real_handler(action_type):
+    payload = {"branch": "main", "modified": [], "staged": [], "untracked": []}
+    dispatch = AsyncMock(return_value=payload)
+    gw = PermissionGateway()
+    assert gw._classify(action_type) == "GREEN"
+    with patch.object(Governor, "dispatch", dispatch), \
+         patch.object(PermissionGateway, "_notify", new=AsyncMock()):
+        result = await gw.execute(Action(action_type=action_type, params={"query": "x"}, proposed_by="api_command"))
+    assert result.level == "GREEN"
+    assert dispatch.await_count == 1, f"{action_type} must be dispatched to its real district handler"
+    assert dispatch.await_args.args[0]["type"] == action_type, "dispatched identity must equal authorized identity"
+    assert result.result.get("status") != "not_implemented", result.result
+
+
+# ── 3/4/5. Existing tiers unchanged; nothing lowered or added ──────────────
+
+_FROZEN_RED = {
+    'block_ip', 'browser_task', 'click_screen', 'code_debug', 'code_fix', 'code_generate', 'code_task',
+    'content_publish', 'delete_files', 'deploy_production', 'desktop_task', 'download_file', 'execute_code',
+    'financial_transaction', 'gui_task', 'hand_browser', 'hand_clip', 'hand_content', 'hf_train', 'kill_process',
+    'launch_app', 'launch_terminal', 'overwrite_note_personal', 'pc_click', 'pc_launch_app', 'pc_type',
+    'push_github', 'run_experiment_cycle', 'run_shell_command', 'send_email', 'send_message_routine',
+    'solana_swap_execute', 'unblock_ip', 'vision_control', 'vt_backtest',
+}
+_FROZEN_YELLOW = {
+    'add_deadline', 'commit_code', 'create_calendar_event', 'create_project', 'finance_report', 'journal',
+    'log_exercise', 'monthly_report', 'pc_screenshot', 'run_tests', 'set_reminder', 'weekly_journal',
+    'write_note_personal',
+}
+
+
+def test_red_and_yellow_tiers_are_frozen():
+    perm = CONFIG["permission"]
+    assert set(perm["red"]) == _FROZEN_RED, "RED tier membership must not change in T3"
+    assert set(perm["yellow"]) == _FROZEN_YELLOW, "YELLOW tier membership must not change in T3"
+
+
+def test_no_capability_was_added_to_green_and_representative_tiers_hold():
+    perm = CONFIG["permission"]
+    gw = PermissionGateway()
+    for green in ("check_attendance", "search_web", "git_status", "search_arxiv", "script"):
+        assert green in perm["green"] and gw._classify(green) == "GREEN"
+    for yellow in ("commit_code", "set_reminder", "create_project"):
+        assert gw._classify(yellow) == "YELLOW"
+    for red in ("send_email", "execute_code", "push_github", "deploy_production", "delete_files"):
+        assert gw._classify(red) == "RED"
+    assert "index_codebase" not in perm["green"] + perm["yellow"] + perm["red"]
+    assert "research_papers" not in perm["green"] + perm["yellow"] + perm["red"]
+
+
+# ── 6. Unknown / unimplemented stays UNKNOWN and blocked ──────────────────
+
+@pytest.mark.asyncio
+async def test_unknown_actions_remain_fail_closed():
+    gw = PermissionGateway()
+    for unknown in ("index_codebase", "totally_made_up_action"):
+        assert gw._classify(unknown) == "UNKNOWN"
+    with patch.object(PermissionGateway, "_notify", new=AsyncMock()), \
+         patch.object(Governor, "dispatch", new=AsyncMock(return_value={"status": "ok"})) as dispatch:
+        result = await gw.execute(Action(action_type="index_codebase", params={}, proposed_by="api_command"))
+    assert result.level == "UNKNOWN" and result.approved is False
+    assert dispatch.await_count == 0, "an UNKNOWN action must never reach a district handler"
+
+
+# ── 7. Registered-but-unimplemented must not look executed ────────────────
+
+class _FakeContextEngine:
+    def session_hydration_prompt(self, extra_context=None):
+        return "TEST_HYDRATION_CONTEXT"
+
+
+@pytest.fixture()
+def isolated_episodic(tmp_path, monkeypatch):
+    monkeypatch.setenv("VECTOR_DB_PATH", str(tmp_path / "v1_trust_t3_test.db"))
+    monkeypatch.setenv("VECTOR_DB_KEY", "test_key_v1_trust_t3")
+    import core.memory.episodic as ep
+    ep.close_db_connection()
+    mem = ep.EpisodicMemory()
+    yield mem
+    ep.close_db_connection()
+
+
+async def _run_endpoint(text, llm_json, isolated_episodic, dispatch_result=None):
+    policy_calls = []
+    with patch("core.inference.provider_client.get_client", return_value=_mock_client(llm_json)), \
+         patch.object(PermissionGateway, "_notify", new=AsyncMock()), \
+         patch.object(Governor, "dispatch", new=AsyncMock(return_value=dispatch_result or {"status": "ok"})), \
+         patch.object(commands_router, "update_policy", side_effect=lambda a, h, r: policy_calls.append((a, r))):
+        response = await commands_router.command_endpoint(
+            body=CommandRequest(text=text),
+            ctx_engine=_FakeContextEngine(),
+            decision_engine=DecisionEngine(),
+            perm_gateway=PermissionGateway(),
+            episodic_mem=isolated_episodic,
+        )
+    return response, policy_calls
+
+
+@pytest.mark.asyncio
+async def test_registered_but_unimplemented_action_is_not_reported_as_done(isolated_episodic):
+    """`daily_review` is GREEN-registered but has no `_execute_action`
+    handler on the owner path. It used to answer "Done — daily review
+    completed." with action_taken=daily_review and a 0.8 reward while
+    nothing ran."""
+    response, policy_calls = await _run_endpoint(
+        "please go over how the afternoon went for me", _llm("daily_review", "reflection"), isolated_episodic
+    )
+    assert "done" not in response.response.lower(), response.response
+    assert response.action_taken is None, "a not_implemented execution must not be reported as action_taken"
+    assert policy_calls and policy_calls[0][1] < 0.5, (
+        f"an action that did not execute must not earn the 0.8 success reward, got {policy_calls!r}"
+    )
+
+
+# ── 8. Alias resolves to the canonical executable identity ─────────────────
+
+@pytest.mark.asyncio
+async def test_research_papers_alias_resolves_to_canonical_search_arxiv():
+    with patch("core.inference.provider_client.get_client", return_value=_mock_client(_llm("research_papers", "knowledge"))):
+        result = await governor.classify_chat_intent("could you dig up some recent papers on this topic")
+    assert result.get("type") == "search_arxiv", result
+    assert result.get("district") == "research"
+    assert PermissionGateway()._classify(result["type"]) == "GREEN", (
+        "permission must apply to the canonical executable identity"
+    )
+
+
+# ── 9. Deterministic routing for the demonstrated code-status shape ────────
+
+@pytest.mark.asyncio
+async def test_codebase_change_question_routes_to_readonly_git_capability():
+    """V4 shape (report §23). The LLM is armed to raise: the route must be
+    deterministic and land on the exact read-only identity, not an invented
+    label snapped to the (non-read-only) `index_codebase`."""
+    boom = AsyncMock()
+    boom.chat = AsyncMock(side_effect=AssertionError("LLM must not be consulted for a deterministic route"))
+    with patch("core.inference.provider_client.get_client", return_value=boom):
+        result = await governor.classify_chat_intent(
+            "Is there anything worth flagging that's shifted in the codebase recently?"
+        )
+    assert result.get("type") == "recent_commits", result
+    assert result.get("district") == "coding"
+
+
+@pytest.mark.asyncio
+async def test_codebase_opinion_question_is_not_captured_by_the_route():
+    llm_json = '{"is_action": false, "task_type": "", "district": "", "confidence": 0.0}'
+    with patch("core.inference.provider_client.get_client", return_value=_mock_client(llm_json)):
+        result = await governor.classify_chat_intent("What do you think of a monolithic codebase versus microservices?")
+    assert result.get("type") == "answer_question"
+
+
+# ── 10. The owner sees the real evidence, never just "Done" ────────────────
+
+@pytest.mark.asyncio
+async def test_git_status_response_contains_real_status_evidence(isolated_episodic):
+    payload = {"branch": "feature-x", "modified": ["a.py", "b.py"], "staged": [], "untracked": ["c.md"], "ahead": 2, "behind": 0}
+    response, _ = await _run_endpoint(
+        "how does the working tree look at the moment", _llm("git_status", "coding"), isolated_episodic, payload
+    )
+    assert "feature-x" in response.response and "2" in response.response
+    assert response.action_taken == "git_status"
+
+
+@pytest.mark.asyncio
+async def test_recent_commits_response_contains_real_commit_evidence(isolated_episodic):
+    payload = {"commits": [{"hash": "abc12345", "message": "Fix the frobnicator", "author": "A", "date": "2026-09-20T10:00:00"}]}
+    response, _ = await _run_endpoint(
+        "anything new in the codebase lately", _llm("recent_commits", "coding"), isolated_episodic, payload
+    )
+    assert "abc12345" in response.response and "frobnicator" in response.response
+
+
+@pytest.mark.asyncio
+async def test_empty_evidence_is_reported_honestly_not_as_done(isolated_episodic):
+    response, _ = await _run_endpoint(
+        "how does the working tree look at the moment", _llm("git_status", "coding"), isolated_episodic, {}
+    )
+    assert "done" not in response.response.lower(), response.response
+
+
+# ── Correction pass (live matrix RY3/UA3, GC1) ─────────────────────────────
+
+@pytest.mark.asyncio
+async def test_handler_rejected_action_is_not_reported_as_executed(isolated_episodic):
+    """Live RY3/UA3: an approved RED `execute_code` with no code was
+    rejected by its handler (`status: rejected, reason: no code provided`)
+    but /command answered "Confirmed and executed: execute_code." — the same
+    phantom-success class as `not_implemented`."""
+    async def _fake_exec(self, action):
+        return {"status": "rejected", "reason": "no code provided", "action": action.action_type}
+
+    with patch("core.inference.provider_client.get_client",
+               return_value=_mock_client(_llm("execute_code", "ops", 1.0))), \
+         patch.object(PermissionGateway, "_notify", new=AsyncMock()), \
+         patch.object(PermissionGateway, "_handle_red_tier", new=AsyncMock(return_value="defer")), \
+         patch.object(PermissionGateway, "_wait_for_confirmation", new=AsyncMock(return_value=True)), \
+         patch.object(PermissionGateway, "_execute_action", _fake_exec):
+        response = await commands_router.command_endpoint(
+            body=CommandRequest(text="Execute that script and run it now."),
+            ctx_engine=_FakeContextEngine(), decision_engine=DecisionEngine(),
+            perm_gateway=PermissionGateway(), episodic_mem=isolated_episodic,
+        )
+    assert "executed" not in response.response.lower().replace("nothing was executed", ""), response.response
+    assert "no code provided" in response.response
+    assert response.action_taken is None
+
+
+@pytest.mark.asyncio
+async def test_state_of_my_repo_phrasing_routes_to_git_status():
+    boom = AsyncMock()
+    boom.chat = AsyncMock(side_effect=AssertionError("LLM must not be consulted for a deterministic route"))
+    with patch("core.inference.provider_client.get_client", return_value=boom):
+        result = await governor.classify_chat_intent("What's the state of my git repository at the moment?")
+    assert result.get("type") == "git_status", result
+    assert result.get("district") == "coding"

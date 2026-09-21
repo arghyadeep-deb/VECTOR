@@ -124,6 +124,9 @@ async def command_endpoint(
         # actions have no district concept and leave this None, unchanged
         # from before RR-1.
         district_hint = None
+        # V1 TRUST CLOSURE (T2): owner/raw intent -> canonical -> authorized ->
+        # executed identity audit trail (filled below; recorded in the episode).
+        identity_trace: dict = {}
 
         # Fast path: a "respond" intent has NO action to decide or execute —
         # skip goal-candidate generation, decision engine, and permission
@@ -215,6 +218,23 @@ async def command_endpoint(
                     processing_ms=int((time.perf_counter() - start) * 1000),
                 )
 
+            # V1 TRUST CLOSURE (T1): the classifier judged this conversation, but
+            # if the answer depends on current external information AND names a
+            # concrete research topic, route it to the REAL retrieval capability
+            # (search_arxiv, GREEN) through the normal Candidate -> DecisionEngine
+            # -> PermissionGateway path instead of letting the conversational LLM
+            # free-generate "what's new" from stale knowledge. No topic / no
+            # retrieval-capable shape -> falls to the honest-inability floor in
+            # _llm_answer().
+            if gov_intent.get("type") == "answer_question":
+                _plan = current_information_plan(body.text)
+                if _plan and _plan["mode"] == "retrieve":
+                    gov_intent = {
+                        "type": "search_arxiv", "district": "research", "confidence": 0.9,
+                        "raw_task_type": None, "identity": "current_info_route",
+                        "topic": _plan["topic"],
+                    }
+
             if gov_intent.get("type") != "answer_question":
                 # RR-1 (2026-09-15, see VECTOR_TECHNICAL_KNOWLEDGE/
                 # RR0_ROOT_CAUSE_ARCHITECTURE_REPORT.md P1-1 and
@@ -252,10 +272,15 @@ async def command_endpoint(
                 # is a natural follow-up, explicitly out of RR-1's scope (a
                 # config change, not this integration fix).
                 district_hint = gov_intent.get("district")
+                identity_trace = {
+                    "raw_task_type": gov_intent.get("raw_task_type"),
+                    "canonical_task_type": gov_intent.get("type"),
+                    "identity_source": gov_intent.get("identity"),
+                }
                 intent_action = {
                     "action_type": gov_intent["type"],
                     "params": {
-                        "query": body.text,
+                        "query": gov_intent.get("topic") or body.text,
                         "content": body.text,
                         "source": "api_command",
                         **({"district": district_hint} if district_hint else {}),
@@ -374,7 +399,10 @@ async def command_endpoint(
         # closed-loop write-then-later-read proof).
         from core.memory.policy import PolicyMemory
         situation_hash = PolicyMemory.make_situation_hash(decision.winner.action_type, decision.winner.params)
-        reward = 0.8 if gateway_result.approved else 0.2
+        # V1 TRUST CLOSURE (T3): an approved action whose handler reported
+        # `not_implemented` did not run — it must not earn the success reward
+        # (the gateway's own comment: not_implemented "prevents phantom RL reward").
+        reward = 0.8 if (gateway_result.approved and not _is_not_implemented(gateway_result)) else 0.2
         update_policy(decision.winner.action_type, situation_hash, reward)
 
         # Step 7: Store reasoning chain (RULE 8)
@@ -404,6 +432,10 @@ async def command_endpoint(
                 "candidates_count": decision.evaluated,
                 "gateway_level": gateway_result.level,
                 "chain_id": chain_id,
+                # V1 TRUST CLOSURE (T2): identity audit trail.
+                **identity_trace,
+                "authorized_task_type": decision.winner.action_type,
+                "executed_task_type": (gateway_result.result or {}).get("action"),
             },
             source="api_command",
         )
@@ -420,7 +452,8 @@ async def command_endpoint(
         _remember_turn(session_id, body.text, response_text)
         return CommandResponse(
             response=response_text,
-            action_taken=decision.winner.action_type if gateway_result.executed else None,
+            action_taken=(decision.winner.action_type
+                          if gateway_result.executed and not _is_not_implemented(gateway_result) else None),
             candidates_evaluated=decision.evaluated,
             winner_score=decision.winner.total_score,
             memory_updated=True,
@@ -689,7 +722,11 @@ def _detect_intent_action(text: str) -> dict | None:
 # routes to Governor.dispatch()'s answer_question branch — gets the exact
 # same deterministic guard instead of shipping fabricated claims unfiltered.
 # See that module's docstring for the full divergence rationale.
-from core.security.anti_fabrication import defabricate_llm_answer
+from core.security.anti_fabrication import (
+    current_information_decline_reply,
+    current_information_plan,
+    defabricate_llm_answer,
+)
 
 # 2026-07-28 KNOWN_ISSUES #35 follow-up: the English-only system-prompt
 # instruction added to _llm_answer()'s messages below is NOT reliably
@@ -805,13 +842,30 @@ async def _llm_answer(text: str, hydration: str) -> str:
     our current session," directly contradicting the first reply. Porting the
     same anti-fabrication instructions here that governor.py already has.
     """
+    # V1 TRUST CLOSURE (T1): a request whose answer depends on external,
+    # changing information must never be free-generated from stale
+    # training data as if it were current (live V1: invented product
+    # names/versions). Deterministic gate on the REQUEST — see
+    # core/security/anti_fabrication.py. Retrieval-capable requests are
+    # routed to the real search capability in command_endpoint() before
+    # this point; what reaches here gets the honest inability reply.
+    _decline = current_information_decline_reply(text)
+    if _decline:
+        logger.info("[VECTOR][api][command] current-information request answered with honest "
+                    "inability (no retrieval evidence) — free generation suppressed")
+        return _decline
     try:
         from core.inference.provider_client import ProviderClient
         messages = [
             {"role": "system", "content":
                 "You are VECTOR, Arghyadeep's concise JARVIS-style assistant. "
                 "Answer the owner directly and briefly using the live context below. "
-                "If the context doesn't cover it, answer from general knowledge.\n\n"
+                "If the context doesn't cover it, answer from general knowledge — but "
+                "information that CHANGES over time (latest/new/recent releases, versions, "
+                "papers, news, prices) is not general knowledge: you have no live source "
+                "in this reply, so say plainly you can't verify current information and "
+                "never present specific recent products, versions, papers or events as "
+                "current.\n\n"
                 "This is a conversational text reply only — generating this "
                 "text does NOT store, save, schedule, send, post, scan, or "
                 "execute anything, even if the owner's message asked you to "
@@ -934,10 +988,79 @@ async def _llm_answer(text: str, hydration: str) -> str:
         return "I couldn't reach my reasoning engine just now — try again in a moment."
 
 
+_HANDLER_DID_NOT_RUN = ("not_implemented", "rejected")
+
+
+def _is_not_implemented(gw_result) -> bool:
+    """True when the gateway approved an action but its handler layer
+    reported it did not actually run: `not_implemented` (`_execute_action`'s
+    final `else`, or the intentionally-stubbed RED handlers) or `rejected`
+    (the handler itself declined, e.g. `execute_code` with no code — live
+    matrix RY3/UA3). /ws/command already refuses to report this as success
+    (RR-3.6 §15); /command must not either."""
+    return (getattr(gw_result, "result", None) or {}).get("status") in _HANDLER_DID_NOT_RUN
+
+
+def _render_readonly_evidence(action_type: str, result: dict) -> str | None:
+    """V1 TRUST CLOSURE (T3/T1): deterministic rendering of the REAL result
+    of a verified read-only capability — never an LLM paraphrase, never
+    text the handler did not return. Returns None when `action_type` is not
+    one of these capabilities. An empty/failed result is reported honestly
+    ("returned no data") rather than as a completed action."""
+    if action_type == "git_status":
+        if not result.get("branch"):
+            return "I couldn't read the repository status — the git handler returned no data, so I won't guess at it."
+        modified, staged, untracked = (result.get("modified") or []), (result.get("staged") or []), (result.get("untracked") or [])
+        text = (
+            f"Repository status — branch {result['branch']}: {len(modified)} modified, "
+            f"{len(staged)} staged, {len(untracked)} untracked file(s); "
+            f"{result.get('ahead', 0)} ahead / {result.get('behind', 0)} behind upstream."
+        )
+        if modified:
+            text += " Modified: " + ", ".join(modified[:5]) + (f" (+{len(modified) - 5} more)" if len(modified) > 5 else "") + "."
+        return text
+    if action_type in ("git_log", "recent_commits"):
+        commits = result.get("commits") or []
+        if not commits:
+            return "I couldn't read any recent commits — the git handler returned no data, so I won't guess at what changed."
+        lines = [
+            f"{i}) {c.get('hash', '?')} — {str(c.get('message', '')).splitlines()[0][:100] if c.get('message') else '(no message)'}"
+            f" ({c.get('author', '?')}, {str(c.get('date', ''))[:10]})"
+            for i, c in enumerate(commits[:5], start=1)
+        ]
+        return "Most recent commits (from the repository history just now): " + " | ".join(lines)
+    if action_type == "search_arxiv":
+        papers = result.get("papers") or []
+        if not papers:
+            return ("I couldn't retrieve any arXiv results for that right now, so I can't tell you what has "
+                    "been published — I won't guess at it.")
+        lines = [
+            f"{i}) {p.get('title', '(untitled)')} — {p.get('authors', 'unknown authors')} — {p.get('url', '')}"
+            for i, p in enumerate(papers[:5], start=1)
+        ]
+        return ("arXiv results retrieved just now (relevance-ordered, not necessarily the newest): "
+                + " | ".join(lines))
+    return None
+
+
 def _build_response_text(gw_result, winner, original_text: str) -> str:
     """Build human-readable response text."""
     if gw_result.level == "FORBIDDEN":
         return "That action is permanently blocked."
+
+    # V1 TRUST CLOSURE (T3): an approved action whose handler layer says it
+    # did not run must never read as "Done" (phantom success).
+    if gw_result.executed and _is_not_implemented(gw_result):
+        _res = getattr(gw_result, "result", None) or {}
+        if _res.get("status") == "rejected":
+            return (f"I didn't run '{winner.action_type}', sir — its handler declined it "
+                    f"({_res.get('reason', 'no reason given')}), so nothing was executed.")
+        return (f"I can't do that from here yet, sir — '{winner.action_type}' is registered but has no "
+                f"executable handler on this path, so nothing was run.")
+    if gw_result.level == "GREEN" and gw_result.executed:
+        _evidence = _render_readonly_evidence(winner.action_type, getattr(gw_result, "result", None) or {})
+        if _evidence:
+            return _evidence
 
     # Prefer the gateway's OWN message (e.g. "Opening spotify, sir.") over a
     # generic "Done. launch_app executed successfully." status string.
