@@ -5,6 +5,14 @@ import pytest
 from pydantic import SecretStr
 
 
+def test_models_config_vision_and_cloud_orchestrator_defaults():
+    from core.config import ModelsConfig
+
+    cfg = ModelsConfig()
+    assert cfg.vision == "qwen2.5vl:7b"
+    assert cfg.cloud_orchestrator == "vector-r1"
+
+
 class TestVectorSettings:
     """Test that VectorSettings validates types correctly."""
 
