@@ -147,13 +147,25 @@ class SelfImprovementCycle:
             logger.info("[Training] Adapter '{}' overall score: {:.2f}", name, result.overall_score)
         return results
 
+    @staticmethod
+    def _final_loss_rank(adapter: dict) -> tuple[int, float]:
+        """Sort key: lowest final_loss first; missing/None/invalid loss ranks last."""
+        train_result = adapter.get("training_result") or {}
+        try:
+            loss = float(train_result.get("final_loss"))
+        except (TypeError, ValueError):
+            return (1, 0.0)
+        if loss != loss:  # NaN
+            return (1, 0.0)
+        return (0, loss)
+
     def _deploy_best(self) -> dict:
         logger.info("[Training] Phase 4/4: Deploying best adapter")
         adapters = self.trainer.list_adapters()
         if not adapters:
             logger.warning("[Training] No adapters to deploy")
             return {"deployed": False, "reason": "no_adapters"}
-        best = max(adapters, key=lambda a: a.get("training_result", {}).get("final_loss", 1.0) or 1.0, default=None)
+        best = min(adapters, key=self._final_loss_rank, default=None)
         if best:
             name = best.get("name", "unknown")
             save_path = str(self.trainer.adapters_dir / name)
