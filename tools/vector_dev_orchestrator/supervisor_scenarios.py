@@ -1103,6 +1103,37 @@ def scenario_P(root: Path) -> None:
     assert issubclass(PlannerError, RuntimeError)
 
 
+# --- Q: programs chain (base on integration, inherit the accepted ledger) ----
+
+
+def scenario_Q(root: Path) -> None:
+    # No integration branch yet: the first program is cut from live HEAD, as before.
+    h = Harness(root / "q1", proposals=[three()[:1]])
+    first = h.sup.start_program("Harden alpha.")
+    assert first.base_ref == "" and first.ledger == []
+    h.sup.run_program(first.program_id)
+    done = h.sup.load(first.program_id)
+    assert done.status == COMPLETED and len(done.ledger) == 1 and done.base_ref == "vector-integration"
+
+    # A later program starts from vector-integration (once it exists) and inherits what
+    # earlier programs got accepted, so the planner is told not to redo it.
+    subprocess.run(["git", "-C", str(h.repo), "branch", "vector-integration"], check=True, capture_output=True)
+    h.proposals.append([pkg("p7", "Zeta queue draining", "Drain the zeta queue with bounded batches.")])
+    second = h.sup.start_program("Harden zeta.")
+    assert second.base_ref == "vector-integration"
+    assert [e["package_id"] for e in second.ledger] == ["p1"], "accepted work is inherited, not re-planned"
+    assert [e.package_id for e in h.planning_inputs[-1].ledger] == ["p1"]
+    h.sup.run_program(second.program_id)
+    call = h.driver.calls[-1]
+    assert call["package_id"] == "p7" and call["kw"].get("base_ref") == "vector-integration"
+    assert len(h.sup.load(second.program_id).ledger) == 2
+
+    # inherit_accepted=False keeps a program's ledger clean.
+    h.proposals.append([pkg("p8", "Eta cache warming", "Warm the eta cache lazily on first read.")])
+    third = h.sup.start_program("Harden eta.", inherit_accepted=False)
+    assert third.ledger == []
+
+
 SCENARIOS: list[tuple[str, Callable[[Path], None]]] = [
     ("A planner decomposes a program", scenario_A),
     ("B safety floor upgrades an under-labelled task", scenario_B),
@@ -1117,6 +1148,7 @@ SCENARIOS: list[tuple[str, Callable[[Path], None]]] = [
     ("L owner-approval work pauses safely", scenario_L),
     ("O codex sandbox: new-file work goes to claude, permission crash gets one fallback", scenario_O),
     ("P canary repair: target validation, failure evidence, honest call accounting", scenario_P),
+    ("Q programs chain: base on integration, inherit the accepted ledger", scenario_Q),
     ("N accepted work is integrated before dependents build on it", scenario_N),
     ("M README lets a fresh session operate the bridge", scenario_M),
 ]
