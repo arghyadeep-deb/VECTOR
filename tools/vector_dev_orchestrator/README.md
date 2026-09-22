@@ -125,12 +125,22 @@ Per provider: `UNKNOWN` / `NORMAL` / `CONSTRAINED` / `EXHAUSTED` (`quota.py`, pe
 python autonomous_worker.py quota show | refresh
 python autonomous_worker.py quota set codex exhausted --reason "weekly limit"
 python autonomous_worker.py quota set codex emergency --reason "owner: ~1% weekly"   # POLICY.md band
+python autonomous_worker.py quota set claude --remaining 72 --reason "owner-reported: 28% used"
 python autonomous_worker.py quota clear codex
 ```
 
 `quota set PROVIDER LEVEL` accepts either an availability level (`unknown|normal|constrained|
 exhausted`) or, for the POLICY.md conservation bands directly, `conserve|reserve|emergency`
 (stored alongside the level; `quota show`/`status` report both `level` and `band`).
+
+**Claude has no local telemetry** (unlike Codex, which is read automatically from
+`~/.codex/sessions/**/rollout-*.jsonl`) — Anthropic exposes weekly/5h usage only via the
+interactive `/usage` slash command inside a live `claude` session (confirmed: it does **not**
+work through `-p`/non-interactive mode, and there is no supported local file or CLI flag for
+it). So Claude stays `unknown` until the owner reports a number: `quota set claude --remaining
+N` (`N` = percent *remaining*, e.g. "28% used" -> `--remaining 72`) derives the exact
+POLICY.md band from that percentage rather than requiring the band to be picked by hand, and
+records it with `source: owner` so it is never silently overwritten.
 
 ### 3b. Deferred independent review (`waiting_review`)
 

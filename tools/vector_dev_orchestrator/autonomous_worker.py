@@ -56,8 +56,8 @@ from models import (
     TaskSpec,
     TaskStatus,
 )
-from quota import QuotaBoard
-from router import difficulty_rank
+from quota import BAND_LEVEL, QuotaBoard
+from router import difficulty_rank, quota_band_for_percent
 from runner import CommandRunner
 
 BRANCH_PREFIX = "vector-dev/"
@@ -1038,12 +1038,25 @@ def main(argv: list[str] | None = None) -> int:
     quota_sub = quota.add_subparsers(dest="quota_command", required=True)
     quota_sub.add_parser("show")
     quota_sub.add_parser("refresh", help="Read real Codex telemetry into the board.")
-    q_set = quota_sub.add_parser("set")
+    q_set = quota_sub.add_parser(
+        "set",
+        help="Pass a LEVEL/band, or --remaining N for a plain owner-reported percentage.",
+    )
     q_set.add_argument("provider", choices=[p.value for p in Provider])
     q_set.add_argument(
         "level",
+        nargs="?",
+        default=None,
         choices=[q.value for q in ProviderQuota] + ["conserve", "reserve", "emergency"],
-        help="availability level, or a POLICY.md quota band (conserve/reserve/emergency)",
+        help="availability level, or a POLICY.md quota band (conserve/reserve/emergency); "
+        "omit this and pass --remaining instead for a plain percentage",
+    )
+    q_set.add_argument(
+        "--remaining",
+        type=float,
+        default=None,
+        help="owner-reported remaining quota, 0-100 (e.g. --remaining 72 for '28%% used'); "
+        "the POLICY.md band/level are derived from this exact percentage, not typed by hand",
     )
     q_set.add_argument("--reason", default="set by owner")
     q_clear = quota_sub.add_parser("clear")
@@ -1096,7 +1109,22 @@ def main(argv: list[str] | None = None) -> int:
         if args.quota_command == "refresh":
             worker.quota.refresh_from_telemetry()
         elif args.quota_command == "set":
-            if args.level in ("conserve", "reserve", "emergency"):
+            if (args.remaining is None) == (args.level is None):
+                print("pass exactly one of LEVEL/band or --remaining PERCENT", file=sys.stderr)
+                return 1
+
+            if args.remaining is not None:
+                if not 0.0 <= args.remaining <= 100.0:
+                    print("--remaining must be 0-100", file=sys.stderr)
+                    return 1
+
+                band = quota_band_for_percent(args.remaining)
+                worker.quota.set(
+                    Provider(args.provider), BAND_LEVEL[band],
+                    reason=args.reason or f"owner-reported: {args.remaining:.0f}% remaining",
+                    source="owner", band=band, remaining_percent=args.remaining,
+                )
+            elif args.level in ("conserve", "reserve", "emergency"):
                 worker.quota.set_band(
                     Provider(args.provider), QuotaBand(args.level),
                     reason=args.reason, source="owner",
@@ -1653,6 +1681,40 @@ def _self_test() -> None:
         w18 = new_worker("claude_low", crash_fn)
         w18.quota.set_band(Provider.CLAUDE, QuotaBand.EMERGENCY, reason="owner", source="owner")
         assert w18.holding_reason() is None
+
+        # 10g. `quota set PROVIDER --remaining N` (a plain owner-reported percentage, e.g.
+        # "28% used") derives the exact POLICY.md band/level rather than being typed by hand.
+        # main()'s CLI always writes to the real tool-dir .state/worker (there is no
+        # --state-dir override), which is the LIVE bridge's own quota board -- back it up
+        # and restore it so this self-test never disturbs real owner-set quota state.
+        real_quota_path = Path(__file__).resolve().parent / ".state" / "worker" / "quota.json"
+        real_quota_backup = (
+            real_quota_path.read_bytes() if real_quota_path.exists() else None
+        )
+
+        try:
+            assert main([
+                "--repo-root", str(repo),
+                "quota", "set", "claude", "--remaining", "72", "--reason", "owner-reported 28% used",
+            ]) == 0
+            w19 = _default_worker(str(repo))
+            assert w19.quota.band(Provider.CLAUDE) is QuotaBand.NORMAL
+            assert w19.quota.level(Provider.CLAUDE) is ProviderQuota.NORMAL
+            assert w19.quota.remaining_percent(Provider.CLAUDE) == 72.0
+            assert w19.quota.entry(Provider.CLAUDE)["reason"] == "owner-reported 28% used"
+
+            assert main(["--repo-root", str(repo), "quota", "set", "codex", "--remaining", "8"]) == 0
+            assert w19.quota.band(Provider.CODEX) is QuotaBand.EMERGENCY
+
+            # Exactly one of LEVEL or --remaining is required; both or neither is refused.
+            assert main(["--repo-root", str(repo), "quota", "set", "claude", "normal", "--remaining", "50"]) == 1
+            assert main(["--repo-root", str(repo), "quota", "set", "claude"]) == 1
+            assert main(["--repo-root", str(repo), "quota", "set", "claude", "--remaining", "150"]) == 1
+        finally:
+            if real_quota_backup is None:
+                real_quota_path.unlink(missing_ok=True)
+            else:
+                real_quota_path.write_bytes(real_quota_backup)
 
         # 11. Evidence is never deleted by anything above.
         for name in ("t1", "t2"):
