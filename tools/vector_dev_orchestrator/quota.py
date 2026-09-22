@@ -27,9 +27,27 @@ import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from models import Provider, ProviderQuota
+from models import Provider, ProviderQuota, QuotaBand
+from router import quota_band_for_percent
 
 DEFAULT_RETRY_HOURS = 6.0
+
+# Availability level -> conservation band when no explicit band is recorded.
+LEVEL_DEFAULT_BAND: dict[ProviderQuota, QuotaBand] = {
+    ProviderQuota.UNKNOWN: QuotaBand.UNKNOWN,
+    ProviderQuota.NORMAL: QuotaBand.NORMAL,
+    ProviderQuota.CONSTRAINED: QuotaBand.RESERVE,
+    ProviderQuota.EXHAUSTED: QuotaBand.EMERGENCY,
+}
+
+# Owner-declared band -> availability level (any non-NORMAL band is CONSTRAINED).
+BAND_LEVEL: dict[QuotaBand, ProviderQuota] = {
+    QuotaBand.UNKNOWN: ProviderQuota.UNKNOWN,
+    QuotaBand.NORMAL: ProviderQuota.NORMAL,
+    QuotaBand.CONSERVE: ProviderQuota.CONSTRAINED,
+    QuotaBand.RESERVE: ProviderQuota.CONSTRAINED,
+    QuotaBand.EMERGENCY: ProviderQuota.CONSTRAINED,
+}
 _TAIL_BYTES = 400_000
 _EXHAUSTION_RE = re.compile(
     r"(usage|rate)[ _-]?limit|quota|\b429\b|too many requests|"
@@ -111,6 +129,29 @@ class QuotaBoard:
     def available(self, provider: Provider) -> bool:
         return self.level(provider) is not ProviderQuota.EXHAUSTED
 
+    def band(self, provider: Provider) -> QuotaBand:
+        """Conservation band (POLICY.md sec. 8): explicit band, else from the level."""
+
+        entry = self.entry(provider)
+        explicit = entry.get("band")
+
+        if explicit:
+            return QuotaBand(explicit)
+
+        return LEVEL_DEFAULT_BAND[ProviderQuota(entry["level"])]
+
+    def bands(self) -> dict[Provider, QuotaBand]:
+        return {p: self.band(p) for p in Provider}
+
+    def remaining_percent(self, provider: Provider) -> float | None:
+        value = self.entry(provider).get("remaining_percent")
+        return None if value is None else float(value)
+
+    def set_band(self, provider: Provider, band: QuotaBand, *, reason: str, source: str) -> None:
+        """Record a conservation band (owner-declared or telemetry-derived)."""
+
+        self.set(provider, BAND_LEVEL[band], reason=reason, source=source, band=band)
+
     def set(
         self,
         provider: Provider,
@@ -119,6 +160,8 @@ class QuotaBoard:
         reason: str,
         source: str,
         retry_after_hours: float | None = None,
+        band: QuotaBand | None = None,
+        remaining_percent: float | None = None,
     ) -> None:
         data = self._read()
         retry_after = None
@@ -134,6 +177,13 @@ class QuotaBoard:
             "retry_after": retry_after,
             "updated_at": _iso(self.now_fn()),
         }
+
+        if band is not None:
+            data[provider.value]["band"] = band.value
+
+        if remaining_percent is not None:
+            data[provider.value]["remaining_percent"] = round(float(remaining_percent), 1)
+
         self._write(data)
 
     def clear(self, provider: Provider) -> None:
@@ -166,13 +216,17 @@ class QuotaBoard:
         current = self.entry(Provider.CODEX)
 
         if current.get("source") != "owner":
-            level, reason = codex_quota_probe(sessions_root, now=self.now_fn())
+            level, reason, remaining = codex_quota_reading(sessions_root, now=self.now_fn())
 
             if level is ProviderQuota.UNKNOWN and current.get("source") == "error" \
                     and current["level"] == ProviderQuota.EXHAUSTED.value:
                 pass  # keep an error-derived exhaustion until it expires
             else:
-                self.set(Provider.CODEX, level, reason=reason, source="telemetry")
+                self.set(
+                    Provider.CODEX, level, reason=reason, source="telemetry",
+                    band=None if remaining is None else quota_band_for_percent(remaining),
+                    remaining_percent=remaining,
+                )
 
         return self.levels()
 
@@ -182,7 +236,18 @@ def codex_quota_probe(
     *,
     now: datetime | None = None,
 ) -> tuple[ProviderQuota, str]:
-    """Read Codex's own most recent rate_limits record (read-only)."""
+    """(level, reason) from Codex's own most recent rate_limits record (read-only)."""
+
+    level, reason, _ = codex_quota_reading(sessions_root, now=now)
+    return level, reason
+
+
+def codex_quota_reading(
+    sessions_root: Path | None = None,
+    *,
+    now: datetime | None = None,
+) -> tuple[ProviderQuota, str, float | None]:
+    """(level, reason, remaining_percent) - remaining is the tightest live window."""
 
     now = now or _now()
     root = Path(sessions_root) if sessions_root else Path.home() / ".codex" / "sessions"
@@ -201,7 +266,7 @@ def codex_quota_probe(
         limits, stamp = record
         return _classify_limits(limits, stamp, now)
 
-    return ProviderQuota.UNKNOWN, "no Codex rate_limits telemetry found"
+    return ProviderQuota.UNKNOWN, "no Codex rate_limits telemetry found", None
 
 
 def _last_rate_limits(path: Path) -> tuple[dict, datetime] | None:
@@ -229,7 +294,9 @@ def _last_rate_limits(path: Path) -> tuple[dict, datetime] | None:
     return None
 
 
-def _classify_limits(limits: dict, stamp: datetime, now: datetime) -> tuple[ProviderQuota, str]:
+def _classify_limits(
+    limits: dict, stamp: datetime, now: datetime
+) -> tuple[ProviderQuota, str, float | None]:
     live: list[tuple[str, float]] = []
     notes: list[str] = []
 
@@ -248,22 +315,27 @@ def _classify_limits(limits: dict, stamp: datetime, now: datetime) -> tuple[Prov
         live.append((name, float(window["used_percent"])))
 
     if not live:
-        return ProviderQuota.UNKNOWN, "Codex telemetry present but every window has reset: " + "; ".join(notes)
+        return (
+            ProviderQuota.UNKNOWN,
+            "Codex telemetry present but every window has reset: " + "; ".join(notes),
+            None,
+        )
 
     summary = ", ".join(f"{n} used {u:.0f}%" for n, u in live)
     age_h = (now - stamp).total_seconds() / 3600
     detail = f"Codex telemetry ({summary}; reading {age_h:.1f}h old)"
 
+    remaining = 100.0 - max(u for _, u in live)
+
     if any(u >= 97 for _, u in live):
-        return ProviderQuota.EXHAUSTED, detail
+        return ProviderQuota.EXHAUSTED, detail, remaining
 
-    weekly = dict(live).get("secondary", 0.0)
-    primary = dict(live).get("primary", 0.0)
+    # POLICY.md sec. 8: anything below 60% remaining is CONSTRAINED (CONSERVE/RESERVE/EMERGENCY
+    # bands are derived from the percentage by the router).
+    if quota_band_for_percent(remaining) is not QuotaBand.NORMAL:
+        return ProviderQuota.CONSTRAINED, detail, remaining
 
-    if weekly >= 70 or primary >= 85:
-        return ProviderQuota.CONSTRAINED, detail
-
-    return ProviderQuota.NORMAL, detail
+    return ProviderQuota.NORMAL, detail, remaining
 
 
 def _self_test() -> None:
@@ -295,6 +367,7 @@ def _self_test() -> None:
 
         rollout("a", 1.0, 6.0)
         assert codex_quota_probe(root)[0] is ProviderQuota.NORMAL
+        assert codex_quota_reading(root)[2] == 94.0, "remaining is the tightest live window"
         rollout("b", 10.0, 75.0)
         os.utime(next(root.rglob("rollout-b.jsonl")), None)
         assert codex_quota_probe(root)[0] is ProviderQuota.CONSTRAINED
@@ -328,6 +401,32 @@ def _self_test() -> None:
         clock["now"] += timedelta(hours=DEFAULT_RETRY_HOURS + 1)
         assert board.level(Provider.CLAUDE) is ProviderQuota.UNKNOWN, "exhaustion expires"
         assert board.available(Provider.CLAUDE)
+
+        # POLICY.md sec. 8 bands come from the real percentage (remaining = 100 - used).
+        for name, used_primary, used_weekly, expected in (
+            ("h1", 5.0, 30.0, QuotaBand.NORMAL),        # 70% remaining
+            ("h2", 5.0, 45.0, QuotaBand.CONSERVE),      # 55%
+            ("h3", 5.0, 75.0, QuotaBand.RESERVE),       # 25%
+            ("h4", 5.0, 90.0, QuotaBand.EMERGENCY),     # 10%
+        ):
+            rollout(name, used_primary, used_weekly)
+            os.utime(next(root.rglob(f"rollout-{name}.jsonl")), None)
+            board.refresh_from_telemetry(root)
+            assert board.band(Provider.CODEX) is expected, (name, board.band(Provider.CODEX))
+            assert board.remaining_percent(Provider.CODEX) == 100.0 - used_weekly
+
+        assert board.band(Provider.CLAUDE) is QuotaBand.UNKNOWN, "no Claude telemetry: UNKNOWN band"
+        assert board.bands() == {Provider.CODEX: QuotaBand.EMERGENCY, Provider.CLAUDE: QuotaBand.UNKNOWN}
+
+        # Owner-declared band (the standing "Codex ~1% weekly" instruction) beats telemetry.
+        board.set_band(Provider.CODEX, QuotaBand.EMERGENCY, reason="owner: ~1% weekly", source="owner")
+        rollout("h5", 1.0, 2.0)
+        os.utime(next(root.rglob("rollout-h5.jsonl")), None)
+        board.refresh_from_telemetry(root)
+        assert board.band(Provider.CODEX) is QuotaBand.EMERGENCY and board.entry(Provider.CODEX)["source"] == "owner"
+        assert board.level(Provider.CODEX) is ProviderQuota.CONSTRAINED and board.available(Provider.CODEX)
+        board.clear(Provider.CODEX)
+        assert board.band(Provider.CODEX) is QuotaBand.UNKNOWN
 
         # Owner-set level survives probe and error signals.
         board.set(Provider.CODEX, ProviderQuota.CONSTRAINED, reason="owner says so", source="owner")

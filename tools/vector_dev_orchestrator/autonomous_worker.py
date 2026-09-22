@@ -43,19 +43,21 @@ from typing import Any, Callable
 
 import backlog as bl
 from backlog import BacklogItem, BacklogStore
-from dev_driver import DriverResult, run_task
+from dev_driver import DriverResult, resume_review_task, run_task
 from git_guard import GitGuard
 from integration import IntegrationStage
 from models import (
     Difficulty,
     Provider,
     ProviderQuota,
+    QuotaBand,
     QuotaState,
     TaskCategory,
     TaskSpec,
     TaskStatus,
 )
 from quota import QuotaBoard
+from router import difficulty_rank
 from runner import CommandRunner
 
 BRANCH_PREFIX = "vector-dev/"
@@ -320,6 +322,8 @@ class WorkerConfig:
 @dataclass(slots=True)
 class RunSummary:
     processed: list[tuple[str, str]] = field(default_factory=list)
+    # deferred independent reviews that became affordable and were run
+    resumed: list[tuple[str, str]] = field(default_factory=list)
     stopped_because: str = "backlog empty"
 
 
@@ -331,6 +335,7 @@ class AutonomousWorker:
         *,
         config: WorkerConfig | None = None,
         run_task_fn: Callable[..., DriverResult] | None = None,
+        review_fn: Callable[..., DriverResult] | None = None,
         commit_fn: Callable[[Path, list[str], str], CommitResult] | None = None,
         today_fn: Callable[[], str] | None = None,
         echo: bool = True,
@@ -341,6 +346,7 @@ class AutonomousWorker:
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.config = config or WorkerConfig()
         self.run_task_fn = run_task_fn or run_task
+        self.review_fn = review_fn or resume_review_task
         self.commit_fn = commit_fn or commit_task_changes
         self.today_fn = today_fn or (lambda: date.today().isoformat())
         self.echo = echo
@@ -444,6 +450,11 @@ class AutonomousWorker:
 
             self.reactivate_deferred()
 
+            # Reviews that were waiting for quota run first, but only when the reviewer
+            # provider is no longer in EMERGENCY (the owner can force one explicitly
+            # with `resume-reviews --allow-emergency`).
+            summary.resumed = self.resume_reviews()
+
             while len(summary.processed) < limit:
                 if self.stop_path.exists():
                     summary.stopped_because = "STOP file present"
@@ -462,15 +473,12 @@ class AutonomousWorker:
                     summary.stopped_because = "backlog empty"
                     break
 
-                blocked_provider = self.unavailable_provider()
+                hold = self.holding_reason()
 
-                if blocked_provider is not None:
+                if hold is not None:
                     # State is preserved (item stays PENDING). Independent
                     # review is never faked with the same/other provider.
-                    summary.stopped_because = (
-                        f"provider unavailable: {blocked_provider.value} "
-                        "exhausted; work left pending"
-                    )
+                    summary.stopped_because = f"provider unavailable: {hold}; work left pending"
                     break
 
                 outcome = self._process(item, count_daily=True)
@@ -519,10 +527,28 @@ class AutonomousWorker:
 
         return None
 
+    def holding_reason(self) -> str | None:
+        """Why new work must be held right now, or None.
+
+        A provider EXHAUSTED, or BOTH providers in quota EMERGENCY (nobody left
+        to implement). One provider in EMERGENCY is not a hold: the other one
+        implements and the EMERGENCY provider's review is deferred (POLICY.md 9-10).
+        """
+
+        blocked = self.unavailable_provider()
+
+        if blocked is not None:
+            return f"{blocked.value} exhausted"
+
+        if all(band is QuotaBand.EMERGENCY for band in self.quota.bands().values()):
+            return "both providers are in quota EMERGENCY"
+
+        return None
+
     def reactivate_deferred(self) -> list[str]:
         """Return DEFERRED items to PENDING once both providers are usable."""
 
-        if self.unavailable_provider() is not None:
+        if self.holding_reason() is not None:
             return []
 
         revived: list[str] = []
@@ -564,14 +590,14 @@ class AutonomousWorker:
         a provider is exhausted.
         """
 
-        blocked = self.unavailable_provider()
+        reason = self.holding_reason()
 
-        if blocked is not None:
+        if reason is not None:
             self.backlog.update(
                 item.item_id,
                 status=bl.DEFERRED,
-                deferred_reason=f"{blocked.value} exhausted",
-                result_note=f"Deferred: {blocked.value} exhausted; nothing was run.",
+                deferred_reason=reason,
+                result_note=f"Deferred: {reason}; nothing was run.",
             )
             return bl.DEFERRED
 
@@ -615,41 +641,50 @@ class AutonomousWorker:
                 ),
                 quota_state=self.config.quota_state,
                 quota_levels=self.quota.levels(),
+                quota_bands=self.quota.bands(),
                 spec=self._spec_for(item),
                 previous_owner=previous_owner,
                 **extra,
             )
         except Exception as exc:  # noqa: BLE001 - fail closed on anything
-            note = _bounded(f"{type(exc).__name__}: {str(exc)[:300]}", 400)
+            return self._record_crash(item, exc)
 
-            if isinstance(exc, PermissionError):
-                note += (
-                    " [likely a Codex sandbox-created file the owner account cannot "
-                    "read (Windows elevated sandbox); worktree preserved]"
-                )
+        return self._settle(item, result)
 
-            self.backlog.update(
-                item.item_id,
-                status=bl.CRASHED,
-                result_note=note,
-                provider_calls=self.CRASH_PROVIDER_CALLS,
-                failure_evidence={
-                    "category": "crash",
-                    "kind": "infrastructure",
-                    "command": "",
-                    "exit_code": None,
-                    "tail": _bounded(note, 400),
-                    "findings": [],
-                    "note": "",
-                },
+    def _record_crash(self, item: BacklogItem, exc: Exception) -> str:
+        note = _bounded(f"{type(exc).__name__}: {str(exc)[:300]}", 400)
+
+        if isinstance(exc, PermissionError):
+            note += (
+                " [likely a Codex sandbox-created file the owner account cannot "
+                "read (Windows elevated sandbox); worktree preserved]"
             )
-            self.notify(
-                "attention",
-                f"Crashed ({type(exc).__name__}); task left non-terminal, "
-                "worktree preserved. Worker stopped.",
-                item.item_id,
-            )
-            return bl.CRASHED
+
+        self.backlog.update(
+            item.item_id,
+            status=bl.CRASHED,
+            result_note=note,
+            provider_calls=self.CRASH_PROVIDER_CALLS,
+            failure_evidence={
+                "category": "crash",
+                "kind": "infrastructure",
+                "command": "",
+                "exit_code": None,
+                "tail": _bounded(note, 400),
+                "findings": [],
+                "note": "",
+            },
+        )
+        self.notify(
+            "attention",
+            f"Crashed ({type(exc).__name__}); task left non-terminal, "
+            "worktree preserved. Worker stopped.",
+            item.item_id,
+        )
+        return bl.CRASHED
+
+    def _settle(self, item: BacklogItem, result: DriverResult) -> str:
+        """Record a finished (or deferred) task cycle on its backlog item."""
 
         task = result.task
         worktree = result.worktree
@@ -665,7 +700,7 @@ class AutonomousWorker:
             "provider_calls": self.actual_provider_calls(task),
         }
 
-        if task.status is not TaskStatus.PASS:
+        if task.status not in (TaskStatus.PASS, TaskStatus.WAITING_REVIEW):
             common["failure_evidence"] = build_failure_evidence(item, task)
 
         unavailable = self._unavailable_marker(task)
@@ -687,6 +722,23 @@ class AutonomousWorker:
                 item.item_id,
             )
             return bl.DEFERRED
+
+        if task.status is TaskStatus.WAITING_REVIEW:
+            # Implemented and tested, independent review deferred: NOT a pass, nothing is
+            # committed or integrated until that review actually happens.
+            self.backlog.update(
+                item.item_id,
+                status=bl.WAITING_REVIEW,
+                awaiting_reviewer=task.reviewer.value if task.reviewer else "",
+                **common,
+            )
+            self.notify(
+                "info",
+                f"WAITING_REVIEW: tests passed; independent review by "
+                f"{task.reviewer.value if task.reviewer else '?'} deferred (worktree preserved).",
+                item.item_id,
+            )
+            return bl.WAITING_REVIEW
 
         if task.status is TaskStatus.PASS and worktree is not None:
             commit = self.commit_fn(
@@ -728,6 +780,74 @@ class AutonomousWorker:
             item.item_id,
         )
         return bl.BLOCKED
+
+    def can_resume_review(self, item: BacklogItem, *, allow_emergency: bool = False) -> bool:
+        """Whether the item's reviewer provider may be spent right now (calls nothing)."""
+
+        reviewer = Provider(item.awaiting_reviewer) if item.awaiting_reviewer else None
+
+        if reviewer is None:
+            return True
+
+        if not self.quota.available(reviewer):
+            return False
+
+        return allow_emergency or self.quota.band(reviewer) is not QuotaBand.EMERGENCY
+
+    def resume_review_item(self, item: BacklogItem, *, allow_emergency: bool = False) -> str | None:
+        """Run one deferred independent review; None if the reviewer is still unaffordable.
+
+        The EMERGENCY provider is only spent when the owner explicitly allows it. A provider
+        that is EXHAUSTED is never called. The worktree is re-opened, verified unchanged,
+        re-tested, reviewed, and only then committed (PASS) - see ExecutionCycle.resume_review.
+        """
+
+        if not self.can_resume_review(item, allow_emergency=allow_emergency):
+            return None
+
+        self.backlog.update(item.item_id, status=bl.RUNNING)
+
+        try:
+            result = self.review_fn(
+                self.repo_root,
+                task_id=item.task_id,
+                test_targets=item.test_targets,
+                run_ci_gate=item.run_ci_gate,
+            )
+        except Exception as exc:  # noqa: BLE001 - fail closed on anything
+            return self._record_crash(item, exc)
+
+        # keep the calls already spent on the implementation: the task carries the total
+        return self._settle(item, result)
+
+    def resume_reviews(
+        self,
+        *,
+        allow_emergency: bool = False,
+        max_items: int | None = None,
+    ) -> list[tuple[str, str]]:
+        """Run every affordable deferred review, most valuable (hardest) first."""
+
+        waiting = [i for i in self.backlog.all() if i.status == bl.WAITING_REVIEW]
+        waiting.sort(
+            key=lambda i: difficulty_rank(Difficulty(i.effective_difficulty or i.difficulty)),
+            reverse=True,
+        )
+        done: list[tuple[str, str]] = []
+
+        for item in waiting:
+            if max_items is not None and len(done) >= max_items:
+                break
+
+            if self.stop_path.exists():
+                break
+
+            outcome = self.resume_review_item(item, allow_emergency=allow_emergency)
+
+            if outcome is not None:
+                done.append((item.item_id, outcome))
+
+        return done
 
     @staticmethod
     def actual_provider_calls(task: Any) -> int:
@@ -843,8 +963,14 @@ class AutonomousWorker:
                 for p in Provider
                 for e in (self.quota.entry(p),)
             },
+            "bands": {p.value: self.quota.band(p).value for p in Provider},
+            "hold": self.holding_reason(),
             "deferred": [
                 (i.item_id, i.deferred_reason) for i in items if i.status == bl.DEFERRED
+            ],
+            "waiting_review": [
+                (i.item_id, i.awaiting_reviewer, i.effective_difficulty) for i in items
+                if i.status == bl.WAITING_REVIEW
             ],
             "needs_attention": [
                 (i.item_id, i.status, i.result_note)
@@ -914,7 +1040,11 @@ def main(argv: list[str] | None = None) -> int:
     quota_sub.add_parser("refresh", help="Read real Codex telemetry into the board.")
     q_set = quota_sub.add_parser("set")
     q_set.add_argument("provider", choices=[p.value for p in Provider])
-    q_set.add_argument("level", choices=[q.value for q in ProviderQuota])
+    q_set.add_argument(
+        "level",
+        choices=[q.value for q in ProviderQuota] + ["conserve", "reserve", "emergency"],
+        help="availability level, or a POLICY.md quota band (conserve/reserve/emergency)",
+    )
     q_set.add_argument("--reason", default="set by owner")
     q_clear = quota_sub.add_parser("clear")
     q_clear.add_argument("provider", choices=[p.value for p in Provider])
@@ -924,6 +1054,16 @@ def main(argv: list[str] | None = None) -> int:
 
     requeue = sub.add_parser("requeue")
     requeue.add_argument("item_id")
+
+    resume_reviews = sub.add_parser(
+        "resume-reviews",
+        help="Run deferred independent reviews (WAITING_REVIEW) whose reviewer is affordable.",
+    )
+    resume_reviews.add_argument(
+        "--allow-emergency", action="store_true",
+        help="Owner override: spend an EMERGENCY reviewer provider on these reviews.",
+    )
+    resume_reviews.add_argument("--max", type=int, default=None, dest="max_items")
 
     supersede = sub.add_parser(
         "supersede",
@@ -956,10 +1096,16 @@ def main(argv: list[str] | None = None) -> int:
         if args.quota_command == "refresh":
             worker.quota.refresh_from_telemetry()
         elif args.quota_command == "set":
-            worker.quota.set(
-                Provider(args.provider), ProviderQuota(args.level),
-                reason=args.reason, source="owner",
-            )
+            if args.level in ("conserve", "reserve", "emergency"):
+                worker.quota.set_band(
+                    Provider(args.provider), QuotaBand(args.level),
+                    reason=args.reason, source="owner",
+                )
+            else:
+                worker.quota.set(
+                    Provider(args.provider), ProviderQuota(args.level),
+                    reason=args.reason, source="owner",
+                )
         elif args.quota_command == "clear":
             worker.quota.clear(Provider(args.provider))
 
@@ -996,6 +1142,25 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "resume":
         worker.stop_path.unlink(missing_ok=True)
         print("STOP file removed.")
+        return 0
+
+    if args.command == "resume-reviews":
+        if not worker._acquire_lock():
+            print("another worker holds the lock")
+            return 2
+
+        try:
+            if worker.config.refresh_quota_telemetry:
+                worker.quota.refresh_from_telemetry()
+
+            results = worker.resume_reviews(
+                allow_emergency=args.allow_emergency, max_items=args.max_items
+            )
+            integrated = worker.integrate() if results else []
+        finally:
+            worker._release_lock()
+
+        print(json.dumps({"reviewed": results, "integrated": integrated}, indent=2))
         return 0
 
     if args.command == "supersede":
@@ -1391,6 +1556,103 @@ def _self_test() -> None:
         w14.backlog.update(dup.item_id, status=bl.SUPERSEDED, result_note="SUPERSEDED: by prog-x")
         assert w14.backlog.next_pending() is None and w14.backlog.get(dup.item_id).is_terminal()
         assert w14.run().processed == [] and w14.status()["needs_attention"] == []
+
+        # 10f. POLICY.md sec. 9-10: reviewer provider in EMERGENCY -> the other provider implements,
+        # the independent review is deferred (WAITING_REVIEW, never PASS) and resumed later.
+        from types import SimpleNamespace
+
+        import itertools
+
+        task_counter = itertools.count(1)
+        seen_w: dict[str, Any] = {}
+        review_calls: list[str] = []
+        shim = SimpleNamespace(path=temp, branch_name="vector-dev/w1")
+
+        def waiting_fn(root: Path, **kw: Any) -> DriverResult:
+            seen_w.update(kw)
+            task = make_task(TaskStatus.WAITING_REVIEW, None, ["tracked.txt"])
+            task.task_id = f"wt{next(task_counter)}"
+            task.provider_calls = 1
+            task.difficulty = Difficulty.HARD if "hard" in kw["description"] else Difficulty.ROUTINE
+            return DriverResult(task, shim)
+
+        def review_fn(root: Path, **kw: Any) -> DriverResult:
+            review_calls.append(kw["task_id"])
+            task = make_task(TaskStatus.PASS, None, ["tracked.txt"])
+            task.task_id = kw["task_id"]
+            task.provider_calls = 2
+            return DriverResult(task, shim)
+
+        w15 = AutonomousWorker(
+            repo, temp / "state_waiting",
+            config=WorkerConfig(daily_cap=20, max_tasks_per_run=5),
+            run_task_fn=waiting_fn, review_fn=review_fn,
+            commit_fn=lambda wt, files, msg: CommitResult(True, sha="c" * 40, branch="vector-dev/w1"),
+            echo=False,
+        )
+        w15.quota.set_band(Provider.CODEX, QuotaBand.EMERGENCY, reason="owner: ~1% weekly", source="owner")
+        easy = add(w15, "Ordinary work while codex is low")
+        hard = add(w15, "A hard problem while codex is low")
+        run15 = w15.run(max_tasks=5)
+        assert seen_w["quota_bands"][Provider.CODEX] is QuotaBand.EMERGENCY
+        assert seen_w["quota_bands"][Provider.CLAUDE] is QuotaBand.UNKNOWN
+        assert [o for _, o in run15.processed] == [bl.WAITING_REVIEW, bl.WAITING_REVIEW]
+        assert run15.stopped_because == "backlog empty", "waiting-for-review is not a failure"
+        assert w15.holding_reason() is None, "one provider in EMERGENCY is not a hold"
+        waiting_items = [w15.backlog.get(i.item_id) for i in (easy, hard)]
+        assert all(i.status == bl.WAITING_REVIEW and i.awaiting_reviewer == "codex" and not i.commit for i in waiting_items)
+        assert all(i.provider_calls == 1 and not i.failure_evidence for i in waiting_items)
+        assert not w15.backlog.get(easy.item_id).is_terminal()
+        assert w15.status()["needs_attention"] == [] and len(w15.status()["waiting_review"]) == 2
+        assert w15.status()["bands"] == {"codex": "emergency", "claude": "unknown"}
+        assert w15.integrate(run_tests_fn=lambda wt, targets: True) == [], "unreviewed work is never integrated"
+
+        # Still EMERGENCY (no owner override): no review, nothing spent, still waiting.
+        assert w15.resume_reviews() == [] and review_calls == []
+        # An EXHAUSTED reviewer is never called, even with the owner override.
+        w15.quota.set(Provider.CODEX, ProviderQuota.EXHAUSTED, reason="owner", source="owner")
+        assert w15.resume_reviews(allow_emergency=True) == [] and review_calls == []
+        w15.quota.set_band(Provider.CODEX, QuotaBand.EMERGENCY, reason="owner: ~1% weekly", source="owner")
+        # Owner explicitly spends the emergency reserve: hardest first, bounded by --max.
+        first_done = w15.resume_reviews(allow_emergency=True, max_items=1)
+        assert first_done == [(hard.item_id, bl.PASSED)] and len(review_calls) == 1
+        assert w15.backlog.get(hard.item_id).commit == "c" * 40
+        assert w15.backlog.get(easy.item_id).status == bl.WAITING_REVIEW
+
+        # Codex recovers (band cleared): the scheduled run resumes the rest by itself.
+        w15.quota.clear(Provider.CODEX)
+        auto = w15.run(max_tasks=5)
+        assert auto.resumed == [(easy.item_id, bl.PASSED)] and len(review_calls) == 2
+        assert auto.processed == [] and w15.backlog.get(easy.item_id).status == bl.PASSED
+
+        # A crash while resuming a review fails closed (recorded, worker told to stop).
+        def boom_review(root: Path, **kw: Any) -> DriverResult:
+            raise RuntimeError("review exploded")
+
+        w16 = AutonomousWorker(
+            repo, temp / "state_waiting_boom", config=WorkerConfig(daily_cap=20),
+            run_task_fn=waiting_fn, review_fn=boom_review, echo=False,
+        )
+        w16.quota.set_band(Provider.CODEX, QuotaBand.EMERGENCY, reason="owner", source="owner")
+        stuck = add(w16, "Waiting then crashing")
+        w16.run(max_tasks=1)
+        w16.quota.clear(Provider.CODEX)
+        assert w16.resume_reviews() == [(stuck.item_id, bl.CRASHED)]
+        assert w16.backlog.get(stuck.item_id).status == bl.CRASHED
+
+        # BOTH providers in EMERGENCY: nobody can implement -> hold, nothing runs.
+        w17 = new_worker("both_emergency", crash_fn)
+        for provider in Provider:
+            w17.quota.set_band(provider, QuotaBand.EMERGENCY, reason="owner", source="owner")
+        add(w17, "Nobody can implement this right now")
+        held_run = w17.run()
+        assert held_run.processed == [] and "both providers are in quota EMERGENCY" in held_run.stopped_because
+        assert w17.holding_reason() == "both providers are in quota EMERGENCY"
+
+        # Claude in EMERGENCY, Codex healthy: mirror image - no hold, Codex-first.
+        w18 = new_worker("claude_low", crash_fn)
+        w18.quota.set_band(Provider.CLAUDE, QuotaBand.EMERGENCY, reason="owner", source="owner")
+        assert w18.holding_reason() is None
 
         # 11. Evidence is never deleted by anything above.
         for name in ("t1", "t2"):

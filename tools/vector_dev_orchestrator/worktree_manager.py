@@ -88,6 +88,34 @@ class WorktreeManager:
             base_ref=base_ref,
         )
 
+    def attach(self, task_id: str) -> WorktreeInfo:
+        """Re-open an EXISTING task worktree (never creates or alters one).
+
+        Used to resume a task that stopped at WAITING_REVIEW. Fails closed
+        if the directory or branch is missing or the checkout is on another
+        branch.
+        """
+
+        safe_task_id = self._sanitize_task_id(task_id)
+        branch_name = f"vector-dev/{safe_task_id}"
+        path = self.worktree_root / safe_task_id
+
+        if not path.is_dir() or not self._branch_exists(branch_name):
+            raise RuntimeError(f"No existing worktree/branch for task {task_id}")
+
+        proc = subprocess.run(
+            [self.git_executable, "-C", str(path), "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True, text=True, shell=False, check=False,
+        )
+
+        if proc.returncode != 0 or proc.stdout.strip() != branch_name:
+            raise RuntimeError(
+                f"Worktree {path} is not on {branch_name} "
+                f"(found {proc.stdout.strip()!r}); refusing to resume."
+            )
+
+        return WorktreeInfo(task_id=task_id, branch_name=branch_name, path=path, base_ref="")
+
     def remove(
         self,
         info: WorktreeInfo,

@@ -12,6 +12,11 @@ tasks and passes raw evidence between them.
 > If you are a fresh Claude/Codex session asked to "do work through the bridge":
 > **queue it (section 4 or 5). Do not implement it yourself.** Then read `status`.
 
+**`POLICY.md` is the authoritative owner policy** for model routing, task categories,
+quota bands and the review contract (sections 1-16 there); this README explains how to
+operate the bridge. If code and `POLICY.md` disagree, the code is wrong. `POLICY.md`
+section 17 maps every rule to the code and test that implements it.
+
 ## 1. Architecture (three layers)
 
 ```
@@ -83,8 +88,18 @@ lower a safety floor. Routine work is therefore not sent to the strongest models
 **Ownership**: balanced ~50/50 via persisted scheduler state, not forced literal alternation:
 Claude-implemented work is reviewed by Codex; Codex-implemented work by Claude. A planner
 package may name a `preferred_owner` only with a stated reason. The reviewer receives the
-spec, acceptance criteria, accepted baseline commit, the real diff, and the raw test output;
-it is told to verify independently and not to soften findings. No self-certification.
+spec, acceptance criteria, accepted baseline commit, the real diff, the raw test output, the
+implementer's identity/model and any previously-resolved structured findings; it is told to
+verify independently and not to soften findings. No self-certification.
+
+**Quota bands override the scheduler (`POLICY.md` sec. 8-11).** If the 50/50 scheduler's
+choice of owner is in quota `EMERGENCY` while the other provider is not, the OTHER provider
+implements instead (a note records this; the scheduler's own alternation state is left
+untouched, so it resumes exactly where it was once the constraint lifts). If a provider is
+merely `CONSERVE`/`RESERVE`, only its *implementer* tier is capped (never review, never
+hard/critical/security work). If the REVIEWER provider is in `EMERGENCY`, the task is never
+given a fake or same-provider review: it stops at `waiting_review` after tests pass (see
+section 3b) instead of a false PASS.
 
 **Escalation**: at most once per task, one tier up, only after a genuine BLOCKER review
 finding (never for malformed output, tooling errors, provider outages or approvals).
@@ -109,8 +124,34 @@ Per provider: `UNKNOWN` / `NORMAL` / `CONSTRAINED` / `EXHAUSTED` (`quota.py`, pe
 ```
 python autonomous_worker.py quota show | refresh
 python autonomous_worker.py quota set codex exhausted --reason "weekly limit"
+python autonomous_worker.py quota set codex emergency --reason "owner: ~1% weekly"   # POLICY.md band
 python autonomous_worker.py quota clear codex
 ```
+
+`quota set PROVIDER LEVEL` accepts either an availability level (`unknown|normal|constrained|
+exhausted`) or, for the POLICY.md conservation bands directly, `conserve|reserve|emergency`
+(stored alongside the level; `quota show`/`status` report both `level` and `band`).
+
+### 3b. Deferred independent review (`waiting_review`)
+
+When a task's independent reviewer provider is in `EMERGENCY`, the cycle still implements and
+runs the targeted tests, then stops at `waiting_review` — **never a PASS, never committed,
+never integrated**, worktree preserved. Nothing pretends to be independent review; the owner's
+"Claude never pretends to be Codex" rule (`POLICY.md` sec. 10) is enforced in code.
+
+```
+python autonomous_worker.py status                       # "waiting_review": [(item, reviewer, difficulty), ...]
+python autonomous_worker.py resume-reviews                # runs every deferred review whose reviewer recovered
+python autonomous_worker.py resume-reviews --allow-emergency --max 1   # owner override: spend the reserve anyway
+python supervisor.py program run PROGRAM_ID --allow-emergency-review   # same override for a program
+```
+
+A scheduled `run` and a program `run` both try `resume-reviews`/deferred reviews first,
+automatically, whenever the reviewer's band is no longer `EMERGENCY` — no separate step needed
+once the provider recovers. `resume-reviews` re-opens the task's *existing* worktree (never
+creates one), fails closed if it changed while waiting, re-runs the targeted tests, then
+reviews/fixes/verifies exactly like a normal cycle, hardest-difficulty items first. An
+`EXHAUSTED` provider is never spent even with `--allow-emergency`.
 
 ## 4. Manual queue (scheduled maintenance)
 
@@ -181,8 +222,11 @@ reviewer counts 1, not 2; a crash is counted conservatively as 2); the pre-start
 check is unchanged.
 
 Program statuses: `active`, `paused`, `completed`, `stopped`, `needs_human`,
-`budget_exhausted`. Package states: `planned`, `running`, `accepted`, `failed`, `needs_human`,
-`skipped`.
+`budget_exhausted`, `waiting_review` (every runnable package is done or blocked behind a
+deferred independent review; never `completed` while this is true). Package states: `planned`,
+`running`, `accepted`, `failed`, `needs_human`, `skipped`, `waiting_review`. A package's
+dependents stay `planned` (never run) until it is actually `accepted`; independent packages
+with no dependency on it continue normally.
 
 ### Budgets - two separate systems
 
@@ -206,7 +250,8 @@ budget ran out. Budget exhaustion is resumable after `extend`.
 | blocked | tests failed / review rejected past retries / provider failed | read `result_note` and `.state/tasks/<id>.json`; fix spec; `requeue` |
 | needs_human | approval gate, risky files, HEAD moved, scope violation, or interrupted | owner decides; never auto-replayed |
 | crashed | exception; worker stopped (fail closed) | inspect, then `requeue` |
-| deferred | a provider is EXHAUSTED; waiting, state preserved | nothing; reactivates when the provider is usable |
+| deferred | a provider is EXHAUSTED, or both providers are in quota EMERGENCY; waiting, state preserved | nothing; reactivates when the provider is usable |
+| waiting_review | implemented, tests passed; independent review deferred (reviewer provider in EMERGENCY) | nothing until the reviewer recovers, or `resume-reviews`/`--allow-emergency` |
 | superseded | terminal and inert: another accepted item delivered the same work (`autonomous_worker.py supersede ID --by ...`) | none |
 | passed, no commit | PASS but worktree had unexpected files | inspect the worktree |
 
@@ -279,9 +324,11 @@ A program with such a package pauses as `needs_human`; `skip` it (dependents are
 ## 12. Tests
 
 Every module ends with a self-test: `python <module>.py` (no provider calls). Supervisor
-scenarios A-M: `python supervisor.py` (or `python supervisor_scenarios.py A F G`). Run everything
+scenarios A-S: `python supervisor.py` (or `python supervisor_scenarios.py A F G`); R covers the
+canonical routing policy (ladders, floors, quota bands, Claude-first ownership flip), S covers
+`waiting_review` end to end (deferred, resumed, budget-respecting, restart-safe). Run everything
 after any change, plus `python -m py_compile *.py`. Modules: text_signals, models, state_store,
 approval, difficulty_inference, quota, claude_adapter, codex_adapter, git_guard, runner, router,
 postflight_guard, orchestrator, task_queue, worktree_manager, execution_cycle, worktree_session,
 dev_driver, backlog, integration, autonomous_worker, planner, supervisor.
-`PLAN.md` is the original V0 plan.
+`PLAN.md` is the original V0 plan. `POLICY.md` is the authoritative owner routing policy.

@@ -131,6 +131,7 @@ class DevOrchestrator:
         quota_levels: dict[Provider, ProviderQuota] | None = None,
         spec: TaskSpec | None = None,
         baseline_commit: str = "",
+        quota_bands: dict[Provider, QuotaBand] | None = None,
     ) -> DevTask:
         """Create, route, classify and persist a development task.
 
@@ -171,6 +172,7 @@ class DevOrchestrator:
             previous_owner=effective_previous_owner,
             quota_state=quota_state,
             quota_levels=quota_levels,
+            quota_bands=quota_bands,
         )
 
         task.requested_difficulty = inference.requested
@@ -194,6 +196,8 @@ class DevOrchestrator:
         task.difficulty = decision.difficulty
         task.task_category = decision.task_category
         task.quota_band_at_routing = decision.quota_band
+        task.review_deferred = decision.review_deferred
+        task.ownership_note = decision.ownership_note
 
         task.notes.append(
             f"Difficulty classified as {decision.difficulty.value} "
@@ -220,7 +224,20 @@ class DevOrchestrator:
                 f"band={decision.quota_band.value}."
             )
 
-        self._save_last_owner(decision.owner)
+        if decision.ownership_note:
+            task.notes.append(decision.ownership_note)
+        else:
+            # A forced (quota) owner never advances the 50/50 scheduler, so
+            # alternation resumes unchanged once the constraint is lifted.
+            self._save_last_owner(decision.owner)
+
+        if decision.review_deferred:
+            task.notes.append(
+                f"Independent review by {decision.reviewer.value} is deferred "
+                "(reviewer provider in EMERGENCY): the task will stop at "
+                "WAITING_REVIEW after tests pass; it is never a PASS until "
+                "that independent review happens."
+            )
 
         approval = self.approval_policy.apply_to_task(task)
 
@@ -316,6 +333,16 @@ class DevOrchestrator:
     ) -> None:
         task.stage = TaskStage.COMPLETE
         task.status = TaskStatus.BLOCKED
+        task.notes.append(note)
+        self.state.save(task)
+
+    def mark_waiting_review(
+        self,
+        task: DevTask,
+        note: str,
+    ) -> None:
+        task.stage = TaskStage.WAITING_REVIEW
+        task.status = TaskStatus.WAITING_REVIEW
         task.notes.append(note)
         self.state.save(task)
 
@@ -500,18 +527,38 @@ def _self_test() -> None:
         description="Implement the ordinary feature as described.",
         difficulty=Difficulty.SERIOUS,
         previous_owner=Provider.CODEX,
-        quota_state=QuotaState(claude_remaining_percent=10.0),
+        quota_state=QuotaState(claude_remaining_percent=45.0),
     )
     assert quota_task.owner is Provider.CLAUDE
-    assert quota_task.quota_band_at_routing is QuotaBand.EMERGENCY
+    assert quota_task.quota_band_at_routing is QuotaBand.CONSERVE
     assert quota_task.implementer_model is not None
-    assert quota_task.implementer_model.model == "haiku"
+    assert quota_task.implementer_model.model == "sonnet"
+    assert quota_task.implementer_model.effort != "high", "CONSERVE caps the implementer at ROUTINE"
     assert quota_task.reviewer_model is not None
     assert quota_task.reviewer_model.model == "gpt-5.6-sol"
     assert any(
         "quota-conserved" in note
         for note in quota_task.notes
     )
+    assert not quota_task.review_deferred and not quota_task.ownership_note
+
+    # POLICY.md sec. 8-10: a provider in EMERGENCY is never the implementer while the
+    # other has capacity, the scheduler state is left untouched, and the independent
+    # review that would need the EMERGENCY provider is deferred (never a PASS).
+    scheduler_before = restarted_again._load_last_owner()
+    emergency_task = restarted_again.prepare_task(
+        description="Implement the ordinary feature as described.",
+        difficulty=Difficulty.SERIOUS,
+        previous_owner=Provider.CLAUDE,  # scheduler would pick CODEX
+        quota_bands={Provider.CODEX: QuotaBand.EMERGENCY, Provider.CLAUDE: QuotaBand.NORMAL},
+    )
+    assert emergency_task.owner is Provider.CLAUDE and emergency_task.reviewer is Provider.CODEX
+    assert emergency_task.review_deferred is True
+    assert "claude-first" in emergency_task.ownership_note
+    assert any("deferred" in note and "never a PASS" in note for note in emergency_task.notes)
+    assert restarted_again._load_last_owner() == scheduler_before, "forced ownership must not skew 50/50"
+    reloaded = restarted_again.load_task(emergency_task.task_id)
+    assert reloaded.review_deferred and reloaded.ownership_note == emergency_task.ownership_note
 
     # Approval gate still overrides routing: a SECURITY_SENSITIVE task
     # requires human approval regardless of the difficulty/category

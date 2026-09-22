@@ -30,6 +30,7 @@ from models import (
     Difficulty,
     Provider,
     ProviderQuota,
+    QuotaBand,
     TaskStatus,
     TaskSpec,
     TestResult,
@@ -51,6 +52,8 @@ from supervisor import (
     RunBudget,
     Supervisor,
     SupervisorError,
+    WAITING_REVIEW,
+    P_WAITING_REVIEW,
 )
 
 README = Path(__file__).resolve().parent / "README.md"
@@ -84,6 +87,7 @@ class ScriptedDriver:
         self.script = {k: list(v) for k, v in (script or {}).items()}
         self.calls: list[dict[str, Any]] = []
         self.on_call: Callable[[], None] = lambda: None
+        self.waiting: dict[str, int] = {}  # task_id -> provider calls when it stopped at WAITING_REVIEW
 
     def count(self, package_id: str) -> int:
         return sum(1 for c in self.calls if c["package_id"] == package_id)
@@ -120,6 +124,13 @@ class ScriptedDriver:
             task.changed_files = ["core/x.py"]
             task.notes.append("PASS")
             worktree = SimpleNamespace(path=root, branch_name=f"vector-dev/{task.task_id[:8]}")
+        elif step == "WAIT":
+            # Tests passed; the Codex review is deferred (POLICY.md sec. 10): not a pass.
+            task.status = TaskStatus.WAITING_REVIEW
+            task.provider_calls = 1
+            task.notes.append("Independent review deferred (reviewer in EMERGENCY).")
+            worktree = SimpleNamespace(path=root, branch_name=f"vector-dev/{task.task_id[:8]}")
+            self.waiting[task.task_id] = 1
         elif step == "HUMAN":
             task.status = TaskStatus.NEEDS_HUMAN
             task.provider_calls = 0
@@ -187,6 +198,8 @@ class Harness:
         self.proposals = list(proposals or [])
         self.planning_inputs: list[PlanningInput] = []
         self.integration_override: dict[str, str] = {}
+        self.reviews: list[str] = []
+        self.review_outcome = "PASS"
         self.build()
 
     def fake_integrate(self) -> list[tuple[str, str]]:
@@ -206,6 +219,26 @@ class Harness:
 
         return out
 
+    def review(self, root: Path, *, task_id: str, test_targets: list[str], run_ci_gate: bool = False) -> DriverResult:
+        """Stands in for dev_driver.resume_review_task (the deferred independent review)."""
+
+        self.reviews.append(task_id)
+        task = DevTask(description="resumed review")
+        task.task_id = task_id
+        task.owner, task.reviewer = Provider.CLAUDE, Provider.CODEX
+        task.provider_calls = self.driver.waiting.get(task_id, 1) + 1  # implementer + this review
+        task.reviewer_evidence = ["review"]
+
+        if self.review_outcome == "PASS":
+            task.status = TaskStatus.PASS
+            task.changed_files = ["core/x.py"]
+            task.notes.append("PASS")
+            return DriverResult(task, SimpleNamespace(path=root, branch_name="vector-dev/resumed"))
+
+        task.status = TaskStatus.BLOCKED
+        task.notes.append("Reviewer found BLOCKER: the parser still corrupts input 1")
+        return DriverResult(task, None)
+
     def proposer(self, planning: PlanningInput) -> list[dict[str, Any]]:
         self.planning_inputs.append(planning)
         return self.proposals.pop(0) if self.proposals else []
@@ -218,6 +251,7 @@ class Harness:
             self.root / "state" / "worker",
             config=WorkerConfig(daily_cap=self.daily_cap, max_tasks_per_run=5),
             run_task_fn=self.driver,
+            review_fn=self.review,
             commit_fn=fake_commit,
             echo=False,
         )
@@ -1134,6 +1168,231 @@ def scenario_Q(root: Path) -> None:
     assert third.ledger == []
 
 
+# --- R: canonical routing policy (POLICY.md sec. 1-8) -----------------------
+
+
+def scenario_R(root: Path) -> None:
+    from models import TaskCategory
+    from router import (
+        ModelRouter,
+        default_difficulty_for_category,
+        quota_band_for_percent,
+    )
+
+    router = ModelRouter()
+
+    # 1-2. The ladders, exactly as the owner wrote them.
+    codex = {
+        Difficulty.SCOUT: ("gpt-5.6-luna", None),
+        Difficulty.ROUTINE: ("gpt-5.6-terra", None),
+        Difficulty.SERIOUS: ("gpt-5.6-sol", None),
+        Difficulty.HARD: ("gpt-6-astra", "low"),
+        Difficulty.CRITICAL: ("gpt-6-astra", "medium"),
+    }
+    claude = {
+        Difficulty.SCOUT: ("haiku", None),
+        Difficulty.ROUTINE: ("sonnet", None),
+        Difficulty.SERIOUS: ("sonnet", "high"),
+        Difficulty.HARD: ("sonnet", "high"),
+        Difficulty.CRITICAL: ("opus", None),
+    }
+
+    for level, (model, effort) in codex.items():
+        choice = router.choose_implementer(provider=Provider.CODEX, difficulty=level)
+        assert choice.model == model and (effort is None or choice.effort == effort), (level, choice)
+
+    for level, (model, effort) in claude.items():
+        choice = router.choose_implementer(provider=Provider.CLAUDE, difficulty=level)
+        assert choice.model == model and (effort is None or choice.effort == effort), (level, choice)
+
+    assert router.choose_implementer(provider=Provider.CLAUDE, difficulty=Difficulty.ROUTINE).model != "opus"
+
+    # 3-4. Categories: normal difficulty per category, and the floors (which only ever raise).
+    normal = {
+        TaskCategory.EXPLORATION: Difficulty.SCOUT, TaskCategory.DOCUMENTATION: Difficulty.SCOUT,
+        TaskCategory.TRIVIAL_EDIT: Difficulty.SCOUT, TaskCategory.IMPLEMENTATION: Difficulty.ROUTINE,
+        TaskCategory.DEBUGGING: Difficulty.ROUTINE, TaskCategory.TEST_REPAIR: Difficulty.ROUTINE,
+        TaskCategory.INTEGRATION: Difficulty.SERIOUS, TaskCategory.ARCHITECTURE: Difficulty.SERIOUS,
+        TaskCategory.SECURITY_SENSITIVE: Difficulty.HARD,
+    }
+    assert {c: default_difficulty_for_category(c) for c in TaskCategory} == normal
+    assert router.apply_category_floor(Difficulty.SCOUT, TaskCategory.ARCHITECTURE) is Difficulty.SERIOUS
+    assert router.apply_category_floor(Difficulty.ROUTINE, TaskCategory.SECURITY_SENSITIVE) is Difficulty.HARD
+    assert router.apply_category_floor(Difficulty.CRITICAL, TaskCategory.SECURITY_SENSITIVE) is Difficulty.CRITICAL
+    assert router.apply_category_floor(Difficulty.CRITICAL, TaskCategory.EXPLORATION) is Difficulty.CRITICAL
+    assert infer_difficulty("Update the README documentation for the queue.").effective in (
+        Difficulty.SCOUT, Difficulty.ROUTINE
+    )
+
+    # 8. Quota band edges: NORMAL >=60, CONSERVE 30-60, RESERVE 15-30, EMERGENCY <15, UNKNOWN none.
+    for percent, band in (
+        (100, QuotaBand.NORMAL), (60, QuotaBand.NORMAL), (59.9, QuotaBand.CONSERVE),
+        (30, QuotaBand.CONSERVE), (29.9, QuotaBand.RESERVE), (15, QuotaBand.RESERVE),
+        (14.9, QuotaBand.EMERGENCY), (1, QuotaBand.EMERGENCY), (None, QuotaBand.UNKNOWN),
+    ):
+        assert quota_band_for_percent(percent) is band, (percent, band)
+
+    # 5. Reviewer strength follows the UNCONSERVED difficulty; only the implementer is conserved.
+    # CONSERVE/RESERVE cap the IMPLEMENTER'S tier but never flip ownership or weaken review.
+    for band in (QuotaBand.CONSERVE, QuotaBand.RESERVE):
+        decision = router.route(
+            description="Implement the ordinary feature as described.",
+            base_difficulty=Difficulty.SERIOUS, previous_owner=Provider.CODEX,
+            quota_bands={Provider.CLAUDE: band, Provider.CODEX: QuotaBand.NORMAL},
+        )
+        assert decision.owner is Provider.CLAUDE, band
+        assert decision.reviewer_model.model == "gpt-5.6-sol", "review is never weakened to save quota"
+
+    # EMERGENCY flips OWNERSHIP itself (sec. 9: EMERGENCY is not spent as implementer while
+    # the other provider has capacity), not just the implementer's tier.
+    emergency = router.route(
+        description="Implement the ordinary feature as described.",
+        base_difficulty=Difficulty.SERIOUS, previous_owner=Provider.CODEX,
+        quota_bands={Provider.CLAUDE: QuotaBand.EMERGENCY, Provider.CODEX: QuotaBand.NORMAL},
+    )
+    assert emergency.owner is Provider.CODEX and "codex-first" in emergency.ownership_note
+    assert emergency.reviewer_model.model == "sonnet", "review is never weakened to save quota"
+
+    # 8b. Hard/critical/security work is never downgraded to save quota.
+    for level in (Difficulty.HARD, Difficulty.CRITICAL):
+        decision = router.route(
+            description="Refactor the scheduler internals.", base_difficulty=level,
+            previous_owner=Provider.CODEX,
+            quota_bands={Provider.CLAUDE: QuotaBand.RESERVE, Provider.CODEX: QuotaBand.NORMAL},
+        )
+        assert decision.implementer_model.model == claude[level][0]
+
+    # 9-10. Codex EMERGENCY => Claude-first; the review that needs Codex is deferred.
+    decision = router.route(
+        description="Fix a normal parser bug.", base_difficulty=Difficulty.ROUTINE,
+        previous_owner=Provider.CLAUDE,  # the 50/50 scheduler would choose Codex
+        quota_bands={Provider.CODEX: QuotaBand.EMERGENCY, Provider.CLAUDE: QuotaBand.NORMAL},
+    )
+    assert decision.owner is Provider.CLAUDE and decision.reviewer is Provider.CODEX
+    assert decision.review_deferred and "claude-first" in decision.ownership_note
+
+    # ... and the mirror image (Claude EMERGENCY => Codex-first, Claude's review deferred).
+    mirror = router.route(
+        description="Fix a normal parser bug.", base_difficulty=Difficulty.ROUTINE,
+        previous_owner=Provider.CODEX,  # scheduler would choose Claude
+        quota_bands={Provider.CLAUDE: QuotaBand.EMERGENCY, Provider.CODEX: QuotaBand.NORMAL},
+    )
+    assert mirror.owner is Provider.CODEX and mirror.review_deferred and "codex-first" in mirror.ownership_note
+
+    # 11. Healthy quotas (or UNKNOWN): normal 50/50 alternation, nothing deferred.
+    for bands in (
+        {Provider.CODEX: QuotaBand.NORMAL, Provider.CLAUDE: QuotaBand.NORMAL},
+        {Provider.CODEX: QuotaBand.UNKNOWN, Provider.CLAUDE: QuotaBand.UNKNOWN},
+        {Provider.CODEX: QuotaBand.CONSERVE, Provider.CLAUDE: QuotaBand.RESERVE},
+    ):
+        first = router.route(description="Fix a bug.", base_difficulty=Difficulty.ROUTINE, previous_owner=None, quota_bands=bands)
+        second = router.route(description="Fix a bug.", base_difficulty=Difficulty.ROUTINE, previous_owner=first.owner, quota_bands=bands)
+        assert first.owner is Provider.CODEX and second.owner is Provider.CLAUDE
+        assert not first.review_deferred and not first.ownership_note
+
+    # Both in EMERGENCY: no forced flip (nobody better to give it to); the worker holds the work.
+    both = router.route(
+        description="Fix a bug.", base_difficulty=Difficulty.ROUTINE, previous_owner=Provider.CODEX,
+        quota_bands={Provider.CODEX: QuotaBand.EMERGENCY, Provider.CLAUDE: QuotaBand.EMERGENCY},
+    )
+    assert both.owner is Provider.CLAUDE and both.ownership_note == ""
+
+    # 7. Escalation: one bounded tier per allowed escalation, never past CRITICAL.
+    assert router.escalate_difficulty(Difficulty.SERIOUS) is Difficulty.HARD
+    assert router.escalate_difficulty(Difficulty.CRITICAL) is Difficulty.CRITICAL
+    from models import DevTask as _Task
+
+    assert _Task(description="x").max_escalations == 1
+
+
+# --- S: WAITING_REVIEW while Codex is in EMERGENCY (POLICY.md sec. 10-11) -----
+
+
+def scenario_S(root: Path) -> None:
+    def make(name: str, script: dict[str, list[str]] | None = None, **kw: Any) -> tuple[Harness, Any]:
+        packages = [
+            pkg("p1", "Alpha parser hardening", "Harden the alpha parser against truncated input."),
+            pkg("p2", "Beta scheduler jitter", "Add bounded jitter to the beta scheduler tick.", ("p1",)),
+            pkg("p3", "Gamma exporter batching", "Batch the gamma exporter writes into groups."),
+        ]
+        h = Harness(root / name, script=script, proposals=[packages], **kw)
+        h.worker.quota.set_band(Provider.CODEX, QuotaBand.EMERGENCY, reason="owner: ~1% weekly", source="owner")
+        return h, h.sup.start_program("Harden alpha, beta and gamma.")
+
+    # S1. p1 stops at WAITING_REVIEW; its dependent waits; the independent p3 is still delivered.
+    h, prog = make("s1", {"p1": ["WAIT"]})
+    report = h.sup.run_program(prog.program_id)
+    state = h.sup.load(prog.program_id)
+    assert state.status == WAITING_REVIEW, (state.status, state.status_reason)
+    assert {p.package_id: p.state for p in state.packages} == {
+        "p1": P_WAITING_REVIEW, "p2": P_PLANNED, "p3": P_ACCEPTED,
+    }
+    assert [c["package_id"] for c in h.driver.calls] == ["p1", "p3"], "p2 must not build on unreviewed work"
+    assert [e["package_id"] for e in state.ledger] == ["p3"], "unreviewed work is not 'accepted'"
+    p1_item = next(i for i in h.worker.backlog.all() if i.package_id == "p1")
+    assert p1_item.status == bl.WAITING_REVIEW and not p1_item.commit and not p1_item.integration
+    assert h.reviews == [] and state.usage.provider_calls == 1 + 1 + 2, "planner + p1 implementer + p3 (2)"
+    assert "wait for an independent review" in state.status_reason and report.status == WAITING_REVIEW
+    assert state.status != COMPLETED
+
+    # S2. Still EMERGENCY: running again spends nothing and changes nothing.
+    h.sup.run_program(prog.program_id)
+    assert h.reviews == [] and h.sup.load(prog.program_id).status == WAITING_REVIEW
+    assert len(h.driver.calls) == 2
+
+    # S3. Restart while waiting (state is on disk), Codex recovers -> the review runs, p1 is
+    # accepted and integrated, then its dependent p2 finally runs; the program completes.
+    h.build()
+    h.worker.quota.clear(Provider.CODEX)
+    h.sup.run_program(prog.program_id)
+    done = h.sup.load(prog.program_id)
+    assert done.status == COMPLETED, (done.status, done.status_reason)
+    assert h.reviews == [p1_item.task_id] and len(h.reviews) == 1
+    assert [e["package_id"] for e in done.ledger] == ["p3", "p1", "p2"]
+    assert h.worker.backlog.get(p1_item.item_id).commit and h.worker.backlog.get(p1_item.item_id).integration == "merged"
+    assert done.usage.provider_calls == 1 + 1 + 2 + 1 + 2, "the resumed review adds only ITS call, not the implementer's again"
+    assert h.driver.count("p1") == 1, "p1 is never re-implemented"
+
+    # S4. The owner may spend the emergency reserve explicitly.
+    h2, prog2 = make("s4", {"p1": ["WAIT"]})
+    h2.sup.run_program(prog2.program_id)
+    h2.sup.allow_emergency_review = True
+    h2.sup.run_program(prog2.program_id)
+    assert len(h2.reviews) == 1 and h2.sup.load(prog2.program_id).status == COMPLETED
+
+    # ... but never an EXHAUSTED provider.
+    h3, prog3 = make("s4b", {"p1": ["WAIT"]})
+    h3.sup.run_program(prog3.program_id)
+    h3.worker.quota.set(Provider.CODEX, ProviderQuota.EXHAUSTED, reason="owner", source="owner")
+    h3.sup.allow_emergency_review = True
+    h3.sup.run_program(prog3.program_id)
+    assert h3.reviews == [] and h3.sup.load(prog3.program_id).status == WAITING_REVIEW
+
+    # S5. A resumed review that finds a BLOCKER goes through the normal bounded correction path.
+    h4, prog4 = make("s5", {"p1": ["WAIT"]})
+    h4.sup.run_program(prog4.program_id)
+    h4.worker.quota.clear(Provider.CODEX)
+    h4.review_outcome = "BLOCK"
+    h4.sup.run_program(prog4.program_id)
+    after = h4.sup.load(prog4.program_id)
+    assert h4.reviews and after.packages[0].corrections == 1, "one bounded correction after the rejected review"
+    assert after.status == COMPLETED and h4.driver.count("p1") == 2, "the correction attempt ran and passed"
+
+    # S6. The resumed review respects the provider-call budget (never overspends).
+    h5, prog5 = make("s6", {"p1": ["WAIT"]})
+    h5.sup.extend_budget(prog5.program_id, max_provider_calls=40)
+    h5.sup.run_program(prog5.program_id)
+    used = h5.sup.load(prog5.program_id).usage.provider_calls
+    tight = h5.sup.load(prog5.program_id)
+    tight.budget.max_provider_calls = used + 1  # cannot afford a worst-case review (4 calls)
+    h5.sup.save(tight)
+    h5.worker.quota.clear(Provider.CODEX)
+    h5.sup.run_program(prog5.program_id)
+    limited = h5.sup.load(prog5.program_id)
+    assert limited.status == BUDGET_EXHAUSTED and h5.reviews == []
+    assert limited.usage.provider_calls <= limited.budget.max_provider_calls
+
+
 SCENARIOS: list[tuple[str, Callable[[Path], None]]] = [
     ("A planner decomposes a program", scenario_A),
     ("B safety floor upgrades an under-labelled task", scenario_B),
@@ -1149,6 +1408,8 @@ SCENARIOS: list[tuple[str, Callable[[Path], None]]] = [
     ("O codex sandbox: new-file work goes to claude, permission crash gets one fallback", scenario_O),
     ("P canary repair: target validation, failure evidence, honest call accounting", scenario_P),
     ("Q programs chain: base on integration, inherit the accepted ledger", scenario_Q),
+    ("R canonical routing policy: ladders, floors, bands, Claude-first", scenario_R),
+    ("S WAITING_REVIEW during a Codex emergency: never a false PASS, resumes later", scenario_S),
     ("N accepted work is integrated before dependents build on it", scenario_N),
     ("M README lets a fresh session operate the bridge", scenario_M),
 ]
