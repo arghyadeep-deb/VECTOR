@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -52,6 +53,10 @@ class IntentMatcher:
         # shared background Task, created lazily on first use (or via
         # prewarm()) and never re-created — see _get_or_start_init_task().
         self._init_task: Optional["asyncio.Task[bool]"] = None
+        # One ollama client per matcher, built lazily by _get_client() (no
+        # ollama call at construction time) and reused for every embedding.
+        self._client = None
+        self._client_lock = threading.Lock()
 
         # Load examples on init
         self._load_examples()
@@ -70,10 +75,27 @@ class IntentMatcher:
             logger.error(f"[IntentMatcher] Failed to load examples: {e}")
             self._examples = []
 
+    def _get_client(self):
+        """Return this matcher's single ollama client, building it on first use.
+
+        _embed_sync runs in asyncio.to_thread workers, so the bootstrap and a
+        query embed can reach here from different threads at once; the lock
+        (the one place this module needs a cross-thread primitive — asyncio
+        primitives are not thread-safe) guarantees exactly one construction.
+        A constructor exception propagates without setting self._client, so
+        the next embedding call retries instead of caching the failure."""
+        client = self._client
+        if client is not None:
+            return client
+        with self._client_lock:
+            if self._client is None:
+                import ollama
+                self._client = ollama.Client(host=self._ollama_host, timeout=10.0)
+            return self._client
+
     def _embed_sync(self, text: str) -> Optional[list[float]]:
         """Blocking ollama embedding call — run via asyncio.to_thread, never on the loop."""
-        import ollama
-        client = ollama.Client(host=self._ollama_host, timeout=10.0)
+        client = self._get_client()
         response = client.embeddings(model=self._model, prompt=text)
         embedding = response.get("embedding", [])
         if len(embedding) != 768:
