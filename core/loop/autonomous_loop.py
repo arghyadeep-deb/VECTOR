@@ -1794,20 +1794,37 @@ class AutonomousLoop:
             except Exception as _cg_err:
                 logger.warning("[VECTOR][loop] plan-step causal_graph record suppressed: {}", _cg_err)
 
-            # Goal progress on completion: REMOVED 2026-09-08 (Task 89C, lead-integration
-            # follow-up — the plan-step twin of the main reward block's "Goal feedback
-            # loop", same reward-scaled-increment / unconditional-auto-complete defect,
-            # not present in Agent C's stale worktree base so not caught by that agent's
-            # own diff; found and fixed during T89 lead integration by applying the exact
-            # same, already-tested C1 fix). Progress is no longer mutated here; explicit
-            # callers (human/API) still use update_goal_progress() exactly as before. See
-            # VECTOR_TECHNICAL_KNOWLEDGE/89C_GOAL_PROGRESS.md.
-            if completed and plan.goal_id:
-                logger.debug(
-                    "[VECTOR][goal] reward={:.3f} associated with goal_id={} via plan step {} "
-                    "(progress NOT updated — reward-driven goal completion removed, Task 89C)",
-                    reward, plan.goal_id, step_id,
+            # Bridge only verified, partial plan progress into the linked goal. Ordinary
+            # action rewards remain excluded, and 1.0 is deliberately excluded so this
+            # path cannot trigger GoalSystem's automatic completion transition.
+            plan_progress = result.get("plan_progress")
+            if (
+                plan.goal_id
+                and result.get("status") == "completed"
+                and result.get("verification_passed") is True
+                and isinstance(plan_progress, (int, float))
+                and not isinstance(plan_progress, bool)
+                and 0.0 < plan_progress < 1.0
+            ):
+                goal_system = self._get_goals()
+                goal = next(
+                    (g for g in goal_system.get_active_goals() if g.get("id") == plan.goal_id),
+                    None,
                 )
+                if goal is not None:
+                    current_progress = goal.get("progress", 0.0)
+                    new_progress = max(current_progress, plan_progress)
+                    if new_progress > current_progress:
+                        goal_system.update_goal_progress(
+                            plan.goal_id,
+                            new_progress,
+                            note=(
+                                f"Verified partial plan progress: plan_id={plan_id}, "
+                                f"step_id={step_id}, verification_passed="
+                                f"{result.get('verification_passed')}, "
+                                f"old_progress={current_progress}, new_progress={new_progress}"
+                            ),
+                        )
 
         except Exception as e:
             logger.error(f"[VECTOR][act] plan step execution error: {e}")
