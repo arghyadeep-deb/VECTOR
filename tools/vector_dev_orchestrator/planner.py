@@ -29,13 +29,14 @@ import json
 import re
 import subprocess
 from collections.abc import Callable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
 from approval import ApprovalPolicy
 from difficulty_inference import infer_difficulty
 from models import Difficulty, TaskSpec
+from runner import invalid_test_targets
 from text_signals import norm_repo_path
 
 MAX_PACKAGES_DEFAULT = 6
@@ -72,6 +73,9 @@ _STOPWORDS = frozenset(
 class PlannerError(RuntimeError):
     """The planner could not produce a trustworthy plan."""
 
+    # proposer invocations spent before failing (for run-budget accounting)
+    calls: int = 1
+
 
 class PlannerMutationError(PlannerError):
     """The read-only planning step changed the working tree."""
@@ -99,6 +103,8 @@ class BlockerRecord:
     fingerprint: str
     description: str
     count: int = 1
+    # bounded, redacted failure diagnosis (category, exit code, output tail)
+    evidence: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,13 +151,24 @@ class PlanningInput:
     ledger: list[LedgerEntry] = field(default_factory=list)
     blockers: list[BlockerRecord] = field(default_factory=list)
     max_packages: int = MAX_PACKAGES_DEFAULT
+    # validator complaints about the PREVIOUS proposal (one repair round)
+    feedback: list[str] = field(default_factory=list)
+    # Most proposer invocations this call may spend (1 = no repair round). The
+    # supervisor sets it from the remaining provider-call budget so planning can
+    # never push a program over its budget.
+    max_calls: int = 2
 
 
 @dataclass(slots=True)
 class Plan:
     packages: list[WorkPackage] = field(default_factory=list)
     dropped: list[tuple[str, str]] = field(default_factory=list)  # (label, reason)
+    # Subset of `dropped` that means the PROPOSAL was malformed (as opposed to
+    # "already accepted" / "known blocker" / over budget): a repair round is
+    # worthwhile only for these.
+    invalid: list[tuple[str, str]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    proposer_calls: int = 1
 
     @property
     def ids(self) -> list[str]:
@@ -305,7 +322,7 @@ def validate_package(
 
     allowed = tuple(dict.fromkeys(_clean_path(p) for p in _as_tuple(raw.get("allowed_paths"))))
     criteria = _as_tuple(raw.get("acceptance_criteria"))
-    tests = _as_tuple(raw.get("test_targets"))
+    tests = tuple(t.replace("\\", "/") for t in _as_tuple(raw.get("test_targets")))
     behavior = _as_tuple(raw.get("behavioral_evidence"))
     review_only = bool(raw.get("review_only", False))
 
@@ -326,6 +343,13 @@ def validate_package(
         return None, "no acceptance criteria"
     if not tests:
         return None, "no relevant tests"
+    bad_targets = invalid_test_targets(list(tests))
+    if bad_targets:
+        return None, (
+            "invalid test target (each must be ONE plain pytest path or node id such as "
+            "tests/test_x.py or tests/test_x.py::test_y, never embedded pytest arguments): "
+            + "; ".join(bad_targets)
+        )
     if not behavior:
         return None, "no behavioral evidence required"
 
@@ -410,6 +434,7 @@ def _topological(packages: list[WorkPackage], plan: Plan) -> list[WorkPackage]:
             missing = [d for d in pkg.dependencies if d not in keep]
             if missing:
                 plan.dropped.append((pkg.title, f"unresolvable dependency {missing}"))
+                plan.invalid.append((pkg.title, f"unresolvable dependency {missing}"))
                 del keep[pid]
                 changed = True
 
@@ -428,6 +453,7 @@ def _topological(packages: list[WorkPackage], plan: Plan) -> list[WorkPackage]:
         if not progress:
             for pkg in remaining:
                 plan.dropped.append((pkg.title, "dependency cycle"))
+                plan.invalid.append((pkg.title, "dependency cycle"))
             break
 
     return ordered
@@ -450,6 +476,7 @@ def validate_plan(
     for index, raw in enumerate(proposals if isinstance(proposals, list) else []):
         if not isinstance(raw, dict):
             plan.dropped.append((f"package #{index + 1}", "not an object"))
+            plan.invalid.append((f"package #{index + 1}", "not an object"))
             continue
 
         package, reason = validate_package(
@@ -457,11 +484,14 @@ def validate_plan(
         )
 
         if package is None:
-            plan.dropped.append((str(raw.get("title") or f"package #{index + 1}"), reason))
+            label = str(raw.get("title") or f"package #{index + 1}")
+            plan.dropped.append((label, reason))
+            plan.invalid.append((label, reason))
             continue
 
         if package.package_id in seen_ids:
             plan.dropped.append((package.title, f"duplicate package id {package.package_id}"))
+            plan.invalid.append((package.title, f"duplicate package id {package.package_id}"))
             continue
 
         # Do not reopen accepted work.
@@ -552,18 +582,61 @@ class Planner:
             planning.repo_state = inspect_repo_state(self.repo_root)
 
         before = repo_fingerprint(self.repo_root)
-        proposals = self.proposer(planning)
-        after = repo_fingerprint(self.repo_root)
+        proposals = self._propose(planning, before)
+        result = validate_plan(
+            proposals, planning, allow_bridge=self.allow_bridge_paths, policy=self.policy
+        )
 
-        if before != after:
+        if not result.invalid:
+            return result
+
+        # ONE repair round: the proposer sees exactly what the validator rejected
+        # (e.g. a malformed test target). Still invalid afterwards -> fail closed;
+        # nothing malformed ever reaches execution. No budget for a second call ->
+        # fail closed immediately.
+        if planning.max_calls < 2:
+            error = PlannerError(
+                "The plan is invalid and no provider-call budget remains for a repair round: "
+                + "; ".join(f"{label}: {reason}" for label, reason in result.invalid)[:400]
+            )
+            error.calls = 1
+            raise error
+
+        feedback = [f"{label}: {reason}"[:300] for label, reason in result.invalid][:8]
+        repaired_input = replace(planning, feedback=feedback)
+
+        try:
+            proposals = self._propose(repaired_input, before)
+        except PlannerError as exc:
+            exc.calls = 2
+            raise
+
+        result = validate_plan(
+            proposals, repaired_input, allow_bridge=self.allow_bridge_paths, policy=self.policy
+        )
+        result.proposer_calls = 2
+
+        if result.invalid:
+            error = PlannerError(
+                "The plan was still invalid after one repair round: "
+                + "; ".join(f"{label}: {reason}" for label, reason in result.invalid)[:500]
+            )
+            error.calls = 2
+            raise error
+
+        result.warnings.append("plan repaired after validator feedback (1 round)")
+        return result
+
+    def _propose(self, planning: PlanningInput, before: str) -> list[dict[str, Any]]:
+        proposals = self.proposer(planning)
+
+        if repo_fingerprint(self.repo_root) != before:
             raise PlannerMutationError(
                 "The planning step changed the working tree; a planner is read-only. "
                 "Nothing was queued."
             )
 
-        return validate_plan(
-            proposals, planning, allow_bridge=self.allow_bridge_paths, policy=self.policy
-        )
+        return proposals
 
 
 # --- default model proposer -------------------------------------------
@@ -618,8 +691,11 @@ def build_planning_prompt(planning: PlanningInput) -> str:
         for e in planning.ledger
     ) or "(none yet)"
     blockers = "\n".join(
-        f"- {b.description} (seen {b.count}x)" for b in planning.blockers
+        f"- {b.description} (seen {b.count}x)"
+        + (f"\n  evidence: {b.evidence[:700]}" if b.evidence else "")
+        for b in planning.blockers[:6]
     ) or "(none)"
+    feedback = "\n".join(f"- {line}" for line in planning.feedback[:8])
     reports = "\n".join(
         f"- {r['path']}: {r['title']}"
         for r in planning.repo_state.get("existing_reports", [])
@@ -636,8 +712,18 @@ def build_planning_prompt(planning: PlanningInput) -> str:
         f"EXISTING REPORTS / EVIDENCE (read before proposing; do NOT reopen "
         f"completed work):\n{reports}\n\n"
         f"ACCEPTED WORK LEDGER (already done, never re-propose):\n{ledger}\n\n"
-        f"KNOWN BLOCKERS (do not blindly repeat these):\n{blockers}\n\n"
+        f"KNOWN BLOCKERS (do not blindly repeat these; kind=test_spec means the previous "
+        f"test_targets were wrong, so fix the targets rather than the implementation):\n{blockers}\n\n"
+        + (
+            f"YOUR PREVIOUS PROPOSAL WAS REJECTED BY THE VALIDATOR. Fix exactly these:\n{feedback}\n\n"
+            if feedback
+            else ""
+        )
+        +
         "RULES FOR EVERY PACKAGE:\n"
+        "- test_targets: each entry is ONE plain pytest path or node id, e.g. "
+        "tests/test_x.py or tests/test_x.py::test_y. NEVER put pytest arguments (-k, -x, "
+        "--maxfail, several paths, quotes) inside an entry; to run a subset use node ids.\n"
         "- one bounded objective; specific allowed_paths (files or narrow "
         "directories, never the repo root); relevant pytest targets; "
         "behavioral_evidence = the observable behaviour that proves it works "

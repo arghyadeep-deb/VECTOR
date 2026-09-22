@@ -235,6 +235,9 @@ class DevTask:
     program_id: str | None = None
     package_id: str | None = None
     baseline_commit: str = ""
+    # Provider invocations that actually happened (implementer, reviewer, fix);
+    # incremented by the execution cycle right before each real call.
+    provider_calls: int = 0
 
     changed_files: list[str] = field(default_factory=list)
     commands_executed: list[str] = field(default_factory=list)

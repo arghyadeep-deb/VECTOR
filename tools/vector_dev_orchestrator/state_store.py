@@ -115,6 +115,7 @@ class StateStore:
             program_id=data.get("program_id"),
             package_id=data.get("package_id"),
             baseline_commit=str(data.get("baseline_commit", "")),
+            provider_calls=int(data.get("provider_calls", 0)),
             changed_files=list(data.get("changed_files", [])),
             commands_executed=list(data.get("commands_executed", [])),
             tests=[
@@ -196,6 +197,7 @@ def _self_test() -> None:
     task.program_id = "prog1"
     task.package_id = "pkg1"
     task.baseline_commit = "abc123"
+    task.provider_calls = 3
 
     path = store.save(task)
     assert path.exists()
@@ -223,6 +225,7 @@ def _self_test() -> None:
     assert restored.allowed_paths == ["core/x.py"]
     assert restored.program_id == "prog1" and restored.package_id == "pkg1"
     assert restored.baseline_commit == "abc123"
+    assert restored.provider_calls == 3
 
     path.unlink(missing_ok=True)
 

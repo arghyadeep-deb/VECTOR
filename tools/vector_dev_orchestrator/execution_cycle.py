@@ -1042,6 +1042,8 @@ class ExecutionCycle:
                 "Implementer routing is missing"
             )
 
+        task.provider_calls += 1
+
         if task.owner is Provider.CODEX:
             return self.codex.run_implementation(
                 prompt=prompt,
@@ -1065,6 +1067,8 @@ class ExecutionCycle:
             raise RuntimeError(
                 "Reviewer routing is missing"
             )
+
+        task.provider_calls += 1
 
         if task.reviewer is Provider.CODEX:
             return self.codex.run_read_only(
@@ -3171,6 +3175,7 @@ def _self_test() -> None:
     ).run_once(spec_task, test_targets=["tests/test_example.py"])
     assert spec_result.status is TaskStatus.PASS
     assert spec_result.baseline_commit == "deadbeefcafe"
+    assert spec_result.provider_calls == 2, "one implementer + one reviewer call actually happened"
     prompt = capturing.review_prompts[0]
     for needle in (
         "INDEPENDENCE", "Do not defer to", "ACCEPTED BASELINE COMMIT: deadbeefcafe",
@@ -3242,6 +3247,7 @@ def _self_test() -> None:
     ).run_once(exhausted_task, test_targets=["tests/test_example.py"])
     assert exhausted_result.status is TaskStatus.BLOCKED
     assert "PROVIDER_UNAVAILABLE:codex" in exhausted_result.notes
+    assert exhausted_result.provider_calls == 1, "reviewer was never reached, so it is not counted"
     assert exhausted_result.escalation_count == 0
 
     for task_id in orchestrator.state.list_task_ids():

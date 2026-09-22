@@ -52,7 +52,7 @@ from typing import Any
 from uuid import uuid4
 
 import backlog as bl
-from autonomous_worker import AutonomousWorker
+from autonomous_worker import AutonomousWorker, _bounded
 from integration import INTEGRATION_BRANCH
 from models import Provider
 from planner import (
@@ -265,11 +265,18 @@ class Supervisor:
     # --- planning ------------------------------------------------------
 
     def _planning_input(self, program: Program, *, max_packages: int) -> PlanningInput:
+        # Planning may spend at most what is left of the provider-call budget
+        # (never more than 2: one proposal + one repair round).
+        left = program.budget.max_provider_calls - program.usage.provider_calls
+
         return PlanningInput(
+            max_calls=max(1, min(2, left)),
             goal=program.goal,
             ledger=[LedgerEntry(**e) for e in program.ledger],
             blockers=[
-                BlockerRecord(fp, b["description"], int(b.get("count", 1)))
+                BlockerRecord(
+                    fp, b["description"], int(b.get("count", 1)), str(b.get("evidence", ""))
+                )
                 for fp, b in program.blockers.items()
             ],
             max_packages=max_packages,
@@ -299,6 +306,9 @@ class Supervisor:
             if self.planner is None:
                 raise SupervisorError("No planner configured and no plan supplied.")
 
+            if program.budget.max_provider_calls < 1:
+                raise SupervisorError("The provider-call budget cannot pay for even one planner call.")
+
             try:
                 plan = self.planner.plan(
                     self._planning_input(program, max_packages=program.budget.max_packages)
@@ -306,7 +316,7 @@ class Supervisor:
             except PlannerError as exc:
                 raise SupervisorError(f"Planning failed: {exc}") from exc
 
-            program.usage.provider_calls += 1  # the planner call
+            program.usage.provider_calls += plan.proposer_calls  # planner (+ repair) calls
 
         program.packages = [PackageState(package=p.to_dict()) for p in plan.packages]
 
@@ -660,7 +670,7 @@ class Supervisor:
         if package.corrections and package.note:
             description += (
                 "\n\nPREVIOUS ATTEMPT WAS BLOCKED. Address this specifically and do not "
-                f"repeat the same approach:\n{package.note[:600]}"
+                f"repeat the same approach:\n{package.note[:1100]}"
             )
 
         return self.worker.backlog.add(
@@ -706,12 +716,13 @@ class Supervisor:
     def _apply_outcome(self, program: Program, package: PackageState, outcome: str) -> None:
         item = self.worker.backlog.get(package.item_id or "")
         program.usage.provider_calls += max(0, item.provider_calls)
-        package.note = item.result_note or package.note
+        result_note = _bounded(item.result_note or "", 600)  # redacted before it can be reused
+        package.note = result_note or package.note
 
         if outcome == bl.PASSED:
             if not item.commit:
                 package.state = P_NEEDS_HUMAN
-                package.note = f"Passed review but was not committed: {item.result_note}"
+                package.note = f"Passed review but was not committed: {result_note}"
                 program.status, program.status_reason = NEEDS_HUMAN, f"{package.package_id} not committed"
                 return
 
@@ -719,7 +730,7 @@ class Supervisor:
 
             if merged != "merged":
                 package.state = P_NEEDS_HUMAN
-                package.note = f"Passed review but integration was '{merged}': {item.result_note}"
+                package.note = f"Passed review but integration was '{merged}': {result_note}"
                 program.status = NEEDS_HUMAN
                 program.status_reason = (
                     f"{package.package_id} could not be integrated ({merged}); "
@@ -767,7 +778,7 @@ class Supervisor:
             package.corrections += 1
             program.usage.correction_cycles += 1
             package.state = P_PLANNED
-            package.note = f"retrying with claude as implementer after: {item.result_note[:120]}"
+            package.note = f"retrying with claude as implementer after: {result_note[:120]}"
             return
 
         if outcome in (bl.NEEDS_HUMAN, bl.CRASHED):
@@ -775,7 +786,7 @@ class Supervisor:
             program.status = NEEDS_HUMAN
             program.status_reason = (
                 f"{package.package_id} {'crashed' if outcome == bl.CRASHED else 'needs the owner'}: "
-                f"{item.result_note[:160]}"
+                f"{result_note[:160]}"
             )
             self.worker.notify("attention", program.status_reason, program.program_id)
             return
@@ -792,16 +803,60 @@ class Supervisor:
 
         return results.get(item.item_id) or self.worker.backlog.get(item.item_id).integration or "not integrated"
 
+    @staticmethod
+    def _evidence_text(ev: dict[str, Any], note: str) -> str:
+        """Bounded, already-redacted diagnosis for corrections, re-plans and the owner."""
+
+        if not ev:
+            return note[:600]
+
+        parts = [
+            f"category={ev.get('category')} kind={ev.get('kind')} exit_code={ev.get('exit_code')}",
+        ]
+
+        if ev.get("command"):
+            parts.append(f"command: {str(ev['command'])[-200:]}")
+
+        for finding in list(ev.get("findings") or [])[:3]:
+            parts.append(f"review finding: {str(finding)[:160]}")
+
+        if ev.get("tail"):
+            tail = str(ev["tail"])
+            tail = tail if len(tail) <= 700 else tail[:200] + " ... " + tail[-500:]
+            parts.append(f"output tail: {tail}")
+        elif ev.get("note"):
+            parts.append(f"note: {str(ev['note'])[:200]}")
+
+        return "\n".join(parts)[:1100]
+
     def _handle_blocked(self, program: Program, package: PackageState, item: bl.BacklogItem) -> None:
-        note = item.result_note or "blocked without a note"
-        fingerprint = _blocker_fingerprint(note)
+        note = _bounded(item.result_note or "blocked without a note", 400)
+        ev = dict(item.failure_evidence or {})
+        category = str(ev.get("category", "unknown"))
+        kind = str(ev.get("kind", "implementation"))
+        evidence_text = self._evidence_text(ev, note)
+        fingerprint = _blocker_fingerprint(
+            f"{category} {ev.get('exit_code')} {ev.get('tail') or note}"
+        )
         seen = program.blockers.setdefault(
-            fingerprint, {"description": f"{package.title}: {note[:160]}", "count": 0}
+            fingerprint,
+            {"description": f"{package.title}: [{category}] {note[:120]}", "count": 0},
         )
         seen["count"] += 1
+        seen["evidence"] = evidence_text
+        seen["kind"] = kind
         package.last_fingerprint = fingerprint
+        package.note = evidence_text  # what a correction (or the owner) is shown
 
-        if package.corrections < 1 and program.usage.correction_cycles < program.budget.max_correction_cycles:
+        # A wrong test SPECIFICATION cannot be fixed by re-running the same package:
+        # the plan has to change, so go straight to the (single, bounded) re-plan.
+        correctable = kind != "test_spec"
+
+        if (
+            correctable
+            and package.corrections < 1
+            and program.usage.correction_cycles < program.budget.max_correction_cycles
+        ):
             package.corrections += 1
             program.usage.correction_cycles += 1
             package.state = P_PLANNED  # one bounded correction, then retest + re-review
@@ -822,6 +877,7 @@ class Supervisor:
             program.status_reason = (
                 f"{package.package_id} is stuck on the same blocker after its correction"
                 + ("; re-plan budget used" if self.planner else "; no planner configured")
+                + f" [{(program.blockers.get(package.last_fingerprint) or {}).get('kind', 'unknown')}]"
             )
             self.worker.notify("attention", program.status_reason, program.program_id)
             return
@@ -833,17 +889,28 @@ class Supervisor:
             program.status_reason = f"{package.package_id} failed and no package budget is left to re-plan"
             return
 
+        if program.budget.max_provider_calls - program.usage.provider_calls < 1:
+            # Re-planning is a provider call too; never spend past the budget.
+            program.status = BUDGET_EXHAUSTED
+            program.status_reason = (
+                f"{package.package_id} failed but no provider calls remain to re-plan; "
+                "`extend` the budget, then `retry` the package"
+            )
+            self.worker.notify("attention", program.status_reason, program.program_id)
+            return
+
         program.usage.replans += 1
-        program.usage.provider_calls += 1
 
         try:
             plan = self.planner.plan(self._planning_input(program, max_packages=remaining))
         except PlannerError as exc:
+            program.usage.provider_calls += int(getattr(exc, "calls", 1))
             program.status = NEEDS_HUMAN
             program.status_reason = f"re-plan failed: {exc}"
             self.worker.notify("attention", program.status_reason, program.program_id)
             return
 
+        program.usage.provider_calls += plan.proposer_calls
         taken = {p.package_id for p in program.packages}
         prefix = f"r{program.usage.replans}-"
         rename = {p.package_id: prefix + p.package_id for p in plan.packages}

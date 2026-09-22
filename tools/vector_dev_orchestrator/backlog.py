@@ -18,6 +18,7 @@ from typing import Any
 from uuid import uuid4
 
 from models import Difficulty, TaskCategory
+from runner import invalid_test_targets
 
 PENDING = "pending"
 RUNNING = "running"
@@ -76,6 +77,9 @@ class BacklogItem:
     difficulty_reason: str = ""
     deferred_reason: str = ""
     provider_calls: int = 0
+    # Bounded, redacted diagnosis of why the last attempt was blocked (category,
+    # kind, command, exit code, output tail). Fed to corrections and re-planning.
+    failure_evidence: dict[str, Any] = field(default_factory=dict)
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
 
@@ -170,6 +174,11 @@ class BacklogStore:
             raise ValueError(
                 "At least one deterministic pytest target is required"
             )
+
+        problems = invalid_test_targets(targets)
+
+        if problems:
+            raise ValueError("Invalid pytest target(s): " + "; ".join(problems))
 
         Difficulty(difficulty)  # raises ValueError on unknown value
 

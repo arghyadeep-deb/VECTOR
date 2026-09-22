@@ -48,6 +48,7 @@ from models import (
 )
 from orchestrator import DevOrchestrator
 from router import Difficulty
+from runner import invalid_test_targets
 from worktree_manager import WorktreeInfo
 from worktree_session import WorktreeSessionManager
 
@@ -106,6 +107,11 @@ def run_task(
         raise ValueError(
             "At least one deterministic pytest target is required"
         )
+
+    problems = invalid_test_targets(test_targets)
+
+    if problems:
+        raise ValueError("Invalid pytest target(s): " + "; ".join(problems))
 
     if max_retries < 0:
         raise ValueError("max_retries must not be negative")

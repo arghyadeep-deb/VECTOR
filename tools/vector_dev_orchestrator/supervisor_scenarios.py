@@ -32,6 +32,7 @@ from models import (
     ProviderQuota,
     TaskStatus,
     TaskSpec,
+    TestResult,
 )
 from orchestrator import DevOrchestrator
 from planner import PlanningInput, Planner
@@ -112,6 +113,8 @@ class ScriptedDriver:
         task.reviewer_evidence = ["review"]
         worktree = None
 
+        task.provider_calls = 2  # implementer + reviewer, the normal full attempt
+
         if step == "PASS":
             task.status = TaskStatus.PASS
             task.changed_files = ["core/x.py"]
@@ -119,9 +122,27 @@ class ScriptedDriver:
             worktree = SimpleNamespace(path=root, branch_name=f"vector-dev/{task.task_id[:8]}")
         elif step == "HUMAN":
             task.status = TaskStatus.NEEDS_HUMAN
+            task.provider_calls = 0
             task.notes.append("approval gate")
+        elif step.startswith(("BLOCK_SPEC:", "BLOCK_TEST:")):
+            # Tests failed right after implementation: the reviewer is never reached.
+            kind, _, text = step.partition(":")
+            code = 4 if kind == "BLOCK_SPEC" else 1
+            task.status = TaskStatus.BLOCKED
+            task.provider_calls = getattr(self, "spec_calls", 1)
+            task.tests = [
+                TestResult(
+                    command="python -m pytest -q tests/t.py",
+                    exit_code=code,
+                    passed=False,
+                    stdout=text,
+                    stderr="",
+                )
+            ]
+            task.notes.append("Targeted tests failed after implementation.")
         elif step.startswith("EXHAUST:"):
             task.status = TaskStatus.BLOCKED
+            task.provider_calls = 1
             task.notes.append(f"PROVIDER_UNAVAILABLE:{step.split(':', 1)[1]}")
         elif step.startswith("BLOCK:"):
             task.status = TaskStatus.BLOCKED
@@ -863,6 +884,225 @@ def scenario_O(root: Path) -> None:
     assert h4.sup.load(prog4.program_id).status == NEEDS_HUMAN and h4.driver.count("p1") == 2
 
 
+# --- P: repair of the demonstrated canary defects ---------------------------
+
+SECRET = "sk-abcdefghijklmnopqrstuvwxyz0123456789"
+
+
+def scenario_P(root: Path) -> None:
+    from backlog import BacklogStore
+    from planner import PlannerError, validate_plan
+    from runner import invalid_test_target_reason
+
+    good = pkg("p1", "Alpha parser hardening", "Harden the alpha parser against truncated input.")
+    bad_target = dict(good, test_targets=["tests/ -k uploader"])
+
+    # P1. Embedded CLI arguments can never masquerade as a path.
+    planning = PlanningInput(goal="g", repo_state={"head": "x"})
+    for embedded in (
+        "tests/ -k uploader",
+        "tests/test_x.py -k 'a or b'",
+        "-k uploader",
+        "--maxfail=1",
+        "tests/a.py tests/b.py",
+        "tests/a.py;calc",
+        "tests/a.py::test_x -x",
+        "/abs/tests/a.py",
+        "../escape.py",
+    ):
+        rejected = validate_plan([dict(good, test_targets=[embedded])], planning)
+        assert rejected.packages == [] and rejected.invalid, embedded
+        assert "invalid test target" in rejected.invalid[0][1], embedded
+
+    normalised = validate_plan([dict(good, test_targets=["tests\\test_p1.py", "tests/test_q.py::test_y[a-1]"])], planning)
+    assert normalised.packages[0].test_targets == ("tests/test_p1.py", "tests/test_q.py::test_y[a-1]")
+    assert invalid_test_target_reason("tests/test_p1.py") is None
+
+    # P2. A malformed proposal gets ONE repair round with the validator's own words.
+    h = Harness(root / "p2", proposals=[[bad_target], [good]])
+    program = h.sup.start_program("Harden alpha.")
+    assert [p.package_id for p in program.packages] == ["p1"]
+    assert len(h.planning_inputs) == 2 and h.planning_inputs[0].feedback == []
+    assert "invalid test target" in h.planning_inputs[1].feedback[0]
+    assert "tests/ -k uploader" in h.planning_inputs[1].feedback[0]
+    assert "NEVER put pytest arguments" in __import__("planner").build_planning_prompt(h.planning_inputs[1])
+    assert "REJECTED BY THE VALIDATOR" in __import__("planner").build_planning_prompt(h.planning_inputs[1])
+    assert program.usage.provider_calls == 2, "both proposer calls are counted"
+    h.sup.run_program(program.program_id)
+    assert h.sup.load(program.program_id).status == COMPLETED
+
+    # P3. Still malformed after the repair round -> fail closed, nothing persisted or run.
+    h2 = Harness(root / "p3", proposals=[[bad_target], [bad_target]])
+    try:
+        h2.sup.start_program("Harden alpha.")
+    except SupervisorError as exc:
+        assert "still invalid after one repair round" in str(exc)
+    else:
+        raise AssertionError("a plan that is still malformed must not start")
+    assert h2.sup.list_programs() == [] and not h2.driver.calls
+    assert len(h2.planning_inputs) == 2, "exactly one repair round, no more"
+
+    # P4. Malformed manual items and direct driver calls are refused at the door as well.
+    try:
+        BacklogStore(root / "p4.json").add(description="x task", test_targets=["tests/ -k y"])
+    except ValueError as exc:
+        assert "Invalid pytest target" in str(exc)
+    else:
+        raise AssertionError("backlog must refuse an embedded-argument target")
+
+    from dev_driver import run_task
+
+    try:
+        run_task(root, description="x", test_targets=["tests/a.py -k y"])
+    except ValueError as exc:
+        assert "Invalid pytest target" in str(exc)
+    else:
+        raise AssertionError("run_task must refuse before creating any worktree")
+
+    # P5. A pytest exit-4 specification failure skips the pointless correction, reaches
+    # the re-plan with bounded diagnostic evidence, and the re-plan can fix the target.
+    usage_error = "ERROR: file or directory not found: tests/ -k uploader " + "x" * 60000 + f" token {SECRET}"
+    replan = [pkg("p9", "Delta table driven lexer", "Replace hand rolled alpha scanning with a table driven lexer.")]
+    h3 = Harness(
+        root / "p5",
+        script={"p1": [f"BLOCK_SPEC:{usage_error}"]},
+        proposals=[[good], replan],
+    )
+    prog = h3.sup.start_program("Harden alpha.")
+    h3.sup.run_program(prog.program_id)
+    done = h3.sup.load(prog.program_id)
+    assert h3.driver.count("p1") == 1, "a wrong test SPEC is not 'corrected' by re-running the same package"
+    assert done.usage.correction_cycles == 0 and done.usage.replans == 1
+    assert done.status == COMPLETED and h3.driver.count("r1-p9") == 1
+    blocker = h3.planning_inputs[1].blockers[0]
+    assert "category=test_spec kind=test_spec exit_code=4" in blocker.evidence
+    assert "file or directory not found" in blocker.evidence
+    assert len(blocker.evidence) <= 1100, len(blocker.evidence)
+    assert SECRET not in blocker.evidence, "secrets never reach planner evidence"
+    from planner import build_planning_prompt
+
+    prompt = build_planning_prompt(h3.planning_inputs[1])
+    assert "kind=test_spec" in prompt and SECRET not in prompt and len(prompt) <= 14000
+    on_disk = (root / "p5" / "state" / "supervisor" / "programs" / f"{prog.program_id}.json").read_text(encoding="utf-8")
+    assert SECRET not in on_disk and "x" * 3000 not in on_disk, "persisted evidence is redacted and bounded"
+    item = next(i for i in h3.worker.backlog.all() if i.package_id == "p1")
+    assert item.failure_evidence["kind"] == "test_spec" and len(item.failure_evidence["tail"]) <= 1300
+    assert SECRET not in json.dumps(item.failure_evidence)
+    assert done.ledger[0]["package_id"] == "r1-p9" and len(done.ledger) == 1, "blocked work never enters the ledger"
+
+    # P5b. Secrets in a blocker NOTE (not just test output) never reach state or planner prompts.
+    leaky_note = f"BLOCK:Reviewer found hardcoded credential {SECRET} in the alpha parser"
+    hl = Harness(root / "p5b", script={"p1": [leaky_note, leaky_note]}, proposals=[[good], replan])
+    pl = hl.sup.start_program("Harden alpha.")
+    hl.sup.run_program(pl.program_id)
+    state_text = (root / "p5b" / "state" / "supervisor" / "programs" / f"{pl.program_id}.json").read_text(encoding="utf-8")
+    backlog_text = (root / "p5b" / "state" / "worker" / "backlog.json").read_text(encoding="utf-8")
+    assert SECRET not in state_text and SECRET not in backlog_text
+    assert all(SECRET not in build_planning_prompt(pi) for pi in hl.planning_inputs)
+
+    # P5c. Malformed node ids are refused too (empty segments, stray colons).
+    for node in ("tests/a.py::", "tests/a.py:::x", "tests/a.py::t[", "::x"):
+        assert validate_plan([dict(good, test_targets=[node])], planning).packages == [], node
+    assert validate_plan([dict(good, test_targets=["tests/a.py::TestK::test_y[a:b]"])], planning).ids == ["p1"]
+
+    # P6. An implementation assertion failure is a DIFFERENT kind: it IS corrected once,
+    # the correction is shown the evidence, and only then does the re-plan happen.
+    failing = "FAILED tests/t.py::test_x - assert 1 == 2\n1 failed"
+    h4 = Harness(
+        root / "p6",
+        script={"p1": [f"BLOCK_TEST:{failing}", f"BLOCK_TEST:{failing}"]},
+        proposals=[[good], replan],
+    )
+    prog4 = h4.sup.start_program("Harden alpha.")
+    h4.sup.run_program(prog4.program_id)
+    after = h4.sup.load(prog4.program_id)
+    assert h4.driver.count("p1") == 2 and after.usage.correction_cycles == 1, "correction still happens"
+    retry_text = h4.driver.calls[1]["description"]
+    assert "category=test_failure kind=implementation exit_code=1" in retry_text
+    assert "assert 1 == 2" in retry_text, "the correction is told what actually failed"
+    replan_blocker = h4.planning_inputs[1].blockers[0]
+    assert "kind=implementation" in replan_blocker.evidence and "exit_code=1" in replan_blocker.evidence
+    assert "kind=test_spec" not in replan_blocker.evidence
+    assert after.usage.replans == 1 and after.status == COMPLETED
+
+    # P7. Provider-call accounting reflects invocations that actually happened.
+    h5 = Harness(
+        root / "p7",
+        script={"p1": ["BLOCK_TEST:1 failed", "PASS"]},
+        proposals=[[good, pkg("p2", "Beta scheduler jitter", "Add bounded jitter to the beta scheduler tick.")]],
+    )
+    prog5 = h5.sup.start_program("Harden alpha and beta.")
+    h5.sup.run_program(prog5.program_id)
+    items = {(i.package_id, i.status): i.provider_calls for i in h5.worker.backlog.all()}
+    assert items[("p1", bl.BLOCKED)] == 1, "implementer only; the reviewer was never reached"
+    assert items[("p1", bl.PASSED)] == 2 and items[("p2", bl.PASSED)] == 2
+    assert h5.sup.load(prog5.program_id).usage.provider_calls == 1 + 1 + 2 + 2, "planner + actual invocations"
+
+    crash = Harness(root / "p7b", script={"p1": ["CRASH"]}, proposals=[[good]])
+    cp = crash.sup.start_program("Harden alpha.")
+    crash.sup.run_program(cp.program_id)
+    assert crash.worker.backlog.all()[0].provider_calls == AutonomousWorker.CRASH_PROVIDER_CALLS, (
+        "a crash returns no task: what ran is unknown, so it is counted conservatively"
+    )
+
+    # ... while the budget check stays conservative: a package that could exceed the
+    # remaining provider-call budget is never started, however few calls happen to be used.
+    tight = Harness(root / "p7c", proposals=[three()])
+    tp = tight.sup.start_program("g", budget=RunBudget(max_provider_calls=4))
+    tight.sup.run_program(tp.program_id)
+    limited = tight.sup.load(tp.program_id)
+    assert limited.status == BUDGET_EXHAUSTED and not tight.driver.calls
+    assert limited.usage.provider_calls <= 4
+
+    # P8. Reviewer-not-reached stays fail-closed: nothing committed, integrated or accepted.
+    h6 = Harness(root / "p8", script={"p1": ["BLOCK_SPEC:ERROR: file or directory not found: bad -k"]},
+                 proposals=[[good]])
+    p8 = h6.sup.start_program("Harden alpha.")
+    h6.sup.run_program(p8.program_id)
+    final = h6.sup.load(p8.program_id)
+    assert final.status == NEEDS_HUMAN and final.ledger == [] and not final.base_ref
+    assert all(not i.commit and not i.integration for i in h6.worker.backlog.all())
+
+    # P8b. Planning and re-planning are provider calls and can never push a program past its
+    # budget (found by the independent Codex review of this repair).
+    def budgeted(name: str, spec_calls: int, replan_proposals: list, max_calls: int = 5) -> tuple[Any, Any]:
+        hb = Harness(
+            root / name,
+            script={"p1": ["BLOCK_SPEC:ERROR: file or directory not found: x -k y"]},
+            proposals=[[good], *replan_proposals],
+        )
+        hb.driver.spec_calls = spec_calls
+        pb = hb.sup.start_program("Harden alpha.", budget=RunBudget(max_provider_calls=max_calls))
+        hb.sup.run_program(pb.program_id)
+        return hb, hb.sup.load(pb.program_id)
+
+    # one call left -> a single proposal is allowed and the budget lands exactly on the limit
+    hb1, ok = budgeted("p8b1", 3, [replan])
+    assert ok.usage.provider_calls == 5 and hb1.planning_inputs[1].max_calls == 1
+    assert ok.usage.provider_calls <= ok.budget.max_provider_calls
+    assert ok.status == BUDGET_EXHAUSTED, "the re-planned package cannot be afforded, so it is not started"
+    assert hb1.driver.count("r1-p9") == 0 and ok.packages[-1].state == P_PLANNED
+
+    # one call left and that proposal is malformed -> no repair round is affordable: fail closed
+    hb2, broke = budgeted("p8b2", 3, [[dict(replan[0], test_targets=["tests/ -k y"])]])
+    assert broke.status == NEEDS_HUMAN and "no provider-call budget remains" in broke.status_reason
+    assert broke.usage.provider_calls == 5 and len(hb2.planning_inputs) == 2
+
+    # zero calls left -> no planner call at all; resumable after extend + retry
+    hb3, dry = budgeted("p8b3", 4, [replan])
+    assert dry.status == BUDGET_EXHAUSTED and len(hb3.planning_inputs) == 1
+    assert dry.usage.provider_calls == 5 <= dry.budget.max_provider_calls
+    assert "extend" in dry.status_reason
+
+    # P9. Existing bounds are unchanged.
+    from supervisor import Program
+
+    assert Program(program_id="x", goal="g").max_replans == 1
+    assert RunBudget().max_correction_cycles == 4 and RunBudget().max_packages == 6
+    assert AutonomousWorker.CRASH_PROVIDER_CALLS == 2
+    assert issubclass(PlannerError, RuntimeError)
+
+
 SCENARIOS: list[tuple[str, Callable[[Path], None]]] = [
     ("A planner decomposes a program", scenario_A),
     ("B safety floor upgrades an under-labelled task", scenario_B),
@@ -876,6 +1116,7 @@ SCENARIOS: list[tuple[str, Callable[[Path], None]]] = [
     ("K unavailable provider is never silently replaced", scenario_K),
     ("L owner-approval work pauses safely", scenario_L),
     ("O codex sandbox: new-file work goes to claude, permission crash gets one fallback", scenario_O),
+    ("P canary repair: target validation, failure evidence, honest call accounting", scenario_P),
     ("N accepted work is integrated before dependents build on it", scenario_N),
     ("M README lets a fresh session operate the bridge", scenario_M),
 ]

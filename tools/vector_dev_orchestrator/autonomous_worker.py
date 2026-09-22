@@ -30,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -202,6 +203,103 @@ def build_commit_message(item: BacklogItem, task: Any) -> str:
         "Committed automatically to a task branch. NOT merged: review "
         "before merging into main.\n"
     )
+
+
+# --- failure evidence -------------------------------------------------
+
+_MISSING_TARGET_RE = re.compile(r"file or directory not found:\s*(.+)")
+_EVIDENCE_TAIL_CHARS = 1200
+
+
+def _bounded(text: str, limit: int) -> str:
+    from execution_cycle import ExecutionCycle
+
+    redacted = ExecutionCycle._redact_secrets(text or "")
+
+    if len(redacted) <= limit:
+        return redacted
+
+    # Keep BOTH ends: a usage error is often printed first, the verdict last.
+    head = limit // 4
+
+    return redacted[:head] + "\n...[truncated]...\n" + redacted[-(limit - head):]
+
+
+def build_failure_evidence(item: BacklogItem, task: Any) -> dict[str, Any]:
+    """Bounded, secret-redacted diagnosis of why a task did not pass.
+
+    `kind` separates what a correction can fix from what it cannot:
+      implementation - the change is wrong/incomplete (retry with feedback helps)
+      test_spec      - the test specification itself is wrong (bad target/usage
+                       error); re-running the same package cannot fix it, the
+                       PLAN must change
+      infrastructure - the machinery failed (timeout, internal error)
+    """
+
+    from runner import invalid_test_target_reason
+    from text_signals import norm_repo_path
+
+    notes = [n for n in getattr(task, "notes", []) if isinstance(n, str)]
+    evidence: dict[str, Any] = {
+        "category": "unknown",
+        "kind": "implementation",
+        "command": "",
+        "exit_code": None,
+        "tail": "",
+        "findings": [],
+        "note": _bounded(notes[-1] if notes else "", 300),
+    }
+    tests = list(getattr(task, "tests", []) or [])
+    last = tests[-1] if tests else None
+    findings = [
+        _bounded(f"{getattr(f.severity, 'value', f.severity)}: {f.summary}", 200)
+        for f in getattr(task, "review_findings", [])
+        if not getattr(f, "resolved", False)
+    ][:3]
+    evidence["findings"] = findings
+
+    if last is not None and not last.passed:
+        text = (last.stdout or "") + "\n" + (last.stderr or "")
+        code = last.exit_code
+        evidence["command"] = _bounded(last.command, 300)[-300:]
+        evidence["exit_code"] = code
+        evidence["tail"] = _bounded(text, _EVIDENCE_TAIL_CHARS)
+
+        if code == 4:
+            match = _MISSING_TARGET_RE.search(text)
+            missing = match.group(1).strip() if match else ""
+            wanted = norm_repo_path(missing).split("::", 1)[0]
+            deliverable = (
+                bool(missing)
+                and invalid_test_target_reason(missing) is None
+                and any(norm_repo_path(a) == wanted for a in item.allowed_paths)
+            )
+            evidence["category"], evidence["kind"] = (
+                ("test_file_missing", "implementation")
+                if deliverable
+                else ("test_spec", "test_spec")
+            )
+        elif code == 5:
+            evidence["category"] = "no_tests_collected"
+        elif code == 2:
+            evidence["category"] = "collection_error"
+        elif code == 3 or code is None or code < 0:
+            evidence["category"], evidence["kind"] = "infrastructure", "infrastructure"
+        else:
+            evidence["category"] = "test_failure"
+
+        return evidence
+
+    if any(n.startswith("SCOPE VIOLATION") for n in notes):
+        evidence["category"] = "scope_violation"
+    elif any("changed no files" in n for n in notes):
+        evidence["category"] = "no_change"
+    elif any("HEAD" in n and "moved" in n.lower() for n in notes):
+        evidence["category"], evidence["kind"] = "infrastructure", "infrastructure"
+    elif findings:
+        evidence["category"] = "review_rejected"
+
+    return evidence
 
 
 # --- worker -----------------------------------------------------------
@@ -522,7 +620,7 @@ class AutonomousWorker:
                 **extra,
             )
         except Exception as exc:  # noqa: BLE001 - fail closed on anything
-            note = f"{type(exc).__name__}: {str(exc)[:300]}"
+            note = _bounded(f"{type(exc).__name__}: {str(exc)[:300]}", 400)
 
             if isinstance(exc, PermissionError):
                 note += (
@@ -530,7 +628,21 @@ class AutonomousWorker:
                     "read (Windows elevated sandbox); worktree preserved]"
                 )
 
-            self.backlog.update(item.item_id, status=bl.CRASHED, result_note=note)
+            self.backlog.update(
+                item.item_id,
+                status=bl.CRASHED,
+                result_note=note,
+                provider_calls=self.CRASH_PROVIDER_CALLS,
+                failure_evidence={
+                    "category": "crash",
+                    "kind": "infrastructure",
+                    "command": "",
+                    "exit_code": None,
+                    "tail": _bounded(note, 400),
+                    "findings": [],
+                    "note": "",
+                },
+            )
             self.notify(
                 "attention",
                 f"Crashed ({type(exc).__name__}); task left non-terminal, "
@@ -545,13 +657,16 @@ class AutonomousWorker:
             "task_id": task.task_id,
             "worktree_path": str(worktree.path) if worktree else None,
             "branch": worktree.branch_name if worktree else None,
-            "result_note": task.notes[-1] if task.notes else "",
+            "result_note": _bounded(task.notes[-1], 500) if task.notes else "",
             "requested_difficulty": task.requested_difficulty,
             "inferred_difficulty": task.inferred_difficulty,
             "effective_difficulty": task.difficulty.value if getattr(task, "difficulty", None) else "",
             "difficulty_reason": task.difficulty_reason,
-            "provider_calls": self.estimate_provider_calls(task),
+            "provider_calls": self.actual_provider_calls(task),
         }
+
+        if task.status is not TaskStatus.PASS:
+            common["failure_evidence"] = build_failure_evidence(item, task)
 
         unavailable = self._unavailable_marker(task)
 
@@ -615,18 +730,20 @@ class AutonomousWorker:
         return bl.BLOCKED
 
     @staticmethod
-    def estimate_provider_calls(task: Any) -> int:
-        """Conservative count of provider invocations one task consumed.
+    def actual_provider_calls(task: Any) -> int:
+        """Provider invocations that actually happened for this task.
 
-        One implementation + one review per attempt (`retry_count` fix
-        cycles each add a fix call and a re-review). This is an upper-ish
-        estimate from persisted state, not provider telemetry.
+        Counted by the execution cycle at the moment of each real call
+        (implementer, reviewer, fix), so an attempt that stopped before the
+        reviewer was reached counts one call, not two. The run budget stays
+        conservative separately: the supervisor pre-checks the worst case
+        before starting a package and never counts fewer than actually ran.
         """
 
-        cycles = int(getattr(task, "retry_count", 0) or 0)
-        reviews = max(1, len(getattr(task, "reviewer_evidence", []) or []))
+        return max(0, int(getattr(task, "provider_calls", 0) or 0))
 
-        return 1 + cycles + reviews
+    # A crash gives no task back, so what ran is unknown: count conservatively.
+    CRASH_PROVIDER_CALLS = 2
 
     @staticmethod
     def _unavailable_marker(task: Any) -> Provider | None:
@@ -1124,6 +1241,7 @@ def _self_test() -> None:
             task.requested_difficulty = "routine"
             task.inferred_difficulty = "hard"
             task.difficulty_reason = "security floor"
+            task.provider_calls = 2
             return DriverResult(task, None)
 
         w11 = new_worker("program", pkg_fn, daily_cap=1)
@@ -1149,7 +1267,60 @@ def _self_test() -> None:
         assert pkg_seen["quota_levels"][Provider.CODEX] is ProviderQuota.UNKNOWN
         recorded = w11.backlog.get(pkg.item_id)
         assert (recorded.requested_difficulty, recorded.inferred_difficulty) == ("routine", "hard")
-        assert recorded.difficulty_reason == "security floor" and recorded.provider_calls >= 2
+        assert recorded.difficulty_reason == "security floor" and recorded.provider_calls == 2
+
+        # Failure evidence: categories separate test-spec errors from implementation failures.
+        from models import ReviewFinding, ReviewSeverity, TestResult
+
+        def failing(code: int, stdout: str = "", notes: list[str] | None = None) -> Any:
+            task = make_task(TaskStatus.BLOCKED, None, [])
+            task.tests = [TestResult(command="python -m pytest -q tests/t.py", exit_code=code,
+                                     passed=False, stdout=stdout, stderr="")]
+            task.notes.extend(notes or [])
+            task.provider_calls = 1
+            return task
+
+        spec_item = w11.backlog.get(pkg.item_id)
+        spec_item.allowed_paths = ["core/x.py", "tests/test_new.py"]
+        usage_error = "ERROR: file or directory not found: tests/ -k uploader"
+        ev = build_failure_evidence(spec_item, failing(4, usage_error))
+        assert (ev["category"], ev["kind"], ev["exit_code"]) == ("test_spec", "test_spec", 4)
+        assert "tests/ -k uploader" in ev["tail"]
+        ev = build_failure_evidence(spec_item, failing(4, "ERROR: file or directory not found: tests/test_new.py"))
+        assert (ev["category"], ev["kind"]) == ("test_file_missing", "implementation"), "deliverable not created"
+        ev = build_failure_evidence(spec_item, failing(4, "ERROR: file or directory not found: tests/other.py"))
+        assert ev["kind"] == "test_spec", "a missing file that is not a deliverable is a spec error"
+        assert build_failure_evidence(spec_item, failing(1, "1 failed"))["category"] == "test_failure"
+        assert build_failure_evidence(spec_item, failing(1, "1 failed"))["kind"] == "implementation"
+        assert build_failure_evidence(spec_item, failing(5))["category"] == "no_tests_collected"
+        assert build_failure_evidence(spec_item, failing(2))["category"] == "collection_error"
+        assert build_failure_evidence(spec_item, failing(3))["kind"] == "infrastructure"
+        assert build_failure_evidence(spec_item, failing(-1))["kind"] == "infrastructure"
+
+        # bounded and redacted
+        noisy = "x" * 50000 + " token sk-abcdefghijklmnopqrstuvwxyz0123456789 end"
+        big = build_failure_evidence(spec_item, failing(1, noisy))
+        assert len(big["tail"]) <= 1300 and "sk-abcdefghijklmnopqrstuvwxyz0123456789" not in big["tail"]
+        secret_only = build_failure_evidence(
+            spec_item, failing(1, "Bearer abcdefghijklmnopqrstuvwxyz012345 leaked"))
+        assert "abcdefghijklmnopqrstuvwxyz012345" not in secret_only["tail"]
+
+        rejected = make_task(TaskStatus.BLOCKED, None, [])
+        rejected.review_findings = [ReviewFinding(ReviewSeverity.BLOCKER, "handles None wrongly")]
+        rejected.tests = [TestResult(command="pytest", exit_code=0, passed=True)]
+        ev = build_failure_evidence(spec_item, rejected)
+        assert ev["category"] == "review_rejected" and "handles None wrongly" in ev["findings"][0]
+        leaky = make_task(TaskStatus.BLOCKED, None, [])
+        leaky.review_findings = [
+            ReviewFinding(ReviewSeverity.BLOCKER, "hardcoded key sk-abcdefghijklmnopqrstuvwxyz0123456789 in config")
+        ]
+        leaky.tests = [TestResult(command="pytest", exit_code=0, passed=True)]
+        leak_ev = build_failure_evidence(spec_item, leaky)
+        assert "sk-abcdefghijklmnopqrstuvwxyz0123456789" not in json.dumps(leak_ev), "findings are redacted"
+        assert "[REDACTED]" in leak_ev["findings"][0]
+        scoped = make_task(TaskStatus.BLOCKED, None, [])
+        scoped.notes.append("SCOPE VIOLATION: files changed outside allowed paths")
+        assert build_failure_evidence(spec_item, scoped)["category"] == "scope_violation"
         assert w11.status()["quota"]["codex"]["level"] == "unknown"
 
         # 10c. Exhausted provider: nothing runs, state preserved, no substitution.

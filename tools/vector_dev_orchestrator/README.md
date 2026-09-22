@@ -156,7 +156,11 @@ supervisor.py program skip | retry  PROGRAM_ID PACKAGE_ID    # owner resolves a 
    preferred owner (only if justified), independent-reviewer policy, stop conditions. Code
    (not the model) validates each: sane paths (no root/absolute/`..`/protected/bridge files),
    required fields, dependency DAG, difficulty floors, approval-gate screening, and drops
-   anything already accepted (never reopens completed work) or matching a known blocker. The
+   anything already accepted (never reopens completed work) or matching a known blocker. Each `test_targets` entry must be ONE plain pytest path or node id (`tests/test_x.py`,
+   `tests/test_x.py::test_y`); embedded pytest arguments (`-k ...`, several paths, quotes) are
+   rejected here, in `backlog.add`, in `run_task` and in the runner. A malformed proposal gets exactly
+   ONE repair round (the model is shown the validator's complaint); still malformed -> the plan fails
+   closed and nothing runs. The
    planner cannot write: a changed working tree during planning aborts the plan.
 2. **Execute** one dependency-ready package at a time through the worker/bridge.
 3. **Continue**: accepted -> its branch is merged onto `vector-integration` (targeted tests
@@ -166,6 +170,15 @@ supervisor.py program skip | retry  PROGRAM_ID PACKAGE_ID    # owner resolves a 
    correction (a fresh attempt shown what blocked the last one) -> retest -> re-review. If the
    same blocker survives the correction -> **one** re-plan (planner sees the blocker) -> else
    the program stops as `needs_human`. There are no infinite repair loops.
+
+**Failure evidence.** Every non-pass records bounded (head+tail, ~1.2 KB), secret-redacted
+evidence on the backlog item: `category`, `kind`, command, exit code, output tail, top review
+findings. `kind` = `implementation` (a correction can help), `test_spec` (pytest usage error such as
+exit 4 for a bad target: re-running the same package cannot help, so it goes straight to the single
+re-plan) or `infrastructure`. The correction prompt and the re-planner both receive this evidence.
+Provider calls are counted as they actually happen (a package stopped at failing tests before the
+reviewer counts 1, not 2; a crash is counted conservatively as 2); the pre-start worst-case budget
+check is unchanged.
 
 Program statuses: `active`, `paused`, `completed`, `stopped`, `needs_human`,
 `budget_exhausted`. Package states: `planned`, `running`, `accepted`, `failed`, `needs_human`,
