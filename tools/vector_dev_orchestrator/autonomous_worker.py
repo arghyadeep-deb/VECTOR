@@ -1248,6 +1248,12 @@ def _self_test() -> None:
     from worktree_manager import WorktreeInfo, WorktreeManager
 
     temp = Path(tempfile.mkdtemp(prefix="vector_worker_test_"))
+
+    # Every backlog.add() call below logs to laya_log -- isolate the whole
+    # self-test to a temp path, never the real default log, which is a
+    # shared, persistent artifact this test must never write to.
+    os.environ["VECTOR_LAYA_LOG_PATH"] = str(temp / "laya_decisions.jsonl")
+
     git = shutil.which("git")
     assert git
 
@@ -1776,6 +1782,7 @@ def _self_test() -> None:
         for name in ("t1", "t2"):
             assert (temp / "wts" / name).exists()
     finally:
+        os.environ.pop("VECTOR_LAYA_LOG_PATH", None)
         shutil.rmtree(temp, ignore_errors=True)
 
 
