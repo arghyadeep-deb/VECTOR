@@ -87,16 +87,21 @@ deterministic tooling can do it. Quota changes COST selection, never task comple
 never downgrade below the capability the task's risk requires; SECURITY_SENSITIVE / HARD / CRITICAL
 work is not irresponsibly downgraded to save quota.
 
-## 9. Temporary provider state (owner-declared 2026-09-22; see section 11 for how to lift it)
+## 9. Temporary provider state (owner-declared 2026-09-22, superseded same day; see section 11)
 
-Codex ~1% weekly quota -> **CODEX = EMERGENCY RESERVE**. Claude refreshed/normal -> **CLAUDE-FIRST**.
-Claude handles exploration, reconciliation, implementation, debugging, test repair, ordinary
-integration, iterative fixes, documentation for active work, routine reasoning. Deterministic local
-tooling handles tests, Git/state checks, changed-file detection, schema validation, static checks.
-Do NOT spend Codex on: scouting, documentation, trivial edits, routine implementation, ordinary
-debugging, redundant second opinions, smoke tests, repeated reviewer attempts, or anything
-deterministic tooling can settle. Reserve Codex for genuinely valuable independent cross-provider
-reasoning.
+SUPERSEDED 2026-09-22 evening: the Codex-emergency declaration below lifted hours earlier
+(Codex telemetry reads normal, ~89% weekly / ~80% hourly). New, separate constraint, same day:
+**Claude ~3% HOURLY quota remaining -> CLAUDE = CONSERVE until ~20:00.** Codex refreshed/normal
+-> **CODEX-FIRST** for the remainder of this window. Codex handles implementation, debugging,
+test repair, iterative fixes, routine reasoning. Claude's own turns stay short: status checks,
+package-completion tick-marking, brief review only where a package's own review contract
+requires it. Do NOT spend Claude's scarce hourly budget on anything Codex or deterministic
+tooling can settle.
+
+(Original, now-lifted text, kept for history: Codex ~1% weekly quota -> CODEX = EMERGENCY
+RESERVE, Claude-first. Do NOT spend Codex on: scouting, documentation, trivial edits, routine
+implementation, ordinary debugging, redundant second opinions, smoke tests, repeated reviewer
+attempts, or anything deterministic tooling can settle.)
 
 ## 10. Independent review during a Codex emergency
 

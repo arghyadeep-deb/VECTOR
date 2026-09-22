@@ -160,6 +160,21 @@ def _extract_claims(token: str, expected_type: str) -> dict:
     except AuthError as e:
         raise HTTPException(status_code=401, detail=str(e))
 
+    # V1 STAGE 6 CLOSURE: owner access tokens and collection-scoped access
+    # tokens (core/collections/auth.py's JWTManager.issue_pair) both use
+    # type="access" with no other claim previously distinguishing them.
+    # This endpoint family (/me, /sessions, /revoke, /logout) is owner-only
+    # -- require the owner-only scope explicitly rather than relying on
+    # expected_type="access" alone, which is exactly the collision being
+    # closed.
+    if expected_type == "access" and (
+        claims.get("token_scope") != "owner_api"
+        or claims.get("sub") != "owner"
+        or "collection" in claims
+        or not claims.get("jti")
+    ):
+        raise HTTPException(status_code=401, detail="Not a valid owner access token")
+
     # Check individual token revocation
     jti = claims.get("jti", "")
     if jti and blacklist.is_revoked(jti):
@@ -233,6 +248,10 @@ async def login(body: LoginRequest, request: Request):
         "iat": int(now.timestamp()),
         "exp": int(now.timestamp()) + jwt_mgr.access_ttl,
         "type": "access",
+        # V1 STAGE 6 CLOSURE: distinguishes this owner token from a
+        # collection-scoped access token (core/collections/auth.py's
+        # issue_pair), which also uses type="access" but never sets this.
+        "token_scope": "owner_api",
     }
     refresh_claims = {
         "sub": "owner",
@@ -241,6 +260,18 @@ async def login(body: LoginRequest, request: Request):
         "iat": int(now.timestamp()),
         "exp": int(now.timestamp()) + jwt_mgr.refresh_ttl,
         "type": "refresh",
+        # V1 STAGE 6 CLOSURE (round 2 — second independent review finding):
+        # the refresh token must ALSO carry the owner-scope marker. Without
+        # this, refresh()'s rotation (below) drops the "collection" claim
+        # while keeping sub=="owner", so a two-step refresh chain (rotate
+        # once to shed "collection", rotate again) could otherwise
+        # manufacture a scoped owner access token from a collection
+        # refresh token. Marking scope HERE, at the only real point of
+        # owner authentication, and requiring it to already be present on
+        # the INCOMING refresh token (see refresh(), which checks
+        # claims.get("token_scope") rather than re-deriving from sub) means
+        # no rotation can ever create it out of nothing.
+        "token_scope": "owner_api",
     }
 
     import jwt as pyjwt
@@ -298,6 +329,31 @@ async def refresh(body: RefreshRequest):
         "exp": int(now.timestamp()) + jwt_mgr.access_ttl,
         "type": "access",
     }
+    # V1 STAGE 6 CLOSURE (round 2 — a second independent review round found
+    # the round-1 fix incomplete): propagate owner scope only when the
+    # INCOMING refresh token already carries token_scope=="owner_api" —
+    # never re-derive it from sub/collection on each hop. Round 1 checked
+    # sub=="owner" and "collection" not in claims, which correctly rejected
+    # the immediate access token from an adversarial issue_pair("owner",
+    # "users") collection refresh token, but the ROTATED refresh token this
+    # endpoint issued for that same request dropped "collection" while
+    # keeping sub=="owner" — so a SECOND call to /refresh with that rotated
+    # token would satisfy the sub/collection check and mint a genuinely
+    # scoped owner access token. Real owner refresh tokens now carry
+    # token_scope="owner_api" from the moment they're first issued at
+    # /login (the only real point of owner authentication); collection
+    # issuance (core/collections/auth.py's issue_pair) never sets it and
+    # never can, so no length of rotation can manufacture it. Scope is
+    # propagated onto BOTH the new access token and the new refresh token,
+    # so legitimate owner sessions keep refreshing indefinitely.
+    is_owner_refresh = (
+        claims.get("token_scope") == "owner_api"
+        and claims.get("sub") == "owner"
+        and "collection" not in claims
+        and bool(claims.get("jti"))
+    )
+    if is_owner_refresh:
+        access_claims["token_scope"] = "owner_api"
     refresh_claims = {
         "sub": claims.get("sub", "owner"),
         "device": device,
@@ -306,6 +362,8 @@ async def refresh(body: RefreshRequest):
         "exp": int(now.timestamp()) + jwt_mgr.refresh_ttl,
         "type": "refresh",
     }
+    if is_owner_refresh:
+        refresh_claims["token_scope"] = "owner_api"
 
     access_token = pyjwt.encode(access_claims, jwt_mgr.secret, algorithm="HS256")
     new_refresh_token = pyjwt.encode(refresh_claims, jwt_mgr.secret, algorithm="HS256")

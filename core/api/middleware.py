@@ -207,12 +207,29 @@ def _verify_jwt_access_token(token: str) -> bool:
         jwt_mgr = JWTManager()
         claims = jwt_mgr.verify(token, expected_type="access")
 
-        # Check revocation
+        # V1 STAGE 6 CLOSURE: owner API JWTs and collection-scoped JWTs
+        # (core/collections/auth.py's JWTManager.issue_pair) share the
+        # identical type="access" claim with nothing else previously
+        # distinguishing them -- a collection JWT would otherwise
+        # authenticate as full owner-equivalent global API access here.
+        # Require the owner-only scope explicitly; expected_type="access"
+        # alone is exactly the collision being closed. jti is now
+        # mandatory (was optional, which let a collection token skip
+        # revocation checking entirely).
         jti = claims.get("jti", "")
+        if (
+            claims.get("token_scope") != "owner_api"
+            or claims.get("sub") != "owner"
+            or "collection" in claims
+            or not jti
+        ):
+            return False
+
+        # Check revocation
         blacklist = get_blacklist()
         if blacklist.is_globally_revoked():
             return False
-        if jti and blacklist.is_revoked(jti):
+        if blacklist.is_revoked(jti):
             return False
 
         return True

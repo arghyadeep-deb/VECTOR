@@ -236,6 +236,253 @@ class TestMiddlewareJWT:
         assert "/auth/jwt/login" in _PUBLIC_PATHS
 
 
+# ── V1 Stage 6: Owner/Collection JWT Scope Closure ─────────────────────────────
+#
+# Root vulnerability (real, demonstrated, pre-fix): owner API JWTs and
+# collection-scoped JWTs (core/collections/auth.py's JWTManager.issue_pair)
+# both used the identical type="access" claim with nothing else
+# distinguishing them, and core/api/middleware.py's _verify_jwt_access_token()
+# only checked expected_type="access" plus revocation. A collection JWT
+# therefore authenticated as full owner-equivalent global API access.
+# Closure: owner tokens now carry token_scope="owner_api"; the middleware
+# (and core/api/routers/auth_jwt.py's _extract_claims) additionally require
+# token_scope=="owner_api", sub=="owner", no "collection" claim, and a
+# non-empty jti.
+
+class TestStage6OwnerCollectionScopeClosure:
+    """Proves the owner/collection JWT collision is actually closed."""
+
+    def test_real_collection_jwt_rejected_by_middleware(self):
+        """The actual vulnerability: a genuinely-issued collection JWT
+        (same shape any real POST /api/collections/{name}/auth-with-password
+        response produces) must be rejected by the global API auth gate."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+
+        jm = JWTManager()  # default construction — same secret resolution
+        # the middleware's own JWTManager() call uses in production.
+        pair = jm.issue_pair("rec_some_user", "users", extra={"email": "a@b.com"})
+
+        assert _verify_jwt_access_token(pair["token"]) is False
+
+    def test_correctly_scoped_owner_token_accepted(self):
+        """A real owner token, shaped exactly like /auth/jwt/login issues
+        it post-fix, must still be accepted."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+        from core.security.token_blacklist import generate_jti
+        import jwt as pyjwt
+        import time
+
+        jm = JWTManager()
+        claims = {
+            "sub": "owner",
+            "device": "test-device",
+            "auth_method": "api_key",
+            "jti": generate_jti(),
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 300,
+            "type": "access",
+            "token_scope": "owner_api",
+        }
+        token = pyjwt.encode(claims, jm.secret, algorithm="HS256")
+
+        assert _verify_jwt_access_token(token) is True
+
+    def test_owner_token_missing_scope_claim_rejected(self):
+        """A pre-fix-shaped owner token (sub=owner, type=access, but no
+        token_scope) must now be rejected too — expected_type="access"
+        alone is exactly the collision being closed, so it can't be the
+        sole bar even for a token that happens to be sub=="owner"."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+        from core.security.token_blacklist import generate_jti
+        import jwt as pyjwt
+        import time
+
+        jm = JWTManager()
+        claims = {
+            "sub": "owner",
+            "jti": generate_jti(),
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 300,
+            "type": "access",
+        }
+        token = pyjwt.encode(claims, jm.secret, algorithm="HS256")
+
+        assert _verify_jwt_access_token(token) is False
+
+    def test_owner_scoped_token_without_jti_rejected(self):
+        """jti used to be optional (a token with none silently skipped
+        revocation checking); it is now mandatory."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+        import jwt as pyjwt
+        import time
+
+        jm = JWTManager()
+        claims = {
+            "sub": "owner",
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 300,
+            "type": "access",
+            "token_scope": "owner_api",
+        }
+        token = pyjwt.encode(claims, jm.secret, algorithm="HS256")
+
+        assert _verify_jwt_access_token(token) is False
+
+    def test_collection_jwt_rejected_by_extract_claims(self):
+        """core/api/routers/auth_jwt.py's _extract_claims (used by /me,
+        /sessions, /revoke, /logout) must reject a real collection JWT."""
+        from core.collections.auth import JWTManager
+        from core.api.routers.auth_jwt import _extract_claims
+        from fastapi import HTTPException
+
+        jm = JWTManager()
+        pair = jm.issue_pair("rec_some_user", "users")
+
+        with pytest.raises(HTTPException) as exc_info:
+            _extract_claims(pair["token"], expected_type="access")
+        assert exc_info.value.status_code == 401
+
+    def test_owner_token_accepted_by_extract_claims(self):
+        from core.collections.auth import JWTManager
+        from core.api.routers.auth_jwt import _extract_claims
+        from core.security.token_blacklist import generate_jti
+        import jwt as pyjwt
+        import time
+
+        jm = JWTManager()
+        claims_in = {
+            "sub": "owner",
+            "jti": generate_jti(),
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 300,
+            "type": "access",
+            "token_scope": "owner_api",
+        }
+        token = pyjwt.encode(claims_in, jm.secret, algorithm="HS256")
+
+        claims_out = _extract_claims(token, expected_type="access")
+        assert claims_out["sub"] == "owner"
+
+    def test_refresh_tokens_still_never_authenticate_as_access(self):
+        """Unchanged guarantee, reconfirmed: a refresh token (owner or
+        collection) must never pass as an access token."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+
+        jm = JWTManager()
+        pair = jm.issue_pair("owner", "users")
+
+        assert _verify_jwt_access_token(pair["refresh_token"]) is False
+
+    def test_refresh_endpoint_does_not_propagate_owner_scope_to_collection_token(self):
+        """A collection refresh token exchanged at /auth/jwt/refresh must
+        not come back out as an owner-scoped access token."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+        import asyncio
+
+        jm = JWTManager()
+        collection_pair = jm.issue_pair("rec_some_user", "users")
+
+        import core.api.routers.auth_jwt as auth_jwt_mod
+        with patch.object(auth_jwt_mod, "_get_jwt_manager", return_value=jm):
+            from core.api.routers.auth_jwt import refresh, RefreshRequest
+            result = asyncio.run(refresh(RefreshRequest(refresh_token=collection_pair["refresh_token"])))
+
+        assert _verify_jwt_access_token(result.access_token) is False
+
+    def test_refresh_endpoint_rejects_owner_sub_collection_token(self):
+        """Adversarial case an independent review caught: a collection
+        refresh token issued with sub="owner" (issue_pair("owner", "users")
+        — a collection record literally named/id'd "owner") carries both
+        sub=="owner" AND a "collection" claim. Checking sub alone would
+        wrongly treat this as an owner refresh token. The resulting access
+        token must still be rejected by the middleware."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+        import asyncio
+
+        jm = JWTManager()
+        adversarial_pair = jm.issue_pair("owner", "users")
+        assert "collection" in jm.verify(adversarial_pair["refresh_token"], expected_type="refresh")
+
+        import core.api.routers.auth_jwt as auth_jwt_mod
+        with patch.object(auth_jwt_mod, "_get_jwt_manager", return_value=jm):
+            from core.api.routers.auth_jwt import refresh, RefreshRequest
+            result = asyncio.run(refresh(RefreshRequest(refresh_token=adversarial_pair["refresh_token"])))
+
+        assert _verify_jwt_access_token(result.access_token) is False
+
+    def test_refresh_chain_cannot_manufacture_owner_scope(self):
+        """Second independent-review finding: rotating an adversarial
+        sub="owner"+collection="users" refresh token once drops the
+        "collection" claim from the ROTATED refresh token while keeping
+        sub=="owner" — a naive sub/collection re-check on the next hop
+        would then treat that rotated refresh token as a real owner token
+        and mint a scoped access token on a SECOND refresh call. Real
+        owner refresh tokens now carry token_scope=="owner_api" from the
+        moment they're issued at /login and that marker (not a re-derived
+        sub/collection check) is what propagates on each hop, so no
+        rotation depth can manufacture it from a collection token."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+        import asyncio
+
+        jm = JWTManager()
+        adversarial_pair = jm.issue_pair("owner", "users")
+
+        import core.api.routers.auth_jwt as auth_jwt_mod
+        with patch.object(auth_jwt_mod, "_get_jwt_manager", return_value=jm):
+            from core.api.routers.auth_jwt import refresh, RefreshRequest
+
+            first = asyncio.run(refresh(RefreshRequest(refresh_token=adversarial_pair["refresh_token"])))
+            assert _verify_jwt_access_token(first.access_token) is False
+
+            # The rotated refresh token must not have picked up owner scope
+            # either -- prove it by rotating AGAIN and checking the second
+            # hop's access token too.
+            second = asyncio.run(refresh(RefreshRequest(refresh_token=first.refresh_token)))
+            assert _verify_jwt_access_token(second.access_token) is False
+
+    def test_genuine_owner_refresh_chain_keeps_working(self):
+        """Control: a REAL owner refresh token (as /login actually issues
+        it, token_scope="owner_api" included) must keep minting valid
+        scoped access tokens across repeated rotation -- the round-2 fix
+        must not break legitimate long-lived owner sessions."""
+        from core.collections.auth import JWTManager
+        from core.api.middleware import _verify_jwt_access_token
+        from core.security.token_blacklist import generate_jti
+        import jwt as pyjwt
+        import asyncio
+        import time
+
+        jm = JWTManager()
+        owner_refresh_claims = {
+            "sub": "owner",
+            "device": "test",
+            "jti": generate_jti(),
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 86400,
+            "type": "refresh",
+            "token_scope": "owner_api",
+        }
+        refresh_token = pyjwt.encode(owner_refresh_claims, jm.secret, algorithm="HS256")
+
+        import core.api.routers.auth_jwt as auth_jwt_mod
+        with patch.object(auth_jwt_mod, "_get_jwt_manager", return_value=jm):
+            from core.api.routers.auth_jwt import refresh, RefreshRequest
+
+            first = asyncio.run(refresh(RefreshRequest(refresh_token=refresh_token)))
+            assert _verify_jwt_access_token(first.access_token) is True
+
+            second = asyncio.run(refresh(RefreshRequest(refresh_token=first.refresh_token)))
+            assert _verify_jwt_access_token(second.access_token) is True
+
+
 # ── Full Flow Test ────────────────────────────────────────────────────────────
 
 class TestFullJWTFlow:
