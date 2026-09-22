@@ -207,6 +207,7 @@ budget ran out. Budget exhaustion is resumable after `extend`.
 | needs_human | approval gate, risky files, HEAD moved, scope violation, or interrupted | owner decides; never auto-replayed |
 | crashed | exception; worker stopped (fail closed) | inspect, then `requeue` |
 | deferred | a provider is EXHAUSTED; waiting, state preserved | nothing; reactivates when the provider is usable |
+| superseded | terminal and inert: another accepted item delivered the same work (`autonomous_worker.py supersede ID --by ...`) | none |
 | passed, no commit | PASS but worktree had unexpected files | inspect the worktree |
 
 `status` also lists `integration_flags` (`conflict` / `tests_failed`) and per-provider quota.
