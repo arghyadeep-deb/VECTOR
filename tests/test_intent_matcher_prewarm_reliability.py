@@ -14,14 +14,16 @@ import itertools
 import random
 import sys
 import time
+import warnings
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.city.intent_matcher import IntentMatcher
+from core.city.intent_matcher import EMBED_RETRY_PASSES, IntentMatcher
 
 
 def _vec(text: str) -> list[float]:
@@ -58,6 +60,32 @@ def _matcher(n: int = 5) -> IntentMatcher:
     m = IntentMatcher("data/intent_examples.json")
     m._examples = [{"text": f"example {i}", "district": "research", "task_type": "search_web"} for i in range(n)]
     return m
+
+
+def _failure_ollama(
+    *, fail_prompts=(), fail_prompt_calls=None, zero_prompts=(), fail_first_calls: int = 0, vector_fn=_vec
+):
+    state = {"calls": [], "prompt_calls": {}}
+    fail_prompt_calls = fail_prompt_calls or {}
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        def embeddings(self, model=None, prompt=""):
+            state["calls"].append(prompt)
+            state["prompt_calls"][prompt] = state["prompt_calls"].get(prompt, 0) + 1
+            if (
+                len(state["calls"]) <= fail_first_calls
+                or prompt in fail_prompts
+                or state["prompt_calls"][prompt] <= fail_prompt_calls.get(prompt, 0)
+            ):
+                raise RuntimeError("embedding failed")
+            if prompt in zero_prompts:
+                return {"embedding": [0.0] * 768}
+            return {"embedding": vector_fn(prompt)}
+
+    return _Client, state
 
 
 # ── Acceptance: one client across bootstrap + several match() calls ───────
@@ -165,3 +193,103 @@ def test_constructor_failure_propagates_from_embed_sync_and_leaves_no_client():
         assert m._client is None
         assert m._embed_sync("query b") is not None
     assert state["attempts"] == 2 and len(state["built"]) == 1
+
+
+@pytest.mark.asyncio
+async def test_failed_example_is_never_cached_or_matched_and_zero_query_is_rejected():
+    m = _matcher(3)
+    m.set_threshold(0.0)
+
+    def orthogonal_vec(prompt: str) -> list[float]:
+        vector = [0.0] * 768
+        vector[int(prompt.rsplit(" ", 1)[-1])] = 1.0
+        return vector
+
+    client_cls, state = _failure_ollama(
+        fail_prompt_calls={"example 1": 1 + EMBED_RETRY_PASSES},
+        zero_prompts={"zero query"},
+        vector_fn=orthogonal_vec,
+    )
+    with patch("ollama.Client", client_cls):
+        await m._ensure_embeddings_loaded()
+        assert state["calls"].count("example 1") == 1 + EMBED_RETRY_PASSES
+        assert "example 1" not in m._embedding_cache
+        assert await m.match("example 1") is None
+        assert any(m._embedding_cache["example 1"])
+
+        assert await m.match("zero query") is None
+
+    assert m._embeddings is not None and m._embeddings[1] is None
+    assert all(vector is None or any(vector) for vector in m._embeddings)
+    assert all(any(vector) for vector in m._embedding_cache.values())
+
+
+@pytest.mark.asyncio
+async def test_partial_failure_is_degraded_but_ready_examples_still_match():
+    m = _matcher(3)
+    client_cls, _ = _failure_ollama(fail_prompts={"example 1"})
+    messages: list[str] = []
+    sink_id = logger.add(lambda message: messages.append(str(message)), level="WARNING")
+    try:
+        with patch("ollama.Client", client_cls):
+            await m._ensure_embeddings_loaded()
+            assert await m.match("example 1") is None
+            result = await m.match("example 0")
+    finally:
+        logger.remove(sink_id)
+
+    assert result is not None and result["type"] == "search_web"
+    assert any("bootstrap degraded" in message for message in messages)
+    assert {
+        "examples_loaded", "embeddings_cached", "similarity_threshold", "model"
+    } <= m.get_stats().keys()
+    assert m.get_stats().items() >= {
+        "ready": True,
+        "degraded": True,
+        "embedded_count": 2,
+        "failed_count": 1,
+        "bootstrap_state": "degraded",
+    }.items()
+
+
+@pytest.mark.asyncio
+async def test_transient_failures_are_retried_and_recover_all_examples():
+    m = _matcher(3)
+    client_cls, state = _failure_ollama(fail_first_calls=2)
+    with patch("ollama.Client", client_cls):
+        assert await m._ensure_embeddings_loaded() is True
+
+    stats = m.get_stats()
+    assert stats["embedded_count"] == 3 and stats["failed_count"] == 0
+    assert stats["ready"] is True and stats["degraded"] is False
+    assert len(state["calls"]) == 5
+
+
+@pytest.mark.asyncio
+async def test_all_failures_are_bounded_and_publish_no_embedding_list():
+    n = 3
+    m = _matcher(n)
+    client_cls, state = _failure_ollama(fail_prompts={f"example {i}" for i in range(n)})
+    with patch("ollama.Client", client_cls):
+        assert await m._ensure_embeddings_loaded() is False
+        assert await m.match("example 0") is None
+
+    assert m._embeddings is None
+    assert not m._embedding_cache
+    assert len(state["calls"]) <= n * (1 + EMBED_RETRY_PASSES)
+    assert m.get_stats().items() >= {
+        "ready": False,
+        "degraded": True,
+        "embedded_count": 0,
+        "failed_count": n,
+        "bootstrap_state": "failed",
+    }.items()
+
+
+def test_cosine_similarity_zero_norm_is_safe_under_numpy_path():
+    m = _matcher(1)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        similarity = m._cosine_similarity([0.0] * 768, _vec("nonzero"))
+    assert similarity == 0.0
+    assert not caught
