@@ -10,8 +10,10 @@ worker threads, and that a failed constructor is retried rather than cached.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import itertools
 import random
+import re
 import sys
 import time
 import warnings
@@ -23,7 +25,11 @@ from loguru import logger
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.city.intent_matcher import EMBED_RETRY_PASSES, IntentMatcher
+from core.city.intent_matcher import (
+    EMBED_ABORT_CONSECUTIVE_FAILURES,
+    EMBED_RETRY_PASSES,
+    IntentMatcher,
+)
 
 
 def _vec(text: str) -> list[float]:
@@ -293,3 +299,184 @@ def test_cosine_similarity_zero_norm_is_safe_under_numpy_path():
         similarity = m._cosine_similarity([0.0] * 768, _vec("nonzero"))
     assert similarity == 0.0
     assert not caught
+
+
+# ── Bounded bootstrap: wall-clock budget + consecutive-failure abort ──────
+# Fake clients only: no real Ollama, no network. `block` is a real (short)
+# time.sleep inside the client so the budget is exercised against real elapsed
+# time; the longest test here runs well under a second.
+
+def _bounded_ollama(*, block: float = 0.0, ok_calls: int = 0):
+    """Fake Client: the first `ok_calls` embeddings succeed, every later call
+    raises a timeout-style error. Each call first blocks `block` seconds."""
+    state: dict = {"calls": []}
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        def embeddings(self, model=None, prompt=""):
+            state["calls"].append(prompt)
+            if block:
+                time.sleep(block)
+            if len(state["calls"]) > ok_calls:
+                raise TimeoutError("timed out")
+            return {"embedding": _vec(prompt)}
+
+    return _Client, state
+
+
+@contextlib.contextmanager
+def _captured_logs():
+    messages: list[str] = []
+    sink_id = logger.add(lambda message: messages.append(str(message)), level="DEBUG")
+    try:
+        yield messages
+    finally:
+        logger.remove(sink_id)
+
+
+def _summary_lines(messages: list[str]) -> list[str]:
+    """The per-attempt completion summary is the only line carrying `elapsed=`."""
+    return [message for message in messages if "elapsed=" in message]
+
+
+@pytest.mark.asyncio
+async def test_always_timeout_client_aborts_after_consecutive_failures():
+    n = 200
+    m = _matcher(n)
+    client_cls, state = _bounded_ollama()  # every call times out
+    with _captured_logs() as messages, patch("ollama.Client", client_cls):
+        assert await m._ensure_embeddings_loaded() is False
+        assert await m.match("example 0") is None
+
+    assert len(state["calls"]) <= EMBED_ABORT_CONSECUTIVE_FAILURES * (1 + EMBED_RETRY_PASSES)
+    assert len(state["calls"]) < n
+    assert m._embeddings is None and not m._embedding_cache
+    stats = m.get_stats()
+    assert stats["bootstrap_state"] == "failed"
+    assert stats["embedded_count"] == 0 and stats["failed_count"] == n
+    assert stats["bootstrap_stop_reason"] == "abort"
+    # Failure is contained: the shared task finished cleanly, nothing unretrieved.
+    assert m._init_task.done() and not m._init_task.cancelled()
+    assert m._init_task.exception() is None
+    summaries = _summary_lines(messages)
+    assert len(summaries) == 1
+    assert f"failed={n}" in summaries[0] and "embedded=0" in summaries[0]
+    assert "stop=abort" in summaries[0]
+
+
+@pytest.mark.asyncio
+async def test_slow_client_stops_at_budget_and_keeps_embedded_examples():
+    n, block, budget = 10, 0.1, 0.3
+    m = _matcher(n)
+    m._bootstrap_budget_seconds = budget
+    client_cls, state = _bounded_ollama(block=block, ok_calls=10**9)
+    with patch("ollama.Client", client_cls):
+        t0 = time.perf_counter()
+        assert await m._ensure_embeddings_loaded() is True
+        wall = time.perf_counter() - t0
+
+    assert wall < budget + block + 0.3, "attempt must end within budget plus one call (plus scheduling slack)"
+    stats = m.get_stats()
+    assert 3 <= stats["embedded_count"] <= 4, "about budget / block examples get embedded"
+    assert stats["failed_count"] == n - stats["embedded_count"]
+    assert len(state["calls"]) == stats["embedded_count"], "no calls are made after the budget is spent"
+    assert stats["bootstrap_state"] == "degraded" and stats["degraded"] is True
+    assert stats["ready"] is True
+    assert stats["bootstrap_stop_reason"] == "budget"
+    assert budget <= stats["bootstrap_elapsed_seconds"] < budget + block + 0.3
+    # Embedded examples are real vectors, the rest are None.
+    real = [v for v in m._embeddings if v is not None]
+    assert len(real) == stats["embedded_count"] and all(len(v) == 768 for v in real)
+    assert m._embeddings[: len(real)] == real, "examples are embedded in order; the tail is what got dropped"
+
+
+@pytest.mark.asyncio
+async def test_abort_after_partial_success_keeps_embedded_examples():
+    n, ok = 20, 3
+    m = _matcher(n)
+    client_cls, state = _bounded_ollama(ok_calls=ok)
+    with patch("ollama.Client", client_cls):
+        assert await m._ensure_embeddings_loaded() is True
+
+    stats = m.get_stats()
+    assert stats["embedded_count"] == ok and stats["failed_count"] == n - ok
+    assert stats["bootstrap_state"] == "degraded" and stats["bootstrap_stop_reason"] == "abort"
+    assert len(state["calls"]) == ok + EMBED_ABORT_CONSECUTIVE_FAILURES
+    assert [v is not None for v in m._embeddings] == [True] * ok + [False] * (n - ok)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("scenario", ["ready", "degraded", "failed", "budget", "abort", "no_examples"])
+async def test_exactly_one_summary_line_per_attempt(scenario):
+    m = _matcher(0 if scenario == "no_examples" else 6)
+    if scenario == "no_examples":
+        client_cls, _ = _bounded_ollama(ok_calls=10**9)
+    elif scenario == "ready":
+        client_cls, _ = _bounded_ollama(ok_calls=10**9)
+    elif scenario == "degraded":
+        client_cls, _ = _failure_ollama(fail_prompts={"example 2"})
+    elif scenario == "failed":
+        client_cls, _ = _failure_ollama(fail_prompts={f"example {i}" for i in range(6)})
+    elif scenario == "budget":
+        m._bootstrap_budget_seconds = 0.0
+        client_cls, _ = _bounded_ollama(ok_calls=10**9)
+    else:
+        client_cls, _ = _bounded_ollama()
+    with _captured_logs() as messages, patch("ollama.Client", client_cls):
+        await m._ensure_embeddings_loaded()
+        await m.match("example 0")  # later requests must not log another bootstrap summary
+        await m.prewarm()
+        await m._init_task
+
+    summaries = _summary_lines(messages)
+    assert len(summaries) == 1, summaries
+    stats = m.get_stats()
+    match = re.search(r"embedded=(\d+) failed=(\d+) elapsed=(\d+\.\d+)s", summaries[0])
+    assert match, summaries[0]
+    assert int(match.group(1)) == stats["embedded_count"]
+    assert int(match.group(2)) == stats["failed_count"]
+    assert float(match.group(3)) == pytest.approx(stats["bootstrap_elapsed_seconds"], abs=0.006)
+    if scenario == "no_examples":
+        assert (stats["embedded_count"], stats["failed_count"]) == (0, 0)
+        assert stats["bootstrap_state"] == "failed" and stats["bootstrap_stop_reason"] == "no_examples"
+
+
+def test_stats_expose_bootstrap_elapsed_and_stop_reason_additively():
+    m = _matcher(2)
+    before = m.get_stats()
+    assert before["bootstrap_elapsed_seconds"] is None and before["bootstrap_stop_reason"] is None
+    assert {
+        "examples_loaded", "embeddings_cached", "similarity_threshold", "model", "ready",
+        "degraded", "embedded_count", "failed_count", "bootstrap_state",
+    } <= before.keys()
+
+    client_cls, _ = _bounded_ollama(ok_calls=10**9)
+    with patch("ollama.Client", client_cls):
+        assert asyncio.run(m._ensure_embeddings_loaded()) is True
+    after = m.get_stats()
+    assert after["bootstrap_state"] == "ready" and after["bootstrap_stop_reason"] == "complete"
+    assert isinstance(after["bootstrap_elapsed_seconds"], float) and after["bootstrap_elapsed_seconds"] >= 0.0
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("ends_by", ["budget", "abort"])
+async def test_no_partial_list_is_observable_when_bootstrap_is_bounded(ends_by):
+    n = 12
+    m = _matcher(n)
+    if ends_by == "budget":
+        m._bootstrap_budget_seconds = 0.1
+        client_cls, _ = _bounded_ollama(block=0.03, ok_calls=10**9)
+    else:
+        client_cls, _ = _bounded_ollama(block=0.01, ok_calls=3)
+    observed: list = []
+    with patch("ollama.Client", client_cls):
+        await m.prewarm()
+        while not m._init_task.done():
+            observed.append(None if m._embeddings is None else len(m._embeddings))
+            await asyncio.sleep(0.005)
+
+    assert observed and set(observed) <= {None}, f"partial list visible while running: {set(observed)}"
+    assert m.get_stats()["bootstrap_stop_reason"] == ends_by
+    assert m._embeddings is not None and len(m._embeddings) == n, "published whole, once, at the end"

@@ -190,3 +190,64 @@ async def test_single_initialization_under_concurrent_access():
     example_embeds = [c for c in calls if c in ("example 0", "example 1", "example 2")]
     # 3 bootstrap embeds; a query that equals an example text is served from the embedding cache
     assert len(example_embeds) == 3, f"expected exactly one bootstrap pass, saw {calls!r}"
+    assert sorted(example_embeds) == ["example 0", "example 1", "example 2"], "no example embedded twice"
+    assert calls == example_embeds, "every embed call was a bootstrap example embed"
+
+
+# ── Bounded bootstrap keeps the same guarantees ───────────────────────────
+
+def _flaky_ollama(*, block, fail_first_calls, calls):
+    """Fake Client that blocks with a REAL time.sleep and fails its first calls."""
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        def embeddings(self, model=None, prompt=""):
+            calls.append(prompt)
+            time.sleep(block)
+            if len(calls) <= fail_first_calls:
+                raise TimeoutError("timed out")
+            return {"embedding": _vec(prompt)}
+    return _Client
+
+
+@pytest.mark.asyncio
+async def test_event_loop_stays_responsive_during_retry_pass():
+    m = _matcher(2)
+    calls: list = []
+    block = 0.1
+    # first call fails -> pass 1 embeds example 1, the retry pass re-blocks on example 0
+    with patch("ollama.Client", _flaky_ollama(block=block, fail_first_calls=1, calls=calls)):
+        gap = await _max_loop_gap(lambda: m.match("example 1", wait_timeout=None))
+    assert calls == ["example 0", "example 1", "example 0"], "the retry pass really ran"
+    assert m.get_stats()["bootstrap_state"] == "ready"
+    assert gap < block / 2, f"event loop starved for {gap:.3f}s during the bootstrap (incl. retry pass)"
+
+
+@pytest.mark.asyncio
+async def test_bounded_wait_does_not_cancel_a_bootstrap_that_ends_by_budget():
+    m = _matcher(10)
+    m._bootstrap_budget_seconds = 0.2
+    with patch("ollama.Client", _fake_ollama(block=0.05)):
+        t0 = time.perf_counter()
+        assert await m.match("example 0", wait_timeout=0.05) is None
+        assert time.perf_counter() - t0 < 0.15, "bounded wait must return promptly"
+        assert not m._init_task.cancelled() and not m._init_task.done()
+        assert await m._init_task is True
+    assert not m._init_task.cancelled() and m._init_task.exception() is None
+    stats = m.get_stats()
+    assert stats["bootstrap_stop_reason"] == "budget" and stats["bootstrap_state"] == "degraded"
+    assert 0 < stats["embedded_count"] < 10 and stats["embedded_count"] + stats["failed_count"] == 10
+
+
+@pytest.mark.asyncio
+async def test_failed_bounded_bootstrap_is_contained_and_shared():
+    m = _matcher(200)
+    calls: list = []
+    with patch("ollama.Client", _fake_ollama(block=0.0, calls=calls, fail=True)):
+        first = await m.match("example 0", wait_timeout=None)
+        second = await m.match("example 1", wait_timeout=0.05)
+    assert first is None and second is None
+    assert len(calls) < 200, "an always-failing embedder must not be tried on every example"
+    assert m._init_task.done() and not m._init_task.cancelled() and m._init_task.exception() is None
+    assert m._embeddings is None and m.get_stats()["bootstrap_state"] == "failed"
