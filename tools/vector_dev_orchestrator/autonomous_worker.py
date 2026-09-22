@@ -1037,6 +1037,11 @@ def main(argv: list[str] | None = None) -> int:
         "--task-category", default=None,
         choices=[c.value for c in TaskCategory],
     )
+    add.add_argument(
+        "--urgency", type=float, default=None,
+        help="Optional 0.0-1.0 urgency rating, logged for future Laya "
+        "training but not used for scheduling.",
+    )
 
     run = sub.add_parser("run")
     run.add_argument("--max-tasks", type=int, default=None)
@@ -1110,6 +1115,7 @@ def main(argv: list[str] | None = None) -> int:
             run_ci_gate=args.run_ci_gate,
             task_category=args.task_category,
             title=args.title,
+            urgency=args.urgency,
         )
         print(f"queued {item.item_id}")
         return 0
