@@ -29,6 +29,9 @@ CRASHED = "crashed"
 # Not terminal: waiting for a provider (e.g. quota exhausted) to be usable.
 # The item keeps its place; nothing is faked or downgraded meanwhile.
 DEFERRED = "deferred"
+# Implemented and tested, but the independent cross-provider review is deferred
+# because the reviewer provider is in quota EMERGENCY. NOT a pass; not terminal.
+WAITING_REVIEW = "waiting_review"
 # Terminal and inert: the item's work was delivered by another accepted item
 # (recorded in result_note). Never run, retried, integrated or flagged.
 SUPERSEDED = "superseded"
@@ -83,6 +86,8 @@ class BacklogItem:
     # Bounded, redacted diagnosis of why the last attempt was blocked (category,
     # kind, command, exit code, output tail). Fed to corrections and re-planning.
     failure_evidence: dict[str, Any] = field(default_factory=dict)
+    # Provider whose independent review this WAITING_REVIEW item is waiting for.
+    awaiting_reviewer: str = ""
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
 

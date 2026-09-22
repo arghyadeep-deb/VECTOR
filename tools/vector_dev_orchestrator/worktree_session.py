@@ -35,6 +35,7 @@ class WorktreeSessionManager:
             TaskStatus.FAILED,
             TaskStatus.RUNNING,
             TaskStatus.PENDING,
+            TaskStatus.WAITING_REVIEW,
         }
     )
 
@@ -100,6 +101,23 @@ class WorktreeSessionManager:
         return WorktreeExecutionContext(
             info=info,
             cycle=cycle,
+        )
+
+    def attach(self, task_id: str) -> WorktreeExecutionContext:
+        """An execution cycle bound to an EXISTING task worktree (resume a review)."""
+
+        info = self.worktrees.attach(task_id)
+
+        return WorktreeExecutionContext(
+            info=info,
+            cycle=ExecutionCycle(
+                info.path,
+                orchestrator=self.orchestrator,
+                codex=CodexAdapter(info.path),
+                claude=ClaudeAdapter(info.path),
+                runner=CommandRunner(info.path),
+                git_guard=GitGuard(info.path),
+            ),
         )
 
     def remove(

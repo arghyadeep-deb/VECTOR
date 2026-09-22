@@ -73,8 +73,11 @@ COMPLETED = "completed"
 STOPPED = "stopped"
 NEEDS_HUMAN = "needs_human"
 BUDGET_EXHAUSTED = "budget_exhausted"
+# Every runnable package is done or blocked behind work whose independent review is
+# deferred (reviewer provider in quota EMERGENCY). Never "completed".
+WAITING_REVIEW = "waiting_review"
 
-_RESUMABLE = {PAUSED, NEEDS_HUMAN, BUDGET_EXHAUSTED}
+_RESUMABLE = {PAUSED, NEEDS_HUMAN, BUDGET_EXHAUSTED, WAITING_REVIEW}
 _FINAL = {COMPLETED, STOPPED}
 
 # package states
@@ -84,6 +87,7 @@ P_ACCEPTED = "accepted"
 P_FAILED = "failed"
 P_NEEDS_HUMAN = "needs_human"
 P_SKIPPED = "skipped"
+P_WAITING_REVIEW = "waiting_review"
 
 _UNSATISFIABLE = {P_FAILED, P_NEEDS_HUMAN, P_SKIPPED}
 
@@ -126,6 +130,8 @@ class PackageState:
     note: str = ""
     commit: str = ""
     started: bool = False
+    # provider calls of the current item already added to the program's usage
+    calls_counted: int = 0
 
     @property
     def package_id(self) -> str:
@@ -221,6 +227,8 @@ class Supervisor:
         # After every accepted package its branch is merged (tests re-run on the
         # merged tree) into vector-integration so dependent packages build on it.
         self.integrate_fn = integrate_fn or worker.integrate
+        # Owner override: spend an EMERGENCY reviewer provider on deferred reviews.
+        self.allow_emergency_review = False
 
     # --- persistence ---------------------------------------------------
 
@@ -470,7 +478,7 @@ class Supervisor:
         program = self.load(program_id)
         report = RunReport(program_id, status=program.status)
 
-        if program.status != ACTIVE:
+        if program.status not in (ACTIVE, WAITING_REVIEW):
             report.stopped_because = f"program is {program.status}"
             return report
 
@@ -491,6 +499,7 @@ class Supervisor:
 
             self._reconcile_running(program)
             self.worker.reactivate_deferred()
+            self._resume_waiting_reviews(program, run_start)
             self.save(program)
 
             while True:
@@ -526,12 +535,11 @@ class Supervisor:
                     self.save(program)
                     break
 
-                blocked = self.worker.unavailable_provider()
+                hold = self.worker.holding_reason()
 
-                if blocked is not None:
+                if hold is not None:
                     report.stopped_because = (
-                        f"provider unavailable: {blocked.value} exhausted; "
-                        "state preserved, nothing faked"
+                        f"provider unavailable: {hold}; state preserved, nothing faked"
                     )
                     break
 
@@ -577,6 +585,47 @@ class Supervisor:
             report.stopped_because = program.status_reason or program.status
 
         return report
+
+    def _resume_waiting_reviews(self, program: Program, run_start: float) -> None:
+        """Run deferred independent reviews that have become affordable (or owner-allowed)."""
+
+        waiting = [p for p in program.packages if p.state == P_WAITING_REVIEW]
+
+        if program.status == WAITING_REVIEW:
+            program.status, program.status_reason = ACTIVE, ""
+
+        for package in waiting:
+            try:
+                item = self.worker.backlog.get(package.item_id or "")
+            except KeyError:
+                continue
+
+            if item.status != bl.WAITING_REVIEW:
+                continue
+
+            if not self.worker.can_resume_review(item, allow_emergency=self.allow_emergency_review):
+                continue
+
+            reason = self._budget_stop(
+                program, self.now_fn() - run_start, next_calls=self.worst_case_calls(1)
+            )
+
+            if reason:
+                self._exhaust(program, reason)
+                return
+
+            outcome = self.worker.resume_review_item(
+                item, allow_emergency=self.allow_emergency_review
+            )
+
+            if outcome is None:
+                continue
+
+            self._apply_outcome(program, package, outcome)
+            self.save(program)
+
+            if program.status != ACTIVE:
+                return
 
     def _apply_control(self, program: Program) -> bool:
         path = self._control_path(program.program_id)
@@ -629,6 +678,13 @@ class Supervisor:
         elif P_FAILED in states:
             program.status = NEEDS_HUMAN
             program.status_reason = "packages failed after their bounded correction and re-plan"
+        elif P_WAITING_REVIEW in states:
+            waiting = [p.package_id for p in program.packages if p.state == P_WAITING_REVIEW]
+            program.status = WAITING_REVIEW
+            program.status_reason = (
+                f"{len(waiting)} package(s) wait for an independent review that is deferred "
+                f"({', '.join(waiting)}); run again once the reviewer provider recovers"
+            )
         elif P_PLANNED in states:
             program.status = NEEDS_HUMAN
             program.status_reason = "planned packages are unreachable (unsatisfied dependencies)"
@@ -706,6 +762,8 @@ class Supervisor:
                 f"repeat the same approach:\n{package.note[:1100]}"
             )
 
+        package.calls_counted = 0
+
         return self.worker.backlog.add(
             description=description,
             test_targets=list(wp.test_targets),
@@ -748,9 +806,18 @@ class Supervisor:
 
     def _apply_outcome(self, program: Program, package: PackageState, outcome: str) -> None:
         item = self.worker.backlog.get(package.item_id or "")
-        program.usage.provider_calls += max(0, item.provider_calls)
+        # count only calls not yet counted for this item (a resumed review adds just its own)
+        program.usage.provider_calls += max(0, item.provider_calls - package.calls_counted)
+        package.calls_counted = max(package.calls_counted, item.provider_calls)
         result_note = _bounded(item.result_note or "", 600)  # redacted before it can be reused
         package.note = result_note or package.note
+
+        if outcome == bl.WAITING_REVIEW:
+            # Implemented and tested; the independent review is deferred. Not accepted, not
+            # integrated, no ledger entry. Dependents wait; independent packages continue.
+            package.state = P_WAITING_REVIEW
+            package.note = f"waiting for independent review by {item.awaiting_reviewer or '?'}"
+            return
 
         if outcome == bl.PASSED:
             if not item.commit:
@@ -1072,6 +1139,10 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("program_id")
         if name == "run":
             p.add_argument("--max-packages-this-run", type=int, default=None)
+            p.add_argument(
+                "--allow-emergency-review", action="store_true",
+                help="Owner override: spend an EMERGENCY reviewer provider on deferred reviews.",
+            )
 
     ext = ps.add_parser("extend", help="Raise (never lower) a budget.")
     ext.add_argument("program_id")
@@ -1104,6 +1175,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.pcommand == "list":
             _print([{"id": p.program_id, "status": p.status, "goal": p.goal[:80]} for p in sup.list_programs()])
         elif args.pcommand == "run":
+            sup.allow_emergency_review = args.allow_emergency_review
             report = sup.run_program(args.program_id, max_packages_this_run=args.max_packages_this_run)
             _print(asdict(report))
         elif args.pcommand == "status":

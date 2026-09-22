@@ -163,6 +163,11 @@ class ExecutionCycle:
                 "Task still requires human approval"
             )
 
+        if task.status is TaskStatus.WAITING_REVIEW:
+            raise RuntimeError(
+                "Task is WAITING_REVIEW: use resume_review(), not run_once()"
+            )
+
         if task.is_terminal():
             raise RuntimeError(
                 f"Task is already terminal: {task.status.value}"
@@ -305,6 +310,110 @@ class ExecutionCycle:
             )
             return task
 
+        if task.review_deferred:
+            return self._defer_review(task)
+
+        return self._finish_reviewed(
+            task,
+            test_targets=test_targets,
+            run_ci_gate=run_ci_gate,
+        )
+
+    def _defer_review(self, task: DevTask) -> DevTask:
+        """Stop after passing tests: the independent review is not affordable yet.
+
+        POLICY.md sec. 10: never a PASS, never a self-review by the implementer's
+        provider. Evidence (changed files, test results, notes) is already
+        persisted and the worktree is preserved; `resume_review` finishes it.
+        """
+
+        self.orchestrator.mark_waiting_review(
+            task,
+            f"Targeted tests passed; the independent review by {task.reviewer.value} "
+            f"({task.reviewer_model.model}) is DEFERRED because that provider is in "
+            "quota EMERGENCY. Status WAITING_REVIEW is NOT a pass; the worktree is "
+            "preserved and the review runs later via resume_review.",
+        )
+
+        return task
+
+    def resume_review(
+        self,
+        task: DevTask,
+        *,
+        test_targets: list[str],
+        run_ci_gate: bool = False,
+    ) -> DevTask:
+        """Run the deferred independent review for a WAITING_REVIEW task.
+
+        Fails closed if the worktree no longer matches what was tested, re-runs
+        the targeted tests, then continues exactly like a normal cycle
+        (review -> bounded fix -> re-review -> verify -> PASS/BLOCKED).
+        """
+
+        if task.status is not TaskStatus.WAITING_REVIEW:
+            raise RuntimeError(
+                f"Task is {task.status.value}, not WAITING_REVIEW"
+            )
+
+        if not test_targets:
+            raise ValueError(
+                "At least one deterministic test target is required"
+            )
+
+        if (
+            task.owner is None
+            or task.reviewer is None
+            or task.implementer_model is None
+            or task.reviewer_model is None
+        ):
+            raise RuntimeError("Task routing is incomplete")
+
+        def norm(paths: Any) -> set[str]:
+            return {str(p).replace("\\", "/").strip() for p in paths if str(p).strip()}
+
+        snapshot = self.git_guard.snapshot()
+        current, expected = norm(snapshot.files), norm(task.changed_files)
+        head = getattr(snapshot, "head", None) or ""
+
+        if current != expected or (task.baseline_commit and head and head != task.baseline_commit):
+            task.notes.append(
+                "Worktree changed while waiting for review: "
+                f"unexpected={sorted(current - expected)} missing={sorted(expected - current)} "
+                f"head_moved={bool(task.baseline_commit and head and head != task.baseline_commit)}"
+            )
+            self.orchestrator.mark_blocked(
+                task,
+                "The worktree changed while the task waited for independent review; "
+                "refusing to review or certify it (evidence preserved).",
+            )
+            return task
+
+        task.review_deferred = False
+        self.orchestrator.mark_running(task, TaskStage.TESTING)
+        result = self.runner.run_pytest(test_targets)
+        self._record_test(task, result)
+
+        if not result.passed:
+            self.orchestrator.mark_blocked(
+                task,
+                "Targeted tests failed when the deferred review resumed.",
+            )
+            return task
+
+        return self._finish_reviewed(
+            task,
+            test_targets=test_targets,
+            run_ci_gate=run_ci_gate,
+        )
+
+    def _finish_reviewed(
+        self,
+        task: DevTask,
+        *,
+        test_targets: list[str],
+        run_ci_gate: bool,
+    ) -> DevTask:
         review_passed = self._review_until_pass(
             task=task,
             test_targets=test_targets,
@@ -764,6 +873,37 @@ class ExecutionCycle:
         return True
 
     @staticmethod
+    def _implementer_line(task: DevTask) -> str:
+        if task.owner is None:
+            return ""
+
+        model = getattr(task.implementer_model, "model", "?")
+        files = ", ".join(task.changed_files[:12]) or "(none reported)"
+
+        return (
+            f"IMPLEMENTED BY: {task.owner.value} ({model}); you are the independent "
+            f"cross-provider reviewer.\nACTUAL CHANGED FILES: {files}\n\n"
+        )
+
+    @staticmethod
+    def _previous_findings_block(task: DevTask) -> str:
+        previous = [f for f in task.review_findings if f.resolved][-6:]
+
+        if not previous:
+            return ""
+
+        lines = [
+            f"- {getattr(f.severity, 'value', f.severity)} "
+            f"{f.file or '?'}:{f.line if f.line is not None else '?'} {f.summary[:200]}"
+            for f in previous
+        ]
+
+        return (
+            "PREVIOUS STRUCTURED FINDINGS (already sent to the implementer; verify each "
+            "was genuinely fixed and look for anything new):\n" + "\n".join(lines) + "\n\n"
+        )
+
+    @staticmethod
     def _spec_block(task: DevTask) -> str:
         parts: list[str] = []
 
@@ -987,7 +1127,9 @@ class ExecutionCycle:
             "return PASS only if the specification and acceptance "
             "criteria are actually met.\n\n"
             f"TASK:\n{task.description}\n\n"
+            f"{ExecutionCycle._implementer_line(task)}"
             f"{ExecutionCycle._spec_block(task)}"
+            f"{ExecutionCycle._previous_findings_block(task)}"
             "TEST TARGETS ALREADY RUN BY THE CONTROLLER:\n"
             f"{tests}\n\n"
             + (f"CONTROLLER EVIDENCE (raw, bounded):\n{evidence}\n\n" if evidence else "")
@@ -2085,6 +2227,23 @@ class _HeadedGitGuard(_FakeGitGuard):
 
     def snapshot(self) -> Any:
         return SimpleNamespace(head="deadbeefcafe")
+
+
+class _ResumeGitGuard(_FakeGitGuard):
+    """Snapshots expose the files/HEAD a resumed review re-verifies."""
+
+    def __init__(self, files: list[str], head: str = "deadbeefcafe") -> None:
+        super().__init__()
+        self.files = files
+        self.head = head
+
+    def snapshot(self) -> Any:
+        return SimpleNamespace(files=tuple(self.files), head=self.head)
+
+
+class _NoReviewCodex(_FakeCodex):
+    def run_read_only(self, *, prompt: str, model: str, output_schema: dict[str, Any] | None = None) -> Any:
+        raise AssertionError("Codex must not be invoked while its review is deferred")
 
 
 class _FakeHeadMovedGitGuard:
@@ -3249,6 +3408,116 @@ def _self_test() -> None:
     assert "PROVIDER_UNAVAILABLE:codex" in exhausted_result.notes
     assert exhausted_result.provider_calls == 1, "reviewer was never reached, so it is not counted"
     assert exhausted_result.escalation_count == 0
+
+    # --- POLICY.md sec. 10: reviewer provider in EMERGENCY -> WAITING_REVIEW, never PASS ----
+    from models import QuotaBand
+
+    edited = ["core/example.py", "tests/test_example.py"]
+    emergency = {Provider.CODEX: QuotaBand.EMERGENCY, Provider.CLAUDE: QuotaBand.NORMAL}
+
+    def deferred_cycle(codex: Any, guard: Any, runner: Any | None = None) -> ExecutionCycle:
+        return ExecutionCycle(
+            repo_root, orchestrator=orchestrator, codex=codex, claude=_FakeClaude(),
+            runner=runner or _FakeRunner(), git_guard=guard, postflight_guard=PostflightGuard(),
+        )
+
+    first = orchestrator.prepare_task(
+        description="Attempt a harmless parser cleanup under a Codex emergency.",
+        difficulty=Difficulty.ROUTINE, previous_owner=Provider.CODEX, quota_bands=emergency,
+    )
+    assert first.owner is Provider.CLAUDE and first.reviewer is Provider.CODEX and first.review_deferred
+    waiting = deferred_cycle(_NoReviewCodex(), _ResumeGitGuard(edited)).run_once(
+        first, test_targets=["tests/test_example.py"]
+    )
+    assert waiting.status is TaskStatus.WAITING_REVIEW and not waiting.is_terminal()
+    assert waiting.provider_calls == 1, "only the implementer ran; Codex was never invoked"
+    assert waiting.reviewer_evidence == [] and waiting.tests[-1].passed
+    assert waiting.changed_files == edited
+    assert any("DEFERRED" in n and "NOT a pass" in n for n in waiting.notes)
+    assert orchestrator.load_task(waiting.task_id).status is TaskStatus.WAITING_REVIEW, "persisted"
+    assert PostflightGuard is not None and orchestrator.load_task(waiting.task_id).review_deferred
+
+    try:
+        deferred_cycle(_NoReviewCodex(), _ResumeGitGuard(edited)).run_once(waiting, test_targets=["tests/test_example.py"])
+    except RuntimeError as exc:
+        assert "WAITING_REVIEW" in str(exc)
+    else:
+        raise AssertionError("run_once must refuse a task that is waiting for review")
+
+    try:
+        deferred_cycle(_FakeCodex(), _ResumeGitGuard(edited)).resume_review(
+            orchestrator.prepare_task(description="Not waiting for anything.", difficulty=Difficulty.ROUTINE),
+            test_targets=["tests/test_example.py"],
+        )
+    except RuntimeError as exc:
+        assert "not WAITING_REVIEW" in str(exc)
+    else:
+        raise AssertionError("resume_review must refuse a task that is not waiting")
+
+    # The reviewer is available again: the review runs, the tests re-run, then PASS.
+    resumed = deferred_cycle(_FakeCodex(), _ResumeGitGuard(edited)).resume_review(
+        orchestrator.load_task(waiting.task_id), test_targets=["tests/test_example.py"]
+    )
+    assert resumed.status is TaskStatus.PASS and resumed.review_deferred is False
+    assert resumed.provider_calls == 2 and len(resumed.reviewer_evidence) == 1
+    assert len(resumed.tests) == 2, "targeted tests were re-run on resume"
+
+    # Fail closed: the worktree changed (or HEAD moved) while waiting -> no review, no PASS.
+    for label, guard in (
+        ("stray file", _ResumeGitGuard(edited + ["core/sneaky.py"])),
+        ("missing file", _ResumeGitGuard(edited[:1])),
+        ("head moved", _ResumeGitGuard(edited, head="0123456789ab")),
+    ):
+        pending = deferred_cycle(_NoReviewCodex(), _ResumeGitGuard(edited)).run_once(
+            orchestrator.prepare_task(
+                description=f"Attempt a harmless parser cleanup ({label}).",
+                difficulty=Difficulty.ROUTINE, previous_owner=Provider.CODEX, quota_bands=emergency,
+            ),
+            test_targets=["tests/test_example.py"],
+        )
+        assert pending.status is TaskStatus.WAITING_REVIEW
+        stopped = deferred_cycle(_NoReviewCodex(), guard).resume_review(
+            pending, test_targets=["tests/test_example.py"]
+        )
+        assert stopped.status is TaskStatus.BLOCKED, label
+        assert any("changed while" in n for n in stopped.notes), label
+        assert stopped.provider_calls == 1 and stopped.reviewer_evidence == [], label
+
+    # Tests that no longer pass block the resumed review too (Codex not invoked).
+    failing_pending = deferred_cycle(_NoReviewCodex(), _ResumeGitGuard(edited)).run_once(
+        orchestrator.prepare_task(
+            description="Attempt a harmless parser cleanup (tests break).",
+            difficulty=Difficulty.ROUTINE, previous_owner=Provider.CODEX, quota_bands=emergency,
+        ),
+        test_targets=["tests/test_example.py"],
+    )
+    broken = deferred_cycle(_NoReviewCodex(), _ResumeGitGuard(edited), _FakeFailingRunner()).resume_review(
+        failing_pending, test_targets=["tests/test_example.py"]
+    )
+    assert broken.status is TaskStatus.BLOCKED and "deferred review resumed" in broken.notes[-1]
+
+    # Both providers healthy: no deferral, normal single-pass cycle, unchanged.
+    normal = orchestrator.prepare_task(
+        description="Attempt a harmless parser cleanup with healthy quotas.",
+        difficulty=Difficulty.ROUTINE, previous_owner=Provider.CODEX,
+        quota_bands={Provider.CODEX: QuotaBand.NORMAL, Provider.CLAUDE: QuotaBand.NORMAL},
+    )
+    assert not normal.review_deferred and not normal.ownership_note
+
+    # Re-review prompts carry the implementer identity, changed files and previous structured findings.
+    prompt_task = orchestrator.prepare_task(
+        description="Attempt a harmless parser cleanup with prior findings.",
+        difficulty=Difficulty.ROUTINE, previous_owner=Provider.CODEX,
+    )
+    prompt_task.changed_files = edited
+    prompt_task.review_findings.append(
+        ReviewFinding(ReviewSeverity.ERROR, "off-by-one in the loop bound", "core/example.py", 12, resolved=True)
+    )
+    review_text = ExecutionCycle.build_review_prompt(task=prompt_task, test_targets=["tests/test_example.py"])
+    assert f"IMPLEMENTED BY: {prompt_task.owner.value}" in review_text
+    assert "ACTUAL CHANGED FILES: core/example.py, tests/test_example.py" in review_text
+    assert "PREVIOUS STRUCTURED FINDINGS" in review_text and "off-by-one in the loop bound" in review_text
+    assert "core/example.py:12" in review_text
 
     for task_id in orchestrator.state.list_task_ids():
         path = (

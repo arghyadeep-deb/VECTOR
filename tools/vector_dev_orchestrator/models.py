@@ -30,6 +30,9 @@ class TaskStage(StrEnum):
     CI_GATE = "ci_gate"
     VERIFYING = "verifying"
     WAITING_APPROVAL = "waiting_approval"
+    # Implemented and tested; the independent cross-provider review has not
+    # happened yet (the reviewer provider is in a quota EMERGENCY). Not PASS.
+    WAITING_REVIEW = "waiting_review"
     COMPLETE = "complete"
 
 
@@ -40,6 +43,9 @@ class TaskStatus(StrEnum):
     BLOCKED = "blocked"
     NEEDS_HUMAN = "needs_human"
     FAILED = "failed"
+    # Non-terminal and NOT a pass: waiting for an independent review that is
+    # deferred until the reviewer provider's quota allows it (POLICY.md sec. 10).
+    WAITING_REVIEW = "waiting_review"
 
 
 class ReviewSeverity(StrEnum):
@@ -238,6 +244,12 @@ class DevTask:
     # Provider invocations that actually happened (implementer, reviewer, fix);
     # incremented by the execution cycle right before each real call.
     provider_calls: int = 0
+    # Set at routing when the independent reviewer's provider is in a quota
+    # EMERGENCY: the cycle stops after passing tests with WAITING_REVIEW.
+    review_deferred: bool = False
+    # Why ownership deviated from the 50/50 scheduler (e.g. Claude-first while
+    # Codex is in EMERGENCY). Empty when the scheduler's choice stood.
+    ownership_note: str = ""
 
     changed_files: list[str] = field(default_factory=list)
     commands_executed: list[str] = field(default_factory=list)

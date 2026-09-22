@@ -41,6 +41,7 @@ from models import (
     DevTask,
     Provider,
     ProviderQuota,
+    QuotaBand,
     QuotaState,
     TaskCategory,
     TaskSpec,
@@ -75,6 +76,7 @@ def run_task(
     quota_state: QuotaState | None = None,
     quota_levels: dict[Provider, ProviderQuota] | None = None,
     spec: TaskSpec | None = None,
+    quota_bands: dict[Provider, QuotaBand] | None = None,
     orchestrator: DevOrchestrator | None = None,
     session_manager: WorktreeSessionManager | None = None,
 ) -> DriverResult:
@@ -132,6 +134,7 @@ def run_task(
         quota_state=quota_state,
         quota_levels=quota_levels,
         spec=spec,
+        quota_bands=quota_bands,
     )
 
     if task.status is TaskStatus.NEEDS_HUMAN:
@@ -168,6 +171,52 @@ def run_task(
         task=result,
         worktree=context.info,
     )
+
+
+def resume_review_task(
+    repo_root: Path,
+    *,
+    task_id: str,
+    test_targets: list[str],
+    run_ci_gate: bool = False,
+    orchestrator: DevOrchestrator | None = None,
+    session_manager: WorktreeSessionManager | None = None,
+) -> DriverResult:
+    """Run the deferred independent review of a task that stopped at WAITING_REVIEW.
+
+    Re-opens the task's EXISTING worktree (never creates one), fails closed if it
+    no longer matches what was tested, re-runs the targeted tests, then reviews,
+    fixes (bounded) and verifies exactly like a normal cycle. Never removes anything.
+    """
+
+    if not test_targets:
+        raise ValueError("At least one deterministic pytest target is required")
+
+    problems = invalid_test_targets(test_targets)
+
+    if problems:
+        raise ValueError("Invalid pytest target(s): " + "; ".join(problems))
+
+    repo_root = repo_root.resolve()
+    orch = orchestrator if orchestrator is not None else DevOrchestrator(repo_root)
+    task = orch.load_task(task_id)
+
+    if task.status is not TaskStatus.WAITING_REVIEW:
+        raise RuntimeError(f"Task {task_id} is {task.status.value}, not WAITING_REVIEW")
+
+    sessions = (
+        session_manager
+        if session_manager is not None
+        else WorktreeSessionManager(repo_root, orchestrator=orch)
+    )
+    context = sessions.attach(task_id)
+    result = context.cycle.resume_review(
+        task,
+        test_targets=test_targets,
+        run_ci_gate=run_ci_gate,
+    )
+
+    return DriverResult(task=result, worktree=context.info)
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:

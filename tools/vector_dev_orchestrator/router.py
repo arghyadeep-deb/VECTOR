@@ -203,6 +203,25 @@ _CATEGORY_MIN_DIFFICULTY: dict[TaskCategory, Difficulty] = {
 }
 
 
+# What each category NORMALLY costs (POLICY.md sec. 3). A default, not a floor: it
+# applies only when nobody stated a difficulty, and inference/floors can only raise it.
+_CATEGORY_DEFAULT_DIFFICULTY: dict[TaskCategory, Difficulty] = {
+    TaskCategory.EXPLORATION: Difficulty.SCOUT,
+    TaskCategory.DOCUMENTATION: Difficulty.SCOUT,
+    TaskCategory.TRIVIAL_EDIT: Difficulty.SCOUT,
+    TaskCategory.IMPLEMENTATION: Difficulty.ROUTINE,
+    TaskCategory.DEBUGGING: Difficulty.ROUTINE,
+    TaskCategory.TEST_REPAIR: Difficulty.ROUTINE,
+    TaskCategory.INTEGRATION: Difficulty.SERIOUS,
+    TaskCategory.ARCHITECTURE: Difficulty.SERIOUS,
+    TaskCategory.SECURITY_SENSITIVE: Difficulty.HARD,
+}
+
+
+def default_difficulty_for_category(category: TaskCategory) -> Difficulty:
+    return _CATEGORY_DEFAULT_DIFFICULTY[category]
+
+
 def apply_category_floor(
     difficulty: Difficulty,
     category: TaskCategory,
@@ -311,6 +330,10 @@ class RoutingDecision:
     difficulty: Difficulty
     task_category: TaskCategory
     quota_band: QuotaBand
+    # The reviewer provider is in EMERGENCY: review must wait (POLICY.md sec. 10).
+    review_deferred: bool = False
+    # Non-empty when a quota EMERGENCY overrode the 50/50 scheduler's owner.
+    ownership_note: str = ""
 
 
 class ModelRouter:
@@ -396,6 +419,7 @@ class ModelRouter:
         previous_owner: Provider | None = None,
         quota_state: QuotaState | None = None,
         quota_levels: dict[Provider, ProviderQuota] | None = None,
+        quota_bands: dict[Provider, QuotaBand] | None = None,
     ) -> RoutingDecision:
         """One task-aware routing pass: owner/reviewer + both models.
 
@@ -425,21 +449,38 @@ class ModelRouter:
             category,
         )
 
-        owner = self.choose_owner(previous_owner)
-        reviewer = self.reviewer_for(owner)
-
         quota = quota_state if quota_state is not None else QuotaState()
 
-        owner_percent = (
-            quota.codex_remaining_percent
-            if owner is Provider.CODEX
-            else quota.claude_remaining_percent
-        )
+        def band_for(provider: Provider) -> QuotaBand:
+            # precedence: explicit bands > availability levels > percentages
+            if quota_bands is not None and provider in quota_bands:
+                return quota_bands[provider]
 
-        band = quota_band_for_percent(owner_percent)
+            if quota_levels is not None and provider in quota_levels:
+                return _BAND_FOR_LEVEL[quota_levels[provider]]
 
-        if quota_levels is not None and owner in quota_levels:
-            band = _BAND_FOR_LEVEL[quota_levels[owner]]
+            return quota_band_for_percent(
+                quota.codex_remaining_percent
+                if provider is Provider.CODEX
+                else quota.claude_remaining_percent
+            )
+
+        owner = self.choose_owner(previous_owner)
+        ownership_note = ""
+        other = self.reviewer_for(owner)
+
+        # POLICY.md sec. 8/9: never spend an EMERGENCY provider as the implementer
+        # when the other one is not also in EMERGENCY (Claude-first while Codex is low).
+        if band_for(owner) is QuotaBand.EMERGENCY and band_for(other) is not QuotaBand.EMERGENCY:
+            ownership_note = (
+                f"Ownership: {other.value}-first because {owner.value} is in quota "
+                "EMERGENCY (POLICY.md sec. 9); the 50/50 scheduler state is unchanged."
+            )
+            owner = other
+
+        reviewer = self.reviewer_for(owner)
+        band = band_for(owner)
+        review_deferred = band_for(reviewer) is QuotaBand.EMERGENCY
 
         implementer_difficulty = self.apply_quota_conservation(
             effective_difficulty,
@@ -465,6 +506,8 @@ class ModelRouter:
             difficulty=effective_difficulty,
             task_category=category,
             quota_band=band,
+            review_deferred=review_deferred,
+            ownership_note=ownership_note,
         )
 
     @staticmethod
