@@ -457,6 +457,16 @@ async def command_endpoint(
                 "candidates_count": decision.evaluated,
                 "gateway_level": gateway_result.level,
                 "chain_id": chain_id,
+                # situation_hash: the same canonical identity computed in Step 6
+                # (PolicyMemory.make_situation_hash) — lets a before/after
+                # PolicyMemory adaptation check be read directly from two
+                # episodic records for the same situation, with no direct
+                # PolicyMemory query.
+                "situation_hash": situation_hash,
+                # policy_score: the real PolicyMemory-read score DecisionEngine
+                # blended into total_score for the winning candidate (see
+                # DecisionEngine._score_candidate()).
+                "policy_score": decision.winner.policy_score,
                 # V1 TRUST CLOSURE (T2): identity audit trail.
                 **identity_trace,
                 "authorized_task_type": decision.winner.action_type,
