@@ -289,8 +289,15 @@ class Supervisor:
         budget: RunBudget | None = None,
         plan: Plan | None = None,
         max_replans: int = 1,
+        inherit_accepted: bool = True,
     ) -> Program:
-        """Plan (read-only) and persist a new program. Executes nothing."""
+        """Plan (read-only) and persist a new program. Executes nothing.
+
+        Programs chain: when `vector-integration` exists the new program is cut
+        from it (so it builds on work earlier programs got accepted) and, with
+        `inherit_accepted`, starts with their accepted-evidence ledger so the
+        planner never reopens finished work.
+        """
 
         if not goal.strip():
             raise SupervisorError("A program goal is required.")
@@ -301,6 +308,20 @@ class Supervisor:
             budget=budget or RunBudget(),
             max_replans=max_replans,
         )
+
+        if self._integration_exists():
+            program.base_ref = INTEGRATION_BRANCH
+
+        if inherit_accepted:
+            seen = {(e["package_id"], e.get("commit", "")) for e in program.ledger}
+
+            for earlier in self.list_programs():
+                for entry in earlier.ledger:
+                    key = (entry["package_id"], entry.get("commit", ""))
+
+                    if entry.get("status") == "accepted" and key not in seen:
+                        program.ledger.append(dict(entry))
+                        seen.add(key)
 
         if plan is None:
             if self.planner is None:
@@ -617,6 +638,18 @@ class Supervisor:
             program.status_reason = f"{accepted} package(s) accepted"
 
     # --- queueing ------------------------------------------------------
+
+    def _integration_exists(self) -> bool:
+        try:
+            proc = subprocess.run(
+                ["git", "-C", str(self.repo_root), "rev-parse", "--verify", "--quiet",
+                 f"refs/heads/{INTEGRATION_BRANCH}"],
+                capture_output=True, shell=False, check=False, timeout=30,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+
+        return proc.returncode == 0
 
     def _creates_new_files(self, wp: WorkPackage, ref: str) -> bool:
         """True if a concrete allowed file path does not exist yet at `ref`."""

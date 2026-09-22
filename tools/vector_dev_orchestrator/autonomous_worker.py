@@ -925,6 +925,13 @@ def main(argv: list[str] | None = None) -> int:
     requeue = sub.add_parser("requeue")
     requeue.add_argument("item_id")
 
+    supersede = sub.add_parser(
+        "supersede",
+        help="Retire a PENDING/DEFERRED item whose work was delivered by another accepted item.",
+    )
+    supersede.add_argument("item_id")
+    supersede.add_argument("--by", required=True, help="What delivered it (item id / commit / program).")
+
     args = parser.parse_args(argv)
     worker = _default_worker(args.repo_root)
 
@@ -989,6 +996,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "resume":
         worker.stop_path.unlink(missing_ok=True)
         print("STOP file removed.")
+        return 0
+
+    if args.command == "supersede":
+        item = worker.backlog.get(args.item_id)
+
+        if item.status not in (bl.PENDING, bl.DEFERRED):
+            print(f"Item is {item.status}; only pending/deferred items can be superseded.")
+            return 1
+
+        worker.backlog.update(
+            args.item_id,
+            status=bl.SUPERSEDED,
+            result_note=f"SUPERSEDED: the same work was delivered by {args.by}.",
+        )
+        print(f"superseded {args.item_id} by {args.by}")
         return 0
 
     if args.command == "requeue":
@@ -1362,6 +1384,13 @@ def _self_test() -> None:
         assert w13.backlog.get(mid2.item_id).status == bl.PENDING
         assert w13.quota.level(Provider.CLAUDE) is ProviderQuota.EXHAUSTED
         assert w13.quota.entry(Provider.CLAUDE)["source"] == "error"
+
+        # 10e. A superseded item is terminal and inert: never run, requeued or flagged.
+        w14 = new_worker("superseded", crash_fn)
+        dup = add(w14, "Duplicate of work already delivered")
+        w14.backlog.update(dup.item_id, status=bl.SUPERSEDED, result_note="SUPERSEDED: by prog-x")
+        assert w14.backlog.next_pending() is None and w14.backlog.get(dup.item_id).is_terminal()
+        assert w14.run().processed == [] and w14.status()["needs_attention"] == []
 
         # 11. Evidence is never deleted by anything above.
         for name in ("t1", "t2"):

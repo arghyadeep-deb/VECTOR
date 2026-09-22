@@ -29,8 +29,11 @@ CRASHED = "crashed"
 # Not terminal: waiting for a provider (e.g. quota exhausted) to be usable.
 # The item keeps its place; nothing is faked or downgraded meanwhile.
 DEFERRED = "deferred"
+# Terminal and inert: the item's work was delivered by another accepted item
+# (recorded in result_note). Never run, retried, integrated or flagged.
+SUPERSEDED = "superseded"
 
-_TERMINAL = {PASSED, BLOCKED, NEEDS_HUMAN, CRASHED}
+_TERMINAL = {PASSED, BLOCKED, NEEDS_HUMAN, CRASHED, SUPERSEDED}
 
 # PLAN.md hard maximum for review/fix rounds.
 MAX_ALLOWED_RETRIES = 3
