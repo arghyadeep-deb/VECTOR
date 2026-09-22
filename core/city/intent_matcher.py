@@ -34,6 +34,16 @@ COMMAND_PATH_WAIT_SECONDS = 3.0
 # One retry pass bounds bootstrap work while recovering isolated transient
 # failures. Each example is attempted at most 1 + EMBED_RETRY_PASSES times.
 EMBED_RETRY_PASSES = 1
+# Total wall-clock budget for ONE bootstrap attempt. The live healthy run took
+# ~104s for 499 examples, so 180s leaves headroom while still ending a hung
+# Ollama (10s per-call client timeout) long before 23+ timeouts pile up. The
+# budget is checked between embedding calls, so an attempt can overrun it by at
+# most one call.
+BOOTSTRAP_BUDGET_SECONDS = 180.0
+# Consecutive failed embeddings (within one pass) that abort the whole attempt:
+# an unreachable Ollama fails every call, so there is no point trying the rest.
+# Must stay above the transient-failure runs the retry pass is meant to absorb.
+EMBED_ABORT_CONSECUTIVE_FAILURES = 5
 
 
 class IntentMatcher:
@@ -53,6 +63,13 @@ class IntentMatcher:
         self._embedded_count = 0
         self._failed_count = 0
         self._bootstrap_state = "idle"
+        # Per-attempt bounds (instance attributes so tests can shrink them) and
+        # the outcome of the last attempt: how long it ran and why it stopped
+        # ("complete", "budget", "abort" or "no_examples").
+        self._bootstrap_budget_seconds = BOOTSTRAP_BUDGET_SECONDS
+        self._abort_after_failures = EMBED_ABORT_CONSECUTIVE_FAILURES
+        self._bootstrap_elapsed_seconds: Optional[float] = None
+        self._bootstrap_stop_reason: Optional[str] = None
         self._similarity_threshold = 0.85
         self._model = "nomic-embed-text"
         self._ollama_host = "http://127.0.0.1:11434"
@@ -194,27 +211,51 @@ class IntentMatcher:
         every caller during the load shares this same Task object (never a
         duplicate embedding pass) via _get_or_start_init_task()."""
         if not self._examples:
-            logger.warning("[IntentMatcher] No examples loaded")
+            self._embedded_count = 0
+            self._failed_count = 0
+            self._bootstrap_elapsed_seconds = 0.0
+            self._bootstrap_stop_reason = "no_examples"
             self._bootstrap_state = "failed"
+            logger.warning(
+                "[IntentMatcher] No examples loaded; embedding bootstrap failed: "
+                "embedded=0 failed=0 elapsed=0.00s stop=no_examples"
+            )
             return False
 
         logger.info(f"[IntentMatcher] Embedding {len(self._examples)} examples...")
         self._bootstrap_state = "loading"
-        start = time.time()
+        start = time.monotonic()
+        budget = self._bootstrap_budget_seconds
+        abort_after = self._abort_after_failures
+        stop_reason = "complete"
 
+        # Bounded work: the budget is checked before every embedding call and a
+        # run of `abort_after` consecutive failures ends the whole attempt. Both
+        # stops leave the unattempted examples in `pending`, i.e. counted failed.
         embeddings: list[Optional[list[float]]] = [None] * len(self._examples)
         pending = list(range(len(self._examples)))
         for attempt in range(1 + EMBED_RETRY_PASSES):
             failed: list[int] = []
-            for index in pending:
+            consecutive_failures = 0
+            for position, index in enumerate(pending):
+                if time.monotonic() - start >= budget:
+                    stop_reason = "budget"
+                    failed.extend(pending[position:])
+                    break
                 text = self._examples[index].get("text", "")
                 embedding = await self._embed(text)
                 if embedding is not None:
                     embeddings[index] = embedding
-                else:
-                    failed.append(index)
+                    consecutive_failures = 0
+                    continue
+                failed.append(index)
+                consecutive_failures += 1
+                if consecutive_failures >= abort_after:
+                    stop_reason = "abort"
+                    failed.extend(pending[position + 1:])
+                    break
             pending = failed
-            if not pending:
+            if not pending or stop_reason != "complete":
                 break
             if attempt < EMBED_RETRY_PASSES:
                 logger.warning(
@@ -222,18 +263,22 @@ class IntentMatcher:
                     f"(pass {attempt + 1}/{EMBED_RETRY_PASSES})"
                 )
 
-        elapsed = time.time() - start
+        elapsed = time.monotonic() - start
         embedded_count = len(embeddings) - len(pending)
         failed_count = len(pending)
         self._embedded_count = embedded_count
         self._failed_count = failed_count
+        self._bootstrap_elapsed_seconds = elapsed
+        self._bootstrap_stop_reason = stop_reason
+        # The one summary line for this attempt (each branch below emits exactly one).
+        summary = (
+            f"embedded={embedded_count} failed={failed_count} "
+            f"elapsed={elapsed:.2f}s stop={stop_reason}"
+        )
 
         if embedded_count == 0:
             self._bootstrap_state = "failed"
-            logger.warning(
-                f"[IntentMatcher] Embedding bootstrap failed: embedded=0 "
-                f"failed={failed_count} elapsed={elapsed:.2f}s"
-            )
+            logger.warning(f"[IntentMatcher] Embedding bootstrap failed: {summary}")
             return False
 
         # Publish once, after all attempts and counters are complete. None marks
@@ -241,16 +286,10 @@ class IntentMatcher:
         self._embeddings = embeddings
         if failed_count:
             self._bootstrap_state = "degraded"
-            logger.warning(
-                f"[IntentMatcher] Embedding bootstrap degraded: embedded={embedded_count} "
-                f"failed={failed_count} elapsed={elapsed:.2f}s"
-            )
+            logger.warning(f"[IntentMatcher] Embedding bootstrap degraded: {summary}")
         else:
             self._bootstrap_state = "ready"
-            logger.info(
-                f"[IntentMatcher] Embedded {embedded_count} examples in {elapsed:.2f}s "
-                f"(failed=0)"
-            )
+            logger.info(f"[IntentMatcher] Embedding bootstrap ready: {summary}")
         return True
 
     def _get_or_start_init_task(self) -> "asyncio.Task[bool]":
@@ -376,6 +415,8 @@ class IntentMatcher:
             "embedded_count": self._embedded_count,
             "failed_count": self._failed_count,
             "bootstrap_state": self._bootstrap_state,
+            "bootstrap_elapsed_seconds": self._bootstrap_elapsed_seconds,
+            "bootstrap_stop_reason": self._bootstrap_stop_reason,
         }
 
 
