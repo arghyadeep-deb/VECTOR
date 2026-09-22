@@ -46,6 +46,7 @@ from backlog import BacklogItem, BacklogStore
 from dev_driver import DriverResult, resume_review_task, run_task
 from git_guard import GitGuard
 from integration import IntegrationStage
+from orchestrator import DevOrchestrator
 from models import (
     Difficulty,
     Provider,
@@ -336,6 +337,7 @@ class AutonomousWorker:
         config: WorkerConfig | None = None,
         run_task_fn: Callable[..., DriverResult] | None = None,
         review_fn: Callable[..., DriverResult] | None = None,
+        orchestrator: DevOrchestrator | None = None,
         commit_fn: Callable[[Path, list[str], str], CommitResult] | None = None,
         today_fn: Callable[[], str] | None = None,
         echo: bool = True,
@@ -345,6 +347,15 @@ class AutonomousWorker:
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.config = config or WorkerConfig()
+        # ONE orchestrator, used for both the implement path and the resume-review path.
+        # Each provider function (run_task/resume_review_task) can build its own default
+        # DevOrchestrator(repo_root) if left unset, but that default only happens to match
+        # this worker's own state when repo_root's own tools/vector_dev_orchestrator/.state
+        # is genuinely where the worker's state lives (the real production layout). Any
+        # other layout -- a sandbox, a test, a --repo-root override -- would silently split
+        # implementation and review onto two different task stores. Always pass the SAME
+        # orchestrator explicitly so behavior never depends on that path coincidence.
+        self.orchestrator = orchestrator or DevOrchestrator(self.repo_root)
         self.run_task_fn = run_task_fn or run_task
         self.review_fn = review_fn or resume_review_task
         self.commit_fn = commit_fn or commit_task_changes
@@ -644,6 +655,7 @@ class AutonomousWorker:
                 quota_bands=self.quota.bands(),
                 spec=self._spec_for(item),
                 previous_owner=previous_owner,
+                orchestrator=self.orchestrator,
                 **extra,
             )
         except Exception as exc:  # noqa: BLE001 - fail closed on anything
@@ -813,6 +825,7 @@ class AutonomousWorker:
                 task_id=item.task_id,
                 test_targets=item.test_targets,
                 run_ci_gate=item.run_ci_gate,
+                orchestrator=self.orchestrator,
             )
         except Exception as exc:  # noqa: BLE001 - fail closed on anything
             return self._record_crash(item, exc)
@@ -1584,6 +1597,43 @@ def _self_test() -> None:
         w14.backlog.update(dup.item_id, status=bl.SUPERSEDED, result_note="SUPERSEDED: by prog-x")
         assert w14.backlog.next_pending() is None and w14.backlog.get(dup.item_id).is_terminal()
         assert w14.run().processed == [] and w14.status()["needs_attention"] == []
+
+        # 10e2. Regression (found by a real live run): run_task_fn and review_fn must receive
+        # the exact SAME orchestrator -- not each independently build its own default from
+        # bare repo_root, which only happens to coincide with the real state layout in
+        # production and silently splits implement/review onto two different task stores
+        # anywhere else (a sandbox, a test, a --repo-root override). A custom, non-default
+        # orchestrator/state_root here would have hidden that bug; assert identity instead.
+        from orchestrator import DevOrchestrator as _DevOrchestrator
+
+        seen_orch: dict[str, Any] = {}
+
+        def capture_impl(root: Path, **kw: Any) -> DriverResult:
+            seen_orch["implement"] = kw.get("orchestrator")
+            return DriverResult(make_task(TaskStatus.NEEDS_HUMAN, None, []), None)
+
+        def capture_review(root: Path, **kw: Any) -> DriverResult:
+            seen_orch["review"] = kw.get("orchestrator")
+            return DriverResult(make_task(TaskStatus.NEEDS_HUMAN, None, []), None)
+
+        custom_orch = _DevOrchestrator(repo, temp / "custom_orch_state")
+        w_orch = AutonomousWorker(
+            repo, temp / "state_orch_identity",
+            run_task_fn=capture_impl, review_fn=capture_review, orchestrator=custom_orch, echo=False,
+        )
+        assert w_orch.orchestrator is custom_orch
+        probe = add(w_orch, "Orchestrator identity probe")
+        w_orch._process(probe)
+        assert seen_orch["implement"] is custom_orch, "run_task_fn did not receive the worker's orchestrator"
+        w_orch.backlog.update(probe.item_id, status=bl.WAITING_REVIEW, awaiting_reviewer="codex")
+        w_orch.resume_review_item(w_orch.backlog.get(probe.item_id))
+        assert seen_orch["review"] is custom_orch, "review_fn did not receive the worker's orchestrator"
+        assert seen_orch["implement"] is seen_orch["review"], "implement and review used different orchestrators"
+
+        # A worker built with no explicit orchestrator still defaults sensibly (production path).
+        w_default_orch = new_worker("default_orch", crash_fn)
+        assert isinstance(w_default_orch.orchestrator, _DevOrchestrator)
+        assert w_default_orch.orchestrator.repo_root == repo.resolve()
 
         # 10f. POLICY.md sec. 9-10: reviewer provider in EMERGENCY -> the other provider implements,
         # the independent review is deferred (WAITING_REVIEW, never PASS) and resumed later.

@@ -219,7 +219,10 @@ class Harness:
 
         return out
 
-    def review(self, root: Path, *, task_id: str, test_targets: list[str], run_ci_gate: bool = False) -> DriverResult:
+    def review(
+        self, root: Path, *, task_id: str, test_targets: list[str],
+        run_ci_gate: bool = False, orchestrator: Any = None,
+    ) -> DriverResult:
         """Stands in for dev_driver.resume_review_task (the deferred independent review)."""
 
         self.reviews.append(task_id)
