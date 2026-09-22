@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
 import re
 import subprocess
 import sys
@@ -14,6 +15,7 @@ from typing import Any
 
 from claude_adapter import ClaudeAdapter
 from codex_adapter import CodexAdapter
+from laya_log import log_decision, read_decisions
 from models import (
     DevTask,
     Provider,
@@ -29,6 +31,36 @@ from postflight_guard import PostflightGuard
 from quota import detect_provider_exhaustion
 from text_signals import norm_repo_path
 from runner import CommandResult, CommandRunner
+
+
+def _log_postflight_decision(
+    task: DevTask,
+    postflight: Any,
+    changed_files: list[str],
+) -> None:
+    """Log postflight_guard's own deterministic verdict as ground truth.
+
+    No Laya prediction exists yet in this pass -- this captures the
+    deterministic policy's verdict itself as a training example for the
+    future completion_review_required schema.
+    """
+
+    log_decision(
+        schema="completion_review_required",
+        state=task.description,
+        question="Does this change require human review before it can pass?",
+        choice=postflight.requires_human,
+        meta={
+            "changed_files": list(changed_files),
+            "risk": postflight.risk.value,
+            "findings": [
+                {"path": f.path, "risk": f.risk.value, "reason": f.reason}
+                for f in postflight.findings
+            ],
+            "task_category": task.task_category.value,
+            "difficulty": task.difficulty.value,
+        },
+    )
 
 
 class ExecutionCycle:
@@ -262,6 +294,8 @@ class ExecutionCycle:
         postflight = self.postflight_guard.evaluate(
             task.changed_files
         )
+
+        _log_postflight_decision(task, postflight, task.changed_files)
 
         if postflight.requires_human:
             for finding in postflight.findings:
@@ -657,6 +691,8 @@ class ExecutionCycle:
             postflight = self.postflight_guard.evaluate(
                 git_delta.changed_files
             )
+
+            _log_postflight_decision(task, postflight, git_delta.changed_files)
 
             if postflight.requires_human:
                 for finding in postflight.findings:
@@ -2375,6 +2411,11 @@ def _self_test() -> None:
         / ".execution_cycle_test_state"
     )
 
+    laya_log_path = state_root / "laya_decisions.jsonl"
+    laya_log_path.parent.mkdir(parents=True, exist_ok=True)
+    laya_log_path.unlink(missing_ok=True)
+    os.environ["VECTOR_LAYA_LOG_PATH"] = str(laya_log_path)
+
     orchestrator = DevOrchestrator(
         repo_root=repo_root,
         state_root=state_root,
@@ -2415,6 +2456,19 @@ def _self_test() -> None:
         "core/example.py",
         "tests/test_example.py",
     ]
+
+    completion_rows = [
+        row for row in read_decisions()
+        if row["schema"] == "completion_review_required"
+        and row["state"] == task.description
+    ]
+    assert len(completion_rows) == 1
+    assert completion_rows[0]["choice"] is False
+    assert completion_rows[0]["meta"]["changed_files"] == [
+        "core/example.py",
+        "tests/test_example.py",
+    ]
+    assert completion_rows[0]["meta"]["risk"] == "low"
 
     # Issue 3: bounded reviewer evidence was persisted before parsing.
     assert result.reviewer_evidence == [
@@ -3518,6 +3572,32 @@ def _self_test() -> None:
     assert "ACTUAL CHANGED FILES: core/example.py, tests/test_example.py" in review_text
     assert "PREVIOUS STRUCTURED FINDINGS" in review_text and "off-by-one in the loop bound" in review_text
     assert "core/example.py:12" in review_text
+
+    # Laya decision logging also captures postflight_guard's own
+    # requires_human=True verdict (the deterministic ground-truth label;
+    # no Laya prediction exists yet in this pass). Exercised directly
+    # against _log_postflight_decision rather than hunting for a natural
+    # risky-file scenario among the many ExecutionCycle runs above.
+    risky_task = DevTask(description="Bump the pinned dependency version.")
+    risky_postflight = PostflightGuard().evaluate(["requirements.txt"])
+    assert risky_postflight.requires_human
+    _log_postflight_decision(risky_task, risky_postflight, ["requirements.txt"])
+
+    risky_completion_rows = [
+        row for row in read_decisions()
+        if row["schema"] == "completion_review_required"
+        and row["state"] == risky_task.description
+    ]
+    assert len(risky_completion_rows) == 1
+    assert risky_completion_rows[0]["choice"] is True
+    assert risky_completion_rows[0]["meta"]["risk"] == "high"
+    assert (
+        risky_completion_rows[0]["meta"]["findings"][0]["path"]
+        == "requirements.txt"
+    )
+
+    os.environ.pop("VECTOR_LAYA_LOG_PATH", None)
+    laya_log_path.unlink(missing_ok=True)
 
     for task_id in orchestrator.state.list_task_ids():
         path = (
