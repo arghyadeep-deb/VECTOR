@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 from approval import ApprovalPolicy
+from laya_log import log_decision, read_decisions
 from difficulty_inference import infer_difficulty
 from models import (
     DevTask,
@@ -253,6 +255,20 @@ class DevOrchestrator:
                     f"Approval required: {reason}."
                 )
 
+            log_decision(
+                schema="approval_resolution",
+                state=task.description,
+                question="Is this task safe to run without further human review?",
+                choice=False,
+                meta={
+                    "task_category": task.task_category.value,
+                    "difficulty": task.difficulty.value,
+                    "risk": task.risk.value,
+                    "reasons": list(approval.reasons),
+                    "trigger": "prepare_task",
+                },
+            )
+
             self.state.save(task)
             return task
 
@@ -273,6 +289,20 @@ class DevOrchestrator:
         self.approval_policy.approve_requirement(
             task,
             reason,
+        )
+
+        log_decision(
+            schema="approval_resolution",
+            state=task.description,
+            question="Is this task safe to run without further human review?",
+            choice=True,
+            meta={
+                "task_category": task.task_category.value,
+                "difficulty": task.difficulty.value,
+                "risk": task.risk.value,
+                "reason": reason,
+                "trigger": "approve_task",
+            },
         )
 
         if self.approval_policy.all_requirements_approved(task):
@@ -354,6 +384,20 @@ class DevOrchestrator:
         task.stage = TaskStage.WAITING_APPROVAL
         task.status = TaskStatus.NEEDS_HUMAN
         task.notes.append(note)
+
+        log_decision(
+            schema="approval_resolution",
+            state=task.description,
+            question="Is this task safe to run without further human review?",
+            choice=False,
+            meta={
+                "task_category": task.task_category.value,
+                "difficulty": task.difficulty.value,
+                "note": note,
+                "trigger": "mark_needs_human",
+            },
+        )
+
         self.state.save(task)
 
 
@@ -371,6 +415,10 @@ def _self_test() -> None:
         repo_root=repo_root,
         state_root=test_state,
     )
+
+    laya_log_path = test_state / "laya_decisions.jsonl"
+    laya_log_path.unlink(missing_ok=True)
+    os.environ["VECTOR_LAYA_LOG_PATH"] = str(laya_log_path)
 
     first = orchestrator.prepare_task(
         description="Fix deterministic parser bug and add regression tests.",
@@ -578,6 +626,67 @@ def _self_test() -> None:
     reloaded_debug_task = restarted_again.load_task(debug_task.task_id)
     assert reloaded_debug_task.task_category is TaskCategory.DEBUGGING
     assert reloaded_debug_task.difficulty is Difficulty.SERIOUS
+
+    # --- Laya decision logging (schema: approval_resolution) -----------
+    #
+    # The real, existing binary human decision point in this orchestrator:
+    # every NEEDS_HUMAN transition (prepare_task's up-front gate and
+    # mark_needs_human's later escalation) and every approve_task() grant.
+
+    risky_needs_human_rows = [
+        row for row in read_decisions()
+        if row["schema"] == "approval_resolution"
+        and row["state"] == risky.description
+        and row["choice"] is False
+    ]
+    assert len(risky_needs_human_rows) == 1
+    assert risky_needs_human_rows[0]["meta"]["trigger"] == "prepare_task"
+
+    risky_approved_rows = [
+        row for row in read_decisions()
+        if row["schema"] == "approval_resolution"
+        and row["state"] == risky.description
+        and row["choice"] is True
+    ]
+    assert len(risky_approved_rows) == 2
+    assert all(
+        row["meta"]["trigger"] == "approve_task" for row in risky_approved_rows
+    )
+
+    security_needs_human_rows = [
+        row for row in read_decisions()
+        if row["schema"] == "approval_resolution"
+        and row["state"] == security_task.description
+        and row["choice"] is False
+    ]
+    assert len(security_needs_human_rows) == 1
+    assert security_needs_human_rows[0]["meta"]["trigger"] == "prepare_task"
+
+    # A task that never needed human approval logs nothing under this schema.
+    assert not [
+        row for row in read_decisions()
+        if row["schema"] == "approval_resolution" and row["state"] == first.description
+    ]
+
+    scratch_task = DevTask(
+        description="Scratch task for mark_needs_human logging self-test."
+    )
+    orchestrator.mark_needs_human(
+        scratch_task,
+        "Manual escalation for self-test.",
+    )
+    scratch_rows = [
+        row for row in read_decisions()
+        if row["schema"] == "approval_resolution"
+        and row["state"] == scratch_task.description
+    ]
+    assert len(scratch_rows) == 1
+    assert scratch_rows[0]["choice"] is False
+    assert scratch_rows[0]["meta"]["trigger"] == "mark_needs_human"
+    assert scratch_rows[0]["meta"]["note"] == "Manual escalation for self-test."
+
+    os.environ.pop("VECTOR_LAYA_LOG_PATH", None)
+    laya_log_path.unlink(missing_ok=True)
 
     for task_id in orchestrator.state.list_task_ids():
         path = test_state / "tasks" / f"{task_id}.json"
