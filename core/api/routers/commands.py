@@ -419,7 +419,15 @@ async def command_endpoint(
         # V1 TRUST CLOSURE (T3): an approved action whose handler reported
         # `not_implemented` did not run — it must not earn the success reward
         # (the gateway's own comment: not_implemented "prevents phantom RL reward").
-        reward = 0.8 if (gateway_result.approved and not _is_not_implemented(gateway_result)) else 0.2
+        # Honest reward: a GREEN git_status/check_git/git_log/recent_commits
+        # action whose real handler ran but returned no usable data (gateway
+        # status defaulted to 'ok') must not earn the success reward either —
+        # see _is_git_readonly_empty's docstring.
+        reward = 0.8 if (
+            gateway_result.approved
+            and not _is_not_implemented(gateway_result)
+            and not _is_git_readonly_empty(decision.winner.action_type, gateway_result)
+        ) else 0.2
         update_policy(decision.winner.action_type, situation_hash, reward)
 
         # Step 7: Store reasoning chain (RULE 8)
@@ -449,6 +457,16 @@ async def command_endpoint(
                 "candidates_count": decision.evaluated,
                 "gateway_level": gateway_result.level,
                 "chain_id": chain_id,
+                # situation_hash: the same canonical identity computed in Step 6
+                # (PolicyMemory.make_situation_hash) — lets a before/after
+                # PolicyMemory adaptation check be read directly from two
+                # episodic records for the same situation, with no direct
+                # PolicyMemory query.
+                "situation_hash": situation_hash,
+                # policy_score: the real PolicyMemory-read score DecisionEngine
+                # blended into total_score for the winning candidate (see
+                # DecisionEngine._score_candidate()).
+                "policy_score": decision.winner.policy_score,
                 # V1 TRUST CLOSURE (T2): identity audit trail.
                 **identity_trace,
                 "authorized_task_type": decision.winner.action_type,
@@ -1044,6 +1062,32 @@ def _is_not_implemented(gw_result) -> bool:
     matrix RY3/UA3). /ws/command already refuses to report this as success
     (RR-3.6 §15); /command must not either."""
     return (getattr(gw_result, "result", None) or {}).get("status") in _HANDLER_DID_NOT_RUN
+
+
+# git_status/check_git dispatch to GitBot.get_status(); git_log/recent_commits
+# dispatch to GitBot.get_recent_commits() (see permission_gateway.py's
+# _OWNER_READONLY_DISPATCH_ACTION_TYPES). Both return a raw dict with no
+# 'status' key on either success OR an internal exception (empty dict / empty
+# commits list respectively) — permission_gateway.py's _execute_action()
+# defaults the gateway's own status to 'ok' regardless, so `_is_not_implemented`
+# can never see the failure. Read the same real fields
+# `_render_readonly_evidence` already uses to report this honestly to the user.
+_GIT_READONLY_ACTION_TYPES = frozenset({"git_status", "check_git", "git_log", "recent_commits"})
+
+
+def _is_git_readonly_empty(action_type: str, gw_result) -> bool:
+    """True when a GREEN-approved git_status/check_git/git_log/recent_commits
+    action's real handler ran (gateway status defaulted to 'ok', not
+    not_implemented/rejected) but returned no usable data — the exact case
+    `_render_readonly_evidence` already reports as a failure to the user, so
+    the RL reward must not claim success either. False for every other
+    action_type — this never touches reward computation for anything else."""
+    if action_type not in _GIT_READONLY_ACTION_TYPES:
+        return False
+    result = getattr(gw_result, "result", None) or {}
+    if action_type in ("git_status", "check_git"):
+        return not result.get("branch")
+    return not (result.get("commits") or [])
 
 
 def _render_readonly_evidence(action_type: str, result: dict) -> str | None:

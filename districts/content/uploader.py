@@ -15,6 +15,10 @@ from core.city.agent_base import AgentBase
 
 _MAX_UPLOAD_HISTORY = 1000
 _MAX_SCHEDULED_UPLOADS = 1000
+# Statuses the upload_to_* methods return for a real, completed upload
+# ('success' generic; 'published' Instagram/TikTok/Twitter; 'uploaded'/
+# 'scheduled' YouTube, whose record status overrides the leading 'success').
+_SUCCESS_UPLOAD_STATUSES = frozenset({"success", "published", "uploaded", "scheduled"})
 
 class Uploader(AgentBase):
     """
@@ -483,13 +487,52 @@ class Uploader(AgentBase):
             "scheduled_time": scheduled_datetime
         }
 
+    @staticmethod
+    def _classify_scheduled_result(result) -> tuple[str, dict]:
+        """Map an upload result to (schedule status, extra schedule fields).
+
+        Fails closed: anything that is not a recognised, non-simulated success
+        is never 'executed'. 'simulated' is checked first because the YouTube
+        no-credentials result is status 'error' AND simulated=True.
+        """
+        if not isinstance(result, dict):
+            return "failed", {"error": f"unexpected upload result: {result!r}"}
+
+        if result.get("simulated"):
+            return "simulated", {}
+
+        status = result.get("status")
+        if status in _SUCCESS_UPLOAD_STATUSES:
+            return "executed", {}
+        if status == "blocked":
+            return "blocked", {"reason": result.get("reason") or "owner did not approve publish"}
+        if status == "error":
+            return "failed", {"error": result.get("message") or result.get("error") or "upload failed"}
+        # 'partial' and any unrecognised status: never treat as done.
+        return "failed", {
+            "error": result.get("error") or result.get("message")
+            or f"upload not completed (status={status!r})"
+        }
+
     async def execute_scheduled_uploads(self) -> list[dict]:
         """
         Execute all pending scheduled uploads.
 
         Sets status='uploading' BEFORE the upload starts to prevent concurrent
-        callers from picking up the same item (TOCTOU race). If the upload
-        succeeds, status becomes 'executed'; on failure, 'failed'.
+        callers from picking up the same item (TOCTOU race). The final status
+        is then taken from the real upload result:
+
+        - 'executed': genuine, non-simulated success. Only these results are
+          returned.
+        - 'blocked': the permission gate refused; the reason is kept in
+          schedule['reason'].
+        - 'simulated': the result is flagged simulated (nothing was actually
+          published), including the YouTube no-credentials 'error' shape.
+        - 'failed': status 'error', 'partial' or unrecognised (fail closed),
+          or the upload call raised; the message is kept in schedule['error'].
+
+        schedule['result'] holds the raw result for every outcome except a
+        raised exception.
         """
         now = datetime.now(timezone.utc)
         executed = []
@@ -543,9 +586,17 @@ class Uploader(AgentBase):
                         schedule["metadata"].get("title", "")
                     )
 
-                schedule["status"] = "executed"
+                status, details = self._classify_scheduled_result(result)
+                schedule["status"] = status
                 schedule["result"] = result
-                executed.append(result)
+                schedule.update(details)
+                if status == "executed":
+                    executed.append(result)
+                else:
+                    logger.warning(
+                        "[VECTOR][uploader] Scheduled {} upload recorded as {}: {}",
+                        schedule["platform"], status, details or "no detail",
+                    )
 
             except Exception as e:
                 logger.error(f"[VECTOR][uploader] Failed to execute scheduled upload: {e}")

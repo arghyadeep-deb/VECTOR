@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import math
+import threading
 import time
 from pathlib import Path
 from typing import Optional
@@ -29,6 +31,19 @@ __all__ = ["IntentMatcher"]
 # kept as a local literal with an explanatory comment, consistent with this
 # file's sibling timeout constants in governor.py (12.0/45.0).
 COMMAND_PATH_WAIT_SECONDS = 3.0
+# One retry pass bounds bootstrap work while recovering isolated transient
+# failures. Each example is attempted at most 1 + EMBED_RETRY_PASSES times.
+EMBED_RETRY_PASSES = 1
+# Total wall-clock budget for ONE bootstrap attempt. The live healthy run took
+# ~104s for 499 examples, so 180s leaves headroom while still ending a hung
+# Ollama (10s per-call client timeout) long before 23+ timeouts pile up. The
+# budget is checked between embedding calls, so an attempt can overrun it by at
+# most one call.
+BOOTSTRAP_BUDGET_SECONDS = 180.0
+# Consecutive failed embeddings (within one pass) that abort the whole attempt:
+# an unreachable Ollama fails every call, so there is no point trying the rest.
+# Must stay above the transient-failure runs the retry pass is meant to absorb.
+EMBED_ABORT_CONSECUTIVE_FAILURES = 5
 
 
 class IntentMatcher:
@@ -43,8 +58,18 @@ class IntentMatcher:
         """
         self._examples_path = Path(examples_path)
         self._examples: list[dict] = []
-        self._embeddings: Optional[list[list[float]]] = None
+        self._embeddings: Optional[list[Optional[list[float]]]] = None
         self._embedding_cache: dict[str, list[float]] = {}
+        self._embedded_count = 0
+        self._failed_count = 0
+        self._bootstrap_state = "idle"
+        # Per-attempt bounds (instance attributes so tests can shrink them) and
+        # the outcome of the last attempt: how long it ran and why it stopped
+        # ("complete", "budget", "abort" or "no_examples").
+        self._bootstrap_budget_seconds = BOOTSTRAP_BUDGET_SECONDS
+        self._abort_after_failures = EMBED_ABORT_CONSECUTIVE_FAILURES
+        self._bootstrap_elapsed_seconds: Optional[float] = None
+        self._bootstrap_stop_reason: Optional[str] = None
         self._similarity_threshold = 0.85
         self._model = "nomic-embed-text"
         self._ollama_host = "http://127.0.0.1:11434"
@@ -52,6 +77,10 @@ class IntentMatcher:
         # shared background Task, created lazily on first use (or via
         # prewarm()) and never re-created — see _get_or_start_init_task().
         self._init_task: Optional["asyncio.Task[bool]"] = None
+        # One ollama client per matcher, built lazily by _get_client() (no
+        # ollama call at construction time) and reused for every embedding.
+        self._client = None
+        self._client_lock = threading.Lock()
 
         # Load examples on init
         self._load_examples()
@@ -70,10 +99,27 @@ class IntentMatcher:
             logger.error(f"[IntentMatcher] Failed to load examples: {e}")
             self._examples = []
 
+    def _get_client(self):
+        """Return this matcher's single ollama client, building it on first use.
+
+        _embed_sync runs in asyncio.to_thread workers, so the bootstrap and a
+        query embed can reach here from different threads at once; the lock
+        (the one place this module needs a cross-thread primitive — asyncio
+        primitives are not thread-safe) guarantees exactly one construction.
+        A constructor exception propagates without setting self._client, so
+        the next embedding call retries instead of caching the failure."""
+        client = self._client
+        if client is not None:
+            return client
+        with self._client_lock:
+            if self._client is None:
+                import ollama
+                self._client = ollama.Client(host=self._ollama_host, timeout=10.0)
+            return self._client
+
     def _embed_sync(self, text: str) -> Optional[list[float]]:
         """Blocking ollama embedding call — run via asyncio.to_thread, never on the loop."""
-        import ollama
-        client = ollama.Client(host=self._ollama_host, timeout=10.0)
+        client = self._get_client()
         response = client.embeddings(model=self._model, prompt=text)
         embedding = response.get("embedding", [])
         if len(embedding) != 768:
@@ -92,7 +138,12 @@ class IntentMatcher:
         """
         # Check cache first
         if text in self._embedding_cache:
-            return self._embedding_cache[text]
+            cached = self._embedding_cache[text]
+            if self._is_usable_embedding(cached):
+                return cached
+            # Defensive cleanup for stale or externally injected invalid cache
+            # entries. Production failures never reach the cache below.
+            del self._embedding_cache[text]
 
         try:
             # ollama.Client is synchronous: called directly inside `async def` it
@@ -100,7 +151,9 @@ class IntentMatcher:
             # ~100 s prewarm froze uvicorn until it finished). Run it in a worker
             # thread; embeddings are still issued one at a time by the caller.
             embedding = await asyncio.to_thread(self._embed_sync, text)
-            if embedding is None:
+            if not self._is_usable_embedding(embedding):
+                if embedding is not None:
+                    logger.warning("[IntentMatcher] Rejecting zero-norm or non-finite embedding")
                 return None
 
             # Cache the embedding
@@ -111,6 +164,13 @@ class IntentMatcher:
             logger.error(f"[IntentMatcher] Embedding failed: {e}")
             return None
 
+    @staticmethod
+    def _is_usable_embedding(embedding: Optional[list[float]]) -> bool:
+        """Return whether an embedding is finite and has a non-zero norm."""
+        return bool(embedding) and all(math.isfinite(value) for value in embedding) and any(
+            value != 0.0 for value in embedding
+        )
+
     def _cosine_similarity(self, a: list[float], b: list[float]) -> float:
         """Compute cosine similarity between two vectors.
 
@@ -120,7 +180,11 @@ class IntentMatcher:
             import numpy as np
             va = np.array(a)
             vb = np.array(b)
-            return float(np.dot(va, vb) / (np.linalg.norm(va) * np.linalg.norm(vb)))
+            norm_a = np.linalg.norm(va)
+            norm_b = np.linalg.norm(vb)
+            if norm_a == 0 or norm_b == 0:
+                return 0.0
+            return float(np.dot(va, vb) / (norm_a * norm_b))
         except ImportError:
             # Pure-Python fallback
             dot = sum(x * y for x, y in zip(a, b))
@@ -147,25 +211,85 @@ class IntentMatcher:
         every caller during the load shares this same Task object (never a
         duplicate embedding pass) via _get_or_start_init_task()."""
         if not self._examples:
-            logger.warning("[IntentMatcher] No examples loaded")
+            self._embedded_count = 0
+            self._failed_count = 0
+            self._bootstrap_elapsed_seconds = 0.0
+            self._bootstrap_stop_reason = "no_examples"
+            self._bootstrap_state = "failed"
+            logger.warning(
+                "[IntentMatcher] No examples loaded; embedding bootstrap failed: "
+                "embedded=0 failed=0 elapsed=0.00s stop=no_examples"
+            )
             return False
 
         logger.info(f"[IntentMatcher] Embedding {len(self._examples)} examples...")
-        start = time.time()
+        self._bootstrap_state = "loading"
+        start = time.monotonic()
+        budget = self._bootstrap_budget_seconds
+        abort_after = self._abort_after_failures
+        stop_reason = "complete"
 
-        embeddings: list[list[float]] = []
-        for example in self._examples:
-            text = example.get("text", "")
-            embedding = await self._embed(text)
-            if embedding:
-                embeddings.append(embedding)
-            else:
-                # If embedding fails, use zero vector (will never match)
-                embeddings.append([0.0] * 768)
+        # Bounded work: the budget is checked before every embedding call and a
+        # run of `abort_after` consecutive failures ends the whole attempt. Both
+        # stops leave the unattempted examples in `pending`, i.e. counted failed.
+        embeddings: list[Optional[list[float]]] = [None] * len(self._examples)
+        pending = list(range(len(self._examples)))
+        for attempt in range(1 + EMBED_RETRY_PASSES):
+            failed: list[int] = []
+            consecutive_failures = 0
+            for position, index in enumerate(pending):
+                if time.monotonic() - start >= budget:
+                    stop_reason = "budget"
+                    failed.extend(pending[position:])
+                    break
+                text = self._examples[index].get("text", "")
+                embedding = await self._embed(text)
+                if embedding is not None:
+                    embeddings[index] = embedding
+                    consecutive_failures = 0
+                    continue
+                failed.append(index)
+                consecutive_failures += 1
+                if consecutive_failures >= abort_after:
+                    stop_reason = "abort"
+                    failed.extend(pending[position + 1:])
+                    break
+            pending = failed
+            if not pending or stop_reason != "complete":
+                break
+            if attempt < EMBED_RETRY_PASSES:
+                logger.warning(
+                    f"[IntentMatcher] Retrying {len(pending)} failed example embeddings "
+                    f"(pass {attempt + 1}/{EMBED_RETRY_PASSES})"
+                )
 
-        elapsed = time.time() - start
+        elapsed = time.monotonic() - start
+        embedded_count = len(embeddings) - len(pending)
+        failed_count = len(pending)
+        self._embedded_count = embedded_count
+        self._failed_count = failed_count
+        self._bootstrap_elapsed_seconds = elapsed
+        self._bootstrap_stop_reason = stop_reason
+        # The one summary line for this attempt (each branch below emits exactly one).
+        summary = (
+            f"embedded={embedded_count} failed={failed_count} "
+            f"elapsed={elapsed:.2f}s stop={stop_reason}"
+        )
+
+        if embedded_count == 0:
+            self._bootstrap_state = "failed"
+            logger.warning(f"[IntentMatcher] Embedding bootstrap failed: {summary}")
+            return False
+
+        # Publish once, after all attempts and counters are complete. None marks
+        # failed examples and is always skipped by match().
         self._embeddings = embeddings
-        logger.info(f"[IntentMatcher] Embedded {len(self._examples)} examples in {elapsed:.2f}s")
+        if failed_count:
+            self._bootstrap_state = "degraded"
+            logger.warning(f"[IntentMatcher] Embedding bootstrap degraded: {summary}")
+        else:
+            self._bootstrap_state = "ready"
+            logger.info(f"[IntentMatcher] Embedding bootstrap ready: {summary}")
         return True
 
     def _get_or_start_init_task(self) -> "asyncio.Task[bool]":
@@ -241,7 +365,7 @@ class IntentMatcher:
 
         # Embed the query
         query_embedding = await self._embed(text)
-        if not query_embedding:
+        if query_embedding is None:
             logger.warning("[IntentMatcher] Failed to embed query")
             return None
 
@@ -251,6 +375,8 @@ class IntentMatcher:
 
         for i, example in enumerate(self._examples):
             example_embedding = self._embeddings[i]
+            if example_embedding is None:
+                continue
             similarity = self._cosine_similarity(query_embedding, example_embedding)
 
             if similarity > best_similarity:
@@ -258,7 +384,7 @@ class IntentMatcher:
                 best_match = example
 
         # Check threshold
-        if best_similarity < self._similarity_threshold:
+        if best_match is None or best_similarity < self._similarity_threshold:
             logger.debug(f"[IntentMatcher] No match above threshold: {best_similarity:.3f} < {self._similarity_threshold}")
             return None
 
@@ -284,6 +410,13 @@ class IntentMatcher:
             "embeddings_cached": len(self._embedding_cache),
             "similarity_threshold": self._similarity_threshold,
             "model": self._model,
+            "ready": self._embeddings is not None,
+            "degraded": self._failed_count > 0,
+            "embedded_count": self._embedded_count,
+            "failed_count": self._failed_count,
+            "bootstrap_state": self._bootstrap_state,
+            "bootstrap_elapsed_seconds": self._bootstrap_elapsed_seconds,
+            "bootstrap_stop_reason": self._bootstrap_stop_reason,
         }
 
 
