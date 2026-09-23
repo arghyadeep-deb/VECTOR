@@ -2362,9 +2362,118 @@ class Governor:
         """
         task_id = f"task_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
         task_type = task.get("type", "unknown")
+
+        # 2026-09-23 (authorization boundary fix -- multi-round Claude +
+        # Codex security review): this is the single, universal entry
+        # point every one of VECTOR's 100+ direct callers reaches (API
+        # routers, autonomous_loop.py, hands/runner.py's GREEN-Hand
+        # path, mcp_server_stdio.py, ...), many of them WITHOUT ever
+        # going through PermissionGateway.execute()'s own
+        # classify->approve flow -- Governor.dispatch() itself enforced
+        # no authorization at all. Fixed at this ONE choke point (rather
+        # than auditing every call site individually -- a new caller
+        # added tomorrow would reopen an individually-patched gap, but
+        # a check here protects it automatically): classify task_type
+        # through the exact same PermissionGateway._classify() every
+        # real gated action already respects. GREEN/UNKNOWN task types
+        # (the ~60+ read/analysis-style API endpoints audited this
+        # session, every real Hand routing, every hardcoded internal
+        # dispatch traced -- none of them exactly match a YELLOW/RED
+        # tier string) are completely unaffected. This only refuses a
+        # CONFIRMED YELLOW/RED task_type arriving here with no proof a
+        # real gateway approval already happened for it -- the receipt
+        # PermissionGateway._execute_action() issues for this exact
+        # purpose right before its own 3 internal Governor.dispatch()
+        # call sites (the only legitimate direct callers of a
+        # YELLOW/RED task_type).
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            _tier = PermissionGateway()._classify(task_type)
+        except Exception as _cls_err:
+            # 2026-09-23 (independent review correction): failing open
+            # to UNKNOWN on a classification error let a RED-tier task
+            # sail through as if it were merely untiered whenever
+            # PermissionGateway itself couldn't even be imported --
+            # exactly backwards for an authorization check. Fail
+            # closed: if we cannot verify a task_type is safe, refuse
+            # it rather than assume it is.
+            logger.error(
+                "[VECTOR][governor] REFUSED dispatch of '{}' -- "
+                "classification failed, failing closed rather than "
+                "assuming safe: {}", task_type, _cls_err,
+            )
+            return {
+                "status": "blocked",
+                "reason": f"authorization check failed for '{task_type}' -- failing closed",
+                "task_id": task_id,
+            }
+        if _tier == "FORBIDDEN":
+            # 2026-09-23 (independent review correction): the original
+            # check only gated YELLOW/RED, leaving FORBIDDEN task types
+            # to proceed through Governor.dispatch() completely
+            # untouched -- the one tier that must NEVER execute,
+            # regardless of any receipt.
+            logger.critical(
+                "[VECTOR][governor] REFUSED dispatch of FORBIDDEN task_type '{}'",
+                task_type,
+            )
+            return {
+                "status": "blocked",
+                "reason": f"'{task_type}' is FORBIDDEN -- never dispatchable",
+                "task_id": task_id,
+            }
+        if _tier in ("YELLOW", "RED"):
+            try:
+                _authorized = PermissionGateway()._consume_approval_receipt(
+                    task_type, purpose="governor_dispatch"
+                )
+            except Exception:
+                _authorized = False
+            if not _authorized:
+                logger.warning(
+                    "[VECTOR][governor] REFUSED unauthorized direct dispatch of "
+                    "{}-tier task_type '{}' -- no real PermissionGateway approval "
+                    "on file for this exact dispatch", _tier, task_type,
+                )
+                return {
+                    "status": "blocked",
+                    "reason": (
+                        f"'{task_type}' is {_tier}-tier and requires real "
+                        f"PermissionGateway approval -- call "
+                        f"PermissionGateway.execute() first, not "
+                        f"Governor.dispatch() directly"
+                    ),
+                    "task_id": task_id,
+                }
+
         # 2026-09-08 (T89A): route_task_async(), not route_task() — see that
         # method's docstring for why (event-loop-blocking fix, narrowly
         # scoped to this one call site).
+        #
+        # 2026-09-24 (self-review finding, NOT YET FIXED -- see
+        # VECTOR_TECHNICAL_KNOWLEDGE for the write-up, flagged for the
+        # next Codex round): a caller-supplied district is trusted
+        # unconditionally for ANY task_type, including agent-internal
+        # capability names never registered in DISTRICT_TASK_MAP at all
+        # (e.g. "cleanup_logs"/"backup_db" -- real DevOpsAutomator
+        # methods) -- pairing one of these with a hand-picked
+        # district="ops" reaches a real, dangerous handler with zero tier
+        # gate, since an uncatalogued name classifies UNKNOWN and UNKNOWN
+        # is deliberately not blocked here. Confirmed real via direct
+        # reproduction (Governor().dispatch({"type": "cleanup_logs",
+        # "district": "ops", ...}) reached DevOpsAutomator.cleanup_logs()
+        # with zero receipt). A first attempt to fix this (gating district
+        # trust on `task_type in DISTRICT_TASK_MAP`) broke 6 legitimate
+        # tests: many already-classified, intentional task_types (e.g.
+        # check_weather, run_experiment_cycle) are NOT DISTRICT_TASK_MAP
+        # keys at all and legitimately rely on an explicit caller-supplied
+        # district -- DISTRICT_TASK_MAP membership and permission-tier
+        # classification are two only-partially-overlapping vocabularies,
+        # not the same trust boundary. Reverted rather than ship a
+        # narrower guess without adversarial re-verification (Codex
+        # unavailable, out of quota until 2026-09-27) -- left as a
+        # documented, confirmed-real, deferred finding rather than a
+        # blast-radius gamble.
         district = task.get("district") or await self.route_task_async(task_type)
 
         # ── Task decomposition: complex tasks split into ordered subtasks ──
@@ -2758,7 +2867,14 @@ class Governor:
 
             # RULE 9 — HP wired to actual task outcomes
             if agent is not None:
-                if result.get("status") == "ok":
+                if result.get("status") == "ok" and not result.get("stub"):
+                    # 2026-09-23 fix: `stub=True` (core/city/agent_base.py's
+                    # own AgentBase.run() default) means this "ok" came from
+                    # the unoverridden base fallback, which does zero real
+                    # work — a district agent that never implements its own
+                    # run() was otherwise earning +50 HP per dispatch for
+                    # nothing, violating CLAUDE.md's own "fake HP = fake
+                    # evolution" rule.
                     if capability_match:
                         agent.award_points(50, "task_completed_by_governor")
                     else:

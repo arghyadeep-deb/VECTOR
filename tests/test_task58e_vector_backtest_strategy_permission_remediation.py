@@ -316,6 +316,11 @@ async def test_6b_governor_dispatch_approved_vt_backtest_reaches_mocked_executio
     agent.health_points = 999999
     get_registry().register(agent)
 
+    # 2026-09-23: Governor.dispatch() now enforces its own authorization
+    # boundary for YELLOW/RED task types -- issue the real receipt.
+    from core.loop.permission_gateway import PermissionGateway
+    PermissionGateway()._issue_approval_receipt("vt_backtest", purpose="governor_dispatch")
+
     gov = Governor()
     result = await gov.dispatch(_vt_backtest_task())
 

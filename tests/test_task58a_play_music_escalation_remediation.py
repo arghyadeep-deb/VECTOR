@@ -215,6 +215,13 @@ def test_launch_app_still_works_with_its_own_token(monkeypatch):
     monkeypatch.setattr(pcc_mod.subprocess, "Popen", _fake_popen_factory(popen_calls))
 
     gw = PermissionGateway()
+    # RED tier -- grant_control() now requires a real, gateway-issued
+    # approval receipt (2026-09-23 round 2 fix, replacing a forgeable
+    # approved=True bool from round 1); this test is verifying
+    # token-consumption mechanics, so it issues one directly, standing in
+    # for the real owner approval that would precede this call in
+    # production.
+    gw._issue_approval_receipt("launch_app")
     token = gw.grant_control("launch_app", uses=1, ttl=60)
     result = pcc_mod.PCController().launch_app("notepad", control_token=token)
 
@@ -322,6 +329,10 @@ def test_run_shell_command_token_scope_unchanged():
 
     gw = PermissionGateway()
 
+    # RED tier -- grant_control() now requires a real, gateway-issued
+    # approval receipt (2026-09-23 round 2); standing in for the real
+    # owner approval that would precede this call in production.
+    gw._issue_approval_receipt("run_shell_command")
     shell_token = gw.grant_control("run_shell_command", uses=1, ttl=60)
     play_music_token = gw.grant_control("play_music", uses=1, ttl=60)
 

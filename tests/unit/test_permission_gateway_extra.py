@@ -163,6 +163,80 @@ class TestExecuteActionStubs:
         assert result["status"] == "ok"
         assert "checked" in result  # True if scraper succeeded, False if unavailable
 
+    def _mock_ha(self, reply: str):
+        """Mock HAConnector/EntityManager/VoiceBridge at their _execute_action
+        import location so home_control's branch never touches a real HA
+        instance. VoiceBridge.process() is a bare string return (see that
+        class's own docstring) -- reply is exactly what it returns."""
+        from unittest.mock import AsyncMock, MagicMock, patch
+        mock_connector = AsyncMock()
+        mock_entities = AsyncMock()
+        mock_bridge = MagicMock()
+        mock_bridge.process = AsyncMock(return_value=reply)
+        return (
+            patch("districts.home_assistant.connector.HAConnector", return_value=mock_connector),
+            patch("districts.home_assistant.entity_manager.EntityManager", return_value=mock_entities),
+            patch("districts.home_assistant.voice_bridge.VoiceBridge", return_value=mock_bridge),
+        )
+
+    async def test_home_control_real_success_is_ok(self):
+        """2026-09-23 round 3: only a genuine device-control execution
+        result (not a parse failure, not a pending confirmation, not an
+        execution error) is status="ok"."""
+        p1, p2, p3 = self._mock_ha("Turned on living room light")
+        with p1, p2, p3:
+            g = PermissionGateway()
+            result = await g._execute_action(Action("home_control", {"text": "turn on the light"}, "test"))
+        assert result["status"] == "ok"
+
+    async def test_home_control_unparseable_is_rejected_not_ok(self):
+        p1, p2, p3 = self._mock_ha("I couldn't understand that home control command.")
+        with p1, p2, p3:
+            g = PermissionGateway()
+            result = await g._execute_action(Action("home_control", {"text": "asdfasdf"}, "test"))
+        assert result["status"] == "rejected"
+
+    async def test_home_control_pending_confirmation_is_not_ok(self):
+        """A high-risk action (lock/unlock/arm) that's only asking for
+        confirmation has NOT executed anything yet -- must not be "ok"."""
+        p1, p2, p3 = self._mock_ha("Are you sure you want to lock front_door?")
+        with p1, p2, p3:
+            g = PermissionGateway()
+            result = await g._execute_action(Action("home_control", {"text": "lock the front door"}, "test"))
+        assert result["status"] == "awaiting_confirmation"
+
+    async def test_home_control_execution_failure_is_error_not_ok(self):
+        p1, p2, p3 = self._mock_ha("Sorry, I couldn't execute that command: connection refused")
+        with p1, p2, p3:
+            g = PermissionGateway()
+            result = await g._execute_action(Action("home_control", {"text": "turn on the light"}, "test"))
+        assert result["status"] == "error"
+
+    async def test_vectorcode_unavailable_is_not_implemented_not_ok(self):
+        """2026-09-23 fix: a task that never ran because VectorCode wasn't
+        available used to be certified "ok" -- the exact false-success
+        shape TERMINAL_STATUSES/_HANDLER_DID_NOT_RUN exist to catch, except
+        this call site bypassed them by hardcoding "ok" itself."""
+        from unittest.mock import MagicMock, patch
+        mock_bridge = MagicMock()
+        mock_bridge.is_available.return_value = False
+        g = PermissionGateway()
+        with patch("districts.coding.vectorcode_bridge.get_bridge", return_value=mock_bridge):
+            result = await g._execute_action(Action("code_task", {"title": "do something"}, "test"))
+        assert result["status"] == "not_implemented"
+
+    async def test_vectorcode_exception_is_error_not_ok(self):
+        """2026-09-23 fix: a real exception from the VectorCode bridge used
+        to be swallowed and reported "ok" -- a genuine failure mislabeled
+        as success."""
+        from unittest.mock import MagicMock, patch
+        mock_bridge = MagicMock()
+        mock_bridge.is_available.side_effect = RuntimeError("bridge died")
+        g = PermissionGateway()
+        with patch("districts.coding.vectorcode_bridge.get_bridge", return_value=mock_bridge):
+            result = await g._execute_action(Action("code_task", {"title": "do something"}, "test"))
+        assert result["status"] == "error"
+
     async def test_commit_code_returns_ok(self):
         g = PermissionGateway()
         result = await g._execute_action(Action("commit_code", {"msg": "fix bug"}, "test"))
@@ -260,6 +334,66 @@ class TestExecuteActionStubs:
         g = PermissionGateway()
         result = await g._execute_action(Action("open_panel", {"panel": "health"}, "test"))
         assert result["status"] == "ok"
+
+
+class TestOwnerReadonlyDispatchStatusHonesty:
+    """2026-09-23 regression tests for a real bug an independent review
+    found: _execute_action()'s own _OWNER_READONLY_DISPATCH_ACTION_TYPES
+    branch used to default ANY missing "status" key to "ok" -- but
+    GitBot's real internal-failure shape ({} for get_status(), {"commits":
+    []} for get_recent_commits()) is IDENTICAL to its real success shape
+    (neither ever sets "status" itself). A real failure was therefore
+    certified as success for every consumer that calls
+    PermissionGateway.execute() directly (voice, WebSocket,
+    AutonomousExecutor) -- not just the /command path, which already had
+    its own separate `_is_git_readonly_empty()` protection.
+
+    A real, single-agent AgentRegistry scoped to each test (same
+    established pattern as tests/test_rgd2a_probe_stability.py) supplies a
+    real GitBot so Governor.dispatch() has something real to route to; the
+    only boundary mocked is `git.Repo(...)` itself.
+    """
+
+    def _isolated_registry(self, monkeypatch):
+        from core.city.agent_registry import AgentRegistry
+        from districts.coding.git_bot import GitBot
+        registry = AgentRegistry()
+        registry.register(GitBot())
+        monkeypatch.setattr("core.city.agent_registry.get_registry", lambda: registry)
+
+    async def test_git_status_real_success_is_ok(self, monkeypatch):
+        self._isolated_registry(monkeypatch)
+        fake_repo = MagicMock()
+        fake_repo.head.is_detached = False
+        fake_repo.active_branch.name = "main"
+        fake_repo.active_branch.tracking_branch.return_value = None
+        fake_repo.index.diff.return_value = []
+        fake_repo.untracked_files = []
+        with patch("git.Repo", return_value=fake_repo):
+            g = PermissionGateway()
+            result = await g._execute_action(Action("git_status", {}, "test"))
+        assert result["status"] == "ok"
+        assert result.get("branch") == "main"
+
+    async def test_git_status_real_failure_is_not_ok(self, monkeypatch):
+        """The exact bug: GitBot.get_status() returns {} (no "branch", no
+        "status") when the repo can't be opened -- this must NOT become
+        "ok"."""
+        self._isolated_registry(monkeypatch)
+        with patch("git.Repo", side_effect=RuntimeError("not a git repository")):
+            g = PermissionGateway()
+            result = await g._execute_action(Action("git_status", {}, "test"))
+        assert result["status"] != "ok"
+
+    async def test_recent_commits_real_failure_is_not_ok(self, monkeypatch):
+        """Same bug, the get_recent_commits() shape: {"commits": []} both
+        for a genuinely empty history and for a real failure -- either way,
+        an empty list here must not be certified "ok"."""
+        self._isolated_registry(monkeypatch)
+        with patch("git.Repo", side_effect=RuntimeError("not a git repository")):
+            g = PermissionGateway()
+            result = await g._execute_action(Action("recent_commits", {}, "test"))
+        assert result["status"] != "ok"
 
 
 class TestRecordUnknownAction:
@@ -401,14 +535,21 @@ class TestAgentBaseUncoveredPaths:
         assert isinstance(prompt, str)
 
     def test_vchat_with_no_district_llm(self):
+        """2026-09-23: autospec=True enforces ollama_safe.chat()'s REAL
+        signature (model, messages, ...) -- a plain patch(..., return_value=)
+        mock accepts any call shape and previously hid a real bug where
+        vchat() called chat(msg_list, ...) with no `model` argument at all,
+        landing msg_list in the `model` slot and guaranteeing a TypeError on
+        every real (non-mocked) call."""
         from core.city.agent_base import AgentBase
         import uuid
         from unittest.mock import patch
         a = AgentBase(str(uuid.uuid4()), "TestBot", "coding")
         a._district_llm = None  # Force fallback path
-        with patch("core.inference.ollama_safe.chat", return_value="test response"):
+        with patch("core.inference.ollama_safe.chat", autospec=True, return_value="test response") as mock_chat:
             result = a.vchat([{"role": "user", "content": "hello"}])
         assert isinstance(result, str)
+        assert mock_chat.call_args.args[0] == a.model, "model must be passed positionally, not the messages list"
 
     def test_know_does_not_crash(self):
         from core.city.agent_base import AgentBase

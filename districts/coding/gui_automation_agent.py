@@ -207,7 +207,17 @@ class GUIAutomationAgent(AgentBase):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action")
+        # 2026-09-24 (independent review finding -- HIGH): reading
+        # p.get("action") unconditionally let a caller reach real GUI
+        # automation (gui_task/click_screen/browser_task/vision_control --
+        # all RED) via an UNCLASSIFIED outer type routed here by
+        # CodingSwarm's keyword-score selection, with params.action set to
+        # the real RED action the outer type was never authorized for.
+        # Fixed to prefer the real, authorized outer type the same way
+        # code_conductor_agent.py/mlops_agent.py were fixed the same day --
+        # params.action remains the fallback for internal/smoke-test
+        # callers with no "type" key.
+        action = task.get("type") or p.get("action")
         instruction = p.get("instruction", p.get("task", ""))
 
         # 2026-07-29 (HIGH SEVERITY fix): `action` used to default to

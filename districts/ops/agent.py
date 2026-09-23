@@ -102,7 +102,17 @@ class OpsSwarm(AgentBase):
         agent = self._select_agent(task_type)
         if agent:
             try:
-                return await agent.run(params)
+                # 2026-09-24 (independent review finding -- HIGH): passing
+                # `params` straight through let a caller's own nested
+                # params["type"] silently BE the type the selected agent
+                # reads, with the real, Governor-authorized `task_type`
+                # never enforced at all -- e.g. task_type="incident" (a
+                # harmless outer identity) could carry
+                # params={"type": "cleanup_logs", ...} and reach
+                # DevOpsAutomator.cleanup_logs() with zero relationship to
+                # what was actually authorized. `task_type` must always
+                # win over anything the caller put in params.
+                return await agent.run({**params, "type": task_type})
             except Exception as e:
                 logger.warning("[OpsSwarm] agent {} failed: {} — falling back", agent.name, e)
         return await self._fallback_response(task_type, params)

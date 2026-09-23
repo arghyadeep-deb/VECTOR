@@ -204,6 +204,18 @@ async def test_hp_lottery_dead_capable_agent_wins_across_districts():
     high_hp_noncapable.run = _noncapable_run
     low_hp_capable.run = _capable_run
 
+    # 2026-09-24: "remember" is now YELLOW-tier (real memory_curator write,
+    # previously UNKNOWN-passthrough) -- Governor.dispatch() itself now
+    # requires a real gateway-issued receipt for YELLOW/RED, closing the
+    # authorization-boundary gap this session's work found. Real chat
+    # traffic reaches this via PermissionGateway.execute() first
+    # (core/api/routers/commands.py's classify_chat_intent() path), which
+    # issues this receipt itself -- this test drives Governor.dispatch()
+    # directly to isolate the HP-lottery fix, so it issues the same real
+    # receipt PermissionGateway would, matching production behavior.
+    from core.loop.permission_gateway import PermissionGateway
+    PermissionGateway()._issue_approval_receipt("remember", purpose="governor_dispatch")
+
     gov = Governor()
     result = await gov.dispatch({
         "type": "remember",
