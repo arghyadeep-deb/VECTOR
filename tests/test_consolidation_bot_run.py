@@ -47,7 +47,7 @@ def test_run_store_findings_writes_to_semantic_memory(monkeypatch):
 
     monkeypatch.setattr(bot._memory, "remember", lambda key, value, category="general", confidence=0.5: calls.append(
         {"key": key, "value": value, "category": category, "confidence": confidence}
-    ) or True)
+    ))
 
     result = asyncio.run(bot.run({
         "type": "store_findings",
