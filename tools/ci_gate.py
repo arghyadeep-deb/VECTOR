@@ -71,6 +71,10 @@ def _check_no_runtime_silent_swallows() -> None:
 def main() -> int:
     _check_compile()
     _check_no_runtime_silent_swallows()
+    # 2026-09-24 (external review, Phase 1): catches the exact bug class
+    # found this pass -- a typo'd/stale first-party import path silently
+    # swallowed by a broad except, so the feature just does nothing.
+    _run([sys.executable, "scripts/check_first_party_imports.py"])
     _run([sys.executable, "run_vector.py", "production-check"])
     _run([sys.executable, "-m", "pytest", "-q", *FOCUSED_TESTS])
     return 0

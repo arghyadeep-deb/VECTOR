@@ -24,7 +24,10 @@ async def research_status():
     llm_available = False
     try:
         try:
-            from core.loop.llm_interface import LLMInterface
+            # 2026-09-24 (external review, Phase 1): core.loop.llm_interface
+            # never existed -- llm_available was always False. The real,
+            # actively-used inference entry point is provider_client.py.
+            from core.inference.provider_client import get_client  # noqa: F401
             llm_available = True
         except ImportError:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)

@@ -437,7 +437,13 @@ class SocialSimAgent(AgentBase):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action", "build_ontology")
+        # 2026-09-24 (external review, Phase 1): core/api/routers/simulation.py
+        # sets the real intended action on task["type"] (e.g. "run_simulation",
+        # "interview_agent") but this method only ever read params["action"],
+        # which the router never sets -- every /simulation/* endpoint except
+        # /ontology silently ran build_ontology() instead of what was
+        # actually requested. task["type"] now wins when present.
+        action = task.get("type") or p.get("action", "build_ontology")
 
         if action == "social_simulate":
             return await self.social_simulate(

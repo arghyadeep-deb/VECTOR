@@ -28,7 +28,7 @@ import httpx
 
 from vectorcode.src.vc_core.config import HardwareInfo
 from core.mining.models import get_pearl_model_spec, pearl_variant_for_base_model
-from core.mining.stubs import MiningCapabilities
+from core.mining._abc import MiningCapabilities
 
 REQUIRED_COMPUTE_CAPABILITY = "9.0"
 REQUIRED_VRAM_GB = 70.0

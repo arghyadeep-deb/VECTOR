@@ -213,8 +213,8 @@ class ContentArm:
     async def _notify_owner_to_post(self, reel: str | None = None) -> None:
         """Human-in-the-loop IG: render the reel + Pushover the owner to post it."""
         try:
-            from core.notify import pushover  # type: ignore
-            pushover(f"VECTOR reel ready to post on Instagram: {reel}")
+            from core.notify import pushover
+            await pushover(f"VECTOR reel ready to post on Instagram: {reel}")
         except Exception:
             logger.info("[VECTOR][growth][armA] (manual IG) owner-notify: reel ready {}", reel)
 
