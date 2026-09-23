@@ -9,15 +9,24 @@ from pathlib import Path
 
 
 def _patched_council(verdict_text: str, confidence: float = 0.9):
-    """Return a CouncilBrain subclass whose deliberate() is pre-baked (no Ollama)."""
-    from core.brain.council import CouncilBrain
+    """Return a CouncilBrain subclass whose deliberate() is pre-baked (no Ollama).
+
+    2026-09-24 (external review, Phase 2): deliberate()'s real contract
+    changed -- it now returns an ALREADY-PARSED "verdict"
+    (proceed/reject/defer) plus the raw synthesis text under
+    "verdict_text", instead of raw text under "verdict" for the caller to
+    re-parse. This stub now extracts the keyword itself (same fail-closed
+    logic as the real _parse_vote()) so existing call sites that pass a
+    readable "PROCEED — this action is safe" string keep working."""
+    from core.brain.council import CouncilBrain, _parse_vote
 
     class _Patched(CouncilBrain):
         async def deliberate(self, question, hp_gate=700):
             return {
                 "stage1": ["vote1", "vote2"],
-                "stage2": ["vote1", "vote2"],
-                "verdict": verdict_text,
+                "votes": [_parse_vote(verdict_text)] * 2,
+                "verdict": _parse_vote(verdict_text),
+                "verdict_text": verdict_text,
                 "confidence": confidence,
                 "timestamp": "2026-01-01T00:00:00",
             }

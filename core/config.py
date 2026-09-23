@@ -576,6 +576,12 @@ class CouncilConfig(BaseModel):
     max_per_week: int = Field(10, ge=1, le=100)
     hp_gate: int = Field(700, ge=0, le=1000)
     cost_inr: float = Field(1.60, ge=0)
+    # 2026-09-24 (external review, Phase 2): was hardcoded to 5.0s, far too
+    # short for a cold Ollama model swap under OLLAMA_MAX_LOADED_MODELS=1 --
+    # measured 58% of real deliberations (data/council_log.jsonl) timed out
+    # and defaulted to defer. 30s is sized for a realistic cold-load, not a
+    # warm-model round trip.
+    deliberation_timeout: float = Field(30.0, ge=5.0, le=120.0)
 
 
 class CostConfig(BaseModel):
