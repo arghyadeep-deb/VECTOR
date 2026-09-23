@@ -27,7 +27,7 @@ def test_build_xray_brief_converts_profile_into_structured_brief(monkeypatch):
     assert brief["normalized_target"] == "https://competitor.com"
     assert brief["target_type"] == "url"
     assert len(brief["icp"]) == 0  # icp not derivable from strengths/weaknesses alone
-    assert any("strong brand" in c["claim"] for c in brief["funnel"] + brief["monetization"]) or True
+    assert any("strong brand" in c["claim"] for c in brief["funnel"] + brief["monetization"])
     assert brief["threat_score"] > 50  # "high" threat_level should score high
 
 
