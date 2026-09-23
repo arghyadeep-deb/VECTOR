@@ -429,7 +429,7 @@ class VideoPipelineAgent(AgentBase):
         try:
             from districts.content.script_generator import ScriptGenerator
             gen = ScriptGenerator()
-            result = gen.generate_script(topic, duration_min=duration_min, script_type="youtube_tutorial")
+            result = await gen.generate_script(topic, duration_min=duration_min, script_type="youtube_tutorial")
             if isinstance(result, dict) and result.get("status") == "success":
                 script = result.get("script", {})
                 # Generate supporting metadata

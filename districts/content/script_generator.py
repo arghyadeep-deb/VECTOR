@@ -1,30 +1,33 @@
 import sys
 import uuid
-import asyncio as _asyncio
-import concurrent.futures as _cf
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
 
-def _llm(prompt: str, max_tokens: int = 1500, temperature: float = 0.88) -> str:
+async def _llm(prompt: str, max_tokens: int = 1500, temperature: float = 0.88) -> str:
+    """2026-09-24 (external review, Phase 3 — loop-freeze root cause): this
+    used to be a SYNC function that span up its own ThreadPoolExecutor +
+    nested asyncio.run() and blocked on Future.result(timeout=120) --
+    every caller here is itself async and already running inside the
+    live autonomous-loop/API event loop, so that blocking call froze the
+    ENTIRE event loop (all other dispatches, all other API requests) for
+    up to 120s on every script/hook/CTA generation. ProviderClient.chat()
+    is already async -- just await it directly."""
     from core.inference.provider_client import ProviderClient as _PC
     from core.prompt_library import get_library as _gl
     _sys = _gl().get_for_agent("script_generator") or ""
     messages = [{"role": "user", "content": prompt}]
     if _sys:
         messages = [{"role": "system", "content": _sys}] + messages
-    async def _call():
-        r = await _PC().chat(
-            messages=messages,
-            model="domain:content.script",   # gpt-5 → glm-4.7 → llama-3.3 → ... → ollama
-            tier="agentic", temperature=temperature, max_tokens=max_tokens,
-            caller_id="script_generator",
-        )
-        return r.content
-    with _cf.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(_asyncio.run, _call()).result(timeout=120)
+    r = await _PC().chat(
+        messages=messages,
+        model="domain:content.script",   # gpt-5 → glm-4.7 → llama-3.3 → ... → ollama
+        tier="agentic", temperature=temperature, max_tokens=max_tokens,
+        caller_id="script_generator",
+    )
+    return r.content
 
 
 class ScriptGenerator(AgentBase):
@@ -62,7 +65,7 @@ class ScriptGenerator(AgentBase):
         self._hooks_cache: list[dict] = []
         logger.info("[VECTOR][script_generator] ScriptGenerator initialized")
 
-    def generate_script(self, topic: str, duration_min: float = 5.0,
+    async def generate_script(self, topic: str, duration_min: float = 5.0,
                         script_type: str = "youtube_tutorial") -> dict:
         """
         Generate a complete video script for a topic.
@@ -92,7 +95,7 @@ Format with clear section headers.
 """
 
         try:
-            script_content = _llm(prompt, max_tokens=2000)
+            script_content = await _llm(prompt, max_tokens=2000)
 
             script = {
                 "id": str(uuid.uuid4()),
@@ -158,7 +161,7 @@ Format with clear section headers.
         words_per_minute = 150
         return round(words / words_per_minute, 1)
 
-    def generate_hook(self, topic: str, count: int = 5) -> list[dict]:
+    async def generate_hook(self, topic: str, count: int = 5) -> list[dict]:
         """
         Generate attention-grabbing hooks for a topic.
         Returns multiple hook variations.
@@ -182,7 +185,7 @@ Be creative, bold, and attention-grabbing.
 """
 
         try:
-            hooks_text = _llm(prompt, max_tokens=1000)
+            hooks_text = await _llm(prompt, max_tokens=1000)
 
             hooks = self._parse_hooks(hooks_text, topic)
             self._hooks_cache.extend(hooks)
@@ -234,7 +237,7 @@ Be creative, bold, and attention-grabbing.
 
         return hooks
 
-    def generate_cta(self, topic: str, cta_type: str = "standard") -> dict:
+    async def generate_cta(self, topic: str, cta_type: str = "standard") -> dict:
         """
         Generate call-to-action text for a topic.
         Types: standard, urgency, question, community
@@ -262,7 +265,7 @@ Return ONLY the CTA text, nothing else.
 """
 
         try:
-            cta_text = _llm(prompt, max_tokens=300, temperature=0.7)
+            cta_text = await _llm(prompt, max_tokens=300, temperature=0.7)
 
             self.award_points(5, "cta_generated")
             logger.info(f"[VECTOR][script_generator] Generated CTA for: {topic}")
@@ -278,7 +281,7 @@ Return ONLY the CTA text, nothing else.
             logger.error(f"[VECTOR][script_generator] CTA generation failed: {e}")
             return {"topic": topic, "error": str(e)}
 
-    def expand_script(self, script: dict, target_duration_min: float) -> dict:
+    async def expand_script(self, script: dict, target_duration_min: float) -> dict:
         """Expand an existing script to target duration."""
         current_duration = script.get("duration_min", 5.0)
         if target_duration_min <= current_duration:
@@ -302,7 +305,7 @@ Return the expanded script with the same format.
 """
 
         try:
-            expanded_content = _llm(prompt, max_tokens=3000)
+            expanded_content = await _llm(prompt, max_tokens=3000)
 
             expanded_script = script.copy()
             expanded_script["id"] = str(uuid.uuid4())
@@ -333,22 +336,27 @@ Return the expanded script with the same format.
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        result = self.generate_script(p.get("topic", "AI trends"), p.get("duration_min", 5.0))
+        result = await self.generate_script(p.get("topic", "AI trends"), p.get("duration_min", 5.0))
         return {"status": "ok", **result}
 
 
 if __name__ == "__main__":
+    import asyncio
+
     sys.stdout.reconfigure(encoding="utf-8")
 
-    generator = ScriptGenerator()
+    async def _smoke():
+        generator = ScriptGenerator()
 
-    hooks = generator.generate_hook("Python Programming", 3)
-    print(f"Generated {len(hooks)} hooks")
+        hooks = await generator.generate_hook("Python Programming", 3)
+        print(f"Generated {len(hooks)} hooks")
 
-    if hooks:
-        print(f"First hook: {hooks[0].get('text', 'N/A')[:50]}...")
+        if hooks:
+            print(f"First hook: {hooks[0].get('text', 'N/A')[:50]}...")
 
-    cta = generator.generate_cta("Web Development", "urgency")
-    print(f"CTA: {cta.get('cta_text', 'N/A')[:50]}...")
+        cta = await generator.generate_cta("Web Development", "urgency")
+        print(f"CTA: {cta.get('cta_text', 'N/A')[:50]}...")
 
-    print("✅ script_generator.py OK")
+        print("✅ script_generator.py OK")
+
+    asyncio.run(_smoke())
