@@ -64,6 +64,14 @@ async def gesture_ws(ws: WebSocket):
         import cv2
         import mediapipe as mp
 
+        if not hasattr(mp, "solutions"):
+            # mediapipe >= 0.10.2x dropped the legacy `solutions` API (Tasks API only). Say so up
+            # front instead of accepting the socket and dying with an AttributeError, which the HUD
+            # then retried once per second.
+            raise ImportError(
+                f"mediapipe {getattr(mp, '__version__', '?')} has no legacy 'solutions' API; "
+                "install an older mediapipe or port this handler to the Tasks API"
+            )
         mp_hands = mp.solutions.hands
         hands = mp_hands.Hands(
             static_image_mode=False,
@@ -163,9 +171,13 @@ async def gesture_ws(ws: WebSocket):
         logger.info("[VECTOR][gesture] Client disconnected")
     except ImportError as e:
         logger.warning(f"[VECTOR][gesture] mediapipe/cv2 not installed: {e}")
-        await ws.send_text(json.dumps({"error": f"MediaPipe not installed: {e}"}))
+        await ws.send_text(json.dumps({"type": "unavailable", "error": f"MediaPipe not available: {e}"}))
     except Exception as e:
         logger.error(f"[VECTOR][gesture] Error: {e}")
+        try:
+            await ws.send_text(json.dumps({"type": "error", "error": str(e)}))
+        except Exception:
+            logger.debug("[VECTOR][gesture] could not report error to client", exc_info=True)
     finally:
         if cap is not None:
             cap.release()
