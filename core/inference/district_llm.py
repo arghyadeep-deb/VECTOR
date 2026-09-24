@@ -1,3 +1,6 @@
+# DORMANT (2026-09-24, docs/design/core-module-triage.md): not imported by the running VECTOR.
+# Superseded by vectorcode_llm / provider_client via AgentBase. Kept on purpose (personal-use build); do not add a second live path --
+# route through the existing mechanism so the Governor and PermissionGateway stay the only way in.
 """
 DistrictLLM — vectorcode-backed LLM caller with auto .md system prompt injection.
 

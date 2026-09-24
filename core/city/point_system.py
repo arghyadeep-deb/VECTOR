@@ -1,3 +1,6 @@
+# DORMANT (2026-09-24, docs/design/core-module-triage.md): not imported by the running VECTOR.
+# Superseded by the HP system in core/city/agent_base.py. Kept on purpose (personal-use build); do not add a second live path --
+# route through the existing mechanism so the Governor and PermissionGateway stay the only way in.
 """
 V.E.C.T.O.R. PointSystem.
 HP point system for agent health and evolution tracking.

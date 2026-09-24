@@ -1,3 +1,6 @@
+# DORMANT (2026-09-24, docs/design/core-module-triage.md): not imported by the running VECTOR.
+# Superseded by core/inference/llm_providers.py (PROVIDERS) and model_catalog.yaml. Kept on purpose (personal-use build); do not add a second live path --
+# route through the existing mechanism so the Governor and PermissionGateway stay the only way in.
 """VECTOR provider capability registry.
 
 This is intentionally small and derived from the providers VECTOR already owns.

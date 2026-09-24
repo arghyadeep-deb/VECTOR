@@ -317,6 +317,34 @@ async def job_weekly_growth_report(*, _ctx: dict | None = None) -> dict:
         return {"status": "failed", "reason": str(e)}
 
 
+async def job_oauth_refresh(*, _ctx: dict | None = None) -> dict:
+    """Every 30 min — proactively refresh OAuth tokens expiring within the hour (Google etc.)."""
+    try:
+        from core.engine.oauth.flows import OAuthFlowManager
+        refreshed = await asyncio.to_thread(OAuthFlowManager().refresh_expiring_tokens, 60)
+        if refreshed:
+            logger.info("[VECTOR][cron] oauth_refresh: refreshed {}", refreshed)
+        return {"status": "ok", "refreshed": refreshed}
+    except Exception as e:
+        logger.warning("[VECTOR][cron] oauth_refresh failed: {}", e)
+        return {"status": "error", "error": str(e)}
+
+
+async def job_cloud_heartbeat(*, _ctx: dict | None = None) -> dict:
+    """Every 5 min — push a status heartbeat to the cloud brain (no-op unless a brain URL is configured)."""
+    try:
+        from core.config import CONFIG
+        from core.cloud.heartbeat import CloudBrainHeartbeat
+        cloud = CONFIG.get("cloud", {}) or {}
+        hb = CloudBrainHeartbeat(brain_url=cloud.get("brain_url", ""), api_key=cloud.get("api_key", ""))
+        if not hb.is_enabled():
+            return {"status": "disabled"}
+        return {"status": "ok" if await hb.send() else "failed"}
+    except Exception as e:
+        logger.warning("[VECTOR][cron] cloud_heartbeat failed: {}", e)
+        return {"status": "error", "error": str(e)}
+
+
 async def job_content_plan(*, _ctx: dict | None = None) -> dict:
     """Daily 08:30 — plan one script -> schedule_post content plan (published later, owner-approved)."""
     try:
@@ -432,6 +460,16 @@ def register_default_jobs(scheduler: Any) -> int:
         logger.info("[VECTOR][cron] registered subconscious-loop (interval, 30min)")
     else:
         logger.warning("[VECTOR][cron] could not register subconscious-loop — scheduler API mismatch")
+
+    for job_id, minutes, fn in (
+        ("oauth-refresh", 30, job_oauth_refresh),
+        ("cloud-heartbeat", 5, job_cloud_heartbeat),
+    ):
+        if _try_register_interval(scheduler, job_id, minutes, fn):
+            registered += 1
+            logger.info("[VECTOR][cron] registered {} (interval, {}min)", job_id, minutes)
+        else:
+            logger.warning("[VECTOR][cron] could not register {} — scheduler API mismatch", job_id)
 
     return registered
 
@@ -595,6 +633,8 @@ __all__ = [
     "job_daily_review",
     "job_content_scheduler",
     "job_content_plan",
+    "job_oauth_refresh",
+    "job_cloud_heartbeat",
     "job_weekly_dspy_optimize",
     "job_weekly_growth_report",
     "job_venture_pipeline",
