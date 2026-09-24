@@ -30,6 +30,14 @@ from tools.registry import registry
 import model_tools
 r = json.loads(registry.dispatch("skills_list", {}))
 out["success"] = r.get("success"); out["count"] = len(r.get("skills", []))
+import importlib
+for mod in ("tui_gateway.server", "tui_gateway.entry", "tui_gateway.ws"):
+    try:
+        importlib.import_module(mod); out[mod] = "ok"
+    except BaseException as e:
+        out[mod] = type(e).__name__ + ": " + str(e)[:160]
+import transports
+out["transports"] = sorted(transports.list_transports())
 print("RESULT:" + json.dumps(out))
 """
 
@@ -43,7 +51,8 @@ def result():
                VECTOR_TEST_DATA_DIR=str(work / "data"), VECTOR_DB_KEY="vc-skills-test")
     r = subprocess.run([sys.executable, "-c", _CHILD, str(ROOT)], capture_output=True, text=True, timeout=280,
                        env=env, cwd=str(work))
-    lines = [ln for ln in r.stdout.splitlines() if ln.startswith("RESULT:")]
+    # tui_gateway.entry re-points stdout at stderr (stdout is its JSON-RPC pipe), so look in both
+    lines = [ln for ln in (r.stdout + r.stderr).splitlines() if ln.startswith("RESULT:")]
     assert lines, f"child produced no result:\n{r.stderr[-900:]}"
     return json.loads(lines[-1][len("RESULT:"):])
 
@@ -58,6 +67,17 @@ def test_skills_list_returns_the_shipped_skills(result):
 
 def test_get_vectorcode_home_alias_exists(result):
     assert result["home_alias"] is True
+
+
+@pytest.mark.parametrize("mod", ["tui_gateway.server", "tui_gateway.entry", "tui_gateway.ws"])
+def test_tui_gateway_modules_import(result, mod):
+    """They imported a missing get_vectorcode_home / load_vectorcode_dotenv, a shim that hides _CRASH_LOG, and
+    Unix-only SIGPIPE/SIGHUP."""
+    assert result[mod] == "ok", result[mod]
+
+
+def test_transports_register_without_a_phantom_ollama_module(result):
+    assert result["transports"] == ["anthropic_messages", "chat_completions"]
 
 
 if __name__ == "__main__":

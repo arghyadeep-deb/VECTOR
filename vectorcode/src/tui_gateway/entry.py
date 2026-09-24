@@ -6,9 +6,9 @@ import sys
 import time
 import traceback
 
-from vectorcode.tui_gateway import server
-from vectorcode.tui_gateway.server import _CRASH_LOG, dispatch, resolve_skin, write_json
-from vectorcode.tui_gateway.transport import TeeTransport
+from vectorcode.src.tui_gateway import server
+from vectorcode.src.tui_gateway.server import _CRASH_LOG, dispatch, resolve_skin, write_json
+from vectorcode.src.tui_gateway.transport import TeeTransport
 
 
 def _install_sidecar_publisher() -> None:
@@ -23,7 +23,7 @@ def _install_sidecar_publisher() -> None:
     if not url:
         return
 
-    from vectorcode.tui_gateway.event_publisher import WsPublisherTransport
+    from vectorcode.src.tui_gateway.event_publisher import WsPublisherTransport
 
     server._stdio_transport = TeeTransport(
         server._stdio_transport, WsPublisherTransport(url)
@@ -40,11 +40,9 @@ def _log_signal(signum: int, frame) -> None:
     crash log never sees a Python exception because the kernel reaps
     the process before the interpreter runs anything.
     """
-    name = {
-        signal.SIGPIPE: "SIGPIPE",
-        signal.SIGTERM: "SIGTERM",
-        signal.SIGHUP: "SIGHUP",
-    }.get(signum, f"signal {signum}")
+    # SIGPIPE / SIGHUP do not exist on Windows (importing this module raised AttributeError there).
+    names = {getattr(signal, n): n for n in ("SIGPIPE", "SIGTERM", "SIGHUP") if hasattr(signal, n)}
+    name = names.get(signum, f"signal {signum}")
     try:
         os.makedirs(os.path.dirname(_CRASH_LOG), exist_ok=True)
         with open(_CRASH_LOG, "a", encoding="utf-8") as f:
@@ -75,9 +73,11 @@ def _log_signal(signum: int, frame) -> None:
 # sys.exit(0) + _log_exit), which keeps the gateway alive as long as
 # the main command pipe is still readable.  Terminal signals still
 # route through _log_signal so kills and hangups are diagnosable.
-signal.signal(signal.SIGPIPE, signal.SIG_IGN)
+if hasattr(signal, "SIGPIPE"):
+    signal.signal(signal.SIGPIPE, signal.SIG_IGN)
 signal.signal(signal.SIGTERM, _log_signal)
-signal.signal(signal.SIGHUP, _log_signal)
+if hasattr(signal, "SIGHUP"):
+    signal.signal(signal.SIGHUP, _log_signal)
 signal.signal(signal.SIGINT, signal.SIG_IGN)
 
 

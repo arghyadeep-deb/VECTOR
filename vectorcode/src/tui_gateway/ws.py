@@ -14,7 +14,7 @@ echoes responses/events for inbound requests. No framing differences.
 Mounting
 --------
     from fastapi import WebSocket
-    from vectorcode.tui_gateway.ws import handle_ws
+    from vectorcode.src.tui_gateway.ws import handle_ws
 
     @app.websocket("/api/ws")
     async def ws(ws: WebSocket):
@@ -29,7 +29,7 @@ import json
 import logging
 from typing import Any
 
-from vectorcode.tui_gateway import server
+from vectorcode.src.tui_gateway import server
 
 _log = logging.getLogger(__name__)
 

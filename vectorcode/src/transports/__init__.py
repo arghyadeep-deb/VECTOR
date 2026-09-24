@@ -78,10 +78,8 @@ def _auto_register() -> None:
     except Exception as e:
         logger.warning(f"[VECTOR][transports] failed to load chat_completions transport: {e}")
 
-    try:
-        from transports import ollama as _oll          # noqa: F401  # type: ignore[import]
-    except Exception as e:
-        logger.warning(f"[VECTOR][transports] failed to load ollama transport: {e}")
+    # No ollama transport: local Ollama models are served by providers.router.ModelRouter. Importing a
+    # non-existent transports.ollama module only logged a warning on every start.
 
 
 _auto_register()
