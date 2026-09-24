@@ -11,6 +11,7 @@ import codecs
 import json
 import logging
 import os
+import queue
 import select
 import shlex
 import subprocess
@@ -104,7 +105,14 @@ def _pipe_stdin(proc: subprocess.Popen, data: str) -> None:
 
     def _write():
         try:
-            proc.stdin.write(data)
+            # Write raw UTF-8 bytes: the text-mode wrapper translates LF to CRLF on Windows,
+            # which silently changed the line endings of every file written through `cat > file`.
+            raw = getattr(proc.stdin, "buffer", None)
+            if raw is not None:
+                raw.write(data.encode("utf-8"))
+                raw.flush()
+            else:
+                proc.stdin.write(data)
             proc.stdin.close()
         except (BrokenPipeError, OSError) as _sve:
             logger.warning("[VECTOR][tools.environments.base] suppressed (BrokenPipeError, OSError): %s", _sve)
@@ -482,20 +490,52 @@ class BaseEnvironment(ABC):
         # U+FFFD substitution rather than clobbering the whole buffer.
         decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
 
+        def _make_poller(fd):
+            """Return poll() -> (ready, chunk); chunk == b"" means EOF.
+
+            POSIX: select() on the pipe fd. Windows: select() only accepts sockets, so it raised
+            OSError, which the loop below treated as "fd closed" -- the drain thread exited at once
+            and EVERY command's output was silently lost (exit code still 0). Windows therefore
+            uses a blocking reader thread feeding a queue.
+            """
+            if os.name != "nt":
+                def _posix_poll():
+                    ready, _, _ = select.select([fd], [], [], 0.1)
+                    return (True, os.read(fd, 4096)) if ready else (False, None)
+                return _posix_poll
+
+            q: "queue.Queue[bytes | None]" = queue.Queue()
+
+            def _reader():
+                try:
+                    while True:
+                        data = os.read(fd, 4096)
+                        q.put(data)
+                        if not data:
+                            return
+                except (ValueError, OSError):
+                    q.put(b"")
+
+            threading.Thread(target=_reader, daemon=True).start()
+
+            def _nt_poll():
+                try:
+                    return True, q.get(timeout=0.1)
+                except queue.Empty:
+                    return False, None
+            return _nt_poll
+
         def _drain():
             fd = proc.stdout.fileno()
+            poll_chunk = _make_poller(fd)
             idle_after_exit = 0
             try:
                 while True:
                     try:
-                        ready, _, _ = select.select([fd], [], [], 0.1)
+                        ready, chunk = poll_chunk()
                     except (ValueError, OSError):
                         break  # fd already closed
                     if ready:
-                        try:
-                            chunk = os.read(fd, 4096)
-                        except (ValueError, OSError):
-                            break
                         if not chunk:
                             break  # true EOF — all writers closed
                         output_chunks.append(decoder.decode(chunk))

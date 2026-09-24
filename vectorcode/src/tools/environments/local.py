@@ -2,6 +2,7 @@
 from loguru import logger
 
 import os
+import re
 import platform
 import shutil
 import signal
@@ -182,6 +183,14 @@ _SANE_PATH = (
     "/opt/homebrew/bin:/opt/homebrew/sbin:"
     "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
+
+
+def _msys_to_windows(path: str) -> str:
+    """/c/Users/x -> C:\\Users\\x (Git-Bash/MSYS path to a native Windows path); others unchanged."""
+    m = re.match(r"^/([a-zA-Z])(/.*)?$", path or "")
+    if not m:
+        return path
+    return m.group(1).upper() + ":" + (m.group(2) or "/").replace("/", "\\")
 
 
 def _make_run_env(env: dict) -> dict:
@@ -390,6 +399,13 @@ class LocalEnvironment(BaseEnvironment):
 
     def _update_cwd(self, result: dict):
         """Read CWD from temp file (local-only, no round-trip needed)."""
+        if _IS_WINDOWS:
+            # The cwd file lives under a POSIX /tmp path that Windows Python resolves to a different
+            # location (C:\tmp), so reading it always failed. The output marker carries the cwd
+            # instead; convert its MSYS form (/c/Users/x) back to a Windows path.
+            self._extract_cwd_from_output(result)
+            self.cwd = _msys_to_windows(self.cwd)
+            return
         try:
             cwd_path = open(self._cwd_file).read().strip()
             if cwd_path:
