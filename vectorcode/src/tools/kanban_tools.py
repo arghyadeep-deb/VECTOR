@@ -30,7 +30,7 @@ import logging
 import os
 from typing import Any, Optional
 
-from vectorcode.src.tools.registry import registry, tool_error
+from tools.registry import registry, tool_error  # bare name: the fully-qualified path made a SECOND registry copy
 
 logger = logging.getLogger(__name__)
 

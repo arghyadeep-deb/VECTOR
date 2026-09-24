@@ -79,12 +79,12 @@ class ToolEntry:
     __slots__ = (
         "name", "toolset", "schema", "handler", "check_fn",
         "requires_env", "is_async", "description", "emoji",
-        "max_result_size_chars",
+        "max_result_size_chars", "dynamic_schema_overrides",
     )
 
     def __init__(self, name, toolset, schema, handler, check_fn,
                  requires_env, is_async, description, emoji,
-                 max_result_size_chars=None):
+                 max_result_size_chars=None, dynamic_schema_overrides=None):
         self.name = name
         self.toolset = toolset
         self.schema = schema
@@ -95,6 +95,10 @@ class ToolEntry:
         self.description = description
         self.emoji = emoji
         self.max_result_size_chars = max_result_size_chars
+        # Optional callable returning schema keys to overlay when definitions are built (e.g. a description
+        # that reflects the currently configured backend). video_generation_tool passes one; the parameter
+        # did not exist, so that whole tool failed to register.
+        self.dynamic_schema_overrides = dynamic_schema_overrides
 
 
 class ToolRegistry:
@@ -185,6 +189,7 @@ class ToolRegistry:
         description: str = "",
         emoji: str = "",
         max_result_size_chars: int | float | None = None,
+        dynamic_schema_overrides: Callable | None = None,
     ):
         """Register a tool.  Called at module-import time by each tool file."""
         with self._lock:
@@ -222,6 +227,7 @@ class ToolRegistry:
                 description=description or schema.get("description", ""),
                 emoji=emoji,
                 max_result_size_chars=max_result_size_chars,
+                dynamic_schema_overrides=dynamic_schema_overrides,
             )
             if check_fn and toolset not in self._toolset_checks:
                 self._toolset_checks[toolset] = check_fn
@@ -282,6 +288,11 @@ class ToolRegistry:
                     continue
             # Ensure schema always has a "name" field — use entry.name as fallback
             schema_with_name = {**entry.schema, "name": entry.name}
+            if entry.dynamic_schema_overrides:
+                try:
+                    schema_with_name.update(entry.dynamic_schema_overrides() or {})
+                except Exception:
+                    logger.debug("Tool %s dynamic schema overrides failed; using the static schema", name)
             result.append({"type": "function", "function": schema_with_name})
         return result
 
