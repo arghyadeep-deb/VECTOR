@@ -1,8 +1,7 @@
 /* ============================================================================
-   VECTOR · hud-controls.js — production-safe visible HUD controls.
-   LEAN DOCK: only features that actually work in the production build, each
-   with a text label so nothing is a mystery icon. Vision/gesture buttons were
-   removed — they need MediaPipe vendor scripts that only the dev build loads.
+   VECTOR · hud-controls.js — the labelled HUD controls (VOICE, CHAT, GOALS, APPROVALS, PANELS, SOUND), each with a
+   text label so nothing is a mystery icon. The vision/gesture buttons live in the subsystem dock (demo.js), which
+   needs the MediaPipe vendor scripts VECTOR.html loads.
    Power panels (code graph, mission control, …) stay reachable via the
    Ctrl+Shift+H terminal ("ls" lists them) — not as dock clutter.
    ========================================================================== */

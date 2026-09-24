@@ -143,7 +143,7 @@
     if (typeof V.emit === 'function') V.emit('live:update', D.LIVE);   // repaint tickers without the seed
   }
 
-  // Live facts the production ticker/status strips are built from (never constants).
+  // Live facts the ticker/status strips are built from (never constants).
   function setLive(patch) {
     D.LIVE = Object.assign(D.LIVE || {}, patch);
     if (typeof V.emit === 'function') V.emit('live:update', D.LIVE);

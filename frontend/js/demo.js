@@ -1,7 +1,7 @@
 /* ============================================================================
    VECTOR · demo.js  — subsystem dock, Director (dev) panel, hotkeys,
    scripted auto-demo, and the backend-connect form.
-   Strip this file out for production; nothing else depends on it.
+   The HUD needs this file: it builds the subsystem dock and the hotkeys.
    ========================================================================== */
 (function (global) {
   'use strict';
