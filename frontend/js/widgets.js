@@ -1471,10 +1471,36 @@
   // registry only fills F[id] when no bespoke renderer exists). This makes the
   // panel actually usable for image/video generation, like librechat/openwebui.
   F.comfyui = function(){
-    const frame = el('iframe');
-    frame.src = 'http://127.0.0.1:8188';
-    frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:4px;';
-    return shell('comfyui','MEDIA · COMFYUI', frame, 'iframe-panel');
+    const holder = el('div');
+    holder.style.cssText = 'width:100%;height:100%;';
+    // The page's CSP forbids probing :8188 directly, so ask the backend whether ComfyUI is listening; an
+    // iframe onto a dead port is just a blank panel.
+    function show(){
+      holder.innerHTML = '';
+      const note = el('div','feature-empty'); note.textContent = 'Checking ComfyUI…';
+      holder.appendChild(note);
+      apiGet('/media/sidecars').then(s=>{
+        holder.innerHTML = '';
+        if(s && s.comfyui && s.comfyui.running){
+          const frame = el('iframe');
+          frame.src = s.comfyui.url;
+          frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:4px;';
+          holder.appendChild(frame);
+        }else{
+          const msg = el('div','feature-empty');
+          msg.textContent = 'ComfyUI is not running at ' + ((s && s.comfyui && s.comfyui.url) || 'http://127.0.0.1:8188') + '. Start it, then retry.';
+          const retry = el('button','feature-action'); retry.textContent = 'RETRY';
+          retry.addEventListener('click', show);
+          holder.appendChild(msg); holder.appendChild(retry);
+        }
+      }).catch(err=>{
+        holder.innerHTML = '';
+        const msg = el('div','feature-empty'); msg.textContent = 'Could not check ComfyUI: ' + (err && err.message || err);
+        holder.appendChild(msg);
+      });
+    }
+    show();
+    return shell('comfyui','MEDIA · COMFYUI', holder, 'iframe-panel');
   };
 
   // ── Finance Panel ─────────────────────────────────────────────────────────
@@ -1952,12 +1978,21 @@
         status.textContent = 'side system: status is outside the main API';
         return;
       }
+      let sidecarNote = '';
+      if(/^(mediastudio|comfyui|hyperframes)$/.test(cfg.id || '')){
+        // These panels front a separate local server; say whether it is actually listening (backend probes it).
+        try{
+          const sc = await apiGet('/media/sidecars');
+          const one = sc && sc[cfg.id === 'mediastudio' ? 'studio' : cfg.id];
+          if(one) sidecarNote = ' · ' + (one.running ? 'server running at ' : 'server NOT running at ') + one.url;
+        }catch(_){}
+      }
       try{
         const data = await apiGet(cfg.health);
-        status.textContent = 'online: '+cfg.health;
+        status.textContent = 'online: '+cfg.health + sidecarNote;
         json.textContent = renderJsonPreview(data);
       }catch(e){
-        status.textContent = 'unavailable: '+cfg.health;
+        status.textContent = 'unavailable: '+cfg.health + sidecarNote;
         json.textContent = e.message || String(e);
       }
     }

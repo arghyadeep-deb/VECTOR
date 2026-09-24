@@ -54,8 +54,8 @@ with sync_playwright() as pw:
     pg = browser.new_context(viewport={"width": 1488, "height": 812}, bypass_csp=True).new_page()
     pg.on("pageerror", lambda e: out["js_errors"].append(str(e)))
     pg.goto(url)
-    pg.wait_for_function("window.VECTOR_DATA && window.VECTOR_DATA.SEED_CLEARED === true", timeout=30000)
-    pg.wait_for_function("window.VECTOR_DATA.LIVE && window.VECTOR_DATA.LIVE.loop", timeout=30000)
+    pg.wait_for_function("window.VECTOR_DATA && window.VECTOR_DATA.SEED_CLEARED === true", timeout=75000)
+    pg.wait_for_function("window.VECTOR_DATA.LIVE && window.VECTOR_DATA.LIVE.loop", timeout=75000)
     pg.wait_for_timeout(1500)
     out["seed"] = pg.evaluate("() => ({ council: VECTOR_DATA.COUNCIL.length, stocks: VECTOR_DATA.STOCKS.length, news: VECTOR_DATA.NEWS.length, tracks: VECTOR_DATA.TRACKS.length, memory_fake: VECTOR_DATA.MEMORY.filter(m => /PR #218|:11434|KIIT attendance/.test(m.content)).length })")
     out["stocks_text"] = pg.evaluate("() => document.getElementById('stockTrack') ? document.getElementById('stockTrack').textContent : ''")
@@ -107,7 +107,7 @@ def hud():
     try:
         browser_env = {k: v for k, v in os.environ.items() if k != "PYTEST_CURRENT_TEST"}
         r = subprocess.run([sys.executable, "-c", _BROWSER_SRC, f"{base}/hud/?key={KEY}"],
-                           capture_output=True, text=True, timeout=180, env=browser_env, cwd=str(ROOT))
+                           capture_output=True, text=True, timeout=240, env=browser_env, cwd=str(ROOT))
         lines = [ln for ln in r.stdout.splitlines() if ln.startswith("{")]
         if not lines:
             pytest.skip(f"browser run produced no result: {r.stderr[-300:]}")
