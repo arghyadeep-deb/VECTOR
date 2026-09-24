@@ -424,7 +424,8 @@ class TestDecisionEngineRegression:
         try:
             tracker = EpistemicTracker(db_path=db)
             # ttl_hours=0 → immediate stale
-            tracker.update_belief("action_domain:test", "old", 0.8, "test",
+            # R16 (2026-09-10): the domain is the full action_type, not its first token.
+            tracker.update_belief("action_domain:test_action", "old", 0.8, "test",
                                   ttl_hours=0)
 
             # Wire the tracker into the engine via its getter
@@ -452,7 +453,7 @@ class TestDecisionEngineRegression:
         e.record_epistemic_belief("search_web", "ok", 0.9)
         mock_ep.merge_belief.assert_called_once()
         args = mock_ep.merge_belief.call_args[0]
-        assert args[0] == "action_domain:search"
+        assert args[0] == "action_domain:search_web"  # R16: full action_type
         assert abs(args[2] - 0.9) < 0.01
         assert args[3] == "act_loop"
 
@@ -473,7 +474,7 @@ class TestDecisionEngineRegression:
         de._get_epistemic = lambda: tracker
         de.record_epistemic_belief("kiit_action", "ok", 0.85)
 
-        outcome_belief = tracker.get_belief("action_domain:kiit")
+        outcome_belief = tracker.get_belief("action_domain:kiit_action")  # R16: full action_type
         assert outcome_belief is not None
         assert outcome_belief["confidence"] == pytest.approx(0.85, abs=0.01)
 

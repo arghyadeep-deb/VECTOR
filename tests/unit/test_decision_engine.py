@@ -78,7 +78,7 @@ class TestScoringFactors:
     async def test_each_factor_contributes_to_reasoning_chain(self, engine):
         c = make_candidate("action_a", confidence=0.7, urgency=0.6, timing_score=0.8)
         await engine.evaluate([c])
-        assert len(c.reasoning_chain) == 6
+        assert len(c.reasoning_chain) >= 6  # later rounds added extra post-score factors
         factor_names = {s["factor"] for s in c.reasoning_chain}
         assert "goal_alignment" in factor_names
         assert "confidence" in factor_names
