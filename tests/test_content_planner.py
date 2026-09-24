@@ -100,3 +100,15 @@ async def test_plan_step_two_creates_a_pending_job_and_nothing_publishes(tmp_pat
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+def test_content_plan_job_is_registered_before_the_publish_job(monkeypatch):
+    import core.loop.cron_jobs as cj
+
+    seen = []
+    monkeypatch.setattr(cj, "_try_register", lambda sched, job_id, cadence, cron, fn: seen.append((job_id, cron)) or True)
+    monkeypatch.setattr(cj, "_try_register_interval", lambda *a, **k: True)
+    cj.register_default_jobs(object())
+    ids = [j for j, _ in seen]
+    assert "content-plan" in ids and ids.index("content-plan") < ids.index("content-scheduler")
+    assert dict(seen)["content-plan"] == "30 8 * * *"
