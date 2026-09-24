@@ -59,6 +59,26 @@ def test_executor_blocks_denied_gateway_result() -> None:
     assert "not_approved" in report.verification["checks"]
 
 
+def test_executor_treats_agent_authored_success_status_as_success() -> None:
+    """2026-09-23 regression test: a real, working district agent's own
+    run() result reaches here UNMODIFIED on success (Governor.dispatch()
+    returns it as-is, core/city/governor.py:2701) -- and most real agents
+    (districts/agency/client_manager.py, districts/calls/*, districts/
+    content/*, districts/investment/*, ~100+ call sites) use "success", not
+    "ok", as their own native status string. A prior fix briefly flipped
+    this check to a whitelist of exactly {"ok", "executed"}, which would
+    have wrongly certified this as a FAILURE."""
+    gateway = FakeGateway(
+        GatewayResult(True, "GREEN", True, {"status": "success", "client": "acme"}, "Auto")
+    )
+    report = asyncio.run(
+        AutonomousExecutor(permission_gateway=gateway).execute("hand_content", {})
+    )
+
+    assert report.status == "executed"
+    assert report.verification["ok"] is True
+
+
 def test_executor_does_not_treat_not_implemented_as_success() -> None:
     gateway = FakeGateway(
         GatewayResult(

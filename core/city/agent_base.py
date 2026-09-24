@@ -287,9 +287,16 @@ class AgentBase:
         return {"status": "queued", "agent": self.name, "event_type": event.get("event_type")}
 
     async def run(self, task: dict) -> dict:
-        """Base task runner used by tests and simple district fallbacks."""
+        """Base task runner used by tests and simple district fallbacks.
+
+        `"stub": True` marks this as the unoverridden base implementation —
+        it did no real work, so Governor.dispatch()'s RULE 9 HP award must
+        not treat this "ok" the same as a real district agent's demonstrated
+        outcome (see governor.py's HP-award check). Additive only: status
+        stays "ok" so existing callers that assert on it are unaffected.
+        """
         self.last_active = datetime.datetime.utcnow().isoformat()
-        return {"status": "ok", "agent": self.name, "task": task}
+        return {"status": "ok", "agent": self.name, "task": task, "stub": True}
 
     def get_system_prompt(self) -> str:
         """Return a compact system prompt for generic agent interactions.
@@ -322,18 +329,55 @@ class AgentBase:
         return " ".join(parts)
 
     def vchat(self, messages: list[dict] | str) -> str:
-        """Small LLM helper with an Ollama-safe fallback path."""
+        """Small LLM helper with an Ollama-safe fallback path.
+
+        RULE 1: session_hydration_prompt() before EVERY LLM call, no
+        exceptions. This was previously missing here — every agent's own
+        vchat() calls (the base helper ~25 district agents build on) went
+        to the LLM with zero world-state/person-model/goal context, unlike
+        every other real LLM call site in the codebase (governor.py,
+        commands.py, ambient_listener.py, ...). Fixed 2026-09-23.
+        """
+        msg_list = [{"role": "user", "content": messages}] if isinstance(messages, str) else list(messages)
+        try:
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt()
+        except Exception as _hydr_err:
+            logger.debug("[VECTOR][city] vchat hydration failed for {}: {}", self.name, _hydr_err)
+            hydration = ""
+        if hydration:
+            if msg_list and msg_list[0].get("role") == "system":
+                msg_list = [
+                    {"role": "system", "content": (hydration + "\n\n" + msg_list[0].get("content", "")).strip()},
+                    *msg_list[1:],
+                ]
+            else:
+                msg_list = [{"role": "system", "content": hydration}, *msg_list]
+
+        # 2026-09-23 fix (independent review of the RULE 1 hydration fix
+        # above caught this): both real chat() signatures --
+        # core/inference/district_llm.py's DistrictLLM.chat() and
+        # core/inference/ollama_safe.py's chat() -- require `model` as a
+        # REQUIRED first positional argument, `messages` second. The
+        # previous calls here (both before and after the hydration fix)
+        # passed only `msg_list`, landing in the `model` slot with no
+        # `messages` argument at all -- a guaranteed TypeError on every
+        # real call, silently swallowed by the except below, so vchat() has
+        # never actually reached an LLM in production. self.model (HP-tier
+        # resolved by _calculate_model()) is a real Ollama tag; fall back to
+        # the ambient tag on the HP<1 edge case where it's None.
+        _model = self.model or CONFIG["models"]["ambient"]
         if self._district_llm is not None:
             try:
                 if hasattr(self._district_llm, "chat"):
-                    return self._district_llm.chat(messages)
+                    return self._district_llm.chat(_model, msg_list)
                 if callable(self._district_llm):
-                    return self._district_llm(messages)
+                    return self._district_llm(msg_list)
             except Exception as e:
                 logger.debug("[VECTOR][city] district_llm fallback for {}: {}", self.name, e)
         try:
             from core.inference.ollama_safe import chat
-            return chat(messages, caller_id=f"agent_{self.name}"[:64])
+            return chat(_model, msg_list, caller_id=f"agent_{self.name}"[:64])
         except Exception as e:
             logger.debug("[VECTOR][city] vchat fallback for {}: {}", self.name, e)
             if isinstance(messages, str):

@@ -78,8 +78,12 @@ PROBE_GOAL_ID = "g_r24_probe"
 # retakes the lead in both directions -- not a fabricated number, a
 # recalibration of the race's own candidate confidence to restore the
 # real narrow-margin condition this test's narrative depends on.
+# 2026-09-25 recalibration: a real, successful git_status is no longer scored as a failure (the reward code now
+# accepts a real "branch" as evidence of success), so its learned strength rose 0.70 -> 0.75 and it out-scored
+# git_log at 0.58 even with the causal factor ablated. The narrow-margin condition holds again for git_log
+# confidence 0.62..0.64 (found by running the suite over that range); 0.63 is the middle of the passing window.
 CONF_GIT_STATUS = 0.4
-CONF_GIT_LOG = 0.58
+CONF_GIT_LOG = 0.63  # 2026-09-25: was 0.58; see the note below
 
 
 class _FixedWorldStateContextEngine:
@@ -368,11 +372,14 @@ class TestFlagshipCausalReasoning:
         # RR-2: was 0.825 -- the real reward for this repeated,
         # unknown-goal-progress action is now 0.70 (unknown progress no
         # longer defaults to a fabricated 0.5). See module-level RR-2 note.
-        assert edges[0]["strength"] == pytest.approx(0.70, abs=0.01)
+        # 2026-09-25: 0.75 -- a real, successful git_status now counts as a success (its result has no
+        # "status" key but a real "branch", which _act_on() now accepts as evidence). It used to be scored as a
+        # failure, which is where the old 0.70 came from.
+        assert edges[0]["strength"] == pytest.approx(0.75, abs=0.01)
 
         pm = loop._get_policy()
         h = pm.make_situation_hash("git_status", {"goal_id": PROBE_GOAL_ID})
-        assert pm.get_score("git_status", h) == pytest.approx(0.70, abs=0.01)
+        assert pm.get_score("git_status", h) == pytest.approx(0.75, abs=0.01)
 
         # ---- L0 ABLATION / COMPETING-FACTOR CONTROL: the SAME real,
         #      accumulated PolicyMemory data, with ONLY the causal factor
@@ -403,7 +410,8 @@ class TestFlagshipCausalReasoning:
         # RR-2: was 1.0325 -- the causal factor is 1.0 + (strength-0.5)*0.1;
         # with the real, RR-2-corrected strength now 0.70 (not 0.825),
         # the real factor is 1.02. See module-level RR-2 note.
-        assert causal_entry["weight"] == pytest.approx(1.02, abs=0.001)
+        # 2026-09-25: strength is now 0.75 -> factor 1.0 + (0.75-0.5)*0.1 = 1.025.
+        assert causal_entry["weight"] == pytest.approx(1.025, abs=0.001)
 
         # ---- SCOPE CONTROL: under a DIFFERENT real state (git_status was
         #      NEVER dispatched under "absent"), the exact same real,

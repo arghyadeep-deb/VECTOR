@@ -74,7 +74,10 @@ PROBE_GOAL_ID = "g_r25_probe"
 # not a fabricated number, a recalibration of the race's own candidate
 # confidence to restore the real narrow-lead condition this test's
 # narrative depends on.
-CONF_GIT_STATUS = 0.55
+# 2026-09-25 recalibration: a real, successful git_status is no longer scored as a failure (its learned reward rose
+# 0.42 -> 0.63), so at the old 0.55 its lead was too wide for the simulation factor to overturn. The narrow-lead
+# condition holds for 0.35..0.42 (found by running the suite over that range; 0.32 and 0.43 each break it).
+CONF_GIT_STATUS = 0.38
 CONF_GIT_LOG = 0.4
 
 
@@ -309,7 +312,7 @@ class TestFlagshipMentalSimulation:
         cg = CausalGraph()
         edges = cg.get_outcomes("action:git_status@present")
         by_outcome = {e["to"]: e["hit_count"] for e in edges}
-        assert by_outcome.get("outcome:unknown") == 3
+        assert by_outcome.get("outcome:ok") == 3  # 2026-09-25: a real git_status success is now "ok" (was mis-scored "unknown")
         # An entirely empty registry makes Governor's own district-level
         # check fail before it ever reaches the per-capability check --
         # a real, distinct, equally-honest Governor failure status.
