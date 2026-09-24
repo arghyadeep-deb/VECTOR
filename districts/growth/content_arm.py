@@ -13,6 +13,8 @@ runs forever.
 """
 from __future__ import annotations
 
+import asyncio
+
 import sys
 from pathlib import Path
 
@@ -35,8 +37,11 @@ class ContentArm:
         """Produce one reel and route it to the (gated) publish step."""
         well = await self._pick_well()
         text, _ = await self._script(well)
-        narration_wav, duration_s = self._narrate(text)
-        reel = self._record(narration_wav, duration_s)
+        # Both steps are blocking (TTS synthesis; a real browser recording for the whole narration). Called inline they
+        # froze the event loop for the duration, and Playwright's sync API refuses to run inside a running loop
+        # ("It looks like you are using Playwright Sync API inside the asyncio loop") -- so no reel was ever recorded.
+        narration_wav, duration_s = await asyncio.to_thread(self._narrate, text)
+        reel = await asyncio.to_thread(self._record, narration_wav, duration_s)
         if reel:
             await self._gated_publish(reel, well)
         else:
