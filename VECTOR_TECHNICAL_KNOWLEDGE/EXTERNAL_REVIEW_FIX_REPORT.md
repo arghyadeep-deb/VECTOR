@@ -107,6 +107,13 @@ Upstream licenses checked against upstream `LICENSE` pages: local-deep-research 
 ## Phase 8 — Docs — DONE (`4ea44cbca`)
 `CLAUDE.md` counts regenerated (38 dirs/39 manifest districts, 170 agents, 31 providers, 30 commands, 113 skills, 7 ADRs, ~6,050 test functions). `docs/OPEN_ISSUES.md` now the single status file with an open-engineering section; `KNOWN_ISSUES.md` points to it (#10 marked resolved). `TASKS.md` corrected (Kokoro done, face-recognition done — verified today, Worker done per docs, wake word blocked on owner recordings, Termux owner-only).
 
+## Follow-on program (owner: "keep it and make them integral") — sub-projects E, C, D, B, A DONE
+- **E test isolation** (`1e1bad34d`, `760498093`): fresh temp DB/data dir per pytest session + live-path guard; five `data/` stores routed through `data_path()`. Full sharded run: **0 live files changed**. Found+fixed along the way: a test that popped `VECTOR_DB_PATH` fell back to the live DB (now baseline-pinned and fail-fast); `ArchitectBot` scan was O(n²) (82s→17s, off the event loop, `029d348c3`); 5 stale tests updated to current code (`a91a4c83e`). Partial-run result before the memory-guard kill: 5,218 passed / 101 failed of batches 0–14, of which the isolation-induced ones (72+16) are fixed; remaining are the documented pre-existing ones plus `r26`/`r13` (uncommitted owner work, see OPEN_ISSUES #10).
+- **C finagent headers** (`2536873f8`): 418 files, comment-only, bytecode verified.
+- **D content pipeline** (`70e072aa8`, `8b7adfcd6`): daily `content-plan` cron → script → `schedule_post`; ARM A narrates a real script; interrupted renders listed as resumable. Publishing still owner-approved.
+- **B core modules** (`3979e54df`): repo-hygiene gate, OAuth refresh + cloud heartbeat cron jobs; 10 DORMANT banners; `docs/design/core-module-triage.md`.
+- **A vendored trees** (`2f14b18e6`): the research engine was unimportable (`benchmarks`/news scheduler never vendored) so `research_api` silently failed every call — fixed; entry-point tests for all vendored trees.
+
 ## Open — needs owner
 - `test_lifecycle_unvalidated_to_validated` confidence-semantics decision; `test_fresh_domain_no_penalty` fragile vs live causal graph; `push_github` council auto-proceed policy.
 - Governor caller-supplied-`district` gap (deferred pending Codex review after 2026-09-27).
