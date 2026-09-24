@@ -478,9 +478,14 @@ class TestDecomposeGoal(unittest.TestCase):
 
     def test_decompose_returns_plan_or_none(self):
         """Even if both LLM and rules fail, returns None (not crash)."""
+        # 2026-09-24 (external review, Phase 3): both are now lazily
+        # imported inside decompose_goal_to_plan() from core.runtime.missions
+        # (not module-level in core.runtime.plans anymore), so that's the
+        # real patch target -- a `from X import Y` inside a function reads
+        # the CURRENT value of Y in X at call time.
         loop = asyncio.new_event_loop()
-        with patch("core.runtime.plans.MissionPlanAdvisor", side_effect=Exception("no LLM")):
-            with patch("core.runtime.plans.ObjectiveDecomposer", side_effect=Exception("no rules")):
+        with patch("core.runtime.missions.MissionPlanAdvisor", side_effect=Exception("no LLM")):
+            with patch("core.runtime.missions.ObjectiveDecomposer", side_effect=Exception("no rules")):
                 result = loop.run_until_complete(decompose_goal_to_plan("g1", "test objective"))
         loop.close()
         # Both failed → returns None
@@ -499,7 +504,7 @@ class TestDecomposeGoal(unittest.TestCase):
         })
 
         loop = asyncio.new_event_loop()
-        with patch("core.runtime.plans.MissionPlanAdvisor", return_value=mock_advisor):
+        with patch("core.runtime.missions.MissionPlanAdvisor", return_value=mock_advisor):
             result = loop.run_until_complete(decompose_goal_to_plan("g1", "circular test"))
         loop.close()
 
