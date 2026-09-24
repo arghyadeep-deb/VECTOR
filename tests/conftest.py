@@ -46,12 +46,17 @@ _REQUIRES_OLLAMA_FILES = frozenset({
     "test_regression_governor_capability_routing.py",
     "test_command_websocket_parity.py",
 })
+# Single tests (not whole files) that also hit real LLMs; hangs identically on
+# the pre-2026-09-24 baseline (trading pipeline call inside Governor.dispatch).
+_REQUIRES_OLLAMA_TESTS = frozenset({
+    "test_trader_hand_reaches_trading_conductor_not_stock_analyst",
+})
 _OLLAMA_TEST_TIMEOUT_SEC = 300
 
 
 def pytest_collection_modifyitems(config, items):
     for item in items:
-        if Path(str(item.fspath)).name in _REQUIRES_OLLAMA_FILES:
+        if Path(str(item.fspath)).name in _REQUIRES_OLLAMA_FILES or item.name in _REQUIRES_OLLAMA_TESTS:
             item.add_marker(pytest.mark.requires_ollama)
             if item.get_closest_marker("timeout") is None:
                 item.add_marker(pytest.mark.timeout(_OLLAMA_TEST_TIMEOUT_SEC))
