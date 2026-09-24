@@ -70,7 +70,18 @@ from typing import Any
 
 from ..constants import ResearchStatus
 from loguru import logger
-from core.research_engine.benchmarks.comparison.results import Benchmark_results
+
+
+def _benchmark_results():
+    """The vendored `benchmarks/` package was not vendored (only community-benchmark helpers
+    used it), and importing it at module load made `core.research_engine.api` -- and with it
+    districts/research/research_api.py -- fail to import. Load it lazily instead."""
+    try:
+        from core.research_engine.benchmarks.comparison.results import Benchmark_results
+    except ImportError as exc:  # pragma: no cover - depends on the vendored tree
+        raise RuntimeError("community benchmark results are not available in this build") from exc
+    return Benchmark_results()
+
 from core.research_engine.security import SafeSession
 
 
@@ -421,7 +432,7 @@ class LDRClient:
                 87.0, 82.0, 45.2, 32000, 0.1, "0.6.0", "2024-01-15"
             )
         """
-        benchmarks = Benchmark_results()
+        benchmarks = _benchmark_results()
         return benchmarks.add_result(
             model,
             hardware,
@@ -449,7 +460,7 @@ class LDRClient:
             all_results = client.get_benchmarks()
             top_results = client.get_benchmarks(best_only=True)
         """
-        benchmarks = Benchmark_results()
+        benchmarks = _benchmark_results()
         if best_only:
             return benchmarks.get_best()
         return benchmarks.get_all()
