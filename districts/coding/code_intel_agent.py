@@ -37,7 +37,8 @@ def _mcp_call(tool_name: str, args: dict, timeout: int = 60) -> dict:
     Returns parsed result or error dict.
     """
     if not _DIST.exists():
-        return {"error": f"vectorcode-intel not built yet. Run: cd vectorcode/code_intel && npm install && npm run build"}
+        return {"error": "vectorcode-intel is not built yet. Run: cd vectorcode/code_intel && npm install && npm run build "
+                         "(it also needs Node, Qdrant and an embedding model)", "unavailable": True}
 
     request = json.dumps({
         "jsonrpc": "2.0",
@@ -76,6 +77,8 @@ def _mcp_call(tool_name: str, args: dict, timeout: int = 60) -> dict:
         return {"output": result.stdout.strip()}
     except subprocess.TimeoutExpired:
         return {"error": f"MCP call timed out after {timeout}s"}
+    except FileNotFoundError:
+        return {"error": "Node.js is not installed or not on PATH -- code intelligence cannot run", "unavailable": True}
     except Exception as e:
         return {"error": str(e)}
 
@@ -117,6 +120,10 @@ class CodeIntelAgent(AgentBase):
     def _check_mcp_result(self, result: dict, task_type: str, hp: int, reason: str) -> dict | None:
         """If result contains an error key, deduct HP and return an error response.
         Returns None when result is clean (caller should proceed to award HP)."""
+        if result.get("unavailable"):
+            # The tool is simply not installed. That is not the agent's failure, so it must not cost HP
+            # (each call used to take 30 HP off CodeIntelAgent until it died over missing infrastructure).
+            return {"status": "unavailable", "type": task_type, "error": result["error"]}
         if result.get("error"):
             self.deduct_points(30, f"{task_type}_mcp_error")
             return {"status": "error", "type": task_type, "error": result["error"]}

@@ -32,6 +32,13 @@ def _get_intel_agent():
     return _intel_agent
 
 
+def _ok(result: dict) -> dict:
+    """503 (not a 200 carrying an error dict) when the code-intelligence backend is not installed."""
+    if isinstance(result, dict) and result.get("status") == "unavailable":
+        raise HTTPException(status_code=503, detail=result.get("error", "code intelligence is not available"))
+    return result
+
+
 #  --  Request models  -- 
 
 class _PathMixin(BaseModel):
@@ -88,7 +95,9 @@ class WatchRequest(_PathMixin):
 async def code_search(body: SearchRequest):
     """Hybrid semantic + BM25 search across the codebase. Natural language queries supported."""
     try:
-        return await _get_intel_agent().run({"type": "vc_search", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_search", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] search failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -98,7 +107,9 @@ async def code_search(body: SearchRequest):
 async def code_index(body: IndexRequest):
     """Start full codebase indexing (background). Poll /code-intel/status for progress."""
     try:
-        return await _get_intel_agent().run({"type": "vc_index", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_index", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] index failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -108,7 +119,9 @@ async def code_index(body: IndexRequest):
 async def code_update(body: IndexRequest):
     """Incrementally update index  --  only re-indexes changed files."""
     try:
-        return await _get_intel_agent().run({"type": "vc_update", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_update", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] update failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -118,7 +131,9 @@ async def code_update(body: IndexRequest):
 async def code_status(project_path: str = _PROJECT_PATH):
     """Get indexing progress and collection stats."""
     try:
-        return await _get_intel_agent().run({"type": "vc_status", "params": {"project_path": project_path}})
+        return _ok(await _get_intel_agent().run({"type": "vc_status", "params": {"project_path": project_path}}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] status failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -128,7 +143,9 @@ async def code_status(project_path: str = _PROJECT_PATH):
 async def graph_build(body: IndexRequest):
     """Build the file-level dependency graph (AST-based, 18 languages)."""
     try:
-        return await _get_intel_agent().run({"type": "vc_graph_build", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_graph_build", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] graph build failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -138,7 +155,9 @@ async def graph_build(body: IndexRequest):
 async def graph_query(body: GraphQueryRequest):
     """Query the dependency graph for a specific file: imports + dependents."""
     try:
-        return await _get_intel_agent().run({"type": "vc_graph_query", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_graph_query", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] graph query failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -148,7 +167,9 @@ async def graph_query(body: GraphQueryRequest):
 async def graph_circular(project_path: str = _PROJECT_PATH):
     """Detect circular dependencies in the codebase."""
     try:
-        return await _get_intel_agent().run({"type": "vc_graph_circular", "params": {"project_path": project_path}})
+        return _ok(await _get_intel_agent().run({"type": "vc_graph_circular", "params": {"project_path": project_path}}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] circular deps failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -158,7 +179,9 @@ async def graph_circular(project_path: str = _PROJECT_PATH):
 async def graph_visualize(project_path: str = _PROJECT_PATH, mode: str = "html"):
     """Generate interactive HTML or Mermaid diagram of the dependency graph."""
     try:
-        return await _get_intel_agent().run({"type": "vc_visualize", "params": {"project_path": project_path, "mode": mode, "open": False}})
+        return _ok(await _get_intel_agent().run({"type": "vc_visualize", "params": {"project_path": project_path, "mode": mode, "open": False}}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] visualize failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -168,7 +191,9 @@ async def graph_visualize(project_path: str = _PROJECT_PATH, mode: str = "html")
 async def code_impact(body: ImpactRequest):
     """Blast radius analysis  --  what breaks if you change a function or class?"""
     try:
-        return await _get_intel_agent().run({"type": "vc_impact", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_impact", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] impact failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -178,7 +203,9 @@ async def code_impact(body: ImpactRequest):
 async def code_flow(body: FlowRequest):
     """Trace execution call flow from an entry point."""
     try:
-        return await _get_intel_agent().run({"type": "vc_flow", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_flow", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] flow failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -188,7 +215,9 @@ async def code_flow(body: FlowRequest):
 async def code_symbol(body: SymbolRequest):
     """360-degree view of a symbol: definition, callers, callees."""
     try:
-        return await _get_intel_agent().run({"type": "vc_symbol", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_symbol", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] symbol failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -198,7 +227,9 @@ async def code_symbol(body: SymbolRequest):
 async def list_symbols(project_path: str = _PROJECT_PATH, file: str | None = None, query: str | None = None, limit: int = 20):
     """List or search symbols in the codebase."""
     try:
-        return await _get_intel_agent().run({"type": "vc_symbols", "params": {"project_path": project_path, "file": file, "query": query, "limit": limit}})
+        return _ok(await _get_intel_agent().run({"type": "vc_symbols", "params": {"project_path": project_path, "file": file, "query": query, "limit": limit}}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] symbols failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -208,7 +239,9 @@ async def list_symbols(project_path: str = _PROJECT_PATH, file: str | None = Non
 async def context_search(body: ContextSearchRequest):
     """Search context artifacts (schemas, API specs, architecture docs) alongside code."""
     try:
-        return await _get_intel_agent().run({"type": "vc_context_search", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_context_search", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] context search failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -218,7 +251,9 @@ async def context_search(body: ContextSearchRequest):
 async def list_context(project_path: str = _PROJECT_PATH):
     """List all indexed context artifacts."""
     try:
-        return await _get_intel_agent().run({"type": "vc_context", "params": {"project_path": project_path}})
+        return _ok(await _get_intel_agent().run({"type": "vc_context", "params": {"project_path": project_path}}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] context list failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -228,7 +263,9 @@ async def list_context(project_path: str = _PROJECT_PATH):
 async def code_watch(body: WatchRequest):
     """Start or stop the file watcher for automatic index updates."""
     try:
-        return await _get_intel_agent().run({"type": "vc_watch", "params": body.model_dump()})
+        return _ok(await _get_intel_agent().run({"type": "vc_watch", "params": body.model_dump()}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] watch failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -238,7 +275,9 @@ async def code_watch(body: WatchRequest):
 async def code_intel_health():
     """Check VectorCode Intelligence infrastructure: Qdrant, Ollama, Docker."""
     try:
-        return await _get_intel_agent().run({"type": "vc_health", "params": {}})
+        return _ok(await _get_intel_agent().run({"type": "vc_health", "params": {}}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] health failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -248,7 +287,9 @@ async def code_intel_health():
 async def list_indexed_projects():
     """List all projects indexed by VectorCode Intelligence."""
     try:
-        return await _get_intel_agent().run({"type": "vc_projects", "params": {}})
+        return _ok(await _get_intel_agent().run({"type": "vc_projects", "params": {}}))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"[VECTOR][api][code_intel] projects failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
