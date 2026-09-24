@@ -33,7 +33,7 @@ Branch: `fix/external-review-2026-09`. Each finding verified against real source
 
 Lower-risk, reviewed and NOT flagged (appropriate graceful degradation, left as-is): `permission_gateway.py:477,837,910,1592`, `governor.py:2217,2840,2865`, `episodic.py`'s 3 VACUUM-related bare-pass sites, `social_safety.py`'s file-stat fallback, `notifications.py`'s websocket push/unsub, `secrets_providers.py`'s keyring fallback (part of an intentional multi-provider fallback chain), `session_buffer.py`, `reasoning_memory.py`, `correction_learner.py`'s 4 sites, `commands.py`'s 2 sites, `voice.py`/`voice_ws.py`'s 5 sites.
 
-**Test results after Phase 1:** full suite run in progress (see Phase 2 section — Phase 1 and Phase 2 work landed together before the first full-suite comparison completed).
+**Test results after Phase 1:** the full-suite baseline comparison run (excluding the 7 known-hanging files) reached 78% (through the alphabetical test order) with no failures beyond the expected pattern before being killed by the system's own memory-pressure guard (not a real test failure — the harness explicitly said not to restart the same heavy run unprompted). All targeted regression suites for every file actually touched in Phases 1-3 (permission_gateway, council, script_generator, simulation router, mining, notify) were run separately and pass cleanly. A full-suite baseline re-run is left for the owner to request explicitly, or for a point where the system has more headroom, rather than repeating a run the guard just stopped.
 
 ## Phase 2 — LLM Council non-functional (HIGH) — DONE, pending final full-suite confirmation
 
@@ -59,4 +59,22 @@ All 3 claims verified true against real code/data before fixing:
 
 **#1 loop thread freeze — ROOT CAUSE FOUND AND FIXED**, from `data/logs/thread_dumps.log`: a real thread dump caught the MAIN event loop thread (the one running `run_api`/uvicorn/`governor.dispatch()`) blocked for 60+ real seconds inside `districts/content/script_generator.py`'s `_llm()`, which — like the council bug — spun up its own `ThreadPoolExecutor` + nested `asyncio.run()` and blocked on `Future.result(timeout=120)` from a function that is *already* called from inside an async context (`ScriptGenerator.run()` and `video_pipeline.py`'s `_generate_script()` both call it as a plain synchronous call, no `await`, no `to_thread`). Fixed: `_llm()` is now `async def` and awaits `ProviderClient.chat()` directly (already async, no reason for the nested thread+loop dance at all); `generate_script`/`generate_hook`/`generate_cta`/`expand_script`/`run()` converted to async accordingly; `video_pipeline.py`'s caller and the file's own `__main__` smoke test updated to await. This directly connects to Opus's own Phase 3 #4 (the ~1,300×/day script regeneration) — this exact code path was almost certainly freezing the whole event loop on every one of those calls.
 
-Remaining Phase 3 items (#2 known failing tests, #3 the 7 hanging files, #4 repetition/dedup + APITester respawn, #5 Stage 4 findings) — investigation continuing.
+**#2 known failing tests (13) — verified individually, not as one baseline blob:**
+
+| Test | Status | Action |
+|---|---|---|
+| `test_wrong_token_type_rejected_type_confusion` | Already passing | Stale claim, no action |
+| `test_agent_registry_successor_class` (`spawn_successor` dict/attribute bug) | Already passing, code already uses `.get()` throughout | Stale claim, no action |
+| `test_epistemic_scoring.py::test_stale_domain_reduces_score` (full file, 25 tests) | Already passing | Stale claim, no action |
+| `test_epistemic_integration.py::test_different_domains_independent` (integration) | Already passing | Stale claim, no action — `decision_engine.py`'s domain computation already uses the full `action_type`, not a `.split("_")[0]` collision |
+| `test_planning.py::test_circular_deps_flattened` + `test_decompose_returns_plan_or_none` | **Fixed** | `patch("core.runtime.plans.MissionPlanAdvisor"/"ObjectiveDecomposer")` targeted the wrong module — both are lazily imported from `core.runtime.missions` now, not module-level in `plans.py`. Retargeted. |
+| `test_correction_learner.py::test_extract_from_explicit_correction` + `test_tags_include_domain_and_source` | **Fixed** | `_DOMAIN_KEYWORDS["coding"]` was missing "requests"/"httpx"/"coding"/"library"/etc. — a real keyword-coverage gap, not a stale test. |
+| `test_correction_integration.py::test_full_loop_stores_and_retrieves` | **Fixed** (side effect of the keyword fix above) | |
+| `test_correction_integration.py::test_lifecycle_unvalidated_to_validated` | **Root-caused, not fixed** | `CorrectionLesson.confidence` conflates detection-confidence (~0.95 for an explicit correction) with validation-confidence (expected to start low and grow toward a 0.85 threshold) — the test's scenario is unreachable as designed. Needs an owner decision (split fields, or change the growth model). |
+| `test_phase_a7_council_red_tier.py::test_proceed_high_confidence_returns_proceed` | Confirmed pre-existing via `git stash`, unrelated to Phase 2's council rewrite | `push_github` isn't in `COUNCIL_AUTO_PROCEED_ALLOWED` — a policy/config question for the owner, not a code bug |
+| `test_permission_gateway.py::test_red_action_times_out_without_confirmation` | Confirmed pre-existing via `git stash`, unrelated | Mock-signature mismatch (`fast_timeout()` doesn't accept `pending_id`) in the test itself |
+| `test_openwa_absorption.py::test_exception_in_send_counted_as_failure` | Not re-verified — baseline's own Task 89 already classified this as Class C (cross-test-pollution artifact in a mega-suite run, passes in isolation), not a real regression | No action needed |
+
+**New finding beyond the original 13**, found while verifying the above: `tests/integration/test_epistemic_integration.py::test_fresh_domain_no_penalty` fails (`0.404 != 0.49`) — confirmed via `git stash` to fail identically on the untouched baseline, so unrelated to tonight's work. Likely test fragility: it asserts an exact score against `core/memory/causal_graph.py`'s real, continuously-growing SQLite state (2355 nodes at time of this run) rather than an isolated fixture — the exact score drifts as the real graph grows. Not fixed tonight (needs either a tolerance-based assertion or a properly isolated causal graph fixture); flagged for the owner.
+
+Remaining Phase 3 items (#3 the 7 hanging files, #4 repetition/dedup + APITester respawn, #5 Stage 4 findings) — investigation continuing.
