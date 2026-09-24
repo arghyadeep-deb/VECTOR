@@ -160,7 +160,9 @@ async def test_languages_routes_correctly_despite_wrong_llm_guess():
     with _mock_llm_json(llm_raw):
         result = await classify_chat_intent("Quiz me on some Hindi vocabulary")
     assert result["district"] == "languages"
-    assert result["type"] == "hindi"
+    # The deterministic regex pre-classifier answers before the LLM; its
+    # `quiz_vocabulary` matches data/golden_intent_dataset.jsonl.
+    assert result["type"] == "quiz_vocabulary"
 
 
 @pytest.mark.asyncio
