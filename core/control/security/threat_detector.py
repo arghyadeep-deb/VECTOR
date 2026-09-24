@@ -21,6 +21,26 @@ _SUSPICIOUS_NAMES: set[str] = {
     "xmrig", "monero", "cpuminer",
 }
 
+# Fragments this short appear inside ordinary words ("rat" in "WMIRegistrationService", "miner" in "determiner"), so
+# they only count as a whole token of the process name ("rat.exe", "some-rat-client"), never as a substring. The
+# substring match flagged a Lenovo/Windows WMI service and pushed the HUD's threat level to HIGH.
+_TOKEN_ONLY_NAMES: frozenset[str] = frozenset({"rat", "miner"})
+
+
+def _name_is_suspicious(name: str) -> str | None:
+    """Return the matched fragment if this (lower-cased) process name looks malicious, else None."""
+    import re
+
+    tokens = {t for t in re.split(r"[^a-z0-9]+", name) if t}
+    for bad in _SUSPICIOUS_NAMES:
+        if bad in _TOKEN_ONLY_NAMES:
+            if bad in tokens:
+                return bad
+        elif bad in name:
+            return bad
+    return None
+
+
 # Temp / writable dirs that legitimate system processes should NOT live in
 _SUSPICIOUS_DIRS: tuple[str, ...] = (
     "\\temp\\", "\\tmp\\", "\\appdata\\local\\temp\\",
@@ -51,11 +71,10 @@ def check_process_anomalies() -> list[dict]:
                 reason = ""
 
                 # Check name against known bad fragments
-                for bad in _SUSPICIOUS_NAMES:
-                    if bad in name:
-                        suspicious = True
-                        reason = f"suspicious name fragment: {bad}"
-                        break
+                bad = _name_is_suspicious(name)
+                if bad:
+                    suspicious = True
+                    reason = f"suspicious name fragment: {bad}"
 
                 # Check if exe lives in a temp directory
                 if not suspicious and exe:
