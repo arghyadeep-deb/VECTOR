@@ -60,6 +60,9 @@ def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
         (frontmatter_dict, remaining_body)
     """
     frontmatter: Dict[str, Any] = {}
+    # Ingested skills carry a leading `<!-- VECTOR-INGESTED ASSET ... -->` provenance comment before the
+    # frontmatter; without this, ~4,000 skills parsed with no name/description.
+    content = re.sub(r"\A(?:\s*<!--.*?-->)+\s*", "", content, flags=re.S)
     body = content
 
     if not content.startswith("---"):

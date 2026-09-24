@@ -524,6 +524,13 @@ class ToolRouter:
         # File and terminal tools resolve relative paths against TERMINAL_CWD
         os.environ["TERMINAL_CWD"] = str(self.project_dir)
         self._schemas = None
+        # State for the tools model_tools deliberately leaves to "the agent loop" (todo / memory /
+        # session_search). Nothing implemented that, so each of them answered "must be handled by the agent
+        # loop" and the agent could never keep a task list, remember anything or search past sessions.
+        self._todo_store = None
+        self._memory_store = None
+        self._session_db = None
+        self.session_id = None
 
     def get_schemas(self) -> list:
         """OpenAI-format schemas for the tools that are actually available right now."""
@@ -540,6 +547,39 @@ class ToolRouter:
         """Run one tool call and return its (JSON string) result. Unknown / unavailable tools are refused."""
         if name not in self.tool_names():
             return tool_error(f"tool '{name}' is not available to this agent")
+        args = args or {}
+        if name in ("todo", "memory", "session_search"):
+            return self._execute_loop_tool(name, args)
         from model_tools import handle_function_call
 
-        return handle_function_call(name, args or {}, enabled_tools=self.tool_names())
+        return handle_function_call(name, args, enabled_tools=self.tool_names())
+
+    def _execute_loop_tool(self, name: str, args: dict) -> str:
+        import json
+
+        if name == "todo":
+            from tools.todo_tool import TodoStore, todo_tool
+
+            self._todo_store = self._todo_store or TodoStore()
+            return todo_tool(todos=args.get("todos"), merge=args.get("merge", False), store=self._todo_store)
+        if name == "memory":
+            from tools.memory_tool import MemoryStore, memory_tool
+
+            if self._memory_store is None:
+                self._memory_store = MemoryStore()
+                self._memory_store.load_from_disk()
+            return memory_tool(action=args.get("action"), target=args.get("target", "memory"),
+                               content=args.get("content"), old_text=args.get("old_text"),
+                               store=self._memory_store)
+        if self._session_db is None:
+            try:
+                from vector_state import SessionDB
+
+                self._session_db = SessionDB()
+            except Exception as exc:
+                return json.dumps({"success": False, "error": f"Session database not available: {exc}"})
+        from tools.session_search_tool import session_search
+
+        return session_search(query=args.get("query", ""), role_filter=args.get("role_filter"),
+                              limit=args.get("limit", 3), db=self._session_db,
+                              current_session_id=self.session_id)

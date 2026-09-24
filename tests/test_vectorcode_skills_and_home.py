@@ -36,6 +36,14 @@ for mod in ("tui_gateway.server", "tui_gateway.entry", "tui_gateway.ws"):
         importlib.import_module(mod); out[mod] = "ok"
     except BaseException as e:
         out[mod] = type(e).__name__ + ": " + str(e)[:160]
+from pathlib import Path
+from tools.registry import ToolRouter
+rt = ToolRouter(Path.cwd())
+out["todo"] = json.loads(rt.execute("todo", {"todos": [{"id": "1", "content": "write it", "status": "pending"}]}))
+out["todo_read"] = json.loads(rt.execute("todo", {}))
+out["memory"] = json.loads(rt.execute("memory", {"action": "add", "target": "memory", "content": "vector test fact"}))
+out["session_search"] = json.loads(rt.execute("session_search", {"query": ""}))
+out["descriptions"] = [x["description"] for x in r.get("skills", [])[:20]]
 import transports
 out["transports"] = sorted(transports.list_transports())
 print("RESULT:" + json.dumps(out))
@@ -67,6 +75,24 @@ def test_skills_list_returns_the_shipped_skills(result):
 
 def test_get_vectorcode_home_alias_exists(result):
     assert result["home_alias"] is True
+
+
+def test_skill_descriptions_are_parsed_past_the_ingest_comment(result):
+    assert not any(d.startswith("<!--") for d in result["descriptions"])
+    assert all(d.strip() for d in result["descriptions"])
+
+
+def test_todo_tool_works_inside_the_router(result):
+    """model_tools answered 'must be handled by the agent loop' for todo/memory/session_search."""
+    assert result["todo"]["summary"]["total"] == 1 and result["todo_read"]["summary"]["pending"] == 1
+
+
+def test_memory_tool_works_inside_the_router(result):
+    assert "error" not in result["memory"] and result["memory"].get("success") is not False, result["memory"]
+
+
+def test_session_search_reaches_the_session_db(result):
+    assert "must be handled" not in json.dumps(result["session_search"]), result["session_search"]
 
 
 @pytest.mark.parametrize("mod", ["tui_gateway.server", "tui_gateway.entry", "tui_gateway.ws"])
