@@ -36,10 +36,12 @@ asserting upstream names they could not confirm) also exist in:
    the C++/Qt application under `qt/` appears to be AGPL-licensed too (inferred from that file). The Python scripts library's
    README declares MIT (per the existing `NOTICE.md`). **419 Python files carry a
    header claiming `Licensed under the MIT License. Copyright (c) 2024-2026 VECTOR`.**
-   That header is an inaccurate attribution for code derived from Fincept's project
-   (MIT also requires keeping the original copyright notice). I did **not**
-   mass-edit 419 files; recommended follow-up: replace that header line with the
-   Fincept attribution, or delete the vendored `qt/` subtree if unused.
+   That header was an inaccurate attribution for code derived from Fincept's project
+   (MIT also requires keeping the original copyright notice). **Fixed 2026-09-24:** all 418
+   files now read "Derived from Fincept Terminal (Fincept Corporation) -- see
+   THIRD_PARTY_NOTICES.md / Adapted for VECTOR (owner's personal-use build)"
+   (`scripts/normalize_finagent_headers.py`, comment-only, bytecode verified unchanged).
+   Owner direction: personal-use build, keep the tree.
 2. **`vector_social_sim` — AGPL-3.0 (MiroFish).** Owner decision 2026-09-24
    (recorded in its `NOTICE.md`): keep using as-is; single-owner, no network
    exposure to other users. Revisit if VECTOR is ever exposed to other users.

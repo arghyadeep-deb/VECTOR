@@ -24,18 +24,32 @@ grew open engineering items; section 0 lists them.
    owner approval required before any change.
 5. **Routing**: `KNOWN_ISSUES.md` #10 ("remember X" misroute) is **resolved** in code
    (`_authoritative_district_from_text` + honest `no_capable_agent`); the entry is kept for history.
-6. **Content pipeline**: live `post_jobs.db` holds 37 junk "Test Post" rows (owner approval
-   needed to cancel); interrupted renders are not auto-resumed (owner decision).
+6. **Content pipeline** (2026-09-24): a daily `content-plan` cron job now plans script -> `schedule_post`
+   (only for platforms with a configured key); the 09:00 publish job still needs owner approval per post.
+   Still open: live `post_jobs.db` holds 37 junk "Test Post" rows (owner approval needed to cancel);
+   interrupted renders are listed by `list_resumable_jobs()` but resuming an upload is an owner action;
+   publishing credentials (Dev.to key, YouTube OAuth, Instagram token) are owner-side.
 7. **Test-suite items**: `test_lifecycle_unvalidated_to_validated` needs a confidence-semantics
    decision; `test_fresh_domain_no_penalty` is fragile against the live causal graph;
    `test_phase_a7_council_red_tier` expects `push_github` council auto-proceed (policy question).
    The full-suite baseline (5,012 / 13 / 36) has not been re-run since the review fixes.
-8. **Dead code**: plan in `docs/design/dead-code-deletion-plan-v2.md` — nothing deleted; needs approval.
-9. **Licensing**: `THIRD_PARTY_NOTICES.md` added. Open: 419 `vector_finagent` files carry an
-   inaccurate "MIT, Copyright VECTOR" header (Fincept is AGPL-3.0/MIT-mixed); several vendored
-   trees have no identifiable upstream/license.
-10. **Uncommitted earlier work**: `core/loop/autonomous_loop.py` (~209 lines from the 2026-09-23 audit,
-    including the plan-starvation fix) sits uncommitted in the working tree.
+8. **Dead code** (owner direction 2026-09-24: keep everything): nothing deleted. `docs/design/core-module-triage.md`
+   classifies the unreachable `core/` modules; useful ones were wired (repo-hygiene gate, OAuth refresh and
+   cloud heartbeat cron jobs), ten duplicates carry a DORMANT banner. Follow-up designs listed at the end of
+   that file (token_juice, semantic_cache, engine agents, secrets providers, sound classifier).
+9. **Licensing**: `THIRD_PARTY_NOTICES.md` + LICENSE files added; `vector_finagent` headers corrected. Still
+   open: several vendored trees (shadowbroker_server, vector_backtest, hedgebot, vector_mlops, mining) have
+   no identifiable upstream/license.
+10. **Uncommitted earlier work**: `core/loop/autonomous_loop.py`, `core/city/agent_base.py`,
+    `core/inference/provider_client.py`, `core/runtime/executor.py` (the 2026-09-23 audit, incl. the
+    plan-starvation fix) sit uncommitted in the working tree. With them present,
+    `tests/test_r26_cognitive_integration.py::...ablation...` and 3 tests in
+    `tests/test_r13_production_learning_validation.py` fail; at committed HEAD r26 passes and r13 fails 2 of
+    3 (a pre-existing reward-arithmetic drift). Review and commit or revert that work.
+12. **Test isolation** (2026-09-24): every pytest session now uses a fresh temp DB/data dir and fails any test
+    that resolves to live state. Verified: 0 live files changed across a 15-batch run. The last batch of
+    that run (and part of batch 10) was killed by the memory guard, so a complete post-change baseline
+    comparison (5,012 / 13 / 36) is still owed — re-run when the machine has headroom.
 11. **HP bonus for a no-API-keys future** (agents' non-API reward) — on hold until the owner decides.
 
 This file is the single owner-facing source of truth. Full per-item evidence
