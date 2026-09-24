@@ -54,10 +54,16 @@ grew open engineering items; section 0 lists them.
     37 skipped / 379 errors. The 379 errors were ONE polluter — `test_m1e_isolation_fixture.py` popped the
     session's `VECTOR_DB_PATH`, the live-state guard then errored every later test in that batch; fixed (batch
     re-run: 400 passed, 2 failed). Remaining ~18 failures, each classified against a clean HEAD worktree:
-    - **12 caused only by your uncommitted work** (pass at clean HEAD): 8 in `test_r13_*`, plus
-      `test_r24_*`, `test_r25_*`, `test_r26_* ablation`, `test_r18_*worktree` (the last is expected while files are
-      uncommitted). E.g. r24 learns strength 0.75 where the test pins 0.70 — the reward arithmetic changed.
-      Decide: adopt the new numbers (update tests) or revert; I did not touch the files.
+    - **11 were caused only by the 2026-09-23 audit work** (pass at the last commit): 8 in `test_r13_*`, plus
+      `test_r24_*`, `test_r25_*`, `test_r26_* ablation`. A real `git_status` (branch, no `status` key) used to be
+      scored as a failure; it now scores as the success it is (learned reward 0.42 -> 0.63, 0.70 -> 0.75). The audit
+      work is committed (d040abd55) together with the retuned tests (race constants re-found by scanning each suite
+      and taking the middle of the passing window; r13's flagship now proves the changed-decision claim after one
+      read_code execution because the later read_code/git_status comparison is a genuine tie). All 84 tests in
+      those four files pass.
+    - **`test_r18_*worktree`** fails only because ~40 other files are still modified/untracked in the working tree
+      (it asserts the tree holds only expected changes); not a code defect. It clears when the tree is committed
+      or cleaned.
     - **1 pre-existing, previously masked by the ArchitectBot timeout**: `test_r14 ... six_cycle` (winners become
       `read_code` x5 instead of diversifying to `code_task`; reproduced on the pre-program commit + only the scan fix).
     - **4 already-known**: correction lifecycle, epistemic fresh-domain, a7 council-red-tier, plus
