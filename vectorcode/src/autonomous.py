@@ -8,7 +8,9 @@ from hooks.workers import TaskQueue, Priority
 class VectorAutonomous:
     """Mode B: submits GSD tasks as HIGH-priority TaskQueue items and returns immediately."""
 
-    def __init__(self) -> None:
+    def __init__(self, project_dir=None) -> None:
+        from pathlib import Path
+        self.project_dir = Path(project_dir) if project_dir else Path.cwd()
         self.session = VectorCodeSession.get()
         self._tq = TaskQueue.get()
         logger.info("[VECTOR][auto] VectorAutonomous initialised")
@@ -17,8 +19,11 @@ class VectorAutonomous:
         """Enqueue task as HIGH priority. Returns task_id immediately."""
         from gsd_loop import GSDLoop
 
+        project_dir = self.project_dir
+
         def _run_gsd():
-            loop = GSDLoop(mode="auto")
+            from agent_task import run_agent_task
+            loop = GSDLoop(mode="auto", executor=lambda prompt: run_agent_task(prompt, project_dir))
             return loop.run(task)
 
         task_id = self._tq.submit(_run_gsd, priority=Priority.HIGH, name=task[:40])

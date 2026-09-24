@@ -33,6 +33,36 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _VECTORCODE_SRC = Path(__file__).resolve().parent
 
 
+class _PreferInstalledMcp:
+    """Resolve the top-level name ``mcp`` from the INSTALLED package, never vectorcode/src/mcp/.
+
+    vectorcode/src is put on sys.path so its many bare imports work, and its own ``mcp/`` folder then hid
+    the installed MCP SDK: after ensure_paths(), ``from mcp.server.fastmcp import FastMCP`` failed for
+    every other consumer (VECTOR's MCP server, coding_assistant, scraper, vector_mlops, backtest) unless
+    the SDK had happened to be imported first. This finder only intercepts ``mcp`` itself; submodules
+    resolve through the parent package's own __path__, and every other bare import (tools, recipes, ...)
+    keeps resolving to vectorcode/src as before. If no installed ``mcp`` exists it steps aside.
+    """
+
+    @classmethod
+    def find_spec(cls, fullname, path=None, target=None):
+        if fullname != "mcp" or path is not None:
+            return None
+        import importlib.machinery
+
+        here = str(_VECTORCODE_SRC)
+        others = [p for p in sys.path if p and Path(p).resolve() != _VECTORCODE_SRC and p != here]
+        spec = importlib.machinery.PathFinder.find_spec("mcp", others)
+        if spec is not None and spec.origin and Path(spec.origin).resolve().is_relative_to(_VECTORCODE_SRC):
+            return None
+        return spec
+
+
+def _install_import_guards() -> None:
+    if not any(f is _PreferInstalledMcp for f in sys.meta_path):
+        sys.meta_path.insert(0, _PreferInstalledMcp)
+
+
 def ensure_paths() -> None:
     """Add repo root and vectorcode/src to sys.path if not already present.
 
@@ -53,6 +83,7 @@ def ensure_paths() -> None:
     sys.path[:] = [p for p in sys.path if p not in (repo_root, vectorcode_src)]
     sys.path.insert(0, vectorcode_src)
     sys.path.insert(0, repo_root)
+    _install_import_guards()
 
 
 # Run on import (side-effect)

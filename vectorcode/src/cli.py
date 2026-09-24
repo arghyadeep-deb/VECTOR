@@ -183,11 +183,17 @@ def cmd_auto(args):
     if not task:
         print("Usage: vector auto \"your task here\"")
         sys.exit(1)
-    from autonomous import VectorAutonomous
-    va = VectorAutonomous()
-    task_id = va.submit(task)
-    print(f"[VectorCode] Task queued: {task_id}")
-    print(f"[VectorCode] Task: {task}")
+    # Mode B runs the task to completion in the foreground: the old version queued it on a daemon thread
+    # and exited immediately, so nothing ever ran (and the "loop" it queued only listed phase names).
+    from gsd_loop import GSDLoop
+    project_dir = Path(getattr(args, "dir", None) or ".").resolve()
+    print(f"[VectorCode] Task: {task}", flush=True)
+    outcome = GSDLoop(mode="auto", executor=lambda prompt: _run_agent_task(prompt, project_dir, None)).run(task)
+    print(f"[VectorCode] status: {outcome['status']}  phases: {' > '.join(outcome['trace'])}")
+    if outcome.get("output"):
+        print(outcome["output"])
+    if outcome["status"] != "passed":
+        sys.exit(1)
 
 
 def cmd_hybrid(_args):
@@ -217,29 +223,8 @@ def cmd_mcp(args):
 
 
 def _run_agent_task(task: str, project_dir: Path, model: "str | None") -> str:
-    """Run ONE task through the real tool-using agent loop and return its final answer.
-
-    `vector run` used to make a single raw chat call with no tools, so asked to read a file it invented
-    the contents. If the agent cannot start (missing tool router, model unreachable) this raises rather
-    than falling back to guessing.
-    """
-    from engine.agent_loop import VectorAgent
-    from session import VectorCodeSession
-
-    session = VectorCodeSession.get()
-    model_id = model or session.current_model
-    agent = VectorAgent(model_id=model_id, project_dir=project_dir, session_id=session.session_id,
-                        quiet_mode=True, save_trajectories=False)
-    result = agent.run_conversation(
-        task,
-        system_message=("You are VectorCode, a coding agent working in " + str(project_dir) + ". "
-                        "Use your tools to read files and run commands; never guess file contents or command output."),
-        conversation_history=[],
-    )
-    reply = (result.get("response") or "").strip()
-    if reply.startswith("[VECTOR error:"):
-        raise RuntimeError(reply)
-    return reply
+    from agent_task import run_agent_task
+    return run_agent_task(task, project_dir, model)
 
 
 def _run_ipc(args):
