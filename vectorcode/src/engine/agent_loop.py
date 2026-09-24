@@ -387,10 +387,15 @@ class VectorAgent:
         Call the model via the VectorCode transport layer.
         Returns {"content", "tool_calls", "finish_reason", "usage"}.
         """
-        from providers import ModelRouter
-        router = ModelRouter(project_dir=self.project_dir)
+        # Bare model names ("vector-focus") are local Ollama models: go straight there. (The router
+        # import used to sit OUTSIDE the try below, and `ModelRouter` did not exist, so every call
+        # died with an ImportError before the Ollama fallback could run.)
+        if "/" not in self.model_id:
+            return self._call_ollama_direct(messages, tool_schemas, system_message)
 
         try:
+            from providers import ModelRouter
+            router = ModelRouter(project_dir=self.project_dir)
             result = router.complete(
                 self.model_id,
                 messages,
@@ -407,15 +412,40 @@ class VectorAgent:
                 "usage":        self._extract_usage(result),
             }
         except Exception as e:
-            # Fallback: direct Ollama for bare model names
-            if "/" not in self.model_id:
-                return self._call_ollama_direct(messages, tool_schemas)
             raise
 
-    def _call_ollama_direct(self, messages: list, tool_schemas: list) -> dict:
-        """Direct Ollama call fallback for bare model names like 'vector-focus'."""
+    @staticmethod
+    def _to_ollama_messages(messages: list, system_message: str = "") -> list:
+        """Convert the loop's message history to Ollama's chat format.
+
+        The loop stores assistant tool calls as {id, name, arguments-json-string}; Ollama expects
+        {function: {name, arguments-dict}}, and it never receives the system prompt otherwise.
+        """
+        out: list = []
+        if system_message:
+            out.append({"role": "system", "content": system_message})
+        for m in messages:
+            if m.get("role") == "assistant" and m.get("tool_calls"):
+                calls = []
+                for tc in m["tool_calls"]:
+                    args = tc.get("arguments", "{}")
+                    try:
+                        args = json.loads(args) if isinstance(args, str) else (args or {})
+                    except (json.JSONDecodeError, TypeError):
+                        args = {}
+                    calls.append({"function": {"name": tc.get("name", ""), "arguments": args}})
+                out.append({"role": "assistant", "content": m.get("content", "") or "", "tool_calls": calls})
+            elif m.get("role") == "tool":
+                out.append({"role": "tool", "content": str(m.get("content", "")), "tool_name": m.get("name", "")})
+            else:
+                out.append({"role": m.get("role", "user"), "content": str(m.get("content", "") or "")})
+        return out
+
+    def _call_ollama_direct(self, messages: list, tool_schemas: list, system_message: str = "") -> dict:
+        """Direct Ollama call for bare model names like 'vector-focus'."""
         import ollama
-        kwargs: dict = {"model": self.model_id, "messages": messages, "stream": False}
+        kwargs: dict = {"model": self.model_id,
+                        "messages": self._to_ollama_messages(messages, system_message), "stream": False}
         if tool_schemas:
             kwargs["tools"] = tool_schemas
         resp = ollama.chat(**kwargs)

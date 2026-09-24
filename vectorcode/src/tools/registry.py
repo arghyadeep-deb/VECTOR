@@ -480,3 +480,55 @@ def tool_result(data=None, **kwargs) -> str:
     if data is not None:
         return json.dumps(data, ensure_ascii=False)
     return json.dumps(kwargs, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# ToolRouter -- the engine's view of the registry
+# ---------------------------------------------------------------------------
+
+#: Toolsets a local coding agent gets by default. Deliberately excludes anything that messages other
+#: people or services (messaging, discord, spotify, homeassistant, cronjob, browser, delegation, rl ...):
+#: a coding session must not gain those side effects just because their modules are installed.
+DEFAULT_AGENT_TOOLSETS = (
+    "file", "terminal", "todo", "memory", "skills", "session_search",
+    "clarify", "code_execution", "web", "vision",
+)
+
+
+class ToolRouter:
+    """What ``engine/agent_loop.py`` imports (``from tools.registry import ToolRouter``).
+
+    That class did not exist anywhere, so ``VectorAgent.run_conversation`` crashed before its first model
+    call and the REPL silently degraded to a plain chat with no tools. It exposes the two calls the loop
+    makes: ``get_schemas()`` and ``execute(name, args)``.
+    """
+
+    def __init__(self, project_dir=None, approval_callback=None, enabled_toolsets=None):
+        import os
+        from pathlib import Path
+
+        self.project_dir = Path(project_dir) if project_dir else Path.cwd()
+        self.approval_callback = approval_callback  # consulted by the agent loop before each call
+        self.enabled_toolsets = list(enabled_toolsets or DEFAULT_AGENT_TOOLSETS)
+        # File and terminal tools resolve relative paths against TERMINAL_CWD
+        os.environ["TERMINAL_CWD"] = str(self.project_dir)
+        self._schemas = None
+
+    def get_schemas(self) -> list:
+        """OpenAI-format schemas for the tools that are actually available right now."""
+        if self._schemas is None:
+            from model_tools import get_tool_definitions
+
+            self._schemas = get_tool_definitions(enabled_toolsets=self.enabled_toolsets, quiet_mode=True)
+        return self._schemas
+
+    def tool_names(self) -> list:
+        return [s["function"]["name"] for s in self.get_schemas()]
+
+    def execute(self, name: str, args: dict) -> str:
+        """Run one tool call and return its (JSON string) result. Unknown / unavailable tools are refused."""
+        if name not in self.tool_names():
+            return tool_error(f"tool '{name}' is not available to this agent")
+        from model_tools import handle_function_call
+
+        return handle_function_call(name, args or {}, enabled_tools=self.tool_names())
