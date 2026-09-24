@@ -47,8 +47,8 @@ print("RESULT:" + json.dumps(out))
 @pytest.fixture(scope="module")
 def result():
     work = Path(tempfile.mkdtemp(prefix="vc_reg_"))
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
-    env.update(VECTOR_DB_PATH=str(work / "vm.db"), VECTOR_TEST_DATA_DIR=str(work / "data"), VECTOR_DB_KEY="vc-reg-test")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VECTOR_HOME")}  # model_tools exports VECTOR_HOME into the parent; never let a child inherit the real one
+    env.update(HOME=str(work / "home"), USERPROFILE=str(work / "home"), VECTOR_DB_PATH=str(work / "vm.db"), VECTOR_TEST_DATA_DIR=str(work / "data"), VECTOR_DB_KEY="vc-reg-test")
     r = subprocess.run([sys.executable, "-c", _CHILD, str(ROOT)], capture_output=True, text=True, timeout=200, env=env, cwd=str(work))
     lines = [ln for ln in r.stdout.splitlines() if ln.startswith("RESULT:")]
     assert lines, f"child produced no result:\n{r.stderr[-900:]}"

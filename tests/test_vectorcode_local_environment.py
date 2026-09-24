@@ -55,8 +55,8 @@ print("RESULT:" + json.dumps(out))
 def result():
     work = Path(tempfile.mkdtemp(prefix="vc_env_"))
     (work / "notes.txt").write_bytes(b"hello\nline two\n")
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
-    env.update(VECTOR_DB_PATH=str(work / "vm.db"), VECTOR_TEST_DATA_DIR=str(work / "data"), VECTOR_DB_KEY="vc-env-test")
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VECTOR_HOME")}  # model_tools exports VECTOR_HOME into the parent; never let a child inherit the real one
+    env.update(HOME=str(work / "home"), USERPROFILE=str(work / "home"), VECTOR_DB_PATH=str(work / "vm.db"), VECTOR_TEST_DATA_DIR=str(work / "data"), VECTOR_DB_KEY="vc-env-test")
     r = subprocess.run([sys.executable, "-c", _CHILD, str(ROOT), str(work)], capture_output=True, text=True,
                        timeout=240, env=env, cwd=str(work))
     lines = [ln for ln in r.stdout.splitlines() if ln.startswith("RESULT:")]

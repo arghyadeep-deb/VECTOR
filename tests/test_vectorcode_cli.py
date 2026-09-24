@@ -24,7 +24,7 @@ LAUNCHER = str(ROOT / "vectorcode" / "vector.py")
 def sandbox():
     home = Path(tempfile.mkdtemp(prefix="vc_cli_"))
     (home / "data").mkdir()
-    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONPATH", "VECTOR_HOME")}  # model_tools exports VECTOR_HOME into the parent; never let a child inherit the real one
     env.update(HOME=str(home), USERPROFILE=str(home), VECTOR_DB_PATH=str(home / "vm.db"),
                VECTOR_TEST_DATA_DIR=str(home / "data"), VECTOR_DB_KEY="vc-cli-test", PYTHONIOENCODING="utf-8")
     return env, home
