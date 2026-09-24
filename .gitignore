@@ -213,3 +213,4 @@ ponytail/
 
 # deepeval local tool state (telemetry/cache, not source)
 .deepeval/
+districts/intelligence/shadowbroker_server/.claude/
