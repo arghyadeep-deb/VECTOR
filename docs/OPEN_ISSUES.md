@@ -1,10 +1,42 @@
-# VECTOR — Open Issues (reconciled 2026-06-29)
+# VECTOR — Open Issues (reconciled 2026-06-29; engineering section added 2026-09-24)
 
-Single clean list of what is **genuinely still open**, checked against current
-code/state. The headline: **there is no open code work** — everything buildable
-has been built, tested, and (for cloud) deployed. Every item below is
-owner-gated: physical hardware, a paid/verified account, a deploy step, or a
-decision only you can make.
+**This is the single current status file.** `KNOWN_ISSUES.md` holds the detailed
+root-cause traces for the engineering items in section 0; sections A–F below are
+owner-gated items (hardware, accounts, deploys, decisions).
+
+The old headline ("there is no open code work") was wrong once `KNOWN_ISSUES.md`
+grew open engineering items; section 0 lists them.
+
+## 0. Open engineering work (as of 2026-09-24)
+
+1. **Autonomous loop thread freeze** (`KNOWN_ISSUES.md` #0) — live-observed 2026-08-05.
+   One root cause found and fixed 2026-09-24 (`script_generator._llm()` blocking the
+   event loop for up to 120s; also the council's sync Ollama calls). **Not yet
+   re-verified against a live multi-hour run.**
+2. **Live re-verification** of the Phase 1–6 fixes (`KNOWN_ISSUES.md` #9) and of the
+   2026-09-24 review fixes — needs a live backend.
+3. **`Governor.dispatch()` trusts a caller-supplied `district`** for task types outside
+   `DISTRICT_TASK_MAP` (e.g. `{"type":"cleanup_logs","district":"ops"}` runs with no
+   receipt). Confirmed, deliberately unfixed pending an adversarial (Codex) review
+   after its quota resets 2026-09-27.
+4. **Permission-tier coverage**: 134 action-shaped manifest capabilities have no tier
+   (blocked, fail-closed). Proposals in `VECTOR_TECHNICAL_KNOWLEDGE/PHASE4_TIER_COVERAGE_REPORT.md`;
+   owner approval required before any change.
+5. **Routing**: `KNOWN_ISSUES.md` #10 ("remember X" misroute) is **resolved** in code
+   (`_authoritative_district_from_text` + honest `no_capable_agent`); the entry is kept for history.
+6. **Content pipeline**: live `post_jobs.db` holds 37 junk "Test Post" rows (owner approval
+   needed to cancel); interrupted renders are not auto-resumed (owner decision).
+7. **Test-suite items**: `test_lifecycle_unvalidated_to_validated` needs a confidence-semantics
+   decision; `test_fresh_domain_no_penalty` is fragile against the live causal graph;
+   `test_phase_a7_council_red_tier` expects `push_github` council auto-proceed (policy question).
+   The full-suite baseline (5,012 / 13 / 36) has not been re-run since the review fixes.
+8. **Dead code**: plan in `docs/design/dead-code-deletion-plan-v2.md` — nothing deleted; needs approval.
+9. **Licensing**: `THIRD_PARTY_NOTICES.md` added. Open: 419 `vector_finagent` files carry an
+   inaccurate "MIT, Copyright VECTOR" header (Fincept is AGPL-3.0/MIT-mixed); several vendored
+   trees have no identifiable upstream/license.
+10. **Uncommitted earlier work**: `core/loop/autonomous_loop.py` (~209 lines from the 2026-09-23 audit,
+    including the plan-starvation fix) sits uncommitted in the working tree.
+11. **HP bonus for a no-API-keys future** (agents' non-API reward) — on hold until the owner decides.
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
@@ -32,10 +64,8 @@ open items were folded in here.
    then set `LEGION_HOST` to Legion's LAN IP in `phone_config.env`. Code
    (`core/control/wake_on_lan.py`, `ambient_server.py`) is built/tested against
    local sockets; only firmware WoL is missing.
-5. **`face_recognition`:** installed, but its native `dlib` DLL is blocked by a
-   Windows Application Control policy (`ImportError: ... blocked by an Application
-   Control policy`). This is an OS security setting only you can change — not a
-   missing package. Camera/face features fall back to neutral until then.
+5. **`face_recognition`:** ✅ **RESOLVED** — `import face_recognition` succeeds (verified 2026-09-24);
+   the earlier Application Control block no longer applies.
 6. **"Hey VECTOR" wake word** — PIPELINE COMPLETE; blocked on owner's real voice
    data (2026-07-04). Full openWakeWord train->export->load pipeline runs end-to-end
    (gen_wake_synthetic.py + train_wake_word_synthetic.py); 5 env bugs fixed
@@ -118,4 +148,4 @@ isn't "proven in production" until you supply the service/device and run it live
 
 ---
 
-*All code-side work is closed. Update this file in place as owner actions land.*
+*Section 0 is the open engineering list; update this file in place as items land.*

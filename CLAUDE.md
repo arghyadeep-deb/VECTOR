@@ -7,7 +7,7 @@
 
 ## What VECTOR Is
 
-Virtual Entity for Cognitive Tasks & Operational Reasoning — a Darwinian multi-agent autonomous AI running 24/7 on a local machine (Legion Pro 5, RTX 5070 Ti). VECTOR governs a city of 133+ agents across 33 districts that evolve, die, and are reborn.
+Virtual Entity for Cognitive Tasks & Operational Reasoning — a Darwinian multi-agent autonomous AI running 24/7 on a local machine (Legion Pro 5, RTX 5070 Ti). VECTOR governs a city of 170 agents across 38 districts that evolve, die, and are reborn.
 
 Owner: Arghyadeep Deb
 
@@ -66,13 +66,14 @@ context_engine → goal_system → decision_engine → policy_check → permissi
 
 ## What Exists
 
-- **33 districts** with 133+ agent files
-- **27 LLM providers** via `core/inference/`
-- **31 Claude Code commands** in `.claude/commands/`
-- **100+ skills** in `.claude/skills/`
+- **38 district directories** (39 districts in `config/agent_manifest.yaml`) with **170 manifest-registered agents**
+- **31 LLM providers** in `core/inference/llm_providers.py`
+- **30 Claude Code commands** in `.claude/commands/`
+- **113 skill directories** in `.claude/skills/`
 - **8 hooks** (file protection, lint, auto-commit, auto-test, screenshot)
-- **6 ADRs** in `docs/adr/`
-- **140+ tests** passing
+- **7 ADRs** in `docs/adr/`
+- **~6,050 test functions** in 405 files (6,254 collected by pytest)
+- Counts regenerated from the code on 2026-09-24; re-run the counts rather than editing by hand.
 
 ---
 

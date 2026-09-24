@@ -1,5 +1,8 @@
 # VECTOR — Known Issues Log
 
+> Current status index: `docs/OPEN_ISSUES.md` (section 0 lists which items here are still open).
+> 2026-09-24: #10 is resolved in code (see that file); its entry below is kept for history.
+
 Only unresolved issues live here — everything already fixed (or accepted as a
 non-bug/design limitation) has been removed. Full history, including every
 root-cause trace and verification detail for the ~50 issues that have been

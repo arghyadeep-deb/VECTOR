@@ -10,11 +10,13 @@
 
 ### In Progress
 
-- Kokoro TTS model download + wiring (`core/voice/tts.py`)
-- "Hey VECTOR" wake word training (10 samples → openWakeWord)
-- Face recognition activation (`pip install face-recognition mediapipe`)
-- Cloudflare Worker deployment (`wrangler deploy` in `api/`)
-- Phone Termux node setup (`bash phone_node/setup.sh`)
+Status corrected 2026-09-24 (Kokoro/face-recognition verified on disk today; the rest from `docs/OPEN_ISSUES.md` / `docs/phase_status.md`, not re-verified):
+
+- ~~Kokoro TTS model download + wiring~~ — **done**: `models/kokoro/kokoro-v1.0.fp16-gpu.onnx` + voices present; loads on GPU (per phase_status 2026-06-20)
+- "Hey VECTOR" wake word — **blocked on owner**: training pipeline complete, but real-voice recall is ~13%; needs ~50-100 real recordings (`scripts/train_wake_word.py`). Whisper keyword-spotting fallback is what runs today
+- ~~Face recognition activation~~ — **done**: `import face_recognition` succeeds today (the older "dlib blocked by Application Control" note in OPEN_ISSUES was stale)
+- ~~Cloudflare Worker deployment~~ — **done**: live and answering authenticated requests (per phase_status 2026-06-20); local parity tests can't run because the repo path contains a space (CI/space-free clone only)
+- Phone Termux node setup (`bash phone_node/setup.sh`) — **owner-only, not done**. (Separate: the Oppo A31 is ADB-connected as the posting device)
 
 ### TODO
 
@@ -63,8 +65,8 @@
 ## Completed
 
 - Core intelligence stack (context/decision/policy/permission/autonomous loop) *(Phase 1)*
-- 33 districts with 133+ agent files *(Phase 1-3)*
-- 27 LLM providers integrated *(2026-05-17)*
+- 38 district directories, 170 manifest-registered agents *(Phase 1-3; recounted 2026-09-24)*
+- 31 LLM providers integrated *(2026-05-17; recounted 2026-09-24)*
 - Neural intelligence layer (Ruflo absorption) *(2026-05-17)*
 - Voice pipeline (STT + TTS + ambient listener) *(partial)*
 - Sensing + control (camera, screen, health, PC, phone) *(2026-05-29)*
@@ -72,7 +74,7 @@
 - Absorbed repos: nango, auto-browser, voicebox, pocketbase, postiz, OpenWA, Understand-Anything *(2026-05-27 to 2026-05-28)*
 - Ponytail minimal-code enforcement wired into runtime *(2026-07-09)*
 - Full audit completed *(2026-07-15)*
-- All 6 ADRs documented *(2026-08-06)*
+- All 7 ADRs documented *(2026-08-06)*
 - Project documentation scaffolding *(2026-08-06)*
 - **JWT authentication with refresh tokens** — `core/security/token_blacklist.py`, `core/api/routers/auth_jwt.py`, middleware integration, 22 tests, ADR-0007 *(2026-08-06)*
 
