@@ -110,6 +110,13 @@ def get_job_queue(limit: int = 20) -> list[dict]:
             conn.close()
     return [dict(r) for r in rows]
 
+def list_resumable_jobs(limit: int = 20) -> list[dict]:
+    """Errored jobs whose finished render still exists on disk. Resuming their upload is an
+    owner action through the existing gated upload path; nothing here uploads anything."""
+    return [j for j in get_job_queue(limit=limit * 5)
+            if j.get("status") == "error" and j.get("video_path") and Path(j["video_path"]).exists()][:limit]
+
+
 def get_job_history(limit: int = 10) -> list[dict]:
     _init_db()
     with _DB_LOCK:
@@ -153,18 +160,29 @@ def recover_interrupted_jobs(max_age_hours: float = 2.0) -> int:
         datetime.datetime.now(datetime.timezone.utc)
         - datetime.timedelta(hours=max_age_hours)
     ).isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    n = 0
     with _DB_LOCK:
         conn = _get_job_conn()
         try:
-            cur = conn.execute(
-                "UPDATE content_jobs SET status='error', "
-                "error='interrupted — process restarted mid-pipeline (auto-recovery)', "
-                "updated_at=? "
+            conn.row_factory = sqlite3.Row
+            stale = conn.execute(
+                "SELECT id, video_path FROM content_jobs "
                 "WHERE status NOT IN ('done','error','cancelled','pending') AND updated_at < ?",
-                (datetime.datetime.now(datetime.timezone.utc).isoformat(), cutoff),
-            )
+                (cutoff,),
+            ).fetchall()
+            for row in stale:
+                # A finished render persisted to renders/ survives the restart: say so, so the
+                # owner can resume the (gated) upload instead of regenerating the video.
+                saved = row["video_path"] if row["video_path"] and Path(row["video_path"]).exists() else ""
+                note = ("interrupted — process restarted mid-pipeline (auto-recovery)"
+                        + (f" (render saved: {saved})" if saved else ""))
+                conn.execute(
+                    "UPDATE content_jobs SET status='error', error=?, updated_at=? WHERE id=?",
+                    (note, now, row["id"]),
+                )
+                n += 1
             conn.commit()
-            n = cur.rowcount or 0
         finally:
             conn.close()
     if n:

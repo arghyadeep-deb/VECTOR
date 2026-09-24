@@ -8,7 +8,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 async def test_arm_a_chains_and_gates(monkeypatch):
     from districts.growth.content_arm import ContentArm
     arm = ContentArm()
-    monkeypatch.setattr(arm, "_script", lambda well: ("hi", well))
+    async def _fake_script(well):
+        return ("hi", well)
+
+    monkeypatch.setattr(arm, "_script", _fake_script)
     monkeypatch.setattr(arm, "_narrate", lambda txt: ("/n.wav", 10.0))
     monkeypatch.setattr(arm, "_record", lambda wav, dur: "/reel.mp4")
     gate = {}

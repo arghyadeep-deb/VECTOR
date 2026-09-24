@@ -317,6 +317,18 @@ async def job_weekly_growth_report(*, _ctx: dict | None = None) -> dict:
         return {"status": "failed", "reason": str(e)}
 
 
+async def job_content_plan(*, _ctx: dict | None = None) -> dict:
+    """Daily 08:30 — plan one script -> schedule_post content plan (published later, owner-approved)."""
+    try:
+        from districts.content.content_planner import plan_daily_content
+        result = await plan_daily_content()
+        logger.info("[VECTOR][cron] content_plan: {}", result.get("status"))
+        return result
+    except Exception as e:
+        logger.warning("[VECTOR][cron] content_plan failed: {}", e)
+        return {"status": "error", "error": str(e)}
+
+
 async def job_content_scheduler(*, _ctx: dict | None = None) -> dict:
     """Daily at 9AM — publish all pending scheduled posts."""
     try:
@@ -392,6 +404,7 @@ def register_default_jobs(scheduler: Any) -> int:
         ("daily-eval-harness",    "daily",  "0 3 * * *", job_daily_eval),
         ("daily-audit-verify",    "daily",  "5 3 * * *", job_audit_verify),  # Phase 1E
         ("daily-biometrics-pull", "daily",  "0 6 * * *", job_biometrics_pull),
+        ("content-plan",          "daily",  "30 8 * * *", job_content_plan),
         ("content-scheduler",     "daily",  "0 9 * * *", job_content_scheduler),
         ("daily-review-journal",  "daily",  "30 22 * * *", job_daily_review),
         ("daily-workflow-trigger","daily",  "0 8 * * *", job_trigger_workflow),
@@ -581,6 +594,7 @@ __all__ = [
     "job_biometrics_pull",
     "job_daily_review",
     "job_content_scheduler",
+    "job_content_plan",
     "job_weekly_dspy_optimize",
     "job_weekly_growth_report",
     "job_venture_pipeline",
