@@ -51,6 +51,23 @@ grew open engineering items; section 0 lists them.
     that run (and part of batch 10) was killed by the memory guard, so a complete post-change baseline
     comparison (5,012 / 13 / 36) is still owed — re-run when the machine has headroom.
 11. **HP bonus for a no-API-keys future** (agents' non-API reward) — on hold until the owner decides.
+13. **HUD honesty + vectorcode repair (2026-09-24, commits ffc5554db..001dd53d3)** — DONE: the HUD no longer
+    presents demo seed data as live (honest "NO DATA"/UNKNOWN states, verified in a real browser); vectorcode's
+    shell tools, agent loop, `run`/`auto`, CLI subcommands, tool registry, skills, tui_gateway imports now work
+    (see the fix report). **Still open in vectorcode**: `agent/context_compressor.py` needs an
+    `agent.context_engine.ContextEngine` base that was never vendored, so the legacy `run_agent.py` path cannot
+    import (the live agent is `engine/agent_loop.py`, which does not use it); `batch_runner` needs the `fire`
+    package; `pty_bridge` is Unix-only; `acp_adapter` needs `agent-client-protocol`; non-Ollama providers are
+    text-only (no tool calling) so `vector run/auto` need a local Ollama model; `mining.vllm_pearl` is missing.
+14. **Code intelligence is not built** (`vectorcode/code_intel` has no `dist/`; it also needs Node, Qdrant and an
+    embedding model). `/code-intel/*` now answers 503 with the build command and no longer docks agent HP.
+    Building it is an owner decision (Node/Qdrant install).
+15. **Stray test write in the live home** — while adding the router tests, one child process inherited the real
+    `VECTOR_HOME` and wrote a single line ("vector test fact") to `~/.vector/memories/MEMORY.md` (new dir, only
+    that file + `MEMORY.md.lock`). Test fixtures are fixed so it cannot recur; the file itself is left for the
+    owner to delete (the auto-mode classifier blocked me from removing it).
+16. **HUD side panels**: ComfyUI / Media Studio / Hyperframes now say "not running" (via `/media/sidecars`) when
+    their local servers are down; the servers themselves are owner-started.
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
