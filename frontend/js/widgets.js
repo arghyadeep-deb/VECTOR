@@ -101,8 +101,13 @@
   };
 
   F.music = function(opts){
-    const t = (opts&&opts.track) || D.TRACKS[0];
+    const t = (opts&&opts.track) || (Array.isArray(D.TRACKS) ? D.TRACKS[0] : null);
     const wrap = el('div');
+    if(!t){
+      // No player is wired to the backend: say so instead of showing a made-up track.
+      wrap.innerHTML = '<div class="ve-offline" style="opacity:.6">NO PLAYER CONNECTED</div>';
+      return shell('music','MUSIC', wrap, 'music');
+    }
     wrap.innerHTML =
       `<div class="top">
          <div class="art" style="background:${t.art}">IDLE</div>
@@ -352,15 +357,17 @@
         const j = await apiGet('/agents');
         const agents = j.agents || j.data || (Array.isArray(j)?j:[]);
         if(agents.length) renderAgents(agents);
+        else grid.innerHTML = '<div class="ve-offline" style="opacity:.6">NO AGENTS REPORTED</div>';
         const title = wrap.closest && wrap.closest('.widget')
           ? wrap.closest('.widget').querySelector('.w-title') : null;
-        if(title) title.textContent = 'AGENT DISTRICTS · '+agents.length;
+        const nd = new Set(agents.map(a=>a.district||a.agent_type||'unknown')).size;
+        if(title) title.textContent = 'AGENT DISTRICTS · '+nd+' DISTRICTS · '+agents.length+' AGENTS';
       }catch(e){
         grid.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
       }
     }
 
-    const w = shell('districts','AGENT DISTRICTS · 33', wrap, 'agents');
+    const w = shell('districts','AGENT DISTRICTS', wrap, 'agents');
     loadDistricts();
     setInterval(()=>{ if(w.isConnected) loadDistricts(); }, 10000);
     return w;
@@ -427,7 +434,7 @@
     const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
 
     const header = el('div', null,
-      `<div class="row-kv"><span class="k">THREAT LEVEL</span><span class="v sec-threat" style="color:var(--ok)">LOW</span></div>
+      `<div class="row-kv"><span class="k">THREAT LEVEL</span><span class="v sec-threat" style="color:var(--txt-faint)">—</span></div>
        <div class="sec-lbl" style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:8px 0 4px">RECENT EVENTS</div>`);
     wrap.appendChild(header);
     const evtList = el('div','sec-events');
@@ -438,9 +445,9 @@
         const j = await apiGet('/security/status');
         const threatEl = wrap.querySelector('.sec-threat');
         if(threatEl){
-          const level = (j.threat_level||'LOW').toUpperCase();
+          const level = j.threat_level ? String(j.threat_level).toUpperCase() : 'UNKNOWN';
           threatEl.textContent = level;
-          threatEl.style.color = level==='CRITICAL'?'var(--danger)':level==='HIGH'?'var(--warn)':level==='MEDIUM'?'var(--warn)':'var(--ok)';
+          threatEl.style.color = level==='CRITICAL'?'var(--danger)':level==='HIGH'?'var(--warn)':level==='MEDIUM'?'var(--warn)':level==='LOW'?'var(--ok)':'var(--txt-faint)';
         }
       }catch(e){
         const threatEl = wrap.querySelector('.sec-threat');

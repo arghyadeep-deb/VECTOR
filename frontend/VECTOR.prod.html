@@ -101,50 +101,57 @@
     if(glyph) glyph.textContent = 'SYS · '+String(to).toUpperCase();
   });
 
+  // Both tickers are built ONLY from live backend data (D.STOCKS_LIVE, D.LIVE, D.agents, ...).
+  // They used to be seeded once from hard-coded demo arrays (fake quotes, invented headlines,
+  // constant "THREAT LEVEL LOW" / "33 DISTRICTS ONLINE · TICK NOMINAL"), which looked live but wasn't.
+  const fmtNum = v => { const n = Number(v); return Number.isFinite(n)
+    ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'; };
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
   const stockTrack = document.getElementById('stockTrack');
-  if(stockTrack && Array.isArray(D.STOCKS)){
-    D.STOCKS.concat(D.STOCKS).forEach(([s,p,chg])=>{
-      const w=document.createElement('span');
-      w.innerHTML = `<span class="tk-sym">${s}</span><span class="tk-px">${p}</span>`+
-        `<span class="${chg>=0?'tk-up':'tk-dn'}"> ${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(2)}%</span>`;
+  const buildStocks = () => {
+    if(!stockTrack) return;
+    const quotes = Array.isArray(D.STOCKS_LIVE) ? D.STOCKS_LIVE : [];
+    stockTrack.textContent = '';
+    if(!quotes.length) return;               // no live quotes -> show nothing rather than fake ones
+    quotes.concat(quotes).forEach(q=>{
+      const pct = q.change_pct != null ? Number(q.change_pct) : (q.change_percent != null ? Number(q.change_percent) : null);
+      const w = document.createElement('span');
+      w.innerHTML = `<span class="tk-sym">${esc(q.symbol)}</span><span class="tk-px">${esc(fmtNum(q.price != null ? q.price : q.close))}</span>` +
+        (pct == null || !Number.isFinite(pct) ? '' :
+          `<span class="${pct>=0?'tk-up':'tk-dn'}"> ${pct>=0?'▲':'▼'}${Math.abs(pct).toFixed(2)}%</span>`);
       stockTrack.appendChild(w);
     });
-  }
+  };
 
   const newsTrack = document.getElementById('newsTrack');
-  if(newsTrack){
-    // Rebuild periodically from live D (2026-07-19): this ran ONCE at page
-    // init, so the ticker permanently showed the seed data's "2 APPROVALS
-    // PENDING REVIEW" while the live gateway said 0.
-    const buildTicker = () => {
-      const news = Array.isArray(D.NEWS) ? D.NEWS : [];
-      const agents = Array.isArray(D.agents) ? D.agents : [];
-      const approvals = Array.isArray(D.APPROVALS) ? D.APPROVALS : [];
-      const memory = Array.isArray(D.MEMORY) ? D.MEMORY : [];
-      const sys = [
-        'SECURITY · THREAT LEVEL LOW',
-        approvals.length + ' APPROVAL' + (approvals.length!==1?'S':'') + ' PENDING REVIEW',
-        'LOOP · 33 DISTRICTS ONLINE · TICK NOMINAL',
-      ];
-      const hot = agents.slice().sort((a,b)=>(b.health_points||0)-(a.health_points||0))[0];
-      if(hot) sys.push('AGENT ' + String(hot.name).toUpperCase() + ' · HP ' + Math.round(hot.health_points||0) + ' · ' + hot.tier);
-      if(memory[0]) sys.push('MEMORY · ' + memory[0].event_type + ' · ' + memory[0].content);
-      const feed = [];
-      news.forEach((n,i)=>{ feed.push(n); if(sys[i]) feed.push('▣ '+sys[i]); });
-      if(!feed.length) feed.push(...sys);
-      const text = feed.concat(feed).join('      ◆      ');
-      if(newsTrack.textContent !== text) newsTrack.textContent = text;
-    };
-    buildTicker();
-    setInterval(buildTicker, 30000);
-  }
+  const buildTicker = () => {
+    if(!newsTrack) return;
+    const L = D.LIVE || {};
+    const agents = Array.isArray(D.agents) ? D.agents : [];
+    const approvals = Array.isArray(D.APPROVALS) ? D.APPROVALS : [];
+    const memory = Array.isArray(D.MEMORY) ? D.MEMORY : [];
+    const sys = [];
+    if(L.threat) sys.push('SECURITY · THREAT LEVEL ' + String(L.threat).toUpperCase());
+    sys.push(approvals.length + ' APPROVAL' + (approvals.length!==1?'S':'') + ' PENDING REVIEW');
+    if(L.loop) sys.push('LOOP · ' + (L.loop.running ? 'RUNNING' + (L.loop.tick != null ? ' · TICK ' + L.loop.tick : '') : 'NOT RUNNING'));
+    if(L.districts) sys.push(L.districts + ' DISTRICTS · ' + agents.length + ' AGENTS REGISTERED');
+    const hot = agents.slice().sort((a,b)=>(b.health_points||0)-(a.health_points||0))[0];
+    if(hot) sys.push('TOP AGENT ' + String(hot.name).toUpperCase() + ' · HP ' + Math.round(hot.health_points||0) + ' · ' + hot.tier);
+    if(memory[0]) sys.push('MEMORY · ' + memory[0].event_type + ' · ' + memory[0].content);
+    if(!L.loop && !L.threat && !agents.length) sys.unshift('AWAITING LIVE DATA FROM BACKEND');
+    const text = sys.concat(sys).join('      ◆      ');
+    if(newsTrack.textContent !== text) newsTrack.textContent = text;
+  };
+  buildStocks(); buildTicker();
+  V.on('live:update', ()=>{ buildStocks(); buildTicker(); });
+  setInterval(()=>{ buildStocks(); buildTicker(); }, 30000);
 
+  // Boot messages only state what the HUD itself is doing; backend facts arrive via the live tickers.
   const lines = [
-    ['BOOT','kernel · neuromorphic core'],
-    ['OK','event bus online · 33 districts'],
-    ['OK','episodic + semantic memory mounted'],
-    ['OK','production HUD boundary active'],
-    ['READY','VECTOR online']
+    ['BOOT','VECTOR HUD'],
+    ['..','connecting to backend'],
+    ['READY','HUD ready — live status follows']
   ];
   const log = document.getElementById('bootLog'); let li=0;
   setTimeout(()=>{ const bo=document.getElementById('boot');

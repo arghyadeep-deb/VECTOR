@@ -45,10 +45,16 @@
     s.classList.toggle('awake', ['idle','listening','processing','speaking'].includes(cls));
   }
 
+  // Orb sub-label follows the real state, so it can never disagree with it
+  // (it used to keep saying STANDBY after a click/workspace-open woke the HUD).
+  const ORB_SUB = { boot:'STARTING', locked:'STANDBY', idle:'ONLINE', listening:'LISTENING',
+                    processing:'PROCESSING', speaking:'SPEAKING', fortress:'LOCKDOWN' };
+
   function go(next){
     if(next===state) return;
     const prev = state; state = next;
     setStage(next);
+    try{ if(api.orb && ORB_SUB[next]) api.orb.setSub(ORB_SUB[next]); }catch(e){}
     armIdleLock();
     emit('state', { from:prev, to:next });
   }
@@ -186,12 +192,17 @@
       ws.onmessage = e => { let d; try{ d=JSON.parse(e.data); }catch(_){ return; } onMsg(d, ws); };
       ws.onclose  = () => {
         emit('ws:close', { name });
+        clearTimeout(ws._stableTimer);
         if(ws._intentional) return; // deliberate close — do not retry
         scheduleReconnect(name);
       };
       ws.onerror  = () => emit('ws:error', { name });
       ws.onopen   = () => {
-        reconnectAttempts[name] = 0;
+        // Only forgive past failures once the socket has STAYED open for a while. Resetting on
+        // every open made a server that accepts then immediately closes (e.g. /gesture/ws with a
+        // broken mediapipe) reconnect once per second forever, defeating the backoff.
+        clearTimeout(ws._stableTimer);
+        ws._stableTimer = setTimeout(() => { reconnectAttempts[name] = 0; }, 10000);
         clearReconnectTimer(name);
         // Send auth handshake as first message if a token is configured
         if(authToken) ws.send(JSON.stringify({ auth: 'Bearer ' + authToken }));

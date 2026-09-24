@@ -1,5 +1,7 @@
 /* ============================================================================
    VECTOR · data.js
+   DEMO SEED DATA for the offline/dev page only. backend.js clears every seeded
+   dataset the moment a backend connects, so none of this is ever shown as live.
    Seed data for the demo / offline mode. Mirrors the backend data models so a
    live backend can replace any of these via the VECTOR adapter (see core.js).
    Owner: Arghyadeep Deb · KIIT CSE 2023-27
@@ -20,12 +22,13 @@
 
   // ---- HP → model tiers (spec §10) --------------------------------------
   function tierFor(hp){
-    if (hp >= 800) return { tier:'ELITE',    model:'claude-sonnet-4.6' };
-    if (hp >= 700) return { tier:'STRONG',   model:'kimi-k2.6' };
-    if (hp >= 500) return { tier:'HEALTHY',  model:'qwen3:14b' };
-    if (hp >= 300) return { tier:'WEAK',     model:'vector-focus·gemma4e4b' };
-    if (hp >  0)   return { tier:'CRITICAL', model:'vector-ambient·gemma4e2b' };
-    return { tier:'GHOST', model:'—' };
+    // Tier names only: which model an agent really uses comes from the backend (agent.model).
+    if (hp >= 800) return { tier:'ELITE',    model:'' };
+    if (hp >= 700) return { tier:'STRONG',   model:'' };
+    if (hp >= 500) return { tier:'HEALTHY',  model:'' };
+    if (hp >= 300) return { tier:'WEAK',     model:'' };
+    if (hp >  0)   return { tier:'CRITICAL', model:'' };
+    return { tier:'GHOST', model:'' };
   }
 
   const AGENT_NAMES = {
