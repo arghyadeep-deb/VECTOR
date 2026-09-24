@@ -42,8 +42,6 @@ def capture() -> dict[str, object]:
             scenarios = [
                 ("dev-desktop", "/VECTOR.html", 1440, 900),
                 ("dev-mobile", "/VECTOR.html", 390, 844),
-                ("prod-desktop", "/VECTOR.prod.html", 1440, 900),
-                ("prod-mobile", "/VECTOR.prod.html", 390, 844),
             ]
             for name, path, width, height in scenarios:
                 page_errors: list[str] = []

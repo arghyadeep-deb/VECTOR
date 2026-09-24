@@ -2,11 +2,9 @@ const CACHE_NAME = "vector-hud-v1";
 
 const CORE_ASSETS = [
   "./",
-  "VECTOR.prod.html",
+  "VECTOR.html",
   "styles/core.css",
   "styles/widgets.css",
-  "dist/vector-hud.prod.js",
-  "dist/manifest.json",
   "js/config.js",
 ];
 

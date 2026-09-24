@@ -1,58 +1,55 @@
+"""There is ONE HUD, frontend/VECTOR.html, served in every environment.
+
+The separate "VECTOR Production" page (VECTOR.prod.html, its bundle and its build) was removed 2026-09-25 by owner
+decision: it dropped the subsystem dock, so the owner's HUD offered five buttons instead of the real interface.
+"""
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
-
 
 AUTH_HEADERS = {"Authorization": "Bearer test-hud-key"}
 
 
-def test_hud_serves_development_entrypoint_by_default(monkeypatch) -> None:
+@pytest.mark.parametrize("env", ["development", "production"])
+def test_hud_serves_the_one_full_hud_in_every_environment(monkeypatch, env) -> None:
     from core.api.app import create_app
 
-    # core.api.app._is_production_env() does
-    # os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))) —
-    # CONFIG["env"] is resolved from the real .env at import time
-    # (VECTOR_ENV=production on this machine), so deleting the env var only
-    # falls back to that already-baked-in "production" default instead of
-    # "development". Set it explicitly instead, which os.getenv checks
-    # before ever consulting the CONFIG-derived fallback.
-    monkeypatch.setenv("VECTOR_ENV", "development")
+    # os.getenv("VECTOR_ENV") wins over the CONFIG-derived default (which is "production" on this machine), so set it
+    # explicitly.
+    monkeypatch.setenv("VECTOR_ENV", env)
     monkeypatch.setenv("VECTOR_API_KEY", "test-hud-key")
     client = TestClient(create_app(), client=("127.0.0.1", 50000))
 
     response = client.get("/hud/", headers=AUTH_HEADERS)
 
     assert response.status_code == 200
-    assert '<script src="js/demo.js"></script>' in response.text
-    assert 'id="director"' in response.text
+    assert "<title>VECTOR</title>" in response.text
+    assert "VECTOR Production" not in response.text
+    assert '<script src="js/demo.js"></script>' in response.text  # builds the subsystem dock
+    assert 'id="dock"' in response.text
 
 
-def test_hud_serves_production_entrypoint_in_production(monkeypatch) -> None:
+@pytest.mark.parametrize("env", ["development", "production"])
+def test_hud_scripts_are_served_in_every_environment(monkeypatch, env) -> None:
+    from core.api.app import create_app
+
+    monkeypatch.setenv("VECTOR_ENV", env)
+    monkeypatch.setenv("VECTOR_API_KEY", "test-hud-key")
+    client = TestClient(create_app(), client=("127.0.0.1", 50000))
+
+    for path in ("js/demo.js", "js/widgets.js", "js/city3d.js", "styles/core.css"):
+        assert client.get(f"/hud/{path}", headers=AUTH_HEADERS).status_code == 200, path
+    assert client.get("/hud/VECTOR.html", headers=AUTH_HEADERS).status_code == 200
+
+
+def test_the_production_page_is_gone(monkeypatch) -> None:
     from core.api.app import create_app
 
     monkeypatch.setenv("VECTOR_ENV", "production")
     monkeypatch.setenv("VECTOR_API_KEY", "test-hud-key")
     client = TestClient(create_app(), client=("127.0.0.1", 50000))
 
-    response = client.get("/hud/", headers=AUTH_HEADERS)
-
-    assert response.status_code == 200
-    assert "VECTOR Production" in response.text
-    assert '<script src="js/demo.js"></script>' not in response.text
-    assert 'id="director"' not in response.text
-
-
-def test_hud_rewrites_dev_entrypoint_and_blocks_demo_js_in_production(monkeypatch) -> None:
-    from core.api.app import create_app
-
-    monkeypatch.setenv("VECTOR_ENV", "production")
-    monkeypatch.setenv("VECTOR_API_KEY", "test-hud-key")
-    client = TestClient(create_app(), client=("127.0.0.1", 50000))
-
-    old_bookmark = client.get("/hud/VECTOR.html", headers=AUTH_HEADERS)
-    demo_script = client.get("/hud/js/demo.js", headers=AUTH_HEADERS)
-
-    assert old_bookmark.status_code == 200
-    assert "VECTOR Production" in old_bookmark.text
-    assert '<script src="js/demo.js"></script>' not in old_bookmark.text
-    assert demo_script.status_code == 404
+    # An old bookmark falls through to the one HUD instead of a 404.
+    old = client.get("/hud/VECTOR.prod.html", headers=AUTH_HEADERS)
+    assert old.status_code == 200 and "<title>VECTOR</title>" in old.text

@@ -15,7 +15,7 @@
 
    On a successful login(), the token is (a) cached in sessionStorage under
    'vector_webauthn_token' and (b) written into window.VECTOR_CONFIG.apiKey
-   so VECTOR.prod.html's existing autoConnect() picks it up exactly like a
+   so VECTOR.html's existing autoConnect() picks it up exactly like a
    pasted static key, with zero changes needed to vector-core.js's auth path.
 
    Browser constraint (not fixable client-side): WebAuthn only runs in a

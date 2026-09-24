@@ -221,7 +221,7 @@ class AmbientListener:
             logger.debug(f"[VECTOR][voice] HUD focus check failed ({e}) — launching")
         # LAUNCH COOLDOWN: focus above is cheap + idempotent and runs every time,
         # but a freshly-launched HUD takes a few seconds to appear AND to title
-        # itself "VECTOR Production" — during that gap the focus check can't see
+        # itself "VECTOR" — during that gap the focus check can't see
         # it yet. The wake word false-fires ~every 25s (ambient noise), so
         # without this guard each wake in that window launched ANOTHER HUD,
         # stacking 8-9 of them (2026-07-17 owner screenshot). Never launch a

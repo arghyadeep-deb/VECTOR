@@ -12,7 +12,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
-from core.frontend_bundle import validate_frontend_bundle
 from core.runtime_paths import get_data_root
 
 
@@ -259,29 +258,14 @@ def run_dependency_doctor(
     checks.append(_check_writable_dir(PROJECT_ROOT / "test_tmp", "test_tmp:writable", False))
 
     frontend_html = PROJECT_ROOT / "frontend" / "VECTOR.html"
-    frontend_prod_html = PROJECT_ROOT / "frontend" / "VECTOR.prod.html"
-    frontend_bundle_target = frontend_prod_html if production_mode else frontend_html
+    # The subsystem dock is built by demo.js, so the one HUD needs it in every environment.
     demo_script = PROJECT_ROOT / "frontend" / "js" / "demo.js"
-    try:
-        bundle_check = validate_frontend_bundle(frontend_bundle_target, production=production_mode)
-        frontend_bundle_ok = bundle_check.ok
-        frontend_bundle_detail = bundle_check.message
-    except Exception as exc:
-        frontend_bundle_ok = False
-        frontend_bundle_detail = str(exc)
     checks.extend(
         [
             _check_file(PROJECT_ROOT / "run_vector.py", "launcher:run_vector.py", True),
             _check_file(frontend_html, "frontend:VECTOR.html", True),
-            _check_file(frontend_prod_html, "frontend:VECTOR.prod.html", production_mode),
             _check_file(PROJECT_ROOT / "frontend" / "js" / "widgets.js", "frontend:widgets.js", True),
-            _check_file(demo_script, "frontend:demo.js", False),
-            _check(
-                "frontend:production_bundle",
-                frontend_bundle_ok,
-                production_mode,
-                frontend_bundle_detail,
-            ),
+            _check_file(demo_script, "frontend:demo.js", True),
             _check_dir(PROJECT_ROOT / "core" / "api" / "routers", "api:routers", True),
             _check_dir(PROJECT_ROOT / "districts", "districts", True),
         ]

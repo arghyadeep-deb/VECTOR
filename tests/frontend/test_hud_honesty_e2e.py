@@ -1,4 +1,4 @@
-"""End-to-end: the production HUD must not present demo seed data as live.
+"""End-to-end: the HUD must not present demo seed data as live.
 
 Found 2026-09-24 in a real-browser pass: the tickers showed hard-coded quotes/headlines and constant
 "THREAT LEVEL LOW / 33 DISTRICTS ONLINE / TICK NOMINAL" text, the council widget showed three invented
@@ -88,14 +88,10 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="module", params=[
-    ("production", ""),          # lean page (VECTOR.prod.html)
-    ("production", "full"),      # what the owner's launchers run: full HUD (VECTOR.html) under production
-    ("development", ""),         # full HUD, development
-], ids=["lean-production", "full-in-production", "development"])
+@pytest.fixture(scope="module", params=["production", "development"])
 def hud(request):
-    """All three ways the HUD is served. The full HUD (3D city, map, camera hero, gestures, the whole subsystem dock)
-    is VECTOR.html; it carried the same hard-coded tickers and boot lines as the lean page."""
+    """The one HUD (frontend/VECTOR.html: 3D city, map, camera hero, gestures, the whole subsystem dock), served
+    under both runtime modes."""
     pytest.importorskip("playwright")
     tmp = Path(tempfile.mkdtemp(prefix="hud_e2e_"))
     (tmp / "data").mkdir()
@@ -103,7 +99,7 @@ def hud(request):
     script = tmp / "serve.py"
     script.write_text(_SERVER_SRC.format(root=str(ROOT), port=port), encoding="utf-8")
     env = dict(os.environ, VECTOR_DB_PATH=str(tmp / "vm.db"), VECTOR_TEST_DATA_DIR=str(tmp / "data"),
-               VECTOR_DB_KEY="hud-e2e-db-key", VECTOR_API_KEY=KEY, VECTOR_ENV=request.param[0], VECTOR_HUD_PAGE=request.param[1])
+               VECTOR_DB_KEY="hud-e2e-db-key", VECTOR_API_KEY=KEY, VECTOR_ENV=request.param)
     proc = subprocess.Popen([sys.executable, str(script)], env=env, cwd=str(ROOT),
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     base = f"http://127.0.0.1:{port}"
@@ -168,14 +164,11 @@ def test_orb_label_follows_the_hud_state(hud):
     assert "STANDBY" not in hud["orb"]
 
 
-def test_full_hud_is_served_in_production_when_the_launchers_ask_for_it(hud, request):
+def test_the_one_full_hud_is_served_in_every_mode(hud):
     strict = hud["strict"]
     assert strict["csp_violations"] == [], strict["csp_violations"]
     assert strict["console_errors"] == [], strict["console_errors"]
-    if request.node.callspec.id.endswith("lean-production"):
-        assert strict["title"] == "VECTOR Production" and strict["dock_buttons"] < 12
-    else:
-        assert strict["title"] == "VECTOR" and strict["dock_buttons"] >= 12, strict
+    assert strict["title"] == "VECTOR" and strict["dock_buttons"] >= 12, strict
 
 
 def test_no_javascript_errors_during_the_session(hud):

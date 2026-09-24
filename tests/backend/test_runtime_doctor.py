@@ -33,7 +33,8 @@ def test_dependency_doctor_required_core_checks_pass(monkeypatch) -> None:
     assert "python:version" in names
     assert "api:required_routes" in names
     assert "frontend:VECTOR.html" in names
-    assert "frontend:VECTOR.prod.html" in names
+    assert "frontend:demo.js" in names
+    assert "frontend:VECTOR.prod.html" not in names
 
 
 def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None:
@@ -58,8 +59,7 @@ def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None
     assert checks["env:VECTOR_API_KEY"]["status"] != "ok"
     assert checks["env:VECTOR_JWT_SECRET"]["required"] is True
     assert checks["env:VECTOR_JWT_SECRET"]["status"] != "ok"
-    assert checks["frontend:production_bundle"]["required"] is True
-    assert checks["frontend:production_bundle"]["status"] == "ok"
+    assert "frontend:production_bundle" not in checks
     assert checks["sidecar:comfyui_path"]["required"] is True
     assert "set VECTOR_API_KEY" in checks["env:VECTOR_API_KEY"]["remediation"]
     assert "VECTOR_COMFYUI_PATH" in checks["sidecar:comfyui_path"]["remediation"]
@@ -100,7 +100,7 @@ def test_dependency_doctor_accepts_strong_configured_production_inputs_and_certi
 
     assert checks["env:VECTOR_API_KEY"]["status"] == "ok"
     assert checks["env:VECTOR_JWT_SECRET"]["status"] == "ok"
-    assert checks["frontend:production_bundle"]["status"] == "ok"
+    assert "frontend:production_bundle" not in checks
     assert checks["sidecar:comfyui_health"]["status"] == "fail"
     assert "start the sidecar service" in checks["sidecar:comfyui_health"]["remediation"]
 
