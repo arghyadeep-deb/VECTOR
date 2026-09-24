@@ -47,7 +47,7 @@ KERNEL_ID = f"vector-mcp-{os.getpid()}"
 
 
 def _is_production() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 def ensure_production_secret() -> None:

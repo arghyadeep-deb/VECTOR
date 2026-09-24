@@ -28,7 +28,7 @@ from core.config import CONFIG
 
 
 def _is_production_env() -> bool:
-    return os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))).strip().lower() == "production"
+    return os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))).strip().lower() in {"production", "prod", "vector"}
 
 
 def _select_hud_html(hud_dir: Path) -> Path:

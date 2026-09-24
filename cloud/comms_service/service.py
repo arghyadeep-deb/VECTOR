@@ -29,7 +29,7 @@ _vc_bridge = None
 
 
 def _is_production() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 def require_auth(authorization: str = Header(default="")) -> bool:

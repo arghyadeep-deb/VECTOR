@@ -36,7 +36,7 @@ _DEFAULT_PEERS = {
 }
 
 def _is_production() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 # Resolved lazily so the module imports cleanly on nodes that never federate

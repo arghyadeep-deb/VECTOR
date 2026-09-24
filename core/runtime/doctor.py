@@ -67,7 +67,7 @@ def _module_exists(module: str) -> bool:
 
 
 def _is_production_env() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 def _sqlcipher_available() -> bool:

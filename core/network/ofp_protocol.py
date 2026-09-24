@@ -214,7 +214,7 @@ class OFPNode:
         elif _secret_env:
             self._secret = _secret_env.encode()
         else:
-            if os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}:
+            if os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}:
                 raise RuntimeError("VECTOR_OFP_SECRET is required in production")
             logger.warning(
                 "[VECTOR][ofp] Using generated local-only secret — "

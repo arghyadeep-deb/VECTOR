@@ -58,7 +58,7 @@ class Check:
 
 
 def _is_production() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 def _iter_repo_files() -> list[Path]:

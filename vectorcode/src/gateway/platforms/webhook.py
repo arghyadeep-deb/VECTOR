@@ -75,7 +75,7 @@ def check_webhook_requirements() -> bool:
 
 
 def _is_production() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 def _is_placeholder_secret(secret: str) -> bool:

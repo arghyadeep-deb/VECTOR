@@ -46,7 +46,7 @@ class WebhookForwarder:
             or str(self.config.get("webhook_secret", "")).strip()
         )
         if not self.webhook_secret:
-            if os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}:
+            if os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}:
                 raise RuntimeError("OPENMYTHOS_WEBHOOK_SECRET is required in production")
             self.webhook_secret = secrets.token_urlsafe(32)
         self.host = self.config.get("forward_host", "0.0.0.0")
