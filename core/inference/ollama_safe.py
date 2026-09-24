@@ -588,7 +588,8 @@ def _get_telemetry_store():
     try:
         from core.telemetry import TelemetryStore  # type: ignore[attr-defined]
         # Build a sane default db path next to the project root
-        db_path = Path(__file__).resolve().parent.parent.parent / "data" / "telemetry.db"
+        from core.runtime_paths import data_path
+        db_path = data_path("telemetry.db")
         db_path.parent.mkdir(parents=True, exist_ok=True)
         _telemetry_store_singleton = TelemetryStore(db_path)
         logger.info(f"[VECTOR][ollama_safe] telemetry store ready at {db_path}")

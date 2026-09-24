@@ -30,7 +30,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from loguru import logger
 from core.memory.db_utils import apply_pragmas
 
-_DB_PATH = Path(__file__).resolve().parent.parent.parent / "data" / "telemetry.db"
+from core.runtime_paths import data_path
+
+_DB_PATH = data_path("telemetry.db")
 
 _CREATE_TABLE = """\
 CREATE TABLE IF NOT EXISTS inference_calls (

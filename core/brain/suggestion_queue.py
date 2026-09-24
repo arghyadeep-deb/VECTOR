@@ -18,7 +18,9 @@ from pathlib import Path
 from loguru import logger
 from core.config import CONFIG
 
-_DEFAULT_DB = Path(CONFIG.get("data_dir", "data")) / "suggestion_queue.db"
+from core.runtime_paths import data_path
+
+_DEFAULT_DB = data_path("suggestion_queue.db")
 
 
 class SuggestionQueue:

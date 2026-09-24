@@ -21,9 +21,52 @@ if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 
-_TEST_DATA_DIR = Path(__file__).resolve().parents[1] / "test_tmp" / "vector_pytest_data"
-_TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
-os.environ.setdefault("VECTOR_TEST_DATA_DIR", str(_TEST_DATA_DIR))
+# Session isolation (2026-09-24, docs/superpowers/specs/2026-09-24-test-suite-isolation-design.md):
+# every pytest session gets a fresh temp DB + data dir, set BEFORE any VECTOR module
+# is imported, so the suite never reads or writes the owner's live vector_memory.db
+# or <repo>/data. Nothing survives to the next session (fixes stale dedup rows etc.).
+import atexit
+import shutil
+import tempfile
+
+_REPO_ROOT_PATH = Path(__file__).resolve().parents[1]
+_LIVE_DB = (_REPO_ROOT_PATH / "vector_memory.db").resolve()
+_LIVE_DATA = (_REPO_ROOT_PATH / "data").resolve()
+
+
+def _is_live_path(raw: str | None) -> bool:
+    if not raw:
+        return False
+    try:
+        p = Path(raw).expanduser().resolve()
+    except Exception:
+        return False
+    return p == _LIVE_DB or p == _LIVE_DATA or _LIVE_DATA in p.parents
+
+
+_TEST_DATA_DIR = Path(tempfile.mkdtemp(prefix="vector_pytest_data_"))
+atexit.register(shutil.rmtree, str(_TEST_DATA_DIR), True)
+(_TEST_DATA_DIR / "data").mkdir()
+os.environ["VECTOR_DB_PATH"] = str(_TEST_DATA_DIR / "vector_memory.db")
+os.environ["VECTOR_TEST_DATA_DIR"] = str(_TEST_DATA_DIR / "data")
+os.environ["VECTOR_DB_KEY"] = "pytest-session-key-not-for-production"
+# A preset VECTOR_DB_PATH (e.g. .env's relative "vector_memory.db") is deliberately
+# overridden above. VECTOR_DATA_DIR would beat nothing (TEST wins in runtime_paths)
+# but is dropped so it can never point a test at live data.
+os.environ.pop("VECTOR_DATA_DIR", None)
+
+
+def _assert_not_live(where: str) -> None:
+    """Hard guard: abort rather than ever run against live VECTOR state."""
+    from core.memory.db_utils import configured_db_path
+    from core.runtime_paths import data_path
+
+    bad = [str(p) for p in (configured_db_path(), data_path("x").parent) if _is_live_path(str(p))]
+    if bad:
+        pytest.exit(f"refusing to run ({where}): resolves to live VECTOR state: {bad}", returncode=3)
+
+
+_assert_not_live("session start")
 
 # Centralized sys.path setup — eliminates the need for per-test sys.path.insert hacks.
 # The repo root is 1 level above tests/.
