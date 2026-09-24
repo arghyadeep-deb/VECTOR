@@ -416,10 +416,21 @@ class LocalEnvironment(BaseEnvironment):
         # Still strip the marker from output so it's not visible
         self._extract_cwd_from_output(result)
 
+    @staticmethod
+    def _host_path(path: str) -> str:
+        """Map a shell-side /tmp path to the file Python can actually unlink.
+        Git-Bash /tmp is the Windows temp dir, but Python resolves "/tmp/x" to a different location
+        (the drive-root tmp folder), so the snapshot/cwd files were never removed and every cleanup
+        logged an OSError."""
+        if _IS_WINDOWS and path.startswith("/tmp/"):
+            import tempfile
+            return os.path.join(tempfile.gettempdir(), path[len("/tmp/"):])
+        return path
+
     def cleanup(self):
         """Clean up temp files."""
         for f in (self._snapshot_path, self._cwd_file):
             try:
-                os.unlink(f)
+                os.unlink(self._host_path(f))
             except OSError as _sve:
                 logger.warning("[VECTOR][tools.environments.local] suppressed OSError: %s", _sve)

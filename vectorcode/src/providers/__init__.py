@@ -190,3 +190,6 @@ def _discover_providers() -> None:
                 )
     except Exception as _sve:
         logger.debug("[VECTOR][providers.__init__] suppressed Exception: %s", _sve)
+
+
+from .router import ModelRouter, split_model_id  # noqa: E402,F401  (cli/repl/agent_loop import ModelRouter from here)
