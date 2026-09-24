@@ -43,7 +43,7 @@ class OpsSwarm(AgentBase):
         name = "OpsSwarm"
         super().__init__(agent_id=agent_id, name=name, district=DISTRICT)
         self.capabilities = ["general", "type"]
-        self.health_points = 1200
+        self.health_points = 1000  # HP is capped at 1000 (was 1200); still far above the district's other agents
         self._agents: dict[str, AgentBase] = {}
         self._agent_roles: dict[str, str] = {}
         self._load_agents()

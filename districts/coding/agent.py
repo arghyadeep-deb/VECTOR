@@ -78,7 +78,7 @@ class CodingSwarm(AgentBase):
             "code_intel", "gui_automation", "developer_advocate",
             "onboarding", "minimal_change",
         ]
-        self.health_points = 1500
+        self.health_points = 1000  # HP is capped at 1000 (was 1500); still far above the district's other agents
         self._agents: dict[str, AgentBase] = {}
         self._agent_roles: dict[str, str] = {}
         self._load_agents()
