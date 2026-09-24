@@ -50,6 +50,20 @@ grew open engineering items; section 0 lists them.
     that resolves to live state. Verified: 0 live files changed across a 15-batch run. The last batch of
     that run (and part of batch 10) was killed by the memory guard, so a complete post-change baseline
     comparison (5,012 / 13 / 36) is still owed — re-run when the machine has headroom.
+11a. **Full-suite run 2026-09-25** (sharded, working tree incl. your uncommitted work): 5,843 passed / 20 failed /
+    37 skipped / 379 errors. The 379 errors were ONE polluter — `test_m1e_isolation_fixture.py` popped the
+    session's `VECTOR_DB_PATH`, the live-state guard then errored every later test in that batch; fixed (batch
+    re-run: 400 passed, 2 failed). Remaining ~18 failures, each classified against a clean HEAD worktree:
+    - **12 caused only by your uncommitted work** (pass at clean HEAD): 8 in `test_r13_*`, plus
+      `test_r24_*`, `test_r25_*`, `test_r26_* ablation`, `test_r18_*worktree` (the last is expected while files are
+      uncommitted). E.g. r24 learns strength 0.75 where the test pins 0.70 — the reward arithmetic changed.
+      Decide: adopt the new numbers (update tests) or revert; I did not touch the files.
+    - **1 pre-existing, previously masked by the ArchitectBot timeout**: `test_r14 ... six_cycle` (winners become
+      `read_code` x5 instead of diversifying to `code_task`; reproduced on the pre-program commit + only the scan fix).
+    - **4 already-known**: correction lifecycle, epistemic fresh-domain, a7 council-red-tier, plus
+      `permission_gateway` red-timeout / openwa BulkSender (order pollution).
+    Fixed on the way: scheduler job-count test (14 -> 17 after the 3 jobs added 2026-09-24) and a predictive-analytics
+    fixture that reused a stale, undecryptable temp DB.
 11. **HP bonus for a no-API-keys future** (agents' non-API reward) — on hold until the owner decides.
 13. **HUD honesty + vectorcode repair (2026-09-24, commits ffc5554db..001dd53d3)** — DONE: the HUD no longer
     presents demo seed data as live (honest "NO DATA"/UNKNOWN states, verified in a real browser); vectorcode's
