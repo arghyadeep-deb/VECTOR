@@ -288,8 +288,6 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
     "communications": "drafting/sending EMAIL specifically (VECTOR has no "
                        "real WhatsApp/SMS/other-messaging-app send capability "
                        "— only inbox/draft/send for email)",
-    "content": "social media captions, video/reel scripts, image/video "
-               "generation — public-facing content, not a message to a person",
     # 2026-07-29 (eval finding): "draft a proposal/pitch for a client" was
     # confidently (0.9) classified as district="content" three times in a
     # row — content had a hint distinguishing it from "communications", but
@@ -357,10 +355,14 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
                  "content-scheduling/posting (that's 'content') and NOT a "
                  "status check on VECTOR's own autonomous growth engine "
                  "(that's the 'growth' district)",
-    "content": "creating or SCHEDULING/POSTING content (scripts, posts, "
-               "publish queues) — NOT auditing or analyzing marketing "
-               "performance (SEO, broken links, keyword research, ads), "
-               "which is the 'marketing' district",
+    # (Merged with an earlier duplicate "content" key that was silently
+    # overridden: its "public-facing, not a message to a person" wording.)
+    "content": "creating or SCHEDULING/POSTING public-facing content (social "
+               "media captions, video/reel scripts, image/video generation, "
+               "publish queues) — not a message to a person, and NOT "
+               "auditing or analyzing marketing performance (SEO, broken "
+               "links, keyword research, ads), which is the 'marketing' "
+               "district",
     # 2026-07-30 audit fix: live-caught "Run a GDPR compliance audit"
     # landing in 'privacy' instead of 'governance', even though "gdpr" and
     # "compliance" are governance's own explicit map keys.

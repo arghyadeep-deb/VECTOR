@@ -101,7 +101,6 @@ TASK_TO_DISTRICT: dict[str, str] = {
     # ── Research (deep research, news, web, papers, social mining) ───────────
     "research": "research",
     "deep_research": "research",
-    "news": "research",
     "paper": "research",
     "reddit": "research",
     "web_scout": "research",
