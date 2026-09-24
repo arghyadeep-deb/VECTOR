@@ -60,6 +60,11 @@ def _start_file_server(directory: str, port: int) -> HTTPServer:
     """Serve composition files over HTTP to avoid CORS issues."""
     handler_class = type("VectorFileHandler", (_SilentHandler,), {"directory": directory})
     server = HTTPServer(("127.0.0.1", port), handler_class)
+    # 2026-09-23: deliberate exception to "never use threading, use
+    # asyncio" (.claude/rules/libraries.md) -- `http.server.HTTPServer`
+    # is a synchronous, blocking stdlib server with no asyncio-native
+    # equivalent; `serve_forever()` never returns, so it must run in a
+    # dedicated thread to avoid blocking whatever called this function.
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server

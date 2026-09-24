@@ -204,6 +204,25 @@ async def test_rejected_unrelated_action_still_rewards_02(isolated_episodic):
     assert policy_calls and policy_calls[0][1] == 0.2, policy_calls
 
 
+@pytest.mark.asyncio
+async def test_agent_authored_success_status_still_rewards_08(isolated_episodic):
+    """2026-09-23 regression test: many real district agents (districts/
+    agency/client_manager.py, districts/calls/*, districts/content/*,
+    districts/investment/*, ~100+ call sites) use "success", not "ok", as
+    their own native status -- Governor.dispatch() passes it through
+    unmodified on a real success. A prior fix briefly whitelisted only
+    {"ok", "executed"}, which would have wrongly scored this 0.2."""
+    gw_result = GatewayResult(
+        approved=True, level="GREEN", executed=True,
+        result={"status": "success", "client": "acme"},
+        reason="Auto-executed",
+    )
+    _, policy_calls = await _run_endpoint(
+        "add a new client called acme", _llm("hand_content", "agency"), isolated_episodic, gw_result
+    )
+    assert policy_calls and policy_calls[0][1] == 0.8, policy_calls
+
+
 # ── Regression: every other action_type is byte-for-byte unaffected ───────
 
 @pytest.mark.asyncio

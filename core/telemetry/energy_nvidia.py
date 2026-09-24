@@ -183,6 +183,15 @@ class NvidiaEnergyMonitor(EnergyMonitor):
         lock = threading.Lock()
         stop_event = threading.Event()
 
+        # 2026-09-23: deliberate exception to "never use threading, use
+        # asyncio" (.claude/rules/libraries.md) -- this samples GPU
+        # counters on a fixed wall-clock interval CONCURRENTLY with the
+        # measured work the caller yields into, for real energy/duration
+        # accuracy. An asyncio.sleep-based poller would still block this
+        # same thread while the caller's own code runs unless that code
+        # is itself async and cooperatively yields -- not guaranteed for
+        # arbitrary measured workloads. A real OS thread samples
+        # independently of what's being measured.
         thread = threading.Thread(
             target=self._polling_loop,
             args=(

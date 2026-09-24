@@ -109,7 +109,16 @@ class TaskScheduler:
     # -- Public API ----------------------------------------------------------
 
     def start(self) -> None:
-        """Start the background polling daemon thread."""
+        """Start the background polling daemon thread.
+
+        2026-09-23: deliberate exception to "never use threading, use
+        asyncio" (.claude/rules/libraries.md) -- this class is
+        synchronous by design (threading.Event/Lock throughout, no
+        asyncio anywhere in it) specifically so `start()` can be called
+        from ANY context, including one with no active event loop.
+        Converting to asyncio would force every caller to already be
+        inside a running loop, which is not guaranteed here.
+        """
         if self._thread is not None and self._thread.is_alive():
             return
         self._stop_event.clear()

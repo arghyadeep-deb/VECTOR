@@ -231,7 +231,14 @@ class PCController:
         separate, hard-allowlisted _launch_media_player() below instead of
         calling this method at all — it no longer needs a launch_app token.
         """
-        if not self._verify_control_token(control_token, "launch_app"):
+        # 2026-09-23: also accept a "pc_launch_app"-scoped token --
+        # core/api/routers/control.py's /pc/launch-app endpoint gates on
+        # that distinct (also RED-tier) action_type, which is the real
+        # action_type PermissionGateway._execute_action() actually
+        # approved and minted a receipt for; requiring the differently-
+        # spelled "launch_app" token there would refuse a genuinely
+        # approved, real request.
+        if not self._verify_control_token(control_token, "launch_app", "pc_launch_app"):
             logger.warning("[VECTOR][pc_controller] launch_app blocked — no valid control token")
             return {"launched": False, "error": "launch_app requires a gateway control token"}
         try:
@@ -513,9 +520,17 @@ if __name__ == "__main__":
     else:
         logger.info(f"[VECTOR][pc_controller] screenshot shape: {frame.shape}")
 
-    # launch_app smoke test (notepad — safe, closes immediately in CI). F-6: mint a token.
+    # launch_app smoke test (notepad — safe, closes immediately in CI). F-6: mint a
+    # token. 2026-09-23 (round 2): grant_control() now consumes a real,
+    # gateway-issued approval receipt rather than a caller-asserted bool
+    # -- this self-test issues one directly (via the same internal method
+    # execute() itself uses) to stand in for the real owner approval that
+    # would have already happened before real production code reaches
+    # this point.
     from core.loop.permission_gateway import PermissionGateway
-    _launch_tok = PermissionGateway().grant_control("launch_app", uses=2, ttl=60)
+    _gw = PermissionGateway()
+    _gw._issue_approval_receipt("launch_app")
+    _launch_tok = _gw.grant_control("launch_app", uses=2, ttl=60)
     launch_result = ctrl.launch_app("notepad", control_token=_launch_tok)
     if not isinstance(launch_result, dict) or "launched" not in launch_result:
         logger.error("[VECTOR][pc_controller] launch_app returned wrong type")
@@ -524,7 +539,8 @@ if __name__ == "__main__":
         logger.info(f"[VECTOR][pc_controller] launch_app result: {launch_result}")
 
     # run_shell_command smoke test — F-6: requires a gateway control token.
-    _shell_tok = PermissionGateway().grant_control("run_shell_command", uses=1, ttl=60)
+    _gw._issue_approval_receipt("run_shell_command")
+    _shell_tok = _gw.grant_control("run_shell_command", uses=1, ttl=60)
     shell_result = ctrl.run_shell_command("echo VECTOR_OK", control_token=_shell_tok)
     if shell_result.get("exit_code") != 0:
         logger.error(f"[VECTOR][pc_controller] run_shell_command failed: {shell_result}")

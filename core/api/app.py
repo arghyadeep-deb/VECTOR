@@ -255,6 +255,13 @@ async def lifespan(app: FastAPI):
     if os.environ.get("VECTOR_API_RUN_LOOP") == "1" and not _other:
         try:
             import threading
+            # 2026-09-23: deliberate exception to "never use threading, use
+            # asyncio" (.claude/rules/libraries.md) -- a real OS thread is
+            # the ONLY way to host a SECOND, independent asyncio.run() event
+            # loop in this process (the autonomous loop's own run_forever())
+            # while the API server's own event loop keeps serving HTTP.
+            # There is no asyncio-only way to run two event loops in one
+            # thread.
             from core.loop.autonomous_loop import AutonomousLoop
 
             # Opt-in thread-stack dump on a timer (KNOWN_ISSUES.md #0: the

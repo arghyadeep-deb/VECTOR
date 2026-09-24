@@ -302,6 +302,18 @@ async def refresh(body: RefreshRequest):
     """
     claims = _extract_claims(body.refresh_token, expected_type="refresh")
 
+    # V1 STAGE 6 CLOSURE (round 3 hardening, 2026-09-23): this is the OWNER
+    # JWT refresh endpoint. A collection-issued refresh token (carries a
+    # "collection" claim — see core/collections/auth.py's issue_pair) was
+    # previously still accepted here and processed all the way through to
+    # issuing a new (unscoped, owner-unusable) pair -- never an owner-scope
+    # escalation given the is_owner_refresh invariant below, but a
+    # boundary-clarity gap Codex's round-3 review flagged: this endpoint has
+    # no legitimate reason to process a collection token at all. Reject it
+    # outright instead of silently minting it a useless pair.
+    if "collection" in claims:
+        raise HTTPException(status_code=401, detail="Not an owner refresh token")
+
     # Revoke the old refresh token (rotation)
     old_jti = claims.get("jti", "")
     if old_jti:

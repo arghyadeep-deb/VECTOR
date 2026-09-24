@@ -198,7 +198,13 @@ class StealthBrowserServer:
             text=True,
         )
 
-        # Monitor stderr for crashes in background thread
+        # Monitor stderr for crashes in background thread.
+        # 2026-09-23: deliberate exception to "never use threading, use
+        # asyncio" (.claude/rules/libraries.md) -- `subprocess.Popen`'s
+        # stderr pipe (opened with the sync `subprocess` module, not
+        # `asyncio.create_subprocess_exec`) is a blocking file
+        # descriptor; a dedicated thread is the standard way to drain it
+        # continuously without blocking this coroutine's own event loop.
         self._stderr_thread = threading.Thread(
             target=self._watch_stderr, daemon=True
         )

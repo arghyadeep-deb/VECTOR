@@ -104,6 +104,13 @@ class PhonePoster:
 
         # F-7: mint a control token after approval; the gated phone primitives
         # (unlock/tap/swipe/type_text/launch_app) require it.
+        # 2026-09-23 (round 2): grant_control() no longer accepts a
+        # caller-asserted `approved` bool (forgeable -- an independent
+        # review correctly flagged that). request_approval() above
+        # already issued a real, unforgeable receipt for
+        # "instagram_post_via_phone" the instant it returned True (same
+        # process-wide PermissionGateway singleton), so this plain call
+        # succeeds without needing to thread anything through by hand.
         from core.loop.permission_gateway import PermissionGateway
         _ct = PermissionGateway().grant_control("instagram_post_via_phone", uses=32, ttl=300)
 
@@ -190,6 +197,8 @@ class PhonePoster:
             return {"status": "blocked", "reason": "owner did not approve"}
 
         # F-7: mint a control token after approval for the gated phone primitives.
+        # 2026-09-23 (round 2): see the identical comment on the Instagram
+        # path above -- request_approval() already issued a real receipt.
         from core.loop.permission_gateway import PermissionGateway
         _ct = PermissionGateway().grant_control("youtube_upload_via_phone", uses=32, ttl=300)
 

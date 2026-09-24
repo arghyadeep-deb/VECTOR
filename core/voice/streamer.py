@@ -70,6 +70,14 @@ class AudioStreamer:
         self._synthetic_capture = bool(os.environ.get("PYTEST_CURRENT_TEST"))
 
     def start_capture(self, callback=None) -> None:
+        """2026-09-23: deliberate exception to "never use threading, use
+        asyncio" (.claude/rules/libraries.md) -- real-time audio capture
+        hardware (sounddevice/PortAudio) drives its own blocking
+        capture loop; there is no safe way to host that inside the
+        main asyncio event loop without risking audio dropouts if
+        anything else on that loop briefly blocks. A dedicated OS
+        thread is the standard pattern for real-time audio I/O.
+        """
         if self._running:
             logger.warning("[VECTOR][streamer] already capturing")
             return

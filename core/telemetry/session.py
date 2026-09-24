@@ -124,7 +124,15 @@ class TelemetrySession:
             self._stop_event.wait(interval_s)
 
     def start(self) -> None:
-        """Start background sampling thread."""
+        """Start background sampling thread.
+
+        2026-09-23: deliberate exception to "never use threading, use
+        asyncio" (.claude/rules/libraries.md) -- a fixed-interval
+        background sampler that must keep polling `self._monitor`
+        regardless of whether the rest of the process is inside an
+        active event loop at any given moment; a real OS thread
+        guarantees that independent of the caller's own async state.
+        """
         if self._monitor is None:
             return
         if self._thread is not None and self._thread.is_alive():

@@ -379,11 +379,13 @@ class TestStage6OwnerCollectionScopeClosure:
         assert _verify_jwt_access_token(pair["refresh_token"]) is False
 
     def test_refresh_endpoint_does_not_propagate_owner_scope_to_collection_token(self):
-        """A collection refresh token exchanged at /auth/jwt/refresh must
-        not come back out as an owner-scoped access token."""
+        """A collection refresh token exchanged at /auth/jwt/refresh must be
+        rejected outright (round-3 hardening, 2026-09-23) -- this is the
+        OWNER refresh endpoint and has no legitimate reason to process a
+        collection token at all."""
         from core.collections.auth import JWTManager
-        from core.api.middleware import _verify_jwt_access_token
         import asyncio
+        from fastapi import HTTPException
 
         jm = JWTManager()
         collection_pair = jm.issue_pair("rec_some_user", "users")
@@ -391,20 +393,21 @@ class TestStage6OwnerCollectionScopeClosure:
         import core.api.routers.auth_jwt as auth_jwt_mod
         with patch.object(auth_jwt_mod, "_get_jwt_manager", return_value=jm):
             from core.api.routers.auth_jwt import refresh, RefreshRequest
-            result = asyncio.run(refresh(RefreshRequest(refresh_token=collection_pair["refresh_token"])))
-
-        assert _verify_jwt_access_token(result.access_token) is False
+            with pytest.raises(HTTPException) as exc_info:
+                asyncio.run(refresh(RefreshRequest(refresh_token=collection_pair["refresh_token"])))
+        assert exc_info.value.status_code == 401
 
     def test_refresh_endpoint_rejects_owner_sub_collection_token(self):
         """Adversarial case an independent review caught: a collection
         refresh token issued with sub="owner" (issue_pair("owner", "users")
         — a collection record literally named/id'd "owner") carries both
         sub=="owner" AND a "collection" claim. Checking sub alone would
-        wrongly treat this as an owner refresh token. The resulting access
-        token must still be rejected by the middleware."""
+        wrongly treat this as an owner refresh token. Round-3 hardening:
+        this is now rejected outright rather than merely minted an unscoped
+        (still owner-unusable) pair."""
         from core.collections.auth import JWTManager
-        from core.api.middleware import _verify_jwt_access_token
         import asyncio
+        from fastapi import HTTPException
 
         jm = JWTManager()
         adversarial_pair = jm.issue_pair("owner", "users")
@@ -413,13 +416,13 @@ class TestStage6OwnerCollectionScopeClosure:
         import core.api.routers.auth_jwt as auth_jwt_mod
         with patch.object(auth_jwt_mod, "_get_jwt_manager", return_value=jm):
             from core.api.routers.auth_jwt import refresh, RefreshRequest
-            result = asyncio.run(refresh(RefreshRequest(refresh_token=adversarial_pair["refresh_token"])))
-
-        assert _verify_jwt_access_token(result.access_token) is False
+            with pytest.raises(HTTPException) as exc_info:
+                asyncio.run(refresh(RefreshRequest(refresh_token=adversarial_pair["refresh_token"])))
+        assert exc_info.value.status_code == 401
 
     def test_refresh_chain_cannot_manufacture_owner_scope(self):
         """Second independent-review finding: rotating an adversarial
-        sub="owner"+collection="users" refresh token once drops the
+        sub="owner"+collection="users" refresh token once used to drop the
         "collection" claim from the ROTATED refresh token while keeping
         sub=="owner" — a naive sub/collection re-check on the next hop
         would then treat that rotated refresh token as a real owner token
@@ -427,10 +430,13 @@ class TestStage6OwnerCollectionScopeClosure:
         owner refresh tokens now carry token_scope=="owner_api" from the
         moment they're issued at /login and that marker (not a re-derived
         sub/collection check) is what propagates on each hop, so no
-        rotation depth can manufacture it from a collection token."""
+        rotation depth can manufacture it from a collection token. Round-3
+        hardening: the FIRST hop is now rejected outright (still has a
+        "collection" claim), so the chain never gets a rotated token to
+        retry with in the first place."""
         from core.collections.auth import JWTManager
-        from core.api.middleware import _verify_jwt_access_token
         import asyncio
+        from fastapi import HTTPException
 
         jm = JWTManager()
         adversarial_pair = jm.issue_pair("owner", "users")
@@ -439,14 +445,9 @@ class TestStage6OwnerCollectionScopeClosure:
         with patch.object(auth_jwt_mod, "_get_jwt_manager", return_value=jm):
             from core.api.routers.auth_jwt import refresh, RefreshRequest
 
-            first = asyncio.run(refresh(RefreshRequest(refresh_token=adversarial_pair["refresh_token"])))
-            assert _verify_jwt_access_token(first.access_token) is False
-
-            # The rotated refresh token must not have picked up owner scope
-            # either -- prove it by rotating AGAIN and checking the second
-            # hop's access token too.
-            second = asyncio.run(refresh(RefreshRequest(refresh_token=first.refresh_token)))
-            assert _verify_jwt_access_token(second.access_token) is False
+            with pytest.raises(HTTPException) as exc_info:
+                asyncio.run(refresh(RefreshRequest(refresh_token=adversarial_pair["refresh_token"])))
+            assert exc_info.value.status_code == 401
 
     def test_genuine_owner_refresh_chain_keeps_working(self):
         """Control: a REAL owner refresh token (as /login actually issues
