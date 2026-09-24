@@ -37,6 +37,15 @@ class PlanStepFallback:
     action_type: str
     params: dict[str, Any] = field(default_factory=dict)
     trigger: str = "failure"  # "failure" | "timeout" | "low_confidence"
+    # 2026-09-24 (external review, Phase 3 / Stage 4 finding #2): the
+    # fallback is usually a DIFFERENT action than the step it replaces, but
+    # _try_fallback_step() used to copy the failed step's verification onto
+    # it unconditionally -- so an unsatisfiable or action-specific check
+    # (e.g. a confidence_threshold the original could never meet) cascaded
+    # identically onto the fallback, forcing a second replan even though
+    # the fallback itself worked. A fallback may now declare its own
+    # acceptance criteria; None keeps the old behavior (inherit).
+    verification: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -47,6 +56,7 @@ class PlanStepFallback:
             action_type=str(d.get("action_type") or "respond"),
             params=d.get("params") if isinstance(d.get("params"), dict) else {},
             trigger=str(d.get("trigger") or "failure"),
+            verification=d.get("verification") if isinstance(d.get("verification"), dict) else None,
         )
 
 
@@ -864,7 +874,9 @@ def _try_fallback_step(plan: Plan, failed_step: PlanStep) -> bool:
         params=failed_step.fallback.params,
         depends_on=failed_step.depends_on,
         expected_outcome=failed_step.expected_outcome,
-        verification=failed_step.verification,
+        verification=(failed_step.fallback.verification
+                      if failed_step.fallback.verification is not None
+                      else failed_step.verification),
         status="planned",
         priority=failed_step.priority,
         confidence=_get_epistemic_confidence(failed_step.fallback.action_type),
