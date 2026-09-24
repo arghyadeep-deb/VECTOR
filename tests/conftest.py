@@ -32,6 +32,31 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 
+# Files that make real, unmocked calls to the local Ollama daemon. With
+# OLLAMA_MAX_LOADED_MODELS=1 a cold model swap can outlast a short per-test
+# timeout in a big suite run, so they get a `requires_ollama` marker (deselect
+# with `-m "not requires_ollama"`) and a generous timeout instead of being
+# mocked. See VECTOR_TECHNICAL_KNOWLEDGE/90_AUTHORITATIVE_REPOSITORY_BASELINE.md §6.
+_REQUIRES_OLLAMA_FILES = frozenset({
+    "test_intent_matcher.py",
+    "test_agency_run_wiring.py",
+    "test_coding_reviewers_run_wiring.py",
+    "test_email_agent_permission_gate.py",
+    "test_red_interactive_tools_bypass.py",
+    "test_regression_governor_capability_routing.py",
+    "test_command_websocket_parity.py",
+})
+_OLLAMA_TEST_TIMEOUT_SEC = 300
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        if Path(str(item.fspath)).name in _REQUIRES_OLLAMA_FILES:
+            item.add_marker(pytest.mark.requires_ollama)
+            if item.get_closest_marker("timeout") is None:
+                item.add_marker(pytest.mark.timeout(_OLLAMA_TEST_TIMEOUT_SEC))
+
+
 @pytest.fixture(autouse=True)
 def _reset_permission_gateway_singleton():
     """Reset PermissionGateway's process-wide singleton before/after every test.
