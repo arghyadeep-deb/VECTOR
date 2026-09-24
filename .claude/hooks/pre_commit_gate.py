@@ -43,7 +43,7 @@ except Exception:
 blocked = []
 for f in staged:
     name = os.path.basename(f).lower()
-    if name in (".env", ".env.local", ".env.production", ".env.development"):
+    if name in (".env", ".env.local", ".env.production", ".env.hardened", ".env.development"):
         blocked.append(f)
     elif name.endswith(".env"):
         blocked.append(f)

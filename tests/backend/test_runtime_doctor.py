@@ -119,7 +119,7 @@ def test_health_readiness_and_doctor_endpoints_are_available() -> None:
     assert "checks" in doctor.json()
 
 
-def test_health_production_readiness_reports_503_for_missing_hardening(monkeypatch) -> None:
+def test_health_hardened_readiness_reports_503_for_missing_hardening(monkeypatch) -> None:
     from core.api.app import create_app
 
     monkeypatch.delenv("VECTOR_ENV", raising=False)
@@ -132,7 +132,7 @@ def test_health_production_readiness_reports_503_for_missing_hardening(monkeypat
 
     client = TestClient(create_app(), client=("127.0.0.1", 50000))
 
-    response = client.get("/health/production-readiness")
+    response = client.get("/health/hardened-readiness")
 
     assert response.status_code == 503
     payload = response.json()["detail"]

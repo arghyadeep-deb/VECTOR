@@ -27,7 +27,7 @@ from loguru import logger
 from core.config import CONFIG
 
 
-def _is_production_env() -> bool:
+def _is_hardened_env() -> bool:
     return os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))).strip().lower() in {"production", "prod", "vector"}
 
 

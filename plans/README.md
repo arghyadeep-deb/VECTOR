@@ -25,7 +25,7 @@ Remaining owner activation/deployment work and the open-issues list live in
 Completed plan folders (production-hardening, audit-remediation, repo-absorption,
 vector-activation, post-training, governor-wiring) were executed and removed —
 their full detail is preserved in git history. Use
-`python run_vector.py production-check` for the live readiness gate.
+`python run_vector.py readiness-check` for the live readiness gate.
 
 ## Creating A New Plan
 

@@ -67,7 +67,7 @@ if ($existing) {
 }
 
 Write-Host "Installing VECTOR as Windows service..."
-# run_vector.py modes: loop|api|smoke|doctor|production-check|memory-repair.
+# run_vector.py modes: loop|api|smoke|doctor|readiness-check|memory-repair.
 # "loop" IS the autonomous observe→think→act→reflect loop (was: invalid
 # "--mode autonomous", which argparse rejected → service never started).
 & $NSSMPath install $ServiceName $Python "$Script --mode loop"

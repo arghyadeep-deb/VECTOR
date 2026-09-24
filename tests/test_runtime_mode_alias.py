@@ -9,8 +9,8 @@ import pytest
 def test_every_mode_check_treats_vector_like_production(monkeypatch, value, expected):
     monkeypatch.setenv("VECTOR_ENV", value)
     from core.api import app as app_module
-    from core.runtime import doctor, production_check
+    from core.runtime import doctor, readiness_check
 
-    assert app_module._is_production_env() is expected
-    assert doctor._is_production_env() is expected
-    assert production_check._is_production() is expected
+    assert app_module._is_hardened_env() is expected
+    assert doctor._is_hardened_env() is expected
+    assert readiness_check._is_hardened() is expected

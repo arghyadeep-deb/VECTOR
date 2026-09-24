@@ -57,7 +57,7 @@ class Check:
         return data
 
 
-def _is_production() -> bool:
+def _is_hardened() -> bool:
     return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
@@ -187,7 +187,7 @@ def _check_launch_secrets() -> Check:
     secret = os.environ.get("MCP_KERNEL_SECRET", "")
     if len(secret) >= 32:
         return Check("mcp_kernel_secret", "ok", "MCP_KERNEL_SECRET is set with production-length entropy.")
-    status = "fail" if _is_production() else "warn"
+    status = "fail" if _is_hardened() else "warn"
     return Check(
         "mcp_kernel_secret",
         status,
@@ -231,7 +231,7 @@ def _check_secret_manager() -> Check:
         "audits": audits,
     }
     if missing or weak:
-        status = "fail" if _is_production() else "warn"
+        status = "fail" if _is_hardened() else "warn"
         return Check(
             "secret_manager",
             status,
@@ -262,11 +262,11 @@ def _check_tls_config() -> Check:
         return Check("api_tls", "ok", config.detail, evidence)
     if config.terminated:
         return Check("api_tls", "ok", config.detail, evidence)
-    status = "fail" if _is_production() else "warn"
+    status = "fail" if _is_hardened() else "warn"
     return Check("api_tls", status, config.detail, evidence)
 
 
-def run_production_check() -> dict[str, Any]:
+def run_readiness_check() -> dict[str, Any]:
     checks = [
         _check_dependencies(),
         _check_memory_encryption(),
@@ -282,7 +282,7 @@ def run_production_check() -> dict[str, Any]:
     status = "fail" if failed else "warn" if warned else "ok"
     return {
         "status": status,
-        "production_env": _is_production(),
+        "hardened_env": _is_hardened(),
         "summary": {"failed": failed, "warned": warned, "passed": len(checks) - failed - warned},
         "checks": [check.to_dict() for check in checks],
     }

@@ -8,7 +8,7 @@ __all__ = [
     "log_exercise",
     "LogExerciseReq",
     "readiness",
-    "production_readiness",
+    "hardened_readiness",
     "router",
     "track_sleep",
     "TrackSleepReq",
@@ -150,12 +150,12 @@ async def readiness():
     return report
 
 
-@router.get("/production-readiness")
-async def production_readiness():
-    """Strict production readiness: secrets, approval, encryption, and sidecars."""
+@router.get("/hardened-readiness")
+async def hardened_readiness():
+    """Strict readiness in hardened mode: secrets, approval, encryption, and sidecars."""
     from core.runtime.doctor import run_dependency_doctor
 
-    report = run_dependency_doctor(include_optional=True, production=True).to_dict()
+    report = run_dependency_doctor(include_optional=True, hardened=True).to_dict()
     if report["required_failed"]:
         raise HTTPException(status_code=503, detail=report)
     return report

@@ -74,7 +74,7 @@ def check_webhook_requirements() -> bool:
     return AIOHTTP_AVAILABLE
 
 
-def _is_production() -> bool:
+def _is_hardened() -> bool:
     return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
@@ -147,7 +147,7 @@ class WebhookAdapter(BasePlatformAdapter):
                     f"[webhook] Route '{name}' uses a placeholder HMAC secret. "
                     "Generate a unique high-entropy secret before enabling this route."
                 )
-            if _is_production() and secret == _INSECURE_NO_AUTH:
+            if _is_hardened() and secret == _INSECURE_NO_AUTH:
                 raise ValueError(
                     f"[webhook] Route '{name}' disables HMAC auth in production."
                 )
@@ -353,7 +353,7 @@ class WebhookAdapter(BasePlatformAdapter):
                 {"error": "Webhook route is not securely configured"},
                 status=503,
             )
-        if _is_production() and secret == _INSECURE_NO_AUTH:
+        if _is_hardened() and secret == _INSECURE_NO_AUTH:
             return web.json_response(
                 {"error": "Webhook route disables auth in production"},
                 status=503,

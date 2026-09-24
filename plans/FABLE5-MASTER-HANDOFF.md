@@ -83,7 +83,7 @@ the CORE ones — author those FIRST:
   - `vector-build-and-env` — Python 3.13 system interpreter (no .venv!), torch
     2.11+cu128 CUDA, deps, Ollama models, the space-in-path workerd limitation.
   - `vector-run-and-operate` — run_vector.py modes (loop|api|smoke|doctor|
-    production-check|memory-repair; "loop" IS autonomous), service install
+    readiness-check|memory-repair; "loop" IS autonomous), service install
     (scripts/install_service.ps1 needs admin+NSSM, now fixed), smoke/integration.
   - `vector-validation-and-qa` — evidence bar: scripts/smoke_test.py (38),
     scripts/integration_check.py (51), pytest conventions (.claude/rules/testing.md),

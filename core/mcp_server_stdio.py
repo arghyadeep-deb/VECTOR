@@ -46,7 +46,7 @@ KERNEL_SECRET_EPHEMERAL = not _CONFIGURED_SECRET
 KERNEL_ID = f"vector-mcp-{os.getpid()}"
 
 
-def _is_production() -> bool:
+def _is_hardened() -> bool:
     return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
@@ -56,7 +56,7 @@ def ensure_production_secret() -> None:
     No-op in development (the ephemeral fallback is acceptable for local use).
     Raises RuntimeError so the stdio kernel refuses to start unsafely.
     """
-    if not _is_production():
+    if not _is_hardened():
         return
     if KERNEL_SECRET_EPHEMERAL:
         raise RuntimeError(

@@ -1724,7 +1724,7 @@
   // Backend feature launcher: keeps mounted API domains openable without
   // pretending every domain already has a bespoke HUD design.
   const FEATURE_REGISTRY = [
-    { id:'features', title:'BACKEND FEATURES', summary:'Mounted main-API feature map and launch surface.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/health/production-readiness','/tools/registry','/providers/routes'] },
+    { id:'features', title:'BACKEND FEATURES', summary:'Mounted main-API feature map and launch surface.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/health/hardened-readiness','/tools/registry','/providers/routes'] },
     { id:'missioncontrol', title:'MISSION CONTROL', summary:'Create, decompose, review, run, recover, and inspect gateway-safe missions.', health:'/missions', endpoints:['/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] },
     { id:'corepanel', title:'CORE SYSTEMS', summary:'Core folder coverage: brain, loop, memory, inference, voice, sensing, media, research, safety, telemetry, trading, and platform internals.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/loop/status','/brain/goals','/memory/recent','/inference/stats','/voice/status','/sensing/status','/media/models','/research/status','/security/status','/tools/registry','/providers/routes','/metering/status','/scheduler/jobs','/sandbox/status','/mcp/status','/network/peers','/investment/market-status'] },
     { id:'agentspanel', title:'AGENTS + A2A', summary:'Agent roster, awards, district invocation, and A2A sessions.', health:'/agents', endpoints:['/agents','/a2a/agents','/a2a/events','/city/districts','/city/dispatch'] },
@@ -1745,13 +1745,13 @@
     { id:'researchpanel', title:'RESEARCH', summary:'Search, news, papers, Reddit, and research status.', health:'/research/status', endpoints:['/research/status','/research/search?query=vector','/research/news','/research/papers?query=vector','/research/reddit'] },
     { id:'pccontrol', title:'PC CONTROL', summary:'Local PC screenshot, type, click, and app launch gates. Phone endpoints are excluded.', health:'/sensing/status', endpoints:['/control/pc/screenshot','/control/pc/type','/control/pc/click','/control/pc/launch-app','/sensing/status','/sensing/screen'] },
     { id:'camerapanel', title:'CAMERA', summary:'Camera start/stop/status and visual sensing.', health:'/camera/status', endpoints:['/camera/status','/camera/start','/camera/stop','/sensing/health'] },
-    { id:'healthpanel', title:'HEALTH', summary:'Fatigue, sleep, biometrics, exercise, and health/system status.', health:'/health/status', endpoints:['/health/status','/health/system','/health/production-readiness','/health/check-fatigue','/health/biometrics','/health/sleep','/health/exercise'] },
+    { id:'healthpanel', title:'HEALTH', summary:'Fatigue, sleep, biometrics, exercise, and health/system status.', health:'/health/status', endpoints:['/health/status','/health/system','/health/hardened-readiness','/health/check-fatigue','/health/biometrics','/health/sleep','/health/exercise'] },
     { id:'learningpanel', title:'LEARNING', summary:'Video ingest, course tracking, concept extraction, quiz generation, languages, and skills.', health:'/skills/map', endpoints:['/skills/map','/learning/ingest-video','/learning/track-course','/learning/extract-concepts','/learning/quiz-generate','/languages/{lang}/study-guide'] },
     { id:'workpanel', title:'WORKFLOW + PROJECTS', summary:'Projects, tasks, scheduler jobs, queues, ops incidents, and chief briefs.', health:'/scheduler/jobs', endpoints:['/projects/list','/tasks/','/scheduler/jobs','/queue/retry/stats','/ops/slo-check','/chief/morning-brief'] },
     { id:'privacypanel', title:'PRIVACY + KEYS', summary:'Privacy scans, redaction, audit flow, key status, rotation, revocation, and OAuth integrations.', health:'/keys/status', endpoints:['/privacy/scan-sharing','/privacy/gdpr-check','/privacy/redact','/privacy/audit-flow','/keys/status','/oauth/integrations'] },
     { id:'analyticspanel', title:'ANALYTICS', summary:'Pipeline health, ETL runs, reports, and benchmarks.', health:'/analytics/pipeline-health', endpoints:['/analytics/pipeline-health','/analytics/etl-run','/analytics/report','/analytics/benchmark'] },
     { id:'personalpanel', title:'PERSONAL OS', summary:'Relationships, calls, reflection, patterns, interviews, startups, and simulations.', health:'/relationships/contacts', endpoints:['/relationships/contacts','/calls/contacts','/reflection/daily-review','/patterns/habits','/interview/start','/startups/validate-idea','/simulation/status'] },
-    { id:'platformpanel', title:'PLATFORM', summary:'Collections, governance, migration, mining, scraper, sandbox, network, MCP, and mission execution.', health:'/mcp/status', endpoints:['/api/collections','/governance/autopilot/status','/migration/sources','/mining/status','/scraper/status','/sandbox/status','/network/peers','/mcp/status','/health/production-readiness','/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] }
+    { id:'platformpanel', title:'PLATFORM', summary:'Collections, governance, migration, mining, scraper, sandbox, network, MCP, and mission execution.', health:'/mcp/status', endpoints:['/api/collections','/governance/autopilot/status','/migration/sources','/mining/status','/scraper/status','/sandbox/status','/network/peers','/mcp/status','/health/hardened-readiness','/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] }
   ];
 
   const FEATURE_BLUEPRINTS = {
@@ -1813,7 +1813,7 @@
     const label = side ? path.replace(/^(studio:|sidecar:|comfyui:)/, '') : path;
     const safePrefixes = [
       '/world/snapshot','/status','/system',
-      '/health/status','/health/system','/health/production-readiness','/health/check-fatigue','/health/biometrics',
+      '/health/status','/health/system','/health/hardened-readiness','/health/check-fatigue','/health/biometrics',
       '/agents','/a2a/agents','/a2a/events',
       '/city/districts','/brain/goals','/brain/hypothesis/active','/brain/epistemic/summary',
       '/brain/reasoning/chains','/brain/persons','/knowledge/status','/code-intel/status',

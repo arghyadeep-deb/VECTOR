@@ -49,7 +49,7 @@ SENSITIVE_PATTERNS: tuple[tuple[str, str], ...] = (
 
 ALLOWED_ENV_TEMPLATES = {
     ".env.example",
-    ".env.production.example",
+    ".env.hardened.example",
     ".env.local.example",
 }
 

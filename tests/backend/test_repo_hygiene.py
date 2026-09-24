@@ -24,7 +24,7 @@ def test_classify_sensitive_key_material() -> None:
 
 
 def test_env_templates_are_allowed_but_real_env_files_are_sensitive() -> None:
-    assert classify_repo_path(".env.production.example") is None
+    assert classify_repo_path(".env.hardened.example") is None
 
     finding = classify_repo_path(".env.production")
 
@@ -39,7 +39,7 @@ def test_audit_repo_paths_ignores_source_files() -> None:
             "frontend/uploads/local.jpg",
             "README.md",
             ".env.production",
-            ".env.production.example",
+            ".env.hardened.example",
         ]
     )
 

@@ -66,7 +66,7 @@ def _module_exists(module: str) -> bool:
     return importlib.util.find_spec(module) is not None
 
 
-def _is_production_env() -> bool:
+def _is_hardened_env() -> bool:
     return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
@@ -204,10 +204,10 @@ def _check_local_http_service(
 
 def run_dependency_doctor(
     include_optional: bool = True,
-    production: bool | None = None,
+    hardened: bool | None = None,
 ) -> DoctorReport:
     """Run offline-safe runtime checks for local VECTOR readiness."""
-    production_mode = _is_production_env() if production is None else bool(production)
+    hardened_mode = _is_hardened_env() if hardened is None else bool(hardened)
     checks: list[DependencyCheck] = []
 
     checks.append(
@@ -234,7 +234,7 @@ def run_dependency_doctor(
             ]
         )
     )
-    if production_mode and not _sqlcipher_available():
+    if hardened_mode and not _sqlcipher_available():
         checks.append(
             _check(
                 "memory:encrypted_driver",
@@ -249,7 +249,7 @@ def run_dependency_doctor(
             _check(
                 "memory:encrypted_driver",
                 True,
-                production_mode,
+                hardened_mode,
                 "SQLCipher driver available",
             )
         )
@@ -298,11 +298,11 @@ def run_dependency_doctor(
 
     checks.extend(
         [
-            _check_env_secret("VECTOR_API_KEY", production_mode),
-            _check_env_secret("VECTOR_JWT_SECRET", production_mode, min_length=48),
+            _check_env_secret("VECTOR_API_KEY", hardened_mode),
+            _check_env_secret("VECTOR_JWT_SECRET", hardened_mode, min_length=48),
             # Stable MCP stdio signing secret — required in production so signed
             # requests survive restarts (see core/mcp_server_stdio.py).
-            _check_env_secret("MCP_KERNEL_SECRET", production_mode),
+            _check_env_secret("MCP_KERNEL_SECRET", hardened_mode),
         ]
     )
 
@@ -312,7 +312,7 @@ def run_dependency_doctor(
         ]
         sidecar_path_checks: dict[str, DependencyCheck] = {}
         for name, env_name in optional_paths:
-            check = _check_env_dir(name, env_name, production_mode)
+            check = _check_env_dir(name, env_name, hardened_mode)
             sidecar_path_checks[name] = check
             checks.append(check)
 
@@ -322,7 +322,7 @@ def run_dependency_doctor(
                 _check_local_http_service(
                     "sidecar:comfyui_health",
                     _join_url(comfyui_base, "/system_stats"),
-                    production_mode,
+                    hardened_mode,
                 )
             )
 
