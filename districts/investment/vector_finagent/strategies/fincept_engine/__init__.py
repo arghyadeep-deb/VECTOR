@@ -1,7 +1,7 @@
 # ============================================================================
 # VECTOR Financial Terminal - Strategy Engine Core
-# Copyright (c) 2024-2026 VECTOR. All rights reserved.
-# Licensed under the MIT License.
+# Derived from Fincept Terminal (Fincept Corporation) -- see THIRD_PARTY_NOTICES.md.
+# Adapted for VECTOR (owner's personal-use build).
 #
 # Package structure:
 #   fincept_engine/
