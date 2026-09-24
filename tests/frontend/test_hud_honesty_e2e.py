@@ -66,6 +66,17 @@ with sync_playwright() as pw:
     pg.evaluate("window.VECTOR.wake()")
     pg.wait_for_timeout(600)
     out["orb"] = " ".join(pg.evaluate("() => { const o = document.querySelector('#orb-wrap'); return o ? o.innerText : ''; }").split())
+    # A second, CSP-enforcing context (the owner's real Chrome enforces the page's CSP; the first one bypasses it only
+    # so wait_for_function can eval). Counts dock buttons and collects CSP violations / console errors.
+    ctx2 = browser.new_context(viewport={"width": 1488, "height": 812})
+    pg2 = ctx2.new_page()
+    csp, errs = [], []
+    pg2.on("console", lambda m: (csp if "Content Security Policy" in m.text else errs).append(m.text[:160]) if m.type == "error" else None)
+    pg2.on("pageerror", lambda e: errs.append(str(e)[:160]))
+    pg2.goto(url, wait_until="domcontentloaded")
+    pg2.wait_for_timeout(9000)
+    out["strict"] = {"dock_buttons": pg2.evaluate("() => document.querySelectorAll('#dock .d-btn').length"),
+                     "title": pg2.title(), "csp_violations": csp, "console_errors": errs}
     browser.close()
 print(json.dumps(out))
 """
@@ -77,10 +88,14 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="module", params=["production", "development"])
+@pytest.fixture(scope="module", params=[
+    ("production", ""),          # lean page (VECTOR.prod.html)
+    ("production", "full"),      # what the owner's launchers run: full HUD (VECTOR.html) under production
+    ("development", ""),         # full HUD, development
+], ids=["lean-production", "full-in-production", "development"])
 def hud(request):
-    """Both HUD pages: VECTOR.prod.html (VECTOR_ENV=production) and VECTOR.html (development). The full HUD with the
-    3D city, camera hero and gestures is VECTOR.html; it carried the same hard-coded tickers and boot lines."""
+    """All three ways the HUD is served. The full HUD (3D city, map, camera hero, gestures, the whole subsystem dock)
+    is VECTOR.html; it carried the same hard-coded tickers and boot lines as the lean page."""
     pytest.importorskip("playwright")
     tmp = Path(tempfile.mkdtemp(prefix="hud_e2e_"))
     (tmp / "data").mkdir()
@@ -88,7 +103,7 @@ def hud(request):
     script = tmp / "serve.py"
     script.write_text(_SERVER_SRC.format(root=str(ROOT), port=port), encoding="utf-8")
     env = dict(os.environ, VECTOR_DB_PATH=str(tmp / "vm.db"), VECTOR_TEST_DATA_DIR=str(tmp / "data"),
-               VECTOR_DB_KEY="hud-e2e-db-key", VECTOR_API_KEY=KEY, VECTOR_ENV=request.param)
+               VECTOR_DB_KEY="hud-e2e-db-key", VECTOR_API_KEY=KEY, VECTOR_ENV=request.param[0], VECTOR_HUD_PAGE=request.param[1])
     proc = subprocess.Popen([sys.executable, str(script)], env=env, cwd=str(ROOT),
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     base = f"http://127.0.0.1:{port}"
@@ -151,6 +166,16 @@ def test_districts_widget_title_uses_real_counts(hud):
 
 def test_orb_label_follows_the_hud_state(hud):
     assert "STANDBY" not in hud["orb"]
+
+
+def test_full_hud_is_served_in_production_when_the_launchers_ask_for_it(hud, request):
+    strict = hud["strict"]
+    assert strict["csp_violations"] == [], strict["csp_violations"]
+    assert strict["console_errors"] == [], strict["console_errors"]
+    if request.node.callspec.id.endswith("lean-production"):
+        assert strict["title"] == "VECTOR Production" and strict["dock_buttons"] < 12
+    else:
+        assert strict["title"] == "VECTOR" and strict["dock_buttons"] >= 12, strict
 
 
 def test_no_javascript_errors_during_the_session(hud):

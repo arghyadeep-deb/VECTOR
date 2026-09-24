@@ -22,6 +22,9 @@ REM VECTOR_API_RUN_LOOP=1 -> the api server also runs the full autonomous brain.
 REM VECTOR_ENV=production  -> serve the lean prod HUD (also set in .env; belt+braces).
 set VECTOR_API_RUN_LOOP=1
 set VECTOR_ENV=production
+REM VECTOR_HUD_PAGE=full -> serve the FULL HUD (frontend\VECTOR.html: 3D city, map, camera, gestures, the whole
+REM subsystem dock) instead of the lean prod page. Owner choice 2026-09-25. Delete this line to go back to lean.
+set VECTOR_HUD_PAGE=full
 
 REM ── Log rotation ────────────────────────────────────────────────────────
 REM 2026-08-05: this log had no rotation and was found at 671 MB (last 3000

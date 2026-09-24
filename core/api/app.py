@@ -31,17 +31,25 @@ def _is_production_env() -> bool:
     return os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))).strip().lower() == "production"
 
 
+def _full_hud_enabled() -> bool:
+    """VECTOR_HUD_PAGE=full serves the full HUD (frontend/VECTOR.html: 3D city, map, camera hero, gestures, the whole
+    subsystem dock) even when VECTOR_ENV=production. The lean production page (VECTOR.prod.html) drops the dock, which
+    lives in js/demo.js, so it only offers five buttons. The owner chose the full HUD (2026-09-25); the launchers set
+    this. Unset, production still serves the lean page and keeps js/demo.js blocked."""
+    return os.getenv("VECTOR_HUD_PAGE", "").strip().lower() == "full"
+
+
 def _select_hud_html(hud_dir: Path) -> Path:
     prod_html = hud_dir / "VECTOR.prod.html"
     dev_html = hud_dir / "VECTOR.html"
-    if _is_production_env() and prod_html.exists():
+    if _is_production_env() and prod_html.exists() and not (_full_hud_enabled() and dev_html.exists()):
         return prod_html
     return dev_html
 
 
 def _is_production_blocked_hud_path(filepath: str) -> bool:
     normalized = filepath.replace("\\", "/").strip("/")
-    return _is_production_env() and normalized in {"js/demo.js"}
+    return _is_production_env() and not _full_hud_enabled() and normalized in {"js/demo.js"}
 
 
 @asynccontextmanager
@@ -560,7 +568,7 @@ def create_app() -> FastAPI:
             """Serve HUD static files — goes through auth middleware unlike StaticFiles mount."""
             if not filepath or filepath == "/":
                 filepath = _select_hud_html(_hud_dir).name
-            if _is_production_env() and filepath.replace("\\", "/").strip("/") == "VECTOR.html":
+            if _is_production_env() and not _full_hud_enabled() and filepath.replace("\\", "/").strip("/") == "VECTOR.html":
                 filepath = "VECTOR.prod.html"
             if _is_production_blocked_hud_path(filepath):
                 return JSONResponse({"error": "Not found"}, status_code=404)

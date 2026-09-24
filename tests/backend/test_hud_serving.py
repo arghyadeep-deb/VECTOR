@@ -46,6 +46,25 @@ def test_production_blocks_demo_asset(monkeypatch):
     assert app_module._is_production_blocked_hud_path("js/demo.js") is False
 
 
+def test_full_hud_page_is_opt_in_and_overrides_the_lean_page_in_production(monkeypatch, tmp_path):
+    (tmp_path / "VECTOR.prod.html").write_text("prod")
+    (tmp_path / "VECTOR.html").write_text("dev")
+    monkeypatch.setenv("VECTOR_ENV", "production")
+    monkeypatch.delenv("VECTOR_HUD_PAGE", raising=False)
+    assert app_module._select_hud_html(tmp_path).name == "VECTOR.prod.html"
+    assert app_module._is_production_blocked_hud_path("js/demo.js") is True
+    monkeypatch.setenv("VECTOR_HUD_PAGE", "full")
+    assert app_module._select_hud_html(tmp_path).name == "VECTOR.html"
+    assert app_module._is_production_blocked_hud_path("js/demo.js") is False  # the full page's dock lives there
+
+
+def test_full_hud_setting_falls_back_to_lean_if_the_full_page_is_missing(monkeypatch, tmp_path):
+    (tmp_path / "VECTOR.prod.html").write_text("prod")
+    monkeypatch.setenv("VECTOR_ENV", "production")
+    monkeypatch.setenv("VECTOR_HUD_PAGE", "full")
+    assert app_module._select_hud_html(tmp_path).name == "VECTOR.prod.html"
+
+
 # ── E2E: the real served path ─────────────────────────────────────────────────
 
 def test_hud_serves_html_when_authorized(auth_client):

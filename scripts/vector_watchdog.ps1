@@ -205,6 +205,9 @@ try {
     # sufficient and keeps parity with autostart.bat.
     $env:VECTOR_API_RUN_LOOP = "1"
     $env:VECTOR_ENV = "production"
+    # Full HUD (frontend\VECTOR.html) instead of the lean prod page -- owner choice 2026-09-25, parity with
+    # vector_autostart.bat. Remove this line to go back to the lean page.
+    $env:VECTOR_HUD_PAGE = "full"
 
     # 2026-08-06, ACTIVE P0 HUNT (KNOWN_ISSUES #0) — remove this block once the
     # loop-stall root cause is found.
