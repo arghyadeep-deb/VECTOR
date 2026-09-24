@@ -214,3 +214,10 @@ ponytail/
 # deepeval local tool state (telemetry/cache, not source)
 .deepeval/
 districts/intelligence/shadowbroker_server/.claude/
+
+# Runtime state that the live system rewrites constantly (kept on disk, not versioned)
+data/council_log.jsonl
+data/models/neural_policy.pt
+data/models/neural_policy.meta.json
+data/pc_screenshot.png
+.claude/settings.local.backup-*.json

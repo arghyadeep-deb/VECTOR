@@ -1,7 +1,6 @@
 # Brain Index — V.E.C.T.O.R. Brain Vault
 
-Vault path: `brain/` (junction → C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\)
-Read any file below with the Read tool using the `brain/` prefix.
+Vault path: `C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\` (sibling of the repo, i.e. `../V.E.C.T.O.R. Brain/`; this is what `VECTOR_VAULT_PATH` in `.env` points to). There is no `brain/` junction inside the repo, so the `brain/` prefix used below means that folder — read files there by their full path.
 
 ## Always-Loaded (via @import in CLAUDE.md)
 - `brain/VECTOR/Architecture.md` — autonomous loop, coroutines, session hydration, memory schema, voice pipeline, council, HP system, deployment

@@ -1,5 +1,7 @@
 # Districts
 
+> This is the ORIGINAL 25-district build plan. What exists now: 38 district directories and 39 districts / 170 agents in `config/agent_manifest.yaml` (extra districts include calls, ops, data_analytics, personal_growth, qa, chief_of_staff, marketing, design, science, emergency, home_assistant, predictive_analytics; `documentation` is in the manifest but has no directory). Treat `districts/` and the manifest as the source of truth.
+
 ## Phase 1 — Build These First (Days 1-25)
 ```
 01. governance/      — LLM Council (700+ HP only vote)
@@ -39,7 +41,7 @@
 
 ## Obsidian Vault
 ```
-Path: C:\Users\Arghyadeep\V.E.C.T.O.R Brain\
+Path: C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\   (VECTOR_VAULT_PATH in .env; the code default in core/config.py is ~\V.E.C.T.O.R Brain, a separate stray folder that only holds Daily\ and Reflections\)
 VECTOR writes to: Daily\ Reflections\ Council\ Agent HP\ Research\ Interviews\
 VECTOR reads from: all .md files (watchdog ingests within 30s)
 ```

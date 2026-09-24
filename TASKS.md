@@ -1,8 +1,8 @@
 # VECTOR Tasks
 
 > Long-term engineering work tracker.
-> For implementation status, see `docs/phase_status.md`.
-> For current quarter plan, see `brain/Blueprint/Planning/2026-Q3.md`.
+> For current status, see `docs/OPEN_ISSUES.md` (`.claude/rules/phase_status.md` is a historical tracker, last updated 2026-06-11).
+> For current quarter plan, see `../V.E.C.T.O.R. Brain/Blueprint/Planning/2026-Q3.md`.
 
 ---
 
@@ -20,12 +20,13 @@ Status corrected 2026-09-24 (Kokoro/face-recognition verified on disk today; the
 
 ### TODO
 
-- Next.js dashboard (`dashboard/src/`) — monitoring UI
-- Fly.io brain server deployment (`fly launch` in `cloud/brain_server/`)
-- Gap 4: `counterfactual.py` — learns from rejected decisions
-- Gap 6: `causal_graph.py` — causal reasoning
-- Gap 7: `person_model.py` — theory of mind per person
-- Gap 8: `meta_cognition.py` — monthly bias detection
+- ~~Next.js dashboard (`dashboard/src/`)~~ — **superseded**: the `frontend/` HUD (served at `/hud/`) is the monitoring UI; `dashboard/` does not exist
+- ~~Fly.io brain server deployment~~ — **dropped**: `cloud/brain_server/` removed; Cloudflare Worker is live instead
+- ~~Gap 4: `counterfactual.py`~~ — **exists**: `core/memory/counterfactual.py`
+- ~~Gap 6: `causal_graph.py`~~ — **exists**: `core/memory/causal_graph.py`
+- ~~Gap 7: `person_model.py`~~ — **exists**: `core/brain/person_model.py`
+- ~~Gap 8: `meta_cognition.py`~~ — **exists**: `core/city/meta_cognition.py`
+- Open engineering work is tracked in `docs/OPEN_ISSUES.md` section 0 (loop-freeze re-verification, Governor district trust, permission-tier coverage, and the 2026-09-23 audit work, now committed)
 
 ### Blocked
 
@@ -83,8 +84,8 @@ Status corrected 2026-09-24 (Kokoro/face-recognition verified on disk today; the
 ## Notes
 
 - Review and update this file weekly
-- Cross-reference with `docs/phase_status.md` for detailed implementation status
-- Cross-reference with `brain/Blueprint/Planning/2026-Q3.md` for quarter objectives
+- Cross-reference with `docs/OPEN_ISSUES.md` for current status (`.claude/rules/phase_status.md` is historical)
+- Cross-reference with `../V.E.C.T.O.R. Brain/Blueprint/Planning/2026-Q3.md` for quarter objectives
 - Move items between sections as work progresses
 - Add dates when moving to Completed
 - Reference specific issues/PRs where applicable

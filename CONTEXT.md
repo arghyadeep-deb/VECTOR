@@ -13,7 +13,7 @@ A Python class (subclass of `AgentBase`) that lives inside a district, holds HP,
 _Avoid_: bot, worker, handler, process
 
 **HP (Health Points)**:
-A 0–1000 integer tracking an agent's lifetime performance. Gained by completing tasks well; lost by failure. At 0 HP the agent dies. HP gates model access: >800 = Claude Sonnet, >700 = Council seat, 600–800 = kimi-k2.6.
+A 0–1000 integer tracking an agent's lifetime performance. Agents are born at 500 HP. Gained by completing tasks well (awards are damped: repeating the same reason decays the award, and awards shrink as HP nears 1000); lost by failure (deductions are not damped). At 0 HP the agent dies. HP selects the agent's local model (`AgentBase._calculate_model`): ≥800 = `vector-dev`, 600–799 = `vector-r1`, 400–599 = `vector-focus`, 200–399 = `vector-reasoning`, 1–199 = `vector-ambient`. HP ≥700 = Council eligibility (`can_vote_in_council`, `CONFIG["council"]["hp_gate"]`).
 _Avoid_: score, rating, points, credits
 
 **Governor**:
@@ -53,7 +53,7 @@ The summarized lifetime knowledge of a dead agent, preserved in `agent_history` 
 _Avoid_: agent log, death record, backup
 
 **Council**:
-The LLM deliberation body invoked for high-stakes decisions. Members: `vector-reasoning + vector-r1 + qwen3:30b-a3b + vector-chairman`. Only agents with HP > 700 vote. Sessions stored as training data.
+The LLM deliberation body invoked for high-stakes decisions. Two implementations: `districts/governance/llm_council.py` (`LLMCouncil`: members `vector-reasoning` + `vector-r1` + `vector-dev`, chairman `vector-chairman`, requester needs HP ≥ 700, max 10 sessions/week) and `core/brain/council.py` (`CouncilBrain`, used on the RED-tier path: one model in three roles — cautious, pragmatic, long-term — majority vote, chairman only breaks a genuine split). Sessions are stored as training data.
 _Avoid_: committee, panel, board, ensemble
 
 **Vectorcode**:
@@ -61,7 +61,7 @@ The communications layer (`vectorcode/src/`) — 30+ platform channel adapters (
 _Avoid_: comms layer, messaging system (use "vectorcode" specifically)
 
 **District LLM**:
-`vectorcode/src/district_llm.py` — unified LLM interface for all district agents. Automatically loads the district's `.md` system prompt and calls `vectorcode_llm.chat()`.
+`core/inference/district_llm.py` — unified LLM interface for all district agents. Automatically loads the district's `.md` system prompt and calls `vectorcode_llm.chat()` (`core/inference/vectorcode_llm.py`).
 _Avoid_: LLM wrapper, model caller, chat interface
 
 **GNN Router**:
@@ -69,7 +69,7 @@ _Avoid_: LLM wrapper, model caller, chat interface
 _Avoid_: message router, dispatcher
 
 **MCP Server**:
-`core/mcp_server.py` — exposes VECTOR's 28+ tools over Model Context Protocol so Claude Code and Cursor can call VECTOR as a tool server.
+`core/mcp_server.py` — exposes VECTOR's tools (300+ `@mcp.tool` registrations across `core/mcp_tools/`) over Model Context Protocol so Claude Code and Cursor can call VECTOR as a tool server.
 _Avoid_: tool server, API server
 
 **Reflect**:
@@ -94,7 +94,7 @@ _Avoid_: context injection, prompt building, state loading
 ## Example dialogue
 
 > **Dev:** "Can the agent call the Claude API to draft a reply?"
-> **Domain expert:** "No — VECTOR's **Autonomous Loop** uses local Ollama models only at runtime. The **Permission Gateway** would block an outbound API call to Claude. Only build sessions (Claude Code) use the API."
+> **Domain expert:** "No — runtime is free-tier only (owner decision 2026-07-08), so no paid Anthropic/OpenAI keys. `route_policy.decide_route` sends security/privacy/RED-tier/secret-bearing work to local Ollama only and other work to pooled free cloud keys, with Ollama as the fallback. Claude Code build sessions are separate from VECTOR's runtime."
 
 > **Dev:** "Should we add a new comms platform by editing the Governor?"
 > **Domain expert:** "No — add a channel adapter under `vectorcode/src/channels/`. The **GNN Router** will discover it. The **Governor** only handles district routing, not platform-specific logic."

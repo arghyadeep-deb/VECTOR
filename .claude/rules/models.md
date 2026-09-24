@@ -45,7 +45,7 @@ Code review / refactor  → devstral:24b (code-specialist, 24B quality)
 Chain-of-thought tasks  → deepseek-r1:14b (R1-style reasoning traces)
 Fast general fallback   → mistral-small3.1 (low latency, broad knowledge)
 Large-context reasoning → qwen3:30b-a3b (30B class, only 3B active VRAM)
-Council/reasoning       → vector-reasoning + vector-r1 + qwen3:30b-a3b
+Council/reasoning       → vector-reasoning + vector-r1 + vector-dev (chairman: vector-chairman)
 Deep overnight tasks    → gemma4:26b or gemma4:31b (hybrid, 3-6 tok/s)
 70B tasks               → AirLLM (streams layers, slow but works)
 YOUR build sessions     → Claude Sonnet 4.6 via Pro plan chat (unlimited)
@@ -147,9 +147,10 @@ MODE 2 (SaaS Products):
 ## LLM Council
 ```
 Trigger:  high-stakes decisions only (stakes = "high" or "critical")
-Members:  vector-reasoning + vector-r1 + qwen3:30b-a3b + vector-chairman
-Chairman: vector-chairman (gemma4:31b) → your fine-tuned model (Month 2)
-HP gate:  only agents >700 HP get council vote
+Members:  districts/governance/llm_council.py → vector-reasoning + vector-r1 + vector-dev
+          core/brain/council.py (RED-tier path) → ONE model in 3 roles (cautious / pragmatic / long-term), majority vote
+Chairman: vector-chairman (gemma4:31b) → your fine-tuned model (Month 2); on CouncilBrain only breaks a genuine split
+HP gate:  requester needs >= 700 HP (CONFIG["council"]["hp_gate"]); max 10 sessions/week
 Cost:     ₹0 — fully local, no cloud APIs
 Sessions: stored in reasoning_chains → LLM training data
 ```

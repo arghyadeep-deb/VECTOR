@@ -98,8 +98,13 @@ How this affects future decisions. What would need to change to revisit this.
 
 ## Upcoming Decisions Needed
 
-- Gap 4 (counterfactual.py): implementation approach
-- Gap 6 (causal_graph.py): storage backend choice
-- OpenMythos: training pipeline architecture
-- Dashboard framework: Next.js vs Streamlit vs custom
-- Cloud deployment: Cloudflare-only vs multi-cloud
+Resolved in code but never written up as ADRs (candidates to record):
+
+- Gap 4 (`core/memory/counterfactual.py`) and Gap 6 (`core/memory/causal_graph.py`, SQLite-backed) are implemented
+- Dashboard: the `frontend/` HUD (served at `/hud/`) replaced the Next.js/Streamlit plan; `dashboard/src` does not exist
+- Cloud deployment: Cloudflare Worker + D1 + KV is live (`api/wrangler.toml`); Fly.io was dropped
+
+Still open:
+
+- OpenMythos: training pipeline architecture (verify `train.py` exists first)
+- Runtime inference policy: ADR 0001 says local Ollama only, but the code routes non-sensitive tasks to pooled free cloud keys (`core/inference/route_policy.py`, owner decision 2026-07-08) — needs a superseding ADR
