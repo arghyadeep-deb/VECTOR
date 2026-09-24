@@ -584,6 +584,19 @@ class CouncilConfig(BaseModel):
     deliberation_timeout: float = Field(30.0, ge=5.0, le=120.0)
 
 
+class AgentDeathLoopConfig(BaseModel):
+    """2026-09-24 (external review, Phase 3 / KNOWN_ISSUES #81): breaker for an
+    agent that keeps dying and respawning (APITester died ~858x/day, once
+    every ~63s). After `max_deaths` deaths of the SAME agent name within
+    `window_seconds`, its successor is quarantined (not routable) for
+    `base_backoff_seconds`, doubling per consecutive quarantine up to
+    `max_backoff_seconds`, instead of respawning into the same failure."""
+    max_deaths: int = Field(5, ge=2, le=100)
+    window_seconds: float = Field(600.0, ge=10.0)
+    base_backoff_seconds: float = Field(300.0, ge=1.0)
+    max_backoff_seconds: float = Field(3600.0, ge=1.0)
+
+
 class CostConfig(BaseModel):
     monthly_budget_inr: int = Field(500, ge=0)
     alert_inr: int = Field(400, ge=0)
@@ -1166,6 +1179,7 @@ class VectorSettings(BaseSettings):
     loop: LoopConfig = Field(default_factory=LoopConfig)
     permission: PermissionConfig = Field(default_factory=PermissionConfig)
     council: CouncilConfig = Field(default_factory=CouncilConfig)
+    agent_death_loop: AgentDeathLoopConfig = Field(default_factory=AgentDeathLoopConfig)
     cost: CostConfig = Field(default_factory=CostConfig)
     personality: PersonalityConfig = Field(default_factory=PersonalityConfig)
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
@@ -1403,6 +1417,7 @@ CONFIG: dict = {
     "loop": _s.loop.model_dump(),
     "permission": _s.permission.model_dump(),
     "council": _s.council.model_dump(),
+    "agent_death_loop": _s.agent_death_loop.model_dump(),
     "cost": _s.cost.model_dump(),
     "personality": _s.personality.model_dump(),
     "resilience": _s.resilience.model_dump(),

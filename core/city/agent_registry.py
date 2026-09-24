@@ -23,6 +23,11 @@ class AgentRegistry:
     def __init__(self):
         self._agents: dict[str, object] = {}
         self._mem = None
+        # Death-loop breaker state (see _register_or_quarantine)
+        self._death_times: dict[str, list[float]] = {}
+        self._quarantine: dict[str, dict] = {}
+        self._consecutive_quarantines: dict[str, int] = {}
+        self._last_release: dict[str, float] = {}
         logger.info("[VECTOR][agent_registry] initialized")
 
     def _get_mem(self):
@@ -80,6 +85,70 @@ class AgentRegistry:
                 continue
         raise TypeError(f"no supported constructor shape for {agent_class.__name__}: {last_exc}")
 
+    # ── Death-loop breaker (external review Phase 3 / KNOWN_ISSUES #81) ──────
+    # An agent whose every dispatch ends in death (APITester: ~858 deaths/day,
+    # one per ~63s) used to be resurrected instantly into the same failure
+    # forever. Now the Nth death of the same agent name inside a window
+    # parks its successor for an exponentially growing backoff instead of
+    # registering it. Configured via CONFIG["agent_death_loop"].
+
+    def _loop_cfg(self) -> dict:
+        cfg = CONFIG.get("agent_death_loop", {}) if isinstance(CONFIG, dict) else {}
+        return {
+            "max_deaths": int(cfg.get("max_deaths", 5)),
+            "window": float(cfg.get("window_seconds", 600.0)),
+            "base": float(cfg.get("base_backoff_seconds", 300.0)),
+            "max": float(cfg.get("max_backoff_seconds", 3600.0)),
+        }
+
+    def _record_death(self, name: str) -> None:
+        import time
+        cfg = self._loop_cfg()
+        now = time.time()
+        times = [t for t in self._death_times.get(name, []) if now - t < cfg["window"]]
+        times.append(now)
+        self._death_times[name] = times
+        last = self._last_release.get(name)
+        if last is not None and now - last > cfg["window"] * 2:
+            self._consecutive_quarantines[name] = 0
+
+    def _register_or_quarantine(self, successor, name: str) -> None:
+        import time
+        cfg = self._loop_cfg()
+        if len(self._death_times.get(name, [])) < cfg["max_deaths"]:
+            self.register(successor)
+            return
+        n = self._consecutive_quarantines.get(name, 0) + 1
+        self._consecutive_quarantines[name] = n
+        backoff = min(cfg["base"] * (2 ** (n - 1)), cfg["max"])
+        self._quarantine[successor.id] = {"agent": successor, "until": time.time() + backoff, "name": name}
+        self._death_times[name] = []
+        logger.critical(
+            f"[VECTOR][agent_registry] {name} died {cfg['max_deaths']}x within "
+            f"{cfg['window']:.0f}s -- death loop. Successor quarantined for "
+            f"{backoff:.0f}s (quarantine #{n}) instead of respawning into the "
+            f"same failure. Fix the root cause of the deaths."
+        )
+
+    def _release_due_quarantined(self) -> None:
+        if not self._quarantine:
+            return
+        import time
+        now = time.time()
+        for agent_id in [i for i, q in self._quarantine.items() if q["until"] <= now]:
+            entry = self._quarantine.pop(agent_id)
+            self._last_release[entry["name"]] = now
+            self.register(entry["agent"])
+            logger.warning(f"[VECTOR][agent_registry] {entry['name']} released from death-loop quarantine")
+
+    def quarantined(self) -> list[dict]:
+        import time
+        now = time.time()
+        return [
+            {"name": q["name"], "agent_id": i, "seconds_remaining": max(0.0, q["until"] - now)}
+            for i, q in self._quarantine.items()
+        ]
+
     def deregister(self, agent_id: str) -> None:
         """Remove agent on death. Ghost saved, successor spawned as the SAME
         class as the agent that died (RULE 9 — Darwinism is real, and a
@@ -89,6 +158,7 @@ class AgentRegistry:
         agent = self._agents.pop(agent_id, None)
         if not agent:
             return
+        self._record_death(agent.name)
         agent_class = type(agent)
         # capabilities are injected by ManifestLoader AFTER construction
         # (declarative_manifest.instantiate_all: `instance.capabilities =
@@ -152,7 +222,7 @@ class AgentRegistry:
             successor.model = successor._calculate_model()
             successor.capabilities = list(agent_capabilities)
             successor.inherit_ghost(ghost_data)
-            self.register(successor)
+            self._register_or_quarantine(successor, agent.name)
             logger.info(
                 f"[VECTOR][agent_registry] {agent.name} successor spawned as "
                 f"{type(successor).__name__} gen={successor.generation} "
@@ -179,7 +249,7 @@ class AgentRegistry:
                 )
                 successor.capabilities = list(agent_capabilities)
                 successor.inherit_ghost(ghost_data)
-                self.register(successor)
+                self._register_or_quarantine(successor, agent.name)
                 logger.info(f"[VECTOR][agent_registry] fallback spawn: {agent.name} gen={successor.generation}")
             except Exception as fe:
                 logger.error(f"[VECTOR][agent_registry] fallback spawn also failed: {fe}")
@@ -243,16 +313,20 @@ class AgentRegistry:
             logger.error(f"[VECTOR][agent_registry] ghost persist failed: {e}")
 
     def get(self, agent_id: str):
+        self._release_due_quarantined()
         return self._agents.get(agent_id)
 
     def get_all_agents(self) -> list:
+        self._release_due_quarantined()
         return list(self._agents.values())
 
     def list_alive(self) -> list:
         """Return all agents with HP > 0 (alive). Used by event_fanout_loop."""
+        self._release_due_quarantined()
         return [a for a in self._agents.values() if getattr(a, 'health_points', 1) > 0]
 
     def get_by_district(self, district: str) -> list:
+        self._release_due_quarantined()
         return [a for a in self._agents.values() if a.district == district]
 
     def get_council_eligible(self) -> list:
