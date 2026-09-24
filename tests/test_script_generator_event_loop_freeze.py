@@ -115,5 +115,59 @@ async def test_generate_script_still_returns_correct_shape():
     assert result["content"] == _FakeResult.content
 
 
+@pytest.mark.asyncio
+async def test_repeat_topic_within_cooldown_returns_cached_script_without_llm_call():
+    """KNOWN_ISSUES #81: the identical "AI trends" topic was regenerated
+    1,306+ times/day. Second call for the same topic must hit the cache
+    (real content preserved for downstream composition), not the LLM."""
+    ScriptGenerator.reset_script_cache()
+    calls = {"n": 0}
+
+    class _FakeResult:
+        content = "INTRO: hi\nMAIN CONTENT: stuff\nSUMMARY: bye"
+
+    async def _counting_chat(*a, **kw):
+        calls["n"] += 1
+        return _FakeResult()
+
+    with patch("core.inference.provider_client.ProviderClient.chat", new=_counting_chat):
+        first = await ScriptGenerator().generate_script("AI trends", duration_min=5.0)
+        second = await ScriptGenerator().generate_script("AI trends", duration_min=5.0)  # fresh instance, like real callers
+
+    assert calls["n"] == 1, "second call for the same topic must not hit the LLM again"
+    assert "cached" not in first
+    assert second["cached"] is True
+    assert second["content"] == first["content"]
+    ScriptGenerator.reset_script_cache()
+
+
+@pytest.mark.asyncio
+async def test_different_topic_or_duration_is_not_served_from_cache():
+    ScriptGenerator.reset_script_cache()
+    calls = {"n": 0}
+
+    class _FakeResult:
+        content = "INTRO: x"
+
+    async def _counting_chat(*a, **kw):
+        calls["n"] += 1
+        return _FakeResult()
+
+    with patch("core.inference.provider_client.ProviderClient.chat", new=_counting_chat):
+        await ScriptGenerator().generate_script("topic A", duration_min=5.0)
+        await ScriptGenerator().generate_script("topic B", duration_min=5.0)
+        await ScriptGenerator().generate_script("topic A", duration_min=8.0)
+
+    assert calls["n"] == 3
+    ScriptGenerator.reset_script_cache()
+
+
+@pytest.fixture(autouse=True)
+def _clean_script_cache():
+    ScriptGenerator.reset_script_cache()
+    yield
+    ScriptGenerator.reset_script_cache()
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

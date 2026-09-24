@@ -55,6 +55,20 @@ class ScriptGenerator(AgentBase):
         }
     }
 
+    # 2026-09-24 (external review, Phase 3 -- KNOWN_ISSUES #81): class-level
+    # (not instance-level) so it survives callers constructing a fresh
+    # ScriptGenerator() on every dispatch. VECTOR_TECHNICAL_KNOWLEDGE/
+    # 81_LIVE_LOOP_HEALTH_CHECK.md showed the identical "AI trends" topic
+    # regenerated 1,306+ times in one day (content dispatch fires ~every 9s
+    # with no upstream topic diversity). During the cooldown the last
+    # successful script for that topic is returned (marked cached=True)
+    # instead of burning another LLM call -- returning the real cached
+    # content, not an empty skip, keeps downstream composition (script ->
+    # schedule_post) working. Does not fix WHY the same topic keeps
+    # arriving; that's the content/marketing pipeline's topic selection.
+    _script_cache: dict[tuple, tuple[float, dict]] = {}
+    _TOPIC_COOLDOWN_SECONDS = 3600.0
+
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ScriptGenerator", "content")
         self.capabilities = ["content", "generate", "script", "video"]
@@ -65,12 +79,35 @@ class ScriptGenerator(AgentBase):
         self._hooks_cache: list[dict] = []
         logger.info("[VECTOR][script_generator] ScriptGenerator initialized")
 
+    @classmethod
+    def reset_script_cache(cls) -> None:
+        cls._script_cache.clear()
+
+    def _cached_script(self, topic: str, duration_min: float, script_type: str) -> dict | None:
+        import time
+        entry = ScriptGenerator._script_cache.get((topic.strip().lower(), duration_min, script_type))
+        if entry and (time.time() - entry[0]) < self._TOPIC_COOLDOWN_SECONDS:
+            return entry[1]
+        return None
+
+    def _remember_script(self, topic: str, duration_min: float, script_type: str, script: dict) -> None:
+        import time
+        ScriptGenerator._script_cache[(topic.strip().lower(), duration_min, script_type)] = (time.time(), script)
+
     async def generate_script(self, topic: str, duration_min: float = 5.0,
                         script_type: str = "youtube_tutorial") -> dict:
         """
         Generate a complete video script for a topic.
         Duration in minutes, script_type determines structure.
         """
+        cached = self._cached_script(topic, duration_min, script_type)
+        if cached is not None:
+            logger.debug(
+                "[VECTOR][script_generator] '{}' generated within the last {:.0f}s "
+                "-- returning cached script, no LLM call", topic, self._TOPIC_COOLDOWN_SECONDS,
+            )
+            return {**cached, "cached": True}
+
         structure = self.SCRIPT_STRUCTURES.get(
             script_type,
             self.SCRIPT_STRUCTURES["youtube_tutorial"]
@@ -110,6 +147,7 @@ Format with clear section headers.
             }
 
             self._generated_scripts.append(script)
+            self._remember_script(topic, duration_min, script_type, script)
             self.award_points(25, f"script_generated_{topic[:20]}")
 
             logger.info(f"[VECTOR][script_generator] Generated {duration_min}min script for: {topic}")
