@@ -66,6 +66,12 @@ def _assert_not_live(where: str) -> None:
         pytest.exit(f"refusing to run ({where}): resolves to live VECTOR state: {bad}", returncode=3)
 
 
+# Some tests pop VECTOR_DB_PATH from the environment; the code then falls back to
+# CONFIG["db_path"], which is the LIVE vector_memory.db. Point that baseline at the
+# session temp DB too so a popped env var can never resolve to live state.
+from core.config import CONFIG as _CONFIG  # noqa: E402
+_CONFIG["db_path"] = _TEST_DATA_DIR / "vector_memory.db"
+
 _assert_not_live("session start")
 
 # Centralized sys.path setup — eliminates the need for per-test sys.path.insert hacks.
@@ -103,6 +109,18 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(pytest.mark.requires_ollama)
             if item.get_closest_marker("timeout") is None:
                 item.add_marker(pytest.mark.timeout(_OLLAMA_TEST_TIMEOUT_SEC))
+
+
+@pytest.fixture(autouse=True)
+def _never_resolve_to_live_state():
+    """Fail (not silently proceed) if any test leaves the DB/data paths pointing at live state."""
+    from core.memory.db_utils import configured_db_path
+    from core.runtime_paths import data_path
+
+    bad = [str(p) for p in (configured_db_path(), data_path("x").parent) if _is_live_path(str(p))]
+    if bad:
+        pytest.fail(f"test environment resolves to live VECTOR state: {bad}", pytrace=False)
+    yield
 
 
 @pytest.fixture(autouse=True)

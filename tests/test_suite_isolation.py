@@ -62,7 +62,8 @@ def test_guard_recognises_live_paths_and_aborts(monkeypatch):
                     if n.endswith("conftest") and hasattr(m, "_is_live_path"))
     assert conftest._is_live_path(str(ROOT / "vector_memory.db"))
     assert conftest._is_live_path(str(LIVE_DATA / "epistemic.db"))
-    assert not conftest._is_live_path(os.environ["VECTOR_DB_PATH"])
+    from core.memory.db_utils import configured_db_path
+    assert not conftest._is_live_path(str(configured_db_path()))
 
     monkeypatch.setattr("core.memory.db_utils.configured_db_path", lambda: ROOT / "vector_memory.db")
     with pytest.raises(pytest.exit.Exception):
