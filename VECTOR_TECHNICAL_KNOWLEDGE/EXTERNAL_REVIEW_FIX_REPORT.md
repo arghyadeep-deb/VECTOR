@@ -98,8 +98,17 @@ Read from **copies** of the live DBs (live files untouched). Opus's counts verif
 - **Fixes:** test runs now use `VECTOR_TEST_DATA_DIR` for both job DBs; `PostJobTracker.recover_stale_publishing()` (called at start of `run_pending`); cancelled publish → `retrying`. 5 new tests (`test_content_publish_queue_reliability.py`); 43 content tests pass; live DB mtimes unchanged.
 - **Needs you:** (1) 36 pending + 1 publishing junk rows in live `post_jobs.db` will each trigger an owner RED approval on the next `run_pending` — approve cancelling them (I did not touch live data). (2) Whether interrupted renders that still have a file in `renders/` should auto-resume to upload (changes publishing behaviour). (3) Credentials/account setup for real publishing (Dev.to key, YouTube OAuth, Instagram token) — not inspected (`.env` off-limits). (4) No real job has ever been queued: `schedule_post` is reachable only via the content API route, Governor dispatch, and the R19 plan composition (script → schedule_post); none has produced a real job in `post_jobs.db` — worth checking whether that composition is ever triggered.
 
+## Phase 6 — Dead code — REPORT ONLY (`bf7494e89`, `docs/design/dead-code-deletion-plan-v2.md`)
+Own reachability analysis (imports + module-path strings + manifest/config roots; districts treated as loaded by `generic_swarm`): **4,434 reachable / 2,243 unreachable of 6,677** modules (Opus: ~2,100 reachable of 6,599 — mine is more conservative; I trust it for deletion safety). Of Opus's 20 named `core/` modules, **all 20 are unreachable** and are listed as candidates (9 also referenced by tests/scripts). `core/research_engine` (125 "dead") is flagged low-confidence: it has runtime plugin loaders. **Nothing deleted; awaiting approval.**
+
+## Phase 7 — Licensing — DONE (`d0d940530`, `THIRD_PARTY_NOTICES.md`)
+Upstream licenses checked against upstream `LICENSE` pages: local-deep-research MIT, mistral-vibe Apache-2.0, Nous `hermes-agent` MIT, ruflo MIT, OpenJarvis Apache-2.0, MiroFish AGPL-3.0. Restored LICENSE files beside `core/research_engine`, `core/coding_assistant`, `alpha_zoo`, `openmythos/vendor`, `vectorcode/LICENSES/`, `vector_finagent` (its own AGPL text). `deabsorb.py` and the two attribution-stripping `absorb_*` scripts now exit immediately (verified). **Copyleft flags:** `vector_finagent` (AGPL/MIT mixed; 419 files carry an inaccurate "MIT, Copyright VECTOR" header — not mass-edited, owner call), `vector_social_sim` (AGPL, already accepted). Several vendored trees have no identifiable upstream.
+
+## Phase 8 — Docs — DONE (`4ea44cbca`)
+`CLAUDE.md` counts regenerated (38 dirs/39 manifest districts, 170 agents, 31 providers, 30 commands, 113 skills, 7 ADRs, ~6,050 test functions). `docs/OPEN_ISSUES.md` now the single status file with an open-engineering section; `KNOWN_ISSUES.md` points to it (#10 marked resolved). `TASKS.md` corrected (Kokoro done, face-recognition done — verified today, Worker done per docs, wake word blocked on owner recordings, Termux owner-only).
+
 ## Open — needs owner
 - `test_lifecycle_unvalidated_to_validated` confidence-semantics decision; `test_fresh_domain_no_penalty` fragile vs live causal graph; `push_github` council auto-proceed policy.
 - Governor caller-supplied-`district` gap (deferred pending Codex review after 2026-09-27).
 - `autonomous_loop.py` has ~209 lines of earlier uncommitted work in the tree (incl. the starvation fix) — not committed by this branch.
-- Phases 6–8 not started. Phase 4 needs your decisions: approve/adjust tier proposals, and whether to extend the regex intent table.
+- Phase 4: approve/adjust tier proposals; whether to extend the regex intent table. Phase 6: approve any deletions. Phase 7: decide the `vector_finagent` header fix.
