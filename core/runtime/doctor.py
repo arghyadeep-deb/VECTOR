@@ -66,6 +66,15 @@ def _module_exists(module: str) -> bool:
     return importlib.util.find_spec(module) is not None
 
 
+def _sidecar_enabled(name: str) -> bool:
+    """Whether the owner has switched a sidecar on. Owner rule (2026-07-16, run_vector._start_sidecars): no extra localhost
+    servers by default; VECTOR_SIDECARS=1|all enables everything, or a comma list of names."""
+    val = os.environ.get("VECTOR_SIDECARS", "").strip().lower()
+    if val in ("", "0", "off", "false", "none"):
+        return False
+    return val in ("1", "all", "true", "on") or name.lower() in {t.strip() for t in val.split(",")}
+
+
 def _is_hardened_env() -> bool:
     return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
@@ -322,7 +331,9 @@ def run_dependency_doctor(
                 _check_local_http_service(
                     "sidecar:comfyui_health",
                     _join_url(comfyui_base, "/system_stats"),
-                    hardened_mode,
+                    # A server the owner has deliberately not started must not make the whole readiness report 503;
+                    # it is still reported (as a warning) when its path is configured but it is not running.
+                    hardened_mode and _sidecar_enabled("comfyui"),
                 )
             )
 
