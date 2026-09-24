@@ -29,6 +29,7 @@ from core.memory.db_utils import apply_pragmas, configured_db_path
 __all__ = ["PostJob", "PostJobTracker", "JobStatus"]
 
 import json
+import os
 import sqlite3
 import threading
 import uuid
@@ -45,7 +46,10 @@ from loguru import logger
 from core.config import CONFIG
 
 _DATA_DIR = CONFIG.get("data_dir")
-_DB_PATH = (Path(str(_DATA_DIR)) if _DATA_DIR else configured_db_path().parent) / "post_jobs.db"
+# Under pytest, VECTOR_TEST_DATA_DIR keeps test jobs out of the live queue: every job
+# in the real post_jobs.db was a "Test Post" written by the test suite (2026-09-24).
+_TEST_DIR = os.environ.get("VECTOR_TEST_DATA_DIR")
+_DB_PATH = (Path(_TEST_DIR) if _TEST_DIR else Path(str(_DATA_DIR)) if _DATA_DIR else configured_db_path().parent) / "post_jobs.db"
 _MAX_RETRIES = 3
 
 class JobStatus(str, Enum):
@@ -247,6 +251,21 @@ class PostJobTracker:
             self._update(job_id, status=JobStatus.RETRYING)
             logger.info("[VECTOR][post-job] {} → retrying (attempt {}/{})",
                         job_id[:8], job.attempt_count, job.max_retries)
+
+    def recover_stale_publishing(self, max_age_minutes: float = 30.0) -> list[str]:
+        """Move jobs stuck in PUBLISHING back to retrying (or failed if out of
+        retries). A crash/restart or a cancelled approval wait mid-publish left
+        one job 'publishing' forever, invisible to list_pending(). Returns the
+        recovered job ids."""
+        cutoff = (datetime.now(tz=timezone.utc) - timedelta(minutes=max_age_minutes)).isoformat()
+        with self._lock, self._connect() as conn:
+            ids = [r["job_id"] for r in conn.execute(
+                "SELECT job_id FROM post_jobs WHERE status=? AND updated_at < ?",
+                (JobStatus.PUBLISHING, cutoff),
+            ).fetchall()]
+        for job_id in ids:
+            self.mark_retrying(job_id, "interrupted mid-publish (stale 'publishing' recovered)")
+        return ids
 
     def cancel(self, job_id: str) -> None:
         """Cancel a pending/retrying job."""

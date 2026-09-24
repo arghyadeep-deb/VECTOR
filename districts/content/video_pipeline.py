@@ -46,7 +46,9 @@ from loguru import logger
 
 # ── Job tracking (SQLite) ─────────────────────────────────────────────────────
 
-_DB_PATH = configured_db_path().with_name("content_jobs.db")
+# Tests write here too; VECTOR_TEST_DATA_DIR keeps them out of the live queue.
+_TEST_DIR = os.environ.get("VECTOR_TEST_DATA_DIR")
+_DB_PATH = (Path(_TEST_DIR) / "content_jobs.db") if _TEST_DIR else configured_db_path().with_name("content_jobs.db")
 _DB_LOCK = threading.RLock()
 
 def _get_job_conn() -> sqlite3.Connection:
