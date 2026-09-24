@@ -27,7 +27,12 @@
   function relTime(iso) {
     if (!iso) return '—';
     try {
-      const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      const t = new Date(iso).getTime();
+      if (!Number.isFinite(t)) return '—';
+      const diff = Math.floor((Date.now() - t) / 1000);
+      // A timestamp in the future (clock skew, or a bad row such as 2030-01-01) used to render as "-103170821s".
+      if (diff < -60) return 'future';
+      if (diff < 0) return '0s';
       if (diff < 60) return diff + 's';
       if (diff < 3600) return Math.floor(diff / 60) + 'm';
       if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';

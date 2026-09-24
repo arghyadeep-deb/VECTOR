@@ -77,8 +77,10 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="module")
-def hud():
+@pytest.fixture(scope="module", params=["production", "development"])
+def hud(request):
+    """Both HUD pages: VECTOR.prod.html (VECTOR_ENV=production) and VECTOR.html (development). The full HUD with the
+    3D city, camera hero and gestures is VECTOR.html; it carried the same hard-coded tickers and boot lines."""
     pytest.importorskip("playwright")
     tmp = Path(tempfile.mkdtemp(prefix="hud_e2e_"))
     (tmp / "data").mkdir()
@@ -86,7 +88,7 @@ def hud():
     script = tmp / "serve.py"
     script.write_text(_SERVER_SRC.format(root=str(ROOT), port=port), encoding="utf-8")
     env = dict(os.environ, VECTOR_DB_PATH=str(tmp / "vm.db"), VECTOR_TEST_DATA_DIR=str(tmp / "data"),
-               VECTOR_DB_KEY="hud-e2e-db-key", VECTOR_API_KEY=KEY)
+               VECTOR_DB_KEY="hud-e2e-db-key", VECTOR_API_KEY=KEY, VECTOR_ENV=request.param)
     proc = subprocess.Popen([sys.executable, str(script)], env=env, cwd=str(ROOT),
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     base = f"http://127.0.0.1:{port}"
