@@ -136,6 +136,9 @@
   const OFFLINE_GRACE_MS = 6000;
   let offlineTimer = null;
   let offlineTicker = null;
+  // Set by an HTTP 401/403 poll failure, cleared by a verified-live poll. Tracked apart from runtimeState.lastError
+  // because optional websockets (camera, gesture) also report 'degraded' and overwrite that text every few seconds.
+  let authRejected = false;
 
   function offlineScreen(){
     let el=document.getElementById('ve-offline-screen');
@@ -145,7 +148,7 @@
     el.setAttribute('role','alert');
     el.hidden=true;
     const card=document.createElement('div'); card.className='ve-offline-card';
-    const h=document.createElement('div'); h.className='ve-offline-title'; h.textContent='BACKEND OFFLINE';
+    const h=document.createElement('div'); h.className='ve-offline-title'; h.id='ve-offline-title'; h.textContent='BACKEND OFFLINE';
     const m=document.createElement('div'); m.className='ve-offline-msg'; m.id='ve-offline-msg';
     const t=document.createElement('div'); t.className='ve-offline-since'; t.id='ve-offline-since';
     const b=document.createElement('button'); b.type='button'; b.className='ve-offline-retry'; b.textContent='RETRY NOW';
@@ -165,7 +168,14 @@
     const since=runtimeState.lastOk ? new Date(runtimeState.lastOk).getTime() : null;
     const paint=()=>{
       const msg=document.getElementById('ve-offline-msg');
-      if(msg) msg.textContent=(runtimeState.lastError || 'backend unavailable')+' · retrying automatically';
+      // A 401/403 means the backend is up but refuses this HUD's key (e.g. it was rotated while this page stayed open,
+      // or a phone bookmark still carries the old one). Say that, instead of implying the backend is down.
+      const rejected=authRejected;
+      const title=document.getElementById('ve-offline-title');
+      if(title) title.textContent = rejected ? 'ACCESS KEY REJECTED' : 'BACKEND OFFLINE';
+      if(msg) msg.textContent = rejected
+        ? 'The backend is running but rejected the API key this HUD is using. Reopen the HUD from the desktop shortcut, or from a link that carries the current key.'
+        : (runtimeState.lastError || 'backend unavailable')+' · retrying automatically';
       const sinceEl=document.getElementById('ve-offline-since');
       if(sinceEl){
         if(since==null) sinceEl.textContent='never reached since this page opened';
@@ -185,12 +195,20 @@
 
   V.on('runtime:mode', st=>{
     const backendConfigured=!!(V.config && V.config.base);
-    if(st.mode==='degraded' && backendConfigured){
+    // A websocket that cannot connect (no camera, an unsupported gesture backend) reports 'degraded' too; that says
+    // nothing about the HTTP backend, so it never starts the offline screen. Only failed HTTP polls do.
+    const wsOnly=/^ws /.test(st.detail || '');
+    if(st.mode==='degraded' && /→ 40[13]/.test(st.detail || '')) authRejected=true;
+    if(st.mode==='live') authRejected=false;
+    if(st.mode==='degraded' && backendConfigured && !wsOnly){
       const shown=document.getElementById('ve-offline-screen');
       if(!offlineTimer && !(shown && !shown.hidden)){
         offlineTimer=setTimeout(()=>{ offlineTimer=null; showOffline(); }, OFFLINE_GRACE_MS);
       }
-    } else {
+    } else if(st.mode==='live' || st.mode==='demo'){
+      // Only a verified-live backend (or a deliberate disconnect) clears the screen. 'connecting' is NOT a recovery:
+      // a socket that reopens while every HTTP poll still fails flips degraded <-> connecting every few seconds, and
+      // treating that as recovery kept restarting the grace timer so the screen never appeared.
       if(offlineTimer){ clearTimeout(offlineTimer); offlineTimer=null; }
       hideOffline();
     }

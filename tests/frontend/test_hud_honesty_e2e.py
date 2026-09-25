@@ -83,6 +83,27 @@ with sync_playwright() as pw:
         out["offline_hidden_after"] = True
     except Exception:
         out["offline_hidden_after"] = False
+    # Key rotated / wrong key: the backend answers 401 to every API call. The screen must say so, not "backend offline".
+    pg.wait_for_function("() => { const e = document.getElementById('ve-offline-screen'); return !e || e.hidden; }", timeout=45000)
+    def _deny(route):
+        path = route.request.url.split("/", 3)[-1].split("?")[0]
+        if path.startswith("hud/") or path.startswith("static/") or path.startswith("vendor/") or path == "":
+            route.continue_()
+        else:
+            route.fulfill(status=401, content_type="application/json", body='{"detail":"Unauthorized"}')
+    pg.evaluate("() => { window.__modes = []; VECTOR.on('runtime:mode', st => window.__modes.push(st.mode + '@' + Math.round(performance.now()/1000))); }")
+    pg.route("**/*", _deny)
+    try:
+        pg.wait_for_function("() => { const t = document.getElementById('ve-offline-title'); const e = document.getElementById('ve-offline-screen'); return !!e && !e.hidden && !!t && /REJECTED/.test(t.textContent); }", timeout=60000)
+        out["rejected_text"] = " ".join(pg.evaluate("() => document.getElementById('ve-offline-screen').innerText").split())
+    except Exception as exc:
+        out["rejected_text"] = f"never appeared: overlay={pg.evaluate('() => { const e=document.getElementById(\"ve-offline-screen\"); return e ? (e.hidden ? \"hidden\" : e.innerText.replace(/\s+/g, \" \")) : \"none\"; }')} last_modes={pg.evaluate('() => JSON.stringify(window.__modes.slice(-3))')}"[:600]
+    pg.unroute("**/*", _deny)
+    try:
+        pg.wait_for_function("() => { const e = document.getElementById('ve-offline-screen'); return !e || e.hidden; }", timeout=45000)
+        out["rejected_cleared"] = True
+    except Exception:
+        out["rejected_cleared"] = False
     # A second, CSP-enforcing context (the owner's real Chrome enforces the page's CSP; the first one bypasses it only
     # so wait_for_function can eval). Counts dock buttons and collects CSP violations / console errors.
     ctx2 = browser.new_context(viewport={"width": 1488, "height": 812})
@@ -193,6 +214,12 @@ def test_backend_offline_screen_appears_on_a_drop_and_clears_on_recovery(hud):
     assert hud["offline_shown"] is True, hud["offline_text"]
     assert "BACKEND OFFLINE" in hud["offline_text"] and "retrying" in hud["offline_text"].lower()
     assert hud["offline_hidden_after"] is True, "the offline screen must hide itself once the backend is reachable again"
+
+
+def test_rejected_key_says_so_instead_of_claiming_the_backend_is_down(hud):
+    assert "ACCESS KEY REJECTED" in hud["rejected_text"], hud["rejected_text"]
+    assert "rejected the API key" in hud["rejected_text"]
+    assert hud["rejected_cleared"] is True
 
 
 def test_no_javascript_errors_during_the_session(hud):
