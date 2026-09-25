@@ -331,6 +331,26 @@ class AutonomousLoop:
                 self._continue_gate = None
         return self._continue_gate
 
+    def _continue_gate_coherence(self) -> float:
+        """The coherence input ContinueGate is documented to take: CoherenceScheduler's score for the think loop.
+
+        2026-09-26 fix. This used to pass `decision.winner.total_score` -- the 5-factor RANKING score -- as the
+        "coherence", while ContinueGate stops anything below 0.4 and _think_tick() only requires 0.3 to act. Every winner
+        scoring 0.30-0.40 was therefore picked, logged as "stop" and silently never run, tick after tick: 330 such drops
+        (all `analyze_progress`) in the live log, and any plan step whose fallback scored 0.38 could never execute, so a
+        multi-step plan could not terminate (V1 Stage 4's PARTIAL). A ranking score is not coherence.
+
+        No events recorded for the loop means a neutral 1.0 (the scheduler's own no-evidence answer); if the guidance
+        system is unavailable the gate's budget/rework checks still apply, so this fails neutral rather than blocking.
+        """
+        try:
+            guidance = self._get_guidance()
+            if guidance is not None:
+                return float(guidance["coherence_scheduler"].compute_score("think_loop").overall)
+        except Exception as _co_err:
+            logger.debug("[VECTOR][continue_gate] coherence unavailable, using neutral: {}", _co_err)
+        return 1.0
+
     def _scan_threats(self, text: str, context: str = "act") -> bool:
         """Run ThreatDetector over action description. Returns True if critical threat found."""
         gsys = self._get_guidance()
@@ -976,7 +996,7 @@ class AutonomousLoop:
                         tokens_used=0,
                         tool_calls=0,
                         rework_count=0,
-                        coherence_score=decision.winner.total_score,
+                        coherence_score=self._continue_gate_coherence(),
                     )
                     if _cgate_verdict in ("pause", "stop"):
                         logger.warning(
