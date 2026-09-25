@@ -552,6 +552,30 @@ def create_app() -> FastAPI:
         # LOGIN ceremony (never registration, which still correctly requires
         # the existing key — see core/api/routers/webauthn_auth.py). Must be
         # listed in middleware._PUBLIC_PATHS as "/login" for this to work.
+        @app.get("/clear-site-data", include_in_schema=False)
+        async def clear_site_data():
+            """Recovery page for a browser that keeps showing a removed HUD from its own cache / service worker.
+
+            The `Clear-Site-Data` response header makes the browser delete this origin's HTTP cache, cookies, service
+            workers and Cache Storage. It is honoured for a navigation even when an old service worker is answering the
+            other requests, because the worker never handles this path. The page then goes to the location in the URL
+            fragment (kept out of any request, so an API key in it is never sent to the server), or /login."""
+            from fastapi.responses import HTMLResponse
+
+            html = (
+                "<!doctype html><meta charset=utf-8><title>VECTOR</title>"
+                "<body style=\"background:#000;color:#7fdcff;font:16px monospace;padding:2em\">"
+                "Clearing this browser's saved VECTOR pages&hellip;"
+                "<script>var n=location.hash.slice(1);"
+                "if(!n||n.charAt(0)!=='/'||n.charAt(1)==='/'){n='/login';}"
+                "setTimeout(function(){location.replace(n);},700);</script>"
+                "<noscript><p><a href=\"/login\">Continue</a></p></noscript>"
+            )
+            return HTMLResponse(html, headers={
+                "Clear-Site-Data": '"cache", "cookies", "storage"',
+                "Cache-Control": "no-store",
+            })
+
         @app.get("/login", include_in_schema=False)
         async def login_page():
             login_html = _hud_dir / "login.html"

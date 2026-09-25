@@ -59,6 +59,10 @@ _rate_limit_data: dict[str, list[float]] = defaultdict(list)
 
 # Public paths (no auth required)
 _PUBLIC_PATHS = {"/", "/status", "/health", "/docs", "/openapi.json", "/redoc",
+                 # Wipes this origin's cached pages, service workers and cookies in the visitor's own browser (see
+                 # core/api/app.py clear_site_data). Public on purpose: it is how a browser stuck on a removed page
+                 # recovers without first being able to load that page, and it exposes no VECTOR data.
+                 "/clear-site-data",
                  "/csrf-token",  # CSRF token endpoint is public
                  "/growth/signup",  # public beta-signup form (gated by BetaSignup, not auth/CSRF)
                  # WebAuthn login must be reachable WITHOUT already holding
