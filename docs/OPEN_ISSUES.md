@@ -33,8 +33,10 @@ grew open engineering items; section 0 lists them.
    (`_authoritative_district_from_text` + honest `no_capable_agent`); the entry is kept for history.
 6. **Content pipeline** (2026-09-24): a daily `content-plan` cron job now plans script -> `schedule_post`
    (only for platforms with a configured key); the 09:00 publish job still needs owner approval per post.
-   Still open: live `post_jobs.db` holds 37 junk "Test Post" rows (owner approval needed to cancel);
-   interrupted renders are listed by `list_resumable_jobs()` but resuming an upload is an owner action;
+   Live-data cleanup DONE 2026-09-25: 37 junk "Test Post" jobs cancelled; ~85k test-suite rows deleted from the live DB
+   (gateway_audit, reasoning_chains, policy_memory, agent_history, causal_nodes/edges, semantic_memory, shared_facts;
+   run by the owner, JSON backup written first), plus mesh-test and fake-council episodic rows.
+   Still open: interrupted renders are listed by `list_resumable_jobs()` but resuming an upload is an owner action;
    publishing credentials (Dev.to key, YouTube OAuth, Instagram token) are owner-side.
 7. **Test-suite items**: `test_lifecycle_unvalidated_to_validated` needs a confidence-semantics
    decision; `test_fresh_domain_no_penalty` is fragile against the live causal graph;
