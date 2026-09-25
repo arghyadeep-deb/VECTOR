@@ -310,6 +310,24 @@ class PermissionConfig(BaseModel):
         "backtest_strategy", "conflicts", "content_generate", "voice_respond",
         "subconscious", "subconscious_loop", "deep_research", "deep_dive",
         "placement", "variance", "nexus", "context_compress", "cleanup",
+        # 2026-09-25 (owner-approved tier proposals, VECTOR_TECHNICAL_KNOWLEDGE/PHASE4_TIER_COVERAGE_REPORT.md): manifest
+        # capabilities that were UNKNOWN (blocked). Each handler was traced and is read-only or analysis-only (reads, local
+        # computation, local-model prompts, in-memory agent lessons). Four proposals were demoted to YELLOW after the trace:
+        # analyze_feedback, district_report, health_check, generate_response.
+        "active_alerts", "alert_anomaly", "analyze_competitor", "analyze_financials", "analyze_gaps",
+        "ast_analysis", "calculate_indicators", "check_pep8", "check_valuation", "client_summary", "code_review",
+        "compare_to_sector", "deep_code_review", "dependency_trace", "design_architecture", "detect_anomalies",
+        "detect_patterns", "dividend_analysis", "estimate_compute", "evaluate", "extract_action_items",
+        "extract_concepts", "get_at_risk_clients", "get_client", "get_comparison", "get_metric_summary",
+        "get_price_data", "get_progress", "get_top_clients", "get_trend", "get_voices", "hedge_status",
+        "identify_improvements", "job_history", "job_queue", "job_status", "list_alerts", "list_clients",
+        "list_incidents", "list_models", "list_rules", "list_skills", "log_query", "match_event", "memory_query",
+        "obra_review", "order_summary", "portfolio_summary", "prioritize_gaps", "profile_competitor",
+        "progress_report", "recommend", "review_security", "root_cause", "security_code_review", "session_report",
+        "siem_alerts", "siem_stats", "suggest_learning_path", "suggest_prerequisites", "summarize_transcript",
+        "text_to_ssml", "transcribe_audio", "upload_history",
+        # 2026-09-25 (Governor untiered-name closure): read-only / local-analysis agent-declared names.
+        "cf_status", "scan_bugs", "scan_codebase", "generate_sentences",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
@@ -362,6 +380,23 @@ class PermissionConfig(BaseModel):
         # classifies place_pin among its own WRITE_COMMANDS. Reversible/
         # local-state mutation, not GREEN read-only.
         "place pin", "intel pin",
+        # 2026-09-25 (owner-approved): local writes, local media edits/generation, network fetches and scans, plus the four
+        # GREEN proposals demoted after tracing their handlers (analyze_feedback persists, district_report writes files,
+        # health_check makes an outbound request, generate_response calls a routed LLM).
+        "acknowledge", "acknowledge_alert", "add_background_music", "add_client", "add_subtitles",
+        "add_transitions", "adjust_voice_speed", "analyze_feedback", "blocklist", "build_storyboard", "capture_url",
+        "clone_voice", "create_note", "dead_code_cleanup", "detection_rule", "district_report", "download_dataset",
+        "export_report", "extract_audio", "fetch_trending", "generate_batch", "generate_captions",
+        "generate_config", "generate_highlight_captions", "generate_in_my_voice", "generate_response",
+        "generate_subtitles", "generate_tags", "generate_voice", "health_check", "link_notes", "log_step",
+        "memory_store", "merge_clips", "network_scan", "organize_notes", "port_scan", "preprocess_data",
+        "process_event", "refactor_clean", "remove_metric", "save_note", "scan_artifact", "scan_vulnerabilities",
+        "start_run", "title_thumbnail", "tokenize_data", "track_metric", "translate_captions", "trim_video",
+        "update_client", "yt_dlp",
+        # 2026-09-25 (Governor untiered-name closure): agent-declared names that write locally, edit media,
+        # create branches/drafts, or generate files.
+        "backup_db", "write", "generate", "create", "create_branch", "update_draft", "generate_tests", "merge",
+        "add_call_contact", "add_course",
     ])
     red: list[str] = Field(default_factory=lambda: [
         "send_email", "delete_files", "execute_code",
@@ -564,6 +599,16 @@ class PermissionConfig(BaseModel):
         # separate outer identity distinguishing safe from dangerous, the
         # same reasoning that already puts hf_train in RED (Task 58C).
         "code_conduct", "hf_hub",
+        # 2026-09-25 (owner-approved): publish to public platforms, delete/rollback/prune, external repo writes, autonomous
+        # chaining, cross-machine actions, live rule/code reload.
+        "autonomous_chaining", "autopilot_trigger", "create_and_upload", "cross_machine", "delete_client",
+        "escalate", "execute_scheduled_uploads", "github", "hot_reload", "prune_retention",
+        "rollback", "run_pending", "schedule_upload", "upload_instagram", "upload_tiktok", "upload_twitter",
+        "upload_youtube",
+        # 2026-09-25 (Governor untiered-name closure): agent-declared names that delete files/messages/data, prune
+        # retention, or publish/upload to an external destination. execute_playbook is deliberately NOT here: the
+        # playbook runner gates every destructive step through the gateway itself.
+        "cleanup_logs", "delete", "publish", "upload", "prune",
     ])
     # Trust ladder — earned autonomy for YELLOW actions (core/loop/trust_ladder.py).
     # N consecutive explicit approvals with zero bad outcomes → auto-execute;

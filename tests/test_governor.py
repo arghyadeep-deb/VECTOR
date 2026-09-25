@@ -63,7 +63,8 @@ async def test_dispatch_returns_task_id():
 async def test_dispatch_no_agents_returns_no_agents_status():
     gov = Governor()
     result = await gov.dispatch({"type": "unknown_type_xyz_no_district"})
-    assert result.get("status") in ("no_agents", "stub", "error", "ok")
+    # 2026-09-25: an unclassified, undeclared task type is refused outright ("blocked") rather than routed anywhere.
+    assert result.get("status") in ("no_agents", "stub", "error", "ok", "blocked")
 
 
 def test_get_district_summary_after_register():
@@ -139,7 +140,11 @@ async def test_dispatch_withholds_hp_when_no_agent_declares_capability():
     hp_before = agent.health_points
 
     gov = Governor()
-    result = await gov.dispatch({"type": "totally_uncovered_task_type", "district": "coding", "params": {}})
+    # 2026-09-25: the type must be a REAL one that this agent simply does not declare. "totally_uncovered_task_type" was
+    # an invented name, and running an invented name on whichever agent the caller's district happened to hold is the
+    # Governor gap that is now closed (see tests/test_governor_unknown_task_gate.py). git_status is a routing key /
+    # GREEN action no coding agent here declares, so the availability-over-purity fallback is still what is exercised.
+    result = await gov.dispatch({"type": "git_status", "district": "coding", "params": {}})
 
     assert result.get("status") == "ok"
     assert called.get("ran") is True, "fallback agent must still run (availability over purity)"

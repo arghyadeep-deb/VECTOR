@@ -151,6 +151,13 @@ _FROZEN_RED = {
     # the same real index-update write as vc_update. See core/config.py's
     # own 2026-09-24 round-6 comment for the evidence.
     'code_index', 'vc_graph', 'dependency_graph', 'vc_watch',
+    # 2026-09-25 (Governor untiered-name closure):
+    'cleanup_logs', 'delete', 'publish', 'upload', 'prune',
+    # 2026-09-25: owner-approved tier proposals (PHASE4_TIER_COVERAGE_REPORT.md), 18 RED.
+    'autonomous_chaining', 'autopilot_trigger', 'create_and_upload', 'cross_machine', 'delete_client',
+    'escalate', 'execute_scheduled_uploads', 'github', 'hot_reload', 'prune_retention',
+    'rollback', 'run_pending', 'schedule_upload', 'upload_instagram', 'upload_tiktok', 'upload_twitter',
+    'upload_youtube',
 }
 _FROZEN_YELLOW = {
     'add_deadline', 'commit_code', 'create_calendar_event', 'create_project', 'finance_report', 'journal',
@@ -182,6 +189,20 @@ _FROZEN_YELLOW = {
     # WRITE_COMMANDS) -- reversible/local-state mutation, not GREEN
     # read-only.
     'place pin', 'intel pin',
+    # 2026-09-25 (Governor untiered-name closure):
+    'backup_db', 'write', 'generate', 'create', 'create_branch', 'update_draft', 'generate_tests', 'merge',
+    'add_call_contact', 'add_course',
+    # 2026-09-25: owner-approved tier proposals, 52 YELLOW (48 proposed + 4 demoted from GREEN after tracing handlers).
+    'acknowledge', 'acknowledge_alert', 'add_background_music', 'add_client', 'add_subtitles',
+    'add_transitions', 'adjust_voice_speed', 'analyze_feedback', 'blocklist', 'build_storyboard', 'capture_url',
+    'clone_voice', 'create_note', 'dead_code_cleanup', 'detection_rule', 'district_report', 'download_dataset',
+    'export_report', 'extract_audio', 'fetch_trending', 'generate_batch', 'generate_captions',
+    'generate_config', 'generate_highlight_captions', 'generate_in_my_voice', 'generate_response',
+    'generate_subtitles', 'generate_tags', 'generate_voice', 'health_check', 'link_notes', 'log_step',
+    'memory_store', 'merge_clips', 'network_scan', 'organize_notes', 'port_scan', 'preprocess_data',
+    'process_event', 'refactor_clean', 'remove_metric', 'save_note', 'scan_artifact', 'scan_vulnerabilities',
+    'start_run', 'title_thumbnail', 'tokenize_data', 'track_metric', 'translate_captions', 'trim_video',
+    'update_client', 'yt_dlp',
 }
 
 
@@ -393,3 +414,37 @@ async def test_state_of_my_repo_phrasing_routes_to_git_status():
         result = await governor.classify_chat_intent("What's the state of my git repository at the moment?")
     assert result.get("type") == "git_status", result
     assert result.get("district") == "coding"
+
+
+# ── 7. 2026-09-25 owner-approved tier proposals ──────────────────────────────────────────────────────────────────────
+
+_NEW_GREEN = ['active_alerts', 'alert_anomaly', 'analyze_competitor', 'analyze_financials', 'analyze_gaps', 'ast_analysis', 'calculate_indicators', 'check_pep8', 'check_valuation', 'client_summary', 'code_review', 'compare_to_sector', 'deep_code_review', 'dependency_trace', 'design_architecture', 'detect_anomalies', 'detect_patterns', 'dividend_analysis', 'estimate_compute', 'evaluate', 'extract_action_items', 'extract_concepts', 'get_at_risk_clients', 'get_client', 'get_comparison', 'get_metric_summary', 'get_price_data', 'get_progress', 'get_top_clients', 'get_trend', 'get_voices', 'hedge_status', 'identify_improvements', 'job_history', 'job_queue', 'job_status', 'list_alerts', 'list_clients', 'list_incidents', 'list_models', 'list_rules', 'list_skills', 'log_query', 'match_event', 'memory_query', 'obra_review', 'order_summary', 'portfolio_summary', 'prioritize_gaps', 'profile_competitor', 'progress_report', 'recommend', 'review_security', 'root_cause', 'security_code_review', 'session_report', 'siem_alerts', 'siem_stats', 'suggest_learning_path', 'suggest_prerequisites', 'summarize_transcript', 'text_to_ssml', 'transcribe_audio', 'upload_history']
+
+
+def test_owner_approved_proposals_classify_as_approved():
+    gw = PermissionGateway()
+    for name in _NEW_GREEN:
+        assert gw._classify(name) == "GREEN", name
+    for name in ['acknowledge', 'acknowledge_alert', 'add_background_music', 'add_client', 'add_subtitles', 'add_transitions', 'adjust_voice_speed', 'analyze_feedback', 'blocklist', 'build_storyboard', 'capture_url', 'clone_voice', 'create_note', 'dead_code_cleanup', 'detection_rule', 'district_report', 'download_dataset', 'export_report', 'extract_audio', 'fetch_trending', 'generate_batch', 'generate_captions', 'generate_config', 'generate_highlight_captions', 'generate_in_my_voice', 'generate_response', 'generate_subtitles', 'generate_tags', 'generate_voice', 'health_check', 'link_notes', 'log_step', 'memory_store', 'merge_clips', 'network_scan', 'organize_notes', 'port_scan', 'preprocess_data', 'process_event', 'refactor_clean', 'remove_metric', 'save_note', 'scan_artifact', 'scan_vulnerabilities', 'start_run', 'title_thumbnail', 'tokenize_data', 'track_metric', 'translate_captions', 'trim_video', 'update_client', 'yt_dlp']:
+        assert gw._classify(name) == "YELLOW", name
+    for name in ['autonomous_chaining', 'autopilot_trigger', 'create_and_upload', 'cross_machine', 'delete_client', 'escalate', 'execute_scheduled_uploads', 'github', 'hot_reload', 'prune_retention', 'rollback', 'run_pending', 'schedule_upload', 'upload_instagram', 'upload_tiktok', 'upload_twitter', 'upload_youtube']:
+        assert gw._classify(name) == "RED", name
+
+
+def test_the_four_green_proposals_demoted_after_tracing_their_handlers_are_yellow():
+    gw = PermissionGateway()
+    for name in ("analyze_feedback", "district_report", "health_check", "generate_response"):
+        assert gw._classify(name) == "YELLOW", name
+
+
+def test_publishing_and_destructive_capabilities_are_red():
+    gw = PermissionGateway()
+    for name in ("upload_youtube", "upload_instagram", "upload_tiktok", "upload_twitter", "delete_client",
+                 "prune_retention", "rollback", "github", "hot_reload"):
+        assert gw._classify(name) == "RED", name
+
+
+def test_pure_routing_labels_stay_unknown_and_blocked():
+    gw = PermissionGateway()
+    for label in ("budgeting", "tracking", "patterns", "audit"):
+        assert gw._classify(label) == "UNKNOWN", label

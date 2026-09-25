@@ -226,7 +226,8 @@ class TestGovernorDispatchTimeout:
             mock_bm.return_value.check_quota.return_value = (True, "ok")
 
             start = time.monotonic()
-            result = await g.dispatch({"type": "test_hang_task", "district": "research", "params": {}})
+            # git_status: a real GREEN task type (an invented name would now be refused before ever reaching the agent).
+            result = await g.dispatch({"type": "git_status", "district": "research", "params": {}})
             elapsed = time.monotonic() - start
 
         assert result.get("status") == "timeout"

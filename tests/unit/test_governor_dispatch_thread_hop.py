@@ -121,7 +121,9 @@ async def test_dispatch_routes_unknown_task_via_async_llm_fallback(monkeypatch):
 
     monkeypatch.setattr(ollama_safe, "chat", lambda *a, **kw: "")
     gov = Governor()
-    result = await gov.dispatch({"type": "totally_unknown_task_xyz_89a"})
+    # "_llm_classified" is what classify_chat_intent() sets on a freshly LLM-invented task type -- the one kind of
+    # unknown type that is still routed (an unmarked invented name is refused since 2026-09-25).
+    result = await gov.dispatch({"type": "totally_unknown_task_xyz_89a", "_llm_classified": True})
     assert result.get("district") == "research"
     assert "task_id" in result
 

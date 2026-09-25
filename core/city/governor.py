@@ -1389,6 +1389,10 @@ def _known_action_identities() -> frozenset[str]:
     return frozenset(names)
 
 
+_DESTRUCTIVE_VERBS = frozenset({"delete", "remove", "erase", "wipe", "destroy", "purge", "prune", "format", "kill",
+                                "overwrite", "drop", "truncate", "shred", "rollback"})
+
+
 @functools.lru_cache(maxsize=1)
 def _elevated_risk_words() -> frozenset[str]:
     """Words (>=4 chars) that occur in RED/FORBIDDEN/council/owner-approval/
@@ -1417,7 +1421,13 @@ def _elevated_risk_words() -> frozenset[str]:
         for w in _words(n):
             freq[w] = freq.get(w, 0) + 1
     elevated_words = set().union(*[_words(n) for n in elevated_names]) if elevated_names else set()
-    return frozenset(w for w in elevated_words - green_words if freq.get(w, 0) <= 2)
+    common_ok = {w for w in elevated_words - green_words if freq.get(w, 0) <= 2}
+    # 2026-09-25: the ">2 names -> no signal" filter tuned itself out of existence for the most dangerous words. Adding
+    # a second RED name containing "delete" (delete_client) pushed its count to 3, "delete" stopped being a risk word,
+    # and "delete_everything_now" was again rewritten into a GREEN action (tests/test_v1_trust_t2_action_identity.py).
+    # A destructive verb must stay elevated however many RED names use it, unless a GREEN name uses it too.
+    destructive = {w for w in _DESTRUCTIVE_VERBS if w in elevated_words} - green_words
+    return frozenset(common_ok | destructive)
 
 
 def _is_risk_elevated_label(task_type: str) -> bool:
@@ -1950,6 +1960,24 @@ class Governor:
         except Exception as e:
             logger.warning("[VECTOR][governor] publish event failed: {}", e)
 
+    def _is_known_task_type(self, task_type: str) -> bool:
+        """True when this name is a real, catalogued identity: a routing key, an alias, or a capability that a registered
+        agent declares. Used only for names that are in no permission tier (see dispatch())."""
+        if not isinstance(task_type, str) or not task_type:
+            return False
+        low = task_type.lower()
+        if low in DISTRICT_TASK_MAP or task_type in DISTRICT_TASK_MAP or task_type in _TASK_IDENTITY_ALIASES:
+            return True
+        if task_type in _known_action_identities():
+            return True
+        try:
+            for agent in self._get_registry().get_all_agents():
+                if task_type in (getattr(agent, "capabilities", None) or []):
+                    return True
+        except Exception as exc:
+            logger.warning("[VECTOR][governor] capability lookup failed for '{}' -- treating as unknown: {}", task_type, exc)
+        return False
+
     def route_task(self, task_type: str) -> str:
         """Determine which district should handle this task type.
         First tries keyword matching (fast, free). Falls back to LLM classification.
@@ -2448,11 +2476,31 @@ class Governor:
                     "task_id": task_id,
                 }
 
+        # 2026-09-25 (closes the 2026-09-24 self-review finding described below): UNKNOWN is deliberately not blocked by the
+        # tier check above, because a few hundred agent-declared capability LABELS are untiered. But that left any
+        # string an agent happens to branch on internally reachable by naming its district. An UNKNOWN task type now has
+        # to be KNOWN: a routing key, an alias, a capability some registered agent declares, or a freshly LLM-classified
+        # chat type (those already get an honest "no_capable_agent" below). Everything consequential that agents
+        # declare was tiered the same day (cleanup_logs RED, backup_db YELLOW, delete/publish/upload RED, ...).
+        if _tier == "UNKNOWN" and not task.get("_llm_classified") and not self._is_known_task_type(task_type):
+            logger.warning(
+                "[VECTOR][governor] REFUSED dispatch of unclassified, undeclared task_type '{}' (district named by "
+                "caller: {})", task_type, task.get("district"),
+            )
+            return {
+                "status": "blocked",
+                "reason": (
+                    f"'{task_type}' is not a known task type: it is in no permission tier, no routing table and no "
+                    f"registered agent's declared capabilities, so naming a district does not make it dispatchable"
+                ),
+                "task_id": task_id,
+            }
+
         # 2026-09-08 (T89A): route_task_async(), not route_task() — see that
         # method's docstring for why (event-loop-blocking fix, narrowly
         # scoped to this one call site).
         #
-        # 2026-09-24 (self-review finding, NOT YET FIXED -- see
+        # 2026-09-24 (self-review finding, CLOSED 2026-09-25 by the check above -- see
         # VECTOR_TECHNICAL_KNOWLEDGE for the write-up, flagged for the
         # next Codex round): a caller-supplied district is trusted
         # unconditionally for ANY task_type, including agent-internal
