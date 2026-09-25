@@ -15,13 +15,20 @@ grew open engineering items; section 0 lists them.
    re-verified against a live multi-hour run.**
 2. **Live re-verification** of the Phase 1–6 fixes (`KNOWN_ISSUES.md` #9) and of the
    2026-09-24 review fixes — needs a live backend.
-3. **`Governor.dispatch()` trusts a caller-supplied `district`** for task types outside
-   `DISTRICT_TASK_MAP` (e.g. `{"type":"cleanup_logs","district":"ops"}` runs with no
-   receipt). Confirmed, deliberately unfixed pending an adversarial (Codex) review
-   after its quota resets 2026-09-27.
-4. **Permission-tier coverage**: 134 action-shaped manifest capabilities have no tier
-   (blocked, fail-closed). Proposals in `VECTOR_TECHNICAL_KNOWLEDGE/PHASE4_TIER_COVERAGE_REPORT.md`;
-   owner approval required before any change.
+3. **`Governor.dispatch()` trusted a caller-supplied `district`** — **CLOSED 2026-09-25** (Claude self-review; an
+   independent Codex review is still owed once its quota is back after 2026-09-27 7:11 PM). Two parts: (a) every
+   consequential agent-declared name that was UNKNOWN is now tiered (`cleanup_logs` RED, `backup_db` YELLOW,
+   `delete`/`publish`/`upload`/`prune` RED, `write`/`generate`/`create`/`merge`/... YELLOW; see `core/config.py`); (b) an
+   UNKNOWN task type that is not a routing key, alias, agent-declared capability or freshly LLM-classified chat type is
+   now refused with `blocked`, whatever district the caller names. Also fixed on the way: the "risk word" filter dropped
+   `delete` from the destructive vocabulary once a second RED name used it; destructive verbs are now always elevated.
+   Tests: `tests/test_governor_unknown_task_gate.py`. `execute_playbook` is deliberately left untiered: the playbook runner
+   gates every destructive step through the gateway itself (`tests/test_task58f_*`).
+4. **Permission-tier coverage** — **APPLIED 2026-09-25** with your approval: 17 RED (of 18 proposed; see below), 52 YELLOW (48 proposed + 4 GREEN
+   proposals demoted after tracing their handlers: `analyze_feedback` persists, `district_report` writes files,
+   `health_check` makes an outbound request, `generate_response` calls a routed LLM), 64 GREEN, plus 19 more agent-declared
+   names in the Governor closure above. `execute_playbook` was dropped from RED (double gate). Pure routing labels stay
+   UNKNOWN. The frozen tier guard (`tests/test_v1_trust_t3_permission_vocabulary.py`) was updated in the same commit.
 5. **Routing**: `KNOWN_ISSUES.md` #10 ("remember X" misroute) is **resolved** in code
    (`_authoritative_district_from_text` + honest `no_capable_agent`); the entry is kept for history.
 6. **Content pipeline** (2026-09-24): a daily `content-plan` cron job now plans script -> `schedule_post`
@@ -79,9 +86,16 @@ grew open engineering items; section 0 lists them.
     import (the live agent is `engine/agent_loop.py`, which does not use it); `batch_runner` needs the `fire`
     package; `pty_bridge` is Unix-only; `acp_adapter` needs `agent-client-protocol`; non-Ollama providers are
     text-only (no tool calling) so `vector run/auto` need a local Ollama model; `mining.vllm_pearl` is missing.
-14. **Code intelligence is not built** (`vectorcode/code_intel` has no `dist/`; it also needs Node, Qdrant and an
-    embedding model). `/code-intel/*` now answers 503 with the build command and no longer docks agent HP.
-    Building it is an owner decision (Node/Qdrant install).
+14. **Code intelligence** — **INSTALLED 2026-09-25**: `vectorcode/code_intel` dependencies installed (`npm ci`) and built
+    (`dist/`), a native Qdrant 1.19.1 in `vectorcode/code_intel/qdrant/` (git-ignored; localhost only, data in
+    `~/.vector/qdrant`), `scripts/start_code_intel.bat` / `stop_code_intel.bat`, and the `nomic-embed-text` model you already
+    had. Not started automatically (your no-extra-servers rule): run the start script, then use `/code-intel/*`
+    (`vc_health` first). Verified end to end on a throwaway project: index, semantic search (found the tax function for a
+    plain-English question), call graph, symbol lookup and impact analysis. The agent's transport was rewritten because it
+    could never have worked: no MCP handshake, wrong environment-variable names (so the server demanded Docker), a repo-root
+    path one level too high (so the build was never found), a fresh server per call (which killed every background index job)
+    and a blocking subprocess inside an async method. **Not done**: indexing the whole VECTOR repo (thousands of files; run
+    `POST /code-intel/index` when you want it — it loads the embedding model and competes with `vector-focus` for the GPU).
 15. **Stray test write in the live home** — while adding the router tests, one child process inherited the real
     `VECTOR_HOME` and wrote a single line ("vector test fact") to `~/.vector/memories/MEMORY.md` (new dir, only
     that file + `MEMORY.md.lock`). Test fixtures are fixed so it cannot recur; the file itself is left for the

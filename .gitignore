@@ -221,3 +221,6 @@ data/models/neural_policy.pt
 data/models/neural_policy.meta.json
 data/pc_screenshot.png
 .claude/settings.local.backup-*.json
+
+# Native Qdrant binary for code intelligence (downloaded, not versioned)
+vectorcode/code_intel/qdrant/
