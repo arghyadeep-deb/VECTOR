@@ -50,10 +50,15 @@ Current situation:
 
 Respond with just: noop | act:<action> | escalate:<reason>"""
 
+            # ProviderClient.complete() is single-turn: `prompt` is its first positional argument and there is no
+            # `messages=`. This call used the chat-style shape, so every run raised "missing 1 required positional
+            # argument: 'prompt'" and the subconscious layer never once reasoned (found by the 2026-09-26 loop watch).
             response = await client.complete(
+                prompt,
                 model=CONFIG.get("models", {}).get("focus", "vector-focus"),
-                messages=[{"role": "user", "content": prompt}],
                 max_tokens=100,
+                caller_id="subconscious_loop",
+                district="chief_of_staff",
             )
             decision = (response.content or "noop").strip().lower()
             self._last_report = situation

@@ -233,21 +233,35 @@ class ProviderClient:
 
     async def complete(
         self,
-        prompt: str,
+        prompt: str | None = None,
         system: str | None = None,
         provider: str | None = None,
         model: str | None = None,
         tier: str = "agentic",
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        messages: list[dict] | None = None,
         **kwargs,
     ) -> CompletionResult:
         """Single-turn completion. Extra kwargs (caller_id, district,
-        sensitive, ...) pass through to chat()."""
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        sensitive, ...) pass through to chat().
+
+        Pass either `prompt` (optionally with `system`) or ready-made chat `messages`, not both. The `messages` form is
+        accepted because seven callers (the /command registry, four marketing agents, the subconscious loop) were
+        written against it and every call raised "missing 1 required positional argument: 'prompt'", so those agents
+        never produced an answer (found by the 2026-09-26 loop watch).
+        """
+        if messages is not None:
+            if prompt is not None:
+                raise TypeError("complete() takes either prompt or messages, not both")
+            messages = list(messages)
+        else:
+            if prompt is None:
+                raise TypeError("complete() needs a prompt (or messages=)")
+            messages = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            messages.append({"role": "user", "content": prompt})
         return await self.chat(messages, provider=provider, model=model,
                                tier=tier, temperature=temperature,
                                max_tokens=max_tokens, **kwargs)
