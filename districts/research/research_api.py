@@ -117,7 +117,7 @@ def quick_research(query: str, save_to_brain: bool = True) -> dict:
         return result
     except Exception as e:
         logger.error("[VECTOR][research_api] quick_research failed: {}", e)
-        return {"summary": f"Research failed: {e}", "findings": [], "sources": []}
+        return {"summary": f"Research failed: {e}", "findings": [], "sources": [], "error": str(e)}
 
 def generate_report(query: str, searches_per_section: int = 2,
                     save_to_brain: bool = True) -> dict:
@@ -146,7 +146,7 @@ def generate_report(query: str, searches_per_section: int = 2,
         return result
     except Exception as e:
         logger.error("[VECTOR][research_api] generate_report failed: {}", e)
-        return {"content": f"Report generation failed: {e}", "metadata": {}}
+        return {"content": f"Report generation failed: {e}", "metadata": {}, "error": str(e)}
 
 def research_papers(query: str, max_results: int = 10) -> dict:
     """
@@ -170,7 +170,7 @@ def research_papers(query: str, max_results: int = 10) -> dict:
         return result
     except Exception as e:
         logger.error("[VECTOR][research_api] research_papers failed: {}", e)
-        return {"summary": f"Paper research failed: {e}", "findings": [], "sources": []}
+        return {"summary": f"Paper research failed: {e}", "findings": [], "sources": [], "error": str(e)}
 
 def research_news(query: str, max_results: int = 10) -> dict:
     """
@@ -192,7 +192,7 @@ def research_news(query: str, max_results: int = 10) -> dict:
         return result
     except Exception as e:
         logger.error("[VECTOR][research_api] research_news failed: {}", e)
-        return {"summary": f"News research failed: {e}", "findings": [], "sources": []}
+        return {"summary": f"News research failed: {e}", "findings": [], "sources": [], "error": str(e)}
 
 def analyze_documents(query: str, collection_name: str,
                       max_results: int = 10) -> dict:
@@ -212,7 +212,7 @@ def analyze_documents(query: str, collection_name: str,
         return result
     except Exception as e:
         logger.error("[VECTOR][research_api] analyze_documents failed: {}", e)
-        return {"summary": f"Document analysis failed: {e}", "documents": []}
+        return {"summary": f"Document analysis failed: {e}", "documents": [], "error": str(e)}
 
 if __name__ == "__main__":
     # Smoke test — quick research with no API key
