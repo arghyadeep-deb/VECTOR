@@ -518,15 +518,21 @@ async def test_voice_generator_run_get_voices_routes_to_get_available_voices():
 
 
 @pytest.mark.asyncio
-async def test_voice_generator_run_generate_voice_routes_correctly():
+async def test_voice_generator_run_generate_voice_routes_correctly(monkeypatch):
     agent = VoiceGenerator()
+    # This test is about dispatch, not about whether a TTS engine happens to be installed: since generate_voice() was
+    # fixed to use the real kokoro_onnx API (2026-09-26) it succeeds wherever the local model exists, so pin the
+    # engine to "unavailable" to keep the graceful-error contract deterministic. Real synthesis is covered by
+    # tests/test_voice_generator_kokoro.py.
+    monkeypatch.setattr(agent, "_available", True)
+    monkeypatch.setattr(agent, "_load_kokoro", lambda: (_ for _ in ()).throw(RuntimeError("no loadable Kokoro model")))
     result = await agent.run({
         "type": "generate_voice",
         "params": {"text": "Hello world", "voice_name": "af_heart"},
     })
     assert isinstance(result, dict)
     assert "agent" not in result
-    assert result.get("status") == "error"  # no TTS engine in test env -> graceful, never crashes
+    assert result.get("status") == "error"  # engine failure -> graceful, never crashes
 
 
 @pytest.mark.asyncio

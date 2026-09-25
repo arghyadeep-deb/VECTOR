@@ -483,7 +483,10 @@ class VideoPipelineAgent(AgentBase):
         try:
             from districts.content.voice_generator import VoiceGenerator
             vg = VoiceGenerator()
-            result = await vg.generate_voice(text, voice_name="bf_emma", output_path=output_path)
+            # generate_voice() is synchronous and CPU/GPU heavy: awaiting it raised "object dict can't be used in
+            # 'await' expression" (caught below), so narration was never produced. Run it off the event loop instead;
+            # no voice_name means VECTOR's configured voice (owner rule: male voices only).
+            result = await asyncio.to_thread(vg.generate_voice, text, None, output_path)
             if isinstance(result, dict) and result.get("status") == "success":
                 return output_path
         except Exception as e:
