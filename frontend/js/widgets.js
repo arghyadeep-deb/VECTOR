@@ -2351,7 +2351,7 @@
     const fit = ()=>{   // re-fit whenever the widget's natural size changes (panels fill in after they open)
       const st = ws().getBoundingClientRect(), nw = w.offsetWidth || 420, nh = w.offsetHeight || 340, key = nw+'x'+nh;
       if(key === last) return; last = key;
-      const z = Math.max(1, Math.min(1.8, (st.height*0.84)/nh, (st.width*0.62)/nw));
+      const z = Math.max(0.75, Math.min(1.8, (st.height*0.84)/nh, (st.width*0.33)/nw));   // <=33% of the stage wide: fits a vertical 9:16 crop
       w.style.zoom = z; w.style.animation = 'none';
       w.style.left = Math.max(0, (st.width - nw*z)/2/z) + 'px';
       w.style.top  = Math.max(0, (st.height - nh*z)/2/z - 20/z) + 'px';
