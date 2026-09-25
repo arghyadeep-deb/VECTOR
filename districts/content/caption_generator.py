@@ -28,10 +28,47 @@ def _llm(prompt: str, tier: str = "agentic", max_tokens: int = 800, temperature:
         return pool.submit(_asyncio.run, _call()).result(timeout=90)
 
 
+# Natural speaking pace, used only to ESTIMATE timing when no audio timing exists.
+_EST_CHARS_PER_SEC = 15.0
+
+
+def _fmt_ts(seconds: float) -> str:
+    """Seconds -> SRT timestamp `HH:MM:SS,mmm`."""
+    ms = max(0, int(round(seconds * 1000)))
+    h, ms = divmod(ms, 3_600_000)
+    m, ms = divmod(ms, 60_000)
+    s, ms = divmod(ms, 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _wrap(words: list[str], max_chars: int, max_lines: int) -> list[str]:
+    """Greedily pack words into caption chunks of <= max_lines lines of <= max_chars chars."""
+    chunks: list[str] = []
+    lines: list[str] = []
+    line = ""
+    for w in words:
+        if not line:
+            line = w
+        elif len(line) + 1 + len(w) <= max_chars:
+            line += " " + w
+        else:
+            lines.append(line)
+            line = w
+            if len(lines) == max_lines:
+                chunks.append("\n".join(lines))
+                lines = []
+    if line:
+        lines.append(line)
+    if lines:
+        chunks.append("\n".join(lines))
+    return chunks
+
+
 class CaptionGenerator(AgentBase):
     """
     Generates video captions and subtitles in various formats.
-    Supports multiple caption styles and formats.
+    Timing comes from real audio timing (Whisper segments) or, failing that,
+    an explicit estimate -- never from an LLM, which cannot hear the audio.
     """
 
     CAPTION_STYLES = {
@@ -53,7 +90,7 @@ class CaptionGenerator(AgentBase):
             "max_chars_per_line": 50,
             "max_lines": 1
         },
-        " karaoke": {
+        "karaoke": {
             "font_size": "medium",
             "position": "center",
             "highlight": True,
@@ -73,36 +110,34 @@ class CaptionGenerator(AgentBase):
         self._generated_captions: list[dict] = []
         logger.info("[VECTOR][caption_generator] CaptionGenerator initialized")
 
-    def generate_captions(self, transcript: str, style: str = "standard") -> dict:
+    def generate_captions(self, transcript: str, style: str = "standard",
+                          segments: list[dict] | None = None,
+                          duration: float | None = None) -> dict:
         """
-        Generate formatted captions from transcript.
-        Automatically splits text into timed caption blocks.
+        Turn a transcript into timed caption blocks.
+
+        `segments` ([{start, end, text}] in seconds, e.g. Whisper output) gives
+        real timing ("timing": "whisper"). Without it the transcript is spread
+        over `duration` (or an estimate from text length) and marked
+        "timing": "estimated". No LLM is involved: it cannot hear the audio.
         """
         style_config = self.CAPTION_STYLES.get(style, self.CAPTION_STYLES["standard"])
 
-        prompt = f"""Convert this transcript into timed caption blocks.
-
-Style: {style}
-Max characters per line: {style_config['max_chars_per_line']}
-Max lines per caption: {style_config['max_lines']}
-
-Transcript:
-{transcript[:4000]}
-
-Format each caption as:
-[TIMESTAMP] Text content
-
-Use natural break points. Keep each caption concise.
-Timestamps in format: 00:00:00 --> 00:00:03
-"""
+        if segments:
+            timing = "whisper"
+        else:
+            timing = "estimated"
+            if not transcript.strip():
+                return {"status": "error", "error": "empty transcript", "transcript": transcript}
+            span = float(duration) if duration else max(len(transcript) / _EST_CHARS_PER_SEC, 1.0)
+            segments = [{"start": 0.0, "end": span, "text": transcript}]
 
         try:
-            caption_text = _llm(prompt, tier="fast", max_tokens=1000)
-            captions = self._parse_caption_blocks(caption_text, style)
-
+            captions = self._blocks_from_segments(segments, style_config, style)
             caption_data = {
                 "id": str(uuid.uuid4()),
                 "style": style,
+                "timing": timing,
                 "blocks": captions,
                 "count": len(captions),
                 "created_at": self._get_timestamp()
@@ -120,47 +155,31 @@ Timestamps in format: 00:00:00 --> 00:00:03
             logger.error(f"[VECTOR][caption_generator] Caption generation failed: {e}")
             return {"transcript": transcript, "error": str(e)}
 
-    def _parse_caption_blocks(self, caption_text: str, style: str) -> list[dict]:
-        """Parse caption blocks from LLM response."""
-        blocks = []
-        import re
-
-        timestamp_pattern = r'(\d{2}:\d{2}:\d{2})\s*-->\s*(\d{2}:\d{2}:\d{2})'
-        lines = caption_text.split('\n')
-
-        current_start = None
-        current_end = None
-        current_text = []
-
-        for line in lines:
-            line = line.strip()
-            if not line:
+    @staticmethod
+    def _blocks_from_segments(segments: list[dict], style_config: dict, style: str) -> list[dict]:
+        """Split each segment's text into caption blocks inside that segment's own
+        time window, sharing the window in proportion to text length."""
+        blocks: list[dict] = []
+        for seg in segments:
+            words = str(seg.get("text", "")).split()
+            if not words:
                 continue
-
-            match = re.search(timestamp_pattern, line)
-            if match:
-                if current_start and current_text:
-                    blocks.append({
-                        "start": current_start,
-                        "end": current_end,
-                        "text": " ".join(current_text),
-                        "style": style
-                    })
-
-                current_start = match.group(1)
-                current_end = match.group(2)
-                current_text = []
-            else:
-                current_text.append(line)
-
-        if current_start and current_text:
-            blocks.append({
-                "start": current_start,
-                "end": current_end,
-                "text": " ".join(current_text),
-                "style": style
-            })
-
+            start = float(seg["start"])
+            if blocks:
+                start = max(start, blocks[-1]["end_s"])  # never overlap the previous block
+            end = max(float(seg["end"]), start + 0.04)
+            chunks = _wrap(words, style_config["max_chars_per_line"], style_config["max_lines"])
+            total = sum(len(c.replace("\n", " ")) for c in chunks)
+            t = start
+            for i, chunk in enumerate(chunks):
+                share = len(chunk.replace("\n", " ")) / total
+                t_end = end if i == len(chunks) - 1 else t + share * (end - start)
+                blocks.append({
+                    "start": _fmt_ts(t), "end": _fmt_ts(t_end),
+                    "start_s": t, "end_s": t_end,
+                    "text": chunk, "style": style,
+                })
+                t = t_end
         return blocks
 
     def generate_subtitles(self, video_path: str, style: str = "standard",
@@ -184,7 +203,9 @@ Timestamps in format: 00:00:00 --> 00:00:03
                 "details": transcription
             }
 
-        captions = self.generate_captions(transcription["text"], style)
+        captions = self.generate_captions(
+            transcription["text"], style, segments=transcription.get("segments"),
+        )
 
         if output_format != "json":
             formatted = self._format_captions(
@@ -225,7 +246,8 @@ Timestamps in format: 00:00:00 --> 00:00:03
         """Convert to WebVTT format."""
         output = ["WEBVTT", ""]
         for block in blocks:
-            output.append(f"{block['start']} --> {block['end']}")
+            # WebVTT uses '.' before the milliseconds; SRT (block times) uses ','
+            output.append(f"{block['start'].replace(',', '.')} --> {block['end'].replace(',', '.')}")
             output.append(block['text'])
             output.append("")
         return "\n".join(output)

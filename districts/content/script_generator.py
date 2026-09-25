@@ -45,6 +45,10 @@ class ScriptGenerator(AgentBase):
             "sections": ["hook", "punch_line"],
             "avg_pacing": "fast"
         },
+        "reel": {
+            "sections": ["hook", "body", "cta"],
+            "avg_pacing": "fast"
+        },
         "explainer": {
             "sections": ["hook", "problem", "solution", "benefits", "cta"],
             "avg_pacing": "medium"
@@ -83,24 +87,36 @@ class ScriptGenerator(AgentBase):
     def reset_script_cache(cls) -> None:
         cls._script_cache.clear()
 
-    def _cached_script(self, topic: str, duration_min: float, script_type: str) -> dict | None:
+    @staticmethod
+    def _cache_key(topic: str, duration_min: float, script_type: str, facts: str | None) -> tuple:
+        return (topic.strip().lower(), duration_min, script_type, hash(facts) if facts else None)
+
+    def _cached_script(self, topic: str, duration_min: float, script_type: str,
+                       facts: str | None = None) -> dict | None:
         import time
-        entry = ScriptGenerator._script_cache.get((topic.strip().lower(), duration_min, script_type))
+        entry = ScriptGenerator._script_cache.get(self._cache_key(topic, duration_min, script_type, facts))
         if entry and (time.time() - entry[0]) < self._TOPIC_COOLDOWN_SECONDS:
             return entry[1]
         return None
 
-    def _remember_script(self, topic: str, duration_min: float, script_type: str, script: dict) -> None:
+    def _remember_script(self, topic: str, duration_min: float, script_type: str, script: dict,
+                         facts: str | None = None) -> None:
         import time
-        ScriptGenerator._script_cache[(topic.strip().lower(), duration_min, script_type)] = (time.time(), script)
+        ScriptGenerator._script_cache[self._cache_key(topic, duration_min, script_type, facts)] = (time.time(), script)
 
     async def generate_script(self, topic: str, duration_min: float = 5.0,
-                        script_type: str = "youtube_tutorial") -> dict:
+                        script_type: str = "youtube_tutorial",
+                        facts: str | None = None) -> dict:
         """
         Generate a complete video script for a topic.
         Duration in minutes, script_type determines structure.
+
+        `facts` is verified ground truth about the topic. Without it the model only
+        has the topic string and will invent details (2026-09-25: it made up
+        "personalities, economies and lives" for VECTOR's agents), so pass facts
+        whenever the script must be accurate.
         """
-        cached = self._cached_script(topic, duration_min, script_type)
+        cached = self._cached_script(topic, duration_min, script_type, facts)
         if cached is not None:
             logger.debug(
                 "[VECTOR][script_generator] '{}' generated within the last {:.0f}s "
@@ -130,6 +146,12 @@ For each section provide:
 Make it engaging, natural-sounding, and suitable for video format.
 Format with clear section headers.
 """
+        if facts:
+            prompt += f"""
+Ground truth (use ONLY these facts). Do not invent features, numbers, names or visuals
+that are not stated here. If something is not covered by these facts, leave it out:
+{facts}
+"""
 
         try:
             script_content = await _llm(prompt, max_tokens=2000)
@@ -147,7 +169,7 @@ Format with clear section headers.
             }
 
             self._generated_scripts.append(script)
-            self._remember_script(topic, duration_min, script_type, script)
+            self._remember_script(topic, duration_min, script_type, script, facts)
             self.award_points(25, f"script_generated_{topic[:20]}")
 
             logger.info(f"[VECTOR][script_generator] Generated {duration_min}min script for: {topic}")
@@ -374,7 +396,10 @@ Return the expanded script with the same format.
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        result = await self.generate_script(p.get("topic", "AI trends"), p.get("duration_min", 5.0))
+        result = await self.generate_script(
+            p.get("topic", "AI trends"), p.get("duration_min", 5.0),
+            p.get("script_type", "youtube_tutorial"), facts=p.get("facts"),
+        )
         return {"status": "ok", **result}
 
 
