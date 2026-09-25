@@ -75,7 +75,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     "o4-mini": [
         ("github_models", "o4-mini"),                        # FREE via GitHub token
         ("openrouter",    "openai/o4-mini"),
-        ("groq",          "llama-3.3-70b-versatile"),        # fast fallback if GH exhausted
+        ("groq",          "openai/gpt-oss-120b"),            # fast fallback if GH exhausted
     ],
 
     # ── Phi-4-reasoning (GitHub Models free, strong math/reasoning) ───────────
@@ -88,7 +88,6 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     "deepseek-r1": [
         ("github_models", "DeepSeek-R1-0528"),                # FREE via GitHub token (newest)
         ("github_models", "DeepSeek-R1"),                     # FREE via GitHub token
-        ("groq",          "deepseek-r1-distill-llama-70b"),   # fast distilled
         ("nvidia",        "deepseek/deepseek-r1"),            # free NIM credits
         ("ollama",        "deepseek-r1:14b"),                  # local
     ],
@@ -101,7 +100,6 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
 
     # ── Llama 3.3 70B (FREE everywhere) ───────────────────────────────────────
     "llama-3.3-70b": [
-        ("groq",       "llama-3.3-70b-versatile"),            # fastest free
         ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
         ("openrouter", "meta-llama/llama-3.3-70b-instruct:free"),
         ("nvidia",     "meta/llama-3.3-70b-instruct"),

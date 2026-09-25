@@ -26,8 +26,8 @@ def _fresh():
 
 def test_cloud_model_passthrough_verbatim():
     groq = PROVIDERS["groq"]
-    assert _model_for_provider(groq, "llama-3.3-70b-versatile", "fast") == \
-        "llama-3.3-70b-versatile"
+    assert _model_for_provider(groq, "openai/gpt-oss-120b", "fast") == \
+        "openai/gpt-oss-120b"
 
 
 def test_ollama_gets_requested_local_model():
@@ -47,9 +47,9 @@ def test_local_name_plus_tier_yields_catalog_pick():
 
 def test_no_model_yields_tier_pick_not_default():
     groq = PROVIDERS["groq"]
-    assert _model_for_provider(groq, None, "fast") == "llama-3.1-8b-instant"
+    assert _model_for_provider(groq, None, "fast") == "openai/gpt-oss-20b"
     cerebras = PROVIDERS["cerebras"]
-    assert _model_for_provider(cerebras, None, "reasoning") == "zai-glm-4.7"
+    assert _model_for_provider(cerebras, None, "reasoning") == "gpt-oss-120b"
 
 
 def test_unknown_tier_falls_back_to_default():

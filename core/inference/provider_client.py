@@ -722,6 +722,19 @@ class ProviderClient:
                     await asyncio.sleep(0.05)
                     continue
 
+                # A host name that does not resolve will not resolve in 1-2s either
+                # (github_models' old base URL, 2026-09): fail over now, don't back off.
+                if (
+                    "getaddrinfo failed" in low
+                    or "name or service not known" in low
+                    or "name resolution" in low
+                ):
+                    logger.warning(
+                        "[VECTOR][provider_client] {} host does not resolve -- failing over immediately",
+                        prov.slug,
+                    )
+                    raise
+
                 # auth error on a multi-key pool → try the next key instead of bailing
                 if use_reliable and is_non_retryable(err) and not (is_key_err and pool.size > 1):
                     raise

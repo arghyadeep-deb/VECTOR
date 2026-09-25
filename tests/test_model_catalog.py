@@ -51,13 +51,13 @@ def test_locked_provider_models_match_registry_whitelist():
 def test_select_model_expectations():
     assert select_model("cloudflare", "coding") == "@cf/moonshotai/kimi-k2.7-code"
     assert select_model("nvidia", "vision") == "meta/llama-3.2-90b-vision-instruct"
-    assert select_model("cerebras", "reasoning") == "zai-glm-4.7"
-    assert select_model("groq", "fast") == "llama-3.1-8b-instant"
+    assert select_model("cerebras", "reasoning") == "gpt-oss-120b"
+    assert select_model("groq", "fast") == "openai/gpt-oss-20b"
     assert select_model("github_models", "coding") == "mistral-ai/Codestral-2501"  # catalog ID format now provider-prefixed, matching GitHub Models' real API naming
 
 
 def test_heavy_alias_resolves_under_reasoning():
-    assert select_model("cerebras", "heavy") == "zai-glm-4.7"
+    assert select_model("cerebras", "heavy") == "gpt-oss-120b"
 
 
 def test_unknown_tier_or_provider_returns_none():

@@ -245,13 +245,13 @@ if __name__ == "__main__":
     import tempfile
     t = [1000.0]
     led = QuotaLedger(path=Path(tempfile.mkdtemp()) / "q.json", clock=lambda: t[0])
-    for _ in range(13000):   # groq 8b-instant: 14,400/day → 13k = 90.3%
+    for _ in range(13000):   # groq gpt-oss-20b: 1,000/day → 13k is well past the 90% deprioritize line
         led._data.setdefault(_today(), {}).setdefault("groq", {}).setdefault(
-            "llama-3.1-8b-instant", {"requests": 0, "tokens": 0})["requests"] = 13000
+            "openai/gpt-oss-20b", {"requests": 0, "tokens": 0})["requests"] = 13000
         break
-    ok = led.deprioritized("groq", "llama-3.1-8b-instant") is True
-    ok &= led.deprioritized("groq", "llama-3.3-70b-versatile") is False
-    led.record("cerebras", "zai-glm-4.7", tokens=950_000)   # 95% of 1M/day
-    ok &= led.deprioritized("cerebras", "zai-glm-4.7") is True
+    ok = led.deprioritized("groq", "openai/gpt-oss-20b") is True
+    ok &= led.deprioritized("groq", "openai/gpt-oss-120b") is False
+    led.record("cerebras", "gpt-oss-120b", tokens=950_000)   # 95% of 1M/day
+    ok &= led.deprioritized("cerebras", "gpt-oss-120b") is True
     ok &= led.saturation("opencode_zen", "big-pickle") == 0.0   # no limits → never
     print("✅ quota_ledger.py OK" if ok else "❌ FAILED")

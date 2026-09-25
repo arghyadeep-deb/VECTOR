@@ -27,42 +27,30 @@
 
 providers:
 
-  groq:                       # limits FETCHED from API headers 2026-07-02
-    quota_unit: requests
+  groq:                       # model list verified against GET /openai/v1/models 2026-09-25
+    quota_unit: requests      # (Llama 3.x, Mixtral, Qwen3-32B, Llama-4-scout were retired)
     per_model_quota: true
     models:
-      llama-3.1-8b-instant:
-        tiers: {fast: 1, agentic: 1, conversation: 1}
-        limits: {requests_per_day: 14400, tokens_per_min: 6000}
-      llama-3.3-70b-versatile:
-        tiers: {agentic: 2, summarization: 3, reasoning: 4, multilingual: 3}
-        limits: {requests_per_day: 1000, tokens_per_min: 12000}
       openai/gpt-oss-120b:
-        tiers: {reasoning: 3, heavy: 2, council: 2}
+        tiers: {agentic: 2, summarization: 3, reasoning: 3, heavy: 2, council: 2, multilingual: 3}
         limits: {requests_per_day: 1000, tokens_per_min: 8000}
       openai/gpt-oss-20b:
-        tiers: {fast: 3}
+        tiers: {fast: 1, agentic: 1, conversation: 1}
         limits: {requests_per_day: 1000, tokens_per_min: 8000}   # assumed
-      qwen/qwen3-32b:
-        tiers: {reasoning: 5}
-        limits: {requests_per_day: 1000, tokens_per_min: 6000}
-      meta-llama/llama-4-scout-17b-16e-instruct:
-        tiers: {long_context: 2, summarization: 2, vision: 4}
-        limits: {requests_per_day: 1000, tokens_per_min: 30000}
+      qwen/qwen3.8-27b:
+        tiers: {reasoning: 4, multilingual: 4, summarization: 4}
+        limits: {requests_per_day: 1000, tokens_per_min: 6000}   # assumed
 
-  cerebras:                   # owner console screenshots — exact quotas
+  cerebras:                   # model list verified against GET /v1/models 2026-09-25
     quota_unit: tokens        # 1M tokens/day/model is the binding limit
     per_model_quota: true
     models:
-      gpt-oss-120b:           # production, ~3000 tok/s (fastest in fleet)
-        tiers: {fast: 2, reasoning: 3, conversation: 2, council: 3}
+      gpt-oss-120b:           # production, ~3000 tok/s (fastest in fleet); took over zai-glm-4.7's tiers
+        tiers: {heavy: 1, reasoning: 1, council: 1, saas: 2, fast: 2, conversation: 2}
         limits: {tokens_per_day: 1000000, requests_per_min: 5, tokens_per_min: 30000}
-      zai-glm-4.7:            # preview, 355B — biggest free frontier model
-        tiers: {heavy: 1, reasoning: 1, council: 1, saas: 2}
-        limits: {tokens_per_day: 1000000, requests_per_min: 5, tokens_per_min: 30000}
-      gemma-4-31b:            # preview
-        tiers: {agentic: 3, summarization: 4}
-        limits: {tokens_per_day: 1000000, requests_per_min: 5, tokens_per_min: 30000}
+      qwen-3.8-27b:
+        tiers: {fast: 3, agentic: 3, reasoning: 3, summarization: 4}
+        limits: {tokens_per_day: 1000000, requests_per_min: 5, tokens_per_min: 30000}   # assumed
 
   cloudflare:                 # 10K neurons/day account-wide (neurons≈tokens)
     quota_unit: neurons
@@ -259,8 +247,8 @@ domains:
   content.script:             # script_generator, caption_generator, ScriptGen
     chain:
       - [github_models, openai/gpt-5]
-      - [cerebras, zai-glm-4.7]
-      - [groq, llama-3.3-70b-versatile]
+      - [cerebras, gpt-oss-120b]
+      - [groq, openai/gpt-oss-120b]
       - [mistral, mistral-small-2506]
       - [ollama, vector-focus]
 
@@ -290,7 +278,7 @@ domains:
   coding.architecture:        # architect_bot, plan/architecture agents
     chain:
       - [github_models, openai/o3]
-      - [cerebras, zai-glm-4.7]
+      - [cerebras, gpt-oss-120b]
       - [github_models, openai/gpt-5]
       - [openrouter, "nousresearch/hermes-3-llama-3.1-405b:free"]
       - [ollama, vector-reasoning]
@@ -313,15 +301,15 @@ domains:
 
   orchestration:              # governor, chief_of_staff, swarm queen, workflow_runner
     chain:
-      - [cerebras, zai-glm-4.7]
+      - [cerebras, gpt-oss-120b]
       - [github_models, openai/gpt-5]
-      - [groq, llama-3.3-70b-versatile]
+      - [groq, openai/gpt-oss-120b]
       - [opencode_zen, nemotron-3-ultra-free]
       - [ollama, vector-reasoning]
 
   agentic.loop:               # decision engine, hands, autonomous think — HIGH VOLUME
     chain:
-      - [groq, llama-3.1-8b-instant]
+      - [groq, openai/gpt-oss-20b]
       - [mistral, ministral-3b-2512]
       - [opencode_zen, deepseek-v4-flash-free]
       - [cerebras, gpt-oss-120b]
@@ -335,10 +323,10 @@ domains:
 
   research:                   # web_scout, paper_reader, company_researcher
     chain:
-      - [cerebras, zai-glm-4.7]
+      - [cerebras, gpt-oss-120b]
       - [gemini, gemini-2.5-flash]
       - [github_models, openai/o4-mini]
-      - [groq, llama-3.3-70b-versatile]
+      - [groq, openai/gpt-oss-120b]
       - [ollama, vector-deep]
 
   multilingual.indic:         # hindi/bengali/assamese coaches
@@ -360,7 +348,7 @@ domains:
     chain:
       - [gemini, gemini-2.5-flash]
       - [mistral, mistral-small-2506]
-      - [groq, meta-llama/llama-4-scout-17b-16e-instruct]
+      - [groq, openai/gpt-oss-120b]
       - [cloudflare, "@cf/meta/llama-3.3-70b-instruct-fp8-fast"]
       - [ollama, vector-fast]
 
@@ -375,7 +363,7 @@ domains:
   finance.analysis:           # stock_analyst, fundamentals_bot, fpa — analysis only
     chain:
       - [github_models, openai/gpt-5]
-      - [cerebras, zai-glm-4.7]
+      - [cerebras, gpt-oss-120b]
       - [github_models, deepseek/DeepSeek-R1-0528]
-      - [groq, llama-3.3-70b-versatile]
+      - [groq, openai/gpt-oss-120b]
       - [ollama, vector-reasoning]

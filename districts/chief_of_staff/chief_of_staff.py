@@ -76,7 +76,7 @@ class ChiefOfStaff(AgentBase):
 
             result = chat(
                 model=_CHAIRMAN,
-                domain="orchestration",   # zai-glm-4.7 → gpt-5 → llama-3.3 → ... → ollama
+                domain="orchestration",   # gpt-oss-120b → gpt-5 → gpt-oss-120b(groq) → ... → ollama
                 messages=[
                     {"role": "system", "content": effective_system},
                     {"role": "user", "content": user},

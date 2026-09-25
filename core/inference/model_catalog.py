@@ -154,14 +154,15 @@ def _load_fallback() -> tuple[dict[str, ProviderCatalog], dict[str, DomainChain]
                     ["glm-4.7-flash", "glm-4.5-flash", "glm-4.6V-flash"]}),
         "openrouter": ProviderCatalog(slug="openrouter", allow_pattern=":free$"),
         "groq": ProviderCatalog(slug="groq", quota_unit="requests", models={
-            "llama-3.1-8b-instant": CatalogModel(
-                "llama-3.1-8b-instant", tiers={"fast": 1, "agentic": 1}),
-            "llama-3.3-70b-versatile": CatalogModel(
-                "llama-3.3-70b-versatile", tiers={"agentic": 2, "reasoning": 2}),
+            "openai/gpt-oss-20b": CatalogModel(
+                "openai/gpt-oss-20b", tiers={"fast": 1, "agentic": 1}),
+            "openai/gpt-oss-120b": CatalogModel(
+                "openai/gpt-oss-120b",
+                tiers={"agentic": 2, "reasoning": 2, "heavy": 2, "council": 2}),
         }),
         "cerebras": ProviderCatalog(slug="cerebras", quota_unit="tokens", models={
-            "zai-glm-4.7": CatalogModel("zai-glm-4.7", tiers={"reasoning": 1, "council": 1}),
-            "gpt-oss-120b": CatalogModel("gpt-oss-120b", tiers={"fast": 1}),
+            "gpt-oss-120b": CatalogModel(
+                "gpt-oss-120b", tiers={"fast": 1, "reasoning": 1, "heavy": 1, "council": 1}),
         }),
         "cloudflare": ProviderCatalog(slug="cloudflare", quota_unit="neurons", models={
             "@cf/moonshotai/kimi-k2.7-code": CatalogModel(
@@ -275,7 +276,7 @@ if __name__ == "__main__":
     cat = get_catalog()
     ok &= len(cat) >= 10
     ok &= select_model("cloudflare", "coding") == "@cf/moonshotai/kimi-k2.7-code"
-    ok &= select_model("cerebras", "heavy") == "zai-glm-4.7"      # alias → reasoning
+    ok &= select_model("cerebras", "heavy") == "gpt-oss-120b"      # alias → reasoning
     ok &= is_model_allowed("opencode_zen", "gpt-5.5") is False    # guardrail
     ok &= is_model_allowed("opencode_zen", "big-pickle") is True
     ok &= is_model_allowed("zai", "glm-4.5") is False             # paid model blocked
