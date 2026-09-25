@@ -1190,16 +1190,25 @@ class PermissionGateway:
         }
         try:
             if action.action_type == "search_web":
-                import httpx
-                from urllib.parse import quote_plus
+                # 2026-09-25: this used to GET https://duckduckgo.com/ (an HTML page,
+                # `format=json` is ignored) and keep its first 500 chars, so no search
+                # result was ever returned. DuckDuckGo's own endpoints now answer HTTP 202
+                # to scripts; the `ddgs` library (already a dependency) does the search.
                 query = action.params.get("query", "")[:500]  # truncate to prevent abuse
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    r = await client.get(
-                        "https://duckduckgo.com/",
-                        params={"q": query, "format": "json"},
-                    )
-                    _limit = CONFIG.get("search_response_limit", 500)
-                    result["response"] = r.text[:_limit]
+                try:
+                    from ddgs import DDGS
+                    hits = await asyncio.wait_for(
+                        asyncio.to_thread(lambda: DDGS().text(query, max_results=5)), timeout=20.0)
+                    result["results"] = [
+                        {"title": h.get("title", ""), "url": h.get("href", ""), "snippet": h.get("body", "")}
+                        for h in (hits or [])
+                    ]
+                except Exception as _se:
+                    result["results"] = []
+                    result["search_error"] = str(_se) or type(_se).__name__
+                _limit = CONFIG.get("search_response_limit", 500)
+                result["response"] = " | ".join(
+                    f"{r['title']}: {r['snippet']}" for r in result["results"])[:_limit]
             elif action.action_type == "play_music":
                 # Actually play: launch Spotify (or a named app) + press play.
                 # "play music" defaults to Spotify — VECTOR infers the app so the

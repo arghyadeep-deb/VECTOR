@@ -210,6 +210,12 @@ class AgentBase:
         self.model = self._calculate_model()
         model_changed = self.model != old_model
         logger.warning(f'[VECTOR][city] {self.name} -{validated_points}HP ({reason}) | {old_hp}->{self.health_points}')
+        # Remember WHY HP was lost, so a death leaves a ghost that says what went wrong
+        # (2026-09-25: real deaths had empty lessons because nothing recorded failures).
+        # A reason already remembered is not added again, so repeats can't flood the 20 slots.
+        lesson = f"lost {validated_points:g}HP: {reason}"
+        if validated_points and not any(reason in str(x) for x in self.lessons):
+            self.add_lesson(lesson)
         if self.health_points == 0:
             ghost = self.die()
             return {

@@ -31,6 +31,25 @@ def _is_hardened_env() -> bool:
     return os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))).strip().lower() in {"production", "prod", "vector"}
 
 
+def _other_loop_pid(runtime: dict, my_pid: int) -> int | None:
+    """Pid of ANOTHER live process that owns the autonomous loop, else None.
+
+    A heartbeat stays "fresh" for ~10s after its owner dies, so a restart inside that
+    window used to see a dead pid as a live loop and start with NO brain (2026-09-25).
+    The owner must actually be alive for it to block this process's own loop.
+    """
+    pid = runtime.get("pid")
+    if not (runtime.get("running") and pid and pid != my_pid):
+        return None
+    try:
+        import psutil
+        if not psutil.pid_exists(pid):
+            return None
+    except ImportError:
+        pass  # can't tell: keep the old, conservative behaviour (assume it is alive)
+    return pid
+
+
 def _select_hud_html(hud_dir: Path) -> Path:
     """There is ONE HUD: frontend/VECTOR.html (3D city, map, camera hero, gestures, the whole subsystem dock). The
     separate "VECTOR Production" page and its build were removed 2026-09-25 (owner decision); every environment
@@ -233,9 +252,7 @@ async def lifespan(app: FastAPI):
         try:
             from core.loop.loop_state import get_runtime as _get_rt
 
-            _rt = _get_rt()
-            if _rt.get("running") and _rt.get("pid") and _rt["pid"] != os.getpid():
-                _other = _rt["pid"]
+            _other = _other_loop_pid(_get_rt(), os.getpid())
         except Exception as _e:  # never let the guard itself block startup
             logger.debug("[VECTOR][api] loop-duplication check skipped: {}", _e)
 

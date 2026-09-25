@@ -95,8 +95,16 @@ async def status_endpoint():
 
 
 def _get_loop_running() -> bool:
-    """Read loop state without constructing the expensive autonomous loop."""
-    return False
+    """Read loop state without constructing the expensive autonomous loop.
+
+    Same rule /health uses. This used to be a stub that always returned False, so
+    /status said the loop was down while /health showed it ticking (2026-09-25)."""
+    try:
+        from core.loop.loop_state import get_runtime
+        rt = get_runtime()
+        return bool(rt["running"] or rt["tick_count"] > 0)
+    except Exception:
+        return False
 
 
 def _get_tts_status_cached() -> dict[str, str]:

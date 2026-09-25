@@ -1147,6 +1147,18 @@ def _render_readonly_evidence(action_type: str, result: dict) -> str | None:
             for i, c in enumerate(commits[:5], start=1)
         ]
         return "Most recent commits (from the repository history just now): " + " | ".join(lines)
+    if action_type == "search_web":
+        hits = result.get("results") or []
+        if not hits:
+            return ("I ran the web search but it returned no results"
+                    + (f" ({result['search_error']})" if result.get("search_error") else "")
+                    + ", so I can't tell you what's out there — I won't guess at it.")
+        lines = [
+            f"{i}) {h.get('title') or '(untitled)'} — {h.get('url', '')}"
+            f"{' — ' + h['snippet'][:140] if h.get('snippet') else ''}"
+            for i, h in enumerate(hits[:5], start=1)
+        ]
+        return "Web search results retrieved just now (not from memory): " + " | ".join(lines)
     if action_type == "search_arxiv":
         # Two agents declare `search_arxiv` and Governor.dispatch may pick
         # either: PaperReader answers under `papers` (authors: str,

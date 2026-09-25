@@ -152,7 +152,7 @@ class IngestionQueue:
                 await self._process(job)
                 self._queue.task_done()
             except asyncio.TimeoutError:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                pass  # idle poll: no job arrived
             except asyncio.CancelledError:
                 break
             except Exception as e:

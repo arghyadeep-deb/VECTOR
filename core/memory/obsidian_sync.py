@@ -430,7 +430,7 @@ class ObsidianSync:
                     path = await asyncio.wait_for(queue.get(), timeout=1.0)
                     seen[path] = time.monotonic()
                 except asyncio.TimeoutError:
-                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                    pass  # idle tick: nothing changed this second, fall through to the debounce sweep
 
                 now = time.monotonic()
                 ready = [p for p, t in list(seen.items()) if now - t >= debounce_sec]

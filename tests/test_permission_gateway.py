@@ -93,8 +93,8 @@ async def test_red_action_times_out_without_confirmation():
     gw = PermissionGateway()
     # RED actions time out after 30s by default — override to 1s for test speed
     original = gw._wait_for_confirmation
-    async def fast_timeout(action, timeout=1):
-        return await original(action, timeout=1)
+    async def fast_timeout(action, timeout=1, **kwargs):   # kwargs: pending_id etc.
+        return await original(action, timeout=1, **kwargs)
     gw._wait_for_confirmation = fast_timeout
     result = await gw.execute(make_action("send_email", {"to": "test@test.com"}))
     assert result.level == "RED"

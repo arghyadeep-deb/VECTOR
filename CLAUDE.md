@@ -66,7 +66,7 @@ context_engine → goal_system → decision_engine → policy_check → permissi
 
 ## What Exists
 
-- **38 district directories** (39 districts in `config/agent_manifest.yaml`) with **170 manifest-registered agents**
+- **38 district directories** (39 districts in `config/agent_manifest.yaml`) with **170 manifest-registered agents** (the live registry reports 230 agents in 39 districts via `/status` and the HUD, checked 2026-09-25 — quote the live number in anything public)
 - **31 LLM providers** in `core/inference/llm_providers.py`
 - **30 Claude Code commands** in `.claude/commands/`
 - **113 skill directories** in `.claude/skills/`
