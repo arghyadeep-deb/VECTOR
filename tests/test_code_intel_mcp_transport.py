@@ -41,6 +41,8 @@ _FAKE_SERVER = textwrap.dedent(
         if (t === "boom") send({ jsonrpc: "2.0", id: m.id, result: { isError: true, content: [{ type: "text", text: "kaboom" }] } });
         else if (t === "down") send({ jsonrpc: "2.0", id: m.id, result: { isError: true, content: [{ type: "text", text: "Could not connect to Qdrant." }] } });
         else if (t === "pid") send({ jsonrpc: "2.0", id: m.id, result: { content: [{ type: "text", text: String(process.pid) }] } });
+        else if (Array.isArray((m.params.arguments || {}).extraExtensions)) send({ jsonrpc: "2.0", id: m.id, error: { code: -32602, message: "Expected string, received array" } });
+        else if (Object.values(m.params.arguments || {}).some((v) => v === null)) send({ jsonrpc: "2.0", id: m.id, error: { code: -32602, message: "Expected string, received null" } });
         else send({ jsonrpc: "2.0", id: m.id, result: { content: [{ type: "text", text: "hello " + JSON.stringify(m.params.arguments) }] } });
       }
     });
@@ -139,3 +141,44 @@ def test_the_server_path_points_inside_this_repo():
     repo = Path(__file__).resolve().parents[1]
     assert cia._CODEBASE_ROOT == repo
     assert cia._DIST == repo / "vectorcode" / "code_intel" / "dist" / "index.js"
+
+
+def test_none_valued_arguments_are_omitted_because_the_server_schema_rejects_null(fake_server):
+    """vc_search / vc_index were rejected live with 'Expected string, received null' for every optional argument left None."""
+    r = cia._mcp_call("vc_search", {"query": "x", "fileFilter": None, "languageFilter": None}, timeout=30)
+    assert r == {"text": 'hello {"query":"x"}'}, r
+
+
+def test_extra_extensions_list_becomes_one_comma_separated_string_and_empty_is_omitted(fake_server):
+    """vc_index rejected the agent's list with 'Expected string, received array'."""
+    r = cia._mcp_call("vc_index", {"projectPath": "p", "extraExtensions": [".vue", ".svelte"]}, timeout=30)
+    assert r == {"text": 'hello {"projectPath":"p","extraExtensions":".vue,.svelte"}'}, r
+    r = cia._mcp_call("vc_index", {"projectPath": "p", "extraExtensions": []}, timeout=30)
+    assert r == {"text": 'hello {"projectPath":"p"}'}, r
+
+
+def test_a_successful_search_is_returned_and_noted_in_episodic_memory(fake_server, monkeypatch):
+    """Every successful vc_search used to come back as an error: the agent called EpisodicMemory.store(metadata=...)."""
+    agent = cia.CodeIntelAgent()
+    calls = []
+
+    class _Mem:
+        def store(self, event_type, content, tags=None, context=None, source="vector"):
+            calls.append((event_type, content, tags, context, source))
+
+    monkeypatch.setattr(agent, "_memory", _Mem())
+    out = asyncio.run(agent.run({"type": "vc_search", "params": {"query": "governor", "project_path": "p"}}))
+    assert out["status"] == "ok", out
+    assert calls and calls[0][0] == "code_intel_search" and calls[0][3] == {"query": "governor"}
+
+
+def test_a_failing_episodic_note_does_not_break_the_query(fake_server, monkeypatch):
+    agent = cia.CodeIntelAgent()
+
+    class _Broken:
+        def store(self, *a, **k):
+            raise RuntimeError("db locked")
+
+    monkeypatch.setattr(agent, "_memory", _Broken())
+    out = asyncio.run(agent.run({"type": "vc_search", "params": {"query": "x", "project_path": "p"}}))
+    assert out["status"] == "ok", out

@@ -200,6 +200,19 @@ def _mcp_call(tool_name: str, args: dict, timeout: int = 60) -> dict:
         return {"error": "vectorcode-intel is not built yet. Run: cd vectorcode/code_intel && npm install && npm run build "
                          "(it also needs Node, a local Qdrant -- scripts\\start_code_intel.bat -- and an embedding model)",
                 "unavailable": True}
+    # The server validates arguments with a strict schema: an optional string must be OMITTED, not sent as null (the agent
+    # passed file_filter=None, language=None, ... and every search/index call was rejected with "Expected string, received
+    # null"). Drop None-valued arguments.
+    args = {k: v for k, v in (args or {}).items() if v is not None}
+    # extraExtensions is ONE comma-separated string in the server's schema; the agent sends a list ("Expected string,
+    # received array"). An empty list means "none": omit it.
+    ext = args.get("extraExtensions")
+    if isinstance(ext, (list, tuple, set)):
+        joined = ",".join(str(e).strip() for e in ext if str(e).strip())
+        if joined:
+            args["extraExtensions"] = joined
+        else:
+            args.pop("extraExtensions")
     return _SESSION.call(tool_name, args, timeout)
 
 
@@ -243,6 +256,15 @@ class CodeIntelAgent(AgentBase):
             self._memory = EpisodicMemory()
         return self._memory
 
+    def _remember(self, event_type: str, content: str, tags: list, context: dict) -> None:
+        """Best-effort episodic note about a query. It called store(content=..., metadata=...), but the real signature is
+        store(event_type, content, tags, context, source): every successful search/impact query raised a TypeError and came
+        back as an error. Logging a query must never break the query."""
+        try:
+            self._get_memory().store(event_type, content, tags=tags, context=context, source="code_intel")
+        except Exception as exc:
+            logger.debug("[VECTOR][code_intel] episodic note skipped: {}", exc)
+
     def _check_mcp_result(self, result: dict, task_type: str, hp: int, reason: str) -> dict | None:
         """If result contains an error key, deduct HP and return an error response.
         Returns None when result is clean (caller should proceed to award HP)."""
@@ -275,11 +297,8 @@ class CodeIntelAgent(AgentBase):
                 if err := self._check_mcp_result(result, task_type, 15, "code_search_done"):
                     return err
                 self.award_points(15, "code_search_done")
-                self._get_memory().store(
-                    content=f"Code search: {query}",
-                    tags=["coding", "code_intelligence", "search"],
-                    metadata={"query": query}
-                )
+                self._remember("code_intel_search", f"Code search: {query}", ["coding", "code_intelligence", "search"],
+                               {"query": query})
                 return {"status": "ok", "type": task_type, "results": result}
 
             # ── Index codebase ────────────────────────────────────────────────
@@ -339,11 +358,8 @@ class CodeIntelAgent(AgentBase):
                 if err := self._check_mcp_result(result, task_type, 25, "impact_analysis_done"):
                     return err
                 self.award_points(25, "impact_analysis_done")
-                self._get_memory().store(
-                    content=f"Impact analysis: {params.get('target', '')}",
-                    tags=["coding", "code_intelligence", "impact"],
-                    metadata={"target": params.get("target")}
-                )
+                self._remember("code_intel_impact", f"Impact analysis: {params.get('target', '')}",
+                               ["coding", "code_intelligence", "impact"], {"target": params.get("target")})
                 return {"status": "ok", "type": task_type, "impact": result}
 
             # ── Call flow ─────────────────────────────────────────────────────
