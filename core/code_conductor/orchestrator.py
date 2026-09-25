@@ -126,7 +126,15 @@ class CodingOrchestrator:
                 f"Applied {ok_count}/{len(edits)} edits across {len(relevant_files)} files. "
                 + (f"Plan: {plan[:100]}" if plan else "")
             )
-            result.status = "ok" if ok_count == len(edits) else "partial"
+            # 0 == 0 used to make "no edits produced" report status "ok" (and the agent then paid +50 HP for it).
+            if not edits:
+                result.status = "error"
+                result.error = "the plan produced no edits, so nothing was changed"
+            elif ok_count == 0:
+                result.status = "error"
+                result.error = f"none of the {len(edits)} proposed edits could be applied"
+            else:
+                result.status = "ok" if ok_count == len(edits) else "partial"
 
         except Exception as e:
             logger.error("[VECTOR][orchestrator] error: {}", e)
