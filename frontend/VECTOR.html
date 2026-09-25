@@ -230,6 +230,7 @@
     const cfg = Object.assign({ base:'', ws:'', apiKey:'', autoConnect:true },
       window.VECTOR_CONFIG||{});
     const q = new URLSearchParams(location.search);
+    if(q.get('cinema')) document.documentElement.classList.add('cinema');   // enlarged, centred widgets for recordings
     if(q.get('base')) cfg.base = q.get('base');
     if(q.get('key'))  cfg.apiKey = q.get('key');
     if(!cfg.autoConnect || !cfg.base) return;     // stay on demo data

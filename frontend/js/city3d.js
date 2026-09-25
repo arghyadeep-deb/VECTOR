@@ -262,7 +262,9 @@
     });
 
     ws.appendChild(wrap);
-    requestAnimationFrame(() => wrap.focus());
+    if (V.cinemaPlace) V.cinemaPlace(wrap);
+    V.on('widget:close-external', ({ id }) => { if (id === CITY_ID && wrap.isConnected) closeCity(); });
+    requestAnimationFrame(() => wrap.focus({ preventScroll: true }));
 
     requestAnimationFrame(() => {
       const r = wrap.getBoundingClientRect();

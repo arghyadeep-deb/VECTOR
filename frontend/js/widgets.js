@@ -2344,6 +2344,22 @@
 
   // ---- open / close -------------------------------------------------------
   const _returnFocus = {}; // id -> element to refocus when the widget closes
+  // ?cinema=1 (screen recordings): enlarge + centre widgets so close-ups are readable, and stop the floating drift.
+  function cinemaPlace(w){
+    if(!document.documentElement.classList.contains('cinema')) return;
+    let last = '';
+    const fit = ()=>{   // re-fit whenever the widget's natural size changes (panels fill in after they open)
+      const st = ws().getBoundingClientRect(), nw = w.offsetWidth || 420, nh = w.offsetHeight || 340, key = nw+'x'+nh;
+      if(key === last) return; last = key;
+      const z = Math.max(1, Math.min(1.8, (st.height*0.84)/nh, (st.width*0.62)/nw));
+      w.style.zoom = z; w.style.animation = 'none';
+      w.style.left = Math.max(0, (st.width - nw*z)/2/z) + 'px';
+      w.style.top  = Math.max(0, (st.height - nh*z)/2/z - 20/z) + 'px';
+    };
+    fit();
+    if(window.ResizeObserver) new ResizeObserver(fit).observe(w);
+  }
+  V.cinemaPlace = cinemaPlace;
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
     const make = F[id]; if(!make){ console.warn('no widget', id); return; }
@@ -2353,16 +2369,18 @@
     w.style.setProperty('--fl', (6+Math.random()*4).toFixed(1)+'s');
     w.style.setProperty('--fd', (-Math.random()*5).toFixed(1)+'s');
     ws().appendChild(w); live[id]=w;
+    cinemaPlace(w);
     _returnFocus[id] = document.activeElement;
     // targeting scan-lock flourish converges on the card, then it materialises
     requestAnimationFrame(()=>{
       const r=w.getBoundingClientRect();
       V.emit('widget:lock', { rect:{ left:r.left, top:r.top, width:r.width, height:r.height } });
-      setTimeout(()=>{ w.classList.add('show'); w.focus(); }, 130);
+      setTimeout(()=>{ w.classList.add('show'); w.focus({preventScroll:true}); }, 130);   // focus() used to scroll the whole stage
     });
     return w;
   }
-  function closeWidget(id){ const w=live[id]; if(!w) return; w.classList.remove('show');
+  function closeWidget(id){ const w=live[id]; if(!w){ V.emit('widget:close-external',{id}); return; }   // widgets that own their DOM (city3d) close themselves
+    w.classList.remove('show');
     setTimeout(()=>{ w.remove(); delete live[id];
       const back = _returnFocus[id]; delete _returnFocus[id];
       if(back && document.contains(back) && typeof back.focus === 'function') back.focus();
