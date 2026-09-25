@@ -128,6 +128,73 @@
     return Object.assign({}, runtimeState);
   }
   V.setRuntimeMode=setRuntimeMode;
+
+  // ---- "backend offline, retrying" screen ---------------------------------
+  // The HUD keeps polling and the sockets reconnect with backoff, so a dropped backend recovers on its own -- this
+  // just says so. Shown only when a backend is configured AND has been unreachable for OFFLINE_GRACE_MS (so a normal
+  // restart or a single slow poll never flashes it); it hides itself the moment the mode goes live again.
+  const OFFLINE_GRACE_MS = 6000;
+  let offlineTimer = null;
+  let offlineTicker = null;
+
+  function offlineScreen(){
+    let el=document.getElementById('ve-offline-screen');
+    if(el) return el;
+    el=document.createElement('div');
+    el.id='ve-offline-screen';
+    el.setAttribute('role','alert');
+    el.hidden=true;
+    const card=document.createElement('div'); card.className='ve-offline-card';
+    const h=document.createElement('div'); h.className='ve-offline-title'; h.textContent='BACKEND OFFLINE';
+    const m=document.createElement('div'); m.className='ve-offline-msg'; m.id='ve-offline-msg';
+    const t=document.createElement('div'); t.className='ve-offline-since'; t.id='ve-offline-since';
+    const b=document.createElement('button'); b.type='button'; b.className='ve-offline-retry'; b.textContent='RETRY NOW';
+    b.addEventListener('click',async e=>{
+      e.stopPropagation(); b.disabled=true;
+      try{ await V.http('/status'); setRuntimeMode('live', V.config.base || 'backend verified'); }
+      catch(_){ m.textContent='Still unreachable · retrying automatically'; }
+      finally{ b.disabled=false; }
+    });
+    card.append(h,m,t,b); el.append(card);
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showOffline(){
+    const el=offlineScreen();
+    const since=runtimeState.lastOk ? new Date(runtimeState.lastOk).getTime() : null;
+    const paint=()=>{
+      const msg=document.getElementById('ve-offline-msg');
+      if(msg) msg.textContent=(runtimeState.lastError || 'backend unavailable')+' · retrying automatically';
+      const sinceEl=document.getElementById('ve-offline-since');
+      if(sinceEl){
+        if(since==null) sinceEl.textContent='never reached since this page opened';
+        else{ const s=Math.max(0,Math.floor((Date.now()-since)/1000));
+          sinceEl.textContent='last connected '+(s<60?s+'s':s<3600?Math.floor(s/60)+'m':Math.floor(s/3600)+'h')+' ago'; }
+      }
+    };
+    paint(); el.hidden=false;
+    if(!offlineTicker) offlineTicker=setInterval(paint,1000);
+  }
+
+  function hideOffline(){
+    const el=document.getElementById('ve-offline-screen');
+    if(el) el.hidden=true;
+    if(offlineTicker){ clearInterval(offlineTicker); offlineTicker=null; }
+  }
+
+  V.on('runtime:mode', st=>{
+    const backendConfigured=!!(V.config && V.config.base);
+    if(st.mode==='degraded' && backendConfigured){
+      const shown=document.getElementById('ve-offline-screen');
+      if(!offlineTimer && !(shown && !shown.hidden)){
+        offlineTimer=setTimeout(()=>{ offlineTimer=null; showOffline(); }, OFFLINE_GRACE_MS);
+      }
+    } else {
+      if(offlineTimer){ clearTimeout(offlineTimer); offlineTimer=null; }
+      hideOffline();
+    }
+  });
   V.getRuntimeMode=()=>Object.assign({}, runtimeState);
   function toggleCursor(){
     const C=global.VectorCursor;

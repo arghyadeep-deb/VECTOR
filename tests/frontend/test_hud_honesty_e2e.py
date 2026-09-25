@@ -66,6 +66,23 @@ with sync_playwright() as pw:
     pg.evaluate("window.VECTOR.wake()")
     pg.wait_for_timeout(600)
     out["orb"] = " ".join(pg.evaluate("() => { const o = document.querySelector('#orb-wrap'); return o ? o.innerText : ''; }").split())
+    # Backend drop: with the network cut the polls fail, the HUD goes DEGRADED and, after a short grace, shows the
+    # "backend offline" screen; when the network returns the next poll flips it back to live and the screen hides.
+    out["offline_before"] = pg.evaluate("() => { const e = document.getElementById('ve-offline-screen'); return !!e && !e.hidden; }")
+    pg.context.set_offline(True)
+    try:
+        pg.wait_for_function("() => { const e = document.getElementById('ve-offline-screen'); return !!e && !e.hidden; }", timeout=45000)
+        out["offline_shown"] = True
+        out["offline_text"] = " ".join(pg.evaluate("() => document.getElementById('ve-offline-screen').innerText").split())
+    except Exception as exc:
+        out["offline_shown"] = False
+        out["offline_text"] = f"never appeared: {exc}"[:200]
+    pg.context.set_offline(False)
+    try:
+        pg.wait_for_function("() => { const e = document.getElementById('ve-offline-screen'); return !e || e.hidden; }", timeout=45000)
+        out["offline_hidden_after"] = True
+    except Exception:
+        out["offline_hidden_after"] = False
     # A second, CSP-enforcing context (the owner's real Chrome enforces the page's CSP; the first one bypasses it only
     # so wait_for_function can eval). Counts dock buttons and collects CSP violations / console errors.
     ctx2 = browser.new_context(viewport={"width": 1488, "height": 812})
@@ -169,6 +186,13 @@ def test_the_one_full_hud_is_served_in_every_mode(hud):
     assert strict["csp_violations"] == [], strict["csp_violations"]
     assert strict["console_errors"] == [], strict["console_errors"]
     assert strict["title"] == "VECTOR" and strict["dock_buttons"] >= 12, strict
+
+
+def test_backend_offline_screen_appears_on_a_drop_and_clears_on_recovery(hud):
+    assert hud["offline_before"] is False, "the offline screen must not show while the backend is up"
+    assert hud["offline_shown"] is True, hud["offline_text"]
+    assert "BACKEND OFFLINE" in hud["offline_text"] and "retrying" in hud["offline_text"].lower()
+    assert hud["offline_hidden_after"] is True, "the offline screen must hide itself once the backend is reachable again"
 
 
 def test_no_javascript_errors_during_the_session(hud):

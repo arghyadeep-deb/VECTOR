@@ -38,10 +38,17 @@ grew open engineering items; section 0 lists them.
    run by the owner, JSON backup written first), plus mesh-test and fake-council episodic rows.
    Still open: interrupted renders are listed by `list_resumable_jobs()` but resuming an upload is an owner action;
    publishing credentials (Dev.to key, YouTube OAuth, Instagram token) are owner-side.
-7. **Test-suite items**: `test_lifecycle_unvalidated_to_validated` needs a confidence-semantics
-   decision; `test_fresh_domain_no_penalty` is fragile against the live causal graph;
-   `test_phase_a7_council_red_tier` expects `push_github` council auto-proceed (policy question).
-   The full-suite baseline (5,012 / 13 / 36) has not been re-run since the review fixes.
+7. **Test-suite items** (all resolved 2026-09-26; each was a stale test, not a code bug):
+   correction lifecycle (an explicit correction is stored at 0.95, already above the 0.85 bar, so the test now starts
+   from an implicit 0.70 lesson); epistemic fresh-domain (R23's capability factor x0.85 for an action no live agent
+   declares was hitting the score; the later multipliers are pinned neutral); a7 council RED tier (a confident
+   council "proceed" never auto-executes: `COUNCIL_AUTO_PROCEED_ALLOWED` is empty by design and `push_github` is
+   OWNER_APPROVAL_ONLY -- the test now asserts that, plus the allowlisted path); openwa BulkSender (process-wide dedup
+   registry leaked between tests); permission_gateway red-timeout (every RED test ran a real council on live LLMs,
+   3 min; now the council is mocked to its own "defer", 1 s); r14 six-cycle (code_task was penalised x0.85 by the
+   capability factor, so R6 picked GREEN read_code and skipped the RED-boundary proof; the test registry now declares
+   the capability on ArchitectBot like the manifest does). The full-suite baseline (5,012 / 13 / 36) has not been
+   re-run since the review fixes.
 8. **Dead code** (owner direction 2026-09-24: keep everything): nothing deleted. `docs/design/core-module-triage.md`
    classifies the unreachable `core/` modules; useful ones were wired (repo-hygiene gate, OAuth refresh and
    cloud heartbeat cron jobs), ten duplicates carry a DORMANT banner. Follow-up designs listed at the end of

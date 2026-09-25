@@ -71,6 +71,12 @@ class TestEpistemicCognitiveLoop(unittest.TestCase):
     def test_fresh_domain_no_penalty(self):
         """First action in a domain → no epistemic penalty."""
         c = _make_candidate("newaction_test")
+        # This test is about the epistemic factor alone. The later post-score multipliers (situational,
+        # capability, workload, causal, simulation) read live agent/plan/causal state -- e.g. an action no
+        # live agent declares gets the capability factor 0.85 -- so pin them neutral to keep it deterministic.
+        for factor in ("_situational_factor", "_capability_factor", "_workload_factor",
+                       "_causal_factor", "_simulation_factor"):
+            setattr(self.engine, factor, lambda cand, _f=factor: (1.0, "neutral"))
         self.engine._score_candidate(c)
 
         # Score should be the 5-factor result with no epistemic dampening

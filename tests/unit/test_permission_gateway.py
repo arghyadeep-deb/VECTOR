@@ -44,6 +44,11 @@ def gateway():
     g._execute_action = AsyncMock(return_value={"status": "ok"})
     g._check_capability = MagicMock(return_value=(True, "mock capability ok"))
     g._wait_for_confirmation = AsyncMock(return_value=False)
+    # Without this every RED action ran a real CouncilBrain deliberation (live LLM calls, ~30s each): the file took
+    # three minutes and its result depended on which providers happened to answer. "defer" is the council's own
+    # fail-safe verdict, so the owner-confirmation path under test is unchanged. The council itself is covered in
+    # tests/integration/test_phase_a7_council_red_tier.py.
+    g._handle_red_tier = AsyncMock(return_value="defer")
     return g
 
 

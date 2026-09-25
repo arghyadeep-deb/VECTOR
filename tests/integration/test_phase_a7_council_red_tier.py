@@ -5,6 +5,7 @@ import json
 import inspect
 import asyncio
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -103,15 +104,35 @@ class TestHandleRedTierVerdictPaths(unittest.TestCase):
         council_mod.CouncilBrain = lambda: cb
         return pg, council_mod
 
-    def test_proceed_high_confidence_returns_proceed(self):
-        from core.loop.permission_gateway import Action
+    def test_proceed_high_confidence_defers_when_not_allowlisted(self):
+        """A confident council "proceed" never auto-executes a RED action on its own (audit F-9).
+
+        COUNCIL_AUTO_PROCEED_ALLOWED is empty by design, and push_github is also OWNER_APPROVAL_ONLY, so
+        the owner is still asked. Loosening this is a policy decision, not something a test should assume.
+        """
+        from core.loop.permission_gateway import Action, COUNCIL_AUTO_PROCEED_ALLOWED
         import core.brain.council as council_mod
         original = council_mod.CouncilBrain
         pg, _ = self._pg_with_council("PROCEED — safe", confidence=0.9)
         try:
+            self.assertEqual(COUNCIL_AUTO_PROCEED_ALLOWED, frozenset())
             action = Action("push_github", {"repo": "x"}, "test")
             verdict = asyncio.run(pg._handle_red_tier(action))
-            self.assertEqual(verdict, "proceed")
+            self.assertEqual(verdict, "defer")
+        finally:
+            council_mod.CouncilBrain = original
+
+    def test_proceed_high_confidence_returns_proceed_only_when_allowlisted(self):
+        """The council's proceed path still works for an action the owner has explicitly allowlisted."""
+        from core.loop.permission_gateway import Action
+        import core.brain.council as council_mod
+        import core.loop.permission_gateway as gw
+        original = council_mod.CouncilBrain
+        pg, _ = self._pg_with_council("PROCEED — safe", confidence=0.9)
+        try:
+            with patch.object(gw, "COUNCIL_AUTO_PROCEED_ALLOWED", frozenset({"some_red_action"})):
+                verdict = asyncio.run(pg._handle_red_tier(Action("some_red_action", {}, "test")))
+                self.assertEqual(verdict, "proceed")
         finally:
             council_mod.CouncilBrain = original
 
