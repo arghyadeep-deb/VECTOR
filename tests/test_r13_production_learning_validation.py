@@ -81,6 +81,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -256,7 +257,7 @@ def read_reasoning_chain_for_decision(decision_id: str) -> dict | None:
 class TestFlagshipProductionLearning:
 
     async def test_real_autonomous_experience_changes_a_later_fresh_decision(
-        self, isolated_vector_db, isolated_agent_registry, tmp_path,
+        self, isolated_vector_db, isolated_agent_registry, tmp_path, monkeypatch,
     ):
         """The R13 flagship. Deliberately uses BOTH of g_daily_commit's real
         GREEN strategies (git_status, read_code) rather than picking the
@@ -274,6 +275,15 @@ class TestFlagshipProductionLearning:
         pm = PolicyMemory()
 
         gs = isolated_probe_goal_system()
+
+        # read_code runs the REAL ArchitectBot scan over the working directory. Over the whole repo (7,000+ files) that is ~26 s
+        # alone and past the Governor's 45 s timeout under any load, which made this test pass or fail with machine load, not code.
+        # A small real project keeps it the same real scan.
+        proj = tmp_path / "scan_project"
+        proj.mkdir()
+        (proj / "__init__.py").write_text("")
+        (proj / "sample.py").write_text("class A:\n    def f(self):\n        return 1\n")
+        repo_cwd = os.getcwd()
 
         # ---- 1: BASELINE -- zero learning, neutral (tied) confidence ----
         baseline_candidates = native_candidates(gs, confidence=0.5)
@@ -303,8 +313,12 @@ class TestFlagshipProductionLearning:
         from core.loop.permission_gateway import PermissionGateway
         assert PermissionGateway().classify("read_code") == "GREEN"
 
-        await loop._act_on(decision_a.winner)  # REAL _act_on(): real governor.dispatch(),
-        # real ArchitectBot.scan_codebase_with_graph(), real reward, real PolicyMemory write
+        monkeypatch.chdir(proj)
+        try:
+            await loop._act_on(decision_a.winner)  # REAL _act_on(): real governor.dispatch(),
+            # real ArchitectBot.scan_codebase_with_graph(), real reward, real PolicyMemory write
+        finally:
+            monkeypatch.chdir(repo_cwd)   # later steps (git_status) must run in the real repo
 
         h_read = pm.make_situation_hash("read_code", {"goal_id": PROBE_GOAL_ID, "title": PROBE_GOAL_TITLE})
         score_read_after_1 = pm.get_score("read_code", h_read)
