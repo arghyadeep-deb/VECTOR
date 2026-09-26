@@ -66,6 +66,22 @@ with sync_playwright() as pw:
     pg.evaluate("window.VECTOR.wake()")
     pg.wait_for_timeout(600)
     out["orb"] = " ".join(pg.evaluate("() => { const o = document.querySelector('#orb-wrap'); return o ? o.innerText : ''; }").split())
+    # Layout: tall panels must stay above the dock / command bar band (they used to run off the bottom of the stage).
+    bottoms = {}
+    for wid in ("memory", "features", "council", "memoryexplorer"):
+        pg.evaluate(f"window.VECTOR.openWidget('{wid}')")
+        pg.wait_for_timeout(2500)
+        bottoms[wid] = pg.evaluate("(id) => { const w = [...document.querySelectorAll('.widget')].find(x => (x.dataset.id||'') === id); return w ? Math.round(w.getBoundingClientRect().bottom) : null; }", wid)
+        pg.evaluate(f"window.VECTOR.closeWidget('{wid}')")
+        pg.wait_for_timeout(400)
+    out["widget_bottoms"] = bottoms
+    # Ticker: the agent total must not flip between the full roster and the 12-agent snapshot sample.
+    import re as _re
+    counts = set()
+    for _ in range(16):
+        counts.update(_re.findall(r"(\d+) AGENTS REGISTERED", pg.evaluate("() => (document.getElementById('newsTrack') || {}).textContent || ''")))
+        pg.wait_for_timeout(1000)
+    out["ticker_agent_counts"] = sorted(counts)
     # Backend drop: with the network cut the polls fail, the HUD goes DEGRADED and, after a short grace, shows the
     # "backend offline" screen; when the network returns the next poll flips it back to live and the screen hides.
     out["offline_before"] = pg.evaluate("() => { const e = document.getElementById('ve-offline-screen'); return !!e && !e.hidden; }")
@@ -226,6 +242,16 @@ def test_rejected_key_says_so_instead_of_claiming_the_backend_is_down(hud):
     assert "ACCESS KEY REJECTED" in hud["rejected_text"], hud["rejected_text"]
     assert "rejected the API key" in hud["rejected_text"]
     assert hud["rejected_cleared"] is True
+
+
+def test_tall_panels_stay_above_the_dock_band(hud):
+    for wid, bottom in hud["widget_bottoms"].items():
+        assert bottom is not None, f"{wid} did not open"
+        assert bottom <= 660, f"{wid} runs down to y={bottom}, behind the dock / command bar"
+
+
+def test_the_ticker_agent_total_does_not_flip_between_sample_and_roster(hud):
+    assert len(hud["ticker_agent_counts"]) <= 1, hud["ticker_agent_counts"]
 
 
 def test_a_rejected_key_stops_the_polling_storm(hud):

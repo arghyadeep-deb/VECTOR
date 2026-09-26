@@ -97,7 +97,7 @@ button{ font-family:inherit; color:inherit; cursor:pointer; background:none; bor
 #frame .glyph{ position:absolute; font-family:var(--mono); font-size:9px; letter-spacing:.18em;
   color:var(--txt-faint); }
 #frame .glyph.tl{ top:10px; left:44px; }
-#frame .glyph.tr{ top:10px; right:44px; }
+#frame .glyph.tr{ top:10px; right:132px; }   /* clear of the fixed KEYS pill (it used to sit on top of this text) */
 #frame .glyph.bl{ bottom:10px; left:44px; }
 #frame .glyph.br{ bottom:10px; right:44px; text-align:right; }
 

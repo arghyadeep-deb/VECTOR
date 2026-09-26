@@ -179,7 +179,7 @@
     if(L.threat) sys.push('SECURITY · THREAT LEVEL ' + String(L.threat).toUpperCase());
     sys.push(approvals.length + ' APPROVAL' + (approvals.length!==1?'S':'') + ' PENDING REVIEW');
     if(L.loop) sys.push('LOOP · ' + (L.loop.running ? 'RUNNING' + (L.loop.tick != null ? ' · TICK ' + L.loop.tick : '') : 'NOT RUNNING'));
-    if(L.districts) sys.push(L.districts + ' DISTRICTS · ' + agents.length + ' AGENTS REGISTERED');
+    if(L.districts) sys.push(L.districts + ' DISTRICTS · ' + (L.agentCount != null ? L.agentCount : agents.length) + ' AGENTS REGISTERED');
     const hot = agents.slice().sort((a,b)=>(b.health_points||0)-(a.health_points||0))[0];
     if(hot) sys.push('TOP AGENT ' + String(hot.name).toUpperCase() + ' · HP ' + Math.round(hot.health_points||0) + ' · ' + hot.tier);
     if(memory[0]) sys.push('MEMORY · ' + memory[0].event_type + ' · ' + memory[0].content);

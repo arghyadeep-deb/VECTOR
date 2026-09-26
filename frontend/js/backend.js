@@ -432,7 +432,11 @@
         setTel('[data-up]', fmtUptime(data.runtime.uptime_seconds));
       }
       if (data.agents && Array.isArray(data.agents.sample)) {
-        D.agents = data.agents.sample.map(adaptAgent);
+        // /world/snapshot only carries a small SAMPLE of the roster. It used to overwrite the full list from /agents every 5 s,
+        // so the ticker flipped between "230 AGENTS" and "12 AGENTS" and a different "TOP AGENT". Keep the full list once we
+        // have it, and take the real total from the snapshot's own count.
+        if (!D._agentsFull) D.agents = data.agents.sample.map(adaptAgent);
+        if (Number.isFinite(Number(data.agents.count))) setLive({ agentCount: Number(data.agents.count) });
         refreshDistricts();
         if (global.VectorCity) global.VectorCity.updateAgents(D.agents);
       }
@@ -458,7 +462,8 @@
       const list = data.agents || data || [];
       if (!Array.isArray(list)) return;
       D.agents = list.map(adaptAgent);
-      setLive({ agents: D.agents.length, districts: new Set(D.agents.map(a => a.district)).size });
+      D._agentsFull = true;
+      setLive({ agents: D.agents.length, agentCount: D.agents.length, districts: new Set(D.agents.map(a => a.district)).size });
       refreshDistricts();
       // also update city3d if open
       if (global.VectorCity) global.VectorCity.updateAgents(D.agents);

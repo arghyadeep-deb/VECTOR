@@ -2360,6 +2360,26 @@
     if(window.ResizeObserver) new ResizeObserver(fit).observe(w);
   }
   V.cinemaPlace = cinemaPlace;
+
+  // Panels are positioned by percentage and grow as their data arrives, so tall ones (memory, features, council...) ran off the
+  // bottom of the stage and sat behind the dock, command bar and ticker. Keep them above that band: cap the height (the panel
+  // scrolls inside) and pull the top up. Stops once the user drags the panel, so it never fights them; cinema mode has its own fit.
+  const STAGE_BOTTOM_RESERVE = 190;   // dock + command bar + ticker, measured on a 1488x812 stage
+  function keepOnStage(w){
+    if(w._moved || document.documentElement.classList.contains('cinema') || !w.isConnected) return;
+    const pr = ws().getBoundingClientRect();
+    const avail = pr.height - STAGE_BOTTOM_RESERVE;
+    if(avail < 160) return;                                   // tiny window: nothing sensible to do
+    // Decide on the content's natural height (scrollHeight), not the box's: once capped the box is short enough to look like
+    // it fits, which used to un-cap it, let it grow, cap it again... a visible flicker loop.
+    const need = Math.max(w.offsetHeight, w.scrollHeight);
+    if(need > avail){ const cap = Math.round(avail - 8) + 'px'; if(w.style.maxHeight !== cap){ w.style.maxHeight = cap; w.style.overflowY = 'auto'; } }
+    else if(w.style.maxHeight){ w.style.maxHeight = ''; w.style.overflowY = ''; }
+    const top  = Math.max(4, Math.min(w.offsetTop, avail - w.offsetHeight));
+    const left = Math.max(0, Math.min(w.offsetLeft, pr.width - w.offsetWidth));
+    if(Math.abs(top - w.offsetTop) > 1)   w.style.top  = top + 'px';
+    if(Math.abs(left - w.offsetLeft) > 1) w.style.left = left + 'px';
+  }
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
     const make = F[id]; if(!make){ console.warn('no widget', id); return; }
@@ -2370,6 +2390,8 @@
     w.style.setProperty('--fd', (-Math.random()*5).toFixed(1)+'s');
     ws().appendChild(w); live[id]=w;
     cinemaPlace(w);
+    requestAnimationFrame(()=>keepOnStage(w));
+    if(window.ResizeObserver) new ResizeObserver(()=>keepOnStage(w)).observe(w);
     _returnFocus[id] = document.activeElement;
     // targeting scan-lock flourish converges on the card, then it materialises
     requestAnimationFrame(()=>{
@@ -2394,6 +2416,7 @@
       if(e.target.closest('.w-x')) return;
       const r=w.getBoundingClientRect(), pr=ws().getBoundingClientRect();
       drag={ w, dx:e.clientX-r.left, dy:e.clientY-r.top, pr };
+      w._moved = true;
       w.classList.add('grabbed'); bringFront(w); handle.setPointerCapture(e.pointerId);
     });
     handle.addEventListener('pointermove', e=>{ if(!drag||drag.w!==w) return; moveDragTo(e.clientX,e.clientY); });
@@ -2408,7 +2431,7 @@
   // hand-cursor hooks: grab the widget under (clientX,clientY), move, release
   function grabAt(cx,cy){ const t=document.elementFromPoint(cx,cy); const w=t&&t.closest('.widget');
     if(!w) return false; const r=w.getBoundingClientRect(), pr=ws().getBoundingClientRect();
-    drag={ w, dx:cx-r.left, dy:cy-r.top, pr }; w.classList.add('grabbed'); bringFront(w); return true; }
+    drag={ w, dx:cx-r.left, dy:cy-r.top, pr }; w._moved = true; w.classList.add('grabbed'); bringFront(w); return true; }
   function dragMove(cx,cy){ moveDragTo(cx,cy); }
   function release(){ if(drag){ drag.w.classList.remove('grabbed'); drag=null; } }
 
