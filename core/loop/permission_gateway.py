@@ -58,7 +58,9 @@ FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
 # permission tier in core/config.py) before being added here; see
 # VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md for the composition
 # capability this unblocks (script -> schedule_post).
-_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate", "log_exercise", "create_project"}
+# 2026-09-26: "web_extract" -- GREEN, read-only page extraction (real handler: WebScout.web_extract, exact
+# DISTRICT_TASK_MAP route "research", declared in WebScout.capabilities); the read step of the browser workflow.
+_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate", "log_exercise", "create_project", "web_extract"}
 # V1 TRUST CLOSURE (2026-09-21, T3, VECTOR_TECHNICAL_KNOWLEDGE/
 # V1_TRUST_ACTION_IDENTITY_PERMISSION_CLOSURE_REPORT.md): a SEPARATE,
 # equally narrow allowlist (deliberately not folded into

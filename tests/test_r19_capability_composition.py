@@ -389,7 +389,7 @@ class TestGovernorAndPermission:
         from core.config import CONFIG
         assert _PLAN_COMPOSABLE_ACTION_TYPES == {
             "script", "schedule_post", "idea_validate",
-            "log_exercise", "create_project",
+            "log_exercise", "create_project", "web_extract",
         }
         for red_action in CONFIG["permission"]["red"]:
             assert red_action not in _PLAN_COMPOSABLE_ACTION_TYPES

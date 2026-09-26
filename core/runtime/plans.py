@@ -988,8 +988,15 @@ async def replan_plan(plan: Plan, failed_step: PlanStep) -> Plan:
     if _try_fallback_step(plan, failed_step):
         return plan
 
+    # A step verified against objective evidence (result_field / all_of) carries the plan's contract for what "done" means.
+    # The LLM restructure below rebuilds steps WITHOUT their verification (they default to status_check) and without
+    # param_bindings, so letting it replace such a step would let the plan finish "verified" by a weaker check than the
+    # one it failed. Fallbacks the plan declared up front (Strategy 1, above) are fine; an invented replacement is not:
+    # the plan is abandoned and the failure stays visible instead.
+    content_verified = failed_step.verification.get("type") in ("result_field", "all_of")
+
     # Strategy 2: LLM restructure (if budget allows)
-    if plan.replan_count <= MAX_REPLANS:
+    if plan.replan_count <= MAX_REPLANS and not content_verified:
         try:
             from core.runtime.missions import MissionPlanAdvisor
             advisor = MissionPlanAdvisor()
@@ -1037,7 +1044,9 @@ async def replan_plan(plan: Plan, failed_step: PlanStep) -> Plan:
     plan.status = "failed"
     plan.record_event(
         "abandoned",
-        f"Replan budget exhausted (replan_count={plan.replan_count})",
+        (f"Step {failed_step.id} failed its objective verification and has no declared fallback; not restructured "
+         f"(replan_count={plan.replan_count})") if content_verified
+        else f"Replan budget exhausted (replan_count={plan.replan_count})",
         step_id=failed_step.id,
     )
     plan.updated_at = _now()

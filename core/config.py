@@ -92,6 +92,11 @@ class PermissionConfig(BaseModel):
         # concrete action types from think→act pipeline
         "git_status", "check_git", "recent_commits", "git_log",
         "daily_digest", "search_arxiv", "get_hn", "hackernews",
+        # 2026-09-26: read-only single-page fetch + structured extraction (core/browser/page_extract.py): http/https
+        # GET only, SSRF-guarded on every redirect hop, size/time limited, no cookies/login/forms/JS, output is data
+        # (never executed or fed to a model there), page text is injection-scanned. Same class as search_web /
+        # search_arxiv. NOTE for the independent review: this is a NEW GREEN entry (a tier addition, not a change).
+        "web_extract",
         "check_fatigue", "consolidate", "daily_review", "reflect",
         "deadline_check", "progress",
         # VectorCode read-only actions

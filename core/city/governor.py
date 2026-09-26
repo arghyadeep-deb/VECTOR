@@ -561,6 +561,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "research": "research",
     "paper": "research",
     "search_arxiv": "research",
+    "web_extract": "research",  # WebScout: read-only page fetch + structured extraction
     "search_web": "research",
     "daily_digest": "research",
     "find": "research",

@@ -28,7 +28,7 @@ class WebScout(AgentBase):
             district="research",
             generation=generation,
         )
-        self.capabilities = ["research", "search", "search_web", "stealth_search"]
+        self.capabilities = ["research", "search", "search_web", "stealth_search", "web_extract"]
         if ghost:
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
@@ -330,8 +330,30 @@ class WebScout(AgentBase):
 
     # ── Loop ──────────────────────────────────────────────────────────────────
 
+    async def web_extract(self, url: str, fields: dict | None = None, want_links: bool = True,
+                          max_links: int = 50) -> dict:
+        """Read-only page fetch + structured extraction (core/browser/page_extract.py). The fetch is blocking network
+        I/O, so it runs in a worker thread. HP follows the honest status: only a fully "ok" extraction is rewarded."""
+        from core.browser.page_extract import extract_page
+
+        result = await asyncio.to_thread(
+            extract_page, url, fields or {}, want_links=want_links, max_links=int(max_links))
+        if result.get("status") == "ok":
+            self.award_points(5, "web_extract_ok")
+        else:
+            self.deduct_points(3, f"web_extract_{result.get('status', 'error')}")
+        return result
+
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
+        if task.get("type") == "web_extract" or p.get("action") == "web_extract":
+            fields = p.get("fields")
+            return await self.web_extract(
+                p.get("url", ""),
+                fields if isinstance(fields, dict) else {},
+                want_links=bool(p.get("links", True)),
+                max_links=p.get("max_links", 50),
+            )
         action = p.get("action", "search")
         if action == "stealth_search":
             return await self.stealth_search(p.get("query", ""), p.get("engine", "google"))
