@@ -18,9 +18,16 @@ from core.api import app as app_module
 
 def _dead_pid() -> int:
     """A pid that verifiably belonged to a process that has exited."""
-    p = subprocess.Popen([sys.executable, "-c", "pass"])
-    p.wait()
-    return p.pid
+    import psutil
+
+    # Windows recycles pids quickly, and under a busy full-suite run a freshly exited pid can be handed to a new process
+    # before the assertion runs (seen once in the 2026-09-26 sharded run). Only accept a pid that is still free.
+    for _ in range(20):
+        p = subprocess.Popen([sys.executable, "-c", "pass"])
+        p.wait()
+        if not psutil.pid_exists(p.pid):
+            return p.pid
+    pytest.skip("could not obtain a pid that stays free")
 
 
 def test_other_live_loop_is_reported():
