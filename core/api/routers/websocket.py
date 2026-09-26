@@ -489,8 +489,10 @@ async def ws_command_http(request: WSCommandRequest):
             }
             result = await governor.dispatch(task)
             response_text = result.get("response") or result.get("output") or str(result.get("status", "executed"))
+            from core.runtime.executor import result_failure_reason
+            _why = result_failure_reason(result)   # 2026-09-27: no_agents / timeout / error payloads are not answers
             return WSCommandResponse(
-                response=response_text, success=True,
+                response=response_text, success=_why is None, error=_why,
                 district=result.get("district"), task_type="answer_question",
             )
 
@@ -538,6 +540,18 @@ async def ws_command_http(request: WSCommandRequest):
             return WSCommandResponse(
                 response=result.get("note") or f"'{winner.action_type}' is not implemented",
                 success=False, error="not_implemented",
+                district=result_district, task_type=result_task_type,
+            )
+
+        # 2026-09-27: every other non-execution status (no_agents, timeout, blocked, ...) and an explicit failure signal
+        # inside an "ok"-looking payload must not be reported as success either (same rule as /command and the executor).
+        from core.runtime.executor import result_failure_reason
+        _why = result_failure_reason(result)
+        if _why:
+            _detail = result.get("note") or (result.get("error") if isinstance(result.get("error"), str) else None)
+            return WSCommandResponse(
+                response=_detail or f"'{winner.action_type}' did not complete ({_why})",
+                success=False, error=_why,
                 district=result_district, task_type=result_task_type,
             )
 

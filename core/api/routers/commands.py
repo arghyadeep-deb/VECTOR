@@ -1085,7 +1085,13 @@ def _is_not_implemented(gw_result) -> bool:
     with no code — live matrix RY3/UA3), or any real Governor-dispatch
     failure status (see `_HANDLER_DID_NOT_RUN`). /ws/command already refuses
     to report this as success (RR-3.6 §15); /command must not either."""
-    return (getattr(gw_result, "result", None) or {}).get("status") in _HANDLER_DID_NOT_RUN
+    result = getattr(gw_result, "result", None) or {}
+    if result.get("status") in _HANDLER_DID_NOT_RUN:
+        return True
+    # 2026-09-27: an explicit failure signal inside a payload whose status looks fine ({"status": "ok", "error": "..."},
+    # `success: false`, ...) is a failure too -- the same rule the autonomous executor and plan verification use.
+    from core.runtime.executor import assess_payload_failure
+    return assess_payload_failure(result) is not None
 
 
 # git_status/check_git dispatch to GitBot.get_status(); git_log/recent_commits
@@ -1210,6 +1216,11 @@ def _build_response_text(gw_result, winner, original_text: str) -> str:
             return _evidence
     if gw_result.executed and _is_not_implemented(gw_result):
         _res = getattr(gw_result, "result", None) or {}
+        if _res.get("status") not in _HANDLER_DID_NOT_RUN:
+            # status looks fine but the payload carries an explicit failure signal (see _is_not_implemented)
+            _why = _res.get("error") if isinstance(_res.get("error"), str) else "it reported a failure"
+            return (f"I ran '{winner.action_type}', sir, but it reported a failure ({str(_why)[:160]}), "
+                    f"so I won't call it done.")
         if _res.get("status") == "rejected":
             return (f"I didn't run '{winner.action_type}', sir — its handler declined it "
                     f"({_res.get('reason', 'no reason given')}), so nothing was executed.")

@@ -92,6 +92,22 @@ def assess_payload_failure(payload: Any) -> str | None:
     return None
 
 
+def result_failure_reason(payload: Any) -> str | None:
+    """Why a gateway-APPROVED handler result must not be reported to the owner as done, or None if it looks like success.
+
+    One definition for every owner-facing boundary (/command, /ws/command; the autonomous executor uses the same two
+    checks inline). 2026-09-27: /command only checked a status blacklist and /ws/command only "error"/"not_implemented",
+    so {"status": "ok", "error": "..."} and {"status": "no_agents"} were still reported as success (V1 contract 11/17).
+    """
+    if not isinstance(payload, dict):
+        return None
+    status = payload.get("status")
+    if status in TERMINAL_STATUSES:
+        return f"status:{status}"
+    signal = assess_payload_failure(payload)
+    return f"payload_signal:{signal}" if signal else None
+
+
 @dataclass
 class ExecutionPlan:
     action_type: str
