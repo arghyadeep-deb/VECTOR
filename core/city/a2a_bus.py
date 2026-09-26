@@ -175,7 +175,7 @@ class A2ABus:
         return out
 
     # ── audit ───────────────────────────────────────────────────────────────────────────────────────────────────────────
-    def _audit(self, msg: A2AMessage, reply: A2AReply) -> None:
+    def _audit(self, msg: A2AMessage, reply: A2AReply, persist: bool = True) -> None:
         entry = {
             "ts": time.time(), "message_id": msg.id, "correlation_id": msg.correlation_id, "mode": msg.mode,
             "from": msg.sender_name, "from_district": msg.sender_district, "to": reply.responder or msg.recipient or "",
@@ -183,6 +183,8 @@ class A2ABus:
             "status": reply.status, "delivered": reply.delivered, "refused": reply.refused, "elapsed_ms": reply.elapsed_ms,
         }
         self._log.append(entry)
+        if not persist:
+            return
         try:
             from core.memory.episodic import EpisodicMemory
             EpisodicMemory().store(
@@ -293,6 +295,19 @@ class A2ABus:
             return self._refuse(msg, "task_type missing or too long", started=started)
         if len(self._payload_text(msg.params)) > int(_cfg("max_payload_chars")):
             return self._refuse(msg, f"payload larger than {_cfg('max_payload_chars')} characters", started=started)
+        # --- ping/describe: answered from the registry, no agent code runs; not rate-limited (a registry read, not work) ---
+        if msg.task_type in ("ping", "describe"):
+            target = self.resolve(to) if to is not None and not str(to).startswith("district:") else None
+            if target is None:
+                return self._refuse(msg, f"no live agent named {to!r}", "unavailable", started)
+            msg.mode = "ping"
+            reply = A2AReply(message_id=msg.id, correlation_id=correlation, status="ok", delivered=True,
+                             result=describe_agent(target), responder=describe_agent(target)["name"],
+                             responder_district=describe_agent(target)["district"], elapsed_ms=int((time.time() - started) * 1000))
+            self.stats["delivered"] += 1
+            self._audit(msg, reply, persist=False)   # discovery is cheap and frequent: ring buffer only
+            return reply
+
         if depth > int(_cfg("max_depth")):
             return self._refuse(msg, f"conversation is nested {depth} deep (limit {_cfg('max_depth')})", "depth_exceeded", started)
         if self._rate_limited(sid):
@@ -311,19 +326,6 @@ class A2ABus:
                                     "blocked", started)
         except Exception as e:
             logger.debug("[VECTOR][a2a] injection screen unavailable: {}", e)
-
-        # --- ping/describe: answered from the registry, no agent code runs ---
-        if msg.task_type in ("ping", "describe"):
-            target = self.resolve(to) if to is not None and not str(to).startswith("district:") else None
-            if target is None:
-                return self._refuse(msg, f"no live agent named {to!r}", "unavailable", started)
-            msg.mode = "ping"
-            reply = A2AReply(message_id=msg.id, correlation_id=correlation, status="ok", delivered=True,
-                             result=describe_agent(target), responder=describe_agent(target)["name"],
-                             responder_district=describe_agent(target)["district"], elapsed_ms=int((time.time() - started) * 1000))
-            self.stats["delivered"] += 1
-            self._audit(msg, reply)
-            return reply
 
         # --- resolve the target ---
         target = None
