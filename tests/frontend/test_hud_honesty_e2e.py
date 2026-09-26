@@ -262,6 +262,7 @@ def test_tall_panels_stay_above_the_dock_band(hud):
 
 def test_the_civilization_atlas_renders_within_five_seconds(hud):
     assert "GOVERNOR" in hud["atlas_text"], hud["atlas_text"]   # the breadcrumb only exists once its first render has run
+    assert "AGENT-TO-AGENT" in hud["atlas_text"], hud["atlas_text"]   # the governed bus's recent conversations are shown
 
 
 def test_an_unavailable_optional_socket_does_not_mark_the_hud_degraded(hud):

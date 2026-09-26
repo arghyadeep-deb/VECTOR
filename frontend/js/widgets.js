@@ -702,7 +702,7 @@
     wrap.appendChild(crumb); wrap.appendChild(filterRow); wrap.appendChild(body);
 
     // ── state (panel-local, not global — cleared on close) ─────────────────
-    const S = { agents:[], a2a:[], districtsShape:null, view:'macro', district:null, agent:null, filter:'' };
+    const S = { agents:[], a2a:null, districtsShape:null, view:'macro', district:null, agent:null, filter:'' };
     const ACTIVITY_CAP = 30;
     const activity = []; // ring buffer of real WS events only
 
@@ -767,6 +767,11 @@
       //  blank for six seconds after opening.)
       S.agents = mergeAgents(live, declared);
       render();
+      // The bus's recent messages load AFTER the first render: on a cold backend that route pulls in the whole city package and used to
+      // hold the atlas blank. Whatever it returns is drawn when it arrives.
+      try{ S.a2a = await apiGet('/a2a/internal/recent?limit=12'); }
+      catch(e){ S.a2a = null; }
+      if(S.view==='macro' && w.isConnected) render();
     }
 
     function districtGroups(){
@@ -843,6 +848,28 @@
         grid.appendChild(card);
       });
       body.innerHTML=''; body.appendChild(grid);
+      renderA2A();
+    }
+
+    // ── AGENT-TO-AGENT: the governed bus's recent messages (core/city/a2a_bus.py), refused ones included ───────────
+    function renderA2A(){
+      if(S.view!=='macro') return;
+      const box = el('div','atlas-a2a');
+      const m = S.a2a;
+      let html = '<div class="atlas-sep-lbl">AGENT-TO-AGENT · RECENT</div>';
+      if(!m){ html += '<div class="ve-offline">bus not reachable</div>'; }
+      else if(!m.messages.length){ html += '<div class="ve-offline">no agent has asked another yet — requests appear here as they happen</div>'; }
+      else {
+        const st = m.stats || {};
+        html += `<div class="row-kv"><span class="k">SENT / DELIVERED / REFUSED</span><span class="v">${Number(st.sent)||0} / ${Number(st.delivered)||0} / ${Number(st.refused)||0}</span></div>`;
+        html += m.messages.slice(0,8).map(x=>{
+          const bad = !x.delivered;
+          return `<div class="row-kv"><span class="k">${escapeHtml(x.from||'?')} → ${escapeHtml(x.to||'?')}</span>
+            <span class="v" style="color:${bad?'var(--warn)':'var(--txt)'}">${escapeHtml(x.task_type||'')} · ${escapeHtml(x.status||'')}${bad&&x.refused?(' — '+escapeHtml(String(x.refused).slice(0,60))):''}</span></div>`;
+        }).join('');
+      }
+      box.innerHTML = html;
+      body.appendChild(box);
     }
 
     // ── DISTRICT VIEW ────────────────────────────────────────────────────────
@@ -919,6 +946,26 @@
         <div class="row-kv"><span class="k">MODEL</span><span class="v">${a.model?escapeHtml(a.model):'UNKNOWN'}</span></div>
         <div class="row-kv"><span class="k">TOOLS/PROVIDERS</span><span class="v">NO LIVE SOURCE — see 74_AGENT_ATLAS.md §13</span></div>`;
       renderActivityOnly();
+      loadExperience(a);
+    }
+
+    // Level / XP / skills / playbook for the inspected agent (its lineage's ledger: core/city/experience.py). Fetched on demand.
+    async function loadExperience(a){
+      const box = el('div','atlas-exp');
+      box.innerHTML = '<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div><div class="ve-offline">loading…</div>';
+      body.appendChild(box);
+      try{
+        const j = await apiGet('/a2a/internal/agent/'+encodeURIComponent(a.name));
+        if(S.agent!==a || S.view!=='agent') return;
+        if(!j.found){ box.innerHTML = '<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div><div class="ve-offline">not in the live registry</div>'; return; }
+        const st = j.stats||{}, skills = Object.entries(j.skills||{}).sort((x,y)=>y[1].n-x[1].n).slice(0,5);
+        box.innerHTML = `<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div>
+          <div class="row-kv"><span class="k">LEVEL</span><span class="v">${Number(st.level)||0}</span></div>
+          <div class="row-kv"><span class="k">XP EARNED / STANDING</span><span class="v">${Number(st.xp)||0} / ${Number(st.standing_xp)||0}</span></div>
+          <div class="row-kv"><span class="k">DEATHS IN LINEAGE</span><span class="v">${Number(st.deaths)||0}</span></div>
+          ${skills.length ? skills.map(([t,s])=>`<div class="row-kv"><span class="k">${escapeHtml(t)}</span><span class="v">${s.success}/${s.n} ok${s.fail_env?(' · '+s.fail_env+' env'):''}</span></div>`).join('') : '<div class="ve-offline">no recorded outcomes yet</div>'}
+          ${(j.playbook||[]).length ? '<div class="atlas-sep-lbl">PLAYBOOK</div>' + j.playbook.map(l=>`<div class="row-kv"><span class="v">${escapeHtml(l)}</span></div>`).join('') : ''}`;
+      }catch(e){ box.innerHTML = '<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div><div class="ve-offline">unavailable</div>'; }
     }
 
     function render(){
