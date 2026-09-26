@@ -73,3 +73,34 @@ Test-suite housekeeping the same day: six long-standing failures were stale test
    an isolated run. Owner-run live behavioural checks (voice, camera, a real day of operation) are outstanding.
 5. Test runs emit LangSmith trace uploads (429 rate-limit noise) -- tests are talking to an external service; worth
    turning tracing off under pytest.
+
+## 6. Addendum (later on 2026-09-26): the two builds, decided and done
+
+The owner delegated the decision on the two items §5 listed as blocked on them. Both were built, minimally, against the
+handoff's own constraints (reuse the existing runtime, no rewrite, real evidence, conservative).
+
+**Shared outcome assessment** (`core/runtime/executor.py`, `core/runtime/plans.py`; `tests/test_outcome_assessment.py`)
+* Executor: an explicit failure signal inside a payload whose status looks fine (non-empty `error`, `success/ok/verified:
+  false`) is a failure, not "executed". It never infers failure from absence and never treats a positive flag as proof.
+* Plans: new verification types `result_field` (equals / contains / regex / in / non_empty / min_items on a dotted path of
+  the step's REAL result) and `all_of`; they fail closed and require the step to have executed. Dotted `param_bindings`
+  ("s1.fields.detail_url") hand nested real output to the next step.
+* A step verified against objective evidence is no longer LLM-restructured away when it fails (the LLM replan rebuilt steps
+  without their verification/bindings, letting a plan finish "verified" by a weaker check); it is abandoned with the failure
+  recorded. Declared fallbacks still work.
+
+**Browser workflow (workflow C)**
+* `web_extract` (`core/browser/page_extract.py`, WebScout handler): GREEN, read-only, http/https GET, SSRF-guarded on every
+  redirect hop, size/time limited, no cookies/login/forms/JS, structured evidence out, page text injection-scanned.
+  **This is a new GREEN tier entry and a new member of `_PLAN_COMPOSABLE_ACTION_TYPES` -- flag it for the Codex review.**
+* `tests/test_workflow_c_browser_plan.py`: open index -> discover URL -> persist -> interrupt and restart (new loop, plan
+  reloaded from its JSON file) -> follow the persisted URL -> extract -> verify -> compare with the fixture and with an
+  independent fetch, through the real loop / gateway / governor / agent against a real local HTTP server. Also: wrong content
+  fails verification and the plan is abandoned, and private targets are refused.
+* Model-driven browser (`BrowserController`, RED tier): a model's `finished()` is now a claim. The controller returns the
+  final page as evidence and an action log, checks an optional `expect` against it (mismatch turns END into ERROR), aborts
+  after three consecutive blocked/failed actions; `GUIAutomationAgent` rewards by evidence and failures now cost HP. Real
+  headless-Chromium tests with a scripted VLM.
+
+What is still not done: the desktop `gui_task` path has no evidence check; research/coding still lack the "advertised review
+phase / run the tests" verification the handoff describes; nothing here has had an independent review or a live run.
