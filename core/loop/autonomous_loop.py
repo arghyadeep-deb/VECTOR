@@ -985,6 +985,7 @@ class AutonomousLoop:
                 logger.debug("[VECTOR][think] avatar on_think suppressed: {}", _av_th_err)
 
         decision = await self._get_decision().evaluate(candidates)
+        self._age_plan_candidates(candidates, decision)
         if decision.winner.total_score > 0.3:
             # ContinueGate: step-level budget + coherence check before acting
             _cgate = self._get_continue_gate()
@@ -1853,21 +1854,41 @@ class AutonomousLoop:
         from core.loop.decision_engine import Candidate
 
         plan_store = self._get_plan_store()
+        waits = getattr(self, "_plan_step_waits", {})
         candidates = []
         for plan in plan_store.active_plans():
             for step in plan.next_ready_steps(limit=2):
+                source = f"plan:{plan.id}:{step.id}"
+                waited = waits.get(source, 0)
                 c = Candidate(
                     action_type=step.action_type,
                     params={**step.params, "_plan_id": plan.id, "_step_id": step.id},
                     goal_ids=[plan.goal_id] if plan.goal_id else [],
-                    confidence=step.confidence,
-                    urgency=min(1.0, 0.55 + 0.05),  # plan momentum bonus
+                    # Anti-starvation aging (2026-09-27): a ready step that keeps losing to ambient goal candidates gains
+                    # confidence and urgency (+0.1 each per lost tick, capped at 1.0) until it is picked. Without it a
+                    # plan step scoring 0.715 lost to an ambient candidate at 0.72-0.76 tick after tick, and the plan
+                    # never advanced (tests/test_stage4_real_goalsystem_competition.py).
+                    confidence=min(1.0, step.confidence + 0.1 * waited),
+                    urgency=min(1.0, 0.55 + 0.05 + 0.1 * waited),  # plan momentum bonus + aging
                     timing_score=1.0,
                     estimated_cost_inr=step.estimated_cost_inr,
-                    source=f"plan:{plan.id}:{step.id}",
+                    source=source,
                 )
                 candidates.append(c)
         return candidates
+
+    def _age_plan_candidates(self, candidates: list, decision) -> None:
+        """Count, per ready plan step, the consecutive decisions it lost; a step that won (or vanished) starts over."""
+        try:
+            winner_source = getattr(decision.winner, "source", "") or ""
+            waits = getattr(self, "_plan_step_waits", {})
+            self._plan_step_waits = {
+                c.source: (0 if c.source == winner_source else waits.get(c.source, 0) + 1)
+                for c in candidates
+                if isinstance(getattr(c, "source", None), str) and c.source.startswith("plan:")
+            }
+        except Exception as e:  # noqa: BLE001 -- bookkeeping must never break the think tick
+            logger.debug("[VECTOR][think] plan aging skipped: {}", e)
 
     async def _act_on_plan_step(self, winner: "Candidate") -> None:
         """Execute a plan step through PlanRunner (which uses the permission gateway).
