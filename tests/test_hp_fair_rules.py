@@ -27,6 +27,8 @@ class Person(AgentBase):
 def world(isolated_vector_db, monkeypatch):
     monkeypatch.delenv("VECTOR_HP_FAIR", raising=False)
     monkeypatch.delenv("VECTOR_PLAYBOOK", raising=False)
+    monkeypatch.delenv("VECTOR_LEVEL_COUNCIL", raising=False)
+    monkeypatch.delenv("VECTOR_FAIR_CULL", raising=False)
     xp._reset_for_tests()
     original = registry_mod._registry_singleton
     registry_mod._registry_singleton = AgentRegistry()
@@ -132,7 +134,7 @@ def test_level_raises_the_model_tier_only_when_the_flag_is_on(monkeypatch):
 def test_council_eligibility_follows_level_when_the_flag_is_on(monkeypatch):
     a = person(hp=900)
     assert a.can_vote_in_council() is True
-    monkeypatch.setenv("VECTOR_HP_FAIR", "1")
+    monkeypatch.setenv("VECTOR_LEVEL_COUNCIL", "1")
     assert a.can_vote_in_council() is False, "high HP alone no longer buys a vote"
     _give_level(a, 5)
     xp._CACHE.clear()
@@ -158,14 +160,14 @@ def _cull(world, district="lab"):
     return asyncio.run(EvolutionEngine(registry=world).cull_bottom(district, keep_top=2))
 
 
-def test_default_cull_still_removes_the_lowest_ranked(world):
+def test_legacy_rank_cull_when_fair_cull_is_switched_off(monkeypatch, world):
+    monkeypatch.setenv("VECTOR_FAIR_CULL", "0")
     for i, hp in enumerate((900, 800, 700, 300)):
         world.register(person(f"P{i}", hp=hp))
     assert len(_cull(world)) == 2
 
 
-def test_flag_on_idle_low_hp_agents_are_never_culled_only_genuinely_failing_ones(monkeypatch, world):
-    monkeypatch.setenv("VECTOR_HP_FAIR", "1")
+def test_by_default_idle_low_hp_agents_are_never_culled_only_genuinely_failing_ones(monkeypatch, world):
     idle_low = person("IdleLow", hp=150)                   # bottom of the district, never given work
     failing = person("Failing", hp=100)
     for hp, n in ((900, "Top1"), (800, "Top2"), (700, "Top3")):
@@ -196,3 +198,10 @@ def test_flag_on_penalties_are_not_smoothed_against_earlier_rewards_or_penalties
     assert hp - b.health_points == pytest.approx(5.0, abs=0.01), "after a -30 the next -5 must still be -5, not -22.5"
     b.deduct_points(30, "another big loss after a small one")
     assert hp - 5.0 - b.health_points == pytest.approx(30.0, abs=0.01), "and a -30 after a -5 must still be -30, not -12.5"
+
+
+def test_by_default_a_district_of_healthy_agents_loses_nobody_to_the_rank_cull(world):
+    """The recorded history: 98% of real deaths were healthy agents culled by rank at 02:00."""
+    for i, hp in enumerate((900, 800, 700, 600, 500, 500, 400)):
+        world.register(person(f"P{i}", hp=hp))
+    assert _cull(world) == [] and world.total() == 7

@@ -353,7 +353,7 @@ class AgentBase:
     def can_vote_in_council(self) -> bool:
         try:
             from core.city import experience
-            if experience.hp_fair_enabled():
+            if experience.level_council_enabled():
                 # experienced (level 5+) and not on the ropes; a strong day's HP alone no longer buys a vote
                 return experience.lineage_stats(self)["level"] >= 5 and self.health_points >= 300
         except Exception:

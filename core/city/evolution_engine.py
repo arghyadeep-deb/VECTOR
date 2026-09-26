@@ -295,7 +295,7 @@ class EvolutionEngine:
         to_cull = sorted_agents[: len(sorted_agents) - keep_top]
         try:
             from core.city import experience
-            if experience.hp_fair_enabled():
+            if experience.fair_cull_enabled():
                 # Rank alone is not a reason to die: an agent that was never given work sits at the bottom of a district through no
                 # fault of its own (owner rule 2026-09-26: idle agents are safe). Only an agent that is genuinely failing -- critical
                 # HP AND a record of its own mistakes -- can be culled.

@@ -21,6 +21,7 @@ from __future__ import annotations
 __all__ = [
     "lineage_key", "record", "classify_failure", "failure_signature", "is_first_of_kind", "lineage_stats",
     "level_for_xp", "skill_table", "playbook", "own_fault_failures", "hp_fair_enabled", "playbook_enabled", "OUTCOMES",
+    "fair_cull_enabled", "level_council_enabled",
 ]
 
 import math
@@ -55,6 +56,18 @@ _CACHE_TTL = 30.0
 
 def hp_fair_enabled() -> bool:
     return os.environ.get("VECTOR_HP_FAIR", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def fair_cull_enabled() -> bool:
+    """ON by default (VECTOR_FAIR_CULL=0 restores the old rank-only cull). Replayed against the recorded history on 2026-09-26: of 573
+    real-agent deaths, 560 (98%) were agents at 200+ HP killed by the 02:00 rank cull for sitting near the bottom of a district
+    with more than five agents -- no failure required. Owner rule: idle agents are safe; death is rare and meaningful."""
+    return os.environ.get("VECTOR_FAIR_CULL", "1").strip().lower() in ("1", "true", "yes", "on")
+
+
+def level_council_enabled() -> bool:
+    """Council eligibility by level instead of HP (VECTOR_LEVEL_COUNCIL, default off until agents have levels)."""
+    return os.environ.get("VECTOR_LEVEL_COUNCIL", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
 def playbook_enabled() -> bool:
