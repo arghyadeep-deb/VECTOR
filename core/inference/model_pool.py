@@ -190,16 +190,15 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
 
     # ── Gemini Flash — 360M tokens/month FREE (Google AI Studio key) ──────────
     "gemini-flash": [
-        ("gemini",     "gemini-2.0-flash-lite"),              # FREE, highest RPM, best for high-freq tasks
-        ("gemini",     "gemini-2.0-flash"),                   # FREE, stable, 1M ctx
-        ("gemini",     "gemini-2.5-flash"),                   # FREE, newer, thinking disabled
+        ("gemini",     "gemini-2.5-flash-lite"),              # FREE, highest RPM, best for high-freq tasks
+        ("gemini",     "gemini-2.5-flash"),                   # FREE, stable, 1M ctx (gemini-2.0-* are 404 on the owner key)
         ("openrouter", "google/gemini-2.0-flash-exp:free"),   # OpenRouter free fallback
     ],
 
     # ── Gemini Pro — 1M-context reasoning, vision ─────────────────────────────
     "gemini-pro": [
-        ("gemini",     "gemini-1.5-pro"),                     # 1M context, free tier
-        ("gemini",     "gemini-2.0-flash"),                   # fast fallback
+        ("gemini",     "gemini-2.5-pro"),                     # 1M context, free tier (1.5/2.0 are 404 on the owner key)
+        ("gemini",     "gemini-2.5-flash"),                   # fast fallback
         ("openrouter", "google/gemini-flash-1.5"),
     ],
 }

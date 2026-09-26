@@ -124,6 +124,8 @@ _PRICING: dict[str, dict[str, float]] = {
     "ollama":           {"input": 0.0,  "output": 0.0},
     "gemini-1.5-flash": {"input": 0.075,"output": 0.30},
     "gemini-2.0-flash": {"input": 0.10, "output": 0.40},
+    "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
+    "gemini-2.5-flash-lite": {"input": 0.10, "output": 0.40},
     "claude-haiku-4-5": {"input": 0.80, "output": 4.0},
     "claude-sonnet-4-6":{"input": 3.0,  "output": 15.0},
     "default":          {"input": 1.0,  "output": 3.0},
@@ -274,7 +276,7 @@ def _try_gemini(model_hint: str, messages: list[dict], timeout: float, temperatu
     """Tier 1 — Gemini free API. Uses google-generativeai SDK or httpx fallback.
 
     Free tier: 15 req/min, 1M tokens/day for Flash models.
-    Model selection: if model_hint looks local (vector-*), maps to gemini-2.0-flash.
+    Model selection: if model_hint looks local (vector-*), maps to gemini-2.5-flash (gemini-2.0-* return 404 on the owner key; probed 2026-07-03 and again 2026-09-27).
     """
     if _is_rate_limited("gemini"):
         return ""
@@ -412,16 +414,16 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float, tempe
 
 # Map Ollama custom model names to provider-specific model IDs
 _GEMINI_MAP = {
-    "vector-reasoning":    "gemini-2.0-flash",
-    "vector-chairman":     "gemini-2.0-flash",
-    "vector-deep":         "gemini-2.0-flash",
-    "vector-focus":        "gemini-2.0-flash",
-    "vector-coder":        "gemini-2.0-flash",
-    "vector-fast":         "gemini-2.0-flash",
-    "vector-r1":           "gemini-2.0-flash",
-    "vector-ambient":      "gemini-2.0-flash",
-    "vector-multilingual": "gemini-2.0-flash",
-    "vector-dev":          "gemini-2.0-flash",
+    "vector-reasoning":    "gemini-2.5-flash",
+    "vector-chairman":     "gemini-2.5-flash",
+    "vector-deep":         "gemini-2.5-flash",
+    "vector-focus":        "gemini-2.5-flash",
+    "vector-coder":        "gemini-2.5-flash",
+    "vector-fast":         "gemini-2.5-flash",
+    "vector-r1":           "gemini-2.5-flash",
+    "vector-ambient":      "gemini-2.5-flash",
+    "vector-multilingual": "gemini-2.5-flash",
+    "vector-dev":          "gemini-2.5-flash",
 }
 
 # Map custom model names to TIER_ROUTING tiers for ProviderClient delegation.
