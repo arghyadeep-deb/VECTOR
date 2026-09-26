@@ -75,6 +75,11 @@ with sync_playwright() as pw:
         pg.evaluate(f"window.VECTOR.closeWidget('{wid}')")
         pg.wait_for_timeout(400)
     out["widget_bottoms"] = bottoms
+    pg.evaluate("window.VECTOR.openWidget('agentatlas')")
+    pg.wait_for_timeout(3000)
+    out["atlas_text"] = " ".join(pg.evaluate("() => { const w = [...document.querySelectorAll('.widget')].find(x => (x.dataset.id||'') === 'agentatlas'); return w ? w.innerText : ''; }").split())
+    pg.evaluate("window.VECTOR.closeWidget('agentatlas')")
+    pg.wait_for_timeout(400)
     # Ticker: the agent total must not flip between the full roster and the 12-agent snapshot sample.
     import re as _re
     counts = set()
@@ -136,7 +141,8 @@ with sync_playwright() as pw:
     pg2.goto(url, wait_until="domcontentloaded")
     pg2.wait_for_timeout(9000)
     out["strict"] = {"dock_buttons": pg2.evaluate("() => document.querySelectorAll('#dock .d-btn').length"),
-                     "title": pg2.title(), "csp_violations": csp, "console_errors": errs}
+                     "title": pg2.title(), "csp_violations": csp, "console_errors": errs,
+                     "stat": pg2.evaluate("() => (document.getElementById('d-stat') || {}).textContent || ''")}
     browser.close()
 print(json.dumps(out))
 """
@@ -248,6 +254,15 @@ def test_tall_panels_stay_above_the_dock_band(hud):
     for wid, bottom in hud["widget_bottoms"].items():
         assert bottom is not None, f"{wid} did not open"
         assert bottom <= 660, f"{wid} runs down to y={bottom}, behind the dock / command bar"
+
+
+def test_the_civilization_atlas_renders_within_three_seconds(hud):
+    assert "GOVERNOR" in hud["atlas_text"], hud["atlas_text"]   # the breadcrumb only exists once its first render has run
+
+
+def test_an_unavailable_optional_socket_does_not_mark_the_hud_degraded(hud):
+    # the test server has no camera/gesture backend, so those sockets fail; the status must still read LIVE
+    assert hud["strict"]["stat"].startswith("● LIVE"), hud["strict"]["stat"]
 
 
 def test_the_ticker_agent_total_does_not_flip_between_sample_and_roster(hud):

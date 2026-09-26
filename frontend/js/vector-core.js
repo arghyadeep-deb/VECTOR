@@ -159,14 +159,24 @@
     if(reconnectTimers[name] != null){ clearTimeout(reconnectTimers[name]); delete reconnectTimers[name]; }
   }
 
+  // Sockets for optional features. When one cannot connect (no camera, a gesture backend that cannot load) the HUD must not report
+  // the whole backend as DEGRADED, and it must not retry forever: the boot status used to read "DEGRADED . ws gesture disconnected"
+  // permanently and the backend log filled with ~900 rejected gesture connections.
+  const OPTIONAL_WS = { voice:1, gesture:1, camera:1 };
+  const OPTIONAL_WS_MAX_ATTEMPTS = 5;
+
   function scheduleReconnect(name){
     if(teardownAll || !wsSpecs[name]) return; // app-level disconnect, or never configured
     clearReconnectTimer(name);
     const attempt = (reconnectAttempts[name] || 0) + 1;
     reconnectAttempts[name] = attempt;
+    if(OPTIONAL_WS[name] && attempt > OPTIONAL_WS_MAX_ATTEMPTS){
+      emit('ws:gave-up', { name });
+      return;
+    }
     const backoff = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * Math.pow(2, attempt - 1));
     const delay = backoff * (0.5 + Math.random() * 0.5); // 50-100% jitter — avoid synchronized retries
-    if(typeof api.setRuntimeMode === 'function'){
+    if(typeof api.setRuntimeMode === 'function' && !OPTIONAL_WS[name]){
       api.setRuntimeMode('degraded', 'ws ' + name + ' disconnected · retrying in ' + Math.round(delay / 1000) + 's');
     }
     reconnectTimers[name] = setTimeout(() => {

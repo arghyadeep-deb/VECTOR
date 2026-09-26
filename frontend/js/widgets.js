@@ -763,8 +763,8 @@
       catch(e){ live = []; }
       try{ const j2 = await apiGet('/a2a/agents'); declared = j2.agents || []; }
       catch(e){ declared = []; }
-      try{ const j3 = await apiGet('/city/districts'); S.districtsShape = j3; }
-      catch(e){ S.districtsShape = null; }
+      // (It used to also await /city/districts here -- a ~6 s Governor round trip whose result nothing read -- so the atlas stayed
+      //  blank for six seconds after opening.)
       S.agents = mergeAgents(live, declared);
       render();
     }
