@@ -608,9 +608,29 @@ def _resolve_step_params(plan: "Plan", step: PlanStep) -> dict[str, Any]:
         if dep_step is None or dep_step.status != "completed" or not dep_step.actual_outcome:
             continue
         dep_result = dep_step.actual_outcome.get("result")
-        if isinstance(dep_result, dict) and field_name in dep_result:
-            resolved[target_key] = dep_result[field_name]
+        found, value = _lookup_path(dep_result, field_name)
+        if found:
+            resolved[target_key] = value
     return resolved
+
+
+
+def _lookup_path(data: Any, path: str) -> tuple[bool, Any]:
+    """Look `path` up in `data`: a literal top-level key first (the original binding form), otherwise a dotted walk
+    through nested dicts and list indexes ("fields.detail_url", "links.0.href"). Returns (found, value)."""
+    if not isinstance(data, dict) or not path:
+        return False, None
+    if path in data:
+        return True, data[path]
+    cur: Any = data
+    for part in path.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        elif isinstance(cur, list) and part.lstrip("-").isdigit() and -len(cur) <= int(part) < len(cur):
+            cur = cur[int(part)]
+        else:
+            return False, None
+    return True, cur
 
 
 # ---------------------------------------------------------------------------
@@ -634,6 +654,26 @@ def verify_step_outcome(step: PlanStep, report_status: str, report_result: Any =
 
     if vtype == "status_check":
         return report_status == "executed"
+
+    # Content verification (shared outcome assessment, 2026-09-26): the step's own REAL result payload is checked against
+    # criteria the plan declared up front, independent of whatever the handler claimed about itself. A step can only pass
+    # if it was executed AND the evidence is there.
+    if vtype == "all_of":
+        checks = step.verification.get("criteria", {}).get("checks", [])
+        if not isinstance(checks, list) or not checks:
+            return False  # an empty conjunction must not silently pass
+        return all(
+            verify_step_outcome(
+                PlanStep(id=step.id, action_type=step.action_type, verification=c if isinstance(c, dict) else {}),
+                report_status, report_result,
+            )
+            for c in checks
+        )
+
+    if vtype == "result_field":
+        if report_status != "executed":
+            return False
+        return _result_field_matches(step.verification.get("criteria", {}), report_result)
 
     if vtype == "file_exists":
         fpath = step.verification.get("criteria", {}).get("path", "")
@@ -666,6 +706,46 @@ def verify_step_outcome(step: PlanStep, report_status: str, report_result: Any =
 
     # Unknown verification type — fall back to status check
     return report_status == "executed"
+
+
+def _result_field_matches(criteria: dict[str, Any], payload: Any) -> bool:
+    """criteria: {"field": "fields.title", plus exactly the tests wanted:
+        "equals": v | "contains": s | "regex": p | "non_empty": true | "min_items": n | "in": [..]}.
+    All given tests must hold. A missing field, a missing payload, or a criteria dict with no test at all fails."""
+    import re as _re
+
+    found, value = _lookup_path(payload, str(criteria.get("field", "")))
+    if not found:
+        return False
+    tested = False
+    if "equals" in criteria:
+        tested = True
+        if value != criteria["equals"]:
+            return False
+    if "contains" in criteria:
+        tested = True
+        if str(criteria["contains"]) not in (value if isinstance(value, str) else str(value)):
+            return False
+    if "regex" in criteria:
+        tested = True
+        try:
+            if _re.search(str(criteria["regex"]), value if isinstance(value, str) else str(value)) is None:
+                return False
+        except _re.error:
+            return False
+    if "in" in criteria:
+        tested = True
+        if not isinstance(criteria["in"], list) or value not in criteria["in"]:
+            return False
+    if criteria.get("non_empty"):
+        tested = True
+        if value is None or (hasattr(value, "__len__") and len(value) == 0) or (isinstance(value, str) and not value.strip()):
+            return False
+    if "min_items" in criteria:
+        tested = True
+        if not isinstance(value, (list, tuple, dict)) or len(value) < int(criteria["min_items"]):
+            return False
+    return tested
 
 
 # ---------------------------------------------------------------------------

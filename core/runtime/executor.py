@@ -61,6 +61,37 @@ TERMINAL_STATUSES = {
 }
 
 
+def assess_payload_failure(payload: Any) -> str | None:
+    """Explicit failure signals inside an otherwise "successful-looking" result payload, or None.
+
+    Shared outcome assessment (V1 handoff 2026-09-13, "shared outcome-assessment slice"; built 2026-09-26). The status
+    blacklist above only catches a handler that *says* it failed through `status`. Real agents also signal failure
+    through other keys while leaving `status` at "ok"/"success" or absent -- a non-empty `error`, `success: false`,
+    `ok: false`, `verified: false` -- and those used to be certified as executed (and verified) by every completion
+    boundary that trusts this module. This stays conservative on purpose:
+
+      * it only looks for an EXPLICIT negative signal; it never infers failure from a missing field, and it never
+        treats a positive-looking flag (`verified: true`, `success: true`) as proof of anything -- an LLM-supplied
+        "verified" is not evidence, real evidence is checked by plan verification (`result_field`);
+      * `None`, `""`, `0`, `[]` and `False` values for `error` are "no error";
+      * it does not touch nested payloads, only the top level of the handler's own result.
+
+    Returns a short check name such as "error_field" (used as the `checks` entry and in the reason).
+    """
+    if not isinstance(payload, dict):
+        return None
+    if payload.get("success") is False:
+        return "success_false"
+    if payload.get("ok") is False:
+        return "ok_false"
+    if payload.get("verified") is False:
+        return "verified_false"
+    err = payload.get("error")
+    if isinstance(err, (str, dict, list)) and len(err) > 0:
+        return "error_field"
+    return None
+
+
 @dataclass
 class ExecutionPlan:
     action_type: str
@@ -237,6 +268,16 @@ class AutonomousExecutor:
                 "message": payload.get("note")
                 or payload.get("error")
                 or f"Action result status was {payload_status}.",
+            }
+
+        signal = assess_payload_failure(payload)
+        if signal:
+            return {
+                "ok": False,
+                "checks": checks + [f"result_status:{payload_status}", f"payload_signal:{signal}"],
+                "message": (str(payload.get("error")) if signal == "error_field" else "")
+                or payload.get("note")
+                or f"Action result reported failure ({signal}) although its status was {payload_status}.",
             }
 
         checks.append(f"result_status:{payload_status}")
