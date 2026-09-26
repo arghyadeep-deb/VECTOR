@@ -14,6 +14,7 @@ __all__ = [
     "TrackSleepReq",
 ]
 
+import asyncio
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from loguru import logger
@@ -185,7 +186,7 @@ async def system_health():
 
     # 0. Real-time system resources
     try:
-        cpu_pct = psutil.cpu_percent(interval=0.1)
+        cpu_pct = await asyncio.to_thread(psutil.cpu_percent, 0.1)   # interval blocks; keep the event loop free
         mem = psutil.virtual_memory()
         checks["system"] = {
             "status": "ok",

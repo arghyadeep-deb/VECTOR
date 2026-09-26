@@ -145,7 +145,7 @@ async def system_metrics():
     """Get real-time OS metrics via psutil."""
     import psutil as _psutil
     import time as _time
-    cpu = _psutil.cpu_percent(interval=0.3)
+    cpu = await asyncio.to_thread(_psutil.cpu_percent, 0.3)   # interval blocks; keep the event loop free
     mem = _psutil.virtual_memory()
     disk = _psutil.disk_usage('/')
     net = _psutil.net_io_counters()

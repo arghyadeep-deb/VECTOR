@@ -10,6 +10,7 @@ __all__ = [
 ]
 
 
+import asyncio
 from fastapi import APIRouter
 from loguru import logger
 
@@ -63,7 +64,7 @@ async def sensing_system():
     try:
         import psutil
         mem = psutil.virtual_memory()
-        cpu = psutil.cpu_percent(interval=0.1)
+        cpu = await asyncio.to_thread(psutil.cpu_percent, 0.1)   # interval blocks; keep the event loop free
         disk = psutil.disk_usage("/")
         result = {
             "cpu_pct": cpu,
