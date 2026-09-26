@@ -111,6 +111,26 @@ def _now_iso() -> str:
 # Isolation fixtures / helpers
 # ═══════════════════════════════════════════════════════════════════════════
 
+@pytest.fixture(autouse=True)
+def _small_scan_root(tmp_path_factory, monkeypatch):
+    """`read_code` runs the REAL ArchitectBot scan over the working directory. Over the whole repo (7,000+ files) that is ~26 s alone
+    and past the Governor's 45 s timeout under load, so every test that acts on read_code passed or failed with machine load, not
+    code (r13 control_d failed 1 run in 3 on 2026-09-27). The same real scan now runs over a small real project instead."""
+    from districts.coding.architect_bot import ArchitectBot
+
+    proj = tmp_path_factory.mktemp("r13_scan_project")
+    (proj / "__init__.py").write_text("")
+    (proj / "sample.py").write_text("class A:" + chr(10) + "    def f(self):" + chr(10) + "        return 1" + chr(10))
+    for name in ("scan_codebase_with_graph", "scan_codebase"):
+        original = getattr(ArchitectBot, name)
+
+        def redirect(self, root=".", *a, _orig=original, **k):
+            return _orig(self, str(proj) if root in (".", "", None) else root, *a, **k)
+
+        monkeypatch.setattr(ArchitectBot, name, redirect)
+    yield
+
+
 @pytest.fixture
 def isolated_agent_registry():
     """Swap the real, process-wide AgentRegistry singleton for a fresh one
