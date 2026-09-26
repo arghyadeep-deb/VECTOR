@@ -124,6 +124,14 @@ grew open engineering items; section 0 lists them.
     taste calls left for you. Final suite 6,499 passed / 0 failed. Still open: independent Codex review (after 2026-09-27 19:11) --
     including the NEW GREEN `web_extract` tier entry; owner-run live behavioural checks (voice, camera). `VECTOR_API_KEY` was rotated 2026-09-26: any HUD tab or phone bookmark carrying the
     old key shows ACCESS KEY REJECTED until it is reopened with the key from `.env`.
+18. **A2A bus, experience ledger, fair HP (2026-09-26)** — full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/A2A_AND_EXPERIENCE_2026-09-26.md`.
+    Built: a governed agent-to-agent bus for all 230 agents (230/230 answered a live ping across 39 districts; RED requests refused; the old
+    `request_agent_help` gateway bypass closed), a lineage experience ledger with XP/levels/failure attribution/playbook, practice drills,
+    exploration routing and verified-only collaboration credit. **Found by replaying recorded history: 98% of 573 real deaths were healthy agents
+    killed by the 02:00 rank cull** -- the cull now needs a record of failing (`VECTOR_FAIR_CULL`, default on). Everything else that changes
+    behaviour is behind a flag, default off (`VECTOR_HP_FAIR`, `VECTOR_PLAYBOOK`, `VECTOR_LEVEL_COUNCIL`, `VECTOR_EXPLORE`, `VECTOR_GYM`): enable
+    them per the order in the write-up. Honest limit: only GitBot has a practice drill (1 of 230), so "every agent works" depends on real work
+    and on authoring drills per district. For the Codex review: `a2a_bus.py`, the Governor additions, the HP-validator change, probation.
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
