@@ -417,29 +417,55 @@ class AgentBase:
             logger.warning("[VECTOR][city] SharedFacts.get({!r}) failed for {}: {}", key, self.name, e)
             return default
 
-    async def request_agent_help(self, target_agent: str, task: dict) -> dict:
-        """Request help directly from another live agent, by name.
+    # ── Agent-to-agent (A2A) ───────────────────────────────────────────────────────────────────────────────────────────
+    # Every agent in every district inherits these. They go through the governed bus (core/city/a2a_bus.py): Governor.dispatch()
+    # for delivery (tier gate, unknown-type gate, timeout, HP accounting), depth/cycle/rate/budget limits, an audit trail, and no
+    # inherited authority. Phase 1 carries information/analysis requests; YELLOW/RED task types need the PermissionGateway.
 
-        Looks the target up in the agent registry and calls its run() —
-        simpler and more correct than building a single-task WorkflowRunner
-        DAG for what is fundamentally a direct agent-to-agent request.
+    async def a2a_ask(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None,
+                      timeout: float | None = None, escalate: bool = False):
+        """Ask a peer (by name/id, "district:<name>", or by declared capability) and wait. Returns an A2AReply; never raises."""
+        from core.city.a2a_bus import get_bus
+        return await get_bus().ask(self, task_type, params, to=to, capability=capability, timeout=timeout, escalate=escalate)
+
+    async def a2a_delegate(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None,
+                           timeout: float | None = None):
+        """Hand a piece of work to a peer and wait for the result (recorded as a delegation)."""
+        from core.city.a2a_bus import get_bus
+        return await get_bus().delegate(self, task_type, params, to=to, capability=capability, timeout=timeout)
+
+    def a2a_tell(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None) -> str:
+        """Fire and forget. Returns a marker; the reply arrives in a2a_inbox()."""
+        from core.city.a2a_bus import get_bus
+        return get_bus().tell(self, task_type, params, to=to, capability=capability)
+
+    def a2a_inbox(self, limit: int = 20) -> list[dict]:
+        from core.city.a2a_bus import get_bus
+        return get_bus().inbox(self.id, limit)
+
+    def a2a_describe(self) -> dict:
+        from core.city.a2a_bus import describe_agent
+        return describe_agent(self)
+
+    async def request_agent_help(self, target_agent: str, task: dict) -> dict:
+        """Request help from another live agent, by name or district.
+
+        2026-09-26: this used to look the target up and call `target.run(task)` directly -- around the Governor and the
+        PermissionGateway, so a YELLOW/RED task type could run with no approval and the target's HP accounting was skipped.
+        It now goes through the A2A bus. The return shape is unchanged: {"status": "requested"|"unavailable", "target_agent",
+        "result"|"error"}, plus an "a2a" entry with the bus's own verdict.
         """
         try:
-            from core.city.agent_registry import get_registry
-            registry = get_registry()
-            target = next(
-                (
-                    a
-                    for a in registry.get_all_agents()
-                    if getattr(a, "name", None) == target_agent
-                    or getattr(a, "district", None) == target_agent
-                ),
-                None,
-            )
-            if target is None:
-                raise LookupError(f"agent '{target_agent}' not found in registry")
-            result = await target.run(task)
-            return {"status": "requested", "target_agent": target_agent, "result": result}
+            from core.city.a2a_bus import get_bus
+            bus = get_bus()
+            task_type = str((task or {}).get("type") or (task or {}).get("action") or "")
+            params = (task or {}).get("params") if isinstance((task or {}).get("params"), dict) else {}
+            to = target_agent if bus.resolve(target_agent) is not None else f"district:{target_agent}"
+            reply = await bus.ask(self, task_type, params, to=to)
+            if reply.delivered:
+                return {"status": "requested", "target_agent": target_agent, "result": reply.result, "a2a": reply.to_dict()}
+            return {"status": "unavailable", "target_agent": target_agent,
+                    "error": reply.refused or reply.error or reply.status, "a2a": reply.to_dict()}
         except Exception as e:
             logger.debug("[VECTOR][city] request_agent_help fallback: {}", e)
             return {"status": "unavailable", "target_agent": target_agent, "error": str(e)}

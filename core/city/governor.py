@@ -2386,6 +2386,17 @@ class Governor:
         response = await _ensure_english_response(response)
         return {"status": "ok", "response": response}
 
+    def _a2a_pinned_agent(self, task: dict):
+        """The live agent a bus request is addressed to, or None. See core/city/a2a_bus.py."""
+        target_id = task.get("_a2a_target")
+        if not target_id:
+            return None
+        try:
+            agent = self._get_registry().get(target_id)
+        except Exception:
+            return None
+        return agent if agent is not None and getattr(agent, "is_alive", True) and hasattr(agent, "run") else None
+
     async def dispatch(self, task: dict) -> dict:
         """
         Dispatch task to appropriate district agent.
@@ -2798,7 +2809,15 @@ class Governor:
                     ]
                     capability_match = bool(capable)
 
-                    if capable:
+                    # A2A (2026-09-26): a request addressed to ONE specific agent (core/city/a2a_bus.py) runs on that agent instead
+                    # of the HP-lottery winner. It only chooses WHO runs a task type that already passed every gate above; it
+                    # widens nothing. HP is credited only when the agent really declares the task type, as for any dispatch.
+                    _pinned = self._a2a_pinned_agent(task)
+                    if _pinned is not None:
+                        agent = _pinned
+                        district = getattr(_pinned, "district", district)
+                        capability_match = task_type in getattr(_pinned, "capabilities", [])
+                    elif capable:
                         agent = max(capable, key=lambda a: a.health_points)
                     elif task.get("_llm_classified"):
                         city_capable = [
