@@ -199,13 +199,18 @@ async def system_health():
         checks["system"] = {"status": "error", "error": str(e)}
         all_ok = False
 
-    # 1. Episodic DB
+    # 1. Episodic DB -- six COUNT(*) over the whole memory database: off the event loop, and run once for checks 1 and 4
+    stats: dict = {}
+    stats_error: str | None = None
     try:
         from core.memory.episodic import EpisodicMemory
-        stats = EpisodicMemory().get_stats()
-        checks["db"] = {"status": "ok", "episodic_rows": stats.get("episodic_memory", 0)}
+        stats = await asyncio.to_thread(lambda: EpisodicMemory().get_stats())
     except Exception as e:
-        checks["db"] = {"status": "error", "error": str(e)}
+        stats_error = str(e)
+    if stats_error is None:
+        checks["db"] = {"status": "ok", "episodic_rows": stats.get("episodic_memory", 0)}
+    else:
+        checks["db"] = {"status": "error", "error": stats_error}
         all_ok = False
 
     # 2. Ollama reachability
@@ -234,18 +239,16 @@ async def system_health():
     except Exception as e:
         checks["loop"] = {"status": "unknown", "note": str(e)}
 
-    # 4. Memory stats
-    try:
-        from core.memory.episodic import EpisodicMemory
-        stats = EpisodicMemory().get_stats()
+    # 4. Memory stats (same query result as check 1)
+    if stats_error is None:
         checks["memory"] = {
             "status": "ok",
             "episodic": stats.get("episodic_memory", 0),
             "reasoning_chains": stats.get("reasoning_chains", 0),
             "policy_entries": stats.get("policy_memory", 0),
         }
-    except Exception as e:
-        checks["memory"] = {"status": "error", "error": str(e)}
+    else:
+        checks["memory"] = {"status": "error", "error": stats_error}
         all_ok = False
 
     result = {

@@ -76,10 +76,11 @@ async def sensing_system():
         }
         try:
             import subprocess
-            out = subprocess.run(
+            out = await asyncio.to_thread(
+                subprocess.run,
                 ["nvidia-smi", "--query-gpu=utilization.gpu,memory.used,memory.total",
                  "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=3
+                capture_output=True, text=True, timeout=3,
             )
             if out.returncode == 0:
                 parts = out.stdout.strip().split(",")

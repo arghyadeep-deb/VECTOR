@@ -122,5 +122,62 @@ async def test_system_metric_endpoints_do_not_sleep_on_the_event_loop(monkeypatc
     assert lag < 0.25, f"{endpoint} stalled the event loop {lag:.2f}s"
 
 
+# ── subprocess calls inside async handlers / cron jobs ──────────────────────
+
+class _Done:
+    returncode, stdout, stderr = 0, "", ""
+
+
+@pytest.mark.asyncio
+async def test_sandbox_status_does_not_run_docker_on_the_event_loop(monkeypatch):
+    import subprocess
+
+    from core.api.routers import sandbox
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (time.sleep(0.5), _Done())[1])
+    result = None
+
+    async def call():
+        nonlocal result
+        result = await sandbox.sandbox_status()
+
+    lag = await _max_loop_lag(call())
+    assert result["docker_available"] is True
+    assert lag < 0.25, f"docker info stalled the event loop {lag:.2f}s"
+
+
+@pytest.mark.asyncio
+async def test_sensing_gpu_query_does_not_run_on_the_event_loop(monkeypatch):
+    import subprocess
+
+    from core.api.routers import sensing
+
+    class Smi(_Done):
+        stdout = "40, 1000, 12000"
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (time.sleep(0.5), Smi())[1])
+    lag = await _max_loop_lag(sensing.sensing_system())
+    assert lag < 0.25, f"nvidia-smi stalled the event loop {lag:.2f}s"
+
+
+@pytest.mark.asyncio
+async def test_the_nightly_selfcheck_does_not_freeze_the_event_loop(monkeypatch):
+    """compileall (up to 600 s) and the smoke run (up to 300 s) used to run inline in this async cron job."""
+    import subprocess
+
+    from core.loop import cron_jobs
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: (time.sleep(0.4), _Done())[1])
+    result = None
+
+    async def call():
+        nonlocal result
+        result = await cron_jobs.job_nightly_selfcheck()
+
+    lag = await _max_loop_lag(call())
+    assert result["status"] == "ok"
+    assert lag < 0.25, f"the selfcheck stalled the event loop {lag:.2f}s"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

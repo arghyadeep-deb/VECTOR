@@ -231,7 +231,10 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
     problems: list[str] = []
 
     try:
-        r = subprocess.run(
+        # These three subprocesses can take minutes; run inline they froze the whole event loop (the API, the HUD and the
+        # autonomous loop share it) for the duration -- found by the 2026-09-27 static scan of async handlers.
+        r = await asyncio.to_thread(
+            subprocess.run,
             [_sys.executable, "-m", "compileall", "-q", "core", "districts", "scripts"],
             capture_output=True, text=True, timeout=600, cwd=repo,
         )
@@ -243,7 +246,8 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
         problems.append(f"compileall crashed: {e}")
 
     try:
-        r = subprocess.run(
+        r = await asyncio.to_thread(
+            subprocess.run,
             [_sys.executable, "run_vector.py", "smoke"],
             capture_output=True, text=True, timeout=300, cwd=repo,
         )
@@ -255,9 +259,9 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
 
     last_commit = ""
     try:
-        last_commit = subprocess.run(
-            ["git", "log", "-1", "--format=%h %s"], capture_output=True,
-            text=True, timeout=10, cwd=repo).stdout.strip()[:90]
+        last_commit = (await asyncio.to_thread(
+            subprocess.run, ["git", "log", "-1", "--format=%h %s"], capture_output=True,
+            text=True, timeout=10, cwd=repo)).stdout.strip()[:90]
     except Exception:
         logger.warning("[VECTOR] silent swallow")
         pass
