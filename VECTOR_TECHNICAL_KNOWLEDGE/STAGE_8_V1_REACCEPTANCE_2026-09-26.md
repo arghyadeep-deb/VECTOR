@@ -104,3 +104,33 @@ handoff's own constraints (reuse the existing runtime, no rewrite, real evidence
 
 What is still not done: the desktop `gui_task` path has no evidence check; research/coding still lack the "advertised review
 phase / run the tests" verification the handoff describes; nothing here has had an independent review or a live run.
+
+## 7. Addendum: a walk through the real HUD (2026-09-26, after the builds)
+
+The running backend was restarted on the final code and the real HUD (`/hud/`, headless Chromium, live data) was opened the way a user
+would: boot screen, then all 51 widgets one by one, each screenshotted and its text and console errors recorded (walk scripts
+kept in the session scratchpad, not the repo). All 51 open; 30-plus show live data, the rest show honest empty or "not running" states
+(ComfyUI, camera, music player, finance positions). The boot screen and panels look clean and consistent.
+
+Found and fixed (each has an e2e assertion in `tests/frontend/test_hud_honesty_e2e.py`, 32 tests, both runtime modes):
+* tall panels (memory, features, council, memory explorer) ran off the bottom of the stage behind the dock/command bar/ticker;
+* the ticker alternated between "230 AGENTS" and "12 AGENTS" and between two "TOP AGENT"s: the 12-agent snapshot sample overwrote the
+  full roster every 5 s;
+* the SYS status text sat hidden under the KEYS pill;
+* boot status read "DEGRADED . ws gesture disconnected" permanently, and ~900 rejected gesture connections filled the backend log:
+  optional sockets (voice/gesture/camera) now give up after 5 tries and never change the global status;
+* the Civilization Atlas was blank for 6-12 s (it awaited `/city/districts`, a slow Governor round trip whose result nothing used);
+* a stale tab after the key rotation hammered ~22 endpoints every few seconds (thousands of 401s): polling now stops after six
+  consecutive rejections and probes every 30 s; the screen says ACCESS KEY REJECTED;
+* `/security/status` ran an ~8 s process scan inline in an async handler, freezing the whole event loop (and the in-process loop and
+  websockets) on every cache miss; it also listed the idle pseudo-process at "2111 %" CPU. Now in a worker thread, CPU normalised.
+
+Taste calls and follow-ups left for the owner (deliberately not changed):
+* Command Center shows "STATUS UNKNOWN" for most domain tiles and "APPROVALS UNKNOWN" in its header although approvals are known (0);
+* the top ticker's THREAT LEVEL reads HIGH when two or more processes run from a temp directory, which a VS Code installer trips: the
+  heuristic has no notion of a legitimate installer;
+* the HUD has two docks (a labelled row and an icon row); `/city/districts` still takes 6-12 s (no longer used by the HUD);
+* the gesture handler needs porting to the MediaPipe Tasks API (installed 0.10.35 has no legacy `solutions`), so hand control is off.
+
+Final suite after all of the above: 6,499 passed, 0 failed, 38 skipped; the HUD e2e file was then re-run alone (32 passed) because its
+runtime had outgrown the suite's 120 s per-test timeout (fixed with a module-level 600 s timeout).

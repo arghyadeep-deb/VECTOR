@@ -119,9 +119,10 @@ grew open engineering items; section 0 lists them.
     narration, caption burn-in, ArchitectBot blocking, HUD auth screen). Full suite 6,440 passed / 0 failed after the last
     fix (r13 verified separately). The two builds the handoff held for a decision were then made and done (outcome assessment: payload failure
     signals + `result_field`/`all_of` verification + dotted bindings; browser workflow C: read-only GREEN `web_extract`,
-    restart-surviving plan test, evidence-based browser rewards). Still open: independent Codex review (after 2026-09-27
-    19:11) -- including the NEW GREEN `web_extract` tier entry; owner-run live behavioural checks; desktop `gui_task` has no
-    evidence check. `VECTOR_API_KEY` was rotated 2026-09-26: any HUD tab or phone bookmark carrying the
+    restart-surviving plan test, evidence-based browser rewards). A walk through the real HUD then fixed seven UI/backend defects (panel layout, agent-count flicker, optional-socket
+    DEGRADED, blank atlas, 401 polling storm, blocking `/security/status`) -- see STAGE_8 report section 7 for those and the list of
+    taste calls left for you. Final suite 6,499 passed / 0 failed. Still open: independent Codex review (after 2026-09-27 19:11) --
+    including the NEW GREEN `web_extract` tier entry; owner-run live behavioural checks (voice, camera). `VECTOR_API_KEY` was rotated 2026-09-26: any HUD tab or phone bookmark carrying the
     old key shows ACCESS KEY REJECTED until it is reopened with the key from `.env`.
 
 This file is the single owner-facing source of truth. Full per-item evidence
