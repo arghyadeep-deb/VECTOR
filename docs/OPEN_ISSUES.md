@@ -103,14 +103,24 @@ grew open engineering items; section 0 lists them.
     plain-English question), call graph, symbol lookup and impact analysis. The agent's transport was rewritten because it
     could never have worked: no MCP handshake, wrong environment-variable names (so the server demanded Docker), a repo-root
     path one level too high (so the build was never found), a fresh server per call (which killed every background index job)
-    and a blocking subprocess inside an async method. **Not done**: indexing the whole VECTOR repo (thousands of files; run
-    `POST /code-intel/index` when you want it — it loads the embedding model and competes with `vector-focus` for the GPU).
+    and a blocking subprocess inside an async method. **Whole-repo index DONE 2026-09-26**: 26,632 files / 101,614 chunks, code graph of 9,209 files
+    and 107,891 symbols; Qdrant is left running (`scripts\stop_code_intel.bat` stops it). Re-indexing later needs the MCP
+    session to stay alive, so do it from a long-lived process (the API), not a one-shot script.
 15. **Stray test write in the live home** — while adding the router tests, one child process inherited the real
     `VECTOR_HOME` and wrote a single line ("vector test fact") to `~/.vector/memories/MEMORY.md` (new dir, only
     that file + `MEMORY.md.lock`). Test fixtures are fixed so it cannot recur; the file itself is left for the
     owner to delete (the auto-mode classifier blocked me from removing it).
 16. **HUD side panels**: ComfyUI / Media Studio / Hyperframes now say "not running" (via `/media/sidecars`) when
     their local servers are down; the servers themselves are owner-started.
+17. **V1 re-acceptance pass (2026-09-26)** — full report: `VECTOR_TECHNICAL_KNOWLEDGE/STAGE_8_V1_REACCEPTANCE_2026-09-26.md`.
+    Verdict **not yet "V1 ACCEPTED"**. Closed: Stage 4 (root cause was `ContinueGate` being fed the ranking score as
+    "coherence", silently dropping every winner scoring 0.30-0.40; a plan now terminates end to end), Stage 6's live-server
+    JWT gap, and seven defects found on the way (research, coding containment, `ProviderClient.complete(messages=)`,
+    narration, caption burn-in, ArchitectBot blocking, HUD auth screen). Full suite 6,440 passed / 0 failed after the last
+    fix (r13 verified separately). Still open: independent Codex review (after 2026-09-27 19:11); the browser workflow
+    (handoff workflow C, needs an owner decision to build); the "shared outcome-assessment" slice (proposed, unapproved);
+    owner-run live behavioural checks. `VECTOR_API_KEY` was rotated 2026-09-26: any HUD tab or phone bookmark carrying the
+    old key shows ACCESS KEY REJECTED until it is reopened with the key from `.env`.
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
