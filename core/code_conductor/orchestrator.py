@@ -149,6 +149,13 @@ class CodingOrchestrator:
             "summary": result.summary,
             "files_used": result.files_used,
             "error": result.error,
+            # The pipeline advertises plan -> edit -> review but never runs a review or any tests. Say so explicitly so
+            # no caller (plan verification, HP, learning) mistakes "edits applied" for "change verified".
+            "verification": {
+                "tests_run": False,
+                "review_run": False,
+                "note": "edits were applied as proposed; no tests or review were run, so correctness is unverified",
+            },
         }
 
     # ── Phase 1: Code map + file picker ──────────────────────────────────────

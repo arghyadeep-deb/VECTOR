@@ -76,8 +76,10 @@ class GUIAutomationAgent(AgentBase):
         )
         result = await agent.run(instruction)
         self._store_result("gui_task", instruction, result)
+        # Same rule as the browser task: the model saying "finished" is a self-report with nothing checked, so it earns
+        # a fraction of the old +40; anything else still costs HP.
         if result.get("status") == GUIStatus.END.value:
-            self.award_points(40, f"gui_task: {instruction[:40]}")
+            self.award_points(10, f"gui_task self-reported finish: {instruction[:40]}")
         else:
             self.deduct_points(10, f"gui_task incomplete: {result.get('status')}")
         return result

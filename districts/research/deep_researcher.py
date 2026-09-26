@@ -70,7 +70,8 @@ class DeepResearcher(AgentBase):
                 None, lambda: quick_research(query, save_to_brain=save_to_brain)
             )
             if result.get("summary") and not result.get("error") and "failed" not in result["summary"]:
-                self.award_points(15, "quick_research_success")
+                # An answer with no sources is a claim nobody can check: full reward only when sources came back.
+                self.award_points(15 if result.get("sources") else 4, "quick_research_success" if result.get("sources") else "quick_research_unsourced")
                 self._get_memory().store(
                     event_type="research_quick",
                     content=f"Quick research: {query[:100]}",
@@ -205,7 +206,11 @@ class DeepResearcher(AgentBase):
                 return {"status": "error", "type": task_type, **result}
             if not (result.get("summary") or result.get("content") or result.get("findings") or result.get("documents")):
                 return {"status": "error", "type": task_type, "error": "research returned no content", **result}
-            return {"status": "ok", "type": task_type, **result}
+            # Evidence level, so plans/learning can tell a sourced answer from a bare one (a plan can require
+            # result_field "sources" min_items 1). Status stays "ok": the research ran; whether it is *verified* is a
+            # separate, checkable fact.
+            n_sources = len(result.get("sources") or []) + len(result.get("documents") or [])
+            return {"status": "ok", "type": task_type, "evidence": {"sources": n_sources, "sourced": n_sources > 0}, **result}
 
         except Exception as e:
             logger.error("[VECTOR][deep_researcher] run() failed: {}", e)

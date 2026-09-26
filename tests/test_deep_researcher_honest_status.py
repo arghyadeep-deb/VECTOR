@@ -89,3 +89,25 @@ async def test_genuinely_unknown_type_is_still_an_error(agent):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+@pytest.mark.asyncio
+async def test_sourced_and_unsourced_answers_are_distinguished(agent, monkeypatch):
+    monkeypatch.setattr(dr, "quick_research", lambda q, save_to_brain=True: {"summary": "A.", "findings": [], "sources": ["s1", "s2"]})
+    sourced = await agent.run(_task("quick"))
+    assert sourced["status"] == "ok" and sourced["evidence"] == {"sources": 2, "sourced": True}
+    monkeypatch.setattr(dr, "quick_research", lambda q, save_to_brain=True: {"summary": "A bare claim.", "findings": [], "sources": []})
+    bare = await agent.run(_task("quick"))
+    assert bare["status"] == "ok" and bare["evidence"] == {"sources": 0, "sourced": False}
+
+
+@pytest.mark.asyncio
+async def test_an_unsourced_answer_earns_less_hp_than_a_sourced_one(agent, monkeypatch):
+    async def gain(sources):
+        monkeypatch.setattr(dr, "quick_research", lambda q, save_to_brain=True: {"summary": "text", "findings": [], "sources": sources})
+        before = agent.health_points
+        await agent.run(_task("quick"))
+        return agent.health_points - before
+    sourced = await gain(["https://x"])
+    bare = await gain([])
+    assert sourced > bare > 0, (sourced, bare)

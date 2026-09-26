@@ -136,3 +136,11 @@ async def test_some_edits_applied_is_partial_and_all_is_ok(monkeypatch, tmp_path
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+@pytest.mark.asyncio
+async def test_result_says_no_tests_or_review_were_run(monkeypatch, tmp_path):
+    out = await _run_with_edits(monkeypatch, tmp_path, ["ok"])
+    assert out["status"] == "ok"
+    assert out["verification"]["tests_run"] is False and out["verification"]["review_run"] is False
+    assert "unverified" in out["verification"]["note"]
