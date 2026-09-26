@@ -280,3 +280,19 @@ async def test_every_message_including_refusals_is_audited(world):
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+@pytest.mark.asyncio
+async def test_describing_an_agent_never_runs_its_own_code(world):
+    """GitBot (and others) override get_status() with real work; a directory listing must not trigger it."""
+    calls = []
+
+    class Overrider(AgentBase):
+        def get_status(self):
+            calls.append("ran")
+            raise RuntimeError("real work")
+
+    a = world.add(Overrider, "Overrider", "da", hp=850)
+    d = describe_agent(a)
+    assert calls == [] and d["status"] == "elite"
+    assert world.bus.directory()["da"][0]["status"] == "elite" and calls == []

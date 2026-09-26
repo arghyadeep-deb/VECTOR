@@ -107,6 +107,18 @@ class A2AReply:
 _CHAIN: contextvars.ContextVar[dict | None] = contextvars.ContextVar("a2a_chain", default=None)
 
 
+def _hp_status(hp: Any) -> str | None:
+    """The HP tier label (same bands as AgentBase.get_status), computed from the number so no agent code runs."""
+    try:
+        hp = float(hp)
+    except (TypeError, ValueError):
+        return None
+    for floor, label in ((800, "elite"), (600, "strong"), (400, "healthy"), (200, "weakened"), (1, "critical")):
+        if hp >= floor:
+            return label
+    return "dead"
+
+
 def describe_agent(agent: Any) -> dict:
     """What an agent tells a peer about itself. Built from the registry, so every agent can answer a ping."""
     return {
@@ -116,7 +128,9 @@ def describe_agent(agent: Any) -> dict:
         "capabilities": sorted({str(c) for c in (getattr(agent, "capabilities", None) or [])}),
         "generation": getattr(agent, "generation", None),
         "health_points": getattr(agent, "health_points", None),
-        "status": agent.get_status() if hasattr(agent, "get_status") else None,
+        # NOT agent.get_status(): many agents override that name for their own purposes (GitBot's returns the repository status and
+        # runs git, an HP award and all), so a directory listing would trigger real work. Use the base HP-tier implementation.
+        "status": _hp_status(getattr(agent, "health_points", None)),
         "alive": bool(getattr(agent, "is_alive", True)),
     }
 
