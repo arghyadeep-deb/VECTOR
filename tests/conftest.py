@@ -54,6 +54,11 @@ os.environ["VECTOR_DB_KEY"] = "pytest-session-key-not-for-production"
 # overridden above. VECTOR_DATA_DIR would beat nothing (TEST wins in runtime_paths)
 # but is dropped so it can never point a test at live data.
 os.environ.pop("VECTOR_DATA_DIR", None)
+# .env carries LangSmith keys, so a test run uploaded traces of its (fake) LLM calls to an external service and printed
+# "429 Monthly unique traces usage limit exceeded" at exit. Tests must not talk to third parties; the env var wins over
+# python-dotenv because dotenv never overrides a variable that is already set.
+for _tracing_var in ("LANGCHAIN_TRACING_V2", "LANGCHAIN_TRACING", "LANGSMITH_TRACING"):
+    os.environ[_tracing_var] = "false"
 
 
 def _assert_not_live(where: str) -> None:
