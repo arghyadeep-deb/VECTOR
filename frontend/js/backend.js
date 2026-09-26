@@ -356,18 +356,48 @@
     if (typeof V.setRuntimeMode === 'function') V.setRuntimeMode(mode, detail);
   }
 
+  // A rejected key (HTTP 401/403) does not fix itself, yet ~22 pollers kept retrying every few seconds: after the owner
+  // rotated the API key a single stale tab sent thousands of 401s an hour and filled the backend log. After a handful of
+  // consecutive auth rejections all polling stops and one slow probe waits for a request to succeed again (the key was
+  // fixed, the page was reopened with a good one), which restarts polling.
+  const AUTH_REJECTS_BEFORE_STOP = 6;
+  const AUTH_PROBE_MS = 30000;
+  let authRejects = 0;
+  let authProbe = null;
+
+  function stopPollingForAuth() {
+    pollTimers.forEach(clearInterval);
+    pollTimers.length = 0;
+    pollingStarted = false;   // a later 'connected' (manual reconnect) may start polling again
+    if (authProbe) return;
+    authProbe = setInterval(async () => {
+      try {
+        await V.http('/status');
+        clearInterval(authProbe); authProbe = null;
+        authRejects = 0;
+        markRuntime('live', V.config.base || '/status');
+        startPolling();
+      } catch (_) { /* still rejected: keep waiting, quietly */ }
+    }, AUTH_PROBE_MS);
+  }
+
   async function poll(path, interval, handler) {
     async function run() {
       try {
         const data = await V.http(path);
         successfulPolls += 1;
         failedPolls = 0;
+        authRejects = 0;
         markRuntime('live', V.config.base || path);
         handler(data);
       } catch (err) {
         failedPolls += 1;
         const detail = path + ' failed' + (err && err.message ? ': ' + err.message : '');
         if (!successfulPolls || failedPolls >= 2) markRuntime('degraded', detail);
+        if (/→ 40[13]/.test(detail)) {
+          authRejects += 1;
+          if (authRejects >= AUTH_REJECTS_BEFORE_STOP) stopPollingForAuth();
+        }
       }
     }
     run();

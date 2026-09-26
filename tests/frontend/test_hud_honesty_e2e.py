@@ -85,11 +85,13 @@ with sync_playwright() as pw:
         out["offline_hidden_after"] = False
     # Key rotated / wrong key: the backend answers 401 to every API call. The screen must say so, not "backend offline".
     pg.wait_for_function("() => { const e = document.getElementById('ve-offline-screen'); return !e || e.hidden; }", timeout=45000)
+    denied = []
     def _deny(route):
         path = route.request.url.split("/", 3)[-1].split("?")[0]
         if path.startswith("hud/") or path.startswith("static/") or path.startswith("vendor/") or path == "":
             route.continue_()
         else:
+            denied.append(path)
             route.fulfill(status=401, content_type="application/json", body='{"detail":"Unauthorized"}')
     pg.evaluate("() => { window.__modes = []; VECTOR.on('runtime:mode', st => window.__modes.push(st.mode + '@' + Math.round(performance.now()/1000))); }")
     pg.route("**/*", _deny)
@@ -98,9 +100,13 @@ with sync_playwright() as pw:
         out["rejected_text"] = " ".join(pg.evaluate("() => document.getElementById('ve-offline-screen').innerText").split())
     except Exception as exc:
         out["rejected_text"] = f"never appeared: overlay={pg.evaluate('() => { const e=document.getElementById(\"ve-offline-screen\"); return e ? (e.hidden ? \"hidden\" : e.innerText.replace(/\s+/g, \" \")) : \"none\"; }')} last_modes={pg.evaluate('() => JSON.stringify(window.__modes.slice(-3))')}"[:600]
+    # a rejected key must not be hammered: once the screen is up, polling has stopped (only a slow probe remains)
+    n1 = len(denied)
+    pg.wait_for_timeout(12000)
+    out["denied_during_12s_after_screen"] = len(denied) - n1
     pg.unroute("**/*", _deny)
     try:
-        pg.wait_for_function("() => { const e = document.getElementById('ve-offline-screen'); return !e || e.hidden; }", timeout=45000)
+        pg.wait_for_function("() => { const e = document.getElementById('ve-offline-screen'); return !e || e.hidden; }", timeout=90000)
         out["rejected_cleared"] = True
     except Exception:
         out["rejected_cleared"] = False
@@ -220,6 +226,11 @@ def test_rejected_key_says_so_instead_of_claiming_the_backend_is_down(hud):
     assert "ACCESS KEY REJECTED" in hud["rejected_text"], hud["rejected_text"]
     assert "rejected the API key" in hud["rejected_text"]
     assert hud["rejected_cleared"] is True
+
+
+def test_a_rejected_key_stops_the_polling_storm(hud):
+    # ~22 pollers at 3-5 s would be 30+ requests in 12 s; after the stop only the 30 s probe may fire
+    assert hud["denied_during_12s_after_screen"] <= 3, hud["denied_during_12s_after_screen"]
 
 
 def test_no_javascript_errors_during_the_session(hud):
