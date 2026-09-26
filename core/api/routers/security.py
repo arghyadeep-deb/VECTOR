@@ -1,7 +1,11 @@
 """Security router — /security endpoints."""
 
 import asyncio
+import json
+import subprocess
 import sys
+import time
+from pathlib import Path
 
 __all__ = [
     "confirm_security_action",
@@ -10,8 +14,6 @@ __all__ = [
     "security_status",
 ]
 
-
-import psutil
 
 from fastapi import APIRouter, Request, HTTPException, Query
 from loguru import logger
@@ -39,37 +41,56 @@ async def security_recent(limit: int = Query(15, ge=1, le=50)):
         logger.error("[VECTOR][api][security] recent failed: {}", e)
         return SecurityRecentResponse(events=[], count=0, error="Internal server error")
 
-def _collect_process_status() -> tuple[int, list[ProcessInfo]]:
-    """Blocking work behind /security/status: the process-anomaly scan and the process table.
+_SNAPSHOT_SCRIPT = Path(__file__).resolve().parents[2] / "control" / "security" / "process_snapshot.py"
+_TABLE_TTL_S = 120.0        # the per-process table is expensive even out of process; 2 minutes is fresh enough for a HUD
+_SNAPSHOT_TIMEOUT_S = 90.0
+_table: dict = {"rows": [], "at": 0.0}
+_refresh_task: asyncio.Task | None = None
 
-    2026-09-26: this used to run inline inside an `async def`, so every cache miss froze the whole event loop for ~8 s
-    (measured: /loop/status waited 7.7 s behind it). The API process also runs the autonomous loop and the HUD's
-    websockets, so all of them stalled together. It now runs in a worker thread (see security_status).
+
+def _run_snapshot_blocking() -> list[ProcessInfo] | None:
+    """Run the process-table scan in a child process. None on any failure (the caller keeps whatever it had)."""
+    try:
+        out = subprocess.run(
+            [sys.executable, str(_SNAPSHOT_SCRIPT), "20"],
+            capture_output=True, text=True, timeout=_SNAPSHOT_TIMEOUT_S, check=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        ).stdout
+        return [ProcessInfo(**row) for row in json.loads(out)]
+    except Exception as e:  # noqa: BLE001 -- a failed scan must never take the endpoint down
+        logger.warning("[VECTOR][api][security] process snapshot failed: {}", e)
+        return None
+
+
+async def _refresh_table() -> None:
+    global _refresh_task
+    try:
+        rows = await asyncio.to_thread(_run_snapshot_blocking)
+        if rows is not None:
+            _table["rows"], _table["at"] = rows, time.monotonic()
+    finally:
+        _refresh_task = None
+
+
+async def _process_table() -> list[ProcessInfo]:
+    """Top processes by CPU, served stale-while-revalidate from a child-process scan.
+
+    2026-09-27: the scan used to run in-process (worker thread since 2026-09-26). psutil on Windows holds the GIL for
+    ~10 s per sweep, so a thread only moved the freeze around: /agents measured 15-27 s every ~30 s. The child process
+    keeps the API's GIL free, and the table is refreshed at most every _TABLE_TTL_S instead of every cache miss.
     """
-    anomalies = check_process_anomalies()
-    anomalies_found = sum(1 for a in anomalies if a.get("suspicious"))
+    global _refresh_task
+    fresh = _table["rows"] and (time.monotonic() - _table["at"]) < _TABLE_TTL_S
+    if not fresh and _refresh_task is None:
+        _refresh_task = asyncio.create_task(_refresh_table())
+    if not _table["rows"] and _refresh_task is not None:
+        await asyncio.shield(_refresh_task)      # first ever call: nothing to serve yet, wait (without blocking the loop)
+    return list(_table["rows"])
 
-    ncpu = psutil.cpu_count(logical=True) or 1
-    processes: list[ProcessInfo] = []
-    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'status']):
-        try:
-            info = proc.info
-            name = info.get('name') or 'unknown'
-            if info.get('pid') == 0 or name == 'System Idle Process':
-                continue  # the idle pseudo-process reports (idle x cores) percent -- it is not load
-            processes.append(ProcessInfo(
-                name=name[:50],
-                # psutil's per-process cpu_percent is summed over cores (a busy process can read several hundred %);
-                # normalise to share of the whole machine so the number means what a reader assumes.
-                cpu=round(min(100.0, (info.get('cpu_percent') or 0.0) / ncpu), 1),
-                mem=round(info.get('memory_percent') or 0.0, 1),
-                status=info.get('status') or 'unknown',
-            ))
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
-    # Show top 20 by CPU
-    processes.sort(key=lambda p: p.cpu, reverse=True)
-    return anomalies_found, processes[:20]
+
+def _count_anomalies() -> int:
+    """Name / exe / cmdline only (about 10 ms for 360 processes) -- the expensive metrics live in process_snapshot.py."""
+    return sum(1 for a in check_process_anomalies() if a.get("suspicious"))
 
 
 @router.get("/status", response_model=SecurityStatusResponse)
@@ -79,7 +100,8 @@ async def security_status(request: Request):
     if cached:
         return cached
     try:
-        anomalies_found, processes = await asyncio.to_thread(_collect_process_status)
+        anomalies_found = await asyncio.to_thread(_count_anomalies)
+        processes = await _process_table()
 
         # Threat level logic
         threat_level = "low"

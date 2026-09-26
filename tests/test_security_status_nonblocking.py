@@ -1,16 +1,20 @@
-"""/security/status must not freeze the event loop, and its process list must be honest (found 2026-09-26).
+"""/security/status must not freeze the API, and its process list must be honest (found 2026-09-26, root-caused 2026-09-27).
 
-The handler did the ~8 s process scan inline inside an `async def`, so every cache miss stalled every other request (and the
-autonomous loop, which lives in the same process) for its whole duration. It also reported the idle pseudo-process at
-"2111 %" CPU and per-process CPU summed over cores.
+2026-09-26: the ~8 s process scan ran inline in an `async def`, freezing the event loop on every cache miss. It also reported
+the idle pseudo-process at "2111 %" CPU and per-process CPU summed over cores.
+2026-09-27: moving it to a worker thread was not enough. py-spy on the live API showed 67% of all GIL time inside psutil's
+per-process cpu/memory/status calls (Windows: each call is a whole-system query that holds the GIL), and /agents stalled
+15-27 s every ~30 s. The per-process table now comes from a child process (core/control/security/process_snapshot.py),
+refreshed at most every two minutes and served stale-while-revalidate.
 """
 from __future__ import annotations
 
 import asyncio
+import json
+import subprocess
 import sys
 import time
 from pathlib import Path
-from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -18,19 +22,27 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
-from core.api import cache as cache_mod
 from core.api.routers import security as sec
+from core.api.schemas import ProcessInfo
 
 
-def _app(monkeypatch, scan_seconds=1.2, procs=None):
-    monkeypatch.setattr(sec, "check_process_anomalies", lambda: (time.sleep(scan_seconds), [{"suspicious": False}])[1])
-    procs = procs or [
-        SimpleNamespace(info={"pid": 0, "name": "System Idle Process", "cpu_percent": 2100.0, "memory_percent": 0.0, "status": "running"}),
-        SimpleNamespace(info={"pid": 10, "name": "python.exe", "cpu_percent": 400.0, "memory_percent": 3.0, "status": "running"}),
-        SimpleNamespace(info={"pid": 11, "name": "node.exe", "cpu_percent": 50.0, "memory_percent": 1.0, "status": "running"}),
-    ]
-    monkeypatch.setattr(sec.psutil, "process_iter", lambda attrs=None: iter(procs))
-    monkeypatch.setattr(sec.psutil, "cpu_count", lambda logical=True: 20)
+def _row(name="python.exe", cpu=20.0):
+    return ProcessInfo(name=name, cpu=cpu, mem=3.0, status="running")
+
+
+def _app(monkeypatch, snapshot=None, anomaly_seconds=0.0):
+    calls = {"snapshot": 0}
+
+    def fake_snapshot():
+        calls["snapshot"] += 1
+        return snapshot() if callable(snapshot) else (snapshot if snapshot is not None else [_row(), _row("node.exe", 2.5)])
+
+    monkeypatch.setattr(sec, "_run_snapshot_blocking", fake_snapshot)
+    monkeypatch.setattr(sec, "check_process_anomalies",
+                        lambda: (time.sleep(anomaly_seconds), [{"suspicious": False}])[1])
+    monkeypatch.setitem(sec._table, "rows", [])
+    monkeypatch.setitem(sec._table, "at", 0.0)
+    monkeypatch.setattr(sec, "_refresh_task", None)
     sec.security_cache.invalidate()  # never let a cached result from another test hide the behaviour under test
     app = FastAPI()
     app.include_router(sec.router)
@@ -39,33 +51,69 @@ def _app(monkeypatch, scan_seconds=1.2, procs=None):
     async def ping():
         return {"ok": True}
 
-    return app
+    return app, calls
+
+
+def test_the_router_no_longer_calls_psutil_in_process():
+    """The expensive per-process psutil calls hold the GIL; the API module must not import psutil at all."""
+    assert not hasattr(sec, "psutil")
 
 
 @pytest.mark.asyncio
 async def test_a_slow_scan_does_not_block_other_requests(monkeypatch):
-    app = _app(monkeypatch, scan_seconds=1.5)
+    app, _ = _app(monkeypatch, snapshot=lambda: (time.sleep(1.5), [_row()])[1])
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         slow = asyncio.create_task(c.get("/security/status"))
         await asyncio.sleep(0.2)
         t0 = time.monotonic()
         r = await c.get("/ping")
-        ping_s = time.monotonic() - t0
         assert r.status_code == 200
-        assert ping_s < 0.6, f"/ping waited {ping_s:.2f}s behind the security scan: the event loop is blocked"
+        assert time.monotonic() - t0 < 0.6, "the event loop is blocked behind the security scan"
         assert (await slow).status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_process_list_excludes_idle_and_normalises_cpu(monkeypatch):
-    app = _app(monkeypatch, scan_seconds=0.0)
+async def test_the_process_table_is_scanned_once_per_ttl_not_once_per_request(monkeypatch):
+    app, calls = _app(monkeypatch)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        first = (await c.get("/security/status")).json()
+        sec.security_cache.invalidate()  # the 15 s response cache expires; the table must NOT be rescanned
+        second = (await c.get("/security/status")).json()
+    assert calls["snapshot"] == 1
+    assert [p["name"] for p in first["processes"]] == [p["name"] for p in second["processes"]] == ["python.exe", "node.exe"]
+
+
+@pytest.mark.asyncio
+async def test_a_stale_table_is_served_immediately_while_it_refreshes(monkeypatch):
+    app, calls = _app(monkeypatch, snapshot=lambda: (time.sleep(0.8), [_row("fresh.exe")])[1])
+    monkeypatch.setitem(sec._table, "rows", [_row("stale.exe")])
+    monkeypatch.setitem(sec._table, "at", time.monotonic() - 10_000)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        t0 = time.monotonic()
         body = (await c.get("/security/status")).json()
-    names = [p["name"] for p in body["processes"]]
-    assert "System Idle Process" not in names
-    by = {p["name"]: p["cpu"] for p in body["processes"]}
-    assert by["python.exe"] == 20.0 and by["node.exe"] == 2.5          # 400/20 and 50/20: share of the whole machine
-    assert all(0.0 <= p["cpu"] <= 100.0 for p in body["processes"])
+        assert time.monotonic() - t0 < 0.5, "a stale table must not make the caller wait for the rescan"
+        assert [p["name"] for p in body["processes"]] == ["stale.exe"]
+        await asyncio.sleep(1.2)
+    assert [r.name for r in sec._table["rows"]] == ["fresh.exe"] and calls["snapshot"] == 1
+
+
+@pytest.mark.asyncio
+async def test_a_failed_scan_gives_an_honest_empty_table_not_a_500(monkeypatch):
+    app, _ = _app(monkeypatch, snapshot=lambda: None)
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        r = await c.get("/security/status")
+    assert r.status_code == 200 and r.json()["processes"] == []
+
+
+def test_the_child_process_really_returns_an_honest_table():
+    """Real subprocess, real psutil (about 10 s on a 360-process machine): idle pseudo-process excluded, CPU in 0..100."""
+    out = subprocess.run([sys.executable, str(sec._SNAPSHOT_SCRIPT), "5"], capture_output=True, text=True,
+                         timeout=120, check=True).stdout
+    rows = json.loads(out)
+    assert 0 < len(rows) <= 5
+    assert "System Idle Process" not in [r["name"] for r in rows]
+    assert all(0.0 <= r["cpu"] <= 100.0 and r["status"] for r in rows)
+    assert [r["cpu"] for r in rows] == sorted((r["cpu"] for r in rows), reverse=True)
 
 
 if __name__ == "__main__":
