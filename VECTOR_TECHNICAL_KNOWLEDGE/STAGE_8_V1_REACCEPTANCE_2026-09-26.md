@@ -176,5 +176,22 @@ assessment yet and this is not a two-model verdict.
 * Ollama probe timeout 0.5 -> 2 s (78 empty-message timeouts per session).
 * The two test-only bridge commits on `vector-integration` were applied (`87bc9ab0a`).
 
-Test evidence for this section is in the commit messages; the final full-suite run is recorded in section 9 once it finishes.
+Test evidence for this section is in the commit messages and section 9.
+
+## 9. Final test state (2026-09-27, HEAD `d8c392274`)
+
+Full sharded suite (`-m "not requires_ollama" --timeout=120`, 19 batches, clean working tree): **6,678 passed, 0 failed, 39 skipped**.
+The first run on the pre-final tree (`ceaa7fc51`) was 6,677 / 1 / 39; the one failure, `r13 ... control_d`, failed about 1 run in 3 alone
+because its real `read_code` scan walked the whole 7,000-file repo and hit the Governor's 45 s timeout under load. All r13 tests now run
+the same real scan over a small project (stable 4 of 4). Before the fixes, `43ef7e5e2` was 6,586 / 3 / 55: the 3 HUD dev-mode e2e failures
+pass when run alone and did not recur.
+
+Live backend on the final code: `/agents` worst case 1.03 s over 45 samples (was 19-27 s), idle CPU 0.54 cores (was ~1.3), autonomous
+loop ticking (323 ticks in 200 s), `/a2a/internal/directory` 200.
+
+**Verdict remains B, not "V1 ACCEPTED".** Remaining: Codex independent review (after 19:11; packet `CODEX_REVIEW_PACKET_2026-09-27.md`), the
+owner's live voice/camera checks, a real day of use on the daily phone/PC. `V1_FINAL_STATE_REPORT.md` is not written because that report is
+only for verdict A. V1.x backlog (not blocking): goal-less plans lose to ambient goals by design; rare RED paths still call `subprocess.run`
+inline in async code (`districts/emergency`, `core/resilience`); only GitBot has a practice drill; the LightRAG vault index rebuild (owner
+decision); the taste calls in section 7.
 
