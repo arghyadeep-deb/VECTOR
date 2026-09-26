@@ -372,7 +372,7 @@ def _try_anthropic(model_hint: str, messages: list[dict], timeout: float, temper
 
 
 def _try_openrouter(model_hint: str, messages: list[dict], timeout: float, temperature: float = 0.7) -> str:
-    """Tier 2 — OpenRouter (300+ models via one API). Paid, set OPENROUTER_API_KEY."""
+    """Tier 2 — OpenRouter (300+ models via one API). Free (:free) models only -- see the gate below."""
     if _is_rate_limited("openrouter"):
         return ""
     api_key = _pool_key("OPENROUTER_API_KEY", str(CONFIG["api_keys"]["openrouter_key"]))
@@ -381,6 +381,11 @@ def _try_openrouter(model_hint: str, messages: list[dict], timeout: float, tempe
 
     # OpenRouter uses OpenAI-compatible API
     or_model = _map_to_openrouter_model(model_hint)
+    # Owner rule (2026-07-08): free-tier only at runtime. The map below still names paid Claude/DeepSeek models; without
+    # this gate the only thing stopping a real charge was the account having no credit (57 HTTP 402s per session).
+    if not or_model.endswith(":free"):
+        logger.debug(f"[VECTOR][vc_llm] openrouter skipped: {or_model} is not a :free model (free-tier-only rule)")
+        return ""
     t0 = time.perf_counter()
     try:
         import httpx
@@ -497,7 +502,7 @@ _OPENROUTER_MAP = {
 
 
 def _map_to_gemini_model(model_hint: str) -> str:
-    return _GEMINI_MAP.get(model_hint, "gemini-2.0-flash")
+    return _GEMINI_MAP.get(model_hint, "gemini-2.5-flash")
 
 
 def _map_to_claude_model(model_hint: str) -> str:
