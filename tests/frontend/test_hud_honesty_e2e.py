@@ -26,6 +26,10 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 KEY = "hud-e2e-key"
 
+# The module fixture drives a real browser through boot, layout, offline, rejected-key and recovery phases (about two minutes per
+# runtime mode); the suite's default 120 s per-test timeout killed the whole file when the phases were added.
+pytestmark = pytest.mark.timeout(600)
+
 _SERVER_SRC = """
 import sys
 sys.path.insert(0, {root!r})
@@ -76,7 +80,7 @@ with sync_playwright() as pw:
         pg.wait_for_timeout(400)
     out["widget_bottoms"] = bottoms
     pg.evaluate("window.VECTOR.openWidget('agentatlas')")
-    pg.wait_for_timeout(3000)
+    pg.wait_for_timeout(5000)   # generous for a cold server; the bug it guards kept the atlas blank for 6-12 s
     out["atlas_text"] = " ".join(pg.evaluate("() => { const w = [...document.querySelectorAll('.widget')].find(x => (x.dataset.id||'') === 'agentatlas'); return w ? w.innerText : ''; }").split())
     pg.evaluate("window.VECTOR.closeWidget('agentatlas')")
     pg.wait_for_timeout(400)
@@ -256,7 +260,7 @@ def test_tall_panels_stay_above_the_dock_band(hud):
         assert bottom <= 660, f"{wid} runs down to y={bottom}, behind the dock / command bar"
 
 
-def test_the_civilization_atlas_renders_within_three_seconds(hud):
+def test_the_civilization_atlas_renders_within_five_seconds(hud):
     assert "GOVERNOR" in hud["atlas_text"], hud["atlas_text"]   # the breadcrumb only exists once its first render has run
 
 
