@@ -132,6 +132,13 @@ grew open engineering items; section 0 lists them.
     behaviour is behind a flag, default off (`VECTOR_HP_FAIR`, `VECTOR_PLAYBOOK`, `VECTOR_LEVEL_COUNCIL`, `VECTOR_EXPLORE`, `VECTOR_GYM`): enable
     them per the order in the write-up. Honest limit: only GitBot has a practice drill (1 of 230), so "every agent works" depends on real work
     and on authoring drills per district. For the Codex review: `a2a_bus.py`, the Governor additions, the HP-validator change, probation.
+19. **V1 reconstruction and overnight fixes (2026-09-27)** — full write-up: `STAGE_8_V1_REACCEPTANCE_2026-09-26.md` section 8;
+    review packet: `CODEX_REVIEW_PACKET_2026-09-27.md`. Verdict B: only final verification remains (Codex review after 19:11 today, your
+    live voice/camera checks, a real day of use). Fixed: the 15-27 s API freezes (psutil holding the GIL; child-process scans), five other
+    event-loop blockers, `/command`+`/ws/command` reporting failures as success, plan steps starving behind ambient goals, the retired
+    Gemini default, a paid-model path in the OpenRouter tier. **Needs your decision: the LightRAG vault index (`data/lightrag_vault`) has
+    7 of 11 files zero-filled since 2026-07-15**, so vault memory search has been down; VECTOR now retries every 10 min and names the
+    damage in the log, but the rebuild (LLM extraction over the whole vault, hours of local model time) was not started.
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives

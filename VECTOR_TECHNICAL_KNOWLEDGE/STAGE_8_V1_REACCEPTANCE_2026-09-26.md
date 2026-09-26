@@ -134,3 +134,47 @@ Taste calls and follow-ups left for the owner (deliberately not changed):
 
 Final suite after all of the above: 6,499 passed, 0 failed, 38 skipped; the HUD e2e file was then re-run alone (32 passed) because its
 runtime had outgrown the suite's 120 s per-test timeout (fixed with a module-level 600 s timeout).
+
+## 8. Addendum (2026-09-27): current-state reconstruction and the fixes it produced
+
+Read-only reconstruction of the repository at `43ef7e5e2` (branch `fix/external-review-2026-09`, 131 commits after the Stage 7
+merge `544e235e6`), then fixes for what it found. Claude only: Codex is unavailable until 2026-09-27 19:11, so there is no independent
+assessment yet and this is not a two-model verdict.
+
+**Verdict at reconstruction: C, bounded V1 work remains.** After the fixes below: **B, final verification only remains**
+(Codex review, the owner's live voice/camera checks, a real day of use). Not "V1 ACCEPTED".
+
+| Gap | At reconstruction | Now |
+|---|---|---|
+| A. Long-horizon autonomy | PARTIAL: the passing test used an empty mocked goal system and an injected impossible criterion | **CLOSED (isolated)**: `tests/test_stage4_real_goalsystem_competition.py` uses the real GoalSystem and a real git failure. It first FAILED (0 of 4 steps in 40 ticks: a plan step at 0.715 lost to an ambient candidate at 0.72-0.76 every tick); fixed by plan-step aging; the plan now terminates (fallback after the real failure, `replan_count == 1`, real goal candidates on the table). Known limit: goal-less plans still lose by design |
+| B. `no_agents` becoming progress | fixed in the executor, no test named it | **CLOSED**: executor cases pinned; `/command` and `/ws/command` had the same defect (an `ok` status with an `error` field, `no_agents`, `timeout`, `blocked` all read as success) and now share `result_failure_reason` |
+| C. JWT live | closed by a live-server test (own uvicorn), not the daily backend | unchanged: **CLOSED (test server)** |
+| D. IntentMatcher startup | TEST-ONLY | **observed live** in two backend logs: 499 embedded, 0 failed, 10-22 s, bounded. Event-loop responsiveness during bootstrap not separately measured |
+| E. RG-D2 / adaptation | PARTIAL | outcome -> PolicyMemory -> later scoring -> later action choice proven in isolation (r13/r15 with controls); "a genuinely different strategy" only via plan-declared fallbacks: **PARTIAL** |
+| F. Goal progress | closed | **CLOSED** |
+| G. Restart | closed in isolation | **CLOSED (isolated)**, never observed on the owner's daily loop |
+| H. Trust / permissions | not regressed | no regression in the 6,586-test run |
+
+**Defects found and fixed after the reconstruction (each with a test, none pushed):**
+
+* **Backend froze 15-27 s every ~30 s, ~1.3 cores idle CPU** (V1-1). py-spy: 67% of the API's GIL time inside psutil's per-process
+  `status()/cpu_percent()/memory_percent()` (Windows: each is a whole-system query that holds the GIL, ~10 s per sweep over 363
+  processes). The process table and the anomaly scan now run in child processes (`core/control/security/process_snapshot.py`), refreshed
+  at most every 120 s. `/agents` worst case 19-27 s -> 1.99 s over 90 samples; `/security/status` 6 s -> 0.2 s; idle CPU 1.3 -> 0.54 cores.
+* Other event-loop blockers found by py-spy and a static scan of async handlers: `/camera/ws` (YOLO load, device open, every frame),
+  `psutil.cpu_percent(interval=...)` in three endpoints, `docker info`, `nvidia-smi`, six COUNT(*) in `/health/system`, and the nightly
+  self-check (compileall up to 600 s + smoke up to 300 s inline in an async cron job).
+* `/command` and `/ws/command` reported failed handler results as done (above).
+* Plan steps starved behind ambient goal candidates (above).
+* Gemini: `gemini-2.0-flash` (404 on the owner key) was still the default; now `gemini-2.5-flash`, verified live. This was why
+  `vector-chairman` calls and the daily reviewer had no LLM.
+* Free-tier rule: the legacy OpenRouter tier mapped to paid Claude/DeepSeek models; only an empty account (HTTP 402) prevented charges.
+  It now calls `:free` models only.
+* LightRAG init retried and logged on every memory query (113x per session). **The vault index itself is damaged**: 7 of its 11 files
+  are zero-filled since 2026-07-15 (a crash during write), so vault RAG memory has been down for over two months. Nothing was touched:
+  rebuilding re-runs LLM extraction over the whole vault and is the owner's call (see OPEN_ISSUES 19).
+* Ollama probe timeout 0.5 -> 2 s (78 empty-message timeouts per session).
+* The two test-only bridge commits on `vector-integration` were applied (`87bc9ab0a`).
+
+Test evidence for this section is in the commit messages; the final full-suite run is recorded in section 9 once it finishes.
+
