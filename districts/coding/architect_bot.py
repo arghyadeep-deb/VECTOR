@@ -284,17 +284,34 @@ class ArchitectBot(AgentBase):
         # Phase 2C: if complex spec detected, request research help
         tech_stack = result.get("tech_stack") or result.get("languages", [])
         if tech_stack:
+            # ResearchHub is the agent's actual registered .name (PascalCase
+            # class name), not the manifest's lowercase "research_hub" key —
+            # request_agent_help looks up by .name, not manifest key.
+            #
+            # 2026-09-26: this is a request for HELP, not a step the scan depends on, so it runs in the background.
+            # It used to be awaited, which only looked harmless because DeepResearcher rejected "deep_research" as an
+            # unknown type instantly; now that the advertised type is real (a 1-3 minute web research call), awaiting it
+            # here held every scan/read_code action for minutes and pushed it past the Governor's timeout.
+            self._spawn_research_help(tech_stack)
+        return {"status": "ok", **result}
+
+    def _spawn_research_help(self, tech_stack) -> None:
+        async def _ask() -> None:
             try:
-                # ResearchHub is the agent's actual registered .name (PascalCase
-                # class name), not the manifest's lowercase "research_hub" key —
-                # request_agent_help looks up by .name, not manifest key.
                 await self.request_agent_help("ResearchHub", {
                     "type": "deep_research",
                     "params": {"query": f"best practices for {tech_stack}"},
                 })
             except Exception as e:
                 logger.debug(f"[VECTOR][architect_bot] request_agent_help failed: {e}")
-        return {"status": "ok", **result}
+
+        try:
+            task = asyncio.get_running_loop().create_task(_ask())
+        except RuntimeError:
+            return  # no running loop (sync caller): skip the optional help request
+        pending = self.__dict__.setdefault("_help_tasks", set())
+        pending.add(task)  # hold a reference so the task is not garbage-collected mid-flight
+        task.add_done_callback(pending.discard)
 
     async def run_forever(self) -> None:
         """RULE 2 — never stops. ArchitectBot is event-driven; this keeps the agent alive."""
