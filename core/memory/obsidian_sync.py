@@ -21,6 +21,24 @@ _LIGHTRAG_PATH = Path(__file__).parent.parent.parent / "districts/memory_curator
 _vault_write_lock = threading.Lock()
 
 
+_RAG_RETRY_AFTER_S = 600.0
+
+
+def _zero_filled_index_files(working_dir: str) -> list[str]:
+    """Names of LightRAG index files whose first bytes are all NUL (what a crash mid-write leaves on NTFS)."""
+    bad: list[str] = []
+    try:
+        for p in sorted(Path(working_dir).glob("*")):
+            if p.is_file() and p.stat().st_size > 0:
+                with open(p, "rb") as fh:
+                    head = fh.read(64)
+                if head and not head.strip(bytes(1)):
+                    bad.append(p.name)
+    except OSError:
+        pass
+    return bad
+
+
 class PermissionDeniedError(PermissionError):
     pass
 
@@ -42,6 +60,7 @@ class ObsidianSync:
         self._QueryParam = None
         self._memory = None
         self._watching = False
+        self._rag_failed_at: float | None = None
         logger.info(f"[VECTOR][obsidian] vault={self._vault}")
 
     # â”€â”€ Permission helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -208,6 +227,10 @@ class ObsidianSync:
         """Lazy-init LightRAG with Ollama backend. Gracefully degrades on failure."""
         if self._rag is not None:
             return
+        # 2026-09-27: a failed init used to be retried (and logged) on every call -- 113 identical warnings in one
+        # backend session. Retry at most every _RAG_RETRY_AFTER_S.
+        if self._rag_failed_at is not None and time.monotonic() - self._rag_failed_at < _RAG_RETRY_AFTER_S:
+            return
         try:
             sys.path.insert(0, str(_LIGHTRAG_PATH))
             from lightrag import LightRAG, QueryParam  # type: ignore
@@ -251,7 +274,11 @@ class ObsidianSync:
             self._QueryParam = QueryParam
             logger.info("[VECTOR][obsidian] LightRAG initialized")
         except Exception as e:
-            logger.warning(f"[VECTOR][obsidian] LightRAG init failed (degraded mode): {e}")
+            self._rag_failed_at = time.monotonic()
+            damaged = _zero_filled_index_files(self._cfg.get("lightrag_working_dir", "./data/lightrag_vault"))
+            hint = (f" -- index files are zero-filled (crash damage): {', '.join(damaged)}; the vault index must be rebuilt"
+                    if damaged else "")
+            logger.warning(f"[VECTOR][obsidian] LightRAG init failed (degraded mode): {e}{hint}")
 
     async def _insert_to_rag(self, content: str) -> None:
         await self._init_rag()
