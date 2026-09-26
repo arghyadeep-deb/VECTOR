@@ -1,5 +1,6 @@
 """Security router — /security endpoints."""
 
+import asyncio
 import sys
 
 __all__ = [
@@ -38,6 +39,39 @@ async def security_recent(limit: int = Query(15, ge=1, le=50)):
         logger.error("[VECTOR][api][security] recent failed: {}", e)
         return SecurityRecentResponse(events=[], count=0, error="Internal server error")
 
+def _collect_process_status() -> tuple[int, list[ProcessInfo]]:
+    """Blocking work behind /security/status: the process-anomaly scan and the process table.
+
+    2026-09-26: this used to run inline inside an `async def`, so every cache miss froze the whole event loop for ~8 s
+    (measured: /loop/status waited 7.7 s behind it). The API process also runs the autonomous loop and the HUD's
+    websockets, so all of them stalled together. It now runs in a worker thread (see security_status).
+    """
+    anomalies = check_process_anomalies()
+    anomalies_found = sum(1 for a in anomalies if a.get("suspicious"))
+
+    ncpu = psutil.cpu_count(logical=True) or 1
+    processes: list[ProcessInfo] = []
+    for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'status']):
+        try:
+            info = proc.info
+            name = info.get('name') or 'unknown'
+            if info.get('pid') == 0 or name == 'System Idle Process':
+                continue  # the idle pseudo-process reports (idle x cores) percent -- it is not load
+            processes.append(ProcessInfo(
+                name=name[:50],
+                # psutil's per-process cpu_percent is summed over cores (a busy process can read several hundred %);
+                # normalise to share of the whole machine so the number means what a reader assumes.
+                cpu=round(min(100.0, (info.get('cpu_percent') or 0.0) / ncpu), 1),
+                mem=round(info.get('memory_percent') or 0.0, 1),
+                status=info.get('status') or 'unknown',
+            ))
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    # Show top 20 by CPU
+    processes.sort(key=lambda p: p.cpu, reverse=True)
+    return anomalies_found, processes[:20]
+
+
 @router.get("/status", response_model=SecurityStatusResponse)
 async def security_status(request: Request):
     """Get overall security status and telemetry."""
@@ -45,9 +79,7 @@ async def security_status(request: Request):
     if cached:
         return cached
     try:
-        # Check process anomalies
-        anomalies = check_process_anomalies()
-        anomalies_found = sum(1 for a in anomalies if a.get("suspicious"))
+        anomalies_found, processes = await asyncio.to_thread(_collect_process_status)
 
         # Threat level logic
         threat_level = "low"
@@ -55,23 +87,6 @@ async def security_status(request: Request):
             threat_level = "high"
         elif anomalies_found > 0:
             threat_level = "medium"
-
-        # Real process list from psutil
-        processes = []
-        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent', 'status']):
-            try:
-                info = proc.info
-                processes.append(ProcessInfo(
-                    name=info.get('name', 'unknown')[:50],
-                    cpu=round(info.get('cpu_percent') or 0.0, 1),
-                    mem=round(info.get('memory_percent') or 0.0, 1),
-                    status=info.get('status', 'unknown'),
-                ))
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-        # Show top 20 by CPU
-        processes.sort(key=lambda p: p.cpu, reverse=True)
-        processes = processes[:20]
 
         # Get permission gateway audit log
         audit_log = []
