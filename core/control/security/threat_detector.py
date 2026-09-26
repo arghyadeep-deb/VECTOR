@@ -3,6 +3,7 @@ import sys
 __all__ = [
     "check_file_entropy",
     "check_process_anomalies",
+    "scan_processes_inprocess",
 ]
 
 from pathlib import Path
@@ -48,14 +49,36 @@ _SUSPICIOUS_DIRS: tuple[str, ...] = (
 )
 
 
+_SNAPSHOT_SCRIPT = Path(__file__).resolve().parent / "process_snapshot.py"
+
+
 def check_process_anomalies() -> list[dict]:
-    """Scan running processes for suspicious indicators.
+    """Scan running processes for suspicious indicators. Returns [{pid, name, exe, suspicious: bool, reason: str}].
 
-    Returns a list of dicts:
-        {pid, name, exe, suspicious: bool, reason: str}
-
-    Never raises — exceptions are caught and logged.
+    Runs in a CHILD process (2026-09-27): psutil's Windows process enumeration holds the GIL for seconds (constructing a
+    `Process` for a protected pid falls back to a whole-system query; py-spy showed it as the API's main GIL consumer), so
+    doing it in-process froze the API. Falls back to the in-process scan only if the child cannot be run.
+    Never raises.
     """
+    import json
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            [sys.executable, str(_SNAPSHOT_SCRIPT), "anomalies"],
+            capture_output=True, text=True, timeout=90, check=True,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        ).stdout
+        rows = json.loads(out)
+        if isinstance(rows, list):
+            return rows
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"[VECTOR][threat_detector] child process scan failed ({e}); scanning in-process")
+    return scan_processes_inprocess()
+
+
+def scan_processes_inprocess() -> list[dict]:
+    """The scan itself (what the child runs). Same result shape as check_process_anomalies(). Never raises."""
     results: list[dict] = []
     try:
         import psutil  # type: ignore

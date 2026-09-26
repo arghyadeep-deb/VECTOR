@@ -30,17 +30,18 @@ def _row(name="python.exe", cpu=20.0):
     return ProcessInfo(name=name, cpu=cpu, mem=3.0, status="running")
 
 
-def _app(monkeypatch, snapshot=None, anomaly_seconds=0.0):
+def _app(monkeypatch, snapshot=None):
+    """`snapshot` returns the table rows (or None = the child failed); the fake wraps them as (anomalies, rows)."""
     calls = {"snapshot": 0}
 
     def fake_snapshot():
         calls["snapshot"] += 1
-        return snapshot() if callable(snapshot) else (snapshot if snapshot is not None else [_row(), _row("node.exe", 2.5)])
+        rows = snapshot() if callable(snapshot) else (snapshot if snapshot is not None else [_row(), _row("node.exe", 2.5)])
+        return None if rows is None else (1, rows)
 
     monkeypatch.setattr(sec, "_run_snapshot_blocking", fake_snapshot)
-    monkeypatch.setattr(sec, "check_process_anomalies",
-                        lambda: (time.sleep(anomaly_seconds), [{"suspicious": False}])[1])
     monkeypatch.setitem(sec._table, "rows", [])
+    monkeypatch.setitem(sec._table, "anomalies", 0)
     monkeypatch.setitem(sec._table, "at", 0.0)
     monkeypatch.setattr(sec, "_refresh_task", None)
     sec.security_cache.invalidate()  # never let a cached result from another test hide the behaviour under test
@@ -105,9 +106,33 @@ async def test_a_failed_scan_gives_an_honest_empty_table_not_a_500(monkeypatch):
     assert r.status_code == 200 and r.json()["processes"] == []
 
 
+def test_the_router_does_not_import_psutil_or_enumerate_processes_itself():
+    src = Path(sec.__file__).read_text(encoding="utf-8")
+    assert "process_iter" not in src and "import psutil" not in src
+
+
+def test_the_anomaly_scan_also_runs_in_a_child_process_and_agrees_with_the_in_process_one():
+    from core.control.security import threat_detector as td
+
+    rows = td.check_process_anomalies()          # child process by default
+    assert rows and {"pid", "name", "exe", "suspicious", "reason"} <= set(rows[0])
+    assert isinstance(json.dumps(rows), str)
+
+
+def test_a_failed_child_scan_falls_back_to_the_in_process_scan(monkeypatch):
+    from core.control.security import threat_detector as td
+
+    def boom(*a, **k):
+        raise OSError("cannot spawn")
+
+    monkeypatch.setattr(subprocess, "run", boom)
+    monkeypatch.setattr(td, "scan_processes_inprocess", lambda: [{"pid": 1, "name": "x", "exe": "", "suspicious": False, "reason": ""}])
+    assert td.check_process_anomalies()[0]["pid"] == 1
+
+
 def test_the_child_process_really_returns_an_honest_table():
     """Real subprocess, real psutil (about 10 s on a 360-process machine): idle pseudo-process excluded, CPU in 0..100."""
-    out = subprocess.run([sys.executable, str(sec._SNAPSHOT_SCRIPT), "5"], capture_output=True, text=True,
+    out = subprocess.run([sys.executable, str(sec._SNAPSHOT_SCRIPT), "table", "5"], capture_output=True, text=True,
                          timeout=120, check=True).stdout
     rows = json.loads(out)
     assert 0 < len(rows) <= 5

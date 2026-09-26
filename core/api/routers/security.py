@@ -44,19 +44,21 @@ async def security_recent(limit: int = Query(15, ge=1, le=50)):
 _SNAPSHOT_SCRIPT = Path(__file__).resolve().parents[2] / "control" / "security" / "process_snapshot.py"
 _TABLE_TTL_S = 120.0        # the per-process table is expensive even out of process; 2 minutes is fresh enough for a HUD
 _SNAPSHOT_TIMEOUT_S = 90.0
-_table: dict = {"rows": [], "at": 0.0}
+_table: dict = {"rows": [], "anomalies": 0, "at": 0.0}
 _refresh_task: asyncio.Task | None = None
 
 
-def _run_snapshot_blocking() -> list[ProcessInfo] | None:
-    """Run the process-table scan in a child process. None on any failure (the caller keeps whatever it had)."""
+def _run_snapshot_blocking() -> tuple[int, list[ProcessInfo]] | None:
+    """Anomaly count + top-process table, both computed in child processes. None on any failure (caller keeps what it had)."""
     try:
         out = subprocess.run(
-            [sys.executable, str(_SNAPSHOT_SCRIPT), "20"],
+            [sys.executable, str(_SNAPSHOT_SCRIPT), "table", "20"],
             capture_output=True, text=True, timeout=_SNAPSHOT_TIMEOUT_S, check=True,
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         ).stdout
-        return [ProcessInfo(**row) for row in json.loads(out)]
+        rows = [ProcessInfo(**row) for row in json.loads(out)]
+        anomalies = sum(1 for a in check_process_anomalies() if a.get("suspicious"))   # also a child process
+        return anomalies, rows
     except Exception as e:  # noqa: BLE001 -- a failed scan must never take the endpoint down
         logger.warning("[VECTOR][api][security] process snapshot failed: {}", e)
         return None
@@ -65,9 +67,9 @@ def _run_snapshot_blocking() -> list[ProcessInfo] | None:
 async def _refresh_table() -> None:
     global _refresh_task
     try:
-        rows = await asyncio.to_thread(_run_snapshot_blocking)
-        if rows is not None:
-            _table["rows"], _table["at"] = rows, time.monotonic()
+        got = await asyncio.to_thread(_run_snapshot_blocking)
+        if got is not None:
+            _table["anomalies"], _table["rows"], _table["at"] = got[0], got[1], time.monotonic()
     finally:
         _refresh_task = None
 
@@ -88,11 +90,6 @@ async def _process_table() -> list[ProcessInfo]:
     return list(_table["rows"])
 
 
-def _count_anomalies() -> int:
-    """Name / exe / cmdline only (about 10 ms for 360 processes) -- the expensive metrics live in process_snapshot.py."""
-    return sum(1 for a in check_process_anomalies() if a.get("suspicious"))
-
-
 @router.get("/status", response_model=SecurityStatusResponse)
 async def security_status(request: Request):
     """Get overall security status and telemetry."""
@@ -100,8 +97,8 @@ async def security_status(request: Request):
     if cached:
         return cached
     try:
-        anomalies_found = await asyncio.to_thread(_count_anomalies)
         processes = await _process_table()
+        anomalies_found = _table["anomalies"]
 
         # Threat level logic
         threat_level = "low"
