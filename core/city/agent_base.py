@@ -528,10 +528,12 @@ class AgentBase:
     # inherited authority. Phase 1 carries information/analysis requests; YELLOW/RED task types need the PermissionGateway.
 
     async def a2a_ask(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None,
-                      timeout: float | None = None, escalate: bool = False):
-        """Ask a peer (by name/id, "district:<name>", or by declared capability) and wait. Returns an A2AReply; never raises."""
+                      timeout: float | None = None, escalate: bool = False, verify=None):
+        """Ask a peer (by name/id, "district:<name>", or by declared capability) and wait. Returns an A2AReply; never raises.
+        Pass `verify=lambda result: bool` to check the answer yourself: only a verified answer earns the helper collaboration XP."""
         from core.city.a2a_bus import get_bus
-        return await get_bus().ask(self, task_type, params, to=to, capability=capability, timeout=timeout, escalate=escalate)
+        return await get_bus().ask(self, task_type, params, to=to, capability=capability, timeout=timeout, escalate=escalate,
+                                   verify=verify)
 
     async def a2a_delegate(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None,
                            timeout: float | None = None):

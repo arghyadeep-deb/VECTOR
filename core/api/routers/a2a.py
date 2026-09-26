@@ -525,6 +525,25 @@ async def internal_ping_all():
     return await get_bus().ping_all()
 
 
+@router.get("/internal/work-board")
+async def internal_work_board():
+    """Practice-drill coverage: which agents have a verifiable drill, which districts have none, and whether the gym is on."""
+    from core.city.work_board import get_board
+    return get_board().coverage()
+
+
+@router.get("/internal/agent/{name}")
+async def internal_agent(name: str):
+    """One agent's experience: lineage XP/level/deaths, per-task skills and its current playbook."""
+    from core.city import experience
+    from core.city.a2a_bus import get_bus
+    agent = get_bus().resolve(name)
+    if agent is None:
+        return {"found": False, "name": name}
+    return {"found": True, "stats": experience.lineage_stats(agent), "skills": experience.skill_table(agent),
+            "playbook": experience.playbook(agent, k=8)}
+
+
 @router.get("/internal/recent")
 async def internal_recent(limit: int = 50):
     """The most recent agent-to-agent messages (newest first), including refusals, with the bus counters."""

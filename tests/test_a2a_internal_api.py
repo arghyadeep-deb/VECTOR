@@ -71,3 +71,11 @@ def test_unknown_target_is_a_clean_unavailable(client):
 def test_ping_all_endpoint(client):
     body = client.get("/a2a/internal/ping-all").json()
     assert body["agents"] == 2 and body["answered"] == 2 and body["failed"] == []
+
+
+def test_work_board_and_agent_experience_endpoints(client):
+    board = client.get("/a2a/internal/work-board").json()
+    assert board["agents"] == 2 and "gym_enabled" in board and board["drills"]
+    agent = client.get("/a2a/internal/agent/Alpha").json()
+    assert agent["found"] and agent["stats"]["level"] == 0 and agent["playbook"] == []
+    assert client.get("/a2a/internal/agent/Nobody").json() == {"found": False, "name": "Nobody"}

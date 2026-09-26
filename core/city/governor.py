@@ -2386,6 +2386,43 @@ class Governor:
         response = await _ensure_english_response(response)
         return {"status": "ok", "response": response}
 
+    _explore_rng = None
+
+    @staticmethod
+    def _payload_looks_successful(result: dict) -> bool:
+        """A status-less result counts as done work when it carries real content and no explicit failure signal (shared outcome
+        assessment). The Governor's own bookkeeping keys (avatar formatting, task id, district) are not content."""
+        try:
+            from core.runtime.executor import assess_payload_failure
+            meta = {"response", "_avatar_formatted", "task_id", "district", "agent"}
+            content = {k: v for k, v in result.items() if k not in meta and v not in (None, "", [], {})}
+            return bool(content) and assess_payload_failure(result) is None
+        except Exception:
+            return False
+
+    def _pick_capable(self, capable: list, task_type: str, tier: str):
+        """The agent to run a task among those that declare it. Always the highest-HP one, EXCEPT (VECTOR_EXPLORE) that a share of
+        GREEN -- information/analysis -- dispatches go to a capable agent that has been tried less, so weaker and newer agents get
+        chances instead of starving behind the leader (owner decision 2026-09-26: every agent should get work). Never for
+        YELLOW/RED/UNKNOWN task types, never to an agent that does not declare the task, never to a dead one."""
+        best = max(capable, key=lambda a: a.health_points)
+        try:
+            from core.city import experience
+            if len(capable) < 2 or tier != "GREEN" or not experience.explore_enabled():
+                return best
+            import random
+            rng = self._explore_rng or random
+            if rng.random() >= experience.explore_share():
+                return best
+            others = [a for a in capable if a is not best and getattr(a, "health_points", 0) > 0]
+            if not others:
+                return best
+            weights = [1.0 / (1 + experience.attempts(a)) for a in others]
+            return rng.choices(others, weights=weights, k=1)[0]
+        except Exception as e:
+            logger.debug("[VECTOR][governor] exploration pick fell back to top HP: {}", e)
+            return best
+
     @staticmethod
     def _record_experience(agent, task_type: str, outcome: str, result: dict) -> None:
         """Append this outcome to the agent's lineage ledger (core/city/experience.py). Never raises, never touches HP."""
@@ -2853,7 +2890,7 @@ class Governor:
                         district = getattr(_pinned, "district", district)
                         capability_match = task_type in getattr(_pinned, "capabilities", [])
                     elif capable:
-                        agent = max(capable, key=lambda a: a.health_points)
+                        agent = self._pick_capable(capable, task_type, _tier)
                     elif task.get("_llm_classified"):
                         city_capable = [
                             a for a in self._get_registry().get_all_agents()
@@ -2971,7 +3008,9 @@ class Governor:
                 logger.debug("[VECTOR][governor] dispatch English-only backstop suppressed: {}", _eng_err)
 
             # RULE 9 — HP wired to actual task outcomes
-            if agent is not None:
+            # (`_no_reward`: a practice drill from the work board. It runs like any dispatch but moves no HP and writes no ledger row
+            #  here; the board records the drill itself, with a reduced weight, after verifying the answer independently.)
+            if agent is not None and not task.get("_no_reward"):
                 if result.get("status") == "ok" and not result.get("stub"):
                     # 2026-09-23 fix: `stub=True` (core/city/agent_base.py's
                     # own AgentBase.run() default) means this "ok" came from
@@ -2980,9 +3019,12 @@ class Governor:
                     # run() was otherwise earning +50 HP per dispatch for
                     # nothing, violating CLAUDE.md's own "fake HP = fake
                     # evolution" rule.
+                    # The ledger remembers what the agent actually did whether or not the manifest happens to list this exact
+                    # task_type (capabilities are descriptive themes; most real dispatches have no literal match). Only the HP
+                    # reward below stays conditional on a declared capability.
+                    self._record_experience(agent, task_type, "success", result)
                     if capability_match:
                         agent.award_points(50, "task_completed_by_governor")
-                        self._record_experience(agent, task_type, "success", result)
                     else:
                         # Task A.3: this agent won by raw HP, not because it
                         # declared this task_type as a capability — withhold
@@ -2999,6 +3041,10 @@ class Governor:
                     await self._publish_district_event(district, task_type, task_id, result)
                 elif result.get("status") in ("error", "failed"):
                     self._account_failure(agent, task_type, result)
+                elif "status" not in result and self._payload_looks_successful(result):
+                    # Many handlers (GitBot's status/log among them) return their data with no "status" key at all. That is neither
+                    # a failure nor something the HP block below can score, but it IS work the agent did: remember it. No HP moves.
+                    self._record_experience(agent, task_type, "success", result)
                 elif result.get("status") == "timeout":
                     # the agent did not get to finish: the wait ran out. No HP either way; the ledger still remembers it.
                     self._record_experience(agent, task_type, "fail_env", result)

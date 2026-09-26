@@ -21,7 +21,7 @@ from __future__ import annotations
 __all__ = [
     "lineage_key", "record", "classify_failure", "failure_signature", "is_first_of_kind", "lineage_stats",
     "level_for_xp", "skill_table", "playbook", "own_fault_failures", "hp_fair_enabled", "playbook_enabled", "OUTCOMES",
-    "fair_cull_enabled", "level_council_enabled",
+    "fair_cull_enabled", "level_council_enabled", "explore_enabled", "explore_share", "attempts",
 ]
 
 import math
@@ -68,6 +68,22 @@ def fair_cull_enabled() -> bool:
 def level_council_enabled() -> bool:
     """Council eligibility by level instead of HP (VECTOR_LEVEL_COUNCIL, default off until agents have levels)."""
     return os.environ.get("VECTOR_LEVEL_COUNCIL", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def explore_enabled() -> bool:
+    """A share of GREEN dispatches go to a less-tried capable agent instead of the top-HP one (VECTOR_EXPLORE, default off)."""
+    return os.environ.get("VECTOR_EXPLORE", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def explore_share() -> float:
+    try:
+        return max(0.0, min(0.5, float(os.environ.get("VECTOR_EXPLORE_SHARE", "0.15"))))
+    except ValueError:
+        return 0.15
+
+
+def attempts(agent_or_key: Any) -> int:
+    return int(sum(lineage_stats(agent_or_key).get("outcomes", {}).values()))
 
 
 def playbook_enabled() -> bool:
@@ -168,6 +184,7 @@ def record(
     verified: bool = False,
     note: str = "",
     hp_delta: float = 0.0,
+    weight: float = 1.0,
 ) -> float:
     """Append one outcome to the agent's lineage ledger and return the XP it earned. Never raises."""
     try:
@@ -189,6 +206,7 @@ def record(
             xp = 2.0 * difficulty
         elif outcome == "fail_own" and is_first_of_kind(lineage, task_type, signature):
             xp = LEARNING_XP                                     # a new mistake is how a person learns; a repeated one teaches nothing
+        xp = round(xp * max(0.0, min(1.0, float(weight))), 4)      # practice and help count for less than the real thing
         with _LOCK:
             conn = _conn()
             conn.execute(

@@ -357,6 +357,20 @@ async def job_content_plan(*, _ctx: dict | None = None) -> dict:
         return {"status": "error", "error": str(e)}
 
 
+async def job_agent_gym(*, _ctx: dict | None = None) -> dict:
+    """Every 30 min -- drill up to two idle agents that have a verifiable drill (core/city/work_board.py). A no-op unless VECTOR_GYM
+    is on (default off); it moves no HP and waits while the owner is coding."""
+    try:
+        from core.city.work_board import get_board
+        report = await get_board().run_cycle(max_agents=2)
+        if report.get("ran"):
+            logger.info("[VECTOR][cron] agent_gym: {}", [(r["agent"], r["drill"], r["passed"]) for r in report["ran"]])
+        return {"status": "ok", **report}
+    except Exception as e:
+        logger.warning("[VECTOR][cron] agent_gym failed: {}", e)
+        return {"status": "error", "error": str(e)}
+
+
 async def job_content_scheduler(*, _ctx: dict | None = None) -> dict:
     """Daily at 9AM — publish all pending scheduled posts."""
     try:
@@ -464,6 +478,7 @@ def register_default_jobs(scheduler: Any) -> int:
     for job_id, minutes, fn in (
         ("oauth-refresh", 30, job_oauth_refresh),
         ("cloud-heartbeat", 5, job_cloud_heartbeat),
+        ("agent-gym", 30, job_agent_gym),
     ):
         if _try_register_interval(scheduler, job_id, minutes, fn):
             registered += 1
@@ -635,6 +650,7 @@ __all__ = [
     "job_content_plan",
     "job_oauth_refresh",
     "job_cloud_heartbeat",
+    "job_agent_gym",
     "job_weekly_dspy_optimize",
     "job_weekly_growth_report",
     "job_venture_pipeline",

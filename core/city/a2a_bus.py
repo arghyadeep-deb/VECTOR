@@ -310,8 +310,15 @@ class A2ABus:
         timeout: float | None = None,
         origin: str | None = None,
         escalate: bool = False,
+        verify: Any = None,
+        no_reward: bool = False,
     ) -> A2AReply:
-        """Send one request and wait for the answer. Never raises: every failure is a reply with a status and a reason."""
+        """Send one request and wait for the answer. Never raises: every failure is a reply with a status and a reason.
+
+        `verify` is an optional callable the ASKER supplies to check the answer independently (result dict -> bool). Only a reply that
+        passes it earns the helper collaboration XP (reduced weight, capped per pair per day): the exchange itself earns nothing, so
+        two agents cannot farm each other by trading requests. `no_reward` runs the request without moving HP or writing a ledger row
+        (used for practice drills, which the work board records itself)."""
         started = time.time()
         sid, sname, sdistrict = self._sender_identity(sender)
         chain = _CHAIN.get()
@@ -403,12 +410,20 @@ class A2ABus:
 
         # --- deliver through the Governor (tier gate, unknown-type gate, timeout, HP accounting, events) ---
         self._inflight += 1
+        # A no-reward request (practice drill) must leave HP exactly as it found it. The Governor skips its own award for it, but agents
+        # also award THEMSELVES HP inside their handlers (GitBot: +2.5 per status call), so snapshot and restore. Only the addressed
+        # agent is touched, and drills only run for idle agents, so there is no concurrent real work to erase.
+        snapshot = None
+        if no_reward and target is not None:
+            snapshot = (getattr(target, "health_points", None), dict(getattr(target, "_reason_award_counts", {}) or {}))
         token = _CHAIN.set({"correlation_id": correlation, "depth": depth, "path": path + ((getattr(target, "id", ""),) if target else ()),
                             "origin": msg.origin})
         try:
             from core.city.governor import Governor
             task: dict = {"type": msg.task_type, "params": dict(msg.params), "_a2a": {"message_id": msg.id, "from": sname,
                           "from_district": sdistrict, "correlation_id": correlation, "depth": depth}}
+            if no_reward:
+                task["_no_reward"] = True
             if target is not None:
                 task["district"] = getattr(target, "district", None)
                 task["_a2a_target"] = getattr(target, "id", None)
@@ -439,10 +454,43 @@ class A2ABus:
         finally:
             _CHAIN.reset(token)
             self._inflight -= 1
+            if snapshot is not None and snapshot[0] is not None:
+                try:
+                    target.health_points = snapshot[0]
+                    target._reason_award_counts = snapshot[1]
+                    target.model = target._calculate_model()
+                except Exception:
+                    pass
         if not reply.responder and target is not None:
             reply.responder, reply.responder_district = getattr(target, "name", ""), getattr(target, "district", "")
+        if reply.ok and callable(verify) and target is not None and not no_reward and mode in ("ask", "delegate"):
+            self._credit_collaboration(msg, target, reply, verify)
         self._audit(msg, reply)
         return reply
+
+    _COLLAB_DAILY_CAP = 3
+    _COLLAB_WEIGHT = 0.5
+
+    def _credit_collaboration(self, msg: A2AMessage, target: Any, reply: A2AReply, verify: Any) -> None:
+        """Credit the helper only when the asker's own check of the answer passes, and never more than a few times a day for the same
+        (asker, helper, task) -- so a verified, useful answer is rewarded and trading requests back and forth is not."""
+        try:
+            if not verify(reply.result):
+                return
+            day = time.strftime("%Y-%m-%d")
+            key = (day, msg.sender_id, getattr(target, "id", ""), msg.task_type)
+            counts = self.__dict__.setdefault("_collab_counts", {})
+            if counts.get(key, 0) >= self._COLLAB_DAILY_CAP:
+                return
+            counts[key] = counts.get(key, 0) + 1
+            for k in [k for k in counts if k[0] != day]:
+                counts.pop(k, None)
+            from core.city import experience
+            xp = experience.record(target, f"collab:{msg.task_type}", "success", verified=True, difficulty=0.5,
+                                   note=f"helped {msg.sender_name}", weight=self._COLLAB_WEIGHT)
+            reply.result.setdefault("_collab_xp", round(xp, 2)) if isinstance(reply.result, dict) else None
+        except Exception as e:
+            logger.debug("[VECTOR][a2a] collaboration credit skipped: {}", e)
 
     async def _escalate(self, msg: A2AMessage, gateway: Any, started: float) -> A2AReply:
         """YELLOW/RED request the caller explicitly opted to raise: it becomes an ordinary proposed action. The proposer id is the
