@@ -66,3 +66,8 @@ def test_red_requests_are_refused_over_http_too(client):
 def test_unknown_target_is_a_clean_unavailable(client):
     r = client.post("/a2a/internal/ask", json={"task_type": "respond", "to": "Ghost"}).json()
     assert r["status"] == "unavailable" and r["refused"]
+
+
+def test_ping_all_endpoint(client):
+    body = client.get("/a2a/internal/ping-all").json()
+    assert body["agents"] == 2 and body["answered"] == 2 and body["failed"] == []

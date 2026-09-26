@@ -518,6 +518,13 @@ async def internal_directory():
     return {"districts": directory, "district_count": len(directory), "agent_count": sum(len(v) for v in directory.values())}
 
 
+@router.get("/internal/ping-all")
+async def internal_ping_all():
+    """Conformance: ping every live agent over the bus; who answered, per district, and which districts declare no capabilities."""
+    from core.city.a2a_bus import get_bus
+    return await get_bus().ping_all()
+
+
 @router.get("/internal/recent")
 async def internal_recent(limit: int = 50):
     """The most recent agent-to-agent messages (newest first), including refusals, with the bus counters."""

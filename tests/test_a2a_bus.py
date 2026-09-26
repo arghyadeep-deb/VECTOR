@@ -296,3 +296,14 @@ async def test_describing_an_agent_never_runs_its_own_code(world):
     d = describe_agent(a)
     assert calls == [] and d["status"] == "elite"
     assert world.bus.directory()["da"][0]["status"] == "elite" and calls == []
+
+
+@pytest.mark.asyncio
+async def test_ping_all_reports_every_agent_and_districts_without_capabilities(world):
+    world.add(Echo, "A1", "da", ["search"])
+    world.add(Echo, "A2", "da")
+    world.add(Echo, "B1", "db")
+    report = await world.bus.ping_all()
+    assert report["agents"] == 3 and report["answered"] == 3 and report["failed"] == []
+    assert report["districts"]["da"] == {"agents": 2, "answered": 2, "with_capabilities": 1}
+    assert report["districts_unreachable"] == [] and report["districts_without_capabilities"] == ["db"]

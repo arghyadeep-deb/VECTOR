@@ -188,6 +188,28 @@ class A2ABus:
             out.setdefault(getattr(a, "district", "unknown"), []).append(describe_agent(a))
         return out
 
+    async def ping_all(self, sender: Any = "conformance") -> dict:
+        """Ping every live agent over the bus (the same path a peer would use) and report who answered. This is the conformance
+        check behind "A2A is available in every district": each answer must name the agent that was asked."""
+        answered, failed = 0, []
+        per_district: dict[str, dict] = {}
+        for a in self.agents():
+            r = await self.request(sender, "ping", {}, to=getattr(a, "id", None))
+            d = getattr(a, "district", "unknown")
+            slot = per_district.setdefault(d, {"agents": 0, "answered": 0, "with_capabilities": 0})
+            slot["agents"] += 1
+            if r.ok and r.result.get("id") == getattr(a, "id", None):
+                answered += 1
+                slot["answered"] += 1
+                slot["with_capabilities"] += 1 if r.result.get("capabilities") else 0
+            else:
+                failed.append({"agent": getattr(a, "name", "?"), "district": d, "why": r.refused or r.error or r.status})
+        return {
+            "agents": answered + len(failed), "answered": answered, "failed": failed, "districts": per_district,
+            "districts_unreachable": sorted(d for d, v in per_district.items() if v["answered"] == 0),
+            "districts_without_capabilities": sorted(d for d, v in per_district.items() if v["with_capabilities"] == 0),
+        }
+
     # ── audit ───────────────────────────────────────────────────────────────────────────────────────────────────────────
     def _audit(self, msg: A2AMessage, reply: A2AReply, persist: bool = True) -> None:
         entry = {
