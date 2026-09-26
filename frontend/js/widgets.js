@@ -761,12 +761,16 @@
       let live = [], declared = [];
       try{ const j = await apiGet('/agents'); live = j.agents || (Array.isArray(j)?j:[]); }
       catch(e){ live = []; }
-      try{ const j2 = await apiGet('/a2a/agents'); declared = j2.agents || []; }
-      catch(e){ declared = []; }
       // (It used to also await /city/districts here -- a ~6 s Governor round trip whose result nothing read -- so the atlas stayed
-      //  blank for six seconds after opening.)
+      //  blank for six seconds after opening. /a2a/agents (the declared-capability list) can take 15 s on a busy backend, so it is
+      //  merged in when it arrives instead of holding the first paint.)
       S.agents = mergeAgents(live, declared);
       render();
+      apiGet('/a2a/agents').then(j2=>{
+        declared = (j2 && j2.agents) || [];
+        S.agents = mergeAgents(live, declared);
+        if(w.isConnected && S.view==='macro') render();
+      }).catch(()=>{});
       // The bus's recent messages load AFTER the first render: on a cold backend that route pulls in the whole city package and used to
       // hold the atlas blank. Whatever it returns is drawn when it arrives.
       try{ S.a2a = await apiGet('/a2a/internal/recent?limit=12'); }
