@@ -2386,6 +2386,41 @@ class Governor:
         response = await _ensure_english_response(response)
         return {"status": "ok", "response": response}
 
+    @staticmethod
+    def _record_experience(agent, task_type: str, outcome: str, result: dict) -> None:
+        """Append this outcome to the agent's lineage ledger (core/city/experience.py). Never raises, never touches HP."""
+        try:
+            from core.city import experience
+            note = " ".join(str(result.get(k, "")) for k in ("error", "reason", "message")).strip()[:300] if isinstance(result, dict) else ""
+            experience.record(agent, task_type, outcome, note=note, verified=False)
+        except Exception as e:
+            logger.debug("[VECTOR][governor] experience record skipped: {}", e)
+
+    def _account_failure(self, agent, task_type: str, result: dict) -> None:
+        """HP for a failed dispatch. Legacy: -30, always. With VECTOR_HP_FAIR: a failure the environment caused (no API key, provider
+        down, missing module, timeout) costs nothing; the FIRST failure of a kind costs a little and leaves a lesson; repeating it
+        costs the full 30. The ledger records every failure and whose fault it was either way, so the effect of switching the
+        flag on can be measured from real data beforehand."""
+        try:
+            from core.city import experience
+            kind = experience.classify_failure(result)
+            outcome = "fail_env" if kind == "env" else "fail_own"
+            note = " ".join(str(result.get(k, "")) for k in ("error", "reason", "message")).strip()[:300]
+            lineage = experience.lineage_key(agent)
+            first = outcome == "fail_own" and experience.is_first_of_kind(lineage, task_type, experience.failure_signature(note))
+            experience.record(agent, task_type, outcome, note=note)
+            if not experience.hp_fair_enabled():
+                agent.deduct_points(30, "task_failed_by_governor")
+                return
+            if outcome == "fail_env":
+                logger.info("[VECTOR][governor] {} failed '{}' for an environmental reason -- no HP lost ({})",
+                            getattr(agent, "name", "?"), task_type, note[:80])
+                return
+            agent.deduct_points(5 if first else 30, f"task_failed_by_governor ({'first' if first else 'repeat'}: {task_type})")
+        except Exception as e:
+            logger.debug("[VECTOR][governor] failure accounting fell back to legacy: {}", e)
+            agent.deduct_points(30, "task_failed_by_governor")
+
     def _a2a_pinned_agent(self, task: dict):
         """The live agent a bus request is addressed to, or None. See core/city/a2a_bus.py."""
         target_id = task.get("_a2a_target")
@@ -2947,6 +2982,7 @@ class Governor:
                     # evolution" rule.
                     if capability_match:
                         agent.award_points(50, "task_completed_by_governor")
+                        self._record_experience(agent, task_type, "success", result)
                     else:
                         # Task A.3: this agent won by raw HP, not because it
                         # declared this task_type as a capability — withhold
@@ -2962,7 +2998,10 @@ class Governor:
                         )
                     await self._publish_district_event(district, task_type, task_id, result)
                 elif result.get("status") in ("error", "failed"):
-                    agent.deduct_points(30, "task_failed_by_governor")
+                    self._account_failure(agent, task_type, result)
+                elif result.get("status") == "timeout":
+                    # the agent did not get to finish: the wait ran out. No HP either way; the ledger still remembers it.
+                    self._record_experience(agent, task_type, "fail_env", result)
 
             self._get_memory().store(
                 event_type="governor_dispatch",

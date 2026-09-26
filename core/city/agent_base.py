@@ -32,6 +32,11 @@ _AGENT_NAME_VOICE_STYLES: dict[str, str] = {
 }
 
 
+def _model_rank() -> dict:
+    m = CONFIG['models']
+    return {m['ambient']: 1, m['reasoning']: 2, m['focus']: 3, m['cloud_orchestrator']: 4, m['cloud_coder']: 5}
+
+
 class AgentBase:
     def __init__(self, agent_id, name, district, generation=1):
         self._ensure_legacy_event_loop()
@@ -80,6 +85,34 @@ class AgentBase:
             asyncio.set_event_loop(asyncio.new_event_loop())
 
     def _calculate_model(self) -> str:
+        model = self._hp_model()
+        try:
+            from core.city import experience
+            if experience.hp_fair_enabled() and model is not None:
+                # Standing follows LEVEL, not the day's HP: experience can only raise the tier, never lower it. (HP still
+                # decides at the bottom: at 0 there is no model at all.) Level 0 -> no change from the HP tier.
+                lvl = experience.lineage_stats(self)["level"]
+                floor = self._level_model(lvl)
+                if floor is not None and _model_rank().get(floor, 0) > _model_rank().get(model, 0):
+                    return floor
+        except Exception:
+            pass
+        return model
+
+
+    def _level_model(self, level: int):
+        """The model tier a level guarantees: L2 reasoning, L4 focus, L6 orchestrator, L8 coder (0-1: no floor)."""
+        if level >= 8:
+            return CONFIG['models']['cloud_coder']
+        if level >= 6:
+            return CONFIG['models']['cloud_orchestrator']
+        if level >= 4:
+            return CONFIG['models']['focus']
+        if level >= 2:
+            return CONFIG['models']['reasoning']
+        return None
+
+    def _hp_model(self) -> str:
         if self.health_points >= 800:
             return CONFIG['models']['cloud_coder']
         elif 600 <= self.health_points < 800:
@@ -217,6 +250,12 @@ class AgentBase:
         if validated_points and not any(reason in str(x) for x in self.lessons):
             self.add_lesson(lesson)
         if self.health_points == 0:
+            if self._grant_probation(reason):
+                return {
+                    "old_hp": old_hp, "new_hp": self.health_points, "model_changed": True, "new_model": self.model, "reason": reason,
+                    "requested_delta": -abs(points), "validated_delta": -validated_points, "died": False, "probation": True,
+                    "probation_left": self._probation_left,
+                }
             ghost = self.die()
             return {
                 "old_hp": old_hp,
@@ -240,7 +279,40 @@ class AgentBase:
             "died": False,
         }
 
+    PROBATION_CHANCES = 3
+
+    def _grant_probation(self, reason) -> bool:
+        """Reaching 0 HP is not yet death (VECTOR_HP_FAIR): the first collapse of a generation puts the agent on probation at 1 HP
+        with PROBATION_CHANCES more chances, and each further collapse spends one. Death comes when they are spent. A success that
+        lifts HP back above 50 ends probation. Off by default: without the flag, 0 HP is death exactly as before."""
+        try:
+            from core.city import experience
+            if not experience.hp_fair_enabled():
+                return False
+        except Exception:
+            return False
+        if not getattr(self, "_probation_used", False):
+            self._probation_used = True
+            self._probation_left = self.PROBATION_CHANCES
+            note = f"collapsed to 0HP on '{reason}'; on probation for {self.PROBATION_CHANCES} more chances"
+        elif getattr(self, "_probation_left", 0) > 0:
+            self._probation_left -= 1
+            note = f"collapsed again on '{reason}'; {self._probation_left} chances left"
+        else:
+            return False
+        self.health_points = 1
+        self.model = self._calculate_model()
+        if not any(note[:40] in str(x) for x in self.lessons):
+            self.add_lesson(note)
+        logger.warning("[VECTOR][city] {} at 0HP -> probation ({} chances left)", self.name, getattr(self, "_probation_left", 0))
+        return True
+
     def die(self) -> dict:
+        try:
+            from core.city import experience
+            experience.record_death(self, cause="; ".join(str(x) for x in self.lessons[-3:]))
+        except Exception:
+            pass
         ghost = {
             'name': self.name, 'district': self.district,
             'generation': self.generation, 'final_hp': 0,
@@ -279,7 +351,22 @@ class AgentBase:
             self.best_decisions = self.best_decisions[-10:]
 
     def can_vote_in_council(self) -> bool:
+        try:
+            from core.city import experience
+            if experience.hp_fair_enabled():
+                # experienced (level 5+) and not on the ropes; a strong day's HP alone no longer buys a vote
+                return experience.lineage_stats(self)["level"] >= 5 and self.health_points >= 300
+        except Exception:
+            pass
         return self.health_points >= 700
+
+    @property
+    def level(self) -> int:
+        try:
+            from core.city import experience
+            return experience.lineage_stats(self)["level"]
+        except Exception:
+            return 0
 
     def subscribe_to(self, event_type: str) -> None:
         """Register interest in an event type for local event-bus dispatch."""
@@ -332,7 +419,22 @@ class AgentBase:
             )
             parts.append(f"Your predecessors' best decisions: {decisions_text}.")
 
+        book = self._playbook_text()
+        if book:
+            parts.append(book)
+
         return " ".join(parts)
+
+    def _playbook_text(self, task_type: str | None = None) -> str:
+        """DO / DON'T lines from this lineage's experience ledger (VECTOR_PLAYBOOK); empty when off or nothing is recorded."""
+        try:
+            from core.city import experience
+            if not experience.playbook_enabled():
+                return ""
+            lines = experience.playbook(self, task_type=task_type, k=6)
+            return ("What your lineage has learned: " + " ".join(lines)) if lines else ""
+        except Exception:
+            return ""
 
     def vchat(self, messages: list[dict] | str) -> str:
         """Small LLM helper with an Ollama-safe fallback path.
@@ -351,6 +453,9 @@ class AgentBase:
         except Exception as _hydr_err:
             logger.debug("[VECTOR][city] vchat hydration failed for {}: {}", self.name, _hydr_err)
             hydration = ""
+        book = self._playbook_text()
+        if book:
+            hydration = (hydration + "\n\n" + book).strip() if hydration else book
         if hydration:
             if msg_list and msg_list[0].get("role") == "system":
                 msg_list = [
