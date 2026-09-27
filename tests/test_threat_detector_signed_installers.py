@@ -62,7 +62,8 @@ def test_signature_check_is_false_off_windows_or_on_error_and_is_cached(monkeypa
         raise OSError("no wintrust")
 
     monkeypatch.setattr(td, "_win_verify_trust", boom)
-    assert td._is_validly_signed(r"C:	.exe") is False and td._is_validly_signed(r"C:	.exe") is False
+    fake = "C:/fake/a.exe"
+    assert td._is_validly_signed(fake) is False and td._is_validly_signed(fake) is False
     assert len(calls) == 1                       # the doubt is cached: one attempt per path
 
 
