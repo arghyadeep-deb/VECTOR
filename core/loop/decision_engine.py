@@ -54,6 +54,10 @@ class Candidate:
     # _simulate_consequence()'s own docstring for the real substrate and
     # honesty gates.
     simulated_consequence: dict = field(default_factory=dict)
+    # Anti-starvation aging: an ADDITIVE score bonus (0.0 for every candidate that does not set it). The autonomous loop uses it
+    # for ready plan steps that keep losing to ambient goal candidates -- a goal-less plan scores ~0.5 against ambient ~0.72, and
+    # the bounded inputs (confidence/urgency) alone cannot close that gap. Clamped to [0, 0.3] where it is applied.
+    priority_bonus: float = 0.0
 
 
 @dataclass
@@ -980,6 +984,8 @@ class DecisionEngine:
         simulation_factor, simulation_signal = self._simulation_factor(candidate)
         total *= simulation_factor
 
+        aging_bonus = max(0.0, min(0.3, self._finite(candidate.priority_bonus, 0.0)))
+        total += aging_bonus
         candidate.total_score = round(max(0.0, min(1.0, total)), 4)
         candidate.reasoning_chain = [
             {"factor": "goal_alignment", "value": goal_score, "weight": self.W_GOAL},
@@ -989,6 +995,8 @@ class DecisionEngine:
             {"factor": "timing_score", "value": timing_score, "weight": self.W_TIMING},
             {"factor": "cost_penalty", "value": cost_penalty, "weight": -self.W_COST},
         ]
+        if aging_bonus > 0.0:
+            candidate.reasoning_chain.append({"factor": "aging_bonus", "value": aging_bonus, "weight": 1.0})
         if bias_penalty > 0.0:
             candidate.reasoning_chain.append(
                 {"factor": "meta_cognition", "value": bias_penalty, "weight": -1.0}

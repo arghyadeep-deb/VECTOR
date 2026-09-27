@@ -1873,6 +1873,7 @@ class AutonomousLoop:
                     timing_score=1.0,
                     estimated_cost_inr=step.estimated_cost_inr,
                     source=source,
+                    priority_bonus=min(0.3, 0.04 * waited),   # goal-less plans (neutral 0.3 alignment) need more than inputs
                 )
                 candidates.append(c)
         return candidates

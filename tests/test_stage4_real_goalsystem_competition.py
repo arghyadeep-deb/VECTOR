@@ -63,8 +63,9 @@ def _plan(not_a_repo: str, goal_id: str = "") -> Plan:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("goal_linked", [True, False], ids=["goal-linked", "goal-less"])
 async def test_plan_terminates_with_real_goal_candidates_and_a_real_tool_failure(
-    isolated_vector_db, isolated_agent_registry, tmp_path, monkeypatch,  # noqa: F811
+    isolated_vector_db, isolated_agent_registry, tmp_path, monkeypatch, goal_linked,  # noqa: F811
 ):
     monkeypatch.setattr("core.sensing.stuck_detector.get_active_session", lambda: None, raising=False)
     engine = build_isolated_engine(str(tmp_path / "epistemic.db"))
@@ -92,7 +93,7 @@ async def test_plan_terminates_with_real_goal_candidates_and_a_real_tool_failure
     goal_progress_before = {g["id"]: g.get("progress", 0.0) for g in goals.get_active_goals()}
 
     not_a_repo = tempfile.mkdtemp(prefix="stage4_not_a_repo_")
-    linked = next(g for g in goals.get_active_goals() if g["horizon"] in ("MID", "LONG"))["id"]
+    linked = next(g for g in goals.get_active_goals() if g["horizon"] in ("MID", "LONG"))["id"] if goal_linked else ""
     plan = _plan(not_a_repo, goal_id=linked)
     loop._plan_store.add(plan)
 
@@ -124,9 +125,10 @@ async def test_plan_terminates_with_real_goal_candidates_and_a_real_tool_failure
     # progress comes only from verified steps: only the plan's own goal moved, upward, never to completion by this bridge
     after = {g["id"]: g.get("progress", 0.0) for g in goals.get_active_goals()}
     moved = {gid for gid, p in after.items() if p != goal_progress_before.get(gid)}
-    assert moved <= {linked}, f"progress moved on goals the plan does not serve: {moved}"
-    assert goal_progress_before[linked] <= after[linked] < 1.0
-    assert all(g["status"] == "active" for g in goals.get_active_goals() if g["id"] == linked)
+    assert moved <= ({linked} if linked else set()), f"progress moved on goals the plan does not serve: {moved}"
+    if linked:
+        assert goal_progress_before[linked] <= after[linked] < 1.0
+        assert all(g["status"] == "active" for g in goals.get_active_goals() if g["id"] == linked)
     assert ticks < MAX_TICKS, f"needed {ticks} ticks (budget {MAX_TICKS}); competition delayed termination"
 
 

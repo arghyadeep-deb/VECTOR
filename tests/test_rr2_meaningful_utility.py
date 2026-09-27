@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from unittest.mock import MagicMock, AsyncMock, patch
 
 import pytest
+from tests._small_scan import small_scan_root  # noqa: F401  (autouse: real read_code scan over a small project)
 
 from core.brain.goal_system import GoalSystem
 from core.loop.autonomous_loop import AutonomousLoop
