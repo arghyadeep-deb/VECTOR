@@ -67,6 +67,7 @@ with sync_playwright() as pw:
     out["council"] = open_widget(pg, "council")
     out["music"] = open_widget(pg, "music")
     out["districts"] = open_widget(pg, "districts")
+    out["commandcenter"] = open_widget(pg, "commandcenter")
     pg.evaluate("window.VECTOR.wake()")
     pg.wait_for_timeout(600)
     out["orb"] = " ".join(pg.evaluate("() => { const o = document.querySelector('#orb-wrap'); return o ? o.innerText : ''; }").split())
@@ -224,6 +225,11 @@ def test_council_widget_shows_no_invented_decisions(hud):
 def test_music_widget_does_not_show_a_made_up_track(hud):
     assert "Paramore" not in hud["music"] and "Still Into You" not in hud["music"]
     assert "NO PLAYER CONNECTED" in hud["music"]
+
+
+def test_command_center_shows_zero_pending_approvals_as_zero_not_unknown(hud):
+    text = hud["commandcenter"]
+    assert "APPROVALS" in text and "APPROVALS UNKNOWN" not in text and "APPROVALS 0" in text, text[:300]
 
 
 def test_districts_widget_title_uses_real_counts(hud):

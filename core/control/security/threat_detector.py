@@ -77,6 +77,68 @@ def check_process_anomalies() -> list[dict]:
     return scan_processes_inprocess()
 
 
+_SIGNATURE_CACHE: dict[str, bool] = {}
+
+
+def _win_verify_trust(path: str) -> bool:
+    """WinVerifyTrust (embedded Authenticode signature, no UI, no revocation/network lookup): True only for a valid signature.
+
+    Native and fast (milliseconds); a PowerShell Get-AuthenticodeSignature took ~1.6 s idle and 15 s+ on a loaded machine.
+    Catalog-signed system files report 'no signature' here, which is fine: installers carry embedded signatures.
+    """
+    import ctypes
+    from ctypes import wintypes
+
+    class GUID(ctypes.Structure):
+        _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD), ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+    class WINTRUST_FILE_INFO(ctypes.Structure):
+        _fields_ = [("cbStruct", wintypes.DWORD), ("pcwszFilePath", wintypes.LPCWSTR), ("hFile", wintypes.HANDLE),
+                    ("pgKnownSubject", ctypes.c_void_p)]
+
+    class WINTRUST_DATA(ctypes.Structure):
+        _fields_ = [("cbStruct", wintypes.DWORD), ("pPolicyCallbackData", ctypes.c_void_p), ("pSIPClientData", ctypes.c_void_p),
+                    ("dwUIChoice", wintypes.DWORD), ("fdwRevocationChecks", wintypes.DWORD), ("dwUnionChoice", wintypes.DWORD),
+                    ("pFile", ctypes.POINTER(WINTRUST_FILE_INFO)), ("dwStateAction", wintypes.DWORD),
+                    ("hWVTStateData", wintypes.HANDLE), ("pwszURLReference", wintypes.LPCWSTR), ("dwProvFlags", wintypes.DWORD),
+                    ("dwUIContext", wintypes.DWORD), ("pSignatureSettings", ctypes.c_void_p)]
+
+    action = GUID(0x00AAC56B, 0xCD44, 0x11D0, (ctypes.c_ubyte * 8)(0x8C, 0xC2, 0x00, 0xC0, 0x4F, 0xC2, 0x95, 0xEE))
+    file_info = WINTRUST_FILE_INFO(ctypes.sizeof(WINTRUST_FILE_INFO), path, None, None)
+    data = WINTRUST_DATA()
+    data.cbStruct = ctypes.sizeof(WINTRUST_DATA)
+    data.dwUIChoice = 2                     # WTD_UI_NONE
+    data.fdwRevocationChecks = 0            # WTD_REVOKE_NONE
+    data.dwUnionChoice = 1                  # WTD_CHOICE_FILE
+    data.pFile = ctypes.pointer(file_info)
+    data.dwStateAction = 1                  # WTD_STATEACTION_VERIFY
+    data.dwProvFlags = 0x1000               # WTD_CACHE_ONLY_URL_RETRIEVAL: never touch the network
+    wintrust = ctypes.windll.wintrust
+    wintrust.WinVerifyTrust.argtypes = [wintypes.HANDLE, ctypes.POINTER(GUID), ctypes.c_void_p]
+    wintrust.WinVerifyTrust.restype = ctypes.c_long
+    invalid_hwnd = wintypes.HANDLE(-1)
+    try:
+        status = wintrust.WinVerifyTrust(invalid_hwnd, ctypes.byref(action), ctypes.byref(data))
+    finally:
+        data.dwStateAction = 2              # WTD_STATEACTION_CLOSE releases the provider state
+        wintrust.WinVerifyTrust(invalid_hwnd, ctypes.byref(action), ctypes.byref(data))
+    return status == 0
+
+
+def _is_validly_signed(exe_path: str) -> bool:
+    """True only when Windows verifies an embedded Authenticode signature (cached per path; False on any doubt or on another OS)."""
+    if sys.platform != "win32" or not exe_path:
+        return False
+    if exe_path in _SIGNATURE_CACHE:
+        return _SIGNATURE_CACHE[exe_path]
+    try:
+        ok = _win_verify_trust(exe_path)
+    except Exception:  # noqa: BLE001 -- unknown means "not proven signed"
+        ok = False
+    _SIGNATURE_CACHE[exe_path] = ok
+    return ok
+
+
 def scan_processes_inprocess() -> list[dict]:
     """The scan itself (what the child runs). Same result shape as check_process_anomalies(). Never raises."""
     results: list[dict] = []
@@ -99,12 +161,16 @@ def scan_processes_inprocess() -> list[dict]:
                     suspicious = True
                     reason = f"suspicious name fragment: {bad}"
 
-                # Check if exe lives in a temp directory
+                # Check if exe lives in a temp directory. 2026-09-27: a validly Authenticode-signed executable there is an installer
+                # or updater (the VS Code installer alone pushed the HUD's threat level to HIGH), not malware staging.
                 if not suspicious and exe:
                     for bad_dir in _SUSPICIOUS_DIRS:
                         if bad_dir in exe:
-                            suspicious = True
-                            reason = f"executable in temp dir: {exe}"
+                            if _is_validly_signed(info.get("exe") or exe):
+                                reason = f"signed executable in temp dir (installer/updater): {exe}"
+                            else:
+                                suspicious = True
+                                reason = f"executable in temp dir: {exe}"
                             break
 
                 # Flag python / node scripts launched from temp dirs

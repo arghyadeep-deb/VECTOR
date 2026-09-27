@@ -1101,7 +1101,7 @@
       const decision = Array.isArray(D.DECISIONS) && D.DECISIONS[0];
       const model = D.INFERENCE && (D.INFERENCE.active_model||D.INFERENCE.current_model||D.INFERENCE.model);
       const pend = Array.isArray(D.APPROVALS) ? D.APPROVALS.length : null;
-      const chip = (k,v)=>`<span class="cc-chip"><b>${k}</b>${v?escapeHtml(String(v)):'UNKNOWN'}</span>`;
+      const chip = (k,v)=>`<span class="cc-chip"><b>${k}</b>${(v!==null && v!==undefined && v!=='')?escapeHtml(String(v)):'UNKNOWN'}</span>`; // 0 pending approvals is a real value, not UNKNOWN
       ctx.innerHTML =
         chip('GOAL ', goal ? goal.title : null) +
         chip('DECISION ', decision ? (decision.action||decision.action_type||decision.summary) : null) +
