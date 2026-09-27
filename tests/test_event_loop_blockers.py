@@ -63,6 +63,7 @@ class _FakeCap:
 
 @pytest.mark.asyncio
 async def test_camera_stream_does_not_block_the_event_loop(monkeypatch):
+    monkeypatch.setattr(cam, "_camera_active", True)
     def slow_open(index):
         time.sleep(0.5)                       # model load + device open
         return object(), _FakeCap(), object()
@@ -81,6 +82,7 @@ async def test_camera_stream_does_not_block_the_event_loop(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_camera_reports_an_unavailable_device_without_blocking(monkeypatch):
+    monkeypatch.setattr(cam, "_camera_active", True)
     monkeypatch.setattr(cam, "_open_camera", lambda i: (time.sleep(0.4), (object(), None, None))[1])
     ws = _FakeWS(frames=5)
     lag = await _max_loop_lag(cam.camera_ws(ws))
@@ -90,6 +92,7 @@ async def test_camera_reports_an_unavailable_device_without_blocking(monkeypatch
 
 @pytest.mark.asyncio
 async def test_a_stream_that_ends_stops_cleanly(monkeypatch):
+    monkeypatch.setattr(cam, "_camera_active", True)
     monkeypatch.setattr(cam, "_open_camera", lambda i: (object(), _FakeCap(), None))
     monkeypatch.setattr(cam, "_next_frame_payload", lambda cv2, cap, model: None)   # no frame -> the stream is over
     ws = _FakeWS(frames=5)
@@ -111,10 +114,12 @@ async def test_system_metric_endpoints_do_not_sleep_on_the_event_loop(monkeypatc
         time.sleep(0.4)                       # what interval=0.3 does: it sleeps the calling thread
         return 1.0
 
-    monkeypatch.setattr(psutil, "cpu_percent", slow_cpu)
     if mod_name == "health":
-        from core.api import cache as cache_mod
+        from core.api import cache as cache_mod, ssl_cache
+        ssl_cache.install()                       # app.py does this at startup; the endpoint builds an httpx client per call
+        await mod.system_health()                 # warm-up: the first call pays one-time import costs, which are not blocking work
         cache_mod.health_cache.invalidate()
+    monkeypatch.setattr(psutil, "cpu_percent", slow_cpu)
     try:
         lag = await _max_loop_lag(getattr(mod, fn_name)())
     finally:

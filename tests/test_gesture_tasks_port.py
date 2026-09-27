@@ -78,6 +78,7 @@ def test_the_real_tasks_api_loads_the_model_and_sees_no_hand_in_a_blank_frame():
 
 @pytest.mark.asyncio
 async def test_streaming_does_not_block_the_event_loop(monkeypatch):
+    monkeypatch.setattr(gesture, "_gesture_active", True)
     class Fake:
         cap = object()
 

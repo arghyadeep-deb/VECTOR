@@ -23,6 +23,7 @@ def _client() -> TestClient:
 
 
 def test_reports_unavailable_when_mediapipe_has_no_solutions_api(monkeypatch):
+    monkeypatch.setattr(gesture, "_gesture_active", True)
     monkeypatch.setitem(sys.modules, "mediapipe", types.SimpleNamespace(__version__="0.10.35"))
     monkeypatch.setitem(sys.modules, "cv2", types.SimpleNamespace())
     with _client().websocket_connect("/gesture/ws") as ws:
@@ -32,6 +33,7 @@ def test_reports_unavailable_when_mediapipe_has_no_solutions_api(monkeypatch):
 
 
 def test_reports_unavailable_when_mediapipe_is_missing(monkeypatch):
+    monkeypatch.setattr(gesture, "_gesture_active", True)
     monkeypatch.setitem(sys.modules, "mediapipe", None)  # import raises ImportError
     monkeypatch.setitem(sys.modules, "cv2", types.SimpleNamespace())
     with _client().websocket_connect("/gesture/ws") as ws:

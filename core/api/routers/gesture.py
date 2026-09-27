@@ -7,11 +7,37 @@ __all__ = [
 
 import asyncio
 import json
+import os
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from loguru import logger
 
 router = APIRouter(prefix="/gesture", tags=["gesture"])
+
+# Hand control is OPT-IN. The HUD closes the top widget on a fist, locks on fist+pinch and toggles the workspace on a swipe, and this socket
+# opens the webcam, so it must never run merely because a HUD tab is open. Switch on with POST /gesture/start or VECTOR_GESTURE_ENABLED=1.
+_gesture_active = os.environ.get("VECTOR_GESTURE_ENABLED", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+@router.post("/start")
+async def start_gesture():
+    global _gesture_active
+    _gesture_active = True
+    logger.info("[VECTOR][gesture] hand control switched on")
+    return {"status": "started"}
+
+
+@router.post("/stop")
+async def stop_gesture():
+    global _gesture_active
+    _gesture_active = False
+    logger.info("[VECTOR][gesture] hand control switched off")
+    return {"status": "stopped"}
+
+
+@router.get("/status")
+async def gesture_status():
+    return {"active": _gesture_active}
 
 
 def _classify_gesture(landmarks) -> tuple[str, float]:
@@ -167,30 +193,37 @@ class _HandTracker:
 
 @router.websocket("/ws")
 async def gesture_ws(ws: WebSocket):
-    """Stream hand tracking data and gesture classifications."""
+    """Stream hand tracking data and gesture classifications -- only while hand control is switched on."""
     await ws.accept()
     logger.info("[VECTOR][gesture] WebSocket client connected")
 
     tracker: _HandTracker | None = None
 
     try:
+        from core.api.routers.camera import wait_until_active
         from core.sensing.mediapipe_tasks import ModelUnavailable
 
-        try:
-            tracker = await asyncio.to_thread(_HandTracker.open)
-        except ModelUnavailable as e:
-            await ws.send_text(json.dumps({"type": "unavailable", "error": f"hand model unavailable: {e}"}))
-            return
-        if tracker.cap is None:
-            await ws.send_text(json.dumps({"error": "Camera not available for gesture tracking"}))
-            return
-
         while True:
-            payload = await asyncio.to_thread(tracker.next_payload)
-            if payload is None:
-                break
-            await ws.send_text(json.dumps(payload))
-            await asyncio.sleep(1 / 15)
+            await wait_until_active(ws, lambda: _gesture_active)
+            try:
+                tracker = await asyncio.to_thread(_HandTracker.open)
+            except ModelUnavailable as e:
+                await ws.send_text(json.dumps({"type": "unavailable", "error": f"hand model unavailable: {e}"}))
+                return
+            if tracker.cap is None:
+                await ws.send_text(json.dumps({"error": "Camera not available for gesture tracking"}))
+                return
+
+            try:
+                while _gesture_active:
+                    payload = await asyncio.to_thread(tracker.next_payload)
+                    if payload is None:
+                        return
+                    await ws.send_text(json.dumps(payload))
+                    await asyncio.sleep(1 / 15)
+            finally:
+                tracker.close()
+                tracker = None
 
     except WebSocketDisconnect:
         logger.info("[VECTOR][gesture] Client disconnected")

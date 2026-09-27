@@ -25,6 +25,9 @@ from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from loguru import logger
 
 from core.config import CONFIG
+from core.api import ssl_cache
+
+ssl_cache.install()   # 2026-09-27: httpx.AsyncClient() cost ~300 ms of blocking CPU per construction; see core/api/ssl_cache.py
 
 
 def _is_hardened_env() -> bool:

@@ -111,27 +111,47 @@ def _next_frame_payload(cv2, cap, model) -> str | None:
     })
 
 
+async def wait_until_active(ws: WebSocket, is_active) -> None:
+    """Hold an idle socket open (sending nothing) until `is_active()` turns true; a client that leaves raises WebSocketDisconnect."""
+    while not is_active():
+        try:
+            await asyncio.wait_for(ws.receive_text(), timeout=0.5)     # the HUD's auth handshake arrives here; ignored
+        except asyncio.TimeoutError:
+            pass
+
+
 @router.websocket("/ws")
 async def camera_ws(ws: WebSocket):
-    """Stream webcam frames with YOLO detections as JSON over WebSocket."""
+    """Stream webcam frames with YOLO detections as JSON over WebSocket -- ONLY while the camera is switched on (POST /camera/start).
+
+    2026-09-27: the HUD opens this socket as soon as it loads, and the handler used to open the webcam and run YOLO at 15 fps for as long as
+    any HUD tab was open, whether or not anyone had asked for the camera. It now idles (camera off, no GPU work) until /camera/start, and
+    releases the device again on /camera/stop.
+    """
     await ws.accept()
     logger.info("[VECTOR][camera] WebSocket client connected")
 
-    cap = None
-
     try:
-        cv2, cap, model = await asyncio.to_thread(_open_camera, _camera_index)
-        if cap is None:
-            await ws.send_text(json.dumps({"error": "Camera not available"}))
-            return
-
         while True:
-            payload = await asyncio.to_thread(_next_frame_payload, cv2, cap, model)
-            if payload is None:
-                break
-            if payload:
-                await ws.send_text(payload)
-            await asyncio.sleep(1 / 15)  # ~15 fps
+            await wait_until_active(ws, lambda: _camera_active)
+            cap = None
+            try:
+                cv2, cap, model = await asyncio.to_thread(_open_camera, _camera_index)
+                if cap is None:
+                    await ws.send_text(json.dumps({"error": "Camera not available"}))
+                    return
+
+                while _camera_active:
+                    payload = await asyncio.to_thread(_next_frame_payload, cv2, cap, model)
+                    if payload is None:
+                        return
+                    if payload:
+                        await ws.send_text(payload)
+                    await asyncio.sleep(1 / 15)  # ~15 fps
+            finally:
+                if cap is not None:
+                    cap.release()
+                    logger.info("[VECTOR][camera] Camera released")
 
     except WebSocketDisconnect:
         logger.info("[VECTOR][camera] WebSocket client disconnected")
@@ -141,10 +161,6 @@ async def camera_ws(ws: WebSocket):
             await ws.send_text(json.dumps({"error": str(e)}))
         except Exception:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-    finally:
-        if cap is not None:
-            cap.release()
-        logger.info("[VECTOR][camera] Camera released")
 
 
 if __name__ == "__main__":
