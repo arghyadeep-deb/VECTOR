@@ -25,6 +25,8 @@ __all__ = ["A2ABus", "A2AReply", "A2AMessage", "get_bus", "describe_agent"]
 
 import asyncio
 import contextvars
+import json
+import math
 import time
 import uuid
 from collections import deque
@@ -40,6 +42,7 @@ _DEFAULTS = {
     "rate_per_minute": 20,        # per sender
     "max_inflight": 8,
     "default_timeout_sec": 30.0,
+    "max_timeout_sec": 60.0,
     "max_payload_chars": 20_000,
     "conversation_ttl_sec": 600,
 }
@@ -282,6 +285,15 @@ class A2ABus:
         walk(params)
         return "\n".join(parts)
 
+    @staticmethod
+    def _payload_size(params: dict, limit: int) -> int:
+        """Serialized payload size, including keys, numbers and containers; returns over-limit on malformed/cyclic input."""
+        try:
+            rendered = json.dumps(params, ensure_ascii=False, separators=(",", ":"), default=str)
+            return len(rendered)
+        except (TypeError, ValueError, RecursionError):
+            return limit + 1
+
     # ── the request path ────────────────────────────────────────────────────────────────────────────────────────────────
     def _sender_identity(self, sender: Any) -> tuple[str, str, str]:
         agent = self.resolve(sender) if not isinstance(sender, str) else self.resolve(sender)
@@ -336,8 +348,9 @@ class A2ABus:
         # --- validation ---
         if not msg.task_type or len(msg.task_type) > 80:
             return self._refuse(msg, "task_type missing or too long", started=started)
-        if len(self._payload_text(msg.params)) > int(_cfg("max_payload_chars")):
-            return self._refuse(msg, f"payload larger than {_cfg('max_payload_chars')} characters", started=started)
+        payload_limit = int(_cfg("max_payload_chars"))
+        if self._payload_size(msg.params, payload_limit) > payload_limit:
+            return self._refuse(msg, f"payload larger than {payload_limit} characters", started=started)
         # --- ping/describe: answered from the registry, no agent code runs; not rate-limited (a registry read, not work) ---
         if msg.task_type in ("ping", "describe"):
             target = self.resolve(to) if to is not None and not str(to).startswith("district:") else None
@@ -375,6 +388,16 @@ class A2ABus:
         district_route = None
         if isinstance(to, str) and to.startswith("district:"):
             district_route = to.split(":", 1)[1].strip()
+            eligible = [a for a in self.agents()
+                        if getattr(a, "district", "") == district_route
+                        and getattr(a, "id", "") not in path
+                        and getattr(a, "id", "") != sid]
+            preferred = [a for a in self.find(capability or msg.task_type, district_route)
+                         if getattr(a, "id", "") not in path and getattr(a, "id", "") != sid]
+            candidates = preferred or sorted(eligible, key=lambda a: getattr(a, "health_points", 0), reverse=True)
+            if not candidates:
+                return self._refuse(msg, f"no eligible live agent in district {district_route!r}", "unavailable", started)
+            target = candidates[0]
         elif to is not None:
             target = self.resolve(to)
             if target is None:
@@ -429,7 +452,13 @@ class A2ABus:
                 task["_a2a_target"] = getattr(target, "id", None)
             elif district_route:
                 task["district"] = district_route
-            budget = float(timeout if timeout is not None else _cfg("default_timeout_sec"))
+            try:
+                requested_budget = float(timeout if timeout is not None else _cfg("default_timeout_sec"))
+            except (TypeError, ValueError):
+                requested_budget = float(_cfg("default_timeout_sec"))
+            if not math.isfinite(requested_budget) or requested_budget <= 0:
+                requested_budget = float(_cfg("default_timeout_sec"))
+            budget = min(requested_budget, float(_cfg("max_timeout_sec")))
             raw = await asyncio.wait_for(Governor().dispatch(task), timeout=budget)
             result = raw if isinstance(raw, dict) else {"status": "ok", "value": raw}
             status = str(result.get("status", "ok"))

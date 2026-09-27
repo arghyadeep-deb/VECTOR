@@ -115,7 +115,7 @@ async def wait_until_active(ws: WebSocket, is_active) -> None:
     """Hold an idle socket open (sending nothing) until `is_active()` turns true; a client that leaves raises WebSocketDisconnect."""
     while not is_active():
         try:
-            await asyncio.wait_for(ws.receive_text(), timeout=0.5)     # the HUD's auth handshake arrives here; ignored
+            await asyncio.wait_for(ws.receive_text(), timeout=0.5)
         except asyncio.TimeoutError:
             pass
 
@@ -129,6 +129,9 @@ async def camera_ws(ws: WebSocket):
     releases the device again on /camera/stop.
     """
     await ws.accept()
+    from core.api.routers.websocket import require_auth_handshake
+    if not await require_auth_handshake(ws):
+        return
     logger.info("[VECTOR][camera] WebSocket client connected")
 
     try:

@@ -1,3 +1,4 @@
+import os
 import sys
 
 __all__ = [
@@ -77,7 +78,7 @@ def check_process_anomalies() -> list[dict]:
     return scan_processes_inprocess()
 
 
-_SIGNATURE_CACHE: dict[str, bool] = {}
+_SIGNATURE_CACHE: dict[tuple[str, int, int, int], bool] = {}
 
 
 def _win_verify_trust(path: str) -> bool:
@@ -126,16 +127,22 @@ def _win_verify_trust(path: str) -> bool:
 
 
 def _is_validly_signed(exe_path: str) -> bool:
-    """True only when Windows verifies an embedded Authenticode signature (cached per path; False on any doubt or on another OS)."""
+    """True only when Windows verifies Authenticode, cached by path plus the file's current identity."""
     if sys.platform != "win32" or not exe_path:
         return False
-    if exe_path in _SIGNATURE_CACHE:
-        return _SIGNATURE_CACHE[exe_path]
+    try:
+        stat = os.stat(exe_path)
+        key = (os.path.normcase(os.path.abspath(exe_path)), stat.st_size, stat.st_mtime_ns, getattr(stat, "st_ino", 0))
+    except OSError:
+        # Do not cache a missing/inaccessible path: an executable may appear or be replaced at that path moments later.
+        return False
+    if key in _SIGNATURE_CACHE:
+        return _SIGNATURE_CACHE[key]
     try:
         ok = _win_verify_trust(exe_path)
     except Exception:  # noqa: BLE001 -- unknown means "not proven signed"
         ok = False
-    _SIGNATURE_CACHE[exe_path] = ok
+    _SIGNATURE_CACHE[key] = ok
     return ok
 
 
@@ -173,9 +180,11 @@ def scan_processes_inprocess() -> list[dict]:
                                 reason = f"executable in temp dir: {exe}"
                             break
 
-                # Flag python / node scripts launched from temp dirs
-                if not suspicious and cmdline:
-                    for arg in cmdline:
+                # Flag scripts launched by interpreters from temp dirs. Do not re-flag an already trusted signed installer merely
+                # because argv[0] is its own temp path.
+                interpreter = Path(name).stem in {"python", "pythonw", "node", "nodejs", "pwsh", "powershell", "wscript", "cscript"}
+                if not suspicious and cmdline and interpreter:
+                    for arg in cmdline[1:] if len(cmdline) > 1 else cmdline:
                         arg_lower = arg.lower()
                         for bad_dir in _SUSPICIOUS_DIRS:
                             if bad_dir in arg_lower:

@@ -98,6 +98,10 @@ async def test_streaming_does_not_block_the_event_loop(monkeypatch):
         async def accept(self):
             pass
 
+        async def receive_json(self):
+            from core.api.routers.websocket import WS_API_KEY
+            return {"auth": f"Bearer {WS_API_KEY}"}
+
         async def send_text(self, text):
             if len(self.sent) >= 2:
                 raise WebSocketDisconnect()

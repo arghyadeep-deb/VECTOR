@@ -30,7 +30,7 @@ TEMP_EXE = r"C:\Users\me\AppData\Local\Temp\vscode-inno\VSCodeSetup.tmp"
 
 
 def test_a_signed_installer_in_temp_is_not_suspicious(monkeypatch):
-    rows = _scan(monkeypatch, [_proc("VSCodeSetup.tmp", TEMP_EXE)], signed=True)
+    rows = _scan(monkeypatch, [_proc("VSCodeSetup.tmp", TEMP_EXE, [TEMP_EXE, "/silent"])], signed=True)
     assert rows["VSCodeSetup.tmp"]["suspicious"] is False
     assert "signed" in rows["VSCodeSetup.tmp"]["reason"]
 
@@ -50,10 +50,12 @@ def test_a_script_launched_from_temp_is_still_flagged_even_with_a_signed_interpr
     assert rows["python.exe"]["suspicious"] is True
 
 
-def test_signature_check_is_false_off_windows_or_on_error_and_is_cached(monkeypatch):
+def test_signature_check_is_false_off_windows_or_on_error_and_cache_tracks_file_identity(monkeypatch, tmp_path):
     td._SIGNATURE_CACHE.clear()
     monkeypatch.setattr(td.sys, "platform", "linux")
-    assert td._is_validly_signed("/tmp/x") is False
+    fake = tmp_path / "a.exe"
+    fake.write_bytes(b"first")
+    assert td._is_validly_signed(str(fake)) is False
     monkeypatch.setattr(td.sys, "platform", "win32")
     calls = []
 
@@ -62,9 +64,11 @@ def test_signature_check_is_false_off_windows_or_on_error_and_is_cached(monkeypa
         raise OSError("no wintrust")
 
     monkeypatch.setattr(td, "_win_verify_trust", boom)
-    fake = "C:/fake/a.exe"
-    assert td._is_validly_signed(fake) is False and td._is_validly_signed(fake) is False
-    assert len(calls) == 1                       # the doubt is cached: one attempt per path
+    assert td._is_validly_signed(str(fake)) is False and td._is_validly_signed(str(fake)) is False
+    assert len(calls) == 1
+    fake.write_bytes(b"replacement executable")
+    assert td._is_validly_signed(str(fake)) is False
+    assert len(calls) == 2                       # replacing the file invalidates the path's old signature result
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows only")

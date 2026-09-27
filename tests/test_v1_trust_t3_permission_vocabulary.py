@@ -192,8 +192,8 @@ _FROZEN_YELLOW = {
     # 2026-09-25 (Governor untiered-name closure):
     'backup_db', 'write', 'generate', 'create', 'create_branch', 'update_draft', 'generate_tests', 'merge',
     'add_call_contact', 'add_course',
-    # 2026-09-25: owner-approved tier proposals, 52 YELLOW (48 proposed + 4 demoted from GREEN after tracing handlers).
-    'acknowledge', 'acknowledge_alert', 'add_background_music', 'add_client', 'add_subtitles',
+    # 2026-09-25 proposals plus alert_anomaly, demoted after its persisted threshold mutation was traced.
+    'acknowledge', 'acknowledge_alert', 'alert_anomaly', 'add_background_music', 'add_client', 'add_subtitles',
     'add_transitions', 'adjust_voice_speed', 'analyze_feedback', 'blocklist', 'build_storyboard', 'capture_url',
     'clone_voice', 'create_note', 'dead_code_cleanup', 'detection_rule', 'district_report', 'download_dataset',
     'export_report', 'extract_audio', 'fetch_trending', 'generate_batch', 'generate_captions',
@@ -419,6 +419,7 @@ async def test_state_of_my_repo_phrasing_routes_to_git_status():
 # ── 7. 2026-09-25 owner-approved tier proposals ──────────────────────────────────────────────────────────────────────
 
 _NEW_GREEN = ['active_alerts', 'alert_anomaly', 'analyze_competitor', 'analyze_financials', 'analyze_gaps', 'ast_analysis', 'calculate_indicators', 'check_pep8', 'check_valuation', 'client_summary', 'code_review', 'compare_to_sector', 'deep_code_review', 'dependency_trace', 'design_architecture', 'detect_anomalies', 'detect_patterns', 'dividend_analysis', 'estimate_compute', 'evaluate', 'extract_action_items', 'extract_concepts', 'get_at_risk_clients', 'get_client', 'get_comparison', 'get_metric_summary', 'get_price_data', 'get_progress', 'get_top_clients', 'get_trend', 'get_voices', 'hedge_status', 'identify_improvements', 'job_history', 'job_queue', 'job_status', 'list_alerts', 'list_clients', 'list_incidents', 'list_models', 'list_rules', 'list_skills', 'log_query', 'match_event', 'memory_query', 'obra_review', 'order_summary', 'portfolio_summary', 'prioritize_gaps', 'profile_competitor', 'progress_report', 'recommend', 'review_security', 'root_cause', 'security_code_review', 'session_report', 'siem_alerts', 'siem_stats', 'suggest_learning_path', 'suggest_prerequisites', 'summarize_transcript', 'text_to_ssml', 'transcribe_audio', 'upload_history']
+_NEW_GREEN.remove("alert_anomaly")  # handler persists threshold changes and awards HP; it is not read-only
 
 
 def test_owner_approved_proposals_classify_as_approved():
@@ -431,9 +432,9 @@ def test_owner_approved_proposals_classify_as_approved():
         assert gw._classify(name) == "RED", name
 
 
-def test_the_four_green_proposals_demoted_after_tracing_their_handlers_are_yellow():
+def test_mutating_green_proposals_demoted_after_tracing_their_handlers_are_yellow():
     gw = PermissionGateway()
-    for name in ("analyze_feedback", "district_report", "health_check", "generate_response"):
+    for name in ("alert_anomaly", "analyze_feedback", "district_report", "health_check", "generate_response"):
         assert gw._classify(name) == "YELLOW", name
 
 

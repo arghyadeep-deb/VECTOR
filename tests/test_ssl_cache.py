@@ -49,5 +49,15 @@ def test_verify_false_and_an_unhashable_argument_still_work():
     assert httpx.Client(verify=False) is not None
 
 
+def test_cache_key_changes_when_a_configured_ca_file_changes(monkeypatch, tmp_path):
+    ca = tmp_path / "ca.pem"
+    ca.write_bytes(b"first")
+    monkeypatch.setenv("SSL_CERT_FILE", str(ca))
+    first = ssl_cache._context_inputs(True, None, True)
+    ca.write_bytes(b"replacement certificate data")
+    second = ssl_cache._context_inputs(True, None, True)
+    assert first != second
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

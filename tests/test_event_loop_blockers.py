@@ -47,6 +47,10 @@ class _FakeWS:
     async def accept(self):
         pass
 
+    async def receive_json(self):
+        from core.api.routers.websocket import WS_API_KEY
+        return {"auth": f"Bearer {WS_API_KEY}"}
+
     async def send_text(self, text):
         if self._left <= 0:
             raise WebSocketDisconnect()

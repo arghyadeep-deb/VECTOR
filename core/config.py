@@ -317,9 +317,9 @@ class PermissionConfig(BaseModel):
         "placement", "variance", "nexus", "context_compress", "cleanup",
         # 2026-09-25 (owner-approved tier proposals, VECTOR_TECHNICAL_KNOWLEDGE/PHASE4_TIER_COVERAGE_REPORT.md): manifest
         # capabilities that were UNKNOWN (blocked). Each handler was traced and is read-only or analysis-only (reads, local
-        # computation, local-model prompts, in-memory agent lessons). Four proposals were demoted to YELLOW after the trace:
-        # analyze_feedback, district_report, health_check, generate_response.
-        "active_alerts", "alert_anomaly", "analyze_competitor", "analyze_financials", "analyze_gaps",
+        # computation, local-model prompts, in-memory agent lessons). Mutating handlers are YELLOW, including alert_anomaly,
+        # which rewrites persisted thresholds and awards HP.
+        "active_alerts", "analyze_competitor", "analyze_financials", "analyze_gaps",
         "ast_analysis", "calculate_indicators", "check_pep8", "check_valuation", "client_summary", "code_review",
         "compare_to_sector", "deep_code_review", "dependency_trace", "design_architecture", "detect_anomalies",
         "detect_patterns", "dividend_analysis", "estimate_compute", "evaluate", "extract_action_items",
@@ -386,9 +386,9 @@ class PermissionConfig(BaseModel):
         # local-state mutation, not GREEN read-only.
         "place pin", "intel pin",
         # 2026-09-25 (owner-approved): local writes, local media edits/generation, network fetches and scans, plus the four
-        # GREEN proposals demoted after tracing their handlers (analyze_feedback persists, district_report writes files,
-        # health_check makes an outbound request, generate_response calls a routed LLM).
-        "acknowledge", "acknowledge_alert", "add_background_music", "add_client", "add_subtitles",
+        # GREEN proposals demoted after tracing their handlers (alert_anomaly/analyze_feedback persist, district_report writes
+        # files, health_check makes an outbound request, generate_response calls a routed LLM).
+        "acknowledge", "acknowledge_alert", "alert_anomaly", "add_background_music", "add_client", "add_subtitles",
         "add_transitions", "adjust_voice_speed", "analyze_feedback", "blocklist", "build_storyboard", "capture_url",
         "clone_voice", "create_note", "dead_code_cleanup", "detection_rule", "district_report", "download_dataset",
         "export_report", "extract_audio", "fetch_trending", "generate_batch", "generate_captions",

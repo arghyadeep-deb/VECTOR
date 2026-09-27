@@ -29,6 +29,13 @@ class FakeWS:
     async def accept(self):
         pass
 
+    async def receive_json(self):
+        from core.api.routers.websocket import WS_API_KEY
+        return {"auth": f"Bearer {WS_API_KEY}"}
+
+    async def close(self, code=None, reason=None):
+        self.closed = (code, reason)
+
     async def receive_text(self):
         if self.leave_after_s is not None and asyncio.get_event_loop().time() - self._start > self.leave_after_s:
             raise WebSocketDisconnect()
@@ -82,6 +89,23 @@ async def test_gesture_stays_off_by_default_and_never_opens_the_camera(monkeypat
     ws = FakeWS(leave_after_s=1.2)
     await gesture.gesture_ws(ws)
     assert opened == [] and ws.sent == []
+
+
+async def _auth_message(token):
+    return {"auth": f"Bearer {token}"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("handler,module", [(cam.camera_ws, cam), (gesture.gesture_ws, gesture)])
+async def test_camera_and_gesture_reject_an_invalid_auth_handshake(monkeypatch, handler, module):
+    from core.api.routers import websocket
+
+    monkeypatch.setattr(websocket, "WS_API_KEY", "expected-secret")
+    monkeypatch.setattr(module, "_camera_active" if module is cam else "_gesture_active", False)
+    ws = FakeWS(leave_after_s=0.1)
+    ws.receive_json = lambda: _auth_message("wrong-secret")
+    await handler(ws)
+    assert ws.closed[0] == 1008 and ws.sent == []
 
 
 def test_the_switches_and_their_status_endpoints():

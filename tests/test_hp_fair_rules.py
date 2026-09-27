@@ -102,6 +102,18 @@ def test_flag_on_zero_hp_starts_probation_and_death_comes_after_the_chances_are_
     assert world.get(a.id) is None
 
 
+def test_recovery_above_50_resets_probation(monkeypatch, world):
+    monkeypatch.setenv("VECTOR_HP_FAIR", "1")
+    a = person(hp=20)
+    world.register(a)
+    assert a.deduct_points(30, "first collapse")["probation_left"] == 3
+    a.award_points(100, "verified recovery")
+    assert a.health_points > 50 and a._probation_used is False and a._probation_left == 0
+    a.health_points = 1
+    again = a.deduct_points(30, "later collapse")
+    assert again["probation"] is True and again["probation_left"] == 3
+
+
 def test_death_is_recorded_in_the_ledger_and_the_successor_shares_the_lineage(world):
     a = person("Scout", hp=10)
     world.register(a)
@@ -205,3 +217,10 @@ def test_by_default_a_district_of_healthy_agents_loses_nobody_to_the_rank_cull(w
     for i, hp in enumerate((900, 800, 700, 600, 500, 500, 400)):
         world.register(person(f"P{i}", hp=hp))
     assert _cull(world) == [] and world.total() == 7
+
+
+def test_fair_cull_skips_the_pass_when_the_experience_ledger_fails(monkeypatch, world):
+    for i, hp in enumerate((900, 800, 100, 50)):
+        world.register(person(f"Ledger{i}", hp=hp))
+    monkeypatch.setattr(xp, "own_fault_failures", lambda key: (_ for _ in ()).throw(RuntimeError("db offline")))
+    assert _cull(world) == [] and world.total() == 4

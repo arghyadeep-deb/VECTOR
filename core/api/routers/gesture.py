@@ -195,6 +195,9 @@ class _HandTracker:
 async def gesture_ws(ws: WebSocket):
     """Stream hand tracking data and gesture classifications -- only while hand control is switched on."""
     await ws.accept()
+    from core.api.routers.websocket import require_auth_handshake
+    if not await require_auth_handshake(ws):
+        return
     logger.info("[VECTOR][gesture] WebSocket client connected")
 
     tracker: _HandTracker | None = None

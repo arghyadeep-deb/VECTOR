@@ -303,7 +303,10 @@ class EvolutionEngine:
                            if getattr(a, "health_points", 0) < 200
                            and experience.own_fault_failures(experience.lineage_key(a)) >= 3]
         except Exception as e:
-            logger.debug("[VECTOR][evolution] fair-cull check failed, using rank cull: {}", e)
+            # A broken/unavailable experience ledger cannot prove that a low-ranked agent is at fault. Fail safe: postpone this
+            # cull pass instead of silently reverting to the legacy rank-only policy and killing healthy or idle agents.
+            logger.warning("[VECTOR][evolution] fair-cull check failed; skipping cull pass: {}", e)
+            to_cull = []
         culled_ids: list[str] = []
 
         for agent in to_cull:

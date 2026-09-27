@@ -32,6 +32,22 @@ class TestSSRFGuard:
         result = guard.check_url("127.0.0.1:8080")
         assert not result.safe
 
+    def test_dns_resolution_fails_closed_and_returns_only_public_addresses(self, monkeypatch):
+        import socket
+
+        guard = SSRFGuard(resolve_dns=True)
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [
+            (socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 443)),
+        ])
+        result = guard.check_url("https://example.com/")
+        assert result.safe and result.addresses == ("93.184.216.34",)
+        monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: (_ for _ in ()).throw(OSError("dns down")))
+        assert not guard.check_url("https://example.com/").safe
+
+    def test_rejects_non_global_reserved_addresses(self):
+        guard = SSRFGuard()
+        assert not guard.check_url("http://192.0.2.1/").safe
+
 
 class TestSafeEval:
     def test_basic_arithmetic(self):

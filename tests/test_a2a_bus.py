@@ -123,6 +123,13 @@ async def test_district_addressing_and_capability_addressing(world):
 
 
 @pytest.mark.asyncio
+async def test_district_addressing_never_routes_back_to_the_sender(world):
+    asker = world.add(Echo, "OnlyAgent", "da")
+    reply = await asker.a2a_ask(GREEN, {}, to="district:da")
+    assert reply.status == "unavailable" and not reply.delivered
+
+
+@pytest.mark.asyncio
 async def test_a_reply_that_reports_an_error_is_not_ok(world):
     world.add(Failing, "Flaky", "da")
     asker = world.add(Echo, "Asker", "db")
@@ -231,6 +238,10 @@ async def test_rate_limit_message_budget_and_payload_size(world, monkeypatch):
     big = await asker.a2a_ask(GREEN, {"blob": "x" * 30_000}, to="Target")
     assert big.status == "refused" and "larger than" in big.refused
 
+    monkeypatch.setitem(bus_mod._DEFAULTS, "max_payload_chars", 100)
+    numeric = await asker.a2a_ask(GREEN, {"values": list(range(1000))}, to="Target")
+    assert numeric.status == "refused" and "larger than" in numeric.refused
+
     monkeypatch.setitem(bus_mod._DEFAULTS, "max_messages_per_conversation", 2)
     token = bus_mod._CHAIN.set({"correlation_id": "conv_fixed", "depth": 0, "path": (), "origin": "agent"})
     try:
@@ -251,6 +262,20 @@ async def test_a_slow_agent_times_out_instead_of_hanging_the_sender(world):
     t0 = time.monotonic()
     r = await asker.a2a_ask(GREEN, {}, to="Slowpoke", timeout=0.3)
     assert r.status == "timeout" and not r.delivered and time.monotonic() - t0 < 2
+
+
+@pytest.mark.asyncio
+async def test_caller_cannot_request_an_unbounded_timeout(world, monkeypatch):
+    class Slow(AgentBase):
+        async def run(self, task):
+            await asyncio.sleep(5)
+            return {"status": "ok"}
+    world.add(Slow, "BoundedSlowpoke", "da")
+    asker = world.add(Echo, "Asker", "db")
+    monkeypatch.setitem(bus_mod._DEFAULTS, "max_timeout_sec", 0.2)
+    t0 = time.monotonic()
+    r = await asker.a2a_ask(GREEN, {}, to="BoundedSlowpoke", timeout=9999)
+    assert r.status == "timeout" and time.monotonic() - t0 < 1
 
 
 @pytest.mark.asyncio

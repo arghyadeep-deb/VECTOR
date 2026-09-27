@@ -29,11 +29,45 @@ import os
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
+import httpcore
 from loguru import logger
 
 _TEXT_TYPES = ("text/html", "application/xhtml+xml", "text/plain", "application/xml", "text/xml")
 _EXCERPT_CHARS = 1500
 _MAX_FIELD_CHARS = 2000
+
+
+class _PinnedBackend(httpcore.SyncBackend):
+    """Connect a validated hostname to its preflight DNS answers without resolving it a second time."""
+
+    def __init__(self, hostname: str, addresses: tuple[str, ...]) -> None:
+        self._hostname = hostname.rstrip(".").lower()
+        self._addresses = addresses
+
+    def connect_tcp(self, host, port, timeout=None, local_address=None, socket_options=None):
+        if str(host).rstrip(".").lower() != self._hostname or not self._addresses:
+            raise OSError(f"connection target {host!r} was not DNS-pinned")
+        last_error: Exception | None = None
+        for address in self._addresses:
+            try:
+                return super().connect_tcp(address, port, timeout, local_address, socket_options)
+            except (OSError, httpcore.ConnectError, httpcore.ConnectTimeout) as exc:
+                last_error = exc
+        raise last_error or OSError("all pinned addresses failed")
+
+
+def _pinned_transport(hostname: str, addresses: tuple[str, ...]):
+    """HTTPX transport whose TCP layer uses only addresses approved by the SSRF preflight."""
+    import httpx
+    import httpx._transports.default as default_transport
+
+    transport = httpx.HTTPTransport(trust_env=False)
+    transport._pool.close()
+    transport._pool = httpcore.ConnectionPool(
+        ssl_context=default_transport.create_ssl_context(verify=True, cert=None, trust_env=False),
+        network_backend=_PinnedBackend(hostname, addresses),
+    )
+    return transport
 
 
 def _now() -> str:
@@ -95,13 +129,17 @@ def extract_page(
     if not isinstance(url, str) or not url.strip():
         return {**base, "error": "no url given"}
     try:
-        with httpx.Client(follow_redirects=False, timeout=timeout, transport=transport,
-                          headers={"User-Agent": "VECTOR-read-only-extractor/1.0", "Accept": "text/html,text/plain;q=0.9"}) as client:
-            current = url.strip()
-            for hop in range(max_redirects + 1):
-                verdict = guard.check_url(current)
-                if not verdict.safe:
-                    return {**base, "url": current, "error": f"blocked by SSRF guard: {verdict.reason}"}
+        current = url.strip()
+        for hop in range(max_redirects + 1):
+            verdict = guard.check_url(current)
+            if not verdict.safe:
+                return {**base, "url": current, "error": f"blocked by SSRF guard: {verdict.reason}"}
+            hop_transport = transport
+            if hop_transport is None and not allow_private:
+                hop_transport = _pinned_transport(urlparse(current).hostname or "", verdict.addresses)
+            # One client per redirect hop keeps connection reuse from crossing a newly validated destination.
+            with httpx.Client(follow_redirects=False, timeout=timeout, transport=hop_transport, trust_env=False,
+                              headers={"User-Agent": "VECTOR-read-only-extractor/1.0", "Accept": "text/html,text/plain;q=0.9"}) as client:
                 resp = client.send(client.build_request("GET", current), stream=True)
                 try:
                     if resp.status_code in (301, 302, 303, 307, 308) and resp.headers.get("location"):
@@ -127,8 +165,8 @@ def extract_page(
                 finally:
                     resp.close()
                 break
-            else:  # pragma: no cover - loop always returns or breaks
-                return {**base, "error": "redirect loop"}
+        else:  # pragma: no cover - loop always returns or breaks
+            return {**base, "error": "redirect loop"}
     except httpx.TimeoutException:
         return {**base, "error": f"timed out after {timeout}s"}
     except Exception as exc:

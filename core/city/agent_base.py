@@ -212,6 +212,12 @@ class AgentBase:
         shaped_points = points * repeat_multiplier * headroom_multiplier
         validated_points = max(0.0, self._validate_hp_delta(shaped_points, reason))
         self.health_points = min(1000, self.health_points + validated_points)
+        # Fair-HP probation is a recovery window, not a permanent strike counter. Once an agent has genuinely recovered above the
+        # documented 50 HP threshold, a later collapse starts a fresh probation instead of consuming stale chances forever.
+        if self.health_points > 50 and getattr(self, "_probation_used", False):
+            self._probation_used = False
+            self._probation_left = 0
+            logger.info(f'[VECTOR][city] {self.name} recovered above 50HP; probation reset')
         old_model = self.model
         self.model = self._calculate_model()
         model_changed = self.model != old_model

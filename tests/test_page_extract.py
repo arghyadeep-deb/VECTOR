@@ -135,5 +135,41 @@ def test_unreachable_host_is_an_error_not_an_exception():
     assert r["status"] == "error" and ("fetch failed" in r["error"] or "timed out" in r["error"])
 
 
+def test_tcp_connection_uses_the_preflight_address_without_a_second_dns_lookup(monkeypatch):
+    import httpcore
+    from core.browser.page_extract import _PinnedBackend
+
+    connected = []
+    marker = object()
+
+    def fake_connect(self, host, port, timeout=None, local_address=None, socket_options=None):
+        connected.append((host, port))
+        return marker
+
+    monkeypatch.setattr(httpcore.SyncBackend, "connect_tcp", fake_connect)
+    backend = _PinnedBackend("example.com", ("93.184.216.34",))
+    assert backend.connect_tcp("example.com", 443) is marker
+    assert connected == [("93.184.216.34", 443)]
+
+
+def test_pinned_backend_tries_the_next_validated_address(monkeypatch):
+    import httpcore
+    from core.browser.page_extract import _PinnedBackend
+
+    connected = []
+    marker = object()
+
+    def fake_connect(self, host, port, timeout=None, local_address=None, socket_options=None):
+        connected.append(host)
+        if host == "93.184.216.34":
+            raise httpcore.ConnectError("first address unavailable")
+        return marker
+
+    monkeypatch.setattr(httpcore.SyncBackend, "connect_tcp", fake_connect)
+    backend = _PinnedBackend("example.com", ("93.184.216.34", "93.184.216.35"))
+    assert backend.connect_tcp("example.com", 443) is marker
+    assert connected == ["93.184.216.34", "93.184.216.35"]
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
