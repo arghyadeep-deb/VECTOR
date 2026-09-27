@@ -139,7 +139,7 @@ seo_portfolio/
 data/feedback/
 
 # Runtime-generated memory/cache state
-data/lightrag_vault/
+data/lightrag_vault*/
 districts/intelligence/shadowbroker_server/carrier_cache.json
 
 # Local wake-word samples; keep real voice data out of source commits by default
