@@ -9,6 +9,7 @@ from typing import Any
 from loguru import logger
 
 from .base import FailureInjector
+import asyncio
 
 
 class NetworkChaosInjector(FailureInjector):
@@ -34,19 +35,17 @@ class NetworkChaosInjector(FailureInjector):
         try:
             import subprocess
             if self._is_windows:
-                subprocess.run(
-                    ["netsh", "advfirewall", "firewall", "add", "rule",
+                (await asyncio.to_thread(subprocess.run, ["netsh", "advfirewall", "firewall", "add", "rule",
                      f"name=chaos_block_{self._target_port}",
                      "dir=in", "action=block",
                      f"protocol=tcp", f"localport={self._target_port}"],
                     capture_output=True, timeout=10,
-                )
+                ))
             else:
-                subprocess.run(
-                    ["iptables", "-A", "INPUT", "-p", "tcp",
+                (await asyncio.to_thread(subprocess.run, ["iptables", "-A", "INPUT", "-p", "tcp",
                      f"--dport={self._target_port}", "-j", "DROP"],
                     capture_output=True, timeout=5,
-                )
+                ))
         except Exception as e:
             logger.debug("[Chaos] network inject failed: {}", e)
 
@@ -70,17 +69,15 @@ class NetworkChaosInjector(FailureInjector):
         try:
             import subprocess
             if self._is_windows:
-                subprocess.run(
-                    ["netsh", "advfirewall", "firewall", "delete", "rule",
+                (await asyncio.to_thread(subprocess.run, ["netsh", "advfirewall", "firewall", "delete", "rule",
                      f"name=chaos_block_{self._target_port}"],
                     capture_output=True, timeout=10,
-                )
+                ))
             else:
-                subprocess.run(
-                    ["iptables", "-D", "INPUT", "-p", "tcp",
+                (await asyncio.to_thread(subprocess.run, ["iptables", "-D", "INPUT", "-p", "tcp",
                      f"--dport={self._target_port}", "-j", "DROP"],
                     capture_output=True, timeout=5,
-                )
+                ))
         except Exception:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         self._target_port = None

@@ -173,7 +173,7 @@ class StealthBrowserServer:
 
         # Check node is available
         try:
-            subprocess.run(["node", "--version"], capture_output=True, timeout=5)
+            (await asyncio.to_thread(subprocess.run, ["node", "--version"], capture_output=True, timeout=5))
         except (FileNotFoundError, subprocess.TimeoutExpired):
             logger.error("[VECTOR][stealth] Node.js not found — install Node.js 18+")
             return False

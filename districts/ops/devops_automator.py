@@ -117,10 +117,9 @@ class DevOpsAutomator(AgentBase):
         for name in targets:
             try:
                 # Check if process is actually running first
-                check = subprocess.run(
-                    ["tasklist", "/FI", f"IMAGENAME eq python.exe"],
+                check = (await asyncio.to_thread(subprocess.run, ["tasklist", "/FI", f"IMAGENAME eq python.exe"],
                     capture_output=True, text=True, timeout=5
-                )
+                ))
                 # If we can't confirm it's stuck, skip
                 if name.lower() not in check.stdout.lower() and name.lower() not in check.stderr.lower():
                     skipped.append(f"{name}:not_running")
@@ -135,10 +134,9 @@ class DevOpsAutomator(AgentBase):
                 gateway_result = await gateway.execute(action)
                 if gateway_result.approved:
                     # Gateway approved — now do the actual restart via subprocess
-                    kill_result = subprocess.run(
-                        ["taskkill", "/F", "/FI", f"WINDOWTITLE eq {name}"],
+                    kill_result = (await asyncio.to_thread(subprocess.run, ["taskkill", "/F", "/FI", f"WINDOWTITLE eq {name}"],
                         capture_output=True, text=True, timeout=10
-                    )
+                    ))
                     restarted.append(f"{name}:killed (restart pending manual re-launch or loop)")
                     logger.info(f"[VECTOR][devops_automator] restarted: {name} — {kill_result.returncode}")
                 else:
