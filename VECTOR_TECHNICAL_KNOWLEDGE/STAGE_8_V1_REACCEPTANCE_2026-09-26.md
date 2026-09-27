@@ -241,6 +241,6 @@ account. All of it landed on `fix/external-review-2026-09`, HEAD `f1f560143` (11
   and kept dirtying the working tree -- untracked; `districts/content/voice_generator.py`'s SSML output was invalid XML for
   `&`/`<`/`>` (found by the new drill, above).
 
-**Not done, and why:** the 577-row `agent_history` delete (owner permission needed for the delete itself, see above); Codex review
+**Done by the owner (2026-09-27, later still), since the delete needed their own hands:** the 577-row `agent_history` delete -- backup written first (`live_junk_backup_agent_history_2026-09-27.json`, 577 rows), `agent_history` 1,150 -> 573. Not done: Codex review
 (quota back 19:11 today; packet updated at `CODEX_REVIEW_PACKET_2026-09-27.md`); the owner's own live voice/camera checks and a
 real day of use. Verdict remains **B**, not "V1 ACCEPTED".
