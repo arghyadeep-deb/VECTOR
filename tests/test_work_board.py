@@ -123,3 +123,50 @@ async def test_the_governor_does_not_reward_a_no_reward_request(board):
     assert xp.lineage_stats(board.git)["outcomes"] == {}, "the Governor must not write a ledger row for a drill (the board does)"
     r2 = await board.b._bus.ask("work_board", "git_status", {}, to=board.git.id)
     assert board.git.health_points > hp and xp.lineage_stats(board.git)["outcomes"] == {"success": 1}
+
+# ── district drills (2026-09-27): pure handlers, answers checked by an XML parser / Python's own ast ───────────────────────────
+
+def _drill(name):
+    return next(d for d in wb._DRILLS if d.name == name)
+
+
+@pytest.mark.asyncio
+async def test_ssml_drill_passes_with_the_real_voice_generator_and_catches_invalid_xml():
+    from districts.content.voice_generator import VoiceGenerator
+
+    d = _drill("ssml_is_well_formed_xml")
+    result = await VoiceGenerator().run({"type": d.task_type, "params": d.params})
+    assert d.verify(result) is True, result
+    # the verifier is independent of the agent: broken XML and altered sentences both fail it
+    assert d.verify({"ssml": "<speak><s>Hello world.</s>"}) is False
+    assert d.verify({"ssml": "<speak><s>Hello world.</s></speak>"}) is False
+    assert d.verify({"status": "ok"}) is False
+
+
+@pytest.mark.asyncio
+async def test_static_review_drill_passes_with_the_real_python_reviewer(monkeypatch):
+    from districts.coding.python_reviewer import PythonReviewer
+
+    monkeypatch.delenv("VECTOR_PYTHON_REVIEW_LLM", raising=False)
+    d = _drill("static_review_flags_the_lines_ast_finds")
+    reviewer = PythonReviewer()
+    assert d.matches(reviewer) is True
+    result = await reviewer.run({"type": d.task_type, "params": d.params})
+    assert d.verify(result) is True, result
+    assert d.verify({"issues": []}) is False
+    assert d.verify({"issues": [{"line": 2, "severity": "MED"}, {"line": 3, "severity": "MED"}]}) is False
+
+
+def test_static_review_drill_is_not_used_when_the_reviewer_would_call_an_llm(monkeypatch):
+    from districts.coding.python_reviewer import PythonReviewer
+
+    monkeypatch.setenv("VECTOR_PYTHON_REVIEW_LLM", "1")
+    assert _drill("static_review_flags_the_lines_ast_finds").matches(PythonReviewer()) is False
+
+
+def test_the_voice_generator_escapes_xml_special_characters():
+    from districts.content.voice_generator import VoiceGenerator
+
+    ssml = VoiceGenerator().text_to_ssml("Tom & Jerry <live>. Second one")
+    assert "&amp;" in ssml and "&lt;live&gt;" in ssml
+

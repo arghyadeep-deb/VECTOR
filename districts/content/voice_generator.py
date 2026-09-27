@@ -1,4 +1,5 @@
 
+from xml.sax.saxutils import escape as _xml_escape
 import sys
 import uuid
 import tempfile
@@ -376,7 +377,7 @@ class VoiceGenerator(AgentBase):
             if not sentence:
                 continue
 
-            ssml.append(f'<s>{sentence}.</s>')
+            ssml.append(f'<s>{_xml_escape(sentence)}.</s>')   # 2026-09-27: & < > in a sentence made the SSML invalid XML
 
         if breaks:
             for b in breaks:

@@ -95,7 +95,57 @@ def _install_starter_drills() -> None:
     ))
 
 
+_SSML_TEXT = "Hello world. VECTOR narrates itself. Ask & answer <fast>"   # no trailing period: the agent appends one per sentence
+_REVIEW_CODE = "async def go():" + chr(10) + "    value = eval(input())" + chr(10) + "    time.sleep(1)" + chr(10)
+
+
+def _verify_ssml(r: dict) -> bool:
+    """The SSML must be well-formed XML whose <s> elements carry exactly the input sentences (checked with an XML parser)."""
+    import xml.etree.ElementTree as ET
+    if not isinstance(r, dict) or not isinstance(r.get("ssml"), str):
+        return False
+    try:
+        root = ET.fromstring(r["ssml"])
+    except ET.ParseError:
+        return False
+    got = ["".join(s.itertext()).strip() for s in root.findall("s")]
+    return root.tag == "speak" and got == [part.strip() + "." for part in _SSML_TEXT.split(". ") if part.strip()]
+
+
+def _verify_review(r: dict) -> bool:
+    """The static scan must flag exactly the lines Python's own ast finds calling eval() and time.sleep(), eval as HIGH."""
+    import ast
+    if not isinstance(r, dict) or not isinstance(r.get("issues"), list):
+        return False
+    want_eval, want_sleep = set(), set()
+    for node in ast.walk(ast.parse(_REVIEW_CODE)):
+        if isinstance(node, ast.Call):
+            if isinstance(node.func, ast.Name) and node.func.id == "eval":
+                want_eval.add(node.lineno)
+            if isinstance(node.func, ast.Attribute) and node.func.attr == "sleep":
+                want_sleep.add(node.lineno)
+    flagged = {i["line"]: i.get("severity") for i in r["issues"] if isinstance(i, dict) and i.get("line")}
+    return set(flagged) == want_eval | want_sleep and all(flagged[n] == "HIGH" for n in want_eval)
+
+
+def _install_district_drills() -> None:
+    # Pure, deterministic handlers with no side effects and no LLM; each answer is checked by something other than the agent.
+    register_drill(Drill(
+        name="ssml_is_well_formed_xml", task_type="text_to_ssml",
+        matches=lambda a: "text_to_ssml" in _caps(a) or getattr(a, "name", "") == "VoiceGenerator",
+        params={"text": _SSML_TEXT}, verify=_verify_ssml, difficulty=0.3,
+    ))
+    register_drill(Drill(
+        name="static_review_flags_the_lines_ast_finds", task_type="check_pep8",
+        # only while the reviewer is in its deterministic static mode; with VECTOR_PYTHON_REVIEW_LLM=1 the same task calls an LLM
+        matches=lambda a: ("check_pep8" in _caps(a) or getattr(a, "name", "") == "PythonReviewer")
+        and os.environ.get("VECTOR_PYTHON_REVIEW_LLM") != "1",
+        params={"code": _REVIEW_CODE, "filename": "drill.py"}, verify=_verify_review, difficulty=0.4,
+    ))
+
+
 _install_starter_drills()
+_install_district_drills()
 
 
 class WorkBoard:
