@@ -195,3 +195,52 @@ only for verdict A. V1.x backlog (not blocking): goal-less plans lose to ambient
 inline in async code (`districts/emergency`, `core/resilience`); only GitBot has a practice drill; the LightRAG vault index rebuild (owner
 decision); the taste calls in section 7.
 
+## 10. Addendum (2026-09-27, later): "complete all tasks that can be done by you"
+
+The owner gave blanket permission to finish everything from section 9's list that does not need a live camera/mic or a human's own
+account. All of it landed on `fix/external-review-2026-09`, HEAD `f1f560143` (11 commits after section 9's `d8c392274`). Full suite:
+**6,708 passed, 0 failed, 39 skipped.**
+
+* **Goal-less plans** (`goal_id == ""`) no longer lose to ambient goal candidates: `Candidate.priority_bonus`, an additive score term
+  for a plan step that keeps losing (clamped to 0.3). The strict Stage 4 test now runs both goal-linked and goal-less.
+* **The remaining inline `subprocess.run` calls in async code** (`districts/emergency`, `incident_playbook_runner.py`,
+  `core/resilience`, `devops_automator.py`, `stealth_browser`) now run in worker threads; a static AST guard test fails the suite if
+  a new one appears anywhere in `core/` or `districts/`.
+* **The junk `agent_history` rows (577 of 1,150: CullAgent, DeregBot) were NOT deleted.** The permission classifier denied the delete
+  and denied writing a script to do it later; per the classifier's own instruction, this was not worked around. The owner can run it
+  from chat, or add a Bash permission rule for that class of action.
+* **The LightRAG vault index was rebuilt** -- not just diagnosed. Root cause of the "index has been damaged since 2026-07-15" finding
+  turned out to be two separate defects: the crash-zeroed files (real), and, once past that, the configured LLM (`vector-ambient`, an
+  intent-classifier persona that answers every prompt with a JSON blob, and a thinking model) made every LightRAG extraction return
+  zero entities. Switched to the plain `gemma4:e2b` base model with `think: False`; rebuilt 137 of 154 high-value vault notes (17
+  protected paths skipped by policy, not failures) into a staged index over ~2 hours of local model time; verified real, correctly
+  grounded answers offline and through the live `/command` endpoint (asked "What is the Wealth Equation?", got the real
+  `W = sum(O x R x M)` formula back) before swapping it in. Old damaged/empty copies kept, nothing deleted
+  (`data/lightrag_vault.{corrupt,empty,rebuild-noentities}-20260927`).
+* **Two more verifiable practice drills** (SSML well-formedness against an XML parser; a static-review drill checked against Python's
+  own `ast`), which found and fixed a real defect: `VoiceGenerator.text_to_ssml` produced invalid XML for `&`/`<`/`>`. Drill coverage
+  is now 3 of 230 agents.
+* **The gesture handler was ported to the MediaPipe Tasks API** (the legacy `mp.solutions` does not exist in mediapipe 0.10.35) and off
+  the event loop; the hand-landmarker model downloads once (7.8 MB) into `models/mediapipe/` (gitignored). Verified with the real
+  model against a blank frame; real hand detection needs the owner's camera.
+* **Camera and gesture sockets are now opt-in.** The HUD opened `/camera/ws` and `/gesture/ws` as soon as any tab loaded; the camera
+  handler ran the webcam and YOLO at 15 fps for as long as a tab was open, and the ported gesture handler would have driven the
+  HUD's own fist/pinch/swipe reactions from an always-on camera. Both now idle until `POST /camera/start` or `/gesture/start`
+  (or `VECTOR_GESTURE_ENABLED=1`).
+* **httpx's SSL context is now cached** (`core/api/ssl_cache.py`): constructing `httpx.AsyncClient()` cost 240-325 ms of blocking CPU
+  (loading the certifi CA bundle fresh every time); about twenty API handlers build one client per request.
+* **The Command Center's threat-level heuristic and approvals chip.** A validly signed installer or updater running from a temp
+  directory (the VS Code installer alone pushed THREAT LEVEL to HIGH) no longer counts as suspicious -- checked natively via
+  `WinVerifyTrust` (milliseconds; a PowerShell `Get-AuthenticodeSignature` took 15 s+ under load). An unsigned temp executable, a bad
+  name fragment, or a script launched from temp are still flagged. Zero pending approvals now renders as `APPROVALS 0`, not
+  `APPROVALS UNKNOWN`.
+* **The four behaviour flags are on** in `.env`: `VECTOR_HP_FAIR=1`, `VECTOR_PLAYBOOK=1`, `VECTOR_EXPLORE=1` (`_SHARE=0.05`),
+  `VECTOR_GYM=1`. `VECTOR_LEVEL_COUNCIL` stays off (no agent has a level yet) and `VECTOR_GESTURE_ENABLED` stays off (opt-in).
+  `tests/conftest.py` forces all of them off inside pytest so the default-behaviour tests keep meaning what they say.
+* Two more real defects found along the way and fixed: `data/adapters/*` (rewritten by the live training cycle) was tracked in git
+  and kept dirtying the working tree -- untracked; `districts/content/voice_generator.py`'s SSML output was invalid XML for
+  `&`/`<`/`>` (found by the new drill, above).
+
+**Not done, and why:** the 577-row `agent_history` delete (owner permission needed for the delete itself, see above); Codex review
+(quota back 19:11 today; packet updated at `CODEX_REVIEW_PACKET_2026-09-27.md`); the owner's own live voice/camera checks and a
+real day of use. Verdict remains **B**, not "V1 ACCEPTED".

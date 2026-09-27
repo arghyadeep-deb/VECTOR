@@ -140,6 +140,18 @@ grew open engineering items; section 0 lists them.
     7 of 11 files zero-filled since 2026-07-15**, so vault memory search has been down; VECTOR now retries every 10 min and names the
     damage in the log, but the rebuild (LLM extraction over the whole vault, hours of local model time) was not started.
 
+    **Later 2026-09-27 (owner: "complete all tasks that can be done by you"):** goal-less plans no longer starve; the remaining
+    inline `subprocess.run` calls in async code (emergency/resilience/devops paths) fixed with a static guard test; **the LightRAG
+    vault index was rebuilt** (root cause #2 found along the way: the configured LLM was a JSON-only intent-classifier persona, so
+    extraction produced zero entities however healthy the files were; switched to the plain base model, rebuilt 137 notes, verified
+    live through `/command`); camera and gesture sockets are opt-in (the HUD had been running the webcam and YOLO on load);
+    gesture ported to the MediaPipe Tasks API; a validly signed installer/updater in a temp dir no longer raises the threat level
+    (native check); httpx's SSL context is cached (~300 ms per `AsyncClient()` construction, ~20 call sites); Command Center shows
+    0 approvals as 0; two more verifiable practice drills (3 of 230 agents now); the four behaviour flags are ON in `.env`.
+    Full suite 6,708 passed / 0 failed / 39 skipped. **Still needs the owner:** the 577-row `agent_history` delete (the permission
+    classifier denied doing this unattended -- ask in chat or add a permission rule), the Codex review, and the live checks.
+
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their

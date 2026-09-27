@@ -38,13 +38,26 @@ for ~10 s per sweep (py-spy), which froze the API 15-27 s every ~30 s. Please ch
 ## 4. Evidence
 
 * Full suite on `43ef7e5e2`: 6,586 passed / 3 failed / 55 skipped (the 3 HUD dev-mode e2e failures pass alone; load-sensitive).
+* Full suite on `f1f560143` (this packet current HEAD): **6,708 passed, 0 failed, 39 skipped.**
 * Live: 230/230 agents answered an A2A ping across 39 districts; RED `delete_files`/`send_email` requests came back `requires_approval`.
 * Live after the stall fix: `/agents` max latency 19-27 s -> 1.99 s over 90 samples; `/security/status` max 6 s -> 0.2 s.
 * Strict Stage 4 (`tests/test_stage4_real_goalsystem_competition.py`): real GoalSystem + a real git failure; found and fixed the starvation.
+
+## 4b. Added since this packet was first written (2026-09-27, later that day; same review base)
+
+| Change | Where | Note |
+|---|---|---|
+| Goal-less plans no longer starve: additive `Candidate.priority_bonus` | `core/loop/decision_engine.py`, `core/loop/autonomous_loop.py` | check it cannot be abused to make a low-quality candidate win by simply losing repeatedly forever (capped at 0.3, resets on a win) |
+| Camera/gesture sockets are opt-in (`/camera/start`, `/gesture/start`) | `core/api/routers/camera.py`, `core/api/routers/gesture.py` | check the switch itself is not exposed to an untrusted caller beyond the existing API key |
+| Gesture handler ported to the MediaPipe Tasks API | `core/sensing/mediapipe_tasks.py`, `core/api/routers/gesture.py` | downloads a model bundle from a hardcoded Google URL on first use; check the URL/pinning is acceptable |
+| Threat-detector signature check (`WinVerifyTrust` via ctypes) | `core/control/security/threat_detector.py` | native Windows API call via ctypes; check the struct layout / calling convention carefully |
+| httpx SSL context cache | `core/api/ssl_cache.py` | monkeypatches `httpx._transports.default.create_ssl_context`; check this cannot mask a legitimate need for a fresh context (e.g. per-call cert override) |
+| LightRAG rebuilt onto `gemma4:e2b` (was `vector-ambient`, a JSON-only persona) | `core/memory/obsidian_sync.py`, `core/config.py` | behavioural, not authorization; low risk |
+| Four behaviour flags turned on in `.env` | `.env` (not versioned) | `VECTOR_HP_FAIR`, `VECTOR_PLAYBOOK`, `VECTOR_EXPLORE`, `VECTOR_GYM` |
 
 ## 5. Not covered / known limits (do not read these as reviewed)
 
 * `districts/emergency`, `districts/security/incident_playbook_runner.py`, `core/resilience/*` still call `subprocess.run` inline in async
   code (rare RED-tier paths, left alone).
 * Goal-less plans (`goal_id == ""`) still lose to ambient goal candidates by design (neutral 0.3 alignment); production plans are goal-linked.
-* Only GitBot has a practice drill (1 of 230 agents).
+* Only 3 of 230 agents have a practice drill.
