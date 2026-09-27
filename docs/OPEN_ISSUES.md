@@ -148,8 +148,9 @@ grew open engineering items; section 0 lists them.
     gesture ported to the MediaPipe Tasks API; a validly signed installer/updater in a temp dir no longer raises the threat level
     (native check); httpx's SSL context is cached (~300 ms per `AsyncClient()` construction, ~20 call sites); Command Center shows
     0 approvals as 0; two more verifiable practice drills (3 of 230 agents now); the four behaviour flags are ON in `.env`.
-    Full suite 6,708 passed / 0 failed / 39 skipped. **Still needs the owner:** the 577-row `agent_history` delete (the permission
-    classifier denied doing this unattended -- ask in chat or add a permission rule), the Codex review, and the live checks.
+    Full suite 6,708 passed / 0 failed / 39 skipped. **The owner deleted the 577-row `agent_history` junk themselves (2026-09-27)**
+    -- the permission classifier denied doing it unattended, so the owner ran the prepared script directly (backup kept,
+    `agent_history` 1,150 -> 573). **Still needs the owner:** the Codex review and the live checks.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
