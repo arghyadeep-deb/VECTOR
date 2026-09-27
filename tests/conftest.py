@@ -59,6 +59,12 @@ os.environ.pop("VECTOR_DATA_DIR", None)
 # python-dotenv because dotenv never overrides a variable that is already set.
 for _tracing_var in ("LANGCHAIN_TRACING_V2", "LANGCHAIN_TRACING", "LANGSMITH_TRACING"):
     os.environ[_tracing_var] = "false"
+# Behaviour flags the owner turns on in .env (fair HP, playbooks, exploration, gym, gesture) must not leak into tests that assert the default
+# behaviour; tests that exercise a flag set it themselves. Same dotenv rule as above: a variable that is already set wins.
+for _flag in ("VECTOR_HP_FAIR", "VECTOR_PLAYBOOK", "VECTOR_EXPLORE", "VECTOR_GYM", "VECTOR_GYM_LLM", "VECTOR_LEVEL_COUNCIL",
+              "VECTOR_GESTURE_ENABLED"):
+    os.environ[_flag] = "0"
+os.environ.pop("VECTOR_EXPLORE_SHARE", None)
 
 
 def _assert_not_live(where: str) -> None:
