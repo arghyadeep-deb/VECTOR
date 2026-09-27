@@ -224,3 +224,6 @@ data/pc_screenshot.png
 
 # Native Qdrant binary for code intelligence (downloaded, not versioned)
 vectorcode/code_intel/qdrant/
+
+# simulated LoRA adapter manifests are rewritten by the live training cycle (cron); versioning them dirtied the tree and failed the r18 clean-tree test
+data/adapters/
