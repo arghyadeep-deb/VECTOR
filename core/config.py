@@ -1508,6 +1508,7 @@ CONFIG: dict = {
     "obsidian": {
         "vault_path": _s.VECTOR_VAULT_PATH,
         "lightrag_working_dir": "./data/lightrag_vault",
+        "lightrag_llm_model": "gemma4:e2b",   # plain base model: vector-ambient is a JSON intent classifier + thinking model (empty extraction)
         "watch_debounce_sec": 30,
         "ingest_on_startup": True,
         "protected_paths": ["CLAUDE.md", "GOALS.md", "VECTOR", "graphify-out", ".obsidian"],

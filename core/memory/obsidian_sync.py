@@ -253,11 +253,15 @@ class ObsidianSync:
                 # 'vector-fast' is a 24B/15GB mistral3 — loading it evicted every
                 # other model (OLLAMA_MAX_LOADED_MODELS=1) and starved the voice
                 # pipeline's local calls (2026-07-15 fix).
-                llm_model_name=CONFIG["models"].get("ambient") or CONFIG["models"]["reasoning"],
+                # 2026-09-27: `vector-ambient` is an intent-classifier persona (its Modelfile makes it answer every prompt with a JSON
+                # intent object) and a thinking model, so LightRAG's entity extraction produced ZERO entities and every query came back
+                # empty or "[no-context]". LightRAG needs the plain base model with thinking off.
+                llm_model_name=self._cfg.get("lightrag_llm_model", "gemma4:e2b"),
                 llm_model_kwargs={
                     "host": ollama_host,
                     "options": {"num_ctx": 8192},
                     "timeout": 120,
+                    "think": False,
                 },
                 embedding_func=EmbeddingFunc(
                     embedding_dim=768,
