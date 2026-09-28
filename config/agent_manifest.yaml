@@ -1657,7 +1657,7 @@ districts:
       class: districts.ops.ops_specialists.ReportDistributionAgent
       model: vector-focus
       description: Report-distribution brief plus recipient-address and report-format validation (never sends or distributes anything)
-      capabilities: [report_distribution_brief, report_distribution_check]
+      capabilities: [report_distribution_brief, report_distribution_validate]
 
     - name: corporate_training_designer
       class: districts.ops.ops_specialists.CorporateTrainingDesigner

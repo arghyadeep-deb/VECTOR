@@ -407,7 +407,7 @@ class PermissionConfig(BaseModel):
         "project_shepherd_brief", "project_shepherd_check", "support_response_brief",
         "support_response_check",
         "data_consolidation_brief", "data_consolidation_check", "report_distribution_brief",
-        "report_distribution_check", "training_design_brief", "training_outline_check",
+        "report_distribution_validate", "training_design_brief", "training_outline_check",
         "legal_compliance_brief", "legal_compliance_check",
         # 2026-09-29 SELF_DEV_P2_CODING: 28 NEW GREEN entries (tier additions only;
         # no existing tier changed or loosened), flagged for the pending independent

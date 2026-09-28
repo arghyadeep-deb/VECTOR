@@ -160,7 +160,7 @@ def test_data_consolidation_agent_flags_field_conflict():
 def test_report_distribution_agent_flags_bad_recipient_and_format():
     agent = ReportDistributionAgent()
     result = asyncio.run(agent.run({
-        "type": "report_distribution_check",
+        "type": "report_distribution_validate",
         "evidence": {
             "recipients": ["not-an-email"],
             "report_meta": {"format": "docx"},

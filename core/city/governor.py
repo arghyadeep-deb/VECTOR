@@ -932,7 +932,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "data_consolidation_brief":     "ops",
     "data_consolidation_check":     "ops",
     "report_distribution_brief":    "ops",
-    "report_distribution_check":    "ops",
+    "report_distribution_validate":    "ops",
     "training_design_brief":        "ops",
     "training_outline_check":       "ops",
     "legal_compliance_brief":       "legal_compliance",

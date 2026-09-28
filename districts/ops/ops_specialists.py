@@ -309,7 +309,7 @@ class DataConsolidationAgent(OpsSpecialist):
 
 
 class ReportDistributionAgent(OpsSpecialist):
-    profile = _p("ReportDistributionAgent", "report_distribution_agent", "report_distribution_brief", "report_distribution_check",
+    profile = _p("ReportDistributionAgent", "report_distribution_agent", "report_distribution_brief", "report_distribution_validate",
                  ("recipients", "report_meta"), "report-distribution validation brief (never sends anything)",
                  "report_distribution")
 

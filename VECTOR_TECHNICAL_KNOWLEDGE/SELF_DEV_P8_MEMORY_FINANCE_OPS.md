@@ -148,7 +148,7 @@ New tier entries (GREEN, `core/config.py`): `hr_onboarding_brief`, `hr_onboardin
 `jira_workflow_brief`, `jira_workflow_check`, `project_shepherd_brief`, `project_shepherd_check`,
 `support_response_brief`, `support_response_check`, `accounts_payable_brief`,
 `accounts_payable_match_check`, `data_consolidation_brief`, `data_consolidation_check`,
-`report_distribution_brief`, `report_distribution_check`, `training_design_brief`,
+`report_distribution_brief`, `report_distribution_validate`, `training_design_brief`,
 `training_outline_check`. Manifest: 8 new entries under `ops:`.
 
 ## legal_compliance — new district
