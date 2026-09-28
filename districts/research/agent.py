@@ -133,7 +133,11 @@ class ResearchSwarm(AgentBase):
                         "context": params.get("context", ""),
                         "timeout": params.get("timeout", 60.0),
                     })
-                return await agent.run({"type": task_type, **params})
+                # 2026-09-24 (independent review finding -- HIGH, same
+                # class found in CodingSwarm): task_type must always win
+                # over anything the caller put in params, never the
+                # reverse.
+                return await agent.run({**params, "type": task_type})
             except Exception as e:
                 logger.warning("[ResearchSwarm] agent {} failed: {} — falling back", agent.name, e)
         return await self._fallback_response(task_type, params)

@@ -1,3 +1,6 @@
+# DORMANT (2026-09-24, docs/design/core-module-triage.md): not imported by the running VECTOR.
+# Superseded by the API auth middleware (validates VECTOR_API_KEY) and core/api/routers/auth_jwt.py. Kept on purpose (personal-use build); do not add a second live path --
+# route through the existing mechanism so the Governor and PermissionGateway stay the only way in.
 """Authentication and authorization for V.E.C.T.O.R. API.
 
 Security design for a local personal project:

@@ -331,6 +331,26 @@ class AutonomousLoop:
                 self._continue_gate = None
         return self._continue_gate
 
+    def _continue_gate_coherence(self) -> float:
+        """The coherence input ContinueGate is documented to take: CoherenceScheduler's score for the think loop.
+
+        2026-09-26 fix. This used to pass `decision.winner.total_score` -- the 5-factor RANKING score -- as the
+        "coherence", while ContinueGate stops anything below 0.4 and _think_tick() only requires 0.3 to act. Every winner
+        scoring 0.30-0.40 was therefore picked, logged as "stop" and silently never run, tick after tick: 330 such drops
+        (all `analyze_progress`) in the live log, and any plan step whose fallback scored 0.38 could never execute, so a
+        multi-step plan could not terminate (V1 Stage 4's PARTIAL). A ranking score is not coherence.
+
+        No events recorded for the loop means a neutral 1.0 (the scheduler's own no-evidence answer); if the guidance
+        system is unavailable the gate's budget/rework checks still apply, so this fails neutral rather than blocking.
+        """
+        try:
+            guidance = self._get_guidance()
+            if guidance is not None:
+                return float(guidance["coherence_scheduler"].compute_score("think_loop").overall)
+        except Exception as _co_err:
+            logger.debug("[VECTOR][continue_gate] coherence unavailable, using neutral: {}", _co_err)
+        return 1.0
+
     def _scan_threats(self, text: str, context: str = "act") -> bool:
         """Run ThreatDetector over action description. Returns True if critical threat found."""
         gsys = self._get_guidance()
@@ -866,13 +886,25 @@ class AutonomousLoop:
                 except Exception as _re_err:
                     logger.debug("[VECTOR][bypass] rules engine failed: {}", _re_err)
             _person_id = self._handle_user_input(_voice_text)
-            logger.info("[VECTOR][think] voice intent dispatched: {}", pending.get("intent"))
-            await self._get_governor().dispatch({
-                "type":       pending.get("intent", "respond"),
-                "params":     {**pending.get("params", {}), "person_id": _person_id},
-                "source":     "voice",
-                "confidence": pending.get("confidence", 0.8),
-            })
+            # 2026-09-23 fix (permission-boundary audit): this used to call
+            # self._get_governor().dispatch({...}) here, re-running the exact
+            # same intent a SECOND time with zero permission-gateway check.
+            # Every real producer of `_pending_voice` --
+            # core.voice.ambient_listener.AmbientListener.handle_voice_input()
+            # (via PermissionGateway.execute()) and both external-task
+            # ingestion routes (core/api/tasks.py, core/api/routers/tasks.py,
+            # via PermissionGateway.execute()/evaluate_external()) -- already
+            # runs the intent through the gateway (which itself routes
+            # approved actions to Governor.dispatch()) before ever setting
+            # this field. Re-dispatching here duplicated every approved
+            # action's real-world side effect, and -- because this second
+            # call bypassed the gateway entirely -- could still carry out an
+            # action the gateway had just DENIED (RULE 3 violation: "Permission
+            # Gateway is the ONLY path to real-world actions... Nothing
+            # bypasses this"). The intent is already fully executed by the
+            # time control reaches here; only the person-context update above
+            # is still needed.
+            logger.debug("[VECTOR][think] voice intent already executed via gateway: {}", pending.get("intent"))
             return
 
         # RULE 1 — world state snapshot before any reasoning
@@ -891,9 +923,15 @@ class AutonomousLoop:
         except Exception as _eb:
             logger.debug(f"[VECTOR][think] epistemic belief tracking skipped: {_eb}")
 
+        # 2026-09-23 fix: this used to `return` here when there were zero
+        # goal-derived actions, which also skipped the plan-candidate block
+        # below every single tick -- a real starvation bug (root cause of
+        # VECTOR_TECHNICAL_KNOWLEDGE/STAGE_4_LONG_HORIZON_AUTONOMY_REPORT.md
+        # Finding 3: an empty/disabled GoalSystem silently starved active
+        # plans of any candidate at all). DecisionEngine.evaluate([]) already
+        # returns a safe noop decision, so falling through with zero
+        # candidates here is not a new risk.
         actions = self._get_goals().generate_immediate_actions(limit=4)
-        if not actions:
-            return
 
         # R11 (Native Goal Strategy Candidate Generation): the tag→action_type
         # semantic mapping that used to live here was genuinely dead code —
@@ -947,6 +985,7 @@ class AutonomousLoop:
                 logger.debug("[VECTOR][think] avatar on_think suppressed: {}", _av_th_err)
 
         decision = await self._get_decision().evaluate(candidates)
+        self._age_plan_candidates(candidates, decision)
         if decision.winner.total_score > 0.3:
             # ContinueGate: step-level budget + coherence check before acting
             _cgate = self._get_continue_gate()
@@ -958,7 +997,7 @@ class AutonomousLoop:
                         tokens_used=0,
                         tool_calls=0,
                         rework_count=0,
-                        coherence_score=decision.winner.total_score,
+                        coherence_score=self._continue_gate_coherence(),
                     )
                     if _cgate_verdict in ("pause", "stop"):
                         logger.warning(
@@ -1214,7 +1253,45 @@ class AutonomousLoop:
                             if not _gw_result.approved:
                                 logger.warning(f"[VECTOR][act] {_level} VectorCode action '{winner.action_type}' denied: {_gw_result.reason}")
                                 return
-                        # GREEN / UNKNOWN → proceed to bridge
+                            # 2026-09-23 fix (independent review found this):
+                            # gw.execute() for a RED/YELLOW _VC_ACTION_TYPES
+                            # member already runs the REAL VectorCode task
+                            # itself, inside PermissionGateway._execute_action()'s
+                            # own code_task/code_review_vc/code_generate/
+                            # code_fix/code_debug branch. The code below used
+                            # to ALSO call get_bridge().run_task() again
+                            # after approval -- one RED approval genuinely
+                            # ran the underlying task twice. Use the result
+                            # gw.execute() already produced; only fall
+                            # through to a fresh bridge call for GREEN/
+                            # UNKNOWN, which never went through
+                            # _execute_action() at all.
+                            #
+                            # 2026-09-23 round 2 (independent re-review found
+                            # this too): once gw.execute() has genuinely
+                            # approved AND executed the task, NOTHING must be
+                            # able to fall through to a second execution path
+                            # below -- not even a bookkeeping failure. The
+                            # outer `except Exception` around this whole
+                            # block used to catch a reward/policy-update
+                            # error here and log "falling through to
+                            # governor", which could reach a real second
+                            # dispatch. Bookkeeping is now its own try/except
+                            # that can fail safely without ever un-committing
+                            # this `return`.
+                            try:
+                                vc_result = _gw_result.result or {}
+                                reward = 0.8 if vc_result.get("status") == "ok" else 0.3
+                                pm = self._get_policy()
+                                h = pm.make_situation_hash(winner.action_type, winner.params)
+                                pm.update_from_outcome(winner.action_type, h, reward)
+                                logger.info(f"[VECTOR][act] VectorCode {winner.action_type} → {vc_result.get('status')} reward={reward}")
+                            except Exception as _bk_err:
+                                logger.warning(f"[VECTOR][act] VectorCode reward/policy bookkeeping failed after real execution (not re-executing): {_bk_err}")
+                            return
+                        # GREEN / UNKNOWN → proceed to bridge (never went
+                        # through gw.execute()/_execute_action() above, so
+                        # this is still the only real execution).
                     from districts.coding.vectorcode_bridge import get_bridge
                     bridge = get_bridge()
                     if bridge.is_available():
@@ -1366,11 +1443,115 @@ class AutonomousLoop:
                     logger.debug(f"[VECTOR][skills] skill match skipped: {_sk_err}")
 
                 if not _skill_executed:
-                    result = await self._get_governor().dispatch({
-                        "type": winner.action_type,
-                        "params": winner.params,
-                        "source": "autonomous_loop",
-                    })
+                    # 2026-09-23 fix (independent review found this): a
+                    # goal-derived candidate that isn't VC/swarm/skill-
+                    # matched used to dispatch straight to
+                    # Governor.dispatch() with NO permission-gateway
+                    # involvement at all -- a real RULE 3 authorization
+                    # bypass, not merely an audit-log gap. GREEN classified
+                    # candidates were harmless in practice (GREEN never
+                    # required approval), but GoalSystem can derive a
+                    # YELLOW-classified action_type from a goal tag (e.g.
+                    # "finance" -> "monthly_report", which is YELLOW and has
+                    # a real handler that writes an Obsidian note) -- that
+                    # class of action reached its handler with zero owner
+                    # confirmation whenever no skill happened to intercept
+                    # it first. Mirror the skill-match gate immediately
+                    # above: classify first, and for RED/YELLOW require
+                    # real gateway approval before Governor.dispatch() ever
+                    # runs. GREEN is unchanged (dispatches directly, as
+                    # before -- no approval was ever required for it).
+                    gw = self._get_gateway()
+                    _already_dispatched = False
+                    if gw is not None:
+                        _level = gw.classify(winner.action_type)
+                        if _level == "FORBIDDEN":
+                            logger.warning(
+                                f"[VECTOR][act] '{winner.action_type}' is FORBIDDEN — blocked"
+                            )
+                            return
+                        if _level in ("RED", "YELLOW"):
+                            from core.loop.permission_gateway import Action as _GWAction
+                            _gen_gw = await gw.execute(_GWAction(
+                                action_type=winner.action_type,
+                                params=winner.params,
+                                proposed_by="think_loop",
+                            ))
+                            if not _gen_gw.approved:
+                                logger.warning(
+                                    f"[VECTOR][act] {_level} action '{winner.action_type}' denied: {_gen_gw.reason}"
+                                )
+                                return
+                            # 2026-09-23 (fix, independent review found
+                            # this): gw.execute() already ran
+                            # _execute_action() for this exact
+                            # action_type -- for the handful of types
+                            # that branch dedicated handles (play_music,
+                            # launch_app, run_shell_command, pc_*,
+                            # write_note_personal, ...), REAL work
+                            # already happened and its real result is
+                            # sitting in _gen_gw.result. Unconditionally
+                            # calling Governor.dispatch() again after
+                            # this (the pre-existing code below) was a
+                            # genuine double-execution bug for those
+                            # types -- the same class already fixed in
+                            # core/api/routers/control.py's
+                            # _dispatch_pc_action() and the VC-action
+                            # path earlier this session. Only fall
+                            # through to a SEPARATE Governor.dispatch()
+                            # when _execute_action() itself had no real
+                            # handler for this action_type
+                            # ("not_implemented" -- the generic fallback
+                            # every action_type without a dedicated
+                            # branch hits, which is the intentional,
+                            # correct design for reaching a real
+                            # district agent). Also issue the receipt
+                            # that separate dispatch's own new
+                            # authorization check (governor.py) now
+                            # requires -- this exact action_type was
+                            # just, genuinely, real-approved above.
+                            if _gen_gw.result and _gen_gw.result.get("status") != "not_implemented":
+                                result = _gen_gw.result
+                                _already_dispatched = True
+                            else:
+                                self._get_gateway()._issue_approval_receipt(
+                                    winner.action_type, purpose="governor_dispatch"
+                                )
+                    if not _already_dispatched:
+                        result = await self._get_governor().dispatch({
+                            "type": winner.action_type,
+                            "params": winner.params,
+                            "source": "autonomous_loop",
+                        })
+                    # 2026-09-23 fix (found alongside the gate above, then
+                    # corrected after independent re-review): a handful of
+                    # real, verified-safe read-only capabilities
+                    # (core/loop/permission_gateway.py's own
+                    # _OWNER_READONLY_DISPATCH_ACTION_TYPES -- git_status,
+                    # check_git, git_log, recent_commits, search_arxiv)
+                    # return their real handler's raw dict with NO "status"
+                    # key EITHER on success (e.g. GitBot.get_status()'s real
+                    # branch data) OR on a genuine internal failure
+                    # (GitBot.get_status() returns {} when the repo can't be
+                    # opened; get_recent_commits() returns [] both for a
+                    # truly empty history and for a real failure). An
+                    # earlier version of this fix defaulted ANY missing
+                    # "status" to "ok" unconditionally -- which certified a
+                    # real git failure as a false success just as much as
+                    # the original bug certified a real success as a
+                    # failure. Only default to "ok" when there is REAL
+                    # evidence of success in the result -- the exact same
+                    # evidence fields core/api/routers/commands.py's
+                    # `_is_git_readonly_empty()` already uses to report this
+                    # honestly to the owner. search_arxiv's real handlers
+                    # already set "status" themselves, so it needs no
+                    # special-casing here.
+                    if winner.action_type in ("git_status", "check_git") and "status" not in result:
+                        if result.get("branch"):
+                            result["status"] = "ok"
+                    elif winner.action_type in ("git_log", "recent_commits") and "status" not in result:
+                        if result.get("commits"):
+                            result["status"] = "ok"
 
                 # Check for real user feedback in episodic memory (RULE 7 — real outcomes)
                 user_feedback = self._get_recent_feedback(winner.action_type)
@@ -1673,21 +1854,42 @@ class AutonomousLoop:
         from core.loop.decision_engine import Candidate
 
         plan_store = self._get_plan_store()
+        waits = getattr(self, "_plan_step_waits", {})
         candidates = []
         for plan in plan_store.active_plans():
             for step in plan.next_ready_steps(limit=2):
+                source = f"plan:{plan.id}:{step.id}"
+                waited = waits.get(source, 0)
                 c = Candidate(
                     action_type=step.action_type,
                     params={**step.params, "_plan_id": plan.id, "_step_id": step.id},
                     goal_ids=[plan.goal_id] if plan.goal_id else [],
-                    confidence=step.confidence,
-                    urgency=min(1.0, 0.55 + 0.05),  # plan momentum bonus
+                    # Anti-starvation aging (2026-09-27): a ready step that keeps losing to ambient goal candidates gains
+                    # confidence and urgency (+0.1 each per lost tick, capped at 1.0) until it is picked. Without it a
+                    # plan step scoring 0.715 lost to an ambient candidate at 0.72-0.76 tick after tick, and the plan
+                    # never advanced (tests/test_stage4_real_goalsystem_competition.py).
+                    confidence=min(1.0, step.confidence + 0.1 * waited),
+                    urgency=min(1.0, 0.55 + 0.05 + 0.1 * waited),  # plan momentum bonus + aging
                     timing_score=1.0,
                     estimated_cost_inr=step.estimated_cost_inr,
-                    source=f"plan:{plan.id}:{step.id}",
+                    source=source,
+                    priority_bonus=min(0.3, 0.04 * waited),   # goal-less plans (neutral 0.3 alignment) need more than inputs
                 )
                 candidates.append(c)
         return candidates
+
+    def _age_plan_candidates(self, candidates: list, decision) -> None:
+        """Count, per ready plan step, the consecutive decisions it lost; a step that won (or vanished) starts over."""
+        try:
+            winner_source = getattr(decision.winner, "source", "") or ""
+            waits = getattr(self, "_plan_step_waits", {})
+            self._plan_step_waits = {
+                c.source: (0 if c.source == winner_source else waits.get(c.source, 0) + 1)
+                for c in candidates
+                if isinstance(getattr(c, "source", None), str) and c.source.startswith("plan:")
+            }
+        except Exception as e:  # noqa: BLE001 -- bookkeeping must never break the think tick
+            logger.debug("[VECTOR][think] plan aging skipped: {}", e)
 
     async def _act_on_plan_step(self, winner: "Candidate") -> None:
         """Execute a plan step through PlanRunner (which uses the permission gateway).
@@ -1794,9 +1996,17 @@ class AutonomousLoop:
             except Exception as _cg_err:
                 logger.warning("[VECTOR][loop] plan-step causal_graph record suppressed: {}", _cg_err)
 
-            # Bridge only verified, partial plan progress into the linked goal. Ordinary
-            # action rewards remain excluded, and 1.0 is deliberately excluded so this
-            # path cannot trigger GoalSystem's automatic completion transition.
+            # Bridge only verified plan progress into the linked goal. Ordinary
+            # action rewards remain excluded (Task 89C). A plan reaching 1.0 is
+            # capped below 1.0 (PLAN_PROGRESS_GOAL_CAP) rather than excluded
+            # outright: excluding exactly 1.0 gave single-step plans (progress
+            # jumps 0.0 -> 1.0 in one step, never passing through the open
+            # interval) zero contribution to their linked goal, ever, while
+            # multi-step plans still got partial credit. Capping preserves the
+            # real invariant this bridge exists to guarantee -- plan progress
+            # alone can never fire GoalSystem.update_goal_progress()'s
+            # progress>=1.0 -> status="completed" transition -- without that
+            # asymmetry.
             plan_progress = result.get("plan_progress")
             if (
                 plan.goal_id
@@ -1804,7 +2014,7 @@ class AutonomousLoop:
                 and result.get("verification_passed") is True
                 and isinstance(plan_progress, (int, float))
                 and not isinstance(plan_progress, bool)
-                and 0.0 < plan_progress < 1.0
+                and 0.0 < plan_progress <= 1.0
             ):
                 goal_system = self._get_goals()
                 goal = next(
@@ -1812,8 +2022,9 @@ class AutonomousLoop:
                     None,
                 )
                 if goal is not None:
+                    PLAN_PROGRESS_GOAL_CAP = 0.99
                     current_progress = goal.get("progress", 0.0)
-                    new_progress = max(current_progress, plan_progress)
+                    new_progress = min(PLAN_PROGRESS_GOAL_CAP, max(current_progress, plan_progress))
                     if new_progress > current_progress:
                         goal_system.update_goal_progress(
                             plan.goal_id,

@@ -40,6 +40,10 @@ import pytest
 
 
 _MARKER_PATH = "___m1e_leak_probe_should_never_survive___.db"
+# The session's pinned VECTOR_DB_PATH (conftest sets a temp DB). The deliberate leak below must put it back:
+# popping it instead left the variable unset, a later dotenv load refilled it with the relative live path, and
+# every following test in the session errored with "resolves to live VECTOR state" (379 errors in a full run).
+_ORIGINAL_DB_PATH = os.environ.get("VECTOR_DB_PATH")
 
 
 def test_1_a_raw_unrestored_env_mutation_leaks_past_this_test():
@@ -64,7 +68,10 @@ def test_2_the_leak_from_test_1_is_observable_here_proving_the_vulnerability():
     )
     # Clean up after ourselves so later, unrelated tests in the full suite
     # aren't affected by this deliberate reproduction.
-    os.environ.pop("VECTOR_DB_PATH", None)
+    if _ORIGINAL_DB_PATH is None:
+        os.environ.pop("VECTOR_DB_PATH", None)
+    else:
+        os.environ["VECTOR_DB_PATH"] = _ORIGINAL_DB_PATH
 
 
 def test_3_isolated_vector_db_fixture_does_not_leak(isolated_vector_db):

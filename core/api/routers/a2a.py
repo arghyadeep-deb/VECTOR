@@ -495,3 +495,76 @@ async def agent_event_stream():
             return
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+# ── Internal A2A: the governed bus between the real city's agents (core/city/a2a_bus.py) ───────────────────────────────
+# Everything above serves EXTERNAL agents over the A2A HTTP spec from a separate wrapper registry. These read/drive the bus the
+# 230 real district agents use with each other. Same bearer-token gate as the rest of /a2a.
+
+class InternalAskRequest(BaseModel):
+    task_type: str
+    params: dict = {}
+    to: str | None = None            # agent name/id, or "district:<name>"
+    capability: str | None = None
+    sender: str = "owner_api"        # an existing live agent's name may be given to act as that agent; otherwise a plain label
+    timeout: float | None = None
+
+
+@router.get("/internal/directory")
+async def internal_directory():
+    """district -> agents (id, name, capabilities, HP, status): who can be asked."""
+    from core.city.a2a_bus import get_bus
+    directory = get_bus().directory()
+    return {"districts": directory, "district_count": len(directory), "agent_count": sum(len(v) for v in directory.values())}
+
+
+@router.get("/internal/ping-all")
+async def internal_ping_all():
+    """Conformance: ping every live agent over the bus; who answered, per district, and which districts declare no capabilities."""
+    from core.city.a2a_bus import get_bus
+    return await get_bus().ping_all()
+
+
+@router.get("/internal/work-board")
+async def internal_work_board():
+    """Practice-drill coverage: which agents have a verifiable drill, which districts have none, and whether the gym is on."""
+    from core.city.work_board import get_board
+    return get_board().coverage()
+
+
+@router.get("/internal/agent/{name}")
+async def internal_agent(name: str):
+    """One agent's experience: lineage XP/level/deaths, per-task skills and its current playbook."""
+    from core.city import experience
+    from core.city.a2a_bus import get_bus
+    agent = get_bus().resolve(name)
+    if agent is None:
+        return {"found": False, "name": name}
+    return {"found": True, "stats": experience.lineage_stats(agent), "skills": experience.skill_table(agent),
+            "playbook": experience.playbook(agent, k=8)}
+
+
+@router.get("/internal/recent")
+async def internal_recent(limit: int = 50):
+    """The most recent agent-to-agent messages (newest first), including refusals, with the bus counters."""
+    from core.city.a2a_bus import get_bus
+    bus = get_bus()
+    return {"messages": bus.recent(max(1, min(int(limit), 200))), "stats": dict(bus.stats)}
+
+
+@router.get("/internal/conversation/{correlation_id}")
+async def internal_conversation(correlation_id: str):
+    from core.city.a2a_bus import get_bus
+    return {"correlation_id": correlation_id, "messages": get_bus().conversation(correlation_id)}
+
+
+@router.post("/internal/ask")
+async def internal_ask(body: InternalAskRequest):
+    """Owner-initiated request into the bus. Information/analysis task types only: YELLOW/RED come back `requires_approval`
+    (use /command for those). The reply says who answered, in what state, and why anything was refused."""
+    from core.city.a2a_bus import get_bus
+    bus = get_bus()
+    sender = bus.resolve(body.sender) or body.sender
+    reply = await bus.ask(sender, body.task_type, body.params, to=body.to, capability=body.capability,
+                          timeout=body.timeout, origin="owner_api")
+    return reply.to_dict()

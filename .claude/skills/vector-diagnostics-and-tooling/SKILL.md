@@ -29,7 +29,7 @@ starting `FAIL` is the thing to fix first.
 | `python scripts/smoke_test.py` | 38 core wiring checks | RAN → `Smoke tests: 38/38 PASS` |
 | `python scripts/integration_check.py` | 51 integration/wiring checks | expect `ALL WIRING VERIFIED` (51/51) |
 | `python run_vector.py --mode doctor` | environment/health doctor | `[UNVERIFIED-CMD: long-running, not run this session]` |
-| `python run_vector.py --mode production-check` | production-readiness gate | `[UNVERIFIED-CMD: long-running]` |
+| `python run_vector.py --mode readiness-check` | readiness gate | `[UNVERIFIED-CMD: long-running]` |
 | `python scripts/check_soak.py` | soak/burn-in signal (loop alive, no dead coroutines) | run once VECTOR is running as a service |
 | `python scripts/check_coverage.py` | test coverage % (gates on %, no longer masks errors) | ~29% floor (2026-06-28) |
 | `python scripts/audit_wiring.py` / `audit_all_wiring.py` | agent/district wiring completeness | no orphaned dispatch routes |
@@ -43,7 +43,7 @@ starting `FAIL` is the thing to fix first.
   the failing check name.
 - **coverage dropping** → a canary, not the goal (see `plans/harness/05-evals.md`);
   don't optimize coverage as an end.
-- **doctor/production-check red** → environment or readiness gap; read the specific
+- **doctor/readiness-check red** → environment or readiness gap; read the specific
   failure line.
 
 ## Adding a diagnostic
@@ -53,5 +53,5 @@ a diagnostic must PRINT a machine-readable pass/fail line, not require eyeballin
 ## Provenance and maintenance
 2026-07-07. Verified this session: smoke `38/38 PASS`, DB `134M`. Re-verify the
 full list: `ls scripts/ | grep -iE "audit|check|diagnos|coverage|soak"`. The
-doctor/production-check modes are real (`grep -oE "doctor|production-check" run_vector.py`)
+doctor/readiness-check modes are real (`grep -oE "doctor|readiness-check" run_vector.py`)
 but were not run here (tagged UNVERIFIED-CMD above) — run them on a live box.

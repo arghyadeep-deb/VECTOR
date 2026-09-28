@@ -148,6 +148,7 @@ class SecurityReviewer(AgentBase):
 
     async def review(self, code: str, filename: str = "", context: str = "") -> dict:
         """Review code for security issues and return structured findings."""
+        static_issues: list[dict] = []
         try:
             # RULE 1 — session_hydration_prompt() before every LLM call
             try:
@@ -220,7 +221,20 @@ class SecurityReviewer(AgentBase):
             }
         except Exception as e:
             logger.error("[VECTOR][security_reviewer] review error: {}", e)
-            return {"agent": self.name, "error": str(e), "issues": [], "issue_count": 0, "critical_count": 0}
+            critical_count = sum(1 for i in static_issues if i["severity"] == "CRITICAL")
+            high_count = sum(1 for i in static_issues if i["severity"] == "HIGH")
+            return {
+                "agent": self.name,
+                "filename": filename,
+                "error": str(e),
+                "issues": static_issues,
+                "feedback": "LLM review failed; returned static security scan results.",
+                "issue_count": len(static_issues),
+                "critical_count": critical_count,
+                "high_count": high_count,
+                "static_issue_count": len(static_issues),
+                "degraded": True,
+            }
 
     def _static_scan(self, code: str, filename: str) -> list[dict]:
         """Deterministic line-by-line + regex security scan."""

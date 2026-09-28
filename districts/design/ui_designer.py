@@ -18,6 +18,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 # Design corpus — lazy-loaded on first call
 _corpus_search = None
@@ -77,6 +78,17 @@ class UIDesigner(AgentBase):
         if self._memory is None:
             self._memory = EpisodicMemory()
         return self._memory
+
+    def _llm(self, prompt: str, timeout: float) -> str:
+        """Call the routed model with mandatory session hydration."""
+        hydration = ContextEngine().session_hydration_prompt({"query": prompt})
+        return chat(
+            model=self._model,
+            messages=[{"role": "user", "content": f"{hydration}\n\n{prompt}"}],
+            timeout=timeout,
+            district="design",
+            domain="vision",
+        )
 
     def generate_css_variables(self) -> str:
         """Generate CSS custom properties from VECTOR design tokens."""
@@ -241,7 +253,7 @@ class UIDesigner(AgentBase):
             f"Request: {query}"
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
+            response = await asyncio.to_thread(self._llm, prompt, 25.0)
             return (response or "").strip()
         except Exception as e:
             logger.warning("[VECTOR][ui_designer] answer_design_question LLM failed: {}", e)
@@ -257,7 +269,7 @@ class UIDesigner(AgentBase):
             f"\"consistency_score\": 0-100}}"
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            response = await asyncio.to_thread(self._llm, prompt, 20.0)
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
                 return json.loads(match.group())

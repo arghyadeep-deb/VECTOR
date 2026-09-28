@@ -101,7 +101,7 @@ def test_task_type_overrides_match_governor_routes():
         assert route in DISTRICT_TASK_MAP, f"route {route!r} missing from governor.py"
 
 
-def test_trader_hand_reaches_trading_conductor_not_stock_analyst():
+def test_trader_hand_reaches_trading_conductor_not_stock_analyst(monkeypatch):
     """Audit finding 2026-06-21: the investment district's manifest only
     registered stock_analyst + sentiment_bot, neither of which branches on
     task_type (stock_analyst.run() always returns a basic quote for a
@@ -116,12 +116,22 @@ def test_trader_hand_reaches_trading_conductor_not_stock_analyst():
     over raw HP. This test proves the real fix, not just the manifest edit:
     it boots real manifest-driven agents into a real registry, then asserts
     a real Governor().dispatch() call for the Hand's exact task lands on
-    TradingConductorAgent specifically."""
+    TradingConductorAgent specifically. The conductor's network/LLM-heavy
+    analysis boundary is replaced with a deterministic probe; routing tests
+    must not depend on today's market date or a live data vendor."""
     import asyncio
     from core.city.declarative_manifest import ManifestLoader
     from core.city.agent_registry import get_registry
     from core.city.governor import Governor
     from districts.investment.trading_conductor_agent import TradingConductorAgent
+
+    called = {}
+
+    async def routing_probe(self, ticker, date=None, analysts=None):
+        called.update(ticker=ticker, date=date, analysts=analysts)
+        return {"status": "ok", "ticker": ticker, "rating": "Hold", "routing_probe": True}
+
+    monkeypatch.setattr(TradingConductorAgent, "run_analysis", routing_probe)
 
     reg = get_registry()
     before = set(reg._agents.keys())
@@ -142,7 +152,8 @@ def test_trader_hand_reaches_trading_conductor_not_stock_analyst():
             "params": {"context": "smoke", "hand": "trader"},
         }
         result = asyncio.run(Governor().dispatch(task))
-        assert result.get("status") in ("ok", "error"), result  # real pipeline ran (or genuinely failed), not silently skipped
+        assert result.get("status") == "ok" and result.get("routing_probe") is True, result
+        assert called == {"ticker": "NVDA", "date": None, "analysts": None}
         # The decisive proof: it's not the basic-quote shape stock_analyst returns.
         assert "price" not in result, (
             f"dispatch landed on stock_analyst (returns a 'price' key), not "

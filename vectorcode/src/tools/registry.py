@@ -79,12 +79,12 @@ class ToolEntry:
     __slots__ = (
         "name", "toolset", "schema", "handler", "check_fn",
         "requires_env", "is_async", "description", "emoji",
-        "max_result_size_chars",
+        "max_result_size_chars", "dynamic_schema_overrides",
     )
 
     def __init__(self, name, toolset, schema, handler, check_fn,
                  requires_env, is_async, description, emoji,
-                 max_result_size_chars=None):
+                 max_result_size_chars=None, dynamic_schema_overrides=None):
         self.name = name
         self.toolset = toolset
         self.schema = schema
@@ -95,6 +95,10 @@ class ToolEntry:
         self.description = description
         self.emoji = emoji
         self.max_result_size_chars = max_result_size_chars
+        # Optional callable returning schema keys to overlay when definitions are built (e.g. a description
+        # that reflects the currently configured backend). video_generation_tool passes one; the parameter
+        # did not exist, so that whole tool failed to register.
+        self.dynamic_schema_overrides = dynamic_schema_overrides
 
 
 class ToolRegistry:
@@ -185,6 +189,7 @@ class ToolRegistry:
         description: str = "",
         emoji: str = "",
         max_result_size_chars: int | float | None = None,
+        dynamic_schema_overrides: Callable | None = None,
     ):
         """Register a tool.  Called at module-import time by each tool file."""
         with self._lock:
@@ -222,6 +227,7 @@ class ToolRegistry:
                 description=description or schema.get("description", ""),
                 emoji=emoji,
                 max_result_size_chars=max_result_size_chars,
+                dynamic_schema_overrides=dynamic_schema_overrides,
             )
             if check_fn and toolset not in self._toolset_checks:
                 self._toolset_checks[toolset] = check_fn
@@ -282,6 +288,11 @@ class ToolRegistry:
                     continue
             # Ensure schema always has a "name" field — use entry.name as fallback
             schema_with_name = {**entry.schema, "name": entry.name}
+            if entry.dynamic_schema_overrides:
+                try:
+                    schema_with_name.update(entry.dynamic_schema_overrides() or {})
+                except Exception:
+                    logger.debug("Tool %s dynamic schema overrides failed; using the static schema", name)
             result.append({"type": "function", "function": schema_with_name})
         return result
 
@@ -480,3 +491,95 @@ def tool_result(data=None, **kwargs) -> str:
     if data is not None:
         return json.dumps(data, ensure_ascii=False)
     return json.dumps(kwargs, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
+# ToolRouter -- the engine's view of the registry
+# ---------------------------------------------------------------------------
+
+#: Toolsets a local coding agent gets by default. Deliberately excludes anything that messages other
+#: people or services (messaging, discord, spotify, homeassistant, cronjob, browser, delegation, rl ...):
+#: a coding session must not gain those side effects just because their modules are installed.
+DEFAULT_AGENT_TOOLSETS = (
+    "file", "terminal", "todo", "memory", "skills", "session_search",
+    "clarify", "code_execution", "web", "vision",
+)
+
+
+class ToolRouter:
+    """What ``engine/agent_loop.py`` imports (``from tools.registry import ToolRouter``).
+
+    That class did not exist anywhere, so ``VectorAgent.run_conversation`` crashed before its first model
+    call and the REPL silently degraded to a plain chat with no tools. It exposes the two calls the loop
+    makes: ``get_schemas()`` and ``execute(name, args)``.
+    """
+
+    def __init__(self, project_dir=None, approval_callback=None, enabled_toolsets=None):
+        import os
+        from pathlib import Path
+
+        self.project_dir = Path(project_dir) if project_dir else Path.cwd()
+        self.approval_callback = approval_callback  # consulted by the agent loop before each call
+        self.enabled_toolsets = list(enabled_toolsets or DEFAULT_AGENT_TOOLSETS)
+        # File and terminal tools resolve relative paths against TERMINAL_CWD
+        os.environ["TERMINAL_CWD"] = str(self.project_dir)
+        self._schemas = None
+        # State for the tools model_tools deliberately leaves to "the agent loop" (todo / memory /
+        # session_search). Nothing implemented that, so each of them answered "must be handled by the agent
+        # loop" and the agent could never keep a task list, remember anything or search past sessions.
+        self._todo_store = None
+        self._memory_store = None
+        self._session_db = None
+        self.session_id = None
+
+    def get_schemas(self) -> list:
+        """OpenAI-format schemas for the tools that are actually available right now."""
+        if self._schemas is None:
+            from model_tools import get_tool_definitions
+
+            self._schemas = get_tool_definitions(enabled_toolsets=self.enabled_toolsets, quiet_mode=True)
+        return self._schemas
+
+    def tool_names(self) -> list:
+        return [s["function"]["name"] for s in self.get_schemas()]
+
+    def execute(self, name: str, args: dict) -> str:
+        """Run one tool call and return its (JSON string) result. Unknown / unavailable tools are refused."""
+        if name not in self.tool_names():
+            return tool_error(f"tool '{name}' is not available to this agent")
+        args = args or {}
+        if name in ("todo", "memory", "session_search"):
+            return self._execute_loop_tool(name, args)
+        from model_tools import handle_function_call
+
+        return handle_function_call(name, args, enabled_tools=self.tool_names())
+
+    def _execute_loop_tool(self, name: str, args: dict) -> str:
+        import json
+
+        if name == "todo":
+            from tools.todo_tool import TodoStore, todo_tool
+
+            self._todo_store = self._todo_store or TodoStore()
+            return todo_tool(todos=args.get("todos"), merge=args.get("merge", False), store=self._todo_store)
+        if name == "memory":
+            from tools.memory_tool import MemoryStore, memory_tool
+
+            if self._memory_store is None:
+                self._memory_store = MemoryStore()
+                self._memory_store.load_from_disk()
+            return memory_tool(action=args.get("action"), target=args.get("target", "memory"),
+                               content=args.get("content"), old_text=args.get("old_text"),
+                               store=self._memory_store)
+        if self._session_db is None:
+            try:
+                from vector_state import SessionDB
+
+                self._session_db = SessionDB()
+            except Exception as exc:
+                return json.dumps({"success": False, "error": f"Session database not available: {exc}"})
+        from tools.session_search_tool import session_search
+
+        return session_search(query=args.get("query", ""), role_filter=args.get("role_filter"),
+                              limit=args.get("limit", 3), db=self._session_db,
+                              current_session_id=self.session_id)

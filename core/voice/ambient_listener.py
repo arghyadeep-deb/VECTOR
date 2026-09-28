@@ -221,7 +221,7 @@ class AmbientListener:
             logger.debug(f"[VECTOR][voice] HUD focus check failed ({e}) — launching")
         # LAUNCH COOLDOWN: focus above is cheap + idempotent and runs every time,
         # but a freshly-launched HUD takes a few seconds to appear AND to title
-        # itself "VECTOR Production" — during that gap the focus check can't see
+        # itself "VECTOR" — during that gap the focus check can't see
         # it yet. The wake word false-fires ~every 25s (ambient noise), so
         # without this guard each wake in that window launched ANOTHER HUD,
         # stacking 8-9 of them (2026-07-17 owner screenshot). Never launch a
@@ -468,22 +468,30 @@ class AmbientListener:
 
                     logger.info(f"[VECTOR][voice] THINK[{action_type}] {params}")
 
-                    if action_type == "home_control":
-                        msg = await self._handle_home_control(text)
-                        response_parts.append(msg)
-                    else:
-                        action = Action(action_type=action_type, params=params, proposed_by="voice")
-                        result = await gw.execute(action)
-                        _payload = result.result if isinstance(result.result, dict) else {}
-                        # 2026-08-06: "Done, sir: {action_type}." → more
-                        # informative phrasing that eval scorers and real
-                        # users both prefer over the bare stub.
-                        msg = _payload.get("message") or f"Done — {action_type.replace('_', ' ')} completed."
-                        response_parts.append(msg)
+                    # 2026-09-23 hardening (permission-boundary audit):
+                    # home_control used to take a direct bridge path here
+                    # (self._handle_home_control()), bypassing the permission
+                    # gateway entirely (RULE 3 violation) — real smart-home
+                    # device control with no GREEN/YELLOW/RED check and no
+                    # audit entry. It now goes through the same
+                    # Action/gw.execute() path as every other intent;
+                    # PermissionGateway._execute_action() carries out the
+                    # actual HAConnector/VoiceBridge call once classified
+                    # (see core/config.py's `home_control` entry in YELLOW).
+                    if action_type == "home_control" and "text" not in params:
+                        params = {**params, "text": text}
+                    action = Action(action_type=action_type, params=params, proposed_by="voice")
+                    result = await gw.execute(action)
+                    _payload = result.result if isinstance(result.result, dict) else {}
+                    # 2026-08-06: "Done, sir: {action_type}." → more
+                    # informative phrasing that eval scorers and real
+                    # users both prefer over the bare stub.
+                    msg = _payload.get("message") or f"Done — {action_type.replace('_', ' ')} completed."
+                    response_parts.append(msg)
 
-                        if str(result.level).upper() == "RED" and not result.approved:
-                            logger.info(f"[VECTOR][voice] RED denial on {action_type} — stopping chain")
-                            break
+                    if str(result.level).upper() == "RED" and not result.approved:
+                        logger.info(f"[VECTOR][voice] RED denial on {action_type} — stopping chain")
+                        break
 
                 if self._conversation:
                     self._conversation.transition("VECTOR_SPEAKING")
@@ -719,31 +727,6 @@ class AmbientListener:
             logger.debug(f"[VECTOR][voice] multi-intent parse failed ({e}); falling back to single-intent")
             single = await self._classify_intent(text, hydration)
             return [single]
-
-
-    async def _handle_home_control(self, text: str) -> str:
-        try:
-            from districts.home_assistant.voice_bridge import VoiceBridge
-            from districts.home_assistant.entity_manager import EntityManager
-            from districts.home_assistant.connector import HAConfig, HAConnector
-
-            cfg = HAConfig(
-                host=CONFIG.get("home_assistant", {}).get("host", "homeassistant.local"),
-                port=CONFIG.get("home_assistant", {}).get("port", 8123),
-                token=CONFIG.get("home_assistant", {}).get("token", ""),
-                use_ssl=CONFIG.get("home_assistant", {}).get("use_ssl", False),
-            )
-            connector = HAConnector(cfg)
-            await connector.connect()
-            entity_mgr = EntityManager()
-            await entity_mgr.discover(connector)
-            bridge = VoiceBridge(entity_mgr, connector)
-            result = await bridge.process(text)
-            await connector.disconnect()
-            return result
-        except Exception as e:
-            logger.error(f"[VECTOR][voice] home_control failed: {e}")
-            return f"Home control failed: {e}"
 
 
 if __name__ == "__main__":

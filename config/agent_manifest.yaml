@@ -587,6 +587,78 @@ districts:
       description: Optimized AI image generation prompts (ComfyUI, SD)
       capabilities: [image_prompts, comfyui, stable_diffusion]
 
+    - name: brand_guardian
+      class: districts.design.design_specialists.BrandGuardian
+      model: vector-reasoning
+      description: Evidence-based brand identity and consistency briefing
+      capabilities: [brand_identity, brand_consistency]
+
+    - name: inclusive_visuals_specialist
+      class: districts.design.design_specialists.InclusiveVisualsSpecialist
+      model: vector-reasoning
+      description: Evidence-based inclusive visual and prompt review
+      capabilities: [inclusive_visual_review, inclusive_prompt]
+
+    - name: ux_architect
+      class: districts.design.design_specialists.UXArchitect
+      model: vector-reasoning
+      description: Evidence-based UX and information-architecture briefing
+      capabilities: [ux_architecture, information_architecture]
+
+    - name: visual_storyteller
+      class: districts.design.design_specialists.VisualStoryteller
+      model: vector-reasoning
+      description: Evidence-based visual narrative and storyboard briefing
+      capabilities: [visual_storyboard, visual_narrative]
+
+    - name: whimsy_injector
+      class: districts.design.design_specialists.WhimsyInjector
+      model: vector-focus
+      description: Evidence-based purposeful delight and microinteraction review
+      capabilities: [whimsy_design, microinteraction_audit]
+
+    - name: level_designer
+      class: districts.design.design_specialists.LevelDesigner
+      model: vector-reasoning
+      description: Evidence-based level-flow briefing
+      capabilities: [level_design, level_flow]
+
+    - name: narrative_designer
+      class: districts.design.design_specialists.NarrativeDesigner
+      model: vector-reasoning
+      description: Evidence-based narrative arc briefing
+      capabilities: [narrative_design, narrative_arc]
+
+    - name: technical_artist
+      class: districts.design.design_specialists.TechnicalArtist
+      model: vector-reasoning
+      description: Evidence-based technical art and asset-pipeline briefing
+      capabilities: [technical_art, asset_pipeline]
+
+    - name: visionos_spatial_engineer
+      class: districts.design.design_specialists.VisionOSSpatialEngineer
+      model: vector-reasoning
+      description: Evidence-based spatial design and comfort briefing
+      capabilities: [spatial_design, spatial_comfort]
+
+    - name: xr_immersive_developer
+      class: districts.design.design_specialists.XRImmersiveDeveloper
+      model: vector-reasoning
+      description: Evidence-based immersive design and flow briefing
+      capabilities: [immersive_design, immersive_flow]
+
+    - name: xr_interface_architect
+      class: districts.design.design_specialists.XRInterfaceArchitect
+      model: vector-reasoning
+      description: Evidence-based XR interface and interaction briefing
+      capabilities: [xr_interface, xr_interaction]
+
+    - name: specialized_cultural_intelligence_strategist
+      class: districts.design.design_specialists.CulturalIntelligenceStrategist
+      model: vector-reasoning
+      description: Evidence-based cultural intelligence briefing requiring local review
+      capabilities: [cultural_review, cultural_brief]
+
   data_analytics:
     - name: analytics_reporter
       class: districts.data_analytics.analytics_reporter.AnalyticsReporter

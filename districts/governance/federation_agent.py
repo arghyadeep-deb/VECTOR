@@ -35,8 +35,8 @@ _DEFAULT_PEERS = {
     "phone_node": os.environ.get("VECTOR_PHONE_URL", "http://192.168.1.100:8765"),
 }
 
-def _is_production() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+def _is_hardened() -> bool:
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 # Resolved lazily so the module imports cleanly on nodes that never federate
@@ -50,7 +50,7 @@ def _get_federation_secret() -> str:
     if _FEDERATION_SECRET is None:
         secret = os.environ.get("VECTOR_FEDERATION_SECRET", "").strip()
         if not secret:
-            if _is_production():
+            if _is_hardened():
                 raise RuntimeError("VECTOR_FEDERATION_SECRET is required in production")
             secret = secrets.token_urlsafe(32)
         _FEDERATION_SECRET = secret

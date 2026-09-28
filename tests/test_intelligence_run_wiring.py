@@ -59,7 +59,7 @@ async def test_social_sim_agent_run_unknown_action_returns_error_shape():
 
 
 @pytest.mark.asyncio
-async def test_social_sim_agent_run_real_chat_query_shape_silently_misroutes():
+async def test_social_sim_agent_run_real_chat_query_shape_now_errors_honestly():
     """
     Production shape: {"type": <LLM-invented string>, "params": {"query":
     ..., "content": ..., "source": "api_command"}}. Unlike the other
@@ -102,11 +102,12 @@ async def test_social_sim_agent_run_real_chat_query_shape_silently_misroutes():
         },
     }
     result = await agent.run(task)
-    assert result["status"] in ("ok", "error")
-    # Confirms the misroute: this task carries no "action" key, yet run()
-    # did NOT return the unknown-action error shape -- it silently took the
-    # build_ontology default path instead of surfacing the query anywhere.
-    assert not (result["status"] == "error" and "unknown action" in result.get("error", ""))
+    # 2026-09-24 (external review, Phase 1): run() now keys off task["type"]
+    # and returns the honest unknown-action error for a type it does not
+    # handle, instead of silently running build_ontology with a blank query
+    # (the misroute this test used to document).
+    assert result["status"] == "error"
+    assert "unknown action" in result.get("error", "")
 
 
 if __name__ == "__main__":

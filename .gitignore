@@ -139,7 +139,7 @@ seo_portfolio/
 data/feedback/
 
 # Runtime-generated memory/cache state
-data/lightrag_vault/
+data/lightrag_vault*/
 districts/intelligence/shadowbroker_server/carrier_cache.json
 
 # Local wake-word samples; keep real voice data out of source commits by default
@@ -213,3 +213,18 @@ ponytail/
 
 # deepeval local tool state (telemetry/cache, not source)
 .deepeval/
+districts/intelligence/shadowbroker_server/.claude/
+
+# Runtime state that the live system rewrites constantly (kept on disk, not versioned)
+data/council_log.jsonl
+data/models/neural_policy.pt
+data/models/neural_policy.meta.json
+data/pc_screenshot.png
+.claude/settings.local.backup-*.json
+
+# Native Qdrant binary for code intelligence (downloaded, not versioned)
+vectorcode/code_intel/qdrant/
+
+# simulated LoRA adapter manifests are rewritten by the live training cycle (cron); versioning them dirtied the tree and failed the r18 clean-tree test
+data/adapters/
+models/mediapipe/

@@ -27,8 +27,10 @@ js/      config.js  data.js  orb.js  ambient.js  vector-core.js  voice_stream.js
          audio.js  gestures.js  face.js  speech.js  cinematic.js  terminal.js  demo.js
 ```
 
-`js/demo.js` is the **Director** dev panel + scripted demo + offline seed data.
-**Delete it for production** — nothing else depends on it.
+`js/demo.js` builds the **subsystem dock** (the icon row that opens the map, camera, 3D city, music and the other
+panels), the hotkeys and the backend-connect form, and it also carries the Director dev panel, the scripted demo and
+the offline seed data. The HUD needs it: do not delete it. (There used to be a separate lean "production" page that
+left it out; it was removed 2026-09-25 and there is now one HUD.)
 
 ---
 

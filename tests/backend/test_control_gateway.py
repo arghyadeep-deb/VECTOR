@@ -60,7 +60,19 @@ def test_pc_control_does_not_dispatch_when_gateway_blocks(monkeypatch):
     assert response["gateway"]["reason"] == "Rejected by owner"
 
 
-def test_pc_control_dispatches_after_gateway_approval(monkeypatch):
+def test_pc_control_returns_the_real_gateway_result_after_approval(monkeypatch):
+    """2026-09-23 (fix, item 6 -- independent review finding): this test
+    used to ALSO mock GovernorCouncil.dispatch() and assert the response
+    matched THAT mock's return value -- but production code discarded
+    the real gate.result and called Governor.dispatch() a second time,
+    and Governor has no real handler for pc_click/pc_type/pc_screenshot/
+    pc_launch_app at all (confirmed: no DISTRICT_TASK_MAP entry, no
+    agent-manifest capability). That made this test pass while hiding a
+    real bug -- the response it asserted could never have come from a
+    real click actually happening. Fixed: _dispatch_pc_action() now
+    returns `gate.result` directly (PermissionGateway._execute_action()
+    has a real pc_click branch that calls PCController().click()) and
+    never calls Governor a second time -- lock that in here."""
     from core.api.routers import control
     from core.city import governor
     from core.loop import permission_gateway
@@ -68,22 +80,23 @@ def test_pc_control_dispatches_after_gateway_approval(monkeypatch):
     async def approve(self, action):
         return permission_gateway.GatewayResult(
             approved=True,
-            level="YELLOW",
+            level="RED",
             executed=True,
-            result={"status": "executed"},
-            reason="Executed after YELLOW window",
+            result={"status": "ok", "clicked": True},
+            reason="Owner confirmed",
         )
 
-    async def dispatch(self, task):
-        return {"status": "ok", "task": task}
+    async def dispatch_should_not_run(self, task):
+        raise AssertionError(
+            "Governor.dispatch() must never run for pc_click -- the real "
+            "execution now happens inside PermissionGateway._execute_action() "
+            "itself; a second dispatch call would be the exact double-"
+            "execution/no-real-handler bug this fix closes"
+        )
 
     monkeypatch.setattr(permission_gateway.PermissionGateway, "execute", approve)
-    monkeypatch.setattr(governor.GovernorCouncil, "dispatch", dispatch)
+    monkeypatch.setattr(governor.GovernorCouncil, "dispatch", dispatch_should_not_run)
 
     response = asyncio.run(control.pc_click(control.PcClickReq(x=10, y=20)))
 
-    assert response["status"] == "ok"
-    assert response["task"] == {
-        "type": "pc_click",
-        "params": {"x": 10, "y": 20, "button": "left"},
-    }
+    assert response == {"status": "ok", "clicked": True}

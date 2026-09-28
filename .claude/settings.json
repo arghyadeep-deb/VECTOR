@@ -33,6 +33,7 @@
       "Read(.env.*)",
       "Read(.env.local)",
       "Read(.env.production)",
+      "Read(.env.hardened)",
       "Read(google_credentials.json)",
       "Read(service_account.json)",
       "Bash(rm -rf *)",

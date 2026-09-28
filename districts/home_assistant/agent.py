@@ -84,5 +84,32 @@ class HomeAssistantAgent(AgentBase):
                 "response": "I didn't get a home-control command to run.",
             }
 
-        result_text = await self._bridge.process(query)
-        return {"status": "ok", "agent": self.name, "response": result_text}
+        # 2026-09-23 (permission-boundary audit, round 2): this used to call
+        # self._bridge.process(query) directly -- real smart-home device
+        # control with NO permission-gateway check. The intended front door
+        # (core/voice/ambient_listener.py) now goes through
+        # PermissionGateway.execute() before ever reaching Governor.dispatch()
+        # -> here, but Governor.dispatch({"type": "home_control"/"smart_home"})
+        # is itself still reachable directly (DISTRICT_TASK_MAP routes both
+        # to this district) -- no current caller does that today, but RULE 3
+        # ("Permission Gateway is the ONLY path to real-world actions...
+        # Nothing bypasses this") means the district agent must not rely on
+        # callers doing the right thing. Self-gating here closes it for any
+        # caller, present or future, that reaches this agent without going
+        # through the gateway first.
+        from core.loop.permission_gateway import Action, PermissionGateway
+        gw_result = await PermissionGateway().execute(
+            Action(action_type="home_control", params={"text": query}, proposed_by=self.name)
+        )
+        if not gw_result.approved:
+            return {
+                "status": "blocked",
+                "agent": self.name,
+                "response": gw_result.reason or "Home control action was not approved.",
+            }
+        payload = gw_result.result or {}
+        return {
+            "status": payload.get("status", "ok"),
+            "agent": self.name,
+            "response": payload.get("message", "Done."),
+        }

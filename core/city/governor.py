@@ -288,8 +288,6 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
     "communications": "drafting/sending EMAIL specifically (VECTOR has no "
                        "real WhatsApp/SMS/other-messaging-app send capability "
                        "— only inbox/draft/send for email)",
-    "content": "social media captions, video/reel scripts, image/video "
-               "generation — public-facing content, not a message to a person",
     # 2026-07-29 (eval finding): "draft a proposal/pitch for a client" was
     # confidently (0.9) classified as district="content" three times in a
     # row — content had a hint distinguishing it from "communications", but
@@ -357,10 +355,14 @@ _DISTRICT_DISAMBIGUATION_HINTS = {
                  "content-scheduling/posting (that's 'content') and NOT a "
                  "status check on VECTOR's own autonomous growth engine "
                  "(that's the 'growth' district)",
-    "content": "creating or SCHEDULING/POSTING content (scripts, posts, "
-               "publish queues) — NOT auditing or analyzing marketing "
-               "performance (SEO, broken links, keyword research, ads), "
-               "which is the 'marketing' district",
+    # (Merged with an earlier duplicate "content" key that was silently
+    # overridden: its "public-facing, not a message to a person" wording.)
+    "content": "creating or SCHEDULING/POSTING public-facing content (social "
+               "media captions, video/reel scripts, image/video generation, "
+               "publish queues) — not a message to a person, and NOT "
+               "auditing or analyzing marketing performance (SEO, broken "
+               "links, keyword research, ads), which is the 'marketing' "
+               "district",
     # 2026-07-30 audit fix: live-caught "Run a GDPR compliance audit"
     # landing in 'privacy' instead of 'governance', even though "gdpr" and
     # "compliance" are governance's own explicit map keys.
@@ -559,6 +561,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "research": "research",
     "paper": "research",
     "search_arxiv": "research",
+    "web_extract": "research",  # WebScout: read-only page fetch + structured extraction
     "search_web": "research",
     "daily_digest": "research",
     "find": "research",
@@ -1036,6 +1039,31 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "image_prompt": "design",
     "comfyui_prompt": "design",
     "sd_prompt": "design",
+    # SELF_DEV_P4_DESIGN: registered Design specialist brief/report actions.
+    "brand_identity": "design",
+    "brand_consistency": "design",
+    "inclusive_visual_review": "design",
+    "inclusive_prompt": "design",
+    "ux_architecture": "design",
+    "information_architecture": "design",
+    "visual_storyboard": "design",
+    "visual_narrative": "design",
+    "whimsy_design": "design",
+    "microinteraction_audit": "design",
+    "level_design": "design",
+    "level_flow": "design",
+    "narrative_design": "design",
+    "narrative_arc": "design",
+    "technical_art": "design",
+    "asset_pipeline": "design",
+    "spatial_design": "design",
+    "spatial_comfort": "design",
+    "immersive_design": "design",
+    "immersive_flow": "design",
+    "xr_interface": "design",
+    "xr_interaction": "design",
+    "cultural_review": "design",
+    "cultural_brief": "design",
     # coding additions
     "minimal_change": "coding",
     "minimal_diff": "coding",
@@ -1387,6 +1415,10 @@ def _known_action_identities() -> frozenset[str]:
     return frozenset(names)
 
 
+_DESTRUCTIVE_VERBS = frozenset({"delete", "remove", "erase", "wipe", "destroy", "purge", "prune", "format", "kill",
+                                "overwrite", "drop", "truncate", "shred", "rollback"})
+
+
 @functools.lru_cache(maxsize=1)
 def _elevated_risk_words() -> frozenset[str]:
     """Words (>=4 chars) that occur in RED/FORBIDDEN/council/owner-approval/
@@ -1415,7 +1447,13 @@ def _elevated_risk_words() -> frozenset[str]:
         for w in _words(n):
             freq[w] = freq.get(w, 0) + 1
     elevated_words = set().union(*[_words(n) for n in elevated_names]) if elevated_names else set()
-    return frozenset(w for w in elevated_words - green_words if freq.get(w, 0) <= 2)
+    common_ok = {w for w in elevated_words - green_words if freq.get(w, 0) <= 2}
+    # 2026-09-25: the ">2 names -> no signal" filter tuned itself out of existence for the most dangerous words. Adding
+    # a second RED name containing "delete" (delete_client) pushed its count to 3, "delete" stopped being a risk word,
+    # and "delete_everything_now" was again rewritten into a GREEN action (tests/test_v1_trust_t2_action_identity.py).
+    # A destructive verb must stay elevated however many RED names use it, unless a GREEN name uses it too.
+    destructive = {w for w in _DESTRUCTIVE_VERBS if w in elevated_words} - green_words
+    return frozenset(common_ok | destructive)
 
 
 def _is_risk_elevated_label(task_type: str) -> bool:
@@ -1948,6 +1986,24 @@ class Governor:
         except Exception as e:
             logger.warning("[VECTOR][governor] publish event failed: {}", e)
 
+    def _is_known_task_type(self, task_type: str) -> bool:
+        """True when this name is a real, catalogued identity: a routing key, an alias, or a capability that a registered
+        agent declares. Used only for names that are in no permission tier (see dispatch())."""
+        if not isinstance(task_type, str) or not task_type:
+            return False
+        low = task_type.lower()
+        if low in DISTRICT_TASK_MAP or task_type in DISTRICT_TASK_MAP or task_type in _TASK_IDENTITY_ALIASES:
+            return True
+        if task_type in _known_action_identities():
+            return True
+        try:
+            for agent in self._get_registry().get_all_agents():
+                if task_type in (getattr(agent, "capabilities", None) or []):
+                    return True
+        except Exception as exc:
+            logger.warning("[VECTOR][governor] capability lookup failed for '{}' -- treating as unknown: {}", task_type, exc)
+        return False
+
     def route_task(self, task_type: str) -> str:
         """Determine which district should handle this task type.
         First tries keyword matching (fast, free). Falls back to LLM classification.
@@ -2355,6 +2411,89 @@ class Governor:
         response = await _ensure_english_response(response)
         return {"status": "ok", "response": response}
 
+    _explore_rng = None
+
+    @staticmethod
+    def _payload_looks_successful(result: dict) -> bool:
+        """A status-less result counts as done work when it carries real content and no explicit failure signal (shared outcome
+        assessment). The Governor's own bookkeeping keys (avatar formatting, task id, district) are not content."""
+        try:
+            from core.runtime.executor import assess_payload_failure
+            meta = {"response", "_avatar_formatted", "task_id", "district", "agent"}
+            content = {k: v for k, v in result.items() if k not in meta and v not in (None, "", [], {})}
+            return bool(content) and assess_payload_failure(result) is None
+        except Exception:
+            return False
+
+    def _pick_capable(self, capable: list, task_type: str, tier: str):
+        """The agent to run a task among those that declare it. Always the highest-HP one, EXCEPT (VECTOR_EXPLORE) that a share of
+        GREEN -- information/analysis -- dispatches go to a capable agent that has been tried less, so weaker and newer agents get
+        chances instead of starving behind the leader (owner decision 2026-09-26: every agent should get work). Never for
+        YELLOW/RED/UNKNOWN task types, never to an agent that does not declare the task, never to a dead one."""
+        best = max(capable, key=lambda a: a.health_points)
+        try:
+            from core.city import experience
+            if len(capable) < 2 or tier != "GREEN" or not experience.explore_enabled():
+                return best
+            import random
+            rng = self._explore_rng or random
+            if rng.random() >= experience.explore_share():
+                return best
+            others = [a for a in capable if a is not best and getattr(a, "health_points", 0) > 0]
+            if not others:
+                return best
+            weights = [1.0 / (1 + experience.attempts(a)) for a in others]
+            return rng.choices(others, weights=weights, k=1)[0]
+        except Exception as e:
+            logger.debug("[VECTOR][governor] exploration pick fell back to top HP: {}", e)
+            return best
+
+    @staticmethod
+    def _record_experience(agent, task_type: str, outcome: str, result: dict) -> None:
+        """Append this outcome to the agent's lineage ledger (core/city/experience.py). Never raises, never touches HP."""
+        try:
+            from core.city import experience
+            note = " ".join(str(result.get(k, "")) for k in ("error", "reason", "message")).strip()[:300] if isinstance(result, dict) else ""
+            experience.record(agent, task_type, outcome, note=note, verified=False)
+        except Exception as e:
+            logger.debug("[VECTOR][governor] experience record skipped: {}", e)
+
+    def _account_failure(self, agent, task_type: str, result: dict) -> None:
+        """HP for a failed dispatch. Legacy: -30, always. With VECTOR_HP_FAIR: a failure the environment caused (no API key, provider
+        down, missing module, timeout) costs nothing; the FIRST failure of a kind costs a little and leaves a lesson; repeating it
+        costs the full 30. The ledger records every failure and whose fault it was either way, so the effect of switching the
+        flag on can be measured from real data beforehand."""
+        try:
+            from core.city import experience
+            kind = experience.classify_failure(result)
+            outcome = "fail_env" if kind == "env" else "fail_own"
+            note = " ".join(str(result.get(k, "")) for k in ("error", "reason", "message")).strip()[:300]
+            lineage = experience.lineage_key(agent)
+            first = outcome == "fail_own" and experience.is_first_of_kind(lineage, task_type, experience.failure_signature(note))
+            experience.record(agent, task_type, outcome, note=note)
+            if not experience.hp_fair_enabled():
+                agent.deduct_points(30, "task_failed_by_governor")
+                return
+            if outcome == "fail_env":
+                logger.info("[VECTOR][governor] {} failed '{}' for an environmental reason -- no HP lost ({})",
+                            getattr(agent, "name", "?"), task_type, note[:80])
+                return
+            agent.deduct_points(5 if first else 30, f"task_failed_by_governor ({'first' if first else 'repeat'}: {task_type})")
+        except Exception as e:
+            logger.debug("[VECTOR][governor] failure accounting fell back to legacy: {}", e)
+            agent.deduct_points(30, "task_failed_by_governor")
+
+    def _a2a_pinned_agent(self, task: dict):
+        """The live agent a bus request is addressed to, or None. See core/city/a2a_bus.py."""
+        target_id = task.get("_a2a_target")
+        if not target_id:
+            return None
+        try:
+            agent = self._get_registry().get(target_id)
+        except Exception:
+            return None
+        return agent if agent is not None and getattr(agent, "is_alive", True) and hasattr(agent, "run") else None
+
     async def dispatch(self, task: dict) -> dict:
         """
         Dispatch task to appropriate district agent.
@@ -2362,9 +2501,138 @@ class Governor:
         """
         task_id = f"task_{int(datetime.datetime.now(datetime.timezone.utc).timestamp())}"
         task_type = task.get("type", "unknown")
+
+        # 2026-09-23 (authorization boundary fix -- multi-round Claude +
+        # Codex security review): this is the single, universal entry
+        # point every one of VECTOR's 100+ direct callers reaches (API
+        # routers, autonomous_loop.py, hands/runner.py's GREEN-Hand
+        # path, mcp_server_stdio.py, ...), many of them WITHOUT ever
+        # going through PermissionGateway.execute()'s own
+        # classify->approve flow -- Governor.dispatch() itself enforced
+        # no authorization at all. Fixed at this ONE choke point (rather
+        # than auditing every call site individually -- a new caller
+        # added tomorrow would reopen an individually-patched gap, but
+        # a check here protects it automatically): classify task_type
+        # through the exact same PermissionGateway._classify() every
+        # real gated action already respects. GREEN/UNKNOWN task types
+        # (the ~60+ read/analysis-style API endpoints audited this
+        # session, every real Hand routing, every hardcoded internal
+        # dispatch traced -- none of them exactly match a YELLOW/RED
+        # tier string) are completely unaffected. This only refuses a
+        # CONFIRMED YELLOW/RED task_type arriving here with no proof a
+        # real gateway approval already happened for it -- the receipt
+        # PermissionGateway._execute_action() issues for this exact
+        # purpose right before its own 3 internal Governor.dispatch()
+        # call sites (the only legitimate direct callers of a
+        # YELLOW/RED task_type).
+        try:
+            from core.loop.permission_gateway import PermissionGateway
+            _tier = PermissionGateway()._classify(task_type)
+        except Exception as _cls_err:
+            # 2026-09-23 (independent review correction): failing open
+            # to UNKNOWN on a classification error let a RED-tier task
+            # sail through as if it were merely untiered whenever
+            # PermissionGateway itself couldn't even be imported --
+            # exactly backwards for an authorization check. Fail
+            # closed: if we cannot verify a task_type is safe, refuse
+            # it rather than assume it is.
+            logger.error(
+                "[VECTOR][governor] REFUSED dispatch of '{}' -- "
+                "classification failed, failing closed rather than "
+                "assuming safe: {}", task_type, _cls_err,
+            )
+            return {
+                "status": "blocked",
+                "reason": f"authorization check failed for '{task_type}' -- failing closed",
+                "task_id": task_id,
+            }
+        if _tier == "FORBIDDEN":
+            # 2026-09-23 (independent review correction): the original
+            # check only gated YELLOW/RED, leaving FORBIDDEN task types
+            # to proceed through Governor.dispatch() completely
+            # untouched -- the one tier that must NEVER execute,
+            # regardless of any receipt.
+            logger.critical(
+                "[VECTOR][governor] REFUSED dispatch of FORBIDDEN task_type '{}'",
+                task_type,
+            )
+            return {
+                "status": "blocked",
+                "reason": f"'{task_type}' is FORBIDDEN -- never dispatchable",
+                "task_id": task_id,
+            }
+        if _tier in ("YELLOW", "RED"):
+            try:
+                _authorized = PermissionGateway()._consume_approval_receipt(
+                    task_type, purpose="governor_dispatch"
+                )
+            except Exception:
+                _authorized = False
+            if not _authorized:
+                logger.warning(
+                    "[VECTOR][governor] REFUSED unauthorized direct dispatch of "
+                    "{}-tier task_type '{}' -- no real PermissionGateway approval "
+                    "on file for this exact dispatch", _tier, task_type,
+                )
+                return {
+                    "status": "blocked",
+                    "reason": (
+                        f"'{task_type}' is {_tier}-tier and requires real "
+                        f"PermissionGateway approval -- call "
+                        f"PermissionGateway.execute() first, not "
+                        f"Governor.dispatch() directly"
+                    ),
+                    "task_id": task_id,
+                }
+
+        # 2026-09-25 (closes the 2026-09-24 self-review finding described below): UNKNOWN is deliberately not blocked by the
+        # tier check above, because a few hundred agent-declared capability LABELS are untiered. But that left any
+        # string an agent happens to branch on internally reachable by naming its district. An UNKNOWN task type now has
+        # to be KNOWN: a routing key, an alias, a capability some registered agent declares, or a freshly LLM-classified
+        # chat type (those already get an honest "no_capable_agent" below). Everything consequential that agents
+        # declare was tiered the same day (cleanup_logs RED, backup_db YELLOW, delete/publish/upload RED, ...).
+        if _tier == "UNKNOWN" and not task.get("_llm_classified") and not self._is_known_task_type(task_type):
+            logger.warning(
+                "[VECTOR][governor] REFUSED dispatch of unclassified, undeclared task_type '{}' (district named by "
+                "caller: {})", task_type, task.get("district"),
+            )
+            return {
+                "status": "blocked",
+                "reason": (
+                    f"'{task_type}' is not a known task type: it is in no permission tier, no routing table and no "
+                    f"registered agent's declared capabilities, so naming a district does not make it dispatchable"
+                ),
+                "task_id": task_id,
+            }
+
         # 2026-09-08 (T89A): route_task_async(), not route_task() — see that
         # method's docstring for why (event-loop-blocking fix, narrowly
         # scoped to this one call site).
+        #
+        # 2026-09-24 (self-review finding, CLOSED 2026-09-25 by the check above -- see
+        # VECTOR_TECHNICAL_KNOWLEDGE for the write-up, flagged for the
+        # next Codex round): a caller-supplied district is trusted
+        # unconditionally for ANY task_type, including agent-internal
+        # capability names never registered in DISTRICT_TASK_MAP at all
+        # (e.g. "cleanup_logs"/"backup_db" -- real DevOpsAutomator
+        # methods) -- pairing one of these with a hand-picked
+        # district="ops" reaches a real, dangerous handler with zero tier
+        # gate, since an uncatalogued name classifies UNKNOWN and UNKNOWN
+        # is deliberately not blocked here. Confirmed real via direct
+        # reproduction (Governor().dispatch({"type": "cleanup_logs",
+        # "district": "ops", ...}) reached DevOpsAutomator.cleanup_logs()
+        # with zero receipt). A first attempt to fix this (gating district
+        # trust on `task_type in DISTRICT_TASK_MAP`) broke 6 legitimate
+        # tests: many already-classified, intentional task_types (e.g.
+        # check_weather, run_experiment_cycle) are NOT DISTRICT_TASK_MAP
+        # keys at all and legitimately rely on an explicit caller-supplied
+        # district -- DISTRICT_TASK_MAP membership and permission-tier
+        # classification are two only-partially-overlapping vocabularies,
+        # not the same trust boundary. Reverted rather than ship a
+        # narrower guess without adversarial re-verification (Codex
+        # unavailable, out of quota until 2026-09-27) -- left as a
+        # documented, confirmed-real, deferred finding rather than a
+        # blast-radius gamble.
         district = task.get("district") or await self.route_task_async(task_type)
 
         # ── Task decomposition: complex tasks split into ordered subtasks ──
@@ -2638,8 +2906,16 @@ class Governor:
                     ]
                     capability_match = bool(capable)
 
-                    if capable:
-                        agent = max(capable, key=lambda a: a.health_points)
+                    # A2A (2026-09-26): a request addressed to ONE specific agent (core/city/a2a_bus.py) runs on that agent instead
+                    # of the HP-lottery winner. It only chooses WHO runs a task type that already passed every gate above; it
+                    # widens nothing. HP is credited only when the agent really declares the task type, as for any dispatch.
+                    _pinned = self._a2a_pinned_agent(task)
+                    if _pinned is not None:
+                        agent = _pinned
+                        district = getattr(_pinned, "district", district)
+                        capability_match = task_type in getattr(_pinned, "capabilities", [])
+                    elif capable:
+                        agent = self._pick_capable(capable, task_type, _tier)
                     elif task.get("_llm_classified"):
                         city_capable = [
                             a for a in self._get_registry().get_all_agents()
@@ -2757,8 +3033,21 @@ class Governor:
                 logger.debug("[VECTOR][governor] dispatch English-only backstop suppressed: {}", _eng_err)
 
             # RULE 9 — HP wired to actual task outcomes
-            if agent is not None:
-                if result.get("status") == "ok":
+            # (`_no_reward`: a practice drill from the work board. It runs like any dispatch but moves no HP and writes no ledger row
+            #  here; the board records the drill itself, with a reduced weight, after verifying the answer independently.)
+            if agent is not None and not task.get("_no_reward"):
+                if result.get("status") == "ok" and not result.get("stub"):
+                    # 2026-09-23 fix: `stub=True` (core/city/agent_base.py's
+                    # own AgentBase.run() default) means this "ok" came from
+                    # the unoverridden base fallback, which does zero real
+                    # work — a district agent that never implements its own
+                    # run() was otherwise earning +50 HP per dispatch for
+                    # nothing, violating CLAUDE.md's own "fake HP = fake
+                    # evolution" rule.
+                    # The ledger remembers what the agent actually did whether or not the manifest happens to list this exact
+                    # task_type (capabilities are descriptive themes; most real dispatches have no literal match). Only the HP
+                    # reward below stays conditional on a declared capability.
+                    self._record_experience(agent, task_type, "success", result)
                     if capability_match:
                         agent.award_points(50, "task_completed_by_governor")
                     else:
@@ -2776,7 +3065,14 @@ class Governor:
                         )
                     await self._publish_district_event(district, task_type, task_id, result)
                 elif result.get("status") in ("error", "failed"):
-                    agent.deduct_points(30, "task_failed_by_governor")
+                    self._account_failure(agent, task_type, result)
+                elif "status" not in result and self._payload_looks_successful(result):
+                    # Many handlers (GitBot's status/log among them) return their data with no "status" key at all. That is neither
+                    # a failure nor something the HP block below can score, but it IS work the agent did: remember it. No HP moves.
+                    self._record_experience(agent, task_type, "success", result)
+                elif result.get("status") == "timeout":
+                    # the agent did not get to finish: the wait ran out. No HP either way; the ledger still remembers it.
+                    self._record_experience(agent, task_type, "fail_env", result)
 
             self._get_memory().store(
                 event_type="governor_dispatch",

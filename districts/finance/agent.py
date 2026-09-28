@@ -73,7 +73,11 @@ class FinanceSwarm(AgentBase):
         if a:
             try:
                 if isinstance(a, PromptAgent): return await a.run({"query": p.get("query",p.get("prompt","")), "context": p.get("context",""), "timeout": p.get("timeout",60)})
-                return await a.run({"type": tt, **p})
+                # 2026-09-24 (independent review finding -- HIGH, same class
+                # found in CodingSwarm): tt (the real, Governor-authorized
+                # task_type) must always win over anything the caller put
+                # in p, never the reverse.
+                return await a.run({**p, "type": tt})
             except Exception as e: logger.warning("[FinanceSwarm] fail {}: {}", a.name, e)
         return await self._fallback(tt, p)
     async def _fallback(self, tt, p):

@@ -372,6 +372,12 @@ def restore_agent_hp(registry) -> int:
         if agent is None or id(agent) in claimed:
             continue
 
+        # HP lives in [0, 1000]. A snapshot written before the cap was enforced (CodingSwarm 1500, OpsSwarm 1200)
+        # kept restoring those values on every restart, so the HUD showed HP above the ceiling forever.
+        try:
+            hp = max(0, min(1000, float(hp)))
+        except (TypeError, ValueError):
+            continue
         agent.health_points = hp
         claimed.add(id(agent))
         restored += 1

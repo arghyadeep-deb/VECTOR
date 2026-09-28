@@ -29,6 +29,15 @@ from core.city.agent_registry import AgentRegistry
 from core.city.evolution_engine import EvolutionEngine
 
 
+@pytest.fixture(autouse=True)
+def _legacy_rank_cull(monkeypatch):
+    # These tests exercise the MECHANICS of culling (ghost writes, deregistration, the reflect tick). Since 2026-09-26 the default
+    # cull only removes agents that are actually failing (idle/healthy agents are safe -- see core/city/experience.py); the
+    # mechanics are unchanged, so run them under the legacy rank rule. The new policy is covered in tests/test_hp_fair_rules.py.
+    monkeypatch.setenv("VECTOR_FAIR_CULL", "0")
+
+
+
 # ── DB isolation (mirrors tests/unit/test_agent_registry_successor_class.py) ──
 
 @pytest.fixture()

@@ -10,11 +10,7 @@
     'districts','council','security','memory','memoryexplorer','cognition',
     'experiment','agentatlas','commandcenter','approvals','finance',
     'contentscheduler','answerengine','voicestudio','codegraph',
-    // 'city3d' intentionally NOT listed — dropped from the prod bundle
-    // (tools/build_frontend.py: heavy three.js view, not part of the lean
-    // dock). Listing it here advertised a command that silently no-opped —
-    // `open city3d` printed "opened city3d" and nothing appeared
-    // (2026-07-17 browser dogfood).
+    'city3d',
     'librechat','openwebui','features','missioncontrol','corepanel','agentspanel','brainpanel',
     'knowledgepanel','codeintel','vectorcodepanel','trading','backtest',
     'hedgebot','intelligencepanel','shadowbroker','mediastudio','comfyui',

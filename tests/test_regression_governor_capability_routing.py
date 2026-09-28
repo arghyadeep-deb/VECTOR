@@ -160,7 +160,9 @@ async def test_languages_routes_correctly_despite_wrong_llm_guess():
     with _mock_llm_json(llm_raw):
         result = await classify_chat_intent("Quiz me on some Hindi vocabulary")
     assert result["district"] == "languages"
-    assert result["type"] == "hindi"
+    # The deterministic regex pre-classifier answers before the LLM; its
+    # `quiz_vocabulary` matches data/golden_intent_dataset.jsonl.
+    assert result["type"] == "quiz_vocabulary"
 
 
 @pytest.mark.asyncio
@@ -203,6 +205,18 @@ async def test_hp_lottery_dead_capable_agent_wins_across_districts():
 
     high_hp_noncapable.run = _noncapable_run
     low_hp_capable.run = _capable_run
+
+    # 2026-09-24: "remember" is now YELLOW-tier (real memory_curator write,
+    # previously UNKNOWN-passthrough) -- Governor.dispatch() itself now
+    # requires a real gateway-issued receipt for YELLOW/RED, closing the
+    # authorization-boundary gap this session's work found. Real chat
+    # traffic reaches this via PermissionGateway.execute() first
+    # (core/api/routers/commands.py's classify_chat_intent() path), which
+    # issues this receipt itself -- this test drives Governor.dispatch()
+    # directly to isolate the HP-lottery fix, so it issues the same real
+    # receipt PermissionGateway would, matching production behavior.
+    from core.loop.permission_gateway import PermissionGateway
+    PermissionGateway()._issue_approval_receipt("remember", purpose="governor_dispatch")
 
     gov = Governor()
     result = await gov.dispatch({
@@ -255,11 +269,9 @@ async def test_no_capable_agent_returns_honest_refusal_not_hp_lottery():
 
 
 @pytest.mark.asyncio
-async def test_established_route_unaffected_no_llm_classified_marker():
-    """Sanity check: established API routes (no `_llm_classified` marker)
-    keep the exact old Task A.3 behavior — still run the HP-lottery winner
-    when nothing is capability-matched, so this fix cannot regress the
-    100+ routes that depend on that documented tradeoff."""
+async def test_undeclared_route_without_llm_marker_is_blocked():
+    """Unknown caller-supplied routes cannot bypass capability checks by
+    naming a district. This locks in the governor's dispatch hardening."""
     agent = make_agent("coding", capabilities=["unrelated"], hp=900)
 
     called = {}
@@ -278,8 +290,9 @@ async def test_established_route_unaffected_no_llm_classified_marker():
         # deliberately no "_llm_classified" key
     })
 
-    assert called.get("ran") is True
-    assert result.get("status") == "ok"
+    assert called.get("ran") is None
+    assert result.get("status") == "blocked"
+    assert "not a known task type" in result.get("reason", "")
 
 
 if __name__ == "__main__":

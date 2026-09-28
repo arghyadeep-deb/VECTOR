@@ -193,9 +193,12 @@ def _make_mock_channel(channel_id: str = "telegram", send_return: bool = True) -
 
 class TestBulkSender:
     def setup_method(self):
-        from vectorcode.src.channels.bulk_sender import BulkSender, BulkMessage
+        from vectorcode.src.channels.bulk_sender import BulkSender, BulkMessage, _SentRegistry
         self.BulkSender = BulkSender
         self.BulkMessage = BulkMessage
+        # The dedup registry is process-wide (one hour TTL), so a message sent by an earlier test would be
+        # skipped as a duplicate here -- every test starts from an empty registry.
+        _SentRegistry._entries.clear()
 
     def test_dry_run_all_skipped(self):
         ch = _make_mock_channel()

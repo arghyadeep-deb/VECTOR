@@ -292,6 +292,15 @@ async def test_5b_governor_dispatch_approved_launch_terminal_reaches_launcher(mo
     agent.health_points = 999999
     get_registry().register(agent)
 
+    # 2026-09-23: Governor.dispatch() now enforces its own authorization
+    # boundary for YELLOW/RED task types -- issue the real, gateway-owned
+    # receipt PermissionGateway._execute_action() would issue right
+    # before dispatching this exact, already-approved task_type in
+    # production (see permission_gateway.py's own
+    # _PLAN_COMPOSABLE_ACTION_TYPES branch).
+    from core.loop.permission_gateway import PermissionGateway
+    PermissionGateway()._issue_approval_receipt("launch_terminal", purpose="governor_dispatch")
+
     gov = Governor()
     result = await gov.dispatch({
         "type": "launch_terminal",

@@ -28,8 +28,8 @@ app = FastAPI(title="VECTOR Comms Bridge", version="1.0.0")
 _vc_bridge = None
 
 
-def _is_production() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+def _is_hardened() -> bool:
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 def require_auth(authorization: str = Header(default="")) -> bool:
@@ -41,7 +41,7 @@ def require_auth(authorization: str = Header(default="")) -> bool:
     """
     api_key = os.environ.get("VECTOR_API_KEY", "").strip()
     if not api_key:
-        if _is_production():
+        if _is_hardened():
             raise HTTPException(
                 status_code=503,
                 detail="Comms service auth not configured: set VECTOR_API_KEY before production use.",

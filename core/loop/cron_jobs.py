@@ -231,7 +231,10 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
     problems: list[str] = []
 
     try:
-        r = subprocess.run(
+        # These three subprocesses can take minutes; run inline they froze the whole event loop (the API, the HUD and the
+        # autonomous loop share it) for the duration -- found by the 2026-09-27 static scan of async handlers.
+        r = await asyncio.to_thread(
+            subprocess.run,
             [_sys.executable, "-m", "compileall", "-q", "core", "districts", "scripts"],
             capture_output=True, text=True, timeout=600, cwd=repo,
         )
@@ -243,7 +246,8 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
         problems.append(f"compileall crashed: {e}")
 
     try:
-        r = subprocess.run(
+        r = await asyncio.to_thread(
+            subprocess.run,
             [_sys.executable, "run_vector.py", "smoke"],
             capture_output=True, text=True, timeout=300, cwd=repo,
         )
@@ -255,9 +259,9 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
 
     last_commit = ""
     try:
-        last_commit = subprocess.run(
-            ["git", "log", "-1", "--format=%h %s"], capture_output=True,
-            text=True, timeout=10, cwd=repo).stdout.strip()[:90]
+        last_commit = (await asyncio.to_thread(
+            subprocess.run, ["git", "log", "-1", "--format=%h %s"], capture_output=True,
+            text=True, timeout=10, cwd=repo)).stdout.strip()[:90]
     except Exception:
         logger.warning("[VECTOR] silent swallow")
         pass
@@ -315,6 +319,60 @@ async def job_weekly_growth_report(*, _ctx: dict | None = None) -> dict:
     except Exception as e:
         logger.warning(f"[VECTOR][cron] growth_analyst failed: {e}")
         return {"status": "failed", "reason": str(e)}
+
+
+async def job_oauth_refresh(*, _ctx: dict | None = None) -> dict:
+    """Every 30 min — proactively refresh OAuth tokens expiring within the hour (Google etc.)."""
+    try:
+        from core.engine.oauth.flows import OAuthFlowManager
+        refreshed = await asyncio.to_thread(OAuthFlowManager().refresh_expiring_tokens, 60)
+        if refreshed:
+            logger.info("[VECTOR][cron] oauth_refresh: refreshed {}", refreshed)
+        return {"status": "ok", "refreshed": refreshed}
+    except Exception as e:
+        logger.warning("[VECTOR][cron] oauth_refresh failed: {}", e)
+        return {"status": "error", "error": str(e)}
+
+
+async def job_cloud_heartbeat(*, _ctx: dict | None = None) -> dict:
+    """Every 5 min — push a status heartbeat to the cloud brain (no-op unless a brain URL is configured)."""
+    try:
+        from core.config import CONFIG
+        from core.cloud.heartbeat import CloudBrainHeartbeat
+        cloud = CONFIG.get("cloud", {}) or {}
+        hb = CloudBrainHeartbeat(brain_url=cloud.get("brain_url", ""), api_key=cloud.get("api_key", ""))
+        if not hb.is_enabled():
+            return {"status": "disabled"}
+        return {"status": "ok" if await hb.send() else "failed"}
+    except Exception as e:
+        logger.warning("[VECTOR][cron] cloud_heartbeat failed: {}", e)
+        return {"status": "error", "error": str(e)}
+
+
+async def job_content_plan(*, _ctx: dict | None = None) -> dict:
+    """Daily 08:30 — plan one script -> schedule_post content plan (published later, owner-approved)."""
+    try:
+        from districts.content.content_planner import plan_daily_content
+        result = await plan_daily_content()
+        logger.info("[VECTOR][cron] content_plan: {}", result.get("status"))
+        return result
+    except Exception as e:
+        logger.warning("[VECTOR][cron] content_plan failed: {}", e)
+        return {"status": "error", "error": str(e)}
+
+
+async def job_agent_gym(*, _ctx: dict | None = None) -> dict:
+    """Every 30 min -- drill up to two idle agents that have a verifiable drill (core/city/work_board.py). A no-op unless VECTOR_GYM
+    is on (default off); it moves no HP and waits while the owner is coding."""
+    try:
+        from core.city.work_board import get_board
+        report = await get_board().run_cycle(max_agents=2)
+        if report.get("ran"):
+            logger.info("[VECTOR][cron] agent_gym: {}", [(r["agent"], r["drill"], r["passed"]) for r in report["ran"]])
+        return {"status": "ok", **report}
+    except Exception as e:
+        logger.warning("[VECTOR][cron] agent_gym failed: {}", e)
+        return {"status": "error", "error": str(e)}
 
 
 async def job_content_scheduler(*, _ctx: dict | None = None) -> dict:
@@ -392,6 +450,7 @@ def register_default_jobs(scheduler: Any) -> int:
         ("daily-eval-harness",    "daily",  "0 3 * * *", job_daily_eval),
         ("daily-audit-verify",    "daily",  "5 3 * * *", job_audit_verify),  # Phase 1E
         ("daily-biometrics-pull", "daily",  "0 6 * * *", job_biometrics_pull),
+        ("content-plan",          "daily",  "30 8 * * *", job_content_plan),
         ("content-scheduler",     "daily",  "0 9 * * *", job_content_scheduler),
         ("daily-review-journal",  "daily",  "30 22 * * *", job_daily_review),
         ("daily-workflow-trigger","daily",  "0 8 * * *", job_trigger_workflow),
@@ -419,6 +478,17 @@ def register_default_jobs(scheduler: Any) -> int:
         logger.info("[VECTOR][cron] registered subconscious-loop (interval, 30min)")
     else:
         logger.warning("[VECTOR][cron] could not register subconscious-loop — scheduler API mismatch")
+
+    for job_id, minutes, fn in (
+        ("oauth-refresh", 30, job_oauth_refresh),
+        ("cloud-heartbeat", 5, job_cloud_heartbeat),
+        ("agent-gym", 30, job_agent_gym),
+    ):
+        if _try_register_interval(scheduler, job_id, minutes, fn):
+            registered += 1
+            logger.info("[VECTOR][cron] registered {} (interval, {}min)", job_id, minutes)
+        else:
+            logger.warning("[VECTOR][cron] could not register {} — scheduler API mismatch", job_id)
 
     return registered
 
@@ -581,6 +651,10 @@ __all__ = [
     "job_biometrics_pull",
     "job_daily_review",
     "job_content_scheduler",
+    "job_content_plan",
+    "job_oauth_refresh",
+    "job_cloud_heartbeat",
+    "job_agent_gym",
     "job_weekly_dspy_optimize",
     "job_weekly_growth_report",
     "job_venture_pipeline",

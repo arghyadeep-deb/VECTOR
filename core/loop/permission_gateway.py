@@ -58,7 +58,9 @@ FORBIDDEN = ['format_drive', 'mass_delete', 'share_private_data']
 # permission tier in core/config.py) before being added here; see
 # VECTOR_TECHNICAL_KNOWLEDGE/R19_R20_MASTER_REPORT.md for the composition
 # capability this unblocks (script -> schedule_post).
-_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate", "log_exercise", "create_project"}
+# 2026-09-26: "web_extract" -- GREEN, read-only page extraction (real handler: WebScout.web_extract, exact
+# DISTRICT_TASK_MAP route "research", declared in WebScout.capabilities); the read step of the browser workflow.
+_PLAN_COMPOSABLE_ACTION_TYPES = {"script", "schedule_post", "idea_validate", "log_exercise", "create_project", "web_extract"}
 # V1 TRUST CLOSURE (2026-09-21, T3, VECTOR_TECHNICAL_KNOWLEDGE/
 # V1_TRUST_ACTION_IDENTITY_PERMISSION_CLOSURE_REPORT.md): a SEPARATE,
 # equally narrow allowlist (deliberately not folded into
@@ -218,6 +220,38 @@ def sanitize_proposed_by(value: str, *, fallback: str = 'untrusted_client') -> s
         return f'client_claimed_{v.lower()}'
     return v or fallback
 
+
+def safe_vault_note_path(vault: str, name: str) -> "pathlib.Path | None":
+    """Resolve a note title/name to a path INSIDE the given vault, or None
+    if it would escape it.
+
+    2026-09-23 (HIGH SEVERITY fix): `write_note_personal`/
+    `overwrite_note_personal` used to build the note path as
+    `pathlib.Path(vault) / f"{title}.md"` with zero sanitisation of
+    `title`/`note` (both LLM-params-supplied, action.params.get(...) --
+    reachable from an LLM-invented task, same untrusted-provenance class
+    RED_INTERACTIVE_TOOLS' own comment documents). Two real ways that
+    goes wrong: (1) a name containing `../` climbs out of the vault
+    (ordinary path traversal); (2) if the name LOOKS like an absolute
+    path, pathlib's `/` operator silently DISCARDS the vault prefix
+    entirely (`Path("/vault") / "/etc/passwd"` == `Path("/etc/passwd")`)
+    -- an arbitrary-file-write, not merely a constrained traversal.
+
+    Returns the resolved path only if it is genuinely inside the
+    resolved vault directory; otherwise None (caller must treat this as
+    a real failure, not silently write elsewhere)."""
+    import pathlib
+    if not vault or not name:
+        return None
+    try:
+        vault_root = pathlib.Path(vault).resolve()
+        candidate = (vault_root / f"{name}.md").resolve()
+        candidate.relative_to(vault_root)  # raises if candidate escaped
+        return candidate
+    except (ValueError, OSError):
+        return None
+
+
 # 2026-08-04 hardening (prompt-injection -> unattended-execution audit fix):
 # "interactive tool" capabilities promoted from YELLOW to RED — arbitrary
 # shell execution, VLM-driven desktop/browser control, synthetic input,
@@ -256,7 +290,7 @@ def sanitize_proposed_by(value: str, *, fallback: str = 'untrusted_client') -> s
 # 300s timeout — never a silent auto-execute.
 RED_INTERACTIVE_TOOLS = {
     'run_shell_command',
-    'gui_task', 'click_screen', 'desktop_task', 'browser_task', 'vision_control',
+    'gui_task', 'click_screen', 'desktop_task', 'browser_task', 'web_task', 'vision_control',
     'pc_type', 'pc_click', 'pc_launch_app', 'launch_app',
     'code_task', 'code_generate', 'code_fix', 'code_debug',
     'download_file',
@@ -341,6 +375,20 @@ class PermissionGateway:
         # soft _gateway_approved kwarg (any caller could pass True) into a
         # gateway-minted capability.
         self._control_grants: dict[str, tuple[str, float, int]] = {}
+        # 2026-09-23 (HIGH SEVERITY fix, round 2): grant_control() used to
+        # accept an `approved: bool` kwarg the caller simply asserted --
+        # an independent review correctly pointed out that's forgeable
+        # (any caller can pass `approved=True` with zero real proof, the
+        # exact same "soft boolean" problem the comment above already
+        # describes fixing for control_grants themselves). Replaced with
+        # an internal, gateway-owned receipt ledger: only this file's own
+        # execute()/request_approval() internals can call
+        # _issue_approval_receipt() (right after a REAL approval decision
+        # for that exact action_type), and grant_control() consumes one
+        # via _consume_approval_receipt() instead of trusting a caller's
+        # word. External callers cannot forge a receipt for an
+        # action_type they were never actually granted.
+        self._approval_receipts: dict[str, list[float]] = {}
         # F-8: durable audit log (SQLite append-only). The in-memory ring is
         # kept for fast access; every entry is also persisted so forensic
         # evidence survives restarts and the 500-entry cap no longer loses
@@ -357,8 +405,23 @@ class PermissionGateway:
     # ── F-1: unique pending ids ──────────────────────────────────────────────
 
     def _make_pending_id(self, action_type: str) -> str:
+        # 2026-09-23 (HIGH SEVERITY fix): this used to be a trivially
+        # guessable, sequential id (f"{action_type}#{self._pending_seq}",
+        # e.g. "run_shell_command#42"). It is the SAME id embedded in the
+        # Pushover approve/reject URLs (request_approval()'s own
+        # _approve_url/_reject_url, above), and core/api/routers/
+        # gateway.py's GET /gateway/approve/{action_id} route has NO
+        # authentication of its own -- it trusts the id alone. Anyone who
+        # can reach that HTTP endpoint (Tailscale remote access, an
+        # exposed port, or simple local enumeration) could approve ANY
+        # pending RED-tier action -- including a real shell command --
+        # by guessing or enumerating the next sequence number, with zero
+        # need for the owner to ever tap anything. A random, unguessable
+        # component makes the URL itself the credential, matching how
+        # grant_control()'s own tokens are generated.
         self._pending_seq += 1
-        return f"{action_type}#{self._pending_seq}"
+        import secrets as _secrets
+        return f"{action_type}#{self._pending_seq}_{_secrets.token_urlsafe(16)}"
 
     def _resolve_pending_id(self, action_type_or_id: str) -> str | None:
         """Map a caller-supplied id (which may be a bare action_type for
@@ -748,6 +811,16 @@ class PermissionGateway:
             confirmed = False
             logger.warning(f"[VECTOR][gateway] request_approval for {action_type} timed out — rejected for safety")
 
+        if confirmed:
+            # Real owner confirmation just happened for this exact
+            # action_type -- issue the same unforgeable receipt
+            # _execute_action() issues, so a caller using this method
+            # (rather than the full execute() path -- e.g.
+            # districts/content/phone_poster.py, which performs the real
+            # action itself after owner sign-off) can still successfully
+            # call grant_control() afterward without needing to thread
+            # any proof through by hand.
+            self._issue_approval_receipt(action_type)
         result = GatewayResult(confirmed, 'RED', False, {}, 'Owner confirmed' if confirmed else 'Timed out or rejected waiting for owner')
         self._write_audit(action, result)
         return confirmed
@@ -793,8 +866,15 @@ class PermissionGateway:
                     with log_path.open("a", encoding="utf-8") as fh:
                         fh.write(json.dumps(entry) + "\n")
                 except PermissionError:
+                    # 2026-09-23 (fix): this used to chmod 0o666 (world-
+                    # writable) on retry -- loosening permissions instead
+                    # of fixing the actual cause, on a real RED-tier audit
+                    # trail file, on a machine with no other legitimate
+                    # writer. Owner-only read/write is the correct retry;
+                    # if that still fails, give up and log rather than
+                    # escalate to world-writable.
                     if log_path.exists():
-                        os.chmod(log_path, 0o666)
+                        os.chmod(log_path, 0o600)
                     with log_path.open("a", encoding="utf-8") as fh:
                         fh.write(json.dumps(entry) + "\n")
             except Exception as _log_err:
@@ -854,7 +934,24 @@ class PermissionGateway:
         return getattr(self, '_unknown_actions', {})
 
     async def evaluate_external(self, action_type: str, params: dict, source: str) -> GatewayResult:
-        """Validate and execute an externally-submitted action through the normal gate."""
+        """Validate and execute an externally-submitted action through the normal gate.
+
+        2026-09-23 (HIGH SEVERITY fix, round 2 -- independent review
+        finding): `source` is a caller-supplied string (this file's own
+        "Ingress rule" comment on `sanitize_proposed_by()`, above,
+        already documents this exact requirement for every route that
+        reads proposed_by from client input) -- but this method
+        constructed `Action(action_type, params, source)` with the raw
+        value. `core/api/tasks.py`'s `/tasks` POST route (bearer-token
+        protected, but that token is meant for lower-trust internal
+        automation, not full owner-equivalent trust) calls this with a
+        client-supplied `task.source` field. Without sanitisation, a
+        caller holding only that internal token could claim
+        `source="api_command"` and reach `execute()`'s owner-initiated
+        RED_INTERACTIVE_TOOLS bypass (real shell commands, no Pushover
+        confirmation) -- the exact impersonation
+        `sanitize_proposed_by()` exists to stop."""
+        source = sanitize_proposed_by(source, fallback="external")
         level = self._classify(action_type)
         logger.info("[VECTOR][gateway] external {} from {} classified as {}", action_type, source, level)
         if level == 'FORBIDDEN':
@@ -869,11 +966,116 @@ class PermissionGateway:
         return await self.execute(Action(action_type, params, source))
 
     # ── F-6/F-7: control-plane capability tokens ─────────────────────────────
-    def grant_control(self, action_type: str, *, uses: int = 64, ttl: float = 300.0) -> str:
+    def _issue_approval_receipt(self, action_type: str, ttl: float = 30.0, *, purpose: str = "grant_control") -> None:
+        """Record that THIS gateway just made a real approval decision for
+        `action_type`. Called ONLY from within this file's own execute()/
+        request_approval() internals, immediately after a genuine
+        GREEN-auto/YELLOW-confirmed/RED-confirmed decision (or a real
+        request_approval() confirmation) -- never in response to an
+        external caller merely naming an action_type.
+
+        2026-09-23 (round 3, independent review correction): two real
+        bugs from round 2 fixed -- receipts are now issued individually,
+        right before each specific grant_control() call, AFTER that
+        branch's own validation (e.g. run_shell_command's AST guard)
+        already passed, not blanket-issued at the top of
+        _execute_action() before any validation ran; and GREEN branches
+        (which never need a receipt -- the tier itself is the approval)
+        no longer issue one at all, closing the unbounded-list leak.
+
+        Scope, honestly stated (a genuine review also raised this): this
+        is a leading-underscore convention, not a language-enforced
+        boundary -- any in-process Python code CAN call this directly.
+        That is an accepted property of this file's whole trust model,
+        not unique to this method: `_CODING_GRANT`'s contextvar (see
+        `set_coding_grant()` above) has the identical property, and
+        VECTOR's threat model throughout this codebase treats in-process
+        code as inside the trust boundary -- the real boundary this file
+        defends is EXTERNAL callers (network/API requests, LLM-generated
+        task content) reaching real side effects without a genuine
+        owner/tier decision, which is what every fix in this class this
+        session actually closes. A receipt is also scoped to action_type
+        only, not to the exact approved params -- two concurrent real
+        approvals for the same action_type in a single-owner process
+        could in principle cross-consume each other's receipts -- 2026-09-23
+        round 4 (independent review, found this widened once
+        Governor.dispatch() started consuming from the SAME pool
+        grant_control() uses): a receipt minted for one purpose (e.g.
+        request_approval() issuing one so phone_poster.py's own
+        subsequent grant_control() call succeeds) could otherwise be
+        consumed by an unrelated Governor.dispatch() call for the same
+        action_type within the same TTL window, and vice versa. Fixed
+        by scoping receipts to (purpose, action_type) instead of
+        action_type alone -- `purpose` is one of "grant_control" or
+        "governor_dispatch", never caller-chosen freely (every real
+        call site below passes a fixed literal). The single-owner,
+        same-action_type-same-purpose residual (two concurrent real
+        approvals for the identical action_type AND purpose) remains
+        accepted as documented, low-likelihood -- the same granularity
+        this file's own trust ladder and rate limiter already use."""
+        import time as _time
+        self._approval_receipts.setdefault((purpose, action_type), []).append(_time.time() + ttl)
+
+    def _consume_approval_receipt(self, action_type: str, *, purpose: str = "grant_control") -> bool:
+        """Consume (one-shot) a real approval receipt for `(purpose,
+        action_type)` if one is currently valid. Returns False if none
+        exists or all have expired -- callers must treat False as a real
+        refusal. `purpose` must match what `_issue_approval_receipt()`
+        was called with -- a receipt for a different purpose never
+        authorizes this one, even for the identical action_type."""
+        import time as _time
+        now = _time.time()
+        key = (purpose, action_type)
+        stamps = [s for s in self._approval_receipts.get(key, []) if s > now]
+        if not stamps:
+            self._approval_receipts[key] = stamps
+            return False
+        stamps.pop(0)
+        self._approval_receipts[key] = stamps
+        return True
+
+    def grant_control(self, action_type: str, *, uses: int = 64, ttl: float = 300.0) -> str | None:
         """Mint a capability token a district passes to PC/phone controller
         write methods after it has received gateway approval. The token is
         multi-use (a posting flow drives many taps) and TTL-bounded. Returns
-        the opaque token string."""
+        the opaque token string, or None if refused.
+
+        2026-09-23 (HIGH SEVERITY fix, round 1): this method used to mint
+        unconditionally for ANY action_type with zero approval check --
+        any in-process caller could self-mint a RED-tier token (e.g.
+        run_shell_command) and walk straight past the shell-injection
+        guard `_verify_control_token()` exists to enforce, and a caller
+        could mint for an action_type that isn't even classified in
+        core/config.py's GREEN/YELLOW/RED lists at all (UNKNOWN --
+        districts/content/phone_poster.py's instagram_post_via_phone/
+        youtube_upload_via_phone were exactly this case).
+
+        2026-09-23 (round 2, independent review correction): round 1's
+        fix added an `approved: bool` kwarg the caller simply asserted --
+        still forgeable (any caller could pass `approved=True` with zero
+        real proof, exactly the "soft boolean" pattern this file already
+        replaced once for control_grants themselves). Replaced with the
+        internal, gateway-owned receipt ledger above: a GREEN action_type
+        still mints immediately (the tier itself IS the approval --
+        matches existing by-design self-mints like play_music). Anything
+        else (YELLOW/RED/UNKNOWN) now REQUIRES a real, unforgeable receipt
+        via `_consume_approval_receipt()` -- issued only by this file's
+        own `execute()` (GREEN/YELLOW/RED branches, right after a genuine
+        approval decision) or `request_approval()` (right after a real
+        owner confirmation). FORBIDDEN never mints, full stop."""
+        level = self._classify(action_type)
+        if level == "FORBIDDEN":
+            logger.critical(
+                f"[VECTOR][gateway] grant_control REFUSED for FORBIDDEN action "
+                f"'{action_type}' -- never mintable"
+            )
+            return None
+        if level != "GREEN" and not self._consume_approval_receipt(action_type):
+            logger.warning(
+                f"[VECTOR][gateway] grant_control refused for '{action_type}' "
+                f"(tier={level}) -- no real, unconsumed approval receipt on file"
+            )
+            return None
         import secrets as _secrets, time as _time
         token = _secrets.token_hex(8)
         self._control_grants[token] = (action_type, _time.time() + ttl, uses)
@@ -967,6 +1169,21 @@ class PermissionGateway:
 
     async def _execute_action(self, action: Action) -> dict:
         logger.info(f"[VECTOR][gateway] Executing {action.action_type}")
+        # 2026-09-23 (round 3 -- independent review correction): this used
+        # to issue one blanket approval receipt for action.action_type
+        # right here, unconditionally, at the top of the method. Two real
+        # bugs in that: (1) issued BEFORE any branch-specific validation
+        # (e.g. run_shell_command's AST safety guard below) -- a REJECTED
+        # command still left a valid, unconsumed receipt sitting around
+        # for a DIFFERENT concurrent caller of the same action_type to
+        # pick up and use for a DIFFERENT command; (2) every GREEN action
+        # (the vast majority of traffic) issued a receipt that grant_control()
+        # never needs to consume for GREEN, leaking one list entry per
+        # call in a long-running process. Fixed: each branch below that
+        # actually calls grant_control() issues its own receipt
+        # immediately beforehand, scoped to exactly the moment it's
+        # needed -- never issued speculatively, never issued before this
+        # exact branch's own validation has already passed.
         result = {
             "status": "executed",
             "action": action.action_type,
@@ -975,16 +1192,25 @@ class PermissionGateway:
         }
         try:
             if action.action_type == "search_web":
-                import httpx
-                from urllib.parse import quote_plus
+                # 2026-09-25: this used to GET https://duckduckgo.com/ (an HTML page,
+                # `format=json` is ignored) and keep its first 500 chars, so no search
+                # result was ever returned. DuckDuckGo's own endpoints now answer HTTP 202
+                # to scripts; the `ddgs` library (already a dependency) does the search.
                 query = action.params.get("query", "")[:500]  # truncate to prevent abuse
-                async with httpx.AsyncClient(timeout=5.0) as client:
-                    r = await client.get(
-                        "https://duckduckgo.com/",
-                        params={"q": query, "format": "json"},
-                    )
-                    _limit = CONFIG.get("search_response_limit", 500)
-                    result["response"] = r.text[:_limit]
+                try:
+                    from ddgs import DDGS
+                    hits = await asyncio.wait_for(
+                        asyncio.to_thread(lambda: DDGS().text(query, max_results=5)), timeout=20.0)
+                    result["results"] = [
+                        {"title": h.get("title", ""), "url": h.get("href", ""), "snippet": h.get("body", "")}
+                        for h in (hits or [])
+                    ]
+                except Exception as _se:
+                    result["results"] = []
+                    result["search_error"] = str(_se) or type(_se).__name__
+                _limit = CONFIG.get("search_response_limit", 500)
+                result["response"] = " | ".join(
+                    f"{r['title']}: {r['snippet']}" for r in result["results"])[:_limit]
             elif action.action_type == "play_music":
                 # Actually play: launch Spotify (or a named app) + press play.
                 # "play music" defaults to Spotify — VECTOR infers the app so the
@@ -1068,16 +1294,22 @@ class PermissionGateway:
                     result["error"] = str(_e)
             elif action.action_type == "write_note_personal":
                 try:
-                    import pathlib
                     vault = CONFIG.get("obsidian_vault_path", "")
                     title = action.params.get("title", "Untitled")
                     content = action.params.get("content", "")
                     result["title"] = title
-                    if vault and content:
-                        note_path = pathlib.Path(vault) / f"{title}.md"
+                    note_path = safe_vault_note_path(vault, title)
+                    if note_path is not None and content:
                         await asyncio.to_thread(note_path.write_text, content, encoding="utf-8")
                         result["status"] = "ok"
                         result["path"] = str(note_path)
+                    elif vault and content and note_path is None:
+                        # Real path-traversal/absolute-path attempt -- never
+                        # silently write elsewhere, never silently drop it as
+                        # a generic "not configured" either (that would mask
+                        # a real attack attempt as ordinary misconfiguration).
+                        result["status"] = "error"
+                        result["error"] = f"refused: title escapes the configured vault ({title!r})"
                     else:
                         # F-4: a silent "ok" here would NOT demote a trust-ladder-
                         # promoted write_note_personal, so a misconfigured vault
@@ -1090,15 +1322,17 @@ class PermissionGateway:
                     result["error"] = str(_e)
             elif action.action_type == "overwrite_note_personal":
                 try:
-                    import pathlib
                     vault = CONFIG.get("obsidian_vault_path", "")
                     note_name = action.params.get("note", action.params.get("title", "Untitled"))
                     content = action.params.get("content", "")
-                    if vault and content:
-                        note_path = pathlib.Path(vault) / f"{note_name}.md"
+                    note_path = safe_vault_note_path(vault, note_name)
+                    if note_path is not None and content:
                         await asyncio.to_thread(note_path.write_text, content, encoding="utf-8")
                         result["status"] = "ok"
                         result["path"] = str(note_path)
+                    elif vault and content and note_path is None:
+                        result["status"] = "error"
+                        result["error"] = f"refused: note name escapes the configured vault ({note_name!r})"
                     else:
                         result["status"] = "ok"
                         result["note"] = "vault not configured or no content"
@@ -1312,11 +1546,21 @@ class PermissionGateway:
                         result["status"] = vc_result.get("status", "ok")
                         result["vc_output"] = vc_result.get("output", "")[:500]
                     else:
-                        result["status"] = "ok"
+                        # 2026-09-23 fix (reward/verification-honesty audit,
+                        # medium-priority follow-up): this reported "ok" for
+                        # a task that never ran at all -- the exact
+                        # not_implemented shape _is_not_implemented()/
+                        # TERMINAL_STATUSES already exist to catch, but this
+                        # site bypassed them by hardcoding "ok" itself.
+                        result["status"] = "not_implemented"
                         result["note"] = "VectorCode unavailable — task noted"
                 except Exception as _vc_err:
                     logger.warning(f"[VECTOR][gateway] VectorCode action failed: {_vc_err}")
-                    result["status"] = "ok"
+                    # 2026-09-23 fix: a real exception was just caught here
+                    # and reported as "ok" -- same false-success class as
+                    # above, just the exception path instead of the
+                    # unavailable-dependency path.
+                    result["status"] = "error"
                     result["note"] = f"VectorCode error: {_vc_err}"
             elif action.action_type in ("widget_open", "widget_close", "widget_show_location",
                                         "music_play", "music_pause", "music_next", "music_prev",
@@ -1369,9 +1613,68 @@ class PermissionGateway:
                 # Conversational reply — no side effect; just echo the message back.
                 result["status"] = "ok"
                 result["message"] = action.params.get("message", "Standing by, sir.")
+            elif action.action_type == "home_control":
+                # 2026-09-23 hardening: moved here from
+                # core/voice/ambient_listener.py's own direct HAConnector
+                # call, which had no permission-gateway check at all — real
+                # smart-home device control (locks, lights, thermostats)
+                # executing with zero GREEN/YELLOW/RED classification and no
+                # audit entry. This is now that action's only execution path.
+                try:
+                    from districts.home_assistant.voice_bridge import VoiceBridge
+                    from districts.home_assistant.entity_manager import EntityManager
+                    from districts.home_assistant.connector import HAConfig, HAConnector
+
+                    _ha_cfg = HAConfig(
+                        host=CONFIG.get("home_assistant", {}).get("host", "homeassistant.local"),
+                        port=CONFIG.get("home_assistant", {}).get("port", 8123),
+                        token=CONFIG.get("home_assistant", {}).get("token", ""),
+                        use_ssl=CONFIG.get("home_assistant", {}).get("use_ssl", False),
+                    )
+                    _ha_connector = HAConnector(_ha_cfg)
+                    try:
+                        await _ha_connector.connect()
+                        _ha_entities = EntityManager()
+                        await _ha_entities.discover(_ha_connector)
+                        _ha_bridge = VoiceBridge(_ha_entities, _ha_connector)
+                        _ha_reply = await _ha_bridge.process(action.params.get("text", ""))
+                    finally:
+                        # 2026-09-23 (independent re-review found this
+                        # missing): disconnect only ran on the success path;
+                        # a discovery/process exception left the connector
+                        # leaked.
+                        await _ha_connector.disconnect()
+                    # VoiceBridge.process() (districts/home_assistant/
+                    # voice_bridge.py) returns a bare string with no
+                    # structured status for THREE distinct non-execution
+                    # shapes, not just the one this check originally caught
+                    # (independent re-review, round 3): (1) unparseable
+                    # command ("I couldn't understand..."), (2) a pending
+                    # high-risk confirmation question ("Are you sure you
+                    # want to..." -- ConfirmDialog.format_confirmation, no
+                    # device action taken), (3) a real execution failure
+                    # ("Sorry, I couldn't execute..."). Only a genuine
+                    # _execute() success falls through to "ok".
+                    if not isinstance(_ha_reply, str):
+                        result["status"] = "error"
+                        result["error"] = "VoiceBridge.process() returned a non-string reply"
+                    elif _ha_reply.startswith("Sorry, I couldn't execute"):
+                        result["status"] = "error"
+                        result["error"] = _ha_reply
+                    elif _ha_reply.startswith("I couldn't understand"):
+                        result["status"] = "rejected"
+                    elif _ha_reply.startswith("Are you sure you want to"):
+                        result["status"] = "awaiting_confirmation"
+                    else:
+                        result["status"] = "ok"
+                    result["message"] = _ha_reply
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
+                    result["message"] = f"Home control failed: {_e}"
             elif action.action_type == "launch_app":
                 try:
                     from core.control.pc_controller import PCController
+                    self._issue_approval_receipt("launch_app")
                     _tok = self.grant_control("launch_app", uses=1, ttl=60)
                     _launch = PCController().launch_app(
                         action.params.get("app_name", ""),
@@ -1394,6 +1697,7 @@ class PermissionGateway:
                         result["ast_warnings"] = _ast_warnings
                     else:
                         from core.control.pc_controller import PCController
+                        self._issue_approval_receipt("run_shell_command")
                         _tok = self.grant_control("run_shell_command", uses=1, ttl=60)
                         _shell = PCController().run_shell_command(
                             _cmd,
@@ -1402,6 +1706,103 @@ class PermissionGateway:
                         )
                         result["status"] = "ok" if _shell.get("exit_code", 1) == 0 else "error"
                         result.update(_shell)
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
+            elif action.action_type == "pc_screenshot":
+                # 2026-09-23 (fix, item 6 -- independent review finding):
+                # this action_type never had a real handler here at all.
+                # core/api/routers/control.py's pc_screenshot endpoint
+                # relied on gate.executed==True (always True once the
+                # gateway ran _execute_action(), regardless of whether
+                # this branch existed) and then called Governor.dispatch()
+                # SEPARATELY as a second, real execution attempt --
+                # Governor has no handler for this exact task_type either,
+                # so the second call also silently did nothing real. Real
+                # handler, matching the existing launch_app/run_shell_command
+                # pattern immediately above.
+                try:
+                    from core.control.pc_controller import PCController
+                    self._issue_approval_receipt("pc_screenshot")
+                    _tok = self.grant_control("pc_screenshot", uses=1, ttl=60)
+                    _path = action.params.get("save_path") or "data/pc_screenshot.png"
+                    import pathlib as _pl
+                    _saved = _pl.Path(_path)
+                    _saved.parent.mkdir(parents=True, exist_ok=True)
+                    # 2026-09-23 (round 3, independent review correction,
+                    # 2nd pass): round 3's first fix checked whether
+                    # `_path` exists with real content -- but if the
+                    # target already held an OLDER screenshot from a
+                    # prior successful call and THIS capture fails,
+                    # take_screenshot() leaves that stale file completely
+                    # untouched, so the "does it exist with content"
+                    # check still passed on a genuine failure -- reported
+                    # "ok" while quietly serving a stale image. Fixed:
+                    # capture to a unique temp sibling first, verify IT
+                    # is non-empty, then atomically replace the real
+                    # target only on success -- a failed capture can
+                    # never touch (or fake success via) the target path.
+                    import uuid as _uuid
+                    # Keep the real suffix (PIL's Image.save() infers
+                    # format from the extension -- ".tmp" fails with
+                    # "unknown file extension").
+                    _tmp_path = _saved.with_name(f".{_saved.stem}.{_uuid.uuid4().hex}{_saved.suffix}")
+                    PCController().take_screenshot(str(_tmp_path))
+                    _ok = _tmp_path.exists() and _tmp_path.stat().st_size > 0
+                    if _ok:
+                        _tmp_path.replace(_saved)  # atomic on the same filesystem
+                        result["status"] = "ok"
+                        result["path"] = str(_saved)
+                    else:
+                        _tmp_path.unlink(missing_ok=True)
+                        result["status"] = "error"
+                        result["path"] = None
+                        result["error"] = "screenshot capture or save failed — no file written"
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
+            elif action.action_type == "pc_click":
+                try:
+                    from core.control.pc_controller import PCController
+                    self._issue_approval_receipt("pc_click")
+                    _tok = self.grant_control("pc_click", uses=1, ttl=60)
+                    _clicked = PCController().click(
+                        int(action.params.get("x", 0)),
+                        int(action.params.get("y", 0)),
+                        action.params.get("button", "left"),
+                        control_token=_tok,
+                    )
+                    result["status"] = "ok" if _clicked else "error"
+                    result["clicked"] = _clicked
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
+            elif action.action_type == "pc_type":
+                try:
+                    from core.control.pc_controller import PCController
+                    self._issue_approval_receipt("pc_type")
+                    _tok = self.grant_control("pc_type", uses=1, ttl=60)
+                    _delay_ms = action.params.get("delay_ms", 50)
+                    _typed = PCController().type_text(
+                        action.params.get("text", ""),
+                        interval=float(_delay_ms) / 1000.0,
+                        control_token=_tok,
+                    )
+                    result["status"] = "ok" if _typed else "error"
+                    result["typed"] = _typed
+                except Exception as _e:
+                    result["status"] = "error"; result["error"] = str(_e)
+            elif action.action_type == "pc_launch_app":
+                try:
+                    from core.control.pc_controller import PCController
+                    self._issue_approval_receipt("pc_launch_app")
+                    _tok = self.grant_control("pc_launch_app", uses=1, ttl=60)
+                    _args_str = action.params.get("args", "") or ""
+                    _args_list = _args_str.split() if isinstance(_args_str, str) else list(_args_str)
+                    _launch = PCController().launch_app(
+                        action.params.get("app_name", ""),
+                        _args_list,
+                        control_token=_tok,
+                    )
+                    result["status"] = "ok" if _launch.get("launched") else "error"
+                    result.update(_launch)
                 except Exception as _e:
                     result["status"] = "error"; result["error"] = str(_e)
             elif action.action_type.startswith("proactive_"):
@@ -1435,6 +1836,20 @@ class PermissionGateway:
                 # other action.
                 try:
                     from core.city.governor import Governor
+                    # Governor.dispatch() now enforces its own
+                    # authorization boundary for YELLOW/RED task types
+                    # (2026-09-23 fix) -- this exact action_type was
+                    # already real-approved by the tier gate above, so
+                    # issue the receipt that check will consume. Only
+                    # issue it when actually needed (round 4 fix,
+                    # independent review): a GREEN action_type here
+                    # (some _PLAN_COMPOSABLE_ACTION_TYPES are) needs no
+                    # receipt at all -- Governor.dispatch()'s own check
+                    # only consumes for YELLOW/RED -- and issuing one
+                    # anyway just left a dead, unconsumed entry sitting
+                    # in the ledger until its TTL expired.
+                    if self._classify(action.action_type) in ("YELLOW", "RED"):
+                        self._issue_approval_receipt(action.action_type, purpose="governor_dispatch")
                     dispatch_result = await Governor().dispatch({
                         "type": action.action_type,
                         "params": action.params,
@@ -1451,11 +1866,36 @@ class PermissionGateway:
                 # type is the authorized type, unchanged.
                 try:
                     from core.city.governor import Governor
+                    if self._classify(action.action_type) in ("YELLOW", "RED"):
+                        self._issue_approval_receipt(action.action_type, purpose="governor_dispatch")
                     dispatch_result = await Governor().dispatch({
                         "type": action.action_type,
                         "params": action.params,
                     })
-                    result["status"] = dispatch_result.get("status", "ok")
+                    # 2026-09-23 fix (independent review, round 2): this was
+                    # `dispatch_result.get("status", "ok")` -- a blind
+                    # default that certified a real Git failure as success
+                    # just as readily as a real success, since GitBot's real
+                    # failure shape (`{}` from get_status(), `{"commits":[]}`
+                    # from get_recent_commits()) is IDENTICAL to its real
+                    # success shape: neither sets "status" at all. The
+                    # equivalent fix already exists in
+                    # core/loop/autonomous_loop.py's own _act_on() for its
+                    # separate (non-gateway) dispatch path; this is the same
+                    # fix for THIS path -- reached by voice, WebSocket, and
+                    # AutonomousExecutor callers that go through
+                    # PermissionGateway.execute() directly. Only default to
+                    # "ok" when there is real evidence of success.
+                    if "status" not in dispatch_result:
+                        if action.action_type in ("git_status", "check_git"):
+                            _ro_status = "ok" if dispatch_result.get("branch") else "unknown"
+                        elif action.action_type in ("git_log", "recent_commits"):
+                            _ro_status = "ok" if dispatch_result.get("commits") else "unknown"
+                        else:
+                            _ro_status = "ok"
+                        result["status"] = _ro_status
+                    else:
+                        result["status"] = dispatch_result.get("status")
                     result.update(dispatch_result)
                 except Exception as _ro_err:
                     result["status"] = "error"
@@ -1468,14 +1908,128 @@ class PermissionGateway:
                 # already decided to execute, the real work routes through
                 # the governor → district agent, same as every other task.
                 task = action.params.get("task", {})
+                # 2026-09-23 (HIGH SEVERITY fix): a Hand's own task payload
+                # is LLM-constructed (hands/runner.py), not a real,
+                # gateway-verified owner action -- yet it used to be
+                # dispatched to Governor() completely unmodified.
+                # districts/coding/gui_automation_agent.py's own _gate()
+                # trusts a self-reported source=="api_command"/"voice"
+                # string to skip PermissionGateway entirely ("the command
+                # itself IS the confirmation" -- by design, but only safe
+                # when that string is set server-side by the real
+                # owner-input routes, commands.py/voice.py). Nothing
+                # stopped a Hand's own task dict from claiming that same
+                # string itself, letting a GREEN, no-owner-gate Hand (e.g.
+                # hand_researcher) smuggle a fully ungated RED-tier
+                # GUI-automation task past every real check. This is the
+                # exact class of attack sanitize_proposed_by() exists to
+                # stop at API ingress -- extend the same "untrusted payload
+                # crossing into the trusted pipeline" rule here: strip any
+                # owner-trust-marker claim from the nested task before
+                # dispatch, on a copy (never mutate the caller's own dict).
+                if isinstance(task, dict):
+                    task = dict(task)
+                    if isinstance(task.get("params"), dict):
+                        task["params"] = dict(task["params"])
+                        for _key in ("source", "proposed_by"):
+                            if _key in task["params"]:
+                                task["params"][_key] = sanitize_proposed_by(
+                                    str(task["params"][_key]), fallback="hand_autonomous"
+                                )
+                    for _key in ("source", "proposed_by"):
+                        if _key in task:
+                            task[_key] = sanitize_proposed_by(str(task[_key]), fallback="hand_autonomous")
+                # 2026-09-23 (round 4, independent review finding --
+                # HIGH): the receipt above used to be issued for
+                # whatever task["type"] the Hand's payload claimed,
+                # with zero check that it's actually the task_type
+                # THIS Hand is meant to produce. Approving hand_researcher
+                # (GREEN) never authorized an ARBITRARY nested task --
+                # only its own real routing. A caller with API access
+                # (core/api/tasks.py's evaluate_external(), bearer-token
+                # protected but not owner-equivalent trust) could submit
+                # action_type="hand_researcher" with
+                # params={"task": {"type": "monthly_report", ...}} and
+                # mint a free receipt for a completely different,
+                # YELLOW-tier action never actually approved. Validate
+                # the nested task's own type against hands/runner.py's
+                # own real, server-owned Hand-name -> task_type mapping
+                # (the same one HandRunner._task_type_for() uses) before
+                # trusting it at all.
+                _hand_name = action.action_type[len("hand_"):]
+                _hand_lookup_ok = True
                 try:
-                    from core.city.governor import Governor
-                    dispatch_result = await Governor().dispatch(task)
-                    result["status"] = dispatch_result.get("status", "ok")
-                    result["dispatch_result"] = dispatch_result
-                except Exception as _hd_err:
-                    result["status"] = "error"
-                    result["error"] = str(_hd_err)
+                    from hands.runner import HandRunner as _HR
+                    from hands.registry import get_hand as _get_hand
+                    _hand_obj = _get_hand(_hand_name)
+                    if _hand_obj is None:
+                        raise ValueError(f"'{_hand_name}' is not a registered Hand")
+                    _expected_task_type = _HR._TASK_TYPE_OVERRIDES.get(_hand_name, _hand_name)
+                    # 2026-09-23 (round 5, independent review finding --
+                    # HIGH): the type check alone still let a caller
+                    # smuggle an arbitrary task["district"] through
+                    # unchanged -- Governor.dispatch() honors
+                    # task.get("district") directly (see governor.py:
+                    # `district = task.get("district") or
+                    # await self.route_task_async(task_type)`), so a
+                    # correctly-typed nested task could still be routed
+                    # to a DIFFERENT district's agent than this Hand is
+                    # actually meant to reach, letting that agent
+                    # interpret attacker-controlled params under its own
+                    # (wrong) task-type vocabulary. hands/registry.py's
+                    # Hand.district is the real, server-owned value
+                    # (the same one HandRunner._dispatch() itself uses)
+                    # -- resolved below and force-applied just before
+                    # dispatch, never trusted from the caller.
+                    _expected_district = _hand_obj.district
+                except Exception as _hand_lookup_err:
+                    logger.warning(
+                        "[VECTOR][gateway] REFUSED hand_ dispatch -- could not "
+                        "resolve server-owned Hand metadata for '{}': {} -- "
+                        "failing closed rather than assuming safe",
+                        action.action_type, _hand_lookup_err,
+                    )
+                    _hand_lookup_ok = False
+                    _expected_task_type = None
+                    _expected_district = None
+                _claimed_task_type = task.get("type") if isinstance(task, dict) else None
+                if not _hand_lookup_ok or _claimed_task_type != _expected_task_type:
+                    logger.warning(
+                        "[VECTOR][gateway] REFUSED hand_ dispatch -- '{}' "
+                        "claimed nested task type '{}', expected '{}' for "
+                        "this Hand -- possible task-type smuggling",
+                        action.action_type, _claimed_task_type, _expected_task_type,
+                    )
+                    result["status"] = "blocked"
+                    result["reason"] = (
+                        f"nested task type '{_claimed_task_type}' does not match "
+                        f"the real task type '{_expected_task_type}' for {action.action_type}"
+                    )
+                else:
+                    if isinstance(task, dict):
+                        task["district"] = _expected_district
+                    try:
+                        from core.city.governor import Governor
+                        # Real owner approval for THIS Hand's action_type
+                        # (RED -> real Pushover confirm already happened
+                        # above; GREEN -> tier itself is the approval) has
+                        # already been granted by this point, AND the
+                        # nested task's own type is now confirmed to be
+                        # exactly what this Hand is really meant to
+                        # produce (not caller-chosen) -- issue the receipt
+                        # Governor.dispatch()'s own authorization check
+                        # (2026-09-23 fix) requires -- only when the
+                        # nested task's own type actually needs one
+                        # (round 4 fix: don't leave a dead, unconsumed
+                        # entry for the common GREEN-Hand case).
+                        if self._classify(_expected_task_type) in ("YELLOW", "RED"):
+                            self._issue_approval_receipt(_expected_task_type, purpose="governor_dispatch")
+                        dispatch_result = await Governor().dispatch(task)
+                        result["status"] = dispatch_result.get("status", "ok")
+                        result["dispatch_result"] = dispatch_result
+                    except Exception as _hd_err:
+                        result["status"] = "error"
+                        result["error"] = str(_hd_err)
             else:
                 # Unknown action — not_implemented prevents phantom RL reward
                 result["status"] = "not_implemented"

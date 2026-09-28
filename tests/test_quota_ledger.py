@@ -40,17 +40,17 @@ def _fill(led, provider, bucket, requests=0, tokens=0):
 # ── saturation per unit type (real catalog limits) ───────────────────────────
 
 def test_groq_requests_per_day(led):
-    # llama-3.1-8b-instant: 14,400/day
-    _fill(led, "groq", "llama-3.1-8b-instant", requests=12_000)
-    assert not led.deprioritized("groq", "llama-3.1-8b-instant")   # 83%
-    _fill(led, "groq", "llama-3.1-8b-instant", requests=13_000)
-    assert led.deprioritized("groq", "llama-3.1-8b-instant")       # 90.3%
+    # openai/gpt-oss-20b: 1,000/day (assumed limit in model_catalog.yaml)
+    _fill(led, "groq", "openai/gpt-oss-20b", requests=830)
+    assert not led.deprioritized("groq", "openai/gpt-oss-20b")   # 83%
+    _fill(led, "groq", "openai/gpt-oss-20b", requests=903)
+    assert led.deprioritized("groq", "openai/gpt-oss-20b")       # 90.3%
 
 
 def test_cerebras_tokens_per_day_bind(led):
     # 1M tokens/day is the binding constraint, not the 2,400 req/day
-    _fill(led, "cerebras", "zai-glm-4.7", requests=10, tokens=950_000)
-    assert led.deprioritized("cerebras", "zai-glm-4.7")
+    _fill(led, "cerebras", "gpt-oss-120b", requests=10, tokens=950_000)
+    assert led.deprioritized("cerebras", "gpt-oss-120b")
 
 
 def test_cloudflare_neurons_vs_tokens(led):
@@ -76,9 +76,9 @@ def test_unknown_limits_never_deprioritized(led):
 
 
 def test_per_model_isolation(led):
-    _fill(led, "groq", "llama-3.1-8b-instant", requests=14_000)
-    assert led.deprioritized("groq", "llama-3.1-8b-instant")
-    assert not led.deprioritized("groq", "llama-3.3-70b-versatile")
+    _fill(led, "groq", "openai/gpt-oss-20b", requests=14_000)
+    assert led.deprioritized("groq", "openai/gpt-oss-20b")
+    assert not led.deprioritized("groq", "openai/gpt-oss-120b")
 
 
 # ── per-minute vs daily time-horizon separation (regression) ─────────────────
@@ -89,13 +89,13 @@ def test_rpm_burst_does_not_deprioritize_when_daily_budget_unused(led, clock):
     used must NOT deprioritize — 97% of the daily budget is still unused."""
     # 5 requests using 6K tokens each = 30K tokens (3% of 1M/day)
     for _ in range(5):
-        led.record("cerebras", "zai-glm-4.7", tokens=6_000)
+        led.record("cerebras", "gpt-oss-120b", tokens=6_000)
     # Per-minute: 5/5 RPM = 100%, 30K/30K TPM = 100%
     # Daily:       5/2400 req = 0.2%, 30K/1M tok = 3%
     # Bug: old max(fractions) returned 1.0 → deprioritized
     # Fix: daily limits govern when they exist → saturation ≈ 3%
-    assert not led.deprioritized("cerebras", "zai-glm-4.7")
-    assert led.saturation("cerebras", "zai-glm-4.7") < 0.10  # well under 90%
+    assert not led.deprioritized("cerebras", "gpt-oss-120b")
+    assert led.saturation("cerebras", "gpt-oss-120b") < 0.10  # well under 90%
 
 
 def test_per_minute_only_provider_still_deprioritizes(led, clock):
@@ -109,17 +109,17 @@ def test_per_minute_only_provider_still_deprioritizes(led, clock):
 def test_daily_limit_still_deprioritizes_regardless_of_rpm(led):
     """Daily saturation should deprioritize even if per-minute is low."""
     # Groq: requests_per_day=14400, tokens_per_min=6000
-    _fill(led, "groq", "llama-3.1-8b-instant", requests=13_500, tokens=100)
+    _fill(led, "groq", "openai/gpt-oss-20b", requests=13_500, tokens=100)
     # Daily: 13500/14400 = 93.75% → deprioritized
-    assert led.deprioritized("groq", "llama-3.1-8b-instant")
+    assert led.deprioritized("groq", "openai/gpt-oss-20b")
 
 
 # ── reorder semantics ────────────────────────────────────────────────────────
 
 def test_reorder_stable_partition_ollama_pinned(led):
-    _fill(led, "groq", "llama-3.1-8b-instant", requests=14_000)
+    _fill(led, "groq", "openai/gpt-oss-20b", requests=14_000)
     pairs = [
-        (FakeProv("groq"), "llama-3.1-8b-instant"),      # saturated
+        (FakeProv("groq"), "openai/gpt-oss-20b"),      # saturated
         (FakeProv("mistral"), "ministral-3b-2512"),      # fresh
         (FakeProv("cerebras"), "gpt-oss-120b"),          # fresh
         (FakeProv("ollama"), "vector-focus"),            # local terminal
@@ -132,8 +132,8 @@ def test_reorder_stable_partition_ollama_pinned(led):
 
 def test_reorder_never_drops_all_saturated(led):
     _fill(led, "groq", _PROVIDER_KEY, requests=10**9)
-    _fill(led, "groq", "llama-3.1-8b-instant", requests=10**9)
-    pairs = [(FakeProv("groq"), "llama-3.1-8b-instant"),
+    _fill(led, "groq", "openai/gpt-oss-20b", requests=10**9)
+    pairs = [(FakeProv("groq"), "openai/gpt-oss-20b"),
              (FakeProv("ollama"), "vector-focus")]
     out = led.reorder(pairs)
     assert len(out) == 2
@@ -151,21 +151,21 @@ def test_reorder_empty_and_local_only_noop(led):
 def test_utc_midnight_reset(led):
     yesterday = (datetime.datetime.now(datetime.timezone.utc)
                  - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-    led._data[yesterday] = {"groq": {"llama-3.1-8b-instant":
+    led._data[yesterday] = {"groq": {"openai/gpt-oss-20b":
                                      {"requests": 14_000, "tokens": 0}}}
     # Yesterday's counters don't count today.
-    assert led.saturation("groq", "llama-3.1-8b-instant") == 0.0
+    assert led.saturation("groq", "openai/gpt-oss-20b") == 0.0
 
 
 def test_persistence_roundtrip(tmp_path):
     p = tmp_path / "q.json"
     a = QuotaLedger(path=p, clock=lambda: 1000.0)
-    a.record("groq", "llama-3.1-8b-instant", tokens=500)
+    a.record("groq", "openai/gpt-oss-20b", tokens=500)
     a._last_save = 0.0
     with a._lock:
         a._save()
     b = QuotaLedger(path=p)
-    reqs, toks = b._counters("groq", "llama-3.1-8b-instant")
+    reqs, toks = b._counters("groq", "openai/gpt-oss-20b")
     assert (reqs, toks) == (1, 500)
 
 
@@ -179,12 +179,12 @@ def test_corrupt_file_tolerated(tmp_path):
 def test_pytest_default_is_memory_only():
     led = QuotaLedger()                      # no injected path, under pytest
     assert led._path is None
-    led.record("groq", "llama-3.1-8b-instant")   # must not write anywhere
+    led.record("groq", "openai/gpt-oss-20b")   # must not write anywhere
 
 
 if __name__ == "__main__":
     # real test, no mocks
     import tempfile
     led = QuotaLedger(path=Path(tempfile.mkdtemp()) / "q.json")
-    led.record("groq", "llama-3.1-8b-instant", tokens=10)
+    led.record("groq", "openai/gpt-oss-20b", tokens=10)
     print("✅ test_quota_ledger OK" if led.snapshot() else "❌ FAILED")

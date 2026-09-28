@@ -113,7 +113,11 @@ class QASwarm(AgentBase):
         agent = self._select_agent(task_type)
         if agent:
             try:
-                return await agent.run({"type": task_type, **params})
+                # 2026-09-24 (independent review finding -- HIGH, same
+                # class found in CodingSwarm): task_type must always win
+                # over anything the caller put in params, never the
+                # reverse.
+                return await agent.run({**params, "type": task_type})
             except Exception as e:
                 logger.warning("[QASwarm] agent {} failed: {} — falling back", agent.name, e)
         return await self._fallback_response(task_type, params)

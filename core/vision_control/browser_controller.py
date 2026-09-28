@@ -201,15 +201,71 @@ class BrowserController:
             logger.debug("[VECTOR][browser_ctrl] VLM error: {}", e)
             raise
 
+    @staticmethod
+    async def _collect_evidence(page) -> dict:
+        """What the browser actually shows when the task ends: final URL, title and a short text excerpt. Never raises."""
+        evidence: dict = {"final_url": "", "final_title": "", "final_text_excerpt": ""}
+        try:
+            evidence["final_url"] = page.url
+        except Exception:
+            pass
+        try:
+            evidence["final_title"] = (await page.title())[:300]
+        except Exception:
+            pass
+        try:
+            evidence["final_text_excerpt"] = " ".join((await page.inner_text("body", timeout=3000)).split())[:1500]
+        except Exception:
+            pass
+        return evidence
+
+    @staticmethod
+    def check_expectation(expect: dict | None, evidence: dict) -> tuple[bool, list[str]]:
+        """Independent check of the final page against criteria the caller declared up front (the model's own
+        `finished()` is a claim, not evidence). Supported keys: url_equals, url_contains, title_contains,
+        text_contains (str or list). Every given key must hold; an empty/unknown expectation is not a pass."""
+        if not isinstance(expect, dict) or not expect:
+            return False, ["no expectation given"]
+        failures: list[str] = []
+        known = False
+        url, title, text = evidence.get("final_url", ""), evidence.get("final_title", ""), evidence.get("final_text_excerpt", "")
+        if "url_equals" in expect:
+            known = True
+            if url != expect["url_equals"]:
+                failures.append(f"url {url!r} != {expect['url_equals']!r}")
+        if "url_contains" in expect:
+            known = True
+            if str(expect["url_contains"]) not in url:
+                failures.append(f"url does not contain {expect['url_contains']!r}")
+        if "title_contains" in expect:
+            known = True
+            if str(expect["title_contains"]) not in title:
+                failures.append(f"title does not contain {expect['title_contains']!r}")
+        if "text_contains" in expect:
+            known = True
+            wanted = expect["text_contains"] if isinstance(expect["text_contains"], list) else [expect["text_contains"]]
+            for w in wanted:
+                if str(w) not in text:
+                    failures.append(f"page text does not contain {w!r}")
+        if not known:
+            return False, ["expectation has no recognised keys"]
+        return not failures, failures
+
     async def run_browser_task(
         self,
         instruction: str,
         url: str | None = None,
         browser_context=None,   # pass existing Playwright context if available
+        expect: dict | None = None,
     ) -> dict:
         """
         Open a browser and complete the instruction using VLM-guided automation.
-        Returns {status, loop_count, conversations}.
+        Returns {status, loop_count, conversations, action_log, evidence, self_reported_finish[, verified, error]}.
+
+        `finished()` from the model is a self-report. Without `expect` the result says so (`self_reported_finish`) and
+        carries the final page as `evidence` for the caller to verify (e.g. a plan's result_field check). With `expect`
+        the final page is checked here: a mismatch turns END into ERROR (`verified: False`), a match sets `verified: True`.
+        Blocked/failed actions are recorded, and three in a row abort the run instead of burning the remaining loops.
         """
         try:
             from playwright.async_api import async_playwright
@@ -218,8 +274,12 @@ class BrowserController:
 
         system_prompt = _BROWSER_SYSTEM_PROMPT.format(instruction=instruction)
         conversations: list[dict] = []
+        action_log: list[dict] = []
+        consecutive_failures = 0
         loop_count = 0
         final_status = GUIStatus.ERROR
+        error_msg: str | None = None
+        evidence: dict = {}
 
         async with async_playwright() as pw:
             browser = await pw.chromium.launch(headless=self._headless)
@@ -269,8 +329,18 @@ class BrowserController:
                             t = result.get("type", "finished")
                             final_status = GUIStatus.END if t == "finished" else GUIStatus.CALL_USER
                             break
+                        action_log.append({"loop": loop_count, "action": result.get("action_type") or action.get("action_type"),
+                                           "status": result.get("status"), "reason": result.get("reason") or result.get("error")})
+                        if result.get("status") in ("blocked", "error"):
+                            consecutive_failures += 1
+                        else:
+                            consecutive_failures = 0
 
                     if terminal:
+                        break
+                    if consecutive_failures >= 3:
+                        final_status = GUIStatus.ERROR
+                        error_msg = "3 consecutive browser actions were blocked or failed; aborting"
                         break
 
                     await asyncio.sleep(self._loop_interval)
@@ -279,14 +349,27 @@ class BrowserController:
                     final_status = GUIStatus.MAX_LOOP
 
             finally:
+                evidence = await self._collect_evidence(page)
                 await browser.close()
 
-        return {
-            "status":        final_status.value,
+        out: dict = {
             "instruction":   instruction,
             "loop_count":    loop_count,
             "conversations": conversations,
+            "action_log":    action_log,
+            "evidence":      evidence,
+            "self_reported_finish": final_status == GUIStatus.END,
         }
+        if expect is not None and final_status == GUIStatus.END:
+            passed, failures = self.check_expectation(expect, evidence)
+            out["verified"] = passed
+            if not passed:
+                final_status = GUIStatus.ERROR
+                error_msg = "the model reported finished, but the final page did not match the expected evidence: " + "; ".join(failures)
+        out["status"] = final_status.value
+        if error_msg:
+            out["error"] = error_msg
+        return out
 
 
 if __name__ == "__main__":

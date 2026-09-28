@@ -66,7 +66,7 @@ class RunbookExecutor:
         async def pause_inference(emergency: ScoredEmergency) -> dict:
             try:
                 import subprocess
-                subprocess.run(["nvidia-smi", "-pl", "150"], capture_output=True, timeout=10)
+                (await asyncio.to_thread(subprocess.run, ["nvidia-smi", "-pl", "150"], capture_output=True, timeout=10))
                 return {"status": "power_limit_150w"}
             except Exception:
                 return {"status": "nvidia_smi_unavailable"}
@@ -88,9 +88,9 @@ class RunbookExecutor:
         async def restart_process(emergency: ScoredEmergency) -> dict:
             try:
                 import subprocess
-                result = subprocess.run(["ollama", "list"], capture_output=True, timeout=5)
+                result = (await asyncio.to_thread(subprocess.run, ["ollama", "list"], capture_output=True, timeout=5))
                 if result.returncode == 0:
-                    subprocess.run(["ollama", "serve"], capture_output=True, timeout=10)
+                    (await asyncio.to_thread(subprocess.run, ["ollama", "serve"], capture_output=True, timeout=10))
                     return {"status": "ollama_restarted"}
                 return {"status": "skipped", "reason": "ollama not running"}
             except Exception as e:
@@ -113,7 +113,7 @@ class RunbookExecutor:
         async def restart(emergency: ScoredEmergency) -> dict:
             try:
                 import subprocess
-                subprocess.run(["ollama", "serve"], capture_output=True, timeout=10)
+                (await asyncio.to_thread(subprocess.run, ["ollama", "serve"], capture_output=True, timeout=10))
                 return {"status": "restarted"}
             except Exception as e:
                 return {"status": "error", "error": str(e)}
@@ -130,7 +130,7 @@ class RunbookExecutor:
         async def renew(emergency: ScoredEmergency) -> dict:
             try:
                 import subprocess
-                subprocess.run(["ipconfig", "/renew"], capture_output=True, timeout=15)
+                (await asyncio.to_thread(subprocess.run, ["ipconfig", "/renew"], capture_output=True, timeout=15))
                 return {"status": "ipconfig_renewed"}
             except Exception:
                 return {"status": "skipped"}
@@ -143,7 +143,7 @@ class RunbookExecutor:
         async def firewall(emergency: ScoredEmergency) -> dict:
             try:
                 import subprocess
-                r = subprocess.run(["netsh", "advfirewall", "set", "allprofiles", "state", "on"], capture_output=True, text=True, timeout=10)
+                r = (await asyncio.to_thread(subprocess.run, ["netsh", "advfirewall", "set", "allprofiles", "state", "on"], capture_output=True, text=True, timeout=10))
                 return {"status": "ok" if r.returncode == 0 else "failed"}
             except Exception as e:
                 return {"status": "error", "error": str(e)}

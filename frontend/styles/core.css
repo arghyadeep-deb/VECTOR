@@ -97,7 +97,7 @@ button{ font-family:inherit; color:inherit; cursor:pointer; background:none; bor
 #frame .glyph{ position:absolute; font-family:var(--mono); font-size:9px; letter-spacing:.18em;
   color:var(--txt-faint); }
 #frame .glyph.tl{ top:10px; left:44px; }
-#frame .glyph.tr{ top:10px; right:44px; }
+#frame .glyph.tr{ top:10px; right:132px; }   /* clear of the fixed KEYS pill (it used to sit on top of this text) */
 #frame .glyph.bl{ bottom:10px; left:44px; }
 #frame .glyph.br{ bottom:10px; right:44px; text-align:right; }
 
@@ -386,3 +386,16 @@ button{ font-family:inherit; color:inherit; cursor:pointer; background:none; bor
     letter-spacing: .24em;
   }
 }
+
+/* "Backend offline, retrying" screen (demo.js). Dims the HUD but lets clicks through; only the card takes input. */
+#ve-offline-screen{ position:fixed; inset:0; z-index:9000; display:flex; align-items:center; justify-content:center;
+  background:rgba(4,8,14,.62); backdrop-filter:blur(2px); pointer-events:none; }
+#ve-offline-screen[hidden]{ display:none; }
+#ve-offline-screen .ve-offline-card{ pointer-events:auto; min-width:280px; max-width:min(420px,88vw); padding:20px 24px;
+  border:1px solid var(--danger); background:rgba(10,14,22,.92); text-align:center; font-family:var(--mono); }
+#ve-offline-screen .ve-offline-title{ font-size:12px; letter-spacing:.3em; color:var(--danger); margin-bottom:10px; }
+#ve-offline-screen .ve-offline-msg{ font-size:11px; color:var(--txt); line-height:1.5; word-break:break-word; }
+#ve-offline-screen .ve-offline-since{ font-size:10px; color:var(--txt-faint); margin:8px 0 14px; }
+#ve-offline-screen .ve-offline-retry{ font:inherit; font-size:10px; letter-spacing:.2em; padding:6px 14px; cursor:pointer;
+  color:var(--warn); background:transparent; border:1px solid var(--warn); }
+#ve-offline-screen .ve-offline-retry:disabled{ opacity:.5; cursor:default; }

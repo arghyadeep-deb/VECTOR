@@ -83,8 +83,14 @@ class TestVocabularyInventory:
             t for t, reason in _RR1_5_INVESTIGATED.items() if reason.startswith("REMAIN_UNKNOWN")
         }
         assert len(remain_unknown) == 17
-        for t in remain_unknown:
+        # 2026-09-24 (Governor authorization-boundary work): these three read-only
+        # summaries were deliberately classified GREEN after review; everything
+        # else RR-1.5 left UNKNOWN must still fail closed.
+        reclassified_green = {"generate_report", "goal_summary", "habit_analysis"}
+        for t in remain_unknown - reclassified_green:
             assert gw.classify(t) == "UNKNOWN", f"{t} should still be UNKNOWN"
+        for t in reclassified_green:
+            assert gw.classify(t) == "GREEN", f"{t} was deliberately reclassified GREEN"
 
     def test_system_status_specifically_remains_unknown(self):
         """The mission's own explicitly-required control case: system_status
@@ -249,10 +255,13 @@ class TestAutonomousRegressionUnchanged:
             assert gw.classify(t) == "RED", t
 
     def test_total_green_count_grew_by_exactly_two(self):
+        # RR-1.5 added exactly two (list_districts, test_feature) to the 49 it started
+        # with. The 2026-09-24 tier classification then deliberately grew GREEN to cover
+        # the read-only routes (guarded by test_v1_trust_t3_permission_vocabulary.py's
+        # frozen RED/YELLOW lists), so this now checks the RR-1.5 additions survived.
         green = CONFIG.get("permission", {}).get("green", [])
-        assert len(green) == 51, (
-            "expected exactly 49 (pre-RR-1.5) + 2 (list_districts, test_feature) = 51"
-        )
+        assert len(green) >= 51
+        assert {"list_districts", "test_feature"} <= set(green)
 
 
 if __name__ == "__main__":

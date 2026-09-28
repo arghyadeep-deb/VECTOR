@@ -87,6 +87,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from tests._small_scan import small_scan_root  # noqa: F401  (autouse: real read_code scan over a small project)
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -555,6 +556,13 @@ class TestAutonomousMultiCycle:
         autonomously-surfaced RED winner still cannot execute without
         approval."""
         goal_id = f"{R14_GOAL_ID_PREFIX}_multicycle"
+        # R23's capability factor scores an action_type no live agent declares at x0.85. The two-agent test registry
+        # declares neither `code_task` nor anything else that covers it, so code_task (0.34) fell below read_code
+        # (0.40) and R6 picked the GREEN read_code instead -- which skipped the RED-boundary proof this test exists
+        # for. In production the manifest declares that capability on a coding agent (ManifestLoader injects
+        # `capabilities` after construction), so do the same here on the real ArchitectBot; nothing is stubbed.
+        architect = next(a for a in isolated_agent_registry.get_all_agents() if type(a).__name__ == "ArchitectBot")
+        architect.capabilities = list(getattr(architect, "capabilities", []) or []) + ["code_task"]
         engine = build_isolated_engine(str(tmp_path / "epistemic.db"))
         loop = build_isolated_loop(engine)
         pm = PolicyMemory()

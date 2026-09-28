@@ -17,8 +17,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from vector_constants import get_vectorcode_home
-from vectorcode.src.vector_cli.env_loader import load_vectorcode_dotenv
-from vectorcode.tui_gateway.transport import (
+from vector_cli.env_loader import load_vector_dotenv
+from vectorcode.src.tui_gateway.transport import (
     StdioTransport,
     Transport,
     bind_transport,
@@ -29,8 +29,8 @@ from vectorcode.tui_gateway.transport import (
 logger = logging.getLogger(__name__)
 
 _vectorcode_home = get_vectorcode_home()
-load_vectorcode_dotenv(
-    vectorcode_home=_vectorcode_home, project_env=Path(__file__).parent.parent / ".env"
+load_vector_dotenv(
+    vector_home=_vectorcode_home, project_env=Path(__file__).parent.parent / ".env"
 )
 
 
@@ -113,7 +113,7 @@ try:
 except Exception as _sve:
     logger.debug("[VECTOR][tui_gateway.server] suppressed Exception: %s", _sve)
 
-from vectorcode.tui_gateway.render import make_stream_renderer, render_diff, render_message
+from vectorcode.src.tui_gateway.render import make_stream_renderer, render_diff, render_message
 
 _sessions: dict[str, dict] = {}
 _methods: dict[str, callable] = {}

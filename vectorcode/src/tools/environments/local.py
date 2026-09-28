@@ -2,6 +2,7 @@
 from loguru import logger
 
 import os
+import re
 import platform
 import shutil
 import signal
@@ -154,10 +155,6 @@ def _find_bash() -> str:
     if custom and os.path.isfile(custom):
         return custom
 
-    found = shutil.which("bash")
-    if found:
-        return found
-
     for candidate in (
         os.path.join(os.environ.get("ProgramFiles", r"C:\Program Files"), "Git", "bin", "bash.exe"),
         os.path.join(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)"), "Git", "bin", "bash.exe"),
@@ -165,6 +162,15 @@ def _find_bash() -> str:
     ):
         if candidate and os.path.isfile(candidate):
             return candidate
+
+    # Windows ships a WSL launcher at C:\Windows\System32\bash.exe. It is
+    # not a POSIX shell executable and may fail with E_ACCESSDENIED when WSL
+    # is unavailable, so only trust PATH after checking Git Bash locations.
+    found = shutil.which("bash")
+    if found and os.path.normcase(found) != os.path.normcase(
+        os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "bash.exe")
+    ):
+        return found
 
     raise RuntimeError(
         "Git Bash not found. VectorCode requires Git for Windows on Windows.\n"
@@ -182,6 +188,14 @@ _SANE_PATH = (
     "/opt/homebrew/bin:/opt/homebrew/sbin:"
     "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 )
+
+
+def _msys_to_windows(path: str) -> str:
+    """/c/Users/x -> C:\\Users\\x (Git-Bash/MSYS path to a native Windows path); others unchanged."""
+    m = re.match(r"^/([a-zA-Z])(/.*)?$", path or "")
+    if not m:
+        return path
+    return m.group(1).upper() + ":" + (m.group(2) or "/").replace("/", "\\")
 
 
 def _make_run_env(env: dict) -> dict:
@@ -390,6 +404,13 @@ class LocalEnvironment(BaseEnvironment):
 
     def _update_cwd(self, result: dict):
         """Read CWD from temp file (local-only, no round-trip needed)."""
+        if _IS_WINDOWS:
+            # The cwd file lives under a POSIX /tmp path that Windows Python resolves to a different
+            # location (C:\tmp), so reading it always failed. The output marker carries the cwd
+            # instead; convert its MSYS form (/c/Users/x) back to a Windows path.
+            self._extract_cwd_from_output(result)
+            self.cwd = _msys_to_windows(self.cwd)
+            return
         try:
             cwd_path = open(self._cwd_file).read().strip()
             if cwd_path:
@@ -400,10 +421,21 @@ class LocalEnvironment(BaseEnvironment):
         # Still strip the marker from output so it's not visible
         self._extract_cwd_from_output(result)
 
+    @staticmethod
+    def _host_path(path: str) -> str:
+        """Map a shell-side /tmp path to the file Python can actually unlink.
+        Git-Bash /tmp is the Windows temp dir, but Python resolves "/tmp/x" to a different location
+        (the drive-root tmp folder), so the snapshot/cwd files were never removed and every cleanup
+        logged an OSError."""
+        if _IS_WINDOWS and path.startswith("/tmp/"):
+            import tempfile
+            return os.path.join(tempfile.gettempdir(), path[len("/tmp/"):])
+        return path
+
     def cleanup(self):
         """Clean up temp files."""
         for f in (self._snapshot_path, self._cwd_file):
             try:
-                os.unlink(f)
+                os.unlink(self._host_path(f))
             except OSError as _sve:
                 logger.warning("[VECTOR][tools.environments.local] suppressed OSError: %s", _sve)

@@ -29,7 +29,8 @@ class PersonModel:
 
     def __init__(self, db_path: Optional[str] = None):
         if db_path is None:
-            base = Path(__file__).parent.parent.parent / "data"
+            from core.runtime_paths import data_path
+            base = data_path()
             base.mkdir(parents=True, exist_ok=True)
             db_path = str(base / "person_models.db")
         self._db_path = db_path

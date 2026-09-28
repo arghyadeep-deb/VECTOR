@@ -293,6 +293,20 @@ class EvolutionEngine:
             district_agents, key=lambda a: getattr(a, "health_points", 0)
         )
         to_cull = sorted_agents[: len(sorted_agents) - keep_top]
+        try:
+            from core.city import experience
+            if experience.fair_cull_enabled():
+                # Rank alone is not a reason to die: an agent that was never given work sits at the bottom of a district through no
+                # fault of its own (owner rule 2026-09-26: idle agents are safe). Only an agent that is genuinely failing -- critical
+                # HP AND a record of its own mistakes -- can be culled.
+                to_cull = [a for a in to_cull
+                           if getattr(a, "health_points", 0) < 200
+                           and experience.own_fault_failures(experience.lineage_key(a)) >= 3]
+        except Exception as e:
+            # A broken/unavailable experience ledger cannot prove that a low-ranked agent is at fault. Fail safe: postpone this
+            # cull pass instead of silently reverting to the legacy rank-only policy and killing healthy or idle agents.
+            logger.warning("[VECTOR][evolution] fair-cull check failed; skipping cull pass: {}", e)
+            to_cull = []
         culled_ids: list[str] = []
 
         for agent in to_cull:

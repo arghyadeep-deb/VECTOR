@@ -53,6 +53,9 @@ class DeepResearcher(AgentBase):
         self._memory: EpisodicMemory | None = None
         logger.info("[VECTOR][deep_researcher] initialized")
 
+    # capability names advertised by this agent that are not themselves a research mode
+    _TASK_ALIASES = {"deep_research": "quick", "research": "quick", "search": "quick"}
+
     def _get_memory(self) -> EpisodicMemory:
         if self._memory is None:
             self._memory = EpisodicMemory()
@@ -66,8 +69,9 @@ class DeepResearcher(AgentBase):
             result = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: quick_research(query, save_to_brain=save_to_brain)
             )
-            if result.get("summary") and "failed" not in result["summary"]:
-                self.award_points(15, "quick_research_success")
+            if result.get("summary") and not result.get("error") and "failed" not in result["summary"]:
+                # An answer with no sources is a claim nobody can check: full reward only when sources came back.
+                self.award_points(15 if result.get("sources") else 4, "quick_research_success" if result.get("sources") else "quick_research_unsourced")
                 self._get_memory().store(
                     event_type="research_quick",
                     content=f"Quick research: {query[:100]}",
@@ -80,7 +84,7 @@ class DeepResearcher(AgentBase):
         except Exception as e:
             logger.error("[VECTOR][deep_researcher] quick() failed: {}", e)
             self.deduct_points(10, "quick_research_error")
-            return {"summary": str(e), "findings": [], "sources": []}
+            return {"summary": str(e), "findings": [], "sources": [], "error": str(e)}
 
     async def report(self, query: str, searches_per_section: int = 2,
                      save_to_brain: bool = True) -> dict:
@@ -93,7 +97,7 @@ class DeepResearcher(AgentBase):
                     save_to_brain=save_to_brain,
                 )
             )
-            if result.get("content") and "failed" not in result.get("content", ""):
+            if result.get("content") and not result.get("error") and "failed" not in result.get("content", ""):
                 self.award_points(40, "report_generation_success")
                 self._get_memory().store(
                     event_type="research_report",
@@ -107,7 +111,7 @@ class DeepResearcher(AgentBase):
         except Exception as e:
             logger.error("[VECTOR][deep_researcher] report() failed: {}", e)
             self.deduct_points(20, "report_generation_error")
-            return {"content": str(e), "metadata": {}}
+            return {"content": str(e), "metadata": {}, "error": str(e)}
 
     async def papers(self, query: str, max_results: int = 10) -> dict:
         """Academic paper research via ArXiv + PubMed + Semantic Scholar."""
@@ -115,7 +119,7 @@ class DeepResearcher(AgentBase):
             result = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: research_papers(query, max_results=max_results)
             )
-            if result.get("summary") and "failed" not in result["summary"]:
+            if result.get("summary") and not result.get("error") and "failed" not in result["summary"]:
                 self.award_points(20, "paper_research_success")
             else:
                 self.deduct_points(10, "paper_research_failed")
@@ -123,7 +127,7 @@ class DeepResearcher(AgentBase):
         except Exception as e:
             logger.error("[VECTOR][deep_researcher] papers() failed: {}", e)
             self.deduct_points(10, "paper_research_error")
-            return {"summary": str(e), "findings": [], "sources": []}
+            return {"summary": str(e), "findings": [], "sources": [], "error": str(e)}
 
     async def news(self, query: str, max_results: int = 10) -> dict:
         """News research — fast, current events."""
@@ -131,11 +135,14 @@ class DeepResearcher(AgentBase):
             result = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: research_news(query, max_results=max_results)
             )
-            self.award_points(10, "news_research_success")
+            if result.get("error"):
+                self.deduct_points(10, "news_research_failed")
+            else:
+                self.award_points(10, "news_research_success")
             return result
         except Exception as e:
             logger.error("[VECTOR][deep_researcher] news() failed: {}", e)
-            return {"summary": str(e), "findings": [], "sources": []}
+            return {"summary": str(e), "findings": [], "sources": [], "error": str(e)}
 
     async def documents(self, query: str, collection_name: str,
                         max_results: int = 10) -> dict:
@@ -144,11 +151,14 @@ class DeepResearcher(AgentBase):
             result = await asyncio.get_event_loop().run_in_executor(
                 None, lambda: analyze_documents(query, collection_name, max_results)
             )
-            self.award_points(10, "document_search_success")
+            if result.get("error"):
+                self.deduct_points(10, "document_search_failed")
+            else:
+                self.award_points(10, "document_search_success")
             return result
         except Exception as e:
             logger.error("[VECTOR][deep_researcher] documents() failed: {}", e)
-            return {"summary": str(e), "documents": []}
+            return {"summary": str(e), "documents": [], "error": str(e)}
 
     # ── Task dispatcher ───────────────────────────────────────────────────────
 
@@ -164,37 +174,43 @@ class DeepResearcher(AgentBase):
         if not query:
             return {"status": "error", "error": "No query provided"}
 
+        # The advertised capability names route here unchanged (ResearchSwarm forwards the task type as-is), so they
+        # must be accepted: "deep_research"/"research"/"search" used to fall through to "Unknown task type".
+        task_type = self._TASK_ALIASES.get(task_type, task_type)
+
         try:
             if task_type == "quick":
                 result = await self.quick(query, task.get("save_to_brain", True))
-                return {"status": "ok", "type": "quick", **result}
-
             elif task_type == "report":
                 result = await self.report(
                     query,
                     searches_per_section=task.get("searches_per_section", 2),
                     save_to_brain=task.get("save_to_brain", True),
                 )
-                return {"status": "ok", "type": "report", **result}
-
             elif task_type == "papers":
                 result = await self.papers(query, task.get("max_results", 10))
-                return {"status": "ok", "type": "papers", **result}
-
             elif task_type == "news":
                 result = await self.news(query, task.get("max_results", 10))
-                return {"status": "ok", "type": "news", **result}
-
             elif task_type == "documents":
                 result = await self.documents(
                     query,
                     task.get("collection", "default"),
                     task.get("max_results", 10),
                 )
-                return {"status": "ok", "type": "documents", **result}
-
             else:
                 return {"status": "error", "error": f"Unknown task type: {task_type}"}
+
+            # A failed or empty research call is not "ok": the inner methods swallow their exceptions into summary
+            # text (and dock HP), so without this check the caller, the executor and the learning loop all saw success.
+            if result.get("error"):
+                return {"status": "error", "type": task_type, **result}
+            if not (result.get("summary") or result.get("content") or result.get("findings") or result.get("documents")):
+                return {"status": "error", "type": task_type, "error": "research returned no content", **result}
+            # Evidence level, so plans/learning can tell a sourced answer from a bare one (a plan can require
+            # result_field "sources" min_items 1). Status stays "ok": the research ran; whether it is *verified* is a
+            # separate, checkable fact.
+            n_sources = len(result.get("sources") or []) + len(result.get("documents") or [])
+            return {"status": "ok", "type": task_type, "evidence": {"sources": n_sources, "sourced": n_sources > 0}, **result}
 
         except Exception as e:
             logger.error("[VECTOR][deep_researcher] run() failed: {}", e)

@@ -1,3 +1,6 @@
+# DORMANT (2026-09-24, docs/design/core-module-triage.md): not imported by the running VECTOR.
+# Superseded by core/inference/provider_client.py + model_pool. Kept on purpose (personal-use build); do not add a second live path --
+# route through the existing mechanism so the Governor and PermissionGateway stay the only way in.
 """Model router: classifies tasks into domains and routes to the best adapter-aware model via Ollama."""
 
 

@@ -306,6 +306,11 @@ async def test_4b_governor_exact_match_approved_reaches_submission(monkeypatch, 
     agent.health_points = 999999
     get_registry().register(agent)
 
+    # 2026-09-23: Governor.dispatch() now enforces its own authorization
+    # boundary for YELLOW/RED task types -- issue the real receipt.
+    from core.loop.permission_gateway import PermissionGateway
+    PermissionGateway()._issue_approval_receipt("hf_train", purpose="governor_dispatch")
+
     gov = Governor()
     result = await gov.dispatch(_hf_train_task())
 
@@ -366,6 +371,9 @@ async def test_5b_llm_classified_cross_district_approved_reaches_submission(monk
     agent.health_points = 999999
     agent.district = "chief_of_staff_llm_test_double"
     get_registry().register(agent)
+
+    from core.loop.permission_gateway import PermissionGateway
+    PermissionGateway()._issue_approval_receipt("hf_train", purpose="governor_dispatch")
 
     gov = Governor()
     result = await gov.dispatch(_hf_train_task(district="chief_of_staff", _llm_classified=True))

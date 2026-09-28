@@ -1,62 +1,32 @@
-const CACHE_NAME = "vector-hud-v1";
+// VECTOR HUD service worker -- RETIRED (self-removing).
+//
+// Why this exists: an earlier HUD registered an offline-cache service worker (cache "vector-hud-v1") that stored the old
+// "VECTOR Production" page and served it whenever the network failed or lagged -- so after that page was removed
+// (2026-09-25) the browser kept showing it, as raw unstyled HTML when the backend was starting or down.
+// The one HUD (VECTOR.html) does not register a service worker, so nothing should intercept requests any more.
+//
+// A browser that still has the old worker re-fetches this file on its next visit to /hud/. On install it takes over at
+// once; on activate it deletes every cache, unregisters itself and reloads any open HUD window straight from the network.
+// There is deliberately no "fetch" handler: it never answers a request itself.
 
-const CORE_ASSETS = [
-  "./",
-  "VECTOR.prod.html",
-  "styles/core.css",
-  "styles/widgets.css",
-  "dist/vector-hud.prod.js",
-  "dist/manifest.json",
-  "js/config.js",
-];
-
-const CACHEABLE_PATHS = new Set(CORE_ASSETS.map(asset => new URL(asset, self.location.href).pathname));
-
-function shouldCache(request) {
-  const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return false;
-  if (CACHEABLE_PATHS.has(url.pathname)) return true;
-  return url.pathname.startsWith("/styles/")
-    || url.pathname.startsWith("/dist/")
-    || url.pathname.startsWith("/js/");
-}
-
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(CORE_ASSETS))
-      .then(() => self.skipWaiting())
-  );
+self.addEventListener("install", () => {
+  self.skipWaiting();
 });
 
-self.addEventListener("activate", event => {
+self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      ))
-      .then(() => self.clients.claim())
-  );
-});
-
-self.addEventListener("fetch", event => {
-  const request = event.request;
-  if (request.method !== "GET") return;
-  if (!shouldCache(request)) return;
-
-  event.respondWith(
-    fetch(request)
-      .then(response => {
-        if (response && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
-        }
-        return response;
-      })
-      .catch(() => caches.match(request).then(cached => {
-        if (cached) return cached;
-        if (request.mode === "navigate") return caches.match("./");
-        return Response.error();
-      }))
+    (async () => {
+      try {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((key) => caches.delete(key)));
+      } catch (_) { /* nothing to clean */ }
+      try {
+        await self.registration.unregister();
+      } catch (_) { /* already gone */ }
+      try {
+        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        windows.forEach((client) => { try { client.navigate(client.url); } catch (_) { /* window closed */ } });
+      } catch (_) { /* no clients */ }
+    })()
   );
 });

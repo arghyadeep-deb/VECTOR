@@ -1,6 +1,7 @@
 
 import sys
 import ast
+import asyncio
 import uuid
 from pathlib import Path
 
@@ -10,6 +11,23 @@ ensure_paths()
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
+
+_SKIP_DIRS = frozenset({
+    ".git", "node_modules", "__pycache__", ".venv", "venv", "test_tmp", "renders",
+    "models", ".claude", "_cleanup_trash_2026-07-28", "graphify-out",
+})
+
+
+def _iter_python_files(root_path: Path) -> list[Path]:
+    """All .py files under root, pruning vendor/junk directories while walking."""
+    import os
+
+    found: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root_path):
+        dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+        found.extend(Path(dirpath, f) for f in filenames if f.endswith(".py"))
+    return found
+
 
 class ArchitectBot(AgentBase):
     """Analyzes codebase structure and answers architecture questions."""
@@ -50,7 +68,7 @@ class ArchitectBot(AgentBase):
             # Map: module_path → set of imported modules (for circular import detection)
             import_map: dict[str, set] = {}
 
-            py_files = list(root_path.rglob("*.py"))
+            py_files = _iter_python_files(root_path)
 
             for py_file in py_files:
                 try:
@@ -63,34 +81,25 @@ class ArchitectBot(AgentBase):
                 total_files += 1
                 total_lines += len(lines)
 
-                # AST walk for class/function counts
+                # One parse + one walk: class/function counts and imports together.
                 try:
                     tree = ast.parse(source)
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.ClassDef):
-                            total_classes += 1
-                        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                            total_functions += 1
                 except SyntaxError:
                     issues.append(f"SyntaxError in {py_file.relative_to(root_path)}")
                     continue
-
-                # Collect imports for circular detection
                 mod_key = str(py_file.relative_to(root_path))
                 local_imports: set[str] = set()
-                try:
-                    for node in ast.walk(ast.parse(source)):
-                        if isinstance(node, ast.ImportFrom):
-                            if node.module:
-                                is_relative = node.level > 0
-                                is_local_absolute = node.module.startswith("core")
-                                if is_relative or is_local_absolute:
-                                    local_imports.add(node.module)
-                        elif isinstance(node, ast.Import):
-                            for alias in node.names:
-                                local_imports.add(alias.name)
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.ClassDef):
+                        total_classes += 1
+                    elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        total_functions += 1
+                    elif isinstance(node, ast.ImportFrom):
+                        if node.module and (node.level > 0 or node.module.startswith("core")):
+                            local_imports.add(node.module)
+                    elif isinstance(node, ast.Import):
+                        for alias in node.names:
+                            local_imports.add(alias.name)
                 import_map[mod_key] = local_imports
 
             # --- Missing __init__.py detection ---
@@ -102,18 +111,19 @@ class ArchitectBot(AgentBase):
                     issues.append(f"Missing __init__.py in: {rel}")
 
             # --- Static circular import detection (simple: A imports B, B imports A) ---
-            # Build reverse map for quick lookup
-            for mod_a, imports_a in import_map.items():
-                for mod_b, imports_b in import_map.items():
-                    if mod_a >= mod_b:
-                        continue
-                    # Check if any import name from A appears in B's file path prefix and vice versa
-                    stem_a = Path(mod_a).stem
-                    stem_b = Path(mod_b).stem
-                    a_imports_b = any(stem_b in imp for imp in imports_a)
-                    b_imports_a = any(stem_a in imp for imp in imports_b)
-                    if a_imports_b and b_imports_a:
-                        issues.append(f"Potential circular import: {mod_a} <-> {mod_b}")
+            # 2026-09-24: was an O(n^2) all-pairs substring scan (90-216s on this repo,
+            # blocking the event loop). Now a token index: a module "imports" another when
+            # the other's file stem is a dotted component of one of its imports.
+            tokens = {m: {t for imp in imps for t in imp.split(".")} for m, imps in import_map.items()}
+            by_stem: dict[str, list[str]] = {}
+            for mod in import_map:
+                by_stem.setdefault(Path(mod).stem, []).append(mod)
+            for mod_a, toks_a in tokens.items():
+                stem_a = Path(mod_a).stem
+                for tok in toks_a:
+                    for mod_b in by_stem.get(tok, ()):
+                        if mod_a < mod_b and stem_a in tokens[mod_b]:
+                            issues.append(f"Potential circular import: {mod_a} <-> {mod_b}")
 
             if issues:
                 self.deduct_points(5, "scan_found_issues")
@@ -266,24 +276,42 @@ class ArchitectBot(AgentBase):
             return {"status": "ok", "response": answer, "agent": self.name}
 
         root = root or "."
+        # Off the event loop: the scan is synchronous CPU/file work.
         if use_graph:
-            result = self.scan_codebase_with_graph(root)
+            result = await asyncio.to_thread(self.scan_codebase_with_graph, root)
         else:
-            result = self.scan_codebase(root)
+            result = await asyncio.to_thread(self.scan_codebase, root)
         # Phase 2C: if complex spec detected, request research help
         tech_stack = result.get("tech_stack") or result.get("languages", [])
         if tech_stack:
+            # ResearchHub is the agent's actual registered .name (PascalCase
+            # class name), not the manifest's lowercase "research_hub" key —
+            # request_agent_help looks up by .name, not manifest key.
+            #
+            # 2026-09-26: this is a request for HELP, not a step the scan depends on, so it runs in the background.
+            # It used to be awaited, which only looked harmless because DeepResearcher rejected "deep_research" as an
+            # unknown type instantly; now that the advertised type is real (a 1-3 minute web research call), awaiting it
+            # here held every scan/read_code action for minutes and pushed it past the Governor's timeout.
+            self._spawn_research_help(tech_stack)
+        return {"status": "ok", **result}
+
+    def _spawn_research_help(self, tech_stack) -> None:
+        async def _ask() -> None:
             try:
-                # ResearchHub is the agent's actual registered .name (PascalCase
-                # class name), not the manifest's lowercase "research_hub" key —
-                # request_agent_help looks up by .name, not manifest key.
                 await self.request_agent_help("ResearchHub", {
                     "type": "deep_research",
                     "params": {"query": f"best practices for {tech_stack}"},
                 })
             except Exception as e:
                 logger.debug(f"[VECTOR][architect_bot] request_agent_help failed: {e}")
-        return {"status": "ok", **result}
+
+        try:
+            task = asyncio.get_running_loop().create_task(_ask())
+        except RuntimeError:
+            return  # no running loop (sync caller): skip the optional help request
+        pending = self.__dict__.setdefault("_help_tasks", set())
+        pending.add(task)  # hold a reference so the task is not garbage-collected mid-flight
+        task.add_done_callback(pending.discard)
 
     async def run_forever(self) -> None:
         """RULE 2 — never stops. ArchitectBot is event-driven; this keeps the agent alive."""

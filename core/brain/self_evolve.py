@@ -1,3 +1,6 @@
+# DORMANT (2026-09-24, docs/design/core-module-triage.md): not imported by the running VECTOR.
+# Superseded by core/city/evolution_engine.py. Kept on purpose (personal-use build); do not add a second live path --
+# route through the existing mechanism so the Governor and PermissionGateway stay the only way in.
 """
 V.E.C.T.O.R. SelfEvolver.
 Self-improvement engine — analyzes past decisions and evolves agent behavior.

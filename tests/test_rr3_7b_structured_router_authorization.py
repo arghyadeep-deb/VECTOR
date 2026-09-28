@@ -377,9 +377,11 @@ def test_rr3_7b_project_planner_declares_create_project_capability():
 
 def test_rr3_7b_composable_allowlist_grew_by_exactly_two_new_entries():
     from core.loop.permission_gateway import _PLAN_COMPOSABLE_ACTION_TYPES
+    # RR-3.7B itself added the two entries above; "web_extract" (GREEN, read-only page extraction) was added on 2026-09-26
+    # and is deliberately a member of the exact snapshot so any further growth still has to touch this test.
     assert _PLAN_COMPOSABLE_ACTION_TYPES == {
         "script", "schedule_post", "idea_validate",
-        "log_exercise", "create_project",
+        "log_exercise", "create_project", "web_extract",
     }
     assert "ingest_video" not in _PLAN_COMPOSABLE_ACTION_TYPES, (
         "ingest_video must NOT be added -- it has no assigned permission "

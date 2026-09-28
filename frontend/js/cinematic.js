@@ -17,8 +17,19 @@
     const t = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     const pend = (D && D.APPROVALS) ? D.APPROVALS.length : 0;
     const goals = (D && D.GOALS) ? (D.GOALS.LONG.length+D.GOALS.MID.length+D.GOALS.SHORT.length) : 0;
-    let tail = pend ? ` You have ${pend} approval${pend>1?'s':''} pending and ${goals} active goals.`
-                    : ' All systems nominal.';
+    // Only state what the backend actually reported. "All systems nominal" used to be spoken unconditionally,
+    // even with the threat level HIGH or the loop down.
+    const L = (D && D.LIVE) || {};
+    let tail;
+    if(pend){
+      tail = ` You have ${pend} approval${pend>1?'s':''} pending and ${goals} active goals.`;
+    } else if(L.loop){
+      const bits = [L.loop.running ? 'The loop is running.' : 'The loop is not running.'];
+      if(L.threat && String(L.threat).toLowerCase() !== 'low') bits.push(`Threat level ${String(L.threat).toLowerCase()}.`);
+      tail = ' ' + bits.join(' ');
+    } else {
+      tail = '';
+    }
     return `${part}, sir. It is ${t}.${tail}`;
   }
   V.on('wake', ()=>{

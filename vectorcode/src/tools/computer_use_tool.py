@@ -7,29 +7,34 @@ the file structure clean. This shim exists because tools.registry auto-imports
 
 from __future__ import annotations
 
-from tools.computer_use.schema import COMPUTER_USE_SCHEMA
-from tools.computer_use.tool import (
-    check_computer_use_requirements,
-    handle_computer_use,
-    set_approval_callback,
-)
 from tools.registry import registry
 
-
-registry.register(
-    name="computer_use",
-    toolset="computer_use",
-    schema=COMPUTER_USE_SCHEMA,
-    handler=lambda args, **kw: handle_computer_use(args, **kw),
-    check_fn=check_computer_use_requirements,
-    requires_env=[],
-    description=(
-        "Universal macOS desktop control via cua-driver. Works with any "
-        "tool-capable model (Anthropic, OpenAI, OpenRouter, local vLLM, "
-        "etc.). Background computer-use: does NOT steal the user's cursor "
-        "or keyboard focus."
-    ),
-)
+try:
+    from tools.computer_use.schema import COMPUTER_USE_SCHEMA
+    from tools.computer_use.tool import (
+        check_computer_use_requirements,
+        handle_computer_use,
+        set_approval_callback,
+    )
+except ImportError:
+    # The macOS cua-driver implementation (tools/computer_use/tool.py) is not part of this tree, so there is
+    # nothing to register. Discovery used to log an import error for it on every run.
+    handle_computer_use = set_approval_callback = check_computer_use_requirements = None
+else:
+    registry.register(
+        name="computer_use",
+        toolset="computer_use",
+        schema=COMPUTER_USE_SCHEMA,
+        handler=lambda args, **kw: handle_computer_use(args, **kw),
+        check_fn=check_computer_use_requirements,
+        requires_env=[],
+        description=(
+            "Universal macOS desktop control via cua-driver. Works with any "
+            "tool-capable model (Anthropic, OpenAI, OpenRouter, local vLLM, "
+            "etc.). Background computer-use: does NOT steal the user's cursor "
+            "or keyboard focus."
+        ),
+    )
 
 
 __all__ = [

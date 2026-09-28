@@ -3,9 +3,12 @@
 ## Daily Development
 ```bash
 # Start VECTOR
-cd C:\Users\Arghyadeep\Projects\VECTOR
-.venv\Scripts\activate
+cd "C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase"
+# no .venv in the repo — system Python 3.13 is used
 python run_vector.py
+# `run_vector.py loop` (autonomous loop) and `run_vector.py api` (FastAPI on :8000) are separate processes.
+# START_VECTOR.bat runs a smoke test, then launches the API in its own window and the loop in the current one;
+# START_API_ONLY.bat launches only the API.
 
 # Test a single module
 python core\memory\episodic.py
@@ -24,9 +27,7 @@ git push
 
 ## Setup (run once)
 ```bash
-# Python environment
-python -m venv .venv
-.venv\Scripts\activate
+# Python environment (current machine uses system Python 3.13, no .venv; create one only if you want isolation)
 pip install -r requirements.txt
 
 # Verify CUDA
@@ -66,14 +67,11 @@ ollama create vector-ambient -f modelfiles\vector-ambient.modelfile && ollama cr
 
 ## Cloud Deployment (Phase 3)
 ```bash
-# Cloudflare Workers
+# Cloudflare Worker (live)
 cd api && npx wrangler deploy
 
-# Fly.io
-fly launch && fly deploy
-
-# Vercel
-cd dashboard && vercel --prod
+# Fly.io — dropped (owner declined the card requirement; cloud/brain_server/ removed)
+# Vercel dashboard — not applicable: dashboard/ does not exist; the frontend/ HUD is served by the API at /hud/
 ```
 
 ## End-of-Day Pass Conditions
@@ -83,7 +81,7 @@ Day 2:  debug mode → 4 candidates with scores + policy table has rows
 Day 3:  "Hey VECTOR" → terminal: WAKE → TRANSCRIBE → THINK → SPEAK
 Day 4:  face ID returns name + pyautogui moves cursor + ADB screenshot
 Day 5:  GmailAgent reads + KIIT schedule + git log shows auto-commit
-Day 6:  fly.dev/status → 200 + old phone ambient running + Obsidian note
+Day 6:  Cloudflare Worker /status → 200 (Fly.io dropped) + old phone ambient running + Obsidian note
 Day 7:  all 4 end-to-end scenarios pass without manual intervention
 ```
 

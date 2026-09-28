@@ -328,7 +328,14 @@ class AuthService:
         # validate plaintext length via the field, then store only the hash
         coll.field("password").validate(payload["password"])
         payload["password"] = PasswordHasher.hash(payload["password"])
-        return self.engine.store.create(coll, payload)
+        try:
+            return self.engine.store.create(coll, payload)
+        except Exception as e:
+            # A duplicate email/username used to escape as the raw DB IntegrityError and surface as HTTP 500
+            # (found by the live JWT smoke test, 2026-09-26). It is a client error, so report it as one.
+            if "UNIQUE constraint" in str(e):
+                raise AuthError("a record with that email or username already exists") from e
+            raise
 
     def _find_auth(self, coll: Collection, email: str):
         """Return (record_without_password, password_hash) or (None, None)."""

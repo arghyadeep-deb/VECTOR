@@ -70,6 +70,11 @@ def get_vector_home() -> Path:
     return Path.home() / ".vector"
 
 
+def get_vectorcode_home() -> Path:
+    """Alias kept for tui_gateway/server.py, which imports this name (it never existed -> ImportError)."""
+    return get_vector_home()
+
+
 def get_default_vector_root() -> Path:
     """Return the root VECTOR directory for profile-level operations.
 

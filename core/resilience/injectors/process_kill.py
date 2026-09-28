@@ -8,6 +8,7 @@ from typing import Any
 from loguru import logger
 
 from .base import FailureInjector
+import asyncio
 
 
 class ProcessKillInjector(FailureInjector):
@@ -31,10 +32,9 @@ class ProcessKillInjector(FailureInjector):
         logger.warning("[Chaos] Injecting: kill {}", process_name)
         try:
             import subprocess
-            subprocess.run(
-                ["taskkill", "/F", "/IM", process_name],
+            (await asyncio.to_thread(subprocess.run, ["taskkill", "/F", "/IM", process_name],
                 capture_output=True, timeout=5,
-            )
+            ))
         except Exception as e:
             logger.debug("[Chaos] kill failed: {}", e)
 
@@ -44,10 +44,9 @@ class ProcessKillInjector(FailureInjector):
         for attempt in range(15):
             await asyncio.sleep(2)
             try:
-                result = subprocess.run(
-                    ["tasklist", "/FI", f"IMAGENAME eq {self._targets.get(self._target, '')}"],
+                result = (await asyncio.to_thread(subprocess.run, ["tasklist", "/FI", f"IMAGENAME eq {self._targets.get(self._target, '')}"],
                     capture_output=True, text=True, timeout=5,
-                )
+                ))
                 if self._targets.get(self._target, "") in result.stdout:
                     return True, attempt * 2 + 2
             except Exception:

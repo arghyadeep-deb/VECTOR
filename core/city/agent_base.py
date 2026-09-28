@@ -32,6 +32,11 @@ _AGENT_NAME_VOICE_STYLES: dict[str, str] = {
 }
 
 
+def _model_rank() -> dict:
+    m = CONFIG['models']
+    return {m['ambient']: 1, m['reasoning']: 2, m['focus']: 3, m['cloud_orchestrator']: 4, m['cloud_coder']: 5}
+
+
 class AgentBase:
     def __init__(self, agent_id, name, district, generation=1):
         self._ensure_legacy_event_loop()
@@ -80,6 +85,34 @@ class AgentBase:
             asyncio.set_event_loop(asyncio.new_event_loop())
 
     def _calculate_model(self) -> str:
+        model = self._hp_model()
+        try:
+            from core.city import experience
+            if experience.hp_fair_enabled() and model is not None:
+                # Standing follows LEVEL, not the day's HP: experience can only raise the tier, never lower it. (HP still
+                # decides at the bottom: at 0 there is no model at all.) Level 0 -> no change from the HP tier.
+                lvl = experience.lineage_stats(self)["level"]
+                floor = self._level_model(lvl)
+                if floor is not None and _model_rank().get(floor, 0) > _model_rank().get(model, 0):
+                    return floor
+        except Exception:
+            pass
+        return model
+
+
+    def _level_model(self, level: int):
+        """The model tier a level guarantees: L2 reasoning, L4 focus, L6 orchestrator, L8 coder (0-1: no floor)."""
+        if level >= 8:
+            return CONFIG['models']['cloud_coder']
+        if level >= 6:
+            return CONFIG['models']['cloud_orchestrator']
+        if level >= 4:
+            return CONFIG['models']['focus']
+        if level >= 2:
+            return CONFIG['models']['reasoning']
+        return None
+
+    def _hp_model(self) -> str:
         if self.health_points >= 800:
             return CONFIG['models']['cloud_coder']
         elif 600 <= self.health_points < 800:
@@ -179,6 +212,12 @@ class AgentBase:
         shaped_points = points * repeat_multiplier * headroom_multiplier
         validated_points = max(0.0, self._validate_hp_delta(shaped_points, reason))
         self.health_points = min(1000, self.health_points + validated_points)
+        # Fair-HP probation is a recovery window, not a permanent strike counter. Once an agent has genuinely recovered above the
+        # documented 50 HP threshold, a later collapse starts a fresh probation instead of consuming stale chances forever.
+        if self.health_points > 50 and getattr(self, "_probation_used", False):
+            self._probation_used = False
+            self._probation_left = 0
+            logger.info(f'[VECTOR][city] {self.name} recovered above 50HP; probation reset')
         old_model = self.model
         self.model = self._calculate_model()
         model_changed = self.model != old_model
@@ -210,7 +249,19 @@ class AgentBase:
         self.model = self._calculate_model()
         model_changed = self.model != old_model
         logger.warning(f'[VECTOR][city] {self.name} -{validated_points}HP ({reason}) | {old_hp}->{self.health_points}')
+        # Remember WHY HP was lost, so a death leaves a ghost that says what went wrong
+        # (2026-09-25: real deaths had empty lessons because nothing recorded failures).
+        # A reason already remembered is not added again, so repeats can't flood the 20 slots.
+        lesson = f"lost {validated_points:g}HP: {reason}"
+        if validated_points and not any(reason in str(x) for x in self.lessons):
+            self.add_lesson(lesson)
         if self.health_points == 0:
+            if self._grant_probation(reason):
+                return {
+                    "old_hp": old_hp, "new_hp": self.health_points, "model_changed": True, "new_model": self.model, "reason": reason,
+                    "requested_delta": -abs(points), "validated_delta": -validated_points, "died": False, "probation": True,
+                    "probation_left": self._probation_left,
+                }
             ghost = self.die()
             return {
                 "old_hp": old_hp,
@@ -234,7 +285,40 @@ class AgentBase:
             "died": False,
         }
 
+    PROBATION_CHANCES = 3
+
+    def _grant_probation(self, reason) -> bool:
+        """Reaching 0 HP is not yet death (VECTOR_HP_FAIR): the first collapse of a generation puts the agent on probation at 1 HP
+        with PROBATION_CHANCES more chances, and each further collapse spends one. Death comes when they are spent. A success that
+        lifts HP back above 50 ends probation. Off by default: without the flag, 0 HP is death exactly as before."""
+        try:
+            from core.city import experience
+            if not experience.hp_fair_enabled():
+                return False
+        except Exception:
+            return False
+        if not getattr(self, "_probation_used", False):
+            self._probation_used = True
+            self._probation_left = self.PROBATION_CHANCES
+            note = f"collapsed to 0HP on '{reason}'; on probation for {self.PROBATION_CHANCES} more chances"
+        elif getattr(self, "_probation_left", 0) > 0:
+            self._probation_left -= 1
+            note = f"collapsed again on '{reason}'; {self._probation_left} chances left"
+        else:
+            return False
+        self.health_points = 1
+        self.model = self._calculate_model()
+        if not any(note[:40] in str(x) for x in self.lessons):
+            self.add_lesson(note)
+        logger.warning("[VECTOR][city] {} at 0HP -> probation ({} chances left)", self.name, getattr(self, "_probation_left", 0))
+        return True
+
     def die(self) -> dict:
+        try:
+            from core.city import experience
+            experience.record_death(self, cause="; ".join(str(x) for x in self.lessons[-3:]))
+        except Exception:
+            pass
         ghost = {
             'name': self.name, 'district': self.district,
             'generation': self.generation, 'final_hp': 0,
@@ -273,7 +357,22 @@ class AgentBase:
             self.best_decisions = self.best_decisions[-10:]
 
     def can_vote_in_council(self) -> bool:
+        try:
+            from core.city import experience
+            if experience.level_council_enabled():
+                # experienced (level 5+) and not on the ropes; a strong day's HP alone no longer buys a vote
+                return experience.lineage_stats(self)["level"] >= 5 and self.health_points >= 300
+        except Exception:
+            pass
         return self.health_points >= 700
+
+    @property
+    def level(self) -> int:
+        try:
+            from core.city import experience
+            return experience.lineage_stats(self)["level"]
+        except Exception:
+            return 0
 
     def subscribe_to(self, event_type: str) -> None:
         """Register interest in an event type for local event-bus dispatch."""
@@ -287,9 +386,16 @@ class AgentBase:
         return {"status": "queued", "agent": self.name, "event_type": event.get("event_type")}
 
     async def run(self, task: dict) -> dict:
-        """Base task runner used by tests and simple district fallbacks."""
+        """Base task runner used by tests and simple district fallbacks.
+
+        `"stub": True` marks this as the unoverridden base implementation —
+        it did no real work, so Governor.dispatch()'s RULE 9 HP award must
+        not treat this "ok" the same as a real district agent's demonstrated
+        outcome (see governor.py's HP-award check). Additive only: status
+        stays "ok" so existing callers that assert on it are unaffected.
+        """
         self.last_active = datetime.datetime.utcnow().isoformat()
-        return {"status": "ok", "agent": self.name, "task": task}
+        return {"status": "ok", "agent": self.name, "task": task, "stub": True}
 
     def get_system_prompt(self) -> str:
         """Return a compact system prompt for generic agent interactions.
@@ -319,21 +425,76 @@ class AgentBase:
             )
             parts.append(f"Your predecessors' best decisions: {decisions_text}.")
 
+        book = self._playbook_text()
+        if book:
+            parts.append(book)
+
         return " ".join(parts)
 
+    def _playbook_text(self, task_type: str | None = None) -> str:
+        """DO / DON'T lines from this lineage's experience ledger (VECTOR_PLAYBOOK); empty when off or nothing is recorded."""
+        try:
+            from core.city import experience
+            if not experience.playbook_enabled():
+                return ""
+            lines = experience.playbook(self, task_type=task_type, k=6)
+            return ("What your lineage has learned: " + " ".join(lines)) if lines else ""
+        except Exception:
+            return ""
+
     def vchat(self, messages: list[dict] | str) -> str:
-        """Small LLM helper with an Ollama-safe fallback path."""
+        """Small LLM helper with an Ollama-safe fallback path.
+
+        RULE 1: session_hydration_prompt() before EVERY LLM call, no
+        exceptions. This was previously missing here — every agent's own
+        vchat() calls (the base helper ~25 district agents build on) went
+        to the LLM with zero world-state/person-model/goal context, unlike
+        every other real LLM call site in the codebase (governor.py,
+        commands.py, ambient_listener.py, ...). Fixed 2026-09-23.
+        """
+        msg_list = [{"role": "user", "content": messages}] if isinstance(messages, str) else list(messages)
+        try:
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt()
+        except Exception as _hydr_err:
+            logger.debug("[VECTOR][city] vchat hydration failed for {}: {}", self.name, _hydr_err)
+            hydration = ""
+        book = self._playbook_text()
+        if book:
+            hydration = (hydration + "\n\n" + book).strip() if hydration else book
+        if hydration:
+            if msg_list and msg_list[0].get("role") == "system":
+                msg_list = [
+                    {"role": "system", "content": (hydration + "\n\n" + msg_list[0].get("content", "")).strip()},
+                    *msg_list[1:],
+                ]
+            else:
+                msg_list = [{"role": "system", "content": hydration}, *msg_list]
+
+        # 2026-09-23 fix (independent review of the RULE 1 hydration fix
+        # above caught this): both real chat() signatures --
+        # core/inference/district_llm.py's DistrictLLM.chat() and
+        # core/inference/ollama_safe.py's chat() -- require `model` as a
+        # REQUIRED first positional argument, `messages` second. The
+        # previous calls here (both before and after the hydration fix)
+        # passed only `msg_list`, landing in the `model` slot with no
+        # `messages` argument at all -- a guaranteed TypeError on every
+        # real call, silently swallowed by the except below, so vchat() has
+        # never actually reached an LLM in production. self.model (HP-tier
+        # resolved by _calculate_model()) is a real Ollama tag; fall back to
+        # the ambient tag on the HP<1 edge case where it's None.
+        _model = self.model or CONFIG["models"]["ambient"]
         if self._district_llm is not None:
             try:
                 if hasattr(self._district_llm, "chat"):
-                    return self._district_llm.chat(messages)
+                    return self._district_llm.chat(_model, msg_list)
                 if callable(self._district_llm):
-                    return self._district_llm(messages)
+                    return self._district_llm(msg_list)
             except Exception as e:
                 logger.debug("[VECTOR][city] district_llm fallback for {}: {}", self.name, e)
         try:
             from core.inference.ollama_safe import chat
-            return chat(messages, caller_id=f"agent_{self.name}"[:64])
+            return chat(_model, msg_list, caller_id=f"agent_{self.name}"[:64])
         except Exception as e:
             logger.debug("[VECTOR][city] vchat fallback for {}: {}", self.name, e)
             if isinstance(messages, str):
@@ -367,29 +528,57 @@ class AgentBase:
             logger.warning("[VECTOR][city] SharedFacts.get({!r}) failed for {}: {}", key, self.name, e)
             return default
 
-    async def request_agent_help(self, target_agent: str, task: dict) -> dict:
-        """Request help directly from another live agent, by name.
+    # ── Agent-to-agent (A2A) ───────────────────────────────────────────────────────────────────────────────────────────
+    # Every agent in every district inherits these. They go through the governed bus (core/city/a2a_bus.py): Governor.dispatch()
+    # for delivery (tier gate, unknown-type gate, timeout, HP accounting), depth/cycle/rate/budget limits, an audit trail, and no
+    # inherited authority. Phase 1 carries information/analysis requests; YELLOW/RED task types need the PermissionGateway.
 
-        Looks the target up in the agent registry and calls its run() —
-        simpler and more correct than building a single-task WorkflowRunner
-        DAG for what is fundamentally a direct agent-to-agent request.
+    async def a2a_ask(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None,
+                      timeout: float | None = None, escalate: bool = False, verify=None):
+        """Ask a peer (by name/id, "district:<name>", or by declared capability) and wait. Returns an A2AReply; never raises.
+        Pass `verify=lambda result: bool` to check the answer yourself: only a verified answer earns the helper collaboration XP."""
+        from core.city.a2a_bus import get_bus
+        return await get_bus().ask(self, task_type, params, to=to, capability=capability, timeout=timeout, escalate=escalate,
+                                   verify=verify)
+
+    async def a2a_delegate(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None,
+                           timeout: float | None = None):
+        """Hand a piece of work to a peer and wait for the result (recorded as a delegation)."""
+        from core.city.a2a_bus import get_bus
+        return await get_bus().delegate(self, task_type, params, to=to, capability=capability, timeout=timeout)
+
+    def a2a_tell(self, task_type: str, params: dict | None = None, *, to=None, capability: str | None = None) -> str:
+        """Fire and forget. Returns a marker; the reply arrives in a2a_inbox()."""
+        from core.city.a2a_bus import get_bus
+        return get_bus().tell(self, task_type, params, to=to, capability=capability)
+
+    def a2a_inbox(self, limit: int = 20) -> list[dict]:
+        from core.city.a2a_bus import get_bus
+        return get_bus().inbox(self.id, limit)
+
+    def a2a_describe(self) -> dict:
+        from core.city.a2a_bus import describe_agent
+        return describe_agent(self)
+
+    async def request_agent_help(self, target_agent: str, task: dict) -> dict:
+        """Request help from another live agent, by name or district.
+
+        2026-09-26: this used to look the target up and call `target.run(task)` directly -- around the Governor and the
+        PermissionGateway, so a YELLOW/RED task type could run with no approval and the target's HP accounting was skipped.
+        It now goes through the A2A bus. The return shape is unchanged: {"status": "requested"|"unavailable", "target_agent",
+        "result"|"error"}, plus an "a2a" entry with the bus's own verdict.
         """
         try:
-            from core.city.agent_registry import get_registry
-            registry = get_registry()
-            target = next(
-                (
-                    a
-                    for a in registry.get_all_agents()
-                    if getattr(a, "name", None) == target_agent
-                    or getattr(a, "district", None) == target_agent
-                ),
-                None,
-            )
-            if target is None:
-                raise LookupError(f"agent '{target_agent}' not found in registry")
-            result = await target.run(task)
-            return {"status": "requested", "target_agent": target_agent, "result": result}
+            from core.city.a2a_bus import get_bus
+            bus = get_bus()
+            task_type = str((task or {}).get("type") or (task or {}).get("action") or "")
+            params = (task or {}).get("params") if isinstance((task or {}).get("params"), dict) else {}
+            to = target_agent if bus.resolve(target_agent) is not None else f"district:{target_agent}"
+            reply = await bus.ask(self, task_type, params, to=to)
+            if reply.delivered:
+                return {"status": "requested", "target_agent": target_agent, "result": reply.result, "a2a": reply.to_dict()}
+            return {"status": "unavailable", "target_agent": target_agent,
+                    "error": reply.refused or reply.error or reply.status, "a2a": reply.to_dict()}
         except Exception as e:
             logger.debug("[VECTOR][city] request_agent_help fallback: {}", e)
             return {"status": "unavailable", "target_agent": target_agent, "error": str(e)}

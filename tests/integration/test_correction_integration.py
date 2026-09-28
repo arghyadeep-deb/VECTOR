@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from core.memory.correction_learner import (
     CORRECTION_EXPLICIT,
+    CORRECTION_IMPLICIT,
     VALIDATION_UNVALIDATED,
     CorrectionDetector,
     CorrectionLesson,
@@ -239,36 +240,37 @@ class TestCorrectionLifecycle(unittest.TestCase):
     """Full lifecycle: store → apply → validate → confidence change."""
 
     def test_lifecycle_unvalidated_to_validated(self):
-        """A correction starts unvalidated and becomes validated after good outcomes."""
+        """A correction starts unvalidated and becomes validated once good outcomes lift it to 0.85.
+
+        A freshly detected explicit correction is already stored at ~0.95, above the 0.85 bar, so the first
+        good outcome would validate it at once. The lifecycle only shows up for a lesson that starts lower
+        (an implicit correction, stored at 0.70): +0.05 per good outcome means 0.75, 0.80, then 0.85.
+        """
         learner = CorrectionLearner()
         learner._memory = MagicMock()
         learner._memory.store = MagicMock()
-        learner._memory.recall = MagicMock(return_value=[])
-
-        # Store
-        lesson = learner.process_owner_message(
-            utterance="no, use httpx instead of requests",
-            prior_vector_response="I'll use requests",
-            context={"situation": "coding"},
+        lesson = CorrectionLesson(
+            id="cl_life", situation="coding", wrong_behavior="requests", correction="httpx",
+            lesson="use httpx instead of requests", domain="coding", confidence=0.70,
+            timestamp=_now(), applicability="", source="owner_correction",
+            validation_status=VALIDATION_UNVALIDATED, correction_type=CORRECTION_IMPLICIT,
         )
-        self.assertEqual(lesson.validation_status, VALIDATION_UNVALIDATED)
         self.assertEqual(lesson.times_applied, 0)
 
-        # Simulate applying the lesson multiple times with good outcomes
-        for i in range(5):
+        statuses = []
+        for _ in range(3):
             learner._memory.recall = MagicMock(return_value=[
                 {"content": lesson.to_storage_content()},
             ])
             learner.validate_lesson(lesson.id, outcome_good=True)
-
-            # Get the stored version for next iteration
             stored = learner._memory.store.call_args
             content = stored[1].get("content") or stored[0][1]
             lesson = CorrectionLesson.from_storage_content(content)
+            statuses.append(lesson.validation_status)
 
-        self.assertEqual(lesson.validation_status, VALIDATION_UNVALIDATED)  # not yet at 0.85
-        self.assertGreater(lesson.confidence, 0.7)
-        self.assertEqual(lesson.times_validated, 5)
+        self.assertEqual(statuses, [VALIDATION_UNVALIDATED, VALIDATION_UNVALIDATED, "validated"])
+        self.assertGreaterEqual(lesson.confidence, 0.85)
+        self.assertEqual(lesson.times_validated, 3)
 
     def test_lifecycle_contradicted(self):
         """A correction becomes contradicted after repeated bad outcomes."""

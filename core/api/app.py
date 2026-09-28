@@ -25,23 +25,39 @@ from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from loguru import logger
 
 from core.config import CONFIG
+from core.api import ssl_cache
+
+ssl_cache.install()   # 2026-09-27: httpx.AsyncClient() cost ~300 ms of blocking CPU per construction; see core/api/ssl_cache.py
 
 
-def _is_production_env() -> bool:
-    return os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))).strip().lower() == "production"
+def _is_hardened_env() -> bool:
+    return os.getenv("VECTOR_ENV", str(CONFIG.get("env", "development"))).strip().lower() in {"production", "prod", "vector"}
+
+
+def _other_loop_pid(runtime: dict, my_pid: int) -> int | None:
+    """Pid of ANOTHER live process that owns the autonomous loop, else None.
+
+    A heartbeat stays "fresh" for ~10s after its owner dies, so a restart inside that
+    window used to see a dead pid as a live loop and start with NO brain (2026-09-25).
+    The owner must actually be alive for it to block this process's own loop.
+    """
+    pid = runtime.get("pid")
+    if not (runtime.get("running") and pid and pid != my_pid):
+        return None
+    try:
+        import psutil
+        if not psutil.pid_exists(pid):
+            return None
+    except ImportError:
+        pass  # can't tell: keep the old, conservative behaviour (assume it is alive)
+    return pid
 
 
 def _select_hud_html(hud_dir: Path) -> Path:
-    prod_html = hud_dir / "VECTOR.prod.html"
-    dev_html = hud_dir / "VECTOR.html"
-    if _is_production_env() and prod_html.exists():
-        return prod_html
-    return dev_html
-
-
-def _is_production_blocked_hud_path(filepath: str) -> bool:
-    normalized = filepath.replace("\\", "/").strip("/")
-    return _is_production_env() and normalized in {"js/demo.js"}
+    """There is ONE HUD: frontend/VECTOR.html (3D city, map, camera hero, gestures, the whole subsystem dock). The
+    separate "VECTOR Production" page and its build were removed 2026-09-25 (owner decision); every environment
+    serves this page."""
+    return hud_dir / "VECTOR.html"
 
 
 @asynccontextmanager
@@ -239,9 +255,7 @@ async def lifespan(app: FastAPI):
         try:
             from core.loop.loop_state import get_runtime as _get_rt
 
-            _rt = _get_rt()
-            if _rt.get("running") and _rt.get("pid") and _rt["pid"] != os.getpid():
-                _other = _rt["pid"]
+            _other = _other_loop_pid(_get_rt(), os.getpid())
         except Exception as _e:  # never let the guard itself block startup
             logger.debug("[VECTOR][api] loop-duplication check skipped: {}", _e)
 
@@ -255,6 +269,13 @@ async def lifespan(app: FastAPI):
     if os.environ.get("VECTOR_API_RUN_LOOP") == "1" and not _other:
         try:
             import threading
+            # 2026-09-23: deliberate exception to "never use threading, use
+            # asyncio" (.claude/rules/libraries.md) -- a real OS thread is
+            # the ONLY way to host a SECOND, independent asyncio.run() event
+            # loop in this process (the autonomous loop's own run_forever())
+            # while the API server's own event loop keeps serving HTTP.
+            # There is no asyncio-only way to run two event loops in one
+            # thread.
             from core.loop.autonomous_loop import AutonomousLoop
 
             # Opt-in thread-stack dump on a timer (KNOWN_ISSUES.md #0: the
@@ -534,6 +555,30 @@ def create_app() -> FastAPI:
         # LOGIN ceremony (never registration, which still correctly requires
         # the existing key — see core/api/routers/webauthn_auth.py). Must be
         # listed in middleware._PUBLIC_PATHS as "/login" for this to work.
+        @app.get("/clear-site-data", include_in_schema=False)
+        async def clear_site_data():
+            """Recovery page for a browser that keeps showing a removed HUD from its own cache / service worker.
+
+            The `Clear-Site-Data` response header makes the browser delete this origin's HTTP cache, cookies, service
+            workers and Cache Storage. It is honoured for a navigation even when an old service worker is answering the
+            other requests, because the worker never handles this path. The page then goes to the location in the URL
+            fragment (kept out of any request, so an API key in it is never sent to the server), or /login."""
+            from fastapi.responses import HTMLResponse
+
+            html = (
+                "<!doctype html><meta charset=utf-8><title>VECTOR</title>"
+                "<body style=\"background:#000;color:#7fdcff;font:16px monospace;padding:2em\">"
+                "Clearing this browser's saved VECTOR pages&hellip;"
+                "<script>var n=location.hash.slice(1);"
+                "if(!n||n.charAt(0)!=='/'||n.charAt(1)==='/'){n='/login';}"
+                "setTimeout(function(){location.replace(n);},700);</script>"
+                "<noscript><p><a href=\"/login\">Continue</a></p></noscript>"
+            )
+            return HTMLResponse(html, headers={
+                "Clear-Site-Data": '"cache", "cookies", "storage"',
+                "Cache-Control": "no-store",
+            })
+
         @app.get("/login", include_in_schema=False)
         async def login_page():
             login_html = _hud_dir / "login.html"
@@ -553,10 +598,6 @@ def create_app() -> FastAPI:
             """Serve HUD static files — goes through auth middleware unlike StaticFiles mount."""
             if not filepath or filepath == "/":
                 filepath = _select_hud_html(_hud_dir).name
-            if _is_production_env() and filepath.replace("\\", "/").strip("/") == "VECTOR.html":
-                filepath = "VECTOR.prod.html"
-            if _is_production_blocked_hud_path(filepath):
-                return JSONResponse({"error": "Not found"}, status_code=404)
             file_path = _hud_dir / filepath
             # Prevent path traversal: resolved path must stay within _hud_dir
             try:

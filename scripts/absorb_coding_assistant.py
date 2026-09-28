@@ -9,6 +9,12 @@ Rules:
   - core/nuage/ skipped (Mistral cloud infra)
   - Everything else fully absorbed
 """
+# RETIRED 2026-09-24 (external review, Phase 7): this script strips upstream
+# attribution/branding from imported code, which MIT/Apache-2.0 licenses forbid.
+# Do not run it. See THIRD_PARTY_NOTICES.md for the required notices.
+raise SystemExit("scripts/absorb_coding_assistant.py is retired: it removes upstream attribution. See THIRD_PARTY_NOTICES.md.")
+
+
 import re
 import shutil
 from pathlib import Path

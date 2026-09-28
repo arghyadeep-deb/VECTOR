@@ -93,7 +93,7 @@ SHARDS: dict[str, list[str]] = {
         "tests/backend/test_multi_db_mesh.py",
         "tests/backend/test_phone_node_hardening.py",
         "tests/backend/test_production_honesty.py",
-        "tests/backend/test_production_tls_and_secrets.py",
+        "tests/backend/test_readiness_tls_and_secrets.py",
         "tests/backend/test_promoted_repo_upgrades.py",
         "tests/backend/test_provider_keys.py",
     ],

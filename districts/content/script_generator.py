@@ -1,30 +1,33 @@
 import sys
 import uuid
-import asyncio as _asyncio
-import concurrent.futures as _cf
 
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
 
-def _llm(prompt: str, max_tokens: int = 1500, temperature: float = 0.88) -> str:
+async def _llm(prompt: str, max_tokens: int = 1500, temperature: float = 0.88) -> str:
+    """2026-09-24 (external review, Phase 3 — loop-freeze root cause): this
+    used to be a SYNC function that span up its own ThreadPoolExecutor +
+    nested asyncio.run() and blocked on Future.result(timeout=120) --
+    every caller here is itself async and already running inside the
+    live autonomous-loop/API event loop, so that blocking call froze the
+    ENTIRE event loop (all other dispatches, all other API requests) for
+    up to 120s on every script/hook/CTA generation. ProviderClient.chat()
+    is already async -- just await it directly."""
     from core.inference.provider_client import ProviderClient as _PC
     from core.prompt_library import get_library as _gl
     _sys = _gl().get_for_agent("script_generator") or ""
     messages = [{"role": "user", "content": prompt}]
     if _sys:
         messages = [{"role": "system", "content": _sys}] + messages
-    async def _call():
-        r = await _PC().chat(
-            messages=messages,
-            model="domain:content.script",   # gpt-5 → glm-4.7 → llama-3.3 → ... → ollama
-            tier="agentic", temperature=temperature, max_tokens=max_tokens,
-            caller_id="script_generator",
-        )
-        return r.content
-    with _cf.ThreadPoolExecutor(max_workers=1) as pool:
-        return pool.submit(_asyncio.run, _call()).result(timeout=120)
+    r = await _PC().chat(
+        messages=messages,
+        model="domain:content.script",   # gpt-5 → glm-4.7 → llama-3.3 → ... → ollama
+        tier="agentic", temperature=temperature, max_tokens=max_tokens,
+        caller_id="script_generator",
+    )
+    return r.content
 
 
 class ScriptGenerator(AgentBase):
@@ -42,6 +45,10 @@ class ScriptGenerator(AgentBase):
             "sections": ["hook", "punch_line"],
             "avg_pacing": "fast"
         },
+        "reel": {
+            "sections": ["hook", "body", "cta"],
+            "avg_pacing": "fast"
+        },
         "explainer": {
             "sections": ["hook", "problem", "solution", "benefits", "cta"],
             "avg_pacing": "medium"
@@ -51,6 +58,20 @@ class ScriptGenerator(AgentBase):
             "avg_pacing": "slow"
         }
     }
+
+    # 2026-09-24 (external review, Phase 3 -- KNOWN_ISSUES #81): class-level
+    # (not instance-level) so it survives callers constructing a fresh
+    # ScriptGenerator() on every dispatch. VECTOR_TECHNICAL_KNOWLEDGE/
+    # 81_LIVE_LOOP_HEALTH_CHECK.md showed the identical "AI trends" topic
+    # regenerated 1,306+ times in one day (content dispatch fires ~every 9s
+    # with no upstream topic diversity). During the cooldown the last
+    # successful script for that topic is returned (marked cached=True)
+    # instead of burning another LLM call -- returning the real cached
+    # content, not an empty skip, keeps downstream composition (script ->
+    # schedule_post) working. Does not fix WHY the same topic keeps
+    # arriving; that's the content/marketing pipeline's topic selection.
+    _script_cache: dict[tuple, tuple[float, dict]] = {}
+    _TOPIC_COOLDOWN_SECONDS = 3600.0
 
     def __init__(self, ghost: dict | None = None):
         super().__init__(str(uuid.uuid4()), "ScriptGenerator", "content")
@@ -62,12 +83,47 @@ class ScriptGenerator(AgentBase):
         self._hooks_cache: list[dict] = []
         logger.info("[VECTOR][script_generator] ScriptGenerator initialized")
 
-    def generate_script(self, topic: str, duration_min: float = 5.0,
-                        script_type: str = "youtube_tutorial") -> dict:
+    @classmethod
+    def reset_script_cache(cls) -> None:
+        cls._script_cache.clear()
+
+    @staticmethod
+    def _cache_key(topic: str, duration_min: float, script_type: str, facts: str | None) -> tuple:
+        return (topic.strip().lower(), duration_min, script_type, hash(facts) if facts else None)
+
+    def _cached_script(self, topic: str, duration_min: float, script_type: str,
+                       facts: str | None = None) -> dict | None:
+        import time
+        entry = ScriptGenerator._script_cache.get(self._cache_key(topic, duration_min, script_type, facts))
+        if entry and (time.time() - entry[0]) < self._TOPIC_COOLDOWN_SECONDS:
+            return entry[1]
+        return None
+
+    def _remember_script(self, topic: str, duration_min: float, script_type: str, script: dict,
+                         facts: str | None = None) -> None:
+        import time
+        ScriptGenerator._script_cache[self._cache_key(topic, duration_min, script_type, facts)] = (time.time(), script)
+
+    async def generate_script(self, topic: str, duration_min: float = 5.0,
+                        script_type: str = "youtube_tutorial",
+                        facts: str | None = None) -> dict:
         """
         Generate a complete video script for a topic.
         Duration in minutes, script_type determines structure.
+
+        `facts` is verified ground truth about the topic. Without it the model only
+        has the topic string and will invent details (2026-09-25: it made up
+        "personalities, economies and lives" for VECTOR's agents), so pass facts
+        whenever the script must be accurate.
         """
+        cached = self._cached_script(topic, duration_min, script_type, facts)
+        if cached is not None:
+            logger.debug(
+                "[VECTOR][script_generator] '{}' generated within the last {:.0f}s "
+                "-- returning cached script, no LLM call", topic, self._TOPIC_COOLDOWN_SECONDS,
+            )
+            return {**cached, "cached": True}
+
         structure = self.SCRIPT_STRUCTURES.get(
             script_type,
             self.SCRIPT_STRUCTURES["youtube_tutorial"]
@@ -90,9 +146,15 @@ For each section provide:
 Make it engaging, natural-sounding, and suitable for video format.
 Format with clear section headers.
 """
+        if facts:
+            prompt += f"""
+Ground truth (use ONLY these facts). Do not invent features, numbers, names or visuals
+that are not stated here. If something is not covered by these facts, leave it out:
+{facts}
+"""
 
         try:
-            script_content = _llm(prompt, max_tokens=2000)
+            script_content = await _llm(prompt, max_tokens=2000)
 
             script = {
                 "id": str(uuid.uuid4()),
@@ -107,6 +169,7 @@ Format with clear section headers.
             }
 
             self._generated_scripts.append(script)
+            self._remember_script(topic, duration_min, script_type, script, facts)
             self.award_points(25, f"script_generated_{topic[:20]}")
 
             logger.info(f"[VECTOR][script_generator] Generated {duration_min}min script for: {topic}")
@@ -158,7 +221,7 @@ Format with clear section headers.
         words_per_minute = 150
         return round(words / words_per_minute, 1)
 
-    def generate_hook(self, topic: str, count: int = 5) -> list[dict]:
+    async def generate_hook(self, topic: str, count: int = 5) -> list[dict]:
         """
         Generate attention-grabbing hooks for a topic.
         Returns multiple hook variations.
@@ -182,7 +245,7 @@ Be creative, bold, and attention-grabbing.
 """
 
         try:
-            hooks_text = _llm(prompt, max_tokens=1000)
+            hooks_text = await _llm(prompt, max_tokens=1000)
 
             hooks = self._parse_hooks(hooks_text, topic)
             self._hooks_cache.extend(hooks)
@@ -234,7 +297,7 @@ Be creative, bold, and attention-grabbing.
 
         return hooks
 
-    def generate_cta(self, topic: str, cta_type: str = "standard") -> dict:
+    async def generate_cta(self, topic: str, cta_type: str = "standard") -> dict:
         """
         Generate call-to-action text for a topic.
         Types: standard, urgency, question, community
@@ -262,7 +325,7 @@ Return ONLY the CTA text, nothing else.
 """
 
         try:
-            cta_text = _llm(prompt, max_tokens=300, temperature=0.7)
+            cta_text = await _llm(prompt, max_tokens=300, temperature=0.7)
 
             self.award_points(5, "cta_generated")
             logger.info(f"[VECTOR][script_generator] Generated CTA for: {topic}")
@@ -278,7 +341,7 @@ Return ONLY the CTA text, nothing else.
             logger.error(f"[VECTOR][script_generator] CTA generation failed: {e}")
             return {"topic": topic, "error": str(e)}
 
-    def expand_script(self, script: dict, target_duration_min: float) -> dict:
+    async def expand_script(self, script: dict, target_duration_min: float) -> dict:
         """Expand an existing script to target duration."""
         current_duration = script.get("duration_min", 5.0)
         if target_duration_min <= current_duration:
@@ -302,7 +365,7 @@ Return the expanded script with the same format.
 """
 
         try:
-            expanded_content = _llm(prompt, max_tokens=3000)
+            expanded_content = await _llm(prompt, max_tokens=3000)
 
             expanded_script = script.copy()
             expanded_script["id"] = str(uuid.uuid4())
@@ -333,22 +396,30 @@ Return the expanded script with the same format.
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", {})
-        result = self.generate_script(p.get("topic", "AI trends"), p.get("duration_min", 5.0))
+        result = await self.generate_script(
+            p.get("topic", "AI trends"), p.get("duration_min", 5.0),
+            p.get("script_type", "youtube_tutorial"), facts=p.get("facts"),
+        )
         return {"status": "ok", **result}
 
 
 if __name__ == "__main__":
+    import asyncio
+
     sys.stdout.reconfigure(encoding="utf-8")
 
-    generator = ScriptGenerator()
+    async def _smoke():
+        generator = ScriptGenerator()
 
-    hooks = generator.generate_hook("Python Programming", 3)
-    print(f"Generated {len(hooks)} hooks")
+        hooks = await generator.generate_hook("Python Programming", 3)
+        print(f"Generated {len(hooks)} hooks")
 
-    if hooks:
-        print(f"First hook: {hooks[0].get('text', 'N/A')[:50]}...")
+        if hooks:
+            print(f"First hook: {hooks[0].get('text', 'N/A')[:50]}...")
 
-    cta = generator.generate_cta("Web Development", "urgency")
-    print(f"CTA: {cta.get('cta_text', 'N/A')[:50]}...")
+        cta = await generator.generate_cta("Web Development", "urgency")
+        print(f"CTA: {cta.get('cta_text', 'N/A')[:50]}...")
 
-    print("✅ script_generator.py OK")
+        print("✅ script_generator.py OK")
+
+    asyncio.run(_smoke())

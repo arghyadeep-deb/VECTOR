@@ -46,7 +46,7 @@ async def inference_stats():
                     model_list=[], status=f"ollama_error_{r.status_code}",
                 )
     except Exception as e:
-        logger.warning(f"[VECTOR][api][inference] stats failed: {e}")
+        logger.warning(f"[VECTOR][api][inference] stats failed: {type(e).__name__}: {e}")
         return InferenceStatsResponse(
             total_models=0, loaded_models=0, model_list=[], status=str(e),
         )

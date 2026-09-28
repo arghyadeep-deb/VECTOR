@@ -1,2 +1,0 @@
-FROM data\adapters\coding_v1
-PARAMETER temperature 0.7

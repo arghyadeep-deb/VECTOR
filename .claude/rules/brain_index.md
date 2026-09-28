@@ -1,7 +1,6 @@
 # Brain Index — V.E.C.T.O.R. Brain Vault
 
-Vault path: `brain/` (junction → C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\)
-Read any file below with the Read tool using the `brain/` prefix.
+Vault path: `C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Brain\` (sibling of the repo, i.e. `../V.E.C.T.O.R. Brain/`; this is what `VECTOR_VAULT_PATH` in `.env` points to). There is no `brain/` junction inside the repo, so the `brain/` prefix used below means that folder — read files there by their full path.
 
 ## Always-Loaded (via @import in CLAUDE.md)
 - `brain/VECTOR/Architecture.md` — autonomous loop, coroutines, session hydration, memory schema, voice pipeline, council, HP system, deployment
@@ -11,6 +10,9 @@ Read any file below with the Read tool using the `brain/` prefix.
 - `brain/VECTOR/README.md` — what VECTOR is, stack table, 20 districts overview, critical rules
 - `brain/VECTOR/Decisions/001-local-first-no-cloud-runtime.md` — why Claude API is never called at runtime
 - `brain/VECTOR/Decisions/002-darwinian-hp-over-static-agents.md` — why HP must be real, not faked
+- `brain/VECTOR/Decisions/003-one-hud-and-vector-env.md` — one HUD (`frontend/VECTOR.html`), hardened mode is `VECTOR_ENV=vector` (2026-09-25)
+- `brain/VECTOR/Decisions/004-fail-closed-permission-tiers.md` — fail-closed tiers, tier additions flagged for review, `web_extract` (2026-09-26)
+- `brain/wiki/concepts/v1-acceptance-status.md` — living V1 acceptance status (read before claiming V1 done)
 
 ## District Specs (read when building that district)
 - `brain/VECTOR/Districts/01-governance.md` — Mayor's Office + LLM Council (T7)

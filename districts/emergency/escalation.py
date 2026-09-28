@@ -164,7 +164,7 @@ class EscalationManager:
                     await asyncio.sleep(0.3)
                 except Exception:
                     import subprocess
-                    subprocess.run(["powershell", "-c", "[console]::beep(1500,500)"], capture_output=True, timeout=3)
+                    (await asyncio.to_thread(subprocess.run, ["powershell", "-c", "[console]::beep(1500,500)"], capture_output=True, timeout=3))
                     await asyncio.sleep(0.3)
             return {"action": "escalate", "status": "ok", "message": "User alerted via audio"}
         except Exception as e:

@@ -40,13 +40,43 @@ def test_request_agent_help_dispatches_to_real_agent_by_name(monkeypatch):
     registry.register(helper)
 
     async def _run():
-        return await requester.request_agent_help("HelperAgent", {"do": "research"})
+        # 2026-09-26: help now goes through the governed A2A bus, so it needs a real task type ("respond" is GREEN).
+        return await requester.request_agent_help("HelperAgent", {"type": "respond", "params": {"do": "research"}})
 
     result = asyncio.run(_run())
     assert result["status"] == "requested"
     assert result["target_agent"] == "HelperAgent"
     assert result["result"]["agent"] == "HelperAgent"
-    assert result["result"]["task"] == {"do": "research"}
+    assert result["result"]["task"]["params"] == {"do": "research"}
+    assert result["a2a"]["delivered"] is True
+
+
+def test_request_agent_help_without_a_task_type_is_refused_not_forwarded():
+    requester = _make_agent("RequesterNoType")
+    result = asyncio.run(requester.request_agent_help("HelperAgent", {"do": "research"}))
+    assert result["status"] == "unavailable" and "task_type" in result["error"]
+
+
+def test_request_agent_help_no_longer_bypasses_the_permission_tiers():
+    """It used to call target.run() directly, so a RED task type ran with no approval at all."""
+    from core.city.agent_registry import get_registry
+
+    ran = []
+
+    from core.city.agent_base import AgentBase
+
+    class _Deleter(AgentBase):
+        async def run(self, task):
+            ran.append(task)
+            return {"status": "ok"}
+
+    victim = _Deleter(agent_id="id-deleter", name="DeleterAgent", district="test")
+    get_registry().register(victim)
+    requester = _make_agent("RequesterRed")
+    result = asyncio.run(requester.request_agent_help("DeleterAgent", {"type": "delete_files", "params": {"path": "/tmp/x"}}))
+    assert result["status"] == "unavailable"
+    assert result["a2a"]["status"] == "requires_approval"
+    assert ran == [], "a RED action must never reach the target agent through A2A"
 
 
 def test_request_agent_help_returns_unavailable_when_target_not_found():

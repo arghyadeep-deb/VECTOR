@@ -162,7 +162,21 @@ class CodeConductorAgent(AgentBase):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action")
+        # 2026-09-24 (independent review finding -- HIGH): reading
+        # p.get("action") unconditionally let a caller dispatch a
+        # GREEN-classified outer task_type (e.g. "code_map") while setting
+        # params.action to a completely different, RED-tier real action
+        # (e.g. "str_replace"/"code_conduct") -- Governor's authorization
+        # check only inspects the OUTER type it classified, never this
+        # inner field, so the real, executed action was never actually
+        # gated at all. Fixed to prefer the real, authorized outer type
+        # (set by Governor.dispatch() on every real dispatch) the same
+        # way hedgebot_agent.py/trading_conductor_agent.py/
+        # finagent_agent.py/media_studio_agent.py already correctly do --
+        # params.action remains the fallback for internal/smoke-test
+        # callers that never go through Governor at all (no "type" key
+        # present).
+        action = task.get("type") or p.get("action")
         instruction = p.get("instruction", p.get("task", ""))
 
         # 2026-07-29 (HIGH SEVERITY fix): `action` used to default to

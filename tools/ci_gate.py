@@ -68,10 +68,27 @@ def _check_no_runtime_silent_swallows() -> None:
         raise SystemExit("Silent runtime exception swallows found:\n" + "\n".join(hits[:50]))
 
 
+def _check_repo_hygiene() -> None:
+    """Fail if a tracked file is a secret or generated runtime artifact (core.repo_hygiene)."""
+    sys.path.insert(0, str(ROOT))
+    from core.repo_hygiene import audit_repo_paths
+
+    tracked = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True).splitlines()
+    findings = audit_repo_paths(tracked)
+    if findings:
+        raise SystemExit("Repo hygiene findings in tracked files:" + chr(10) + chr(10).join(
+            f"{f.severity}/{f.category}: {f.path} ({f.reason})" for f in findings[:50]))
+
+
 def main() -> int:
     _check_compile()
+    _check_repo_hygiene()
     _check_no_runtime_silent_swallows()
-    _run([sys.executable, "run_vector.py", "production-check"])
+    # 2026-09-24 (external review, Phase 1): catches the exact bug class
+    # found this pass -- a typo'd/stale first-party import path silently
+    # swallowed by a broad except, so the feature just does nothing.
+    _run([sys.executable, "scripts/check_first_party_imports.py"])
+    _run([sys.executable, "run_vector.py", "readiness-check"])
     _run([sys.executable, "-m", "pytest", "-q", *FOCUSED_TESTS])
     return 0
 

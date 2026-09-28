@@ -239,6 +239,9 @@ class GUIAgent:
             "loop_count":    loop_count,
             "conversations": conversations,
         }
+        # `finished()` is the model's own claim: nothing here checks the screen. Flag it so callers do not treat it as
+        # verified (the desktop has no independent, offline way to confirm an arbitrary instruction was achieved).
+        result["self_reported_finish"] = self._status == GUIStatus.END
         if err_msg:
             result["error"] = err_msg
 

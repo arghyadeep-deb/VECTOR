@@ -40,6 +40,16 @@ import argparse
 import json
 from pathlib import Path
 
+# Most subcommands use bare imports (`from session import ...`, `from repl import ...`,
+# `from skills.hub import ...`). Those only resolve with vectorcode/src on sys.path, which only
+# `tools` set up (via ensure_paths()) -- so `run`, `status`, `sessions`, `skills`, `completion`
+# and `plugins` crashed with ModuleNotFoundError when launched via vector.py / vector.bat.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+from vectorcode.src.bootstrap import ensure_paths as _ensure_paths
+_ensure_paths()
+
 
 # Suppress INFO/DEBUG logs — only show WARNING+ in interactive CLI
 from loguru import logger
@@ -173,11 +183,17 @@ def cmd_auto(args):
     if not task:
         print("Usage: vector auto \"your task here\"")
         sys.exit(1)
-    from autonomous import VectorAutonomous
-    va = VectorAutonomous()
-    task_id = va.submit(task)
-    print(f"[VectorCode] Task queued: {task_id}")
-    print(f"[VectorCode] Task: {task}")
+    # Mode B runs the task to completion in the foreground: the old version queued it on a daemon thread
+    # and exited immediately, so nothing ever ran (and the "loop" it queued only listed phase names).
+    from gsd_loop import GSDLoop
+    project_dir = Path(getattr(args, "dir", None) or ".").resolve()
+    print(f"[VectorCode] Task: {task}", flush=True)
+    outcome = GSDLoop(mode="auto", executor=lambda prompt: _run_agent_task(prompt, project_dir, None)).run(task)
+    print(f"[VectorCode] status: {outcome['status']}  phases: {' > '.join(outcome['trace'])}")
+    if outcome.get("output"):
+        print(outcome["output"])
+    if outcome["status"] != "passed":
+        sys.exit(1)
 
 
 def cmd_hybrid(_args):
@@ -206,6 +222,11 @@ def cmd_mcp(args):
     subprocess.run(cmd)
 
 
+def _run_agent_task(task: str, project_dir: Path, model: "str | None") -> str:
+    from agent_task import run_agent_task
+    return run_agent_task(task, project_dir, model)
+
+
 def _run_ipc(args):
     """JSON stdin/stdout IPC mode for VECTOR bridge."""
     import json
@@ -221,21 +242,13 @@ def _run_ipc(args):
         sys.stdout.flush()
         return
 
-    from repl import VectorREPL, _ask_ollama, _save_session
     project_dir = Path(getattr(args, "dir", None) or ".").resolve()
-    repl = VectorREPL(project_dir=project_dir)
-    if getattr(args, "model", None):
-        repl.session.current_model = args.model
-    if getattr(args, "mode", None):
-        try:
-            repl.session.set_mode(args.mode)
-        except ValueError as e:
-            print(f"[VECTOR] {e}")
-
-    repl._history.append({"role": "user", "content": task})
-    reply = _ask_ollama(repl.session.current_model, repl._history)
-    repl._history.append({"role": "assistant", "content": reply})
-    _save_session(repl._history, repl.session.current_model)
+    try:
+        reply = _run_agent_task(task, project_dir, getattr(args, "model", None))
+    except Exception as e:
+        json.dump({"status": "error", "output": f"agent could not run the task: {e}", "exit_code": 1}, sys.stdout)
+        sys.stdout.flush()
+        return
 
     json.dump({"status": "ok", "output": reply, "exit_code": 0}, sys.stdout)
     sys.stdout.flush()
@@ -268,26 +281,19 @@ def cmd_run(args):
     model_override = getattr(args, "model", None)
     mode_override  = getattr(args, "mode",  None)
 
-    from repl import VectorREPL
-    repl = VectorREPL(project_dir=project_dir)
-    if model_override:
-        repl.session.current_model = model_override
     if mode_override:
         try:
-            repl.session.set_mode(mode_override)
+            from session import VectorCodeSession
+            VectorCodeSession.get().set_mode(mode_override)
         except ValueError as e:
             print(f"[VECTOR] {e}")
 
-    # Inject task as user message and get single response
-    import ollama as _ollama
-    repl._history.append({"role": "user", "content": task})
-    from repl import _ask_ollama
-    reply = _ask_ollama(repl.session.current_model, repl._history)
-    repl._history.append({"role": "assistant", "content": reply})
-
-    # Auto-save on exit
-    from repl import _save_session
-    _save_session(repl._history, repl.session.current_model)
+    try:
+        reply = _run_agent_task(task, project_dir, model_override)
+    except Exception as e:
+        print(f"[VectorCode] the agent could not run this task: {e}", file=sys.stderr)
+        sys.exit(1)
+    print(reply)
 
 
 def cmd_status(_args):
@@ -705,19 +711,18 @@ def cmd_auth(args):
     try:
         # Try the rich VectorCode auth module
         from vector_cli import auth_commands as _auth_cmds
-        if action == "add":
-            return _auth_cmds.cmd_auth_add(args)
-        elif action == "list":
-            return _auth_cmds.cmd_auth_list(args)
-        elif action == "remove":
-            return _auth_cmds.cmd_auth_remove(args)
-        elif action == "test":
-            return _auth_cmds.cmd_auth_test(args)
-        elif action == "from-env":
-            return _auth_cmds.cmd_auth_from_env(args)
-        else:
-            print(f"[VECTOR] Unknown auth action: {action}")
-            print("  Available: add, remove, list, test, from-env")
+        # The module's real function names are auth_<action>_command; the old cmd_auth_<action> names
+        # never existed, so every `vector auth <action>` raised AttributeError.
+        handlers = {
+            "add": "auth_add_command", "list": "auth_list_command", "remove": "auth_remove_command",
+            "test": "auth_status_command", "status": "auth_status_command",
+            "reset": "auth_reset_command", "logout": "auth_logout_command",
+        }
+        handler = getattr(_auth_cmds, handlers.get(action, ""), None)
+        if handler is not None:
+            return handler(args)
+        print(f"[VECTOR] Unknown or unsupported auth action: {action}")
+        print("  Available: add, remove, list, test, status, reset, logout")
     except ImportError as e:
         # Fallback: use basic credentials.py module
         try:

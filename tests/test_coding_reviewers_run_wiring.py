@@ -131,7 +131,8 @@ async def test_fastapi_reviewer_real_chat_dispatch_unmatched_type_with_query_sti
 
 # --- PythonReviewer: task["type"] routing ---
 
-async def test_python_reviewer_review_python_task_type():
+async def test_python_reviewer_review_python_task_type(monkeypatch):
+    monkeypatch.setenv("VECTOR_PYTHON_REVIEW_LLM", "0")
     agent = PythonReviewer()
     task = {
         "type": "review_python",
@@ -143,6 +144,23 @@ async def test_python_reviewer_review_python_task_type():
     result = await agent.run(task)
     assert result["agent"] == "PythonReviewer"
     assert result["issue_count"] > 0
+
+
+async def test_python_reviewer_keeps_static_findings_when_llm_fails(monkeypatch):
+    import core.inference.provider_client as provider_module
+
+    class FailingProvider:
+        async def complete(self, **kwargs):
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setenv("VECTOR_PYTHON_REVIEW_LLM", "1")
+    monkeypatch.setattr(provider_module, "ProviderClient", FailingProvider)
+
+    result = await PythonReviewer().review("import pickle\n", "bad.py")
+
+    assert result["degraded"] is True
+    assert result["issue_count"] > 0
+    assert result["issue_count"] == result["static_issue_count"]
 
 
 async def test_python_reviewer_unhandled_type_returns_error():
@@ -178,7 +196,8 @@ async def test_python_reviewer_real_chat_dispatch_unmatched_type_with_query_stil
 
 # --- SecurityReviewer: task["type"] routing ---
 
-async def test_security_reviewer_scan_vulnerabilities_task_type():
+async def test_security_reviewer_scan_vulnerabilities_task_type(monkeypatch):
+    monkeypatch.setenv("VECTOR_SECURITY_REVIEW_LLM", "0")
     agent = SecurityReviewer()
     task = {
         "type": "scan_vulnerabilities",
@@ -191,6 +210,23 @@ async def test_security_reviewer_scan_vulnerabilities_task_type():
     assert result["agent"] == "SecurityReviewer"
     assert result["issue_count"] > 0
     assert "critical_count" in result
+
+
+async def test_security_reviewer_keeps_static_findings_when_llm_fails(monkeypatch):
+    import core.inference.provider_client as provider_module
+
+    class FailingProvider:
+        async def complete(self, **kwargs):
+            raise RuntimeError("provider unavailable")
+
+    monkeypatch.setenv("VECTOR_SECURITY_REVIEW_LLM", "1")
+    monkeypatch.setattr(provider_module, "ProviderClient", FailingProvider)
+
+    result = await SecurityReviewer().review("password = 'hunter2'\n", "bad.py")
+
+    assert result["degraded"] is True
+    assert result["issue_count"] > 0
+    assert result["issue_count"] == result["static_issue_count"]
 
 
 async def test_security_reviewer_unhandled_type_returns_error():

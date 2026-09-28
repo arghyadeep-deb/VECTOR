@@ -65,7 +65,7 @@ def test_feature_registry_endpoints_are_main_api_or_labeled_side_systems() -> No
 
     assert "/world/snapshot" in all_paths
     assert "/missions" in all_paths
-    assert "/health/production-readiness" in all_paths
+    assert "/health/hardened-readiness" in all_paths
 
 
 def test_every_backend_feature_has_bespoke_blueprint() -> None:

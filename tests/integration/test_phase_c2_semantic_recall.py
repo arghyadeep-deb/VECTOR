@@ -15,17 +15,30 @@ from unittest.mock import MagicMock, patch
 # test file that runs after this one inherits a deleted tmp DB and the
 # episodic circuit breaker opens for the rest of the suite.
 _ORIG_DB_PATH = None
+_ORIG_ENV_DB_PATH = None
+_ORIG_ENV_DB_KEY = None
 
 
 def setUpModule():
-    global _ORIG_DB_PATH
+    global _ORIG_DB_PATH, _ORIG_ENV_DB_PATH, _ORIG_ENV_DB_KEY
     import core.memory.episodic as mod
-    _ORIG_DB_PATH = mod.CONFIG.get("db_path", "vector_memory.db")
+    _ORIG_ENV_DB_PATH = os.environ.get("VECTOR_DB_PATH")
+    _ORIG_ENV_DB_KEY = os.environ.get("VECTOR_DB_KEY")
+    # The session env is pinned by tests/conftest.py and is the authoritative safe baseline. CONFIG may have been rebound by an
+    # earlier import/reload, so never preserve its live relative default when an isolated session path is available.
+    _ORIG_DB_PATH = _ORIG_ENV_DB_PATH or mod.CONFIG.get("db_path", "vector_memory.db")
 
 
 def tearDownModule():
     import core.memory.episodic as mod
-    os.environ.pop("VECTOR_DB_PATH", None)
+    if _ORIG_ENV_DB_PATH is None:
+        os.environ.pop("VECTOR_DB_PATH", None)
+    else:
+        os.environ["VECTOR_DB_PATH"] = _ORIG_ENV_DB_PATH
+    if _ORIG_ENV_DB_KEY is None:
+        os.environ.pop("VECTOR_DB_KEY", None)
+    else:
+        os.environ["VECTOR_DB_KEY"] = _ORIG_ENV_DB_KEY
     mod.CONFIG["db_path"] = _ORIG_DB_PATH
     try:
         mod.close_db_connection()

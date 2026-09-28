@@ -694,17 +694,10 @@ def skills_list(category: str = None, task_id: str = None) -> str:
         JSON string with minimal skill info: name, description, category
     """
     try:
-        if not SKILLS_DIR.exists():
-            SKILLS_DIR.mkdir(parents=True, exist_ok=True)
-            return json.dumps(
-                {
-                    "success": True,
-                    "skills": [],
-                    "categories": [],
-                    "message": f"No skills found. Skills directory created at {display_vector_home()}/skills/",
-                },
-                ensure_ascii=False,
-            )
+        # The user skills dir is only one of the places skills live (the shipped library and configured
+        # external dirs are scanned too), so creating it must not end the search: a fresh install used to
+        # answer "No skills found" while thousands of skills sat next to the code.
+        SKILLS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Find all skills
         all_skills = _find_all_skills()

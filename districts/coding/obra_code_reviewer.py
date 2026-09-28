@@ -22,11 +22,16 @@ class ObraCodeReviewer(PromptAgent):
         self.capabilities = ["review", "code_review"]
 
     async def run(self, task: dict) -> dict:
+        # 2026-09-23 fix (fake-HP audit, second round): super().run(task) is
+        # PromptAgent.run(), which already calls self.award_points(20,
+        # f"{self.name}_task_done") on the exact same real success this
+        # awarded another +25 for -- a genuine double-count on one real
+        # ask() call, not a stub. Confirmed via grep this is the only
+        # district agent with this specific pattern (super().run() result
+        # re-awarded here); removed the duplicate award, kept the real one
+        # PromptAgent.run() already gives.
         try:
-            result = await super().run(task)
-            if result.get("status") == "ok":
-                self.award_points(25, "obra_review_done")
-            return result
+            return await super().run(task)
         except Exception as e:
             logger.error("[VECTOR][obra_reviewer] {}", e)
             self.deduct_points(30, "obra_review_failed")

@@ -1,4 +1,4 @@
-"""E2E tests for the unified production HUD entrypoint (roadmap #4).
+"""E2E tests for the single HUD entrypoint.
 
 The HUD is the single production frontend, served at /hud/ through FastAPI
 middleware (auth, rate-limit, security headers) — NOT a static mount. These
@@ -24,26 +24,12 @@ def auth_client(monkeypatch):
     return client, token
 
 
-# ── unit: entrypoint selection is environment-driven (single source) ──────────
+# ── unit: there is one HUD entrypoint ─────────────────────────────────────────────────────────────────────────
 
-def test_select_hud_html_prefers_prod_in_production(monkeypatch, tmp_path):
-    (tmp_path / "VECTOR.prod.html").write_text("prod")
-    (tmp_path / "VECTOR.html").write_text("dev")
-    monkeypatch.setenv("VECTOR_ENV", "production")
-    assert app_module._select_hud_html(tmp_path).name == "VECTOR.prod.html"
-
-
-def test_select_hud_html_falls_back_to_dev(monkeypatch, tmp_path):
-    (tmp_path / "VECTOR.html").write_text("dev")
-    monkeypatch.setenv("VECTOR_ENV", "development")
+@pytest.mark.parametrize("env", ["development", "production"])
+def test_select_hud_html_is_always_the_one_full_hud(monkeypatch, tmp_path, env):
+    monkeypatch.setenv("VECTOR_ENV", env)
     assert app_module._select_hud_html(tmp_path).name == "VECTOR.html"
-
-
-def test_production_blocks_demo_asset(monkeypatch):
-    monkeypatch.setenv("VECTOR_ENV", "production")
-    assert app_module._is_production_blocked_hud_path("js/demo.js") is True
-    monkeypatch.setenv("VECTOR_ENV", "development")
-    assert app_module._is_production_blocked_hud_path("js/demo.js") is False
 
 
 # ── E2E: the real served path ─────────────────────────────────────────────────
@@ -76,7 +62,8 @@ def test_hud_path_traversal_blocked(auth_client):
     assert "config" not in r.text.lower() or r.status_code != 200
 
 
-def test_single_prod_entrypoint_exists():
-    """There must be exactly one canonical production HUD file."""
+def test_single_hud_entrypoint_exists():
+    """Exactly one HUD file: VECTOR.html. The separate production page was removed 2026-09-25."""
     frontend = Path(__file__).resolve().parents[2] / "frontend"
-    assert (frontend / "VECTOR.prod.html").exists()
+    assert (frontend / "VECTOR.html").exists()
+    assert not (frontend / "VECTOR.prod.html").exists()

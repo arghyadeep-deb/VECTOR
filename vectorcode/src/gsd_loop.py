@@ -25,8 +25,10 @@ class GSDLoop:
     """
     MAX_VERIFY_RETRIES = 3
 
-    def __init__(self, mode: str = "auto") -> None:
+    def __init__(self, mode: str = "auto", executor=None) -> None:
+        # executor: callable(prompt: str) -> str that runs one prompt through a real agent.
         self.mode = mode
+        self.executor = executor
         self.current_phase = GSDPhase.DISCUSS
         self.verify_retries = 0
         _tmp = tempfile.mkdtemp(prefix="gsd_patterns_")
@@ -56,20 +58,42 @@ class GSDLoop:
         Returns a result dict with phase trace and outcome.
         """
         self.reset()
-        trace = []
+        if self.executor is None:
+            # This used to return a trace of phase NAMES with no work done, which looked like success.
+            return {"task": task, "trace": [], "mode": self.mode, "status": "not_executed",
+                    "reason": "no executor configured -- nothing was run", "output": ""}
 
-        if self.should_skip_discuss(task):
-            logger.info(f"[VECTOR][gsd] pattern hit — skipping DISCUSS for: {task[:60]}")
-            self.advance()  # skip to PLAN
+        trace: list[str] = []
+        outputs: dict[str, str] = {}
+        try:
+            trace.append(GSDPhase.PLAN.value)
+            outputs["plan"] = self.executor(
+                "PLAN ONLY. Do not change anything yet. Inspect what you need with your tools, then give a short "
+                f"numbered plan for this task:\n{task}")
 
-        while self.current_phase != GSDPhase.VERIFY or self.verify_retries < self.MAX_VERIFY_RETRIES:
-            trace.append(self.current_phase.value)
-            if self.current_phase == GSDPhase.VERIFY:
-                self.verify_retries += 1
-                break
-            self.advance()
+            passed, verdict = False, ""
+            for attempt in range(self.MAX_VERIFY_RETRIES):
+                trace.append(GSDPhase.EXECUTE.value)
+                outputs["execute"] = self.executor(
+                    f"Carry out this task using your tools.\nTask: {task}\nPlan:\n{outputs['plan']}"
+                    + (f"\nThe previous attempt failed verification: {verdict}" if verdict else ""))
+                trace.append(GSDPhase.VERIFY.value)
+                self.verify_retries = attempt + 1
+                verdict = self.executor(
+                    "VERIFY. Check the work is really done by looking at files / running commands with your tools "
+                    "(do not trust the previous answer). Reply with the single word PASS or FAIL on the first line, "
+                    f"then a one-line reason.\nTask: {task}\nClaimed result:\n{outputs['execute']}")
+                outputs["verify"] = verdict
+                if verdict.strip().upper().startswith("PASS"):
+                    passed = True
+                    break
+        except Exception as exc:
+            return {"task": task, "trace": trace, "mode": self.mode, "status": "error",
+                    "reason": str(exc), "output": outputs.get("execute", "")}
 
-        return {"task": task, "trace": trace, "mode": self.mode}
+        return {"task": task, "trace": trace, "mode": self.mode,
+                "status": "passed" if passed else "failed", "output": outputs.get("execute", ""),
+                "verification": outputs.get("verify", ""), "phases": outputs}
 
 
 if __name__ == "__main__":

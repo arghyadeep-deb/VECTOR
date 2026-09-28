@@ -8,6 +8,12 @@ Rules:
   - Class/function names unchanged internally (safe, avoids breakage)
   - VECTOR-specific API wrapper created on top
 """
+# RETIRED 2026-09-24 (external review, Phase 7): this script strips upstream
+# attribution/branding from imported code, which MIT/Apache-2.0 licenses forbid.
+# Do not run it. See THIRD_PARTY_NOTICES.md for the required notices.
+raise SystemExit("scripts/absorb_research_engine.py is retired: it removes upstream attribution. See THIRD_PARTY_NOTICES.md.")
+
+
 import re
 import shutil
 from pathlib import Path

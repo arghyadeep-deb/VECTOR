@@ -32,17 +32,16 @@ def _strip_js_line_comments(src: str) -> str:
 
 # ── terminal.js ───────────────────────────────────────────────────────────────
 
-def test_terminal_does_not_advertise_city3d():
-    """city3d is intentionally dropped from the prod bundle (heavy three.js
-    view — tools/build_frontend.py PROD_SCRIPT_ORDER). Listing it in the
-    terminal's WIDGETS meant `open city3d` printed "opened city3d" and
-    nothing appeared — a command the terminal itself claimed worked but did
-    nothing (2026-07-17 dogfood)."""
+def test_terminal_advertises_city3d_only_while_the_hud_loads_it():
+    """`open city3d` printed "opened city3d" and nothing appeared while the lean production bundle (since removed)
+    dropped city3d.js (2026-07-17 dogfood). There is now one HUD, VECTOR.html, which loads city3d.js; the terminal may
+    list the widget exactly as long as that page does."""
     js = _read(TERMINAL_JS)
     m = re.search(r"const WIDGETS\s*=\s*\[(.*?)\];", js, re.S)
     assert m, "could not find WIDGETS array in terminal.js"
     code_only = _strip_js_line_comments(m.group(1))
-    assert "'city3d'" not in code_only, "city3d must not be advertised by the terminal"
+    html = _read(ROOT / "frontend" / "VECTOR.html")
+    assert ("'city3d'" in code_only) == ("js/city3d.js" in html), "terminal city3d listing must match what the HUD loads"
 
 
 def test_terminal_ctrl_shift_h_bubbles_past_the_input_handler():

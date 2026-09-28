@@ -194,7 +194,7 @@ try {
     #     autonomous loop (observe/think/act/reflect) on this. Unset = the
     #     loop never starts and /health/system reports
     #     loop: {"status": "not_started"} while everything else looks healthy.
-    #   VECTOR_ENV=production -> serves the lean prod HUD instead of the dev one.
+    #   VECTOR_ENV=vector -> hardened runtime mode (formerly "production") (the HUD is always frontend\VECTOR.html).
     # Measured impact before this fix: over a 4d17h run the loop's last log
     # entry was 2h in (the boot that came from autostart.bat), the permission
     # gateway logged exactly ONE line in the whole window (its own init — zero
@@ -204,7 +204,7 @@ try {
     # Start-Process inherits the parent environment, so setting them here is
     # sufficient and keeps parity with autostart.bat.
     $env:VECTOR_API_RUN_LOOP = "1"
-    $env:VECTOR_ENV = "production"
+    $env:VECTOR_ENV = "vector"
 
     # 2026-08-06, ACTIVE P0 HUNT (KNOWN_ISSUES #0) — remove this block once the
     # loop-stall root cause is found.

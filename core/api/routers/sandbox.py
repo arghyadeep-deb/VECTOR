@@ -7,6 +7,7 @@ __all__ = [
     "sandbox_status",
 ]
 
+import asyncio
 import subprocess
 
 from fastapi import APIRouter
@@ -18,9 +19,9 @@ router = APIRouter(prefix="/sandbox", tags=["sandbox"])
 async def sandbox_status():
     """Check Docker availability for sandboxed execution."""
     try:
-        result = subprocess.run(
-            ["docker", "info"],
-            capture_output=True, text=True, timeout=10,
+        # blocking (up to 10 s): keep it off the event loop
+        result = await asyncio.to_thread(
+            subprocess.run, ["docker", "info"], capture_output=True, text=True, timeout=10,
         )
         available = result.returncode == 0
         return {"docker_available": available, "status": "ok" if available else "unavailable"}

@@ -7,7 +7,7 @@
 
 ## What VECTOR Is
 
-Virtual Entity for Cognitive Tasks & Operational Reasoning — a Darwinian multi-agent autonomous AI running 24/7 on a local machine (Legion Pro 5, RTX 5070 Ti). VECTOR governs a city of 133+ agents across 33 districts that evolve, die, and are reborn.
+Virtual Entity for Cognitive Tasks & Operational Reasoning — a Darwinian multi-agent autonomous AI running 24/7 on a local machine (Legion Pro 5, RTX 5070 Ti). VECTOR governs a city of 170 agents across 38 districts that evolve, die, and are reborn.
 
 Owner: Arghyadeep Deb
 
@@ -23,7 +23,7 @@ Read these in order of priority:
 4. **`VECTOR_RULEBOOK.md`** — Owner's operational guide
 5. **`README.md`** — Project overview
 6. **`docs/`** — Architecture docs, ADRs, design docs
-7. **`brain/`** — Obsidian vault (junction → V.E.C.T.O.R. Brain). Architecture, goals, blueprints, district specs
+7. **`../V.E.C.T.O.R. Brain/`** — Obsidian vault, a sibling directory of this repo (there is no `brain/` junction inside the repo). Architecture, goals, blueprints, district specs
 
 ---
 
@@ -33,7 +33,7 @@ Read these in order of priority:
 2. **Autonomous loop must never die** — every coroutine catches all exceptions, restarts
 3. **Permission Gateway is the ONLY path to real-world actions** — LLM proposes, Gateway executes. GREEN/YELLOW/RED. Nothing bypasses this
 4. **`policy.py` wired both ways** — `get_score()` BEFORE every decision, `update_from_outcome()` AFTER every action
-5. **Local-first inference** — cloud keys are primary for quality, Ollama is the terminal fallback. Never crash
+5. **Routed inference** — `core/inference/route_policy.py` decides per task: security/privacy/RED-tier/secret-bearing tasks stay on local Ollama only; other tasks use pooled free cloud keys (heavy ones try premium free providers first); Ollama is the terminal fallback. Never crash
 6. **No `print()` in production** — `loguru` everywhere
 7. **SQLCipher for main DB** — always go through `core.memory.episodic.get_db_connection()`
 8. **Never use `requests`, `flask`, `threading`, `pickle`** — use `httpx`, `fastapi`, `asyncio`, `json/msgpack`
@@ -66,13 +66,14 @@ context_engine → goal_system → decision_engine → policy_check → permissi
 
 ## What Exists
 
-- **33 districts** with 133+ agent files
-- **27 LLM providers** via `core/inference/`
-- **31 Claude Code commands** in `.claude/commands/`
-- **100+ skills** in `.claude/skills/`
+- **38 district directories** (39 districts in `config/agent_manifest.yaml`) with **170 manifest-registered agents** (the live registry reports 230 agents in 39 districts via `/status` and the HUD, checked 2026-09-25 — quote the live number in anything public)
+- **31 LLM providers** in `core/inference/llm_providers.py`
+- **30 Claude Code commands** in `.claude/commands/`
+- **113 skill directories** in `.claude/skills/`
 - **8 hooks** (file protection, lint, auto-commit, auto-test, screenshot)
-- **6 ADRs** in `docs/adr/`
-- **140+ tests** passing
+- **7 ADRs** in `docs/adr/`
+- **~6,050 test functions** in 405 files (6,254 collected by pytest)
+- Counts regenerated from the code on 2026-09-24; re-run the counts rather than editing by hand.
 
 ---
 
@@ -82,7 +83,7 @@ Before any change:
 
 1. Read the relevant `.claude/rules/*`
 2. Search for existing implementations
-3. Check `docs/phase_status.md` for current state
+3. Check `docs/OPEN_ISSUES.md` for current status (`.claude/rules/phase_status.md` is a historical tracker, last updated 2026-06-11)
 4. Follow the mandatory workflow: brainstorming → writing-plans → executing-plans → verification-before-completion
 
 See `CONTRIBUTING.md` for branch/commit/PR conventions.

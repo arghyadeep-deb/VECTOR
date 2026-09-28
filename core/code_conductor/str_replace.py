@@ -66,6 +66,35 @@ def _is_ignored(file_path: str, root: str) -> bool:
     return False
 
 
+# Files an LLM-produced edit must never touch, even inside the workspace: secrets and repository internals.
+_PROTECTED_DIRS = {".git"}
+
+
+def _contained_path(file_path: str, cwd: str | None) -> tuple[Path | None, str]:
+    """Resolve `file_path` (relative to `cwd`) and refuse anything that leaves the workspace.
+
+    2026-09-26 (V1 handoff, coding workflow): these helpers resolved the path but never checked where it ended up, and
+    their input comes from an LLM plan -- so `FILE: ../../.env` or an absolute path wrote anywhere on the machine, with
+    no permission-gateway check on the write itself. When a workspace (`cwd`) is given, the resolved path must be inside
+    it (symlinks and `..` are resolved first) and must not be a secrets file (.env*) or inside `.git`.
+    With no `cwd` there is no workspace to enforce, so behaviour is unchanged.
+    Returns (path, "") on success or (None, reason).
+    """
+    path = Path(file_path)
+    if cwd and not path.is_absolute():
+        path = Path(cwd) / path
+    path = path.resolve()
+    if cwd:
+        root = Path(cwd).resolve()
+        try:
+            rel = path.relative_to(root)
+        except ValueError:
+            return None, f"Refusing to edit {file_path}: it resolves outside the workspace ({root})."
+        if rel.name.startswith(".env") or any(part in _PROTECTED_DIRS for part in rel.parts):
+            return None, f"Refusing to edit {file_path}: protected path (secrets / repository internals)."
+    return path, ""
+
+
 # ── str_replace ───────────────────────────────────────────────────────────────
 
 def str_replace(
@@ -88,10 +117,9 @@ def str_replace(
         {status: "error", message}            on failure
     """
     try:
-        path = Path(file_path)
-        if cwd and not path.is_absolute():
-            path = Path(cwd) / path
-        path = path.resolve()
+        path, refusal = _contained_path(file_path, cwd)
+        if path is None:
+            return {"status": "error", "message": refusal}
 
         if not path.exists():
             return {"status": "error", "message": f"File not found: {file_path}"}
@@ -152,10 +180,9 @@ def write_file(file_path: str, content: str, cwd: str | None = None) -> dict:
         {status: "error", message}     on failure
     """
     try:
-        path = Path(file_path)
-        if cwd and not path.is_absolute():
-            path = Path(cwd) / path
-        path = path.resolve()
+        path, refusal = _contained_path(file_path, cwd)
+        if path is None:
+            return {"status": "error", "message": refusal}
 
         created = not path.exists()
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -178,6 +205,9 @@ def apply_patch(file_path: str, patch: str, cwd: str | None = None) -> dict:
     Apply a unified diff patch to a file.
     Uses Python's difflib patch algorithm.
     """
+    _, refusal = _contained_path(file_path, cwd)
+    if refusal:
+        return {"status": "error", "message": refusal}
     try:
         import patch as patch_lib  # python-patch package
         pset = patch_lib.fromstring(patch.encode())

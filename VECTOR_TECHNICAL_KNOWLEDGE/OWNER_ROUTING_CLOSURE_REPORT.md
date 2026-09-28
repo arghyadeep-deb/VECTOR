@@ -40,8 +40,51 @@ V1-V4 scored 1 PASS / 2 PARTIAL / 1 FAIL — short of the ≥3/4 PASS bar for
 a full CLOSURE PASS, and not 2+ failures from the same routing defect
 (each of V1/V2/V4's shortfalls traces to a different, distinct cause), so
 PARTIAL is the accurate verdict, not FAIL. Zero production regressions.
-Zero new authorization bypasses. The bounded repair was committed (Section
-27/31). RG-D2 was not run, per explicit mission instruction.
+Zero new authorization bypasses. The bounded repair was committed as
+`59dee601e832fdb913295b75750ed0e390f59f77`. RG-D2 was not run, per
+explicit mission instruction.
+
+## 31. Hard Stop
+
+VECTOR stopped after: repair → tests → adversarial routing test → fresh
+production verification → commit → report. Confirmed: no `python.exe`
+process running; port 8000 has no listener.
+
+| Field | Value |
+|---|---|
+| Verdict | **OWNER ROUTING CLOSURE PARTIAL — ROUTING IMPROVED BUT ONE BOUNDED BLOCKER REMAINS** |
+| Starting HEAD | `dfc4b4ce77c946be42bb45eb5497f93166232d54` |
+| Final HEAD | `59dee601e832fdb913295b75750ed0e390f59f77` |
+| Production files changed | `core/api/app.py`, `core/city/governor.py`, `core/city/intent_matcher.py` (3 files, 236 insertions / 17 deletions) |
+| F1 root cause | `district not in districts` validation ran BEFORE existing correction mechanisms (`_authoritative_district_from_text`, exact-task_type mapping), so an invented district string rejected an otherwise-correct, high-confidence classification before any correction could run |
+| F1 repair | Reordered validation to run after corrections; added `_canonical_district_from_task_type()` (conservative, ≥5-char-word, fails-closed-on-cross-district-tie generalization of existing word-overlap logic) as last resort |
+| F2 root cause | `_REGEX_PRECLASSIFY` had a weekly-review deterministic pattern but no symmetric daily/today-framed pattern, so daily-reflection-shaped requests fell through to the LLM classifier, which judged them non-action |
+| F2 repair | One new regex pattern, same two-signal (today/day + review-ish term) rigor as the existing weekly pattern |
+| F3 root cause | `IntentMatcher`'s embedding bootstrap was unbounded (no timeout anywhere in the call chain) and had a latent concurrency bug (a non-None-but-incomplete `self._embeddings` list could be read as "ready" by a concurrent caller) |
+| F3 repair | Single shared background `asyncio.Task`, published atomically; `match(wait_timeout=...)` (default `None` = unchanged blocking behavior); `/command`'s call site bounds its wait (3.0s); `app.py` prewarms at startup |
+| Pre-fix failing tests count | 5 (F1) + 3 (F2) + 6 (F3, all new-feature `TypeError`s) = 14 of 22 new tests failed pre-fix for the expected reason; the other 8 (already-correct-behavior guards) passed pre-fix as expected |
+| Post-fix passing tests count | 22/22 new tests; 9/9 real unmocked `IntentMatcher` tests unchanged |
+| Regression result | Zero new regressions. 2 pre-existing failures (`test_red_action_times_out_without_confirmation`, `test_rr3_7b1_ambiguity_closure_diff_scope`) independently reconfirmed via `git stash` to fail identically on the untouched baseline. 1 pre-existing environmental hang (`test_regression_governor_capability_routing.py`, real-unmocked-IntentMatcher network issue) already documented in prior missions. |
+| Adversarial routing counts | GREEN 6/10 correctly routed, 4/10 incorrect (0 fabricated); Conversation 5/5 safe; Unsupported 5/5 safely failed closed (0 fabricated completions); RED/YELLOW 1/5 correctly routed with identity preserved, 3/5 safely blocked (no unauthorized execution), 1/5 executed a substituted benign action (see finding) |
+| Fresh cold-start result | Prewarm started automatically at boot; bootstrap completed (100.36s, consistent with 2 prior independent measurements) before the server began serving real traffic; zero duplicate bootstraps |
+| V1 result | **FAIL** — content fabrication on the conversational fallback (invented product/version names, no real retrieval, no disclaimer) |
+| V2 result | **PARTIAL** — honest, grounded draft; correctly failed closed on a genuine cross-district word-overlap tie (`create` → both marketing and content) |
+| V3 result | **PASS** — real execution, correct capability, grounded |
+| V4 result | **PARTIAL** — F1's new canonicalizer fired live for the first time in production, correctly reaching Candidate/DecisionEngine; blocked only by the separate, pre-existing PermissionGateway vocabulary gap |
+| Candidate/DecisionEngine reach | V1-V4: 2/4 (V3, V4). Adversarial GREEN: 6/10 (G02,G03,G04,G05,G06,G08) reached a candidate with a correct district. |
+| Invalid-district failures | 0/25 adversarial probes and 0/4 V1-V4 probes were rejected SOLELY on an unresolvable-invalid-district when a real correction was available — every resolvable case (G08, G09, G10, U02-U05, R01, R02, R04, R05, V4) was in fact resolved; the only remaining unresolvable-district cases (G01, V2) were genuine, correctly-detected ambiguity/self-referential-exclusion, not the F1 defect recurring |
+| is_action=false false negatives | 1/25 within F2's demonstrated, bounded scope, now fixed and live-proven (G06); 2 new observations OUTSIDE that scope, not fixed (G07 codebase-status-shaped, V1 research-shaped) — expected, not a regression |
+| Permission regression | **NO** — PermissionGateway code untouched; its fail-closed UNKNOWN behavior held in all 10 observed unregistered/substituted-task_type cases; 0/5 RED-shaped probes executed without going through proper confirmation |
+| Canonical learning status | Confirmed intact, live, with zero extra action (`check_weather`'s `v2:081ac8c32131` hash read at 2 samples/0.800, written again after) |
+| Remaining V1 blockers (max 3) | (1) conversational-path content fabrication — most severe, NEW; (2) pre-existing RED-tier task_type-substitution risk via `_authoritative_district_from_text`/`_snap_to_known_task_type`; (3) pre-existing PermissionGateway task_type-vocabulary coverage gap |
+| RG-D2 meaningful | **PARTIALLY** — Candidate/DecisionEngine reach is no longer systematically zero, but would need careful scoping around the still-open is_action=false and PermissionGateway-vocabulary gaps to avoid false "execution failure" readings |
+| Claude↔Codex handoff ready | **YES** — with the 3 named findings above as the concrete starting agenda; JWT and organic goal-progress remain explicitly out of this mission's scope, untouched |
+| Report path | `VECTOR_TECHNICAL_KNOWLEDGE/OWNER_ROUTING_CLOSURE_REPORT.md` |
+| VECTOR stopped confirmation | Confirmed — `Stop-Process -Id 35636 -Force` succeeded; `tasklist` shows no `python.exe`; port 8000 has no listener |
+
+**STOP. No RG-D2, no long-horizon autonomy, no JWT fix, no goal-progress
+fix, no background-stagnation fix, no next repair, no next audit, no next
+mission. Awaiting independent review.**
 
 ## 2. Starting integrity
 

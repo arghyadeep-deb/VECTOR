@@ -1,4 +1,5 @@
 
+from xml.sax.saxutils import escape as _xml_escape
 import sys
 import uuid
 import tempfile
@@ -42,11 +43,51 @@ class VoiceGenerator(AgentBase):
             logger.warning("[VECTOR][voice_generator] Kokoro TTS not available")
             return False
 
-    def generate_voice(self, text: str, voice_name: str = "af_heart",
+    def _load_kokoro(self):
+        """The installed kokoro_onnx API: Kokoro(model_path, voices_path), created once and cached.
+
+        generate_voice() used to call `kokoro_onnx.load_model(...)` / `model.create_audio(...)` -- functions that do not
+        exist in this package -- so it failed on every call with "no attribute 'load_model'" (loop watch, 2026-09-26).
+        Mirrors core/voice/tts.py: prefer the GPU fp16 model when CUDA is available, keep the first that loads.
+        """
+        if getattr(self, "_kokoro", None) is not None:
+            return self._kokoro
+        from kokoro_onnx import Kokoro
+
+        voices_file = self._kokoro_dir / "voices-v1.0.bin"
+        gpu_model = self._kokoro_dir / "kokoro-v1.0.fp16-gpu.onnx"
+        cpu_model = self._kokoro_dir / "kokoro-v1.0.onnx"
+        candidates = [cpu_model, gpu_model]
+        try:
+            import onnxruntime as ort
+            if "CUDAExecutionProvider" in ort.get_available_providers():
+                candidates = [gpu_model, cpu_model]
+        except Exception:
+            logger.debug("[VECTOR][voice_generator] onnxruntime probe failed; using CPU-first order")
+        last_err: Exception | None = None
+        for model_file in candidates:
+            if not (model_file.exists() and voices_file.exists()):
+                continue
+            try:
+                self._kokoro = Kokoro(str(model_file), str(voices_file))
+                return self._kokoro
+            except Exception as e:  # a corrupt/truncated model must not hide a working one
+                last_err = e
+                logger.warning("[VECTOR][voice_generator] Kokoro model {} failed to load: {}", model_file.name, e)
+        raise RuntimeError(f"no loadable Kokoro model in {self._kokoro_dir}" + (f": {last_err}" if last_err else ""))
+
+    def generate_voice(self, text: str, voice_name: Optional[str] = None,
                        output_path: Optional[str] = None) -> dict:
         """
-        Generate speech from text using Kokoro TTS.
+        Generate speech from text using Kokoro TTS. `voice_name` defaults to VECTOR's configured voice
+        (core.voice.tts._voice_for, owner rule: male voices only).
         """
+        if voice_name is None:
+            try:
+                from core.voice.tts import _voice_for
+                voice_name = _voice_for("en")
+            except Exception:
+                voice_name = "bm_george"
         if not self._available:
             return {"status": "error", "message": "TTS engine not available"}
 
@@ -58,19 +99,13 @@ class VoiceGenerator(AgentBase):
             output_path = str(output_dir / f"voice_{uuid.uuid4().hex[:8]}.wav")
 
         try:
-            import kokoro_onnx
             import numpy as np
             import scipy.io.wavfile as wavfile
 
-            model = kokoro_onnx.load_model(
-                voice_name,
-                repo_id=kokoro_onnx.HF_REPO,
-                filename=kokoro_onnx.MODEL_FILENAME,
-            )
+            model = self._load_kokoro()
+            audio_samples, sample_rate = model.create(text, voice=voice_name, speed=self._voice_config.get("kokoro_speed", 1.0))
 
-            audio_samples, sample_rate = model.create_audio(text)
-
-            audio_int16 = (audio_samples * 32767).astype(np.int16)
+            audio_int16 = (np.clip(audio_samples, -1.0, 1.0) * 32767).astype(np.int16)
             wavfile.write(output_path, sample_rate, audio_int16)
 
             result = {
@@ -342,7 +377,7 @@ class VoiceGenerator(AgentBase):
             if not sentence:
                 continue
 
-            ssml.append(f'<s>{sentence}.</s>')
+            ssml.append(f'<s>{_xml_escape(sentence)}.</s>')   # 2026-09-27: & < > in a sentence made the SSML invalid XML
 
         if breaks:
             for b in breaks:

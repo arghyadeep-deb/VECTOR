@@ -29,6 +29,7 @@ import datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from tests._small_scan import small_scan_root  # noqa: F401  (autouse: real read_code scan over a small project)
 
 from core.brain.goal_system import GoalSystem
 from core.loop.autonomous_loop import AutonomousLoop

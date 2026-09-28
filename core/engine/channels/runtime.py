@@ -166,13 +166,14 @@ class ChannelRuntime:
         tasks: set[asyncio.Task] = set()
         try:
             while self._running:
-                msg = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+                try:
+                    msg = await asyncio.wait_for(self._queue.get(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    continue  # idle tick: keep the dispatch loop alive
                 await self._semaphore.acquire()
                 t = asyncio.create_task(self._dispatch(msg))
                 tasks.add(t)
                 t.add_done_callback(lambda t: (tasks.discard(t), self._semaphore.release()))
-        except asyncio.TimeoutError:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         except asyncio.CancelledError:
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         finally:

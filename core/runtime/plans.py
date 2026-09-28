@@ -37,6 +37,15 @@ class PlanStepFallback:
     action_type: str
     params: dict[str, Any] = field(default_factory=dict)
     trigger: str = "failure"  # "failure" | "timeout" | "low_confidence"
+    # 2026-09-24 (external review, Phase 3 / Stage 4 finding #2): the
+    # fallback is usually a DIFFERENT action than the step it replaces, but
+    # _try_fallback_step() used to copy the failed step's verification onto
+    # it unconditionally -- so an unsatisfiable or action-specific check
+    # (e.g. a confidence_threshold the original could never meet) cascaded
+    # identically onto the fallback, forcing a second replan even though
+    # the fallback itself worked. A fallback may now declare its own
+    # acceptance criteria; None keeps the old behavior (inherit).
+    verification: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -47,6 +56,7 @@ class PlanStepFallback:
             action_type=str(d.get("action_type") or "respond"),
             params=d.get("params") if isinstance(d.get("params"), dict) else {},
             trigger=str(d.get("trigger") or "failure"),
+            verification=d.get("verification") if isinstance(d.get("verification"), dict) else None,
         )
 
 
@@ -598,9 +608,29 @@ def _resolve_step_params(plan: "Plan", step: PlanStep) -> dict[str, Any]:
         if dep_step is None or dep_step.status != "completed" or not dep_step.actual_outcome:
             continue
         dep_result = dep_step.actual_outcome.get("result")
-        if isinstance(dep_result, dict) and field_name in dep_result:
-            resolved[target_key] = dep_result[field_name]
+        found, value = _lookup_path(dep_result, field_name)
+        if found:
+            resolved[target_key] = value
     return resolved
+
+
+
+def _lookup_path(data: Any, path: str) -> tuple[bool, Any]:
+    """Look `path` up in `data`: a literal top-level key first (the original binding form), otherwise a dotted walk
+    through nested dicts and list indexes ("fields.detail_url", "links.0.href"). Returns (found, value)."""
+    if not isinstance(data, dict) or not path:
+        return False, None
+    if path in data:
+        return True, data[path]
+    cur: Any = data
+    for part in path.split("."):
+        if isinstance(cur, dict) and part in cur:
+            cur = cur[part]
+        elif isinstance(cur, list) and part.lstrip("-").isdigit() and -len(cur) <= int(part) < len(cur):
+            cur = cur[int(part)]
+        else:
+            return False, None
+    return True, cur
 
 
 # ---------------------------------------------------------------------------
@@ -624,6 +654,26 @@ def verify_step_outcome(step: PlanStep, report_status: str, report_result: Any =
 
     if vtype == "status_check":
         return report_status == "executed"
+
+    # Content verification (shared outcome assessment, 2026-09-26): the step's own REAL result payload is checked against
+    # criteria the plan declared up front, independent of whatever the handler claimed about itself. A step can only pass
+    # if it was executed AND the evidence is there.
+    if vtype == "all_of":
+        checks = step.verification.get("criteria", {}).get("checks", [])
+        if not isinstance(checks, list) or not checks:
+            return False  # an empty conjunction must not silently pass
+        return all(
+            verify_step_outcome(
+                PlanStep(id=step.id, action_type=step.action_type, verification=c if isinstance(c, dict) else {}),
+                report_status, report_result,
+            )
+            for c in checks
+        )
+
+    if vtype == "result_field":
+        if report_status != "executed":
+            return False
+        return _result_field_matches(step.verification.get("criteria", {}), report_result)
 
     if vtype == "file_exists":
         fpath = step.verification.get("criteria", {}).get("path", "")
@@ -656,6 +706,46 @@ def verify_step_outcome(step: PlanStep, report_status: str, report_result: Any =
 
     # Unknown verification type — fall back to status check
     return report_status == "executed"
+
+
+def _result_field_matches(criteria: dict[str, Any], payload: Any) -> bool:
+    """criteria: {"field": "fields.title", plus exactly the tests wanted:
+        "equals": v | "contains": s | "regex": p | "non_empty": true | "min_items": n | "in": [..]}.
+    All given tests must hold. A missing field, a missing payload, or a criteria dict with no test at all fails."""
+    import re as _re
+
+    found, value = _lookup_path(payload, str(criteria.get("field", "")))
+    if not found:
+        return False
+    tested = False
+    if "equals" in criteria:
+        tested = True
+        if value != criteria["equals"]:
+            return False
+    if "contains" in criteria:
+        tested = True
+        if str(criteria["contains"]) not in (value if isinstance(value, str) else str(value)):
+            return False
+    if "regex" in criteria:
+        tested = True
+        try:
+            if _re.search(str(criteria["regex"]), value if isinstance(value, str) else str(value)) is None:
+                return False
+        except _re.error:
+            return False
+    if "in" in criteria:
+        tested = True
+        if not isinstance(criteria["in"], list) or value not in criteria["in"]:
+            return False
+    if criteria.get("non_empty"):
+        tested = True
+        if value is None or (hasattr(value, "__len__") and len(value) == 0) or (isinstance(value, str) and not value.strip()):
+            return False
+    if "min_items" in criteria:
+        tested = True
+        if not isinstance(value, (list, tuple, dict)) or len(value) < int(criteria["min_items"]):
+            return False
+    return tested
 
 
 # ---------------------------------------------------------------------------
@@ -864,7 +954,9 @@ def _try_fallback_step(plan: Plan, failed_step: PlanStep) -> bool:
         params=failed_step.fallback.params,
         depends_on=failed_step.depends_on,
         expected_outcome=failed_step.expected_outcome,
-        verification=failed_step.verification,
+        verification=(failed_step.fallback.verification
+                      if failed_step.fallback.verification is not None
+                      else failed_step.verification),
         status="planned",
         priority=failed_step.priority,
         confidence=_get_epistemic_confidence(failed_step.fallback.action_type),
@@ -896,8 +988,15 @@ async def replan_plan(plan: Plan, failed_step: PlanStep) -> Plan:
     if _try_fallback_step(plan, failed_step):
         return plan
 
+    # A step verified against objective evidence (result_field / all_of) carries the plan's contract for what "done" means.
+    # The LLM restructure below rebuilds steps WITHOUT their verification (they default to status_check) and without
+    # param_bindings, so letting it replace such a step would let the plan finish "verified" by a weaker check than the
+    # one it failed. Fallbacks the plan declared up front (Strategy 1, above) are fine; an invented replacement is not:
+    # the plan is abandoned and the failure stays visible instead.
+    content_verified = failed_step.verification.get("type") in ("result_field", "all_of")
+
     # Strategy 2: LLM restructure (if budget allows)
-    if plan.replan_count <= MAX_REPLANS:
+    if plan.replan_count <= MAX_REPLANS and not content_verified:
         try:
             from core.runtime.missions import MissionPlanAdvisor
             advisor = MissionPlanAdvisor()
@@ -945,7 +1044,9 @@ async def replan_plan(plan: Plan, failed_step: PlanStep) -> Plan:
     plan.status = "failed"
     plan.record_event(
         "abandoned",
-        f"Replan budget exhausted (replan_count={plan.replan_count})",
+        (f"Step {failed_step.id} failed its objective verification and has no declared fallback; not restructured "
+         f"(replan_count={plan.replan_count})") if content_verified
+        else f"Replan budget exhausted (replan_count={plan.replan_count})",
         step_id=failed_step.id,
     )
     plan.updated_at = _now()

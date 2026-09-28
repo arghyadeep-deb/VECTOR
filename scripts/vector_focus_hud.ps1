@@ -18,7 +18,7 @@ param([switch]$Deliberate)
 # windows under a process whose OWN .MainWindowTitle is usually empty/another
 # window, so the Get-Process approach found nothing and every caller (desktop
 # icon AND the wake-word _summon_hud) launched a DUPLICATE. That stacked 8-9
-# "VECTOR Production" windows: the wake word false-fired on ambient noise,
+# "VECTOR" HUD windows: the wake word false-fired on ambient noise,
 # _summon_hud "couldn't find" the existing HUD, and opened a new one each time
 # (2026-07-17: 1 -> 4 windows in 40s idle). The window-finding loop lives in
 # C# because a PowerShell EnumWindows delegate can't reliably write script scope.
@@ -48,7 +48,7 @@ public static class VecHud {
         GetWindowText(h, sb, sb.Capacity);
         // Exact title match so we never grab an editor / terminal that merely
         // mentions VECTOR.
-        if (sb.ToString() == "VECTOR Production") { found = h; return false; }
+        if (sb.ToString() == "VECTOR") { found = h; return false; }
         return true;
     }
     // deliberate=true (desktop icon): always restore + bring to foreground.

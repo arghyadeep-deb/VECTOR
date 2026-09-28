@@ -60,6 +60,9 @@ def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
         (frontmatter_dict, remaining_body)
     """
     frontmatter: Dict[str, Any] = {}
+    # Ingested skills carry a leading `<!-- VECTOR-INGESTED ASSET ... -->` provenance comment before the
+    # frontmatter; without this, ~4,000 skills parsed with no name/description.
+    content = re.sub(r"\A(?:\s*<!--.*?-->)+\s*", "", content, flags=re.S)
     body = content
 
     if not content.startswith("---"):
@@ -172,7 +175,37 @@ def _normalize_string_set(values) -> Set[str]:
 # ── External skills directories ──────────────────────────────────────────
 
 
+def _shipped_skills_dir() -> Optional[Path]:
+    """vectorcode/skills -- the skill library that ships with VectorCode (thousands of SKILL.md files)."""
+    d = Path(__file__).resolve().parents[2] / "skills"
+    return d if d.is_dir() else None
+
+
 def get_external_skills_dirs() -> List[Path]:
+    """Shipped skill library first, then whatever ``skills.external_dirs`` configures.
+
+    `skills_list` used to return nothing because the shipped library was only reachable if the owner had
+    hand-configured it. Set ``skills.include_shipped: false`` in config.yaml to opt out.
+    """
+    dirs: List[Path] = []
+    shipped = _shipped_skills_dir()
+    include = True
+    try:
+        parsed = yaml_load(get_config_path().read_text(encoding="utf-8")) if get_config_path().exists() else {}
+        skills_cfg = parsed.get("skills") if isinstance(parsed, dict) else None
+        if isinstance(skills_cfg, dict) and skills_cfg.get("include_shipped") is False:
+            include = False
+    except Exception:
+        pass
+    if shipped is not None and include:
+        dirs.append(shipped.resolve())
+    for d in _configured_external_skills_dirs():
+        if d not in dirs:
+            dirs.append(d)
+    return dirs
+
+
+def _configured_external_skills_dirs() -> List[Path]:
     """Read ``skills.external_dirs`` from config.yaml and return validated paths.
 
     Each entry is expanded (``~`` and ``${VAR}``) and resolved to an absolute

@@ -1,8 +1,7 @@
 # ============================================================================
 # VECTOR Financial Terminal - Strategy Engine
-# Copyright (c) 2024-2026 VECTOR. All rights reserved.
-# Licensed under the MIT License.
-# https://github.com/Fincept-Corporation/VectorFinancialTerminal
+# Derived from Fincept Terminal (Fincept Corporation) -- see THIRD_PARTY_NOTICES.md.
+# Adapted for VECTOR (owner's personal-use build).
 #
 # Strategy ID: FCT-216E29F5
 # Category: Options

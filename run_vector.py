@@ -489,7 +489,7 @@ def parse_args() -> argparse.Namespace:
         "mode",
         nargs="?",
         default="loop",
-        choices=("loop", "api", "smoke", "doctor", "production-check", "memory-repair"),
+        choices=("loop", "api", "smoke", "doctor", "readiness-check", "memory-repair"),
         help="Default is loop. Use smoke for a one-shot startup check.",
     )
     parser.add_argument("--host", default="127.0.0.1")
@@ -509,7 +509,7 @@ def main() -> int:
 
     # Start optional sidecar services (ComfyUI, etc.) — non-blocking.
     # Skipped in smoke mode to keep the startup check fast.
-    if args.mode not in ("smoke", "doctor", "production-check", "memory-repair"):
+    if args.mode not in ("smoke", "doctor", "readiness-check", "memory-repair"):
         _start_sidecars()
         _start_background_services()
 
@@ -551,10 +551,10 @@ def main() -> int:
         print(json.dumps(report, indent=2))
         return 0 if report.get("required_failed", 1) == 0 else 1
 
-    if args.mode == "production-check":
-        from core.runtime.production_check import run_production_check
+    if args.mode == "readiness-check":
+        from core.runtime.readiness_check import run_readiness_check
 
-        report = run_production_check()
+        report = run_readiness_check()
         print(json.dumps(report, indent=2))
         return 0 if report.get("status") != "fail" else 1
 

@@ -18,6 +18,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 _STYLE_PRESETS = {
     "cinematic": "cinematic lighting, 35mm film, anamorphic lens, depth of field, color grade",
@@ -57,6 +58,17 @@ class ImagePromptEngineer(AgentBase):
         if self._memory is None:
             self._memory = EpisodicMemory()
         return self._memory
+
+    def _llm(self, prompt: str, timeout: float) -> str:
+        """Call the routed model with mandatory session hydration."""
+        hydration = ContextEngine().session_hydration_prompt({"query": prompt})
+        return chat(
+            model=self._model,
+            messages=[{"role": "user", "content": f"{hydration}\n\n{prompt}"}],
+            timeout=timeout,
+            district="design",
+            domain="vision",
+        )
 
     def build_prompt(self, subject: str, style: str = "cinematic",
                      mood: str = "professional", extras: str = "") -> dict:
@@ -137,8 +149,7 @@ class ImagePromptEngineer(AgentBase):
             f'"composition": "rule description"}}'
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt_instruction}],
-                            timeout=20.0)
+            response = await asyncio.to_thread(self._llm, prompt_instruction, 20.0)
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
                 result = json.loads(match.group())

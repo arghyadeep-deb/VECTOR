@@ -38,6 +38,7 @@ which situation_hash key the plan-step reward is filed under.
 import inspect
 
 import pytest
+from tests._small_scan import small_scan_root  # noqa: F401  (autouse: real read_code scan over a small project)
 
 from core.loop.decision_engine import DecisionEngine
 from core.memory.policy import PolicyMemory

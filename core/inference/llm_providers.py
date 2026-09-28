@@ -183,9 +183,10 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         base_url="https://api.groq.com/openai/v1",
         api_key_env="GROQ_API_KEY",
         driver="openai_compat",
-        default_model="llama-3.3-70b-versatile",
-        models=["llama-3.3-70b-versatile","llama-3.1-8b-instant","mixtral-8x7b-32768",
-                "gemma2-9b-it","deepseek-r1-distill-llama-70b"],
+        default_model="openai/gpt-oss-120b",
+        # Verified against GET /openai/v1/models 2026-09-25: the Llama/Mixtral/Gemma2/
+        # DeepSeek-distill models were retired.
+        models=["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"],
         context_window=128_000,
         rate_limit_rpm=30,
         pricing_per_1m={"input":0.59,"output":0.79},
@@ -435,12 +436,12 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
         api_key_env="CEREBRAS_API_KEY",
         driver="openai_compat",
         default_model="gpt-oss-120b",
-        models=["gpt-oss-120b", "zai-glm-4.7", "gemma-4-31b"],
+        models=["gpt-oss-120b", "qwen-3.8-27b"],   # verified vs GET /v1/models 2026-09-25 (zai-glm-4.7, gemma-4-31b retired)
         context_window=65_536,
         rate_limit_rpm=5,   # owner console: 5 req/min, 1M tokens/day per model
         pricing_per_1m={"input":0.0,"output":0.0},
         notes="Free. Owner quotas 2026-07-02: 5rpm/150rph/2400rpd + 1M tok/day per model. "
-              "gpt-oss-120b ~3000 tok/s (fastest in fleet); zai-glm-4.7 = 355B frontier.",
+              "gpt-oss-120b ~3000 tok/s (fastest in fleet); zai-glm-4.7 was archived 2026-09.",
     ),
 
     # ── SambaNova ─────────────────────────────────────────────────────────────
@@ -638,9 +639,9 @@ TIER_ROUTING: dict[str, list[str]] = {
     # The catalog picks the best MODEL per provider per tier (rank 1 first);
     # quota_ledger soft-deprioritizes anything past 90% of its daily free tier.
     #
-    #   groq          — 8b-instant 14,400 req/day (fast workhorse); 70B/gpt-oss 1K/day
+    #   groq          — gpt-oss-20b/120b + qwen3.8-27b (Llama models retired 2026-09); ~1K req/day
     #   mistral       — ministral-3b 12.5 RPS; codestral/devstral; huge TPMs
-    #   cerebras      — zai-glm-4.7 355B (biggest free frontier); ~3000 tok/s; 1M tok/day/model
+    #   cerebras      — gpt-oss-120b (heavy/reasoning lead; zai-glm-4.7 archived); ~3000 tok/s; 1M tok/day/model
     #   github_models — gpt-5/o3 (assumed 50/day), Codestral, DeepSeek-R1, vision (150/day)
     #   opencode_zen  — 5 unlimited free models (HARD whitelist — paid catalog on same key)
     #   cloudflare    — kimi-k2.7-code, qwen-coder, sea-lion; 10K neurons/day
@@ -663,7 +664,7 @@ TIER_ROUTING: dict[str, list[str]] = {
     # SaaS architecture / API design — gpt-5 + 355B-class quality
     "saas":          ["github_models", "cerebras", "nvidia", "opencode_zen", "openrouter", "groq", "ollama"],
 
-    # Reasoning — zai-glm-4.7 355B (1M tok/day) leads; o3/gpt-5 premium quota next
+    # Reasoning — cerebras gpt-oss-120b (1M tok/day) leads; o3/gpt-5 premium quota next
     "reasoning":     ["cerebras", "github_models", "groq", "opencode_zen", "nvidia", "cloudflare", "openrouter", "llm7", "ollama"],
 
     # Summarization — gemini flash; mistral-small 2.25M TPM; llama-4-scout 30K tok/min

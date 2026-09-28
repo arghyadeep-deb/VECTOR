@@ -173,7 +173,7 @@ class StealthBrowserServer:
 
         # Check node is available
         try:
-            subprocess.run(["node", "--version"], capture_output=True, timeout=5)
+            (await asyncio.to_thread(subprocess.run, ["node", "--version"], capture_output=True, timeout=5))
         except (FileNotFoundError, subprocess.TimeoutExpired):
             logger.error("[VECTOR][stealth] Node.js not found — install Node.js 18+")
             return False
@@ -198,7 +198,13 @@ class StealthBrowserServer:
             text=True,
         )
 
-        # Monitor stderr for crashes in background thread
+        # Monitor stderr for crashes in background thread.
+        # 2026-09-23: deliberate exception to "never use threading, use
+        # asyncio" (.claude/rules/libraries.md) -- `subprocess.Popen`'s
+        # stderr pipe (opened with the sync `subprocess` module, not
+        # `asyncio.create_subprocess_exec`) is a blocking file
+        # descriptor; a dedicated thread is the standard way to drain it
+        # continuously without blocking this coroutine's own event loop.
         self._stderr_thread = threading.Thread(
             target=self._watch_stderr, daemon=True
         )

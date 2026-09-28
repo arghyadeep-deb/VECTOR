@@ -288,8 +288,9 @@ class LessonExtractor:
 
     # Domain detection keywords
     _DOMAIN_KEYWORDS = {
-        "coding": ["code", "function", "bug", "error", "syntax", "variable", "import", "class",
-                    "debug", "refactor", "compile", "run", "execute", "script", "api", "endpoint"],
+        "coding": ["code", "coding", "function", "bug", "error", "syntax", "variable", "import", "class",
+                    "debug", "refactor", "compile", "run", "execute", "script", "api", "endpoint",
+                    "library", "package", "dependency", "install", "requests", "httpx", "module"],
         "research": ["search", "paper", "arxiv", "study", "research", "find", "lookup", "source"],
         "communication": ["message", "email", "text", "reply", "say", "tell", "write", "respond",
                           "tone", "style", "format"],

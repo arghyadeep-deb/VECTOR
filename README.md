@@ -16,7 +16,7 @@ VECTOR City is a Darwinian multi-agent civilization where:
 
 ```
 Layer A — Devices:        Legion Pro 5 (primary) | Old Android Termux (ambient) | Daily phone (alerts)
-Layer B — Cloud:          Cloudflare Workers+D1+R2+KV | Supabase | Turso
+Layer B — Cloud:          Cloudflare Worker + D1 + KV (api/wrangler.toml) | Supabase | Turso
 Layer C — APIs:           Claude Sonnet (Pro chat, build sessions) | Gemini 2.5 Pro (free) | Ollama local
 ```
 
@@ -103,10 +103,16 @@ Performance-Based Adjustments:
 ```
 
 #### Access Tiers
-- **>800 HP**: Full Claude Sonnet access (pro tier)
-- **>700 HP**: Council voting rights
-- **600-800 HP**: kimi-k2.6 access
+Agents are born at 500 HP. HP selects the agent's local model (`AgentBase._calculate_model`):
+- **≥800 HP**: `vector-dev` (devstral-based)
+- **600–799 HP**: `vector-r1` (deepseek-r1-based)
+- **400–599 HP**: `vector-focus` (gemma4:e4b)
+- **200–399 HP**: `vector-reasoning` (qwen3:14b)
+- **1–199 HP**: `vector-ambient` (gemma4:e2b)
+- **≥700 HP**: Council eligibility
 - **0 HP**: Agent death + ghost memory preservation
+
+Point awards are damped (repeating the same reason decays the award, and awards shrink near 1000); deductions are not.
 
 #### Ghost Memory Protocol
 - Deleted agents' reasoning chains preserved
@@ -114,7 +120,7 @@ Performance-Based Adjustments:
 - Prevents complete knowledge loss
 - Enables evolutionary learning
 
-### District Architecture (25 Specialized Modules)
+### District Architecture (planned as 25 modules; the repo now has 38 district directories, 39 districts and 170 agents in `config/agent_manifest.yaml`)
 
 Each district follows a standardized agent template with:
 - AgentBase inheritance (logging, fallback chains, health monitoring)
@@ -192,7 +198,7 @@ Obsidian Vault Sync
 4. Set up required permissions
 5. Integrate with memory and goal systems
 
-## 🏘️ Detailed District Structure (25 Specialized Districts)
+## 🏘️ Detailed District Structure (original 25-district plan — see `districts/` and `config/agent_manifest.yaml` for what exists now)
 
 ### Phase 1 - Core Foundation (Days 1-25)
 01. **governance/** 
@@ -538,34 +544,22 @@ class AutonomousLoop:
 
 ## 📊 Current Development Status
 
-### Phase Progress
-**Overall**: Phase 1 of 3 | Building 8 core districts first
-**Completion**: ~35% of Phase 1 districts implemented
-**Active Development**: Core loop, context engine, permission gateway
+> The authoritative, dated status file is `docs/OPEN_ISSUES.md`. Counts below were checked against the code on 2026-09-25; whether each piece behaves correctly in a live run is tracked there, not here.
 
-### Completed Components
-- [x] Autonomous loop foundation
-- [x] Context engine with session hydration
-- [x] Permission gateway with GREEN/YELLOW/RED states
-- [x] Basic decision engine framework
-- [x] Agent base class with logging and fallbacks
-- [x] Initial district template structure
-- [x] Obsidian vault integration prototype
+### What exists in the repo
+- Autonomous loop with observe / think / act / reflect (2AM `reflect_loop`) — `core/loop/autonomous_loop.py`
+- Context engine with session hydration — `core/loop/context_engine.py`
+- Permission Gateway with GREEN/YELLOW/RED tiers — `core/loop/permission_gateway.py`
+- Decision engine with the weighted scoring formula — `core/loop/decision_engine.py`
+- Goal system (3 horizons) — `core/brain/goal_system.py`
+- HP system with award/deduct/death/ghost memory — `core/city/agent_base.py` (+ `core/security/hp_validator.py`)
+- 38 district directories, 39 districts and 170 agents in `config/agent_manifest.yaml` (`documentation` is in the manifest without a directory)
+- 31 LLM providers — `core/inference/llm_providers.py`; local-vs-cloud routing — `core/inference/route_policy.py`
+- FastAPI backend (`core/api/`), `frontend/` HUD served at `/hud/`, Cloudflare Worker (`api/`)
+- Obsidian vault integration — `core/memory/obsidian_sync.py` (vault lives beside the repo at `../V.E.C.T.O.R. Brain/`)
 
-### In Progress
-- [ ] Goal system with 3-horizon planning
-- [ ] Full decision engine scoring implementation
-- [ ] First district agents (governance, security)
-- [ ] HP system implementation
-- [ ] Reflection cycle and memory consolidation
-- [ ] Inter-district communication protocols
-
-### Planned for Phase 1 Completion
-- [ ] All 8 foundation districts functional
-- [ ] Complete HP system with death/rebirth mechanics
-- [ ] Operational autonomous loop with reflection
-- [ ] Basic user interaction interfaces
-- [ ] Initial knowledge base in Obsidian vault
+### Known open work
+See `docs/OPEN_ISSUES.md` section 0 and `KNOWN_ISSUES.md`. Owner-side items (wake-word recordings, Termux phone node, publishing credentials) are in `TASKS.md`.
 
 ## 🚀 Getting Started Guide
 
@@ -617,7 +611,7 @@ turso>=0.5.0
    ```bash
    # Local development can run with defaults.
    # For production, copy the template and fill real secrets outside git:
-   cp .env.production.example .env.production
+   cp .env.hardened.example .env.hardened
    
    # Required production values:
    # - VECTOR_API_KEY
@@ -642,7 +636,7 @@ turso>=0.5.0
    - Check logs for startup confirmation
    - Verify API endpoints responding at http://localhost:8000
    - Run `python run_vector.py doctor`
-   - Run `GET /health/production-readiness` before production use
+   - Run `GET /health/hardened-readiness` before production use
    - Observe initial district agent spawns in logs
    - Confirm Obsidian vault integration (if configured)
 

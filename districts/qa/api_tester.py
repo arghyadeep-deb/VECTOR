@@ -172,6 +172,30 @@ class APITester(AgentBase):
                 self.award_points(15, "api_endpoint_tested")
                 return {"status": "ok", "result": result}
 
+            # 2026-09-24 (external review, Phase 3 -- KNOWN_ISSUES #81 death
+            # loop): task types with NO declared capability match here
+            # (e.g. "review_content" -- a real content-QA event dispatched
+            # by core/event_bus/wiring.py's CONTENT_READY trigger, routed
+            # to the "qa" district generically, then QASwarm's keyword-score
+            # fallback landed on APITester specifically since no qa agent
+            # declares that capability) used to silently fall through to the
+            # full API-health suite below regardless of what was actually
+            # asked. If the API server wasn't reachable in that moment, the
+            # resulting "grade F" scored a real -20 HP penalty on EVERY such
+            # dispatch -- confirmed live at ~858 deaths/day (one every ~63s),
+            # 100% of review_content dispatches ending in agent death,
+            # successor "gen 1" never advancing (VECTOR_TECHNICAL_KNOWLEDGE/
+            # 81_LIVE_LOOP_HEALTH_CHECK.md). Only run+score the real,
+            # consequential health suite for its own declared capabilities;
+            # anything else is not this agent's job and must not cost HP.
+            if task_type not in ("full_suite", "api_test", "api_health"):
+                logger.debug(
+                    "[VECTOR][api_tester] task_type '{}' is not an API-testing "
+                    "capability -- skipping without penalty (likely a "
+                    "misrouted qa-district dispatch)", task_type,
+                )
+                return {"status": "not_applicable", "task_type": task_type}
+
             # Full test suite
             results = self.run_full_suite()
             health = self.compute_api_health(results)

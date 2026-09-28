@@ -265,6 +265,12 @@ class GpuMonitor:
         lock = threading.Lock()
         stop_event = threading.Event()
 
+        # 2026-09-23: deliberate exception to "never use threading, use
+        # asyncio" (.claude/rules/libraries.md) -- same reasoning as
+        # core/telemetry/energy_nvidia.py's identical pattern: samples
+        # GPU state on a fixed interval CONCURRENTLY with arbitrary
+        # measured work the caller yields into; a real OS thread samples
+        # independently of whether that work cooperatively yields.
         thread = threading.Thread(
             target=self._polling_loop,
             args=(snapshots, timestamps, lock, stop_event),

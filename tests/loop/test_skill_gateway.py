@@ -17,7 +17,11 @@ from core.loop.autonomous_loop import AutonomousLoop
 
 def _skill_region(src: str) -> str:
     start = src.index("Phase 3B: check VectorCode Skills")
-    end = src.index("if not _skill_executed:", start)
+    # rindex, not index: a 2026-09-16 comment (RR-3.1) mentions the literal
+    # string "if not _skill_executed:" while explaining a past bug, and that
+    # comment sits BEFORE the real branch statement. The real code line --
+    # the one that actually ends this region -- is the LAST occurrence.
+    end = src.rindex("if not _skill_executed:", start)
     return src[start:end]
 
 

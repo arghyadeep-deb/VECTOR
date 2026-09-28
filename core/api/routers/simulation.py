@@ -13,7 +13,7 @@ _sim_agent = None
 def _get_sim_agent():
     global _sim_agent
     if _sim_agent is None:
-        from districts.intelligence.vector_social_sim_agent import SocialSimAgent
+        from districts.intelligence.social_sim_agent import SocialSimAgent
         _sim_agent = SocialSimAgent()
     return _sim_agent
 
@@ -63,7 +63,10 @@ async def run_simulation(body: SimulationRequest):
 async def interview_agent(body: InterviewRequest):
     """Interview a simulated agent to get their perspective."""
     try:
-        return await _get_sim_agent().run({"type": "interview_agent", "params": body.model_dump()})
+        # 2026-09-24 (external review, Phase 1): agent's real action name is
+        # "agent_interview", not "interview_agent" -- was silently falling
+        # through to "unknown action" before this fix.
+        return await _get_sim_agent().run({"type": "agent_interview", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] interview failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -73,7 +76,10 @@ async def interview_agent(body: InterviewRequest):
 async def generate_report(body: ReportRequest):
     """Generate a markdown analysis report from simulation trace data."""
     try:
-        return await _get_sim_agent().run({"type": "generate_report", "params": body.model_dump()})
+        # 2026-09-24 (external review, Phase 1): agent's real action name is
+        # "simulation_report", not "generate_report" -- was silently falling
+        # through to "unknown action" before this fix.
+        return await _get_sim_agent().run({"type": "simulation_report", "params": body.model_dump()})
     except Exception as e:
         logger.error(f"[VECTOR][api][simulation] report failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))

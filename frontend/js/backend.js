@@ -27,7 +27,12 @@
   function relTime(iso) {
     if (!iso) return '—';
     try {
-      const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      const t = new Date(iso).getTime();
+      if (!Number.isFinite(t)) return '—';
+      const diff = Math.floor((Date.now() - t) / 1000);
+      // A timestamp in the future (clock skew, or a bad row such as 2030-01-01) used to render as "-103170821s".
+      if (diff < -60) return 'future';
+      if (diff < 0) return '0s';
       if (diff < 60) return diff + 's';
       if (diff < 3600) return Math.floor(diff / 60) + 'm';
       if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
@@ -58,10 +63,11 @@
       id: a.id || a.agent_id,
       name: a.name || 'Agent',
       district: a.district || 'unknown',
-      health_points: a.health_points ?? 500,
+      // No invented defaults: a missing HP/model is shown as unknown, not as a plausible number.
+      health_points: Number.isFinite(Number(a.health_points)) ? Number(a.health_points) : 0,
       generation: a.generation ?? 1,
-      tier: a.tier || hpTier(a.health_points ?? 500),
-      model: a.model || 'vector-focus',
+      tier: a.tier || (Number.isFinite(Number(a.health_points)) ? hpTier(Number(a.health_points)) : 'UNKNOWN'),
+      model: a.model || '',
       last_active: relTime(a.last_active),
     };
   }
@@ -118,10 +124,40 @@
     return !!document.querySelector(`[data-id="${id}"]`);
   }
 
+  // -- Demo seed handling ----------------------------------------------------
+  // data.js ships demo seed data for offline/dev use. Once a backend is connected,
+  // none of it may be shown as if it were live: an EMPTY live list must render as
+  // empty (the polls below only replaced the seed when the live list was non-empty,
+  // so fake goals/council decisions/memory events stayed on screen).
+  function resetSeedData() {
+    D.GOALS = { LONG: [], MID: [], SHORT: [] };
+    D.COUNCIL = [];
+    D.MEMORY = [];
+    D.APPROVALS = [];
+    D.agents = [];
+    D.STOCKS = [];
+    D.NEWS = [];
+    D.TRACKS = [];
+    D.LIVE = D.LIVE || {};
+    D.SEED_CLEARED = true;
+    if (typeof V.emit === 'function') V.emit('live:update', D.LIVE);   // repaint tickers without the seed
+  }
+
+  // Live facts the ticker/status strips are built from (never constants).
+  function setLive(patch) {
+    D.LIVE = Object.assign(D.LIVE || {}, patch);
+    if (typeof V.emit === 'function') V.emit('live:update', D.LIVE);
+  }
+
+  function emptyState(text) {
+    return `<div class="ve-offline" style="opacity:.6">${esc(text)}</div>`;
+  }
+
   function refreshDistricts() {
     if (!widgetOpen('districts')) return;
     const grid = qs('districts', '.grid');
     if (!grid) return;
+    if (!D.agents.length) { grid.innerHTML = emptyState('NO AGENTS REPORTED'); return; }
     grid.innerHTML = D.agents.slice(0, 18).map(a => {
       const pct = Math.max(0, Math.min(100, a.health_points / 10));
       const cls = a.health_points <= 0 ? 'ghost' : '';
@@ -138,6 +174,8 @@
     if (!widgetOpen('goals')) return;
     const body = qs('goals', '.w-body');
     if (!body) return;
+    const anyGoals = ['LONG', 'MID', 'SHORT'].some(h => (D.GOALS[h] || []).length);
+    if (!anyGoals) { body.innerHTML = emptyState('NO ACTIVE GOALS'); return; }
     body.innerHTML = ['LONG', 'MID', 'SHORT'].map(h => {
       const items = (D.GOALS[h] || []).map(g =>
         `<div class="row-kv"><span class="v">${esc(g.title)}</span><span class="k">${Math.round(g.progress * 100)}%</span></div>
@@ -151,6 +189,7 @@
     if (!widgetOpen('memory')) return;
     const body = qs('memory', '.w-body');
     if (!body) return;
+    if (!D.MEMORY.length) { body.innerHTML = emptyState('NO MEMORY EVENTS YET'); return; }
     body.innerHTML = D.MEMORY.slice(0, 20).map(m =>
       `<div class="mevt imp-${esc(m.importance)}">
         <span class="ew">${esc(m.when)}</span>
@@ -164,6 +203,7 @@
     if (!widgetOpen('council')) return;
     const body = qs('council', '.w-body');
     if (!body) return;
+    if (!D.COUNCIL.length) { body.innerHTML = emptyState('NO COUNCIL DECISIONS YET'); return; }
     body.innerHTML = D.COUNCIL.slice(0, 5).map(c =>
       `<div class="csess">
         <div class="q">${esc(c.question)}</div>
@@ -181,8 +221,8 @@
     const el = qs('security', '.v');
     if (!el) return;
     const colors = { low: 'var(--ok)', medium: 'var(--warn)', high: 'var(--danger)', critical: 'var(--danger)' };
-    el.style.color = colors[level] || 'var(--ok)';
-    el.textContent = (level || 'low').toUpperCase();
+    el.style.color = colors[level] || 'var(--txt-faint)';
+    el.textContent = level ? String(level).toUpperCase() : 'UNKNOWN';
   }
 
   // Telemetry: widgets.js animateTelemetry already updates these via setInterval.
@@ -284,6 +324,11 @@
     });
   }
 
+  function fmtPrice(v) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+  }
+
   // ── Live market ticker ─────────────────────────────────────────────────────
   function refreshMarket(quotes) {
     if (!widgetOpen('market')) return;
@@ -295,7 +340,7 @@
     const chg = nifty.change != null ? nifty.change : '';
     const pos = pct == null || pct >= 0;
     statEl.innerHTML =
-      `<div><b>${esc(nifty.symbol)}</b> <span>${esc(nifty.price != null ? nifty.price : (nifty.close != null ? nifty.close : '—'))}</span></div>
+      `<div><b>${esc(nifty.symbol)}</b> <span>${esc(fmtPrice(nifty.price != null ? nifty.price : nifty.close))}</span></div>
        <div style="color:var(--${pos ? 'ok' : 'danger'})"><b>${pos ? '▲' : '▼'} ${pct != null ? Math.abs(pct).toFixed(2) : '—'}%</b> <span>${esc(chg)}</span></div>`;
   }
 
@@ -311,18 +356,48 @@
     if (typeof V.setRuntimeMode === 'function') V.setRuntimeMode(mode, detail);
   }
 
+  // A rejected key (HTTP 401/403) does not fix itself, yet ~22 pollers kept retrying every few seconds: after the owner
+  // rotated the API key a single stale tab sent thousands of 401s an hour and filled the backend log. After a handful of
+  // consecutive auth rejections all polling stops and one slow probe waits for a request to succeed again (the key was
+  // fixed, the page was reopened with a good one), which restarts polling.
+  const AUTH_REJECTS_BEFORE_STOP = 6;
+  const AUTH_PROBE_MS = 30000;
+  let authRejects = 0;
+  let authProbe = null;
+
+  function stopPollingForAuth() {
+    pollTimers.forEach(clearInterval);
+    pollTimers.length = 0;
+    pollingStarted = false;   // a later 'connected' (manual reconnect) may start polling again
+    if (authProbe) return;
+    authProbe = setInterval(async () => {
+      try {
+        await V.http('/status');
+        clearInterval(authProbe); authProbe = null;
+        authRejects = 0;
+        markRuntime('live', V.config.base || '/status');
+        startPolling();
+      } catch (_) { /* still rejected: keep waiting, quietly */ }
+    }, AUTH_PROBE_MS);
+  }
+
   async function poll(path, interval, handler) {
     async function run() {
       try {
         const data = await V.http(path);
         successfulPolls += 1;
         failedPolls = 0;
+        authRejects = 0;
         markRuntime('live', V.config.base || path);
         handler(data);
       } catch (err) {
         failedPolls += 1;
         const detail = path + ' failed' + (err && err.message ? ': ' + err.message : '');
         if (!successfulPolls || failedPolls >= 2) markRuntime('degraded', detail);
+        if (/→ 40[13]/.test(detail)) {
+          authRejects += 1;
+          if (authRejects >= AUTH_REJECTS_BEFORE_STOP) stopPollingForAuth();
+        }
       }
     }
     run();
@@ -356,12 +431,16 @@
       if (data.runtime && data.runtime.uptime_seconds != null) {
         setTel('[data-up]', fmtUptime(data.runtime.uptime_seconds));
       }
-      if (data.agents && Array.isArray(data.agents.sample) && data.agents.sample.length) {
-        D.agents = data.agents.sample.map(adaptAgent);
+      if (data.agents && Array.isArray(data.agents.sample)) {
+        // /world/snapshot only carries a small SAMPLE of the roster. It used to overwrite the full list from /agents every 5 s,
+        // so the ticker flipped between "230 AGENTS" and "12 AGENTS" and a different "TOP AGENT". Keep the full list once we
+        // have it, and take the real total from the snapshot's own count.
+        if (!D._agentsFull) D.agents = data.agents.sample.map(adaptAgent);
+        if (Number.isFinite(Number(data.agents.count))) setLive({ agentCount: Number(data.agents.count) });
         refreshDistricts();
         if (global.VectorCity) global.VectorCity.updateAgents(D.agents);
       }
-      if (data.memory && Array.isArray(data.memory.recent) && data.memory.recent.length) {
+      if (data.memory && Array.isArray(data.memory.recent)) {
         D.MEMORY = adaptMemory(data.memory.recent);
         refreshMemory();
       }
@@ -381,8 +460,10 @@
     // /agents — 8s — districts panel
     poll('/agents', 8000, data => {
       const list = data.agents || data || [];
-      if (!Array.isArray(list) || list.length === 0) return;
+      if (!Array.isArray(list)) return;
       D.agents = list.map(adaptAgent);
+      D._agentsFull = true;
+      setLive({ agents: D.agents.length, agentCount: D.agents.length, districts: new Set(D.agents.map(a => a.district)).size });
       refreshDistricts();
       // also update city3d if open
       if (global.VectorCity) global.VectorCity.updateAgents(D.agents);
@@ -392,7 +473,7 @@
     // endpoint returns {memories:[...]} (confirmed by web_ui.py)
     poll('/memory/recent?limit=25', 6000, data => {
       const events = data.memories || data.events || data.items || (Array.isArray(data) ? data : []);
-      if (!Array.isArray(events) || events.length === 0) return;
+      if (!Array.isArray(events)) return;
       D.MEMORY = adaptMemory(events);
       refreshMemory();
     });
@@ -400,7 +481,7 @@
     // /brain/goals — 10s — goals panel (returns flat list with horizon field)
     poll('/brain/goals', 10000, data => {
       const list = data.goals || data.actions || data || [];
-      if (!Array.isArray(list) || list.length === 0) return;
+      if (!Array.isArray(list)) return;
       D.GOALS = adaptGoals(list);
       refreshGoals();
     });
@@ -422,6 +503,7 @@
     // /security/status — 12s — threat level + live audit log
     poll('/security/status', 12000, data => {
       if (!data) return;
+      setLive({ threat: data.threat_level || null });
       refreshThreat(data.threat_level);
       if (data.audit_log) {
         D.APPROVALS = adaptApprovals(data.audit_log);
@@ -440,7 +522,7 @@
     // /memory/council/history — 20s — council panel
     poll('/memory/council/history', 20000, data => {
       const sessions = data.sessions || data.events || data || [];
-      if (!Array.isArray(sessions) || sessions.length === 0) return;
+      if (!Array.isArray(sessions)) return;
       D.COUNCIL = sessions.slice(0, 5).map(s => ({
         question: s.question || s.content || '—',
         recommendation: s.recommendation || s.decision || 'defer',
@@ -467,6 +549,7 @@
     poll('/loop/status', 8000, data => {
       if (!data) return;
       const tick = data.tick_count ?? data.ticks;
+      setLive({ loop: { running: !!data.running, tick: tick != null ? tick : null } });
       if (tick != null) { _tick = tick; setTel('[data-tick]', tick); }
     });
 
@@ -484,6 +567,7 @@
       const quotes = data && (data.quotes || (Array.isArray(data) ? data : []));
       if (quotes && quotes.length) {
         D.STOCKS_LIVE = quotes;
+        setLive({ quotes: quotes.length });
         refreshMarket(quotes);
       }
     });
@@ -657,13 +741,13 @@
   // a panel opens; if its cache is empty, fire a one-shot fetch to fill it now.
   const ONOPEN = {
     goals:     { refresh: refreshGoals,     fetch: '/brain/goals',
-                 apply: d => { const l = d.goals || d.actions || d || []; if (Array.isArray(l) && l.length) { D.GOALS = adaptGoals(l); } } },
+                 apply: d => { const l = d.goals || d.actions || d || []; if (Array.isArray(l)) { D.GOALS = adaptGoals(l); } } },
     memory:    { refresh: refreshMemory,    fetch: '/memory/recent?limit=25',
-                 apply: d => { const e = d.memories || d.events || d.items || (Array.isArray(d) ? d : []); if (Array.isArray(e) && e.length) { D.MEMORY = adaptMemory(e); } } },
+                 apply: d => { const e = d.memories || d.events || d.items || (Array.isArray(d) ? d : []); if (Array.isArray(e)) { D.MEMORY = adaptMemory(e); } } },
     districts: { refresh: refreshDistricts, fetch: '/agents',
-                 apply: d => { const l = d.agents || d || []; if (Array.isArray(l) && l.length) { D.agents = l.map(adaptAgent); } } },
+                 apply: d => { const l = d.agents || d || []; if (Array.isArray(l)) { D.agents = l.map(adaptAgent); } } },
     council:   { refresh: refreshCouncil,   fetch: '/memory/council/history',
-                 apply: d => { const s = d.sessions || d.events || d || []; if (Array.isArray(s) && s.length) { D.COUNCIL = s.slice(0, 5).map(x => ({
+                 apply: d => { const s = d.sessions || d.events || d || []; if (Array.isArray(s)) { D.COUNCIL = s.slice(0, 5).map(x => ({
                      question: x.question || x.content || '—',
                      recommendation: x.recommendation || x.decision || 'defer',
                      stakes: x.stakes || 'high', confidence: x.confidence || 0,
@@ -686,6 +770,7 @@
 
   V.on('connected', function () {
     console.info('[VECTOR] backend.js: polling started');
+    resetSeedData();
     markRuntime('connecting', V.config.base || 'backend');
     startPolling();
   });

@@ -145,38 +145,57 @@
   // reflect state into corner glyph
   V.on('state', ({to})=>{ document.getElementById('glyphState').textContent = 'SYS · '+to.toUpperCase(); });
 
-  // tickers
-  const stockTrack = document.getElementById('stockTrack');
-  D.STOCKS.concat(D.STOCKS).forEach(([s,p,chg])=>{
-    const w=document.createElement('span');
-    w.innerHTML = `<span class="tk-sym">${s}</span><span class="tk-px">${p}</span>`+
-      `<span class="${chg>=0?'tk-up':'tk-dn'}"> ${chg>=0?'▲':'▼'}${Math.abs(chg).toFixed(2)}%</span>`;
-    stockTrack.appendChild(w);
-  });
-  const newsTrack = document.getElementById('newsTrack');
-  // mix live system feeds (threat, approvals, agent HP) with news — like the reels
-  const sys = [];
-  sys.push('SECURITY · THREAT LEVEL LOW');
-  sys.push(D.APPROVALS.length + ' APPROVAL' + (D.APPROVALS.length!==1?'S':'') + ' PENDING REVIEW');
-  const hot = D.agents.slice().sort((a,b)=>b.health_points-a.health_points)[0];
-  sys.push('AGENT ' + hot.name.toUpperCase() + ' · HP ' + hot.health_points + ' · ' + hot.tier);
-  const dead = D.agents.find(a=>a.health_points<=0);
-  if(dead) sys.push('AGENT ' + dead.name.toUpperCase() + ' · GHOST · SUCCESSOR SPAWNED');
-  sys.push('LOOP · 33 DISTRICTS ONLINE · TICK NOMINAL');
-  sys.push('MEMORY · ' + D.MEMORY[0].event_type + ' · ' + D.MEMORY[0].content);
-  const feed = [];
-  D.NEWS.forEach((n,i)=>{ feed.push(n); if(sys[i]) feed.push('▣ '+sys[i]); });
-  newsTrack.textContent = feed.concat(feed).join('      ◆      ');
+  // Both tickers are built ONLY from live backend data (D.STOCKS_LIVE, D.LIVE, D.agents, ...). They used to be seeded
+  // once from hard-coded demo arrays (fake quotes, invented headlines, a constant "THREAT LEVEL LOW" / "33 DISTRICTS
+  // ONLINE · TICK NOMINAL"), which looked live but was not.
+  const fmtNum = v => { const n = Number(v); return Number.isFinite(n)
+    ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'; };
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-  // boot sequence
+  const stockTrack = document.getElementById('stockTrack');
+  const buildStocks = () => {
+    if(!stockTrack) return;
+    const quotes = Array.isArray(D.STOCKS_LIVE) ? D.STOCKS_LIVE : [];
+    stockTrack.textContent = '';
+    if(!quotes.length) return;               // no live quotes -> show nothing rather than fake ones
+    quotes.concat(quotes).forEach(q=>{
+      const pct = q.change_pct != null ? Number(q.change_pct) : (q.change_percent != null ? Number(q.change_percent) : null);
+      const w = document.createElement('span');
+      w.innerHTML = `<span class="tk-sym">${esc(q.symbol)}</span><span class="tk-px">${esc(fmtNum(q.price != null ? q.price : q.close))}</span>` +
+        (pct == null || !Number.isFinite(pct) ? '' :
+          `<span class="${pct>=0?'tk-up':'tk-dn'}"> ${pct>=0?'▲':'▼'}${Math.abs(pct).toFixed(2)}%</span>`);
+      stockTrack.appendChild(w);
+    });
+  };
+
+  const newsTrack = document.getElementById('newsTrack');
+  const buildTicker = () => {
+    if(!newsTrack) return;
+    const L = D.LIVE || {};
+    const agents = Array.isArray(D.agents) ? D.agents : [];
+    const approvals = Array.isArray(D.APPROVALS) ? D.APPROVALS : [];
+    const memory = Array.isArray(D.MEMORY) ? D.MEMORY : [];
+    const sys = [];
+    if(L.threat) sys.push('SECURITY · THREAT LEVEL ' + String(L.threat).toUpperCase());
+    sys.push(approvals.length + ' APPROVAL' + (approvals.length!==1?'S':'') + ' PENDING REVIEW');
+    if(L.loop) sys.push('LOOP · ' + (L.loop.running ? 'RUNNING' + (L.loop.tick != null ? ' · TICK ' + L.loop.tick : '') : 'NOT RUNNING'));
+    if(L.districts) sys.push(L.districts + ' DISTRICTS · ' + (L.agentCount != null ? L.agentCount : agents.length) + ' AGENTS REGISTERED');
+    const hot = agents.slice().sort((a,b)=>(b.health_points||0)-(a.health_points||0))[0];
+    if(hot) sys.push('TOP AGENT ' + String(hot.name).toUpperCase() + ' · HP ' + Math.round(hot.health_points||0) + ' · ' + hot.tier);
+    if(memory[0]) sys.push('MEMORY · ' + memory[0].event_type + ' · ' + memory[0].content);
+    if(!L.loop && !L.threat && !agents.length) sys.unshift('AWAITING LIVE DATA FROM BACKEND');
+    const text = sys.concat(sys).join('      ◆      ');
+    if(newsTrack.textContent !== text) newsTrack.textContent = text;
+  };
+  buildStocks(); buildTicker();
+  V.on('live:update', ()=>{ buildStocks(); buildTicker(); });
+  setInterval(()=>{ buildStocks(); buildTicker(); }, 30000);
+
+  // boot sequence -- only states what the HUD itself is doing; backend facts arrive via the live tickers.
   const lines = [
-    ['BOOT','kernel · neuromorphic core'],
-    ['OK','event bus online · 33 districts'],
-    ['OK','episodic + semantic memory mounted'],
-    ['OK','ollama · 5 models warm'],
-    ['OK','voice · STT/TTS · wake-word armed'],
-    ['OK','hand-tracking · gesture pipeline'],
-    ['READY','VECTOR online']
+    ['BOOT','VECTOR HUD'],
+    ['..','connecting to backend'],
+    ['READY','HUD ready — live status follows']
   ];
   const log = document.getElementById('bootLog'); let li=0;
   // hard fallback: never let the boot overlay trap the UI
@@ -211,6 +230,7 @@
     const cfg = Object.assign({ base:'', ws:'', apiKey:'', autoConnect:true },
       window.VECTOR_CONFIG||{});
     const q = new URLSearchParams(location.search);
+    if(q.get('cinema')) document.documentElement.classList.add('cinema');   // enlarged, centred widgets for recordings
     if(q.get('base')) cfg.base = q.get('base');
     if(q.get('key'))  cfg.apiKey = q.get('key');
     if(!cfg.autoConnect || !cfg.base) return;     // stay on demo data

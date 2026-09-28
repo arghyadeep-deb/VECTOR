@@ -227,9 +227,10 @@ async def test_verification_failed_step_does_not_move_progress(loop_with_stub_pl
 @pytest.mark.unit
 async def test_plan_progress_1_0_does_not_auto_complete_goal(loop_with_stub_plan_runner):
     """A step reporting plan_progress == 1.0 does not auto-complete the goal
-    through this bridge (the bridge's own 0.0 < plan_progress < 1.0 guard
-    deliberately excludes 1.0 so only GoalSystem's own explicit callers can
-    trigger the completed-status transition)."""
+    through this bridge. 2026-09-23 fix: 1.0 is no longer excluded outright
+    (that gave single-step plans zero contribution, ever); it's capped at
+    PLAN_PROGRESS_GOAL_CAP (0.99) instead, so only GoalSystem's own explicit
+    callers can still trigger the completed-status transition."""
     loop = loop_with_stub_plan_runner
     gs = loop._get_goals()
     goal_id = "g_daily_commit"
@@ -257,7 +258,7 @@ async def test_plan_progress_1_0_does_not_auto_complete_goal(loop_with_stub_plan
         f"[behavioral evidence] plan_progress=1.0 does not flip goal status: "
         f"progress={after['progress']} status={after['status']}"
     )
-    assert after["progress"] == 0.0
+    assert after["progress"] == 0.99
     assert after["status"] == "active"
 
 

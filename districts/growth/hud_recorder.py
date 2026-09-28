@@ -86,12 +86,20 @@ def _ffmpeg_mux(video: str, audio: str, out: str, captions: "str | None" = None)
 
     cmd = ["ffmpeg", "-y", "-i", video, "-i", audio]
     if captions:
-        cmd += ["-vf", f"subtitles={captions}"]
+        # An absolute Windows path (C:\...\x.srt) breaks ffmpeg's filter-graph parser: the drive colon splits the option
+        # and backslashes are escapes, so burning captions failed on every call (verified with a real ffmpeg 2026-09-26).
+        # Forward slashes plus an escaped colon and quotes is the documented form.
+        fpath = str(captions).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+        cmd += ["-vf", f"subtitles='{fpath}'"]
     cmd += ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
             "-shortest", "-map", "0:v:0", "-map", "1:a:0", out]
     try:
         subprocess.run(cmd, capture_output=True, timeout=600, check=True)
         return out
+    except subprocess.CalledProcessError as exc:
+        tail = (exc.stderr or b"").decode("utf-8", "replace").strip().splitlines()[-4:]
+        logger.error("[VECTOR][growth][hud] ffmpeg mux failed (exit {}): {}", exc.returncode, " | ".join(tail))
+        return None
     except Exception as exc:
         logger.error("[VECTOR][growth][hud] ffmpeg mux failed: {}", exc)
         return None

@@ -46,7 +46,9 @@ from loguru import logger
 
 # ── Job tracking (SQLite) ─────────────────────────────────────────────────────
 
-_DB_PATH = configured_db_path().with_name("content_jobs.db")
+# Tests write here too; VECTOR_TEST_DATA_DIR keeps them out of the live queue.
+_TEST_DIR = os.environ.get("VECTOR_TEST_DATA_DIR")
+_DB_PATH = (Path(_TEST_DIR) / "content_jobs.db") if _TEST_DIR else configured_db_path().with_name("content_jobs.db")
 _DB_LOCK = threading.RLock()
 
 def _get_job_conn() -> sqlite3.Connection:
@@ -108,6 +110,13 @@ def get_job_queue(limit: int = 20) -> list[dict]:
             conn.close()
     return [dict(r) for r in rows]
 
+def list_resumable_jobs(limit: int = 20) -> list[dict]:
+    """Errored jobs whose finished render still exists on disk. Resuming their upload is an
+    owner action through the existing gated upload path; nothing here uploads anything."""
+    return [j for j in get_job_queue(limit=limit * 5)
+            if j.get("status") == "error" and j.get("video_path") and Path(j["video_path"]).exists()][:limit]
+
+
 def get_job_history(limit: int = 10) -> list[dict]:
     _init_db()
     with _DB_LOCK:
@@ -151,18 +160,29 @@ def recover_interrupted_jobs(max_age_hours: float = 2.0) -> int:
         datetime.datetime.now(datetime.timezone.utc)
         - datetime.timedelta(hours=max_age_hours)
     ).isoformat()
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    n = 0
     with _DB_LOCK:
         conn = _get_job_conn()
         try:
-            cur = conn.execute(
-                "UPDATE content_jobs SET status='error', "
-                "error='interrupted — process restarted mid-pipeline (auto-recovery)', "
-                "updated_at=? "
+            conn.row_factory = sqlite3.Row
+            stale = conn.execute(
+                "SELECT id, video_path FROM content_jobs "
                 "WHERE status NOT IN ('done','error','cancelled','pending') AND updated_at < ?",
-                (datetime.datetime.now(datetime.timezone.utc).isoformat(), cutoff),
-            )
+                (cutoff,),
+            ).fetchall()
+            for row in stale:
+                # A finished render persisted to renders/ survives the restart: say so, so the
+                # owner can resume the (gated) upload instead of regenerating the video.
+                saved = row["video_path"] if row["video_path"] and Path(row["video_path"]).exists() else ""
+                note = ("interrupted — process restarted mid-pipeline (auto-recovery)"
+                        + (f" (render saved: {saved})" if saved else ""))
+                conn.execute(
+                    "UPDATE content_jobs SET status='error', error=?, updated_at=? WHERE id=?",
+                    (note, now, row["id"]),
+                )
+                n += 1
             conn.commit()
-            n = cur.rowcount or 0
         finally:
             conn.close()
     if n:
@@ -429,7 +449,7 @@ class VideoPipelineAgent(AgentBase):
         try:
             from districts.content.script_generator import ScriptGenerator
             gen = ScriptGenerator()
-            result = gen.generate_script(topic, duration_min=duration_min, script_type="youtube_tutorial")
+            result = await gen.generate_script(topic, duration_min=duration_min, script_type="youtube_tutorial")
             if isinstance(result, dict) and result.get("status") == "success":
                 script = result.get("script", {})
                 # Generate supporting metadata
@@ -463,7 +483,10 @@ class VideoPipelineAgent(AgentBase):
         try:
             from districts.content.voice_generator import VoiceGenerator
             vg = VoiceGenerator()
-            result = await vg.generate_voice(text, voice_name="bf_emma", output_path=output_path)
+            # generate_voice() is synchronous and CPU/GPU heavy: awaiting it raised "object dict can't be used in
+            # 'await' expression" (caught below), so narration was never produced. Run it off the event loop instead;
+            # no voice_name means VECTOR's configured voice (owner rule: male voices only).
+            result = await asyncio.to_thread(vg.generate_voice, text, None, output_path)
             if isinstance(result, dict) and result.get("status") == "success":
                 return output_path
         except Exception as e:

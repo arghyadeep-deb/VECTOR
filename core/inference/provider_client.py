@@ -68,6 +68,10 @@ from core.inference.llm_providers import (
 # complexity/deadlock surface of forcing one primitive across two runtimes.
 _OLLAMA_ASYNC_SEMAPHORE = asyncio.Semaphore(CONFIG["ollama_max_concurrent"])
 
+# CLAUDE.md Rule 10 — "Free-tier only at runtime — no paid Anthropic/OpenAI
+# keys at runtime" (owner decision 2026-07-08). Enforced in ProviderClient._call().
+_PAID_ANTHROPIC_OPENAI_SLUGS = frozenset({"anthropic", "openai"})
+
 
 @asynccontextmanager
 async def _ollama_async_bound(prov: "LLMProvider"):
@@ -82,6 +86,17 @@ async def _ollama_async_bound(prov: "LLMProvider"):
         return
     async with _OLLAMA_ASYNC_SEMAPHORE:
         yield
+
+
+class Rule10PolicyRefusal(RuntimeError):
+    """CLAUDE.md Rule 10 ("free-tier only at runtime") blocked this call.
+
+    A dedicated type (not a plain RuntimeError matched by message
+    substring) so _call_with_retry() can recognize it unambiguously,
+    before any of the generic is_key_err/is_rl/is_non_retryable string
+    heuristics -- which, for a plain string match like "403", collide
+    with unrelated key-rotation logic (see _call()'s own comment on this).
+    """
 
 
 _LEAKED_REASONING_RE = re.compile(
@@ -218,21 +233,35 @@ class ProviderClient:
 
     async def complete(
         self,
-        prompt: str,
+        prompt: str | None = None,
         system: str | None = None,
         provider: str | None = None,
         model: str | None = None,
         tier: str = "agentic",
         temperature: float = 0.7,
         max_tokens: int = 4096,
+        messages: list[dict] | None = None,
         **kwargs,
     ) -> CompletionResult:
         """Single-turn completion. Extra kwargs (caller_id, district,
-        sensitive, ...) pass through to chat()."""
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        sensitive, ...) pass through to chat().
+
+        Pass either `prompt` (optionally with `system`) or ready-made chat `messages`, not both. The `messages` form is
+        accepted because seven callers (the /command registry, four marketing agents, the subconscious loop) were
+        written against it and every call raised "missing 1 required positional argument: 'prompt'", so those agents
+        never produced an answer (found by the 2026-09-26 loop watch).
+        """
+        if messages is not None:
+            if prompt is not None:
+                raise TypeError("complete() takes either prompt or messages, not both")
+            messages = list(messages)
+        else:
+            if prompt is None:
+                raise TypeError("complete() needs a prompt (or messages=)")
+            messages = []
+            if system:
+                messages.append({"role": "system", "content": system})
+            messages.append({"role": "user", "content": prompt})
         return await self.chat(messages, provider=provider, model=model,
                                tier=tier, temperature=temperature,
                                max_tokens=max_tokens, **kwargs)
@@ -658,6 +687,12 @@ class ProviderClient:
                 # attempt=0 means it succeeded on the first try (no retries).
                 result._retry_attempts = attempt  # type: ignore[attr-defined]
                 return result
+            except Rule10PolicyRefusal:
+                # A deterministic policy block, never retryable, and never
+                # a key/rate-limit problem -- fail over to the next
+                # provider immediately, unconditionally, before any of the
+                # generic string-matching heuristics below even see it.
+                raise
             except Exception as e:
                 err = str(e)
                 low = err.lower()
@@ -701,6 +736,19 @@ class ProviderClient:
                     await asyncio.sleep(0.05)
                     continue
 
+                # A host name that does not resolve will not resolve in 1-2s either
+                # (github_models' old base URL, 2026-09): fail over now, don't back off.
+                if (
+                    "getaddrinfo failed" in low
+                    or "name or service not known" in low
+                    or "name resolution" in low
+                ):
+                    logger.warning(
+                        "[VECTOR][provider_client] {} host does not resolve -- failing over immediately",
+                        prov.slug,
+                    )
+                    raise
+
                 # auth error on a multi-key pool → try the next key instead of bailing
                 if use_reliable and is_non_retryable(err) and not (is_key_err and pool.size > 1):
                     raise
@@ -729,6 +777,46 @@ class ProviderClient:
         api_key: str | None = None,
     ) -> CompletionResult:
         """Route to the right driver based on provider.driver."""
+        # CLAUDE.md Rule 10 ("Free-tier only at runtime — no paid Anthropic/
+        # OpenAI keys at runtime", owner decision 2026-07-08) had no runtime
+        # enforcement — only a soft, filtered-out-if-unconfigured mention in
+        # route_policy.py's _PREMIUM_HEAVY list and llm_providers.py's
+        # `locked_models` whitelist clamp (which only applies to
+        # opencode_zen/zai). If the owner (or anything else) ever set a real
+        # ANTHROPIC_API_KEY/OPENAI_API_KEY, this call would have gone through
+        # as a genuine paid request with zero code-level gate. This is now a
+        # hard, explicit-opt-in-only block, matching the rule's own language.
+        if prov.slug in _PAID_ANTHROPIC_OPENAI_SLUGS and os.environ.get("VECTOR_ALLOW_PAID_ANTHROPIC_OPENAI") != "1":
+            # 2026-09-23 (medium-priority follow-up, decided directly per
+            # owner's "plan based on efficiency... do the work" instruction
+            # rather than blocking on a design-question round-trip):
+            # Keep the opt-in override -- matches this codebase's own
+            # convention for owner-controlled policy escape hatches
+            # (VECTOR_YELLOW_AUTO_CONFIRM, VECTOR_TRUST_TEST). It requires
+            # an actual env var change on the owner's machine; no LLM call
+            # inside VECTOR's own runtime can set it.
+            #
+            # 2026-09-23 round 2 (independent review correction): an
+            # earlier version of this fix put "403" in the message so
+            # reliable_provider.is_non_retryable() would treat this as
+            # non-retryable and fail over immediately instead of retrying a
+            # deterministic policy block 3x with backoff. That collided
+            # with _call_with_retry()'s OWN "403" check for is_key_err --
+            # which, on a multi-key pool (pool.size > 1), deliberately
+            # SUPPRESSES the non-retryable raise so it can rotate to
+            # another key. A policy refusal has nothing to do with which
+            # key was used, so it got retried against every configured key
+            # anyway -- the exact waste this fix was supposed to remove. A
+            # dedicated exception type sidesteps string-matching entirely:
+            # _call_with_retry() below checks for this type FIRST, before
+            # any of the generic is_key_err/is_rl/is_non_retryable string
+            # heuristics even run.
+            raise Rule10PolicyRefusal(
+                f"[VECTOR][rule10] refusing paid provider '{prov.slug}' at "
+                "runtime -- CLAUDE.md Rule 10: free-tier only at runtime, no "
+                "paid Anthropic/OpenAI keys. Set "
+                "VECTOR_ALLOW_PAID_ANTHROPIC_OPENAI=1 to explicitly override."
+            )
         match prov.driver:
             case "anthropic":
                 return await self._call_anthropic(prov, model, messages, temperature, max_tokens, api_key=api_key)

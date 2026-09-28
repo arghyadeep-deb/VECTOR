@@ -6,7 +6,7 @@ VECTOR City — Darwinian multi-agent civilization. VECTOR governs. Agents are c
 ## Three-Layer System
 ```
 Layer A — Devices:   Legion Pro 5 (primary) | Old Android Termux (ambient) | Daily phone (alerts)
-Layer B — Cloud:     Fly.io (3 VMs) | Cloudflare Workers+D1+R2+KV | Supabase | Turso
+Layer B — Cloud:     Cloudflare Worker + D1 + KV (api/wrangler.toml; live) | Supabase | Turso   (Fly.io dropped — owner declined the card requirement)
 Layer C — APIs:      Claude Sonnet (Pro chat, build sessions) | Gemini 2.5 Pro (free) | Ollama local
 ```
 
@@ -32,18 +32,22 @@ observe(0.5s) → think(event-driven) → act(permission-gated) → reflect(2AM)
 +30 HP   output used by VECTOR         -100 HP critical error
 +40 HP   council voted for them
 
->800 HP → Claude Sonnet access    >700 HP → Council seat
-600-800 → kimi-k2.6 access        0 HP    → death + ghost memory
+Born at 500 HP. Awards are damped (repeat-reason decay x headroom); deductions are not.
+
+HP → local model (AgentBase._calculate_model):
+>=800 vector-dev | 600-799 vector-r1 | 400-599 vector-focus
+200-399 vector-reasoning | 1-199 vector-ambient | 0 → death + ghost memory
+>=700 HP → Council eligibility (CONFIG["council"]["hp_gate"])
 ```
 
-## VECTOR Gaps (build after Phase 1)
+## VECTOR Gaps (all 8 modules exist in the code; live behavior not re-verified here)
 ```
-Gap 1: synthesis_bridge.py    — cross-domain pattern detection every 30min
-Gap 2: red_team_agent.py      — adversarial review before RED actions
-Gap 3: epistemic_tracker.py   — knows what it doesn't know
-Gap 4: counterfactual.py      — learns from rejected decisions
-Gap 5: hypothesis_engine.py   — proactive insights (needs fine-tuned model)
-Gap 6: causal_graph.py        — causal reasoning (Year 2)
-Gap 7: person_model.py        — theory of mind per person
-Gap 8: meta_cognition.py      — monthly bias detection
+Gap 1: core/brain/synthesis_bridge.py    — cross-domain pattern detection every 30min
+Gap 2: core/brain/red_team_agent.py      — adversarial review before RED actions
+Gap 3: core/brain/epistemic_tracker.py   — knows what it doesn't know
+Gap 4: core/memory/counterfactual.py     — learns from rejected decisions
+Gap 5: core/brain/hypothesis_engine.py   — proactive insights (needs fine-tuned model)
+Gap 6: core/memory/causal_graph.py       — causal reasoning (SQLite-backed)
+Gap 7: core/brain/person_model.py        — theory of mind per person
+Gap 8: core/city/meta_cognition.py       — monthly bias detection
 ```

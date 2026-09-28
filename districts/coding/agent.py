@@ -78,7 +78,7 @@ class CodingSwarm(AgentBase):
             "code_intel", "gui_automation", "developer_advocate",
             "onboarding", "minimal_change",
         ]
-        self.health_points = 1500
+        self.health_points = 1000  # HP is capped at 1000 (was 1500); still far above the district's other agents
         self._agents: dict[str, AgentBase] = {}
         self._agent_roles: dict[str, str] = {}
         self._load_agents()
@@ -169,7 +169,16 @@ class CodingSwarm(AgentBase):
                         "context": params.get("context", ""),
                         "timeout": params.get("timeout", 60.0),
                     })
-                return await agent.run({"type": task_type, **params})
+                # 2026-09-24 (independent review finding -- HIGH): dict
+                # literal order meant a caller-supplied params["type"]
+                # silently OVERWROTE the real, Governor-authorized
+                # task_type here (later key wins) -- e.g. an UNKNOWN outer
+                # type could carry params={"type": "code_conduct", ...}
+                # and CodeConductorAgent would read task["type"] ==
+                # "code_conduct" (its own real, dangerous action) despite
+                # never having been authorized as that action_type.
+                # task_type must always win over anything in params.
+                return await agent.run({**params, "type": task_type})
             except Exception as e:
                 logger.warning("[CodingSwarm] agent {} failed: {} — falling back", agent.name, e)
         return await self._fallback_response(task_type, params)

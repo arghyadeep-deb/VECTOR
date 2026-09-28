@@ -45,11 +45,13 @@ from districts.predictive_analytics.strategy_recommender import StrategyRecommen
 
 
 @pytest.fixture(autouse=True)
-def _isolated_episodic_db():
+def _isolated_episodic_db(tmp_path):
     import core.memory.episodic as episodic
 
     original_path = os.environ.get("VECTOR_DB_PATH")
-    temp_path = str(Path(tempfile.gettempdir()) / "vector_test_predictive_analytics.db")
+    # A fresh file per test: the old fixed name in the system temp dir survived between sessions, and once the
+    # suite's DB key changed the leftover file was undecryptable ("hmac check failed"), failing the governor test.
+    temp_path = str(tmp_path / "vector_test_predictive_analytics.db")
     os.environ["VECTOR_DB_PATH"] = temp_path
     episodic.close_db_connection()
     try:

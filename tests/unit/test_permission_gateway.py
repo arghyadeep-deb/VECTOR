@@ -44,6 +44,11 @@ def gateway():
     g._execute_action = AsyncMock(return_value={"status": "ok"})
     g._check_capability = MagicMock(return_value=(True, "mock capability ok"))
     g._wait_for_confirmation = AsyncMock(return_value=False)
+    # Without this every RED action ran a real CouncilBrain deliberation (live LLM calls, ~30s each): the file took
+    # three minutes and its result depended on which providers happened to answer. "defer" is the council's own
+    # fail-safe verdict, so the owner-confirmation path under test is unchanged. The council itself is covered in
+    # tests/integration/test_phase_a7_council_red_tier.py.
+    g._handle_red_tier = AsyncMock(return_value="defer")
     return g
 
 
@@ -135,15 +140,36 @@ class TestRedActions:
         assert result.executed is False
 
     async def test_red_allows_with_manual_confirmation(self):
+        # 2026-09-24 (external review, Phase 2): CouncilBrain's deliberation
+        # timeout was raised from a hardcoded 5.0s (which happened to fail
+        # fast enough for this test's own 5s polling window by accident) to
+        # a configurable, realistic ~30s (data/council_log.jsonl showed the
+        # old 5s value caused a 58% real-world timeout rate). This test's
+        # actual purpose -- the manual Pushover confirmation flow -- has
+        # nothing to do with council timing, so mock it out directly rather
+        # than depend on incidental real-Ollama-timeout races.
         gw = PermissionGateway()
         gw._notify = AsyncMock()
         gw._execute_action = AsyncMock(return_value={"status": "ok"})
         gw._check_capability = MagicMock(return_value=(True, ""))
+        gw._handle_red_tier = AsyncMock(return_value="defer")
 
         task = asyncio.create_task(gw.execute(make_action("send_email", {"to": "t@t.com"})))
         loop = asyncio.get_running_loop()
+        # 2026-09-24 (external review, Phase 2): the pending id is a random,
+        # unguessable string (2026-09-23 fix), never the bare literal
+        # "send_email" -- this condition never actually matched, so the loop
+        # always just burned its full 5s budget regardless of real state.
+        # It happened to "work" only because the OLD council flow's own ~5s
+        # Ollama timeout meant _wait_for_confirmation's real (1s in test
+        # mode, per `_red_timeout = 1 if "pytest" in sys.modules else 300`)
+        # window opened at roughly the same moment this loop's deadline hit
+        # -- a timing coincidence, not a real check. With council mocked to
+        # resolve instantly, that 1s window now opens near t=0 and is long
+        # gone by the time this loop's old condition would finally exit at
+        # t=5s. Poll the real state instead.
         deadline = loop.time() + 5.0
-        while "send_email" not in gw._pending_events:
+        while not any(m.get("action_type") == "send_email" for m in gw._pending_actions.values()):
             await asyncio.sleep(0.01)
             if loop.time() > deadline:
                 break

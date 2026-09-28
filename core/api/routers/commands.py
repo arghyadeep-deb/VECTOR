@@ -421,8 +421,9 @@ async def command_endpoint(
         # (the gateway's own comment: not_implemented "prevents phantom RL reward").
         # Honest reward: a GREEN git_status/check_git/git_log/recent_commits
         # action whose real handler ran but returned no usable data (gateway
-        # status defaulted to 'ok') must not earn the success reward either —
-        # see _is_git_readonly_empty's docstring.
+        # status is 'unknown' — see permission_gateway.py's evidence-based
+        # check, or an explicit 'ok' with empty evidence) must not earn the
+        # success reward either — see _is_git_readonly_empty's docstring.
         reward = 0.8 if (
             gateway_result.approved
             and not _is_not_implemented(gateway_result)
@@ -1051,34 +1052,68 @@ async def _llm_answer(text: str, hydration: str) -> str:
         return "I couldn't reach my reasoning engine just now — try again in a moment."
 
 
-_HANDLER_DID_NOT_RUN = ("not_implemented", "rejected")
+# 2026-09-23 (third independent review round -- a real correction): a PRIOR
+# version of this file flipped this to a whitelist of exactly {"ok",
+# "executed"}. That broke honest rewards for most real agents: Governor.
+# dispatch() returns a capable agent's own run() result unmodified on
+# success (core/city/governor.py:2701), and "success" -- not "ok" -- is the
+# status districts/agency/client_manager.py, districts/calls/*, districts/
+# content/*, districts/investment/* and ~100+ other real call sites
+# actually use. See core/runtime/executor.py's TERMINAL_STATUSES for the
+# full reasoning on why the FAILURE side (infrastructure-authored by this
+# gateway/Governor, a closed set) is the correct side to enumerate, not the
+# open, agent-chosen success vocabulary.
+_HANDLER_DID_NOT_RUN = (
+    "not_implemented", "rejected",
+    "no_agents", "no_capable_agent", "timeout", "error", "blocked",
+    "partial", "rate_limited", "executed_with_warnings",
+    # 2026-09-23 round 3: home_control's own non-execution replies.
+    "awaiting_confirmation",
+    # 2026-09-23 round 4: permission_gateway.py's own git-readonly-dispatch
+    # branch reports "unknown" when there's no "status" key AND no real
+    # success evidence either -- see core/runtime/executor.py's
+    # TERMINAL_STATUSES for the full explanation.
+    "unknown",
+)
 
 
 def _is_not_implemented(gw_result) -> bool:
-    """True when the gateway approved an action but its handler layer
-    reported it did not actually run: `not_implemented` (`_execute_action`'s
-    final `else`, or the intentionally-stubbed RED handlers) or `rejected`
-    (the handler itself declined, e.g. `execute_code` with no code — live
-    matrix RY3/UA3). /ws/command already refuses to report this as success
-    (RR-3.6 §15); /command must not either."""
-    return (getattr(gw_result, "result", None) or {}).get("status") in _HANDLER_DID_NOT_RUN
+    """True when the gateway approved an action but its handler/dispatch
+    layer reported it did not actually complete: `not_implemented`
+    (`_execute_action`'s final `else`, or the intentionally-stubbed RED
+    handlers), `rejected` (the handler itself declined, e.g. `execute_code`
+    with no code — live matrix RY3/UA3), or any real Governor-dispatch
+    failure status (see `_HANDLER_DID_NOT_RUN`). /ws/command already refuses
+    to report this as success (RR-3.6 §15); /command must not either."""
+    result = getattr(gw_result, "result", None) or {}
+    if result.get("status") in _HANDLER_DID_NOT_RUN:
+        return True
+    # 2026-09-27: an explicit failure signal inside a payload whose status looks fine ({"status": "ok", "error": "..."},
+    # `success: false`, ...) is a failure too -- the same rule the autonomous executor and plan verification use.
+    from core.runtime.executor import assess_payload_failure
+    return assess_payload_failure(result) is not None
 
 
 # git_status/check_git dispatch to GitBot.get_status(); git_log/recent_commits
 # dispatch to GitBot.get_recent_commits() (see permission_gateway.py's
 # _OWNER_READONLY_DISPATCH_ACTION_TYPES). Both return a raw dict with no
 # 'status' key on either success OR an internal exception (empty dict / empty
-# commits list respectively) — permission_gateway.py's _execute_action()
-# defaults the gateway's own status to 'ok' regardless, so `_is_not_implemented`
-# can never see the failure. Read the same real fields
-# `_render_readonly_evidence` already uses to report this honestly to the user.
+# commits list respectively). 2026-09-23 update: permission_gateway.py's
+# _execute_action() no longer blindly defaults the gateway's own status to
+# 'ok' here -- it checks real evidence (`branch` / non-empty `commits`) and
+# falls back to 'unknown' when there is none, which `_is_not_implemented`
+# now correctly treats as a non-success. This helper still exists because
+# `_is_not_implemented` alone can't distinguish "ran with no evidence"
+# ('unknown', a real failure) from a genuine but data-less success; read the
+# same real fields `_render_readonly_evidence` already uses to report this
+# honestly to the user.
 _GIT_READONLY_ACTION_TYPES = frozenset({"git_status", "check_git", "git_log", "recent_commits"})
 
 
 def _is_git_readonly_empty(action_type: str, gw_result) -> bool:
     """True when a GREEN-approved git_status/check_git/git_log/recent_commits
-    action's real handler ran (gateway status defaulted to 'ok', not
-    not_implemented/rejected) but returned no usable data — the exact case
+    action's real handler ran but returned no usable data (gateway status
+    'unknown' or an explicit 'ok' with empty evidence) -- the exact case
     `_render_readonly_evidence` already reports as a failure to the user, so
     the RL reward must not claim success either. False for every other
     action_type — this never touches reward computation for anything else."""
@@ -1096,7 +1131,7 @@ def _render_readonly_evidence(action_type: str, result: dict) -> str | None:
     text the handler did not return. Returns None when `action_type` is not
     one of these capabilities. An empty/failed result is reported honestly
     ("returned no data") rather than as a completed action."""
-    if action_type == "git_status":
+    if action_type in ("git_status", "check_git"):
         if not result.get("branch"):
             return "I couldn't read the repository status — the git handler returned no data, so I won't guess at it."
         modified, staged, untracked = (result.get("modified") or []), (result.get("staged") or []), (result.get("untracked") or [])
@@ -1118,6 +1153,18 @@ def _render_readonly_evidence(action_type: str, result: dict) -> str | None:
             for i, c in enumerate(commits[:5], start=1)
         ]
         return "Most recent commits (from the repository history just now): " + " | ".join(lines)
+    if action_type == "search_web":
+        hits = result.get("results") or []
+        if not hits:
+            return ("I ran the web search but it returned no results"
+                    + (f" ({result['search_error']})" if result.get("search_error") else "")
+                    + ", so I can't tell you what's out there — I won't guess at it.")
+        lines = [
+            f"{i}) {h.get('title') or '(untitled)'} — {h.get('url', '')}"
+            f"{' — ' + h['snippet'][:140] if h.get('snippet') else ''}"
+            for i, h in enumerate(hits[:5], start=1)
+        ]
+        return "Web search results retrieved just now (not from memory): " + " | ".join(lines)
     if action_type == "search_arxiv":
         # Two agents declare `search_arxiv` and Governor.dispatch may pick
         # either: PaperReader answers under `papers` (authors: str,
@@ -1150,17 +1197,35 @@ def _build_response_text(gw_result, winner, original_text: str) -> str:
 
     # V1 TRUST CLOSURE (T3): an approved action whose handler layer says it
     # did not run must never read as "Done" (phantom success).
+    #
+    # 2026-09-23 round 9 fix: the readonly-evidence render must run BEFORE
+    # the generic not-implemented message. git_status/git_log/etc.'s handler
+    # genuinely RAN (this is a GREEN, executed action) -- when it returns no
+    # usable evidence, permission_gateway.py's own read-only-dispatch branch
+    # reports "unknown" (see _HANDLER_DID_NOT_RUN's own 2026-09-23 round 4
+    # comment), which _is_not_implemented() correctly treats as "did not
+    # succeed" for reward purposes -- but the OLD ordering here made that
+    # same "unknown" fall into the generic "is registered but has no
+    # executable handler on this path" message, which is FALSE: the handler
+    # ran, it just returned no data. _render_readonly_evidence already knows
+    # how to report that specific, real case honestly (e.g. "the git handler
+    # returned no data, so I won't guess at it").
+    if gw_result.level == "GREEN" and gw_result.executed:
+        _evidence = _render_readonly_evidence(winner.action_type, getattr(gw_result, "result", None) or {})
+        if _evidence:
+            return _evidence
     if gw_result.executed and _is_not_implemented(gw_result):
         _res = getattr(gw_result, "result", None) or {}
+        if _res.get("status") not in _HANDLER_DID_NOT_RUN:
+            # status looks fine but the payload carries an explicit failure signal (see _is_not_implemented)
+            _why = _res.get("error") if isinstance(_res.get("error"), str) else "it reported a failure"
+            return (f"I ran '{winner.action_type}', sir, but it reported a failure ({str(_why)[:160]}), "
+                    f"so I won't call it done.")
         if _res.get("status") == "rejected":
             return (f"I didn't run '{winner.action_type}', sir — its handler declined it "
                     f"({_res.get('reason', 'no reason given')}), so nothing was executed.")
         return (f"I can't do that from here yet, sir — '{winner.action_type}' is registered but has no "
                 f"executable handler on this path, so nothing was run.")
-    if gw_result.level == "GREEN" and gw_result.executed:
-        _evidence = _render_readonly_evidence(winner.action_type, getattr(gw_result, "result", None) or {})
-        if _evidence:
-            return _evidence
 
     # Prefer the gateway's OWN message (e.g. "Opening spotify, sir.") over a
     # generic "Done. launch_app executed successfully." status string.

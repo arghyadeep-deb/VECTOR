@@ -33,6 +33,7 @@ import threading
 import time
 import uuid
 from dataclasses import dataclass, field
+from functools import partial
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -58,8 +59,15 @@ class _SilentHandler(SimpleHTTPRequestHandler):
 
 def _start_file_server(directory: str, port: int) -> HTTPServer:
     """Serve composition files over HTTP to avoid CORS issues."""
-    handler_class = type("VectorFileHandler", (_SilentHandler,), {"directory": directory})
-    server = HTTPServer(("127.0.0.1", port), handler_class)
+    # `directory` must be a constructor argument: SimpleHTTPRequestHandler.__init__ sets
+    # self.directory = os.getcwd() when it is not passed, which shadowed the old class attribute
+    # and made the server serve the process's cwd instead of the composition's folder (404s).
+    server = HTTPServer(("127.0.0.1", port), partial(_SilentHandler, directory=directory))
+    # 2026-09-23: deliberate exception to "never use threading, use
+    # asyncio" (.claude/rules/libraries.md) -- `http.server.HTTPServer`
+    # is a synchronous, blocking stdlib server with no asyncio-native
+    # equivalent; `serve_forever()` never returns, so it must run in a
+    # dedicated thread to avoid blocking whatever called this function.
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server

@@ -76,8 +76,10 @@ class GUIAutomationAgent(AgentBase):
         )
         result = await agent.run(instruction)
         self._store_result("gui_task", instruction, result)
+        # Same rule as the browser task: the model saying "finished" is a self-report with nothing checked, so it earns
+        # a fraction of the old +40; anything else still costs HP.
         if result.get("status") == GUIStatus.END.value:
-            self.award_points(40, f"gui_task: {instruction[:40]}")
+            self.award_points(10, f"gui_task self-reported finish: {instruction[:40]}")
         else:
             self.deduct_points(10, f"gui_task incomplete: {result.get('status')}")
         return result
@@ -90,18 +92,27 @@ class GUIAutomationAgent(AgentBase):
         url: str | None = None,
         max_loop: int | None = None,
         headless: bool = False,
+        expect: dict | None = None,
     ) -> dict:
-        """Run a natural-language automation task in a browser."""
+        """Run a natural-language automation task in a browser. `expect` (see BrowserController.check_expectation)
+        makes the final page independently checked; without it a "finished" is only ever a self-report."""
         logger.info("[VECTOR][gui_agent] browser_task: {!r:.80}", instruction)
         ctrl = BrowserController(
             max_loop=max_loop or self._max_loop,
             factors=self._factors,
             headless=headless,
         )
-        result = await ctrl.run_browser_task(instruction, url=url)
+        result = await ctrl.run_browser_task(instruction, url=url, expect=expect)
         self._store_result("browser_task", instruction, result)
-        if result.get("status") == GUIStatus.END.value:
-            self.award_points(40, f"browser: {instruction[:40]}")
+        # The model saying "finished" used to earn the full +40 with nothing checked and failures earned nothing at all.
+        # Reward now follows the evidence: verified against the caller's expectation -> +40; a bare self-report -> +10;
+        # anything else (blocked/aborted/unverified/max-loop) costs HP.
+        if result.get("status") == GUIStatus.END.value and result.get("verified") is True:
+            self.award_points(40, f"browser verified: {instruction[:40]}")
+        elif result.get("status") == GUIStatus.END.value:
+            self.award_points(10, f"browser self-reported finish: {instruction[:40]}")
+        else:
+            self.deduct_points(10, f"browser task not completed ({result.get('status')}): {instruction[:40]}")
         return result
 
     # ── Single vision click ───────────────────────────────────────────────────
@@ -207,7 +218,17 @@ class GUIAutomationAgent(AgentBase):
 
     async def run(self, task: dict) -> dict:
         p = task.get("params", task)
-        action = p.get("action")
+        # 2026-09-24 (independent review finding -- HIGH): reading
+        # p.get("action") unconditionally let a caller reach real GUI
+        # automation (gui_task/click_screen/browser_task/vision_control --
+        # all RED) via an UNCLASSIFIED outer type routed here by
+        # CodingSwarm's keyword-score selection, with params.action set to
+        # the real RED action the outer type was never authorized for.
+        # Fixed to prefer the real, authorized outer type the same way
+        # code_conductor_agent.py/mlops_agent.py were fixed the same day --
+        # params.action remains the fallback for internal/smoke-test
+        # callers with no "type" key.
+        action = task.get("type") or p.get("action")
         instruction = p.get("instruction", p.get("task", ""))
 
         # 2026-07-29 (HIGH SEVERITY fix): `action` used to default to
@@ -239,6 +260,7 @@ class GUIAutomationAgent(AgentBase):
                 url=p.get("url"),
                 max_loop=p.get("max_loop"),
                 headless=p.get("headless", False),
+                expect=p.get("expect") if isinstance(p.get("expect"), dict) else None,
             )
         elif action == "click_screen" and p.get("description", p.get("element", "")).strip():
             _desc = p.get("description", p.get("element", ""))

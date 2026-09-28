@@ -12,7 +12,6 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
-from core.frontend_bundle import validate_frontend_bundle
 from core.runtime_paths import get_data_root
 
 
@@ -67,8 +66,17 @@ def _module_exists(module: str) -> bool:
     return importlib.util.find_spec(module) is not None
 
 
-def _is_production_env() -> bool:
-    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production"}
+def _sidecar_enabled(name: str) -> bool:
+    """Whether the owner has switched a sidecar on. Owner rule (2026-07-16, run_vector._start_sidecars): no extra localhost
+    servers by default; VECTOR_SIDECARS=1|all enables everything, or a comma list of names."""
+    val = os.environ.get("VECTOR_SIDECARS", "").strip().lower()
+    if val in ("", "0", "off", "false", "none"):
+        return False
+    return val in ("1", "all", "true", "on") or name.lower() in {t.strip() for t in val.split(",")}
+
+
+def _is_hardened_env() -> bool:
+    return os.environ.get("VECTOR_ENV", "").strip().lower() in {"prod", "production", "vector"}
 
 
 def _sqlcipher_available() -> bool:
@@ -205,10 +213,10 @@ def _check_local_http_service(
 
 def run_dependency_doctor(
     include_optional: bool = True,
-    production: bool | None = None,
+    hardened: bool | None = None,
 ) -> DoctorReport:
     """Run offline-safe runtime checks for local VECTOR readiness."""
-    production_mode = _is_production_env() if production is None else bool(production)
+    hardened_mode = _is_hardened_env() if hardened is None else bool(hardened)
     checks: list[DependencyCheck] = []
 
     checks.append(
@@ -235,7 +243,7 @@ def run_dependency_doctor(
             ]
         )
     )
-    if production_mode and not _sqlcipher_available():
+    if hardened_mode and not _sqlcipher_available():
         checks.append(
             _check(
                 "memory:encrypted_driver",
@@ -250,7 +258,7 @@ def run_dependency_doctor(
             _check(
                 "memory:encrypted_driver",
                 True,
-                production_mode,
+                hardened_mode,
                 "SQLCipher driver available",
             )
         )
@@ -259,29 +267,14 @@ def run_dependency_doctor(
     checks.append(_check_writable_dir(PROJECT_ROOT / "test_tmp", "test_tmp:writable", False))
 
     frontend_html = PROJECT_ROOT / "frontend" / "VECTOR.html"
-    frontend_prod_html = PROJECT_ROOT / "frontend" / "VECTOR.prod.html"
-    frontend_bundle_target = frontend_prod_html if production_mode else frontend_html
+    # The subsystem dock is built by demo.js, so the one HUD needs it in every environment.
     demo_script = PROJECT_ROOT / "frontend" / "js" / "demo.js"
-    try:
-        bundle_check = validate_frontend_bundle(frontend_bundle_target, production=production_mode)
-        frontend_bundle_ok = bundle_check.ok
-        frontend_bundle_detail = bundle_check.message
-    except Exception as exc:
-        frontend_bundle_ok = False
-        frontend_bundle_detail = str(exc)
     checks.extend(
         [
             _check_file(PROJECT_ROOT / "run_vector.py", "launcher:run_vector.py", True),
             _check_file(frontend_html, "frontend:VECTOR.html", True),
-            _check_file(frontend_prod_html, "frontend:VECTOR.prod.html", production_mode),
             _check_file(PROJECT_ROOT / "frontend" / "js" / "widgets.js", "frontend:widgets.js", True),
-            _check_file(demo_script, "frontend:demo.js", False),
-            _check(
-                "frontend:production_bundle",
-                frontend_bundle_ok,
-                production_mode,
-                frontend_bundle_detail,
-            ),
+            _check_file(demo_script, "frontend:demo.js", True),
             _check_dir(PROJECT_ROOT / "core" / "api" / "routers", "api:routers", True),
             _check_dir(PROJECT_ROOT / "districts", "districts", True),
         ]
@@ -314,11 +307,11 @@ def run_dependency_doctor(
 
     checks.extend(
         [
-            _check_env_secret("VECTOR_API_KEY", production_mode),
-            _check_env_secret("VECTOR_JWT_SECRET", production_mode, min_length=48),
+            _check_env_secret("VECTOR_API_KEY", hardened_mode),
+            _check_env_secret("VECTOR_JWT_SECRET", hardened_mode, min_length=48),
             # Stable MCP stdio signing secret — required in production so signed
             # requests survive restarts (see core/mcp_server_stdio.py).
-            _check_env_secret("MCP_KERNEL_SECRET", production_mode),
+            _check_env_secret("MCP_KERNEL_SECRET", hardened_mode),
         ]
     )
 
@@ -328,7 +321,7 @@ def run_dependency_doctor(
         ]
         sidecar_path_checks: dict[str, DependencyCheck] = {}
         for name, env_name in optional_paths:
-            check = _check_env_dir(name, env_name, production_mode)
+            check = _check_env_dir(name, env_name, hardened_mode)
             sidecar_path_checks[name] = check
             checks.append(check)
 
@@ -338,7 +331,9 @@ def run_dependency_doctor(
                 _check_local_http_service(
                     "sidecar:comfyui_health",
                     _join_url(comfyui_base, "/system_stats"),
-                    production_mode,
+                    # A server the owner has deliberately not started must not make the whole readiness report 503;
+                    # it is still reported (as a warning) when its path is configured but it is not running.
+                    hardened_mode and _sidecar_enabled("comfyui"),
                 )
             )
 

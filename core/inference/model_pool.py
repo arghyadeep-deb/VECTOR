@@ -75,7 +75,7 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     "o4-mini": [
         ("github_models", "o4-mini"),                        # FREE via GitHub token
         ("openrouter",    "openai/o4-mini"),
-        ("groq",          "llama-3.3-70b-versatile"),        # fast fallback if GH exhausted
+        ("groq",          "openai/gpt-oss-120b"),            # fast fallback if GH exhausted
     ],
 
     # ── Phi-4-reasoning (GitHub Models free, strong math/reasoning) ───────────
@@ -88,7 +88,6 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
     "deepseek-r1": [
         ("github_models", "DeepSeek-R1-0528"),                # FREE via GitHub token (newest)
         ("github_models", "DeepSeek-R1"),                     # FREE via GitHub token
-        ("groq",          "deepseek-r1-distill-llama-70b"),   # fast distilled
         ("nvidia",        "deepseek/deepseek-r1"),            # free NIM credits
         ("ollama",        "deepseek-r1:14b"),                  # local
     ],
@@ -101,7 +100,6 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
 
     # ── Llama 3.3 70B (FREE everywhere) ───────────────────────────────────────
     "llama-3.3-70b": [
-        ("groq",       "llama-3.3-70b-versatile"),            # fastest free
         ("cloudflare", "@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
         ("openrouter", "meta-llama/llama-3.3-70b-instruct:free"),
         ("nvidia",     "meta/llama-3.3-70b-instruct"),
@@ -192,16 +190,15 @@ MODEL_POOL: dict[str, list[tuple[str, str]]] = {
 
     # ── Gemini Flash — 360M tokens/month FREE (Google AI Studio key) ──────────
     "gemini-flash": [
-        ("gemini",     "gemini-2.0-flash-lite"),              # FREE, highest RPM, best for high-freq tasks
-        ("gemini",     "gemini-2.0-flash"),                   # FREE, stable, 1M ctx
-        ("gemini",     "gemini-2.5-flash"),                   # FREE, newer, thinking disabled
+        ("gemini",     "gemini-2.5-flash-lite"),              # FREE, highest RPM, best for high-freq tasks
+        ("gemini",     "gemini-2.5-flash"),                   # FREE, stable, 1M ctx (gemini-2.0-* are 404 on the owner key)
         ("openrouter", "google/gemini-2.0-flash-exp:free"),   # OpenRouter free fallback
     ],
 
     # ── Gemini Pro — 1M-context reasoning, vision ─────────────────────────────
     "gemini-pro": [
-        ("gemini",     "gemini-1.5-pro"),                     # 1M context, free tier
-        ("gemini",     "gemini-2.0-flash"),                   # fast fallback
+        ("gemini",     "gemini-2.5-pro"),                     # 1M context, free tier (1.5/2.0 are 404 on the owner key)
+        ("gemini",     "gemini-2.5-flash"),                   # fast fallback
         ("openrouter", "google/gemini-flash-1.5"),
     ],
 }

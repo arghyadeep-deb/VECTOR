@@ -36,7 +36,6 @@ def _gateway_response(action_type: str, gate) -> dict:
 
 
 async def _dispatch_pc_action(action_type: str, params: dict) -> dict:
-    from core.city.governor import GovernorCouncil
     from core.loop.permission_gateway import Action, PermissionGateway
 
     gate = await PermissionGateway().execute(
@@ -45,8 +44,20 @@ async def _dispatch_pc_action(action_type: str, params: dict) -> dict:
     if not gate.approved or not gate.executed:
         return _gateway_response(action_type, gate)
 
-    gov = GovernorCouncil()
-    return await gov.dispatch({"type": action_type, "params": params})
+    # 2026-09-23 (fix, item 6 -- independent review finding): this used
+    # to ALSO call Governor.dispatch({"type": action_type, ...}) here,
+    # discarding `gate.result` entirely -- but Governor has no real
+    # handler for pc_screenshot/pc_click/pc_type/pc_launch_app (no
+    # DISTRICT_TASK_MAP entry, no agent-manifest capability, and the task
+    # dict never carried the "action" field GUIAutomationAgent's run()
+    # requires), so that second call silently did nothing real and could
+    # return a misleading fallback-agent result or an apparent success
+    # with no real click/type/launch/screenshot having occurred.
+    # PermissionGateway._execute_action() now has real, dedicated
+    # branches for all four of these action types (mirroring the
+    # existing launch_app/run_shell_command pattern) that call
+    # PCController directly -- `gate.result` IS the real result.
+    return gate.result
 
 
 @router.get("/pc/screenshot")

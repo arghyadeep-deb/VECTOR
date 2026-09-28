@@ -12,13 +12,13 @@ For environment setup use `vector-build-and-env`; for config use `vector-config-
 
 ## Running: `python run_vector.py --mode X`
 Valid modes (argparse choices — anything else is rejected):
-`loop | api | smoke | doctor | production-check | memory-repair`. Default `loop`.
+`loop | api | smoke | doctor | readiness-check | memory-repair`. Default `loop`.
 - **`loop`** — THE autonomous observe→think→act→reflect loop. Runs until
   interrupted. (Historical gotcha: `install_service.ps1` passed the INVALID
   `--mode autonomous` and would never start — fixed to `loop`.)
 - **`api`** — FastAPI server (HUD at `/hud/`, ~85 routers).
 - **`smoke`** — quick self-test.
-- **`doctor` / `production-check` / `memory-repair`** — diagnostics/maintenance.
+- **`doctor` / `readiness-check` / `memory-repair`** — diagnostics/maintenance.
 
 ## Installing as a Windows service (the #1 operational gap)
 ```

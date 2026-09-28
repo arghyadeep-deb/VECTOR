@@ -407,9 +407,12 @@ class TestFullCognitiveLoop:
             # number) so git_status still narrowly leads with only the
             # simulation stage ablated, and the real simulation factor's
             # additional penalty still flips the winner to git_log.
+            # 2026-09-25: 0.38 (was 0.65). A real, successful git_status is no longer scored as a failure, so its
+            # learned reward rose and 0.65 made its lead too wide for the simulation stage to overturn. The race
+            # stays narrow for roughly 0.32..0.43 (found by running the suite over that range); 0.38 is mid-window.
             return [
                 Candidate(action_type="git_status", params={"goal_id": PROBE_GOAL_ID},
-                          confidence=0.65, urgency=0.5, source="think_loop"),
+                          confidence=0.38, urgency=0.5, source="think_loop"),
                 Candidate(action_type="git_log", params={"goal_id": PROBE_GOAL_ID},
                           confidence=0.4, urgency=0.5, source="think_loop"),
             ]

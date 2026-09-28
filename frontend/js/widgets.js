@@ -101,8 +101,13 @@
   };
 
   F.music = function(opts){
-    const t = (opts&&opts.track) || D.TRACKS[0];
+    const t = (opts&&opts.track) || (Array.isArray(D.TRACKS) ? D.TRACKS[0] : null);
     const wrap = el('div');
+    if(!t){
+      // No player is wired to the backend: say so instead of showing a made-up track.
+      wrap.innerHTML = '<div class="ve-offline" style="opacity:.6">NO PLAYER CONNECTED</div>';
+      return shell('music','MUSIC', wrap, 'music');
+    }
     wrap.innerHTML =
       `<div class="top">
          <div class="art" style="background:${t.art}">IDLE</div>
@@ -352,15 +357,17 @@
         const j = await apiGet('/agents');
         const agents = j.agents || j.data || (Array.isArray(j)?j:[]);
         if(agents.length) renderAgents(agents);
+        else grid.innerHTML = '<div class="ve-offline" style="opacity:.6">NO AGENTS REPORTED</div>';
         const title = wrap.closest && wrap.closest('.widget')
           ? wrap.closest('.widget').querySelector('.w-title') : null;
-        if(title) title.textContent = 'AGENT DISTRICTS · '+agents.length;
+        const nd = new Set(agents.map(a=>a.district||a.agent_type||'unknown')).size;
+        if(title) title.textContent = 'AGENT DISTRICTS · '+nd+' DISTRICTS · '+agents.length+' AGENTS';
       }catch(e){
         grid.innerHTML = '<div class="ve-offline">◌ VECTOR offline</div>';
       }
     }
 
-    const w = shell('districts','AGENT DISTRICTS · 33', wrap, 'agents');
+    const w = shell('districts','AGENT DISTRICTS', wrap, 'agents');
     loadDistricts();
     setInterval(()=>{ if(w.isConnected) loadDistricts(); }, 10000);
     return w;
@@ -427,7 +434,7 @@
     const API = (global.VECTOR_CFG && global.VECTOR_CFG.api) || '';
 
     const header = el('div', null,
-      `<div class="row-kv"><span class="k">THREAT LEVEL</span><span class="v sec-threat" style="color:var(--ok)">LOW</span></div>
+      `<div class="row-kv"><span class="k">THREAT LEVEL</span><span class="v sec-threat" style="color:var(--txt-faint)">—</span></div>
        <div class="sec-lbl" style="font-size:8px;letter-spacing:.16em;color:var(--txt-faint);margin:8px 0 4px">RECENT EVENTS</div>`);
     wrap.appendChild(header);
     const evtList = el('div','sec-events');
@@ -438,9 +445,9 @@
         const j = await apiGet('/security/status');
         const threatEl = wrap.querySelector('.sec-threat');
         if(threatEl){
-          const level = (j.threat_level||'LOW').toUpperCase();
+          const level = j.threat_level ? String(j.threat_level).toUpperCase() : 'UNKNOWN';
           threatEl.textContent = level;
-          threatEl.style.color = level==='CRITICAL'?'var(--danger)':level==='HIGH'?'var(--warn)':level==='MEDIUM'?'var(--warn)':'var(--ok)';
+          threatEl.style.color = level==='CRITICAL'?'var(--danger)':level==='HIGH'?'var(--warn)':level==='MEDIUM'?'var(--warn)':level==='LOW'?'var(--ok)':'var(--txt-faint)';
         }
       }catch(e){
         const threatEl = wrap.querySelector('.sec-threat');
@@ -695,7 +702,7 @@
     wrap.appendChild(crumb); wrap.appendChild(filterRow); wrap.appendChild(body);
 
     // ── state (panel-local, not global — cleared on close) ─────────────────
-    const S = { agents:[], a2a:[], districtsShape:null, view:'macro', district:null, agent:null, filter:'' };
+    const S = { agents:[], a2a:null, districtsShape:null, view:'macro', district:null, agent:null, filter:'' };
     const ACTIVITY_CAP = 30;
     const activity = []; // ring buffer of real WS events only
 
@@ -754,12 +761,21 @@
       let live = [], declared = [];
       try{ const j = await apiGet('/agents'); live = j.agents || (Array.isArray(j)?j:[]); }
       catch(e){ live = []; }
-      try{ const j2 = await apiGet('/a2a/agents'); declared = j2.agents || []; }
-      catch(e){ declared = []; }
-      try{ const j3 = await apiGet('/city/districts'); S.districtsShape = j3; }
-      catch(e){ S.districtsShape = null; }
+      // (It used to also await /city/districts here -- a ~6 s Governor round trip whose result nothing read -- so the atlas stayed
+      //  blank for six seconds after opening. /a2a/agents (the declared-capability list) can take 15 s on a busy backend, so it is
+      //  merged in when it arrives instead of holding the first paint.)
       S.agents = mergeAgents(live, declared);
       render();
+      apiGet('/a2a/agents').then(j2=>{
+        declared = (j2 && j2.agents) || [];
+        S.agents = mergeAgents(live, declared);
+        if(w.isConnected && S.view==='macro') render();
+      }).catch(()=>{});
+      // The bus's recent messages load AFTER the first render: on a cold backend that route pulls in the whole city package and used to
+      // hold the atlas blank. Whatever it returns is drawn when it arrives.
+      try{ S.a2a = await apiGet('/a2a/internal/recent?limit=12'); }
+      catch(e){ S.a2a = null; }
+      if(S.view==='macro' && w.isConnected) render();
     }
 
     function districtGroups(){
@@ -836,6 +852,28 @@
         grid.appendChild(card);
       });
       body.innerHTML=''; body.appendChild(grid);
+      renderA2A();
+    }
+
+    // ── AGENT-TO-AGENT: the governed bus's recent messages (core/city/a2a_bus.py), refused ones included ───────────
+    function renderA2A(){
+      if(S.view!=='macro') return;
+      const box = el('div','atlas-a2a');
+      const m = S.a2a;
+      let html = '<div class="atlas-sep-lbl">AGENT-TO-AGENT · RECENT</div>';
+      if(!m){ html += '<div class="ve-offline">bus not reachable</div>'; }
+      else if(!m.messages.length){ html += '<div class="ve-offline">no agent has asked another yet — requests appear here as they happen</div>'; }
+      else {
+        const st = m.stats || {};
+        html += `<div class="row-kv"><span class="k">SENT / DELIVERED / REFUSED</span><span class="v">${Number(st.sent)||0} / ${Number(st.delivered)||0} / ${Number(st.refused)||0}</span></div>`;
+        html += m.messages.slice(0,8).map(x=>{
+          const bad = !x.delivered;
+          return `<div class="row-kv"><span class="k">${escapeHtml(x.from||'?')} → ${escapeHtml(x.to||'?')}</span>
+            <span class="v" style="color:${bad?'var(--warn)':'var(--txt)'}">${escapeHtml(x.task_type||'')} · ${escapeHtml(x.status||'')}${bad&&x.refused?(' — '+escapeHtml(String(x.refused).slice(0,60))):''}</span></div>`;
+        }).join('');
+      }
+      box.innerHTML = html;
+      body.appendChild(box);
     }
 
     // ── DISTRICT VIEW ────────────────────────────────────────────────────────
@@ -912,6 +950,26 @@
         <div class="row-kv"><span class="k">MODEL</span><span class="v">${a.model?escapeHtml(a.model):'UNKNOWN'}</span></div>
         <div class="row-kv"><span class="k">TOOLS/PROVIDERS</span><span class="v">NO LIVE SOURCE — see 74_AGENT_ATLAS.md §13</span></div>`;
       renderActivityOnly();
+      loadExperience(a);
+    }
+
+    // Level / XP / skills / playbook for the inspected agent (its lineage's ledger: core/city/experience.py). Fetched on demand.
+    async function loadExperience(a){
+      const box = el('div','atlas-exp');
+      box.innerHTML = '<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div><div class="ve-offline">loading…</div>';
+      body.appendChild(box);
+      try{
+        const j = await apiGet('/a2a/internal/agent/'+encodeURIComponent(a.name));
+        if(S.agent!==a || S.view!=='agent') return;
+        if(!j.found){ box.innerHTML = '<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div><div class="ve-offline">not in the live registry</div>'; return; }
+        const st = j.stats||{}, skills = Object.entries(j.skills||{}).sort((x,y)=>y[1].n-x[1].n).slice(0,5);
+        box.innerHTML = `<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div>
+          <div class="row-kv"><span class="k">LEVEL</span><span class="v">${Number(st.level)||0}</span></div>
+          <div class="row-kv"><span class="k">XP EARNED / STANDING</span><span class="v">${Number(st.xp)||0} / ${Number(st.standing_xp)||0}</span></div>
+          <div class="row-kv"><span class="k">DEATHS IN LINEAGE</span><span class="v">${Number(st.deaths)||0}</span></div>
+          ${skills.length ? skills.map(([t,s])=>`<div class="row-kv"><span class="k">${escapeHtml(t)}</span><span class="v">${s.success}/${s.n} ok${s.fail_env?(' · '+s.fail_env+' env'):''}</span></div>`).join('') : '<div class="ve-offline">no recorded outcomes yet</div>'}
+          ${(j.playbook||[]).length ? '<div class="atlas-sep-lbl">PLAYBOOK</div>' + j.playbook.map(l=>`<div class="row-kv"><span class="v">${escapeHtml(l)}</span></div>`).join('') : ''}`;
+      }catch(e){ box.innerHTML = '<div class="atlas-sep-lbl">EXPERIENCE (lineage ledger)</div><div class="ve-offline">unavailable</div>'; }
     }
 
     function render(){
@@ -1043,7 +1101,7 @@
       const decision = Array.isArray(D.DECISIONS) && D.DECISIONS[0];
       const model = D.INFERENCE && (D.INFERENCE.active_model||D.INFERENCE.current_model||D.INFERENCE.model);
       const pend = Array.isArray(D.APPROVALS) ? D.APPROVALS.length : null;
-      const chip = (k,v)=>`<span class="cc-chip"><b>${k}</b>${v?escapeHtml(String(v)):'UNKNOWN'}</span>`;
+      const chip = (k,v)=>`<span class="cc-chip"><b>${k}</b>${(v!==null && v!==undefined && v!=='')?escapeHtml(String(v)):'UNKNOWN'}</span>`; // 0 pending approvals is a real value, not UNKNOWN
       ctx.innerHTML =
         chip('GOAL ', goal ? goal.title : null) +
         chip('DECISION ', decision ? (decision.action||decision.action_type||decision.summary) : null) +
@@ -1464,10 +1522,36 @@
   // registry only fills F[id] when no bespoke renderer exists). This makes the
   // panel actually usable for image/video generation, like librechat/openwebui.
   F.comfyui = function(){
-    const frame = el('iframe');
-    frame.src = 'http://127.0.0.1:8188';
-    frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:4px;';
-    return shell('comfyui','MEDIA · COMFYUI', frame, 'iframe-panel');
+    const holder = el('div');
+    holder.style.cssText = 'width:100%;height:100%;';
+    // The page's CSP forbids probing :8188 directly, so ask the backend whether ComfyUI is listening; an
+    // iframe onto a dead port is just a blank panel.
+    function show(){
+      holder.innerHTML = '';
+      const note = el('div','feature-empty'); note.textContent = 'Checking ComfyUI…';
+      holder.appendChild(note);
+      apiGet('/media/sidecars').then(s=>{
+        holder.innerHTML = '';
+        if(s && s.comfyui && s.comfyui.running){
+          const frame = el('iframe');
+          frame.src = s.comfyui.url;
+          frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:4px;';
+          holder.appendChild(frame);
+        }else{
+          const msg = el('div','feature-empty');
+          msg.textContent = 'ComfyUI is not running at ' + ((s && s.comfyui && s.comfyui.url) || 'http://127.0.0.1:8188') + '. Start it, then retry.';
+          const retry = el('button','feature-action'); retry.textContent = 'RETRY';
+          retry.addEventListener('click', show);
+          holder.appendChild(msg); holder.appendChild(retry);
+        }
+      }).catch(err=>{
+        holder.innerHTML = '';
+        const msg = el('div','feature-empty'); msg.textContent = 'Could not check ComfyUI: ' + (err && err.message || err);
+        holder.appendChild(msg);
+      });
+    }
+    show();
+    return shell('comfyui','MEDIA · COMFYUI', holder, 'iframe-panel');
   };
 
   // ── Finance Panel ─────────────────────────────────────────────────────────
@@ -1691,7 +1775,7 @@
   // Backend feature launcher: keeps mounted API domains openable without
   // pretending every domain already has a bespoke HUD design.
   const FEATURE_REGISTRY = [
-    { id:'features', title:'BACKEND FEATURES', summary:'Mounted main-API feature map and launch surface.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/health/production-readiness','/tools/registry','/providers/routes'] },
+    { id:'features', title:'BACKEND FEATURES', summary:'Mounted main-API feature map and launch surface.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/health/hardened-readiness','/tools/registry','/providers/routes'] },
     { id:'missioncontrol', title:'MISSION CONTROL', summary:'Create, decompose, review, run, recover, and inspect gateway-safe missions.', health:'/missions', endpoints:['/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] },
     { id:'corepanel', title:'CORE SYSTEMS', summary:'Core folder coverage: brain, loop, memory, inference, voice, sensing, media, research, safety, telemetry, trading, and platform internals.', health:'/world/snapshot', endpoints:['/world/snapshot','/status','/system','/health','/loop/status','/brain/goals','/memory/recent','/inference/stats','/voice/status','/sensing/status','/media/models','/research/status','/security/status','/tools/registry','/providers/routes','/metering/status','/scheduler/jobs','/sandbox/status','/mcp/status','/network/peers','/investment/market-status'] },
     { id:'agentspanel', title:'AGENTS + A2A', summary:'Agent roster, awards, district invocation, and A2A sessions.', health:'/agents', endpoints:['/agents','/a2a/agents','/a2a/events','/city/districts','/city/dispatch'] },
@@ -1712,13 +1796,13 @@
     { id:'researchpanel', title:'RESEARCH', summary:'Search, news, papers, Reddit, and research status.', health:'/research/status', endpoints:['/research/status','/research/search?query=vector','/research/news','/research/papers?query=vector','/research/reddit'] },
     { id:'pccontrol', title:'PC CONTROL', summary:'Local PC screenshot, type, click, and app launch gates. Phone endpoints are excluded.', health:'/sensing/status', endpoints:['/control/pc/screenshot','/control/pc/type','/control/pc/click','/control/pc/launch-app','/sensing/status','/sensing/screen'] },
     { id:'camerapanel', title:'CAMERA', summary:'Camera start/stop/status and visual sensing.', health:'/camera/status', endpoints:['/camera/status','/camera/start','/camera/stop','/sensing/health'] },
-    { id:'healthpanel', title:'HEALTH', summary:'Fatigue, sleep, biometrics, exercise, and health/system status.', health:'/health/status', endpoints:['/health/status','/health/system','/health/production-readiness','/health/check-fatigue','/health/biometrics','/health/sleep','/health/exercise'] },
+    { id:'healthpanel', title:'HEALTH', summary:'Fatigue, sleep, biometrics, exercise, and health/system status.', health:'/health/status', endpoints:['/health/status','/health/system','/health/hardened-readiness','/health/check-fatigue','/health/biometrics','/health/sleep','/health/exercise'] },
     { id:'learningpanel', title:'LEARNING', summary:'Video ingest, course tracking, concept extraction, quiz generation, languages, and skills.', health:'/skills/map', endpoints:['/skills/map','/learning/ingest-video','/learning/track-course','/learning/extract-concepts','/learning/quiz-generate','/languages/{lang}/study-guide'] },
     { id:'workpanel', title:'WORKFLOW + PROJECTS', summary:'Projects, tasks, scheduler jobs, queues, ops incidents, and chief briefs.', health:'/scheduler/jobs', endpoints:['/projects/list','/tasks/','/scheduler/jobs','/queue/retry/stats','/ops/slo-check','/chief/morning-brief'] },
     { id:'privacypanel', title:'PRIVACY + KEYS', summary:'Privacy scans, redaction, audit flow, key status, rotation, revocation, and OAuth integrations.', health:'/keys/status', endpoints:['/privacy/scan-sharing','/privacy/gdpr-check','/privacy/redact','/privacy/audit-flow','/keys/status','/oauth/integrations'] },
     { id:'analyticspanel', title:'ANALYTICS', summary:'Pipeline health, ETL runs, reports, and benchmarks.', health:'/analytics/pipeline-health', endpoints:['/analytics/pipeline-health','/analytics/etl-run','/analytics/report','/analytics/benchmark'] },
     { id:'personalpanel', title:'PERSONAL OS', summary:'Relationships, calls, reflection, patterns, interviews, startups, and simulations.', health:'/relationships/contacts', endpoints:['/relationships/contacts','/calls/contacts','/reflection/daily-review','/patterns/habits','/interview/start','/startups/validate-idea','/simulation/status'] },
-    { id:'platformpanel', title:'PLATFORM', summary:'Collections, governance, migration, mining, scraper, sandbox, network, MCP, and mission execution.', health:'/mcp/status', endpoints:['/api/collections','/governance/autopilot/status','/migration/sources','/mining/status','/scraper/status','/sandbox/status','/network/peers','/mcp/status','/health/production-readiness','/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] }
+    { id:'platformpanel', title:'PLATFORM', summary:'Collections, governance, migration, mining, scraper, sandbox, network, MCP, and mission execution.', health:'/mcp/status', endpoints:['/api/collections','/governance/autopilot/status','/migration/sources','/mining/status','/scraper/status','/sandbox/status','/network/peers','/mcp/status','/health/hardened-readiness','/missions','/missions/jobs','/missions/{id}/timeline','/missions/{id}/artifacts','/missions/{id}/retry','/missions/{id}/rollback','/missions/decompose','/missions/advise','/missions/plan','/missions/run','/missions/run-async'] }
   ];
 
   const FEATURE_BLUEPRINTS = {
@@ -1780,7 +1864,7 @@
     const label = side ? path.replace(/^(studio:|sidecar:|comfyui:)/, '') : path;
     const safePrefixes = [
       '/world/snapshot','/status','/system',
-      '/health/status','/health/system','/health/production-readiness','/health/check-fatigue','/health/biometrics',
+      '/health/status','/health/system','/health/hardened-readiness','/health/check-fatigue','/health/biometrics',
       '/agents','/a2a/agents','/a2a/events',
       '/city/districts','/brain/goals','/brain/hypothesis/active','/brain/epistemic/summary',
       '/brain/reasoning/chains','/brain/persons','/knowledge/status','/code-intel/status',
@@ -1945,12 +2029,21 @@
         status.textContent = 'side system: status is outside the main API';
         return;
       }
+      let sidecarNote = '';
+      if(/^(mediastudio|comfyui|hyperframes)$/.test(cfg.id || '')){
+        // These panels front a separate local server; say whether it is actually listening (backend probes it).
+        try{
+          const sc = await apiGet('/media/sidecars');
+          const one = sc && sc[cfg.id === 'mediastudio' ? 'studio' : cfg.id];
+          if(one) sidecarNote = ' · ' + (one.running ? 'server running at ' : 'server NOT running at ') + one.url;
+        }catch(_){}
+      }
       try{
         const data = await apiGet(cfg.health);
-        status.textContent = 'online: '+cfg.health;
+        status.textContent = 'online: '+cfg.health + sidecarNote;
         json.textContent = renderJsonPreview(data);
       }catch(e){
-        status.textContent = 'unavailable: '+cfg.health;
+        status.textContent = 'unavailable: '+cfg.health + sidecarNote;
         json.textContent = e.message || String(e);
       }
     }
@@ -2302,6 +2395,42 @@
 
   // ---- open / close -------------------------------------------------------
   const _returnFocus = {}; // id -> element to refocus when the widget closes
+  // ?cinema=1 (screen recordings): enlarge + centre widgets so close-ups are readable, and stop the floating drift.
+  function cinemaPlace(w){
+    if(!document.documentElement.classList.contains('cinema')) return;
+    let last = '';
+    const fit = ()=>{   // re-fit whenever the widget's natural size changes (panels fill in after they open)
+      const st = ws().getBoundingClientRect(), nw = w.offsetWidth || 420, nh = w.offsetHeight || 340, key = nw+'x'+nh;
+      if(key === last) return; last = key;
+      const z = Math.max(0.75, Math.min(1.8, (st.height*0.84)/nh, (st.width*0.33)/nw));   // <=33% of the stage wide: fits a vertical 9:16 crop
+      w.style.zoom = z; w.style.animation = 'none';
+      w.style.left = Math.max(0, (st.width - nw*z)/2/z) + 'px';
+      w.style.top  = Math.max(0, (st.height - nh*z)/2/z - 20/z) + 'px';
+    };
+    fit();
+    if(window.ResizeObserver) new ResizeObserver(fit).observe(w);
+  }
+  V.cinemaPlace = cinemaPlace;
+
+  // Panels are positioned by percentage and grow as their data arrives, so tall ones (memory, features, council...) ran off the
+  // bottom of the stage and sat behind the dock, command bar and ticker. Keep them above that band: cap the height (the panel
+  // scrolls inside) and pull the top up. Stops once the user drags the panel, so it never fights them; cinema mode has its own fit.
+  const STAGE_BOTTOM_RESERVE = 190;   // dock + command bar + ticker, measured on a 1488x812 stage
+  function keepOnStage(w){
+    if(w._moved || document.documentElement.classList.contains('cinema') || !w.isConnected) return;
+    const pr = ws().getBoundingClientRect();
+    const avail = pr.height - STAGE_BOTTOM_RESERVE;
+    if(avail < 160) return;                                   // tiny window: nothing sensible to do
+    // Decide on the content's natural height (scrollHeight), not the box's: once capped the box is short enough to look like
+    // it fits, which used to un-cap it, let it grow, cap it again... a visible flicker loop.
+    const need = Math.max(w.offsetHeight, w.scrollHeight);
+    if(need > avail){ const cap = Math.round(avail - 8) + 'px'; if(w.style.maxHeight !== cap){ w.style.maxHeight = cap; w.style.overflowY = 'auto'; } }
+    else if(w.style.maxHeight){ w.style.maxHeight = ''; w.style.overflowY = ''; }
+    const top  = Math.max(4, Math.min(w.offsetTop, avail - w.offsetHeight));
+    const left = Math.max(0, Math.min(w.offsetLeft, pr.width - w.offsetWidth));
+    if(Math.abs(top - w.offsetTop) > 1)   w.style.top  = top + 'px';
+    if(Math.abs(left - w.offsetLeft) > 1) w.style.left = left + 'px';
+  }
   function openWidget(id, opts){
     if(live[id]){ flash(live[id]); return live[id]; }
     const make = F[id]; if(!make){ console.warn('no widget', id); return; }
@@ -2311,16 +2440,20 @@
     w.style.setProperty('--fl', (6+Math.random()*4).toFixed(1)+'s');
     w.style.setProperty('--fd', (-Math.random()*5).toFixed(1)+'s');
     ws().appendChild(w); live[id]=w;
+    cinemaPlace(w);
+    requestAnimationFrame(()=>keepOnStage(w));
+    if(window.ResizeObserver) new ResizeObserver(()=>keepOnStage(w)).observe(w);
     _returnFocus[id] = document.activeElement;
     // targeting scan-lock flourish converges on the card, then it materialises
     requestAnimationFrame(()=>{
       const r=w.getBoundingClientRect();
       V.emit('widget:lock', { rect:{ left:r.left, top:r.top, width:r.width, height:r.height } });
-      setTimeout(()=>{ w.classList.add('show'); w.focus(); }, 130);
+      setTimeout(()=>{ w.classList.add('show'); w.focus({preventScroll:true}); }, 130);   // focus() used to scroll the whole stage
     });
     return w;
   }
-  function closeWidget(id){ const w=live[id]; if(!w) return; w.classList.remove('show');
+  function closeWidget(id){ const w=live[id]; if(!w){ V.emit('widget:close-external',{id}); return; }   // widgets that own their DOM (city3d) close themselves
+    w.classList.remove('show');
     setTimeout(()=>{ w.remove(); delete live[id];
       const back = _returnFocus[id]; delete _returnFocus[id];
       if(back && document.contains(back) && typeof back.focus === 'function') back.focus();
@@ -2334,6 +2467,7 @@
       if(e.target.closest('.w-x')) return;
       const r=w.getBoundingClientRect(), pr=ws().getBoundingClientRect();
       drag={ w, dx:e.clientX-r.left, dy:e.clientY-r.top, pr };
+      w._moved = true;
       w.classList.add('grabbed'); bringFront(w); handle.setPointerCapture(e.pointerId);
     });
     handle.addEventListener('pointermove', e=>{ if(!drag||drag.w!==w) return; moveDragTo(e.clientX,e.clientY); });
@@ -2348,7 +2482,7 @@
   // hand-cursor hooks: grab the widget under (clientX,clientY), move, release
   function grabAt(cx,cy){ const t=document.elementFromPoint(cx,cy); const w=t&&t.closest('.widget');
     if(!w) return false; const r=w.getBoundingClientRect(), pr=ws().getBoundingClientRect();
-    drag={ w, dx:cx-r.left, dy:cy-r.top, pr }; w.classList.add('grabbed'); bringFront(w); return true; }
+    drag={ w, dx:cx-r.left, dy:cy-r.top, pr }; w._moved = true; w.classList.add('grabbed'); bringFront(w); return true; }
   function dragMove(cx,cy){ moveDragTo(cx,cy); }
   function release(){ if(drag){ drag.w.classList.remove('grabbed'); drag=null; } }
 

@@ -13,6 +13,8 @@ runs forever.
 """
 from __future__ import annotations
 
+import asyncio
+
 import sys
 from pathlib import Path
 
@@ -34,9 +36,12 @@ class ContentArm:
     async def run_once(self) -> dict:
         """Produce one reel and route it to the (gated) publish step."""
         well = await self._pick_well()
-        text, _ = self._script(well)
-        narration_wav, duration_s = self._narrate(text)
-        reel = self._record(narration_wav, duration_s)
+        text, _ = await self._script(well)
+        # Both steps are blocking (TTS synthesis; a real browser recording for the whole narration). Called inline they
+        # froze the event loop for the duration, and Playwright's sync API refuses to run inside a running loop
+        # ("It looks like you are using Playwright Sync API inside the asyncio loop") -- so no reel was ever recorded.
+        narration_wav, duration_s = await asyncio.to_thread(self._narrate, text)
+        reel = await asyncio.to_thread(self._record, narration_wav, duration_s)
         if reel:
             await self._gated_publish(reel, well)
         else:
@@ -58,15 +63,21 @@ class ContentArm:
             logger.debug("[VECTOR][growth][armA] reelworthy check fell back: {}", exc)
             return False
 
-    def _script(self, well: str) -> tuple:
+    async def _script(self, well: str) -> tuple:
         """Generate a truthful script. Pulls from the action log (work_done) or
-        showcases a real feature (capability_showcase)."""
+        showcases a real feature (capability_showcase).
+
+        2026-09-24: this used to call a non-existent `ScriptGenerator.generate`, so the reel
+        narrated the bare topic string. It now awaits the real `generate_script()`.
+        """
         try:
             from districts.content.script_generator import ScriptGenerator  # reuse
             topic = ("what VECTOR did today" if well == "work_done"
                      else "a VECTOR capability showcase")
-            sg = ScriptGenerator()
-            text = sg.generate(topic) if hasattr(sg, "generate") else topic
+            result = await ScriptGenerator().generate_script(topic, duration_min=1.0)
+            text = (result or {}).get("content", "") if isinstance(result, dict) else ""
+            if not text or (isinstance(result, dict) and result.get("error")):
+                raise ValueError(f"no script content ({(result or {}).get('error', 'empty')})")
             return (str(text), well)
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] script fell back: {}", exc)
@@ -213,8 +224,8 @@ class ContentArm:
     async def _notify_owner_to_post(self, reel: str | None = None) -> None:
         """Human-in-the-loop IG: render the reel + Pushover the owner to post it."""
         try:
-            from core.notify import pushover  # type: ignore
-            pushover(f"VECTOR reel ready to post on Instagram: {reel}")
+            from core.notify import pushover
+            await pushover(f"VECTOR reel ready to post on Instagram: {reel}")
         except Exception:
             logger.info("[VECTOR][growth][armA] (manual IG) owner-notify: reel ready {}", reel)
 

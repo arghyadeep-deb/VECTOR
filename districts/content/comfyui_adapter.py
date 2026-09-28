@@ -235,6 +235,14 @@ class ComfyUIAdapter(AgentBase):
                 "elapsed": round(time.time() - start, 1),
             }
 
+    async def generate_image(self, prompt: str, width: int = 512, height: int = 512,
+                             steps: int = 20) -> dict:
+        """Generate an image and also return its bytes (what ImageProviderRegistry expects)."""
+        result = await self.generate(prompt=prompt, width=width, height=height, steps=steps)
+        if result["status"] == "ok" and result["images"]:
+            result["image_bytes"] = Path(result["images"][0]).read_bytes()
+        return result
+
     async def generate_image_via_registry(self, prompt: str, width: int = 512, height: int = 512) -> dict:
         """Generate image using provider registry (ComfyUI primary, cloud fallback)."""
         try:
@@ -399,6 +407,22 @@ class ComfyUIAdapter(AgentBase):
             r.raise_for_status()
             return r.json()["prompt_id"]
 
+    async def _fetch_output(self, client: httpx.AsyncClient, item: dict) -> str:
+        """Download one ComfyUI output through /view into self._output_dir.
+
+        ComfyUI may run anywhere and writes into its own install's output/, so
+        the adapter must not guess a local path. Raises on any failed download.
+        """
+        filename, subfolder = item["filename"], item.get("subfolder", "")
+        r = await client.get(f"{self._base_url}/view", params={
+            "filename": filename, "subfolder": subfolder, "type": item.get("type", "output"),
+        })
+        r.raise_for_status()
+        dest = self._output_dir / subfolder / filename
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(r.content)
+        return str(dest)
+
     async def _wait_for_images(self, prompt_id: str) -> list[str]:
         """Poll /history until prompt_id appears, then collect output file paths."""
         deadline = time.time() + self._timeout
@@ -416,15 +440,8 @@ class ComfyUIAdapter(AgentBase):
                 paths: list[str] = []
                 for node_output in outputs.values():
                     for img in node_output.get("images", []):
-                        filename  = img.get("filename", "")
-                        subfolder = img.get("subfolder", "")
-                        img_type  = img.get("type", "output")
-                        if img_type == "output":
-                            full_path = self._output_dir / subfolder / filename
-                            paths.append(str(full_path))
-                        else:
-                            # temp image — download as bytes is possible but skip for now
-                            paths.append(f"[temp] {filename}")
+                        if img.get("filename"):
+                            paths.append(await self._fetch_output(client, img))
                 return paths
 
         raise TimeoutError(f"ComfyUI did not complete prompt {prompt_id} in {self._timeout}s")
@@ -451,16 +468,12 @@ class ComfyUIAdapter(AgentBase):
                 for node_output in outputs.values():
                     # VHS_VideoCombine uses "gifs" key (despite name, also covers mp4)
                     for item in node_output.get("gifs", []):
-                        filename  = item.get("filename", "")
-                        subfolder = item.get("subfolder", "")
-                        if filename:
-                            return str(self._output_dir / subfolder / filename)
+                        if item.get("filename"):
+                            return await self._fetch_output(client, item)
                     # Older fallback — some nodes put video under "images"
                     for item in node_output.get("images", []):
-                        fname = item.get("filename", "")
-                        if fname.endswith((".mp4", ".webm", ".gif")):
-                            subfolder = item.get("subfolder", "")
-                            return str(self._output_dir / subfolder / fname)
+                        if item.get("filename", "").endswith((".mp4", ".webm", ".gif")):
+                            return await self._fetch_output(client, item)
                 return None  # outputs present but no video file found
 
         raise TimeoutError(f"ComfyUI did not complete video prompt {prompt_id} in {self._timeout}s")

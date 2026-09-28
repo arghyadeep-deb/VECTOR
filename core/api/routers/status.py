@@ -95,8 +95,16 @@ async def status_endpoint():
 
 
 def _get_loop_running() -> bool:
-    """Read loop state without constructing the expensive autonomous loop."""
-    return False
+    """Read loop state without constructing the expensive autonomous loop.
+
+    Same rule /health uses. This used to be a stub that always returned False, so
+    /status said the loop was down while /health showed it ticking (2026-09-25)."""
+    try:
+        from core.loop.loop_state import get_runtime
+        rt = get_runtime()
+        return bool(rt["running"] or rt["tick_count"] > 0)
+    except Exception:
+        return False
 
 
 def _get_tts_status_cached() -> dict[str, str]:
@@ -137,7 +145,7 @@ async def system_metrics():
     """Get real-time OS metrics via psutil."""
     import psutil as _psutil
     import time as _time
-    cpu = _psutil.cpu_percent(interval=0.3)
+    cpu = await asyncio.to_thread(_psutil.cpu_percent, 0.3)   # interval blocks; keep the event loop free
     mem = _psutil.virtual_memory()
     disk = _psutil.disk_usage('/')
     net = _psutil.net_io_counters()
@@ -287,7 +295,9 @@ async def _check_ollama_models() -> dict:
     """Dynamically check which Ollama models are loaded."""
     models_status = {}
     try:
-        async with httpx.AsyncClient(timeout=0.5) as client:
+        # 0.5 s was shorter than a busy Ollama (or a busy API) needs to answer /api/tags: 78 timeouts per session, each logged
+        # with an EMPTY message (httpx timeouts stringify to ''), and the HUD showed models as unreachable.
+        async with httpx.AsyncClient(timeout=2.0) as client:
             r = await client.get(f"{_OLLAMA_HOST}/api/tags")
             if r.status_code == 200:
                 loaded = [m["name"] for m in r.json().get("models", [])]
@@ -307,7 +317,7 @@ async def _check_ollama_models() -> dict:
                 for key in ["focus", "reasoning", "coder", "ambient", "deep", "chairman"]:
                     models_status[key] = "error"
     except Exception as e:
-        logger.warning(f"[VECTOR][api][status] Ollama check failed: {e}")
+        logger.warning(f"[VECTOR][api][status] Ollama check failed: {type(e).__name__}: {e}")
         models_status = {"focus": "unavailable", "reasoning": "unavailable"}
 
     if not models_status:

@@ -160,10 +160,24 @@ class HPValidator:
         return False, delta
 
     def _smooth(self, delta: float, agent_id: str) -> float:
+        # The EMA used to be ONE state per agent shared by rewards and penalties, so a small penalty right after a large award was
+        # blended with it (measured: a -5 after a -30 became -22.5; after a +50 it turned into +33.5, which deduct_points then took as
+        # a 33.5 HP loss via abs()). With VECTOR_HP_FAIR penalties are not smoothed at all -- a -30 must cost 30 and a first-of-a-kind
+        # -5 must cost 5, whatever came before (deduct_points is documented as deliberately unshaped) -- and awards keep an EMA of
+        # their own, so smoothing only ever damps runs of rewards.
+        key = agent_id
+        try:
+            from core.city.experience import hp_fair_enabled
+            if hp_fair_enabled():
+                if delta < 0:
+                    return round(delta, 2)
+                key = f"{agent_id}:+"
+        except Exception:
+            pass
         with self._lock:
-            prev = self._ema_state.get(agent_id, delta)
+            prev = self._ema_state.get(key, delta)
             smoothed = EMA_ALPHA * delta + (1 - EMA_ALPHA) * prev
-            self._ema_state[agent_id] = smoothed
+            self._ema_state[key] = smoothed
         return round(smoothed, 2)
 
     def _cross_validate(self, delta: float, source_district: str) -> bool:

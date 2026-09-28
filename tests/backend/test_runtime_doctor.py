@@ -33,7 +33,8 @@ def test_dependency_doctor_required_core_checks_pass(monkeypatch) -> None:
     assert "python:version" in names
     assert "api:required_routes" in names
     assert "frontend:VECTOR.html" in names
-    assert "frontend:VECTOR.prod.html" in names
+    assert "frontend:demo.js" in names
+    assert "frontend:VECTOR.prod.html" not in names
 
 
 def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None:
@@ -58,8 +59,7 @@ def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None
     assert checks["env:VECTOR_API_KEY"]["status"] != "ok"
     assert checks["env:VECTOR_JWT_SECRET"]["required"] is True
     assert checks["env:VECTOR_JWT_SECRET"]["status"] != "ok"
-    assert checks["frontend:production_bundle"]["required"] is True
-    assert checks["frontend:production_bundle"]["status"] == "ok"
+    assert "frontend:production_bundle" not in checks
     assert checks["sidecar:comfyui_path"]["required"] is True
     assert "set VECTOR_API_KEY" in checks["env:VECTOR_API_KEY"]["remediation"]
     assert "VECTOR_COMFYUI_PATH" in checks["sidecar:comfyui_path"]["remediation"]
@@ -73,6 +73,7 @@ def test_dependency_doctor_rejects_weak_production_secrets(monkeypatch, tmp_path
     monkeypatch.setenv("VECTOR_JWT_SECRET", "changeme")
     monkeypatch.setenv("VECTOR_COMFYUI_PATH", str(tmp_path))
     monkeypatch.setenv("COMFYUI_URL", "http://127.0.0.1:9")
+    monkeypatch.setenv("VECTOR_SIDECARS", "comfyui")  # the owner enabled it, so a dead server is a real failure
 
     payload = run_dependency_doctor(include_optional=True).to_dict()
     checks = {check["name"]: check for check in payload["checks"]}
@@ -94,13 +95,14 @@ def test_dependency_doctor_accepts_strong_configured_production_inputs_and_certi
     monkeypatch.setenv("VECTOR_JWT_SECRET", "j" * 64)
     monkeypatch.setenv("VECTOR_COMFYUI_PATH", str(tmp_path))
     monkeypatch.setenv("COMFYUI_URL", "http://127.0.0.1:9")
+    monkeypatch.setenv("VECTOR_SIDECARS", "comfyui")  # the owner enabled it, so a dead server is a real failure
 
     payload = run_dependency_doctor(include_optional=True).to_dict()
     checks = {check["name"]: check for check in payload["checks"]}
 
     assert checks["env:VECTOR_API_KEY"]["status"] == "ok"
     assert checks["env:VECTOR_JWT_SECRET"]["status"] == "ok"
-    assert checks["frontend:production_bundle"]["status"] == "ok"
+    assert "frontend:production_bundle" not in checks
     assert checks["sidecar:comfyui_health"]["status"] == "fail"
     assert "start the sidecar service" in checks["sidecar:comfyui_health"]["remediation"]
 
@@ -119,7 +121,7 @@ def test_health_readiness_and_doctor_endpoints_are_available() -> None:
     assert "checks" in doctor.json()
 
 
-def test_health_production_readiness_reports_503_for_missing_hardening(monkeypatch) -> None:
+def test_health_hardened_readiness_reports_503_for_missing_hardening(monkeypatch) -> None:
     from core.api.app import create_app
 
     monkeypatch.delenv("VECTOR_ENV", raising=False)
@@ -132,7 +134,7 @@ def test_health_production_readiness_reports_503_for_missing_hardening(monkeypat
 
     client = TestClient(create_app(), client=("127.0.0.1", 50000))
 
-    response = client.get("/health/production-readiness")
+    response = client.get("/health/hardened-readiness")
 
     assert response.status_code == 503
     payload = response.json()["detail"]
@@ -153,3 +155,23 @@ def test_run_vector_doctor_cli_returns_json() -> None:
     payload = json.loads(proc.stdout)
     assert payload["required_failed"] == 0
     assert any(check["name"] == "api:required_routes" for check in payload["checks"])
+
+
+def test_comfyui_health_is_required_only_when_the_owner_enabled_the_sidecar(monkeypatch, tmp_path) -> None:
+    """Owner rule 2026-07-16: sidecars are off by default, so a ComfyUI that was never started must not turn the
+    hardened readiness report into a 503; when VECTOR_SIDECARS enables it, a dead server is a real failure again."""
+    from core.runtime.doctor import run_dependency_doctor
+
+    monkeypatch.setenv("VECTOR_COMFYUI_PATH", str(tmp_path))
+    monkeypatch.setenv("COMFYUI_URL", "http://127.0.0.1:1")  # nothing listens here
+
+    def _check(report):
+        return next(c for c in report.to_dict()["checks"] if c["name"] == "sidecar:comfyui_health")
+
+    monkeypatch.delenv("VECTOR_SIDECARS", raising=False)
+    off = _check(run_dependency_doctor(include_optional=True, hardened=True))
+    assert off["status"] != "ok" and off["required"] is False
+
+    monkeypatch.setenv("VECTOR_SIDECARS", "comfyui")
+    on = _check(run_dependency_doctor(include_optional=True, hardened=True))
+    assert on["status"] != "ok" and on["required"] is True

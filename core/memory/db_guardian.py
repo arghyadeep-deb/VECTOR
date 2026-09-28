@@ -21,12 +21,12 @@ _SEVERE = {"critical", "high"}
 _CLOUD_BACKENDS = ("supabase", "turso", "d1")
 
 
-def _alert_owner(msg: str) -> None:
+async def _alert_owner(msg: str) -> None:
     """Best-effort owner notification; always at least logs CRITICAL."""
     logger.critical(f"[VECTOR][db_guardian][ALERT] {msg}")
     try:
-        from core.cloud.notify import notify_owner  # optional
-        notify_owner(msg)
+        from core.cloud.notify import notify_owner
+        await notify_owner(msg, priority=2)
     except Exception:
         logger.exception("[VECTOR] silent swallow")
         pass
@@ -44,7 +44,7 @@ async def _on_security_event(event: Event) -> None:
         et = getattr(event.event_type, "value", event.event_type)
         reason = f"auto:{et}:level={level}:src={event.source or 'unknown'}"
         severed = [b for b in _CLOUD_BACKENDS if mgr.quarantine(b, reason)]
-        _alert_owner(
+        await _alert_owner(
             f"Auto-quarantined cloud DBs {severed} after {level} security alert "
             f"from {event.source or 'unknown'}. Re-enable with db_reenable once safe."
         )

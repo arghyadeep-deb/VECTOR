@@ -18,6 +18,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 class UXResearcher(AgentBase):
     """
@@ -36,6 +37,17 @@ class UXResearcher(AgentBase):
         if self._memory is None:
             self._memory = EpisodicMemory()
         return self._memory
+
+    def _llm(self, prompt: str, timeout: float) -> str:
+        """Call the routed model with mandatory session hydration."""
+        hydration = ContextEngine().session_hydration_prompt({"query": prompt})
+        return chat(
+            model=self._model,
+            messages=[{"role": "user", "content": f"{hydration}\n\n{prompt}"}],
+            timeout=timeout,
+            district="design",
+            domain="vision",
+        )
 
     def build_persona(self, name: str, role: str, goals: list[str],
                       pain_points: list[str], tech_level: str = "intermediate") -> dict:
@@ -139,7 +151,7 @@ class UXResearcher(AgentBase):
             f"\"total_days\": 0, \"deliverables\": [], \"success_metrics\": []}}"
         )
         try:
-            response = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            response = await asyncio.to_thread(self._llm, prompt, 20.0)
             match = re.search(r"\{.*\}", response, re.DOTALL)
             if match:
                 return json.loads(match.group())

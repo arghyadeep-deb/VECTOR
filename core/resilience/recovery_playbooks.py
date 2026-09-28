@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from loguru import logger
+import asyncio
 
 
 @dataclass
@@ -66,7 +67,7 @@ class ModelCrashPlaybook(RecoveryPlaybook):
             logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
 
         actions.append("Attempting Ollama restart")
-        subprocess.run(["ollama", "serve"], capture_output=True, timeout=10)
+        (await asyncio.to_thread(subprocess.run, ["ollama", "serve"], capture_output=True, timeout=10))
         actions.append("Ollama process started")
         return PlaybookResult(name=self.name, success=True, duration_s=time.time() - start, actions_taken=actions)
 

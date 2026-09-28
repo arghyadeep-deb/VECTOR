@@ -36,6 +36,7 @@ class SSRFCheckResult:
     safe: bool
     url: str
     reason: str = ""
+    addresses: tuple[str, ...] = ()
 
     def __bool__(self) -> bool:
         return self.safe
@@ -141,17 +142,17 @@ class SSRFGuard:
         if _BLOCKED_HOSTNAME_PATTERNS.search(host):
             return SSRFCheckResult(safe=False, url=url, reason=f"Blocked hostname pattern: {host}")
 
-        # 3. Private IP check (direct IP in URL)
+        resolved_addresses: list[str] = []
+
+        # 3. Non-public IP check (direct IP in URL). is_global also rejects unspecified, reserved, multicast, documentation,
+        # link-local, loopback and IPv4-mapped private addresses, not just a hand-maintained list of private ranges.
         if not self._allow_private:
             try:
                 ip = ipaddress.ip_address(host)
-                for network in _PRIVATE_NETWORKS:
-                    if ip in network:
-                        logger.warning("[VECTOR][ssrf] blocked private IP: {}", host)
-                        return SSRFCheckResult(
-                            safe=False, url=url,
-                            reason=f"Private/reserved IP address: {host}"
-                        )
+                if not ip.is_global:
+                    logger.warning("[VECTOR][ssrf] blocked non-public IP: {}", host)
+                    return SSRFCheckResult(safe=False, url=url, reason=f"Private/reserved IP address: {host}")
+                resolved_addresses.append(str(ip))
             except ValueError:
                 pass  # hostname, not IP — continue
 
@@ -163,27 +164,26 @@ class SSRFGuard:
         # 5. DNS resolution check (optional, slower)
         if self._resolve_dns and not self._allow_private:
             try:
-                resolved = socket.getaddrinfo(host, None)
+                resolved = socket.getaddrinfo(host, port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)
                 for _, _, _, _, addr in resolved:
                     ip_str = addr[0]
                     try:
                         ip = ipaddress.ip_address(ip_str)
-                        for network in _PRIVATE_NETWORKS:
-                            if ip in network:
-                                logger.warning(
-                                    "[VECTOR][ssrf] blocked DNS-resolved IP: {} → {}",
-                                    host, ip_str,
-                                )
-                                return SSRFCheckResult(
-                                    safe=False, url=url,
-                                    reason=f"DNS resolves to private IP: {ip_str}"
-                                )
+                        if not ip.is_global:
+                            logger.warning("[VECTOR][ssrf] blocked DNS-resolved IP: {} → {}", host, ip_str)
+                            return SSRFCheckResult(safe=False, url=url, reason=f"DNS resolves to private/reserved IP: {ip_str}")
+                        normalised = str(ip)
+                        if normalised not in resolved_addresses:
+                            resolved_addresses.append(normalised)
                     except ValueError:
-                        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
-            except OSError:
-                pass  # DNS failure — let request handle it
+                        return SSRFCheckResult(safe=False, url=url, reason=f"DNS returned an invalid address: {ip_str}")
+                if not resolved_addresses:
+                    return SSRFCheckResult(safe=False, url=url, reason="DNS returned no usable addresses")
+            except OSError as exc:
+                # Fail closed: otherwise the HTTP client would perform an unconstrained second lookup.
+                return SSRFCheckResult(safe=False, url=url, reason=f"DNS resolution failed: {exc}")
 
-        return SSRFCheckResult(safe=True, url=url)
+        return SSRFCheckResult(safe=True, url=url, addresses=tuple(resolved_addresses))
 
     def filter_urls(self, urls: list[str]) -> tuple[list[str], list[SSRFCheckResult]]:
         """Return (safe_urls, blocked_results)."""

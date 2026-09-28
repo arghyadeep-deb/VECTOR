@@ -92,6 +92,11 @@ class PermissionConfig(BaseModel):
         # concrete action types from think→act pipeline
         "git_status", "check_git", "recent_commits", "git_log",
         "daily_digest", "search_arxiv", "get_hn", "hackernews",
+        # 2026-09-26: read-only single-page fetch + structured extraction (core/browser/page_extract.py): http/https
+        # GET only, SSRF-guarded on every redirect hop, size/time limited, no cookies/login/forms/JS, output is data
+        # (never executed or fed to a model there), page text is injection-scanned. Same class as search_web /
+        # search_arxiv. NOTE for the independent review: this is a NEW GREEN entry (a tier addition, not a change).
+        "web_extract",
         "check_fatigue", "consolidate", "daily_review", "reflect",
         "deadline_check", "progress",
         # VectorCode read-only actions
@@ -162,6 +167,180 @@ class PermissionConfig(BaseModel):
         # episodic log/Obsidian report and its own HP, never touches an
         # external network or owner data.
         "list_districts", "test_feature",
+        # 2026-09-24 (independent review finding -- HIGH, closing the
+        # residual Codex found in the Governor.dispatch() authorization-
+        # boundary work): Governor.dispatch()'s new fail-closed check only
+        # gated FORBIDDEN/YELLOW/RED -- 627 of core/city/governor.py's 659
+        # DISTRICT_TASK_MAP route keys were classified UNKNOWN (passes
+        # through unchecked when Governor.dispatch() is called directly,
+        # bypassing PermissionGateway.execute()'s own fail-closed UNKNOWN
+        # handling). Every one of those 627 was traced to its real handler
+        # code (exact `task_type ==`/`action ==` branch match, or a real
+        # Swarm-style keyword-dispatch for districts like coding/ops/
+        # content that route by TASK_ROLE_MAP score rather than exact
+        # match) rather than classified by name alone -- several looked
+        # dangerous by keyword but resolve to no real branch at all (e.g.
+        # "bash_execute"/"run_command"/"credentials"/"api_keys"/"notify"
+        # are present only in a `self.capabilities = [...]` list used for
+        # agent SELECTION, never matched in the real `run()` if/elif
+        # chain, and fall through to a safe default/error/status branch).
+        # These GREEN additions are the ~581 routes confirmed read-only,
+        # analysis/reporting/generation-for-review, purely informational,
+        # or with no real backing handler at that exact string at all
+        # (in which case GREEN is correct since nothing dangerous is
+        # actually reachable under that name). The genuinely dangerous
+        # ones (real trade execution, real shell/code-index writes, real
+        # peer broadcast, real infra deploy/restart/backup) are classified
+        # RED/YELLOW below instead -- see those lists' own 2026-09-24
+        # comments.
+        "ab_test", "ab_test_design", "ab_test_variant", "academic_research", "academic_search",
+        "accessibility", "ad_image_generate", "ads_apple_audit", "ads_audit", "ads_bidding",
+        "ads_budget", "ads_budget_alloc", "ads_competitor", "ads_competitor_research", "ads_copy",
+        "ads_create", "ads_creative", "ads_creative_audit", "ads_dna", "ads_full_audit",
+        "ads_generate", "ads_google_audit", "ads_keywords", "ads_landing", "ads_landing_analysis",
+        "ads_linkedin_audit", "ads_math", "ads_meta", "ads_microsoft_audit", "ads_multi_audit",
+        "ads_pdf_report", "ads_performance", "ads_photoshoot", "ads_plan", "ads_report",
+        "ads_strategy", "ads_test", "ads_tiktok_audit", "ads_youtube_audit", "aeo",
+        "agent_interview", "agentic_search", "ai_citation", "ai_news", "aircraft", "ais",
+        "alpha_beta", "alpha_discovery", "alternative_invest", "amazon_ads", "amazon_audit",
+        "ambient", "ambient_status", "analytics", "anomaly_prediction",
+        "api_health", "api_keys", "api_reference", "api_review", "api_test", "apply_patch",
+        "architect", "arxiv", "assamese", "asyncio_review", "attendance", "attribution_audit",
+        "audit_log", "audit_search", "audit_tail", "audit_verify", "auto_chain", "auto_draft",
+        "background_remove", "bash_execute", "behavior_detect", "behavior_pattern",
+        "benchmark", "bengali", "black_scholes", "blast_radius", "blog", "bond_pricing",
+        "bottleneck", "brain_summary", "brand_dna", "break_even", "broken_links", "budget",
+        "budget_alert", "budget_check", "budget_record", "budget_status", "bug", "build_graph",
+        "build_ontology", "cad", "call", "call_flow", "call_screen", "campaign_brief",
+        "capi_check", "causal_query", "causal_simulate", "cctv", "check_inbox", "check_url",
+        "chemistry", "chief", "citation_score", "classify_emergency", "classify_error",
+        "cloud_safety", "cluster_problems", "cms_push_seo", "code", "code_accuracy_test",
+        "code_hardcoded_check", "code_inject_check",
+        "code_intelligence", "code_map", "code_path_check", "code_review_addy",
+        "code_review_obra", "code_search", "code_secret_check", "code_ssrf_check",
+        "code_vuln_check", "codebase_health", "cold_outreach", "comfyui_prompt",
+        "communication_style", "competitive_analysis", "competitive_intelligence",
+        "competitor_profile", "competitor_research", "competitor_spy", "compliance",
+        "component", "compress_context", "consent_mode", "consistency_check", "contact",
+        "content_creator", "content_schedule", "conversion_optimization", "conversion_rate",
+        "coordinate", "corporate_finance", "cost_report", "council", "course",
+        "covariance_matrix", "crawl", "create_video", "credentials", "credit_risk", "cro",
+        "daily_video", "dashboard_build", "data_audit", "data_contract", "data_flow",
+        "data_pipeline", "data_quality", "data_redact", "data_remediation", "data_viz",
+        "db_optimize", "dcf", "dcf_analysis", "dead_code", "decision",
+        "derivatives", "design_tokens", "detect_anomaly",
+        "developer_advocate", "devops", "directive", "drawdown", "dx_audit", "econ_analysis",
+        "editorial_calendar", "email", "email_brief", "email_search", "email_thread",
+        "emergency", "emergency_alert", "endpoint_review", "epistemic_summary",
+        "equity_research", "error_type", "escalate_emergency", "etl", "evening_brief",
+        "events near", "evidence", "executive_brief", "experiment", "experiments",
+        "explain_file", "explore_code", "factor_model", "fastapi_review", "fatigue",
+        "federation", "feedback", "fetch_dynamic", "fetch_page", "fetch_stealth", "file_edit",
+        "find", "find_papers", "find_symbol", "finrl_train", "fires", "fixed_income",
+        "flights", "forecast", "fpa", "frontend", "frontline", "fundamental_analysis",
+        "funnel", "funnel_diagnosis", "funnel_drop", "gdpr", "generate_changelog",
+        "generate_docs", "generate_i2i", "generate_image", "generate_personas",
+        "generate_report", "generate_video", "geo_optimize", "geo_optimizer", "geo_score",
+        "geopolitics_analysis", "get_email", "github_ml", "global intel",
+        "global summary", "gmail", "goal_summary", "google_ads", "google_ads_audit",
+        "google_ads_copy", "google_ads_landing", "greeks_calc", "grep_code", "grep_search",
+        "growth", "growth_status", "ha_status", "habit_analysis", "habit_status",
+        "hand_disable", "hand_enable", "hand_list", "hand_run", "hand_status", "health",
+        "hf_dataset", "hindi", "html_to_markdown", "hypothesis",
+        "identify_habits", "image", "image_prompt", "impact_analysis",
+        "index", "intel report", "internet outage",
+        "investment_analysis", "investor_analysis", "japanese", "job_search", "journey_map",
+        "karpathy", "keyword", "keyword_research", "kiit", "knowledge_links",
+        "knowledge_query", "landing_page_analyze", "landing_page_optimize",
+        "language_coach", "learn", "linkedin", "lip_sync", "list_emails", "literature_review",
+        "llm_cost", "load_skill", "loop_status", "macro_analysis", "malware",
+        "map_workflow", "maritime", "market_intelligence", "market_landscape",
+        "market_research", "market_scan", "mastery", "mcp_stdio", "media_status", "memory",
+        "message", "meta_ads", "meta_ads_audience", "meta_ads_audit", "meta_ads_creative",
+        "meta_ads_performance", "metrics", "mine_social", "minimal_diff", "mitre_attack",
+        "ml_audit", "ml_plan", "ml_research", "model_qa", "molecule", "money",
+        "monitor_system", "monte_carlo", "morning_brief", "motivation", "multi_edit",
+        "multiedit", "mvp", "nanogpt", "nasa firms", "new_email", "news", "news near",
+        "newsletter", "north_star", "notify", "nudge", "onboard_repo", "opportunity_spot",
+        "optimize", "optimize_content", "options_analysis", "order_history", "osint_collect",
+        "outages", "outreach", "page_not_converting", "pagespeed", "paper", "paper_trade",
+        "parse_email", "parse_html", "pep8_review", "performance_report", "persona",
+        "physics", "pii_check", "pipeline", "portfolio_management",
+        "portfolio_optimize", "ppc_calculator", "prd",
+        "predict", "prediction_store", "privacy_check", "product_brief", "profile",
+        "project", "proposal", "prototype", "provider_scan", "prune_context", "publish_post",
+        "pubmed", "pydantic_review", "python_review", "qa_check", "qualify_lead",
+        "quant_backtest", "quant_model", "rapid_prototype", "rate_check", "read_email",
+        "read_file_tool", "reality_check", "recall", "recon satellite", "recover_session",
+        "recruitment", "redact", "regime_detect",
+        "relationship", "remove_bg", "repo_scan", "research", "research_news",
+        "research_quick", "research_report", "resume",
+        "review", "review_fastapi", "review_python", "rice_score", "risk_analysis",
+        "roadmap", "roi", "run_command", "run_pending_posts", "run_simulation", "runbook",
+        "sales", "satellites", "scaffold_component", "scan", "scan_prompt",
+        "scenario_analysis", "schema_markup", "science", "scrape", "scrape_stealth",
+        "scrape_url", "sd_prompt", "search", "search_replace", "sector_analysis", "security",
+        "security_scan", "semantic_scholar", "semantic_search", "seo", "seo_analysis",
+        "seo_audit", "seo_followup", "seo_geo", "seo_improve_page", "seo_investigate_drop",
+        "seo_onboard", "seo_portfolio", "seo_portfolio_review", "seo_weekly_review",
+        "session_persist", "session_repair", "sgtm_health", "shadow_account", "sharpe_ratio",
+        "siem", "sigma_rule", "silent_failure", "simulate", "simulation_report",
+        "skill_gap", "skill_map", "skill_run", "sleep", "slo", "slow_query", "social_media",
+        "social_simulate", "solana_holdings", "sox", "spider_crawl", "ssrf_check",
+        "stealth_scrape", "stealth_search", "stealth_snapshot", "strategic_gap",
+        "strategy_recommend", "surveillance camera", "swallowed_error", "symbol_lookup",
+        "synthesize_feedback", "taint_check", "tdd", "technical_analysis", "test_analysis",
+        "test_coverage", "threat", "threat_detection", "time_series", "title_card",
+        "todo_add", "todo_list", "token_price", "token_search", "token_usage",
+        "tool_evaluate", "track aircraft", "track plane", "track ship", "track_experiment",
+        "trading_analysis", "train_model", "transcribe", "trending", "ttfhw", "tutorial",
+        "twitter", "type_hints_review", "ui_design", "upload_video", "upscale", "uptime",
+        "url_inspect", "url_inspection", "ux_research", "valuation",
+        "valuation_model", "var_calc", "vc_context", "vc_context_search", "vc_flow",
+        "vc_graph_circular", "vc_graph_query", "vc_health", "vc_impact",
+        "vc_projects", "vc_search", "vc_status", "vc_symbol", "vc_symbols", "vc_visualize",
+        "vectorcode", "vectorcode_comms", "venture_pipeline", "verify_output",
+        "vessels", "video", "viral_loop", "vote", "vt_export", "vt_research", "vt_skills",
+        "vt_swarm", "war zone", "wcag", "web_scrape", "weekly_summary",
+        "what_if", "whatsapp", "wildfire", "workflow_optimize", "write_code",
+        "write_file_tool", "write_tests", "yield_curve", "youtube_transcript",
+        "zettelkasten", "zk",
+        # 2026-09-24: transcription omissions caught by re-running the
+        # zero-remaining-UNKNOWN verification after the additions above --
+        # same classification reasoning (read-only/analysis/local, no real
+        # dangerous handler at that exact string), just missed copying the
+        # first time.
+        "execution_flow", "cache_tracker", "kv_cache", "schedule_task",
+        "session_recovery", "smart_fetch", "batch_scrape", "finance",
+        "backtest_strategy", "conflicts", "content_generate", "voice_respond",
+        "subconscious", "subconscious_loop", "deep_research", "deep_dive",
+        "placement", "variance", "nexus", "context_compress", "cleanup",
+        # 2026-09-25 (owner-approved tier proposals, VECTOR_TECHNICAL_KNOWLEDGE/PHASE4_TIER_COVERAGE_REPORT.md): manifest
+        # capabilities that were UNKNOWN (blocked). Each handler was traced and is read-only or analysis-only (reads, local
+        # computation, local-model prompts, in-memory agent lessons). Mutating handlers are YELLOW, including alert_anomaly,
+        # which rewrites persisted thresholds and awards HP.
+        "active_alerts", "analyze_competitor", "analyze_financials", "analyze_gaps",
+        "ast_analysis", "calculate_indicators", "check_pep8", "check_valuation", "client_summary", "code_review",
+        "compare_to_sector", "deep_code_review", "dependency_trace", "design_architecture", "detect_anomalies",
+        "detect_patterns", "dividend_analysis", "estimate_compute", "evaluate", "extract_action_items",
+        "extract_concepts", "get_at_risk_clients", "get_client", "get_comparison", "get_metric_summary",
+        "get_price_data", "get_progress", "get_top_clients", "get_trend", "get_voices", "hedge_status",
+        "identify_improvements", "job_history", "job_queue", "job_status", "list_alerts", "list_clients",
+        "list_incidents", "list_models", "list_rules", "list_skills", "log_query", "match_event", "memory_query",
+        "obra_review", "order_summary", "portfolio_summary", "prioritize_gaps", "profile_competitor",
+        "progress_report", "recommend", "review_security", "root_cause", "security_code_review", "session_report",
+        "siem_alerts", "siem_stats", "suggest_learning_path", "suggest_prerequisites", "summarize_transcript",
+        "text_to_ssml", "transcribe_audio", "upload_history",
+        # 2026-09-25 (Governor untiered-name closure): read-only / local-analysis agent-declared names.
+        "cf_status", "scan_bugs", "scan_codebase", "generate_sentences",
+        # 2026-09-27 SELF_DEV_P4_DESIGN: new, in-memory design brief/report actions.
+        # These are proposals for pending independent review; no existing tier changed.
+        "brand_identity", "brand_consistency", "inclusive_visual_review", "inclusive_prompt",
+        "ux_architecture", "information_architecture", "visual_storyboard", "visual_narrative",
+        "whimsy_design", "microinteraction_audit", "level_design", "level_flow",
+        "narrative_design", "narrative_arc", "technical_art", "asset_pipeline",
+        "spatial_design", "spatial_comfort", "immersive_design", "immersive_flow",
+        "xr_interface", "xr_interaction", "cultural_review", "cultural_brief",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
@@ -178,6 +357,59 @@ class PermissionConfig(BaseModel):
         # suite, no owner-invisible side effect). code_task/code_generate/
         # code_fix/code_debug moved to RED below (2026-08-04 hardening).
         "run_tests",
+        # 2026-09-23 hardening (permission-boundary audit): home_control
+        # (smart-home device control via districts/home_assistant/) used to
+        # be dispatched by core/voice/ambient_listener.py through a direct
+        # HAConnector/VoiceBridge call with ZERO permission-gateway check —
+        # a real RULE 3 violation ("Permission Gateway is the ONLY path to
+        # real-world actions... Nothing bypasses this"). Now routed through
+        # the gateway like every other action_type. YELLOW (not GREEN):
+        # controls real physical devices, but the existing owner-voice/
+        # owner-typed pre-confirm path (proposed_by in ("api_command",
+        # "voice")) already treats the spoken/typed command itself as
+        # confirmation, matching how other voice-issued YELLOW actions work.
+        "home_control",
+        # 2026-09-24 (independent review finding -- closing the Governor.
+        # dispatch() UNKNOWN-tier residual, see the matching comment on
+        # the green list above for full context): real but reversible/
+        # lower-stakes writes -- local code edits, drafts, generated media
+        # not yet published, internal memory writes, calendar writes,
+        # physical device control, and a confirmed-real chained-dispatch
+        # mechanism (autopilot.py's run_chain() re-enters the SAME
+        # enforced Governor.dispatch() for every hop, so gating the
+        # trigger itself YELLOW is sufficient -- a chain that tries to
+        # hop into an ungated RED action gets blocked at that hop, not
+        # bypassed).
+        "git", "refactor", "minimal_change", "context_artifacts",
+        "draft_email", "draft_reply",
+        "make_video", "site_video", "website_to_video", "video_pipeline",
+        "animate_image", "comfyui", "lipsync", "render_html", "url_capture",
+        "smart_home", "chain", "autopilot", "incident", "post_mortem", "retry_check",
+        "entity_add", "knowledge_add", "knowledge_relate", "relation_add", "remember",
+        "calendar", "deadline", "class", "schedule",
+        # 2026-09-24 (round-6 independent review finding -- MEDIUM):
+        # place_pin/intel_pin route to VectorIntelAgent, which calls
+        # ShadowBroker's real sb.place_pin() -- ShadowBroker itself
+        # classifies place_pin among its own WRITE_COMMANDS. Reversible/
+        # local-state mutation, not GREEN read-only.
+        "place pin", "intel pin",
+        # 2026-09-25 (owner-approved): local writes, local media edits/generation, network fetches and scans, plus the four
+        # GREEN proposals demoted after tracing their handlers (alert_anomaly/analyze_feedback persist, district_report writes
+        # files, health_check makes an outbound request, generate_response calls a routed LLM).
+        "acknowledge", "acknowledge_alert", "alert_anomaly", "add_background_music", "add_client", "add_subtitles",
+        "add_transitions", "adjust_voice_speed", "analyze_feedback", "blocklist", "build_storyboard", "capture_url",
+        "clone_voice", "create_note", "dead_code_cleanup", "detection_rule", "district_report", "download_dataset",
+        "export_report", "extract_audio", "fetch_trending", "generate_batch", "generate_captions",
+        "generate_config", "generate_highlight_captions", "generate_in_my_voice", "generate_response",
+        "generate_subtitles", "generate_tags", "generate_voice", "health_check", "link_notes", "log_step",
+        "memory_store", "merge_clips", "network_scan", "organize_notes", "port_scan", "preprocess_data",
+        "process_event", "refactor_clean", "remove_metric", "save_note", "scan_artifact", "scan_vulnerabilities",
+        "start_run", "title_thumbnail", "tokenize_data", "track_metric", "translate_captions", "trim_video",
+        "update_client", "yt_dlp",
+        # 2026-09-25 (Governor untiered-name closure): agent-declared names that write locally, edit media,
+        # create branches/drafts, or generate files.
+        "backup_db", "write", "generate", "create", "create_branch", "update_draft", "generate_tests", "merge",
+        "add_call_contact", "add_course",
     ])
     red: list[str] = Field(default_factory=lambda: [
         "send_email", "delete_files", "execute_code",
@@ -203,7 +435,15 @@ class PermissionConfig(BaseModel):
         # auto-proceed).
         "run_shell_command",                                    # arbitrary shell execution
         "gui_task", "click_screen", "desktop_task",              # VLM-driven desktop control
-        "browser_task", "vision_control",                        # VLM-driven browser control
+        # 2026-09-23 (independent review finding): "web_task" is a real,
+        # live alias GUIAutomationAgent treats identically to
+        # "browser_task" (districts/coding/gui_automation_agent.py's own
+        # capabilities list and its run() dispatch both name it
+        # explicitly) and Governor routes it to the same "coding"
+        # district (core/city/governor.py's DISTRICT_TASK_MAP) -- but it
+        # was never added to any tier here, leaving it UNKNOWN and able
+        # to reach real browser automation completely unclassified.
+        "browser_task", "web_task", "vision_control",             # VLM-driven browser control
         "pc_type", "pc_click", "pc_launch_app", "launch_app",    # synthetic input / app launch
         # Task 58B remediation (VECTOR_TECHNICAL_KNOWLEDGE/58B_FINAGENT_
         # TERMINAL_PERMISSION_REMEDIATION.md): FinAgentAgent.launch_terminal()
@@ -323,6 +563,65 @@ class PermissionConfig(BaseModel):
         # sends still go instantly via the RED_INTERACTIVE_TOOLS bypass; only
         # autonomous ones now wait for a real Pushover approval.
         "send_message_routine",                                  # sends a real message to a real person
+        # 2026-09-24 (independent review finding -- closing the Governor.
+        # dispatch() UNKNOWN-tier residual, see the matching comment on
+        # the green list above for full context): real, hard-to-reverse
+        # side effects confirmed by direct trace of the real handler code
+        # (not by name alone -- several look dangerous by keyword but
+        # resolve to no real branch at all, and were classified GREEN
+        # instead; see the green list's own comment). vc_index/vc_update/
+        # vc_graph_build/index_codebase: real MCP index/update/graph-build
+        # writes (districts/coding/code_intel_agent.py). str_replace: real
+        # file write (districts/coding/code_conductor_agent.py) -- kept
+        # RED as defense-in-depth even though CodingSwarm's keyword-score
+        # routing to this exact handler isn't guaranteed for this literal
+        # task_type. execute_trade/place_order/solana_execute/
+        # solana_order/hedge_trade/hedge_run: real trade/order execution
+        # (districts/investment/execution_engine.py, hedgebot_agent.py) --
+        # distinct from the analysis-only agents (StockAnalyst etc.) the
+        # "never trades" house rule targets. broadcast/delegate_task: real
+        # external peer-send (districts/governance/federation_agent.py).
+        # deploy/restart/backup: real subprocess/service actions
+        # (districts/ops/devops_automator.py, established earlier this
+        # session).
+        "vc_index", "vc_update", "vc_graph_build", "index_codebase", "str_replace",
+        # 2026-09-24 (round-6 independent review finding -- HIGH):
+        # code_index/vc_graph/dependency_graph are real, exact aliases
+        # code_intel_agent.py itself routes into the SAME MCP write calls
+        # as their already-RED siblings (vc_index, vc_graph_build) --
+        # `elif task_type in ("vc_index", "code_index", "index_codebase")`
+        # and `elif task_type in ("vc_graph", "vc_graph_build",
+        # "dependency_graph", "code_graph")`. vc_watch's own default
+        # params.action is "start", which immediately calls the same real
+        # index-update path as vc_update, not a passive status check.
+        "code_index", "vc_graph", "dependency_graph", "vc_watch",
+        "execute_trade", "place_order", "solana_execute", "solana_order",
+        "hedge_trade", "hedge_run",
+        "broadcast", "delegate_task",
+        "deploy", "restart", "backup",
+        # 2026-09-24 (round-5 independent review finding -- HIGH): both
+        # were classified GREEN in the first pass, but each is real and
+        # dangerous ON ITS OWN merits (independent of the params.action
+        # dispatch-order bug fixed the same day in code_conductor_agent.py
+        # /mlops_agent.py): code_conduct drives a REAL multi-agent
+        # code-editing pipeline that writes to disk (this exact danger is
+        # already documented in code_conductor_agent.py's own 2026-07-29
+        # comment); hf_hub's default hub_action is safe ("list") but the
+        # SAME outer type accepts hub_action="delete"/"upload" -- a real
+        # remote Hugging Face Hub write under the owner's token -- with no
+        # separate outer identity distinguishing safe from dangerous, the
+        # same reasoning that already puts hf_train in RED (Task 58C).
+        "code_conduct", "hf_hub",
+        # 2026-09-25 (owner-approved): publish to public platforms, delete/rollback/prune, external repo writes, autonomous
+        # chaining, cross-machine actions, live rule/code reload.
+        "autonomous_chaining", "autopilot_trigger", "create_and_upload", "cross_machine", "delete_client",
+        "escalate", "execute_scheduled_uploads", "github", "hot_reload", "prune_retention",
+        "rollback", "run_pending", "schedule_upload", "upload_instagram", "upload_tiktok", "upload_twitter",
+        "upload_youtube",
+        # 2026-09-25 (Governor untiered-name closure): agent-declared names that delete files/messages/data, prune
+        # retention, or publish/upload to an external destination. execute_playbook is deliberately NOT here: the
+        # playbook runner gates every destructive step through the gateway itself.
+        "cleanup_logs", "delete", "publish", "upload", "prune",
     ])
     # Trust ladder — earned autonomy for YELLOW actions (core/loop/trust_ladder.py).
     # N consecutive explicit approvals with zero bad outcomes → auto-execute;
@@ -335,6 +634,25 @@ class CouncilConfig(BaseModel):
     max_per_week: int = Field(10, ge=1, le=100)
     hp_gate: int = Field(700, ge=0, le=1000)
     cost_inr: float = Field(1.60, ge=0)
+    # 2026-09-24 (external review, Phase 2): was hardcoded to 5.0s, far too
+    # short for a cold Ollama model swap under OLLAMA_MAX_LOADED_MODELS=1 --
+    # measured 58% of real deliberations (data/council_log.jsonl) timed out
+    # and defaulted to defer. 30s is sized for a realistic cold-load, not a
+    # warm-model round trip.
+    deliberation_timeout: float = Field(30.0, ge=5.0, le=120.0)
+
+
+class AgentDeathLoopConfig(BaseModel):
+    """2026-09-24 (external review, Phase 3 / KNOWN_ISSUES #81): breaker for an
+    agent that keeps dying and respawning (APITester died ~858x/day, once
+    every ~63s). After `max_deaths` deaths of the SAME agent name within
+    `window_seconds`, its successor is quarantined (not routable) for
+    `base_backoff_seconds`, doubling per consecutive quarantine up to
+    `max_backoff_seconds`, instead of respawning into the same failure."""
+    max_deaths: int = Field(5, ge=2, le=100)
+    window_seconds: float = Field(600.0, ge=10.0)
+    base_backoff_seconds: float = Field(300.0, ge=1.0)
+    max_backoff_seconds: float = Field(3600.0, ge=1.0)
 
 
 class CostConfig(BaseModel):
@@ -919,6 +1237,7 @@ class VectorSettings(BaseSettings):
     loop: LoopConfig = Field(default_factory=LoopConfig)
     permission: PermissionConfig = Field(default_factory=PermissionConfig)
     council: CouncilConfig = Field(default_factory=CouncilConfig)
+    agent_death_loop: AgentDeathLoopConfig = Field(default_factory=AgentDeathLoopConfig)
     cost: CostConfig = Field(default_factory=CostConfig)
     personality: PersonalityConfig = Field(default_factory=PersonalityConfig)
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
@@ -1156,6 +1475,7 @@ CONFIG: dict = {
     "loop": _s.loop.model_dump(),
     "permission": _s.permission.model_dump(),
     "council": _s.council.model_dump(),
+    "agent_death_loop": _s.agent_death_loop.model_dump(),
     "cost": _s.cost.model_dump(),
     "personality": _s.personality.model_dump(),
     "resilience": _s.resilience.model_dump(),
@@ -1196,6 +1516,7 @@ CONFIG: dict = {
     "obsidian": {
         "vault_path": _s.VECTOR_VAULT_PATH,
         "lightrag_working_dir": "./data/lightrag_vault",
+        "lightrag_llm_model": "gemma4:e2b",   # plain base model: vector-ambient is a JSON intent classifier + thinking model (empty extraction)
         "watch_debounce_sec": 30,
         "ingest_on_startup": True,
         "protected_paths": ["CLAUDE.md", "GOALS.md", "VECTOR", "graphify-out", ".obsidian"],

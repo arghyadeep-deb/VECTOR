@@ -1,3 +1,6 @@
+# DORMANT (2026-09-24, docs/design/core-module-triage.md): not imported by the running VECTOR.
+# Superseded by core/runtime/plans.py (PlanStore/PlanRunner). Kept on purpose (personal-use build); do not add a second live path --
+# route through the existing mechanism so the Governor and PermissionGateway stay the only way in.
 import sys
 import asyncio
 import datetime

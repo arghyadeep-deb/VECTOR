@@ -219,7 +219,10 @@ def test_ghost_lessons_inherited_across_generation_boundary(
     assert successors, "no successor registered after death"
     successor = successors[0]
 
-    assert successor.lessons == ["always validate input", "check edge cases"]
+    # The two lessons the agent had must be inherited first. Since 2026-09-25 (ghost memory records failures) the HP the
+    # agent lost while dying is also remembered, so a failure lesson follows them.
+    assert successor.lessons[:2] == ["always validate input", "check edge cases"]
+    assert any("regression test kill" in str(lesson) for lesson in successor.lessons[2:])
     assert successor.best_decisions == [{"action": "retry with backoff", "reward": 0.9}]
     assert successor.personality_traits == {"cautious": 0.85}
     assert successor.generation == agent.generation + 1

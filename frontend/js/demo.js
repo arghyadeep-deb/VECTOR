@@ -1,7 +1,7 @@
 /* ============================================================================
    VECTOR · demo.js  — subsystem dock, Director (dev) panel, hotkeys,
    scripted auto-demo, and the backend-connect form.
-   Strip this file out for production; nothing else depends on it.
+   The HUD needs this file: it builds the subsystem dock and the hotkeys.
    ========================================================================== */
 (function (global) {
   'use strict';
@@ -128,6 +128,91 @@
     return Object.assign({}, runtimeState);
   }
   V.setRuntimeMode=setRuntimeMode;
+
+  // ---- "backend offline, retrying" screen ---------------------------------
+  // The HUD keeps polling and the sockets reconnect with backoff, so a dropped backend recovers on its own -- this
+  // just says so. Shown only when a backend is configured AND has been unreachable for OFFLINE_GRACE_MS (so a normal
+  // restart or a single slow poll never flashes it); it hides itself the moment the mode goes live again.
+  const OFFLINE_GRACE_MS = 6000;
+  let offlineTimer = null;
+  let offlineTicker = null;
+  // Set by an HTTP 401/403 poll failure, cleared by a verified-live poll. Tracked apart from runtimeState.lastError
+  // because optional websockets (camera, gesture) also report 'degraded' and overwrite that text every few seconds.
+  let authRejected = false;
+
+  function offlineScreen(){
+    let el=document.getElementById('ve-offline-screen');
+    if(el) return el;
+    el=document.createElement('div');
+    el.id='ve-offline-screen';
+    el.setAttribute('role','alert');
+    el.hidden=true;
+    const card=document.createElement('div'); card.className='ve-offline-card';
+    const h=document.createElement('div'); h.className='ve-offline-title'; h.id='ve-offline-title'; h.textContent='BACKEND OFFLINE';
+    const m=document.createElement('div'); m.className='ve-offline-msg'; m.id='ve-offline-msg';
+    const t=document.createElement('div'); t.className='ve-offline-since'; t.id='ve-offline-since';
+    const b=document.createElement('button'); b.type='button'; b.className='ve-offline-retry'; b.textContent='RETRY NOW';
+    b.addEventListener('click',async e=>{
+      e.stopPropagation(); b.disabled=true;
+      try{ await V.http('/status'); setRuntimeMode('live', V.config.base || 'backend verified'); }
+      catch(_){ m.textContent='Still unreachable · retrying automatically'; }
+      finally{ b.disabled=false; }
+    });
+    card.append(h,m,t,b); el.append(card);
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function showOffline(){
+    const el=offlineScreen();
+    const since=runtimeState.lastOk ? new Date(runtimeState.lastOk).getTime() : null;
+    const paint=()=>{
+      const msg=document.getElementById('ve-offline-msg');
+      // A 401/403 means the backend is up but refuses this HUD's key (e.g. it was rotated while this page stayed open,
+      // or a phone bookmark still carries the old one). Say that, instead of implying the backend is down.
+      const rejected=authRejected;
+      const title=document.getElementById('ve-offline-title');
+      if(title) title.textContent = rejected ? 'ACCESS KEY REJECTED' : 'BACKEND OFFLINE';
+      if(msg) msg.textContent = rejected
+        ? 'The backend is running but rejected the API key this HUD is using. Reopen the HUD from the desktop shortcut, or from a link that carries the current key.'
+        : (runtimeState.lastError || 'backend unavailable')+' · retrying automatically';
+      const sinceEl=document.getElementById('ve-offline-since');
+      if(sinceEl){
+        if(since==null) sinceEl.textContent='never reached since this page opened';
+        else{ const s=Math.max(0,Math.floor((Date.now()-since)/1000));
+          sinceEl.textContent='last connected '+(s<60?s+'s':s<3600?Math.floor(s/60)+'m':Math.floor(s/3600)+'h')+' ago'; }
+      }
+    };
+    paint(); el.hidden=false;
+    if(!offlineTicker) offlineTicker=setInterval(paint,1000);
+  }
+
+  function hideOffline(){
+    const el=document.getElementById('ve-offline-screen');
+    if(el) el.hidden=true;
+    if(offlineTicker){ clearInterval(offlineTicker); offlineTicker=null; }
+  }
+
+  V.on('runtime:mode', st=>{
+    const backendConfigured=!!(V.config && V.config.base);
+    // A websocket that cannot connect (no camera, an unsupported gesture backend) reports 'degraded' too; that says
+    // nothing about the HTTP backend, so it never starts the offline screen. Only failed HTTP polls do.
+    const wsOnly=/^ws /.test(st.detail || '');
+    if(st.mode==='degraded' && /→ 40[13]/.test(st.detail || '')) authRejected=true;
+    if(st.mode==='live') authRejected=false;
+    if(st.mode==='degraded' && backendConfigured && !wsOnly){
+      const shown=document.getElementById('ve-offline-screen');
+      if(!offlineTimer && !(shown && !shown.hidden)){
+        offlineTimer=setTimeout(()=>{ offlineTimer=null; showOffline(); }, OFFLINE_GRACE_MS);
+      }
+    } else if(st.mode==='live' || st.mode==='demo'){
+      // Only a verified-live backend (or a deliberate disconnect) clears the screen. 'connecting' is NOT a recovery:
+      // a socket that reopens while every HTTP poll still fails flips degraded <-> connecting every few seconds, and
+      // treating that as recovery kept restarting the grace timer so the screen never appeared.
+      if(offlineTimer){ clearTimeout(offlineTimer); offlineTimer=null; }
+      hideOffline();
+    }
+  });
   V.getRuntimeMode=()=>Object.assign({}, runtimeState);
   function toggleCursor(){
     const C=global.VectorCursor;

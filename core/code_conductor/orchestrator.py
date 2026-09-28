@@ -126,7 +126,15 @@ class CodingOrchestrator:
                 f"Applied {ok_count}/{len(edits)} edits across {len(relevant_files)} files. "
                 + (f"Plan: {plan[:100]}" if plan else "")
             )
-            result.status = "ok" if ok_count == len(edits) else "partial"
+            # 0 == 0 used to make "no edits produced" report status "ok" (and the agent then paid +50 HP for it).
+            if not edits:
+                result.status = "error"
+                result.error = "the plan produced no edits, so nothing was changed"
+            elif ok_count == 0:
+                result.status = "error"
+                result.error = f"none of the {len(edits)} proposed edits could be applied"
+            else:
+                result.status = "ok" if ok_count == len(edits) else "partial"
 
         except Exception as e:
             logger.error("[VECTOR][orchestrator] error: {}", e)
@@ -141,6 +149,13 @@ class CodingOrchestrator:
             "summary": result.summary,
             "files_used": result.files_used,
             "error": result.error,
+            # The pipeline advertises plan -> edit -> review but never runs a review or any tests. Say so explicitly so
+            # no caller (plan verification, HP, learning) mistakes "edits applied" for "change verified".
+            "verification": {
+                "tests_run": False,
+                "review_run": False,
+                "note": "edits were applied as proposed; no tests or review were run, so correctness is unverified",
+            },
         }
 
     # ── Phase 1: Code map + file picker ──────────────────────────────────────

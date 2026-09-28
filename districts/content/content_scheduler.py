@@ -93,6 +93,10 @@ class ContentScheduler(AgentBase):
         """
         tracker = self._get_tracker()
         publisher = self._get_publisher()
+        try:
+            tracker.recover_stale_publishing()
+        except Exception:
+            logger.exception("[VECTOR][scheduler] stale-publishing recovery failed")
         pending = tracker.list_pending()
         results = []
         for job in pending:
@@ -157,6 +161,13 @@ class ContentScheduler(AgentBase):
                     "result": [r.to_dict() if hasattr(r, "to_dict") else str(r) for r in result],
                 })
                 self.award_points(10, "post_published")
+            except asyncio.CancelledError:
+                # An approval wait cut short by an outer timeout must not
+                # strand the job in 'publishing'.
+                try:
+                    tracker.mark_retrying(job.job_id, "cancelled mid-publish")
+                finally:
+                    raise
             except Exception as e:
                 logger.error(
                     "[VECTOR][scheduler] Failed to publish {} ({}): {}",
