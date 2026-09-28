@@ -429,6 +429,18 @@ class PermissionConfig(BaseModel):
         "type_design_brief", "type_design_check",
         "mcp_server_brief", "mcp_manifest_check",
         "terminal_integration_brief", "terminal_contract_check",
+        # 2026-09-29 SELF_DEV_P10_SELF_DEV: 14 NEW GREEN entries (tier additions
+        # only; no existing tier changed or loosened), flagged for the pending
+        # independent review. Handler: districts/self_dev/self_dev_specialists.py.
+        # All actions parse or compare caller-supplied VECTOR-tooling artifacts in
+        # memory. They do not write files, call services/LLMs, or touch product code.
+        "agent_creation_brief", "agent_definition_check",
+        "plugin_validation_brief", "plugin_manifest_check",
+        "skill_review_brief", "skill_structure_check",
+        "skill_analysis_brief", "skill_analysis_check",
+        "skill_comparison_brief", "skill_comparison_check",
+        "skill_grading_brief", "skill_grade_check",
+        "hook_conversation_brief", "hook_candidate_check",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
