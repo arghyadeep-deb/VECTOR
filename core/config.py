@@ -333,6 +333,14 @@ class PermissionConfig(BaseModel):
         "text_to_ssml", "transcribe_audio", "upload_history",
         # 2026-09-25 (Governor untiered-name closure): read-only / local-analysis agent-declared names.
         "cf_status", "scan_bugs", "scan_codebase", "generate_sentences",
+        # 2026-09-27 SELF_DEV_P4_DESIGN: new, in-memory design brief/report actions.
+        # These are proposals for pending independent review; no existing tier changed.
+        "brand_identity", "brand_consistency", "inclusive_visual_review", "inclusive_prompt",
+        "ux_architecture", "information_architecture", "visual_storyboard", "visual_narrative",
+        "whimsy_design", "microinteraction_audit", "level_design", "level_flow",
+        "narrative_design", "narrative_arc", "technical_art", "asset_pipeline",
+        "spatial_design", "spatial_comfort", "immersive_design", "immersive_flow",
+        "xr_interface", "xr_interaction", "cultural_review", "cultural_brief",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
