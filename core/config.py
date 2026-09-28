@@ -498,6 +498,15 @@ class PermissionConfig(BaseModel):
         # create branches/drafts, or generate files.
         "backup_db", "write", "generate", "create", "create_branch", "update_draft", "generate_tests", "merge",
         "add_call_contact", "add_course",
+        # 2026-09-29 SELF_DEV_P9_LEGAL_COMPLIANCE: ten NEW YELLOW entries,
+        # explicitly flagged for pending independent review. These handlers
+        # are read-only but regulated-advice-adjacent, so the owner-approved
+        # YELLOW default applies. No GREEN exception and no existing tier change.
+        "healthcare_service_brief", "healthcare_service_check",
+        "healthcare_marketing_brief", "healthcare_marketing_check",
+        "legal_billing_brief", "legal_billing_check",
+        "legal_intake_brief", "legal_intake_check",
+        "legal_document_brief", "legal_document_check",
         # 2026-09-28 T9-fix-1 (Codex review finding, verified real by Claude): email_agent.py declares
         # discard_draft and move as capabilities with no tier entry, so Governor._is_known_task_type()
         # let both dispatch with zero PermissionGateway involvement. Both are real, local mutations of the

@@ -937,6 +937,17 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "training_outline_check":       "ops",
     "legal_compliance_brief":       "legal_compliance",
     "legal_compliance_check":       "legal_compliance",
+    # SELF_DEV_P9_LEGAL_COMPLIANCE (2026-09-29): exact advisory-only routes.
+    "healthcare_service_brief":     "legal_compliance",
+    "healthcare_service_check":     "legal_compliance",
+    "healthcare_marketing_brief":   "legal_compliance",
+    "healthcare_marketing_check":   "legal_compliance",
+    "legal_billing_brief":          "legal_compliance",
+    "legal_billing_check":          "legal_compliance",
+    "legal_intake_brief":           "legal_compliance",
+    "legal_intake_check":           "legal_compliance",
+    "legal_document_brief":         "legal_compliance",
+    "legal_document_check":         "legal_compliance",
     # Districts missing from map — added to avoid LLM classification overhead
     "call":                 "calls",
     "call_screen":          "calls",

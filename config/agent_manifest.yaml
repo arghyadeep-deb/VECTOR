@@ -1495,6 +1495,39 @@ districts:
       description: Tracking setup brief plus required-event coverage and pixel/server dedup (event_id) checks
       capabilities: [tracking_setup_brief, tracking_event_check]
 
+  legal_compliance:
+    # 2026-09-29 SELF_DEV_P9_LEGAL_COMPLIANCE: advisory-only deterministic
+    # evidence checks; never execution or professional certification.
+    - name: healthcare_customer_service
+      class: districts.legal_compliance.legal_specialists.HealthcareCustomerServiceSpecialist
+      model: vector-reasoning
+      description: Patient-support evidence brief plus deterministic escalation, identity, language, and next-step checks
+      capabilities: [healthcare_service_brief, healthcare_service_check]
+
+    - name: healthcare_marketing_compliance
+      class: districts.legal_compliance.legal_specialists.HealthcareMarketingComplianceSpecialist
+      model: vector-reasoning
+      description: Healthcare-marketing brief plus deterministic phrase, scope, consent, de-identification, and citation checks
+      capabilities: [healthcare_marketing_brief, healthcare_marketing_check]
+
+    - name: legal_billing_time_tracking
+      class: districts.legal_compliance.legal_specialists.LegalBillingTimeTrackingSpecialist
+      model: vector-reasoning
+      description: Legal-billing evidence brief plus deterministic time-entry and invoice arithmetic checks
+      capabilities: [legal_billing_brief, legal_billing_check]
+
+    - name: legal_client_intake
+      class: districts.legal_compliance.legal_specialists.LegalClientIntakeSpecialist
+      model: vector-reasoning
+      description: Legal-intake brief plus deterministic required-field, conflict, scheduling, and deadline checks
+      capabilities: [legal_intake_brief, legal_intake_check]
+
+    - name: legal_document_review
+      class: districts.legal_compliance.legal_specialists.LegalDocumentReviewSpecialist
+      model: vector-reasoning
+      description: Legal-document brief plus deterministic required and prohibited clause-presence checks
+      capabilities: [legal_document_brief, legal_document_check]
+
   skills:
     - name: skill_mapper
       class: districts.skills.skill_mapper.SkillMapper
