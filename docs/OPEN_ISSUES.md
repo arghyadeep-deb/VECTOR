@@ -151,6 +151,24 @@ grew open engineering items; section 0 lists them.
     Full suite 6,708 passed / 0 failed / 39 skipped. **The owner deleted the 577-row `agent_history` junk themselves (2026-09-27)**
     -- the permission classifier denied doing it unattended, so the owner ran the prepared script directly (backup kept,
     `agent_history` 1,150 -> 573). **Still needs the owner:** the Codex review and the live checks.
+20. **Self-dev agent program (P1-P11, 2026-09-27..09-29)** -- full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`
+    (also `SELF_DEV_P1..P10_*.md` per-package). Claude and Codex split porting the owner's selected Claude Code agent
+    personas into real, tested VECTOR agents by district. Result: 164 personas covered across the 10 packages -- 90
+    newly built real, evidence-checked agents (P2/P3/P4/P5/P7/P8/P9/P10); 16 found to already exist under another
+    name/district (flagged NEEDS_HUMAN where the district-map and the actual placement disagree); 12 disclosed as
+    not-built (no honest deterministic check possible); P1's 8 qa personas came back NOT VERIFIED (missing per-agent
+    test gate); P6's 17 sales personas were a bounded repair, not new construction -- 0 certified fully real. 195 new
+    permission-tier entries (183 GREEN + 12 YELLOW) added, all flagged for the pending independent review; **no
+    existing tier was changed, moved, or loosened by any package**. Manifest verified clean: 41 districts, 260 agents,
+    zero duplicate top-level YAML keys. **Still needs the owner:** (a) P2 (coding) and P3 (security) hit the bridge's
+    automated "Architecture change"/"Security-sensitive change" approval gate with no CLI verb to grant it -- both
+    were built and merged only after the owner's own explicit chat approval, as directly-supervised manual work, never
+    through the bridge's automated self-approval path; that gate class stays for any future task matching the same
+    keywords. (b) 7 NEEDS_HUMAN decisions listed in the summary doc (zk-steward's district placement, 5 ops-scope
+    placement mismatches, `blockchain-security-auditor` not-built, P6's zero-certified-real sales personas, P1's NOT
+    VERIFIED qa disposition, the 239-persona reconciliation gap -- ~65 of the "239 selected" figure were never
+    individually re-verified against the Agent Roster artifact in this pass). The 8 duplicate legacy backlog items
+    from the pre-existing 24-item backlog (item 18 above) were superseded during this program's cleanup pass.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
