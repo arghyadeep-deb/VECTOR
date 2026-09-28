@@ -203,6 +203,12 @@ _FROZEN_YELLOW = {
     'process_event', 'refactor_clean', 'remove_metric', 'save_note', 'scan_artifact', 'scan_vulnerabilities',
     'start_run', 'title_thumbnail', 'tokenize_data', 'track_metric', 'translate_captions', 'trim_video',
     'update_client', 'yt_dlp',
+    # 2026-09-28 (T9-fix-1, Codex external review finding): discard_draft/move were untiered agent-
+    # declared capabilities on email_agent.py -- Governor._is_known_task_type() let them dispatch with
+    # ZERO PermissionGateway involvement. Both are real local mailbox-state mutations (discard a draft,
+    # move an email between folders), no external send -- YELLOW, not RED. See
+    # VECTOR_TECHNICAL_KNOWLEDGE/T9_FIX1_CAPABILITY_TIER_GAP.md.
+    'discard_draft', 'move',
 }
 
 

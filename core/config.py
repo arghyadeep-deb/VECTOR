@@ -341,6 +341,12 @@ class PermissionConfig(BaseModel):
         "narrative_design", "narrative_arc", "technical_art", "asset_pipeline",
         "spatial_design", "spatial_comfort", "immersive_design", "immersive_flow",
         "xr_interface", "xr_interaction", "cultural_review", "cultural_brief",
+        # 2026-09-28 T9-fix-1 (Codex review finding, verified real by Claude): email_agent.py declares mark_read
+        # as a capability but it had no tier entry at all, so Governor._is_known_task_type() let it dispatch
+        # with zero PermissionGateway involvement -- not even a GREEN classification. mark_read only flips a
+        # read/unread flag on an email already in the owner's own local store; no send, no delete, no external
+        # effect. New tier entry, flagged here for the pending independent review per SELF_DEV_AGENT_SPEC.md.
+        "mark_read",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
@@ -410,6 +416,13 @@ class PermissionConfig(BaseModel):
         # create branches/drafts, or generate files.
         "backup_db", "write", "generate", "create", "create_branch", "update_draft", "generate_tests", "merge",
         "add_call_contact", "add_course",
+        # 2026-09-28 T9-fix-1 (Codex review finding, verified real by Claude): email_agent.py declares
+        # discard_draft and move as capabilities with no tier entry, so Governor._is_known_task_type()
+        # let both dispatch with zero PermissionGateway involvement. Both are real, local mutations of the
+        # owner's own mailbox state (discarding a draft, moving an email between folders) -- no external
+        # send, so RED is not warranted, but they are not read-only either. New tier entries, flagged here
+        # for the pending independent review per SELF_DEV_AGENT_SPEC.md.
+        "discard_draft", "move",
     ])
     red: list[str] = Field(default_factory=lambda: [
         "send_email", "delete_files", "execute_code",
