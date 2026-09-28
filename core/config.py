@@ -341,6 +341,20 @@ class PermissionConfig(BaseModel):
         "narrative_design", "narrative_arc", "technical_art", "asset_pipeline",
         "spatial_design", "spatial_comfort", "immersive_design", "immersive_flow",
         "xr_interface", "xr_interaction", "cultural_review", "cultural_brief",
+        # 2026-09-29 SELF_DEV_P3_SECURITY: 16 NEW GREEN entries proposed for
+        # pending independent review; no existing tier changed. Every handler
+        # in districts/security/security_specialists.py is deterministic,
+        # in-memory, and read-only apart from standard successful-task HP
+        # accounting. In particular, patch proposal/verification
+        # never applies a diff, runs code/tests/shell, commits, or merges.
+        "patch_proposal_brief", "patch_proposal_check",
+        "patch_verification_brief", "patch_verification_check",
+        "scan_inventory_brief", "scan_inventory_check",
+        "scan_load_brief", "scan_load_check",
+        "scan_research_brief", "scan_research_check",
+        "scan_verification_brief", "scan_verification_check",
+        "identity_trust_brief", "identity_trust_check",
+        "automation_governance_brief", "automation_governance_check",
         # 2026-09-28 T9-fix-1 (Codex review finding, verified real by Claude): email_agent.py declares mark_read
         # as a capability but it had no tier entry at all, so Governor._is_known_task_type() let it dispatch
         # with zero PermissionGateway involvement -- not even a GREEN classification. mark_read only flips a
