@@ -1,6 +1,7 @@
 import sys
 import uuid
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -304,6 +305,48 @@ class ClientManager(AgentBase):
         ]
         return sorted(at_risk, key=lambda x: x.get("engagement_score", 0))
 
+    def answer_client_question(self, query: str) -> Optional[dict]:
+        """Resolve supported free-text questions through existing read methods.
+
+        Governor chat classification can provide an agent a novel task type and
+        retain the actionable request in ``params.query``.  This intentionally
+        handles only questions that unambiguously map to real client data; it
+        does not use an LLM or pretend to answer an unsupported request.
+        """
+        normalized = " ".join(query.casefold().split())
+        if re.search(r"\b(?:add|create|delete|remove|update|edit|change|set|track|log|record|assign|modify)\b", normalized):
+            return None
+
+        has_question_shape = normalized.endswith("?") or bool(re.match(
+            r"(?:how many|which|what|who|are there|do we have|can you|could you|would you|show me|list|give me|tell me|any)\b",
+            normalized,
+        ))
+        has_client_context = bool(re.search(r"\bclients?\b", normalized))
+        asks_summary = bool(re.search(
+            r"\b(?:how many|number of|count of|total)\s+clients?\b|\bclient\s+(?:summary|overview)\b",
+            normalized,
+        ))
+        asks_risk = has_client_context and bool(re.search(
+            r"\b(?:at[- ]risk|churn(?:ing)?|need attention)\b", normalized,
+        ))
+
+        if not (has_question_shape and has_client_context and (asks_summary or asks_risk)):
+            return None
+
+        result = {"status": "ok", "query": query}
+        if asks_summary:
+            result["summary"] = self.get_client_summary()
+        if asks_risk:
+            result["at_risk_clients"] = [
+                {
+                    "name": client.get("name"),
+                    "status": client.get("status"),
+                    "engagement_score": client.get("engagement_score", 0),
+                }
+                for client in self.get_at_risk_clients()
+            ]
+        return result
+
     def _get_timestamp(self) -> str:
         """Get current UTC timestamp."""
         from datetime import datetime, timezone
@@ -343,6 +386,12 @@ class ClientManager(AgentBase):
             return {"status": "ok", **self.get_client_summary()}
         if task_type == "get_at_risk_clients":
             return {"status": "ok", "clients": self.get_at_risk_clients(p.get("threshold", 20))}
+
+        query = p.get("query") or p.get("content") or ""
+        if isinstance(query, str):
+            answer = self.answer_client_question(query)
+            if answer is not None:
+                return answer
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 

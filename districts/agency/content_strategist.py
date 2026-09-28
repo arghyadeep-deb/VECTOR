@@ -14,11 +14,14 @@ from core.memory.obsidian_sync import ObsidianSync
 def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.8) -> str:
     """Sync LLM call via ProviderClient — works inside or outside a running event loop."""
     from core.inference.provider_client import ProviderClient as _PC
+    from core.loop.context_engine import ContextEngine
     from core.prompt_library import get_library as _gl
+    hydration = ContextEngine().session_hydration_prompt({"task": "content_strategy"})
     _sys = _gl().get_for_agent("content_creator") or ""
-    messages = [{"role": "user", "content": prompt}]
+    messages = [{"role": "system", "content": hydration}]
     if _sys:
-        messages = [{"role": "system", "content": _sys}] + messages
+        messages.append({"role": "system", "content": _sys})
+    messages.append({"role": "user", "content": prompt})
     async def _call():
         r = await _PC().chat(
             messages=messages,
