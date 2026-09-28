@@ -20,6 +20,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 class ZKSteward(AgentBase):
     """
@@ -95,8 +96,12 @@ class ZKSteward(AgentBase):
         )
         try:
             from core.prompt_library import get_library as _gl
+            hydration = ContextEngine().session_hydration_prompt({"task": "extract_concepts"})
             _sys = _gl().get_for_agent("zk_steward") or ""
-            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+            _msgs = [{"role": "system", "content": hydration}]
+            if _sys:
+                _msgs.append({"role": "system", "content": _sys})
+            _msgs.append({"role": "user", "content": prompt})
             response = chat(
                 model=self._model,
                 messages=_msgs,
@@ -133,9 +138,13 @@ class ZKSteward(AgentBase):
             f"Available notes:\n" + "\n".join(index_lines)
         )
         try:
+            hydration = ContextEngine().session_hydration_prompt({"task": "find_connections"})
             response = chat(
                 model=self._model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
                 timeout=15.0,
             )
             related = [r.strip().strip("-").strip() for r in response.strip().splitlines() if r.strip()]

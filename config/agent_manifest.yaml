@@ -324,6 +324,24 @@ districts:
       description: Smart context window manager — compresses long conversation histories
       capabilities: [context_compression, window_management]
 
+    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: 2 evidence-checked specialists
+    # (districts/memory_curator/memory_curator_specialists.py). <x>_brief reports evidence
+    # completeness; <x>_check recomputes deterministically (set/dict clustering, ast parse) --
+    # no LLM call in either agent. zk-steward is NOT re-built here: it already has a real match,
+    # ZKSteward (districts/personal_growth/zk_steward.py), registered under personal_growth, not
+    # memory_curator as this spec's district map names -- see the report's NEEDS_HUMAN flag.
+    - name: identity_graph_operator
+      class: districts.memory_curator.memory_curator_specialists.IdentityGraphOperator
+      model: vector-focus
+      description: Identity-graph dedup brief plus deterministic duplicate-cluster detection over supplied entity records
+      capabilities: [identity_graph_brief, identity_dedup_check]
+
+    - name: lsp_index_engineer
+      class: districts.memory_curator.memory_curator_specialists.LSPIndexEngineer
+      model: vector-focus
+      description: LSP symbol-index brief plus ast-based symbol indexing and expected-symbol diff over supplied Python source
+      capabilities: [lsp_index_brief, lsp_symbol_check]
+
   projects:
     - name: deadline_watcher
       class: districts.projects.deadline_watcher.DeadlineWatcher
@@ -1370,6 +1388,64 @@ districts:
       model: vector-reasoning
       description: Orchestrator that auto-loads and routes across DevOpsAutomator, ErrorClassifier, IncidentCommander, SREMonitor by task-type keyword match
       capabilities: [slo, uptime, incident, deploy, devops, monitor_system, backup, restart, post_mortem, classify_error, error_type, retry_check]
+
+    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: 7 evidence-checked specialists
+    # (districts/ops/ops_specialists.py) for personas with no existing real match anywhere in
+    # VECTOR. <x>_brief reports evidence completeness; <x>_check recomputes deterministically
+    # (date math, dict-key merge, string checks) -- no LLM
+    # call in any agent here. See the report for personas NOT built (already-real matches in other
+    # districts, or no honest deterministic check).
+    - name: hr_onboarding_specialist
+      class: districts.ops.ops_specialists.HROnboardingSpecialist
+      model: vector-focus
+      description: HR onboarding brief plus required-checklist-item completion check
+      capabilities: [hr_onboarding_brief, hr_onboarding_check]
+
+    - name: jira_workflow_steward
+      class: districts.ops.ops_specialists.JiraWorkflowSteward
+      model: vector-focus
+      description: Jira workflow-steward brief plus supplied transition-history validity check against a supplied allowed-transition graph
+      capabilities: [jira_workflow_brief, jira_workflow_check]
+
+    - name: project_shepherd
+      class: districts.ops.ops_specialists.ProjectShepherd
+      model: vector-focus
+      description: Project-shepherd brief plus overdue/at-risk milestone detection from supplied due dates
+      capabilities: [project_shepherd_brief, project_shepherd_check]
+
+    - name: support_responder
+      class: districts.ops.ops_specialists.SupportResponder
+      model: vector-focus
+      description: Support-response brief plus required-section completeness check on a drafted reply
+      capabilities: [support_response_brief, support_response_check]
+
+    - name: data_consolidation_agent
+      class: districts.ops.ops_specialists.DataConsolidationAgent
+      model: vector-focus
+      description: Data-consolidation brief plus key-field merge across supplied record sets with field-conflict detection
+      capabilities: [data_consolidation_brief, data_consolidation_check]
+
+    - name: report_distribution_agent
+      class: districts.ops.ops_specialists.ReportDistributionAgent
+      model: vector-focus
+      description: Report-distribution brief plus recipient-address and report-format validation (never sends or distributes anything)
+      capabilities: [report_distribution_brief, report_distribution_check]
+
+    - name: corporate_training_designer
+      class: districts.ops.ops_specialists.CorporateTrainingDesigner
+      model: vector-focus
+      description: Corporate-training curriculum brief plus module structure check (non-empty, unique, has an assessment)
+      capabilities: [training_design_brief, training_outline_check]
+
+  legal_compliance:
+    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: new district per SELF_DEV_AGENT_SPEC.md ("kept
+    # separate on purpose... regulated advice needs its own tier discipline"). Advisory-only,
+    # gated, never a direct executor -- string-presence checks only, no legal advice rendered.
+    - name: legal_compliance_checker
+      class: districts.legal_compliance.legal_compliance_specialists.LegalComplianceChecker
+      model: vector-focus
+      description: Regulated-document clause-presence brief plus deterministic required/prohibited-phrase string-search check (advisory-only, not legal advice)
+      capabilities: [legal_compliance_brief, legal_compliance_check]
 
   qa:
     - name: qa_swarm

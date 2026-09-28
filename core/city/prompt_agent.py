@@ -22,6 +22,7 @@ from pathlib import Path
 
 from loguru import logger
 from core.city.agent_base import AgentBase
+from core.loop.context_engine import ContextEngine
 from core.memory.episodic import EpisodicMemory
 from core.config import CONFIG
 
@@ -120,7 +121,12 @@ class PromptAgent(AgentBase):
         Routes through vectorcode_llm (Ollama → Gemini → Anthropic chain).
         """
         from core.inference.vectorcode_llm import chat
-        messages = [{"role": "system", "content": self._system_prompt}]
+        # Review finding (verified real by Claude, 2026-09-29): this is the shared LLM call site for
+        # every PromptAgent-based district citizen (12 agents across coding/research/finance/qa/
+        # governance/data_analytics) that never override run()/ask() -- it was missing RULE 1's
+        # session_hydration_prompt() entirely. Fixed once here rather than per-agent.
+        hydration = ContextEngine().session_hydration_prompt({"agent": self.name, "query": query[:200]})
+        messages = [{"role": "system", "content": hydration}, {"role": "system", "content": self._system_prompt}]
         if context:
             messages.append({"role": "user", "content": f"[Context]\n{context}"})
         messages.append({"role": "user", "content": query})
