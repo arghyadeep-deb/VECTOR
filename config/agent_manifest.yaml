@@ -104,6 +104,93 @@ districts:
       description: Dead code cleanup — unused imports, duplicate code, dead exports
       capabilities: [dead_code_cleanup, refactor_clean]
 
+    # 2026-09-29 SELF_DEV_P2_CODING: evidence-gated, read-only specialists.
+    # Briefs report caller-supplied evidence completeness; checks parse or
+    # recompute the supplied artifacts without trusting an LLM verdict.
+    - name: agent_sdk_verifier_ts
+      class: districts.coding.coding_specialists.AgentSDKVerifierTS
+      model: vector-coder
+      description: TypeScript agent SDK brief plus dependency, strict-mode, construction, and export checks
+      capabilities: [agent_sdk_ts_brief, agent_sdk_ts_check]
+
+    - name: business_rules_extractor
+      class: districts.coding.coding_specialists.BusinessRulesExtractor
+      model: vector-coder
+      description: Business-rule extraction brief plus Python AST rule and owner discovery
+      capabilities: [business_rules_brief, business_rules_check]
+
+    - name: legacy_analyst
+      class: districts.coding.coding_specialists.LegacyAnalyst
+      model: vector-coder
+      description: Legacy-code brief plus Python AST checks for parseability and unsafe exception/import constructs
+      capabilities: [legacy_analysis_brief, legacy_analysis_check]
+
+    - name: scaffolder
+      class: districts.coding.coding_specialists.Scaffolder
+      model: vector-coder
+      description: Scaffold brief plus required-file presence and non-empty structure checks
+      capabilities: [scaffold_brief, scaffold_structure_check]
+
+    - name: uplift_migrator
+      class: districts.coding.coding_specialists.UpliftMigrator
+      model: vector-coder
+      description: Code uplift brief plus real before/after AST and public-definition diff checks
+      capabilities: [uplift_migration_brief, uplift_migration_check]
+
+    - name: version_delta_analyst
+      class: districts.coding.coding_specialists.VersionDeltaAnalyst
+      model: vector-coder
+      description: Version delta brief plus deterministic contract addition, removal, and signature comparison
+      capabilities: [version_delta_brief, version_delta_check]
+
+    - name: ai_data_remediation_engineer
+      class: districts.coding.coding_specialists.AIDataRemediationEngineer
+      model: vector-coder
+      description: Dataset remediation brief plus required, non-null, and uniqueness constraint checks
+      capabilities: [ai_data_remediation_brief, ai_data_remediation_check]
+
+    - name: autonomous_optimization_architect
+      class: districts.coding.coding_specialists.AutonomousOptimizationArchitect
+      model: vector-coder
+      description: Optimization brief plus measured baseline/candidate objective comparison
+      capabilities: [autonomous_optimization_brief, autonomous_optimization_check]
+
+    - name: cms_developer
+      class: districts.coding.coding_specialists.CMSDeveloper
+      model: vector-coder
+      description: CMS implementation brief plus content-model and route structural checks
+      capabilities: [cms_implementation_brief, cms_structure_check]
+
+    - name: mobile_app_builder
+      class: districts.coding.coding_specialists.MobileAppBuilder
+      model: vector-coder
+      description: Mobile application brief plus source and platform-manifest structural checks
+      capabilities: [mobile_app_brief, mobile_project_check]
+
+    - name: comment_analyzer
+      class: districts.coding.coding_specialists.CommentAnalyzer
+      model: vector-coder
+      description: Review-comment brief plus location, priority, and actionability checks
+      capabilities: [review_comment_brief, review_comment_check]
+
+    - name: type_design_analyzer
+      class: districts.coding.coding_specialists.TypeDesignAnalyzer
+      model: vector-coder
+      description: Public API type-design brief plus Python AST symbol and annotation checks
+      capabilities: [type_design_brief, type_design_check]
+
+    - name: mcp_builder
+      class: districts.coding.coding_specialists.MCPBuilder
+      model: vector-coder
+      description: MCP server brief plus tool-name, description, and input-schema contract checks
+      capabilities: [mcp_server_brief, mcp_manifest_check]
+
+    - name: terminal_integration_specialist
+      class: districts.coding.coding_specialists.TerminalIntegrationSpecialist
+      model: vector-coder
+      description: Terminal integration brief plus tokenized argv, timeout, exit-code, and shell-policy checks
+      capabilities: [terminal_integration_brief, terminal_contract_check]
+
   research:
     # Task A.2 (2026-06-21): ResearchSwarm self-loads + routes to deep_researcher,
     # stealth_scout_agent, opencli_adapter — not otherwise reachable. Same
