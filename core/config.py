@@ -381,6 +381,20 @@ class PermissionConfig(BaseModel):
         # text: no network call, no LLM call, no mutation. New tier entry, flagged for the pending
         # independent review per SELF_DEV_AGENT_SPEC.md.
         "task_completion",
+        # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: 20 NEW GREEN entries (a tier addition, no
+        # existing tier changed or loosened), flagged for the pending independent review.
+        # Handlers: districts/memory_curator/memory_curator_specialists.py,
+        # districts/ops/ops_specialists.py, districts/legal_compliance/legal_compliance_specialists.py.
+        # Every one returns an in-memory evidence report or recomputes deterministically from
+        # caller-supplied data (set/dict clustering, ast static parse, date math, dict merge,
+        # string search); none calls an LLM, posts, sends, or edits anything external.
+        "identity_graph_brief", "identity_dedup_check", "lsp_index_brief", "lsp_symbol_check",
+        "hr_onboarding_brief", "hr_onboarding_check", "jira_workflow_brief", "jira_workflow_check",
+        "project_shepherd_brief", "project_shepherd_check", "support_response_brief",
+        "support_response_check",
+        "data_consolidation_brief", "data_consolidation_check", "report_distribution_brief",
+        "report_distribution_check", "training_design_brief", "training_outline_check",
+        "legal_compliance_brief", "legal_compliance_check",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and

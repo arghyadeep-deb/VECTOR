@@ -241,3 +241,134 @@ def test_parse_patterns_fallback():
     text = "Line one\nLine two\nLine three\nLine four"
     patterns = bot._parse_patterns(text)
     assert len(patterns) == 3  # fallback returns first 3 lines
+
+
+# ── SELF_DEV_P8_MEMORY_FINANCE_OPS: IdentityGraphOperator / LSPIndexEngineer ─────────────────
+
+def test_identity_graph_operator_init():
+    from districts.memory_curator.memory_curator_specialists import IdentityGraphOperator
+    agent = IdentityGraphOperator()
+    assert agent.health_points == 500
+    assert agent.name == "IdentityGraphOperator"
+    assert agent.district == "memory_curator"
+    assert agent.is_alive
+
+
+def test_identity_graph_operator_brief_reports_missing_evidence():
+    from districts.memory_curator.memory_curator_specialists import IdentityGraphOperator
+    agent = IdentityGraphOperator()
+    result = asyncio.run(agent.run({"type": "identity_graph_brief", "evidence": {}}))
+    assert result["status"] == "ok"
+    assert result["report"]["status"] == "needs_human"
+    assert set(result["report"]["missing_evidence"]) == {"entity_records", "match_fields"}
+
+
+def test_identity_graph_operator_check_finds_duplicate_cluster():
+    from districts.memory_curator.memory_curator_specialists import IdentityGraphOperator
+    agent = IdentityGraphOperator()
+    result = asyncio.run(agent.run({
+        "type": "identity_dedup_check",
+        "evidence": {
+            "match_fields": ["email"],
+            "entity_records": [
+                {"id": "a1", "email": "Same@Example.com"},
+                {"id": "a2", "email": "same@example.com"},
+                {"id": "a3", "email": "different@example.com"},
+            ],
+        },
+    }))
+    v = result["verification"]
+    assert v["verified"] is True
+    assert v["duplicate_cluster_count"] == 1
+    assert sorted(v["duplicate_clusters"][0]["record_ids"]) == ["a1", "a2"]
+
+
+def test_identity_graph_operator_check_null_match_field_is_skipped_not_clustered():
+    """Review finding, fixed by Claude 2026-09-29: an explicit null match field (present but
+    None, not merely absent) used to normalize to the literal string "none" and false-positive
+    cluster with any other record missing the same field the same way."""
+    from districts.memory_curator.memory_curator_specialists import IdentityGraphOperator
+    agent = IdentityGraphOperator()
+    result = asyncio.run(agent.run({
+        "type": "identity_dedup_check",
+        "evidence": {
+            "match_fields": ["email"],
+            "entity_records": [
+                {"id": "b1", "email": None},
+                {"id": "b2", "email": None},
+                {"id": "b3", "email": "real@example.com"},
+            ],
+        },
+    }))
+    v = result["verification"]
+    assert v["verified"] is True
+    assert v["duplicate_cluster_count"] == 0
+    assert v["records_skipped"] == 2
+
+
+def test_identity_graph_operator_check_no_evidence_not_verified():
+    from districts.memory_curator.memory_curator_specialists import IdentityGraphOperator
+    agent = IdentityGraphOperator()
+    result = asyncio.run(agent.run({"type": "identity_dedup_check", "evidence": {}}))
+    assert result["verification"]["verified"] is False
+
+
+def test_lsp_index_engineer_init():
+    from districts.memory_curator.memory_curator_specialists import LSPIndexEngineer
+    agent = LSPIndexEngineer()
+    assert agent.health_points == 500
+    assert agent.name == "LSPIndexEngineer"
+    assert agent.district == "memory_curator"
+    assert agent.is_alive
+
+
+def test_lsp_index_engineer_indexes_real_ast_symbols():
+    from districts.memory_curator.memory_curator_specialists import LSPIndexEngineer
+    agent = LSPIndexEngineer()
+    result = asyncio.run(agent.run({
+        "type": "lsp_symbol_check",
+        "evidence": {
+            "source_files": [
+                {"path": "m.py", "source": "def foo():\n    pass\n\nclass Bar:\n    pass\n"},
+            ],
+            "expected_symbols": ["foo", "baz"],
+        },
+    }))
+    v = result["verification"]
+    assert v["verified"] is True
+    assert v["verified_by"] == "ast_static_parse"
+    assert v["missing_symbols"] == ["baz"]
+    assert v["extra_symbols"] == ["Bar"]
+    assert v["passed"] is False
+
+
+def test_lsp_index_engineer_reports_real_syntax_error():
+    from districts.memory_curator.memory_curator_specialists import LSPIndexEngineer
+    agent = LSPIndexEngineer()
+    result = asyncio.run(agent.run({
+        "type": "lsp_symbol_check",
+        "evidence": {"source_files": [{"path": "broken.py", "source": "def (:"}]},
+    }))
+    v = result["verification"]
+    assert v["verified"] is True
+    assert v["parse_errors"] and v["parse_errors"][0]["path"] == "broken.py"
+    assert v["files_indexed"] == 0
+    assert v["passed"] is False
+
+
+def test_lsp_index_engineer_failed_check_earns_no_hp():
+    from districts.memory_curator.memory_curator_specialists import LSPIndexEngineer
+    agent = LSPIndexEngineer()
+    hp = agent.health_points
+    asyncio.run(agent.run({
+        "type": "lsp_symbol_check",
+        "evidence": {"source_files": [{"path": "m.py", "source": "def foo():\n    pass\n"}],
+                     "expected_symbols": ["baz"]},
+    }))
+    assert agent.health_points == hp
+    asyncio.run(agent.run({
+        "type": "lsp_symbol_check",
+        "evidence": {"source_files": [{"path": "m.py", "source": "def foo():\n    pass\n"}],
+                     "expected_symbols": ["foo"]},
+    }))
+    assert agent.health_points > hp

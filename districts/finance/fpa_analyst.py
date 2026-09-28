@@ -18,6 +18,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 class FPAAnalyst(AgentBase):
     """
@@ -127,7 +128,7 @@ class FPAAnalyst(AgentBase):
     async def generate_monthly_narrative(self, month: str, variance_data: dict) -> str:
         """LLM generates exec-ready narrative for month-end close."""
         alerts_str = "; ".join(variance_data.get("alerts", []))
-        prompt = (
+        body = (
             f"Write a concise (150-word) financial narrative for {month} month-end close.\n"
             f"Total variance: {variance_data.get('total_variance_pct', 0):+.1f}% vs budget\n"
             f"Key variances: {alerts_str or 'None significant'}\n"
@@ -136,6 +137,9 @@ class FPAAnalyst(AgentBase):
             f"Be direct, use business language, no fluff."
         )
         try:
+            # RULE 1: session hydration before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": f"FP&A narrative {month}"})
+            prompt = f"{hydration}\n\n{body}"
             return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
         except Exception as e:
             logger.warning("[VECTOR][fpa] narrative LLM failed: {}", e)
