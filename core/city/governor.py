@@ -937,6 +937,7 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "subconscious": "chief_of_staff",
     "subconscious_loop": "chief_of_staff",
     "consistency_check": "chief_of_staff",
+    "prioritize_gaps": "skills",
     # new coding agents
     "frontend": "coding",
     "dashboard_build": "coding",

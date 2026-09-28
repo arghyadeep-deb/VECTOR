@@ -18,7 +18,7 @@ districts:
       class: districts.coding.agent.CodingSwarm
       model: vector-coder
       description: Orchestrator that auto-loads and routes across 9 additional coding specialists by task-type keyword match
-      capabilities: [onboarding, code_conductor, code-intel, database-optimizer, db_optimize, frontend_developer, gui, minimal-change, mlops, rapid-prototype, rapid_prototype]
+      capabilities: [onboarding, code_conductor, code-intel, database-optimizer, db_optimize, frontend_developer, gui, minimal-change, mlops, rapid-prototype, rapid_prototype, research]
 
     # Cleanup batch (2026-06-22): fixed run()-branching for 3, registered
     # obra_code_reviewer as-is (PromptAgent subclass — AgentBase via
@@ -1078,7 +1078,7 @@ districts:
       class: districts.marketing.growth_hacker.GrowthHacker
       model: vector-reasoning
       description: Growth loops, viral mechanics, north-star metric analysis
-      capabilities: [marketing, growth, analytics]
+      capabilities: [marketing, growth, analytics, research]
 
     # Task A.2 (2026-06-21): manifest_gap.md "ready to register" batch.
     - name: ads_orchestrator_agent
@@ -1226,6 +1226,36 @@ districts:
       description: Executive briefs, escalation routing, consistency enforcement — real Obsidian writes, real HP economy
       capabilities: [executive_brief, morning_brief, evening_brief, chief, coordinate, consistency_check]
       notes: "subconscious_loop.py is a SEPARATE class, already wired directly via core/loop/cron_jobs.py's interval job (every 30min) — not registered here, would be a redundant second invocation path."
+
+    - name: product_trend_researcher
+      class: districts.chief_of_staff.product_agents.ProductTrendResearcher
+      model: vector-reasoning
+      description: Source-backed market and competitive trend research with governed A2A handoffs to coding and marketing
+      capabilities: [product_trend_research]
+
+    - name: product_feedback_synthesizer
+      class: districts.chief_of_staff.product_agents.ProductFeedbackSynthesizer
+      model: vector-reasoning
+      description: Product-feedback theme synthesis from supplied signals
+      capabilities: [product_feedback_analysis]
+
+    - name: product_manager_chief_of_staff
+      class: districts.chief_of_staff.product_agents.ProductManager
+      model: vector-reasoning
+      description: Product requirements and transparent RICE scoring
+      capabilities: [product_requirements]
+
+    - name: product_sprint_prioritizer
+      class: districts.chief_of_staff.product_agents.ProductSprintPrioritizer
+      model: vector-reasoning
+      description: Reproducible RICE ranking for sprint candidates
+      capabilities: [product_sprint_ranking]
+
+    - name: product_behavioral_nudge_engine
+      class: districts.chief_of_staff.product_agents.ProductBehavioralNudgeEngine
+      model: vector-focus
+      description: Product-work nudge recommendation without external delivery
+      capabilities: [product_work_nudge]
 
   science:
     - name: science_agent

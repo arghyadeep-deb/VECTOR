@@ -31,7 +31,7 @@ class GrowthHacker(AgentBase, SkillMixin):
 
     def __init__(self):
         super().__init__(agent_id="growth_hacker_001", name="GrowthHacker", district="marketing")
-        self.capabilities = ["funnel_analysis", "growth", "marketing", "north_star", "plan", "score_idea", "viral_loop"]
+        self.capabilities = ["funnel_analysis", "growth", "marketing", "north_star", "plan", "score_idea", "viral_loop", "research"]
         self._memory: EpisodicMemory | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         self._skill_prompt = load_skill("marketing-ideas", "analytics", "cro")
@@ -188,6 +188,17 @@ class GrowthHacker(AgentBase, SkillMixin):
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "plan")
         try:
+            if task_type == "research":
+                artifact = task.get("params") if isinstance(task.get("params"), dict) else {}
+                sources = artifact.get("sources") if isinstance(artifact, dict) else None
+                if artifact.get("artifact_type") != "trend_research_handoff" or not isinstance(sources, list):
+                    return {"status": "error", "agent": self.name, "reason": "valid trend research artifact is required"}
+                self.know("latest_trend_research_handoff", artifact)
+                return {
+                    "status": "ok", "agent": self.name, "accepted": True,
+                    "source_count": len(sources),
+                    "next_step": "turn the cited audience signal into a reviewable campaign hypothesis before publication",
+                }
             if task_type == "north_star":
                 result = await self.define_north_star_metric(task.get("product_description", ""))
                 self.award_points(25, "north_star_defined")
