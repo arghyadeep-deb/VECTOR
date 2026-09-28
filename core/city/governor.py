@@ -1196,6 +1196,25 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "sigma_rule": "security",
     "mitre_attack": "security",
     "siem": "security",
+    # SELF_DEV_P3_SECURITY: exact routes for deterministic, in-memory
+    # Security specialist briefs/checks. Registration gives these agents the
+    # existing A2A path; there is no separate scan-pipeline transport.
+    "patch_proposal_brief": "security",
+    "patch_proposal_check": "security",
+    "patch_verification_brief": "security",
+    "patch_verification_check": "security",
+    "scan_inventory_brief": "security",
+    "scan_inventory_check": "security",
+    "scan_load_brief": "security",
+    "scan_load_check": "security",
+    "scan_research_brief": "security",
+    "scan_research_check": "security",
+    "scan_verification_brief": "security",
+    "scan_verification_check": "security",
+    "identity_trust_brief": "security",
+    "identity_trust_check": "security",
+    "automation_governance_brief": "security",
+    "automation_governance_check": "security",
     # data_analytics additions
     "data_pipeline": "data_analytics",
     "etl": "data_analytics",

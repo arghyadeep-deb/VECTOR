@@ -6,8 +6,15 @@ classes. ManifestLoader.register_all() -> AgentRegistry.register(agent)
 unconditionally reads agent.id, which only AgentBase instances have,
 so registering any of them crashed with AttributeError before this fix.
 """
-from core.city.agent_base import AgentBase
+# ruff: noqa: E402
 
+import sys
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
+
+from core.city.agent_base import AgentBase
 from districts.security.alert_manager import AlertManager
 from districts.security.detection_rules import DetectionRules
 from districts.security.incident_playbook_runner import IncidentPlaybookRunner
@@ -60,8 +67,8 @@ def test_siem_pipeline_is_agentbase(tmp_path):
 
 def test_full_manifest_instantiates_without_attribute_error():
     """End-to-end: this is the exact call that crashed before the fix."""
-    from core.city.declarative_manifest import ManifestLoader
     from core.city.agent_registry import get_registry
+    from core.city.declarative_manifest import ManifestLoader
 
     reg = get_registry()
     before = set(reg._agents.keys())
@@ -69,10 +76,27 @@ def test_full_manifest_instantiates_without_attribute_error():
         loader = ManifestLoader()
         defs = loader.load()
         sec_defs = [d for d in defs if d["district"] == "security"]
-        assert len(sec_defs) == 12  # 6 pre-existing + 6 SIEM-stack agents
+        expected_specialists = {
+            "patch_proposal_generator",
+            "patch_proposal_verifier",
+            "scan_inventory_analyst",
+            "scan_loader_analyst",
+            "scan_researcher",
+            "scan_verifier",
+            "agentic_identity_trust_analyst",
+            "automation_governance_analyst",
+        }
+        assert len(sec_defs) == 20  # 12 established + 8 deterministic specialists
+        assert expected_specialists <= {definition["name"] for definition in sec_defs}
         registered = loader.register_all(sec_defs, reg)
-        assert registered == 12
+        assert registered == 20
     finally:
         for aid in list(reg._agents.keys()):
             if aid not in before:
                 reg._agents.pop(aid, None)
+
+
+if __name__ == "__main__":
+    import pytest
+
+    raise SystemExit(pytest.main([__file__, "-q"]))

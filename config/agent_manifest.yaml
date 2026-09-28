@@ -547,6 +547,57 @@ districts:
       description: Aggregates log_aggregator + detection_rules + alert_manager + incident_playbook_runner into one event-processing pipeline
       capabilities: [process_event, siem_alerts, siem_stats]
 
+    # SELF_DEV_P3_SECURITY: bounded, deterministic analysis only. These agents
+    # share the normal manifest registry and A2A bus; none executes a patch,
+    # command, test, commit, merge, or external action.
+    - name: patch_proposal_generator
+      class: districts.security.security_specialists.PatchProposalGenerator
+      model: vector-focus
+      description: Produces inert, reviewable unified-diff proposals from explicit before/after evidence
+      capabilities: [patch_proposal_brief, patch_proposal_check]
+
+    - name: patch_proposal_verifier
+      class: districts.security.security_specialists.PatchProposalVerifier
+      model: vector-focus
+      description: Parses patch proposals and caller-supplied verification evidence without applying or executing anything
+      capabilities: [patch_verification_brief, patch_verification_check]
+
+    - name: scan_inventory_analyst
+      class: districts.security.security_specialists.ScanInventoryAnalyst
+      model: vector-focus
+      description: Builds content-free scan inventories and deterministic hashes from caller-supplied artifacts
+      capabilities: [scan_inventory_brief, scan_inventory_check]
+
+    - name: scan_loader_analyst
+      class: districts.security.security_specialists.ScanLoaderAnalyst
+      model: vector-focus
+      description: Safely parses and normalizes structured JSON scan evidence
+      capabilities: [scan_load_brief, scan_load_check]
+
+    - name: scan_researcher
+      class: districts.security.security_specialists.ScanResearcher
+      model: vector-focus
+      description: Checks provenance and independent corroboration in supplied security research
+      capabilities: [scan_research_brief, scan_research_check]
+
+    - name: scan_verifier
+      class: districts.security.security_specialists.ScanVerifier
+      model: vector-focus
+      description: Deterministically compares scan coverage with the supplied artifact inventory
+      capabilities: [scan_verification_brief, scan_verification_check]
+
+    - name: agentic_identity_trust_analyst
+      class: districts.security.security_specialists.AgenticIdentityTrustAnalyst
+      model: vector-focus
+      description: Fail-closed identity, scope, expiry, signature-evidence, and audit-chain analysis
+      capabilities: [identity_trust_brief, identity_trust_check]
+
+    - name: automation_governance_analyst
+      class: districts.security.security_specialists.AutomationGovernanceAnalyst
+      model: vector-focus
+      description: Deterministic automation value, control, fallback, and human-checkpoint assessment
+      capabilities: [automation_governance_brief, automation_governance_check]
+
   time_calendar:
     - name: kiit_scraper
       class: districts.time_calendar.kiit_scraper.KIITScraper
