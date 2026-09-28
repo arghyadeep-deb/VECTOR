@@ -46,11 +46,12 @@ class SkillMixin:
     _model: str = "vector-focus"
 
     def _chat(self, prompt: str, timeout: float = 25.0) -> str:
-        """Synchronous chat() with skill prompt prepended as system message."""
+        """Synchronous chat() with session hydration (RULE 1) and skill prompt
+        prepended as system messages."""
         from core.inference.vectorcode_llm import chat
-        messages: list[dict] = []
-        if self._skill_prompt:
-            messages.append({"role": "system", "content": self._skill_prompt})
+        from core.loop.context_engine import ContextEngine
+        hydration = ContextEngine().session_hydration_prompt({"query": prompt})
+        messages: list[dict] = [{"role": "system", "content": self._with_skill_system(hydration)}]
         messages.append({"role": "user", "content": prompt})
         return chat(model=self._model, messages=messages, timeout=timeout)
 

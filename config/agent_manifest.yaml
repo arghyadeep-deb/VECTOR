@@ -1161,6 +1161,184 @@ districts:
       description: Multi-site SEO portfolio review, onboarding, weekly review, page improvement, drop investigation
       capabilities: [seo_portfolio_review, seo_onboard, seo_weekly_review, seo_improve_page, seo_investigate_drop]
 
+    # 2026-09-28 SELF_DEV_P5_MARKETING: 29 evidence-checked specialists (districts/marketing/marketing_specialists.py).
+    # <x>_brief reports evidence completeness; <x>_check recomputes limits/metrics from supplied data (no LLM verdict).
+    # marketing-agentic-search-optimizer and marketing-ai-citation-strategist are NOT re-built: ai_citation_strategist
+    # above already covers AEO/GEO and agentic task-completion checks.
+    - name: app_store_optimizer
+      class: districts.marketing.marketing_specialists.AppStoreOptimizer
+      model: vector-reasoning
+      description: App store listing brief plus deterministic title/subtitle/keyword length and keyword-presence checks
+      capabilities: [aso_listing_brief, aso_listing_check]
+
+    - name: baidu_seo_specialist
+      class: districts.marketing.marketing_specialists.BaiduSEOSpecialist
+      model: vector-reasoning
+      description: Baidu SEO brief plus on-page target-keyword presence check (needs local review for Baidu policy)
+      capabilities: [baidu_seo_brief, baidu_seo_check]
+
+    - name: bilibili_content_strategist
+      class: districts.marketing.marketing_specialists.BilibiliContentStrategist
+      model: vector-reasoning
+      description: Bilibili content brief plus title length check
+      capabilities: [bilibili_content_brief, bilibili_title_check]
+
+    - name: book_co_author
+      class: districts.marketing.marketing_specialists.BookCoAuthor
+      model: vector-reasoning
+      description: Book outline brief plus outline structure check (chapters present, non-empty, unique)
+      capabilities: [book_coauthor_brief, book_outline_check]
+
+    - name: carousel_growth_engine
+      class: districts.marketing.marketing_specialists.CarouselGrowthEngine
+      model: vector-reasoning
+      description: Carousel growth brief plus slide-count and caption length checks
+      capabilities: [carousel_growth_brief, carousel_slide_check]
+
+    - name: china_ecommerce_operator
+      class: districts.marketing.marketing_specialists.ChinaEcommerceOperator
+      model: vector-reasoning
+      description: China e-commerce operations brief; no deterministic check exists (verified=false), needs local operator
+      capabilities: [china_ecom_brief, china_ecom_check]
+
+    - name: china_market_localization_strategist
+      class: districts.marketing.marketing_specialists.ChinaMarketLocalizationStrategist
+      model: vector-reasoning
+      description: China localization brief; no deterministic check exists (verified=false), needs native reviewer
+      capabilities: [china_localization_brief, china_localization_check]
+
+    - name: cross_border_ecommerce
+      class: districts.marketing.marketing_specialists.CrossBorderEcommerce
+      model: vector-reasoning
+      description: Cross-border e-commerce brief plus landed-cost margin recomputation per SKU
+      capabilities: [cross_border_brief, cross_border_margin_check]
+
+    - name: douyin_strategist
+      class: districts.marketing.marketing_specialists.DouyinStrategist
+      model: vector-reasoning
+      description: Douyin strategy brief; no deterministic check exists (verified=false), needs local reviewer
+      capabilities: [douyin_strategy_brief, douyin_content_check]
+
+    - name: instagram_curator
+      class: districts.marketing.marketing_specialists.InstagramCurator
+      model: vector-reasoning
+      description: Instagram curation brief plus caption length check
+      capabilities: [instagram_curation_brief, instagram_caption_check]
+
+    - name: kuaishou_strategist
+      class: districts.marketing.marketing_specialists.KuaishouStrategist
+      model: vector-reasoning
+      description: Kuaishou strategy brief; no deterministic check exists (verified=false), needs local reviewer
+      capabilities: [kuaishou_strategy_brief, kuaishou_content_check]
+
+    - name: linkedin_content_creator
+      class: districts.marketing.marketing_specialists.LinkedInContentCreator
+      model: vector-reasoning
+      description: LinkedIn content brief plus post length check
+      capabilities: [linkedin_content_brief, linkedin_post_check]
+
+    - name: livestream_commerce_coach
+      class: districts.marketing.marketing_specialists.LivestreamCommerceCoach
+      model: vector-reasoning
+      description: Livestream commerce brief; no deterministic check exists (verified=false)
+      capabilities: [livestream_commerce_brief, livestream_run_check]
+
+    - name: podcast_strategist
+      class: districts.marketing.marketing_specialists.PodcastStrategist
+      model: vector-reasoning
+      description: Podcast strategy brief; no deterministic check exists (verified=false)
+      capabilities: [podcast_strategy_brief, podcast_episode_check]
+
+    - name: private_domain_operator
+      class: districts.marketing.marketing_specialists.PrivateDomainOperator
+      model: vector-reasoning
+      description: Private-domain operations brief; no deterministic check exists (verified=false), consent basis required
+      capabilities: [private_domain_brief, private_domain_funnel_check]
+
+    - name: reddit_community_builder
+      class: districts.marketing.marketing_specialists.RedditCommunityBuilder
+      model: vector-reasoning
+      description: Reddit community brief plus post title length check (never posts)
+      capabilities: [reddit_community_brief, reddit_post_check]
+
+    - name: short_video_editing_coach
+      class: districts.marketing.marketing_specialists.ShortVideoEditingCoach
+      model: vector-reasoning
+      description: Short-video editing brief; no deterministic check exists (verified=false)
+      capabilities: [short_video_edit_brief, short_video_edit_check]
+
+    - name: tiktok_strategist
+      class: districts.marketing.marketing_specialists.TikTokStrategist
+      model: vector-reasoning
+      description: TikTok strategy brief plus caption length check
+      capabilities: [tiktok_strategy_brief, tiktok_caption_check]
+
+    - name: twitter_engager
+      class: districts.marketing.marketing_specialists.TwitterEngager
+      model: vector-reasoning
+      description: Twitter/X engagement brief plus post length check (never posts)
+      capabilities: [twitter_engagement_brief, twitter_post_check]
+
+    - name: video_optimization_specialist
+      class: districts.marketing.marketing_specialists.VideoOptimizationSpecialist
+      model: vector-reasoning
+      description: Video optimization brief plus title/description length and keyword-presence checks
+      capabilities: [video_optimization_brief, video_metadata_check]
+
+    - name: xiaohongshu_specialist
+      class: districts.marketing.marketing_specialists.XiaohongshuSpecialist
+      model: vector-reasoning
+      description: Xiaohongshu note brief plus title/body length and keyword-presence checks (needs native reviewer)
+      capabilities: [xiaohongshu_note_brief, xiaohongshu_note_check]
+
+    - name: zhihu_strategist
+      class: districts.marketing.marketing_specialists.ZhihuStrategist
+      model: vector-reasoning
+      description: Zhihu strategy brief; no deterministic check exists (verified=false), needs native reviewer
+      capabilities: [zhihu_strategy_brief, zhihu_answer_check]
+
+    - name: paid_media_auditor
+      class: districts.marketing.marketing_specialists.PaidMediaAuditor
+      model: vector-reasoning
+      description: Paid media audit brief plus account-export checks (spend without confirmed tracking or conversions)
+      capabilities: [paid_media_audit_brief, paid_media_account_check]
+
+    - name: paid_media_creative_strategist
+      class: districts.marketing.marketing_specialists.PaidMediaCreativeStrategist
+      model: vector-reasoning
+      description: Paid creative brief; no deterministic check exists (verified=false)
+      capabilities: [paid_creative_brief, paid_creative_check]
+
+    - name: paid_media_paid_social_strategist
+      class: districts.marketing.marketing_specialists.PaidMediaPaidSocialStrategist
+      model: vector-reasoning
+      description: Paid social brief plus per-ad-set frequency and CTR-decline checks
+      capabilities: [paid_social_brief, paid_social_metrics_check]
+
+    - name: paid_media_ppc_strategist
+      class: districts.marketing.marketing_specialists.PaidMediaPPCStrategist
+      model: vector-reasoning
+      description: PPC strategy brief plus per-campaign CPA/ROAS recomputation against supplied targets
+      capabilities: [ppc_strategy_brief, ppc_budget_check]
+
+    - name: paid_media_programmatic_buyer
+      class: districts.marketing.marketing_specialists.PaidMediaProgrammaticBuyer
+      model: vector-reasoning
+      description: Programmatic buying brief plus per-line-item viewability and invalid-traffic checks
+      capabilities: [programmatic_buy_brief, programmatic_inventory_check]
+
+    - name: paid_media_search_query_analyst
+      class: districts.marketing.marketing_specialists.PaidMediaSearchQueryAnalyst
+      model: vector-reasoning
+      description: Search query brief plus wasted-spend recomputation and negative keyword candidates from a search terms report
+      capabilities: [search_query_brief, search_query_waste_check]
+
+    - name: paid_media_tracking_specialist
+      class: districts.marketing.marketing_specialists.PaidMediaTrackingSpecialist
+      model: vector-reasoning
+      description: Tracking setup brief plus required-event coverage and pixel/server dedup (event_id) checks
+      capabilities: [tracking_setup_brief, tracking_event_check]
+
   skills:
     - name: skill_mapper
       class: districts.skills.skill_mapper.SkillMapper
