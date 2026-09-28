@@ -13,6 +13,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 class ModelQASpecialist(AgentBase):
     """
@@ -42,8 +43,14 @@ class ModelQASpecialist(AgentBase):
         return self._memory
 
     def _llm(self, prompt: str, timeout: float = 25.0) -> str:
-        messages = [{"role": "user", "content": prompt}]
-        return chat(self._model, messages, timeout=timeout)
+        hydration = ContextEngine().session_hydration_prompt({"query": prompt})
+        return chat(
+            self._model,
+            [{"role": "user", "content": f"{hydration}\n\n{prompt}"}],
+            timeout=timeout,
+            district="qa",
+            domain="agentic.loop",
+        )
 
     # ── Core audit methods ────────────────────────────────────────────────────
 
@@ -396,7 +403,7 @@ class ModelQASpecialist(AgentBase):
             f"invent data you don't have:\n\n{context}\n\nQuestion: {query}"
         )
         try:
-            result = self._llm(prompt, timeout=20.0)
+            result = await asyncio.to_thread(self._llm, prompt, 20.0)
             return (result or "").strip() or context
         except Exception as e:
             logger.warning("[VECTOR][model_qa_specialist] answer_model_qa_question failed: {}", e)
