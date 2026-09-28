@@ -76,7 +76,7 @@ class CodingSwarm(AgentBase):
             "performance", "test", "bug", "frontend", "backend",
             "database", "mlops", "git", "rapid_prototype", "conductor",
             "code_intel", "gui_automation", "developer_advocate",
-            "onboarding", "minimal_change",
+            "onboarding", "minimal_change", "research",
         ]
         self.health_points = 1000  # HP is capped at 1000 (was 1500); still far above the district's other agents
         self._agents: dict[str, AgentBase] = {}
@@ -202,6 +202,17 @@ class CodingSwarm(AgentBase):
 
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", task.get("task_type", "default"))
+        if task_type == "research":
+            artifact = task.get("params") if isinstance(task.get("params"), dict) else {}
+            sources = artifact.get("sources") if isinstance(artifact, dict) else None
+            if artifact.get("artifact_type") != "trend_research_handoff" or not isinstance(sources, list):
+                return {"status": "error", "agent": self.name, "reason": "valid trend research artifact is required"}
+            self.know("latest_trend_research_handoff", artifact)
+            return {
+                "status": "ok", "agent": self.name, "accepted": True,
+                "source_count": len(sources),
+                "next_step": "convert one cited opportunity into a reversible build brief before implementation",
+            }
         # 2026-07-29: governor._dispatch_to_district calls agent.run(task)
         # directly with the real user text nested at task["params"]["query"]
         # (or ["content"]) -- not at task["query"]. dispatch()/

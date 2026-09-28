@@ -347,6 +347,14 @@ class PermissionConfig(BaseModel):
         # read/unread flag on an email already in the owner's own local store; no send, no delete, no external
         # effect. New tier entry, flagged here for the pending independent review per SELF_DEV_AGENT_SPEC.md.
         "mark_read",
+        # 2026-09-28 (P7/chief_of_staff self-dev package, tier decision closed by Claude): 5 new,
+        # distinct product-role capabilities were registered with no tier entry at all -- the same
+        # class of gap T9-fix-1 closed for email_agent.py. All 5 are read/analysis-only: caller-supplied
+        # or fetched (via the existing GREEN search_web) evidence, routed-LLM synthesis, and a write only
+        # to the agent's own in-memory know() cache -- no owner data mutation, no external send. New tier
+        # entries, flagged here for the pending independent review per SELF_DEV_AGENT_SPEC.md.
+        "product_trend_research", "product_feedback_analysis", "product_requirements",
+        "product_sprint_ranking", "product_work_nudge",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
