@@ -5,6 +5,52 @@ version: "1.0"
 
 districts:
 
+  # 2026-09-29 SELF_DEV_P10_SELF_DEV: isolated VECTOR-tooling inspectors.
+  # These agents parse only caller-supplied artifacts in memory. They do not
+  # import coding agents, write files, or receive capabilities from any other district.
+  self_dev:
+    - name: agent_creator
+      class: districts.self_dev.self_dev_specialists.AgentCreator
+      model: vector-focus
+      description: Validates supplied VECTOR tooling-agent metadata and AgentBase source structure
+      capabilities: [agent_creation_brief, agent_definition_check]
+
+    - name: plugin_validator
+      class: districts.self_dev.self_dev_specialists.PluginValidator
+      model: vector-focus
+      description: Parses supplied plugin manifests and validates package structure and declared permissions
+      capabilities: [plugin_validation_brief, plugin_manifest_check]
+
+    - name: skill_reviewer
+      class: districts.self_dev.self_dev_specialists.SkillReviewer
+      model: vector-focus
+      description: Reviews supplied skill documents for required metadata, sections, and actionable steps
+      capabilities: [skill_review_brief, skill_structure_check]
+
+    - name: skill_analyzer
+      class: districts.self_dev.self_dev_specialists.SkillAnalyzer
+      model: vector-focus
+      description: Analyzes supplied skill structure, resource references, and unresolved placeholders
+      capabilities: [skill_analysis_brief, skill_analysis_check]
+
+    - name: skill_comparator
+      class: districts.self_dev.self_dev_specialists.SkillComparator
+      model: vector-focus
+      description: Computes deterministic skill-document diffs against explicit change expectations
+      capabilities: [skill_comparison_brief, skill_comparison_check]
+
+    - name: skill_grader
+      class: districts.self_dev.self_dev_specialists.SkillGrader
+      model: vector-focus
+      description: Grades supplied skill text against explicit weighted caller-supplied criteria
+      capabilities: [skill_grading_brief, skill_grade_check]
+
+    - name: conversation_analyzer
+      class: districts.self_dev.self_dev_specialists.ConversationAnalyzer
+      model: vector-focus
+      description: Validates supplied conversation-derived hook rules against structured transcript events
+      capabilities: [hook_conversation_brief, hook_candidate_check]
+
   coding:
     # Task A.2 (2026-06-21): CodingSwarm self-loads + internally routes to 9
     # more specialist agents not otherwise reachable (codebase_onboarding_engineer,

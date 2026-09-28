@@ -1202,6 +1202,23 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "mcp_manifest_check": "coding",
     "terminal_integration_brief": "coding",
     "terminal_contract_check": "coding",
+    # 2026-09-29 SELF_DEV_P10_SELF_DEV: exact routes for deterministic,
+    # caller-supplied VECTOR-tooling checks. These routes exist only in the
+    # isolated self_dev district; any coding action must use the governed A2A bus.
+    "agent_creation_brief": "self_dev",
+    "agent_definition_check": "self_dev",
+    "plugin_validation_brief": "self_dev",
+    "plugin_manifest_check": "self_dev",
+    "skill_review_brief": "self_dev",
+    "skill_structure_check": "self_dev",
+    "skill_analysis_brief": "self_dev",
+    "skill_analysis_check": "self_dev",
+    "skill_comparison_brief": "self_dev",
+    "skill_comparison_check": "self_dev",
+    "skill_grading_brief": "self_dev",
+    "skill_grade_check": "self_dev",
+    "hook_conversation_brief": "self_dev",
+    "hook_candidate_check": "self_dev",
     # security additions
     "threat_detection": "security",
     "sigma_rule": "security",
