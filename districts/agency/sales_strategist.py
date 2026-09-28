@@ -18,6 +18,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 _ICP = {
     "industry": ["SaaS", "AI/ML startups", "tech companies", "developer tools"],
@@ -37,6 +38,7 @@ class SalesStrategist(AgentBase):
         super().__init__(agent_id="sales_strategist_001", name="SalesStrategist", district="agency")
         self.capabilities = ["agency", "outbound", "outreach", "pipeline", "qualify", "sales"]
         self._memory: EpisodicMemory | None = None
+        self._context = ContextEngine()
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][sales] initialized")
 
@@ -124,8 +126,12 @@ class SalesStrategist(AgentBase):
         )
         try:
             from core.prompt_library import get_library as _gl
+            hydration = self._context.session_hydration_prompt({"task": "outreach"})
             _sys = _gl().get_for_agent("sales_strategist") or ""
-            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+            _msgs = [{"role": "system", "content": hydration}]
+            if _sys:
+                _msgs.append({"role": "system", "content": _sys})
+            _msgs.append({"role": "user", "content": prompt})
             return chat(model=self._model, messages=_msgs, timeout=20.0)
         except Exception as e:
             logger.warning("[VECTOR][sales] outreach LLM failed: {}", e)
@@ -156,7 +162,11 @@ class SalesStrategist(AgentBase):
             f"data you don't have:\n\n{context}\n\nQuestion: {query}"
         )
         try:
-            result = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            hydration = self._context.session_hydration_prompt({"task": "answer_sales_question"})
+            result = chat(model=self._model, messages=[
+                {"role": "system", "content": hydration},
+                {"role": "user", "content": prompt},
+            ], timeout=20.0)
             return (result or "").strip() or context
         except Exception as e:
             logger.warning("[VECTOR][sales] answer_sales_question failed: {}", e)

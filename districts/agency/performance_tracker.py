@@ -1,6 +1,7 @@
 import sys
 import uuid
 import json
+import re
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timezone
@@ -282,6 +283,84 @@ class PerformanceTracker(AgentBase):
 
         return summary
 
+    def _metrics_named_in_query(self, query: str) -> list[str]:
+        """Return all persisted metrics explicitly referenced by a query."""
+        normalized = " ".join(re.findall(r"[a-z0-9]+", query.casefold()))
+        query_terms = set(normalized.split())
+        exact_matches = []
+        for metric_name in self._metrics:
+            readable_name = " ".join(re.findall(r"[a-z0-9]+", metric_name.casefold()))
+            if re.search(rf"(?<!\w){re.escape(readable_name)}(?!\w)", normalized):
+                exact_matches.append(metric_name)
+
+        if exact_matches:
+            return exact_matches
+
+        descriptive_matches = []
+        for metric_name in self._metrics:
+            readable_name = " ".join(re.findall(r"[a-z0-9]+", metric_name.casefold()))
+            # Units are often omitted in natural language (for example,
+            # "response time" for ``response_time_ms``).  Match all of the
+            # descriptive metric terms. A result may remain ambiguous.
+            metric_terms = [
+                term for term in readable_name.split()
+                if not re.fullmatch(r"(?:ms|s|sec(?:onds)?|p\d+)", term)
+            ]
+            if len(metric_terms) > 1 and all(term in query_terms for term in metric_terms):
+                descriptive_matches.append(metric_name)
+        return descriptive_matches
+
+    def answer_performance_question(self, query: str) -> Optional[dict]:
+        """Resolve supported free-text questions through existing read methods.
+
+        Unknown metrics remain visibly unknown rather than being guessed from
+        the language in the request.  The response is therefore evidence from
+        this tracker's persisted metrics and alerts, not an LLM assertion.
+        """
+        normalized = " ".join(query.casefold().split())
+        if re.search(r"\b(?:add|create|delete|remove|clear|acknowledge|configure|update|change|set|track|log|record)\b", normalized):
+            return None
+
+        has_question_shape = normalized.endswith("?") or bool(re.match(
+            r"(?:how|which|what|are there|do we have|can you|could you|would you|show me|list|give me|tell me|any)\b",
+            normalized,
+        ))
+        asks_alerts = bool(re.search(r"\b(?:active\s+)?alerts?\b|\banomal(?:y|ies)\b", normalized))
+        asks_trend = bool(re.search(r"\b(?:trend|trending)\b", normalized))
+        asks_summary = bool(re.search(
+            r"\b(?:how many|number of|count of|total)\s+metrics?\b|\bmetric\s+(?:summary|overview)\b",
+            normalized,
+        ))
+        metric_matches = self._metrics_named_in_query(query) if asks_trend else []
+
+        if not has_question_shape or not (asks_alerts or asks_summary or (asks_trend and metric_matches)):
+            return None
+
+        if len(metric_matches) > 1:
+            return {
+                "status": "error",
+                "query": query,
+                "error": "ambiguous metric reference",
+                "matching_metrics": metric_matches,
+            }
+
+        result = {
+            "status": "ok",
+            "query": query,
+            "summary": self.get_metric_summary(),
+        }
+        if asks_alerts:
+            result["alerts"] = self.get_active_alerts()
+        if asks_trend and metric_matches:
+            # A trend question combined with an alert/summary cue but no named metric (e.g. "show
+            # active alerts and trend?") reaches here with asks_trend True and metric_matches empty --
+            # the guard above only requires asks_alerts/asks_summary, not a named metric. Skip the trend
+            # branch rather than indexing an empty list (Codex T9-review-cycle finding, verified real).
+            metric_name = metric_matches[0]
+            result["metric"] = metric_name
+            result["trend"] = self.get_trend(metric_name)
+        return result
+
     def get_comparison(self, metric_a: str, metric_b: str, days: int = 7) -> dict:
         """Compare trends between two metrics."""
         trend_a = self.get_trend(metric_a, days)
@@ -363,6 +442,12 @@ class PerformanceTracker(AgentBase):
             return {"status": "ok", **self.get_comparison(p.get("metric_a", ""), p.get("metric_b", ""), p.get("days", 7))}
         if task_type == "remove_metric":
             return {"status": "ok", "removed": self.remove_metric(p.get("metric", ""))}
+
+        query = p.get("query") or p.get("content") or ""
+        if isinstance(query, str):
+            answer = self.answer_performance_question(query)
+            if answer is not None:
+                return answer
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 

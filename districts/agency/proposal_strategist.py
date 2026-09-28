@@ -18,6 +18,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
+from core.loop.context_engine import ContextEngine
 
 _PROPOSAL_SECTIONS = [
     "executive_summary", "problem_statement", "proposed_solution",
@@ -35,6 +36,7 @@ class ProposalStrategist(AgentBase):
                          name="ProposalStrategist", district="agency")
         self.capabilities = ["agency", "proposal", "roi", "sales", "structure"]
         self._memory: EpisodicMemory | None = None
+        self._context = ContextEngine()
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][proposal] initialized")
 
@@ -120,8 +122,12 @@ class ProposalStrategist(AgentBase):
         )
         try:
             from core.prompt_library import get_library as _gl
+            hydration = self._context.session_hydration_prompt({"task": "write_executive_summary"})
             _sys = _gl().get_for_agent("proposal_strategist") or ""
-            _msgs = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+            _msgs = [{"role": "system", "content": hydration}]
+            if _sys:
+                _msgs.append({"role": "system", "content": _sys})
+            _msgs.append({"role": "user", "content": prompt})
             return chat(model=self._model, messages=_msgs, timeout=20.0)
         except Exception as e:
             logger.warning("[VECTOR][proposal] exec summary LLM failed: {}", e)
@@ -182,7 +188,11 @@ class ProposalStrategist(AgentBase):
             f"question actually asks for one.\n\nQuestion: {query}"
         )
         try:
-            result = chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
+            hydration = self._context.session_hydration_prompt({"task": "answer_proposal_question"})
+            result = chat(model=self._model, messages=[
+                {"role": "system", "content": hydration},
+                {"role": "user", "content": prompt},
+            ], timeout=20.0)
             return (result or "").strip()
         except Exception as e:
             logger.warning("[VECTOR][proposal] answer_proposal_question failed: {}", e)
