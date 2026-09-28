@@ -79,7 +79,10 @@ def test_mcp_server_with_no_args_still_runs_the_scaffold_self_test():
     result = subprocess.run(
         [sys.executable, str(_MCP_SERVER)],
         cwd=str(_REPO_ROOT),
-        capture_output=True, text=True, timeout=20,
+        # A cold Windows import can approach 20 seconds when the wider suite
+        # is busy (notably while torch probes CUDA). Keep a finite hang guard
+        # without making normal startup a timing race.
+        capture_output=True, text=True, timeout=60,
     )
     assert result.returncode == 0
     assert "OK" in result.stdout
