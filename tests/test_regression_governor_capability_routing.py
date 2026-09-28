@@ -269,11 +269,9 @@ async def test_no_capable_agent_returns_honest_refusal_not_hp_lottery():
 
 
 @pytest.mark.asyncio
-async def test_established_route_unaffected_no_llm_classified_marker():
-    """Sanity check: established API routes (no `_llm_classified` marker)
-    keep the exact old Task A.3 behavior — still run the HP-lottery winner
-    when nothing is capability-matched, so this fix cannot regress the
-    100+ routes that depend on that documented tradeoff."""
+async def test_undeclared_route_without_llm_marker_is_blocked():
+    """Unknown caller-supplied routes cannot bypass capability checks by
+    naming a district. This locks in the governor's dispatch hardening."""
     agent = make_agent("coding", capabilities=["unrelated"], hp=900)
 
     called = {}
@@ -292,8 +290,9 @@ async def test_established_route_unaffected_no_llm_classified_marker():
         # deliberately no "_llm_classified" key
     })
 
-    assert called.get("ran") is True
-    assert result.get("status") == "ok"
+    assert called.get("ran") is None
+    assert result.get("status") == "blocked"
+    assert "not a known task type" in result.get("reason", "")
 
 
 if __name__ == "__main__":

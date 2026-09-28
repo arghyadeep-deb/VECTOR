@@ -56,6 +56,7 @@ class PythonReviewer(AgentBase):
 
     async def review(self, code: str, filename: str = "", context: str = "") -> dict:
         """Review Python code and return structured feedback."""
+        static_issues: list[dict] = []
         try:
             # RULE 1 — session_hydration_prompt() before every LLM call
             try:
@@ -117,7 +118,16 @@ class PythonReviewer(AgentBase):
             }
         except Exception as e:
             logger.error("[VECTOR][python_reviewer] review error: {}", e)
-            return {"agent": self.name, "error": str(e), "issues": [], "issue_count": 0}
+            return {
+                "agent": self.name,
+                "filename": filename,
+                "error": str(e),
+                "issues": static_issues,
+                "feedback": "LLM review failed; returned static Python scan results.",
+                "issue_count": len(static_issues),
+                "static_issue_count": len(static_issues),
+                "degraded": True,
+            }
 
     def _static_scan(self, code: str, filename: str) -> list[dict]:
         """Fast, deterministic pre-scan for known bad patterns."""
