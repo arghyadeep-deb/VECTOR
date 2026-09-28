@@ -355,6 +355,32 @@ class PermissionConfig(BaseModel):
         # entries, flagged here for the pending independent review per SELF_DEV_AGENT_SPEC.md.
         "product_trend_research", "product_feedback_analysis", "product_requirements",
         "product_sprint_ranking", "product_work_nudge",
+        # 2026-09-28 SELF_DEV_P5_MARKETING: 58 NEW GREEN entries (a tier addition, no existing tier changed or loosened),
+        # flagged for the pending independent review. Handlers: districts/marketing/marketing_specialists.py. Every one
+        # returns an in-memory evidence report or recomputes numbers from caller-supplied data; none posts, spends, sends,
+        # or edits anything external. <x>_brief = evidence-completeness brief, <x>_check = deterministic verification.
+        "aso_listing_brief", "aso_listing_check", "baidu_seo_brief", "baidu_seo_check",
+        "bilibili_content_brief", "bilibili_title_check", "book_coauthor_brief", "book_outline_check",
+        "carousel_growth_brief", "carousel_slide_check", "china_ecom_brief", "china_ecom_check",
+        "china_localization_brief", "china_localization_check", "cross_border_brief", "cross_border_margin_check",
+        "douyin_strategy_brief", "douyin_content_check", "instagram_curation_brief", "instagram_caption_check",
+        "kuaishou_strategy_brief", "kuaishou_content_check", "linkedin_content_brief", "linkedin_post_check",
+        "livestream_commerce_brief", "livestream_run_check", "podcast_strategy_brief", "podcast_episode_check",
+        "private_domain_brief", "private_domain_funnel_check", "reddit_community_brief", "reddit_post_check",
+        "short_video_edit_brief", "short_video_edit_check", "tiktok_strategy_brief", "tiktok_caption_check",
+        "twitter_engagement_brief", "twitter_post_check", "video_optimization_brief", "video_metadata_check",
+        "xiaohongshu_note_brief", "xiaohongshu_note_check", "zhihu_strategy_brief", "zhihu_answer_check",
+        "paid_media_audit_brief", "paid_media_account_check", "paid_creative_brief", "paid_creative_check",
+        "paid_social_brief", "paid_social_metrics_check", "ppc_strategy_brief", "ppc_budget_check",
+        "programmatic_buy_brief", "programmatic_inventory_check", "search_query_brief", "search_query_waste_check",
+        "tracking_setup_brief", "tracking_event_check",
+        # 2026-09-28/29 (P5/marketing review finding, closed by Claude): task_completion is a real,
+        # agent-declared capability (AICitationStrategist.check_agentic_task_completion, the real match
+        # for the 'agentic-search-optimizer' persona) with no tier entry at all -- the same class of gap
+        # T9-fix-1 closed for email_agent.py. It is a pure deterministic keyword check on caller-supplied
+        # text: no network call, no LLM call, no mutation. New tier entry, flagged for the pending
+        # independent review per SELF_DEV_AGENT_SPEC.md.
+        "task_completion",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
