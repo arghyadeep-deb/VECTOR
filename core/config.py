@@ -395,6 +395,26 @@ class PermissionConfig(BaseModel):
         "data_consolidation_brief", "data_consolidation_check", "report_distribution_brief",
         "report_distribution_check", "training_design_brief", "training_outline_check",
         "legal_compliance_brief", "legal_compliance_check",
+        # 2026-09-29 SELF_DEV_P2_CODING: 28 NEW GREEN entries (tier additions only;
+        # no existing tier changed or loosened), flagged for the pending independent
+        # review. Handlers: districts/coding/coding_specialists.py. All actions are
+        # in-memory briefs or deterministic parsing/diffing/recomputation over
+        # caller-supplied artifacts. They do not edit files, execute commands, call
+        # services, or mutate external state.
+        "agent_sdk_ts_brief", "agent_sdk_ts_check",
+        "business_rules_brief", "business_rules_check",
+        "legacy_analysis_brief", "legacy_analysis_check",
+        "scaffold_brief", "scaffold_structure_check",
+        "uplift_migration_brief", "uplift_migration_check",
+        "version_delta_brief", "version_delta_check",
+        "ai_data_remediation_brief", "ai_data_remediation_check",
+        "autonomous_optimization_brief", "autonomous_optimization_check",
+        "cms_implementation_brief", "cms_structure_check",
+        "mobile_app_brief", "mobile_project_check",
+        "review_comment_brief", "review_comment_check",
+        "type_design_brief", "type_design_check",
+        "mcp_server_brief", "mcp_manifest_check",
+        "terminal_integration_brief", "terminal_contract_check",
     ])
     yellow: list[str] = Field(default_factory=lambda: [
         # commit_code stays YELLOW deliberately: git commits are local and
