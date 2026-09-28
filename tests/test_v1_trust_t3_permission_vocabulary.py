@@ -209,6 +209,16 @@ _FROZEN_YELLOW = {
     # move an email between folders), no external send -- YELLOW, not RED. See
     # VECTOR_TECHNICAL_KNOWLEDGE/T9_FIX1_CAPABILITY_TIER_GAP.md.
     'discard_draft', 'move',
+    # 2026-09-29 SELF_DEV_P9_LEGAL_COMPLIANCE: owner-approved new district.
+    # All ten advisory-only capabilities deliberately default to YELLOW
+    # because their outputs can influence regulated legal/healthcare work.
+    # No existing tier moved and no GREEN exception was made. See
+    # VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_P9_LEGAL_COMPLIANCE.md.
+    'healthcare_service_brief', 'healthcare_service_check',
+    'healthcare_marketing_brief', 'healthcare_marketing_check',
+    'legal_billing_brief', 'legal_billing_check',
+    'legal_intake_brief', 'legal_intake_check',
+    'legal_document_brief', 'legal_document_check',
 }
 
 

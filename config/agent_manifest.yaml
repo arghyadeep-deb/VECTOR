@@ -1495,6 +1495,50 @@ districts:
       description: Tracking setup brief plus required-event coverage and pixel/server dedup (event_id) checks
       capabilities: [tracking_setup_brief, tracking_event_check]
 
+  legal_compliance:
+    # 2026-09-29 SELF_DEV_P9_LEGAL_COMPLIANCE: advisory-only deterministic
+    # evidence checks; never execution or professional certification.
+    - name: healthcare_customer_service
+      class: districts.legal_compliance.legal_specialists.HealthcareCustomerServiceSpecialist
+      model: vector-reasoning
+      description: Patient-support evidence brief plus deterministic escalation, identity, language, and next-step checks
+      capabilities: [healthcare_service_brief, healthcare_service_check]
+
+    - name: healthcare_marketing_compliance
+      class: districts.legal_compliance.legal_specialists.HealthcareMarketingComplianceSpecialist
+      model: vector-reasoning
+      description: Healthcare-marketing brief plus deterministic phrase, scope, consent, de-identification, and citation checks
+      capabilities: [healthcare_marketing_brief, healthcare_marketing_check]
+
+    - name: legal_billing_time_tracking
+      class: districts.legal_compliance.legal_specialists.LegalBillingTimeTrackingSpecialist
+      model: vector-reasoning
+      description: Legal-billing evidence brief plus deterministic time-entry and invoice arithmetic checks
+      capabilities: [legal_billing_brief, legal_billing_check]
+
+    - name: legal_client_intake
+      class: districts.legal_compliance.legal_specialists.LegalClientIntakeSpecialist
+      model: vector-reasoning
+      description: Legal-intake brief plus deterministic required-field, conflict, scheduling, and deadline checks
+      capabilities: [legal_intake_brief, legal_intake_check]
+
+    - name: legal_document_review
+      class: districts.legal_compliance.legal_specialists.LegalDocumentReviewSpecialist
+      model: vector-reasoning
+      description: Legal-document brief plus deterministic required and prohibited clause-presence checks
+      capabilities: [legal_document_brief, legal_document_check]
+
+    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: same new district, merged here from a duplicate
+    # top-level `legal_compliance:` key the two packages' independent worktrees each created --
+    # YAML silently keeps only the last occurrence of a duplicate mapping key, which made this
+    # agent invisible to ManifestLoader until merged into one block. Advisory-only, gated, never
+    # a direct executor -- string-presence checks only, no legal advice rendered.
+    - name: legal_compliance_checker
+      class: districts.legal_compliance.legal_compliance_specialists.LegalComplianceChecker
+      model: vector-focus
+      description: Regulated-document clause-presence brief plus deterministic required/prohibited-phrase string-search check (advisory-only, not legal advice)
+      capabilities: [legal_compliance_brief, legal_compliance_check]
+
   skills:
     - name: skill_mapper
       class: districts.skills.skill_mapper.SkillMapper
@@ -1574,16 +1618,6 @@ districts:
       model: vector-focus
       description: Corporate-training curriculum brief plus module structure check (non-empty, unique, has an assessment)
       capabilities: [training_design_brief, training_outline_check]
-
-  legal_compliance:
-    # 2026-09-29 SELF_DEV_P8_MEMORY_FINANCE_OPS: new district per SELF_DEV_AGENT_SPEC.md ("kept
-    # separate on purpose... regulated advice needs its own tier discipline"). Advisory-only,
-    # gated, never a direct executor -- string-presence checks only, no legal advice rendered.
-    - name: legal_compliance_checker
-      class: districts.legal_compliance.legal_compliance_specialists.LegalComplianceChecker
-      model: vector-focus
-      description: Regulated-document clause-presence brief plus deterministic required/prohibited-phrase string-search check (advisory-only, not legal advice)
-      capabilities: [legal_compliance_brief, legal_compliance_check]
 
   qa:
     - name: qa_swarm
