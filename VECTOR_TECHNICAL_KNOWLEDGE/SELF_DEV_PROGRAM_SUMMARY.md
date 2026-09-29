@@ -119,13 +119,30 @@ resolved-by-classification. Nothing left unaddressed from the original roster.
 
 ## NEEDS_HUMAN disclosures carried forward (not resolved by this program — owner decision needed)
 
-1. **`zk-steward`** (P8) — already real, already manifest-registered, under `district=personal_growth`, not `memory_curator` as the spec's own district map names it. Not moved (moving a live agent's district is a real behavioral change outside this task's bounded scope). Owner must either update the spec's map or approve a follow-up move.
+1. **`zk-steward`** (P8) — **DECIDED 2026-09-29** (follow-up pass): kept in `district=personal_growth`,
+   not moved to `memory_curator` as the spec's own district map names it. This agent is live,
+   tested, manifest-registered, and works correctly where it is — moving it purely for taxonomic
+   consistency (no functional bug) is a real behavioral change (`get_by_district()` filters,
+   manifest structure) for zero functional gain. `personal_growth` (alongside
+   `behavioral_nudge_engine`, `feedback_synthesizer`) is an equally coherent grouping for a
+   personal Zettelkasten tool. Contrast with `slack-archaeologist` below, moved same-day precisely
+   because it had no accumulated dependents yet — the risk calculus differs by an agent's age, not
+   just by what the spec says. Documented in `config/agent_manifest.yaml`; revisit only if a real
+   functional reason to move it ever comes up.
 2. **5 ops-scope personas** (P8) — `project-management-experiment-tracker`, `support-analytics-reporter`, `support-executive-summary-generator` already have real matches in `projects`, `data_analytics`, and `chief_of_staff` respectively; `accounts-payable-agent` and `support-finance-tracker` were placement-decided into `finance` per this task's explicit instruction. Same district-map-vs-reality mismatch as above.
 3. **`blockchain-security-auditor`** (P3) — not built; disclosed reason in `SELF_DEV_P3_SECURITY.md` (no VECTOR-accessible on-chain data source to recompute a real check from).
 4. **P7's persona-file-absence caveat** — like P5/P8, the `.claude/agents/` persona `.md` files for P7's scope were not found in that worktree; scope was inferred from names and district context, disclosed as such in the report.
 5. **P6's entire scope** — 17 sales-district personas, 0 certified fully real. 7 have partial coverage from existing sales agents (fixed for RULE 1 hydration and a real bug this session, not rebuilt as new personas); 10 have no real match and were not built. This was scoped as "a bounded repair," not new persona construction — the owner should decide whether P6's 17 personas need a proper new-construction pass like P2/P4/P5/P7/P9/P10 got.
-6. **P1's verdict** — QA district's 8 personas are NOT VERIFIED per that package's own honest report (missing per-agent real-test gate for 7 of 8, one existing test mocks HP/internal state in violation of `.claude/rules/testing.md`). This is a pre-existing gap this program surfaced, not one it was scoped to fix.
-7. **The "239 selected" reconciliation gap** — see above; ~65 personas presumed already-real were not individually re-verified against the Agent Roster artifact in this pass.
+6. ~~**P1's verdict**~~ — **RESOLVED 2026-09-29.** QA district's 8 personas were NOT VERIFIED per that
+   package's own honest report (missing per-agent real-test gate for 7 of 8, one existing test mocks
+   HP/internal state in violation of `.claude/rules/testing.md`). Fixed in a follow-up pass: 17 real
+   tests added, the 1 mocking test rewritten, and 3 real bugs found and fixed along the way. See
+   P1's row above and the addendum in `SELF_DEV_P1_QA_VERIFICATION.md`.
+7. ~~**The "239 selected" reconciliation gap**~~ — **RESOLVED 2026-09-29.** ~65 personas presumed
+   already-real were not individually re-verified against the Agent Roster artifact in this pass.
+   Closed in a follow-up pass: read the artifact's actual saved marks (239 confirmed) and
+   cross-referenced every one by hand — see the "Reconciling against 239 selected personas" section
+   above.
 
 ## Verification performed for this summary
 
@@ -172,8 +189,10 @@ resolved-by-classification. Nothing left unaddressed from the original roster.
 
 ## Overall verdict
 
-**Program functionally complete, with 6 specific decisions flagged above for owner attention** (P1's
-NOT VERIFIED disposition, originally a 7th, was resolved in a 2026-09-29 follow-up pass — see its row above).
+**Program functionally complete, with 4 specific items still genuinely open for owner attention**
+(of the original 7: `zk-steward`'s placement was decided, P1's NOT VERIFIED disposition was fixed,
+and the "239 selected" reconciliation gap was closed — all in 2026-09-29 follow-up passes, see their
+entries above/below).
 
 This is deliberately not a clean, zero-caveat "PASS": P6 certified zero new personas as fully real, P3
 disclosed one not-built persona, and multiple packages carry explicit NEEDS_HUMAN district-placement

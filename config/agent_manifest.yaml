@@ -462,7 +462,16 @@ districts:
     # completeness; <x>_check recomputes deterministically (set/dict clustering, ast parse) --
     # no LLM call in either agent. zk-steward is NOT re-built here: it already has a real match,
     # ZKSteward (districts/personal_growth/zk_steward.py), registered under personal_growth, not
-    # memory_curator as this spec's district map names -- see the report's NEEDS_HUMAN flag.
+    # memory_curator as this spec's district map names.
+    # DECIDED 2026-09-29 (follow-up pass, was NEEDS_HUMAN): kept in personal_growth, not moved.
+    # ZKSteward is live, tested, manifest-registered, and works correctly where it is; moving a
+    # long-established agent's district for purely taxonomic reasons (no functional bug) is a
+    # real behavioral change (get_by_district() filters, manifest structure) for zero functional
+    # gain -- unlike SlackArchaeologist's same-day relocation just above in chief_of_staff/,
+    # which had no accumulated dependents yet. The spec's memory_curator grouping remains a
+    # reasonable categorization; personal_growth (alongside behavioral_nudge_engine,
+    # feedback_synthesizer) is an equally coherent one for a personal Zettelkasten tool. Revisit
+    # only if a real functional reason to move it ever comes up.
     - name: identity_graph_operator
       class: districts.memory_curator.memory_curator_specialists.IdentityGraphOperator
       model: vector-focus
