@@ -215,8 +215,12 @@ grew open engineering items; section 0 lists them.
     keywords. **Both independently Codex-reviewed 2026-09-29** (see item 21 below) -- P2: CONFIRMED SAFE (real test
     run, 3 passed); P3: no code-level concern found (couldn't execute pytest itself, sandbox has no writable temp
     dir; Claude already ran it). (b) 7 NEEDS_HUMAN decisions listed in the summary doc (~~zk-steward's district
-    placement~~ -- decided, kept in `personal_growth`, see `SELF_DEV_PROGRAM_SUMMARY.md`; 5 ops-scope placement
-    mismatches (still open); `blockchain-security-auditor` not-built (still open); ~~P6's zero-certified-real
+    placement~~ -- decided, kept in `personal_growth`, see `SELF_DEV_PROGRAM_SUMMARY.md`; ~~5 ops-scope placement
+    mismatches~~ -- **found already resolved 2026-09-29, not actually open**: re-checked directly against the
+    live manifest and `core/city/governor.py`, confirmed `ops:` has exactly its 7 real agents with no
+    duplicate/misrouted entry for any of the 5; the NEEDS_HUMAN flag came from the approval gate (finance/legal
+    keywords, same class as P2/P3/P9), already cleared by owner chat approval + merge, not from an unresolved
+    placement question; `blockchain-security-auditor` not-built (being revisited, see below); ~~P6's zero-certified-real
     sales personas~~ -- **largely resolved 2026-09-29**, see below (6 of 7 partial personas now real; the
     package's other 10 not-built personas were untouched by this follow-up); ~~P1's NOT VERIFIED qa disposition~~
     -- **resolved 2026-09-29**, see below -- the 239-persona
@@ -313,6 +317,34 @@ grew open engineering items; section 0 lists them.
     already in hand) — this remains a partial data point (no *hard freeze* observed in that ~15-minute window),
     not a completed multi-hour proof, but a real bug found and fixed is more valuable than more idle minutes
     of clean-looking log.
+
+    **Extended, 2026-09-29 23:50–23:53 (owner: "okay do it u can use codex n urself for the task")** — a
+    second, longer run of the same `run_vector.py loop` process, ~63 real minutes this time (22:50:38 start,
+    stopped 23:53), landing inside the 60-90 min target this note above left open. 267 agents / 41 districts
+    registered clean at startup (up from the prior run's count, reflecting P6's follow-up + other same-day
+    merges). Reviewed the full log (11,705 lines) for anything genuinely new, not just another one-off provider
+    hiccup: **zero new bugs found.** Every warning/error pattern observed was already a known, benign, or
+    previously-documented category: ADB/Tesseract/phone-unreachable (optional local services not connected),
+    the pre-documented `KNOWN_ISSUES #0` blocking-call warning, rate-limit failover across providers (Cerebras
+    402, Mistral 403/429, OpenCode Zen 403 `FreeTierError`, NVIDIA 410, Groq/Gemini/Cloudflare 429 — all
+    catalog-staleness or free-tier-boundary cases that fail over correctly with zero payment risk, not code
+    bugs), the already-documented cloud-heartbeat 401 (item 1 above), and two existing LLM-output quality
+    safeguards firing correctly (`zai` empty-content retry, OpenRouter leaked-reasoning retry). One genuinely
+    new-this-run finding, but not a fix candidate: `core/memory/obsidian_sync.py`'s `ingest_to_rag_anything()`
+    fails every time with `No module named 'rag_anything'` for any vault file markitdown can't convert (PDFs,
+    images, audio) — the optional `rag_anything` package was never installed. Unlike the tiktoken bug above,
+    this degrades cleanly per-file (`return False`, no retry-forever loop, no resource waste) — the exact same
+    class of gap as the already-documented missing-Tesseract/missing-lightgbm optional dependencies. Left
+    uninstalled rather than autonomously pulling in a new ML dependency mid-soak-test; **owner action, if
+    wanted:** `pip install rag_anything` (or whatever the correct current package name is — not verified here)
+    to activate multi-modal vault ingestion. Stopped cleanly at the target window (`Stop-Process` on the loop's
+    own pid, confirmed exited, no force-kill needed) once memory read 1.3GB free — a genuine spike, but traced
+    directly to `llama-server` at 13.4GB, a pre-existing process not started by this session (same one flagged
+    during the P6 build earlier tonight); per the established boundary it was not touched, and it exited on its
+    own moments later with memory recovering to 17GB free, confirming the restraint was correct. **This closes
+    the soak-test half of "do it" complete**: two runs, ~78 combined real minutes, one real bug found and fixed
+    (the tiktoken/LightRAG issue above), one benign optional-dependency gap documented, zero hard freezes, zero
+    new code changes needed from this second run.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
