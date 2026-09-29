@@ -30,7 +30,7 @@ class EvidenceCollector(AgentBase):
         self.capabilities = ["evidence", "qa", "screenshot"]
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
-        self._root = Path(__file__).parent.parent.parent.parent
+        self._root = Path(__file__).resolve().parent.parent.parent
         logger.info("[VECTOR][evidence_collector] initialized")
 
     def _get_memory(self) -> EpisodicMemory:
@@ -48,8 +48,11 @@ class EvidenceCollector(AgentBase):
     def collect_git_evidence(self, days: int = 1) -> dict:
         """Collect git commits from last N days as evidence of code changes."""
         try:
+            # 2026-09-29: "--since=Nd ago" is not a git-recognized duration (git wants "N days
+            # ago"); this silently matched nothing and always returned 0 commits, found via a
+            # real test that expected non-zero evidence from a repo with constant commit activity.
             result = subprocess.run(
-                ["git", "log", f"--since={days}d ago", "--oneline", "--no-merges"],
+                ["git", "log", f"--since={days} days ago", "--oneline", "--no-merges"],
                 capture_output=True, text=True, cwd=str(self._root), timeout=10,
             )
             commits = [l.strip() for l in result.stdout.strip().splitlines() if l.strip()]

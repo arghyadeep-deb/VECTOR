@@ -13,7 +13,7 @@ from core.memory.obsidian_sync import ObsidianSync
 from core.loop.context_engine import ContextEngine
 from loguru import logger
 
-_BASE_DIR = Path(__file__).parent.parent.parent.parent
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _SCRIPTS_DIR = _BASE_DIR / "scripts"
 
 # 10 critical VECTOR modules that must always import cleanly
@@ -247,7 +247,10 @@ class RealityChecker(AgentBase):
         if report["syntax_errors"]:
             note_lines.append("**SYNTAX ERRORS:**\n")
             for se in report["syntax_errors"]:
-                note_lines.append(f"- `{se['file']}` line {se['line']}: {se['error']}\n")
+                # Not every entry here has a "line" -- check_syntax_clean() also reports
+                # structural failures (e.g. "directory not found") with no line number.
+                loc = f" line {se['line']}" if "line" in se else ""
+                note_lines.append(f"- `{se['file']}`{loc}: {se['error']}\n")
         else:
             note_lines.append("- No syntax errors found\n")
 

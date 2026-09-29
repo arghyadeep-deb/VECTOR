@@ -34,7 +34,7 @@ class TestResultsAnalyzer(AgentBase):
         self._memory: EpisodicMemory | None = None
         self._obsidian: ObsidianSync | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
-        self._root = Path(__file__).parent.parent.parent.parent
+        self._root = Path(__file__).resolve().parent.parent.parent
         logger.info("[VECTOR][test_analyzer] initialized")
 
     def _get_memory(self):

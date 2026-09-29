@@ -13,7 +13,7 @@ from core.loop.context_engine import ContextEngine
 from loguru import logger
 
 _CHAIRMAN = CONFIG["models"]["chairman"]
-_BASE_DIR = Path(__file__).parent.parent.parent.parent
+_BASE_DIR = Path(__file__).resolve().parent.parent.parent
 _DOCS_DIR = _BASE_DIR / "docs"
 
 

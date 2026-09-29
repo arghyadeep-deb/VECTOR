@@ -66,26 +66,38 @@ class QASwarm(AgentBase):
         self._load_agents()
 
     def _load_agents(self) -> None:
+        # 2026-09-29: this used to dedup-check registry.get(f"qa_{role}_swarm_001") -- a key
+        # no agent is ever actually registered under (each specialist class sets its OWN
+        # agent.id internally: a fixed string for some, uuid.uuid4() for others; none of them
+        # match this swarm-invented naming scheme). The check therefore always missed, so every
+        # QASwarm() construction created and registered 11 brand-new specialist instances into
+        # the shared AgentRegistry -- accumulating duplicates across repeated instantiations,
+        # and making these agents unreachable via A2A under the id an external caller would
+        # reasonably guess. Fixed: dedup by real class+district match already in the registry,
+        # and key self._agents/_agent_roles by the agent's own real .id, not a guessed string.
         registry = get_registry()
         for module_name, class_name in PYTHON_AGENTS:
             role_handle = module_name
-            agent_id = f"qa_{role_handle}_swarm_001"
-
-            if registry.get(agent_id):
-                self._agents[agent_id] = registry.get(agent_id)
-                self._agent_roles[agent_id] = role_handle
-                continue
-
             try:
                 import importlib
                 full_module = f"districts.qa.{module_name}"
                 mod = importlib.import_module(full_module)
                 cls = getattr(mod, class_name)
-                agent = cls()
-                registry.register(agent)
-                self._agents[agent_id] = agent
-                self._agent_roles[agent_id] = role_handle
-                logger.debug("[QASwarm] loaded agent: {} ({})", class_name, agent_id)
+
+                existing = next(
+                    (
+                        a for a in registry.get_all_agents()
+                        if type(a).__name__ == class_name and getattr(a, "district", None) == DISTRICT
+                    ),
+                    None,
+                )
+                agent = existing if existing is not None else cls()
+                if existing is None:
+                    registry.register(agent)
+
+                self._agents[agent.id] = agent
+                self._agent_roles[agent.id] = role_handle
+                logger.debug("[QASwarm] loaded agent: {} ({})", class_name, agent.id)
             except Exception as e:
                 logger.warning("[QASwarm] failed to load {}: {}", class_name, e)
 
