@@ -172,22 +172,29 @@ No dependency, database-schema, credential, deployment, commit, push, merge,
 or branch change was made. The working-tree changes remain unstaged because of
 the read-only Git metadata boundary described above.
 
-## Addendum, 2026-09-29 (later follow-up pass) — 9th agent added + independent Codex review
+## Addendum, 2026-09-29 (later follow-up pass) — 9th agent added, then relocated + independent Codex review
 
 A 9th agent, `SlackArchaeologist` (`slack_archaeology_brief`/`slack_archaeology_check`), was added
 to this district in a follow-up pass — real, deterministic Slack-history reconstruction (duplicate-id,
 missing-author/timestamp, bad-timestamp, and dangling-thread-reference checks over caller-supplied
-message records, no LLM call). Full details: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`.
-This brings the district to **9 agents / 18 GREEN permission entries** — the "eight"/"sixteen" counts
-above describe this package's original scope and are historically accurate for that point in time, not
-stale; they simply predate the addendum.
+message records, no LLM call). This briefly brought the district to 9 agents / 18 GREEN permission
+entries.
+
+**Relocated to `chief_of_staff` later the same day**: re-reading `SELF_DEV_AGENT_SPEC.md`'s own district
+map (not a new judgment call, the spec's own text) showed `slack-archaeologist` explicitly listed under
+`chief_of_staff/`, not `security` — a placement error on the original build, corrected while the agent
+was still brand-new (same day, no accumulated dependents, low risk to move). Now lives at
+`districts/chief_of_staff/slack_archaeologist.py`; this district is back to its original **8 agents /
+16 GREEN permission entries** — the "eight"/"sixteen" counts above are accurate again, not stale. Full
+detail: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`.
 
 The independent Codex review this package's own report called for (section above) was completed
-2026-09-29: **no code-level security concern found** — verified no dangerous primitives
-(subprocess/eval/exec/os.system/file-write) anywhere in `security_specialists.py`, all 9 specialists
-confirmed deterministic/evidence-gated with no LLM-self-judging path, and all 18 GREEN entries
-confirmed to match. Codex's own read-only sandbox had no writable temp directory, so it could not
-execute `pytest` itself (a sandbox limitation, not a code issue — Claude already ran the full test file
-successfully, see the "Actually run" section above); its overall verdict label was therefore
-`CANNOT_VERIFY` on the test-execution sub-point specifically, while the code-level finding itself was
+2026-09-29, while `SlackArchaeologist` still lived here: **no code-level security concern found** —
+verified no dangerous primitives (subprocess/eval/exec/os.system/file-write) anywhere in
+`security_specialists.py`, all specialists confirmed deterministic/evidence-gated with no
+LLM-self-judging path, and all GREEN entries confirmed to match at the time. Codex's own read-only
+sandbox had no writable temp directory, so it could not execute `pytest` itself (a sandbox limitation,
+not a code issue — Claude already ran the full test file successfully, see the "Actually run" section
+above); its overall verdict label was therefore `CANNOT_VERIFY` on the test-execution sub-point
+specifically, while the code-level finding itself was
 clean. Full writeup: `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`.

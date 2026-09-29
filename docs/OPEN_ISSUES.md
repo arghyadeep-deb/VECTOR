@@ -236,7 +236,9 @@ grew open engineering items; section 0 lists them.
     don't stop"):** the 239-persona reconciliation gap above is now closed — read the actual Agent Roster
     artifact's saved marks directly (239 confirmed) and cross-referenced every one by hand.
     `slack-archaeologist` was a genuine, previously-undisclosed gap — **built** as `SlackArchaeologist`
-    (security district, real evidence-checked Slack-history reconstruction, no LLM call). Two more
+    (initially security district; relocated to `chief_of_staff` the same day after re-reading
+    `SELF_DEV_AGENT_SPEC.md`'s own district map, which explicitly names that district — real
+    evidence-checked Slack-history reconstruction, no LLM call). Two more
     (`engineering-senior-developer`, `project-manager-senior`) turned out to be Claude Code's own dev-tooling
     subagent types (verbatim descriptions, tagged present in the global marketplace) rather than VECTOR
     personas — resolved by classification, not built. All 239 are now accounted for. Full clean suite re-run

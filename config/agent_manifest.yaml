@@ -644,12 +644,6 @@ districts:
       description: Deterministic automation value, control, fallback, and human-checkpoint assessment
       capabilities: [automation_governance_brief, automation_governance_check]
 
-    - name: slack_archaeologist
-      class: districts.security.security_specialists.SlackArchaeologist
-      model: vector-focus
-      description: Deterministic Slack-history reconstruction for incident reconstruction and evidence gathering
-      capabilities: [slack_archaeology_brief, slack_archaeology_check]
-
   time_calendar:
     - name: kiit_scraper
       class: districts.time_calendar.kiit_scraper.KIITScraper
@@ -1734,6 +1728,16 @@ districts:
       model: vector-focus
       description: Product-work nudge recommendation without external delivery
       capabilities: [product_work_nudge]
+
+    # 2026-09-29: relocated from security -- SELF_DEV_AGENT_SPEC.md's own district map places
+    # slack-archaeologist under chief_of_staff (alongside orchestrator/planner/context-loader/
+    # cross-linker/brag-spotter/people-profiler/product-*/review-*), a placement error found and
+    # corrected on re-reading the spec's own map.
+    - name: slack_archaeologist
+      class: districts.chief_of_staff.slack_archaeologist.SlackArchaeologist
+      model: vector-focus
+      description: Deterministic Slack-history reconstruction for incident reconstruction and evidence gathering
+      capabilities: [slack_archaeology_brief, slack_archaeology_check]
 
   science:
     - name: science_agent
