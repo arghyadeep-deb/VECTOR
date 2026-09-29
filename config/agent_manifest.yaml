@@ -1103,6 +1103,43 @@ districts:
       description: Time-series metric tracking, trend detection, anomaly alerts
       capabilities: [track_metric, get_trend, alert_anomaly, active_alerts, acknowledge_alert, get_metric_summary, get_comparison, remove_metric]
 
+    # SELF_DEV_P6 follow-up (2026-09-29): deterministic evidence-gated sales specialists.
+    - name: account_strategist
+      class: districts.agency.agency_specialists.AccountStrategist
+      model: vector-reasoning
+      description: Account health and expansion-risk scoring from caller-supplied account evidence
+      capabilities: [acct_health_brief, acct_health_check]
+
+    - name: deal_strategist
+      class: districts.agency.agency_specialists.DealStrategist
+      model: vector-reasoning
+      description: MEDDPICC completeness and risk check for one supplied deal
+      capabilities: [deal_meddpicc_brief, deal_meddpicc_check]
+
+    - name: sales_engineer
+      class: districts.agency.agency_specialists.SalesEngineer
+      model: vector-reasoning
+      description: Technical requirements coverage check against a supplied solution design
+      capabilities: [tech_fit_brief, tech_fit_check]
+
+    - name: outbound_sequence_strategist
+      class: districts.agency.agency_specialists.OutboundSequenceStrategist
+      model: vector-focus
+      description: Outreach sequence cadence and channel-diversity validation
+      capabilities: [out_seq_brief, out_seq_check]
+
+    - name: pipeline_velocity_analyst
+      class: districts.agency.agency_specialists.PipelineVelocityAnalyst
+      model: vector-reasoning
+      description: Pipeline velocity and stage conversion math from supplied transitions
+      capabilities: [pipe_velocity_brief, pipe_velocity_check]
+
+    - name: proposal_coverage_strategist
+      class: districts.agency.agency_specialists.ProposalCoverageStrategist
+      model: vector-reasoning
+      description: Proposal requirements-coverage verification from supplied capability lists
+      capabilities: [prop_coverage_brief, prop_coverage_check]
+
   investment:
     - name: stock_analyst
       class: districts.investment.stock_analyst.StockAnalyst
