@@ -100,8 +100,29 @@ artifact against the current 260-agent manifest if an exact 239-way reconciliati
   via `git log --oneline`.
 - Parsed `config/agent_manifest.yaml`: **41 districts, 260 agents, zero duplicate top-level mapping keys**
   (re-ran the duplicate-key detection grep used throughout this session; every district key count = 1).
-- Ran the full sharded test suite (`python -m pytest -q`) once at the end of this program — result recorded
-  below once the run completes (see the "Full test suite" section, filled in after this document's first draft).
+- Ran the full sharded test suite (`python -m pytest -q`) once at the end of this program. The first run
+  surfaced 10 FAILED tests; re-ran each individually per `systematic-debugging` rather than trusting the
+  suite's own (misleadingly reported) exit code. 8 passed alone — confirmed order-dependent pollution, the
+  same class already documented in `docs/OPEN_ISSUES.md` item 11a. 2 were real and reproduced standalone:
+  `test_owner_routing_closure_f1.py::test_ambiguous_task_type_overlap_fails_closed` and
+  `test_v1_trust_t2_action_identity.py::test_ambiguous_invented_label_fails_closed`. Root cause: P8's new
+  `report_distribution_check` capability (words `report`/`distribution`/`check`) happened to word-overlap 2 of
+  the 3 words in both tests' deliberately-ambiguous fixture `status_check_report`, enough to break the
+  `_canonical_district_from_task_type()` fail-closed guarantee those tests exist to prove — a real regression
+  introduced by this program, not a pre-existing flake. Fixed by renaming the capability to
+  `report_distribution_validate` across all 7 files that named it (confirmed the fix worked by simulating the
+  word-overlap match in Python against both the old and new key sets *before* touching any file, not guessed);
+  the security-sensitive canonicalization algorithm itself was not touched. Commit `96cad6053`. A clean
+  full-suite re-run was started to confirm the fix and get a trustworthy final count, but the background
+  process was killed by the harness partway through due to system-wide low memory (not a code or test
+  issue) and, per explicit instruction, was not restarted automatically. **The full clean re-run is still
+  owed** — everything else in this program was verified directly instead: both regression tests pass in
+  isolation, plus `test_governor.py`, `test_ops_specialists.py`, `test_legal_compliance_specialists.py`,
+  `test_governor_unknown_task_gate.py`, `test_memory_curator.py`, `test_self_dev_specialists.py`,
+  `test_coding_specialists.py`, and `test_security_specialists.py` all pass, the manifest re-parses clean
+  (41 districts, 260 agents), and `districts/ops/ops_specialists.py`'s own smoke check passes. Re-run the
+  full suite once the machine has memory headroom (see `docs/OPEN_ISSUES.md` item 12 for the established
+  pattern of running it in low-memory-safe batches).
 
 ## Overall verdict
 
