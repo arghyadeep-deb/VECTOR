@@ -430,6 +430,12 @@ class PermissionConfig(BaseModel):
         "out_seq_brief", "out_seq_check",
         "pipe_velocity_brief", "pipe_velocity_check",
         "prop_coverage_brief", "prop_coverage_check",
+        # 2026-09-30 (self-dev program follow-up, owner-approved "solve 1,2,3,4"): SalesCoach and
+        # SalesDataExtractionAgent are read-only, in-memory checks over caller-supplied sales
+        # evidence (rubric text match / date-window arithmetic), same GREEN classification as
+        # every other Agency specialist above. Flagged for the pending independent review.
+        "sales_coaching_brief", "sales_coaching_check",
+        "sales_data_extraction_brief", "sales_data_extraction_check",
         # 2026-09-29 SELF_DEV_P2_CODING: 28 NEW GREEN entries (tier additions only;
         # no existing tier changed or loosened), flagged for the pending independent
         # review. Handlers: districts/coding/coding_specialists.py. All actions are

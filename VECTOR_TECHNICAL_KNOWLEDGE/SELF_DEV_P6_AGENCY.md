@@ -167,3 +167,50 @@ pass. Built by Codex in worktree `p6-followup-sales-specialists`, independently 
 by Claude, merged into `fix/external-review-2026-09` clean (no conflicts). 12 new GREEN permission-tier
 entries added, flagged for the pending independent review; no existing tier touched. Full detail:
 `SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS.md`.
+
+## Addendum — second follow-up pass, 2026-09-30
+
+Owner approval was given in chat the same day (asked why the remaining 10 not-built personas
+couldn't be solved by Claude or Codex; the honest answer required actually re-examining each one
+individually rather than repeating the "no evidence source" summary). This pass re-read every one
+of the 10 against the same caller-supplied-evidence model the P6 follow-up agents above already
+use — none of them need a live external connector, so "no evidence source" only ever meant "no
+caller-supplied schema was defined that VECTOR could deterministically check."
+
+Disposition, one by one:
+
+| Persona | Disposition |
+| --- | --- |
+| government-digital-presales-consultant | Stays not-built. Too regulatory/domain-specific (RFP compliance checklists, government security classification) for a generic deterministic check, and no plausible use case for a personal-owner system. |
+| hospitality-guest-services | Stays not-built. No plausible use case — VECTOR's owner does not operate a hospitality business. A double-booking/SLA checker is technically buildable but would be built for a use case that doesn't exist. |
+| loan-officer-assistant | Stays not-built. No plausible use case, and explicitly needs `legal_compliance` regulated-advisory input per the original disclosure. |
+| real-estate-buyer-seller | Stays not-built. No plausible use case. |
+| recruitment-specialist | Stays not-built. No plausible use case (no employer-side hiring pipeline exists for VECTOR's owner to check against). |
+| retail-customer-returns | Stays not-built. No plausible use case. |
+| customer-service | Stays not-built — **genuine duplicate**, not a gap. A drafted-response-vs-required-sections check is exactly `SupportResponder` in `districts/ops/ops_specialists.py` (`support_response_brief`/`support_response_check`, built in P8). Building it again under `agency` would violate the same no-duplication guardrail already applied to `ClientManager`/`SalesStrategist` above. |
+| sales-coach | **Built**, collapsed with sales-discovery-coach below. |
+| sales-discovery-coach | **Built** as one agent with sales-coach — both need the identical deterministic capability (does a supplied call transcript address each item in a supplied rubric?), differing only in which rubric the caller supplies. Building two agents for one check would be the same count-padding the original P6 follow-up already declined for outbound-strategist/outreach. |
+| sales-data-extraction-agent | **Built.** Real MTD/YTD sum arithmetic and per-rep breakdown over caller-supplied raw records, with malformed rows flagged rather than silently dropped. Deliberately does not forecast or project — that would need a real prediction capability this agent does not have. |
+
+Built in `districts/agency/agency_specialists.py`: `SalesCoach` (`sales_coaching_brief`/
+`sales_coaching_check`) and `SalesDataExtractionAgent` (`sales_data_extraction_brief`/
+`sales_data_extraction_check`). Both follow the established `<x>_brief`/`<x>_check` pattern: brief
+reports evidence presence honestly, check performs deterministic verification, zero LLM calls, zero
+external side effects.
+
+Verification: 6 new unit tests (20 total in `tests/test_agency_sales_specialists.py`, all pass),
+hand-verified the MTD/YTD/malformed-row arithmetic against a worked example before writing the test
+(1000+2000=3000 MTD; 1000+2000+500=3500 YTD, excluding a prior-year record; Alice=1500/Bob=2000
+per-rep; 2 malformed rows correctly flagged, not silently dropped). Dangerous-primitive grep clean,
+manifest integrity clean (41 districts, 270 agents, zero duplicate keys), the `status_check_report`
+word-overlap collision fixture still resolves `None`, `compileall` clean, `__main__` smoke check
+passes. 2 new GREEN permission-tier entries added, flagged for the pending independent review; no
+existing tier touched.
+
+Of the original 17 selected Agency sales personas: 8 real, evidence-gated agents now exist across
+the two follow-ups (6 built from the 7 "partial" personas, `sales-outbound-strategist`/
+`sales-outreach` collapsed into one; 2 built from 3 of the original "not real" personas,
+`sales-coach`/`sales-discovery-coach` collapsed into one). The other 7 of the original 10 "not
+real" personas remain honestly not-built for the specific reasons in the table above — 6 for lack
+of any plausible use case on a personal-owner system, 1 (`customer-service`) as a confirmed
+duplicate of `ops.SupportResponder`.

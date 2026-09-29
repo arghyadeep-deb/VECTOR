@@ -197,22 +197,30 @@ grew open engineering items; section 0 lists them.
     `CoherenceScheduler.compute_score("think_loop")` value instead of the ranking score; Codex ran
     `tests/test_think_tick_continue_gate_coherence.py` itself (7 passed, including a test named exactly for the specific
     0.30-0.40 bug). **Still needs the owner:** the live behavioural checks (voice, camera, a real day of use).
-20. **Self-dev agent program (P1-P11, 2026-09-27..09-29)** -- full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`
+20. **Self-dev agent program (P1-P11, 2026-09-27..09-30)** -- full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`
     (also `SELF_DEV_P1..P10_*.md` per-package). Claude and Codex split porting the owner's selected Claude Code agent
-    personas into real, tested VECTOR agents by district. Result: 164 personas covered across the 10 packages -- 96
-    newly built real, evidence-checked agents (P2/P3/P4/P5/P6/P7/P8/P9/P10, P6 added 2026-09-29 follow-up); 16 found
-    to already exist under another name/district (flagged NEEDS_HUMAN where the district-map and the actual
-    placement disagree); 22 disclosed as not-built (no honest deterministic check possible); P1's 8 qa personas came
-    back NOT VERIFIED (missing per-agent test gate) -- **resolved 2026-09-29**, see below; P6's original bounded
-    repair found 0 certified fully real, **6 of its 7 partial personas were built real in a 2026-09-29 follow-up**,
-    see below. 207 new permission-tier entries (195 GREEN + 12 YELLOW) added, all flagged for the pending
+    personas into real, tested VECTOR agents by district. Result: 164 personas covered across the 10 packages -- 99
+    newly built real, evidence-checked agents (P2/P3/P4/P5/P6/P7/P8/P9/P10, P6 and P3 extended by 2026-09-29/09-30
+    follow-ups); 16 found to already exist under another name/district (flagged NEEDS_HUMAN where the district-map
+    and the actual placement disagree); 18 disclosed as not-built (no honest deterministic check possible); P1's 8
+    qa personas came back NOT VERIFIED (missing per-agent test gate) -- **resolved 2026-09-29**, see below; P6's
+    original bounded repair found 0 certified fully real, **8 of its original 17 personas are now real agents
+    across two follow-ups**, see below. 211 new permission-tier entries (199 GREEN + 12 YELLOW) added, all flagged
+    for the pending
     independent review; **no
-    existing tier was changed, moved, or loosened by any package**. Manifest verified clean: 41 districts, 260 agents,
+    existing tier was changed, moved, or loosened by any package**. Manifest verified clean: 41 districts, 270 agents,
     zero duplicate top-level YAML keys. **Still needs the owner:** (a) P2 (coding) and P3 (security) hit the bridge's
     automated "Architecture change"/"Security-sensitive change" approval gate with no CLI verb to grant it -- both
     were built and merged only after the owner's own explicit chat approval, as directly-supervised manual work, never
     through the bridge's automated self-approval path; that gate class stays for any future task matching the same
-    keywords. **Both independently Codex-reviewed 2026-09-29** (see item 21 below) -- P2: CONFIRMED SAFE (real test
+    keywords, **by design** -- `tools/vector_dev_orchestrator/POLICY.md` sec 14/15 explicitly forbids any model
+    self-authorizing a human-gated action, and this is not something more tooling can route around. What *was*
+    missing was a clean way to record that the owner already approved a specific item outside the bridge, instead of
+    a raw JSON edit each time -- built 2026-09-30: `close-manual` in `autonomous_worker.py`, an owner-run CLI verb
+    (`close-manual ITEM_ID --commit SHA --note "..." --owner-approved yes`), explicitly documented as never to be
+    invoked by Claude/Codex on their own initiative. 7 new tests, verified byte-identical against the real live
+    backlog before/after (md5 unchanged). **Both independently Codex-reviewed 2026-09-29** (see item 21 below) --
+    P2: CONFIRMED SAFE (real test
     run, 3 passed); P3: no code-level concern found (couldn't execute pytest itself, sandbox has no writable temp
     dir; Claude already ran it). (b) 7 NEEDS_HUMAN decisions listed in the summary doc (~~zk-steward's district
     placement~~ -- decided, kept in `personal_growth`, see `SELF_DEV_PROGRAM_SUMMARY.md`; ~~5 ops-scope placement
@@ -222,8 +230,9 @@ grew open engineering items; section 0 lists them.
     keywords, same class as P2/P3/P9), already cleared by owner chat approval + merge, not from an unresolved
     placement question; ~~`blockchain-security-auditor` not-built~~ -- **resolved 2026-09-30**, see below
     (built as a real deterministic Solidity pattern-scan agent, no live chain dependency); ~~P6's zero-certified-real
-    sales personas~~ -- **largely resolved 2026-09-29**, see below (6 of 7 partial personas now real; the
-    package's other 10 not-built personas were untouched by this follow-up); ~~P1's NOT VERIFIED qa disposition~~
+    sales personas~~ -- **resolved across two follow-ups, 2026-09-29 and 2026-09-30**, see below (8 of the
+    original 17 personas now real agents; the other 7 stay honestly not-built for specific, individually-examined
+    reasons, not left untouched); ~~P1's NOT VERIFIED qa disposition~~
     -- **resolved 2026-09-29**, see below -- the 239-persona
     reconciliation gap was resolved in the follow-up pass below). The 8 duplicate legacy backlog items from the
     pre-existing 24-item backlog (item 18 above) were superseded during this program's cleanup pass.
@@ -254,7 +263,8 @@ grew open engineering items; section 0 lists them.
     personas — resolved by classification, not built. All 239 are now accounted for. Full clean suite re-run
     after the fix: **6,862 passed / 0 real failures / 39 skipped** (see item 12 above).
 
-    **P6's zero-certified-real sales personas — largely resolved 2026-09-29** (follow-up pass, owner: "do it, u
+    **P6's zero-certified-real sales personas — resolved across two follow-ups, 2026-09-29 and 2026-09-30.**
+    First follow-up (owner: "do it, u
     can use codex n urself for the task"; full writeup:
     `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS.md`). Codex re-examined the 7 originally
     "partial" Agency sales personas and built 6 real, evidence-gated agents in
@@ -274,6 +284,23 @@ grew open engineering items; section 0 lists them.
     conflicts); re-ran the 14 new tests on the merged tree to confirm — same result. The package's original 10
     "not real" personas (no distinguishing evidence source found in the original pass) were **not** re-examined
     in this follow-up and remain honestly disclosed as not built.
+
+    **Second follow-up, 2026-09-30** (owner asked why the remaining 10 couldn't be solved by Claude/Codex, which
+    prompted an honest per-persona re-check instead of repeating the summary; full writeup: the second addendum in
+    `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_P6_AGENCY.md`). Re-examined all 10 individually against the same
+    caller-supplied-evidence model the first follow-up's agents already use. Built 2 more real agents in
+    `districts/agency/agency_specialists.py`: `SalesCoach` (collapsing `sales-coach`/`sales-discovery-coach` — same
+    underlying rubric-coverage capability, only the caller-supplied rubric differs) and `SalesDataExtractionAgent`
+    (real MTD/YTD sum arithmetic and per-rep breakdown over caller-supplied raw records, malformed rows flagged not
+    dropped). The other 7 personas stay honestly not-built, each for a specific, examined reason: 6 have no
+    plausible use case on a personal-owner system (government-digital-presales-consultant,
+    hospitality-guest-services, loan-officer-assistant, real-estate-buyer-seller, recruitment-specialist,
+    retail-customer-returns), and `customer-service` is a confirmed duplicate of the existing `ops.SupportResponder`
+    (built in P8) rather than a genuine gap. 2 new GREEN tier entries, 6 new tests (20 total in
+    `tests/test_agency_sales_specialists.py`, all pass) including hand-verified MTD/YTD arithmetic and a dedicated
+    test proving the sales-coach/discovery-coach collapse reasoning. Manifest re-parses clean: 41 districts, 270
+    agents, zero duplicate keys. Of the original 17 P6 personas: 10 are now covered by 8 real agents (some
+    collapsed, e.g. sales-coach + sales-discovery-coach -> one `SalesCoach`), and 7 remain honestly not-built.
 
     **`blockchain-security-auditor` — resolved 2026-09-30** (owner asked why this couldn't be solved by
     Claude/Codex; re-reading the original disclosure literally showed the gap was never a missing *external*

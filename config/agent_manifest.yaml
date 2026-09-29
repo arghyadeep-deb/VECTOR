@@ -1152,6 +1152,23 @@ districts:
       description: Proposal requirements-coverage verification from supplied capability lists
       capabilities: [prop_coverage_brief, prop_coverage_check]
 
+    # 2026-09-30 (self-dev program follow-up, owner-approved "solve 1,2,3,4"): re-examined the
+    # 10 personas P6's original pass left honestly not-built. 2 are genuinely buildable with the
+    # same caller-supplied-evidence model as the agents above; the other 8 stay not-built (6 have
+    # no plausible use case for a personal-owner system, 1 -- customer-service -- duplicates the
+    # existing ops.SupportResponder). Full detail: SELF_DEV_P6_AGENCY.md addendum.
+    - name: sales_coach
+      class: districts.agency.agency_specialists.SalesCoach
+      model: vector-focus
+      description: Sales call rubric-coverage check, collapsing sales-coach and sales-discovery-coach (identical capability, different caller-supplied rubric)
+      capabilities: [sales_coaching_brief, sales_coaching_check]
+
+    - name: sales_data_extraction_agent
+      class: districts.agency.agency_specialists.SalesDataExtractionAgent
+      model: vector-focus
+      description: MTD/YTD sales totals extracted from supplied raw records, with malformed rows flagged
+      capabilities: [sales_data_extraction_brief, sales_data_extraction_check]
+
   investment:
     - name: stock_analyst
       class: districts.investment.stock_analyst.StockAnalyst

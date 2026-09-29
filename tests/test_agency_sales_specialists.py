@@ -21,6 +21,8 @@ from districts.agency.agency_specialists import (
     OutboundSequenceStrategist,
     PipelineVelocityAnalyst,
     ProposalCoverageStrategist,
+    SalesCoach,
+    SalesDataExtractionAgent,
     SalesEngineer,
 )
 
@@ -67,6 +69,20 @@ COMPLETE_EVIDENCE = {
         "required_capabilities": ["sso", "audit logging", "slack integration"],
         "addressed_capabilities": ["sso", "audit logging", "slack integration"],
     },
+    SalesCoach: {
+        "call_transcript": (
+            "We discussed the budget of 50k and the timeline for Q2 rollout. "
+            "The champion is the VP of Sales, and the main pain point is manual reporting."
+        ),
+        "rubric_items": ["budget", "timeline", "champion", "pain point"],
+    },
+    SalesDataExtractionAgent: {
+        "records": [
+            {"date": "2026-09-05", "amount": "1000", "rep": "Alice"},
+            {"date": "2026-09-20", "amount": "2000", "rep": "Bob"},
+        ],
+        "as_of_date": "2026-09-25",
+    },
 }
 
 
@@ -110,6 +126,8 @@ def test_manifest_tiers_and_routes_are_exact():
         "outbound_sequence_strategist": OutboundSequenceStrategist,
         "pipeline_velocity_analyst": PipelineVelocityAnalyst,
         "proposal_coverage_strategist": ProposalCoverageStrategist,
+        "sales_coach": SalesCoach,
+        "sales_data_extraction_agent": SalesDataExtractionAgent,
     }
     definitions = ManifestLoader().load()
     agency = {entry["name"]: entry for entry in definitions if entry["district"] == "agency"}
@@ -188,6 +206,66 @@ def test_outbound_and_outreach_are_one_real_sequence_validator():
     agent = OutboundSequenceStrategist()
     assert agent.profile.deliverable.startswith("outbound/outreach")
     assert agent.capabilities == ["out_seq_brief", "out_seq_check"]
+
+
+@pytest.mark.asyncio
+async def test_sales_coach_catches_missing_rubric_items():
+    evidence = {
+        "call_transcript": "We just chatted about the weather and had lunch.",
+        "rubric_items": ["budget", "timeline", "champion"],
+    }
+    result = await SalesCoach().run({"type": "sales_coaching_check", "evidence": evidence})
+    assert result["report"]["status"] == "needs_human"
+    assert result["report"]["missing_items"] == ["budget", "champion", "timeline"]
+    assert result["report"]["coverage"] == 0.0
+
+
+def test_sales_coach_serves_both_general_and_discovery_rubrics_as_one_agent():
+    # sales-coach and sales-discovery-coach are the same underlying capability
+    # (rubric-vs-transcript coverage) under two names; the caller's rubric
+    # choice is what distinguishes a discovery-call review from general
+    # coaching, not the agent. Same reasoning as OutboundSequenceStrategist.
+    agent = SalesCoach()
+    assert agent.capabilities == ["sales_coaching_brief", "sales_coaching_check"]
+    assert "general coaching or discovery-call rubric" in agent.profile.deliverable
+
+
+@pytest.mark.asyncio
+async def test_sales_data_extraction_computes_real_mtd_ytd_and_flags_malformed_rows():
+    evidence = {
+        "records": [
+            {"date": "2026-09-05", "amount": "1000", "rep": "Alice"},
+            {"date": "2026-09-20", "amount": "2000", "rep": "Bob"},
+            {"date": "2026-08-15", "amount": "500", "rep": "Alice"},
+            {"date": "2025-01-01", "amount": "999", "rep": "Alice"},  # excluded: prior year
+            {"date": "not-a-date", "amount": "100", "rep": "Bob"},  # malformed
+            {"amount": "50"},  # malformed: no date
+        ],
+        "as_of_date": "2026-09-25",
+    }
+    result = await SalesDataExtractionAgent().run(
+        {"type": "sales_data_extraction_check", "evidence": evidence}
+    )
+    report = result["report"]
+    assert report["status"] == "needs_human"  # malformed rows present -> flagged for review
+    assert report["mtd_total"] == 3000.0
+    assert report["ytd_total"] == 3500.0
+    assert report["by_rep_ytd"] == {"Alice": 1500.0, "Bob": 2000.0}
+    assert report["malformed_row_count"] == 2
+    assert report["valid_row_count"] == 4
+
+
+@pytest.mark.asyncio
+async def test_sales_data_extraction_passes_clean_when_all_rows_valid():
+    result = await SalesDataExtractionAgent().run(
+        {
+            "type": "sales_data_extraction_check",
+            "evidence": COMPLETE_EVIDENCE[SalesDataExtractionAgent],
+        }
+    )
+    report = result["report"]
+    assert report["status"] == "passed"
+    assert report["malformed_row_count"] == 0
 
 
 if __name__ == "__main__":

@@ -1295,6 +1295,10 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "pipe_velocity_check": "agency",
     "prop_coverage_brief": "agency",
     "prop_coverage_check": "agency",
+    "sales_coaching_brief": "agency",
+    "sales_coaching_check": "agency",
+    "sales_data_extraction_brief": "agency",
+    "sales_data_extraction_check": "agency",
     # governance additions
     "prd": "governance",
     "roadmap": "governance",

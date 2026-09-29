@@ -405,6 +405,118 @@ class ProposalCoverageStrategist(AgencySalesSpecialist):
         }
 
 
+class SalesCoach(AgencySalesSpecialist):
+    """Check a supplied sales call's rubric coverage.
+
+    Collapses the sales-coach and sales-discovery-coach personas: both need
+    the identical deterministic capability -- does the call address each
+    required rubric item? -- differing only in which rubric the caller
+    supplies (a general coaching rubric vs. a discovery-call rubric such as
+    budget/authority/need/timeline). Building two agents for the same check
+    would be count-padding, the same reasoning already applied to
+    OutboundSequenceStrategist.
+    """
+
+    profile = AgencySpecialistProfile(
+        "SalesCoach",
+        "sales_coach_001",
+        "sales_coaching_brief",
+        "sales_coaching_check",
+        ("call_transcript", "rubric_items"),
+        "sales call rubric-coverage report (general coaching or discovery-call rubric)",
+    )
+
+    def evaluate(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        transcript = evidence["call_transcript"]
+        rubric = evidence["rubric_items"]
+        if not isinstance(transcript, str) or not transcript.strip():
+            raise ValueError("call_transcript must be non-empty text")
+        if not isinstance(rubric, list) or not rubric:
+            raise ValueError("rubric_items must be a non-empty list")
+        lowered_transcript = transcript.casefold()
+        rubric_items = sorted({str(item).strip() for item in rubric if str(item).strip()})
+        covered = sorted(item for item in rubric_items if item.casefold() in lowered_transcript)
+        missing = sorted(set(rubric_items) - set(covered))
+        checks = [
+            _check("rubric_is_non_empty", bool(rubric_items), rubric_items),
+            _check("every_rubric_item_addressed", not missing, missing),
+        ]
+        return {
+            "status": "passed" if all(item["passed"] for item in checks) else "needs_human",
+            "checks": checks,
+            "coverage": round(len(covered) / len(rubric_items), 4) if rubric_items else 0.0,
+            "covered_items": covered,
+            "missing_items": missing,
+        }
+
+
+class SalesDataExtractionAgent(AgencySalesSpecialist):
+    """Extract and validate MTD/YTD sales totals from supplied raw records.
+
+    Deterministic date-window arithmetic on caller-supplied rows; never
+    forecasts or projects future values -- that would need a real prediction
+    capability this agent does not have and must not fake.
+    """
+
+    profile = AgencySpecialistProfile(
+        "SalesDataExtractionAgent",
+        "sales_data_extraction_agent_001",
+        "sales_data_extraction_brief",
+        "sales_data_extraction_check",
+        ("records", "as_of_date"),
+        "MTD/YTD sales totals extracted from supplied raw records, with malformed rows flagged",
+    )
+
+    def evaluate(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        records = evidence["records"]
+        if not isinstance(records, list) or not records:
+            raise ValueError("records must be a non-empty list")
+        as_of = _parse_date(evidence["as_of_date"])
+
+        valid: list[dict[str, Any]] = []
+        malformed: list[Any] = []
+        for row in records:
+            if not isinstance(row, dict):
+                malformed.append(row)
+                continue
+            try:
+                row_date = _parse_date(row["date"])
+                amount = float(row["amount"])
+            except (KeyError, TypeError, ValueError):
+                malformed.append(row)
+                continue
+            valid.append({
+                "date": row_date,
+                "amount": amount,
+                "rep": str(row.get("rep", "")).strip() or "unassigned",
+            })
+
+        mtd = [r for r in valid if r["date"].year == as_of.year and r["date"].month == as_of.month]
+        ytd = [r for r in valid if r["date"].year == as_of.year]
+
+        mtd_total = round(sum(r["amount"] for r in mtd), 2)
+        ytd_total = round(sum(r["amount"] for r in ytd), 2)
+
+        by_rep_ytd: dict[str, float] = {}
+        for r in ytd:
+            by_rep_ytd[r["rep"]] = round(by_rep_ytd.get(r["rep"], 0.0) + r["amount"], 2)
+
+        checks = [
+            _check("all_rows_well_formed", not malformed, len(malformed)),
+            _check("at_least_one_valid_row", bool(valid), len(valid)),
+        ]
+        return {
+            "status": "passed" if all(item["passed"] for item in checks) else "needs_human",
+            "checks": checks,
+            "mtd_total": mtd_total,
+            "ytd_total": ytd_total,
+            "by_rep_ytd": by_rep_ytd,
+            "valid_row_count": len(valid),
+            "malformed_row_count": len(malformed),
+            "malformed_rows": malformed,
+        }
+
+
 SPECIALIST_CLASSES: tuple[type[AgencySalesSpecialist], ...] = (
     AccountStrategist,
     DealStrategist,
@@ -412,6 +524,8 @@ SPECIALIST_CLASSES: tuple[type[AgencySalesSpecialist], ...] = (
     OutboundSequenceStrategist,
     PipelineVelocityAnalyst,
     ProposalCoverageStrategist,
+    SalesCoach,
+    SalesDataExtractionAgent,
 )
 
 

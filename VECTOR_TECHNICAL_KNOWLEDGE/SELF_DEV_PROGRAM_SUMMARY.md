@@ -17,7 +17,7 @@ pending independent review, and gives one honest overall verdict per
 | P3 | security | 12 | 3 | 0 | 9 | 0 | Deliberately inert `PatchProposalGenerator`/`PatchProposalVerifier` (no execution path). No YELLOW/RED added. `blockchain-security-auditor`'s original not-built disposition **resolved 2026-09-30**: built as `BlockchainSecurityAuditor`, a deterministic SWC-aligned Solidity pattern scan — see row 3 of the "genuinely open" list below. |
 | P4 | design | 16 | 4 | 0 | 12 | 0 | 18 new GREEN entries (brief+audit pairs, some single-name). |
 | P5 | marketing | 31 | 2 | 0 | 29 | 0 | 58 new GREEN entries. No publish/spend actions built (deliberately). |
-| P6 | agency (sales-*) | 17 | 0 | 0 | 6 | 10 | **Resolved 2026-09-29** (follow-up pass, owner-approved): of the 7 originally-"partial" personas, 6 real evidence-gated agents were built (`AccountStrategist`, `DealStrategist`, `SalesEngineer`, `OutboundSequenceStrategist`, `PipelineVelocityAnalyst`, `ProposalCoverageStrategist`) — `sales-outbound-strategist`/`sales-outreach` intentionally collapsed into one agent (same underlying deterministic capability; two would be count-padding). 12 new GREEN entries. The other 10 "not real" personas from the original pass remain honestly disclosed as not built. Full detail: `SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS.md`. |
+| P6 | agency (sales-*) | 17 | 0 | 0 | 8 | 7 | **Resolved 2026-09-29/09-30** (two follow-up passes, owner-approved): of the 7 originally-"partial" personas, 6 real evidence-gated agents were built (`AccountStrategist`, `DealStrategist`, `SalesEngineer`, `OutboundSequenceStrategist`, `PipelineVelocityAnalyst`, `ProposalCoverageStrategist`) — `sales-outbound-strategist`/`sales-outreach` collapsed into one. Of the original 10 "not real" personas, re-examined individually on 09-30: 2 more real agents built (`SalesCoach` collapsing `sales-coach`/`sales-discovery-coach`; `SalesDataExtractionAgent`), 7 stay honestly not-built (6 no plausible use case for a personal-owner system, 1 `customer-service` a confirmed duplicate of `ops.SupportResponder`). 14 new GREEN entries total. Full detail: `SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS.md` + the second addendum in `SELF_DEV_P6_AGENCY.md`. |
 | P7 | chief_of_staff (product-*) | 5 | 0 | 0 | 5 | 0 | 5 new GREEN entries. |
 | P8 | memory_curator, finance, ops, legal_compliance | 22 | 3 (1 ops same-district + 2 finance) | 6 (zk-steward + 5 ops-scope incl. 2 placement decisions) | 10 (2 memory_curator + 7 ops + 1 legal_compliance) | 3 | 20 new GREEN entries (verified against code: ops has 7 new classes, not the report's initially-stated 8 — `AccountsPayableAgent` was removed as a duplicate during the review-fix pass; confirmed by reading `districts/ops/ops_specialists.py` directly). |
 | P9 | legal_compliance | 5 | 0 | 0 | 5 | 0 | 10 new **YELLOW** entries (owner-mandated default for this district) — the only package with no GREEN entries. |
@@ -25,12 +25,12 @@ pending independent review, and gives one honest overall verdict per
 
 **Totals across P1-P10: 164 personas covered.**
 - Existing real match found under another name/district: **9** same-district + **7** different-district (NEEDS_HUMAN placement) = **16** (P1's 8 are counted separately above since that package certified nothing new — see P1 row)
-- Newly built, real, evidence-checked agents: **97** (14+9+12+29+6+5+10+0+7, P2..P10 minus P1 — recount below; was 90 before the 2026-09-29/09-30 follow-up passes added 6 (P6) + 1 (P3's BlockchainSecurityAuditor))
-- Not built, honestly disclosed: **21** (8+0+0+0+10+0+3+0+0 — P6's 10 added 2026-09-29, P3's 1 resolved to 0 on 2026-09-30; was 12)
+- Newly built, real, evidence-checked agents: **99** (14+9+12+29+8+5+10+0+7, P2..P10 minus P1 — recount below; was 90 before the 2026-09-29/09-30 follow-up passes added 8 total (P6) + 1 (P3's BlockchainSecurityAuditor))
+- Not built, honestly disclosed: **18** (8+0+0+0+7+0+3+0+0 — P6's remaining 7 as of 09-30, P3's 1 resolved to 0 on 2026-09-30; was 12)
 - P1's 8: verification-only, NOT VERIFIED (not "existing-match-certified" — flagged separately, see Overall Verdict)
-- P6: originally 7 partial-coverage-only + 10 not-real, zero certified real. **Resolved 2026-09-29**: 6 of the 7 partial personas became real agents (the 7th, `sales-outbound-strategist`/`sales-outreach`, deliberately collapsed into one of those 6 — see P6 row). The 10 not-real personas remain honestly disclosed as not built.
+- P6: originally 7 partial-coverage-only + 10 not-real, zero certified real. **Resolved across two 2026-09-29/09-30 follow-ups**: 6 of the 7 partial personas became real agents (the 7th, `sales-outbound-strategist`/`sales-outreach`, collapsed into one of those 6), and 3 of the 10 not-real personas became 2 more real agents (`sales-coach`/`sales-discovery-coach` collapsed into one) — see P6 row. The other 7 not-real personas remain honestly disclosed as not built.
 
-Recount of "new, real" column: P2=14, P3=9, P4=12, P5=29, P6=6, P7=5, P8=10, P9=5, P10=7 → **97 new real agents** across the program.
+Recount of "new, real" column: P2=14, P3=9, P4=12, P5=29, P6=8, P7=5, P8=10, P9=5, P10=7 → **99 new real agents** across the program.
 Recount of "existing match" column: P1=8, P2=19, P3=3, P4=4, P5=2, P8=9(same)+... — see per-package numbers above; this figure is not summed into one blended total because P1's existing-coverage claims carry an explicit caveat (not independently re-verified as fully test-gated) that a flat sum would obscure.
 
 ### Reconciling against "239 selected personas" — RESOLVED (2026-09-29, later same session)
@@ -132,7 +132,7 @@ resolved-by-classification. Nothing left unaddressed from the original roster.
 2. ~~**5 ops-scope personas**~~ (P8) — **Not actually open; mis-categorized as NEEDS_HUMAN.** Re-checked 2026-09-29: all 5 placements were already decided with sound reasoning during P8's own build, not left ambiguous. `project-management-experiment-tracker`, `support-analytics-reporter`, `support-executive-summary-generator` already have real matches in `projects`, `data_analytics`, and `chief_of_staff` respectively; `accounts-payable-agent` and `support-finance-tracker` were explicitly placement-decided into `finance`. Verified directly against the live manifest and `core/city/governor.py`: `ops:` has exactly its 7 real agents (`hr_onboarding_specialist`, `jira_workflow_steward`, `project_shepherd`, `support_responder`, `data_consolidation_agent`, `report_distribution_agent`, `corporate_training_designer`), no duplicate or misrouted entry for any of the 5 exists anywhere. The NEEDS_HUMAN flag on P8's backlog task came from the approval gate (finance/legal-compliance keywords), the same class as items 1/3/9 below, not from an unresolved placement question — and that gate was already cleared the same way P2/P3/P9 were (owner chat approval, manual merge). No further owner decision is needed here.
 3. ~~**`blockchain-security-auditor`**~~ (P3) — **Resolved 2026-09-30.** The original disclosure (`SELF_DEV_P3_SECURITY.md`) was correct at the time: no Solidity/Vyper/... subject existed anywhere in VECTOR to audit. Re-read literally: the gap was never a missing *external* data source, it was that VECTOR had nothing to check. Built `BlockchainSecurityAuditor` — a deterministic, SWC Registry-aligned pattern scan over CALLER-SUPPLIED Solidity source (reentrancy ordering, tx.origin auth, floating pragma, unprotected selfdestruct, unchecked call returns, unguarded sensitive functions). Zero live blockchain/RPC/explorer dependency; same evidence-gated `<x>_brief`/`<x>_check` pattern as every other Security specialist. Validated against real safe/vulnerable Solidity samples: zero false positives on the safe contract, all 6 planted defects caught with correct line/function attribution on the vulnerable one. 2 new GREEN tier entries, 15 tests (13 existing + 2 new, all pass).
 4. **P7's persona-file-absence caveat** — like P5/P8, the `.claude/agents/` persona `.md` files for P7's scope were not found in that worktree; scope was inferred from names and district context, disclosed as such in the report.
-5. ~~**P6's entire scope**~~ — **Partially resolved 2026-09-29** (follow-up pass, owner-approved: "do it, use codex and yourself"). Of the original 17 sales-district personas: the follow-up revisited only the 7 "partial" ones — 6 are now real, evidence-gated agents (`sales-outbound-strategist`/`sales-outreach` deliberately collapsed into one — see P6 row and `SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS.md`). The other 10 "not real" personas from the original pass were **not** re-examined in this follow-up and remain disclosed as not built; a future pass could still ask whether any of those 10 have a genuinely distinct capability.
+5. ~~**P6's entire scope**~~ — **Resolved across two follow-ups, 2026-09-29 and 2026-09-30** (owner-approved both times). The first revisited the 7 "partial" personas — 6 became real agents (`sales-outbound-strategist`/`sales-outreach` collapsed into one). The second individually re-examined the remaining 10 "not real" personas (owner asked why they couldn't be solved by Claude/Codex, which prompted an honest per-persona re-check rather than repeating the summary): 3 became 2 more real agents (`sales-coach`/`sales-discovery-coach` collapsed into `SalesCoach`; `sales-data-extraction-agent` → `SalesDataExtractionAgent`), 7 stay disclosed as not-built for specific, examined reasons (6 no plausible use case, 1 confirmed duplicate of `ops.SupportResponder`) — see P6 row and the second addendum in `SELF_DEV_P6_AGENCY.md`.
 6. ~~**P1's verdict**~~ — **RESOLVED 2026-09-29.** QA district's 8 personas were NOT VERIFIED per that
    package's own honest report (missing per-agent real-test gate for 7 of 8, one existing test mocks
    HP/internal state in violation of `.claude/rules/testing.md`). Fixed in a follow-up pass: 17 real
@@ -189,21 +189,21 @@ resolved-by-classification. Nothing left unaddressed from the original roster.
 
 ## Overall verdict
 
-**Program functionally complete, with 2 specific items still genuinely open for owner attention**
+**Program functionally complete, with 1 specific item still genuinely open for owner attention**
 (of the original 7: `zk-steward`'s placement was decided, P1's NOT VERIFIED disposition was fixed,
-the "239 selected" reconciliation gap was closed, P6's zero-certified-real gap was largely closed
-(6 of 7 partial personas built real), the 5 ops-scope items were found to already be decided —
-mis-categorized as NEEDS_HUMAN rather than genuinely open — and `blockchain-security-auditor` was
-built as a real deterministic pattern-scan agent — all in 2026-09-29/09-30 follow-up passes, see
-their entries above/below).
-The remaining 2: P7's persona-file-absence caveat, and P6's 10 still-not-built personas (being
-revisited — see addendum below).
+the "239 selected" reconciliation gap was closed, P6's zero-certified-real gap was resolved (8 of the
+original 17 personas now real, 7 stay honestly not-built for examined reasons), the 5 ops-scope items
+were found to already be decided — mis-categorized as NEEDS_HUMAN rather than genuinely open — and
+`blockchain-security-auditor` was built as a real deterministic pattern-scan agent — all in
+2026-09-29/09-30 follow-up passes, see their entries above/below).
+The remaining 1: P7's persona-file-absence caveat.
 
-This is deliberately not a clean, zero-caveat "PASS": P6 still has 10 not-built personas from its
-original pass, and multiple packages carry explicit NEEDS_HUMAN district-placement flags. Per
-`SELF_DEV_AGENT_SPEC.md`'s own guardrails, none of these are being papered over — they are the honest,
-correct output of a spec that requires disclosure over fabricated capability. 97 new, real,
-evidence-checked agents were built and committed across P2-P10 (none in P1, by design; P6 went from 0
-to 6 in the 2026-09-29 follow-up, P3 went from 8 to 9 in the 2026-09-30 follow-up); every new
-permission-tier entry is GREEN or YELLOW, flagged for the pending independent review, and no existing
-tier was loosened.
+This is deliberately not a clean, zero-caveat "PASS": P6 still has 7 not-built personas (down from
+the original 10, each individually re-examined and disclosed for a specific reason — see the P6 row
+and the second addendum in `SELF_DEV_P6_AGENCY.md`), and P7 carries a persona-file-absence caveat.
+Per `SELF_DEV_AGENT_SPEC.md`'s own guardrails, none of these are being papered over — they are the
+honest, correct output of a spec that requires disclosure over fabricated capability. 99 new, real,
+evidence-checked agents were built and committed across P2-P10 (none in P1, by design; P6 went from
+0 to 8 across the 2026-09-29/09-30 follow-ups, P3 went from 8 to 9 in the 2026-09-30 follow-up);
+every new permission-tier entry is GREEN or YELLOW, flagged for the pending independent review, and
+no existing tier was loosened.
