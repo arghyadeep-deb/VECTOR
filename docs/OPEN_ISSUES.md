@@ -219,14 +219,25 @@ grew open engineering items; section 0 lists them.
     re-acceptance/reconstruction fixes (items 17, 19, not reviewed in this pass — time-boxed rather than
     rushed on a live-reasoning claim that deserves a real second reader), remains worth getting once Codex's
     quota resets.
-22. **Live autonomous-loop soak test, 2026-09-29** — started the real `run_vector.py loop` process
-    (free-tier-only config confirmed: no `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` set) as a background check
-    against item 1's "not yet re-verified against a live multi-hour run" note. Running cleanly: real LightRAG
-    extraction, STT/VAD cycling, and graceful degradation observed (the HUD recorder correctly logs
-    "no reel produced (recorder unavailable)" rather than crashing when the API server isn't also running) —
-    no freeze, no crash, no traceback in the log as of this note. Left running for continued observation;
-    this is a partial, honest data point toward item 1, not a completed "multi-hour" proof — check the log
-    (`$TEMP/v1recon/soak_test_loop.log`) for how long it ran before stopping it.
+22. **Live autonomous-loop soak test, 2026-09-29 — found and fixed a real bug.** Started the real
+    `run_vector.py loop` process (free-tier-only config confirmed: no `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`
+    set) as a background check against item 1's "not yet re-verified against a live multi-hour run" note.
+    ~15 minutes in: real LightRAG extraction, STT/VAD cycling, and graceful degradation all observed correctly
+    (the HUD recorder correctly logs "no reel produced (recorder unavailable)" rather than crashing when the
+    API server isn't also running) — **but found a genuine bug**: a vault note containing a literal tiktoken
+    special-token marker (e.g. `<|endoftext|>`, likely from a pasted raw LLM completion) made LightRAG's
+    chunker raise on every ingest attempt, and the ingestion pipeline was resetting the same
+    permanently-failing document from FAILED back to PENDING and retrying it forever — 186+ failed documents
+    accumulated live in the run, burning real embedding/LLM calls with no path to success. Not a hard freeze
+    of the autonomous loop itself (the exception was already caught and logged as a warning, nothing crashed)
+    but a genuine resource-waste bug — exactly what this soak test existed to catch. **Fixed**:
+    `core/memory/obsidian_sync.py` now neutralizes the 5 tiktoken special-token markers before content ever
+    reaches LightRAG's tokenizer; real regression test proves the exact crash against the actual tiktoken
+    encoder first, then proves the fix. Stopped the soak test after this finding (memory was getting tight,
+    ~9-10GB free, and pushing an OOM risk overnight for more soak time wasn't worth it once a real result was
+    already in hand) — this remains a partial data point (no *hard freeze* observed in that ~15-minute window),
+    not a completed multi-hour proof, but a real bug found and fixed is more valuable than more idle minutes
+    of clean-looking log.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
