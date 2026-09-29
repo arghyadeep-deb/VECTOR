@@ -15,8 +15,10 @@ grew open engineering items; section 0 lists them.
    re-verified against a live multi-hour run.**
 2. **Live re-verification** of the Phase 1–6 fixes (`KNOWN_ISSUES.md` #9) and of the
    2026-09-24 review fixes — needs a live backend.
-3. **`Governor.dispatch()` trusted a caller-supplied `district`** — **CLOSED 2026-09-25** (Claude self-review; an
-   independent Codex review is still owed once its quota is back after 2026-09-27 7:11 PM). Two parts: (a) every
+3. **`Governor.dispatch()` trusted a caller-supplied `district`** — **CLOSED 2026-09-25, re-verified 2026-09-29**
+   (Claude self-review both times — Codex hit its usage limit mid-request during this pass, see
+   `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`; a genuine independent Codex pass is still worth
+   getting once quota resets, but the authorization/receipt code was read directly this time, not assumed). Two parts: (a) every
    consequential agent-declared name that was UNKNOWN is now tiered (`cleanup_logs` RED, `backup_db` YELLOW,
    `delete`/`publish`/`upload`/`prune` RED, `write`/`generate`/`create`/`merge`/... YELLOW; see `core/config.py`); (b) an
    UNKNOWN task type that is not a routing key, alias, agent-declared capability or freshly LLM-classified chat type is
@@ -53,19 +55,31 @@ grew open engineering items; section 0 lists them.
    classifies the unreachable `core/` modules; useful ones were wired (repo-hygiene gate, OAuth refresh and
    cloud heartbeat cron jobs), ten duplicates carry a DORMANT banner. Follow-up designs listed at the end of
    that file (token_juice, semantic_cache, engine agents, secrets providers, sound classifier).
-9. **Licensing**: `THIRD_PARTY_NOTICES.md` + LICENSE files added; `vector_finagent` headers corrected. Still
-   open: several vendored trees (shadowbroker_server, vector_backtest, hedgebot, vector_mlops, mining) have
-   no identifiable upstream/license.
-10. **Uncommitted earlier work**: `core/loop/autonomous_loop.py`, `core/city/agent_base.py`,
-    `core/inference/provider_client.py`, `core/runtime/executor.py` (the 2026-09-23 audit, incl. the
-    plan-starvation fix) sit uncommitted in the working tree. With them present,
-    `tests/test_r26_cognitive_integration.py::...ablation...` and 3 tests in
-    `tests/test_r13_production_learning_validation.py` fail; at committed HEAD r26 passes and r13 fails 2 of
-    3 (a pre-existing reward-arithmetic drift). Review and commit or revert that work.
-12. **Test isolation** (2026-09-24): every pytest session now uses a fresh temp DB/data dir and fails any test
-    that resolves to live state. Verified: 0 live files changed across a 15-batch run. The last batch of
-    that run (and part of batch 10) was killed by the memory guard, so a complete post-change baseline
-    comparison (5,012 / 13 / 36) is still owed — re-run when the machine has headroom.
+9. **Licensing** — **re-investigated 2026-09-29, genuinely unresolvable further, not a code gap**:
+   `THIRD_PARTY_NOTICES.md` + LICENSE files added; `vector_finagent` headers corrected. The 5 vendored trees
+   with no identifiable license (`core/mining`, `districts/intelligence/shadowbroker_server`,
+   `districts/investment/{vector_backtest,vector_hedgebot}`, `districts/coding/vector_mlops`) were checked
+   again: no LICENSE/README/pyproject metadata names an upstream project in any of them, and their own
+   `NOTICE.md` files (written by an earlier, careful audit that deliberately declined to guess at names it
+   couldn't confirm) already say so. Re-checking git history and file headers found nothing new beyond one
+   already-known clue (`core/mining/vllm_pearl.py` names "upstream Pearl `miner-base`" in its own docstring).
+   Same mitigation as the two already-accepted AGPL cases below: personal-use, non-distributed, no other
+   users on the network — treat as all-rights-reserved until identified, revisit only if ever exposed to
+   other users. Not chasing this further without new information would be forcing a guess the original
+   careful audit correctly declined to make.
+10. **"Uncommitted earlier work" note — STALE, confirmed resolved 2026-09-29.** `git status --short` on the
+    current branch is completely clean; `core/loop/autonomous_loop.py`, `core/city/agent_base.py`,
+    `core/inference/provider_client.py`, and `core/runtime/executor.py` all have real, current commits. This
+    note dated from the 2026-09-23 audit and was never updated once that work was committed in a later
+    session. No action needed.
+12. **Test isolation** (2026-09-24) — **superseded 2026-09-29 by a complete, clean full-suite run.** The
+    2026-09-24 note's own baseline (5,012 / 13 / 36) was itself superseded by 6,708 / 0 / 39 (2026-09-27) and
+    now by **6,862 passed / 0 real failures / 39 skipped** (2026-09-29, run via the memory-safe batched
+    runner `$TEMP/suite/run.py` — 25 files per subprocess, never accumulates state across the whole suite;
+    see `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md` for the full run detail, including the one
+    transient network-test flake that was re-run in isolation and came back clean). Every pytest session
+    still uses a fresh temp DB/data dir and fails any test that resolves to live state, per the original
+    2026-09-24 fix.
 11a. **Full-suite run 2026-09-25** (sharded, working tree incl. your uncommitted work): 5,843 passed / 20 failed /
     37 skipped / 379 errors. The 379 errors were ONE polluter — `test_m1e_isolation_fixture.py` popped the
     session's `VECTOR_DB_PATH`, the live-state guard then errored every later test in that batch; fixed (batch
@@ -90,11 +104,21 @@ grew open engineering items; section 0 lists them.
 13. **HUD honesty + vectorcode repair (2026-09-24, commits ffc5554db..001dd53d3)** — DONE: the HUD no longer
     presents demo seed data as live (honest "NO DATA"/UNKNOWN states, verified in a real browser); vectorcode's
     shell tools, agent loop, `run`/`auto`, CLI subcommands, tool registry, skills, tui_gateway imports now work
-    (see the fix report). **Still open in vectorcode**: `agent/context_compressor.py` needs an
-    `agent.context_engine.ContextEngine` base that was never vendored, so the legacy `run_agent.py` path cannot
-    import (the live agent is `engine/agent_loop.py`, which does not use it); `batch_runner` needs the `fire`
-    package; `pty_bridge` is Unix-only; `acp_adapter` needs `agent-client-protocol`; non-Ollama providers are
-    text-only (no tool calling) so `vector run/auto` need a local Ollama model; `mining.vllm_pearl` is missing.
+    (see the fix report). **vectorcode sub-issues re-checked 2026-09-29, several resolved, others narrowed to
+    a precise remaining gap** (the live agent is `engine/agent_loop.py`, none of this legacy path is used by
+    it): `fire` and `agent-client-protocol` were genuinely missing pip packages — **installed**, confirmed by
+    import. `batch_runner.py` and `run_agent.py` (legacy path) now import past that point, but hit a real,
+    different gap: `agent.memory_manager` re-exports `sanitize_context`/`build_memory_context_block` from the
+    canonical `vectorcode.src.memory.manager` fine, but `StreamingContextScrubber` doesn't exist anywhere in
+    that module — genuinely never implemented, not a missing dependency (this is the same underlying
+    "never vendored" gap the old note described, just pinned to the exact missing symbol). `acp_adapter`:
+    diffed its full 33-name import from `acp.schema` against the installed `agent-client-protocol` 0.12.1 (the
+    latest available version, checked via `pip index versions`) — 30 of 33 resolve now; the 3 that don't
+    (`ModelInfo`, `SetSessionModelResponse`, `SessionModelState`) don't exist under any name in any published
+    version 0.0.1-0.12.1, so this is a genuine protocol-version mismatch, not fixable by installing anything.
+    `mining.vllm_pearl` — **stale, the file exists and imports cleanly** (degrades gracefully without the real
+    `vllm` package; the note was outdated). `pty_bridge` — confirmed genuinely Unix-only (unchanged). None of
+    this blocks anything live; it's all the legacy `run_agent.py`/`batch_runner.py`/`acp_adapter` CLI paths.
 14. **Code intelligence** — **INSTALLED 2026-09-25**: `vectorcode/code_intel` dependencies installed (`npm ci`) and built
     (`dist/`), a native Qdrant 1.19.1 in `vectorcode/code_intel/qdrant/` (git-ignored; localhost only, data in
     `~/.vector/qdrant`), `scripts/start_code_intel.bat` / `stop_code_intel.bat`, and the `nomic-embed-text` model you already
@@ -131,7 +155,12 @@ grew open engineering items; section 0 lists them.
     killed by the 02:00 rank cull** -- the cull now needs a record of failing (`VECTOR_FAIR_CULL`, default on). Everything else that changes
     behaviour is behind a flag, default off (`VECTOR_HP_FAIR`, `VECTOR_PLAYBOOK`, `VECTOR_LEVEL_COUNCIL`, `VECTOR_EXPLORE`, `VECTOR_GYM`): enable
     them per the order in the write-up. Honest limit: only GitBot has a practice drill (1 of 230), so "every agent works" depends on real work
-    and on authoring drills per district. For the Codex review: `a2a_bus.py`, the Governor additions, the HP-validator change, probation.
+    and on authoring drills per district. **`a2a_bus.py`'s RED-refusal and the old `request_agent_help` bypass
+    re-verified 2026-09-29 by Claude self-review** (Codex quota-exhausted mid-request; see
+    `CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed `request_agent_help()` now calls `bus.ask()`, not
+    `target.run()` directly, and delivery for GREEN/UNKNOWN tasks goes through `Governor` (inheriting its own
+    authorization checks), by reading the actual current code, not the docstring's claim. Governor additions,
+    HP-validator change, and probation still await a genuine independent Codex pass once quota resets.
 19. **V1 reconstruction and overnight fixes (2026-09-27)** — full write-up: `STAGE_8_V1_REACCEPTANCE_2026-09-26.md` section 8;
     review packet: `CODEX_REVIEW_PACKET_2026-09-27.md`. Verdict B: only final verification remains (Codex review after 19:11 today, your
     live voice/camera checks, a real day of use). Fixed: the 15-27 s API freezes (psutil holding the GIL; child-process scans), five other
@@ -169,6 +198,35 @@ grew open engineering items; section 0 lists them.
     VERIFIED qa disposition, the 239-persona reconciliation gap -- ~65 of the "239 selected" figure were never
     individually re-verified against the Agent Roster artifact in this pass). The 8 duplicate legacy backlog items
     from the pre-existing 24-item backlog (item 18 above) were superseded during this program's cleanup pass.
+
+    **Follow-up pass, 2026-09-29 (owner: "complete it with the help of codex... till all issues are not gone
+    don't stop"):** the 239-persona reconciliation gap above is now closed — read the actual Agent Roster
+    artifact's saved marks directly (239 confirmed) and cross-referenced every one by hand.
+    `slack-archaeologist` was a genuine, previously-undisclosed gap — **built** as `SlackArchaeologist`
+    (security district, real evidence-checked Slack-history reconstruction, no LLM call). Two more
+    (`engineering-senior-developer`, `project-manager-senior`) turned out to be Claude Code's own dev-tooling
+    subagent types (verbatim descriptions, tagged present in the global marketplace) rather than VECTOR
+    personas — resolved by classification, not built. All 239 are now accounted for. Full clean suite re-run
+    after the fix: **6,862 passed / 0 real failures / 39 skipped** (see item 12 above).
+21. **Independent review re-verification, 2026-09-29** — Codex hit its ChatGPT usage limit mid-request
+    ("try again at 8:40 AM") during this pass; per the established fallback, Claude completed a direct
+    self-review instead (full writeup: `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`).
+    **CONFIRMED by reading the actual current code** (not the prose docs): `Governor.dispatch()`'s
+    classify-then-require-a-real-receipt authorization boundary (item 3) is sound, and the A2A bus's
+    RED-refusal plus the old `request_agent_help` bypass closure (item 18) is real — `request_agent_help()`
+    now calls `bus.ask()`, not `target.run()` directly, and GREEN/UNKNOWN delivery goes through `Governor`,
+    inheriting its own checks. A genuine independent second-model pass on these two, plus the V1
+    re-acceptance/reconstruction fixes (items 17, 19, not reviewed in this pass — time-boxed rather than
+    rushed on a live-reasoning claim that deserves a real second reader), remains worth getting once Codex's
+    quota resets.
+22. **Live autonomous-loop soak test, 2026-09-29** — started the real `run_vector.py loop` process
+    (free-tier-only config confirmed: no `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` set) as a background check
+    against item 1's "not yet re-verified against a live multi-hour run" note. Running cleanly: real LightRAG
+    extraction, STT/VAD cycling, and graceful degradation observed (the HUD recorder correctly logs
+    "no reel produced (recorder unavailable)" rather than crashing when the API server isn't also running) —
+    no freeze, no crash, no traceback in the log as of this note. Left running for continued observation;
+    this is a partial, honest data point toward item 1, not a completed "multi-hour" proof — check the log
+    (`$TEMP/v1recon/soak_test_loop.log`) for how long it ran before stopping it.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
