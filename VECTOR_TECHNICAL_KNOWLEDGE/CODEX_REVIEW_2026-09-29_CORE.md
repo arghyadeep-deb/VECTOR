@@ -103,3 +103,59 @@ core review above, every "independent Codex review still owed" item from `docs/O
 17, 18, 19) now has a completed Claude self-review with concrete evidence trails. A genuine
 independent second-model pass remains worth getting on all four once Codex's quota resets — noted
 honestly throughout, not silently dropped — but nothing in this program is blocked waiting for it.
+
+---
+
+## Genuine independent Codex review, 2026-09-29 (~3:10 PM) — quota reset, all 6 items now second-reviewed
+
+Codex's quota reset. Re-ran all 4 core items plus P2 (coding) and P3 (security) as real independent
+reviews — pointed Codex at this document's own file:line evidence trail so it could verify quickly
+rather than rediscover everything from scratch, and explicitly asked it to disagree if it found
+anything wrong, not just rubber-stamp the Claude self-review.
+
+### Core items (Governor authorization, A2A bus, ContinueGate, process_snapshot)
+
+**AGREE on all 4, no disagreements**, with its own independent tool calls and evidence:
+1. **Governor.dispatch authorization boundary** — confirmed classify-before-route, fail-closed on
+   classification error, `FORBIDDEN` always blocked, `YELLOW`/`RED` requires a real
+   `_consume_approval_receipt(purpose="governor_dispatch")`. Also independently found the unknown-type
+   smuggling gate at `governor.py:2762-2774` (`_is_known_task_type()`), which this review hadn't
+   specifically pointed it at.
+2. **A2A bus + `request_agent_help` bypass closure** — confirmed `agent_base.py:563-581` calls
+   `bus.ask()`, not `target.run()`; confirmed `a2a_bus.py:418-432` refuses YELLOW/RED without
+   `escalate=True`; confirmed GREEN/UNKNOWN delivery routes through `Governor().dispatch()`.
+3. **ContinueGate coherence fix** — confirmed the caller passes a real
+   `coherence_scheduler.compute_score("think_loop").overall`, not the ranking score. **Ran the test
+   itself**: `tests/test_think_tick_continue_gate_coherence.py` → 7 passed.
+4. **process_snapshot out-of-process fix** — confirmed the real subprocess + `asyncio.to_thread`
+   wrapping, and added a genuinely new nuance this review hadn't flagged: the anomaly-scan fallback
+   path (if the child process fails) still runs inside the same `to_thread` wrapper, so the event loop
+   stays protected even in that fallback case.
+
+### P2 (coding) — CONFIRMED SAFE
+
+Independently verified: all 14 new specialists are deterministic/evidence-gated (AST parsing,
+regex/source checks, diffs, contract comparisons — no LLM self-judging path); zero dangerous
+primitives (`subprocess`/`eval`/`exec`/`os.system`/file writes/network calls) anywhere in
+`coding_specialists.py`; all 28 GREEN entries present and absent from YELLOW/RED; manifest and
+governor routes match. **Ran the test itself**: `pytest tests/test_coding_specialists.py -q` → 3
+passed.
+
+### P3 (security) — no code-level concern found
+
+Independently verified: no dangerous primitives anywhere in `security_specialists.py` (including the
+patch-proposal roles specifically); all 9 specialists (including the later-added `SlackArchaeologist`)
+confirmed deterministic with no LLM call path; all 18 GREEN entries confirmed present and correct.
+**Could not run the test suite itself** — its read-only sandbox has no writable temp directory, so
+`pytest`'s own `conftest.py` fixture setup fails immediately (a sandbox limitation, not a finding about
+the code; Claude already ran this test file successfully earlier in this program). Overall verdict
+label `CANNOT_VERIFY` reflects that specific execution gap, not a code-level disagreement — it found
+none. Also caught one real, minor documentation staleness: `SELF_DEV_P3_SECURITY.md`'s original
+"eight agents / sixteen GREEN entries" text predates the later `SlackArchaeologist` addition (now 9/18)
+— fixed with an addendum in that file rather than rewritten history.
+
+### Verdict
+
+Every item in `docs/OPEN_ISSUES.md` marked "independent Codex review still owed" is now genuinely
+second-reviewed by Codex, not just Claude-self-reviewed. No disagreements found anywhere; one real
+(harmless) documentation staleness caught and fixed.

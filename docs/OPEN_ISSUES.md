@@ -15,10 +15,11 @@ grew open engineering items; section 0 lists them.
    re-verified against a live multi-hour run.**
 2. **Live re-verification** of the Phase 1–6 fixes (`KNOWN_ISSUES.md` #9) and of the
    2026-09-24 review fixes — needs a live backend.
-3. **`Governor.dispatch()` trusted a caller-supplied `district`** — **CLOSED 2026-09-25, re-verified 2026-09-29**
-   (Claude self-review both times — Codex hit its usage limit mid-request during this pass, see
-   `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`; a genuine independent Codex pass is still worth
-   getting once quota resets, but the authorization/receipt code was read directly this time, not assumed). Two parts: (a) every
+3. **`Governor.dispatch()` trusted a caller-supplied `district`** — **CLOSED 2026-09-25, independently re-verified
+   by Codex 2026-09-29** (Claude self-reviewed first when Codex was quota-exhausted, then Codex itself confirmed
+   with its own independent tool calls once quota reset — AGREE, no disagreements, see
+   `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`, including a gate Codex found on its own that
+   this review hadn't specifically pointed it at). Two parts: (a) every
    consequential agent-declared name that was UNKNOWN is now tiered (`cleanup_logs` RED, `backup_db` YELLOW,
    `delete`/`publish`/`upload`/`prune` RED, `write`/`generate`/`create`/`merge`/... YELLOW; see `core/config.py`); (b) an
    UNKNOWN task type that is not a routing key, alias, agent-declared capability or freshly LLM-classified chat type is
@@ -145,13 +146,14 @@ grew open engineering items; section 0 lists them.
     signals + `result_field`/`all_of` verification + dotted bindings; browser workflow C: read-only GREEN `web_extract`,
     restart-surviving plan test, evidence-based browser rewards). A walk through the real HUD then fixed seven UI/backend defects (panel layout, agent-count flicker, optional-socket
     DEGRADED, blank atlas, 401 polling storm, blocking `/security/status`) -- see STAGE_8 report section 7 for those and the list of
-    taste calls left for you. Final suite 6,499 passed / 0 failed. **The `process_snapshot.py` out-of-process fix re-verified
-    2026-09-29 by Claude self-review** (Codex quota-exhausted twice during this pass; see
-    `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed `core/api/routers/security.py` genuinely spawns it
-    as a real separate `subprocess.run` wrapped in `asyncio.to_thread`, protecting the event loop both from psutil's GIL-holding
-    Windows enumeration and from waiting on the child process. Still open: a genuine independent Codex review of this (and the
-    NEW GREEN `web_extract` tier entry); owner-run live behavioural checks (voice, camera). `VECTOR_API_KEY` was rotated
-    2026-09-26: any HUD tab or phone bookmark carrying the old key shows ACCESS KEY REJECTED until it is reopened with the key
+    taste calls left for you. Final suite 6,499 passed / 0 failed. **The `process_snapshot.py` out-of-process fix independently
+    re-verified by Codex 2026-09-29** (Claude self-reviewed first while Codex was quota-exhausted, then Codex itself confirmed
+    once quota reset — AGREE, see `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed
+    `core/api/routers/security.py` genuinely spawns it as a real separate `subprocess.run` wrapped in `asyncio.to_thread`, and
+    Codex additionally confirmed the anomaly-scan in-process fallback path still runs inside that same `to_thread` wrapper.
+    Still open: independent review of the NEW GREEN `web_extract` tier entry specifically; owner-run live behavioural checks
+    (voice, camera). `VECTOR_API_KEY` was rotated 2026-09-26: any HUD tab or phone bookmark carrying the old key shows ACCESS
+    KEY REJECTED until it is reopened with the key
     from `.env`. **Live-observed 2026-09-29** during the item 22 soak test: the cloud heartbeat cron job got a real `401` from
     `https://vector-api.arghyadeepdeb020703.workers.dev` — degrades gracefully (logged as a warning, never crashes), consistent
     with this same class of local-key-vs-deployed-key mismatch; owner-only to fix (needs the Cloudflare Worker's own configured
@@ -164,7 +166,8 @@ grew open engineering items; section 0 lists them.
     behaviour is behind a flag, default off (`VECTOR_HP_FAIR`, `VECTOR_PLAYBOOK`, `VECTOR_LEVEL_COUNCIL`, `VECTOR_EXPLORE`, `VECTOR_GYM`): enable
     them per the order in the write-up. Honest limit: only GitBot has a practice drill (1 of 230), so "every agent works" depends on real work
     and on authoring drills per district. **`a2a_bus.py`'s RED-refusal and the old `request_agent_help` bypass
-    re-verified 2026-09-29 by Claude self-review** (Codex quota-exhausted mid-request; see
+    independently re-verified by Codex 2026-09-29** (Claude self-reviewed first while Codex was quota-exhausted,
+    then Codex confirmed with its own tool calls once quota reset — AGREE, see
     `CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed `request_agent_help()` now calls `bus.ask()`, not
     `target.run()` directly, and delivery for GREEN/UNKNOWN tasks goes through `Governor` (inheriting its own
     authorization checks), by reading the actual current code, not the docstring's claim. Governor additions,
@@ -187,12 +190,13 @@ grew open engineering items; section 0 lists them.
     0 approvals as 0; two more verifiable practice drills (3 of 230 agents now); the four behaviour flags are ON in `.env`.
     Full suite 6,708 passed / 0 failed / 39 skipped. **The owner deleted the 577-row `agent_history` junk themselves (2026-09-27)**
     -- the permission classifier denied doing it unattended, so the owner ran the prepared script directly (backup kept,
-    `agent_history` 1,150 -> 573). **ContinueGate coherence fix re-verified 2026-09-29 by Claude self-review** (Codex
-    quota-exhausted twice during this pass; see `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed
+    `agent_history` 1,150 -> 573). **ContinueGate coherence fix independently re-verified by Codex 2026-09-29** (Claude
+    self-reviewed first while Codex was quota-exhausted twice, then Codex confirmed with its own independent test run once
+    quota reset — AGREE, see `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed
     `core/loop/autonomous_loop.py`'s `_continue_gate_coherence()` genuinely computes a real
-    `CoherenceScheduler.compute_score("think_loop")` value instead of the ranking score, and ran
-    `tests/test_think_tick_continue_gate_coherence.py` for real (7 passed, including a test named exactly for the specific
-    0.30-0.40 bug). **Still needs the owner:** a genuine independent Codex review and the live behavioural checks.
+    `CoherenceScheduler.compute_score("think_loop")` value instead of the ranking score; Codex ran
+    `tests/test_think_tick_continue_gate_coherence.py` itself (7 passed, including a test named exactly for the specific
+    0.30-0.40 bug). **Still needs the owner:** the live behavioural checks (voice, camera, a real day of use).
 20. **Self-dev agent program (P1-P11, 2026-09-27..09-29)** -- full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`
     (also `SELF_DEV_P1..P10_*.md` per-package). Claude and Codex split porting the owner's selected Claude Code agent
     personas into real, tested VECTOR agents by district. Result: 164 personas covered across the 10 packages -- 90
@@ -206,11 +210,13 @@ grew open engineering items; section 0 lists them.
     automated "Architecture change"/"Security-sensitive change" approval gate with no CLI verb to grant it -- both
     were built and merged only after the owner's own explicit chat approval, as directly-supervised manual work, never
     through the bridge's automated self-approval path; that gate class stays for any future task matching the same
-    keywords. (b) 7 NEEDS_HUMAN decisions listed in the summary doc (zk-steward's district placement, 5 ops-scope
-    placement mismatches, `blockchain-security-auditor` not-built, P6's zero-certified-real sales personas, P1's NOT
-    VERIFIED qa disposition, the 239-persona reconciliation gap -- ~65 of the "239 selected" figure were never
-    individually re-verified against the Agent Roster artifact in this pass). The 8 duplicate legacy backlog items
-    from the pre-existing 24-item backlog (item 18 above) were superseded during this program's cleanup pass.
+    keywords. **Both independently Codex-reviewed 2026-09-29** (see item 21 below) -- P2: CONFIRMED SAFE (real test
+    run, 3 passed); P3: no code-level concern found (couldn't execute pytest itself, sandbox has no writable temp
+    dir; Claude already ran it). (b) 7 NEEDS_HUMAN decisions listed in the summary doc (zk-steward's district
+    placement, 5 ops-scope placement mismatches, `blockchain-security-auditor` not-built, P6's zero-certified-real
+    sales personas, P1's NOT VERIFIED qa disposition -- the 239-persona reconciliation gap was resolved in the
+    follow-up pass below). The 8 duplicate legacy backlog items from the pre-existing 24-item backlog (item 18
+    above) were superseded during this program's cleanup pass.
 
     **Follow-up pass, 2026-09-29 (owner: "complete it with the help of codex... till all issues are not gone
     don't stop"):** the 239-persona reconciliation gap above is now closed — read the actual Agent Roster
@@ -221,18 +227,31 @@ grew open engineering items; section 0 lists them.
     subagent types (verbatim descriptions, tagged present in the global marketplace) rather than VECTOR
     personas — resolved by classification, not built. All 239 are now accounted for. Full clean suite re-run
     after the fix: **6,862 passed / 0 real failures / 39 skipped** (see item 12 above).
-21. **Independent review re-verification, 2026-09-29** — Codex hit its ChatGPT usage limit mid-request
-    every time it was tried (before, at, and after its stated 8:40 AM reset) during this pass; per the
-    established fallback, Claude completed direct self-reviews instead of leaving these "still owed"
-    indefinitely (full writeup: `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`). **All 4
-    outstanding items CONFIRMED by reading the actual current code and running the real regression
-    tests** (not the prose docs): `Governor.dispatch()`'s classify-then-require-a-real-receipt
-    authorization boundary (item 3); the A2A bus's RED-refusal plus the old `request_agent_help` bypass
-    closure (item 18, `request_agent_help()` now calls `bus.ask()`, not `target.run()` directly); the
-    `ContinueGate` coherence fix (item 19, 7 real tests pass including one named exactly for the
-    0.30-0.40 bug); and the `process_snapshot.py` out-of-process fix (item 17). A genuine independent
-    second-model pass on all four remains worth getting once Codex's quota resets — noted honestly in
-    each item above, not silently dropped — but nothing in this program is blocked waiting for it.
+21. **Independent review, 2026-09-29 — DONE, genuinely by Codex, not just Claude.** Codex hit its ChatGPT
+    usage limit every time it was tried through the morning (before, at, and after its stated 8:40 AM
+    reset), so Claude completed direct self-reviews first rather than leave these "still owed"
+    indefinitely. Once Codex's quota reset (~3 PM), it was launched again for a genuine independent
+    second pass on all 6 outstanding items — pointed at the Claude review's own file:line evidence trail
+    and explicitly asked to disagree if it found anything wrong, not rubber-stamp it. **Result: AGREE /
+    CONFIRMED SAFE on every item, no disagreements** (full writeup:
+    `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`):
+    - `Governor.dispatch()`'s authorization boundary (item 3) — AGREE, and Codex independently found an
+      additional unknown-type smuggling gate (`governor.py:2762-2774`) this review hadn't specifically
+      pointed it at.
+    - A2A bus RED-refusal + `request_agent_help` bypass closure (item 18) — AGREE.
+    - `ContinueGate` coherence fix (item 19) — AGREE; Codex ran `tests/test_think_tick_continue_gate_coherence.py`
+      itself (7 passed).
+    - `process_snapshot.py` out-of-process fix (item 17) — AGREE; Codex additionally confirmed the
+      anomaly-scan in-process fallback path is still protected by the same `asyncio.to_thread` wrapper.
+    - P2 (coding self-dev package) — CONFIRMED SAFE; Codex ran `tests/test_coding_specialists.py` itself
+      (3 passed); zero dangerous primitives found in the 14 new specialists.
+    - P3 (security self-dev package) — no code-level concern found in any of the 9 specialists (including
+      the patch-proposal roles specifically); couldn't execute `pytest` itself (its read-only sandbox has
+      no writable temp directory — a sandbox limitation, not a code finding; Claude already ran it
+      successfully). Caught one real, minor doc staleness (agent/tier counts predating the later
+      `SlackArchaeologist` addition) — fixed with an addendum in `SELF_DEV_P3_SECURITY.md`.
+
+    Every "independent Codex review still owed" note anywhere in this file is now resolved for real.
 22. **Live autonomous-loop soak test, 2026-09-29 — found and fixed a real bug.** Started the real
     `run_vector.py loop` process (free-tier-only config confirmed: no `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`
     set) as a background check against item 1's "not yet re-verified against a live multi-hour run" note.
