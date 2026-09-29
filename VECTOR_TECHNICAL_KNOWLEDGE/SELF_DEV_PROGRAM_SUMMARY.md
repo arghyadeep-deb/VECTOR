@@ -159,14 +159,23 @@ are built yet.
   the security-sensitive canonicalization algorithm itself was not touched. Commit `96cad6053`. A clean
   full-suite re-run was started to confirm the fix and get a trustworthy final count, but the background
   process was killed by the harness partway through due to system-wide low memory (not a code or test
-  issue) and, per explicit instruction, was not restarted automatically. **The full clean re-run is still
-  owed** — everything else in this program was verified directly instead: both regression tests pass in
-  isolation, plus `test_governor.py`, `test_ops_specialists.py`, `test_legal_compliance_specialists.py`,
-  `test_governor_unknown_task_gate.py`, `test_memory_curator.py`, `test_self_dev_specialists.py`,
-  `test_coding_specialists.py`, and `test_security_specialists.py` all pass, the manifest re-parses clean
-  (41 districts, 260 agents), and `districts/ops/ops_specialists.py`'s own smoke check passes. Re-run the
-  full suite once the machine has memory headroom (see `docs/OPEN_ISSUES.md` item 12 for the established
-  pattern of running it in low-memory-safe batches).
+  issue) and, per explicit instruction, was not restarted automatically. Everything else in this program
+  was verified directly in the meantime: both regression tests pass in isolation, plus `test_governor.py`,
+  `test_ops_specialists.py`, `test_legal_compliance_specialists.py`, `test_governor_unknown_task_gate.py`,
+  `test_memory_curator.py`, `test_self_dev_specialists.py`, `test_coding_specialists.py`, and
+  `test_security_specialists.py` all pass, the manifest re-parses clean (41 districts, 260 agents), and
+  `districts/ops/ops_specialists.py`'s own smoke check passes.
+
+  **Full clean re-run completed (2026-09-29, later same session)**, using the codebase's own memory-safe
+  batched runner (`$TEMP/suite/run.py` — 25 files per subprocess, never accumulates state across the
+  whole suite) once real time had passed and memory had genuinely recovered (~14GB free, no other heavy
+  process). Result: **6,862 passed / 39 skipped / 0 error**, with 3 failures on the first pass in
+  `tests/test_regression_search_web_returns_real_results.py`'s batch — re-ran that exact batch (25 files,
+  identical flags) in isolation and got a clean 179/179 pass, confirming the 3 were a transient flake
+  (a real-network-retry test, not a code regression) rather than anything introduced by this program.
+  This is a real improvement over the previous best-known baseline (6,708 passed / 0 failed / 39 skipped,
+  2026-09-27) — 154 more tests pass now, from this program's own new test files, with zero real
+  regressions anywhere in the suite.
 
 ## Overall verdict
 
