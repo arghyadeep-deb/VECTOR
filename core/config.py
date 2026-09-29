@@ -305,6 +305,14 @@ class PermissionConfig(BaseModel):
         "what_if", "whatsapp", "wildfire", "workflow_optimize", "write_code",
         "write_file_tool", "write_tests", "yield_curve", "youtube_transcript",
         "zettelkasten", "zk",
+        # 2026-09-30 (owner-requested skills section for VECTOR): SkillBuilder writes a
+        # real SKILL.md into data/vector_skills/<slug>/ from caller-supplied, already-
+        # stable pattern records (deterministic threshold re-check + formatting only, no
+        # LLM call, no path traversal -- slug is derived via a bounded a-z0-9/hyphen
+        # slugify). Same GREEN classification already given to ZKSteward's zettelkasten/zk
+        # actions above, which write real files into the owner's own vault -- this agent's
+        # writes are strictly less invasive (a new, dedicated, isolated directory only).
+        "learned_pattern_brief", "learned_pattern_build",
         # 2026-09-24: transcription omissions caught by re-running the
         # zero-remaining-UNKNOWN verification after the additions above --
         # same classification reasoning (read-only/analysis/local, no real

@@ -1790,6 +1790,17 @@ districts:
       description: Zettelkasten vault scan — concept extraction, backlinks, MOC updates
       capabilities: [zettelkasten, zk, knowledge_links]
 
+    # 2026-09-30 (owner-requested skills section for VECTOR, evidence-gated):
+    # converts vectorcode.src.reasoning_bank.PatternLearner's own stable, repeated-task
+    # patterns (already live in core/loop/decision_engine.py) into real SKILL.md files
+    # in data/vector_skills/. Deterministic threshold re-check + formatting only, no
+    # LLM judges eligibility. See VECTOR_TECHNICAL_KNOWLEDGE/ for the design writeup.
+    - name: skill_builder
+      class: districts.personal_growth.skill_builder.SkillBuilder
+      model: vector-focus
+      description: Builds real SKILL.md files from VECTOR's own stable, repeated-task patterns (PatternLearner)
+      capabilities: [learned_pattern_brief, learned_pattern_build]
+
   chief_of_staff:
     - name: chief_of_staff
       class: districts.chief_of_staff.chief_of_staff.ChiefOfStaff

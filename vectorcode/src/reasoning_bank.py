@@ -665,6 +665,29 @@ class PatternLearner:
         )
         return [p.strategy for p in patterns[:top_k]]
 
+    def stable_patterns(self, task_type: Optional[str] = None) -> List[Pattern]:
+        """Return every pattern that has crossed the stability threshold
+        (repeated >= config.min_usages_for_stable times with reward above
+        config.quality_threshold — see extract()). Highest quality first.
+
+        No public accessor previously existed for the full stable set
+        (stats() only returns aggregates, get_best_strategies() only returns
+        strategy text) — added for consumers that need the real Pattern
+        objects themselves, e.g. turning a stable pattern into a reusable
+        artifact.
+
+        Args:
+            task_type: filter to a specific type, or None for all
+
+        Returns:
+            List of stable Pattern objects, highest quality_score first.
+        """
+        patterns = [p for p in self._patterns.values() if p.stable]
+        if task_type:
+            patterns = [p for p in patterns if p.task_type == task_type]
+        patterns.sort(key=lambda p: p.quality_score, reverse=True)
+        return patterns
+
     def stats(self) -> Dict[str, Any]:
         """Return learner statistics."""
         patterns = list(self._patterns.values())
@@ -830,5 +853,32 @@ if __name__ == "__main__":
 
         learner2 = PatternLearner(path=patterns_path, auto_load=True)
         assert learner2.stats()["total"] == learner.stats()["total"]
+
+        # stable_patterns(): a genuinely repeated task (same task_type, near-
+        # identical text so it merges rather than creating new patterns)
+        # crosses min_usages_for_stable and becomes retrievable; a one-off
+        # low-reward task never does.
+        for _ in range(3):
+            learner.extract(
+                task="restart the stalled ingestion worker",
+                reasoning="Check the queue depth, then send SIGTERM, then relaunch.",
+                outcome="Worker restarted cleanly.",
+                reward=0.8,
+            )
+        learner.extract(
+            task="one-off task nobody repeats",
+            reasoning="Did something unique once.",
+            outcome="Done.",
+            reward=0.3,  # below quality_threshold too, so extract() itself skips it
+        )
+        stable = learner.stable_patterns()
+        assert stable, "a task repeated 3x above quality_threshold must produce a stable pattern"
+        assert all(p.stable for p in stable)
+        assert all(p.usage_count >= learner.config.min_usages_for_stable for p in stable)
+        assert not any(p.strategy.startswith("Did something unique once") for p in stable)
+
+        filtered = learner.stable_patterns(task_type=stable[0].task_type)
+        assert all(p.task_type == stable[0].task_type for p in filtered)
+        assert learner.stable_patterns(task_type="_no_such_type_") == []
 
     print("✅ reasoning_bank OK")

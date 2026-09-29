@@ -1021,6 +1021,8 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "zettelkasten": "personal_growth",
     "zk": "personal_growth",
     "knowledge_links": "personal_growth",
+    "learned_pattern_brief": "personal_growth",
+    "learned_pattern_build": "personal_growth",
     # documentation
     # qa
     "reality_check": "qa",

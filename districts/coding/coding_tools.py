@@ -174,21 +174,82 @@ def get_hooks_manager(hooks_config: list[dict] | None = None):
 
 
 # ── skills system ─────────────────────────────────────────────────────────────
+# Reads VECTOR's own skills directory (data/vector_skills/, one subdirectory
+# per skill, each holding a SKILL.md -- same frontmatter format Claude Code
+# uses, but this directory is VECTOR-only; Claude does not auto-discover it).
+# Uses the lightweight parser/models from core.coding_assistant.core.skills
+# directly rather than that module's own SkillManager class, which requires
+# a VectorCAConfig + an explicitly-initialized HarnessFilesManager singleton
+# (core.coding_assistant.core.config.harness_files) neither of which VECTOR's
+# runtime sets up -- routing through it would raise RuntimeError on every
+# call. This was the real, unverified bug in the previous implementation:
+# it also called a since-renamed SkillManager(skills_dirs=...) constructor
+# (the real signature takes a config_getter callable) and read a
+# skill.content attribute that has never existed on SkillInfo (the real
+# field is `prompt`) -- three independent breaks stacked on one function,
+# meaning it has never successfully returned a skill.
+
+def _vector_skills_dir() -> Path:
+    from core.runtime_paths import data_path
+    return data_path("vector_skills")
+
+
+def _parse_skill_dir(skill_dir: Path):
+    """Return a SkillInfo for skill_dir/SKILL.md, or None if missing/invalid."""
+    from core.coding_assistant.core.skills.models import SkillInfo, SkillMetadata
+    from core.coding_assistant.core.skills.parser import SkillParseError, parse_skill_markdown
+
+    skill_file = skill_dir / "SKILL.md"
+    if not skill_file.is_file():
+        return None
+    try:
+        content = skill_file.read_text(encoding="utf-8")
+        frontmatter, body = parse_skill_markdown(content)
+        metadata = SkillMetadata.model_validate(frontmatter)
+        return SkillInfo.from_metadata(metadata, skill_file, prompt=body.strip())
+    except (SkillParseError, OSError, ValueError) as e:
+        logger.warning("[VECTOR][coding_tools] failed to parse skill at {}: {}", skill_file, e)
+        return None
+
 
 def load_skill(skill_name: str) -> dict | None:
-    """Load a skill definition from ~/.claude/skills/<name>/SKILL.md."""
+    """Load one skill's parsed content from VECTOR's own skills directory
+    (data/vector_skills/<skill_name>/SKILL.md)."""
     try:
-        from core.coding_assistant.core.skills.manager import SkillManager
-        from core.coding_assistant.core.paths import GLOBAL_SKILLS_DIR
-        manager = SkillManager(skills_dirs=[GLOBAL_SKILLS_DIR])
-        skill = manager.get_skill(skill_name)
-        if skill:
-            return {"name": skill.name, "description": skill.description,
-                    "content": skill.content}
-        return None
+        skills_dir = _vector_skills_dir()
+        skill_dir = skills_dir / skill_name
+        skill = _parse_skill_dir(skill_dir)
+        if skill is None:
+            return None
+        return {
+            "name": skill.name,
+            "description": skill.description,
+            "prompt": skill.prompt,
+            "metadata": skill.metadata,
+        }
     except Exception as e:
         logger.warning("[VECTOR][coding_tools] load_skill failed: {}", e)
         return None
+
+
+def list_skills() -> list[dict]:
+    """List every skill available in VECTOR's own skills directory (name +
+    description only, not the full prompt body)."""
+    try:
+        skills_dir = _vector_skills_dir()
+        if not skills_dir.is_dir():
+            return []
+        found: list[dict] = []
+        for entry in sorted(skills_dir.iterdir()):
+            if not entry.is_dir():
+                continue
+            skill = _parse_skill_dir(entry)
+            if skill is not None:
+                found.append({"name": skill.name, "description": skill.description})
+        return found
+    except Exception as e:
+        logger.warning("[VECTOR][coding_tools] list_skills failed: {}", e)
+        return []
 
 
 # ── jcode tools (ported from high-performance agent harness) ──────────────────

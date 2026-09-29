@@ -413,6 +413,39 @@ grew open engineering items; section 0 lists them.
     (the tiktoken/LightRAG issue above), one benign optional-dependency gap documented, zero hard freezes, zero
     new code changes needed from this second run.
 
+23. **VECTOR skills system: a real 3-layer bug fixed, SkillBuilder added, 2026-09-30 —**
+    full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/SKILLS_SYSTEM.md`. Owner asked for "a skills section for
+    VECTOR... for claude's use as well as a skill builder according to a use of repeated task." Investigated
+    before building anything: VECTOR already has **5 separate, non-unified skill-loading mechanisms**
+    (`core/coding_assistant/core/skills/`, `vectorcode/src/skills/`, `districts/marketing/_skill_loader.py`
+    used live by 10+ agents, `districts/investment/vector_backtest/`'s own loader + a manual
+    save/patch/delete skill-writer, `districts/intelligence/vectorintel_agent.py`'s own) -- none unified in
+    this pass, several already load-bearing and working. Found `districts/coding/coding_tools.py::load_skill()`
+    (governor-wired, real dispatchable action) has **never worked**: a constructor call to a signature that
+    has never existed, an import of a module that does not exist, a read of an attribute (`skill.content`)
+    that has never existed on `SkillInfo` (real field: `prompt`), and even a corrected call would hit an
+    uninitialized `HarnessFilesManager` singleton VECTOR's runtime never sets up -- all four silently
+    swallowed by one broad exception handler. Fixed by bypassing the heavy config/harness-dependent
+    `SkillManager` class and reusing only its lightweight, dependency-free parser/models directly; verified
+    end-to-end against real written `SKILL.md` files. Reads/writes VECTOR's own `data/vector_skills/`
+    directory (owner's explicit choice over Claude's global or project `.claude/skills/`).
+    Built `SkillBuilder` (`districts/personal_growth/skill_builder.py`) for the "repeated task" half --
+    the detector already existed and was already live (`vectorcode/src/reasoning_bank.py`'s `PatternLearner`,
+    wired into `core/loop/decision_engine.py`, already tracks real task repetition and marks a pattern
+    `stable` after 3+ real repeats above a reward threshold); nothing new needed building there. What was
+    missing was converting a stable pattern into an actual file -- added `PatternLearner.stable_patterns()`
+    (a small, safe, additive public accessor; none existed) and `SkillBuilder`, which deterministically
+    re-checks eligibility (never an LLM judgment) and writes a real `SKILL.md` per eligible pattern. Caught
+    a real word-overlap collision before finalizing action names (`skill_pattern_brief` resolved to
+    self_dev's existing `skill_review_brief` via the fallback matcher -- self_dev owns six other `skill_*`
+    actions) -- renamed to `learned_pattern_brief`/`learned_pattern_build`, re-verified clean. GREEN tier
+    (same classification already given to `ZKSteward`'s real vault-file-writing actions, a strictly more
+    invasive precedent). 14 new tests across two files, all pass; manifest re-parses clean (41 districts,
+    274 agents, zero duplicate keys); 62 + 42 broader regression tests pass confirming nothing existing was
+    disturbed. **Deliberately not done:** the other 4 skill mechanisms were not unified (separate, larger,
+    higher-risk task); `collect_stable_patterns() -> SkillBuilder` is not yet wired into any scheduled job
+    (a one-line follow-up once the owner wants it running unattended, not assumed here).
+
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
