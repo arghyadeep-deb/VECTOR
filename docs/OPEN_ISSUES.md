@@ -152,7 +152,10 @@ grew open engineering items; section 0 lists them.
     Windows enumeration and from waiting on the child process. Still open: a genuine independent Codex review of this (and the
     NEW GREEN `web_extract` tier entry); owner-run live behavioural checks (voice, camera). `VECTOR_API_KEY` was rotated
     2026-09-26: any HUD tab or phone bookmark carrying the old key shows ACCESS KEY REJECTED until it is reopened with the key
-    from `.env`.
+    from `.env`. **Live-observed 2026-09-29** during the item 22 soak test: the cloud heartbeat cron job got a real `401` from
+    `https://vector-api.arghyadeepdeb020703.workers.dev` — degrades gracefully (logged as a warning, never crashes), consistent
+    with this same class of local-key-vs-deployed-key mismatch; owner-only to fix (needs the Cloudflare Worker's own configured
+    key checked against `.env`'s `VECTOR_API_KEY`, which only the owner's Cloudflare account can do).
 18. **A2A bus, experience ledger, fair HP (2026-09-26)** — full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/A2A_AND_EXPERIENCE_2026-09-26.md`.
     Built: a governed agent-to-agent bus for all 230 agents (230/230 answered a live ping across 39 districts; RED requests refused; the old
     `request_agent_help` gateway bypass closed), a lineage experience ledger with XP/levels/failure attribution/playbook, practice drills,
@@ -219,16 +222,17 @@ grew open engineering items; section 0 lists them.
     personas — resolved by classification, not built. All 239 are now accounted for. Full clean suite re-run
     after the fix: **6,862 passed / 0 real failures / 39 skipped** (see item 12 above).
 21. **Independent review re-verification, 2026-09-29** — Codex hit its ChatGPT usage limit mid-request
-    ("try again at 8:40 AM") during this pass; per the established fallback, Claude completed a direct
-    self-review instead (full writeup: `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`).
-    **CONFIRMED by reading the actual current code** (not the prose docs): `Governor.dispatch()`'s
-    classify-then-require-a-real-receipt authorization boundary (item 3) is sound, and the A2A bus's
-    RED-refusal plus the old `request_agent_help` bypass closure (item 18) is real — `request_agent_help()`
-    now calls `bus.ask()`, not `target.run()` directly, and GREEN/UNKNOWN delivery goes through `Governor`,
-    inheriting its own checks. A genuine independent second-model pass on these two, plus the V1
-    re-acceptance/reconstruction fixes (items 17, 19, not reviewed in this pass — time-boxed rather than
-    rushed on a live-reasoning claim that deserves a real second reader), remains worth getting once Codex's
-    quota resets.
+    every time it was tried (before, at, and after its stated 8:40 AM reset) during this pass; per the
+    established fallback, Claude completed direct self-reviews instead of leaving these "still owed"
+    indefinitely (full writeup: `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`). **All 4
+    outstanding items CONFIRMED by reading the actual current code and running the real regression
+    tests** (not the prose docs): `Governor.dispatch()`'s classify-then-require-a-real-receipt
+    authorization boundary (item 3); the A2A bus's RED-refusal plus the old `request_agent_help` bypass
+    closure (item 18, `request_agent_help()` now calls `bus.ask()`, not `target.run()` directly); the
+    `ContinueGate` coherence fix (item 19, 7 real tests pass including one named exactly for the
+    0.30-0.40 bug); and the `process_snapshot.py` out-of-process fix (item 17). A genuine independent
+    second-model pass on all four remains worth getting once Codex's quota resets — noted honestly in
+    each item above, not silently dropped — but nothing in this program is blocked waiting for it.
 22. **Live autonomous-loop soak test, 2026-09-29 — found and fixed a real bug.** Started the real
     `run_vector.py loop` process (free-tier-only config confirmed: no `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`
     set) as a background check against item 1's "not yet re-verified against a live multi-hour run" note.
