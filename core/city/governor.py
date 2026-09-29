@@ -1278,6 +1278,21 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "proposal": "agency",
     "roi": "agency",
     "outreach": "agency",
+    # SELF_DEV_P6 follow-up (2026-09-29): exact routes for deterministic
+    # evidence-gated Agency sales specialists. Exact keys avoid the
+    # word-overlap fallback bug class covered by owner routing fixtures.
+    "acct_health_brief": "agency",
+    "acct_health_check": "agency",
+    "deal_meddpicc_brief": "agency",
+    "deal_meddpicc_check": "agency",
+    "tech_fit_brief": "agency",
+    "tech_fit_check": "agency",
+    "out_seq_brief": "agency",
+    "out_seq_check": "agency",
+    "pipe_velocity_brief": "agency",
+    "pipe_velocity_check": "agency",
+    "prop_coverage_brief": "agency",
+    "prop_coverage_check": "agency",
     # governance additions
     "prd": "governance",
     "roadmap": "governance",

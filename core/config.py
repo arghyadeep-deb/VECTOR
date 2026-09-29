@@ -414,6 +414,17 @@ class PermissionConfig(BaseModel):
         "data_consolidation_brief", "data_consolidation_check", "report_distribution_brief",
         "report_distribution_validate", "training_design_brief", "training_outline_check",
         "legal_compliance_brief", "legal_compliance_check",
+        # 2026-09-29 SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS: 12 NEW GREEN entries
+        # (tier additions only; no existing tier changed or loosened), flagged for
+        # the pending independent review. Handlers: districts/agency/agency_specialists.py.
+        # Every action is an in-memory brief/check over caller-supplied sales evidence;
+        # no LLM call, external send, file write, CRM mutation, or proposal generation.
+        "acct_health_brief", "acct_health_check",
+        "deal_meddpicc_brief", "deal_meddpicc_check",
+        "tech_fit_brief", "tech_fit_check",
+        "out_seq_brief", "out_seq_check",
+        "pipe_velocity_brief", "pipe_velocity_check",
+        "prop_coverage_brief", "prop_coverage_check",
         # 2026-09-29 SELF_DEV_P2_CODING: 28 NEW GREEN entries (tier additions only;
         # no existing tier changed or loosened), flagged for the pending independent
         # review. Handlers: districts/coding/coding_specialists.py. All actions are
