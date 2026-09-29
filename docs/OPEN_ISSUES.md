@@ -214,9 +214,23 @@ grew open engineering items; section 0 lists them.
     run, 3 passed); P3: no code-level concern found (couldn't execute pytest itself, sandbox has no writable temp
     dir; Claude already ran it). (b) 7 NEEDS_HUMAN decisions listed in the summary doc (zk-steward's district
     placement, 5 ops-scope placement mismatches, `blockchain-security-auditor` not-built, P6's zero-certified-real
-    sales personas, P1's NOT VERIFIED qa disposition -- the 239-persona reconciliation gap was resolved in the
-    follow-up pass below). The 8 duplicate legacy backlog items from the pre-existing 24-item backlog (item 18
-    above) were superseded during this program's cleanup pass.
+    sales personas, ~~P1's NOT VERIFIED qa disposition~~ -- **resolved 2026-09-29**, see below -- the 239-persona
+    reconciliation gap was resolved in the follow-up pass below). The 8 duplicate legacy backlog items from the
+    pre-existing 24-item backlog (item 18 above) were superseded during this program's cleanup pass.
+
+    **P1's NOT VERIFIED qa disposition — resolved 2026-09-29** (full writeup: the addendum in
+    `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_P1_QA_VERIFICATION.md`). Added 17 real tests for the 6 specialists that
+    had zero coverage; rewrote the 1 existing test that mocked `award_points`/`deduct_points` to track real HP
+    instead; clarified "not manifest-registered" as not a real gap (QASwarm self-loads all 11 agents at runtime,
+    same pattern as FinanceSwarm/CodingSwarm). **3 real bugs found and fixed while writing real tests**: a
+    path-resolution bug (`Path(__file__).parent` × 4, one directory above the real repo root) in 6 files that
+    silently broke several diagnostic methods; an invalid git date format in `evidence_collector.py`; and a
+    genuine agent-duplication bug in `QASwarm._load_agents()` (its dedup check queried a key no agent is ever
+    registered under, so every `QASwarm()` construction silently created 11 brand-new duplicate agents instead
+    of reusing existing ones). 57 targeted regression tests pass; a full-suite re-run reached 11/19 batches
+    (4,113 tests, 0 failures) before a memory-pressure kill, not retried per standing instruction. Flagged, not
+    fixed (scope control): the same path-resolution pattern appears in ~65 more files repo-wide, and a similar
+    date-format bug in ~9 more — each needs individual verification before touching, a worthwhile separate pass.
 
     **Follow-up pass, 2026-09-29 (owner: "complete it with the help of codex... till all issues are not gone
     don't stop"):** the 239-persona reconciliation gap above is now closed — read the actual Agent Roster

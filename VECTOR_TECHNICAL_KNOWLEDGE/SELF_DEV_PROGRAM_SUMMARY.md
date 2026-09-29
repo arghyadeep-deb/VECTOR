@@ -12,7 +12,7 @@ pending independent review, and gives one honest overall verdict per
 
 | Pkg | District(s) | Scope | Existing match (same district) | Existing match (different district, NEEDS_HUMAN) | New, real agent | Not built (disclosed) | Notes |
 |---|---|---|---|---|---|---|---|
-| P1 | qa | 8 | 8 | 0 | 0 | 0 | Verification-only task. Verdict: **NOT VERIFIED** — 7 of 8 specialists lack the required per-agent real-test gate, one test mocks HP/internal behavior. Honest self-report, not a defect I introduced or need to re-fix; out of this task's scope. |
+| P1 | qa | 8 | 8 | 0 | 0 | 0 | Originally verification-only, verdict **NOT VERIFIED**. **Resolved 2026-09-29** (follow-up pass): added 17 real tests for the 6 untested specialists, rewrote the 1 mocking-internals test to track real HP, clarified the "not manifest-registered" finding as not a real gap (QASwarm self-load, same as FinanceSwarm). Found and fixed 3 real bugs along the way (a path-resolution bug in 6 files, a git date-format bug, a QASwarm agent-duplication bug). Full detail: the addendum in `SELF_DEV_P1_QA_VERIFICATION.md`. |
 | P2 | coding | 41 | 19 | 0 | 14 | 8 | 28 new GREEN entries. |
 | P3 | security | 12 | 3 | 0 | 8 | 1 | Deliberately inert `PatchProposalGenerator`/`PatchProposalVerifier` (no execution path). No YELLOW/RED added. |
 | P4 | design | 16 | 4 | 0 | 12 | 0 | 18 new GREEN entries (brief+audit pairs, some single-name). |
@@ -171,12 +171,13 @@ resolved-by-classification. Nothing left unaddressed from the original roster.
 
 ## Overall verdict
 
-**Program functionally complete, with 7 specific decisions flagged above for owner attention.**
+**Program functionally complete, with 6 specific decisions flagged above for owner attention** (P1's
+NOT VERIFIED disposition, originally a 7th, was resolved in a 2026-09-29 follow-up pass — see its row above).
 
-This is deliberately not a clean, zero-caveat "PASS": P1 reported NOT VERIFIED for its entire scope, P6
-certified zero new personas as fully real, P3 disclosed one not-built persona, and multiple packages
-carry explicit NEEDS_HUMAN district-placement flags. Per `SELF_DEV_AGENT_SPEC.md`'s own guardrails, none
-of these are being papered over — they are the honest, correct output of a spec that requires disclosure
-over fabricated capability. 90 new, real, evidence-checked agents were built and committed across P2-P10
-(none in P1 or P6, by design); every new permission-tier entry is GREEN or YELLOW, flagged for the pending
+This is deliberately not a clean, zero-caveat "PASS": P6 certified zero new personas as fully real, P3
+disclosed one not-built persona, and multiple packages carry explicit NEEDS_HUMAN district-placement
+flags. Per `SELF_DEV_AGENT_SPEC.md`'s own guardrails, none of these are being papered over — they are
+the honest, correct output of a spec that requires disclosure over fabricated capability. 90 new, real,
+evidence-checked agents were built and committed across P2-P10 (none in P1 or P6, by design); every new
+permission-tier entry is GREEN or YELLOW, flagged for the pending
 independent review, and no existing tier was loosened.
