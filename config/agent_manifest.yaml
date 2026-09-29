@@ -653,6 +653,18 @@ districts:
       description: Deterministic automation value, control, fallback, and human-checkpoint assessment
       capabilities: [automation_governance_brief, automation_governance_check]
 
+    # 2026-09-30 (self-dev program follow-up, owner-approved "solve 1,2,3,4"): resolves the
+    # original P3 NEEDS_HUMAN disclosure honestly -- the gap was never a missing external
+    # blockchain data source, it was that no smart-contract code existed anywhere in VECTOR
+    # to check. The real, buildable capability is a deterministic SWC-Registry-aligned
+    # pattern scan over CALLER-SUPPLIED Solidity source (same evidence-gated model as every
+    # other Security specialist here); no live chain/RPC/explorer dependency.
+    - name: blockchain_security_auditor
+      class: districts.security.security_specialists.BlockchainSecurityAuditor
+      model: vector-focus
+      description: Deterministic SWC Registry-aligned pattern scan of supplied Solidity source (reentrancy ordering, tx.origin auth, floating pragma, unprotected selfdestruct, unchecked call returns, unguarded sensitive functions)
+      capabilities: [contract_scan_brief, contract_pattern_check]
+
   time_calendar:
     - name: kiit_scraper
       class: districts.time_calendar.kiit_scraper.KIITScraper

@@ -355,6 +355,11 @@ class PermissionConfig(BaseModel):
         "scan_verification_brief", "scan_verification_check",
         "identity_trust_brief", "identity_trust_check",
         "automation_governance_brief", "automation_governance_check",
+        # 2026-09-30 (self-dev program follow-up, owner-approved "solve 1,2,3,4"): BlockchainSecurityAuditor
+        # is read-only, in-memory regex/text pattern analysis over caller-supplied Solidity source (no
+        # execution, no live chain/RPC call, no file write) -- same GREEN classification as every other
+        # Security specialist in this block. Flagged for the pending independent review.
+        "contract_scan_brief", "contract_pattern_check",
         # 2026-09-29 (self-dev program follow-up, owner-approved coverage sweep): SlackArchaeologist is
         # read-only, in-memory analysis over caller-supplied message records (no send, no external call,
         # no file write) -- same GREEN classification as every other Security specialist in this block.

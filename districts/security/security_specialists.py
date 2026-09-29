@@ -12,6 +12,7 @@ import asyncio
 import difflib
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import PurePosixPath
@@ -562,6 +563,165 @@ class AutomationGovernanceAnalyst(SecuritySpecialist):
         }
 
 
+def _split_solidity_functions(source: str) -> list[tuple[str, str]]:
+    """Split Solidity source into (signature, body) pairs via brace-balance
+    tracking. A bounded text heuristic, not a real Solidity parser -- good
+    enough to scope a pattern search to one function's text, not the whole
+    file, without pulling in a compiler/AST dependency."""
+
+    functions: list[tuple[str, str]] = []
+    for match in re.finditer(r"function\s+\w[\w]*\s*\([^)]*\)[^{;]*\{", source):
+        start = match.end() - 1
+        depth = 0
+        end = None
+        for i in range(start, len(source)):
+            if source[i] == "{":
+                depth += 1
+            elif source[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        if end is None:
+            continue
+        functions.append((match.group(0), source[start + 1:end]))
+    return functions
+
+
+_ACCESS_CONTROL_MARKERS = (
+    "onlyowner", "onlyadmin", "onlygovernance", "onlyrole",
+    "require(msg.sender", "accesscontrol", "hasrole(", "_checkrole(",
+)
+_SENSITIVE_FUNCTION_NAMES = (
+    # Deliberately excludes ambiguous self-service names (withdraw, burn,
+    # sweep, rescue) that are frequently and legitimately public with only a
+    # caller-scoped balance check, not owner/role gating -- flagging those by
+    # name alone would be a false-positive-prone guess, not a real signal.
+    "mint", "pause", "unpause", "setowner", "transferownership",
+    "upgrade", "kill", "destroy", "emergencywithdraw", "withdrawall",
+)
+
+
+def _has_access_control_evidence(text: str) -> bool:
+    lowered = text.lower()
+    return any(marker in lowered for marker in _ACCESS_CONTROL_MARKERS)
+
+
+class BlockchainSecurityAuditor(SecuritySpecialist):
+    """Deterministic, pattern-based scan of caller-supplied Solidity source
+    for well-known weakness classes from the SWC Registry (Smart Contract
+    Weakness Classification): SWC-107 reentrancy-ordering, SWC-115 tx.origin
+    authentication, SWC-103 floating pragma, SWC-106 unprotected selfdestruct,
+    SWC-104 unchecked external-call return value, and unguarded sensitive
+    functions (mint/withdraw/pause/... with no visible access-control marker).
+
+    This is a bounded, first-pass text-pattern linter -- the same class of
+    check a real slither-lite triage script performs before deeper manual or
+    compiler-based analysis (Slither, Mythril). It flags patterns for human
+    review and never certifies a contract safe; it has no live blockchain,
+    RPC, or explorer-API dependency, matching the original disclosure in
+    SELF_DEV_P3_SECURITY.md ("no Solidity/Vyper/... subject exists in VECTOR
+    to audit") -- the missing piece was never external chain data, only a
+    real evidence-gated check VECTOR can run on Solidity text a caller
+    supplies.
+    """
+
+    profile = SecuritySpecialistProfile(
+        "BlockchainSecurityAuditor",
+        "blockchain_security_auditor_001",
+        "contract_scan_brief",
+        "contract_pattern_check",
+        ("source_code", "contract_name"),
+        "Solidity source pattern-scan report (SWC Registry-aligned heuristics)",
+    )
+
+    def evaluate(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        source = evidence["source_code"]
+        if not isinstance(source, str) or not source.strip():
+            raise ValueError("source_code must be non-empty Solidity source text")
+        contract_name = str(evidence["contract_name"])
+
+        findings: list[dict[str, Any]] = []
+
+        # SWC-103: floating pragma (^ or ~ version range instead of a pin).
+        if re.search(r"pragma\s+solidity\s+[\^~]", source):
+            findings.append({"swc": "SWC-103", "issue": "floating_pragma", "scope": "file"})
+
+        # SWC-115: tx.origin used directly in an authentication condition.
+        for m in re.finditer(r"(require|if)\s*\(\s*tx\.origin", source):
+            findings.append({
+                "swc": "SWC-115", "issue": "tx_origin_authentication", "scope": "file",
+                "line": source.count("\n", 0, m.start()) + 1,
+            })
+
+        # SWC-104: `.call(...)`/`.call{...}(...)` whose return value is not
+        # captured on the same line (same-line scope, documented limitation).
+        for line_no, line in enumerate(source.splitlines(), start=1):
+            if re.search(r"\.call\s*[({]", line) and "=" not in line.split(".call")[0]:
+                findings.append({
+                    "swc": "SWC-104", "issue": "unchecked_call_return_value",
+                    "scope": "line", "line": line_no,
+                })
+
+        # Per-function checks: SWC-107 reentrancy ordering, SWC-106
+        # unprotected selfdestruct, unguarded sensitive functions.
+        for signature, body in _split_solidity_functions(source):
+            guarded = _has_access_control_evidence(signature) or _has_access_control_evidence(body)
+            has_reentrancy_guard = "nonreentrant" in signature.lower() or "nonreentrant" in body.lower()
+
+            call_match = re.search(r"\.call\s*[({]", body)
+            if call_match:
+                write_after_call = re.search(
+                    r"\w+(\[[^\]]+\])?\s*(-=|\+=)", body[call_match.end():]
+                )
+                if write_after_call and not has_reentrancy_guard:
+                    findings.append({
+                        "swc": "SWC-107", "issue": "reentrancy_ordering",
+                        "scope": "function", "signature": signature.rstrip("{").strip(),
+                    })
+
+            if re.search(r"\b(selfdestruct|suicide)\s*\(", body) and not guarded:
+                findings.append({
+                    "swc": "SWC-106", "issue": "unprotected_selfdestruct",
+                    "scope": "function", "signature": signature.rstrip("{").strip(),
+                })
+
+            name_match = re.match(r"function\s+(\w+)", signature)
+            fn_name = name_match.group(1).lower() if name_match else ""
+            is_view_or_pure = bool(re.search(r"\b(view|pure)\b", signature))
+            if (
+                not is_view_or_pure
+                and any(keyword in fn_name for keyword in _SENSITIVE_FUNCTION_NAMES)
+                and not guarded
+            ):
+                findings.append({
+                    "swc": "unguarded-sensitive-function", "issue": "unguarded_sensitive_function",
+                    "scope": "function", "signature": signature.rstrip("{").strip(),
+                })
+
+        by_swc: dict[str, list[dict[str, Any]]] = {}
+        for finding in findings:
+            by_swc.setdefault(finding["swc"], []).append(finding)
+
+        checks = [
+            _check(f"no_{swc.lower().replace('-', '_')}_pattern", False, items)
+            for swc, items in sorted(by_swc.items())
+        ]
+
+        return {
+            "contract_name": contract_name,
+            "status": "needs_human" if findings else "passed",
+            "checks": checks,
+            "findings": findings,
+            "finding_count": len(findings),
+            "analysis_scope": "bounded text-pattern heuristic, not a compiler-based static "
+            "analyzer or formal verification -- flags patterns for human review only",
+            "missing_evidence": [],
+            "deterministic": True,
+            "read_only": True,
+        }
+
+
 SPECIALIST_CLASSES: tuple[type[SecuritySpecialist], ...] = (
     PatchProposalGenerator,
     PatchProposalVerifier,
@@ -571,6 +731,7 @@ SPECIALIST_CLASSES: tuple[type[SecuritySpecialist], ...] = (
     ScanVerifier,
     AgenticIdentityTrustAnalyst,
     AutomationGovernanceAnalyst,
+    BlockchainSecurityAuditor,
 )
 
 

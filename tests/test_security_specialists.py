@@ -21,6 +21,7 @@ from districts.security.security_specialists import (
     SPECIALIST_CLASSES,
     AgenticIdentityTrustAnalyst,
     AutomationGovernanceAnalyst,
+    BlockchainSecurityAuditor,
     PatchProposalGenerator,
     PatchProposalVerifier,
     ScanInventoryAnalyst,
@@ -28,6 +29,67 @@ from districts.security.security_specialists import (
     ScanResearcher,
     ScanVerifier,
 )
+
+SAFE_SOLIDITY_CONTRACT = """
+pragma solidity 0.8.19;
+
+contract SafeVault {
+    mapping(address => uint256) private balances;
+    address public owner;
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "not owner");
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
+    }
+
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw(uint256 amount) public nonReentrant {
+        require(balances[msg.sender] >= amount, "insufficient balance");
+        balances[msg.sender] -= amount;
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success, "transfer failed");
+    }
+
+    function pause() public onlyOwner {
+        paused = true;
+    }
+}
+"""
+
+VULNERABLE_SOLIDITY_CONTRACT = """
+pragma solidity ^0.8.0;
+
+contract VulnVault {
+    mapping(address => uint256) public balances;
+    address public owner;
+
+    function withdraw(uint256 amount) public {
+        require(balances[msg.sender] >= amount);
+        msg.sender.call{value: amount}("");
+        balances[msg.sender] -= amount;
+    }
+
+    function adminWithdraw() public {
+        require(tx.origin == owner);
+        payable(owner).transfer(address(this).balance);
+    }
+
+    function mint(address to, uint256 amount) public {
+        balances[to] += amount;
+    }
+
+    function kill() public {
+        selfdestruct(payable(owner));
+    }
+}
+"""
 
 
 def _patch_evidence() -> dict:
@@ -128,6 +190,10 @@ COMPLETE_EVIDENCE = {
         "fallback_owner": "security owner",
         "human_checkpoint": True,
     },
+    BlockchainSecurityAuditor: {
+        "source_code": SAFE_SOLIDITY_CONTRACT,
+        "contract_name": "SafeVault",
+    },
 }
 
 
@@ -174,6 +240,7 @@ def test_manifest_tiers_and_routes_are_exact():
         "scan_verifier": ScanVerifier,
         "agentic_identity_trust_analyst": AgenticIdentityTrustAnalyst,
         "automation_governance_analyst": AutomationGovernanceAnalyst,
+        "blockchain_security_auditor": BlockchainSecurityAuditor,
     }
     definitions = ManifestLoader().load()
     security = {entry["name"]: entry for entry in definitions if entry["district"] == "security"}
@@ -266,6 +333,55 @@ async def test_patch_roles_cannot_apply_or_execute_payloads(tmp_path):
         elif isinstance(node.func, ast.Attribute):
             called.add(node.func.attr)
     assert not (banned_calls & called)
+
+
+@pytest.mark.asyncio
+async def test_blockchain_security_auditor_catches_every_planted_defect():
+    auditor = BlockchainSecurityAuditor()
+
+    safe = await auditor.run({
+        "type": auditor.profile.check_action,
+        "evidence": {"source_code": SAFE_SOLIDITY_CONTRACT, "contract_name": "SafeVault"},
+    })
+    assert safe["report"]["status"] == "passed"
+    assert safe["report"]["findings"] == []
+
+    vulnerable = await auditor.run({
+        "type": auditor.profile.check_action,
+        "evidence": {"source_code": VULNERABLE_SOLIDITY_CONTRACT, "contract_name": "VulnVault"},
+    })
+    report = vulnerable["report"]
+    assert report["status"] == "needs_human"
+
+    found_swc = {finding["swc"] for finding in report["findings"]}
+    assert found_swc == {
+        "SWC-103",  # floating pragma
+        "SWC-104",  # unchecked .call() return value
+        "SWC-106",  # unprotected selfdestruct
+        "SWC-107",  # reentrancy ordering (state write after external call)
+        "SWC-115",  # tx.origin used for authentication
+        "unguarded-sensitive-function",
+    }
+
+    reentrancy = next(f for f in report["findings"] if f["swc"] == "SWC-107")
+    assert "withdraw" in reentrancy["signature"]
+
+    selfdestruct_finding = next(f for f in report["findings"] if f["swc"] == "SWC-106")
+    assert "kill" in selfdestruct_finding["signature"]
+
+    unguarded_names = {
+        f["signature"] for f in report["findings"] if f["swc"] == "unguarded-sensitive-function"
+    }
+    assert any("mint" in sig for sig in unguarded_names)
+
+
+def test_blockchain_security_auditor_never_calls_external_chain_data():
+    module_path = Path(__file__).parents[1] / "districts" / "security" / "security_specialists.py"
+    source = module_path.read_text(encoding="utf-8")
+    # Confirms the resolved P3 disclosure: this is a text-pattern scan over
+    # caller-supplied source, never a live blockchain/RPC/explorer call.
+    for banned in ("web3", "requests.get", "httpx.get", "infura", "alchemy", "etherscan"):
+        assert banned not in source.lower()
 
 
 if __name__ == "__main__":

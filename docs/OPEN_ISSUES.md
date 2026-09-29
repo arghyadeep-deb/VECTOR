@@ -220,7 +220,8 @@ grew open engineering items; section 0 lists them.
     live manifest and `core/city/governor.py`, confirmed `ops:` has exactly its 7 real agents with no
     duplicate/misrouted entry for any of the 5; the NEEDS_HUMAN flag came from the approval gate (finance/legal
     keywords, same class as P2/P3/P9), already cleared by owner chat approval + merge, not from an unresolved
-    placement question; `blockchain-security-auditor` not-built (being revisited, see below); ~~P6's zero-certified-real
+    placement question; ~~`blockchain-security-auditor` not-built~~ -- **resolved 2026-09-30**, see below
+    (built as a real deterministic Solidity pattern-scan agent, no live chain dependency); ~~P6's zero-certified-real
     sales personas~~ -- **largely resolved 2026-09-29**, see below (6 of 7 partial personas now real; the
     package's other 10 not-built personas were untouched by this follow-up); ~~P1's NOT VERIFIED qa disposition~~
     -- **resolved 2026-09-29**, see below -- the 239-persona
@@ -273,6 +274,20 @@ grew open engineering items; section 0 lists them.
     conflicts); re-ran the 14 new tests on the merged tree to confirm — same result. The package's original 10
     "not real" personas (no distinguishing evidence source found in the original pass) were **not** re-examined
     in this follow-up and remain honestly disclosed as not built.
+
+    **`blockchain-security-auditor` — resolved 2026-09-30** (owner asked why this couldn't be solved by
+    Claude/Codex; re-reading the original disclosure literally showed the gap was never a missing *external*
+    data source, only that VECTOR had no smart-contract code to check -- the same caller-supplied-evidence
+    model every other specialist here already uses applies just as well to Solidity source a caller supplies.
+    Full writeup: the addendum in `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_P3_SECURITY.md`). Built
+    `BlockchainSecurityAuditor` in `districts/security/security_specialists.py`: a deterministic, bounded
+    text-pattern scan aligned to the SWC Registry (6 checks -- floating pragma, unchecked call return value,
+    unprotected selfdestruct, reentrancy ordering, tx.origin authentication, unguarded sensitive functions),
+    explicitly scoped in its own report as a first-pass heuristic linter, never a compiler-based analyzer or a
+    safety certification. Validated against real safe/vulnerable Solidity samples before wiring: zero false
+    positives on a safe contract, all 6 planted defects caught with correct attribution on a vulnerable one. 1
+    new manifest entry, 2 new GREEN tier entries (flagged for the pending independent review), 2 new tests (13
+    total in the file, all pass). Manifest re-parses clean: 41 districts, 268 agents, zero duplicate keys.
 21. **Independent review, 2026-09-29 — DONE, genuinely by Codex, not just Claude.** Codex hit its ChatGPT
     usage limit every time it was tried through the morning (before, at, and after its stated 8:40 AM
     reset), so Claude completed direct self-reviews first rather than leave these "still owed"

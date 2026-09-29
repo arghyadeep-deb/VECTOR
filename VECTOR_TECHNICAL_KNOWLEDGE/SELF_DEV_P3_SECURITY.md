@@ -198,3 +198,40 @@ not a code issue — Claude already ran the full test file successfully, see the
 above); its overall verdict label was therefore `CANNOT_VERIFY` on the test-execution sub-point
 specifically, while the code-level finding itself was
 clean. Full writeup: `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`.
+
+## Addendum — follow-up pass, 2026-09-30
+
+Owner approval was given in chat the same day (asked why this disclosure couldn't be resolved by
+Claude or Codex; the honest answer led to re-reading it more literally). The original disclosure
+above ("no Solidity, Vyper, Move, Cairo, Foundry, Hardhat, Truffle, or Brownie audit subject" exists
+in VECTOR) was correct and remains true — VECTOR still has no smart contracts of its own. But the gap
+was never a missing *external* data source (a live chain RPC, an explorer API); it was that nothing
+existed for VECTOR to check. Every other specialist in this district checks CALLER-SUPPLIED evidence,
+not VECTOR's own state — the same model applies here: a real check over Solidity source a caller
+supplies is buildable without any live blockchain dependency at all.
+
+Built `BlockchainSecurityAuditor` (`contract_scan_brief`/`contract_pattern_check`) in
+`districts/security/security_specialists.py`: a deterministic, bounded text-pattern scan aligned to
+the SWC Registry (Smart Contract Weakness Classification) — the same reference industry static
+analyzers like Slither cite. Six checks: SWC-103 floating pragma, SWC-104 unchecked `.call()` return
+value, SWC-106 unprotected `selfdestruct`, SWC-107 reentrancy ordering (state write after an external
+call, via a bounded brace-balance function splitter, not a real Solidity parser), SWC-115 `tx.origin`
+used for authentication, and an unguarded-sensitive-function check (mint/pause/setOwner/... with no
+visible access-control marker) restricted to names that are almost always meant to be owner/role-gated
+— deliberately excluding ambiguous self-service names like `withdraw`/`burn` that are frequently and
+legitimately public with only a caller-scoped balance check, to avoid a false-positive-prone guess.
+
+Honestly scoped: this is a first-pass heuristic linter, not a compiler-based static analyzer or formal
+verification, and the returned report says so explicitly (`analysis_scope` field). It flags patterns
+for human review and never certifies a contract safe. Validated against real safe and vulnerable
+Solidity samples before wiring: zero false positives on a checks-effects-interactions-ordered,
+`nonReentrant`-guarded, `onlyOwner`-gated safe contract; all 6 planted defects caught, with correct
+line and function attribution, on a deliberately vulnerable one.
+
+Wiring: 1 new manifest entry under `security:`, 2 new `DISTRICT_TASK_MAP` routes, 2 new GREEN
+permission-tier entries (flagged for the pending independent review; no existing tier touched).
+Verified directly against `_canonical_district_from_task_type()` before finalizing the action names —
+no word-overlap collision with the `status_check_report` fixture. Tests: 2 new (13 total in the file,
+all pass) — the planted-defect proof plus a static check confirming the module never imports
+web3/httpx-to-a-chain-explorer, matching the "no live dependency" claim. Manifest re-parses clean: 41
+districts, 268 agents, zero duplicate keys.
