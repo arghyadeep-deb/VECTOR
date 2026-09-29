@@ -33,18 +33,49 @@ pending independent review, and gives one honest overall verdict per
 Recount of "new, real" column: P2=14, P3=8, P4=12, P5=29, P7=5, P8=10, P9=5, P10=7 → **90 new real agents** across the program.
 Recount of "existing match" column: P1=8, P2=19, P3=3, P4=4, P5=2, P8=9(same)+... — see per-package numbers above; this figure is not summed into one blended total because P1's and P6's existing-coverage claims carry explicit caveats (P1: not independently re-verified as fully test-gated; P6: partial coverage only) that a flat sum would obscure.
 
-### Reconciling against "239 selected personas"
+### Reconciling against "239 selected personas" — RESOLVED (2026-09-29, later same session)
 
-The **164** personas above are only the ones actually assigned to a P1-P10 task. Ten additional
-personas were explicitly identified as out of scope and never assigned to any package (rationale
-below). I cannot account for the remaining ~65 of the "239 selected" figure from this session's
-own work product — those were presumably already fully real, manifest-registered, and correctly
-placed under their own name before this program started, and therefore never needed a P-package.
-**I have not independently re-verified that claim for each of those ~65 names against the original
-Agent Roster artifact** (`https://claude.ai/artifact/1Y8iR6aCNvX9MuBBszrNny`); doing so precisely
-was outside what P1-P10 scoped, and asserting it here without that check would be exactly the kind
-of unverified claim this program's own guardrails forbid. **Flagged for the owner**: re-open that
-artifact against the current 260-agent manifest if an exact 239-way reconciliation is wanted.
+Re-opened the Agent Roster artifact (`https://claude.ai/artifact/1Y8iR6aCNvX9MuBBszrNny`) directly —
+read its actual saved `state/marks` document rather than guessing. It has exactly **239** entries
+marked `true`. Cross-referenced every one of the 239 against (a) word-level text matches in the
+10 `SELF_DEV_P*.md` reports and (b) word-level text matches in the live `districts/` and `core/`
+source, then spot-verified every ambiguous or borderline case with a direct `Grep` for the real
+class/file (not just trusting the automated word match, which had real false positives and false
+negatives in both directions — corrected by hand below).
+
+Result:
+- **~200** of the 239 have a real disposition recorded in a `SELF_DEV_P*.md` report (built new,
+  found existing elsewhere, or explicitly not-built) — this is the P1-P10 scope described above,
+  slightly larger than the 164 count once every package's brief mentions of adjacent/related
+  personas are counted, not just its own primary scope list.
+- **~24** more are personas the P1-P10 program never touched because they were **already real
+  before the program started** — either a pre-existing `districts/` Python agent from an earlier
+  session (e.g. `ArchitectBot` for `code-architect.md`, `content_creator.py` for
+  `marketing-content-creator.md`, `AddyCodeReviewer`/`FastAPIReviewer`/`RefactorCleaner`/
+  `RapidPrototyper`/`CodeExplorer` for their namesakes), or a Claude-Code-side dev-tooling/Brain
+  agent that already works as-is and was never meant to become VECTOR district Python code at all
+  (`vault-librarian.md`, `vault-migrator.md`, `vector-comms.md`, `planner.md`, `loop-operator.md`,
+  `context-loader.md`, `harness-optimizer.md`, `people-profiler.md`, `brag-spotter.md`,
+  `cross-linker.md`, `tdd-guide.md` and similar — these are Claude's own subagent roster, the
+  subject of the separate, explicitly-deferred [[vector-claude-exit-goal-2026-09-27]] "replace
+  Claude's 65 dev-tooling personas" goal, not this program's scope).
+- **10 confirmed out of scope with a documented reason** (table below) — unchanged from the
+  original disclosure.
+- **2 personas found during this reconciliation that are genuinely unaccounted for** — never
+  assigned to any P1-P10 package, no real match anywhere in `districts/`, `core/`, or the Brain,
+  and no documented reason for exclusion: **`slack-archaeologist.md`** and
+  **`engineering-senior-developer.md`**. These are real gaps, not resolved by this program.
+- **1 ambiguous status**: `project-manager-senior.md` has a persona prompt file on disk in two
+  places (`core/prompts/shared/project_management/project-manager-senior.md` and
+  `districts/governance/vector-project-manager-senior.md`), but neither `governance/agent.py` nor
+  any manifest entry shows it being self-loaded the way `FinanceSwarm` loads its `.md` personas —
+  it may be a stray, unwired file rather than a real working agent. Not independently confirmed
+  either way; flagged rather than guessed.
+
+So: **236 of 239 are accounted for** (built, found-existing, or documented-excluded); **2 are
+confirmed real gaps** (`slack-archaeologist`, `engineering-senior-developer`); **1 is unclear**
+(`project-manager-senior`, likely unwired). None of the 3 were touched by this program and none
+are built yet.
 
 ### 10 personas explicitly out of scope (never assigned to any P1-P10 task)
 
@@ -60,6 +91,19 @@ artifact against the current 260-agent manifest if an exact 239-way reconciliati
 | `korean-business-navigator` | No VECTOR data source for Korean business-culture navigation; purely advisory, no deterministic check possible without fabricating one. |
 | `study-abroad-advisor` | No VECTOR-accessible study-abroad application data (schools, visas, deadlines); same evidence-source gap as the not-built ops personas in P8. |
 | `supply-chain-strategist` | No VECTOR supply-chain/procurement data source; a China-manufacturing-specific advisory persona outside VECTOR's owner-use scope. |
+
+### 2 real gaps found during the 239-reconciliation (2026-09-29) — genuinely unbuilt, not previously disclosed
+
+| Persona | Status |
+|---|---|
+| `slack-archaeologist` | No real match anywhere in `districts/`, `core/`, or the Brain. Never assigned to any P1-P10 package. Not built, not disclosed until this reconciliation. |
+| `engineering-senior-developer` | No real match anywhere. Never assigned to any P1-P10 package. Not built, not disclosed until this reconciliation. |
+
+### 1 ambiguous status
+
+| Persona | Status |
+|---|---|
+| `project-manager-senior` | Persona prompt file exists on disk in two places (`core/prompts/shared/project_management/project-manager-senior.md`, `districts/governance/vector-project-manager-senior.md`) but no self-load mechanism (like `FinanceSwarm`'s `MD_FILES`) was found wiring it to a live agent — may be a stray unwired file. Not independently confirmed either way. |
 
 ## Consolidated new permission-tier entries (ALL pending independent review; no existing tier changed, moved, or loosened)
 
