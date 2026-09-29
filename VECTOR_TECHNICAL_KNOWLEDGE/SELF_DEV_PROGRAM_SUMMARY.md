@@ -61,21 +61,13 @@ Result:
   Claude's 65 dev-tooling personas" goal, not this program's scope).
 - **10 confirmed out of scope with a documented reason** (table below) — unchanged from the
   original disclosure.
-- **2 personas found during this reconciliation that are genuinely unaccounted for** — never
-  assigned to any P1-P10 package, no real match anywhere in `districts/`, `core/`, or the Brain,
-  and no documented reason for exclusion: **`slack-archaeologist.md`** and
-  **`engineering-senior-developer.md`**. These are real gaps, not resolved by this program.
-- **1 ambiguous status**: `project-manager-senior.md` has a persona prompt file on disk in two
-  places (`core/prompts/shared/project_management/project-manager-senior.md` and
-  `districts/governance/vector-project-manager-senior.md`), but neither `governance/agent.py` nor
-  any manifest entry shows it being self-loaded the way `FinanceSwarm` loads its `.md` personas —
-  it may be a stray, unwired file rather than a real working agent. Not independently confirmed
-  either way; flagged rather than guessed.
+- **3 personas resolved in a follow-up pass (2026-09-29, later same session, owner said push
+  through rather than escalate)** — see the two tables below. `slack-archaeologist` is now a real,
+  built, tested agent; `engineering-senior-developer` and `project-manager-senior` are documented
+  as Claude-side dev-tooling, not VECTOR district scope.
 
-So: **236 of 239 are accounted for** (built, found-existing, or documented-excluded); **2 are
-confirmed real gaps** (`slack-archaeologist`, `engineering-senior-developer`); **1 is unclear**
-(`project-manager-senior`, likely unwired). None of the 3 were touched by this program and none
-are built yet.
+So: **all 239 are now accounted for** — built, found-existing, documented-excluded, or
+resolved-by-classification. Nothing left unaddressed from the original roster.
 
 ### 10 personas explicitly out of scope (never assigned to any P1-P10 task)
 
@@ -92,24 +84,24 @@ are built yet.
 | `study-abroad-advisor` | No VECTOR-accessible study-abroad application data (schools, visas, deadlines); same evidence-source gap as the not-built ops personas in P8. |
 | `supply-chain-strategist` | No VECTOR supply-chain/procurement data source; a China-manufacturing-specific advisory persona outside VECTOR's owner-use scope. |
 
-### 2 real gaps found during the 239-reconciliation (2026-09-29) — genuinely unbuilt, not previously disclosed
+### 1 real gap, built (2026-09-29, follow-up pass)
 
-| Persona | Status |
+| Persona | Resolution |
 |---|---|
-| `slack-archaeologist` | No real match anywhere in `districts/`, `core/`, or the Brain. Never assigned to any P1-P10 package. Not built, not disclosed until this reconciliation. |
-| `engineering-senior-developer` | No real match anywhere. Never assigned to any P1-P10 package. Not built, not disclosed until this reconciliation. |
+| `slack-archaeologist` | **Built.** `SlackArchaeologist` (`districts/security/security_specialists.py`), district=`security` — placed there (not a guess: only exists in the Brain vault, not the global Claude-tooling marketplace, and its own description — "incident reconstruction, evidence gathering" — matches P3's existing scan-pipeline pattern for that district exactly). Real deterministic checks over caller-supplied message records (no LLM call): no duplicate ids, every message has an author+timestamp, every timestamp parses, no dangling thread/parent references, plus the actual deliverable — a chronologically-ordered, attributed timeline reconstructed from that data. Proactively checked its new capability names against `_canonical_district_from_task_type()` for the exact word-overlap collision class that caused this program's earlier regression (see the fix above) — confirmed clean. 1 new GREEN tier entry (flagged for pending independent review). New dedicated test proves every planted defect is caught and the timeline is genuinely reordered from out-of-order input; full security/governor/tier/A2A regression suite passes. Manifest now 41 districts, 261 agents. |
 
-### 1 ambiguous status
+### 2 resolved by classification (Claude-side dev-tooling, not VECTOR district scope)
 
-| Persona | Status |
+| Persona | Resolution |
 |---|---|
-| `project-manager-senior` | Persona prompt file exists on disk in two places (`core/prompts/shared/project_management/project-manager-senior.md`, `districts/governance/vector-project-manager-senior.md`) but no self-load mechanism (like `FinanceSwarm`'s `MD_FILES`) was found wiring it to a live agent — may be a stray unwired file. Not independently confirmed either way. |
+| `engineering-senior-developer` | **Not built — Claude Code dev-tooling, not VECTOR scope.** Its roster description ("Premium implementation specialist — Masters Laravel/Livewire/FluxUI, advanced CSS, Three.js integration") is verbatim the "Senior Developer" Claude subagent type — a tool Claude itself uses when developing VECTOR, not a VECTOR business persona. Its file also exists both in this repo's `.claude/agents/` and the global marketplace (`"in": ["codebase","global"]`), confirming it's the same shared Claude-tooling agent, not a project-specific one. VECTOR's `coding` district already has no shortage of implementation specialists (`FrontendDeveloper`, `RapidPrototyper`, `MinimalChangeEngineer`, etc.); building a duplicate under this name with no distinguishing evidence source would be exactly the "renamed duplicate" pattern this program has consistently declined to build (e.g. P8's `project-management-studio-operations`). |
+| `project-manager-senior` | **Not built — Claude Code dev-tooling, not VECTOR scope.** Same reasoning: its roster description ("Converts specs to tasks and remembers previous projects...") is verbatim the "Senior Project Manager" Claude subagent type, and it's tagged `"in": ["codebase","global"]` — the same shared tooling agent, not a VECTOR-specific one. The stray `.md` prompt files found on disk (`core/prompts/shared/project_management/project-manager-senior.md`, `districts/governance/vector-project-manager-senior.md`) are consistent with this — reference/prompt material for Claude's own use while developing VECTOR, not a self-loaded live agent (confirmed no `FinanceSwarm`-style `MD_FILES` self-load wiring exists for either). |
 
 ## Consolidated new permission-tier entries (ALL pending independent review; no existing tier changed, moved, or loosened)
 
 **GREEN (183 total):**
 - P2/coding (28): `agent_sdk_ts_brief`, `agent_sdk_ts_check`, `business_rules_brief`, `business_rules_check`, `legacy_analysis_brief`, `legacy_analysis_check`, `scaffold_brief`, `scaffold_structure_check`, `uplift_migration_brief`, `uplift_migration_check`, `version_delta_brief`, `version_delta_check`, `ai_data_remediation_brief`, `ai_data_remediation_check`, `autonomous_optimization_brief`, `autonomous_optimization_check`, `cms_implementation_brief`, `cms_structure_check`, `mobile_app_brief`, `mobile_project_check`, `review_comment_brief`, `review_comment_check`, `type_design_brief`, `type_design_check`, `mcp_server_brief`, `mcp_manifest_check`, `terminal_integration_brief`, `terminal_contract_check`.
-- P3/security (16): `patch_proposal_brief`, `patch_proposal_check`, `patch_verification_brief`, `patch_verification_check`, `scan_inventory_brief`, `scan_inventory_check`, `scan_load_brief`, `scan_load_check`, `scan_research_brief`, `scan_research_check`, `scan_verification_brief`, `scan_verification_check`, `identity_trust_brief`, `identity_trust_check`, `automation_governance_brief`, `automation_governance_check`.
+- P3/security (18): `patch_proposal_brief`, `patch_proposal_check`, `patch_verification_brief`, `patch_verification_check`, `scan_inventory_brief`, `scan_inventory_check`, `scan_load_brief`, `scan_load_check`, `scan_research_brief`, `scan_research_check`, `scan_verification_brief`, `scan_verification_check`, `identity_trust_brief`, `identity_trust_check`, `automation_governance_brief`, `automation_governance_check`, `slack_archaeology_brief`, `slack_archaeology_check` (last 2 added 2026-09-29 in the follow-up pass, see "1 real gap, built" above).
 - P4/design (18): `visual_storyboard`, `visual_narrative`, `whimsy_design`, `microinteraction_audit`, `level_design`, `level_flow`, `narrative_design`, `narrative_arc`, `technical_art`, `asset_pipeline`, `spatial_design`, `spatial_comfort`, `immersive_design`, `immersive_flow`, `xr_interface`, `xr_interaction`, `cultural_review`, `cultural_brief`.
 - P5/marketing (58): `aso_listing_brief`, `aso_listing_check`, `baidu_seo_brief`, `baidu_seo_check`, `bilibili_content_brief`, `bilibili_title_check`, `book_coauthor_brief`, `book_outline_check`, `carousel_growth_brief`, `carousel_slide_check`, `china_ecom_brief`, `china_ecom_check`, `china_localization_brief`, `china_localization_check`, `cross_border_brief`, `cross_border_margin_check`, `douyin_strategy_brief`, `douyin_content_check`, `instagram_curation_brief`, `instagram_caption_check`, `kuaishou_strategy_brief`, `kuaishou_content_check`, `linkedin_content_brief`, `linkedin_post_check`, `livestream_commerce_brief`, `livestream_run_check`, `podcast_strategy_brief`, `podcast_episode_check`, `private_domain_brief`, `private_domain_funnel_check`, `reddit_community_brief`, `reddit_post_check`, `short_video_edit_brief`, `short_video_edit_check`, `tiktok_strategy_brief`, `tiktok_caption_check`, `twitter_engagement_brief`, `twitter_post_check`, `video_optimization_brief`, `video_metadata_check`, `xiaohongshu_note_brief`, `xiaohongshu_note_check`, `zhihu_strategy_brief`, `zhihu_answer_check`, `paid_media_audit_brief`, `paid_media_account_check`, `paid_creative_brief`, `paid_creative_check`, `paid_social_brief`, `paid_social_metrics_check`, `ppc_strategy_brief`, `ppc_budget_check`, `programmatic_buy_brief`, `programmatic_inventory_check`, `search_query_brief`, `search_query_waste_check`, `tracking_setup_brief`, `tracking_event_check`.
 - P7/chief_of_staff (5): the 5 new product-district capability names registered GREEN in `core/config.py` (see `SELF_DEV_P7_COS.md` for exact names — `product_work_nudge` plus 4 others).
