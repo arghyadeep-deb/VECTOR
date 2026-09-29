@@ -23,6 +23,15 @@ CLI:
   python autonomous_worker.py status
   python autonomous_worker.py stop | resume
   python autonomous_worker.py requeue ITEM_ID
+  python autonomous_worker.py close-manual ITEM_ID --commit SHA --note "..." --owner-approved yes
+
+close-manual is OWNER-RUN TOOLING (POLICY.md sec 14/15: "No model may self-authorize a
+human-gated action"). It records a needs_human/blocked item as completed via directly-
+supervised manual work done OUTSIDE the bridge's own automated pipeline (built, verified,
+and merged by a human + their assistant with the human's explicit real-time sign-off) --
+it does not and cannot grant that sign-off itself. Neither Claude nor Codex may invoke it
+on their own initiative; it exists so the owner has one clean command instead of a raw
+JSON edit for bookkeeping work that was already independently approved in chat.
 """
 
 from __future__ import annotations
@@ -1103,6 +1112,27 @@ def main(argv: list[str] | None = None) -> int:
     supersede.add_argument("item_id")
     supersede.add_argument("--by", required=True, help="What delivered it (item id / commit / program).")
 
+    close_manual = sub.add_parser(
+        "close-manual",
+        help="OWNER-RUN ONLY. Record a needs_human/blocked item as completed via directly-"
+        "supervised manual work done outside the bridge, with explicit owner sign-off already "
+        "given elsewhere (e.g. chat). Never invoke this from an autonomous task.",
+    )
+    close_manual.add_argument("item_id")
+    close_manual.add_argument(
+        "--commit", required=True,
+        help="The real, already-merged commit sha delivering this item's work.",
+    )
+    close_manual.add_argument(
+        "--note", required=True,
+        help="What was actually done, and where the owner's approval for THIS item is recorded.",
+    )
+    close_manual.add_argument(
+        "--owner-approved", required=True, choices=["yes"],
+        help="Must be exactly 'yes'. This flag does not itself grant approval -- it records that "
+        "a human already gave it; the invoker is responsible for that being true.",
+    )
+
     args = parser.parse_args(argv)
     worker = _default_worker(args.repo_root)
 
@@ -1234,6 +1264,33 @@ def main(argv: list[str] | None = None) -> int:
 
         worker.backlog.update(args.item_id, status=bl.PENDING, result_note="Requeued by a human.")
         print(f"requeued {args.item_id} (approval-gated items will stop again unless reworded)")
+        return 0
+
+    if args.command == "close-manual":
+        item = worker.backlog.get(args.item_id)
+
+        if item.status not in (bl.NEEDS_HUMAN, bl.BLOCKED):
+            print(
+                f"Item is {item.status}; only needs_human/blocked items can be closed via "
+                "close-manual."
+            )
+            return 1
+
+        commit = args.commit.strip()
+        note = args.note.strip()
+
+        if not commit or not note:
+            print("--commit and --note must both be real, non-empty text.")
+            return 1
+
+        worker.backlog.update(
+            args.item_id,
+            status=bl.PASSED,
+            commit=commit,
+            integration="manual",
+            result_note=f"MANUAL COMPLETION (owner-approved, outside the bridge): {note}",
+        )
+        print(f"closed {args.item_id} as manually completed, commit {commit}")
         return 0
 
     return 1
@@ -1777,6 +1834,85 @@ def _self_test() -> None:
                 real_quota_path.unlink(missing_ok=True)
             else:
                 real_quota_path.write_bytes(real_quota_backup)
+
+        # 10h. close-manual: OWNER-RUN CLI verb recording a needs_human/blocked item as
+        # completed via directly-supervised manual work done outside the bridge. Like the
+        # quota test above, main()'s CLI always binds to the real tool-dir .state/worker
+        # backlog (there is no --state-dir override) -- back it up and restore it so this
+        # self-test never disturbs real backlog history.
+        real_backlog_path = Path(__file__).resolve().parent / ".state" / "worker" / "backlog.json"
+        real_backlog_backup = (
+            real_backlog_path.read_bytes() if real_backlog_path.exists() else None
+        )
+
+        try:
+            cm_worker = _default_worker(str(repo))
+            item20 = cm_worker.backlog.add(
+                description="Manually completed elsewhere", test_targets=["tests/t.py"],
+                difficulty="scout", max_retries=0,
+            )
+            cm_worker.backlog.update(item20.item_id, status=bl.NEEDS_HUMAN)
+
+            pending20 = cm_worker.backlog.add(
+                description="Still pending", test_targets=["tests/t.py"],
+                difficulty="scout", max_retries=0,
+            )
+
+            # Wrong status (still pending) is refused, item left untouched.
+            assert main([
+                "--repo-root", str(repo), "close-manual", pending20.item_id,
+                "--commit", "deadbeef", "--note", "x", "--owner-approved", "yes",
+            ]) == 1
+            assert cm_worker.backlog.get(pending20.item_id).status == bl.PENDING
+
+            # Blank --commit is refused, item left untouched.
+            assert main([
+                "--repo-root", str(repo), "close-manual", item20.item_id,
+                "--commit", "   ", "--note", "did the work", "--owner-approved", "yes",
+            ]) == 1
+            assert cm_worker.backlog.get(item20.item_id).status == bl.NEEDS_HUMAN
+
+            # A real close-manual call succeeds and records evidence.
+            assert main([
+                "--repo-root", str(repo), "close-manual", item20.item_id,
+                "--commit", "cafef00d",
+                "--note", "Built by Codex, verified+merged by Claude, owner approved in chat.",
+                "--owner-approved", "yes",
+            ]) == 0
+            closed20 = cm_worker.backlog.get(item20.item_id)
+            assert closed20.status == bl.PASSED
+            assert closed20.commit == "cafef00d"
+            assert closed20.integration == "manual"
+            assert "MANUAL COMPLETION" in closed20.result_note
+
+            # BLOCKED items are eligible too, not only NEEDS_HUMAN.
+            item20b = cm_worker.backlog.add(
+                description="Blocked, then fixed manually", test_targets=["tests/t.py"],
+                difficulty="scout", max_retries=0,
+            )
+            cm_worker.backlog.update(item20b.item_id, status=bl.BLOCKED)
+            assert main([
+                "--repo-root", str(repo), "close-manual", item20b.item_id,
+                "--commit", "f00dcafe", "--note", "fixed", "--owner-approved", "yes",
+            ]) == 0
+            assert cm_worker.backlog.get(item20b.item_id).status == bl.PASSED
+
+            # --owner-approved is a closed choice set: anything but the literal
+            # "yes" is refused by argparse itself, before the handler ever runs.
+            try:
+                main([
+                    "--repo-root", str(repo), "close-manual", item20b.item_id,
+                    "--commit", "x", "--note", "x", "--owner-approved", "definitely-not",
+                ])
+            except SystemExit as exc:
+                assert exc.code != 0
+            else:
+                raise AssertionError("--owner-approved must reject anything but 'yes'")
+        finally:
+            if real_backlog_backup is None:
+                real_backlog_path.unlink(missing_ok=True)
+            else:
+                real_backlog_path.write_bytes(real_backlog_backup)
 
         # 11. Evidence is never deleted by anything above.
         for name in ("t1", "t2"):

@@ -65,7 +65,7 @@ class BacklogItem:
     worktree_path: str | None = None
     result_note: str = ""
     title: str = ""
-    integration: str = ""  # "" | merged | conflict | tests_failed | skipped
+    integration: str = ""  # "" | merged | conflict | tests_failed | skipped | manual
     integrated_commit: str | None = None
     # Work-package spec (planner-produced items); all optional.
     program_id: str | None = None
