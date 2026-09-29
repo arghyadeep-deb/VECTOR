@@ -89,3 +89,34 @@ def test_get_vault_context_returns_string():
     ce = ContextEngine()
     result = asyncio.run(ce.get_vault_context("VECTOR goals"))
     assert isinstance(result, str)  # returns "" gracefully if LightRAG not ready
+
+
+def test_neutralize_special_tokens_prevents_the_real_tiktoken_crash():
+    """2026-09-29 live soak-test finding: a vault note containing a literal tiktoken special-token
+    marker (e.g. a pasted raw LLM completion with `<|endoftext|>`) made LightRAG's chunker raise on
+    every ingest attempt, and the ingestion pipeline retried the same permanently-failing document
+    forever. Proves the fix against the REAL tiktoken encoder, not a mock -- the whole bug was that
+    encode() raises on this exact string."""
+    import tiktoken
+
+    from core.memory.obsidian_sync import _neutralize_special_tokens
+
+    enc = tiktoken.get_encoding("cl100k_base")
+    poisoned = "some note text\n<|endoftext|>\nmore text with <|fim_middle|> inside a code block"
+
+    with pytest.raises(ValueError):
+        enc.encode(poisoned)  # confirms the bug is real, not assumed
+
+    cleaned = _neutralize_special_tokens(poisoned)
+    tokens = enc.encode(cleaned)  # must not raise
+    assert len(tokens) > 0
+
+    # still human-readable: the visible pipe characters and token names survive, just not as the exact
+    # disallowed sequence tiktoken pattern-matches on.
+    assert "endoftext" in cleaned and "fim_middle" in cleaned
+    assert "<|endoftext|>" not in cleaned
+    assert "<|fim_middle|>" not in cleaned
+
+    # clean text with no special tokens is returned completely unchanged
+    plain = "nothing special here"
+    assert _neutralize_special_tokens(plain) == plain

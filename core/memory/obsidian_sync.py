@@ -23,6 +23,27 @@ _vault_write_lock = threading.Lock()
 
 _RAG_RETRY_AFTER_S = 600.0
 
+# 2026-09-29 (live soak-test finding): a vault note whose plain text happens to contain a literal
+# tiktoken special-token marker (e.g. a code block pasting a raw LLM completion that includes
+# "<|endoftext|>") makes LightRAG's own chunker raise ValueError("disallowed special token") on
+# every ingest attempt. VECTOR's own _insert_to_rag() already catches that and logs a warning, so
+# nothing crashes -- but the higher-level ingestion pipeline (core/loop or wherever schedules
+# ingest_existing/ingest_file) resets a permanently-failing document from FAILED back to PENDING
+# and retries it forever, burning real embedding/LLM calls on a document that can never succeed as
+# written. Fix at the source: neutralize the literal marker text before LightRAG ever tokenizes it,
+# so ingestion actually succeeds instead of retrying indefinitely.
+_TIKTOKEN_SPECIAL_TOKENS = ("<|endoftext|>", "<|fim_prefix|>", "<|fim_suffix|>", "<|fim_middle|>", "<|endofprompt|>")
+
+
+def _neutralize_special_tokens(content: str) -> str:
+    """Replace literal tiktoken special-token markers with a visually similar, harmless substitute
+    (zero-width space inserted inside the pipes) so the text still reads the same to a human but no
+    longer matches tiktoken's disallowed-special-token pattern. Only touches these 5 exact strings."""
+    for token in _TIKTOKEN_SPECIAL_TOKENS:
+        if token in content:
+            content = content.replace(token, token.replace("|", "​|", 1))
+    return content
+
 
 def _zero_filled_index_files(working_dir: str) -> list[str]:
     """Names of LightRAG index files whose first bytes are all NUL (what a crash mid-write leaves on NTFS)."""
@@ -289,7 +310,7 @@ class ObsidianSync:
         if self._rag is None:
             return
         try:
-            await self._rag.ainsert(content)
+            await self._rag.ainsert(_neutralize_special_tokens(content))
         except Exception as e:
             logger.warning(f"[VECTOR][obsidian] LightRAG insert failed: {e}")
 
