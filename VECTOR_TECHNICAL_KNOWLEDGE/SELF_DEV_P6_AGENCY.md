@@ -183,9 +183,9 @@ Disposition, one by one:
 | --- | --- |
 | government-digital-presales-consultant | Stays not-built. Too regulatory/domain-specific (RFP compliance checklists, government security classification) for a generic deterministic check, and no plausible use case for a personal-owner system. |
 | hospitality-guest-services | Stays not-built. No plausible use case — VECTOR's owner does not operate a hospitality business. A double-booking/SLA checker is technically buildable but would be built for a use case that doesn't exist. |
-| loan-officer-assistant | Stays not-built. No plausible use case, and explicitly needs `legal_compliance` regulated-advisory input per the original disclosure. |
-| real-estate-buyer-seller | Stays not-built. No plausible use case. |
-| recruitment-specialist | Stays not-built. No plausible use case (no employer-side hiring pipeline exists for VECTOR's owner to check against). |
+| loan-officer-assistant | **Built** 2026-09-30 (third pass) as `LoanOfficerAssistant`. The "no plausible use case" call above was wrong — the owner's own Blueprint (`(C) Industries — Four Waves.md`) names loan-ops as a Wave 3 vertical candidate, and the plan's own sequencing law explicitly permits building ahead of a wave. The advisory/regulated-compliance gap from the original disclosure stays real and is deliberately not attempted — this agent only checks caller-supplied numbers against caller-supplied criteria (DTI/LTV/credit score/down payment), never approves, denies, or advises. |
+| real-estate-buyer-seller | **Built** 2026-09-30 (third pass) as `PropertyMatchAnalyst`. Same correction — named alongside loan-ops as a Wave 3 candidate. Deterministic buyer-requirement-vs-listing match over caller-supplied data, no live MLS/listing-service dependency. |
+| recruitment-specialist | **Built** 2026-09-30 (third pass) as `RecruitmentSpecialist`. Fits Wave 2's agentic-back-office-for-SMBs plan (screening/requisition-checking is exactly that shape of service) even though not named explicitly. Deterministic candidate-vs-requisition skills/experience/certification coverage check. |
 | retail-customer-returns | Stays not-built. No plausible use case. |
 | customer-service | Stays not-built — **genuine duplicate**, not a gap. A drafted-response-vs-required-sections check is exactly `SupportResponder` in `districts/ops/ops_specialists.py` (`support_response_brief`/`support_response_check`, built in P8). Building it again under `agency` would violate the same no-duplication guardrail already applied to `ClientManager`/`SalesStrategist` above. |
 | sales-coach | **Built**, collapsed with sales-discovery-coach below. |
@@ -207,10 +207,69 @@ word-overlap collision fixture still resolves `None`, `compileall` clean, `__mai
 passes. 2 new GREEN permission-tier entries added, flagged for the pending independent review; no
 existing tier touched.
 
-Of the original 17 selected Agency sales personas: 8 real, evidence-gated agents now exist across
-the two follow-ups (6 built from the 7 "partial" personas, `sales-outbound-strategist`/
+Of the original 17 selected Agency sales personas: 8 real, evidence-gated agents existed after the
+two follow-ups above (6 built from the 7 "partial" personas, `sales-outbound-strategist`/
 `sales-outreach` collapsed into one; 2 built from 3 of the original "not real" personas,
-`sales-coach`/`sales-discovery-coach` collapsed into one). The other 7 of the original 10 "not
-real" personas remain honestly not-built for the specific reasons in the table above — 6 for lack
-of any plausible use case on a personal-owner system, 1 (`customer-service`) as a confirmed
-duplicate of `ops.SupportResponder`.
+`sales-coach`/`sales-discovery-coach` collapsed into one). See the third addendum below for the
+final 3.
+
+## Addendum — third follow-up pass, 2026-09-30
+
+Owner correction, not a new request: pointed out that 3 of the "no plausible use case" calls in the
+second addendum's table above were wrong, because they were reasoned from VECTOR's *current* state
+rather than the owner's own already-locked-in 12-year plan (`(C) Industries — Four Waves.md` in the
+Brain vault). Two corrections from that document, checked directly rather than from memory:
+
+1. The plan's sequencing law explicitly states **"VECTOR may research and build ahead"** of a wave
+   — building a capability before the business operates in that space is not premature by the
+   plan's own terms.
+2. **Wave 3 (2030-2033) names "real-estate & loan-ops" directly** as a leading vertical candidate.
+   The "Explicitly rejected industries" list defers *lending as a licensed business* "until Wave 3
+   scale pays for compliance" — but that is about operating a regulated lending business, not about
+   VECTOR having a deterministic eligibility-criteria checker ready.
+
+Built 3 more real agents in `districts/agency/agency_specialists.py`:
+
+- **`LoanOfficerAssistant`** (`loan_eligibility_brief`/`loan_eligibility_check`) — DTI, LTV, and
+  down-payment-percentage arithmetic against caller-supplied eligibility rules. Deliberately does
+  **not** attempt the advisory/regulated side the original disclosure flagged — it never approves,
+  denies, or gives lending advice, only reports which caller-defined criteria the supplied numbers
+  meet, with an explicit disclaimer field saying so on every response.
+- **`PropertyMatchAnalyst`** (`property_match_brief`/`property_match_check`) — resolves
+  `real-estate-buyer-seller`. Deterministic buyer-requirement-vs-listing filter/match (budget,
+  bedrooms, required features, preferred location) over caller-supplied listings; no live MLS or
+  valuation API.
+- **`RecruitmentSpecialist`** (`recruitment_fit_brief`/`recruitment_fit_check`) — deterministic
+  candidate-vs-requisition coverage check (required skills, minimum experience, required
+  certifications) over caller-supplied data.
+
+`customer-service`, `government-digital-presales-consultant`, `hospitality-guest-services`, and
+`retail-customer-returns` were **not** reconsidered — they still have no support anywhere in the
+Four Waves document (government and hospitality) or are a confirmed duplicate (`customer-service`),
+so the second addendum's disposition for those 4 stands.
+
+A real word-overlap collision was caught before finalizing action names, exactly the discipline this
+whole program established: `candidate_fit_check` (the first name tried for `RecruitmentSpecialist`)
+resolved through `_canonical_district_from_task_type()`'s fallback matcher to the existing self_dev
+action `hook_candidate_check` (2 of 3 words overlap: `candidate`, `check`) before it was added to
+`DISTRICT_TASK_MAP` as an exact key. Renamed to `recruitment_fit_check`, re-verified clean, and
+confirmed the existing `tests/test_self_dev_specialists.py` suite (28 tests) still passes untouched.
+
+Verification: all three agents' arithmetic and matching logic hand-verified against worked examples
+before any test was written (loan DTI/LTV percentages, property match/reject reasons per listing,
+candidate missing-skills/missing-certifications lists — each checked by hand and confirmed to match
+the code's actual output). 10 new unit tests (29 total in `tests/test_agency_sales_specialists.py`,
+all pass). Dangerous-primitive grep clean. Manifest integrity clean: 41 districts, 273 agents, zero
+duplicate keys. `status_check_report` fixture still resolves `None` (fail-closed intact).
+`compileall` clean, `__main__` smoke check passes. 6 new GREEN permission-tier entries added,
+flagged for the pending independent review; no existing tier touched. Broader regression: 100 tests
+pass across `test_agency_sales_specialists.py`, `test_agency_run_wiring.py`, `test_governor.py`,
+`test_owner_routing_closure_f1.py`, `test_v1_trust_t2_action_identity.py`, and
+`test_self_dev_specialists.py`.
+
+Of the original 17 selected Agency sales personas: **11 real, evidence-gated agents now exist**
+across three follow-ups, covering 13 of the 17 persona names (several collapsed into one agent
+where the underlying capability was identical). The remaining 4 stay honestly not-built:
+`government-digital-presales-consultant` and `hospitality-guest-services` (no support anywhere in
+the owner's own 12-year plan), `retail-customer-returns` (same — not named in any of the four
+waves), and `customer-service` (a confirmed duplicate of `ops.SupportResponder`, not a gap).

@@ -18,9 +18,12 @@ from districts.agency.agency_specialists import (
     SPECIALIST_CLASSES,
     AccountStrategist,
     DealStrategist,
+    LoanOfficerAssistant,
     OutboundSequenceStrategist,
     PipelineVelocityAnalyst,
+    PropertyMatchAnalyst,
     ProposalCoverageStrategist,
+    RecruitmentSpecialist,
     SalesCoach,
     SalesDataExtractionAgent,
     SalesEngineer,
@@ -83,6 +86,51 @@ COMPLETE_EVIDENCE = {
         ],
         "as_of_date": "2026-09-25",
     },
+    LoanOfficerAssistant: {
+        "applicant_financials": {
+            "monthly_income": 100000,
+            "monthly_debts": 20000,
+            "credit_score": 750,
+            "requested_amount": 4000000,
+            "property_value": 5000000,
+            "down_payment": 1000000,
+        },
+        "eligibility_rules": {
+            "max_dti": 0.4,
+            "min_credit_score": 700,
+            "max_ltv": 0.8,
+            "min_down_payment_pct": 0.15,
+        },
+    },
+    PropertyMatchAnalyst: {
+        "buyer_requirements": {
+            "max_budget": 5000000,
+            "min_bedrooms": 3,
+            "required_features": ["parking"],
+            "preferred_locations": ["downtown"],
+        },
+        "listings": [
+            {
+                "address": "1 Main St",
+                "price": 4500000,
+                "bedrooms": 3,
+                "features": ["parking", "balcony"],
+                "location": "downtown",
+            },
+        ],
+    },
+    RecruitmentSpecialist: {
+        "requisition": {
+            "required_skills": ["python", "sql"],
+            "min_experience_years": 3,
+            "required_certifications": [],
+        },
+        "candidate": {
+            "skills": ["Python", "SQL", "AWS"],
+            "experience_years": 5,
+            "certifications": [],
+        },
+    },
 }
 
 
@@ -128,6 +176,9 @@ def test_manifest_tiers_and_routes_are_exact():
         "proposal_coverage_strategist": ProposalCoverageStrategist,
         "sales_coach": SalesCoach,
         "sales_data_extraction_agent": SalesDataExtractionAgent,
+        "loan_officer_assistant": LoanOfficerAssistant,
+        "property_match_analyst": PropertyMatchAnalyst,
+        "recruitment_specialist": RecruitmentSpecialist,
     }
     definitions = ManifestLoader().load()
     agency = {entry["name"]: entry for entry in definitions if entry["district"] == "agency"}
@@ -266,6 +317,121 @@ async def test_sales_data_extraction_passes_clean_when_all_rows_valid():
     report = result["report"]
     assert report["status"] == "passed"
     assert report["malformed_row_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_loan_officer_assistant_flags_every_failed_criterion():
+    evidence = {
+        "applicant_financials": {
+            "monthly_income": 50000,
+            "monthly_debts": 30000,
+            "credit_score": 600,
+            "requested_amount": 4500000,
+            "property_value": 5000000,
+            "down_payment": 500000,
+        },
+        "eligibility_rules": {
+            "max_dti": 0.4,
+            "min_credit_score": 700,
+            "max_ltv": 0.8,
+            "min_down_payment_pct": 0.15,
+        },
+    }
+    result = await LoanOfficerAssistant().run({"type": "loan_eligibility_check", "evidence": evidence})
+    report = result["report"]
+    assert report["status"] == "needs_human"
+    assert report["dti"] == 0.6
+    assert report["ltv"] == 0.9
+    assert report["down_payment_pct"] == 0.1
+    failed = {c["name"] for c in report["checks"] if not c["passed"]}
+    assert failed == {
+        "dti_within_limit", "credit_score_meets_minimum", "ltv_within_limit",
+        "down_payment_meets_minimum",
+    }
+    assert "not a lending decision" in report["disclaimer"]
+
+
+@pytest.mark.asyncio
+async def test_loan_officer_assistant_passes_when_all_criteria_met():
+    result = await LoanOfficerAssistant().run(
+        {"type": "loan_eligibility_check", "evidence": COMPLETE_EVIDENCE[LoanOfficerAssistant]}
+    )
+    assert result["report"]["status"] == "passed"
+    assert result["report"]["meets_all_supplied_criteria"] is True
+
+
+@pytest.mark.asyncio
+async def test_property_match_analyst_rejects_and_reports_reasons():
+    evidence = {
+        "buyer_requirements": {
+            "max_budget": 5000000,
+            "min_bedrooms": 3,
+            "required_features": ["parking"],
+            "preferred_locations": ["downtown"],
+        },
+        "listings": [
+            {
+                "address": "3 Far St", "price": 3000000, "bedrooms": 2,
+                "features": [], "location": "suburb",
+            },
+            {
+                "address": "2 Side St", "price": 6000000, "bedrooms": 4,
+                "features": ["parking"], "location": "downtown",
+            },
+        ],
+    }
+    result = await PropertyMatchAnalyst().run({"type": "property_match_check", "evidence": evidence})
+    report = result["report"]
+    assert report["status"] == "needs_human"  # zero matches
+    assert report["match_count"] == 0
+    reasons_by_address = {r["address"]: set(r["reasons"]) for r in report["rejected_listings"]}
+    assert reasons_by_address["3 Far St"] == {
+        "too_few_bedrooms", "missing_features:parking", "location_not_preferred",
+    }
+    assert reasons_by_address["2 Side St"] == {"over_budget"}
+
+
+@pytest.mark.asyncio
+async def test_property_match_analyst_finds_a_real_match():
+    result = await PropertyMatchAnalyst().run(
+        {"type": "property_match_check", "evidence": COMPLETE_EVIDENCE[PropertyMatchAnalyst]}
+    )
+    report = result["report"]
+    assert report["status"] == "passed"
+    assert report["match_count"] == 1
+    assert report["matched_listings"][0]["address"] == "1 Main St"
+
+
+@pytest.mark.asyncio
+async def test_recruitment_specialist_catches_missing_skills_experience_and_certs():
+    evidence = {
+        "requisition": {
+            "required_skills": ["python", "sql", "kubernetes"],
+            "min_experience_years": 5,
+            "required_certifications": ["aws-saa"],
+        },
+        "candidate": {"skills": ["Python"], "experience_years": 2, "certifications": []},
+    }
+    result = await RecruitmentSpecialist().run({"type": "recruitment_fit_check", "evidence": evidence})
+    report = result["report"]
+    assert report["status"] == "needs_human"
+    assert report["missing_skills"] == ["kubernetes", "sql"]
+    assert report["missing_certifications"] == ["aws-saa"]
+    failed = {c["name"] for c in report["checks"] if not c["passed"]}
+    assert failed == {
+        "all_required_skills_present", "meets_minimum_experience",
+        "all_required_certifications_present",
+    }
+
+
+@pytest.mark.asyncio
+async def test_recruitment_specialist_passes_a_full_match():
+    result = await RecruitmentSpecialist().run(
+        {"type": "recruitment_fit_check", "evidence": COMPLETE_EVIDENCE[RecruitmentSpecialist]}
+    )
+    report = result["report"]
+    assert report["status"] == "passed"
+    assert report["skills_coverage"] == 1.0
 
 
 if __name__ == "__main__":

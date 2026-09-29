@@ -436,6 +436,15 @@ class PermissionConfig(BaseModel):
         # every other Agency specialist above. Flagged for the pending independent review.
         "sales_coaching_brief", "sales_coaching_check",
         "sales_data_extraction_brief", "sales_data_extraction_check",
+        # 2026-09-30: LoanOfficerAssistant, PropertyMatchAnalyst, and RecruitmentSpecialist are
+        # read-only, in-memory checks over caller-supplied evidence (ratio arithmetic / list
+        # matching), same GREEN classification as every other Agency specialist above.
+        # LoanOfficerAssistant never approves/denies/advises -- it only reports which
+        # caller-defined criteria the supplied numbers meet. Flagged for the pending
+        # independent review.
+        "loan_eligibility_brief", "loan_eligibility_check",
+        "property_match_brief", "property_match_check",
+        "recruitment_fit_brief", "recruitment_fit_check",
         # 2026-09-29 SELF_DEV_P2_CODING: 28 NEW GREEN entries (tier additions only;
         # no existing tier changed or loosened), flagged for the pending independent
         # review. Handlers: districts/coding/coding_specialists.py. All actions are

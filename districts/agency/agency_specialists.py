@@ -517,6 +517,210 @@ class SalesDataExtractionAgent(AgencySalesSpecialist):
         }
 
 
+class LoanOfficerAssistant(AgencySalesSpecialist):
+    """Check supplied applicant financials against supplied eligibility criteria.
+
+    Deterministic ratio arithmetic only (DTI, LTV, down-payment %) -- never
+    approves, denies, or gives lending/regulatory advice. Named as a Wave 3
+    vertical candidate in the owner's own Blueprint ("(C) Industries — Four
+    Waves.md"), which permits VECTOR to "research and build ahead" of a wave;
+    the original P6 disclosure's "needs legal_compliance advisory input" gap
+    stays true for the ADVISORY/approval side, which this agent deliberately
+    does not attempt -- it only tells a human which caller-defined criteria
+    the supplied numbers do or don't meet.
+    """
+
+    profile = AgencySpecialistProfile(
+        "LoanOfficerAssistant",
+        "loan_officer_assistant_001",
+        "loan_eligibility_brief",
+        "loan_eligibility_check",
+        ("applicant_financials", "eligibility_rules"),
+        "loan eligibility-criteria check against supplied applicant financials (not a lending decision or advice)",
+    )
+
+    def evaluate(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        financials = evidence["applicant_financials"]
+        rules = evidence["eligibility_rules"]
+        if not isinstance(financials, dict) or not isinstance(rules, dict):
+            raise ValueError("applicant_financials and eligibility_rules must both be mappings")
+
+        monthly_income = float(financials["monthly_income"])
+        monthly_debts = float(financials["monthly_debts"])
+        credit_score = float(financials["credit_score"])
+        requested_amount = float(financials["requested_amount"])
+        property_value = float(financials["property_value"])
+        down_payment = float(financials["down_payment"])
+        if monthly_income <= 0 or property_value <= 0:
+            raise ValueError("monthly_income and property_value must be positive")
+
+        dti = round(monthly_debts / monthly_income, 4)
+        ltv = round(requested_amount / property_value, 4)
+        down_payment_pct = round(down_payment / property_value, 4)
+
+        max_dti = float(rules["max_dti"])
+        min_credit_score = float(rules["min_credit_score"])
+        max_ltv = float(rules["max_ltv"])
+        min_down_payment_pct = float(rules["min_down_payment_pct"])
+
+        checks = [
+            _check("dti_within_limit", dti <= max_dti, {"dti": dti, "max_dti": max_dti}),
+            _check(
+                "credit_score_meets_minimum",
+                credit_score >= min_credit_score,
+                {"credit_score": credit_score, "min_credit_score": min_credit_score},
+            ),
+            _check("ltv_within_limit", ltv <= max_ltv, {"ltv": ltv, "max_ltv": max_ltv}),
+            _check(
+                "down_payment_meets_minimum",
+                down_payment_pct >= min_down_payment_pct,
+                {"down_payment_pct": down_payment_pct, "min_down_payment_pct": min_down_payment_pct},
+            ),
+        ]
+        return {
+            "status": "passed" if all(item["passed"] for item in checks) else "needs_human",
+            "checks": checks,
+            "dti": dti,
+            "ltv": ltv,
+            "down_payment_pct": down_payment_pct,
+            "meets_all_supplied_criteria": all(item["passed"] for item in checks),
+            "disclaimer": (
+                "Eligibility-criteria check only, not a lending decision, approval, or "
+                "regulated advice. A licensed human must make the actual decision."
+            ),
+        }
+
+
+class PropertyMatchAnalyst(AgencySalesSpecialist):
+    """Match supplied buyer requirements against supplied property listings.
+
+    Deterministic filter/match over caller-supplied listings -- no live MLS,
+    listing-service, or valuation API. Resolves the real-estate-buyer-seller
+    persona, named alongside loan-ops as a Wave 3 vertical candidate in the
+    owner's Blueprint: the real, buildable capability was always a match
+    check over caller-supplied data, not a missing external listings feed.
+    """
+
+    profile = AgencySpecialistProfile(
+        "PropertyMatchAnalyst",
+        "property_match_analyst_001",
+        "property_match_brief",
+        "property_match_check",
+        ("buyer_requirements", "listings"),
+        "buyer-requirement vs. supplied-listings match report",
+    )
+
+    def evaluate(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        requirements = evidence["buyer_requirements"]
+        listings = evidence["listings"]
+        if not isinstance(requirements, dict):
+            raise ValueError("buyer_requirements must be a mapping")
+        if not isinstance(listings, list) or not listings:
+            raise ValueError("listings must be a non-empty list")
+
+        max_budget = float(requirements["max_budget"])
+        min_bedrooms = float(requirements.get("min_bedrooms", 0))
+        required_features = _normalized_set(requirements.get("required_features", []))
+        preferred_locations = _normalized_set(requirements.get("preferred_locations", []))
+
+        matches: list[dict[str, Any]] = []
+        rejected: list[dict[str, Any]] = []
+        valid_shape = True
+        for listing in listings:
+            if not isinstance(listing, dict) or not _has_value(listing.get("address")) or not _has_value(
+                listing.get("price")
+            ):
+                valid_shape = False
+                continue
+            price = float(listing["price"])
+            bedrooms = float(listing.get("bedrooms", 0))
+            features = _normalized_set(listing.get("features", []))
+            location = str(listing.get("location", "")).strip().casefold()
+
+            reasons = []
+            if price > max_budget:
+                reasons.append("over_budget")
+            if bedrooms < min_bedrooms:
+                reasons.append("too_few_bedrooms")
+            missing_features = sorted(required_features - features)
+            if missing_features:
+                reasons.append("missing_features:" + ",".join(missing_features))
+            if preferred_locations and location not in preferred_locations:
+                reasons.append("location_not_preferred")
+
+            record = {"address": listing["address"], "price": price, "reasons": reasons}
+            (rejected if reasons else matches).append(record)
+
+        checks = [
+            _check("listings_have_required_shape", valid_shape, len(listings)),
+            _check("at_least_one_match_found", bool(matches), len(matches)),
+        ]
+        return {
+            "status": "passed" if valid_shape and matches else "needs_human",
+            "checks": checks,
+            "matched_listings": matches,
+            "rejected_listings": rejected,
+            "match_count": len(matches),
+            "total_listings": len(listings),
+        }
+
+
+class RecruitmentSpecialist(AgencySalesSpecialist):
+    """Check a supplied candidate against a supplied job requisition's stated criteria.
+
+    Deterministic skills/experience/certification coverage check -- no ATS
+    connector, no candidate sourcing, no hiring decision. Resolves the
+    recruitment-specialist persona for the agentic-back-office services the
+    owner's Blueprint's Wave 2 plan anticipates selling to SMBs (screening
+    and requisition-checking is exactly that shape of back-office task).
+    """
+
+    profile = AgencySpecialistProfile(
+        "RecruitmentSpecialist",
+        "recruitment_specialist_001",
+        "recruitment_fit_brief",
+        "recruitment_fit_check",
+        ("requisition", "candidate"),
+        "candidate-vs-requisition fit report (skills, experience, certifications)",
+    )
+
+    def evaluate(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        requisition = evidence["requisition"]
+        candidate = evidence["candidate"]
+        if not isinstance(requisition, dict) or not isinstance(candidate, dict):
+            raise ValueError("requisition and candidate must both be mappings")
+
+        required_skills = _normalized_set(requisition.get("required_skills", []))
+        if not required_skills:
+            raise ValueError("requisition.required_skills must be a non-empty list")
+        min_experience = float(requisition.get("min_experience_years", 0))
+        required_certs = _normalized_set(requisition.get("required_certifications", []))
+
+        candidate_skills = _normalized_set(candidate.get("skills", []))
+        candidate_experience = float(candidate.get("experience_years", 0))
+        candidate_certs = _normalized_set(candidate.get("certifications", []))
+
+        missing_skills = sorted(required_skills - candidate_skills)
+        missing_certs = sorted(required_certs - candidate_certs)
+
+        checks = [
+            _check("all_required_skills_present", not missing_skills, missing_skills),
+            _check(
+                "meets_minimum_experience",
+                candidate_experience >= min_experience,
+                {"candidate": candidate_experience, "required": min_experience},
+            ),
+            _check("all_required_certifications_present", not missing_certs, missing_certs),
+        ]
+        return {
+            "status": "passed" if all(item["passed"] for item in checks) else "needs_human",
+            "checks": checks,
+            "missing_skills": missing_skills,
+            "missing_certifications": missing_certs,
+            "skills_coverage": round((len(required_skills) - len(missing_skills)) / len(required_skills), 4),
+        }
+
+
 SPECIALIST_CLASSES: tuple[type[AgencySalesSpecialist], ...] = (
     AccountStrategist,
     DealStrategist,
@@ -526,6 +730,9 @@ SPECIALIST_CLASSES: tuple[type[AgencySalesSpecialist], ...] = (
     ProposalCoverageStrategist,
     SalesCoach,
     SalesDataExtractionAgent,
+    LoanOfficerAssistant,
+    PropertyMatchAnalyst,
+    RecruitmentSpecialist,
 )
 
 

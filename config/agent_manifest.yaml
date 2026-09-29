@@ -1169,6 +1169,30 @@ districts:
       description: MTD/YTD sales totals extracted from supplied raw records, with malformed rows flagged
       capabilities: [sales_data_extraction_brief, sales_data_extraction_check]
 
+    # 2026-09-30 (owner corrected an earlier "no plausible use case" call by pointing to the
+    # Blueprint's Four Waves plan): loan-officer-assistant and real-estate-buyer-seller are named
+    # together as Wave 3 vertical candidates ("(C) Industries — Four Waves.md"), and the plan's own
+    # sequencing law explicitly permits VECTOR to "research and build ahead" of a wave.
+    # recruitment-specialist fits Wave 2's agentic-back-office-for-SMBs services. All three follow
+    # the same caller-supplied-evidence model as the rest of this district.
+    - name: loan_officer_assistant
+      class: districts.agency.agency_specialists.LoanOfficerAssistant
+      model: vector-focus
+      description: Loan eligibility-criteria check (DTI/LTV/down-payment/credit-score) against supplied applicant financials -- not a lending decision or advice
+      capabilities: [loan_eligibility_brief, loan_eligibility_check]
+
+    - name: property_match_analyst
+      class: districts.agency.agency_specialists.PropertyMatchAnalyst
+      model: vector-focus
+      description: Buyer-requirement vs. supplied-listings match report
+      capabilities: [property_match_brief, property_match_check]
+
+    - name: recruitment_specialist
+      class: districts.agency.agency_specialists.RecruitmentSpecialist
+      model: vector-focus
+      description: Candidate-vs-requisition fit check (skills, experience, certifications)
+      capabilities: [recruitment_fit_brief, recruitment_fit_check]
+
   investment:
     - name: stock_analyst
       class: districts.investment.stock_analyst.StockAnalyst

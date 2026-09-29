@@ -1299,6 +1299,12 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "sales_coaching_check": "agency",
     "sales_data_extraction_brief": "agency",
     "sales_data_extraction_check": "agency",
+    "loan_eligibility_brief": "agency",
+    "loan_eligibility_check": "agency",
+    "property_match_brief": "agency",
+    "property_match_check": "agency",
+    "recruitment_fit_brief": "agency",
+    "recruitment_fit_check": "agency",
     # governance additions
     "prd": "governance",
     "roadmap": "governance",

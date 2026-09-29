@@ -199,16 +199,16 @@ grew open engineering items; section 0 lists them.
     0.30-0.40 bug). **Still needs the owner:** the live behavioural checks (voice, camera, a real day of use).
 20. **Self-dev agent program (P1-P11, 2026-09-27..09-30)** -- full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`
     (also `SELF_DEV_P1..P10_*.md` per-package). Claude and Codex split porting the owner's selected Claude Code agent
-    personas into real, tested VECTOR agents by district. Result: 164 personas covered across the 10 packages -- 99
+    personas into real, tested VECTOR agents by district. Result: 164 personas covered across the 10 packages -- 102
     newly built real, evidence-checked agents (P2/P3/P4/P5/P6/P7/P8/P9/P10, P6 and P3 extended by 2026-09-29/09-30
     follow-ups); 16 found to already exist under another name/district (flagged NEEDS_HUMAN where the district-map
-    and the actual placement disagree); 18 disclosed as not-built (no honest deterministic check possible); P1's 8
+    and the actual placement disagree); 15 disclosed as not-built (no honest deterministic check possible); P1's 8
     qa personas came back NOT VERIFIED (missing per-agent test gate) -- **resolved 2026-09-29**, see below; P6's
-    original bounded repair found 0 certified fully real, **8 of its original 17 personas are now real agents
-    across two follow-ups**, see below. 211 new permission-tier entries (199 GREEN + 12 YELLOW) added, all flagged
+    original bounded repair found 0 certified fully real, **11 of its original 17 personas are now real agents
+    across three follow-ups**, see below. 217 new permission-tier entries (205 GREEN + 12 YELLOW) added, all flagged
     for the pending
     independent review; **no
-    existing tier was changed, moved, or loosened by any package**. Manifest verified clean: 41 districts, 270 agents,
+    existing tier was changed, moved, or loosened by any package**. Manifest verified clean: 41 districts, 273 agents,
     zero duplicate top-level YAML keys. **Still needs the owner:** (a) P2 (coding) and P3 (security) hit the bridge's
     automated "Architecture change"/"Security-sensitive change" approval gate with no CLI verb to grant it -- both
     were built and merged only after the owner's own explicit chat approval, as directly-supervised manual work, never
@@ -263,7 +263,7 @@ grew open engineering items; section 0 lists them.
     personas — resolved by classification, not built. All 239 are now accounted for. Full clean suite re-run
     after the fix: **6,862 passed / 0 real failures / 39 skipped** (see item 12 above).
 
-    **P6's zero-certified-real sales personas — resolved across two follow-ups, 2026-09-29 and 2026-09-30.**
+    **P6's zero-certified-real sales personas — resolved across three follow-ups, 2026-09-29 and 2026-09-30.**
     First follow-up (owner: "do it, u
     can use codex n urself for the task"; full writeup:
     `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS.md`). Codex re-examined the 7 originally
@@ -301,6 +301,31 @@ grew open engineering items; section 0 lists them.
     test proving the sales-coach/discovery-coach collapse reasoning. Manifest re-parses clean: 41 districts, 270
     agents, zero duplicate keys. Of the original 17 P6 personas: 10 are now covered by 8 real agents (some
     collapsed, e.g. sales-coach + sales-discovery-coach -> one `SalesCoach`), and 7 remain honestly not-built.
+
+    **Third follow-up, 2026-09-30** (owner correction, not a new request: pointed out that 3 of the "no
+    plausible use case" calls above were reasoned from VECTOR's *current* state, not the owner's own
+    locked-in 12-year plan; full writeup: the third addendum in
+    `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_P6_AGENCY.md`). Checked `(C) Industries — Four Waves.md` in the
+    Brain vault directly: its sequencing law explicitly permits VECTOR to "research and build ahead" of a
+    wave, and Wave 3 (2030-2033) names "real-estate & loan-ops" directly as a leading vertical candidate --
+    the "Explicitly rejected industries" list defers *operating a licensed lending business* until Wave 3
+    scale pays for compliance, not VECTOR having a deterministic checker ready. Built 3 more real agents:
+    `LoanOfficerAssistant` (DTI/LTV/credit-score/down-payment eligibility-criteria check against
+    caller-supplied applicant financials -- never approves, denies, or gives lending advice, disclaimer on
+    every response), `PropertyMatchAnalyst` (buyer-requirement vs. supplied-listings match, resolves
+    real-estate-buyer-seller), and `RecruitmentSpecialist` (candidate-vs-requisition skills/experience/
+    certification coverage check, fits Wave 2's agentic-back-office-for-SMBs plan). A real word-overlap
+    collision was caught before finalizing action names (the same discipline this whole program
+    established): `candidate_fit_check` resolved through the fallback matcher to the existing self_dev
+    action `hook_candidate_check` (2 of 3 words overlap) before being added as an exact
+    `DISTRICT_TASK_MAP` key -- renamed to `recruitment_fit_check`, re-verified clean, confirmed
+    `test_self_dev_specialists.py`'s 28 tests still pass untouched. All three agents' arithmetic/matching
+    logic hand-verified against worked examples before any test was written. 6 new GREEN tier entries, 10
+    new tests (29 total in `tests/test_agency_sales_specialists.py`, all pass). Manifest re-parses clean:
+    41 districts, 273 agents, zero duplicate keys. Of the original 17 P6 personas: **13 are now covered by
+    11 real agents**; the remaining 4 (government-digital-presales-consultant, hospitality-guest-services,
+    retail-customer-returns -- no support anywhere in the actual plan; customer-service -- confirmed
+    duplicate) stay honestly not-built.
 
     **`blockchain-security-auditor` — resolved 2026-09-30** (owner asked why this couldn't be solved by
     Claude/Codex; re-reading the original disclosure literally showed the gap was never a missing *external*
