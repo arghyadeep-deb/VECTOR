@@ -145,9 +145,14 @@ grew open engineering items; section 0 lists them.
     signals + `result_field`/`all_of` verification + dotted bindings; browser workflow C: read-only GREEN `web_extract`,
     restart-surviving plan test, evidence-based browser rewards). A walk through the real HUD then fixed seven UI/backend defects (panel layout, agent-count flicker, optional-socket
     DEGRADED, blank atlas, 401 polling storm, blocking `/security/status`) -- see STAGE_8 report section 7 for those and the list of
-    taste calls left for you. Final suite 6,499 passed / 0 failed. Still open: independent Codex review (after 2026-09-27 19:11) --
-    including the NEW GREEN `web_extract` tier entry; owner-run live behavioural checks (voice, camera). `VECTOR_API_KEY` was rotated 2026-09-26: any HUD tab or phone bookmark carrying the
-    old key shows ACCESS KEY REJECTED until it is reopened with the key from `.env`.
+    taste calls left for you. Final suite 6,499 passed / 0 failed. **The `process_snapshot.py` out-of-process fix re-verified
+    2026-09-29 by Claude self-review** (Codex quota-exhausted twice during this pass; see
+    `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed `core/api/routers/security.py` genuinely spawns it
+    as a real separate `subprocess.run` wrapped in `asyncio.to_thread`, protecting the event loop both from psutil's GIL-holding
+    Windows enumeration and from waiting on the child process. Still open: a genuine independent Codex review of this (and the
+    NEW GREEN `web_extract` tier entry); owner-run live behavioural checks (voice, camera). `VECTOR_API_KEY` was rotated
+    2026-09-26: any HUD tab or phone bookmark carrying the old key shows ACCESS KEY REJECTED until it is reopened with the key
+    from `.env`.
 18. **A2A bus, experience ledger, fair HP (2026-09-26)** — full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/A2A_AND_EXPERIENCE_2026-09-26.md`.
     Built: a governed agent-to-agent bus for all 230 agents (230/230 answered a live ping across 39 districts; RED requests refused; the old
     `request_agent_help` gateway bypass closed), a lineage experience ledger with XP/levels/failure attribution/playbook, practice drills,
@@ -179,7 +184,12 @@ grew open engineering items; section 0 lists them.
     0 approvals as 0; two more verifiable practice drills (3 of 230 agents now); the four behaviour flags are ON in `.env`.
     Full suite 6,708 passed / 0 failed / 39 skipped. **The owner deleted the 577-row `agent_history` junk themselves (2026-09-27)**
     -- the permission classifier denied doing it unattended, so the owner ran the prepared script directly (backup kept,
-    `agent_history` 1,150 -> 573). **Still needs the owner:** the Codex review and the live checks.
+    `agent_history` 1,150 -> 573). **ContinueGate coherence fix re-verified 2026-09-29 by Claude self-review** (Codex
+    quota-exhausted twice during this pass; see `VECTOR_TECHNICAL_KNOWLEDGE/CODEX_REVIEW_2026-09-29_CORE.md`) — confirmed
+    `core/loop/autonomous_loop.py`'s `_continue_gate_coherence()` genuinely computes a real
+    `CoherenceScheduler.compute_score("think_loop")` value instead of the ranking score, and ran
+    `tests/test_think_tick_continue_gate_coherence.py` for real (7 passed, including a test named exactly for the specific
+    0.30-0.40 bug). **Still needs the owner:** a genuine independent Codex review and the live behavioural checks.
 20. **Self-dev agent program (P1-P11, 2026-09-27..09-29)** -- full write-up: `VECTOR_TECHNICAL_KNOWLEDGE/SELF_DEV_PROGRAM_SUMMARY.md`
     (also `SELF_DEV_P1..P10_*.md` per-package). Claude and Codex split porting the owner's selected Claude Code agent
     personas into real, tested VECTOR agents by district. Result: 164 personas covered across the 10 packages -- 90

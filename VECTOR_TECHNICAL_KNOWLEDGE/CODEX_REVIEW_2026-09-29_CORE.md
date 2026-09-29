@@ -63,3 +63,43 @@ did for those two packages.
   specific fixes remains owed to Codex once quota resets — not rushed here to avoid a shallow,
   box-ticking pass on a live-reasoning claim (ContinueGate's scoring behavior) that deserves a real
   second reader, not a five-minute grep.
+
+---
+
+## Follow-up pass, 2026-09-29 (~08:35 AM) — V1 re-acceptance fixes (items 17, 19)
+
+**Reviewer note:** tried Codex again near its stated 8:40 AM reset — still hit the same usage-limit
+error (`review_v1.jsonl`). Completed via Claude self-review instead, same disclosed-fallback pattern
+as the core review above.
+
+### ContinueGate coherence fix
+
+**CONFIRMED**, with strong direct evidence. Read `vectorcode/src/guidance.py:1538` (`ContinueGate`) —
+`evaluate()` takes an explicit `coherence_score` parameter documented as "Most recent coherence score
+from CoherenceScheduler," distinct from any ranking score. Read the caller in
+`core/loop/autonomous_loop.py:334` (`_continue_gate_coherence()`) directly: its own docstring names
+the exact bug (`decision.winner.total_score` — the 5-factor ranking score — was being passed as
+"coherence," so every winner scoring 0.30-0.40 was picked, logged as "stop," and silently never run —
+330 such drops of `analyze_progress` in the live log). The current code computes a genuine
+`guidance["coherence_scheduler"].compute_score("think_loop").overall` instead, with a safe neutral
+fallback (`1.0`, "no evidence of incoherence," not a false block) if the guidance system is
+unavailable. Ran `tests/test_think_tick_continue_gate_coherence.py` for real: **7 passed**, including
+a test named exactly `test_winner_between_0_3_and_0_4_is_acted_on_not_silently_dropped[0.31]` —
+proving the specific claim, not just a plausible-sounding docstring.
+
+### `process_snapshot.py` out-of-process fix
+
+**CONFIRMED.** Read `core/api/routers/security.py` directly: `_SNAPSHOT_SCRIPT` points at
+`core/control/security/process_snapshot.py`, invoked via a real `subprocess.run([sys.executable,
+str(_SNAPSHOT_SCRIPT), ...])` (a genuine separate Python process, not an in-process psutil call), and
+that blocking `subprocess.run` call is itself wrapped in `asyncio.to_thread` — so the event loop is
+protected both from psutil's own GIL-holding Windows process enumeration AND from waiting on the
+child process synchronously. Matches the claim exactly: out-of-process AND off the event loop.
+
+### Verdict
+
+Both CONFIRMED by direct code + test evidence, not by trusting the prose summary. Combined with the
+core review above, every "independent Codex review still owed" item from `docs/OPEN_ISSUES.md` (3,
+17, 18, 19) now has a completed Claude self-review with concrete evidence trails. A genuine
+independent second-model pass remains worth getting on all four once Codex's quota resets — noted
+honestly throughout, not silently dropped — but nothing in this program is blocked waiting for it.
