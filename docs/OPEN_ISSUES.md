@@ -130,10 +130,10 @@ grew open engineering items; section 0 lists them.
     and a blocking subprocess inside an async method. **Whole-repo index DONE 2026-09-26**: 26,632 files / 101,614 chunks, code graph of 9,209 files
     and 107,891 symbols; Qdrant is left running (`scripts\stop_code_intel.bat` stops it). Re-indexing later needs the MCP
     session to stay alive, so do it from a long-lived process (the API), not a one-shot script.
-15. **Stray test write in the live home** — while adding the router tests, one child process inherited the real
-    `VECTOR_HOME` and wrote a single line ("vector test fact") to `~/.vector/memories/MEMORY.md` (new dir, only
-    that file + `MEMORY.md.lock`). Test fixtures are fixed so it cannot recur; the file itself is left for the
-    owner to delete (the auto-mode classifier blocked me from removing it).
+15. **Stray test write in the live home** — **RESOLVED, confirmed gone 2026-09-29.** `~/.vector/memories/` now
+    exists but is empty (no `MEMORY.md`, no `MEMORY.md.lock` anywhere under `~/.vector`) — the stray file from
+    the router-test fixture bug is gone, whether removed by the owner or an earlier cleanup. Test fixtures
+    remain fixed so it cannot recur.
 16. **HUD side panels**: ComfyUI / Media Studio / Hyperframes now say "not running" (via `/media/sidecars`) when
     their local servers are down; the servers themselves are owner-started.
 17. **V1 re-acceptance pass (2026-09-26)** — full report: `VECTOR_TECHNICAL_KNOWLEDGE/STAGE_8_V1_REACCEPTANCE_2026-09-26.md`.
