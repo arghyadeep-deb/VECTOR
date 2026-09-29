@@ -128,3 +128,42 @@ new deterministic read pattern is justified by a regression test. No external
 action, database schema, dependency, production configuration, credential,
 manifest, or permission-policy change was made. No new action type requires
 independent tier review.
+
+## Addendum — follow-up pass, 2026-09-29
+
+Owner approval was given in chat the same day ("do it, u can use codex n urself for the task"),
+directly acting on this report's own disclosed 7-persona "partial" list above. The disposition on
+those 7 was correct at the time it was written (existing agents covered only a narrow slice), but
+this follow-up asked, for each one, whether a genuinely distinct, deterministic, VECTOR-verifiable
+capability existed beyond what the existing agents already did — and found one for 6 of the 7.
+
+Built in `districts/agency/agency_specialists.py`: `AccountStrategist` (account health/expansion-risk
+from caller-supplied engagement data, distinct from `ClientManager`'s engagement-record lookup),
+`DealStrategist` (single-deal MEDDPICC completeness, distinct from `SalesStrategist.analyze_pipeline()`'s
+list-level staleness math), `SalesEngineer` (technical-requirement-coverage check, distinct from
+`ProposalStrategist`'s generic structure-building), `OutboundSequenceStrategist` (touch/channel/cadence
+validation, distinct from `SalesStrategist.write_outreach()`'s LLM copy drafting),
+`PipelineVelocityAnalyst` (stage conversion/velocity math, distinct from `analyze_pipeline()`'s
+staleness summary), `ProposalCoverageStrategist` (required-vs-addressed capability coverage check).
+
+`sales-outbound-strategist` and `sales-outreach` were confirmed to be the same underlying deterministic
+capability under two names and deliberately collapsed into the one `OutboundSequenceStrategist` agent —
+building two would have been count-padding, not a real distinction, and this report's own "no
+fabricated capability" standard governed that call the same way it governed the original 10 not-built
+personas below.
+
+The other 10 personas disclosed as not-built above (procurement data, guest/reservation records, loan
+facts, property listings, candidate pipelines, order/return records, call transcripts, sales-data
+connectors, discovery-call capture) were **not** re-examined in this follow-up — this pass was scoped
+to the 7 "partial" personas only. They remain honestly disclosed as not built pending a future pass
+that specifically re-asks whether VECTOR has grown a verifiable evidence source for any of them since
+this report was written.
+
+Verification: 14/14 new unit tests pass (`tests/test_agency_sales_specialists.py`), 102 broader
+regression tests pass, dangerous-primitive grep clean (no subprocess/eval/exec/os.system, no LLM
+calls), manifest integrity clean, the `status_check_report` word-overlap collision fixture still
+resolves `None` (fail-closed intact), `compileall` clean, both new files' own `__main__` smoke checks
+pass. Built by Codex in worktree `p6-followup-sales-specialists`, independently verified and committed
+by Claude, merged into `fix/external-review-2026-09` clean (no conflicts). 12 new GREEN permission-tier
+entries added, flagged for the pending independent review; no existing tier touched. Full detail:
+`SELF_DEV_P6_FOLLOWUP_SALES_SPECIALISTS.md`.
