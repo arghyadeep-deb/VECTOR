@@ -1243,6 +1243,8 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "identity_trust_check": "security",
     "automation_governance_brief": "security",
     "automation_governance_check": "security",
+    "slack_archaeology_brief": "security",
+    "slack_archaeology_check": "security",
     # data_analytics additions
     "data_pipeline": "data_analytics",
     "etl": "data_analytics",

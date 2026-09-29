@@ -355,6 +355,11 @@ class PermissionConfig(BaseModel):
         "scan_verification_brief", "scan_verification_check",
         "identity_trust_brief", "identity_trust_check",
         "automation_governance_brief", "automation_governance_check",
+        # 2026-09-29 (self-dev program follow-up, owner-approved coverage sweep): SlackArchaeologist is
+        # read-only, in-memory analysis over caller-supplied message records (no send, no external call,
+        # no file write) -- same GREEN classification as every other Security specialist in this block.
+        # Flagged for the pending independent review like the rest of this program.
+        "slack_archaeology_brief", "slack_archaeology_check",
         # 2026-09-28 T9-fix-1 (Codex review finding, verified real by Claude): email_agent.py declares mark_read
         # as a capability but it had no tier entry at all, so Governor._is_known_task_type() let it dispatch
         # with zero PermissionGateway involvement -- not even a GREEN classification. mark_read only flips a

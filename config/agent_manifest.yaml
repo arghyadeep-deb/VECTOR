@@ -644,6 +644,12 @@ districts:
       description: Deterministic automation value, control, fallback, and human-checkpoint assessment
       capabilities: [automation_governance_brief, automation_governance_check]
 
+    - name: slack_archaeologist
+      class: districts.security.security_specialists.SlackArchaeologist
+      model: vector-focus
+      description: Deterministic Slack-history reconstruction for incident reconstruction and evidence gathering
+      capabilities: [slack_archaeology_brief, slack_archaeology_check]
+
   time_calendar:
     - name: kiit_scraper
       class: districts.time_calendar.kiit_scraper.KIITScraper

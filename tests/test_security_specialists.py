@@ -27,6 +27,7 @@ from districts.security.security_specialists import (
     ScanLoaderAnalyst,
     ScanResearcher,
     ScanVerifier,
+    SlackArchaeologist,
 )
 
 
@@ -128,6 +129,13 @@ COMPLETE_EVIDENCE = {
         "fallback_owner": "security owner",
         "human_checkpoint": True,
     },
+    SlackArchaeologist: {
+        "channel_or_thread_ref": "C0123ABCDEF",
+        "messages": [
+            {"id": "m1", "author": "alice", "timestamp": "2026-09-29T10:00:00Z", "text": "incident started"},
+            {"id": "m2", "author": "bob", "timestamp": "2026-09-29T09:59:00Z", "text": "earlier reply", "thread_id": "m1"},
+        ],
+    },
 }
 
 
@@ -174,6 +182,7 @@ def test_manifest_tiers_and_routes_are_exact():
         "scan_verifier": ScanVerifier,
         "agentic_identity_trust_analyst": AgenticIdentityTrustAnalyst,
         "automation_governance_analyst": AutomationGovernanceAnalyst,
+        "slack_archaeologist": SlackArchaeologist,
     }
     definitions = ManifestLoader().load()
     security = {entry["name"]: entry for entry in definitions if entry["district"] == "security"}
@@ -191,6 +200,48 @@ def test_manifest_tiers_and_routes_are_exact():
             assert action in CONFIG["permission"]["green"]
             assert action not in CONFIG["permission"]["yellow"]
             assert action not in CONFIG["permission"]["red"]
+
+
+@pytest.mark.asyncio
+async def test_slack_archaeologist_catches_every_real_defect_and_orders_the_timeline():
+    agent = SlackArchaeologist()
+    messages = [
+        {"id": "m1", "author": "alice", "timestamp": "2026-09-29T10:00:00Z", "text": "incident started"},
+        {"id": "m2", "author": "bob", "timestamp": "2026-09-29T09:59:00Z", "text": "earlier reply", "thread_id": "m1"},
+        {"id": "m3", "author": "", "timestamp": "2026-09-29T10:01:00Z", "text": "no author"},
+        {"id": "m1", "author": "dup", "timestamp": "2026-09-29T10:02:00Z", "text": "dup id"},
+        {"id": "m4", "author": "carol", "timestamp": "bad-ts", "text": "bad ts"},
+        {"id": "m5", "author": "dave", "timestamp": "2026-09-29T10:03:00Z", "text": "dangling", "thread_id": "ghost"},
+    ]
+    result = await agent.run(
+        {"type": "slack_archaeology_check", "evidence": {"channel_or_thread_ref": "C123", "messages": messages}}
+    )
+    report = result["report"]
+    assert report["status"] == "needs_human"
+    failed = {c["name"] for c in report["checks"] if not c["passed"]}
+    assert failed == {
+        "no_duplicate_message_ids",
+        "every_message_has_author_and_timestamp",
+        "every_timestamp_parses",
+        "no_dangling_thread_references",
+    }
+    assert report["duplicate_ids"] == ["m1"]
+    assert report["dangling_thread_references"] == ["m5"]
+
+    clean = await agent.run(
+        {
+            "type": "slack_archaeology_check",
+            "evidence": {
+                "channel_or_thread_ref": "C123",
+                "messages": [
+                    {"id": "a", "author": "alice", "timestamp": "2026-09-29T10:00:00Z", "text": "second"},
+                    {"id": "b", "author": "bob", "timestamp": "2026-09-29T09:59:00Z", "text": "first", "thread_id": "a"},
+                ],
+            },
+        }
+    )
+    assert clean["report"]["status"] == "passed"
+    assert [t["id"] for t in clean["report"]["timeline"]] == ["b", "a"]
 
 
 @pytest.mark.asyncio

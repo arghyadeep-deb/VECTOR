@@ -562,6 +562,84 @@ class AutomationGovernanceAnalyst(SecuritySpecialist):
         }
 
 
+class SlackArchaeologist(SecuritySpecialist):
+    """Deterministic Slack-history reconstruction for incident reconstruction and evidence
+    gathering: completeness, duplicate-id, and dangling-thread-reference checks over
+    caller-supplied message records, plus a real chronological, attributed timeline built
+    from that data -- never an LLM guess at what was said or when."""
+
+    profile = SecuritySpecialistProfile(
+        "SlackArchaeologist",
+        "slack_archaeologist_001",
+        "slack_archaeology_brief",
+        "slack_archaeology_check",
+        ("channel_or_thread_ref", "messages"),
+        "structured, attributed, chronologically-ordered timeline reconstruction of a "
+        "Slack channel/DM/thread from caller-supplied message records",
+    )
+
+    def evaluate(self, evidence: dict[str, Any]) -> dict[str, Any]:
+        messages = evidence["messages"]
+        if not isinstance(messages, list) or not messages:
+            raise ValueError("messages must be a non-empty list")
+        ids_seen: set[str] = set()
+        duplicate_ids: list[str] = []
+        missing_author_or_ts: list[str] = []
+        bad_timestamps: list[str] = []
+        parsed: list[tuple[datetime, dict[str, Any]]] = []
+        for msg in messages:
+            if not isinstance(msg, dict):
+                raise ValueError("each message must be a mapping")
+            mid = str(msg.get("id", ""))
+            if not mid:
+                raise ValueError("every message needs a non-empty id")
+            if mid in ids_seen:
+                duplicate_ids.append(mid)
+            ids_seen.add(mid)
+            author, ts_raw = msg.get("author"), msg.get("timestamp")
+            if not _has_value(author) or not _has_value(ts_raw):
+                missing_author_or_ts.append(mid)
+                continue
+            try:
+                ts = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00"))
+            except ValueError:
+                bad_timestamps.append(mid)
+                continue
+            parsed.append((ts, msg))
+        all_ids = {str(m.get("id", "")) for m in messages}
+        dangling_threads = [
+            str(msg.get("id", ""))
+            for msg in messages
+            if (parent := msg.get("thread_id") or msg.get("parent_id"))
+            and str(parent) not in all_ids
+            and str(parent) != str(msg.get("id", ""))
+        ]
+        parsed.sort(key=lambda item: item[0])
+        timeline = [
+            {"id": m.get("id"), "author": m.get("author"), "timestamp": ts.isoformat(), "text": m.get("text", "")}
+            for ts, m in parsed
+        ]
+        checks = [
+            _check("no_duplicate_message_ids", not duplicate_ids, duplicate_ids),
+            _check("every_message_has_author_and_timestamp", not missing_author_or_ts, missing_author_or_ts),
+            _check("every_timestamp_parses", not bad_timestamps, bad_timestamps),
+            _check("no_dangling_thread_references", not dangling_threads, dangling_threads),
+        ]
+        return {
+            "status": "passed" if all(item["passed"] for item in checks) else "needs_human",
+            "checks": checks,
+            "message_count": len(messages),
+            "timeline": timeline,
+            "duplicate_ids": duplicate_ids,
+            "missing_author_or_timestamp": missing_author_or_ts,
+            "bad_timestamps": bad_timestamps,
+            "dangling_thread_references": dangling_threads,
+            "missing_evidence": [],
+            "deterministic": True,
+            "read_only": True,
+        }
+
+
 SPECIALIST_CLASSES: tuple[type[SecuritySpecialist], ...] = (
     PatchProposalGenerator,
     PatchProposalVerifier,
@@ -571,6 +649,7 @@ SPECIALIST_CLASSES: tuple[type[SecuritySpecialist], ...] = (
     ScanVerifier,
     AgenticIdentityTrustAnalyst,
     AutomationGovernanceAnalyst,
+    SlackArchaeologist,
 )
 
 
