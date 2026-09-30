@@ -46,6 +46,26 @@ from core.memory.db_utils import configured_db_path
 _DB_PATH = configured_db_path()
 
 
+def _get_conn(db_path: str) -> tuple[sqlite3.Connection, bool]:
+    """Returns (conn, private). The main DB may be SQLCipher-encrypted, so a
+    plain sqlite3.connect() against it fails with "file is not a database" --
+    must go through episodic's singleton instead (never closed here). A
+    redirected db_path (tests / a custom Experiment/ExperimentRegistry path)
+    gets a private plain connection the caller closes. Mirrors
+    core/queue/retry_queue.py::RetryQueue._conn()."""
+    main_db = str(configured_db_path())
+    if db_path != main_db:
+        conn = sqlite3.connect(db_path, timeout=10, check_same_thread=False)
+        apply_pragmas(conn)
+        conn.row_factory = sqlite3.Row
+        return conn, True
+    from core.memory.episodic import get_db_connection
+    import importlib
+    conn = get_db_connection()
+    conn.row_factory = importlib.import_module(type(conn).__module__).Row
+    return conn, False
+
+
 @dataclass
 class Experiment:
     id: int
@@ -64,8 +84,7 @@ class Experiment:
     def record(self, subject_id: str, variant: str, metric: str, value: float,
                metadata: dict | None = None) -> None:
         """Record a metric observation for a variant."""
-        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        apply_pragmas(conn)
+        conn, private = _get_conn(self._db)
         try:
             conn.execute("""
                 INSERT INTO experiment_results
@@ -75,20 +94,21 @@ class Experiment:
                   json.dumps(metadata or {}), time.time()))
             conn.commit()
         finally:
-            conn.close()
+            if private:
+                conn.close()
         logger.debug(f"[VECTOR][exp] {self.name}/{variant} {metric}={value:.4f}")
 
     def stats(self, metric: str = "reward") -> dict[str, dict]:
         """Return per-variant stats: mean, n, std, and Welch's t-test p-value vs first variant."""
-        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        apply_pragmas(conn)
+        conn, private = _get_conn(self._db)
         try:
             rows = conn.execute("""
                 SELECT variant, value FROM experiment_results
                 WHERE experiment_id = ? AND metric = ?
             """, (self.id, metric)).fetchall()
         finally:
-            conn.close()
+            if private:
+                conn.close()
 
         buckets: dict[str, list[float]] = {v: [] for v in self.variants}
         for variant, value in rows:
@@ -162,14 +182,13 @@ class ExperimentRegistry:
             cls._instance = cls()
         return cls._instance
 
-    def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
-        apply_pragmas(conn)
-        conn.row_factory = sqlite3.Row
-        return conn
+    def _conn(self) -> tuple[sqlite3.Connection, bool]:
+        """Returns (conn, private). See _get_conn() above."""
+        return _get_conn(self._db)
 
     def _init_db(self) -> None:
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS experiments (
                     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -196,10 +215,15 @@ class ExperimentRegistry:
                 CREATE INDEX IF NOT EXISTS idx_exp_results
                 ON experiment_results (experiment_id, metric, variant)
             """)
+            conn.commit()
+        finally:
+            if private:
+                conn.close()
 
     def create(self, name: str, variants: list[str], description: str = "") -> Experiment:
         """Create or retrieve an experiment by name."""
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             existing = conn.execute(
                 "SELECT * FROM experiments WHERE name = ?", (name,)
             ).fetchone()
@@ -210,29 +234,46 @@ class ExperimentRegistry:
                 "VALUES (?, ?, ?, 1, ?)",
                 (name, json.dumps(variants), description, time.time()),
             )
+            conn.commit()
             row = conn.execute(
                 "SELECT * FROM experiments WHERE id = ?", (cur.lastrowid,)
             ).fetchone()
+        finally:
+            if private:
+                conn.close()
         logger.info(f"[VECTOR][exp] created experiment '{name}' variants={variants}")
         return self._row_to_exp(row)
 
     def get_experiment(self, name: str) -> Experiment | None:
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             row = conn.execute(
                 "SELECT * FROM experiments WHERE name = ?", (name,)
             ).fetchone()
+        finally:
+            if private:
+                conn.close()
         return self._row_to_exp(row) if row else None
 
     def list_active(self) -> list[Experiment]:
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             rows = conn.execute(
                 "SELECT * FROM experiments WHERE active = 1 ORDER BY created_at DESC"
             ).fetchall()
+        finally:
+            if private:
+                conn.close()
         return [self._row_to_exp(r) for r in rows]
 
     def deactivate(self, name: str) -> None:
-        with self._conn() as conn:
+        conn, private = self._conn()
+        try:
             conn.execute("UPDATE experiments SET active = 0 WHERE name = ?", (name,))
+            conn.commit()
+        finally:
+            if private:
+                conn.close()
 
     def _row_to_exp(self, row: Any) -> Experiment:
         return Experiment(

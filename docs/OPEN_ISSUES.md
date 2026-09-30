@@ -525,6 +525,88 @@ grew open engineering items; section 0 lists them.
     5 commits: `bf6f6be1d`, `53f59bfb4`, `d6779c761`, `5c8def7b4`, `ffa06cad7`. A full-suite regression run
     was kicked off to catch anything the targeted per-district checks missed.
 
+26. **Whole-repo scope expansion + Claude/Codex 50/50 split, 2026-09-30 —** owner corrected scope
+    mid-cycle: "each and every file" in the codebase, not just `districts/`, split genuinely 50/50 with
+    Codex (not Claude-does-everything-Codex-reviews) to protect Claude's weekly usage limit. Tracking
+    ledger: `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\PHASE3_FULL_SWEEP.md`. Model caps (owner-set,
+    stricter than `tools/vector_dev_orchestrator/POLICY.md`'s own ceiling): Claude capped at Sonnet-high
+    (no Opus, ever); Codex capped at Sol (no Astra, ever) — flag instead of escalating past either cap.
+    Re-ran the item-25 params-bug AST scanner across all 7,205 `.py` files in the repo (not just
+    `districts/`+`core/`): 0 syntax errors, only 6 candidates total — 3 false positives after individual
+    verification (2 already-known: `core/loop/workflow_runner.py`, `core/swarm/generic_swarm.py`; 1 newly
+    checked: `vectorcode/src/tools/mcp_tool.py` — its `run(self, config: dict)` is an MCP client connection
+    lifecycle coroutine, unrelated to the governor's `run(self, task)` dispatch interface the scanner
+    targets, confirmed by reading the method — not a real bug, not handed to Codex), 3 genuine true
+    positives in Claude's territory, fixed same day (`districts/communications/
+    email_intelligence.py`, `districts/design/image_prompt_engineer.py`, `districts/design/
+    ux_researcher.py` — same bug shape, same fix pattern; `tests/test_phase3_sweep_params_dispatch.py`
+    added, 4/4 pass).
+    **A second, broader mechanical sweep** (same zero-LLM-call AST/regex technique, scoped to
+    `districts/`+`core/`+`vectorcode/` minus the already-wiring-check-only vendored trees, 3,827 files)
+    checked for other CLAUDE.md-rule violations: forbidden imports (`threading`/`requests`/`flask`/
+    `pickle`), `print()` outside a file's own `__main__` smoke-test guard, raw `sqlite3.connect(...)`
+    bypassing `core.memory.episodic.get_db_connection()`, and silent `except: pass`. Result: **478
+    forbidden imports (374 `threading`, of which 192 are real `threading.Thread()` spawns rather than a
+    safe `Lock()` guard; 55 `requests`; 48 `flask`; 1 `pickle`), 5,304 `print()` calls outside a
+    `__main__` guard, 150 raw `sqlite3.connect()` sites, 333 silent `except: pass` blocks.** Full raw
+    output: `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\full_repo_sweep2_results.txt`. **Not fixed —
+    flagged for owner decision, not autonomous action**: sample-checked the `threading.Thread()` hits and
+    they cluster overwhelmingly in large absorbed subsystems (`core/coding_assistant/`,
+    `core/research_engine/`) that predate this session; converting hundreds of call sites' concurrency
+    model to asyncio (or auditing 150 raw sqlite3 connections for whether they're legitimately outside the
+    main encrypted DB, e.g. migration/backup tooling, vs. a real SQLCipher-bypass bug) is a large,
+    architecturally risky undertaking with a blast radius far beyond "fix what the params-bug hunt
+    found" — this needs an explicit owner call on priority/scope before any code changes, not a
+    same-session autonomous fix.
+    Split execution as of this entry: Claude side committed 2 batches (`d8eb4e7b0` — 21-file
+    params[type]-hijacking-dispatch fix from Codex's 3rd review pass, see item 25's continuation;
+    `214cb5d9c` — the 3 whole-repo-sweep true positives above), then personally triaged all 14 raw-sqlite3
+    sites in its own core/ territory (`core/memory/`, `core/loop/task_ledger.py`+`trust_ladder.py`,
+    `core/brain/epistemic_tracker.py`+`person_model.py`+`suggestion_queue.py`,
+    `core/city/meta_cognition.py`) by reading each file's actual schema/logic, not just the raw grep list
+    — full report: `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\claude_sqlite_triage_report.md`. 13/14
+    fine (either the shared-connection plumbing itself, a false-positive only reachable from an isolated
+    test/`:memory:` path, or a legitimate non-sensitive auxiliary store — VECTOR's own internal
+    reasoning/decision state, verified per file). **1 real finding, not autonomously fixed**:
+    `core/brain/person_model.py` (Gap 7) opens a plain unencrypted `sqlite3.connect()` at
+    `data_path()/person_models.db`, storing `name`/`email`/`relationship_type`/`trust_score`/metadata
+    for every real person VECTOR interacts with — genuine third-party PII sitting outside the
+    SQLCipher-encrypted main DB. Migrating an existing on-disk file to SQLCipher (or folding it into the
+    main DB) is a real schema/data migration with data-loss risk if done carelessly — this needs an
+    explicit owner call on priority/approach, not a same-session autonomous fix.
+    **Codex's matching triage of its 21-file half completed** (background `codex exec -m gpt-5.6-sol`,
+    129,505 tokens, no code changes attempted — correctly conservative, same discipline as Claude's half):
+    full report `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\codex_sqlite_triage_report.md`. 12 FINE
+    (shared-connection plumbing itself, `__main__`-self-test-only false positives, or non-sensitive
+    read-only reference DBs), **9 FLAG-FOR-OWNER real findings**: `core/api/routers/email.py` +
+    `core/email/schema.py` (plaintext `email.db` — full correspondence, PII), `core/api/routers/
+    relationships.py` (plaintext `contacts.db` — names/phones/emails/notes), `core/persona/evolution.py`
+    (person-linked behavioral trait data), `core/scheduler/store.py` (plaintext task prompts/results, can
+    contain user content or secrets), `core/security/mcp_security.py` (plaintext tool-call audit log,
+    `str(record.params)` unredacted — can contain paths/URLs/message bodies/tokens), `core/trading/
+    graph/checkpointer.py` (crash-resume trading-analysis state, plaintext). All 9 need an owner call on
+    migration/redaction/encryption approach for existing on-disk data — genuinely not same-session
+    autonomous fixes (data-loss risk if rushed), consistent with Claude's own `person_model.py` finding
+    above.
+    **One exception Claude fixed directly**, because unlike the other 9 it had no data-migration risk —
+    Codex's own report flagged `core/api/routers/queue.py` (lines 37/56/76) as functionally different
+    from the rest: "a bypass/correctness problem ... will fail against an encrypted DB, not evidence of
+    a second plaintext queue file" — the router duplicated raw `sqlite3.connect(rq._db, ...)` instead of
+    calling `RetryQueue`'s own already-correct `_conn()` helper, silently returning empty
+    `{"items": [], "error": ...}` for 3 endpoints whenever SQLCipher is active. Fixed by routing through
+    `_conn()` like every other RetryQueue method already does — same target file, no schema/migration
+    change. New test file `tests/test_queue_router_conn_bypass.py` (4 tests), zero regressions in the 17
+    pre-existing RetryQueue-adjacent tests. Commit `b229dda82`.
+    **Claude also found and fixed the identical bug class in `core/experiments/ab_testing.py`** while
+    reviewing the sweep's `requests`/`ab_testing.py` hit list — `ExperimentRegistry._conn()` and
+    `Experiment.record()`/`stats()` all opened `sqlite3.connect()` directly against the main DB path with
+    zero SQLCipher branching anywhere in the file (unlike `queue.py`, there was no existing correct helper
+    to delegate to, so a small shared `_get_conn(db_path)` helper was added mirroring `RetryQueue._conn()`'s
+    established pattern, and every call site in both classes updated to use it). Confirmed no other module
+    imports `ExperimentRegistry`/`Experiment` externally (Gap 18 / A/B testing is currently unwired from
+    any production caller — a separate, pre-existing, out-of-scope finding, not fixed here). New test file
+    `tests/test_ab_testing_conn_bypass.py` (7 tests, all pass).
+
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
