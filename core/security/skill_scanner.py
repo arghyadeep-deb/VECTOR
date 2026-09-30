@@ -353,7 +353,14 @@ def scan_artifact(path: str | os.PathLike[str]) -> SkillScanReport:
 
 
 def scan_skill_for_load(path: str | os.PathLike[str]) -> SkillScanReport:
-    report = scan_artifact(path)
+    target = Path(path)
+    # Production callers resolve a skill to its SKILL.md.  Scanning only that
+    # manifest leaves sibling scripts and hook/config payloads completely
+    # outside the pre-load gate, so expand the skill entry point to the full
+    # artifact directory.  scan_artifact() intentionally retains its generic
+    # single-file behavior for explicit one-file audits.
+    scan_target = target.parent if target.is_file() and target.name.lower() == "skill.md" else target
+    report = scan_artifact(scan_target)
     if report.blocked:
         logger.warning("[VECTOR][skill_scanner] blocked {}: {}", path, report.summary())
     return report

@@ -14,6 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from loguru import logger
+
 from core.runtime_paths import get_data_root
 
 
@@ -40,7 +42,8 @@ def _keyring_get(name: str) -> str:
         import keyring
 
         return (keyring.get_password(_SERVICE_NAME, name) or "").strip()
-    except Exception:
+    except Exception as exc:
+        logger.warning("[VECTOR][secrets] keyring lookup failed for {}: {}", name, exc)
         return ""
 
 
@@ -50,7 +53,8 @@ def _keyring_set(name: str, value: str) -> bool:
 
         keyring.set_password(_SERVICE_NAME, name, value)
         return True
-    except Exception:
+    except Exception as exc:
+        logger.warning("[VECTOR][secrets] keyring write failed for {}: {}", name, exc)
         return False
 
 
@@ -72,8 +76,9 @@ def record_secret_event(action: str, name: str, source: str, ok: bool) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(event, sort_keys=True) + "\n")
-    except Exception:
+    except Exception as exc:
         # Secret access must not fail because the metadata audit sink is down.
+        logger.warning("[VECTOR][secrets] secret audit write failed: {}", exc)
         return
 
 
