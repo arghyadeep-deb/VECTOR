@@ -233,7 +233,20 @@ def test_command_center_shows_zero_pending_approvals_as_zero_not_unknown(hud):
 
 
 def test_districts_widget_title_uses_real_counts(hud):
-    assert "DISTRICTS · 33" not in hud["districts"] and "AGENT DISTRICTS" in hud["districts"]
+    # 2026-09-30 (full-suite regression run, Phase 3 codebase audit): the old
+    # `"DISTRICTS · 33" not in hud["districts"]` was a bare substring check
+    # meant to catch a stale hardcoded "33 districts" label -- but "33" is
+    # also a prefix of "334", so as soon as the real (and correct) agent
+    # count grew past 333 it started falsely matching inside "334 AGENTS"
+    # and failing this test for a reason that had nothing to do with a
+    # stale district count. Extract the actual number immediately before
+    # "DISTRICTS" instead of substring-matching anywhere in the string.
+    import re
+    text = hud["districts"]
+    assert "AGENT DISTRICTS" in text
+    match = re.search(r"(\d+)\s*DISTRICTS\b", text)
+    assert match, f"no '<N> DISTRICTS' token found in {text!r}"
+    assert int(match.group(1)) != 33, f"stale hardcoded '33 districts' label still present: {text!r}"
 
 
 def test_orb_label_follows_the_hud_state(hud):
