@@ -214,6 +214,13 @@ class EvidenceCollector(AgentBase):
 
     async def run(self, task: dict) -> dict:
         """Collect all evidence, compile report, store in memory."""
+        # 2026-09-30 (Phase 3 codebase audit finding): the real governor
+        # dispatch shape is {"type": ..., "params": {...}} -- days/hours
+        # below were read straight off `task`, never `task["params"]`, so a
+        # real dispatch always fell back to the hardcoded defaults.
+        # Flattening params into task once (params values win on overlap)
+        # keeps every existing flat-shape caller/test working unchanged.
+        task = {**task, **(task.get("params") or {})}
         try:
             days = task.get("days", 1)
             hours = task.get("hours", 24)
