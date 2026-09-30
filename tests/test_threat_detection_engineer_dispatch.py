@@ -88,5 +88,27 @@ async def test_query_fallback_still_reads_params_correctly():
     assert "agent" not in result  # must not be the static status-dump shape
 
 
+@pytest.mark.asyncio
+async def test_nested_params_alias_keys_are_honored():
+    """Regression for a real bug Codex's independent review caught in the
+    first version of this fix (2026-09-30, same cycle): each key's
+    flat-shape ALIAS (e.g. "technique" for "technique_id") was preserved
+    only at the top-level `task` fallback, never checked nested inside
+    `params` itself -- so a real governor-shaped call using the alias
+    under params (e.g. {"type": "sigma_rule", "params": {"technique":
+    "T1003.001"}}) silently fell through to the hardcoded default.
+    """
+    agent = ThreatDetectionEngineer()
+
+    r1 = await agent.run({"type": "sigma_rule", "params": {"technique": "T1003.001"}})
+    assert r1["technique_id"] == "T1003.001"
+
+    r2 = await agent.run({"type": "coverage_map", "params": {"log_sources": ["aws_cloudtrail"]}})
+    assert r2["monitored_sources"] == ["aws_cloudtrail"]
+
+    r3 = await agent.run({"type": "analyze_logs", "params": {"lines": "powershell -enc SGVsbG8="}})
+    assert r3["finding_count"] == 1
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

@@ -573,15 +573,33 @@ class ThreatDetectionEngineer(AgentBase):
             # shape for backward compat, then the original default.
             params = task.get("params") or {}
 
+            # 2026-09-30 (Codex second independent review, same cycle): the
+            # first version of this fix preserved each key's flat-shape
+            # ALIAS (e.g. "technique" for "technique_id") only at the
+            # top-level `task` fallback, never checking that same alias
+            # nested inside `params` -- so a real governor-shaped call using
+            # the alias under params (e.g. {"type": "sigma_rule", "params":
+            # {"technique": "T1003.001"}}) still silently fell through to
+            # the default. Verified live before fixing: that exact call
+            # returned the T1059.001 default instead of T1003.001. Checking
+            # both spellings inside params (then both at the flat-task
+            # level, matching the code's own long-established naming) closes
+            # the gap for every combination.
             if task_type == "sigma_rule":
-                technique_id = params.get("technique_id", task.get("technique_id", task.get("technique", "T1059.001")))
+                technique_id = (
+                    params.get("technique_id") or params.get("technique")
+                    or task.get("technique_id") or task.get("technique") or "T1059.001"
+                )
                 description = params.get("description", task.get("description", f"Detection rule for {technique_id}"))
                 rule = self.generate_sigma_rule(technique_id, description)
                 self.award_points(30, "task_done")
                 return {"status": "ok", "sigma_rule": rule, "technique_id": technique_id}
 
             elif task_type == "coverage_map":
-                sources = params.get("sources", task.get("sources", task.get("log_sources", [])))
+                sources = (
+                    params.get("sources") or params.get("log_sources")
+                    or task.get("sources") or task.get("log_sources") or []
+                )
                 if not isinstance(sources, list):
                     sources = [str(sources)]
                 if not sources:
@@ -591,7 +609,10 @@ class ThreatDetectionEngineer(AgentBase):
                 return {"status": "ok", **result}
 
             elif task_type == "analyze_logs":
-                lines = params.get("log_lines", task.get("log_lines", task.get("lines", [])))
+                lines = (
+                    params.get("log_lines") or params.get("lines")
+                    or task.get("log_lines") or task.get("lines") or []
+                )
                 if isinstance(lines, str):
                     lines = lines.splitlines()
                 findings = self.analyze_log_for_threats(lines)
