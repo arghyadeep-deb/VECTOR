@@ -28,8 +28,7 @@ async def _alert_owner(msg: str) -> None:
         from core.cloud.notify import notify_owner
         await notify_owner(msg, priority=2)
     except Exception:
-        logger.exception("[VECTOR] silent swallow")
-        pass
+        logger.exception("[VECTOR][db_guardian] notify_owner failed")
 
 
 async def _on_security_event(event: Event) -> None:

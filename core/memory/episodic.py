@@ -354,9 +354,8 @@ def close_db_connection() -> None:
         if _db_connection is not None:
             try:
                 _db_connection.close()
-            except Exception:
-                logger.warning("[VECTOR] silent swallow")
-                pass
+            except Exception as e:
+                logger.warning(f"[VECTOR][episodic] singleton close failed: {e}")
             _db_connection = None
         # The resolved key is part of the singleton's identity, not just an
         # input to opening it once: _get_db_key() caches its result in
@@ -377,9 +376,8 @@ def close_db_connection() -> None:
         if cb is not None:
             cb.state = CircuitState.CLOSED
             cb.failure_count = 0
-    except Exception:
-        logger.warning("[VECTOR] silent swallow")
-        pass
+    except Exception as e:
+        logger.warning(f"[VECTOR][episodic] circuit breaker reset failed: {e}")
     try:
         # Resets the MemoryTree singleton in lockstep with the SQL singleton
         # so the next store() picks up whatever VECTOR_DB_PATH/
@@ -388,9 +386,8 @@ def close_db_connection() -> None:
         # test-file edits required.
         from core.engine.memory_tree.tree_builder import close_shared_tree
         close_shared_tree()
-    except Exception:
-        logger.warning("[VECTOR] silent swallow")
-        pass
+    except Exception as e:
+        logger.warning(f"[VECTOR][episodic] memory tree reset failed: {e}")
 
 
 def get_db_write_lock() -> threading.RLock:

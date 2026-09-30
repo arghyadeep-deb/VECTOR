@@ -422,9 +422,8 @@ class CounterfactualMemory:
         try:
             with self._lock:
                 self._conn.close()
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning(f"[VECTOR][counterfactual] close failed: {e}")
 
 
 if __name__ == "__main__":
