@@ -687,15 +687,29 @@ class MultiDBManager:
         (safe merge). If overwrite=True, drops and recreates all tables first.
 
         Returns {"tables_restored": int, "rows_restored": int}.
+
+        SECURITY: backup_path is confined to the VECTOR repo root (the same
+        tree backup()'s own default path writes into) to prevent restoring
+        from an arbitrary file the process can read. table/column names come
+        from the backup JSON's own keys, not a fixed schema, so each is
+        validated against the TARGET DATABASE's real, live schema (queried
+        fresh via sqlite_master / PRAGMA table_info, not the file's own
+        claims) before ever being interpolated into SQL -- a crafted backup
+        file cannot inject arbitrary table/column names into DELETE/INSERT
+        this way. Unknown tables/columns in the file are skipped, not errored,
+        so a normal backup-then-restore round trip is unaffected.
         """
         import sqlite3
         from pathlib import Path as _Path
 
-        bp = _Path(backup_path)
+        _repo_root = _Path(__file__).resolve().parent.parent.parent
+        bp = _Path(backup_path).resolve()
+        if bp != _repo_root and not bp.is_relative_to(_repo_root):
+            raise ValueError(f"backup_path '{backup_path}' is outside the VECTOR repo root — refused.")
         if not bp.exists():
             raise FileNotFoundError(f"Backup file not found: {backup_path}")
 
-        with open(backup_path, "r", encoding="utf-8") as f:
+        with open(bp, "r", encoding="utf-8") as f:
             dump = json.load(f)
 
         if dump.get("version") != 1:
@@ -705,21 +719,35 @@ class MultiDBManager:
         db_path = configured_db_path()
         conn = sqlite3.connect(str(db_path), timeout=10, check_same_thread=False)
         try:
+            real_tables = {
+                r[0] for r in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
             tables_restored = 0
             rows_restored = 0
             for table, rows in dump["tables"].items():
                 if not rows:
                     continue
+                if table not in real_tables or not _SAFE_IDENTIFIER.match(table):
+                    logger.warning(f"[VECTOR][restore] skip unknown/unsafe table {table!r}")
+                    continue
                 if overwrite:
-                    conn.execute(f"DELETE FROM {table}")  # noqa: S608
-                cols = list(rows[0].keys())
+                    conn.execute(f"DELETE FROM {table}")  # table validated against real schema above
+                real_cols = {
+                    r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()  # table validated above
+                }
+                cols = [c for c in rows[0].keys() if c in real_cols and _SAFE_IDENTIFIER.match(c)]
+                if not cols:
+                    logger.warning(f"[VECTOR][restore] skip {table!r}: no recognized columns in backup")
+                    continue
                 placeholders = ", ".join("?" * len(cols))
                 col_names = ", ".join(cols)
                 for row in rows:
                     try:
                         conn.execute(
-                            f"INSERT OR IGNORE INTO {table} ({col_names}) VALUES ({placeholders})",  # noqa: S608
-                            [row[c] for c in cols],
+                            f"INSERT OR IGNORE INTO {table} ({col_names}) VALUES ({placeholders})",  # cols/table validated above
+                            [row.get(c) for c in cols],
                         )
                         rows_restored += 1
                     except Exception as _row_err:
