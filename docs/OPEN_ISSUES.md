@@ -846,6 +846,30 @@ grew open engineering items; section 0 lists them.
     `core/collections/`+`core/voice/` once Codex is confirmed available again (prompt already saved at
     `codex_core_collections_voice_deepverify_prompt.txt` in the scratch folder). Full detail in memory
     `codex-quota-exhausted-2026-09-30`.
+    **While Codex was blocked, Claude's own already-in-flight fork completed** (launched before the
+    quota exhaustion was discovered, independent of Codex): deep-verified `core/api/`'s 11 top-level
+    shared-infrastructure files (not `routers/`, 87 more files, still a future slice) — Claude picking
+    up a share of `core/api/` (98 files, the largest remaining `core/` directory) since its own assigned
+    territory is fully done. Found + fixed `core/api/tasks.py`'s `VECTOR_INTERNAL_TOKEN` read into a
+    module-global at **import time** — the exact anti-pattern `core/api/auth.py`'s own docstring already
+    documents as a prior bug there: an env var set after import (`.env` load ordering, or a test
+    monkeypatching `os.environ`) was silently ignored forever, either permanently locking out the
+    external task-ingestion endpoint or leaving it unconfigured. Fixed with a call-time
+    `_internal_token()` function, the same pattern already proven in `auth.py`. Plus 2 more
+    silent-swallow-placeholder sites in `app.py`'s `/metrics` endpoint. Verified fine, no fix needed:
+    `auth.py`/`middleware.py`/`webauthn_store.py`/`dependencies.py` show extensive prior hardening
+    (numbered `FIX #N` comments, multiple documented rounds) — constant-time comparisons, fail-closed
+    JWT, correct CORS allowlist, CSRF-skip logic verified safe even worst-case. New test
+    `tests/test_core_api_internal_task_fixes.py` (3 tests, incl. an end-to-end proof of the actual
+    regression). Claude caught and corrected an inaccurate path citation in the fork's own report
+    (regression test files actually live under `tests/backend/`, not `tests/`) before trusting its
+    "zero regressions" claim — found the real paths, re-ran 24 tests directly, all pass. Commit
+    `c81cb5801`.
+    16 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
+    `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` `d5940fa7c` `2639aaabb` `cf93642df` `52098dfa0`
+    `dbf66e82c` `615a97b4f` `c81cb5801` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the same day,
+    already covered above). Working tree clean except for the intentionally-held `token_blacklist.py`
+    decision file in the scratch folder.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
