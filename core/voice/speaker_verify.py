@@ -147,8 +147,12 @@ class SpeakerVerifier:
     # ── verification ──────────────────────────────────────────────────────────
 
     def verify(self, audio: np.ndarray, sr: int = 16000) -> tuple[bool, float]:
-        """Return (is_owner, similarity). Fails OPEN when not active/enrolled —
-        but the realtime layer logs every unverified action decision."""
+        """Return (is_owner, similarity).
+
+        Verification is a no-op until it is enabled and enrolled.  Once active,
+        however, an internal verification failure must not authenticate the
+        speaker.  Callers use this boolean to gate owner-only actions.
+        """
         if not self.active:
             return True, 1.0
         # Too little speech to judge ⇒ fail OPEN. A d-vector from <1s of audio is
@@ -165,17 +169,17 @@ class SpeakerVerifier:
             emb = self.embed(audio, sr)
             owner = self._owner_emb
             if emb.shape != owner.shape:
-                # engine changed since enrollment (e.g. resemblyzer installed
-                # later) — voiceprint is stale; fail open + tell the owner once
+                # Engine changed since enrollment (e.g. resemblyzer installed
+                # later).  The stale voiceprint cannot establish identity.
                 logger.warning("[VECTOR][speaker] voiceprint engine mismatch — "
                                "re-run scripts/enroll_owner_voice.py")
-                return True, 1.0
+                return False, 0.0
             sim = float(np.dot(emb, owner) /
                         ((np.linalg.norm(emb) * np.linalg.norm(owner)) or 1.0))
             return sim >= self.threshold, sim
         except Exception as e:
-            logger.warning("[VECTOR][speaker] verify failed ({}) — failing open", e)
-            return True, 0.0
+            logger.warning("[VECTOR][speaker] verify failed ({}) — failing closed", e)
+            return False, 0.0
 
 
 _VERIFIER: SpeakerVerifier | None = None
