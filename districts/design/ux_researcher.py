@@ -172,7 +172,16 @@ class UXResearcher(AgentBase):
         }
 
     async def run(self, task: dict) -> dict:
+        # 2026-09-30 (Phase 3 full-repo mechanical sweep finding): the real
+        # governor dispatch shape is {"type": ..., "params": {...}} -- every
+        # branch below read its arguments straight off `task`, never
+        # `task["params"]`, so a real dispatch always fell back to the
+        # hardcoded defaults. Capture task_type from the UNMERGED task first
+        # (a nested params dict could carry its own "type" key -- see
+        # districts/communications/email_agent.py's identical fix), then
+        # flatten params into task once for every branch below.
         task_type = task.get("type", "persona")
+        task = {**task, **(task.get("params") or {})}
         try:
             if task_type == "persona":
                 persona = self.build_persona(

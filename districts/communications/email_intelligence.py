@@ -171,7 +171,15 @@ class EmailIntelligence(AgentBase):
         return brief
 
     async def run(self, task: dict) -> dict:
+        # 2026-09-30 (Phase 3 full-repo mechanical sweep finding): the real
+        # governor dispatch shape is {"type": ..., "params": {...}} -- limit
+        # was read straight off `task`, never `task["params"]`, so a real
+        # dispatch always fell back to the hardcoded default (15). Capture
+        # task_type from the UNMERGED task first (a nested params dict could
+        # carry its own "type" key -- see districts/communications/
+        # email_agent.py's identical fix), then flatten params into task.
         task_type = task.get("type", "brief")
+        task = {**task, **(task.get("params") or {})}
         try:
             threads = self.fetch_recent_threads(max_results=task.get("limit", 15))
 
