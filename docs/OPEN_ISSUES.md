@@ -473,14 +473,21 @@ grew open engineering items; section 0 lists them.
     same pattern (route free text to whichever real capability it asks for and has the args for; default to
     the no-required-args capability for a generic ask). Verified against the real, unmocked test suite
     (41/41 pass, real cloud-LLM-provider fallover chains observed in the logs, zero regressions in the other
-    34 pre-existing tests including the 29 self-dev-program marketing specialists). **Same bug class found
-    in 5 more district test files** (`test_coding_reviewers_run_wiring.py`,
-    `test_content_district_run_wiring.py`, `test_security_district_run_wiring.py`,
-    `test_karpathy_lab_run_wiring.py`, `test_interview_prep_run_wiring.py`) with their own "LIVE BUG"
-    trip-wires — not yet fixed, next in line for the same treatment. Phase 3's remaining scope: 274
-    manifest agents total; marketing (45, this item) done, coding (28)/security (21)/content (13)/
-    karpathy_lab (5)/interview_prep (5) have known, already-scoped bugs queued next, the rest of the
-    41 districts not yet individually swept.
+    34 pre-existing tests including the 29 self-dev-program marketing specialists). Grepped for the same
+    "LIVE BUG" trip-wire pattern across all district test files — found 4 more hits
+    (`test_content_district_run_wiring.py`, `test_security_district_run_wiring.py`,
+    `test_karpathy_lab_run_wiring.py`, `test_interview_prep_run_wiring.py`) but checked each individually
+    before assuming they were also unfixed: **all 4 had already been fixed back on 2026-08-04/05** — the
+    "LIVE BUG" text is retained historical narration in the docstring ("this test *originally* documented a
+    LIVE BUG... Fixed 2026-08-05"), not a current state. Only a 5th hit, `test_coding_reviewers_run_wiring.py`
+    (`FastAPIReviewer`/`PythonReviewer`/`SecurityReviewer`), was genuinely still broken — a subtly different
+    variant: each already had a working `_answer_query()` free-text fallback, but `run()` checked
+    `task_type not in self._SUPPORTED_TASK_TYPES` and returned the error stub *before ever reading params*,
+    making the existing fallback unreachable. Fixed by reordering the check (read params for a query first;
+    only error if there's truly none) — reuses the already-correct fallback, no new routing logic needed.
+    Verified: 13/13 pass, zero regressions. Phase 3's remaining scope: 274 manifest agents total; marketing
+    (45) and coding (28, this bug class) done; the rest of the 41 districts not yet individually swept for
+    this or other bug classes.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
