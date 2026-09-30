@@ -563,7 +563,12 @@ class TestAutonomousMultiCycle:
         # `capabilities` after construction), so do the same here on the real ArchitectBot; nothing is stubbed.
         architect = next(a for a in isolated_agent_registry.get_all_agents() if type(a).__name__ == "ArchitectBot")
         architect.capabilities = list(getattr(architect, "capabilities", []) or []) + ["code_task"]
-        engine = build_isolated_engine(str(tmp_path / "epistemic.db"))
+        # isolate_plan_and_causal=True: 2026-09-30 full-suite regression run
+        # found this specific test (6 cycles of a close, streak-sensitive
+        # staleness race) is sensitive to real PlanStore/CausalGraph state
+        # another test earlier in a full 6000+ suite run can leave behind --
+        # see build_isolated_engine's own docstring for the full evidence.
+        engine = build_isolated_engine(str(tmp_path / "epistemic.db"), isolate_plan_and_causal=True)
         loop = build_isolated_loop(engine)
         pm = PolicyMemory()
         gs = isolated_probe_goal_system(goal_id=goal_id)

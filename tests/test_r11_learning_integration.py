@@ -46,6 +46,7 @@ standalone execution.
 from __future__ import annotations
 
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -57,8 +58,10 @@ import pytest
 from tests._small_scan import small_scan_root  # noqa: F401  (autouse: real read_code scan over a small project)
 
 from core.brain.goal_system import GoalSystem
+from core.city.agent_registry import AgentRegistry
 from core.loop.decision_engine import Candidate, DecisionEngine
 from core.memory.policy import PolicyMemory
+from core.runtime.plans import PlanStore
 
 
 def _now_iso() -> str:
@@ -88,7 +91,20 @@ def _isolated_goal_system_with_probe_goal(tags: list[str]) -> GoalSystem:
 def _isolated_engine() -> DecisionEngine:
     """Real DecisionEngine + REAL PolicyMemory (isolated via VECTOR_DB_PATH,
     same singleton GoalSystem itself uses). Every other subsystem stubbed --
-    matches E1's own established isolation pattern exactly."""
+    matches E1's own established isolation pattern exactly.
+
+    2026-09-30 (full-suite regression run, Phase 3 codebase audit; Codex
+    independent review agreed this is the real root cause): this helper
+    left `_capability_factor()`/`_workload_factor()`/`_causal_factor()`
+    reading LIVE shared state -- the process-wide `AgentRegistry` singleton,
+    the file-backed `PlanStore` singleton (shared across the whole test
+    session, not per-test), and `CausalGraph`'s shared SQLite connection.
+    For most tests these all stay neutral, but on a full 6000+ test run
+    another test can leave real capability/plan/causal state behind that
+    tips one of these close-race scoring decisions -- exactly what made
+    this file's two tests fail only under full-suite conditions, never in
+    isolation. Isolating all three the same way _epistemic already is.
+    """
     e = DecisionEngine()
     e._get_goals = MagicMock()
     e._get_goals().get_active_goals.return_value = []
@@ -103,6 +119,10 @@ def _isolated_engine() -> DecisionEngine:
     e._get_metacognition = MagicMock(return_value=None)
     e._get_correction_learner = MagicMock(return_value=None)
     # _get_policy intentionally NOT stubbed -- real PolicyMemory, real (isolated) db.
+    e._agent_registry = AgentRegistry()  # fresh, empty -- independent of the global singleton
+    e._plan_store = PlanStore(path=Path(tempfile.mkdtemp()) / "plans.json")  # fresh, empty, unique per call
+    e._get_causal_graph = MagicMock()
+    e._get_causal_graph().get_outcomes.return_value = []  # neutral: no cross-test causal history leak
     return e
 
 

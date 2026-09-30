@@ -83,7 +83,9 @@ import datetime
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 from tests._small_scan import small_scan_root  # noqa: F401  (autouse: real read_code scan over a small project)
@@ -96,6 +98,7 @@ from core.city.agent_registry import AgentRegistry
 from core.loop.autonomous_loop import AutonomousLoop
 from core.loop.decision_engine import Candidate, Decision, DecisionEngine
 from core.memory.policy import PolicyMemory
+from core.runtime.plans import PlanStore
 from districts.coding.architect_bot import ArchitectBot
 from districts.coding.git_bot import GitBot
 
@@ -135,7 +138,11 @@ def isolated_agent_registry():
     registry_mod._registry_singleton = original
 
 
-def build_isolated_engine(epistemic_db_path: str) -> DecisionEngine:
+def build_isolated_engine(
+    epistemic_db_path: str,
+    *,
+    isolate_plan_and_causal: bool = False,
+) -> DecisionEngine:
     """Real DecisionEngine. The ONE explicit isolation override needed:
     EpistemicTracker's own default (`core/brain/epistemic_tracker.py`'s
     module-level `_DEFAULT_DB = Path(CONFIG.get("data_dir", "data")) /
@@ -150,9 +157,29 @@ def build_isolated_engine(epistemic_db_path: str) -> DecisionEngine:
     core.runtime_paths.data_path()/VECTOR_TEST_DATA_DIR (set globally by
     tests/conftest.py) or the episodic singleton (isolated by the
     isolated_vector_db fixture) and needs no per-test override here.
+
+    2026-09-30 (full-suite regression run, Phase 3 codebase audit; Codex
+    independent review agreed this is the real root cause): `PlanStore`
+    (file-backed, shared across the whole test SESSION, not per-test) and
+    `CausalGraph` (fresh instance each call, but reading a shared SQLite
+    connection also shared across the session) can each accumulate real
+    state from an EARLIER test in a large full-suite run that tips a close
+    scoring race for a LATER test -- exactly what made two callers of this
+    helper (test_r14_autonomous_learning_generalization.py,
+    test_r22_situation_understanding.py) fail only under full-suite
+    conditions, never in isolation. `isolate_plan_and_causal=True` opts a
+    caller into a fresh, empty PlanStore and a neutral (no-history)
+    CausalGraph stub -- default stays False so the 15 other files already
+    calling this helper (several of which deliberately exercise REAL
+    plan/causal state, e.g. test_r19_capability_composition.py,
+    test_r24_causal_reasoning.py) are completely unaffected.
     """
     engine = DecisionEngine()
     engine._epistemic = EpistemicTracker(db_path=epistemic_db_path)
+    if isolate_plan_and_causal:
+        engine._plan_store = PlanStore(path=Path(tempfile.mkdtemp()) / "plans.json")
+        engine._get_causal_graph = MagicMock()
+        engine._get_causal_graph().get_outcomes.return_value = []
     return engine
 
 

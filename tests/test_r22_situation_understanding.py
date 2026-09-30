@@ -224,12 +224,18 @@ class TestFlagshipSituationalDecisionChange:
         real Decision object, never asserted independent of computation.
         Novel/unseen situation: this exact confidence pairing/scenario is
         not baked into any pre-existing fixture."""
-        engine_present = build_isolated_engine(str(tmp_path / "epi_present.db"))
+        # isolate_plan_and_causal=True: 2026-09-30 full-suite regression run
+        # found this close-race test is sensitive to real PlanStore/
+        # CausalGraph state another test earlier in a full 6000+ suite run
+        # can leave behind -- see build_isolated_engine's own docstring
+        # (tests/test_r13_production_learning_validation.py) for the full
+        # evidence (Codex independent review agreed).
+        engine_present = build_isolated_engine(str(tmp_path / "epi_present.db"), isolate_plan_and_causal=True)
         engine_present._context_engine = _FixedWorldStateContextEngine("present")
         candidates_present = _make_race_candidates()
         decision_present = await engine_present.evaluate(candidates_present)
 
-        engine_absent = build_isolated_engine(str(tmp_path / "epi_absent.db"))
+        engine_absent = build_isolated_engine(str(tmp_path / "epi_absent.db"), isolate_plan_and_causal=True)
         engine_absent._context_engine = _FixedWorldStateContextEngine("absent")
         candidates_absent = _make_race_candidates()
         decision_absent = await engine_absent.evaluate(candidates_absent)

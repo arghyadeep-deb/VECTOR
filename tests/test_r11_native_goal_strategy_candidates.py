@@ -54,11 +54,15 @@ this session (test_task91/92, test_r8/r9, test_e2/e4).
 """
 import datetime
 import inspect
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 from tests._small_scan import small_scan_root  # noqa: F401  (autouse: real read_code scan over a small project)
 
+from core.city.agent_registry import AgentRegistry
+from core.runtime.plans import PlanStore
 from core.brain.goal_system import (
     GOAL_ACTION_MAP,
     _MAX_STRATEGIES_PER_GOAL,
@@ -328,6 +332,15 @@ def engine():
     e._get_context_engine().get_world_state.return_value = {}
     e._get_metacognition = MagicMock(return_value=None)
     e._get_correction_learner = MagicMock(return_value=None)
+    # 2026-09-30 (full-suite regression run, Phase 3 codebase audit; Codex
+    # independent review agreed this is the real root cause): isolate the
+    # 3 factors this fixture left reading LIVE shared state -- see
+    # tests/test_r11_learning_integration.py::_isolated_engine's identical
+    # fix for the full explanation.
+    e._agent_registry = AgentRegistry()
+    e._plan_store = PlanStore(path=Path(tempfile.mkdtemp()) / "plans.json")
+    e._get_causal_graph = MagicMock()
+    e._get_causal_graph().get_outcomes.return_value = []
     return e
 
 
