@@ -505,9 +505,8 @@ class MetaCognition:
         try:
             with self.__class__._db_lock:
                 self._conn.close()
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning(f"[VECTOR][meta_cognition] close failed: {e}")
 
 
 if __name__ == "__main__":
