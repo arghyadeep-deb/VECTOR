@@ -779,11 +779,65 @@ grew open engineering items; section 0 lists them.
     comments say was removed in current MediaPipe versions — on affected installs, fatigue sensing
     silently degrades to a hardcoded `5.0` treated as real data, not "unavailable"; `sound_classifier.py`'s
     optional YAMNet/ONNX path is dead code (loads a session `classify_frame()` never reads).
-    12 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
-    `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` `d5940fa7c` `2639aaabb` `cf93642df` (preceded by
-    `9e630a1e9`/`f3c9123f0` from earlier the same day, already covered above). Working tree clean except
-    for the intentionally-held `token_blacklist.py` decision file in the scratch folder (not `tests/`,
-    does not affect any test run).
+    **Fifth deep-verify slice, same day — completes Claude's entire originally-assigned `core/`
+    territory**: Claude (self-fork) deep-verified all 22 `core/memory/` files (the last of Claude's 4
+    assigned dirs — `core/loop`+`core/brain`+`core/city`+`core/memory`, 71 files total, all now done);
+    Codex (`codex exec -m gpt-5.6-sol`) deep-verified 30 files across `core/engine/`
+    (OAuth/webhook/subagent/telemetry).
+    **Claude/core-memory**: verified 3 more of CLAUDE.md's non-negotiable rules are real, not just
+    documented — Rule 7 (5 sacred tables: exact names confirmed, every `ALTER TABLE` is `ADD COLUMN`
+    only, the one `DROP TABLE` is a documented FTS5 shadow-index rebuild not a sacred table); Rule 4
+    (`policy.py`'s EMA math correct, the prior lost-update-race fix still holds under
+    `get_temp_cursor()`'s lock); Rule 8 (`reward > 0.7` training-data threshold matches the docstring
+    exactly in `episodic.py.store_chain()`). Found + fixed 5 more silent-swallow-placeholder sites
+    (`counterfactual.py`, `episodic.py` ×3 incl. the main singleton's own close, `db_guardian.py`). New
+    test `tests/test_core_memory_silent_swallow_logging.py` (4 tests), 79 pre-existing tests re-run, zero
+    regressions. Commit `dbf66e82c`. Lighter slice than the previous two — no new FLAG-FOR-OWNER findings
+    — consistent with `core/memory/` being the most mature, most-previously-hardened part of the
+    codebase.
+    **Codex/core-engine — 2 real security fixes, 4 sub-fixes total**:
+    `core/engine/oauth/flows.py` — (1) `get_token()` returned an **expired, unusable token** as if valid
+    whenever a refresh attempt failed OR no refresh_token existed at all (both cases fell through to
+    `return token` at the bottom); restructured to return `None` in both failure cases instead. (2)
+    `_sync_refresh()` accepted any HTTP response including non-2xx and malformed/empty 200s, falling back
+    to the OLD access token on a missing field — combined with bug (1), a broken refresh could silently
+    look like a successful one; now requires `raise_for_status()` + a real non-empty `access_token` before
+    accepting a refresh. (3) Provider slugs were interpolated directly into a token filename with no
+    validation — a malformed/corrupted slug containing path separators (including Windows backslash)
+    could escape the token storage directory on store/load/revoke; added a validated `_token_path()`
+    helper (`^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$`) all 3 call sites now route through.
+    `core/engine/oauth/server.py` — provider-controlled callback/error text was interpolated into HTML
+    responses **without escaping**, so a malicious or compromised OAuth provider could inject script into
+    the page served at VECTOR's own localhost OAuth callback origin. Fixed with stdlib `html.escape()` on
+    both HTML renderers.
+    Both server.py callers of `get_token()` already handle `None` correctly (verified independently, not
+    just trusted) — the behavior change fixes a prior lie ("connected": true for an actually-unusable
+    expired token) rather than breaking anything. New test
+    `tests/test_core_engine_oauth_refresh_safety.py` (8 tests). Independently re-verified plus
+    `tests/test_oauth_nango.py` + `tests/test_openwa_absorption.py` (98 total) — zero regressions. Commit
+    `615a97b4f`.
+    **6 more real FLAG-FOR-OWNER findings from `core/engine/`, none fixed**: `oauth/server.py`'s
+    status/list/api-key/revoke/refresh routes have **no owner authentication or CSRF/origin control**
+    (loopback-default limits exposure today, but the router supports mounting elsewhere); OAuth2
+    state/PKCE/OAuth1 transaction dicts have no TTL/cap. `webhook/hmac_signer.py`'s HMAC comparison is
+    timing-safe but has **no replay protection** — the signature covers only the body, timestamp/
+    delivery-id metadata is unsigned. `memory_tree/tree_builder.py` duplicates episodic content into a
+    **plaintext `memory_tree.json`**, so SQLCipher on the source DB doesn't protect this derived index.
+    `agents/subagent_runner.py` isn't a live ungated primitive today (no production importer) but would
+    need real capability policy + gateway wiring + session hydration before ever being activated.
+    `research/parallel_researcher.py`'s `parallel_extract()` follows caller-supplied URLs with **no SSRF
+    validation** (dormant, no production caller currently). `telemetry/sentry_bridge.py` redacts by known
+    sensitive key names but not secrets embedded in free-form exception/message strings.
+    **New memory created**: `phase3-whole-repo-sweep-2026-09-30.md` in Claude's persistent memory system
+    tracks this whole ongoing effort across sessions (ledger pointer, established pattern, the
+    `token_blacklist.py` "explicit comment = flag not fix" judgment bar). Also corrected a stale memory
+    (`governor-district-trust-deferred-finding-2026-09-24`) that claimed an unresolved finding actually
+    fixed back on 2026-09-25.
+    15 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
+    `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` `d5940fa7c` `2639aaabb` `cf93642df` `52098dfa0`
+    `dbf66e82c` `615a97b4f` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the same day, already
+    covered above). Working tree clean except for the intentionally-held `token_blacklist.py` decision
+    file in the scratch folder (not `tests/`, does not affect any test run).
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
