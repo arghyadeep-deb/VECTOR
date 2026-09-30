@@ -667,10 +667,73 @@ grew open engineering items; section 0 lists them.
     `taint_tracker.py` (`VectorScraper` tags fetched content then discards the returned tainted value;
     `Governor` catches tracker errors and proceeds unchecked; unknown string labels are silently ignored);
     `workspace_audit.py` (zero production callers — orphaned, same class as `secrets_providers.py`).
-    6 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
-    `bef33f0eb` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the same day, already covered above).
-    Working tree clean except for the intentionally-held `token_blacklist.py` decision file in the
-    scratch folder (not `tests/`, does not affect any test run).
+    **Third deep-verify slice, same day**: Claude (self-fork) deep-verified all 18 `core/loop/` files
+    (the single most safety-critical directory — `autonomous_loop.py`, `permission_gateway.py`,
+    `decision_engine.py`); Codex (`codex exec -m gpt-5.6-sol`) deep-verified all 31 `core/inference/`
+    files (the LLM routing/provider layer). Both sides' diffs independently re-reviewed and re-tested by
+    Claude before committing, not just trusted from the report.
+    **Claude/core-loop**: verified Rules 1-4 (CLAUDE.md's non-negotiable section) are NOT violated by
+    this bug class or elsewhere in scope — `permission_gateway.py` already has extensive prior
+    "round 1-4 independent review" hardening; `policy.py`'s `get_score()`/`update_from_outcome()` wiring
+    already has dedicated exact-call-count test coverage; `autonomous_loop.py`'s coroutine-level
+    exception handling consistently uses `exc_info=True`, no bare `except: pass` at the loop level.
+    Found the same "silent swallow" placeholder-logging bug (commit `bd5f842da`'s bug class) recurring 9
+    more times across `autonomous_loop.py`(×2)/`context_engine.py`/`cron_jobs.py`(×4)/
+    `permission_gateway.py`/`task_ledger.py` — all traced to the same earlier automated pass that left
+    the literal string `"[VECTOR] silent swallow"` with zero exception info. Fixed all 9 (2 scheduler-
+    API-probing sites in `cron_jobs.py` correctly downgraded to `debug`, matching the code's own
+    try-next-API comment — not real anomalies). New test `tests/test_core_loop_silent_swallow_logging.py`
+    (5 tests incl. a golden test the placeholder string never reappears), 231 pre-existing tests across
+    touched modules re-verified independently, zero regressions. Commit `6426954e4`.
+    **Flagged, not fixed**: `nudge_engine.py:175` and `autonomous_loop.py:3260` (coding-companion nudge)
+    call the LLM directly with zero `session_hydration_prompt()` (Rule 1 gap) — held back because these
+    are deliberately tiny single-sentence nudge prompts where prepending full session context is a real
+    tradeoff (could dilute the intended short output), not clearly an oversight.
+    **Codex/core-inference — the most significant security finding of the whole cycle**: full report
+    `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\codex_core_inference_report.md`. models.md states
+    the local-only sensitivity gate for security/RED-tier/secret-bearing tasks "is non-negotiable" — it
+    was, in fact, negotiable: **`vectorcode_llm.chat()`/`achat()` checked and returned from an explicit
+    `provider=` argument BEFORE the sensitivity/`local_only` check ever ran** (dead code below an early
+    return whenever a caller passed an explicit provider), and **`ProviderClient.chat()` gated the same
+    `decide_route()` sensitivity call behind `if not provider:`**, meaning an explicit provider argument
+    skipped local-only routing entirely in both of VECTOR's two LLM entry points. Fixed by reordering
+    sensitivity evaluation first in `vectorcode_llm.py` (also added a `domain_local_only` check matching
+    models.md's "security domain is local_only" rule) and by always running `decide_route()` in
+    `provider_client.py`, forcibly clearing `provider`/`model` back to `None` when the plan says
+    local-only so an explicit override can't survive. Also closed a secret-scanning gap: the pre-route
+    scan only concatenated `user`-role message content, so a secret injected via `system`/`tool`-role
+    context was invisible to it — now scans every message regardless of role. Added a `permission_tier`
+    kwarg (RED forces local) to both entry points, backward compatible. Separately fixed
+    `route_policy.py`'s `_is_local()`, which treated `LLMProvider.free` (a *pricing* property) as
+    meaning on-device — every free-tier *cloud* API (Gemini etc.) was incorrectly excluded from ordinary
+    cloud routing. And a fallback-chain gap: a logical/domain model alias's backend chain could be
+    all-cloud with no Ollama entry, so total cloud failure would raise instead of falling through —
+    "every chain terminates on ollama, never crashes" wasn't actually guaranteed; fixed by appending
+    Ollama when absent. Plus 2 unrelated real bugs in the same directory: `airllm_runner.py`'s live code
+    path used `torch.no_grad()` without importing `torch` in that method (only in the module's own
+    `__main__` self-test, which masked the `NameError` since the self-test's import ran first in-process)
+    — fixed; `quota_ledger.py._prune()` silently swallowed every exception — now logged.
+    New test `tests/test_inference_sensitive_routing_guard.py` (6 tests) proves explicit-provider
+    bypass is closed (sync + async), RED `permission_tier` overrides an explicit provider, system-context
+    secrets are scanned, a no-Ollama logical chain still terminates on Ollama, and free cloud providers
+    are no longer misclassified as local — plus 2 more test files for the airllm/quota fixes. Claude
+    independently re-verified all 8 new tests + 54 more across `test_provider_selection.py`/
+    `test_model_catalog.py`/`test_domain_routing.py`/`test_quota_ledger.py` + a sample of district-agent
+    dispatch tests that indirectly exercise this plumbing — zero regressions anywhere. Commit `c6458ce1a`.
+    **8 further FLAG-FOR-OWNER findings from `core/inference/`, none fixed** (real design/policy calls):
+    the documented "Claude API → Ollama → cached response → notify owner, never crashes" fallback isn't
+    actually honored end-to-end (`ProviderClient` can still raise; no cache/notify path exists);
+    `LLMProvider.is_configured` returns true for every `free=True` provider even when a key is actually
+    required (adds live failures/latency for some providers); the entire `smart_routing/` subpackage is
+    a mostly orphaned parallel router with **no sensitivity gate at all** and a broken import
+    (`proxy.py` imports a symbol — `from core.inference.provider_client import chat` — that doesn't
+    exist); `smart_routing/wallet.py` would store a plaintext mnemonic/private keys with non-hardened
+    BIP-32 derivation if ever activated; `smart_routing/response_store.py` would persist plaintext
+    prompts/responses (potential secrets/PII) outside the encrypted episodic store if ever activated.
+    9 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
+    `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the
+    same day, already covered above). Working tree clean except for the intentionally-held
+    `token_blacklist.py` decision file in the scratch folder (not `tests/`, does not affect any test run).
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
