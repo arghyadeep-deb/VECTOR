@@ -40,6 +40,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import math
 import os
 import secrets
 import ssl
@@ -130,7 +131,12 @@ class OFPMessage:
         return hmac.compare_digest(expected, self.hmac_sig)
 
     def is_expired(self, ttl: float = NONCE_TTL_SECS) -> bool:
-        return (time.time() - self.timestamp) > ttl
+        # Reject both stale messages and timestamps too far in the future.
+        # The previous one-sided check accepted an arbitrarily future-dated
+        # signed message indefinitely once the in-memory nonce cache was lost.
+        if isinstance(self.timestamp, bool) or not isinstance(self.timestamp, (int, float)):
+            return True
+        return not math.isfinite(self.timestamp) or abs(time.time() - self.timestamp) > ttl
 
     def to_json(self) -> bytes:
         d = asdict(self)

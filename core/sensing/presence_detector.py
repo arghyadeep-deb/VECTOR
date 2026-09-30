@@ -87,7 +87,10 @@ class PresenceDetector:
             if detections.class_id is not None:
                 detections = detections[detections.class_id == 0]
             tracked = tracker.update_with_detections(detections)
-            ids = [int(x) for x in (tracked.tracker_id or []) if x is not None]
+            # supervision exposes tracker_id as a NumPy array.  Using it in a
+            # boolean ``or`` expression raises for multi-person detections.
+            tracker_ids = tracked.tracker_id if tracked.tracker_id is not None else []
+            ids = [int(x) for x in tracker_ids if x is not None]
             count = len(tracked)
             now = time.time()
             if count > 0 and self._present_since is None:
