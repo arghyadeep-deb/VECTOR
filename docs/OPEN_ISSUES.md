@@ -446,6 +446,42 @@ grew open engineering items; section 0 lists them.
     higher-risk task); `collect_stable_patterns() -> SkillBuilder` is not yet wired into any scheduled job
     (a one-line follow-up once the owner wants it running unattended, not assumed here).
 
+24. **Full codebase audit (Phase 1-3), 2026-09-30 —** owner-authorized whole-repo audit (reachability,
+    redundancy, licensing, then behavioral correctness), full write-up:
+    `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\CODEBASE_AUDIT.md`. Phase 1 built a 7-iteration
+    AST-based reachability tool (v7 trustworthy baseline) and found VECTOR has at least 7 distinct
+    "live but invisible to static analysis" dynamic-loading patterns (manifest-YAML class paths,
+    `spec_from_file_location` factor loading, OS-subprocess launch, config-driven module_path+class_name
+    registries, and — the big one — a systemic bare-sys.path-relative-import pattern used throughout
+    `vectorcode` and `vector_backtest` via `ensure_paths()`-style bootstrapping, confirmed wired straight
+    into `core/loop/autonomous_loop.py`). Phase 2 re-verified 4 remaining duplicate-code clusters by
+    reading the actual source (2 real: `run_fincept_strategy` x5 vendored exact-duplicates, `_patch_council`
+    x6 test-helper exact-duplicates; 2 not: coaches' `run()` is real but VECTOR-authored so a different,
+    more actionable kind of finding; `isolated_episodic` fixtures are legitimate per-test parameterization,
+    not bloat) and identified `shadowbroker_server`'s license (AGPL-3.0, matched to `BigBodyCobain/
+    Shadowbroker` via its OSINT-tracker dependency signature — same disposition question as
+    `vector_finagent`/`vector_social_sim`'s already-accepted AGPL trees), plus corrected 2 of
+    `THIRD_PARTY_NOTICES.md`'s "not checked" items that were never real open questions
+    (`core/mining` is an already-documented `vectorcode` port; `vector_hedgebot` isn't vendored at all).
+    **Phase 3 (behavioral correctness) shipped its first real fix, not just a finding**: found and fixed a
+    live bug in 7 marketing-district agents (`AmazonAdsAgent`, `AttributionAgent`, `SGTMAgent`,
+    `GoogleAdsAgent`, `MetaAdsAgent`, `SEOAgent`, `SEOPortfolioAgent`) — already documented as a "LIVE BUG"
+    regression trip-wire in `tests/test_marketing_district_run_wiring.py` but never actually fixed: real
+    chat traffic sends an LLM-invented `task_type` the agent's structured branches don't match, and none of
+    the 7 had `districts/languages/hindi_coach.py`'s already-established query/content fallback, so a real
+    on-topic user question hit a bare `"unhandled type"` error instead of an answer. Fixed all 7 with the
+    same pattern (route free text to whichever real capability it asks for and has the args for; default to
+    the no-required-args capability for a generic ask). Verified against the real, unmocked test suite
+    (41/41 pass, real cloud-LLM-provider fallover chains observed in the logs, zero regressions in the other
+    34 pre-existing tests including the 29 self-dev-program marketing specialists). **Same bug class found
+    in 5 more district test files** (`test_coding_reviewers_run_wiring.py`,
+    `test_content_district_run_wiring.py`, `test_security_district_run_wiring.py`,
+    `test_karpathy_lab_run_wiring.py`, `test_interview_prep_run_wiring.py`) with their own "LIVE BUG"
+    trip-wires — not yet fixed, next in line for the same treatment. Phase 3's remaining scope: 274
+    manifest agents total; marketing (45, this item) done, coding (28)/security (21)/content (13)/
+    karpathy_lab (5)/interview_prep (5) have known, already-scoped bugs queued next, the rest of the
+    41 districts not yet individually swept.
+
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives

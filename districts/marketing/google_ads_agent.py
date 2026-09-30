@@ -295,6 +295,35 @@ class GoogleAdsAgent(AgentBase, SkillMixin):
                 url=p.get("url", ""),
                 keyword=p.get("keyword", ""),
             )
+
+        # 2026-09-30 (Phase 3 codebase audit finding): real chat dispatch sends
+        # an LLM-invented task_type that won't match the branches above,
+        # carrying a real free-text question in params (see
+        # tests/test_marketing_district_run_wiring.py's module docstring for
+        # the bug class — same as districts/languages/hindi_coach.py's fixed
+        # pattern). Route by keyword to whichever real capability the query
+        # actually asks for and has the args for; never guess a required
+        # field (url/product) that wasn't supplied. Default to audit_account
+        # (needs nothing but an account_id, which itself defaults to "") for
+        # a generic "how's our Google Ads doing" ask.
+        query = (p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or "").strip()
+        if query:
+            q = query.lower()
+            if "landing" in q and p.get("url"):
+                return await self.diagnose_landing_page(url=p.get("url", ""), keyword=p.get("keyword", ""))
+            if ("copy" in q or "write" in q) and p.get("product"):
+                return await self.generate_copy(
+                    product=p.get("product", ""), target_keyword=p.get("keyword", ""),
+                    usp=p.get("usp", ""), num_variants=int(p.get("variants", 3)),
+                )
+            if "performance" in q and p.get("metrics"):
+                return await self.analyze_performance(metrics=p.get("metrics", {}), industry=p.get("industry", "general"))
+            return await self.audit_account(
+                account_id=p.get("account_id", ""),
+                industry=p.get("industry", "general"),
+                business_context=p.get("business_context", "") or query,
+            )
+
         return {
             "status": "error",
             "error": f"unhandled type '{task_type}'",

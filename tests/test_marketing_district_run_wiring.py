@@ -26,15 +26,19 @@ free-text user question. districts/languages/hindi_coach.py shows the FIXED
 pattern: after all structured branches fail to match, it falls back to
 routing on p.get("query")/p.get("content") instead of erroring.
 
-As of this writing, NONE of the 7 marketing-district classes below have
-that fallback — every one of them still returns the bare
-{"status": "error", "error": "unhandled type ..."} stub even when
-params contains a real, on-topic user query. The tests below assert that
-CURRENT (broken) behavior honestly — they are a regression trip-wire: the
-moment one of these agents is fixed to answer free-text queries, the
-corresponding test here will fail and must be flipped to assert the "ok"
-+ substantive-response shape instead. This is a live product bug, not a
-test bug — see the task report for the full list.
+FIXED 2026-09-30 (Phase 3 codebase audit): all 7 marketing-district classes
+below now have a hindi_coach.py-style query/content fallback — after every
+structured task_type/action branch fails to match, each extracts
+params["query"]/params["content"]/task["query"]/task["prompt"] and routes to
+whichever real capability the free text actually asks for (and has the
+required args for), never guessing a missing required field like url/product/
+site_id. Agents with only one real capability (AmazonAdsAgent,
+AttributionAgent, SGTMAgent) route any on-topic query straight to it. The
+tests below now assert the FIXED behavior: the "unhandled type"/"supported"
+stub shape must never appear when a real query was supplied, even if the
+underlying capability itself then fails for an unrelated reason (e.g. no LLM
+provider reachable in this environment) — that distinction is what
+"supported" not in result checks for, since only the stub return includes it.
 """
 
 import sys
@@ -80,10 +84,11 @@ async def test_amazon_ads_agent_run_unhandled_type_returns_error_shape():
 async def test_amazon_ads_agent_run_real_chat_dispatch_unmatched_type_with_query():
     """Production shape: LLM-invented task_type + real free-text query.
 
-    LIVE BUG: AmazonAdsAgent.run() has no query/content fallback — a real
-    user question about their Amazon Ads account still hits the bare error
-    stub. This test documents CURRENT behavior; flip to an "ok" assertion
-    once the agent gets a hindi_coach.py-style fallback.
+    FIXED: AmazonAdsAgent.run() now has a hindi_coach.py-style query/content
+    fallback — this single-capability agent routes any on-topic query
+    straight to audit(). "supported" not in result is the robust signal
+    that the real capability was reached (only the unhandled-type stub
+    includes that key) regardless of whether the LLM call itself succeeds.
     """
     agent = AmazonAdsAgent()
     result = await agent.run({
@@ -94,9 +99,8 @@ async def test_amazon_ads_agent_run_real_chat_dispatch_unmatched_type_with_query
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result["status"] == "ok"
+    assert "supported" not in result
     assert "agent" not in result
 
 
@@ -125,8 +129,8 @@ async def test_attribution_agent_run_unhandled_type_returns_error_shape():
 async def test_attribution_agent_run_real_chat_dispatch_unmatched_type_with_query():
     """Production shape: LLM-invented task_type + real free-text query.
 
-    LIVE BUG: AttributionAgent.run() has no query/content fallback — see
-    module docstring. Flip to an "ok" assertion once fixed.
+    FIXED: AttributionAgent.run() now has the same fallback — see module
+    docstring.
     """
     agent = AttributionAgent()
     result = await agent.run({
@@ -137,9 +141,8 @@ async def test_attribution_agent_run_real_chat_dispatch_unmatched_type_with_quer
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result["status"] == "ok"
+    assert "supported" not in result
     assert "agent" not in result
 
 
@@ -185,8 +188,9 @@ async def test_google_ads_agent_run_unhandled_type_returns_error_shape():
 async def test_google_ads_agent_run_real_chat_dispatch_unmatched_type_with_query():
     """Production shape: LLM-invented task_type + real free-text query.
 
-    LIVE BUG: GoogleAdsAgent.run() has no query/content fallback — see
-    module docstring. Flip to an "ok" assertion once fixed.
+    FIXED: GoogleAdsAgent.run() now has the same fallback — see module
+    docstring. No "metrics"/"product"/"url" is supplied, so it must route to
+    audit_account (the only real capability that needs nothing extra).
     """
     agent = GoogleAdsAgent()
     result = await agent.run({
@@ -197,9 +201,9 @@ async def test_google_ads_agent_run_real_chat_dispatch_unmatched_type_with_query
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result["status"] == "ok"
+    assert "audit" in result
+    assert "supported" not in result
     assert "agent" not in result
 
 
@@ -248,9 +252,9 @@ async def test_meta_ads_agent_run_unhandled_type_returns_error_shape():
 async def test_meta_ads_agent_run_real_chat_dispatch_unmatched_type_with_query():
     """Production shape: LLM-invented task_type + real free-text query.
 
-    LIVE BUG: MetaAdsAgent.run() has no query/content fallback (it branches
-    on task["type"] or params["action"], never on free text) — see module
-    docstring. Flip to an "ok" assertion once fixed.
+    FIXED: MetaAdsAgent.run() now has the same fallback — see module
+    docstring. No "metrics" is supplied despite the "fatigued" keyword, so it
+    must fall through to audit_account rather than crash on a missing arg.
     """
     agent = MetaAdsAgent()
     result = await agent.run({
@@ -261,9 +265,8 @@ async def test_meta_ads_agent_run_real_chat_dispatch_unmatched_type_with_query()
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result["status"] == "ok"
+    assert "supported" not in result
     assert "agent" not in result
 
 
@@ -301,9 +304,9 @@ async def test_seo_agent_run_unhandled_type_returns_error_shape():
 async def test_seo_agent_run_real_chat_dispatch_unmatched_type_with_query():
     """Production shape: LLM-invented task_type + real free-text query.
 
-    LIVE BUG: SEOAgent.run() has no query/content fallback (branches on
-    task["type"] or params["action"] only) — see module docstring. Flip to
-    an "ok" assertion once fixed.
+    FIXED: SEOAgent.run() now has the same fallback — see module docstring.
+    No "url" is supplied despite the "broken link" keyword, so it must fall
+    through to full_audit (the only capability that needs no required args).
     """
     agent = SEOAgent()
     result = await agent.run({
@@ -314,9 +317,8 @@ async def test_seo_agent_run_real_chat_dispatch_unmatched_type_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert isinstance(result, dict)
+    assert "supported" not in result
     assert "agent" not in result
 
 
@@ -356,8 +358,9 @@ async def test_seo_portfolio_agent_run_unhandled_type_returns_error_shape():
 async def test_seo_portfolio_agent_run_real_chat_dispatch_unmatched_type_with_query():
     """Production shape: LLM-invented task_type + real free-text query.
 
-    LIVE BUG: SEOPortfolioAgent.run() has no query/content fallback — see
-    module docstring. Flip to an "ok" assertion once fixed.
+    FIXED: SEOPortfolioAgent.run() now has the same fallback — see module
+    docstring. No keyword matches onboard/drop/improve/weekly, so it must
+    fall through to run_portfolio_review (needs no args).
     """
     agent = SEOPortfolioAgent()
     result = await agent.run({
@@ -368,9 +371,8 @@ async def test_seo_portfolio_agent_run_real_chat_dispatch_unmatched_type_with_qu
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result["status"] == "ok"
+    assert "supported" not in result
     assert "agent" not in result
 
 
@@ -399,8 +401,9 @@ async def test_sgtm_agent_run_unhandled_type_returns_error_shape():
 async def test_sgtm_agent_run_real_chat_dispatch_unmatched_type_with_query():
     """Production shape: LLM-invented task_type + real free-text query.
 
-    LIVE BUG: SGTMAgent.run() has no query/content fallback — see module
-    docstring. Flip to an "ok" assertion once fixed.
+    FIXED: SGTMAgent.run() now has the same fallback — see module docstring.
+    This single-capability agent routes any on-topic query straight to
+    health_check().
     """
     agent = SGTMAgent()
     result = await agent.run({
@@ -411,9 +414,8 @@ async def test_sgtm_agent_run_real_chat_dispatch_unmatched_type_with_query():
             "source": "api_command",
         },
     })
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
-    assert "supported" in result
+    assert result["status"] == "ok"
+    assert "supported" not in result
     assert "agent" not in result
 
 

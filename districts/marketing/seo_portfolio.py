@@ -289,6 +289,33 @@ class SEOPortfolioAgent(AgentBase, SkillMixin):
                 site_id=p.get("site_id", ""),
                 days=int(p.get("days", 28)),
             )
+
+        # 2026-09-30 (Phase 3 codebase audit finding): real chat dispatch sends
+        # an LLM-invented task_type that won't match the branches above,
+        # carrying a real free-text question in params (see
+        # tests/test_marketing_district_run_wiring.py's module docstring for
+        # the bug class — same as districts/languages/hindi_coach.py's fixed
+        # pattern). Route by keyword to whichever real capability the query
+        # actually asks for and has the args for; default to
+        # run_portfolio_review (takes no args) for a generic "how's our SEO
+        # doing across sites" ask.
+        query = (p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or "").strip()
+        if query:
+            q = query.lower()
+            if ("onboard" in q or "add" in q and "site" in q) and p.get("url"):
+                return await self.onboard_site(
+                    site_url=p.get("url", p.get("site", "")), display_name=p.get("display_name", ""),
+                    business_weight=float(p.get("business_weight", 1.0)), cadence=p.get("cadence", "weekly"),
+                    cms=p.get("cms"),
+                )
+            if ("drop" in q or "decline" in q or "fell" in q) and p.get("site_id"):
+                return await self.investigate_drop(site_id=p.get("site_id", ""), days=int(p.get("days", 28)))
+            if ("improve" in q or "fix" in q) and p.get("site_id") and p.get("url"):
+                return await self.improve_page(site_id=p.get("site_id", ""), page_url=p.get("url", ""))
+            if "weekly" in q or "this week" in q:
+                return await self.run_weekly_review(site_id=p.get("site_id"))
+            return await self.run_portfolio_review()
+
         return {
             "status": "error",
             "error": f"unhandled type: {action}",

@@ -288,6 +288,33 @@ class MetaAdsAgent(AgentBase, SkillMixin):
                 target_audience=p.get("audience", ""),
                 objective=p.get("objective", "conversions"),
             )
+
+        # 2026-09-30 (Phase 3 codebase audit finding): real chat dispatch sends
+        # an LLM-invented task_type that won't match the branches above,
+        # carrying a real free-text question in params (see
+        # tests/test_marketing_district_run_wiring.py's module docstring for
+        # the bug class — same as districts/languages/hindi_coach.py's fixed
+        # pattern). Route by keyword to whichever real capability the query
+        # actually asks for and has the args for; never guess a required
+        # field (product/campaigns) that wasn't supplied.
+        query = (p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or "").strip()
+        if query:
+            q = query.lower()
+            if "fatigu" in q and p.get("metrics"):
+                return await self.diagnose_creative_fatigue(metrics=p.get("metrics", {}), industry=p.get("industry", "general"))
+            if "roas" in q and p.get("campaigns"):
+                return await self.analyze_roas(campaign_data=p.get("campaigns", []), industry=p.get("industry", "general"))
+            if ("creative" in q or "brief" in q) and p.get("product"):
+                return await self.generate_creative_brief(
+                    product=p.get("product", ""), target_audience=p.get("audience", ""),
+                    objective=p.get("objective", "conversions"),
+                )
+            return await self.audit_account(
+                account_id=p.get("account_id", ""),
+                industry=p.get("industry", "general"),
+                business_context=p.get("business_context", "") or query,
+            )
+
         return {
             "status": "error",
             "error": f"unhandled type: {action}",

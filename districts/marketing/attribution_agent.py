@@ -43,6 +43,18 @@ Data: {str(ga4_data or {})[:800]}"""
 
         if task_type in ("audit_consent_mode", "attribution_audit"):
             return await self.audit_consent_mode(params.get("ga4_data", params))
+
+        # 2026-09-30 (Phase 3 codebase audit finding): real chat dispatch sends
+        # an LLM-invented task_type that won't match the branch above, carrying
+        # a real free-text question in params (see
+        # tests/test_marketing_district_run_wiring.py's module docstring for
+        # the bug class — same as districts/languages/hindi_coach.py's fixed
+        # pattern). This agent has one real capability, so any on-topic query
+        # routes to it rather than erroring.
+        query = (params.get("query") or params.get("content") or task.get("query") or task.get("prompt") or "").strip()
+        if query:
+            return await self.audit_consent_mode(params.get("ga4_data", params))
+
         return {
             "status": "error",
             "error": f"unhandled type '{task_type}'",

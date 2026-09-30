@@ -367,6 +367,35 @@ class SEOAgent(AgentBase, SkillMixin):
                 url=p.get("url", ""),
                 content=p.get("content", ""),
             )
+
+        # 2026-09-30 (Phase 3 codebase audit finding): real chat dispatch sends
+        # an LLM-invented task_type that won't match the branches above,
+        # carrying a real free-text question in params (see
+        # tests/test_marketing_district_run_wiring.py's module docstring for
+        # the bug class — same as districts/languages/hindi_coach.py's fixed
+        # pattern). Route by keyword to whichever real capability the query
+        # actually asks for and has the args for; default to full_audit (it
+        # takes no required args — url/site/gsc_site all default) since a
+        # generic "how's our SEO doing" ask maps most closely to that.
+        query = (p.get("query") or p.get("content") or task.get("query") or task.get("prompt") or "").strip()
+        if query:
+            q = query.lower()
+            if "keyword" in q and p.get("topic"):
+                return await self.analyze_keywords(topic=p.get("topic", ""), site=p.get("site", ""))
+            if ("pagespeed" in q or "page speed" in q or "core web vitals" in q) and p.get("url"):
+                return await self.fetch_pagespeed(p.get("url", ""))
+            if "schema" in q and p.get("data"):
+                return {"schema": await self.generate_schema_markup(page_type=p.get("page_type", "WebPage"), data=p.get("data", {}))}
+            if ("ai search" in q or "geo" in q or "llm" in q) and p.get("url") and p.get("content"):
+                return await self.optimize_for_ai_search(url=p.get("url", ""), content=p.get("content", ""))
+            if "broken link" in q and p.get("url"):
+                return await self.check_broken_links(url=p.get("url", ""), max_pages=int(p.get("max_pages", 50)))
+            return await self.full_audit(
+                site_url=p.get("url", p.get("site", "")),
+                days=int(p.get("days", 28)),
+                gsc_site=p.get("gsc_site"),
+            )
+
         return {
             "status": "error",
             "error": f"unhandled type: {action}",
