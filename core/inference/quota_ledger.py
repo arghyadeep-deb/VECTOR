@@ -91,8 +91,8 @@ class QuotaLedger:
                       - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
             for day in [d for d in self._data if d < cutoff]:
                 self._data.pop(day, None)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("[VECTOR][quota] ledger prune failed: {}", e)
 
     # ── recording ─────────────────────────────────────────────────────────────
 

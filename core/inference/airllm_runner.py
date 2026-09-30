@@ -185,6 +185,7 @@ class AirLLMRunner:
         """Generate using AirLLM."""
         try:
             import airllm
+            import torch
             from airllm import AutoModel  # airllm does not export AutoTokenizer; use model.tokenizer
 
             cache_dir = self.airllm_config.get("layer_shards_saving_path", "./models/airllm_cache")

@@ -630,6 +630,7 @@ def chat(
     allow_cloud: bool = True,
     district: str | None = None,
     sensitive: bool = False,
+    permission_tier: str | None = None,
     temperature: float = 0.7,
     domain: str = "",
 ) -> str:
@@ -661,6 +662,34 @@ def chat(
     except Exception:
         pass
 
+    # ── Sensitivity check (local-only override) ─────────────────────────────
+    local_only = False
+    try:
+        from core.inference.route_policy import decide_route
+        _prompt = _messages_to_text(messages)
+        _plan = decide_route(
+            _prompt, district=district,
+            permission_tier=permission_tier, sensitive=sensitive,
+        )
+        local_only = _plan.local_only
+        logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
+    except Exception as e:
+        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
+
+    domain_local_only = False
+    if domain:
+        try:
+            from core.inference.model_catalog import domain_local_only as _domain_local_only
+            domain_local_only = _domain_local_only(domain)
+        except Exception as e:
+            logger.debug("[VECTOR][vc_llm] domain policy unavailable: {}", e)
+
+    if local_only or domain_local_only or not allow_cloud:
+        result = _try_ollama(model, messages, timeout, temperature)
+        if not result and not local_only:
+            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
+        return result
+
     if provider == "gemini":
         return _try_gemini(model, messages, timeout, temperature)
     if provider == "anthropic":
@@ -669,23 +698,6 @@ def chat(
         return _try_openrouter(model, messages, timeout, temperature)
     if provider == "ollama":
         return _try_ollama(model, messages, timeout, temperature)
-
-    # ── Sensitivity check (local-only override) ─────────────────────────────
-    local_only = False
-    try:
-        from core.inference.route_policy import decide_route
-        _prompt = _messages_to_text(messages)
-        _plan = decide_route(_prompt, district=district, sensitive=sensitive)
-        local_only = _plan.local_only
-        logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
-    except Exception as e:
-        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
-
-    if local_only or not allow_cloud:
-        result = _try_ollama(model, messages, timeout, temperature)
-        if not result and not local_only:
-            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
-        return result
 
     # ── Domain alignment (Step 8) — best model per work domain + 3-4 cloud
     # fallbacks + ollama terminal. Registered as model_pool "domain:<name>"
@@ -785,6 +797,7 @@ async def achat(
     allow_cloud: bool = True,
     district: str | None = None,
     sensitive: bool = False,
+    permission_tier: str | None = None,
     temperature: float = 0.7,
     domain: str = "",
 ) -> str:
@@ -822,6 +835,34 @@ async def achat(
     except Exception:
         pass
 
+    # ── Sensitivity check (local-only override) ─────────────────────────────
+    local_only = False
+    try:
+        from core.inference.route_policy import decide_route
+        _prompt = _messages_to_text(messages)
+        _plan = await asyncio.to_thread(
+            decide_route, _prompt, district=district,
+            permission_tier=permission_tier, sensitive=sensitive,
+        )
+        local_only = _plan.local_only
+        logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
+    except Exception as e:
+        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
+
+    domain_local_only = False
+    if domain:
+        try:
+            from core.inference.model_catalog import domain_local_only as _domain_local_only
+            domain_local_only = _domain_local_only(domain)
+        except Exception as e:
+            logger.debug("[VECTOR][vc_llm] domain policy unavailable: {}", e)
+
+    if local_only or domain_local_only or not allow_cloud:
+        result = await asyncio.to_thread(_try_ollama, model, messages, timeout, temperature)
+        if not result and not local_only:
+            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
+        return result
+
     if provider == "gemini":
         return await asyncio.to_thread(_try_gemini, model, messages, timeout, temperature)
     if provider == "anthropic":
@@ -830,23 +871,6 @@ async def achat(
         return await asyncio.to_thread(_try_openrouter, model, messages, timeout, temperature)
     if provider == "ollama":
         return await asyncio.to_thread(_try_ollama, model, messages, timeout, temperature)
-
-    # ── Sensitivity check (local-only override) ─────────────────────────────
-    local_only = False
-    try:
-        from core.inference.route_policy import decide_route
-        _prompt = _messages_to_text(messages)
-        _plan = await asyncio.to_thread(decide_route, _prompt, district=district, sensitive=sensitive)
-        local_only = _plan.local_only
-        logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
-    except Exception as e:
-        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
-
-    if local_only or not allow_cloud:
-        result = await asyncio.to_thread(_try_ollama, model, messages, timeout, temperature)
-        if not result and not local_only:
-            logger.warning(f"[VECTOR][vc_llm] local failed for {model}, cloud disabled")
-        return result
 
     # ── Domain alignment (Step 8) — same resolution chat() does.
     _domain = ""

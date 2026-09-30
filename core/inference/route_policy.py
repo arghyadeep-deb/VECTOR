@@ -58,7 +58,13 @@ def _is_local(slug: str) -> bool:
     p = PROVIDERS.get(slug)
     if not p:
         return False
-    return p.free or "localhost" in p.base_url or "127.0.0.1" in p.base_url
+    # ``free`` is a pricing property, not a locality property. Most free-tier
+    # providers are remote services and must remain eligible for cloud routing.
+    return (
+        slug in {"ollama", "lmstudio", "vllm"}
+        or "localhost" in p.base_url
+        or "127.0.0.1" in p.base_url
+    )
 
 
 def _configured_cloud() -> list[str]:

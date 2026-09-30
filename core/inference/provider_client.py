@@ -279,6 +279,7 @@ class ProviderClient:
         inject_personality: bool = False,
         sensitive: bool = False,
         district: str | None = None,
+        permission_tier: str | None = None,
         person_id: str | None = None,
     ) -> CompletionResult:
         """
@@ -353,21 +354,29 @@ class ProviderClient:
         # Sets tier + provider order: security/RED/secret → local Ollama only;
         # simple → pooled cloud keys; heavy → cloud premium then local fallback.
         _route_order: list[str] | None = None
-        if not provider:
-            try:
-                from core.inference.route_policy import decide_route
-                _prompt = " ".join(
-                    m.get("content", "") for m in messages if m.get("role") == "user"
-                )
-                _plan = decide_route(_prompt, district=district, sensitive=sensitive)
+        try:
+            from core.inference.route_policy import decide_route
+            # Secrets can be injected through system/tool context as well as
+            # the last user turn; scan the complete payload before routing.
+            _prompt = " ".join(str(m.get("content", "")) for m in messages)
+            _plan = decide_route(
+                _prompt, district=district,
+                permission_tier=permission_tier, sensitive=sensitive,
+            )
+            if _plan.local_only:
                 _route_order = _plan.providers
                 tier = _plan.tier
-                logger.debug(
-                    "[VECTOR][provider_client] route: {} tier={} ({})",
-                    _plan.providers, _plan.tier, _plan.reason,
-                )
-            except Exception as _re:
-                logger.debug("[VECTOR][provider_client] route_policy unavailable: {}", _re)
+                provider = None
+                model = None
+            elif not provider:
+                _route_order = _plan.providers
+                tier = _plan.tier
+            logger.debug(
+                "[VECTOR][provider_client] route: {} tier={} ({})",
+                _plan.providers, _plan.tier, _plan.reason,
+            )
+        except Exception as _re:
+            logger.debug("[VECTOR][provider_client] route_policy unavailable: {}", _re)
 
         # ── Cloud budget gate (C1) ─────────────────────────────────────────────
         # After route_policy decides providers, verify the cloud ones are within budget.
@@ -444,6 +453,9 @@ class ProviderClient:
                 if not _pairs:
                     # All backends cooled-down or unconfigured — fall through to standard list
                     _pairs = [(prov, _model_for_provider(prov, model, tier)) for prov in providers_to_try]
+                if not any(getattr(prov, "slug", None) == "ollama" for prov, _ in _pairs):
+                    ollama = PROVIDERS["ollama"]
+                    _pairs.append((ollama, _model_for_provider(ollama, None, tier)))
             else:
                 _pairs = [(prov, _model_for_provider(prov, model, tier)) for prov in providers_to_try]
         except ImportError:
