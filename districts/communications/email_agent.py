@@ -468,6 +468,21 @@ class EmailAgent(AgentBase):
     # ── Main run dispatcher ───────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
+        # 2026-09-30 (Phase 3 codebase audit finding): the real governor
+        # dispatch shape is {"type": ..., "params": {...}} -- every branch
+        # below reads its arguments (email_id/folder/subject/body/...)
+        # straight off `task`, never `task["params"]`, so a real dispatch
+        # always fell back to the hardcoded defaults, silently ignoring the
+        # caller's real request. Verified live before fixing: dispatching
+        # "list" with params={"folder": "sent", "limit": 5, "page": 2}
+        # called list_emails("inbox", 20, 1) -- the defaults, not what was
+        # asked. Given the large number of task types/keys here, flattening
+        # params into task once (params values win on overlap, matching
+        # every other real-argument-bearing key this method reads) is safer
+        # and more maintainable than editing every individual .get() call
+        # below -- and keeps every existing flat-shape caller/test working
+        # unchanged, since task.get("params") is {} for those.
+        task = {**task, **(task.get("params") or {})}
         task_type = task.get("type", "list")
         try:
             if task_type == "list":
