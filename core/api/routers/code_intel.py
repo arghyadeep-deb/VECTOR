@@ -15,11 +15,18 @@ _intel_agent = None
 
 
 def _safe_path(v: str) -> str:
-    """Reject paths that escape the VECTOR codebase root."""
+    """Reject paths that escape the VECTOR codebase root.
+
+    A naive str.startswith(_PROJECT_ROOT) prefix check is bypassable: a
+    sibling directory that happens to share the same string prefix (e.g.
+    "...\\V.E.C.T.O.R. CodebaseEVIL\\secret.txt" against root
+    "...\\V.E.C.T.O.R. Codebase") passes startswith() without being inside
+    the root at all. Path.is_relative_to() respects path-component
+    boundaries instead of raw string prefixes."""
     if not v:
         return v
     resolved = Path(v).resolve()
-    if not str(resolved).startswith(str(_PROJECT_ROOT)):
+    if resolved != _PROJECT_ROOT and not resolved.is_relative_to(_PROJECT_ROOT):
         raise ValueError(f"Path '{v}' is outside the VECTOR codebase  --  access denied.")
     return v
 

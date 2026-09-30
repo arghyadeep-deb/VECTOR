@@ -44,8 +44,20 @@ async def get_all_hypotheses(limit: int = 50) -> dict:
 
 @router.websocket("/ws")
 async def hypothesis_websocket(ws: WebSocket) -> None:
-    """WebSocket endpoint: clients receive HYPOTHESIS_SURFACED events in real time."""
+    """WebSocket endpoint: clients receive HYPOTHESIS_SURFACED events in real time.
+
+    Starlette limitation (same as core/api/routers/websocket.py and voice_ws.py):
+    the regular HTTP auth_middleware does not cover WebSocket upgrade requests,
+    so every websocket endpoint must call require_auth_handshake() explicitly.
+    This one didn't -- any client could connect with zero auth and receive a
+    live feed of VECTOR's internal hypothesis-engine output (proactive
+    insights about the owner) plus the 3 most recent pending hypotheses
+    pushed immediately on connect.
+    """
     await ws.accept()
+    from core.api.routers.websocket import require_auth_handshake
+    if not await require_auth_handshake(ws):
+        return
     logger.info("[VECTOR][notifications] WebSocket client connected")
     bus = None
     subscription = None
