@@ -127,18 +127,31 @@ class DataRedactor(AgentBase):
 
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "scan")
+        # 2026-09-30 (Phase 3 codebase audit finding): the real governor
+        # dispatch shape is {"type": ..., "params": {...}} -- this method
+        # was reading text/messages/cloud_mode straight off `task` instead
+        # of `task["params"]`, so any real dispatch always redacted/scanned
+        # an empty string and reported "status: ok" with zero findings,
+        # even when the caller supplied a real secret. Verified live before
+        # fixing: agent.run({"type": "redact_text", "params": {"text":
+        # "<real API key>"}}) returned {"redacted": "", "findings": []}.
+        # `task.get("params", task)` keeps flat/legacy direct callers (if
+        # any exist) working exactly as before, matching the same
+        # backward-compat pattern already used in
+        # districts/coding/{fastapi,python,security}_reviewer.py.
+        params = task.get("params", task)
         try:
             if task_type == "redact_text":
-                text = task.get("text", "")
-                cloud = task.get("cloud_mode", False)
+                text = params.get("text", "")
+                cloud = params.get("cloud_mode", False)
                 redacted, findings = self.redact(text, cloud_mode=cloud)
                 self.award_points(10, "text_redacted")
                 return {"status": "ok", "redacted": redacted, "findings": findings,
                         "changed": redacted != text}
 
             elif task_type == "redact_messages":
-                msgs = task.get("messages", [])
-                cloud = task.get("cloud_mode", False)
+                msgs = params.get("messages", [])
+                cloud = params.get("cloud_mode", False)
                 clean, findings = self.redact_messages(msgs, cloud_mode=cloud)
                 if findings:
                     self._get_memory().store(
@@ -153,13 +166,13 @@ class DataRedactor(AgentBase):
                         "redacted_count": len(findings)}
 
             elif task_type == "cloud_safety":
-                msgs = task.get("messages", [])
+                msgs = params.get("messages", [])
                 result = self.safe_for_cloud(msgs)
                 self.award_points(10, "cloud_safety_checked")
                 return {"status": "ok", "safety": result}
 
             else:  # scan
-                text = task.get("text", "")
+                text = params.get("text", "")
                 result = self.scan_for_secrets(text)
                 self.award_points(5, "secrets_scanned")
                 return {"status": "ok", "scan": result}
