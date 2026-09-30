@@ -870,6 +870,40 @@ grew open engineering items; section 0 lists them.
     `dbf66e82c` `615a97b4f` `c81cb5801` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the same day,
     already covered above). Working tree clean except for the intentionally-held `token_blacklist.py`
     decision file in the scratch folder.
+    **Sixth deep-verify slice, `core/api/routers/` batch 1 (28 of 87 files)** — owner asked directly
+    "for what are u waiting? are next work dependent on codex??" after Claude's weekly usage limit reset;
+    correctly recognized Claude's own next slice was NOT blocked on Codex, confirmed Codex was still down
+    via a live test call (same 10:05 PM message), and proceeded solo rather than waiting idle. Files:
+    `auth_jwt.py`, `oauth.py`, `webauthn_auth.py`, `keys.py`, `gateway.py`, `executor.py`, `commands.py`,
+    `security.py`, `sandbox.py`, `control.py`, `camera.py`, `sensing.py`, `scraper.py`, `mcp.py`,
+    `jcode.py`, `tools.py`, `vectorcode.py`, `coding_extended.py`, `code_intel.py`, `migration.py`,
+    `mining.py`, `network.py`, `missions.py`, `notifications.py`, `nudge.py`, `openai_compat.py`,
+    `providers.py`, `metering.py` (prioritized by security/action-taking relevance; remaining 59 files
+    are future batches).
+    **2 real bugs found and fixed, no policy tradeoff in either**: `code_intel.py`'s `_safe_path()` used
+    `str(resolved).startswith(str(_PROJECT_ROOT))` for directory confinement — **classic CWE-22
+    prefix-matching bypass**: a sibling directory sharing the same string prefix as the project root
+    passes `startswith()` without being inside the root at all, proven live before fixing. Fixed with
+    `Path.is_relative_to()`, which respects path-component boundaries. `notifications.py`'s
+    `/notifications/ws` **never called `require_auth_handshake()`** — the explicit pattern every other
+    WebSocket endpoint in this codebase uses, since Starlette's HTTP auth middleware doesn't cover
+    WebSocket upgrades. Any client could connect with **zero auth** and receive a live feed of VECTOR's
+    internal hypothesis-engine output (proactive insights about the owner) plus the 3 most recent pending
+    hypotheses pushed immediately on connect. Fixed by adding the same explicit call used elsewhere.
+    New tests `tests/test_code_intel_path_confinement.py` (6) + `tests/test_notifications_ws_authorization.py`
+    (3). Independently re-verified plus 48 more pre-existing tests (after verifying the fork's cited
+    paths actually existed this time, learning from the earlier slice's inaccurate citation) — zero
+    regressions. Commit `3e05e02d7`.
+    **5 more real FLAG-FOR-OWNER findings, same severity class as `pc_controller.py`/`phone_controller.py`'s
+    already-flagged Rule-3 gaps, none fixed**: `vectorcode.py`'s `/vectorcode/launch` spawns a real
+    subprocess with zero Permission Gateway check (allowlisted mode values, so no injection risk, but
+    still an ungated real-world action); `camera.py`'s `/camera/start` turns on the owner's **webcam**
+    with only base API auth, no gateway tiering; `control.py` confirms `phone_controller.py`'s already-
+    flagged `_run_adb()` gap is **directly REST-reachable** (`phone_notifications()`/`phone_screenshot()`
+    bypass the gateway entirely, while sibling `pc_*` endpoints in the same file correctly route through
+    it); `sensing.py`'s `/sensing/screen` OCRs the full screen via a plain authenticated GET, no gateway
+    tier; `oauth.py`'s `/oauth/callback/google` has **no CSRF `state` parameter at all** (classic OAuth
+    account-linking CSRF), exploitable specifically when no `VECTOR_API_KEY` is configured.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
