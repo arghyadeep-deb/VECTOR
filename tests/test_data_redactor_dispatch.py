@@ -105,5 +105,26 @@ async def test_no_text_and_no_params_scans_empty_string_not_a_crash():
     assert result["scan"]["has_secrets"] is False
 
 
+@pytest.mark.asyncio
+async def test_empty_params_dict_falls_back_to_top_level_text():
+    """Regression for a real edge case Codex's independent review caught in
+    the first version of this fix (2026-09-30, same cycle): a caller sending
+    {"type": "redact_text", "text": "<secret>", "params": {}} -- params
+    present but empty, real value at the top level -- was silently scanning
+    an empty string, because `task.get("params", task)` only falls back to
+    `task` when the "params" KEY is absent, not when its value is falsy.
+    """
+    agent = DataRedactor()
+    result = await agent.run({
+        "type": "redact_text",
+        "text": "My API key is sk-ant-api03-abcdef1234567890abcdef",
+        "params": {},
+    })
+    assert result["status"] == "ok"
+    assert result["changed"] is True
+    assert "[ANTHROPIC_KEY_REDACTED]" in result["redacted"]
+    assert result["findings"]
+
+
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))

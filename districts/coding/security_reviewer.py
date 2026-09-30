@@ -397,7 +397,15 @@ class SecurityReviewer(AgentBase):
         """
         task = task or {}
         task_type = task.get("type", "scan_vulnerabilities")
-        params = task.get("params", task)
+        # 2026-09-30 (Codex independent review finding, same cycle -- see
+        # districts/security/data_redactor.py's identical fix): the old
+        # `task.get("params", task)` only falls back to `task` when the
+        # "params" KEY is absent entirely, not when its value is falsy --
+        # a caller sending {"type": "scan_vulnerabilities", "code": "...",
+        # "params": {}} (params present but empty, real value at the top
+        # level) would silently see no code. Merging task's own keys under
+        # params (params wins on overlap) fixes it for every read below.
+        params = {**task, **(task.get("params") or {})}
 
         if task_type not in self._SUPPORTED_TASK_TYPES:
             # 2026-09-30 (Phase 3 codebase audit finding): real chat dispatch

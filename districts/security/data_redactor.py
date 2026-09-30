@@ -135,11 +135,19 @@ class DataRedactor(AgentBase):
         # even when the caller supplied a real secret. Verified live before
         # fixing: agent.run({"type": "redact_text", "params": {"text":
         # "<real API key>"}}) returned {"redacted": "", "findings": []}.
-        # `task.get("params", task)` keeps flat/legacy direct callers (if
-        # any exist) working exactly as before, matching the same
-        # backward-compat pattern already used in
-        # districts/coding/{fastapi,python,security}_reviewer.py.
-        params = task.get("params", task)
+        # 2026-09-30 (Codex independent review finding, same cycle): the
+        # first version of this fix used `task.get("params", task)`, which
+        # only falls back to `task` when the "params" KEY is absent entirely
+        # -- a caller sending {"type": "redact_text", "text": "sk-...",
+        # "params": {}} (params present but empty, text at the top level)
+        # would set params={} and silently scan an empty string instead of
+        # the real supplied text. Fixed by merging task's own keys under
+        # params instead of picking one dict or the other -- params keys
+        # win on overlap, task provides the fallback for anything params
+        # doesn't have, matching the merge pattern used in every other
+        # multi-key fix in this same commit series
+        # (districts/communications/email_agent.py, the QA district, etc.).
+        params = {**task, **(task.get("params") or {})}
         try:
             if task_type == "redact_text":
                 text = params.get("text", "")
