@@ -370,8 +370,7 @@ class PersonModel:
         try:
             self._conn.close()
         except Exception as e:
-            logger.warning("[VECTOR] silent swallow: %s", e)
-            pass
+            logger.warning("[VECTOR][person_model] close failed: {}", e)
 
 
 if __name__ == "__main__":

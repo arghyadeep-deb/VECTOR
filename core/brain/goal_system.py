@@ -328,9 +328,8 @@ class GoalSystem:
                         )
                         pruned += 1
                         continue
-                except Exception:
-                    logger.warning("[VECTOR] silent swallow")
-                    pass
+                except Exception as e:
+                    logger.warning("[VECTOR][goal_system] due_date parse failed for goal {}: {}", goal.get("id"), e)
             # Stale: no update in horizon-appropriate days with zero progress
             last = goal.get("last_updated") or goal.get("created_at")
             if last:
@@ -347,9 +346,8 @@ class GoalSystem:
                             stale_days, goal["id"], goal["title"],
                         )
                         pruned += 1
-                except Exception:
-                    logger.warning("[VECTOR] silent swallow")
-                    pass
+                except Exception as e:
+                    logger.warning("[VECTOR][goal_system] staleness check failed for goal {}: {}", goal.get("id"), e)
         if pruned:
             self._persist()
         return pruned

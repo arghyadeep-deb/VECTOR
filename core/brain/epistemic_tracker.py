@@ -231,16 +231,14 @@ class EpistemicTracker:
                 (claim_id, datetime.now(timezone.utc).isoformat(), reason),
             )
             self._conn.commit()
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][epistemic_tracker] staleness log failed for {}: {}", claim_id, e)
 
     def close(self) -> None:
         try:
             self._conn.close()
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][epistemic_tracker] close failed: {}", e)
 
 
 if __name__ == "__main__":
