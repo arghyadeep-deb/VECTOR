@@ -606,6 +606,71 @@ grew open engineering items; section 0 lists them.
     imports `ExperimentRegistry`/`Experiment` externally (Gap 18 / A/B testing is currently unwired from
     any production caller — a separate, pre-existing, out-of-scope finding, not fixed here). New test file
     `tests/test_ab_testing_conn_bypass.py` (7 tests, all pass).
+    **Next deep-verify slice, both sides done same day**: Claude (via a self-fork, same context/model,
+    Sonnet-high cap respected) deep-verified all 13 `core/brain/` files; Codex (`codex exec -m
+    gpt-5.6-sol`) deep-verified all 16 `core/security/` files — real logic review, not just the
+    sqlite-pattern grep. **Claude's `core/brain/` pass**: wiring-verified every module against real call
+    sites rather than trusting docs — confirmed `epistemic_tracker.py` (Gap 3) IS actually wired into
+    both `decision_engine.py` and `autonomous_loop.py` despite `.claude/rules/phase_status.md` calling it
+    "ORPHANED" (stale doc, not a real bug — flagged for a doc fix, not code); confirmed `router.py` and
+    `self_evolve.py` are deliberately `DORMANT` per an existing 2026-09-24 decision doc, not new findings.
+    Found and fixed a real bug class: 6 except-blocks across `epistemic_tracker.py`, `goal_system.py`
+    (×2), `person_model.py`, `suggestion_queue.py` had `logger.warning(...)` calls that silently logged
+    nothing useful — some had no `as e` at all (just a literal string), others used `"...: %s".format(e)`
+    which loguru doesn't support (`%s`-style, not `{}`-style — printed literally, `e` silently dropped,
+    verified directly: `"...: %s".format("boom")` → unchanged string). AST-scanned all 13 files for every
+    other no-`as e` except block afterward (9 more) — all legitimate silent-fallback patterns that never
+    attempted logging, not the same bug. Fixed all 6 to actually render the exception. New test file
+    `tests/test_core_brain_silent_swallow_logging.py` (5 tests, forces each block to actually raise and
+    asserts the real exception text appears with no literal `%s`); 138/148 pre-existing tests across the
+    4 touched modules still pass (10 unrelated pre-existing skips, 0 failures). Commit `bd5f842da`.
+    **Codex's `core/security/` pass**: full report
+    `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\codex_core_security_report.md`. **3 real bugs found
+    and fixed, no policy tradeoff in either**: `secrets_manager.py` (keyring read/write + audit-log
+    failures silently swallowed with zero logging — now warn, values never logged) and `skill_scanner.py`
+    (`scan_skill_for_load()`, the real pre-load security gate, only ever scanned the `SKILL.md` manifest
+    itself — a malicious sibling script/hook sitting next to a clean-looking manifest completely escaped
+    the gate; fixed by expanding to the containing directory). Both independently re-verified by Claude
+    (30/30 tests, plus the existing security regression suite, zero regressions). Commit `bef33f0eb`.
+    **1 fix proposed by Codex but deliberately NOT applied** — `token_blacklist.py`'s `is_revoked()`/
+    `is_globally_revoked()` return `False` (not-revoked) on a SQLite error, with an explicit, deliberate
+    comment present since the file's first commit: `# fail-open for availability; blacklist is
+    defense-in-depth`. Codex proposed flipping to fail-closed (`return True`/reject), citing VECTOR's own
+    `Decisions/004-fail-closed-permission-tiers.md`. Claude reviewed this specifically and held it back
+    rather than committing: this reverses a *documented, deliberate* tradeoff (not an accidental bug like
+    the other fixes), and in a single-owner system, fail-closed here means a transient blacklist-DB
+    glitch (disk full, lock contention) would reject every token check — including the owner's own
+    legitimate session — not just an attacker's. Decision 004 is specifically about the Permission
+    Gateway's real-world-action boundary, a different and higher-stakes gate than a defense-in-depth
+    revocation side-check on top of primary JWT signature validation; whether the same philosophy should
+    extend here is a deliberate yes/no for the owner, not an inherited default. Reverted the change;
+    ready-to-apply fix + test held at
+    `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\token_blacklist_fail_closed_PENDING_OWNER_DECISION.{md,py.txt}`
+    (the `.md` explains the tradeoff and exact reapply steps).
+    **8 more real FLAG-FOR-OWNER findings from Codex's `core/security/` pass, none fixed** (all
+    genuinely need a design/policy call, not a mechanical fix): `hp_validator.py` (HP-delta
+    cross-validation hardening is fail-open — an uncorroborated large delta or a validator/DB failure
+    still gets applied); `mcp_security.py` (production MCP-wrapper middleware fails open on exceptions;
+    this audit-log DB is also unencrypted `str(record.params)`, can contain credentials/PII);
+    `prompt_injection.py` (`Governor.dispatch()` catches scanner exceptions and continues — fail-open;
+    regex-only detection is inherently evadable); `rules_engine.py` (live "bypass rules" claim a clear
+    schedule / nominal systems without consulting any real calendar/health state — evidence-free
+    responses that conflict with VECTOR's own anti-fabrication posture); **`safe_eval.py` (the most
+    severe finding — "not a sandbox": arbitrary calls and non-dunder attribute chains are allowed on any
+    supplied object, so a real MCP caller passing pandas/numpy could reach filesystem/network/file-write
+    methods; unbounded exponentiation also enables resource exhaustion; needs an explicit
+    callable/attribute allowlist design, not a guessed patch)**; `secrets_providers.py` (orphaned —
+    zero production callers, a duplicate abstraction of `secrets_manager.py` that could silently
+    become the live path if ever wired wrong); `ssrf_guard.py` (the real `WebScout`/`VectorScraper`
+    callers use a DNS-resolution-disabled singleton, so a public-looking hostname that actually resolves
+    to a private/loopback address isn't caught; other high-risk paths do enable DNS, inconsistently);
+    `taint_tracker.py` (`VectorScraper` tags fetched content then discards the returned tainted value;
+    `Governor` catches tracker errors and proceeds unchecked; unknown string labels are silently ignored);
+    `workspace_audit.py` (zero production callers — orphaned, same class as `secrets_providers.py`).
+    6 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
+    `bef33f0eb` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the same day, already covered above).
+    Working tree clean except for the intentionally-held `token_blacklist.py` decision file in the
+    scratch folder (not `tests/`, does not affect any test run).
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
