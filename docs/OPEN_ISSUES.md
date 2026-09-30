@@ -489,6 +489,42 @@ grew open engineering items; section 0 lists them.
     (45) and coding (28, this bug class) done; the rest of the 41 districts not yet individually swept for
     this or other bug classes.
 
+25. **31-file, 15-district params-vs-task dispatch bug, 2026-09-30 — the highest-value finding of the whole
+    audit.** Full write-up: `C:\Users\Arghyadeep\AppData\Local\Temp\v1recon\CODEBASE_AUDIT.md`. While
+    auditing security's 4 previously-zero-test-coverage agents, found `DataRedactor.run()` read
+    `text`/`messages`/`cloud_mode` straight off `task` instead of `task["params"]` — the real governor
+    dispatch shape (`{"type": ..., "params": {...}}`) meant every real dispatch silently redacted/scanned an
+    empty string and reported `status: "ok"` with zero findings, **even when a real secret was supplied** —
+    verified live: `agent.run({"type": "redact_text", "params": {"text": "<real API key>"}})` returned
+    `{"redacted": "", "findings": []}`. Security/privacy-relevant, not cosmetic: this is VECTOR's own RULE 11
+    privacy-enforcement agent. Found the identical shape in `ThreatDetectionEngineer.run()`
+    (`sigma_rule`/`coverage_map`/`analyze_logs` all ignored real caller arguments, verified live). Given the
+    same bug appeared twice independently, wrote a repo-wide AST scanner to find every
+    `async def run(self, task)` that reads a domain-specific `task.get(key)` while never touching
+    `task["params"]` anywhere in the method body — 34 candidates surfaced, every one individually verified
+    (not trusted blindly): 31 true positives, 2 genuine false positives (`core/loop/workflow_runner.py` and
+    `core/swarm/generic_swarm.py` don't share the governor `run(self, task)` convention), 1 already-fixed
+    (`districts/marketing/marketing_specialists.py` — built LATER than 5 of the buggy files below, already
+    had the fix, just never backported).
+    **31 files fixed across 15 districts**: `security/data_redactor.py` + `security/
+    threat_detection_engineer.py`; 5 self-dev-program evidence-gated specialist files sharing one root cause
+    (`agency/agency_specialists.py` 16 agents, `design/design_specialists.py` 15, `security/
+    security_specialists.py` 9, `personal_growth/skill_builder.py`, `chief_of_staff/slack_archaeologist.py` —
+    ~42 agents, all reading `task.get("evidence")` instead of the nested `params.evidence` marketing's later
+    file already fixed); `communications/email_agent.py` (~15 task-type branches); all 8 QA district agents;
+    4 more coding agents; both `data_analytics` agents; both `finance` agents; `governance/
+    compliance_auditor.py`; `health/biometrics_aggregator.py`; `memory_curator/context_compressor.py`; all 3
+    `ops` agents; `projects/experiment_tracker.py`. Estimated 70+ agent instances affected in total. Two fix
+    variants depending on call-site complexity: an explicit `params.get(k, task.get(k, default))` per key for
+    simple files, or flattening params into task once at the top of `run()`
+    (`task = {**task, **(task.get("params") or {})}`) for files with many keys/branches — both keep every
+    flat-shape legacy caller/test working unchanged. Verified per file: syntax-checked all 31, ran every
+    existing test suite that imports any of them (zero regressions anywhere), live-verified a representative
+    sample per batch with monkeypatched argument capture. Most of the final 15-file batch had **zero
+    dedicated test coverage anywhere in `tests/`** — a separate, real finding, not chased further this pass.
+    5 commits: `bf6f6be1d`, `53f59bfb4`, `d6779c761`, `5c8def7b4`, `ffa06cad7`. A full-suite regression run
+    was kicked off to catch anything the targeted per-district checks missed.
+
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
