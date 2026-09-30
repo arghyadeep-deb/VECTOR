@@ -18,6 +18,7 @@ __all__ = [
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -47,6 +48,7 @@ _TOKEN_DIR = Path.home() / ".vector_ca" / "oauth_tokens"
 _CLOUD_API = CONFIG.get("cloud_api_url", "")
 
 _ISO_FMT = "%Y-%m-%dT%H:%M:%S.%f+00:00"
+_SAFE_SLUG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 
 
 def _now_utc() -> datetime:
@@ -75,6 +77,13 @@ def _parse_expires_at(expires_at: str) -> datetime | None:
         return dt
     except (ValueError, AttributeError):
         return None
+
+
+def _token_path(slug: str) -> Path:
+    """Resolve a token filename without allowing provider IDs to escape storage."""
+    if not isinstance(slug, str) or not _SAFE_SLUG.fullmatch(slug):
+        raise ValueError("invalid OAuth provider slug")
+    return _TOKEN_DIR / f"{slug}.json"
 
 
 @dataclass
@@ -127,16 +136,17 @@ class OAuthFlowManager:
     # ── Core storage ──────────────────────────────────────────────────────────
 
     def store_token(self, slug: str, token: OAuthToken) -> None:
+        path = _token_path(slug)
         if _KEYRING_AVAILABLE:
             keyring.set_password("VECTOR", f"oauth:{slug}", json.dumps(token.to_dict()))
         else:
-            path = _TOKEN_DIR / f"{slug}.json"
             path.write_text(json.dumps(token.to_dict(), indent=2), encoding="utf-8")
             path.chmod(0o600)
         logger.info("[VECTOR][oauth] token stored for {}", slug)
 
     def _load_raw(self, slug: str) -> OAuthToken | None:
         """Load token from storage without auto-refresh."""
+        path = _token_path(slug)
         try:
             if _KEYRING_AVAILABLE:
                 raw = keyring.get_password("VECTOR", f"oauth:{slug}")
@@ -144,7 +154,6 @@ class OAuthFlowManager:
                     d = json.loads(raw)
                     return OAuthToken(**{k: v for k, v in d.items()
                                         if k in OAuthToken.__dataclass_fields__})
-            path = _TOKEN_DIR / f"{slug}.json"
             if path.exists():
                 d = json.loads(path.read_text(encoding="utf-8"))
                 return OAuthToken(**{k: v for k, v in d.items()
@@ -158,20 +167,24 @@ class OAuthFlowManager:
         token = self._load_raw(slug)
         if token is None:
             return None
-        if token.is_expired() and token.refresh_token:
-            refreshed = self._sync_refresh(slug, token)
-            if refreshed:
-                return refreshed
+        if token.is_expired():
+            if token.refresh_token:
+                return self._sync_refresh(slug, token)
+            logger.warning(
+                "[VECTOR][oauth] refusing expired token for {} without a refresh token",
+                slug,
+            )
+            return None
         return token
 
     def revoke_token(self, slug: str) -> None:
+        path = _token_path(slug)
         if _KEYRING_AVAILABLE:
             try:
                 keyring.delete_password("VECTOR", f"oauth:{slug}")
             except Exception:
                 logger.warning("[VECTOR] silent swallow")
                 pass
-        path = _TOKEN_DIR / f"{slug}.json"
         if path.exists():
             path.unlink()
         logger.info("[VECTOR][oauth] token revoked for {}", slug)
@@ -209,10 +222,14 @@ class OAuthFlowManager:
                          "Content-Type": "application/x-www-form-urlencoded"},
                 timeout=15,
             )
+            resp.raise_for_status()
             data = resp.json()
+            access_token = data.get("access_token")
+            if not isinstance(access_token, str) or not access_token.strip():
+                raise ValueError("refresh response did not contain a valid access_token")
             new_token = OAuthToken(
                 slug=slug,
-                access_token=data.get("access_token", token.access_token),
+                access_token=access_token,
                 refresh_token=data.get("refresh_token", token.refresh_token),
                 expires_at=_expires_at_from_seconds(data.get("expires_in")),
                 scope=data.get("scope", token.scope),

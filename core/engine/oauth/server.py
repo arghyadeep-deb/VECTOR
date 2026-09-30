@@ -30,6 +30,7 @@ __all__ = [
 
 import base64
 import hashlib
+import html
 import os
 import secrets
 from urllib.parse import urlencode, urlparse
@@ -71,6 +72,7 @@ def _generate_pkce() -> tuple[str, str]:
 
 
 def _success_html(name: str) -> str:
+    name = html.escape(name, quote=True)
     return f"""<!DOCTYPE html>
 <html><head><title>VECTOR — Connected</title>
 <style>
@@ -86,6 +88,7 @@ def _success_html(name: str) -> str:
 
 
 def _error_html(msg: str) -> str:
+    msg = html.escape(msg, quote=True)
     return f"""<!DOCTYPE html>
 <html><head><title>VECTOR — OAuth Error</title>
 <style>body{{background:#020A14;color:#FF3B30;font-family:monospace;
