@@ -558,16 +558,30 @@ class ThreatDetectionEngineer(AgentBase):
         """Dispatch: sigma_rule | coverage_map | analyze_logs | report | status."""
         try:
             task_type = task.get("type", "report")
+            # 2026-09-30 (Phase 3 codebase audit finding): the real governor
+            # dispatch shape is {"type": ..., "params": {...}} -- the
+            # structured branches below were reading technique_id/sources/
+            # log_lines straight off `task` instead of `task["params"]`
+            # (only the free-text fallback further down already checked
+            # params correctly), so a real dispatch always fell back to the
+            # hardcoded defaults, silently ignoring the caller's real
+            # arguments. Verified live before fixing: dispatching sigma_rule
+            # with params={"technique_id": "T1003.001"} returned the
+            # T1059.001 default instead; analyze_logs with a real malicious
+            # log line in params found 0 threats. `params.get(k, task.get(k,
+            # default))` checks params first, then falls back to the flat
+            # shape for backward compat, then the original default.
+            params = task.get("params") or {}
 
             if task_type == "sigma_rule":
-                technique_id = task.get("technique_id", task.get("technique", "T1059.001"))
-                description = task.get("description", f"Detection rule for {technique_id}")
+                technique_id = params.get("technique_id", task.get("technique_id", task.get("technique", "T1059.001")))
+                description = params.get("description", task.get("description", f"Detection rule for {technique_id}"))
                 rule = self.generate_sigma_rule(technique_id, description)
                 self.award_points(30, "task_done")
                 return {"status": "ok", "sigma_rule": rule, "technique_id": technique_id}
 
             elif task_type == "coverage_map":
-                sources = task.get("sources", task.get("log_sources", []))
+                sources = params.get("sources", task.get("sources", task.get("log_sources", [])))
                 if not isinstance(sources, list):
                     sources = [str(sources)]
                 if not sources:
@@ -577,7 +591,7 @@ class ThreatDetectionEngineer(AgentBase):
                 return {"status": "ok", **result}
 
             elif task_type == "analyze_logs":
-                lines = task.get("log_lines", task.get("lines", []))
+                lines = params.get("log_lines", task.get("log_lines", task.get("lines", [])))
                 if isinstance(lines, str):
                     lines = lines.splitlines()
                 findings = self.analyze_log_for_threats(lines)
@@ -602,7 +616,7 @@ class ThreatDetectionEngineer(AgentBase):
                 # Real free text now gets answered; a genuinely content-free
                 # structured call still gets the identical status dump.
                 query = (
-                    (task.get("params") or {}).get("query")
+                    params.get("query")
                     or task.get("query")
                     or task.get("text")
                     or ""
