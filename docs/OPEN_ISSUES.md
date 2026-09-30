@@ -986,6 +986,14 @@ grew open engineering items; section 0 lists them.
     tests). **Owner note: Claude's weekly usage budget is now critically low (~5%) — from this point the
     audit runs Codex-only for new deep-verify work, with Claude limited to reviewing diffs, running
     tests, and committing.**
+    **First Codex-only slice: `districts/content/`+`districts/research/` (35 files, commit `d6e87cd2b`)
+    — 6 real fixes**: publish failures were silently marked "published" (`content_scheduler.py`); real
+    configured-API upload failures fell back to a fake-success simulation (`uploader.py`); a job-claiming
+    race let two scheduler runs publish the same job (`post_job.py`); ComfyUI response paths could escape
+    the output directory (`comfyui_adapter.py`); the `blog_publisher.py` self-test could publish real
+    public articles if credentials were configured; NewsAPI's key was in the URL query string, not a
+    header (`news_aggregator.py`). 6 more real findings flagged (Graph API Instagram bypasses the
+    1/day cap entirely; SSRF gaps in 3 research/scraping files; unrestricted local file reads; etc.).
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
