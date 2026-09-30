@@ -939,15 +939,28 @@ grew open engineering items; section 0 lists them.
     **zero confinement check at all**, inconsistent with sibling endpoints in the same file — both fixed.
     New tests `tests/test_api_routers_printf_style_logging.py` (4) + `tests/test_knowledge_router_path_confinement.py`
     (6). Commit `ad8f82691`.
-    **4 more FLAG-FOR-OWNER findings — the most severe is `core/api/routers/memory.py`'s `POST
-    /memory/restore`**: takes a raw `backup_path` with **zero confinement** (arbitrary file read), and
-    `overwrite=True` triggers `DELETE FROM {table}` against the **live encrypted main DB** with the
-    table name **f-string-interpolated directly from caller-supplied JSON** — a real SQL-injection vector,
-    already marked `# noqa: S608` in the source. The underlying `core/memory/multi_db_manager.py` also
-    uses a raw `sqlite3.connect()` bypassing the SQLCipher-aware helper. Zero Permission Gateway
-    involvement for what's explicitly documented in-source as "Gap 19." Not fixed — spans both this
-    batch's scope and `multi_db_manager.py` (out of scope), too entangled for a safe narrow patch; needs
-    real attention soon given severity. Also: `agents.py`'s `POST /agents/award` lets any authenticated
+    **The most severe finding of this batch — `core/api/routers/memory.py`'s `POST /memory/restore` —
+    was fixed as a same-day follow-up (commit `4993ba77b`)**, not left flagged like the rest, because
+    unlike most flagged findings this cycle it was missing input validation with a well-defined safe fix,
+    not a design/policy tradeoff: `core/memory/multi_db_manager.py`'s `restore()` read table/column names
+    directly from a backup JSON's own keys and f-string-interpolated them straight into `DELETE FROM
+    {table}` / `INSERT INTO {table} ({cols})` with **zero validation** — a crafted backup file could carry
+    arbitrary SQL table/column names into a query executed against the **live encrypted main DB**, reachable
+    via a `backup_path` with **zero path confinement** (any file the process could read) and
+    `overwrite=True`. Fixed: `backup_path` confined to the repo root; table/column names now validated
+    against the target database's real, live schema (queried fresh via `sqlite_master`/`PRAGMA
+    table_info`, not trusted from the file) before ever reaching SQL, reusing the file's own existing
+    `_SAFE_IDENTIFIER` regex as defense-in-depth. No pre-existing test coverage of `backup()`/`restore()`
+    existed at all — new test `tests/test_multi_db_manager_restore_injection.py` (4 tests: malicious
+    table name rejected without dropping the real table, malicious column name rejected, out-of-root
+    `backup_path` refused, full legitimate round trip still works). 27 pre-existing tests re-verified,
+    zero regressions.
+    **Still flagged, not fixed — a genuinely separate design question**: `POST /memory/restore` still has
+    **zero Permission Gateway involvement** for what's explicitly documented in-source as "Gap 19" — a
+    destructive (`overwrite=True` drops/recreates tables) real-world action reachable via plain API auth.
+    Whether/how this should be gateway-tiered needs an owner decision, deliberately not folded into the
+    narrow security-input-validation fix above.
+    **3 more FLAG-FOR-OWNER findings from the same batch**: `agents.py`'s `POST /agents/award` lets any authenticated
     caller inflate any agent's HP arbitrarily (no gateway gate, connects to the already-flagged
     `hp_validator.py` weakness); `content.py`'s `POST /content/run`/`POST /content/post-video` are more
     ungated real-world-action endpoints (same class as `camera.py`/`vectorcode.py`/`control.py`);
@@ -955,14 +968,14 @@ grew open engineering items; section 0 lists them.
     task type so Governor always rejects it) — flagged so a future fix doesn't naively wire the
     caller-supplied type through without the same scrutiny already given to `governor.py`'s trust
     boundary.
-    18 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
+    19 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
     `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` `d5940fa7c` `2639aaabb` `cf93642df` `52098dfa0`
-    `dbf66e82c` `615a97b4f` `c81cb5801` `3e05e02d7` `944504685` `2b7e8be0e` `ad8f82691` (preceded by
-    `9e630a1e9`/`f3c9123f0` from earlier the same day, already covered above). Working tree clean except
-    for the intentionally-held `token_blacklist.py` decision file.
+    `dbf66e82c` `615a97b4f` `c81cb5801` `3e05e02d7` `944504685` `2b7e8be0e` `ad8f82691` `4993ba77b`
+    (preceded by `9e630a1e9`/`f3c9123f0` from earlier the same day, already covered above). Working tree
+    clean except for the intentionally-held `token_blacklist.py` decision file.
     **`core/api/routers/`'s remaining scope**: 58 of 87 files done across batches 1+2 (`memory.py`/
-    `agents.py`/`content.py` above were all reviewed as part of batch 2's 30 files — flagged, not fixed);
-    29 files remain unreviewed.
+    `agents.py`/`content.py` above were all reviewed as part of batch 2's 30 files — `memory.py`'s finding
+    fixed, the other 2 flagged); 29 files remain unreviewed.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
