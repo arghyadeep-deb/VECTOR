@@ -248,11 +248,13 @@ class IncidentPlaybookRunner(AgentBase):
             return blocked
         try:
             rule_name = f"VECTOR_Block_{ip.replace('.', '_')}"
-            (await asyncio.to_thread(subprocess.run, ["netsh", "advfirewall", "firewall", "add", "rule",
+            result = (await asyncio.to_thread(subprocess.run, ["netsh", "advfirewall", "firewall", "add", "rule",
                  f"name={rule_name}", "dir=out", "action=block",
                  f"remoteip={ip}", "enable=yes"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW,
             ))
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip() or "netsh block rule failed"}
             logger.info("[VECTOR][incident_playbook] blocked outbound to {}", ip)
             return {"status": "ok", "ip": ip}
         except Exception as e:
@@ -271,9 +273,11 @@ class IncidentPlaybookRunner(AgentBase):
             return blocked
         try:
             rule_name = f"VECTOR_Block_{ip.replace('.', '_')}"
-            (await asyncio.to_thread(subprocess.run, ["netsh", "advfirewall", "firewall", "delete", "rule", f"name={rule_name}"],
+            result = (await asyncio.to_thread(subprocess.run, ["netsh", "advfirewall", "firewall", "delete", "rule", f"name={rule_name}"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW,
             ))
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip() or "netsh unblock rule failed"}
             logger.info("[VECTOR][incident_playbook] unblocked {}", ip)
             return {"status": "ok", "ip": ip}
         except Exception as e:
@@ -284,12 +288,16 @@ class IncidentPlaybookRunner(AgentBase):
             result = (await asyncio.to_thread(subprocess.run, ["tasklist", "/FO", "CSV", "/NH"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW,
             ))
+            if result.returncode != 0:
+                return {"status": "error", "message": result.stderr.strip() or "tasklist failed"}
             snapshot_path = data_path("security", "incidents", f"{incident_id}_processes.csv")
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             snapshot_path.write_text(result.stdout, encoding="utf-8")
             net_result = (await asyncio.to_thread(subprocess.run, ["netstat", "-ano"],
                 capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW,
             ))
+            if net_result.returncode != 0:
+                return {"status": "error", "message": net_result.stderr.strip() or "netstat failed"}
             net_path = data_path("security", "incidents", f"{incident_id}_netstat.txt")
             net_path.write_text(net_result.stdout, encoding="utf-8")
             logger.info("[VECTOR][incident_playbook] process snapshot saved to {}", snapshot_path)
@@ -317,11 +325,15 @@ class IncidentPlaybookRunner(AgentBase):
             return blocked
         try:
             if pid:
-                (await asyncio.to_thread(subprocess.run, ["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW))
+                result = (await asyncio.to_thread(subprocess.run, ["taskkill", "/F", "/PID", str(pid)], capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW))
+                if result.returncode != 0:
+                    return {"status": "error", "message": result.stderr.strip() or "taskkill failed"}
                 logger.info("[VECTOR][incident_playbook] killed PID {}", pid)
                 return {"status": "ok", "pid": pid}
             elif name:
-                (await asyncio.to_thread(subprocess.run, ["taskkill", "/F", "/IM", name], capture_output=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW))
+                result = (await asyncio.to_thread(subprocess.run, ["taskkill", "/F", "/IM", name], capture_output=True, text=True, timeout=10, creationflags=subprocess.CREATE_NO_WINDOW))
+                if result.returncode != 0:
+                    return {"status": "error", "message": result.stderr.strip() or "taskkill failed"}
                 logger.info("[VECTOR][incident_playbook] killed process {}", name)
                 return {"status": "ok", "name": name}
             return {"status": "error", "message": "no pid or name"}

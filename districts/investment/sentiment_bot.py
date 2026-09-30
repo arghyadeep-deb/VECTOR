@@ -71,14 +71,17 @@ class SentimentBot(AgentBase):
             url = "https://newsapi.org/v2/everything"
             params = {
                 "q": f"${symbol} OR {symbol} stock",
-                "apiKey": self._newsapi_key,
                 "language": "en",
                 "sortBy": "publishedAt",
                 "pageSize": 20
             }
 
             with httpx.Client(timeout=10.0) as client:
-                response = client.get(url, params=params)
+                response = client.get(
+                    url,
+                    params=params,
+                    headers={"X-Api-Key": self._newsapi_key},
+                )
 
             if response.status_code != 200:
                 return self._generate_mock_news_sentiment(symbol)

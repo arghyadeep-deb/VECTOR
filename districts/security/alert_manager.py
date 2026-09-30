@@ -100,7 +100,6 @@ class AlertManager(AgentBase):
             if (now.timestamp() - self._dedup_cache[dkey]) < self._dedup_ttl:
                 logger.debug("[VECTOR][alert_manager] dedup: {} already alerted", dkey)
                 return None
-        self._dedup_cache[dkey] = now.timestamp()
         alert = Alert(
             id=str(uuid.uuid4()),
             rule_name=rule_name,
@@ -109,7 +108,13 @@ class AlertManager(AgentBase):
             message=getattr(rule_match, "suggested_action", "") or f"{rule_name} triggered",
             evidence=evidence,
         )
-        self._store_alert(alert)
+        if not self._store_alert(alert):
+            logger.error(
+                "[VECTOR][alert_manager] alert {} not created because persistence failed",
+                alert.id[:8],
+            )
+            return None
+        self._dedup_cache[dkey] = now.timestamp()
         logger.info("[VECTOR][alert_manager] alert created: {} (sev={})", alert.id[:8], severity)
         if severity >= 7:
             try:
@@ -129,7 +134,7 @@ class AlertManager(AgentBase):
                 logger.warning("[VECTOR][alert_manager] incident queue full")
         return alert
 
-    def _store_alert(self, alert: Alert) -> None:
+    def _store_alert(self, alert: Alert) -> bool:
         try:
             conn = self._get_conn()
             conn.execute(
@@ -140,8 +145,10 @@ class AlertManager(AgentBase):
             )
             conn.commit()
             conn.close()
+            return True
         except Exception as e:
             logger.error("[VECTOR][alert_manager] store error: {}", e)
+            return False
 
     async def _send_pushover(self, alert: Alert) -> None:
         if not self._pushover_token or not self._pushover_user:

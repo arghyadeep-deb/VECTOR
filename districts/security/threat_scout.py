@@ -50,6 +50,7 @@ class ThreatScout(AgentBase):
         )
         self.capabilities = ["low", "malware", "scan", "scan_prompt", "security", "security_scan", "ssrf_check", "system_error", "taint_check", "threat", "threat_level"]
         self._malware = MalwareDetector()
+        self._process_scan_ok = True
         if ghost:
             self.inherit_ghost(ghost)
         # Phase 2B: subscribe to security-relevant events
@@ -83,9 +84,11 @@ class ThreatScout(AgentBase):
             List of dicts: {pid, name, exe, suspicious: bool, reason: str}
         Never raises.
         """
+        self._process_scan_ok = True
         try:
             return check_process_anomalies()
         except Exception as e:
+            self._process_scan_ok = False
             logger.error(f"[VECTOR][threat_scout] scan_running_processes error: {e}")
             return []
 
@@ -210,7 +213,10 @@ class ThreatScout(AgentBase):
 
             # Determine threat level
             n_alerts = len(alerts)
-            if n_alerts == 0:
+            if not self._process_scan_ok:
+                threat_level = "unknown"
+                alerts.append("[SCAN] Running-process scan failed; clean state cannot be established")
+            elif n_alerts == 0:
                 threat_level = "low"
             elif n_alerts <= 3:
                 threat_level = "medium"
@@ -233,7 +239,9 @@ class ThreatScout(AgentBase):
             )
 
             # Award / deduct HP based on outcome (RULE 9 — real HP wiring)
-            if threat_level == "low":
+            if threat_level == "unknown":
+                self.deduct_points(5, "process_scan_failed")
+            elif threat_level == "low":
                 self.award_points(10, "clean threat assessment")
             elif threat_level == "medium":
                 self.award_points(5, "medium threat assessment completed")

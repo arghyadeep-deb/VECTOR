@@ -96,7 +96,7 @@ class LogAggregator(AgentBase):
                 )
                 self._queue.put_nowait(event)
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR][log_aggregator] sink rejected log event")
         return sink
 
     def ingest(self, event: LogEvent) -> None:
@@ -116,7 +116,9 @@ class LogAggregator(AgentBase):
                     try:
                         self._forward_queue.put_nowait(event)
                     except asyncio.QueueFull:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.opt(exception=True).debug(
+                            "[VECTOR][log_aggregator] forward queue full; event not forwarded"
+                        )
             except asyncio.TimeoutError:
                 continue
             except Exception as e:

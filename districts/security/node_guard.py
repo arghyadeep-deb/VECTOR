@@ -47,6 +47,7 @@ class NodeGuard(AgentBase):
         self.capabilities = ["bytes_sent", "connections", "laddr", "malware", "node_guard", "python.exe", "scan", "security"]
         if ghost:
             self.inherit_ghost(ghost)
+        self._connection_scan_ok = True
         logger.info("[VECTOR][node_guard] NodeGuard initialised")
 
     # ------------------------------------------------------------------
@@ -62,6 +63,7 @@ class NodeGuard(AgentBase):
         Never raises.
         """
         results: list[dict] = []
+        self._connection_scan_ok = True
         try:
             import psutil  # type: ignore
 
@@ -93,8 +95,10 @@ class NodeGuard(AgentBase):
                     continue
 
         except ImportError:
+            self._connection_scan_ok = False
             logger.error("[VECTOR][node_guard] psutil not installed — cannot list connections")
         except Exception as e:
+            self._connection_scan_ok = False
             logger.error(f"[VECTOR][node_guard] get_active_connections error: {e}")
 
         logger.info(f"[VECTOR][node_guard] {len(results)} active connections found")
@@ -133,7 +137,9 @@ class NodeGuard(AgentBase):
                             suspicious = True
                             reason = f"connection to suspicious port {remote_port}"
                     except (ValueError, IndexError):
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.opt(exception=True).debug(
+                            "[VECTOR][node_guard] could not parse remote port from {}", raddr
+                        )
 
                 # Check if process is a script interpreter running from temp dir
                 if not suspicious:
@@ -161,9 +167,13 @@ class NodeGuard(AgentBase):
                                         if suspicious:
                                             break
                             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                                logger.opt(exception=True).debug(
+                                    "[VECTOR][node_guard] process details unavailable for PID {}", pid
+                                )
                     except ImportError:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.opt(exception=True).debug(
+                            "[VECTOR][node_guard] psutil unavailable during suspicious-process check"
+                        )
 
                 if suspicious:
                     flagged_conn = dict(conn)
@@ -247,6 +257,7 @@ class NodeGuard(AgentBase):
                 "suspicious": len(suspicious),
                 "alerts": alerts,
                 "net_stats": net_stats,
+                "scan_status": "ok" if self._connection_scan_ok else "error",
                 "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             }
 
@@ -256,7 +267,9 @@ class NodeGuard(AgentBase):
             )
 
             # HP wiring (RULE 9 — real, not fake)
-            if len(suspicious) == 0:
+            if not self._connection_scan_ok:
+                self.deduct_points(5, "connection_scan_failed")
+            elif len(suspicious) == 0:
                 self.award_points(5, "clean network tick")
             else:
                 self.add_lesson(f"suspicious connections detected: {alerts[:3]}")
