@@ -154,7 +154,7 @@ class SREMonitor(AgentBase):
             logger.warning(f"[VECTOR][sre_monitor] error rate query failed: {e}")
             results["last_100_events"] = 0
             results["last_100_errors"] = 0
-            results["error_rate"] = 0.0
+            results["error_rate"] = 1.0  # fail-closed: unknown state → assume worst case
 
         is_healthy = (
             results.get("sqlite_ok", False)
