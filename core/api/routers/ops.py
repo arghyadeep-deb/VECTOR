@@ -31,7 +31,7 @@ async def incident_command(body: IncidentCommandReq):
     try:
         return await gov.dispatch({"type": "incident_command", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][ops] incident_command failed: %s", e)
+        logger.error("[VECTOR][ops] incident_command failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/slo-check")
@@ -60,7 +60,7 @@ async def slo_check():
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
     except Exception as e:
-        logger.error("[VECTOR][ops] slo_check failed: %s", e)
+        logger.error("[VECTOR][ops] slo_check failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class PostMortemReq(BaseModel):
@@ -76,7 +76,7 @@ async def post_mortem(body: PostMortemReq):
     try:
         return await gov.dispatch({"type": "post_mortem", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][ops] post_mortem failed: %s", e)
+        logger.error("[VECTOR][ops] post_mortem failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ErrorClassifyReq(BaseModel):
@@ -91,5 +91,5 @@ async def error_classify(body: ErrorClassifyReq):
     try:
         return await gov.dispatch({"type": "error_classify", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][ops] error_classify failed: %s", e)
+        logger.error("[VECTOR][ops] error_classify failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

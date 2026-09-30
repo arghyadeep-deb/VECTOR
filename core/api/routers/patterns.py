@@ -30,7 +30,7 @@ async def detect_patterns(body: DetectPatternsReq):
     try:
         return await gov.dispatch({"type": "detect_patterns", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][patterns] detect_patterns failed: %s", e)
+        logger.error("[VECTOR][patterns] detect_patterns failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/habits")
@@ -55,7 +55,7 @@ async def identify_habits():
             "note": "Use POST /patterns/detect to run fresh pattern analysis.",
         }
     except Exception as e:
-        logger.error("[VECTOR][patterns] identify_habits failed: %s", e)
+        logger.error("[VECTOR][patterns] identify_habits failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GenerateInsightsReq(BaseModel):
@@ -69,7 +69,7 @@ async def generate_insights(body: GenerateInsightsReq):
     try:
         return await gov.dispatch({"type": "generate_insights", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][patterns] generate_insights failed: %s", e)
+        logger.error("[VECTOR][patterns] generate_insights failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class HabitPlanReq(BaseModel):
@@ -84,5 +84,5 @@ async def habit_plan(body: HabitPlanReq):
     try:
         return await gov.dispatch({"type": "habit_plan", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][patterns] habit_plan failed: %s", e)
+        logger.error("[VECTOR][patterns] habit_plan failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

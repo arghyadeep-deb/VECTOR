@@ -33,7 +33,7 @@ async def qa_write_tests(body: QaWriteTestsReq):
     try:
         return await gov.dispatch({"type": "qa_write_tests", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][qa] qa_write_tests failed: %s", e)
+        logger.error("[VECTOR][qa] qa_write_tests failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AnalyzeTestResultsReq(BaseModel):
@@ -48,7 +48,7 @@ async def analyze_test_results(body: AnalyzeTestResultsReq):
     try:
         return await gov.dispatch({"type": "analyze_test_results", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][qa] analyze_test_results failed: %s", e)
+        logger.error("[VECTOR][qa] analyze_test_results failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AccessibilityAuditReq(BaseModel):
@@ -63,7 +63,7 @@ async def accessibility_audit(body: AccessibilityAuditReq):
     try:
         return await gov.dispatch({"type": "accessibility_audit", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][qa] accessibility_audit failed: %s", e)
+        logger.error("[VECTOR][qa] accessibility_audit failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ApiTestReq(BaseModel):
@@ -79,7 +79,7 @@ async def api_test(body: ApiTestReq):
     try:
         return await gov.dispatch({"type": "api_test", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][qa] api_test failed: %s", e)
+        logger.error("[VECTOR][qa] api_test failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RealityCheckReq(BaseModel):
@@ -94,5 +94,5 @@ async def reality_check(body: RealityCheckReq):
     try:
         return await gov.dispatch({"type": "reality_check", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][qa] reality_check failed: %s", e)
+        logger.error("[VECTOR][qa] reality_check failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

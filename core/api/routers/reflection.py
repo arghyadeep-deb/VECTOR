@@ -28,7 +28,7 @@ async def daily_review(body: DailyReviewReq):
     try:
         return await gov.dispatch({"type": "daily_review", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][reflection] daily_review failed: %s", e)
+        logger.error("[VECTOR][reflection] daily_review failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class JournalEntryReq(BaseModel):
@@ -44,7 +44,7 @@ async def journal_entry(body: JournalEntryReq):
     try:
         return await gov.dispatch({"type": "journal_entry", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][reflection] journal_entry failed: %s", e)
+        logger.error("[VECTOR][reflection] journal_entry failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GrowthAnalysisReq(BaseModel):
@@ -58,5 +58,5 @@ async def growth_analysis(body: GrowthAnalysisReq):
     try:
         return await gov.dispatch({"type": "growth_analysis", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][reflection] growth_analysis failed: %s", e)
+        logger.error("[VECTOR][reflection] growth_analysis failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -31,7 +31,7 @@ async def scan_data_sharing(body: ScanDataSharingReq):
     try:
         return await gov.dispatch({"type": "scan_data_sharing", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][privacy] scan_data_sharing failed: %s", e)
+        logger.error("[VECTOR][privacy] scan_data_sharing failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GdprCheckReq(BaseModel):
@@ -46,7 +46,7 @@ async def gdpr_check(body: GdprCheckReq):
     try:
         return await gov.dispatch({"type": "gdpr_check", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][privacy] gdpr_check failed: %s", e)
+        logger.error("[VECTOR][privacy] gdpr_check failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RedactDataReq(BaseModel):
@@ -61,7 +61,7 @@ async def redact_data(body: RedactDataReq):
     try:
         return await gov.dispatch({"type": "redact_data", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][privacy] redact_data failed: %s", e)
+        logger.error("[VECTOR][privacy] redact_data failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AuditDataFlowReq(BaseModel):
@@ -76,5 +76,5 @@ async def audit_data_flow(body: AuditDataFlowReq):
     try:
         return await gov.dispatch({"type": "audit_data_flow", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][privacy] audit_data_flow failed: %s", e)
+        logger.error("[VECTOR][privacy] audit_data_flow failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

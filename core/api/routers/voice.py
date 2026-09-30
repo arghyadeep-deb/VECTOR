@@ -358,9 +358,23 @@ async def studio_generate(body: dict):
     profile = body.get("profile") or "owner"
     if not text:
         return {"status": "error", "error": "no text provided"}
-    out_dir = _P(__file__).parent.parent.parent.parent / "data" / "voice_output"
+    out_dir = (_P(__file__).parent.parent.parent.parent / "data" / "voice_output").resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    fname = body.get("filename") or f"studio_{_uuid.uuid4().hex[:8]}.wav"
+    # Path-traversal guard: same basename-only sanitization studio_audio()
+    # below already applies on the read side -- this write side took the
+    # caller-supplied filename directly into out_dir / fname with no
+    # confinement, allowing a ../ filename to write the synthesized WAV
+    # anywhere the process has write access. Path(x).name alone is NOT
+    # enough: Path("..").name == ".." (a valid final path component, not
+    # stripped), so ".." still resolves one directory above out_dir --
+    # confirm the final resolved path is actually still inside out_dir,
+    # the same Path.is_relative_to() pattern already used this cycle in
+    # code_intel.py / knowledge.py.
+    requested_name = body.get("filename")
+    fname = _P(requested_name).name if requested_name else ""
+    candidate = (out_dir / fname).resolve() if fname else None
+    if not candidate or candidate == out_dir or not candidate.is_relative_to(out_dir):
+        fname = f"studio_{_uuid.uuid4().hex[:8]}.wav"
     out_path = str(out_dir / fname)
     try:
         from core.voice.tts import VoiceTTS

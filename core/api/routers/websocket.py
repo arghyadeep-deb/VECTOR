@@ -24,6 +24,7 @@ __all__ = [
 import asyncio
 import datetime
 import json
+import secrets
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
@@ -75,7 +76,11 @@ async def require_auth_handshake(websocket: WebSocket) -> bool:
     except (asyncio.TimeoutError, Exception):
         await websocket.close(code=1008, reason="Auth handshake timeout")
         return False
-    if token != WS_API_KEY:
+    # Timing-safe comparison -- a plain != leaks per-character timing
+    # information about WS_API_KEY over repeated connection attempts,
+    # the same class of gap already fixed for the HTTP-side token checks
+    # (core/api/tasks.py, core/api/routers/tasks.py) this cycle.
+    if not secrets.compare_digest(token, WS_API_KEY):
         await websocket.close(code=1008, reason="Unauthorized")
         return False
     return True
@@ -360,9 +365,8 @@ async def vector_ws_state(websocket: WebSocket):
                     "source": event.source,
                     "ts": event.timestamp,
                 })
-            except Exception:
-                logger.warning("[VECTOR] silent swallow")
-                pass
+            except Exception as e:
+                logger.warning(f"[VECTOR][ws/state] forward failed: {e}")
 
         subs = [bus.subscribe(et, _forward) for et in STATE_EVENTS]
 
@@ -384,9 +388,8 @@ async def vector_ws_state(websocket: WebSocket):
             for sub in subs:
                 try:
                     bus.unsubscribe(sub)
-                except Exception:
-                    logger.warning("[VECTOR] silent swallow")
-                    pass
+                except Exception as e:
+                    logger.warning(f"[VECTOR][ws/state] unsubscribe failed: {e}")
         manager.disconnect(websocket)
 
 

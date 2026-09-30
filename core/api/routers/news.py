@@ -30,7 +30,7 @@ async def fetch_news(body: FetchNewsReq):
     try:
         return await gov.dispatch({"type": "fetch_news", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][news] fetch_news failed: %s", e)
+        logger.error("[VECTOR][news] fetch_news failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class SpotOpportunitiesReq(BaseModel):
@@ -45,7 +45,7 @@ async def spot_opportunities(body: SpotOpportunitiesReq):
     try:
         return await gov.dispatch({"type": "spot_opportunities", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][news] spot_opportunities failed: %s", e)
+        logger.error("[VECTOR][news] spot_opportunities failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class MarketTrendsReq(BaseModel):
@@ -60,7 +60,7 @@ async def market_trends(body: MarketTrendsReq):
     try:
         return await gov.dispatch({"type": "market_trends", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][news] market_trends failed: %s", e)
+        logger.error("[VECTOR][news] market_trends failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/daily-brief")
@@ -71,5 +71,5 @@ async def daily_brief():
     try:
         return await gov.dispatch({"type": "daily_brief", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][news] daily_brief failed: %s", e)
+        logger.error("[VECTOR][news] daily_brief failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

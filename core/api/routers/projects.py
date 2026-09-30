@@ -64,7 +64,7 @@ async def create_project(body: CreateProjectReq):
             return {"status": "not_implemented", "note": result.get("note")}
         return result
     except Exception as e:
-        logger.error("[VECTOR][projects] create_project failed: %s", e)
+        logger.error("[VECTOR][projects] create_project failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/list")
@@ -79,7 +79,7 @@ async def list_projects():
             "source": "semantic_memory.project_deadline",
         }
     except Exception as e:
-        logger.error("[VECTOR][projects] list_projects failed: %s", e)
+        logger.error("[VECTOR][projects] list_projects failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class TrackExperimentReq(BaseModel):
@@ -95,7 +95,7 @@ async def track_experiment(body: TrackExperimentReq):
     try:
         return await gov.dispatch({"type": "track_experiment", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][projects] track_experiment failed: %s", e)
+        logger.error("[VECTOR][projects] track_experiment failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/deadline")
@@ -105,7 +105,7 @@ async def upcoming_deadlines():
         deadlines = _read_project_deadlines(within_days=30)
         return {"status": "ok", "deadlines": deadlines, "count": len(deadlines)}
     except Exception as e:
-        logger.error("[VECTOR][projects] upcoming_deadlines failed: %s", e)
+        logger.error("[VECTOR][projects] upcoming_deadlines failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

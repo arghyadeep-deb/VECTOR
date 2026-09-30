@@ -31,7 +31,7 @@ async def product_roadmap(body: ProductRoadmapReq):
     try:
         return await gov.dispatch({"type": "product_roadmap", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][governance] product_roadmap failed: %s", e)
+        logger.error("[VECTOR][governance] product_roadmap failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class DelegateTaskReq(BaseModel):
@@ -47,7 +47,7 @@ async def delegate_task(body: DelegateTaskReq):
     try:
         return await gov.dispatch({"type": "delegate_task", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][governance] delegate_task failed: %s", e)
+        logger.error("[VECTOR][governance] delegate_task failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/autopilot/status")
@@ -68,7 +68,7 @@ async def autopilot_status():
             "actions": ["classify", "autopilot_trigger"],
         }
     except Exception as e:
-        logger.error("[VECTOR][governance] autopilot_status failed: %s", e)
+        logger.error("[VECTOR][governance] autopilot_status failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AutopilotTriggerReq(BaseModel):
@@ -83,5 +83,5 @@ async def autopilot_trigger(body: AutopilotTriggerReq):
     try:
         return await gov.dispatch({"type": "autopilot_trigger", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][governance] autopilot_trigger failed: %s", e)
+        logger.error("[VECTOR][governance] autopilot_trigger failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

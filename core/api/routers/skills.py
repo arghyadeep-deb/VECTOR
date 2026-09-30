@@ -59,7 +59,7 @@ async def skill_map():
             )
         return {"status": "ok", "skills": skills, "count": len(skills), "source": "skill_memory"}
     except Exception as e:
-        logger.error("[VECTOR][skills] skill_map failed: %s", e)
+        logger.error("[VECTOR][skills] skill_map failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GapAnalysisReq(BaseModel):
@@ -74,7 +74,7 @@ async def gap_analysis(body: GapAnalysisReq):
     try:
         return await gov.dispatch({"type": "gap_analysis", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][skills] gap_analysis failed: %s", e)
+        logger.error("[VECTOR][skills] gap_analysis failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class TrackMasteryReq(BaseModel):
@@ -90,7 +90,7 @@ async def track_mastery(body: TrackMasteryReq):
     try:
         return await gov.dispatch({"type": "track_mastery", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][skills] track_mastery failed: %s", e)
+        logger.error("[VECTOR][skills] track_mastery failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class SuggestPracticeReq(BaseModel):
@@ -105,5 +105,5 @@ async def suggest_practice(body: SuggestPracticeReq):
     try:
         return await gov.dispatch({"type": "suggest_practice", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][skills] suggest_practice failed: %s", e)
+        logger.error("[VECTOR][skills] suggest_practice failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -45,7 +45,7 @@ async def ventures_latest():
             "report": report_files[-1].name if report_files else "",
         }
     except Exception as e:
-        logger.error("[VECTOR][startups] ventures_latest failed: %s", e)
+        logger.error("[VECTOR][startups] ventures_latest failed: {}", e)
         return {"status": "error", "clusters": [], "report": ""}
 
 
@@ -56,7 +56,7 @@ async def ventures_run():
         from districts.news_trends.venture_pipeline import VenturePipeline
         return await VenturePipeline().execute()
     except Exception as e:
-        logger.error("[VECTOR][startups] ventures_run failed: %s", e)
+        logger.error("[VECTOR][startups] ventures_run failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -73,7 +73,7 @@ async def validate_idea(body: ValidateIdeaReq):
     try:
         return await gov.dispatch({"type": "validate_idea", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][startups] validate_idea failed: %s", e)
+        logger.error("[VECTOR][startups] validate_idea failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class MarketScanReq(BaseModel):
@@ -88,7 +88,7 @@ async def market_scan(body: MarketScanReq):
     try:
         return await gov.dispatch({"type": "market_scan", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][startups] market_scan failed: %s", e)
+        logger.error("[VECTOR][startups] market_scan failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class CompetitorAnalysisReq(BaseModel):
@@ -103,7 +103,7 @@ async def competitor_analysis(body: CompetitorAnalysisReq):
     try:
         return await gov.dispatch({"type": "competitor_analysis", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][startups] competitor_analysis failed: %s", e)
+        logger.error("[VECTOR][startups] competitor_analysis failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RevenueModelReq(BaseModel):
@@ -119,5 +119,5 @@ async def revenue_model(body: RevenueModelReq):
     try:
         return await gov.dispatch({"type": "revenue_model", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][startups] revenue_model failed: %s", e)
+        logger.error("[VECTOR][startups] revenue_model failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

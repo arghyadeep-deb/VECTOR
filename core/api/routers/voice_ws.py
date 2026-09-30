@@ -284,9 +284,8 @@ async def voice_duplex(websocket: WebSocket):
         await rc.stop()
         try:
             await websocket.close()
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning(f"[VECTOR][voice_ws] close failed: {e}")
 
 
 def _parse_intent(text: str) -> dict | None:
