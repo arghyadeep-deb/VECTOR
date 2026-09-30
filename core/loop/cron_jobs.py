@@ -262,9 +262,8 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
         last_commit = (await asyncio.to_thread(
             subprocess.run, ["git", "log", "-1", "--format=%h %s"], capture_output=True,
             text=True, timeout=10, cwd=repo)).stdout.strip()[:90]
-    except Exception:
-        logger.warning("[VECTOR] silent swallow")
-        pass
+    except Exception as e:
+        logger.warning("[VECTOR][selfcheck] git log lookup failed: {}", e)
 
     if problems:
         try:
@@ -283,9 +282,8 @@ async def job_nightly_selfcheck(*, _ctx: dict | None = None) -> dict:
                 content="; ".join(problems) + f" | last_commit={last_commit}",
                 tags=["selfcheck", "repair"], source="nightly_selfcheck",
             )
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][selfcheck] episodic store of failure record failed: {}", e)
         logger.error("[VECTOR][selfcheck] FAILED: {}", problems)
         return {"status": "failed", "problems": problems, "last_commit": last_commit}
 
@@ -585,13 +583,11 @@ def _try_register_interval(
                 try:
                     api(fn, "interval", minutes=minutes, id=job_id)
                     return True
-                except Exception:
-                    logger.warning("[VECTOR] silent swallow")
-                    pass
-            except Exception:
+                except Exception as e:
+                    logger.debug("[VECTOR][cron] {} without replace_existing failed: {}", name, e)
+            except Exception as e:
                 # scheduler may use a different API; try next
-                logger.warning("[VECTOR] silent swallow")
-                pass
+                logger.debug("[VECTOR][cron] {} scheduling attempt failed: {}", name, e)
 
     # 2) Convenience method: schedule_interval(job_id, minutes, fn)
     for name in ("schedule_interval", "add_interval", "interval"):

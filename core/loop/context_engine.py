@@ -405,9 +405,8 @@ class ContextEngine:
             cmd_names = list(reg.load().keys())[:15]
             if cmd_names:
                 lines.append(f"Brain commands: {', '.join('/' + c for c in cmd_names)}")
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][context_engine] brain commands unavailable: {}", e)
 
         lines.append("[END SESSION CONTEXT]")
         return "\n".join(lines)

@@ -1236,9 +1236,8 @@ class PermissionGateway:
                         tags=["timer"],
                         source="permission_gateway",
                     )
-                except Exception:
-                    logger.warning("[VECTOR] silent swallow")
-                    pass
+                except Exception as e:
+                    logger.warning("[VECTOR][gateway] set_timer episodic store failed: {}", e)
                 result["status"] = "ok"
             elif action.action_type == "check_weather":
                 location = action.params.get("location", "Kolkata")

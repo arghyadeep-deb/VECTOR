@@ -781,9 +781,8 @@ class AutonomousLoop:
                 try:
                     from core.avatar.proactive_care import get_proactive_care
                     get_proactive_care().record_break()
-                except Exception:
-                    logger.warning("[VECTOR] silent swallow")
-                    pass
+                except Exception as e:
+                    logger.warning("[VECTOR][observe] proactive_care.record_break failed: {}", e)
 
         # Avatar on_observe: pull health/fatigue signals + absorb voice sentiment
         if getattr(self, '_avatar', None) is not None:
@@ -2812,9 +2811,8 @@ class AutonomousLoop:
                     start_time = asyncio.get_event_loop().time()
                     try:
                         await asyncio.get_event_loop().run_in_executor(None, proc.wait)
-                    except Exception:
-                        logger.warning("[VECTOR] silent swallow")
-                        pass
+                    except Exception as e:
+                        logger.warning("[VECTOR][vectorcode] MCP server wait failed: {}", e)
                     uptime = asyncio.get_event_loop().time() - start_time
                     if uptime < _FAST_FAIL_THRESHOLD_SEC:
                         consecutive_fast_fails += 1
