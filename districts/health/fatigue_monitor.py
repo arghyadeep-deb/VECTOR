@@ -58,11 +58,20 @@ class FatigueMonitor(AgentBase):
         return {"status": "handled", "agent": self.name, "event": et}
 
     def _get_ear_from_world_state(self) -> float | None:
-        """Pull current EAR from ContextEngine world state (populated by health_monitor)."""
+        """Map ContextEngine's 0-10 camera fatigue score to an EAR threshold signal.
+
+        ContextEngine exposes the derived fatigue score, not the raw EAR. The
+        monitor only needs the threshold side here, so preserve the existing
+        EAR-facing private contract used by callers/tests.
+        """
         try:
-            ctx = self._context.get_full_context()
-            return ctx.get("world_state", {}).get("health", {}).get("ear_score")
-        except Exception:
+            state = self._context.get_world_state()
+            if state.get("presence") != "present":
+                return None
+            fatigue_score = float(state["fatigue_score"])
+            return 0.0 if fatigue_score >= 7.0 else 1.0
+        except Exception as exc:
+            logger.warning("[VECTOR][fatigue_monitor] EAR sensor read failed: {}", exc)
             return None
 
     def _session_minutes(self) -> float:
@@ -92,13 +101,19 @@ class FatigueMonitor(AgentBase):
             ], timeout=30.0)
             if text:
                 logger.info(f"[VECTOR][fatigue_monitor] suggestion: {text[:100]}")
-        except Exception:
-            logger.exception("[VECTOR] silent swallow")
-            pass
+        except Exception as exc:
+            logger.warning(
+                "[VECTOR][fatigue_monitor] suggestion generation failed: {}", exc
+            )
 
     async def check_once(self) -> dict:
         """Single fatigue check. Returns status dict."""
-        status = {"fatigue": False, "reason": None, "session_minutes": self._session_minutes()}
+        status = {
+            "fatigue": False,
+            "reason": None,
+            "session_minutes": self._session_minutes(),
+            "ear_available": True,
+        }
 
         if self._session_start is None:
             self._session_start = datetime.datetime.now()
@@ -106,6 +121,7 @@ class FatigueMonitor(AgentBase):
         # Check 1: EAR-based fatigue (depends on health_monitor populating world_state)
         ear = self._get_ear_from_world_state()
         if ear is None:
+            status["ear_available"] = False
             if not self._ear_unavailable_warned:
                 logger.warning(
                     "[VECTOR][fatigue_monitor] EAR score unavailable in world_state — "
@@ -117,9 +133,9 @@ class FatigueMonitor(AgentBase):
         elif ear < _EAR_FATIGUE_THRESHOLD:
             self._ear_unavailable_warned = False
             status["fatigue"] = True
-            status["reason"] = f"EAR={ear:.3f} below threshold {_EAR_FATIGUE_THRESHOLD}"
+            status["reason"] = f"EAR signal below threshold {_EAR_FATIGUE_THRESHOLD}"
             self._record_fatigue_event(status["reason"], "moderate")
-            self._notify(f"Eye fatigue detected (EAR={ear:.3f}). Consider a 20-20-20 break.")
+            self._notify("Eye fatigue detected. Consider a 20-20-20 break.")
 
         # Check 2: Session duration
         mins = self._session_minutes()
@@ -137,7 +153,13 @@ class FatigueMonitor(AgentBase):
 
     async def run(self, task: dict) -> dict:
         result = await self.check_once()
-        return {"status": "ok", **result}
+        # Session duration remains usable without EAR, but do not represent a
+        # failed/missing camera signal as a fully healthy sensor check.
+        return {
+            "status": "ok",
+            "assessment_status": "complete" if result["ear_available"] else "degraded",
+            **result,
+        }
 
     async def run_forever(self) -> None:
         logger.info("[VECTOR][fatigue_monitor] run_forever — checking every 5 min")

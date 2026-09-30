@@ -243,7 +243,11 @@ class BiometricsAggregator(AgentBase):
             self._write_obsidian(results)
 
         return {
+            # Zero successful sources is not a successful health scan. It can
+            # mean missing configuration or connector failure, but never
+            # evidence of a healthy/clean state.
             "status": "ok",
+            "assessment_status": "complete" if results else "unavailable",
             "sources_attempted": sources_attempted,
             "sources_succeeded": [p["source"] for p in results],
             "records": len(results),

@@ -237,9 +237,13 @@ class TrendAnalyzer:
                     corr = self.correlate(a, b)
                     if abs(corr) > 0.5:
                         correlations.append({"metrics": [a, b], "correlation": corr})
-                except Exception:
-                    logger.exception("[VECTOR] silent swallow")
-                    pass
+                except Exception as exc:
+                    logger.warning(
+                        "[VECTOR][trend] correlation failed for {} / {}: {}",
+                        a,
+                        b,
+                        exc,
+                    )
 
         return {
             "period_days": days,

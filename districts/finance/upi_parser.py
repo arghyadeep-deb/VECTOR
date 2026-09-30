@@ -130,8 +130,14 @@ class UPIParser(AgentBase):
             category="finance_transaction",
             confidence=0.9,
         )
-        self.award_points(5, f"UPI parsed: Rs.{txn['amount']}")
-        logger.info(f"[VECTOR][upi_parser] {txn['direction']} Rs.{txn['amount']} [{txn['category']}]")
+        # Transaction amounts are sensitive financial data. Keep the amount in
+        # the encrypted transaction record, not in routine HP/audit logs.
+        self.award_points(5, "UPI transaction parsed")
+        logger.info(
+            "[VECTOR][upi_parser] parsed {} transaction [{}]",
+            txn["direction"],
+            txn["category"],
+        )
         return txn
 
     def ingest_from_phone(self, count: int = 20) -> dict:

@@ -39,7 +39,7 @@ class SleepTracker(AgentBase):
         self._context = ContextEngine()
         logger.info(f"[VECTOR][sleep_tracker] ready gen={generation}")
 
-    def _infer_sleep_periods(self, days: int = 1) -> list[dict]:
+    def _infer_sleep_periods(self, days: int = 1) -> list[dict] | None:
         """Detect sleep by finding gaps >= SLEEP_GAP_HOURS in episodic events."""
         cutoff = (datetime.datetime.now() - datetime.timedelta(days=days + 1)).isoformat()
         try:
@@ -51,7 +51,7 @@ class SleepTracker(AgentBase):
             timestamps = [row[0] for row in cur.fetchall()]
         except Exception as e:
             logger.warning(f"[VECTOR][sleep_tracker] fetch failed: {e}")
-            return []
+            return None
 
         return self._compute_sleep_periods(timestamps)
 
@@ -108,6 +108,11 @@ class SleepTracker(AgentBase):
     async def track(self) -> bool:
         date_str = datetime.date.today().isoformat()
         periods = self._infer_sleep_periods(days=7)
+
+        if periods is None:
+            logger.error("[VECTOR][sleep_tracker] tracking unavailable: event fetch failed")
+            self.deduct_points(5, "event fetch failed")
+            return False
 
         if not periods:
             logger.info("[VECTOR][sleep_tracker] no sleep periods detected")

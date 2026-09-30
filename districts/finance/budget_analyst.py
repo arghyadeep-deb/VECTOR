@@ -70,7 +70,7 @@ class BudgetAnalyst(AgentBase):
                 logger.debug(f"[VECTOR][budget_analyst] handle_event failed: {e}")
         return {"status": "handled", "agent": self.name, "event": et}
 
-    def _fetch_category_spend(self, days: int = 30) -> dict[str, float]:
+    def _fetch_category_spend(self, days: int = 30) -> dict[str, float] | None:
         import re
         cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat()
         try:
@@ -83,7 +83,7 @@ class BudgetAnalyst(AgentBase):
             rows = cur.fetchall()
         except Exception as e:
             logger.warning(f"[VECTOR][budget_analyst] fetch failed: {e}")
-            return {}
+            return None
 
         by_cat: dict[str, float] = {}
         for (content,) in rows:
@@ -133,6 +133,12 @@ class BudgetAnalyst(AgentBase):
     async def analyse(self) -> str | None:
         month_label = datetime.date.today().strftime("%Y-%m")
         spend = self._fetch_category_spend(days=30)
+        if spend is None:
+            logger.error(
+                "[VECTOR][budget_analyst] analysis unavailable: transaction fetch failed"
+            )
+            self.deduct_points(5, "transaction fetch failed")
+            return None
         over_budget = self._over_budget_categories(spend)
 
         hydration = self._context.session_hydration_prompt()

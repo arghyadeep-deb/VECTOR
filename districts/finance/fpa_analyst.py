@@ -83,7 +83,11 @@ class FPAAnalyst(AgentBase):
         forecast = []
         now = datetime.datetime.now()
         for i in range(1, months_to_forecast + 1):
-            month = (now + datetime.timedelta(days=30 * i)).strftime("%Y-%m")
+            # Calendar months are not 30-day intervals (for example, Jan 31
+            # + 30 days is March). Advance the year/month index directly so
+            # forecasts never skip or duplicate a reporting month.
+            month_index = now.year * 12 + (now.month - 1) + i
+            month = f"{month_index // 12:04d}-{month_index % 12 + 1:02d}"
             projected = round(base * ((1 + growth_rate) ** i), 2)
             forecast.append({"month": month, "projected": projected})
 

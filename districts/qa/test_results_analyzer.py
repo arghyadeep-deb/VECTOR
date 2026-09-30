@@ -90,7 +90,7 @@ class TestResultsAnalyzer(AgentBase):
             "total": passed + failed,
             "pass_rate": round(passed / max(1, passed + failed) * 100, 1),
             "failed_tests": failed_tests,
-            "all_passed": failed == 0,
+            "all_passed": failed == 0 and (passed + failed) > 0,
         }
 
     def get_historical_trend(self, limit: int = 10) -> list[dict]:
@@ -154,8 +154,16 @@ class TestResultsAnalyzer(AgentBase):
             insights = await self.generate_insights(smoke, integration, history)
 
             # Determine quality verdict
+            suite_errors = [
+                str(suite.get("error"))
+                for suite in (smoke, integration)
+                if suite.get("error")
+            ]
+            total_tests = smoke.get("total", 0) + integration.get("total", 0)
             total_failed = smoke.get("failed", 0) + integration.get("failed", 0)
-            if total_failed == 0:
+            if suite_errors or total_tests == 0:
+                verdict = "CRITICAL"
+            elif total_failed == 0:
                 verdict = "EXCELLENT"
             elif total_failed <= 2:
                 verdict = "GOOD"
@@ -171,6 +179,7 @@ class TestResultsAnalyzer(AgentBase):
                 "verdict": verdict,
                 "regressions": regressions,
                 "failed_tests": smoke.get("failed_tests", []) + integration.get("failed_tests", []),
+                "suite_errors": suite_errors,
             }
 
             # Store in memory
