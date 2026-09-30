@@ -264,8 +264,11 @@ class Uploader(AgentBase):
                     "error": str(e),
                     "retry_with": {"creation_id": partial_creation_id},
                 }
-
-        return self._simulate_upload("instagram", video_path, caption)
+            return {
+                "status": "error",
+                "platform": "instagram",
+                "message": str(e),
+            }
 
     def _dry_run_enabled(self) -> bool:
         """Real uploads to tiktok/twitter are opt-in: CONFIG content.upload_dry_run defaults True."""
@@ -350,8 +353,11 @@ class Uploader(AgentBase):
 
         except Exception as e:
             logger.error(f"[VECTOR][uploader] TikTok upload failed: {e}")
-
-        return self._simulate_upload("tiktok", video_path, caption)
+            return {
+                "status": "error",
+                "platform": "tiktok",
+                "message": str(e),
+            }
 
     async def upload_to_twitter(self, video_path: str, text: str,
                                 hashtags: list[str] | None = None) -> dict:
@@ -433,8 +439,11 @@ class Uploader(AgentBase):
 
         except Exception as e:
             logger.error(f"[VECTOR][uploader] Twitter upload failed: {e}")
-
-        return self._simulate_upload("twitter", video_path, text)
+            return {
+                "status": "error",
+                "platform": "twitter",
+                "message": str(e),
+            }
 
     def _simulate_upload(self, platform: str, video_path: str, title: str) -> dict:
         """Simulate upload when API is not configured."""

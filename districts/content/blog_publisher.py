@@ -403,6 +403,12 @@ class BlogPublisher:
 
 if __name__ == "__main__":
     pub = BlogPublisher()
+    # This self-test must never publish even when the owner's real credentials
+    # are configured in the environment.
+    pub._devto_key = ""
+    pub._hashnode_token = ""
+    pub._hashnode_pub_id = ""
+    pub._medium_token = ""
     # No keys configured → graceful failures
     r = pub.publish_devto("Test", "# Hello")
     assert r.platform == "devto"

@@ -214,10 +214,23 @@ class PostJobTracker:
     # ── State transitions ──────────────────────────────────────────────────────
 
     def mark_publishing(self, job_id: str) -> None:
-        """Transition pending → publishing (increment attempt count)."""
-        self._update(job_id,
-                     status=JobStatus.PUBLISHING,
-                     attempt_count_delta=1)
+        """Atomically claim a pending/retrying job for publication."""
+        now = datetime.now(tz=timezone.utc).isoformat()
+        with self._lock, self._connect() as conn:
+            cursor = conn.execute(
+                """UPDATE post_jobs
+                   SET status=?, attempt_count=attempt_count+1, updated_at=?
+                   WHERE job_id=? AND status IN (?, ?)""",
+                (
+                    JobStatus.PUBLISHING,
+                    now,
+                    job_id,
+                    JobStatus.PENDING,
+                    JobStatus.RETRYING,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise RuntimeError(f"post job {job_id} is not claimable")
 
     def mark_published(self, job_id: str, *, url: str = "", metrics: dict | None = None) -> None:
         """Transition publishing → published."""

@@ -154,6 +154,22 @@ class ContentScheduler(AgentBase):
                     content,
                     platforms=[job.platform],
                 )
+                failed = [
+                    item for item in result
+                    if not bool(getattr(item, "success", False))
+                ]
+                if not result or failed:
+                    errors = [str(getattr(item, "error", "") or "publish failed") for item in failed]
+                    error = "; ".join(errors) if errors else "publisher returned no result"
+                    tracker.mark_failed(job.job_id, error)
+                    results.append({
+                        "job_id": job.job_id,
+                        "platform": job.platform,
+                        "status": "failed",
+                        "error": error,
+                    })
+                    self.deduct_points(5, "publish_failed")
+                    continue
                 tracker.mark_published(job.job_id)
                 results.append({
                     "job_id": job.job_id,
@@ -178,7 +194,10 @@ class ContentScheduler(AgentBase):
                 try:
                     tracker.mark_failed(job.job_id, str(e))
                 except Exception:
-                    logger.exception("[VECTOR] silent swallow")
+                    logger.exception(
+                        "[VECTOR][scheduler] Could not record publish failure for {}",
+                        job.job_id,
+                    )
                     pass  # Best-effort; don't let mark_failed hide the real error.
                 self.deduct_points(5, "publish_failed")
         return {"published": len(results), "results": results}

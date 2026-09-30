@@ -55,10 +55,15 @@ class NewsAggregator(AgentBase):
                 "language": "en",
                 "sortBy": "publishedAt",
                 "pageSize": max,
-                "apiKey": self._newsapi_key,
             }
             async with httpx.AsyncClient(timeout=10.0) as client:
-                r = await client.get("https://newsapi.org/v2/everything", params=params)
+                # Keep credentials out of the URL. Request URLs commonly appear
+                # in proxy/access logs and in exception strings.
+                r = await client.get(
+                    "https://newsapi.org/v2/everything",
+                    params=params,
+                    headers={"X-Api-Key": self._newsapi_key},
+                )
             if r.status_code != 200:
                 return []
             articles = r.json().get("articles", [])

@@ -414,11 +414,14 @@ class ComfyUIAdapter(AgentBase):
         the adapter must not guess a local path. Raises on any failed download.
         """
         filename, subfolder = item["filename"], item.get("subfolder", "")
+        output_root = self._output_dir.resolve()
+        dest = (output_root / subfolder / filename).resolve()
+        if not dest.is_relative_to(output_root):
+            raise ValueError("ComfyUI output path escapes the configured output directory")
         r = await client.get(f"{self._base_url}/view", params={
             "filename": filename, "subfolder": subfolder, "type": item.get("type", "output"),
         })
         r.raise_for_status()
-        dest = self._output_dir / subfolder / filename
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(r.content)
         return str(dest)
