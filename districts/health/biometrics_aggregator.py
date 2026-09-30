@@ -203,7 +203,15 @@ class BiometricsAggregator(AgentBase):
           sources: list[str]  — restrict to subset of {"apple_health","oura","strava"}
           obsidian: bool      — write a daily note to Health/ (default True)
         """
+        # 2026-09-30 (Phase 3 codebase audit finding): the real governor
+        # dispatch shape is {"type": ..., "params": {...}} -- sources/
+        # obsidian below were read straight off `task`, never
+        # `task["params"]`, so a real dispatch always fell back to the
+        # hardcoded defaults. Flattening params into task once (params
+        # values win on overlap) keeps every existing flat-shape
+        # caller/test working unchanged.
         task = task or {}
+        task = {**task, **(task.get("params") or {})}
         wanted = set(task.get("sources") or ["apple_health", "oura", "strava"])
         write_md = bool(task.get("obsidian", True))
 

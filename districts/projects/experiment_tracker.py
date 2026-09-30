@@ -202,6 +202,14 @@ class ExperimentTracker(AgentBase):
         ]
 
     async def run(self, task: dict) -> dict:
+        # 2026-09-30 (Phase 3 codebase audit finding): the real governor
+        # dispatch shape is {"type": ..., "params": {...}} -- every branch
+        # below read its arguments straight off `task`, never
+        # `task["params"]`, so a real dispatch always fell back to the
+        # hardcoded defaults. Flattening params into task once (params
+        # values win on overlap) keeps every existing flat-shape
+        # caller/test working unchanged while fixing all branches at once.
+        task = {**task, **(task.get("params") or {})}
         task_type = task.get("type", "status")
         try:
             if task_type == "create":
