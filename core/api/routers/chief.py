@@ -27,7 +27,7 @@ async def morning_brief():
     try:
         return await gov.dispatch({"type": "morning_brief", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][chief] morning_brief failed: %s", e)
+        logger.error("[VECTOR][chief] morning_brief failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/evening-brief")
@@ -38,7 +38,7 @@ async def evening_brief():
     try:
         return await gov.dispatch({"type": "evening_brief", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][chief] evening_brief failed: %s", e)
+        logger.error("[VECTOR][chief] evening_brief failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ExecutiveBriefReq(BaseModel):
@@ -53,7 +53,7 @@ async def executive_brief(body: ExecutiveBriefReq):
     try:
         return await gov.dispatch({"type": "executive_brief", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][chief] executive_brief failed: %s", e)
+        logger.error("[VECTOR][chief] executive_brief failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RouteEscalationReq(BaseModel):
@@ -68,7 +68,7 @@ async def route_escalation(body: RouteEscalationReq):
     try:
         return await gov.dispatch({"type": "route_escalation", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][chief] route_escalation failed: %s", e)
+        logger.error("[VECTOR][chief] route_escalation failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class FilterNoiseReq(BaseModel):
@@ -82,5 +82,5 @@ async def filter_noise(body: FilterNoiseReq):
     try:
         return await gov.dispatch({"type": "filter_noise", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][chief] filter_noise failed: %s", e)
+        logger.error("[VECTOR][chief] filter_noise failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

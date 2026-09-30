@@ -71,7 +71,7 @@ async def ingest_video(body: IngestVideoReq):
             return {"status": "not_implemented", "note": result.get("note")}
         return result
     except Exception as e:
-        logger.error("[VECTOR][learning] ingest_video failed: %s", e)
+        logger.error("[VECTOR][learning] ingest_video failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class TrackCourseReq(BaseModel):
@@ -87,7 +87,7 @@ async def track_course(body: TrackCourseReq):
     try:
         return await gov.dispatch({"type": "track_course", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][learning] track_course failed: %s", e)
+        logger.error("[VECTOR][learning] track_course failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ExtractConceptsReq(BaseModel):
@@ -102,7 +102,7 @@ async def extract_concepts(body: ExtractConceptsReq):
     try:
         return await gov.dispatch({"type": "extract_concepts", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][learning] extract_concepts failed: %s", e)
+        logger.error("[VECTOR][learning] extract_concepts failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GenerateQuizReq(BaseModel):
@@ -118,5 +118,5 @@ async def generate_quiz(body: GenerateQuizReq):
     try:
         return await gov.dispatch({"type": "generate_quiz", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][learning] generate_quiz failed: %s", e)
+        logger.error("[VECTOR][learning] generate_quiz failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -31,7 +31,7 @@ async def check_fatigue():
     try:
         return await gov.dispatch({"type": "check_fatigue", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][health] check_fatigue failed: %s", e)
+        logger.error("[VECTOR][health] check_fatigue failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class TrackSleepReq(BaseModel):
@@ -47,7 +47,7 @@ async def track_sleep(body: TrackSleepReq):
     try:
         return await gov.dispatch({"type": "track_sleep", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][health] track_sleep failed: %s", e)
+        logger.error("[VECTOR][health] track_sleep failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/biometrics")
@@ -58,7 +58,7 @@ async def aggregate_biometrics():
     try:
         return await gov.dispatch({"type": "aggregate_biometrics", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][health] aggregate_biometrics failed: %s", e)
+        logger.error("[VECTOR][health] aggregate_biometrics failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class LogExerciseReq(BaseModel):
@@ -108,7 +108,7 @@ async def log_exercise(body: LogExerciseReq):
             return {"status": "not_implemented", "note": result.get("note")}
         return result
     except Exception as e:
-        logger.error("[VECTOR][health] log_exercise failed: %s", e)
+        logger.error("[VECTOR][health] log_exercise failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status")
@@ -136,7 +136,7 @@ async def health_status():
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
     except Exception as e:
-        logger.error("[VECTOR][health] health_status failed: %s", e)
+        logger.error("[VECTOR][health] health_status failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 

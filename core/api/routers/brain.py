@@ -52,7 +52,7 @@ async def get_goals():
         goals_cache.set("brain_goals", result)
         return result
     except Exception as e:
-        logger.error("[VECTOR][brain] get_goals failed: %s", e)
+        logger.error("[VECTOR][brain] get_goals failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AddGoalReq(BaseModel):
@@ -72,7 +72,7 @@ async def add_goal(body: AddGoalReq):
         )
         return {"status": "ok", "goal_id": goal_id}
     except Exception as e:
-        logger.error("[VECTOR][brain] add_goal failed: %s", e)
+        logger.error("[VECTOR][brain] add_goal failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/goals/immediate")
@@ -81,7 +81,7 @@ async def immediate_actions():
     try:
         return {"actions": _goal_system().generate_immediate_actions()}
     except Exception as e:
-        logger.error("[VECTOR][brain] immediate_actions failed: %s", e)
+        logger.error("[VECTOR][brain] immediate_actions failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class SynthesizeReq(BaseModel):
@@ -96,7 +96,7 @@ async def synthesize(body: SynthesizeReq):
     try:
         return await gov.dispatch({"type": "synthesize", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][brain] synthesize failed: %s", e)
+        logger.error("[VECTOR][brain] synthesize failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GenerateHypothesisReq(BaseModel):
@@ -110,7 +110,7 @@ async def generate_hypothesis(body: GenerateHypothesisReq):
     try:
         return await gov.dispatch({"type": "generate_hypothesis", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][brain] generate_hypothesis failed: %s", e)
+        logger.error("[VECTOR][brain] generate_hypothesis failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/hypothesis/active")
@@ -121,7 +121,7 @@ async def active_hypotheses():
     try:
         return await gov.dispatch({"type": "active_hypotheses", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][brain] active_hypotheses failed: %s", e)
+        logger.error("[VECTOR][brain] active_hypotheses failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class TestHypothesisReq(BaseModel):
@@ -136,7 +136,7 @@ async def test_hypothesis(body: TestHypothesisReq):
     try:
         return await gov.dispatch({"type": "test_hypothesis", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][brain] test_hypothesis failed: %s", e)
+        logger.error("[VECTOR][brain] test_hypothesis failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RedTeamAttackReq(BaseModel):
@@ -151,7 +151,7 @@ async def red_team_attack(body: RedTeamAttackReq):
     try:
         return await gov.dispatch({"type": "red_team_attack", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][brain] red_team_attack failed: %s", e)
+        logger.error("[VECTOR][brain] red_team_attack failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RedTeamAuditReq(BaseModel):
@@ -165,7 +165,7 @@ async def red_team_audit(body: RedTeamAuditReq):
     try:
         return await gov.dispatch({"type": "red_team_audit", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][brain] red_team_audit failed: %s", e)
+        logger.error("[VECTOR][brain] red_team_audit failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/epistemic/summary")
@@ -178,7 +178,7 @@ async def epistemic_summary():
         summary = tracker.get_knowledge_summary()
         return {"status": "ok", "summary": summary, **summary}
     except Exception as e:
-        logger.error("[VECTOR][brain] epistemic_summary failed: %s", e)
+        logger.error("[VECTOR][brain] epistemic_summary failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/epistemic/staleness")
@@ -191,7 +191,7 @@ async def epistemic_staleness():
         stale_claims = tracker.get_stale_claims()
         return {"status": "ok", "stale_claims": stale_claims, "count": len(stale_claims)}
     except Exception as e:
-        logger.error("[VECTOR][brain] epistemic_staleness failed: %s", e)
+        logger.error("[VECTOR][brain] epistemic_staleness failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -207,7 +207,7 @@ async def get_reasoning_chains(situation: str = "", limit: int = 20):
         chains = rm.get_recent(limit=limit, situation=situation)
         return {"chains": chains, "count": len(chains)}
     except Exception as e:
-        logger.error("[VECTOR][brain] reasoning/chains failed: %s", e)
+        logger.error("[VECTOR][brain] reasoning/chains failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -233,7 +233,7 @@ async def get_persons():
         persons = pm.get_all_persons()
         return {"persons": persons, "count": len(persons)}
     except Exception as e:
-        logger.error("[VECTOR][brain] persons list failed: %s", e)
+        logger.error("[VECTOR][brain] persons list failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -251,7 +251,7 @@ async def get_person(person_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("[VECTOR][brain] person model failed for %s: %s", person_id, e)
+        logger.error("[VECTOR][brain] person model failed for {}: {}", person_id, e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -268,7 +268,7 @@ async def update_person_belief(person_id: str, body: UpdateBeliefReq):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("[VECTOR][brain] update_belief failed for %s: %s", person_id, e)
+        logger.error("[VECTOR][brain] update_belief failed for {}: {}", person_id, e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -285,5 +285,5 @@ async def update_person_trust(person_id: str, body: UpdateTrustReq):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("[VECTOR][brain] update_trust failed for %s: %s", person_id, e)
+        logger.error("[VECTOR][brain] update_trust failed for {}: {}", person_id, e)
         raise HTTPException(status_code=500, detail=str(e))

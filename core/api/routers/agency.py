@@ -32,7 +32,7 @@ async def analyze_trends(body: AnalyzeTrendsReq):
     try:
         return await gov.dispatch({"type": "analyze_trends", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][agency] analyze_trends failed: %s", e)
+        logger.error("[VECTOR][agency] analyze_trends failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class SuggestTopicsReq(BaseModel):
@@ -48,7 +48,7 @@ async def suggest_topics(body: SuggestTopicsReq):
     try:
         return await gov.dispatch({"type": "suggest_topics", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][agency] suggest_topics failed: %s", e)
+        logger.error("[VECTOR][agency] suggest_topics failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class CreateContentPlanReq(BaseModel):
@@ -64,7 +64,7 @@ async def create_content_plan(body: CreateContentPlanReq):
     try:
         return await gov.dispatch({"type": "create_content_plan", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][agency] create_content_plan failed: %s", e)
+        logger.error("[VECTOR][agency] create_content_plan failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RoiAnalysisReq(BaseModel):
@@ -80,5 +80,5 @@ async def roi_analysis(body: RoiAnalysisReq):
     try:
         return await gov.dispatch({"type": "roi_analysis", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][agency] roi_analysis failed: %s", e)
+        logger.error("[VECTOR][agency] roi_analysis failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -32,7 +32,7 @@ async def spec_component(body: SpecComponentReq):
     try:
         return await gov.dispatch({"type": "spec_component", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][design] spec_component failed: %s", e)
+        logger.error("[VECTOR][design] spec_component failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ImagePromptReq(BaseModel):
@@ -48,7 +48,7 @@ async def image_prompt(body: ImagePromptReq):
     try:
         return await gov.dispatch({"type": "image_prompt", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][design] image_prompt failed: %s", e)
+        logger.error("[VECTOR][design] image_prompt failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class UxResearchReq(BaseModel):
@@ -64,7 +64,7 @@ async def ux_research(body: UxResearchReq):
     try:
         return await gov.dispatch({"type": "ux_research", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][design] ux_research failed: %s", e)
+        logger.error("[VECTOR][design] ux_research failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GenerateTokensReq(BaseModel):
@@ -80,5 +80,5 @@ async def generate_tokens(body: GenerateTokensReq):
     try:
         return await gov.dispatch({"type": "generate_tokens", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][design] generate_tokens failed: %s", e)
+        logger.error("[VECTOR][design] generate_tokens failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

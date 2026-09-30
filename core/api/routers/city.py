@@ -27,7 +27,7 @@ async def list_districts():
     try:
         return await gov.dispatch({"type": "list_districts", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][city] list_districts failed: %s", e)
+        logger.error("[VECTOR][city] list_districts failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AgentHistoryReq(BaseModel):
@@ -41,7 +41,7 @@ async def agent_history(body: AgentHistoryReq):
     try:
         return await gov.dispatch({"type": "agent_history", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][city] agent_history failed: %s", e)
+        logger.error("[VECTOR][city] agent_history failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/evolution/generations")
@@ -52,7 +52,7 @@ async def generation_map():
     try:
         return await gov.dispatch({"type": "generation_map", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][city] generation_map failed: %s", e)
+        logger.error("[VECTOR][city] generation_map failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class SpawnSuccessorReq(BaseModel):
@@ -67,7 +67,7 @@ async def spawn_successor(body: SpawnSuccessorReq):
     try:
         return await gov.dispatch({"type": "spawn_successor", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][city] spawn_successor failed: %s", e)
+        logger.error("[VECTOR][city] spawn_successor failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class DirectDispatchReq(BaseModel):
@@ -82,5 +82,5 @@ async def direct_dispatch(body: DirectDispatchReq):
     try:
         return await gov.dispatch({"type": "direct_dispatch", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][city] direct_dispatch failed: %s", e)
+        logger.error("[VECTOR][city] direct_dispatch failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

@@ -31,7 +31,7 @@ async def vocabulary_practice(body: VocabularyPracticeReq):
     try:
         return await gov.dispatch({"type": "vocabulary_practice", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][languages] vocabulary_practice failed: %s", e)
+        logger.error("[VECTOR][languages] vocabulary_practice failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GrammarPracticeReq(BaseModel):
@@ -46,7 +46,7 @@ async def grammar_practice(body: GrammarPracticeReq):
     try:
         return await gov.dispatch({"type": "grammar_practice", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][languages] grammar_practice failed: %s", e)
+        logger.error("[VECTOR][languages] grammar_practice failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class DialoguePracticeReq(BaseModel):
@@ -61,7 +61,7 @@ async def dialogue_practice(body: DialoguePracticeReq):
     try:
         return await gov.dispatch({"type": "dialogue_practice", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][languages] dialogue_practice failed: %s", e)
+        logger.error("[VECTOR][languages] dialogue_practice failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class StudyGuideReq(BaseModel):
@@ -77,5 +77,5 @@ async def study_guide(body: StudyGuideReq):
     try:
         return await gov.dispatch({"type": "study_guide", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][languages] study_guide failed: %s", e)
+        logger.error("[VECTOR][languages] study_guide failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

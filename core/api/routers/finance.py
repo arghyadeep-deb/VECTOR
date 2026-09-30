@@ -31,7 +31,7 @@ async def budget_analyze(body: BudgetAnalyzeReq):
     try:
         return await gov.dispatch({"type": "budget_analyze", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][finance] budget_analyze failed: %s", e)
+        logger.error("[VECTOR][finance] budget_analyze failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/expenses")
@@ -42,7 +42,7 @@ async def list_expenses():
     try:
         return await gov.dispatch({"type": "list_expenses", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][finance] list_expenses failed: %s", e)
+        logger.error("[VECTOR][finance] list_expenses failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class LogExpenseReq(BaseModel):
@@ -58,7 +58,7 @@ async def log_expense(body: LogExpenseReq):
     try:
         return await gov.dispatch({"type": "log_expense", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][finance] log_expense failed: %s", e)
+        logger.error("[VECTOR][finance] log_expense failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class TaxPlanReq(BaseModel):
@@ -73,7 +73,7 @@ async def tax_plan(body: TaxPlanReq):
     try:
         return await gov.dispatch({"type": "tax_plan", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][finance] tax_plan failed: %s", e)
+        logger.error("[VECTOR][finance] tax_plan failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/cost-tracker")
@@ -84,5 +84,5 @@ async def llm_cost_summary():
     try:
         return await gov.dispatch({"type": "llm_cost_summary", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][finance] llm_cost_summary failed: %s", e)
+        logger.error("[VECTOR][finance] llm_cost_summary failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

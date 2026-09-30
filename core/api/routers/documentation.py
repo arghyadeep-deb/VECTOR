@@ -30,7 +30,7 @@ async def api_reference(body: ApiReferenceReq):
     try:
         return await gov.dispatch({"type": "api_reference", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][documentation] api_reference failed: %s", e)
+        logger.error("[VECTOR][documentation] api_reference failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GenerateDocsReq(BaseModel):
@@ -46,7 +46,7 @@ async def generate_docs(body: GenerateDocsReq):
     try:
         return await gov.dispatch({"type": "generate_docs", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][documentation] generate_docs failed: %s", e)
+        logger.error("[VECTOR][documentation] generate_docs failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GenerateChangelogReq(BaseModel):
@@ -61,7 +61,7 @@ async def generate_changelog(body: GenerateChangelogReq):
     try:
         return await gov.dispatch({"type": "generate_changelog", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][documentation] generate_changelog failed: %s", e)
+        logger.error("[VECTOR][documentation] generate_changelog failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/weekly-summary")
@@ -72,5 +72,5 @@ async def weekly_summary():
     try:
         return await gov.dispatch({"type": "weekly_summary", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][documentation] weekly_summary failed: %s", e)
+        logger.error("[VECTOR][documentation] weekly_summary failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

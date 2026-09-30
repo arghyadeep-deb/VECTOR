@@ -369,7 +369,7 @@ async def _dispatch(agent_name: str, task: dict | str, params: dict) -> Any:
     except HTTPException:
         raise
     except Exception:
-        logger.exception("[VECTOR] silent swallow")
+        logger.exception("[VECTOR][a2a] agent registry lookup failed for '{}'", agent_name)
         defn = None  # Registry unavailable — fall through, action-type check below still fail-closes
 
     # 1) Deterministic action-identity extraction — fail closed if absent.

@@ -34,7 +34,7 @@ async def start_interview(body: StartInterviewReq):
     try:
         return await gov.dispatch({"type": "start_interview", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][interview] start_interview failed: %s", e)
+        logger.error("[VECTOR][interview] start_interview failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class GenerateQuestionReq(BaseModel):
@@ -50,7 +50,7 @@ async def generate_question(body: GenerateQuestionReq):
     try:
         return await gov.dispatch({"type": "generate_question", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][interview] generate_question failed: %s", e)
+        logger.error("[VECTOR][interview] generate_question failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class EvaluateAnswerReq(BaseModel):
@@ -66,7 +66,7 @@ async def evaluate_answer(body: EvaluateAnswerReq):
     try:
         return await gov.dispatch({"type": "evaluate_answer", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][interview] evaluate_answer failed: %s", e)
+        logger.error("[VECTOR][interview] evaluate_answer failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class CompanyResearchReq(BaseModel):
@@ -81,7 +81,7 @@ async def company_research(body: CompanyResearchReq):
     try:
         return await gov.dispatch({"type": "company_research", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][interview] company_research failed: %s", e)
+        logger.error("[VECTOR][interview] company_research failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class InterviewReportReq(BaseModel):
@@ -95,5 +95,5 @@ async def interview_report(body: InterviewReportReq):
     try:
         return await gov.dispatch({"type": "interview_report", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][interview] interview_report failed: %s", e)
+        logger.error("[VECTOR][interview] interview_report failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

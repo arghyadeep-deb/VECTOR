@@ -34,7 +34,7 @@ async def screen_call(body: ScreenCallReq):
     try:
         return await gov.dispatch({"type": "screen_call", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][calls] screen_call failed: %s", e)
+        logger.error("[VECTOR][calls] screen_call failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class TranscribeCallReq(BaseModel):
@@ -49,7 +49,7 @@ async def transcribe_call(body: TranscribeCallReq):
     try:
         return await gov.dispatch({"type": "transcribe_call", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][calls] transcribe_call failed: %s", e)
+        logger.error("[VECTOR][calls] transcribe_call failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class VoiceRespondReq(BaseModel):
@@ -64,7 +64,7 @@ async def voice_respond(body: VoiceRespondReq):
     try:
         return await gov.dispatch({"type": "voice_respond", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][calls] voice_respond failed: %s", e)
+        logger.error("[VECTOR][calls] voice_respond failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/contacts")
@@ -93,7 +93,7 @@ async def list_call_contacts():
 
         return {"status": "ok", "contacts": contacts, "count": len(contacts), "source": "call_contacts.json"}
     except Exception as e:
-        logger.error("[VECTOR][calls] list_call_contacts failed: %s", e)
+        logger.error("[VECTOR][calls] list_call_contacts failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AddCallContactReq(BaseModel):
@@ -109,5 +109,5 @@ async def add_call_contact(body: AddCallContactReq):
     try:
         return await gov.dispatch({"type": "add_call_contact", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][calls] add_call_contact failed: %s", e)
+        logger.error("[VECTOR][calls] add_call_contact failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

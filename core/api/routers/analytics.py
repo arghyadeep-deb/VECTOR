@@ -50,7 +50,7 @@ async def pipeline_health():
             "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
     except Exception as e:
-        logger.error("[VECTOR][analytics] pipeline_health failed: %s", e)
+        logger.error("[VECTOR][analytics] pipeline_health failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class EtlRunReq(BaseModel):
@@ -66,7 +66,7 @@ async def etl_run(body: EtlRunReq):
     try:
         return await gov.dispatch({"type": "etl_run", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][analytics] etl_run failed: %s", e)
+        logger.error("[VECTOR][analytics] etl_run failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AnalyticsReportReq(BaseModel):
@@ -81,7 +81,7 @@ async def analytics_report(body: AnalyticsReportReq):
     try:
         return await gov.dispatch({"type": "analytics_report", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][analytics] analytics_report failed: %s", e)
+        logger.error("[VECTOR][analytics] analytics_report failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class BenchmarkRunReq(BaseModel):
@@ -96,5 +96,5 @@ async def benchmark_run(body: BenchmarkRunReq):
     try:
         return await gov.dispatch({"type": "benchmark_run", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][analytics] benchmark_run failed: %s", e)
+        logger.error("[VECTOR][analytics] benchmark_run failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

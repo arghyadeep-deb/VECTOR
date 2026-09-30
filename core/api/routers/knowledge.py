@@ -16,7 +16,16 @@ _PROJECT_ROOT = Path(__file__).parent.parent.parent.parent.resolve()
 
 
 def _safe_path(value: str) -> Path:
-    """Resolve path and reject anything outside VECTOR's home tree."""
+    """Resolve path and reject anything outside VECTOR's home tree.
+
+    A naive str.startswith(root) prefix check is bypassable: a sibling
+    directory that happens to share the same string prefix as an allowed
+    root (e.g. "...\\V.E.C.T.O.R. CodebaseEVIL\\secret.txt" against root
+    "...\\V.E.C.T.O.R. Codebase") passes startswith() without being inside
+    the root at all -- same CWE-22 class already fixed in
+    core/api/routers/code_intel.py's _safe_path(). Path.is_relative_to()
+    respects path-component boundaries instead of raw string prefixes.
+    """
     from core.config import CONFIG
     p = Path(value).resolve()
     allowed_roots = [
@@ -24,7 +33,7 @@ def _safe_path(value: str) -> Path:
         Path(CONFIG["knowledge"]["wiki_root"]).resolve(),
         Path(CONFIG["knowledge"]["output_dir"]).resolve(),
     ]
-    if not any(str(p).startswith(str(r)) for r in allowed_roots):
+    if not any(p == r or p.is_relative_to(r) for r in allowed_roots):
         raise ValueError(f"Path '{value}' is outside allowed directories.")
     return p
 
@@ -104,7 +113,12 @@ async def parse_wiki(body: ParseWikiReq):
 
     try:
         wiki_root_str = body.wiki_root or CONFIG["knowledge"]["wiki_root"]
-        wiki_root = Path(wiki_root_str).resolve()
+        # Unlike scan_domain()/knowledge_graph() in this same file, this
+        # endpoint took wiki_root with zero confinement check -- any
+        # directory the process can read/write, not just the configured
+        # wiki tree. Route it through the same _safe_path() helper the
+        # sibling endpoints already use.
+        wiki_root = _safe_path(wiki_root_str)
         if not wiki_root.is_dir():
             raise HTTPException(status_code=400, detail=f"Wiki root not found: {wiki_root}")
 
@@ -143,7 +157,9 @@ async def merge_wiki(body: MergeWikiReq):
 
     try:
         wiki_root_str = body.wiki_root or CONFIG["knowledge"]["wiki_root"]
-        wiki_root = Path(wiki_root_str).resolve()
+        # Same confinement gap as parse_wiki() above -- route through the
+        # shared _safe_path() helper.
+        wiki_root = _safe_path(wiki_root_str)
         if not wiki_root.is_dir():
             raise HTTPException(status_code=400, detail=f"Wiki root not found: {wiki_root}")
 

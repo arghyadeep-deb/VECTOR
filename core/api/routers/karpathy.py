@@ -31,7 +31,7 @@ async def run_training(body: RunTrainingReq):
     try:
         return await gov.dispatch({"type": "run_training", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][karpathy] run_training failed: %s", e)
+        logger.error("[VECTOR][karpathy] run_training failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ProposeImprovementReq(BaseModel):
@@ -46,7 +46,7 @@ async def propose_improvement(body: ProposeImprovementReq):
     try:
         return await gov.dispatch({"type": "propose_improvement", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][karpathy] propose_improvement failed: %s", e)
+        logger.error("[VECTOR][karpathy] propose_improvement failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ApplyPatchAndTestReq(BaseModel):
@@ -61,7 +61,7 @@ async def apply_patch_and_test(body: ApplyPatchAndTestReq):
     try:
         return await gov.dispatch({"type": "apply_patch_and_test", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][karpathy] apply_patch_and_test failed: %s", e)
+        logger.error("[VECTOR][karpathy] apply_patch_and_test failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/experiment-history")
@@ -72,5 +72,5 @@ async def experiment_history():
     try:
         return await gov.dispatch({"type": "experiment_history", "params": {}})
     except Exception as e:
-        logger.error("[VECTOR][karpathy] experiment_history failed: %s", e)
+        logger.error("[VECTOR][karpathy] experiment_history failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
