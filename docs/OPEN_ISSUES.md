@@ -730,10 +730,60 @@ grew open engineering items; section 0 lists them.
     exist); `smart_routing/wallet.py` would store a plaintext mnemonic/private keys with non-hardened
     BIP-32 derivation if ever activated; `smart_routing/response_store.py` would persist plaintext
     prompts/responses (potential secrets/PII) outside the encrypted episodic store if ever activated.
-    9 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
-    `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the
-    same day, already covered above). Working tree clean except for the intentionally-held
-    `token_blacklist.py` decision file in the scratch folder (not `tests/`, does not affect any test run).
+    **Fourth deep-verify slice, same day**: Claude (self-fork) deep-verified all 18 `core/city/` files;
+    Codex (`codex exec -m gpt-5.6-sol`) deep-verified 22 files across `core/control/`+`core/sensing/`+
+    `core/network/`.
+    **Claude/core-city**: re-checked a standing memory claiming an unresolved caller-controlled-district
+    trust gap in `Governor.dispatch()` (deferred pending Codex, 2026-09-24) — read the CURRENT code
+    directly rather than trusting the memory: **already fixed 2026-09-25, independently re-verified by
+    Codex 2026-09-29 (AGREE)**. Memory was stale, corrected in place rather than left to mislead a future
+    session. Verified (real code, not just docs) `agent_base.py`'s HP thresholds/award-deduct asymmetry
+    match CLAUDE.md exactly; `agent_registry.py`'s "thread-safe singleton" claim is real (genuine
+    double-checked locking); ghost-memory preservation on agent death is wired into real callers. Found +
+    fixed 1 more silent-swallow-placeholder site (`meta_cognition.py`'s `close()`). New test
+    `tests/test_core_city_silent_swallow_logging.py` (1 test). Commit `2639aaabb`.
+    Flagged: `core/city/intent_bert.py` claims to be governor intent-classification "Stage 3" but has
+    zero production importers and isn't recorded in `scripts/mark_dormant_modules.py` either (unlike its
+    siblings `task_router.py`/`core/brain/router.py`/`core/brain/self_evolve.py`) — a genuinely
+    undocumented orphan, needs an owner call.
+    **Codex/core-control+sensing+network — 3 real fixes**: `core/control/security/malware_detector.py`'s
+    `scan_file()` continued past a failed/unreadable hash instead of stopping, so an unscannable target
+    could fall through to the extension heuristic and be reported "clean" despite never actually being
+    scanned — fixed to return `unknown` immediately on a hash failure. `core/network/ofp_protocol.py`'s
+    `OFPMessage.is_expired()` only checked whether a timestamp was too OLD — a future-dated signed
+    message made the subtraction negative, so it was **never** considered expired, a real replay-window
+    bypass if the in-memory nonce cache is ever lost (restart/crash); also didn't reject non-numeric/
+    bool/NaN/inf timestamps — fixed to reject both directions plus type/finiteness validation (strictly
+    more restrictive, can't introduce a new false-negative). `core/sensing/presence_detector.py`'s
+    `tracked.tracker_id or []` raised "ambiguous truth value" on a multi-element NumPy array (a classic
+    NumPy gotcha) whenever more than one person was tracked simultaneously, silently degrading real
+    multi-person detection to "unavailable" — fixed with an explicit `is not None` check. New test
+    `tests/test_core_control_network_safety_guards.py` (4 tests). Claude independently re-verified plus 2
+    pre-existing regression suites — zero regressions. Commit `cf93642df`.
+    **6 more real FLAG-FOR-OWNER findings, none fixed — 2 of these are as serious as the
+    `core/inference/` finding (Rule 3 "Permission Gateway is the ONLY path to real-world actions...
+    Nothing bypasses this" gaps)**: `core/control/pc_controller.py`'s `media_key()` performs real OS
+    input (actual media-key presses) with **no gateway token check at all**, even though the gateway
+    itself calls it correctly — any other importer can call it directly, fully ungated; `play_music()`
+    ends through the same ungated primitive. `core/control/phone_controller.py`'s `_run_adb()` is an
+    **unrestricted arbitrary ADB command executor**; `districts/content/phone_poster.py` calls it
+    directly for real device actions — the caller happens to request approval first, but the controller
+    boundary itself doesn't enforce that, same class of gap. Neither fixed here because correcting them
+    changes public method signatures and every real caller, a cross-file API-boundary decision, not a
+    narrow patch. Also flagged: `threat_detector.py` silently returns `[]` (indistinguishable from "no
+    anomalies") if both its scan paths fail; `social_safety.py`'s 1-post/day cap has a real TOCTOU gap
+    (unlocked read-modify-write) plus an unsurfaced save-failure path that could allow a second same-day
+    post after a restart; `peer_discovery.py` accepts unauthenticated LAN announcements via `recv()`
+    (not `recvfrom()`), trusting claimed host/port/node-id; `core/sensing/camera.py`'s `FatigueMonitor`
+    calls a MediaPipe API (`mp.solutions.face_mesh`) that the codebase's own `mediapipe_tasks.py`
+    comments say was removed in current MediaPipe versions — on affected installs, fatigue sensing
+    silently degrades to a hardcoded `5.0` treated as real data, not "unavailable"; `sound_classifier.py`'s
+    optional YAMNet/ONNX path is dead code (loads a session `classify_frame()` never reads).
+    12 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
+    `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` `d5940fa7c` `2639aaabb` `cf93642df` (preceded by
+    `9e630a1e9`/`f3c9123f0` from earlier the same day, already covered above). Working tree clean except
+    for the intentionally-held `token_blacklist.py` decision file in the scratch folder (not `tests/`,
+    does not affect any test run).
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
