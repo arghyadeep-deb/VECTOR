@@ -976,6 +976,16 @@ grew open engineering items; section 0 lists them.
     **`core/api/routers/`'s remaining scope**: 58 of 87 files done across batches 1+2 (`memory.py`/
     `agents.py`/`content.py` above were all reviewed as part of batch 2's 30 files — `memory.py`'s finding
     fixed, the other 2 flagged); 29 files remain unreviewed.
+    **Batch 3 (final 24 files, commit `a990d0cc5`) — completes all 87 `core/api/routers/` files.**
+    2 real fixes: `voice.py`'s `/voice/studio/generate` had a **path-traversal write** (a bare `".."`
+    filename escaped the output dir even after a basename-only `.name` fix attempt — closed properly with
+    `Path.is_relative_to()`); `websocket.py`'s `require_auth_handshake()` (shared by 5 WebSocket
+    endpoints) used a **timing-unsafe `!=`** instead of `secrets.compare_digest()` for the token check —
+    fixed once, centrally. Plus 45 more instances of the printf-style-logging and silent-swallow bugs
+    already fixed dozens of times this cycle. New test `tests/test_voice_router_security_fixes.py` (4
+    tests). **Owner note: Claude's weekly usage budget is now critically low (~5%) — from this point the
+    audit runs Codex-only for new deep-verify work, with Claude limited to reviewing diffs, running
+    tests, and committing.**
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
