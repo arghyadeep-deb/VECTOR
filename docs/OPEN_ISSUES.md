@@ -1006,6 +1006,23 @@ grew open engineering items; section 0 lists them.
     RED-gated real trade/crypto-execution paths (explicitly documented as an intentional exception in
     `core/config.py`, not an accidental gap); `malware_hunter.py`'s file-read failures degrade to
     false-clean instead of unknown.
+    **Third Codex-only slice: `districts/qa/`+`districts/health/`+`districts/finance/` (33 files,
+    commit `f6a3d35d5`) — 8 real fixes.** Most significant: `health/fatigue_monitor.py` called a
+    `ContextEngine` method that doesn't exist (`get_full_context()` — the real one is
+    `get_world_state()`), so camera-based fatigue detection has silently never worked at all; fixed to
+    call the real method. 6 more fixes are the same recurring shape as the prior slice — a failed data
+    fetch/scan read as a genuinely clean/healthy/passing result (`sleep_tracker.py`,
+    `biometrics_aggregator.py`, `budget_analyst.py`, `test_results_analyzer.py`). Plus a financial-privacy
+    fix (`upi_parser.py` logged exact transaction amounts in routine HP/audit logs) and a calendar-drift
+    bug in `fpa_analyst.py`'s forecast loop. 3 more flagged findings.
+    **Pace check**: 3 Codex-only slices completed since Claude's budget warning, all reviewed/tested/
+    committed by Claude at a leaner level of scrutiny than earlier slices (spot-checking the most
+    significant diffs directly, trusting mechanical/repeated-pattern fixes after the first few
+    confirmations, rather than reading every line of every file) — this is a deliberate tradeoff to
+    conserve the remaining budget while still not committing anything unreviewed.
+
+
+This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
 open items were folded in here.
