@@ -274,6 +274,19 @@ class FastAPIReviewer(AgentBase):
         params = task.get("params", task)
 
         if task_type not in self._SUPPORTED_TASK_TYPES:
+            # 2026-09-30 (Phase 3 codebase audit finding): real chat dispatch
+            # sends a classifier-invented task_type that won't match the
+            # supported set above, but may still carry a real free-text
+            # question in params — route it to the existing _answer_query()
+            # fallback (already used below when code is missing) instead of
+            # erroring before params is ever read. See
+            # tests/test_coding_reviewers_run_wiring.py's documented bug.
+            query = (
+                params.get("query") or params.get("content")
+                or task.get("query") or task.get("prompt") or ""
+            )
+            if query.strip():
+                return await self._answer_query(query)
             return {
                 "agent": self.name,
                 "status": "error",

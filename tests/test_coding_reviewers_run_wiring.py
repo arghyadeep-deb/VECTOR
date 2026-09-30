@@ -101,20 +101,24 @@ async def test_fastapi_reviewer_unhandled_type_returns_error():
     assert "supported" in result
 
 
-async def test_fastapi_reviewer_real_chat_dispatch_unmatched_type_with_query_still_errors():
-    """LIVE BUG (documented, not fixed here — tests are TESTS ONLY):
-    real production shape from governor._dispatch_to_district is
-    task={"type": <classifier-invented string>, "params": {"query": ...}}.
-    FastAPIReviewer.run() checks `if task_type not in self._SUPPORTED_TASK_TYPES`
-    and returns the error stub BEFORE ever reading params, so its own
-    _answer_query() free-text fallback (which does exist and does work) is
-    unreachable for this exact real-world dispatch shape — it only fires
-    when task_type IS 'review_fastapi'/'review' but params lacks code. A
-    real user question routed here by the classifier currently gets an
-    error, not an answer. This test locks in the CURRENT (broken) behavior
-    so it doesn't silently regress further, and flags the bug for a future
-    session to fix in districts/coding/fastapi_reviewer.py.
+async def test_fastapi_reviewer_real_chat_dispatch_unmatched_type_with_query_answers(monkeypatch):
+    """FIXED 2026-09-30 (Phase 3 codebase audit): real production shape from
+    governor._dispatch_to_district is task={"type": <classifier-invented
+    string>, "params": {"query": ...}}. FastAPIReviewer.run() now checks for
+    a free-text query BEFORE returning the unhandled-type stub, so it routes
+    to its own _answer_query() fallback instead of erroring. Mock only the
+    LLM transport, per testing.md.
     """
+    import core.inference.provider_client as provider_module
+
+    class _FakeResult:
+        content = "Depends() resolves a callable once per request and caches it within that request's scope."
+
+    class _FakeClient:
+        async def chat(self, **kwargs):
+            return _FakeResult()
+
+    monkeypatch.setattr(provider_module, "ProviderClient", _FakeClient)
     agent = FastAPIReviewer()
     task = {
         "type": "explain_fastapi_dependency_injection",
@@ -125,8 +129,9 @@ async def test_fastapi_reviewer_real_chat_dispatch_unmatched_type_with_query_sti
         },
     }
     result = await agent.run(task)
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
+    assert result["status"] == "ok"
+    assert len(result.get("response", "")) > 0
+    assert "supported" not in result
 
 
 # --- PythonReviewer: task["type"] routing ---
@@ -172,14 +177,22 @@ async def test_python_reviewer_unhandled_type_returns_error():
     assert "supported" in result
 
 
-async def test_python_reviewer_real_chat_dispatch_unmatched_type_with_query_still_errors():
-    """LIVE BUG (documented, not fixed here): same bug class as
-    FastAPIReviewer above — PythonReviewer.run() gates on
-    `task_type not in self._SUPPORTED_TASK_TYPES` before ever reading
-    params, so a classifier-invented task_type with a real free-text query
-    still hits the error stub instead of PythonReviewer's own
-    _answer_query() fallback. Locks in current (broken) behavior.
+async def test_python_reviewer_real_chat_dispatch_unmatched_type_with_query_answers(monkeypatch):
+    """FIXED 2026-09-30 (Phase 3 codebase audit): same bug class as
+    FastAPIReviewer above — PythonReviewer.run() now checks for a free-text
+    query before the unhandled-type gate, so it routes to its own
+    _answer_query() fallback instead of erroring.
     """
+    import core.inference.provider_client as provider_module
+
+    class _FakeResult:
+        content = "asyncio swallows exceptions when a Task is never awaited or its result never retrieved."
+
+    class _FakeClient:
+        async def chat(self, **kwargs):
+            return _FakeResult()
+
+    monkeypatch.setattr(provider_module, "ProviderClient", _FakeClient)
     agent = PythonReviewer()
     task = {
         "type": "explain_python_asyncio_gotcha",
@@ -190,8 +203,9 @@ async def test_python_reviewer_real_chat_dispatch_unmatched_type_with_query_stil
         },
     }
     result = await agent.run(task)
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
+    assert result["status"] == "ok"
+    assert len(result.get("response", "")) > 0
+    assert "supported" not in result
 
 
 # --- SecurityReviewer: task["type"] routing ---
@@ -238,14 +252,22 @@ async def test_security_reviewer_unhandled_type_returns_error():
     assert "supported" in result
 
 
-async def test_security_reviewer_real_chat_dispatch_unmatched_type_with_query_still_errors():
-    """LIVE BUG (documented, not fixed here): same bug class as
-    FastAPIReviewer/PythonReviewer above — SecurityReviewer.run() gates on
-    `task_type not in self._SUPPORTED_TASK_TYPES` before ever reading
-    params, so a classifier-invented task_type with a real free-text query
-    still hits the error stub instead of SecurityReviewer's own
-    _answer_query() fallback. Locks in current (broken) behavior.
+async def test_security_reviewer_real_chat_dispatch_unmatched_type_with_query_answers(monkeypatch):
+    """FIXED 2026-09-30 (Phase 3 codebase audit): same bug class as
+    FastAPIReviewer/PythonReviewer above — SecurityReviewer.run() now checks
+    for a free-text query before the unhandled-type gate, so it routes to
+    its own _answer_query() fallback instead of erroring.
     """
+    import core.inference.provider_client as provider_module
+
+    class _FakeResult:
+        content = "Yes — string-formatted SQL is unsafe regardless of the source; use parameterized queries."
+
+    class _FakeClient:
+        async def chat(self, **kwargs):
+            return _FakeResult()
+
+    monkeypatch.setattr(provider_module, "ProviderClient", _FakeClient)
     agent = SecurityReviewer()
     task = {
         "type": "explain_sql_injection_risk",
@@ -256,8 +278,9 @@ async def test_security_reviewer_real_chat_dispatch_unmatched_type_with_query_st
         },
     }
     result = await agent.run(task)
-    assert result["status"] == "error"
-    assert "unhandled type" in result["error"]
+    assert result["status"] == "ok"
+    assert len(result.get("response", "")) > 0
+    assert "supported" not in result
 
 
 if __name__ == "__main__":
@@ -270,13 +293,19 @@ if __name__ == "__main__":
         )
         await test_fastapi_reviewer_review_fastapi_task_type()
         await test_fastapi_reviewer_unhandled_type_returns_error()
-        await test_fastapi_reviewer_real_chat_dispatch_unmatched_type_with_query_still_errors()
+        await test_fastapi_reviewer_real_chat_dispatch_unmatched_type_with_query_answers(
+            _monkeypatch_stub_for_smoke()
+        )
         await test_python_reviewer_review_python_task_type()
         await test_python_reviewer_unhandled_type_returns_error()
-        await test_python_reviewer_real_chat_dispatch_unmatched_type_with_query_still_errors()
+        await test_python_reviewer_real_chat_dispatch_unmatched_type_with_query_answers(
+            _monkeypatch_stub_for_smoke()
+        )
         await test_security_reviewer_scan_vulnerabilities_task_type()
         await test_security_reviewer_unhandled_type_returns_error()
-        await test_security_reviewer_real_chat_dispatch_unmatched_type_with_query_still_errors()
+        await test_security_reviewer_real_chat_dispatch_unmatched_type_with_query_answers(
+            _monkeypatch_stub_for_smoke()
+        )
         print("✅ test_coding_reviewers_run_wiring.py OK")
 
     class _MiniMonkeypatch:
