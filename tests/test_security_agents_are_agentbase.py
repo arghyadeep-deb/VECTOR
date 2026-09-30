@@ -85,11 +85,17 @@ def test_full_manifest_instantiates_without_attribute_error():
             "scan_verifier",
             "agentic_identity_trust_analyst",
             "automation_governance_analyst",
+            "blockchain_security_auditor",
         }
-        assert len(sec_defs) == 20  # 12 established + 8 deterministic specialists
+        # 2026-09-30 (full-suite regression check, Phase 3 codebase audit):
+        # this count went stale 31 commits before this session started --
+        # bb3f1101d added BlockchainSecurityAuditor as a 9th deterministic
+        # specialist without updating this test, and nothing caught it until
+        # a full-suite run. 12 established + 9 deterministic specialists.
+        assert len(sec_defs) == 21
         assert expected_specialists <= {definition["name"] for definition in sec_defs}
         registered = loader.register_all(sec_defs, reg)
-        assert registered == 20
+        assert registered == 21
     finally:
         for aid in list(reg._agents.keys()):
             if aid not in before:
