@@ -373,8 +373,15 @@ class AccessibilityAuditor(AgentBase):
         # hardcoded defaults. Flattening params into task once (params
         # values win on overlap) keeps every existing flat-shape
         # caller/test working unchanged while fixing all branches at once.
-        task = {**task, **(task.get("params") or {})}
+        # 2026-09-30 (Codex third independent review, same cycle): capture
+        # task_type from the UNMERGED task first -- if a nested params dict
+        # happens to carry its own "type" key (a real field name for some
+        # capabilities, not just VECTOR's own dispatch key), merging params
+        # over task before reading task_type would let params["type"]
+        # silently hijack routing. See districts/communications/email_agent.py's
+        # identical fix for the full evidence.
         task_type = task.get("type", "audit")
+        task = {**task, **(task.get("params") or {})}
         try:
             if task_type == "audit":
                 html = task.get("html", "")

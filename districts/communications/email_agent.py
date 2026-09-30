@@ -482,8 +482,16 @@ class EmailAgent(AgentBase):
         # and more maintainable than editing every individual .get() call
         # below -- and keeps every existing flat-shape caller/test working
         # unchanged, since task.get("params") is {} for those.
-        task = {**task, **(task.get("params") or {})}
+        # 2026-09-30 (Codex third independent review, same cycle): capture
+        # task_type from the UNMERGED task first -- if a nested params dict
+        # happens to carry its own "type" key (a real field name for some
+        # capabilities, not just VECTOR's own dispatch key), merging params
+        # over task before reading task_type would let params["type"]
+        # silently hijack routing. Verified live before fixing:
+        # {"type": "draft_reply", "params": {"type": "html", ...}} routed
+        # as "html" instead of "draft_reply".
         task_type = task.get("type", "list")
+        task = {**task, **(task.get("params") or {})}
         try:
             if task_type == "list":
                 emails = self.list_emails(task.get("folder", "inbox"),
