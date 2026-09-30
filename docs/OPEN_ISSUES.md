@@ -994,9 +994,18 @@ grew open engineering items; section 0 lists them.
     public articles if credentials were configured; NewsAPI's key was in the URL query string, not a
     header (`news_aggregator.py`). 6 more real findings flagged (Graph API Instagram bypasses the
     1/day cap entirely; SSRF gaps in 3 research/scraping files; unrestricted local file reads; etc.).
-
-
-This file is the single owner-facing source of truth. Full per-item evidence
+    **Second Codex-only slice: `districts/investment/`+`districts/security/` (31 files, commit
+    `81e4c2054`) — 7 real fixes, 5 the same recurring shape** (a scan/action fails, the failure path
+    returns empty/default, the caller reads that as "clean"/"success" and rewards it):
+    `node_guard.py`/`threat_scout.py` falsely rewarded HP for a failed scan as if the network/system were
+    clean; `alert_manager.py` suppressed the next real alert for 5 min when persisting a failed alert;
+    `incident_playbook_runner.py` ignored `netsh`/`taskkill`/`tasklist`/`netstat` nonzero exit codes,
+    reporting failed containment actions as `status=ok`; `log_aggregator.py` used the wrong loguru API for
+    exception context. Plus a 2nd instance of the API-key-in-URL bug (`sentiment_bot.py`). 2 more flagged:
+    the district's own "analysis only, never trades" contract conflicts with deliberately-implemented,
+    RED-gated real trade/crypto-execution paths (explicitly documented as an intentional exception in
+    `core/config.py`, not an accidental gap); `malware_hunter.py`'s file-read failures degrade to
+    false-clean instead of unknown.
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
 open items were folded in here.
