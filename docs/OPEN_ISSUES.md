@@ -838,6 +838,14 @@ grew open engineering items; section 0 lists them.
     `dbf66e82c` `615a97b4f` (preceded by `9e630a1e9`/`f3c9123f0` from earlier the same day, already
     covered above). Working tree clean except for the intentionally-held `token_blacklist.py` decision
     file in the scratch folder (not `tests/`, does not affect any test run).
+    **Codex hit its usage limit mid-6th-slice** (`core/collections/`+`core/voice/`, 29 files) —
+    reported to reset at 10:05 PM. No real work was done on that slice despite the background task
+    exiting 0 (caught by checking the report file directly, not trusting the exit code alone). Per the
+    owner's own instruction for this whole effort, Claude did NOT silently absorb Codex's share — paused
+    launching new Codex-dependent slices rather than doubling Claude's own load. Re-queue
+    `core/collections/`+`core/voice/` once Codex is confirmed available again (prompt already saved at
+    `codex_core_collections_voice_deepverify_prompt.txt` in the scratch folder). Full detail in memory
+    `codex-quota-exhausted-2026-09-30`.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
