@@ -904,6 +904,65 @@ grew open engineering items; section 0 lists them.
     it); `sensing.py`'s `/sensing/screen` OCRs the full screen via a plain authenticated GET, no gateway
     tier; `oauth.py`'s `/oauth/callback/google` has **no CSRF `state` parameter at all** (classic OAuth
     account-linking CSRF), exploitable specifically when no `VECTOR_API_KEY` is configured.
+    **Seventh deep-verify slice, done fully in parallel** — owner asked "for what are u waiting? are
+    next work dependent on codex??" after this turn's usage-limit reset; re-checked Codex (confirmed
+    still down via a live test call), proceeded with Claude's own next batch regardless, then re-checked
+    Codex again later and found it back online — re-queued its interrupted slice immediately rather than
+    waiting further. Both ran concurrently: Codex (`codex exec -m gpt-5.6-sol`) on `core/collections/`+
+    `core/voice/` (the 29-file slice interrupted by its earlier usage-limit hit); Claude (self-fork) on
+    `core/api/routers/` batch 2 (30 more of the 87 files).
+    **Codex/core-collections+voice — 1 real fix, a genuine fail-open-on-failure bug in voice
+    authentication**: `core/voice/speaker_verify.py`'s `verify()` had two failure paths that
+    **authenticated the speaker as the owner precisely when identity could NOT be established** — an
+    internal embedding/encoder exception returned `(True, 0.0)`, and a stale voiceprint whose embedding
+    shape no longer matched the current engine returned `(True, 1.0)`. Both flow into
+    `ambient_listener.py`/`realtime.py` as `is_owner=True`, which gates owner-only voice actions — so a
+    verification *failure* let a command through as if from the owner. Fixed: both paths now return
+    `(False, 0.0)` and log "failing closed". Two genuinely deliberate, separately-justified fail-open
+    paths were correctly left alone: the not-active/not-enrolled no-op case, and the short-utterance
+    case, which carries an explicit 2026-07-17 usability-tradeoff comment — flagged for the owner instead
+    of reversed, same judgment bar already applied to `core/security/token_blacklist.py` earlier this
+    cycle. New test `tests/test_core_voice_speaker_verify_safety.py` (2 tests). Commit `2b7e8be0e`.
+    4 more FLAG-FOR-OWNER findings from this pass: `cloning.py`/`voxcpm_cloning.py`/`voice_profiles.py`/
+    `core/collections/storage.py` store voice-cloning reference WAVs and the owner's enrolled biometric
+    embedding as **plaintext with no restrictive ACL**; `collections/hooks.py`'s before-hook failures
+    fail open (explicitly justified as resilience, a documented tradeoff); `collections/migrations.py`'s
+    `load_dir()` executes arbitrary Python via `importlib` (not a sandbox, but no untrusted-directory
+    production path currently feeds it); 7 files missing the repo's own `__main__` self-test convention.
+    **Claude/core-api-routers batch 2 — 2 real fixes**: a **systemic printf-style loguru bug, 75
+    instances across 15 files** (`logger.error("...: %s", e)` — loguru uses `{}`-formatting, not
+    `%`-style; confirmed the call renders the literal string `"%s"` and silently drops the exception
+    entirely) — same bug class already fixed twice in `core/brain/` this cycle but systemic across nearly
+    every router in the codebase; zero HTTP-response behavior change (every endpoint already returns
+    `detail=str(e)` directly). `knowledge.py`'s `_safe_path()` had the identical CWE-22 prefix-matching
+    bypass already fixed in `code_intel.py`, plus `parse_wiki()`/`merge_wiki()` in the same file had
+    **zero confinement check at all**, inconsistent with sibling endpoints in the same file — both fixed.
+    New tests `tests/test_api_routers_printf_style_logging.py` (4) + `tests/test_knowledge_router_path_confinement.py`
+    (6). Commit `ad8f82691`.
+    **4 more FLAG-FOR-OWNER findings — the most severe is `core/api/routers/memory.py`'s `POST
+    /memory/restore`**: takes a raw `backup_path` with **zero confinement** (arbitrary file read), and
+    `overwrite=True` triggers `DELETE FROM {table}` against the **live encrypted main DB** with the
+    table name **f-string-interpolated directly from caller-supplied JSON** — a real SQL-injection vector,
+    already marked `# noqa: S608` in the source. The underlying `core/memory/multi_db_manager.py` also
+    uses a raw `sqlite3.connect()` bypassing the SQLCipher-aware helper. Zero Permission Gateway
+    involvement for what's explicitly documented in-source as "Gap 19." Not fixed — spans both this
+    batch's scope and `multi_db_manager.py` (out of scope), too entangled for a safe narrow patch; needs
+    real attention soon given severity. Also: `agents.py`'s `POST /agents/award` lets any authenticated
+    caller inflate any agent's HP arbitrarily (no gateway gate, connects to the already-flagged
+    `hp_validator.py` weakness); `content.py`'s `POST /content/run`/`POST /content/post-video` are more
+    ungated real-world-action endpoints (same class as `camera.py`/`vectorcode.py`/`control.py`);
+    `city.py`'s `direct_dispatch()` is confirmed **non-functional, not a vulnerability** (hardcodes the
+    task type so Governor always rejects it) — flagged so a future fix doesn't naively wire the
+    caller-supplied type through without the same scrutiny already given to `governor.py`'s trust
+    boundary.
+    18 commits this resumed segment: `d8eb4e7b0` `214cb5d9c` `b229dda82` `9e7f2d04a` `bd5f842da`
+    `bef33f0eb` `28213ab07` `6426954e4` `c6458ce1a` `d5940fa7c` `2639aaabb` `cf93642df` `52098dfa0`
+    `dbf66e82c` `615a97b4f` `c81cb5801` `3e05e02d7` `944504685` `2b7e8be0e` `ad8f82691` (preceded by
+    `9e630a1e9`/`f3c9123f0` from earlier the same day, already covered above). Working tree clean except
+    for the intentionally-held `token_blacklist.py` decision file.
+    **`core/api/routers/`'s remaining scope**: 58 of 87 files done across batches 1+2 (`memory.py`/
+    `agents.py`/`content.py` above were all reviewed as part of batch 2's 30 files — flagged, not fixed);
+    29 files remain unreviewed.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
