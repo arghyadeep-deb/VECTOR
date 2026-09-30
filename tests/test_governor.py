@@ -4,7 +4,7 @@ import asyncio
 import pytest
 from core.city.governor import Governor
 from core.city.agent_base import AgentBase
-from core.city.agent_registry import get_registry
+from core.city.agent_registry import AgentRegistry, get_registry
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +22,28 @@ def make_agent(district="coding"):
     a = AgentBase(str(uuid.uuid4()), f"TestAgent_{district}", district)
     get_registry().register(a)
     return a
+
+
+def governor_with_only(*agents) -> Governor:
+    """2026-09-30 (full-suite regression run, Phase 3 codebase audit;
+    same root cause class Codex independently confirmed for
+    core/loop/decision_engine.py's tests): Governor.dispatch()'s
+    capability-vs-HP race reads the process-wide AgentRegistry singleton.
+    `clean_registry` above only removes agents THIS test itself added --
+    an earlier test elsewhere in a full 6000+ suite run that registers
+    real district agents into the SAME shared singleton and doesn't fully
+    clean up can leave a real, higher-HP or differently-capable agent in
+    the "coding" district that wins these tests' own deliberately-close
+    capability/HP races instead of the synthetic agents the test built.
+    Bypasses the shared singleton entirely: a genuinely fresh, isolated
+    AgentRegistry containing ONLY the given agents, independent of
+    whatever any other test in the suite has left in the global one."""
+    gov = Governor()
+    reg = AgentRegistry()
+    for a in agents:
+        reg.register(a)
+    gov._registry = reg
+    return gov
 
 
 def test_route_coding_task():
@@ -106,7 +128,7 @@ async def test_dispatch_prefers_capability_match_over_raw_hp():
     generic.run = _generic_run
     specialist.run = _specialist_run
 
-    gov = Governor()
+    gov = governor_with_only(generic, specialist)
     await gov.dispatch({"type": "code_review", "district": "coding", "params": {}})
 
     assert called.get("agent") == "specialist", (
@@ -139,7 +161,7 @@ async def test_dispatch_withholds_hp_when_no_agent_declares_capability():
     agent.run = _run
     hp_before = agent.health_points
 
-    gov = Governor()
+    gov = governor_with_only(agent)
     # 2026-09-25: the type must be a REAL one that this agent simply does not declare. "totally_uncovered_task_type" was
     # an invented name, and running an invented name on whichever agent the caller's district happened to hold is the
     # Governor gap that is now closed (see tests/test_governor_unknown_task_gate.py). git_status is a routing key /
