@@ -665,9 +665,8 @@ def create_app() -> FastAPI:
                 lines.append(f"# HELP {metric_name} Row count for {key}")
                 lines.append(f"# TYPE {metric_name} gauge")
                 lines.append(f"{metric_name} {val}")
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] metrics: episodic stats unavailable: {e}")
 
         try:
             from core.city.agent_registry import AgentRegistry
@@ -679,9 +678,8 @@ def create_app() -> FastAPI:
             lines.append("# HELP vector_agents_total Total registered agents")
             lines.append("# TYPE vector_agents_total gauge")
             lines.append(f"vector_agents_total {len(agents)}")
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning(f"[VECTOR][api] metrics: agent registry unavailable: {e}")
 
         return "\n".join(lines) + "\n"
 

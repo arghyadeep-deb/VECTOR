@@ -22,7 +22,13 @@ class TaskSubmission(BaseModel):
     priority: str = "normal"
 
 
-_INTERNAL_TOKEN = os.environ.get("VECTOR_INTERNAL_TOKEN", "")
+def _internal_token() -> str:
+    """Read the token at call time, not at import time — a module-global
+    frozen at import made this unreachable/untestable whenever
+    VECTOR_INTERNAL_TOKEN was set after this module first imported (.env
+    load ordering, or a test monkeypatching os.environ). Same fix already
+    applied to core/api/auth.py's _api_key() for the identical reason."""
+    return os.environ.get("VECTOR_INTERNAL_TOKEN", "")
 
 
 @router.post("")
@@ -30,7 +36,8 @@ async def submit_task(
     task: TaskSubmission,
     authorization: str = Header(None),
 ):
-    if not _INTERNAL_TOKEN:
+    internal_token = _internal_token()
+    if not internal_token:
         raise HTTPException(
             503,
             "External task ingestion requires VECTOR_INTERNAL_TOKEN to be set",
@@ -38,7 +45,7 @@ async def submit_task(
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Missing authorization")
     token = authorization.removeprefix("Bearer ")
-    if not hmac.compare_digest(token, _INTERNAL_TOKEN):
+    if not hmac.compare_digest(token, internal_token):
         raise HTTPException(403, "Invalid token")
     from core.loop.autonomous_loop import AutonomousLoop
     # BUG FIX: previously constructed a FRESH AutonomousLoop() and set
