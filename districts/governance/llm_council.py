@@ -365,7 +365,7 @@ class LLMCouncil(AgentBase):
             or task.get("type", "What should VECTOR do next?")
         )
         stakes = p.get("stakes", "medium")
-        requester_hp = p.get("requester_hp", 700)
+        requester_hp = p.get("requester_hp", 0)  # fail-closed: missing HP = blocked by gate (default 700 bypasses it)
         return await self.convene(question=question, stakes=stakes, requester_hp=requester_hp)
 
     # ── Loop (event-driven agent — listens for convene requests) ──────────────

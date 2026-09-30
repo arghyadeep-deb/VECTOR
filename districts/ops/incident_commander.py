@@ -66,13 +66,13 @@ class IncidentCommander(AgentBase):
 
     # ── Detection ──────────────────────────────────────────────────────────────
 
-    def detect_incidents(self) -> list[dict]:
+    def detect_incidents(self) -> list[dict] | None:
         """
         Scan last _SCAN_LIMIT episodic events for:
           - error events (event_type contains 'error')
           - agent deaths (event_type contains 'death' or content contains 'HP=0')
           - repeated failures (same event_type error appearing >= 3 times)
-        Returns a list of incident dicts.
+        Returns a list of incident dicts, or None if the DB query itself failed.
         """
         try:
             mem = self._get_memory()
@@ -85,7 +85,7 @@ class IncidentCommander(AgentBase):
             rows = cur.fetchall()
         except Exception as e:
             logger.error(f"[VECTOR][incident_commander] detect query failed: {e}")
-            return []
+            return None  # fail-closed: DB failure is unknowable, not "no incidents"
 
         if not rows:
             return []
@@ -405,6 +405,8 @@ class IncidentCommander(AgentBase):
         try:
             if task_type == "detect":
                 incidents = self.detect_incidents()
+                if incidents is None:
+                    return {"status": "error", "error": "detect_incidents: DB query failed"}
                 return {"status": "ok", "incidents_found": len(incidents), "incidents": incidents}
 
             elif task_type == "triage":
@@ -424,6 +426,10 @@ class IncidentCommander(AgentBase):
             else:
                 # Full incident scan cycle: detect → triage → report → coordinate
                 incidents = self.detect_incidents()
+
+                if incidents is None:
+                    self.deduct_points(30, "detect_incidents: DB query failed")
+                    return {"status": "error", "error": "detect_incidents: DB query failed"}
 
                 if not incidents:
                     self.award_points(50, "no incidents detected — all clear")
@@ -502,7 +508,7 @@ if __name__ == "__main__":
 
         # Detect incidents from live episodic memory
         incidents = agent.detect_incidents()
-        print(f"incidents detected: {len(incidents)}")
+        print(f"incidents detected: {len(incidents) if incidents is not None else 'DB error'}")
 
         if incidents:
             triaged = agent.triage_incident(incidents[0])
