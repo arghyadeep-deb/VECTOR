@@ -90,10 +90,18 @@ class DesignSpecialist(AgentBase):
                 "supported_tasks": self.capabilities,
             }
 
+        # 2026-09-30 (Phase 3 codebase audit finding): same bug class as
+        # districts/agency/agency_specialists.py (same commit series) -- the
+        # real governor dispatch shape nests evidence/query under
+        # task["params"], but this method only ever read task.get("evidence")/
+        # task.get("query") directly, already fixed once, later, in
+        # districts/marketing/marketing_specialists.py but never backported
+        # here. Same fix.
+        params = task.get("params") if isinstance(task.get("params"), dict) else {}
         try:
-            report = self.build_evidence_report(task.get("evidence"))
+            report = self.build_evidence_report(task.get("evidence") or params.get("evidence"))
             response: dict[str, Any] = {"status": "ok", "report": report}
-            query = str(task.get("query", "")).strip()
+            query = str(task.get("query") or params.get("query") or params.get("content") or "").strip()
             if query:
                 suggestion = await asyncio.to_thread(self.synthesize_suggestions, query, report)
                 if suggestion:

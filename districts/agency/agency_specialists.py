@@ -94,8 +94,18 @@ class AgencySalesSpecialist(AgentBase):
                 "error": f"Unsupported task type '{task_type}' for {self.name}",
                 "supported_tasks": self.capabilities,
             }
+        # 2026-09-30 (Phase 3 codebase audit finding): the real governor
+        # dispatch shape is {"type": ..., "params": {...}}. This method read
+        # task.get("evidence") directly, never task["params"]["evidence"],
+        # so a real dispatch always saw no evidence at all -- confirmed live
+        # (task.get("evidence") is None for the nested-params shape) and
+        # already fixed once, later, in districts/marketing/
+        # marketing_specialists.py's run() (`task.get("evidence") or
+        # params.get("evidence")`) but never backported here. Same fix.
+        params = task.get("params") if isinstance(task.get("params"), dict) else {}
+        raw_evidence = task.get("evidence") or params.get("evidence")
         try:
-            evidence, _, missing = self._evidence_state(task.get("evidence"))
+            evidence, _, missing = self._evidence_state(raw_evidence)
             if task_type == self.profile.brief_action or missing:
                 report = self.build_brief(evidence)
             else:
@@ -113,7 +123,7 @@ class AgencySalesSpecialist(AgentBase):
             return {
                 "status": "ok",
                 "report": {
-                    **self.build_brief(task.get("evidence")),
+                    **self.build_brief(raw_evidence),
                     "status": "needs_human",
                     "validation_error": str(exc),
                 },

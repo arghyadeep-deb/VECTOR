@@ -228,8 +228,16 @@ class SkillBuilder(AgentBase):
                 "supported_tasks": self.capabilities,
             }
 
+        # 2026-09-30 (Phase 3 codebase audit finding): same bug class as
+        # districts/agency/agency_specialists.py (same commit series) -- the
+        # real governor dispatch shape nests evidence under task["params"],
+        # but this method only ever read task.get("evidence") directly,
+        # already fixed once, later, in districts/marketing/
+        # marketing_specialists.py but never backported here. Same fix.
+        params = task.get("params") if isinstance(task.get("params"), dict) else {}
+        raw_evidence = task.get("evidence") or params.get("evidence")
         try:
-            evidence, _, missing = self._evidence_state(task.get("evidence"))
+            evidence, _, missing = self._evidence_state(raw_evidence)
             if task_type == self.profile.brief_action or missing:
                 report = self.build_brief(evidence)
             else:
@@ -257,7 +265,7 @@ class SkillBuilder(AgentBase):
             logger.warning("[VECTOR][skill_builder] rejected evidence: {}", exc)
             return {
                 "status": "ok",
-                "report": {**self.build_brief(task.get("evidence")), "status": "needs_human", "validation_error": str(exc)},
+                "report": {**self.build_brief(raw_evidence), "status": "needs_human", "validation_error": str(exc)},
             }
         except Exception as exc:
             logger.error("[VECTOR][skill_builder] failed: {}", exc)
