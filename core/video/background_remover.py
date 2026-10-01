@@ -272,6 +272,13 @@ class BackgroundRemover:
         from rembg import remove as rembg_remove, new_session  # type: ignore
         import cv2
 
+        if bg_plate_path:
+            logger.warning(
+                "[VECTOR][bg_remover] bg_plate_path={} requested but the inverse-alpha "
+                "background plate is not implemented in this method -- ignored",
+                bg_plate_path,
+            )
+
         rembg_session = new_session(self._model_id)
         cap = cv2.VideoCapture(input_path)
 
@@ -364,6 +371,12 @@ class BackgroundRemover:
     ) -> RemoveResult:
         """Manual ONNX pipeline without rembg."""
         import cv2
+        if bg_plate_path:
+            logger.warning(
+                "[VECTOR][bg_remover] bg_plate_path={} requested but the inverse-alpha "
+                "background plate is not implemented in this method -- ignored",
+                bg_plate_path,
+            )
         session = self._get_session()
         cap = cv2.VideoCapture(input_path)
         fps   = cap.get(cv2.CAP_PROP_FPS) or 30.0
