@@ -751,8 +751,11 @@ class TestPostJobTracker(unittest.TestCase):
     def test_error_log_max_20(self):
         t = self._tracker()
         jid = t.create("youtube", "Vid", max_retries=100)
+        # mark_publishing() only claims a pending/retrying job (atomic claim
+        # guard, 2026-09-30 race-condition fix); this test only exercises
+        # _append_error()'s 20-entry cap, so append directly rather than
+        # illegally re-claiming an already-PUBLISHING job.
         for i in range(25):
-            t.mark_publishing(jid)
             t._append_error(jid, f"error {i}")
         job = t.get(jid)
         self.assertLessEqual(len(job.error_log), 20)

@@ -114,7 +114,11 @@ def add_file_tools(mcp) -> None:
         @mcp.tool
         def file_glob(pattern: str) -> str:
             """Glob for files matching a pattern."""
-            if _Path(pattern).is_absolute() or ".." in _Path(pattern).parts:
+            # On Windows, Path("/etc/*").is_absolute() is False (no drive letter),
+            # so a POSIX-rooted pattern slipped past this guard and hit pathlib's
+            # glob() instead, which raises "Non-relative patterns are unsupported"
+            # -- a confusing error, not a denial. Check for a leading separator too.
+            if _Path(pattern).is_absolute() or pattern.startswith(("/", "\\")) or ".." in _Path(pattern).parts:
                 return _safe_json({"error": "Path traversal denied"})
             base = ROOT.resolve()
             try:

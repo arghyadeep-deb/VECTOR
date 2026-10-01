@@ -233,7 +233,7 @@ def add_graph_tools(mcp) -> None:
                     tree = ast.parse(pyfile.read_text(encoding="utf-8", errors="replace"))
                     for node in ast.walk(tree):
                         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                            kg.add_entity(f"{pyfile.relative_to(base)}::{node.name}", "symbol" if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else "class")
+                            kg.add_entity(f"{pyfile.relative_to(base).as_posix()}::{node.name}", "symbol" if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else "class")
                             count += 1
                 except Exception as e:
                     logger.warning("[VECTOR][mcp] graph_rebuild skipped {}: {}", pyfile, e)

@@ -55,9 +55,15 @@ def test_recent_publishing_job_is_left_alone(tmp_path):
 
 def test_stale_publishing_with_exhausted_retries_fails_instead_of_looping(tmp_path):
     t = PostJobTracker(db_path=tmp_path / "j.db")
-    jid = t.create(platform="devto", title="real", payload={"content": "x"})
-    for _ in range(3):
+    jid = t.create(platform="devto", title="real", payload={"content": "x"}, max_retries=3)
+    # mark_publishing() only claims a pending/retrying job (atomic claim guard,
+    # 2026-09-30 race-condition fix) -- drive the real cycle instead of calling
+    # it back-to-back, so the job reaches attempt_count == max_retries while
+    # genuinely stuck in PUBLISHING.
+    for _ in range(2):
         t.mark_publishing(jid)
+        t.mark_retrying(jid, error="transient")
+    t.mark_publishing(jid)
     _age(t, jid, 90)
     t.recover_stale_publishing(max_age_minutes=30)
     assert t.get(jid).status == JobStatus.FAILED
