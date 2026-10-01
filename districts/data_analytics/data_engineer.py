@@ -2,6 +2,7 @@ from core.memory.db_utils import apply_pragmas
 import asyncio
 import datetime
 import json
+import re
 import sqlite3
 import threading
 import time
@@ -107,6 +108,23 @@ class DataEngineer(AgentBase):
             logger.error(f"[VECTOR][data_engineer] DB open failed: {e}")
             return None
 
+    @staticmethod
+    def _resolve_table(conn, table) -> str | None:
+        """Allow-list a caller-supplied table name against sqlite_master.
+
+        Table names come from task params and were interpolated straight into
+        f-string SQL (PRAGMA/SELECT ... FROM {table}), so a crafted name could
+        read any table/subquery. Only a plain identifier that is a real
+        table/view in this DB is accepted; the canonical name is returned.
+        """
+        if not isinstance(table, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+            return None
+        row = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name = ?",
+            (table,),
+        ).fetchone()
+        return row[0] if row else None
+
     # ── Core pipeline methods ─────────────────────────────────────────────────
 
     def inspect_pipeline_health(self) -> dict:
@@ -180,12 +198,13 @@ class DataEngineer(AgentBase):
                             for col in cols:
                                 try:
                                     null_count_row = conn.execute(
-                                        f"SELECT COUNT(*) FROM {table} WHERE {col} IS NULL"  # noqa: S608
+                                        f'SELECT COUNT(*) FROM {table} WHERE "{col}" IS NULL'  # noqa: S608
                                     ).fetchone()
                                     null_count = null_count_row[0] if null_count_row else 0
                                     null_fractions.append(null_count / row_count)
-                                except Exception:
-                                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                                except Exception as col_err:
+                                    logger.warning("[VECTOR][data_engineer] null-count failed for {}.{}: {}", table, col, col_err)
+                                    issues.append(f"Column '{table}.{col}' could not be NULL-checked: {col_err}")
                             if null_fractions:
                                 nulls_pct = round(sum(null_fractions) / len(null_fractions) * 100, 1)
                             if nulls_pct > 50:
@@ -198,11 +217,11 @@ class DataEngineer(AgentBase):
                         if ts_cols and row_count > 0:
                             try:
                                 lu_row = conn.execute(
-                                    f"SELECT MAX({ts_cols[0]}) FROM {table}"  # noqa: S608
+                                    f'SELECT MAX("{ts_cols[0]}") FROM {table}'  # noqa: S608
                                 ).fetchone()
                                 last_updated = lu_row[0] if lu_row else None
-                            except Exception:
-                                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                            except Exception as ts_err:
+                                logger.warning("[VECTOR][data_engineer] last_updated failed for {}: {}", table, ts_err)
 
                         table_stats[table] = {
                             "rows": row_count,
@@ -219,6 +238,7 @@ class DataEngineer(AgentBase):
                     except Exception as e:
                         table_stats[table] = {"rows": -1, "nulls_pct": 0.0, "last_updated": None, "error": str(e)}
                         health_score -= 5
+                        issues.append(f"Table '{table}' could not be inspected: {e}")
 
             finally:
                 conn.close()
@@ -266,9 +286,12 @@ class DataEngineer(AgentBase):
                                          "is_training_data", "avg_reward")
                 ]
 
-                rows = conn.execute(f"SELECT rowid, * FROM {table} LIMIT 10000").fetchall()  # noqa: S608
+                rows = conn.execute(f"SELECT rowid, * FROM {table} LIMIT {self._B2S_ROW_CAP + 1}").fetchall()  # noqa: S608
                 conn.close()
                 conn = None
+                if len(rows) > self._B2S_ROW_CAP:
+                    truncated = True
+                    rows = rows[: self._B2S_ROW_CAP]
 
             except Exception as e:
                 errors.append(str(e))
