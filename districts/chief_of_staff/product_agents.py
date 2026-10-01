@@ -295,6 +295,10 @@ class ProductSprintPrioritizer(ProductAgentBase):
         if not ranked:
             return {"status": "error", "reason": "candidates must be objects", "agent": self.name}
         result = {"status": "ok", "agent": self.name, "priorities": ranked}
+        skipped = sum(1 for candidate in candidates if not isinstance(candidate, dict))
+        if skipped:
+            # Non-object candidates are not ranked; say so instead of silently dropping them.
+            result["skipped_candidates"] = skipped
         if params.get("synthesize", True):
             result["summary"] = await self._grounded_narrative(
                 "Explain the RICE ranking and uncertainty without changing any scores.", str(ranked)

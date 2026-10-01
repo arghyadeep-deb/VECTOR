@@ -22,6 +22,13 @@ from loguru import logger
 from core.config import CONFIG
 
 _COLLECTION = "growth_beta_signups"
+_FIELDS = [
+    {"name": "email", "type": "text", "required": True},
+    {"name": "consent", "type": "bool"},
+    {"name": "consent_text", "type": "text"},
+    {"name": "free_month", "type": "bool"},
+    {"name": "extra", "type": "json"},
+]
 
 
 class BetaSignup:
@@ -34,7 +41,7 @@ class BetaSignup:
     def activate(self, owner_approved: bool) -> None:
         """Open signups. Requires explicit owner approval — the same gate as
         releasing the software the signups are for."""
-        if not owner_approved:
+        if owner_approved is not True:  # strict: a truthy string/obj is not approval
             raise PermissionError(
                 "beta signup activation requires owner approval (tied to release approval)"
             )
@@ -53,16 +60,18 @@ class BetaSignup:
     def register(self, email: str, consent: bool = False, **extra) -> dict:
         if not self._active:
             return {"ok": False, "reason": "signup_not_active"}
-        if not consent:
+        if consent is not True:  # strict: "false"/1/"no" must not count as opt-in
             return {"ok": False, "reason": "consent_required"}
         if not email or "@" not in email:
             return {"ok": False, "reason": "invalid_email"}
+        # Caller extras are nested so they can never overwrite the validated
+        # email / consent / free_month fields (they used to be spread last).
         record = {
             "email": email,
             "consent": True,
             "consent_text": CONFIG["growth"].get("consent_text", ""),
             "free_month": True,  # 1-month free beta on release
-            **extra,
+            "extra": dict(extra),
         }
         if not self._privacy_check(record):
             return {"ok": False, "reason": "privacy_blocked"}
@@ -76,19 +85,34 @@ class BetaSignup:
 
     # ── backends (reuse; mocked in tests) ────────────────────────────
     def _privacy_check(self, record: dict) -> bool:
-        """Run the record through privacy enforcement before any storage."""
+        """Run the record through privacy enforcement before any storage.
+
+        Fails closed: the enforcer must actually load AND the caller-supplied
+        extra fields must carry no PII beyond the (consented) email. Previously
+        this returned True as soon as the import succeeded -- nothing was checked.
+        """
         try:
+            import re
             from districts.privacy.privacy_enforcer import PrivacyEnforcer  # reuse
+            patterns = PrivacyEnforcer().pii_patterns
+            blob = " ".join(str(v) for v in (record.get("extra") or {}).values())
+            for ptype, pattern in patterns.items():
+                if re.search(pattern, blob):
+                    logger.warning("[VECTOR][growth][beta] extra fields contain {} -- blocked", ptype)
+                    return False
             return True
         except Exception as exc:
             logger.warning("[VECTOR][growth][beta] privacy check unavailable, failing closed: {}", exc)
             return False
 
     def _store_encrypted(self, record: dict) -> str:
-        """Persist via the collections engine (SQLCipher-encrypted, local-first)."""
-        from core.collections.store import CollectionStore  # reuse SQLCipher store
-        store = CollectionStore()
-        return str(store.create(_COLLECTION, record)) if hasattr(store, "create") else "stored"
+        """Persist via the collections engine (SQLCipher-encrypted, local-first).
+        Raises on any failure -- never reports "stored" for a record that was not."""
+        from core.collections import Collection, CollectionEngine  # reuse SQLCipher store
+        engine = CollectionEngine()
+        if engine.get_collection(_COLLECTION) is None:
+            engine.create_collection(Collection(name=_COLLECTION, fields=_FIELDS))
+        return str(engine.create_record(_COLLECTION, record)["id"])
 
 
 if __name__ == "__main__":

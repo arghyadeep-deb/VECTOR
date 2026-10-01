@@ -95,6 +95,9 @@ class SeverityClassifier:
         adjusted *= recurrence
 
         final_score = min(1.0, max(0.0, adjusted))
+        # A rule that explicitly declares a severity must not be dampened below it
+        # (e.g. heart_rate_stopped during work hours scored LOW -> log only).
+        final_score = max(final_score, min(1.0, getattr(event, "severity_floor", 0.0) or 0.0))
 
         confidence = min(1.0, 0.5 + final_score * 0.5)
 

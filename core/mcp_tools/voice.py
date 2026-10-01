@@ -31,6 +31,8 @@ def add_voice_profile_tools(mcp) -> None:
         otherwise the profile's configured engine). Returns status JSON."""
         if not _mcp_secure_call("speak_as", "voice", {"profile": profile_name}):
             return _safe_json({"error": "blocked by MCP security rate limit"})
+        if not text or not text.strip():
+            return _safe_json({"error": "text is empty; nothing to speak"})
         try:
             from core.voice.tts import VoiceTTS
             tts = VoiceTTS()

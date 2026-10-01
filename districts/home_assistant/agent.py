@@ -57,16 +57,19 @@ class HomeAssistantAgent(AgentBase):
             if not ok:
                 return f"Couldn't reach Home Assistant at {self._config.base_url}."
             try:
-                await self._entity_manager.discover(self._connector)
+                found = await self._entity_manager.discover(self._connector)
             except Exception as e:
-                logger.warning("[home_assistant] entity discovery failed: {}", e)
+                logger.warning("[VECTOR][home_assistant] entity discovery failed: {}", e)
+                found = 0
+            if not found:
+                return f"Connected to Home Assistant at {self._config.base_url} but found no devices."
             self._connected = True
         return None
 
     async def run(self, task: dict) -> dict:
         self.last_active = datetime.datetime.utcnow().isoformat()
         params = task.get("params", {}) or {}
-        query = params.get("query") or task.get("content") or ""
+        query = params.get("query") or params.get("text") or task.get("content") or ""
         task_type = task.get("type", "")
 
         err = await self._ensure_ready()
@@ -75,7 +78,11 @@ class HomeAssistantAgent(AgentBase):
 
         if task_type == "ha_status":
             health = await self._connector.health()
-            return {"status": "ok", "agent": self.name, "response": f"Home Assistant status: {health}"}
+            return {
+                "status": "ok" if health.get("rest") else "error",
+                "agent": self.name,
+                "response": f"Home Assistant status: {health}",
+            }
 
         if not query:
             return {

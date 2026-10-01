@@ -76,6 +76,7 @@ Present but may need depth: {json.dumps([g['skill'] for g in partial_gaps], inde
 Current skills: {current_skills}
 Return JSON: {{gap_analysis: [{{skill, severity: critical/major/minor, impact_on_career: string, time_to_acquire: string}}], overall_gap_score: float}}"""
         analysis_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+        computed_score = len(critical_gaps) / max(len(required_skills), 1)
 
         try:
             import re
@@ -88,16 +89,25 @@ Return JSON: {{gap_analysis: [{{skill, severity: critical/major/minor, impact_on
             analysis = {"gap_analysis": critical_gaps, "overall_gap_score": len(critical_gaps) / max(len(required_skills), 1)}
 
         gap_ids = []
-        for gap in analysis.get("gap_analysis", critical_gaps):
+        for gap in (analysis.get("gap_analysis") or critical_gaps):
+            if not isinstance(gap, dict):
+                continue
             gap_id = f"gap_{gap.get('skill', 'unknown').replace(' ', '_')}"
             self.analyzed_gaps[gap_id] = gap
             gap_ids.append(gap_id)
 
+        try:
+            gap_score = float(analysis.get("overall_gap_score"))
+            if gap_score != gap_score:
+                raise ValueError("nan")
+        except (TypeError, ValueError):
+            gap_score = computed_score  # was a flat 0.5 when the LLM omitted it
+
         result = {
             "critical_gaps": len(critical_gaps),
             "partial_gaps": len(partial_gaps),
-            "gap_analysis": analysis.get("gap_analysis", critical_gaps),
-            "overall_gap_score": round(analysis.get("overall_gap_score", 0.5), 2),
+            "gap_analysis": analysis.get("gap_analysis") or critical_gaps,
+            "overall_gap_score": round(gap_score, 2),
             "gap_ids": gap_ids,
             "analyzed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
@@ -136,6 +146,7 @@ Return JSON: {{steps: [{{order: int, topic: string, description: string, duratio
             learning_path = {"steps": [{"order": 1, "topic": skill_name, "description": "Learn " + skill_name, "duration_hours": 20}], "total_hours": 20}
 
         result = {
+            "source": "llm" if path_text else "fallback",
             "skill_gap": skill_gap,
             "learning_path": learning_path.get("steps", []),
             "total_hours": learning_path.get("total_hours", 20),
@@ -174,6 +185,7 @@ Return JSON: {{prioritized: [{{skill, priority_rank: int, priority_score: float,
             prioritized = {"prioritized": [{"skill": g.get("skill", "unknown"), "priority_rank": i+1, "priority_score": 5.0} for i, g in enumerate(gaps)]}
 
         result = {
+            "source": "llm" if priority_text else "fallback",
             "total_gaps": len(gaps),
             "prioritized_gaps": prioritized.get("prioritized", []),
             "highest_priority": prioritized.get("prioritized", [{}])[0].get("skill", "unknown") if prioritized.get("prioritized") else None,
@@ -194,20 +206,28 @@ Return JSON: {{prioritized: [{{skill, priority_rank: int, priority_score: float,
     async def run(self, task: dict) -> dict:
         task = task or {}
         task_type = task.get("type", "")
-        params = task.get("params", {})
+        params = task.get("params") or {}
+
+        def _as_list(v) -> list:
+            # list("python") would split into characters
+            return [v] if isinstance(v, (str, dict)) else list(v or [])
 
         try:
             if task_type == "analyze_gaps":
+                required = _as_list(params.get("required_skills"))
+                if not required:
+                    # No requirements != "no gaps"
+                    return {"status": "error", "error": "required_skills is empty", "task_type": task_type}
                 result = self.analyze_gaps(
-                    required_skills=list(params.get("required_skills", [])),
-                    current_skills=list(params.get("current_skills", [])),
+                    required_skills=required,
+                    current_skills=_as_list(params.get("current_skills")),
                 )
                 return {"status": "ok", **result}
             if task_type == "prioritize_gaps":
-                result = self.prioritize_gaps(list(params.get("gaps", [])))
+                result = self.prioritize_gaps(_as_list(params.get("gaps")))
                 return {"status": "ok", **result}
             if task_type == "suggest_learning_path":
-                result = self.suggest_learning_path(dict(params.get("skill_gap", {})))
+                result = self.suggest_learning_path(dict(params.get("skill_gap") or {}))
                 return {"status": "ok", **result}
         except Exception as exc:
             logger.error("[VECTOR][skills] GapAnalyst task failed: {}", exc)

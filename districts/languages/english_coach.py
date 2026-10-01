@@ -113,6 +113,9 @@ class EnglishCoach(AgentBase):
 
         prompt = f"Check this English text for grammar errors, tense consistency, article usage, and preposition errors. Provide corrections with explanations.\n\nText: {text}"
         result = self._call_ollama(prompt, model=CONFIG["models"]["multilingual"])
+        if not (result or "").strip():
+            logger.error("[VECTOR][languages] English grammar check got an empty LLM response")
+            return {"status": "error", "error": "llm returned no response", "original_text": text, "language": self.language}
 
         check_result = {
             "original_text": text,
@@ -137,6 +140,9 @@ class EnglishCoach(AgentBase):
 
         prompt = f"Generate 5 example sentences in English using the word '{word}'. Include varied contexts (formal, informal, academic) and English translations if needed. Vary difficulty."
         sentences_text = self._call_ollama(prompt, model=CONFIG["models"]["multilingual"])
+        if not (sentences_text or "").strip():
+            logger.error("[VECTOR][languages] English sentence generation got an empty LLM response for: {}", word)
+            return {"status": "error", "error": "llm returned no response", "word": word, "language": self.language}
 
         result = {
             "word": word,

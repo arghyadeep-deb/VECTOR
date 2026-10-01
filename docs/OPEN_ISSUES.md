@@ -1034,6 +1034,384 @@ grew open engineering items; section 0 lists them.
     at every call site, returning `status: error` and deducting HP instead of falsely declaring "all clear."
     New test `tests/test_ops_governance_audit_phase3.py` (7 tests). Independently re-verified plus
     `tests/test_llm_council.py` + `tests/integration/test_cross_district.py` (20 more) — zero regressions.
+    **Ops/governance audit (commit `c85bf65c9`) — 3 fail-open bugs fixed.** `ops/sre_monitor.py` set
+    `error_rate=0.0` on a DB failure (reading as perfectly healthy); it now sets `1.0`.
+    `ops/incident_commander.py` `detect_incidents()` returned `[]` on a DB failure (reading as "no
+    incidents"); it now returns `None`, and both `run()` call sites are None-guarded.
+    `governance/llm_council.py` `run()` defaulted `requester_hp=700`, which bypassed the strict `<700`
+    gate; it now defaults to `0`. 7 new tests are in `tests/test_ops_governance_audit_phase3.py`.
+    `districts/intelligence/` was verified clean.
+    **Communications + agency + design + karpathy_lab + interview_prep audit (commits `00f76051`,
+    `c93c8468`, `d0790ccb`, `6cad9348`) — 34 fixes, 5 new test files (`tests/test_audit_phase3_*.py`),
+    each new test confirmed failing on the old code and passing on the new.** Reviewed by five
+    parallel subagents; every diff re-read and re-tested by Claude before commit. Dominant class again:
+    a failure reported as success. `communications` (4): `reply_forward` reported `sent` and left the
+    row in Sent when SMTP failed; `email_agent` awarded HP and masked the error status on a failed
+    reply/forward and on an unsaved auto-draft; `email_intelligence` read any Gmail failure as "no mail".
+    `design` (3): CWE-22 via caller-supplied `corpora` in the knowledge loader; a failed LLM audit
+    returned a clean-looking score of 75; `UIDesigner.run` ignored `task["params"]`. `interview_prep`
+    (6): two CWE-22 writes (company-research note, `export_report`), unescaped HTML export,
+    `RecruitmentBot` fabricating `fit_score=7 / should_apply=True` on LLM failure and writing failure
+    text into the Obsidian placement brief, `MockInterviewer` never recording Q1 / reporting a failed
+    start as ok, failed research reported ok. `agency` (11): a malformed or tz-aware `last_updated`
+    left the pipeline reading `healthy`; `params` dropped in sales/proposal `run`; a failed LLM answer
+    fell through to a fabricated "AI Automation Project" proposal; CWE-22 in content-plan/trend vault
+    writes; non-atomic client/metrics saves that a corrupt load then overwrote (now atomic with a
+    `.corrupt` backup); a bad payment amount half-mutating state; non-numeric `lifetime_value` poisoning
+    summaries. `karpathy_lab` (14): non-zero training exit parsed as a good score; a failed baseline
+    reported `ok` with `best_val_bpb=inf`; `git checkout -b` failure ignored; 404 body saved as a
+    dataset; unvalidated `dataset_name` used as path/URL (CWE-22 + SSRF-guarded); empty preprocess
+    reported success; `tokenize_data` crashed on any vocab >256 (all Indic/Japanese text);
+    `generate_report` mixed every run's steps and let `run_name` steer the write path.
+    **Flagged, not fixed (design calls):** `core/email/receiver.py` returns `[]` on IMAP errors
+    (poll reads as ok/0 fetched) and `sender.send_email` returns `duplicate_suppressed` that
+    `reply_forward` ignores; `DataPrep.preprocess_data/tokenize_data` take arbitrary `input/output`
+    paths from task params (confinement would break the module's own callers);
+    `AutoresearchRunner` runs LLM-written Python unsandboxed and commits in the live repo (RED-gated,
+    documented 58D tradeoff); `feedback_analyst` persists a canned score-6 analysis when
+    `VECTOR_FEEDBACK_LLM` is off, and `generate_session_report/progress_report` invent data
+    ("use placeholder data"); `report_generator`/`feedback_analyst` data dir resolves above the repo
+    root; `feedback_analyst._load_data` overwrites a corrupt JSON; `performance_tracker`
+    `alert_anomaly(direction="both")` only ever alerts "above"; several `{"error":...}` returns lack a
+    `status` key but existing tests pin that contract; `ux_researcher`/`image_prompt_engineer` fallbacks
+    are unlabelled templates; `ProgressTracker` uses `threading.RLock` (banned) and `start_run` reuses
+    old step_logs; agency client data is plaintext JSON outside the encrypted DB; sync `chat()` blocks
+    the event loop in sales/proposal.
+    **Languages + startups + projects + predictive_analytics + memory_curator + home_assistant audit
+    (commits `4defa3d5`, `803dc633`, `43751974`, `61553331`, `114b4187`, `79b6ef1b`) — 6 new test files
+    (`tests/test_audit_phase3_*.py`); each new test re-run by Claude against the pre-fix code in a
+    throwaway worktree and confirmed failing there, passing now.** `memory_curator` (priority): **PASS** on
+    both gates — zero raw `sqlite3`/`sqlcipher` opens (all access via `get_temp_cursor()` /
+    `EpisodicMemory`), and none of the 5 sacred tables is renamed/dropped/altered/vacuumed (only
+    `prune_old_episodes()` in core, decay-gated, plus a capped DELETE on the non-sacred
+    `context_budget_handles` cache). Real bug fixed there: `ConsolidationBot` pruned the raw episodes
+    after `remember()` had *failed* to persist the summary (it returns `False`, never raises) and reported
+    success — a data-loss path; now keeps the episodes and reports an error (+3 more writes that said
+    "Got it/Noted/ok" when nothing was stored). `home_assistant`: `HASS_URL=https://…` never enabled TLS
+    (bearer token sent in cleartext to port 8123); `entity_id`/service injected into URL paths unvalidated;
+    `connect()` hung forever in the WS-reconnect loop when HA was down and returned True anyway; a failed
+    service call, an unresolved device ("kitchen lamp") and the `dim` no-op all reported "Turned on / Executed";
+    "unlock"/"disarm" parsed as lock/arm; door/garage/gate covers now require confirmation; scene restore
+    sent `turn_off` to covers/climate; `threading.Lock` removed. `startups`: a failed/unparseable LLM
+    reply used to score every dimension 5 and **admit the idea past the Equation revenue-velocity gate**
+    (fail-open); missing score now fails closed (counted 0), plus scanner/spy/modeler canned fallbacks
+    (LTV:CAC 5.0 → "GOOD", "12 months MEDIUM risk") now return errors. `projects`: an unreadable store
+    read as "no deadlines"; unparseable dates stored and never alerting; canned doc written to the vault
+    as real; CWE-22 note titles (`ObsidianSync.write_note` doesn't confine); `POST /projects/create`
+    sent `description` but `run` read only `goal`; experiment tracker fabricated an `adopt_variant` win
+    from an empty arm. `predictive_analytics`: forecasts built on **random synthetic history** drove
+    recommendations and Pushover alerts (now tagged `+synthetic_history` and ignored); NaN readings
+    made the anomaly detector report clean; CWE-22 in `load_scenario`; Prophet path always raised
+    (`Series.dt.isoformat`). `languages`: all 5 coaches returned `ok` + stored a memory row when the LLM
+    returned nothing. Test edit to note: `tests/test_phase2_districts.py` two doc_writer tests asserted
+    `write_doc()==True` with the LLM mocked *offline* (encoding the canned-doc-as-success bug); now mock
+    a real reply.
+    **Flagged, not fixed (design / tier-policy):** home_assistant `SceneManager`/`AutomationEngine`
+    `call_service` are **ungated** (lock/alarm-arm/all-switches rules; latent — `evaluate_triggers` has no
+    production caller) — recommend not wiring it until a tier decision; `home_control`/`smart_home` are
+    YELLOW so with `VECTOR_YELLOW_AUTO_CONFIRM=1` any proposer can run lights/climate/covers unattended
+    (consider RED); the "Are you sure…" high-risk confirmation has no pending-state, so lock/alarm via
+    voice can never complete (fail-closed); the gateway `home_control` branch ignores `connect()`'s
+    return, ignores `HASS_URL`, and classifies replies by string prefix; entity matcher silently picks
+    the top of ties. `memory_curator`: with `VECTOR_MEMORY_CURATOR_LLM` unset every consolidation stores a
+    conf-0.3 placeholder then still prunes at 90d, and only 50 of up to 200 old rows reach the summary.
+    `idea_validator` reads the regime via `get_regime()`, which returns NORMAL on any read failure
+    (documented "never freeze"; fails open at the regime gate). `predictive_analytics`: `evaluate_risk`
+    returns 0.0 on an empty/failed simulation (existing tests pin it); `autonomous_loop.predict_cycle`
+    compares a forecast with itself (anomaly step is a no-op) and never closes its stores; Pushover
+    POSTs in `anomaly_predictor`/`strategy_recommender` bypass the gateway; no cap on `iterations`.
+    `projects`: `create_project` never registers a `project_deadline` so created projects never alert,
+    `DeadlineWatcher` silently drops overdue items, pipe-delimited storage corrupts on `|`.
+    `languages`: Hindi/English/Bengali/Assamese return canned "Offline language guidance" as `ok` unless
+    `VECTOR_LANGUAGE_LLM=1` (existing tests pin `ok`). Cross-cutting: `core/memory/obsidian_sync.write_note`
+    does not confine `title` to the vault — other districts passing caller-controlled titles are likely
+    exposed (needs a core fix).
+    **Time_calendar + growth + emergency + learning + news_trends + data_analytics audit (commits
+    `a2958ee9`, `a38eb25a`, `e1dbdcd8`, `c479b6f3`, `1ead4118`, `51daa617`) — 6 new test files; each new
+    test re-run by Claude against pre-fix code (a throwaway worktree at the true baseline) and confirmed
+    failing there (time_calendar 11/13, growth 14/15, learning 19/27, emergency 10/12, news_trends 23/23,
+    data_analytics 22/22; the rest are controls/regression guards).** **`emergency` (priority) — inventory
+    of real actions, none gated:** the district never imports `permission_gateway`, and its entry points
+    (`escalate_emergency`, `classify_emergency`, `detect_anomaly`, `emergency_alert`, `emergency`,
+    `runbook`) are all **GREEN** in `CONFIG["permission"]`, so they auto-execute via `Governor.dispatch`.
+    Real actions: priority-0/1/2 Pushover to the owner (siren, 30s retry), local beeps, and runbook
+    system mutations — `*.tmp`/`*.log` deletion in the **process CWD** (`cleanup_temp`), `nvidia-smi -pl 150`,
+    `ollama serve`, `ipconfig /renew`, `netsh advfirewall … state on`. **No urgency/severity/override/force
+    flag short-circuits any gate or confirmation (checked: task `params` only carries `domain`/`query`),
+    and there is no approval wait that defaults to approve** — so "emergency" does not bypass the gateway;
+    it simply was never routed through it. Fixed (7): a stopped heart rate (declared severity 1.0) was
+    dampened to LOW during work hours → log-only → owner never notified (`severity_floor`); the
+    `heart_rate_stopped` / `battery_critical` runbooks returned `notification_sent` / `alert_sent` without
+    sending anything; `_step_runbook` and `main._outcome` reported `escalated` when every step failed or
+    was skipped; uncapped priority-2 Pushover on varied-source events (now 20 per 600s, constant in
+    `escalation.py`) and `CONFIG["emergency"]["pushover_enabled"]` ignored; rule-check failures hidden at
+    debug; `_emit()` dropped signals silently. **Flagged (tier policy, owner decision):** should
+    `escalate_emergency` be YELLOW/RED when not owner-initiated; the runbook mutations (esp. CWD file
+    deletion, which can hit repo-root logs) are ungated and gating them as-is would block them all (unknown
+    types are blocked) — needs new tier entries; `CONFIG["emergency"]` `quiet_hours_*` / monthly Pushover
+    cap are unused; `heart_rate_critical/high` still score below CRITICAL in work hours (classifier floors
+    only explicit severities); `process_heart_rate` calls `asyncio.run()` inside a running loop;
+    `districts/health/emergency_detector.py` builds a separate detector nobody consumes.
+    Other districts — `growth` (12): with `auto_publish` off (the default) the IG reel was published via the
+    configured phone/Graph-API publisher with **no approval** despite a comment saying "notify owner";
+    simulated/blocked uploads counted as success; `graph_api` mode always raised TypeError (missing
+    `hashtags`); beta-signup `_privacy_check` returned True on import success and `_store_encrypted` never
+    stored (wrong API); caller `**extra` could overwrite `consent`; software_arm marked `validated: True`
+    on import success and "escalated" without notifying. `learning` (12): SSRF/option-injected download URLs
+    (now guarded + `--`), 404 body saved as a video, canned/simulated transcripts, summaries and concepts
+    stored as real, empty `source_dir` organized the CWD. `news_trends` (22 edits): simulated headlines
+    returned as news, NewsAPI key in the URL query (now `X-Api-Key`), `venture_pipeline` ranked and drafted
+    marketing for `UNVERIFIED` ideas (consumer of the startups fail-closed change) and wrote a stray
+    `02 Projects/` into the CWD, empty Reddit/HN mining wrote an empty snapshot as ok, prompt-echo read as
+    `SOFTWARE_SOLVABLE: yes`. `time_calendar` (6): rejected KIIT login and unreadable calendar read as "no
+    notices"/"all hours free", tz-aware events never matched `is_class_soon`, sub-hour events left slots
+    free, `BookingRequest.created_at` evaluated once at import. `data_analytics` (16 changes/12 groups):
+    caller table names interpolated into PRAGMA/SELECT (`sqlite_master` readable; now allow-listed), failed
+    DB pull published as a quiet-week report, failed benchmarks `ok` and overwrote the baseline with -1,
+    bronze dedup no-op on tables without `content`, fabricated "Sample data" analysis. **Flagged, not
+    fixed:** `DataAnalytics.analyze_dataset(path)` reads any local path and sends 1000 chars to the LLM (no
+    caller found; needs an allowed-roots setting in core); `run_bronze_to_silver` never writes Silver;
+    `benchmark_memory_ops` writes probe rows into the real episodic DB; `DeadlineManager.create_event`
+    inserts real Google Calendar events ungated (no caller); gateway `check_attendance` calls a
+    nonexistent `KIITScraper.get_cached_schedule()`; `TimeBlocker` starves "low" urgency tasks;
+    `venture_pipeline` ranks by demand not verdict (a validated REJECT can still be "top"); sync httpx +
+    `time.sleep` in async `SocialMiner.run`; `note_organizer` writes next to any caller-named dir; offline
+    `VECTOR_LEARNING_LLM` gate returns canned concepts as degraded; `course_tracker` progress always 0%
+    and imports `threading`; `data_engineer._open_db` opens its own keyed connection to the main DB
+    (documented 2026-08-05 deliberate choice — shared `get_db_connection()` singleton can't be closed by
+    callers; same precedent as `emergency/log.py`). Behavior choices worth a second look:
+    `time_calendar.run()` now returns `error` (not `ok`) when Google Calendar isn't configured, and
+    `AINewsBot.run()` with no URL now fetches news (previously summarized `""`).
+    **Self_dev + legal_compliance + privacy + personal_growth + calls + chief_of_staff + skills + science
+    + relationships + pattern_detective + reflection audit (commits `5c10506e`, `1ad7b8e0`, `a27246ab`,
+    `5adcc112`, `4f0f5d95`, `80f52bb9`, `f79ddbe2`, `61197622`, `9e14fae7`) — ~118 fixes, 11 new
+    `tests/test_audit_phase3_*.py` files; each re-run by Claude against the pre-audit commit `66c9c9bc`.**
+    **`privacy` (priority) — it DID leak what it protects:** `redact_pii` returned and stored (via
+    `context=result` into episodic memory) the raw emails/phones/Aadhaar it had just matched
+    (`examples: matches[:3]`); `find_leaks` copied scanned event content (`content_preview`, which can be a
+    password/token) into its returned result, `self.leak_candidates` and a new episodic row; both LLM calls
+    omitted `district`/`sensitive`/`allow_cloud`, and `route_policy` only forces local for the
+    `security`/`privacy` district, `sensitive=True`, RED or a narrow secret-word list (emails, phones, PAN,
+    "token" are NOT on it) — so PII-adjacent prompts could reach pooled cloud keys. All three fixed
+    (`district="privacy", sensitive=True, allow_cloud=False`; fields removed). Also: empty/failed reads
+    reported `LOW` risk (now `status: no_data`), MEDIUM rolled up to LOW, empty audit report stored as ok,
+    the uppercase-only PAN regex ran on lowercased text (never matched). **Routing-enforcement verdict:
+    the district has NO cloud-vs-local enforcement logic at all** — it keyword-counts episodic text and
+    runs PII regexes; it never inspects providers or endpoints, so its "cloud vs local enforcement" role
+    is unimplemented (needs a design decision). **Core issues found, not fixed (core/ off limits):**
+    `vectorcode_llm.chat` leaves `local_only=False` if `route_policy` raises (fails OPEN for sensitive
+    prompts, debug-logged; ~L676 and ~L850); `route_policy._is_local` uses substring checks
+    (`"localhost" in base_url`, so `localhost.evil.com` / `http://127.0.0.1@evil.com` pass, and a remote
+    vLLM URL counts as local); the secret-marker list is narrow so privacy depends on callers passing the
+    flags; `EpisodicMemory.recall()` swallows read errors and returns `[]` (indistinguishable from empty
+    memory — 4 districts had to report `no_data` for both). **`calls` (priority) — plaintext call
+    content:** caller numbers and contact names at INFO and in HP-ledger award reasons (now masked to the
+    last 4 digits / constant reasons); the audio filename (often embeds the caller number) logged; first 50
+    chars of the LLM reply logged; **all four LLM paths (spam check, transcript summary, action items,
+    voice response) went through `ProviderClient` with no `district`/`sensitive` flag, so call content
+    could reach pooled cloud keys** (now `sensitive=True, district="calls"`); exception strings that echo
+    the prompt (transcript) logged; raw temp wav left on disk on failure. Also: `"SPAM" in "NOT_SPAM"`
+    added +0.3 spam to every non-spam verdict; `add_contact("")` / hidden-ID VIP whitelisted every
+    hidden-ID caller (fail-open); blank transcription and the canned "I heard you: {text}" fallback
+    reported as success (and the fallback was sent to TTS); TTS `output_path` unconfined (CWE-22). **No real
+    call action exists in the district** (no answer/reject/SMS/ADB/Twilio; TTS only writes a file); whatever
+    consumes `screen_call`'s block/allow decision to act on a call must be gated and there is no call
+    action type in the permission tiers yet (tier-policy decision). **Other districts:** `reflection` —
+    `growth_analyst` queried a nonexistent `semantic_memory.timestamp` column (real column `updated_at`)
+    so the weekly trend NEVER had real data; a canned "LLM reflection unavailable" body was written to
+    the vault as the owner's journal with +50 HP and a 0.85 reasoning chain; a failed DB read was treated
+    as a quiet day (LLM then invented wins/policy rules/score); `growth_score` stored the heading
+    `## GROWTH_SCORE` instead of the number; the cutoff was naive local vs aware-UTC stored timestamps
+    (lost ~5.5h of events in IST); `W%V-%Y` made 2025-12-29 overwrite the real W01-2025 note.
+    `chief_of_staff` — `episodic.store()` saves tags as JSON but the noise filter split on commas, so
+    **tag-based SIGNAL rules (security/threat/malware/deadline) never matched real events and they were
+    dropped as noise**; a ROUTINE substring match (`security_scan`, `deadline_sync`) beat a CRITICAL
+    marker; a failed event pull produced "No significant signals today"; a failed council escalation was
+    reported routed with +10 HP; `run_forever` slept 60 minutes per "minute" tick so the 5-minute 08:00/22:00
+    brief windows were mostly skipped. `legal_compliance` — malformed trigger flags (`"yes"`) skipped the
+    identity/consent/conflict/deadline safeguards (false PASS), string/blank rule lists passed vacuously,
+    prohibited phrases split by a newline or curly apostrophe were missed, unverified checks returned `ok`.
+    `self_dev` — read-only district (no write/subprocess/git primitives; confirmed by search); four
+    verification checks failed open: a failed audit returned `status: ok`, generated agents calling
+    `subprocess`/`eval`/`exec` passed, a plugin entrypoint `../../core/loop/permission_gateway.py` passed
+    confinement, empty skill-comparison expectations passed. `personal_growth` — ZKSteward backlinks
+    wrote to any path (now `.md` inside the vault), a re-run replaced prior links with only the new ones,
+    LLM-suggested link names (hallucinated or `../../x`) were written into notes; canned synthesis written
+    as a real report; own report re-ingested as input. `skills`/`science` — `mastery_tracker.track_mastery`
+    raised TypeError on EVERY call; a NaN score became "Master"; canned skill maps/gaps cached as real;
+    invalid SMILES, NaN/negative physics and CAD input reported `ok`. `relationships`/`pattern_detective`
+    — contact names/phones/messages and the owner's activity log went to cloud-eligible LLM calls and
+    names to INFO logs and persisted ghost-memory lessons (re-injected into prompts); re-adding a contact
+    (`INSERT OR REPLACE`) wiped interaction history; unknown-contact `track_interaction` stored an orphan
+    row and said ok; the analyst analysed its own derived events as the owner's behavior;
+    `BehaviorAnalyst.run` was a silent no-op. **Flagged, not fixed (design / tier-policy):** `contacts.db`
+    (names, phones, emails, notes) and `call_contacts.json` are plaintext outside the SQLCipher DB;
+    `CommunicationAnalyst` never reads real message text (joins two stores); `_normalize_caller_id` turns
+    any 10-digit number into `+1…` so an Indian number can evade the blocklist by format; `calls` never
+    calls `session_hydration_prompt()` (RULE 1) or `policy.get_score/update_from_outcome` (RULE 4);
+    `core/loop/cron_jobs.py` `job_daily_review`/`job_weekly_growth_report` call `agent.run({})` which does
+    nothing under the 2026-08-06 gating and returns ok (needs `{"type":"review"}` etc.; not checked
+    whether scheduled); reflection/chief_of_staff `run_forever` sleep-granularity bug in reflection's
+    instance loops (dead code — the live path is `AutonomousLoop._reflect_tick`); reflection policy
+    learning never aggregates (date in the situation hash, constant 0.65 reward); nudge engine
+    "`nudge_sent`" only means generated+logged (no delivery path exists — gate when one is added);
+    ZKSteward/FeedbackSynthesizer write the owner's vault ungated (confined now; YELLOW tier is a policy
+    call); `behavior_analyst`/`habit_finder` bucket time-of-day in UTC though `vector_timezone` is
+    Asia/Kolkata; `GapAnalyst` returns canned scores/ranks unless `VECTOR_SKILLS_LLM=1` (deliberate gate;
+    marked `source: fallback`); `SkillGrader.passing_score` is caller-set (0 passes everything);
+    chief_of_staff `_rice` treats missing fields as 0; `science` engines in core use a small-angle
+    pendulum and heuristic SMILES validity when rdkit is absent; `legal` keyword emergency detection
+    ("can't breathe" unmatched) and exact-match `prescription_drug`.
+    **`core/trading/` audit (89 files; commits `cd1c3030`, `b01750f4`, `4a15657c`, `8a16600a`) — ~32 fixes,
+    4 new test files (`tests/test_audit_phase3_trading_{agents,dataflows,graph,cli}.py`); each re-run by
+    Claude against the pre-fix tree and confirmed failing there for the stated reason.** **Live-execution
+    verdict (explicit): `core/trading/` introduces NO additional live-execution path.** Checked two ways —
+    my own search of the final tree (order/broker/exchange/wallet/signing/subprocess/`.post(`: zero hits) and
+    all four subagents' independent inventories. The only exchange mention is
+    `crypto_trading.py::SUPPORTED_EXCHANGES = [binance, coinbase, kraken, hyperliquid]`, an inert class
+    constant echoed into a dict — the class has only `get_quote()` (a read-only yfinance lookup) and a
+    placeholder `analyze()` with `paper_mode: True`; no exchange client, no credentials, no signing. Tools
+    exposed to LLM agents are read-only data getters; the only writes are the decision log, the per-ticker
+    state JSON and the package's own LangGraph checkpoint DB. The two documented intentional exceptions
+    (`execution_engine.py` Zerodha, `hedgebot_agent.py` Jupiter/Solana, RED-gated) are unchanged and outside
+    this package. **One mislabel to flag (outside `core/trading/`, not changed):**
+    `districts/investment/trading_conductor_agent.py` is documented "ANALYSIS ONLY" but declares routing
+    capabilities `execute_trade`, `place_order`, `paper_trade`; a Governor task for those types lands on an
+    agent that only returns a rating — not execution, but a misleading capability tag; also
+    `getattr(final_state["final_trade_decision"], "rating", None)` is always `None` there (the decision is a
+    string), so its result `rating` is always `"Hold"` while `decision` carries the real parsed rating.
+    **Order / sizing math — real bugs fixed:** `TraderProposal`/`PortfolioDecision` accepted NaN, inf, 0 and
+    negative `entry_price`/`stop_loss`/`price_target`, and a **Buy with `stop_loss` ≥ `entry_price`** (stop
+    above entry on a long: instantly triggered or protecting nothing); now rejected by validators (a
+    validation error already falls back to free text via `invoke_structured_or_freetext`, verified). **Not
+    fixed (design):** position sizing is free text ("5% of portfolio") — there is no numeric size field, so no
+    [0,1]/portfolio-limit bound exists and nothing under `agents/` computes risk/reward; the Sell-side stop
+    is unchecked (short vs exiting a long is ambiguous); reflection's raw/alpha returns are the stock's
+    return, not direction-adjusted (a profitable Sell shows negative; only the LLM prompt interprets it) and
+    stock/benchmark closes are paired by position (`iloc[n]`), not date. **Finance fail-open fixed:**
+    `SignalProcessor` turned `"Not Buy"` / `"Do not Buy this stock."` into **Buy** (now Hold + warning;
+    explicit `Rating: X` label still wins; `None` text no longer raises); a NaN close was reflected on and
+    stored as a `+nan%` outcome; a reflection LLM error aborted the whole analysis and a blank reflection
+    permanently resolved a memory entry. **Checkpoint "resume" was not a resume:** `_run_graph` always
+    invoked with the fresh initial state, so after a crash the run re-executed every completed node and
+    appended a second human message (reproduced independently on a toy LangGraph: calls
+    `['a','b','a','b']`, 2 human messages; with `invoke(None)`: `['a','b','b']`, 1). **Data / look-ahead:**
+    Alpha Vantage returns errors as HTTP 200 JSON — `Note`, `Error Message`, premium `Information` and `{}`
+    were returned as price data (now raise, so `route_to_vendor` falls back to yfinance); a CSV parse
+    failure returned the **unfiltered** CSV (rows after `end_date` = look-ahead leak); the fundamentals
+    date filter was dead code (guarded by `isinstance(result, dict)` on a JSON string) so balance
+    sheet/cashflow/income never dropped future reports; yfinance `end=` is exclusive so the trade-date bar
+    was dropped (now consistent with the other vendors' `<= curr_date`); an empty `yf.download` poisoned
+    the cache for the day and cache writes were non-atomic (truncated CSV served as fresh history). **Failed
+    fetch read as "nothing":** Reddit/StockTwits errors (429, HTTP-200 error envelope) became "no posts
+    found" / "no messages" i.e. zero sentiment; `crypto_trading.get_quote` returned `price: 0.0` on any
+    failure and on a missing `last_price` (no `error` key), and accepted NaN/≤0. **Secrets:** `requests`
+    embeds the full URL including `apikey=` in its exception text, which reached `logger.error` and the
+    string returned to the LLM; now re-raised without the URL. **Injection / CWE-22:** the decision log is
+    fed back into later prompts as "lessons" and a prompt-injected `<!-- ENTRY_END -->` in the decision text
+    could forge a resolved entry (escaped; unsafe ticker/date raise); the CLI's ticker validator allowed
+    `..` (every char individually allowed), so reports were written outside `results_dir`; ticker/date were
+    validated only after the whole LLM run; StockTwits ticker interpolated raw into the URL path. **CLI:**
+    `core/trading/cli` could not be imported at all (`from cli.models import …`; there is no top-level `cli`
+    package) and 3 of the package's own test files (`test_api_key_env`, `test_ollama_base_url`,
+    `test_ticker_symbol_handling`) failed to collect — import-path-only fix; a run with no final decision
+    was shown as a finished report and offered "Save report?" (now exit 1 with "Analysis FAILED";
+    incomplete sections get an INCOMPLETE banner); hostile `ast.literal_eval` text (`{[]: 1}`) crashed the
+    run; analysis date not normalised. **Flagged, not fixed:** `agents/utils/rating.py::parse_rating`
+    (feeds the memory-log tag) still has the negation weakness ("Not a sell" → Sell; first match wins) so the
+    memory tag can say Buy while `SignalProcessor` says Hold; `--checkpoint` is a no-op in the CLI (it calls
+    `graph.graph.stream` directly, bypassing `propagate`'s checkpointer, memory-log context and
+    `store_decision`); trading LLM clients bypass `core/inference/route_policy`, `budget_gate` and
+    `session_hydration_prompt()` (Key Rules 1 & 5) — safe only because the default is local Ollama; if
+    `TRADING_LLM_PROVIDER` is switched to a cloud provider, tickers/positions go to the cloud ungated;
+    `openai_client` pairs an explicit `base_url` with a provider-keyed API key (a wrong `backend_url` sends
+    e.g. the DeepSeek key to that host); fundamentals look-ahead filters use fiscal period END not filing
+    date, and OVERVIEW/`.info`/insider snapshots ignore `curr_date` (not point-in-time; unsafe for
+    backtests); Reddit/StockTwits are live-only; `_clean_dataframe` `bfill()` can fill leading NaNs with
+    future values; `announcements.py` phones home to `api.tauric.ai` on every start with `requests` and
+    renders remote text as rich markup (blocks on `getpass` if `require_attention`); `ensure_api_key`
+    writes a pasted key to the nearest `.env` (the repo's, if run inside it); `alpha_vantage_common` still
+    uses `requests` (rule: httpx); `StatsCallbackHandler` counts calls at start only (no error callbacks);
+    `save_report_to_disk` overwrites and is non-atomic; vacuous package tests
+    (`test_safe_ticker_component::test_traversal_string_does_not_escape_join` joins only "AAPL",
+    `test_env_overrides::test_unknown_env_var_is_ignored`); no tests for the three `VECTOR_TRADING_*_DIR`
+    env overrides; `vector-local` provider in `model_catalog` has no factory route.
+    **`core/mcp_tools/` (33 files) + `core/scraper/` (49 files) audit (commits `5d66a13e`, `0b46bd48`,
+    `fd63bfb9`, `2364a9f6`, `fcdb49c3`, `d41e9a1f`, `46e4b2fd`) — 7 new `tests/test_audit_phase3_*.py` files
+    (~330 test cases), each re-run against the pre-fix tree.** **MCP trust boundary (verified in
+    `core/mcp_server.py`): NO PermissionGateway or tier policy applies to ANY MCP tool call** — `_make_server`
+    just calls `add_*_tools(mcp)`, `call_tool` invokes `tool.fn(**arguments)` directly, and `main()` itself logs
+    "Starting MCP server with UNGATED tools" (Task 60 classified it "Class A / user-only", owner-only gap). The
+    only control is `mcp_secure_call` (rate limit + audit) which **fails open** (any exception → allow, debug
+    log) and is wired into only some tools (builtins/browser/voice/collections/knowledge) and none of the
+    expansion modules. So every tool is a direct sink for a prompt-injected caller and only per-tool validation
+    protects it; several docstrings claim a "RED gate" (`git_merge/rebase/push`, `file_delete`, `doc_delete`)
+    that nothing enforces. **No `eval`/`exec`/`shell=True`/`pickle`/`yaml.load` exists in either package**; the
+    real sinks were subprocess argument injection, path confinement, secret disclosure and tools that never
+    worked. **mcp_tools — fixed:** `git_*` ref/remote argument injection (`--orphan`, `--upload-pack=`,
+    `--exec=`, `ext::sh -c …` remote; now allowlisted + `--`), `git add` of `.env`/secrets and a failed `add`
+    followed by a "successful" commit; `files`/`security_path_check`/`doc_delete`/`review_code` used
+    `str.startswith` (sibling-prefix bypass `repo-evil`); `doc_move/copy/publish/…` had no containment at all
+    (`doc_copy x.md → core/evil.py` planted code); `config_get`/`config_env` echoed the SQLCipher key and
+    `github_token`, and `config_set/apply/import` could rewrite `permission`/`allow_shell_exec` (now redacted /
+    deny-listed); `hook_fire` ran `<hooks_dir>/<name>.ts` with an unvalidated name (`../../x`); `perf_profile` /
+    `perf_hotspots` ran `python <caller file_path>` (`-c "import os;…"` = RCE); pytest tools took caller paths as
+    argv (`-p plugin`, `--rootdir`, foreign `conftest.py`); `test_mock` imported caller-named modules;
+    `write_note` title `../../x` escaped the vault; `read_paper`/`mine_reddit`/`browser_navigate/download` took
+    caller URLs with no SSRF check; `graph_diff` ran `git checkout <caller ref>` on the live working tree
+    (now read-only `rev-parse` + `show`); `marketing_cli` returned stderr as normal output on non-zero exit;
+    **~25 tools never worked** (called methods that don't exist, `await`ed sync code, or never awaited async
+    code — 13 browser tools returned `'<coroutine …>'`, `browser_form` reported `{"ok":true,"filled":[…]}`
+    having typed nothing, 7 claims tools `json.dumps(<coroutine>)`, `file_grep` sliced a dict, `memory_recent`/
+    `memory_categories` returned empty forever, `security_cve_scan` ran a nonexistent `pip audit` and read "no
+    vulnerabilities"). **mcp_tools — NOT fixed (tier policy, owner decision):** which tools are YELLOW/RED —
+    suggested RED: `git_push/rebase/pr_create`, `perf_profile`, `test_*`, `doc_delete`, `memory_clear`,
+    `browser_eval`, `email_delete`, `db_quarantine/reenable`, `marketing_cli`, `openmythos_train`; YELLOW:
+    `git_commit/checkout`, `doc_*` writes, `speak_as`, `write_note`. Other flags: `browser_upload` reads any
+    local file and posts it to whatever page is open (exfil primitive); `browser_cookie`/`browser_storage`
+    return live session secrets; `memory_clear` is a `DELETE FROM episodic_memory` (sacred table) behind a
+    caller-supplied "confirm" string; `knowledge_*` accept any absolute dir and write JSON into it;
+    `security_executor_check` is a substring denylist that says `safe: true` for `rm -fr /`; `swarm_*` call
+    `get_swarm()` without the required `district` (always TypeError); `core/mcp_server.py` has printf-style loguru.
+    **Behavior changes to know about:** `file_copy`/`file_delete` now require the same coding grant `file_write`
+    already did; `perf_export/import` and `graph_export/import/merge/compare` are confined to the approved
+    `memory_exports` dir (graph_export's default no longer writes into the repo root); `doc_*` accept only doc
+    file types inside the repo; git refs like `HEAD~2`/`HEAD^` are rejected by the ref allowlist; the browser
+    tools are now `async def`. **scraper — SSRF verdict (your question):** `scraper/` DID reference
+    `core/security/ssrf_guard.py` in exactly one place (`vector_scraper.py`) and it used `is_safe_url()`, i.e.
+    the module singleton with **`resolve_dns=False`** — demonstrated: with DNS faked so `rebind.example` →
+    169.254.169.254, the old guard returns **True**, the new engine check blocks it. Everything else bypassed the
+    guard entirely: the static HTTP engine (and so `Fetcher`/`AsyncFetcher`/`FetcherSession`, `ai.py`
+    get/bulk_get, spiders, robots/sitemap, shell/cli), the browser fetchers, the four `page.goto` sinks, the MCP
+    `bulk_fetch/bulk_stealthy_fetch/screenshot` tools, and the crawler (start URLs, every followed link,
+    sitemaps and `Sitemap:` lines, robots.txt, redirects/retries, checkpoint-restored requests; `links.py`
+    even extracts `file://`). Now every entry point calls a local `SSRFGuard(resolve_dns=True)` (fails closed on
+    DNS error; blocking lookup kept off the event loop) — **`ssrf_guard.py` and its global default were NOT
+    changed** (documented owner decision above). Also fixed: MCP `follow_redirects=True` silently disabled the
+    engine's "safe" redirect protection (now clamped); the session-level `proxy=` default was popped and traffic
+    went direct (privacy leak) and `AsyncFetcher(**kw)` dropped proxy/impersonate/timeout; proxy credentials and
+    URL query-string tokens/userinfo were logged (engine, browser retry warnings, `Response.__init__`,
+    `BaseFetcher` deprecation warning logged every kwarg, storage debug log, curl translator); `::attr("x|//…")`
+    CSS→XPath injection; `find_similar` XPath built from page tag text; adaptive relocation `IndexError` and
+    silent miss; robots.txt fetch failure/5xx treated as allow-all (now disallow-all, uncached, per RFC 9309); a
+    checkpoint deleted on crash; non-atomic `rename()` (breaks on Windows second save); legacy `.pkl`
+    checkpoints deserialized (pickle banned; no longer migrated); block/ban pages cached and replayed as good;
+    a crawl where every fetch failed reported success (new `CrawlResult.succeeded`); the `core/scraper` CLI
+    `main`/`extract` callbacks raised `NotImplementedError` (every command exited 1); `mcp --http` bound
+    `0.0.0.0` (a network SSRF proxy; now `127.0.0.1`); an unreadable main document returned as an empty 200;
+    stealth flags silently dropped when any `extra_flags` was passed; Chrome flag/launch-option injection
+    (`--remote-debugging-port`, `--load-extension`, `additional_args` `executable_path`/`record_har_path`);
+    `timeout=0` (= wait forever); browser/pool leaks when `close()` raised. **scraper — NOT fixed:** redirect
+    hops and browser sub-resources are not re-validated and DNS rebinding (validate-then-connect resolves
+    twice) is open — needs IP pinning / `page.route` interception / a manual redirect loop (curl_cffi exposes
+    no `resolve`); `vector_scraper.fetch_stealth/fetch_dynamic` always fail (use classmethod-only classes as
+    async context managers); `cdp_url`, `real_chrome`, `user_data_dir`, `executable_path`, `cookies` are
+    caller-controlled through the MCP tools; no crawl limits (max pages/depth/size; `_seen` grows unbounded);
+    `robots_txt_obey` defaults False; ReDoS in caller-supplied regex (`find_by_regex`, `.re/.re_first`, no
+    timeout); package-owned `elements_storage.db` default path is inside the source tree (bypasses CONFIG);
+    `quick_fetch`/`fetch_to_markdown` return `""` on failure and the error body on 4xx/5xx; `--no-sandbox` is
+    now rejected in caller `extra_flags` (Docker-as-root needs it); `STEALTH_ARGS` includes
+    `--disable-cookie-encryption`.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence

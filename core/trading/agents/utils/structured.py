@@ -26,12 +26,10 @@ __all__ = [
 ]
 
 
-import logging
 from typing import Any, Callable, Optional, TypeVar
 
+from loguru import logger
 from pydantic import BaseModel
-
-logger = logging.getLogger(__name__)
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -46,7 +44,7 @@ def bind_structured(llm: Any, schema: type[T], agent_name: str) -> Optional[Any]
         return llm.with_structured_output(schema)
     except (NotImplementedError, AttributeError) as exc:
         logger.warning(
-            "%s: provider does not support with_structured_output (%s); "
+            "[VECTOR][trading] {}: provider does not support with_structured_output ({}); "
             "falling back to free-text generation",
             agent_name, exc,
         )
@@ -73,7 +71,7 @@ def invoke_structured_or_freetext(
             return render(result)
         except Exception as exc:
             logger.warning(
-                "%s: structured-output invocation failed (%s); retrying once as free text",
+                "[VECTOR][trading] {}: structured-output invocation failed ({}); retrying once as free text",
                 agent_name, exc,
             )
 

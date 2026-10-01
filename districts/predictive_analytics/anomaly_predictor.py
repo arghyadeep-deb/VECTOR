@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 from datetime import datetime, timezone, timedelta
+from numbers import Real
 import numpy as np
 
 from vectorcode.src.bootstrap import ensure_paths
@@ -57,6 +58,26 @@ class AnomalyPredictor:
             timestamps = [(now - timedelta(hours=len(values) - i)).isoformat() for i in range(len(values))]
 
         anomalies: list[MetricAnomaly] = []
+        # NaN/inf readings poison mean/std (every z-score becomes NaN -> "clean"); report them, analyse the rest.
+        bad = [i for i, v in enumerate(values) if not isinstance(v, Real) or not np.isfinite(v)]
+        if bad:
+            anomalies.append(MetricAnomaly(
+                metric_name=metric_name,
+                anomaly_type=AnomalyType.MISSING_EXPECTED,
+                severity=7,
+                detected_at=timestamps[bad[-1]],
+                expected_value=0.0,
+                actual_value=0.0,
+                confidence=0.9,
+                cause=f"{len(bad)} non-finite or non-numeric readings for {metric_name}",
+            ))
+            bad_set = set(bad)
+            keep = [i for i in range(len(values)) if i not in bad_set]
+            values = [values[i] for i in keep]
+            timestamps = [timestamps[i] for i in keep]
+            if len(values) < 3:
+                logger.info("[VECTOR][predictive_analytics] {}: too few finite readings after filtering", metric_name)
+                return anomalies
         try:
             anomalies.extend(self._detect_value_out_of_range(metric_name, values, timestamps))
         except Exception as e:

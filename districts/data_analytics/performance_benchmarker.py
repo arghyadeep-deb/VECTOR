@@ -34,6 +34,29 @@ def _percentile(data: list[float], pct: float) -> float:
     return round(s[lo] * (1 - frac) + s[hi] * frac, 4)
 
 
+def _clamp_n(value, default: int, hi: int) -> int:
+    """Sample count from task params: bad/negative/huge values must not hang the loop."""
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(1, min(n, hi))
+
+
+def _component_failures(results: dict) -> list[str]:
+    """Names of benchmark components whose probes failed (avg == -1.0 / error)."""
+    failed: list[str] = []
+    for name in ("ollama_focus", "ollama_coder", "decision_engine", "gnn_router"):
+        comp = results.get(name) or {}
+        if comp.get("error") or comp.get("avg", -1.0) < 0:
+            failed.append(name)
+    mem = results.get("episodic_memory") or {}
+    for sub in ("store", "recall"):
+        if (mem.get(sub) or {}).get("avg", -1.0) < 0:
+            failed.append(f"memory_{sub}")
+    return failed
+
+
 class PerformanceBenchmarker(AgentBase):
     """
     Benchmarks VECTOR's inference and decision latency end-to-end.
@@ -368,23 +391,30 @@ class PerformanceBenchmarker(AgentBase):
                 overwrite=True,
             )
             # Update baseline in semantic_memory
+            def _keep(key: str, new_avg) -> dict:
+                # A failed probe (-1) must not overwrite a good baseline, or the
+                # next run silently loses its regression comparison.
+                if new_avg is None or new_avg < 0:
+                    prev = baseline.get(key, {}).get("avg")
+                    if prev is not None and prev >= 0:
+                        return {"avg": prev}
+                return {"avg": new_avg if new_avg is not None else -1}
+
             new_baseline = {
-                "ollama_focus": {"avg": results.get("ollama_focus", {}).get("avg", -1)},
-                "ollama_coder": {"avg": results.get("ollama_coder", {}).get("avg", -1)},
-                "decision_engine": {
-                    "avg": results.get("decision_engine", {}).get("avg", -1)
-                },
-                "memory_store": {
-                    "avg": results.get("episodic_memory", {})
-                    .get("store", {})
-                    .get("avg", -1)
-                },
-                "memory_recall": {
-                    "avg": results.get("episodic_memory", {})
-                    .get("recall", {})
-                    .get("avg", -1)
-                },
-                "gnn_router": {"avg": results.get("gnn_router", {}).get("avg", -1)},
+                "ollama_focus": _keep("ollama_focus", results.get("ollama_focus", {}).get("avg", -1)),
+                "ollama_coder": _keep("ollama_coder", results.get("ollama_coder", {}).get("avg", -1)),
+                "decision_engine": _keep(
+                    "decision_engine", results.get("decision_engine", {}).get("avg", -1)
+                ),
+                "memory_store": _keep(
+                    "memory_store",
+                    results.get("episodic_memory", {}).get("store", {}).get("avg", -1),
+                ),
+                "memory_recall": _keep(
+                    "memory_recall",
+                    results.get("episodic_memory", {}).get("recall", {}).get("avg", -1),
+                ),
+                "gnn_router": _keep("gnn_router", results.get("gnn_router", {}).get("avg", -1)),
             }
             self._memory.remember(
                 _BASELINE_KEY,
@@ -427,13 +457,25 @@ class PerformanceBenchmarker(AgentBase):
             logger.warning(f"[VECTOR][performance_benchmarker] answer_data_analytics_question failed: {e}")
             return context
 
+    @staticmethod
+    def _probe_payload(task_type: str, result: dict, memory: bool = False) -> dict:
+        """Wrap a single-probe result; failed probes (avg -1 / error) are status=error."""
+        if memory:
+            failed = bool(_component_failures({"episodic_memory": result}))
+        else:
+            failed = bool(result.get("error")) or result.get("avg", -1.0) < 0
+        payload = {"status": "error" if failed else "ok", "task": task_type, "result": result}
+        if failed:
+            payload["error"] = result.get("error") or "benchmark probes failed (no successful samples)"
+        return payload
+
     # ── Dispatch ──────────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
         """Route on task['type']: 'full_benchmark' | 'ollama' | 'decision' | 'memory' | 'routing'."""
         self.last_active = datetime.datetime.now(datetime.timezone.utc).isoformat()
         task_type = task.get("type", "full_benchmark")
-        params = task.get("params", {})
+        params = task.get("params") or {}
 
         # 2026-08-06 (loop-stall root-cause hunt, KNOWN_ISSUES #0): these
         # benchmark_* methods are plain sync functions — benchmark_ollama_latency
@@ -453,18 +495,18 @@ class PerformanceBenchmarker(AgentBase):
                 result = await asyncio.to_thread(
                     self.benchmark_ollama_latency,
                     model=params.get("model", _FOCUS),
-                    n=params.get("n", 3),
+                    n=_clamp_n(params.get("n", 3), 3, 20),
                 )
-                payload = {"status": "ok", "task": task_type, "result": result}
+                payload = self._probe_payload(task_type, result)
             elif task_type == "decision":
-                result = await asyncio.to_thread(self.benchmark_decision_engine, n=params.get("n", 5))
-                payload = {"status": "ok", "task": task_type, "result": result}
+                result = await asyncio.to_thread(self.benchmark_decision_engine, n=_clamp_n(params.get("n", 5), 5, 100))
+                payload = self._probe_payload(task_type, result)
             elif task_type == "memory":
-                result = await asyncio.to_thread(self.benchmark_memory_ops, n=params.get("n", 10))
-                payload = {"status": "ok", "task": task_type, "result": result}
+                result = await asyncio.to_thread(self.benchmark_memory_ops, n=_clamp_n(params.get("n", 10), 10, 100))
+                payload = self._probe_payload(task_type, result, memory=True)
             elif task_type == "routing":
-                result = await asyncio.to_thread(self.benchmark_routing, n=params.get("n", 5))
-                payload = {"status": "ok", "task": task_type, "result": result}
+                result = await asyncio.to_thread(self.benchmark_routing, n=_clamp_n(params.get("n", 5), 5, 100))
+                payload = self._probe_payload(task_type, result)
             else:
                 # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
                 # stray conversational question routed here) used to
@@ -494,29 +536,26 @@ class PerformanceBenchmarker(AgentBase):
                     tags=["benchmark", "performance"],
                     source="performance_benchmarker",
                 )
-                if written:
+                failed = _component_failures(results)
+                if written and not failed:
                     self.award_points(20, "benchmark report written")
-                else:
+                elif not written:
                     self.deduct_points(5, "benchmark report write failed")
+                focus_avg = results.get("ollama_focus", {}).get("avg", -1.0)
+                store_avg = results.get("episodic_memory", {}).get("store", {}).get("avg", -1.0)
                 payload = {
-                    "status": "ok",
+                    # A suite with failed probes is not a clean "ok": the failed
+                    # components are listed instead of -1000ms "latencies".
+                    "status": "error" if failed else "ok",
                     "task": task_type,
                     "report_written": written,
-                    "ollama_avg_ms": round(
-                        (results.get("ollama_focus", {}).get("avg", 0) or 0) * 1000, 1
-                    ),
-                    "memory_store_avg_ms": round(
-                        (
-                            results.get("episodic_memory", {})
-                            .get("store", {})
-                            .get("avg", 0)
-                            or 0
-                        )
-                        * 1000,
-                        3,
-                    ),
+                    "failed_components": failed,
+                    "ollama_avg_ms": round(focus_avg * 1000, 1) if focus_avg >= 0 else None,
+                    "memory_store_avg_ms": round(store_avg * 1000, 3) if store_avg >= 0 else None,
                     "hp": self.health_points,
                 }
+                if failed:
+                    payload["error"] = "benchmark probes failed: " + ", ".join(failed)
                 return payload
 
             payload["hp"] = self.health_points

@@ -11,6 +11,8 @@ from core.memory.obsidian_sync import ObsidianSync
 from core.loop.context_engine import ContextEngine
 from loguru import logger
 
+from districts.projects._safe import safe_note_title
+
 _REASONING = CONFIG["models"]["reasoning"]
 
 
@@ -44,7 +46,7 @@ class ProjectPlanner(AgentBase):
         self._context = ContextEngine()
         logger.info(f"[VECTOR][project_planner] ready gen={generation}")
 
-    def _generate_plan(self, name: str, goal: str, deadline: str, hydration: str) -> str:
+    def _generate_plan(self, name: str, goal: str, deadline: str, hydration: str) -> str | None:
         prompt = (
             f"Create a detailed project plan for: {name}\n"
             f"Goal: {goal}\n"
@@ -67,14 +69,17 @@ class ProjectPlanner(AgentBase):
                 raise ValueError("empty response")
             return text
         except Exception as e:
-            logger.warning(f"[VECTOR][project_planner] LLM unavailable: {e}")
-            return f"## Objective\n{goal}\n\n## Deadline\n{deadline}\n\n*Plan generation unavailable.*"
+            logger.warning("[VECTOR][project_planner] LLM unavailable: {}", e)
+            return None
 
     def create_project(self, name: str, goal: str, deadline: str) -> dict:
         """Create a new project plan. Returns project dict."""
         project_id = str(uuid.uuid4())[:8]
         hydration = self._context.session_hydration_prompt()
         plan = self._generate_plan(name, goal, deadline, hydration)
+        plan_generated = plan is not None
+        if plan is None:
+            plan = f"## Objective\n{goal}\n\n## Deadline\n{deadline}\n\n*Plan generation unavailable.*"
 
         self._memory.store(
             event_type="project_created",
@@ -89,9 +94,11 @@ class ProjectPlanner(AgentBase):
             confidence=0.95,
         )
 
+        note_written = False
         try:
+            safe_name = safe_note_title(name)
             self._obsidian.write_note(
-                title=f"Project — {name}",
+                title=f"Project — {safe_name}",
                 content=(
                     f"# Project — {name}\n\n"
                     f"**ID:** {project_id}\n"
@@ -103,49 +110,56 @@ class ProjectPlanner(AgentBase):
                 folder="Projects",
                 tags=["project", "planning", "vector"],
             )
+            note_written = True
         except Exception as e:
-            logger.warning(f"[VECTOR][project_planner] obsidian write failed: {e}")
+            logger.warning("[VECTOR][project_planner] obsidian write failed: {}", e)
 
         self.award_points(40, f"project created: {name}")
         logger.info(f"[VECTOR][project_planner] created: {name} (id={project_id})")
-        return {"id": project_id, "name": name, "goal": goal, "deadline": deadline, "plan": plan}
+        return {"id": project_id, "name": name, "goal": goal, "deadline": deadline, "plan": plan,
+                "plan_generated": plan_generated, "note_written": note_written}
 
     def list_active_projects(self) -> list[dict]:
         try:
-            cur = self._memory.conn.cursor()
-            cur.execute(
-                "SELECT key, value, updated_at FROM semantic_memory "
-                "WHERE category = 'active_project' ORDER BY updated_at DESC LIMIT 20"
-            )
-            cols = [d[0] for d in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
-            projects = []
-            for r in rows:
-                parts = r["value"].split("|")
-                projects.append({
-                    "id": r["key"].replace("project:", ""),
-                    "name": parts[0] if len(parts) > 0 else "?",
-                    "goal": parts[1] if len(parts) > 1 else "?",
-                    "deadline": parts[2] if len(parts) > 2 else "?",
-                    "created": (r["updated_at"] or "")[:10],
-                })
-            return projects
+            return self._query_active_projects()
         except Exception as e:
-            logger.warning(f"[VECTOR][project_planner] list failed: {e}")
+            logger.warning("[VECTOR][project_planner] list failed: {}", e)
             return []
+
+    def _query_active_projects(self) -> list[dict]:
+        """Raises on DB failure (so callers can tell 'none' from 'unreadable')."""
+        cur = self._memory.conn.cursor()
+        cur.execute(
+            "SELECT key, value, updated_at FROM semantic_memory "
+            "WHERE category = 'active_project' ORDER BY updated_at DESC LIMIT 20"
+        )
+        cols = [d[0] for d in cur.description]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        projects = []
+        for r in rows:
+            parts = r["value"].split("|")
+            projects.append({
+                "id": r["key"].replace("project:", ""),
+                "name": parts[0] if len(parts) > 0 else "?",
+                "goal": parts[1] if len(parts) > 1 else "?",
+                "deadline": parts[2] if len(parts) > 2 else "?",
+                "created": (r["updated_at"] or "")[:10],
+            })
+        return projects
 
     async def answer_projects_question(self, query: str) -> str:
         """Answer a free-text question grounded in the real active-project
         list, instead of silently no-op'ing with a bare agent-name echo
         regardless of what was actually asked (KNOWN_ISSUES bug pattern)."""
         try:
-            projects = self.list_active_projects()
+            projects = self._query_active_projects()
             if projects:
                 names = ", ".join(proj["name"] for proj in projects[:10])
                 context = f"{len(projects)} active project(s): {names}."
             else:
                 context = "No active projects tracked right now."
-        except Exception:
+        except Exception as e:
+            logger.warning("[VECTOR][project_planner] project list unreadable: {}", e)
             context = "Active project list unavailable right now."
         prompt = (
             "You are VECTOR's ProjectPlanner in the projects district. "
@@ -160,10 +174,15 @@ class ProjectPlanner(AgentBase):
             return context
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params") or {}
         if task.get("type") == "create_project":
-            result = self.create_project(p.get("name", ""), p.get("goal", ""), p.get("deadline", ""))
-            return {"status": "ok", **result}
+            name = str(p.get("name") or "").strip()
+            if not safe_note_title(name):
+                return {"status": "error", "error": "project name is required"}
+            # POST /projects/create sends the goal as "description".
+            goal = p.get("goal") or p.get("description") or ""
+            result = self.create_project(name, goal, p.get("deadline", ""))
+            return {"status": "ok" if result.get("plan_generated") else "partial", **result}
 
         query = (
             p.get("query")

@@ -13,6 +13,9 @@ from core.mcp_tools.memory_safety import (
 )
 
 
+_ROOT = Path(__file__).resolve().parents[3]  # module-level so tests can point it at a tmp dir
+
+
 def add_hook_tools(mcp) -> None:
     import json as _json
     import subprocess as _subprocess
@@ -21,11 +24,23 @@ def add_hook_tools(mcp) -> None:
     import shutil as _shutil
     from pathlib import Path as _Path
 
-    ROOT = _Path(__file__).resolve().parents[3]
+    ROOT = _ROOT
 
     # â”€â”€ hook_* (17) — wired to core/brain_hooks/ and core/coding_assistant/ â”€â”€â”€
     try:
-        from core.brain_hooks import run_hook as _run_hook
+        from core.brain_hooks import run_hook as _run_hook_raw
+        import re as _re
+
+        _HOOK_NAME_RE = _re.compile(r"^[a-z][a-z0-9_-]*$")
+
+        def _run_hook(hook_name: str, data: str = ""):
+            """run_hook builds `<hooks_dir>/<name>.ts` and runs it under node: an unvalidated
+            name such as '../../x' would execute an arbitrary .ts file. Returns a dict that
+            reports the exit code instead of hiding it in a tuple."""
+            if not _HOOK_NAME_RE.match(hook_name or ""):
+                return {"ok": False, "error": f"invalid hook name: {hook_name!r}"}
+            out, code = _run_hook_raw(hook_name, data)
+            return {"ok": code == 0, "exit_code": code, "output": out}
 
         @mcp.tool
         def hook_fire(hook_name: str, payload: str = "{}") -> str:
@@ -59,7 +74,12 @@ def add_hook_tools(mcp) -> None:
             try:
                 from core.loop.permission_gateway import PermissionGateway
                 pg = PermissionGateway()
-                pg.notify(message)
+                import asyncio as _asyncio
+                coro = pg.notify(message)  # async: calling it alone never sends anything
+                try:
+                    _asyncio.get_running_loop().create_task(coro)
+                except RuntimeError:
+                    _asyncio.run(coro)
                 return _safe_json({"ok": True})
             except Exception as e:
                 return _safe_json({"error": str(e)})
@@ -70,8 +90,9 @@ def add_hook_tools(mcp) -> None:
             try:
                 from core.loop.task_queue import get_task_queue
                 tq = get_task_queue()
-                if hasattr(tq, "_on_complete"):
-                    tq._on_complete(task_id, result)
+                if not hasattr(tq, "_on_complete"):
+                    return _safe_json({"ok": False, "error": "task queue has no completion callback; nothing fired"})
+                tq._on_complete(task_id, result)
                 return _safe_json({"ok": True})
             except Exception as e:
                 return _safe_json({"error": str(e)})
@@ -85,7 +106,7 @@ def add_hook_tools(mcp) -> None:
         @mcp.tool
         def hook_register(hook_name: str, handler: str) -> str:
             """Register a handler for a hook (stub — requires hooks manager config)."""
-            return _safe_json({"status": "registered", "hook": hook_name, "handler": handler[:100]})
+            return _safe_json({"ok": False, "status": "unsupported", "hook": hook_name, "note": "hook registration is not implemented; nothing was registered"})
 
         @mcp.tool
         def hook_pre_edit(file_path: str) -> str:

@@ -80,12 +80,18 @@ class CourseTracker(AgentBase):
         logger.info(f"[VECTOR][learning] Adding course: {name} from {platform}")
         self.add_lesson({"action": "add_course", "course": name, "platform": platform})
 
+        if not (name or "").strip():
+            return {"error": "Course name is required"}
+
         added_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._lock:
             conn = self._get_conn()
             try:
+                # Upsert: INSERT OR REPLACE would reset total/completed counters
+                # of an already-tracked course while its lesson rows remain.
                 conn.execute(
-                    "INSERT OR REPLACE INTO courses (name, platform, url, added_at) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO courses (name, platform, url, added_at) VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(name) DO UPDATE SET platform = excluded.platform, url = excluded.url",
                     (name, platform, url, added_at)
                 )
                 conn.commit()
@@ -134,17 +140,23 @@ class CourseTracker(AgentBase):
             "completed_lessons": completed,
             "progress_percent": progress_pct,
             "added_at": added_at,
-            "recent_lessons": lessons[-10:],
+            "recent_lessons": lessons[:10],  # ordered newest-first
         }
 
     def log_lesson(self, course_name: str, lesson_name: str, notes: Optional[str] = None) -> dict:
         logger.info(f"[VECTOR][learning] Logging lesson: {course_name} - {lesson_name}")
         self.add_lesson({"action": "log_lesson", "course": course_name, "lesson": lesson_name})
 
+        if not (course_name or "").strip() or not (lesson_name or "").strip():
+            return {"error": "course_name and lesson_name are required"}
+
         completed_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._lock:
             conn = self._get_conn()
             try:
+                if not conn.execute("SELECT 1 FROM courses WHERE name = ?", (course_name,)).fetchone():
+                    logger.warning("[VECTOR][learning] log_lesson: unknown course '{}'", course_name)
+                    return {"error": f"Course '{course_name}' not found"}
                 conn.execute(
                     "INSERT OR IGNORE INTO lessons (course_name, lesson_name, completed_at, notes) VALUES (?, ?, ?, ?)",
                     (course_name, lesson_name, completed_at, notes or "")
@@ -233,16 +245,19 @@ class CourseTracker(AgentBase):
         p = task.get("params", {}) or {}
         task_type = task.get("type", "")
 
+        def _wrap(res: dict) -> dict:
+            return {"status": "error" if res.get("error") else "ok", **res}
+
         if task_type == "add_course":
-            return {"status": "ok", **self.add_course(
+            return _wrap(self.add_course(
                 p.get("name", ""), p.get("platform", ""), p.get("url", ""),
-            )}
+            ))
         if task_type == "get_progress":
-            return {"status": "ok", **self.get_progress(p.get("course_name", ""))}
+            return _wrap(self.get_progress(p.get("course_name", "")))
         if task_type == "log_lesson":
-            return {"status": "ok", **self.log_lesson(
+            return _wrap(self.log_lesson(
                 p.get("course_name", ""), p.get("lesson_name", ""), p.get("notes"),
-            )}
+            ))
         if task_type in ("generate_report", "report", "progress_report"):
             result = self.generate_report()
             return {"status": "ok", **result}

@@ -44,6 +44,16 @@ def _check(name: str, passed: bool, **details: Any) -> Check:
     return {"check": name, "passed": bool(passed), **details}
 
 
+def _is_confined_relative(path: Any) -> bool:
+    """True only for a relative path with no parent traversal, drive, or absolute root."""
+    if not isinstance(path, str) or not path.strip() or "\x00" in path:
+        return False
+    parts = re.split(r"[\\/]", path)
+    if path[0] in "/\\" or re.match(r"^[A-Za-z]:", path):
+        return False
+    return ".." not in parts
+
+
 def _parse_skill_document(document: Any) -> tuple[dict[str, str], list[str], str] | None:
     if not isinstance(document, str) or not document.strip().startswith("---"):
         return None
@@ -109,6 +119,19 @@ def _agent_definition_checks(evidence: dict[str, Any]) -> list[Check]:
                 write_calls.append(node.func.id)
             elif isinstance(node.func, ast.Attribute) and node.func.attr in write_methods:
                 write_calls.append(node.func.attr)
+    exec_names = {"system", "popen", "run", "call", "check_call", "check_output", "Popen", "exec", "eval",
+                  "compile", "__import__", "import_module", "execv", "execve", "spawn", "spawnl", "startfile"}
+    exec_calls = sorted({
+        node.func.id if isinstance(node.func, ast.Name) else node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and (
+            (isinstance(node.func, ast.Name) and node.func.id in exec_names)
+            or (isinstance(node.func, ast.Attribute) and node.func.attr in exec_names - {"run"})
+            or (isinstance(node.func, ast.Attribute) and node.func.attr == "run"
+                and isinstance(node.func.value, ast.Name) and node.func.value.id == "subprocess")
+        )
+    })
     forbidden_imports = sorted(
         module
         for module in imported_modules
@@ -137,6 +160,7 @@ def _agent_definition_checks(evidence: dict[str, Any]) -> list[Check]:
         _check("async_run_present", len(run_methods) == 1),
         _check("no_direct_product_code_import", not forbidden_imports, forbidden_imports=forbidden_imports),
         _check("no_filesystem_write_primitive", not write_calls, write_calls=write_calls),
+        _check("no_process_or_dynamic_exec_primitive", not exec_calls, exec_calls=exec_calls),
     ]
 
 
@@ -168,6 +192,7 @@ def _plugin_manifest_checks(evidence: dict[str, Any]) -> list[Check]:
         _check("version_is_semver", bool(re.fullmatch(r"\d+\.\d+\.\d+", str(manifest.get("version", ""))))),
         _check("manifest_file_present", ".codex-plugin/plugin.json" in files),
         _check("entrypoint_present", isinstance(entrypoint, str) and entrypoint in files, entrypoint=entrypoint),
+        _check("entrypoint_is_confined", _is_confined_relative(entrypoint), entrypoint=entrypoint),
         _check(
             "permissions_are_explicit_and_unique",
             isinstance(permissions, list)
@@ -240,7 +265,11 @@ def _skill_comparison_checks(evidence: dict[str, Any]) -> list[Check]:
             baseline.splitlines(), candidate.splitlines(), fromfile="baseline", tofile="candidate", lineterm=""
         )
     )
+    explicit = bool(additions or removals) and all(
+        isinstance(item, str) and item.strip() for item in [*additions, *removals]
+    )
     return [
+        _check("expectations_are_explicit", explicit),
         _check("candidate_differs_from_baseline", baseline != candidate, diff_line_count=len(diff)),
         _check("required_additions_present", not missing_additions, missing_additions=missing_additions),
         _check("required_removals_absent", not lingering_removals, lingering_removals=lingering_removals),
@@ -428,6 +457,9 @@ class SelfDevSpecialist(AgentBase):
             }
             if task_type == self.profile.audit_action:
                 response["verification"] = self.run_checks(evidence)
+                if report["status"] == "ready" and response["verification"]["passed"] is not True:
+                    # A failed or unverifiable check must never surface as "ok" to the Governor.
+                    response["status"] = "needs_human" if not response["verification"]["verified"] else "failed"
             if task_type == self.profile.primary_action:
                 earned = report["status"] == "ready"
             else:

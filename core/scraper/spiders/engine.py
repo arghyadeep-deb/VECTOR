@@ -9,6 +9,7 @@ from anyio import Path as AsyncPath
 from anyio import create_task_group, CapacityLimiter, create_memory_object_stream, EndOfStream
 
 from core.scraper.core.utils import log
+from core.security.ssrf_guard import SSRFGuard
 from core.scraper.spiders.scheduler import Scheduler
 from core.scraper.spiders.session import SessionManager
 from core.scraper.spiders.request import Request, Response
@@ -48,6 +49,11 @@ class CrawlerEngine:
         if self.spider.robots_txt_obey:
 
             async def _fetch_robots(url: str, sid: str) -> Response:
+                # robots.txt URLs are derived from untrusted request/start URLs -- guard them too.
+                blocked = await self._ssrf_block_reason(url)
+                if blocked:
+                    self.stats.ssrf_blocked_count += 1
+                    raise PermissionError(f"robots.txt fetch blocked by SSRF guard: {blocked}")
                 return await self.session_manager.fetch(Request(url, sid=sid))
 
             self._robots_manager: Optional[RobotsTxtManager] = RobotsTxtManager(_fetch_robots)
@@ -79,6 +85,19 @@ class CrawlerEngine:
         self._pause_requested: bool = False
         self._force_stop: bool = False
         self.paused: bool = False
+
+    async def _ssrf_block_reason(self, url: str) -> str:
+        """Return why `url` must not be fetched ('' when it is safe).
+
+        Crawlers follow URLs found in untrusted pages/sitemaps/robots.txt, so every URL is
+        checked (scheme, blocked hosts, private/reserved IPs, and DNS-resolved IPs -- fails
+        closed on DNS errors) right before it is fetched. Spiders that deliberately crawl
+        local/private hosts opt out with `allow_private_networks = True`.
+        """
+        guard = SSRFGuard(allow_private=bool(getattr(self.spider, "allow_private_networks", False)), resolve_dns=True)
+        # getaddrinfo blocks, keep it off the event loop
+        result = await anyio.to_thread.run_sync(guard.check_url, url)
+        return "" if result.safe else (result.reason or "blocked")
 
     def _is_domain_allowed(self, request: Request) -> bool:
         """Check if the request's domain is in allowed_domains."""
@@ -172,6 +191,14 @@ class CrawlerEngine:
 
     async def _process_request(self, request: Request) -> None:
         """Download and process a single request."""
+        blocked_reason = await self._ssrf_block_reason(request.url)
+        if blocked_reason:
+            self.stats.ssrf_blocked_count += 1
+            self.stats.failed_requests_count += 1
+            log.warning("[VECTOR][scraper] SSRF guard blocked request to %s: %s", request.url, blocked_reason)
+            await self.spider.on_error(request, PermissionError(f"SSRF guard blocked {request.url}: {blocked_reason}"))
+            return
+
         if self._robots_manager:
             can_fetch = await self._robots_manager.can_fetch(request.url, request.sid)
             if not can_fetch:
@@ -213,11 +240,15 @@ class CrawlerEngine:
                 await self.spider.on_error(request, e)
                 return
 
+        blocked = await self.spider.is_blocked(response)
+
         if self._cache_manager and request._fp is not None:
             self.stats.cache_misses += 1
-            await self._cache_manager.put(request._fp, response, request._session_kwargs.get("method", "GET"))
+            # Never cache a block/ban page: it would be replayed as a "good" response on every later run.
+            if not blocked:
+                await self._cache_manager.put(request._fp, response, request._session_kwargs.get("method", "GET"))
 
-        if await self.spider.is_blocked(response):
+        if blocked:
             self.stats.blocked_requests_count += 1
             if request._retry_count < self.spider.max_blocked_retries:
                 retry_request = request.copy()
@@ -346,6 +377,7 @@ class CrawlerEngine:
 
             await self._prefetch_robots_txt()
 
+            finished = False
             try:
                 if not resuming:
                     async for request in self.spider.start_requests():
@@ -402,14 +434,20 @@ class CrawlerEngine:
                         self._active_tasks += 1
                         tg.start_soon(self._task_wrapper, request)
 
+                finished = True
             finally:
                 await self.spider.on_close()
-                # Clean up checkpoint files on successful completion (not paused)
-                if not self.paused and self._checkpoint_system_enabled:
+                # Clean up checkpoint files only on successful completion (not paused, not crashed):
+                # a crash must leave the last checkpoint in place so the crawl can resume.
+                if finished and not self.paused and self._checkpoint_system_enabled:
                     await self._checkpoint_manager.cleanup()
 
         self.stats.log_levels_counter = self.spider._log_counter.get_counts()
         self.stats.end_time = anyio.current_time()
+        if self.stats.requests_count == 0 and self.stats.failed_requests_count > 0:
+            log.error(
+                "[VECTOR][scraper] crawl made 0 successful requests: all %d request(s) failed", self.stats.failed_requests_count
+            )
         log.info(_dump(self.stats.to_dict()))
         return self.stats
 
@@ -438,4 +476,4 @@ class CrawlerEngine:
                 async for item in recv:
                     yield item
             except EndOfStream:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                logger.debug("[VECTOR][scraper] item stream closed")

@@ -45,23 +45,40 @@ class DataPrep(AgentBase):
         )
 
     def _download_with_progress(self, url: str, dest: Path) -> bool:
+        part = dest.with_name(dest.name + ".part")
         try:
             import httpx
-            with httpx.stream("GET", url, headers={"User-Agent": "VECTOR-DataPrep/1.0"}, timeout=300) as response:
+            from core.security.ssrf_guard import get_ssrf_guard
+            check = get_ssrf_guard().check_url(url)
+            if not check.safe:
+                logger.error(f"[VECTOR][karpathy_lab] Download blocked by SSRF guard: {check}")
+                return False
+            with httpx.stream(
+                "GET", url, headers={"User-Agent": "VECTOR-DataPrep/1.0"},
+                timeout=300, follow_redirects=True,
+            ) as response:
+                # A 404/500 body is an HTML error page, not a dataset — never
+                # persist it as one.
+                response.raise_for_status()
                 total = int(response.headers.get("Content-Length", 0))
                 downloaded = 0
                 chunk_size = 8192
-                with open(dest, "wb") as f:
+                with open(part, "wb") as f:
                     for chunk in response.iter_bytes(chunk_size=chunk_size):
                         f.write(chunk)
                         downloaded += len(chunk)
                         if total and downloaded % (1024 * 1024 * 10) == 0:
                             pct = (downloaded / total) * 100
                             logger.debug(f"[VECTOR][karpathy_lab] Download {pct:.1f}%")
+            part.replace(dest)
             logger.info(f"[VECTOR][karpathy_lab] Downloaded {dest.name} ({downloaded / 1024 / 1024:.1f} MB)")
             return True
         except Exception as e:
             logger.error(f"[VECTOR][karpathy_lab] Download failed: {e}")
+            try:
+                part.unlink(missing_ok=True)
+            except OSError:
+                logger.warning(f"[VECTOR][karpathy_lab] could not remove partial download {part}")
             return False
 
     def download_dataset(self, dataset_name: str) -> dict:
@@ -78,14 +95,24 @@ class DataPrep(AgentBase):
         if dataset_name not in known_datasets:
             logger.warning(f"[VECTOR][karpathy_lab] Unknown dataset '{dataset_name}', using generic path")
             url = dataset_name
-            dataset_dir = self.data_dir / dataset_name
+            if not url.lower().startswith(("http://", "https://")):
+                return {"status": "failed", "path": "", "dataset": dataset_name,
+                        "error": "unknown dataset and not an http(s) URL"}
+            # dataset_name is caller-controlled: never use it as a path
+            # component verbatim (absolute path / ".." escape data_dir).
+            safe_dir = re.sub(r"[^A-Za-z0-9._-]+", "_", dataset_name).strip("._")[:80] or "dataset"
+            dataset_dir = self.data_dir / safe_dir
         else:
             url = known_datasets[dataset_name]
             dataset_dir = self.data_dir / dataset_name
 
         dataset_dir.mkdir(parents=True, exist_ok=True)
-        file_name = Path(url).name or f"{dataset_name}.txt"
-        dest = dataset_dir / file_name
+        file_name = Path(url.split("?", 1)[0]).name
+        if file_name in ("", ".", "..") or not file_name.isprintable():
+            file_name = f"{dataset_name}.txt" if dataset_name in known_datasets else "download.txt"
+        dest = (dataset_dir / file_name).resolve()
+        if not dest.is_relative_to(self.data_dir.resolve()):
+            return {"status": "failed", "path": "", "dataset": dataset_name, "error": "path escapes data_dir"}
 
         if dest.exists():
             logger.info(f"[VECTOR][karpathy_lab] Dataset already exists at {dest}")
@@ -96,7 +123,7 @@ class DataPrep(AgentBase):
 
         self.memory.store(
             event_type="dataset_downloaded",
-            content=f"Downloaded dataset {dataset_name}",
+            content=f"Dataset {dataset_name}: {result['status']}",
             tags=["dataset", dataset_name, "training"],
             context=result,
             source="DataPrep"
@@ -128,6 +155,10 @@ class DataPrep(AgentBase):
             if line:
                 cleaned_lines.append(line)
 
+        if not cleaned_lines:
+            logger.error(f"[VECTOR][karpathy_lab] Preprocess of {input_path} kept 0 lines — not writing output")
+            return {"status": "error", "message": "no usable lines after cleaning"}
+
         cleaned_text = "\n".join(cleaned_lines)
         output_p.write_text(cleaned_text, encoding="utf-8")
 
@@ -158,7 +189,11 @@ class DataPrep(AgentBase):
             logger.error(f"[VECTOR][karpathy_lab] Text file not found: {text_path}")
             return {"status": "error", "message": "Text file not found"}
 
+        if not text_p.is_file():
+            return {"status": "error", "message": "Text path is not a file"}
         content = text_p.read_text(encoding="utf-8", errors="ignore")
+        if not content:
+            return {"status": "error", "message": "Text file is empty"}
         chars = sorted(set(content))
         if len(chars) > vocab_size:
             logger.warning(f"[VECTOR][karpathy_lab] Char set {len(chars)} > vocab_size {vocab_size}, using most frequent")
@@ -175,8 +210,18 @@ class DataPrep(AgentBase):
         vocab_path.write_text(_json.dumps({"char_to_idx": char_to_idx, "idx_to_char": {str(k): v for k, v in idx_to_char.items()}, "vocab_size": vocab_size}, indent=2), encoding="utf-8")
 
         tokens_path = text_p.parent / f"{text_p.stem}_tokens_{vocab_size}.bin"
+        # bytes(token_ids) raises ValueError once a vocab has >256 symbols
+        # (any Hindi/Bengali/Japanese corpus) — use uint16 then.
+        if len(chars) > 256:
+            import array
+            arr = array.array("H", token_ids)
+            if sys.byteorder == "big":
+                arr.byteswap()
+            payload = arr.tobytes()
+        else:
+            payload = bytes(token_ids)
         with open(tokens_path, "wb") as f:
-            f.write(bytes(token_ids))
+            f.write(payload)
 
         stats = {
             "vocab_size": len(chars),
@@ -184,6 +229,7 @@ class DataPrep(AgentBase):
             "unique_chars": len(chars),
             "vocab_path": str(vocab_path),
             "tokens_path": str(tokens_path),
+            "token_dtype": "uint16" if len(chars) > 256 else "uint8",
             "compression_ratio": round(len(token_ids) * 2 / len(content.encode("utf-8")), 3),
         }
 

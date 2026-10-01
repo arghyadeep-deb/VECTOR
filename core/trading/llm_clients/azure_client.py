@@ -47,6 +47,11 @@ class AzureOpenAIClient(BaseLLMClient):
             "azure_deployment": os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", self.model),
         }
 
+        # An explicit base_url (config backend_url) must not be silently ignored in
+        # favour of the AZURE_OPENAI_ENDPOINT env var.
+        if self.base_url:
+            llm_kwargs["azure_endpoint"] = self.base_url
+
         for key in _PASSTHROUGH_KWARGS:
             if key in self.kwargs:
                 llm_kwargs[key] = self.kwargs[key]

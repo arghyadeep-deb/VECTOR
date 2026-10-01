@@ -73,22 +73,35 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         # Remove entitlement if it's None or empty
         api_params.pop("entitlement", None)
     
-    response = requests.get(API_BASE_URL, params=api_params)
-    response.raise_for_status()
+    try:
+        response = requests.get(API_BASE_URL, params=api_params, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        # requests embeds the full URL (including ``apikey=``) in its error
+        # text; never let that reach logs, callers or LLM prompts.
+        logger.warning("[VECTOR][alpha_vantage] {} request failed: {}", function_name, type(exc).__name__)
+        raise RuntimeError(
+            f"Alpha Vantage {function_name} request failed: {type(exc).__name__}"
+        ) from None
 
     response_text = response.text
-    
-    # Check if response is JSON (error responses are typically JSON)
+
+    # Alpha Vantage reports errors as HTTP 200 with a JSON body; CSV data is
+    # not valid JSON, so a successful decode into a dict means an API message.
     try:
         response_json = json.loads(response_text)
-        # Check for rate limit error
-        if "Information" in response_json:
-            info_message = response_json["Information"]
-            if "rate limit" in info_message.lower() or "api key" in info_message.lower():
-                raise AlphaVantageRateLimitError(f"Alpha Vantage rate limit exceeded: {info_message}")
     except json.JSONDecodeError:
-        # Response is not JSON (likely CSV data), which is normal
-        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        response_json = None  # CSV payload: the normal success case
+    if isinstance(response_json, dict):
+        if not response_json:
+            raise ValueError(f"Alpha Vantage {function_name} returned an empty response (unknown symbol?)")
+        if "Error Message" in response_json:
+            raise ValueError(f"Alpha Vantage error: {response_json['Error Message']}")
+        for key in ("Information", "Note"):
+            if key in response_json:
+                raise AlphaVantageRateLimitError(
+                    f"Alpha Vantage rate limit/usage notice: {response_json[key]}"
+                )
 
     return response_text
 
@@ -127,6 +140,7 @@ def _filter_csv_by_date_range(csv_data: str, start_date: str, end_date: str) -> 
         return filtered_df.to_csv(index=False)
 
     except Exception as e:
-        # If filtering fails, return original data with a warning
-        logger.warning("Failed to filter CSV data by date range: {}", e)
-        return csv_data
+        # Returning the unfiltered CSV would leak rows after end_date
+        # (look-ahead) or pass an error body off as data.
+        logger.error("[VECTOR][alpha_vantage] failed to filter CSV by date range: {}", e)
+        raise ValueError(f"Alpha Vantage CSV could not be parsed/filtered: {e}") from None

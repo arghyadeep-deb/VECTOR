@@ -48,8 +48,12 @@ class NoteOrganizer(AgentBase):
         logger.info(f"[VECTOR][learning] Organizing notes from: {source_dir}")
         self.add_lesson({"action": "organize_notes", "source": source_dir})
 
+        # Path("") == Path(".") exists: an empty source_dir would otherwise
+        # organize (and write next to) the process CWD.
+        if not (source_dir or "").strip():
+            return {"error": "source_dir is required", "path": source_dir}
         source = Path(source_dir)
-        if not source.exists():
+        if not source.is_dir():
             logger.error(f"[VECTOR][learning] Source directory not found: {source_dir}")
             return {"error": "Source directory not found", "path": source_dir}
 
@@ -61,7 +65,10 @@ class NoteOrganizer(AgentBase):
                 title = heading_match.group(1) if heading_match else md_file.stem
 
                 words = re.findall(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\b', content[:500])
-                topics[title] = {"file": str(md_file.relative_to(source)), "file_size": md_file.stat().st_size, "preview": content[:200]}
+                rel = str(md_file.relative_to(source))
+                if title in topics:  # same heading in two files: don't drop one
+                    title = f"{title} ({rel})"
+                topics[title] = {"file": rel, "file_size": md_file.stat().st_size, "preview": content[:200]}
             except Exception as e:
                 logger.warning(f"[VECTOR][learning] Could not read {md_file}: {e}")
 
@@ -121,7 +128,15 @@ class NoteOrganizer(AgentBase):
                 matching_notes.append({"title": title, "category": info["category"]})
 
         if not matching_notes:
-            matching_notes = [{"title": "No matching notes found", "category": "unknown"}]
+            # Don't ask the LLM to "summarize" a placeholder title.
+            logger.info("[VECTOR][learning] No indexed notes match '{}'", topic)
+            return {
+                "topic": topic,
+                "matching_notes": 0,
+                "summary": "",
+                "note_titles": [],
+                "note": "No matching notes found; run organize_notes first",
+            }
 
         prompt = f"Create a comprehensive summary of notes on '{topic}'. Found {len(matching_notes)} related notes. Format as structured markdown with key points, definitions, and takeaways.\nNotes: {json.dumps([n['title'] for n in matching_notes])}"
         summary = self._call_ollama(prompt)
@@ -188,7 +203,7 @@ class NoteOrganizer(AgentBase):
 
         if task_type == "organize_notes":
             result = self.organize_notes(p.get("source_dir", ""))
-            return {"status": "ok", **result}
+            return {"status": "error" if result.get("error") else "ok", **result}
         if task_type == "summarize_notes":
             result = self.summarize_notes(p.get("topic", ""))
             return {"status": "ok", **result}
@@ -211,7 +226,7 @@ class NoteOrganizer(AgentBase):
                 return {"status": "ok", **result}
             if p.get("source_dir") and any(w in q for w in ("organis", "organiz", "tidy", "sort")):
                 result = self.organize_notes(p["source_dir"])
-                return {"status": "ok", **result}
+                return {"status": "error" if result.get("error") else "ok", **result}
             # Summarising is the read-only, no-required-arg default; topic
             # falls back to the question itself so the summary is scoped to
             # what was actually asked.

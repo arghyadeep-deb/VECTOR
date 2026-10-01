@@ -33,6 +33,10 @@ _GZIP_MAGIC = b"\x1f\x8b"
 _GUNZIP_MAX_SIZE = 64 * 1024 * 1024  # 64 MiB cap, defends against gzip bombs
 
 
+# Sitemaps are untrusted: never resolve entities (XXE / billion laughs) or touch the network.
+_SAFE_XML_PARSER = etree.XMLParser(resolve_entities=False, no_network=True, huge_tree=False)
+
+
 @dataclass
 class SitemapResult:
     """Parsed sitemap body.
@@ -131,7 +135,7 @@ class SitemapSpider(Spider):
             return SitemapResult()
 
         try:
-            root = etree.fromstring(body)
+            root = etree.fromstring(body, _SAFE_XML_PARSER)
         except etree.XMLSyntaxError as e:
             self.logger.warning(f"Failed to parse sitemap XML: {e}")
             return SitemapResult()

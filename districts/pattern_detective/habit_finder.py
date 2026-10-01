@@ -38,11 +38,28 @@ class HabitFinder(AgentBase):
                 {"role": "user", "content": prompt},
             ],
             timeout=120,
+            district=self.district,
+            sensitive=True,
+            allow_cloud=False,  # habit/behavioural data about the owner: local Ollama only
         )
 
+    _OWN_SOURCES = frozenset({"BehaviorAnalyst", "HabitFinder"})
+
+    @staticmethod
+    def _to_float(value) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
     def analyze_screen_time(self, data: list[dict]) -> dict:
-        logger.info(f"[VECTOR][pattern_detective] Analyzing screen time: {len(data)} records")
+        data = [d for d in (data or []) if isinstance(d, dict)]
+        logger.info("[VECTOR][pattern_detective] Analyzing screen time: {} records", len(data))
         self.add_lesson({"action": "analyze_screen_time", "records": len(data)})
+
+        if not data:
+            # Empty/failed pull: not "0 min/day, peak at noon, healthy usage".
+            return {"status": "no_data", "total_records": 0, "days_tracked": 0, "insights": ""}
 
         daily_totals = collections.defaultdict(int)
         app_usage = collections.defaultdict(int)
@@ -51,18 +68,21 @@ class HabitFinder(AgentBase):
         for entry in data:
             date = entry.get("date", "")
             app = entry.get("app", "unknown")
-            duration = entry.get("duration_minutes", 0)
-            hour = entry.get("hour", 12)
+            duration = self._to_float(entry.get("duration_minutes", 0))
+            hour = entry.get("hour")
 
             if date:
                 daily_totals[date] += duration
             app_usage[app] += duration
-            hourly_totals[hour] += duration
+            if hour is not None:
+                # A missing hour used to be counted as 12:00, fabricating a
+                # noon peak.
+                hourly_totals[hour] += duration
 
         avg_daily = round(sum(daily_totals.values()) / max(len(daily_totals), 1), 1)
         top_apps = sorted(app_usage.items(), key=lambda x: x[1], reverse=True)[:5]
 
-        peak_hour = max(hourly_totals, key=hourly_totals.get) if hourly_totals else 12
+        peak_hour = max(hourly_totals, key=hourly_totals.get) if hourly_totals else None
 
         analysis = {
             "total_records": len(data),
@@ -76,6 +96,13 @@ class HabitFinder(AgentBase):
 
         prompt = f"Analyze this screen time data and identify patterns:\n{json.dumps(analysis, indent=2)}\nProvide: 1) Habit pattern identification, 2) Recommendations for healthy usage, 3) Red flags if any."
         insights = self._call_ollama(prompt)
+        if not (insights or "").strip():
+            logger.warning("[VECTOR][pattern_detective] Screen-time analysis: LLM returned nothing")
+            analysis["status"] = "error"
+            analysis["error"] = "llm_unavailable"
+            analysis["insights"] = ""
+            return analysis
+        analysis["status"] = "ok"
         analysis["insights"] = insights
 
         self.memory.store(
@@ -89,29 +116,39 @@ class HabitFinder(AgentBase):
         return analysis
 
     def find_habits(self, episodic_events: list[dict]) -> dict:
-        logger.info(f"[VECTOR][pattern_detective] Finding habits from {len(episodic_events)} events")
+        episodic_events = [e for e in (episodic_events or []) if isinstance(e, dict)]
+        logger.info("[VECTOR][pattern_detective] Finding habits from {} events", len(episodic_events))
         self.add_lesson({"action": "find_habits", "events": len(episodic_events)})
+
+        if not episodic_events:
+            # Nothing to analyse is "no data", not "no habits found".
+            return {"status": "no_data", "total_events": 0, "recurring_patterns": {},
+                    "frequent_actions": [], "patterns_found": 0}
 
         time_patterns = collections.defaultdict(list)
         action_patterns = collections.defaultdict(int)
+        bad_timestamps = 0
 
         for event in episodic_events:
             event_type = event.get("event_type", "")
             timestamp = event.get("timestamp", "")
-            content = event.get("content", "")
+            timestamp = event.get("timestamp") or ""
 
             if timestamp:
                 try:
-                    dt = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    dt = datetime.datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
                     hour_key = f"{dt.hour:02d}:00"
                     day_key = dt.strftime("%A")
                     time_patterns[f"hourly_{hour_key}"].append(event)
                     time_patterns[f"weekly_{day_key}"].append(event)
                 except ValueError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    bad_timestamps += 1
 
             if event_type:
                 action_patterns[event_type] += 1
+
+        if bad_timestamps:
+            logger.warning("[VECTOR][pattern_detective] {} event(s) had unparseable timestamps; excluded from time patterns", bad_timestamps)
 
         recurring = {}
         for pattern_key, events in time_patterns.items():
@@ -119,12 +156,13 @@ class HabitFinder(AgentBase):
                 recurring[pattern_key] = {
                     "count": len(events),
                     "percentage": round(len(events) / len(episodic_events) * 100, 2),
-                    "examples": [e.get("content", "")[:100] for e in events[:3]],
+                    "examples": [(e.get("content") or "")[:100] for e in events[:3]],
                 }
 
         frequent_actions = [{"action": a, "count": c} for a, c in sorted(action_patterns.items(), key=lambda x: x[1], reverse=True)[:10]]
 
         result = {
+            "status": "ok",
             "total_events": len(episodic_events),
             "recurring_patterns": recurring,
             "frequent_actions": frequent_actions,
@@ -141,7 +179,7 @@ class HabitFinder(AgentBase):
             source="HabitFinder"
         )
 
-        logger.info(f"[VECTOR][pattern_detective] Found {len(recurring)} habits")
+        logger.info("[VECTOR][pattern_detective] Found {} habits", len(recurring))
         return result
 
     def generate_habit_report(self) -> dict:
@@ -150,21 +188,30 @@ class HabitFinder(AgentBase):
 
         patterns = self.habit_patterns
         if not patterns:
-            # KNOWN_ISSUES #21: don't close EpisodicMemory()'s shared singleton
-            # connection from a local instance — see skill_mapper.py's note.
-            from core.memory.episodic import EpisodicMemory
-            mem = EpisodicMemory()
-            events = mem.recall("", limit=50)
+            # Exclude this district's own derived events (they would otherwise
+            # be "discovered" as the owner's habits).
+            events = [e for e in (self.memory.recall("", limit=50) or [])
+                      if e.get("source") not in self._OWN_SOURCES]
             if events:
                 self.find_habits(events)
             patterns = self.habit_patterns
+
+        if not patterns:
+            # No patterns (no events, or none recurring): do not ask the LLM to
+            # write a "comprehensive habit report" about nothing.
+            return {"status": "no_data", "patterns_analyzed": 0, "habit_report": ""}
 
         prompt = f"""Generate a comprehensive habit analysis report based on these detected patterns:
 {json.dumps({k: {kk: str(vv)[:200] for kk, vv in v.items()} for k, v in list(patterns.items())[:10]}, indent=2)}
 Include: 1) Summary of key habits, 2) Pattern strength analysis, 3) Behavioral insights, 4) Habit improvement recommendations, 5) Risk indicators."""
         report = self._call_ollama(prompt)
+        if not (report or "").strip():
+            logger.warning("[VECTOR][pattern_detective] Habit report: LLM returned nothing")
+            return {"status": "error", "error": "llm_unavailable",
+                    "patterns_analyzed": len(patterns), "habit_report": ""}
 
         result = {
+            "status": "ok",
             "patterns_analyzed": len(patterns),
             "habit_report": report,
             "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),

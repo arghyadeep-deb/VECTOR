@@ -49,12 +49,18 @@ class AnalyticsReporter(AgentBase):
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
         self._obsidian = ObsidianSync()
+        # Set by mine_episodic_data(): the error string of the last failed pull
+        # (None when it succeeded). A failed pull returns [] -- identical to a
+        # genuinely quiet week -- so run() consults this to avoid publishing an
+        # "all quiet" report built from a DB error.
+        self.last_mine_error: str | None = None
         logger.info(f"[VECTOR][analytics_reporter] ready gen={generation}")
 
     # ── Data mining ──────────────────────────────────────────────────────────────
 
     def mine_episodic_data(self, days: int = 7) -> list[dict]:
         """Fetch last N days of episodic events and return them as a list of dicts."""
+        self.last_mine_error = None
         cutoff = (
             datetime.datetime.now(datetime.timezone.utc)
             - datetime.timedelta(days=days)
@@ -84,6 +90,7 @@ class AnalyticsReporter(AgentBase):
             return events
         except Exception as e:
             logger.error(f"[VECTOR][analytics_reporter] mine_episodic_data failed: {e}")
+            self.last_mine_error = str(e)
             return []
 
     # ── Metrics ───────────────────────────────────────────────────────────────────
@@ -121,8 +128,8 @@ class AnalyticsReporter(AgentBase):
             try:
                 ts = datetime.datetime.fromisoformat(ev["timestamp"])
                 by_hour[ts.hour] += 1
-            except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except Exception as ts_err:
+                logger.debug("[VECTOR][analytics_reporter] unparseable timestamp {!r}: {}", ev.get("timestamp"), ts_err)
 
             if ev["event_type"] in ("governor_dispatch", "task"):
                 m = _STATUS_RE.search(ev.get("content") or "")
@@ -194,8 +201,8 @@ class AnalyticsReporter(AgentBase):
                 try:
                     date_str = ev["timestamp"][:10]
                     daily_errors[date_str] += 1
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as ts_err:
+                    logger.debug("[VECTOR][analytics_reporter] unusable timestamp {!r}: {}", ev.get("timestamp"), ts_err)
 
         anomalies = []
         if daily_errors:
@@ -271,16 +278,23 @@ class AnalyticsReporter(AgentBase):
             )
 
         # Fallback: structured plain text
-        sr = metrics.get("task_success_rate", 0)
         top = metrics.get("most_active_districts", [])
         top_str = top[0][0] if top else "unknown"
         return (
             f"- {metrics.get('total_events', 0)} events recorded this week; "
-            f"task success rate {sr:.1%}.\n"
+            f"task success rate {self._fmt_success_rate(metrics)}.\n"
             f"- Most active district: {top_str}. "
             f"{len(anomalies)} anomaly/anomalies detected.\n"
             f"- Review failed tasks and silent districts to improve reliability."
         )
+
+    @staticmethod
+    def _fmt_success_rate(metrics: dict) -> str:
+        """'n/a' when no task outcomes were observed (0 attempts is not 0.0%)."""
+        attempts = metrics.get("tasks_completed", 0) + metrics.get("tasks_failed", 0)
+        if attempts == 0:
+            return "n/a (no task outcomes recorded)"
+        return f"{metrics.get('task_success_rate', 0):.1%}"
 
     # ── Obsidian report ───────────────────────────────────────────────────────────
 
@@ -327,7 +341,7 @@ class AnalyticsReporter(AgentBase):
             f"| Metric | Value |\n"
             f"|--------|-------|\n"
             f"| Total Events | {metrics.get('total_events', 0)} |\n"
-            f"| Task Success Rate | {metrics.get('task_success_rate', 0):.1%} |\n"
+            f"| Task Success Rate | {self._fmt_success_rate(metrics)} |\n"
             f"| Tasks Completed | {metrics.get('tasks_completed', 0)} |\n"
             f"| Tasks Failed | {metrics.get('tasks_failed', 0)} |\n"
             f"| Anomalies Detected | {len(anomalies)} |\n\n"
@@ -412,8 +426,22 @@ class AnalyticsReporter(AgentBase):
             }
 
         try:
-            days = task.get("params", {}).get("days", 7)
+            try:
+                days = int((task.get("params") or {}).get("days", 7))
+            except (TypeError, ValueError):
+                days = 7
+            days = max(1, min(days, 365))
             events = self.mine_episodic_data(days=days)
+            if self.last_mine_error is not None:
+                # Do not publish a report (and a "no anomalies / 0 events"
+                # baseline) built from a failed DB pull.
+                self.deduct_points(10, "event mining failed")
+                return {
+                    "status": "error",
+                    "task": task_type,
+                    "error": f"event mining failed: {self.last_mine_error}",
+                    "hp": self.health_points,
+                }
             metrics = self.compute_activity_metrics(events)
             anomalies = self.detect_anomalies(events)
             brief = self.generate_weekly_brief(metrics, anomalies)
@@ -424,7 +452,7 @@ class AnalyticsReporter(AgentBase):
                     event_type="analytics_report_generated",
                     content=(
                         f"Weekly analytics: {metrics.get('total_events', 0)} events, "
-                        f"success_rate={metrics.get('task_success_rate', 0):.1%}, "
+                        f"success_rate={self._fmt_success_rate(metrics)}, "
                         f"anomalies={len(anomalies)}"
                     ),
                     tags=["analytics", "report", task_type],

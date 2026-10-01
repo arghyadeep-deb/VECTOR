@@ -53,13 +53,17 @@ class OpportunitySpotter(AgentBase):
 
 Return a JSON list of opportunity objects with: name, description, market_size_estimate, timeline (immediate/short/medium), competition_level (low/medium/high), key_requirements."""
         response = self._call_ollama(prompt)
+        if not (response or "").strip():
+            # previously fabricated one "scanned_opportunities" entry with an empty description
+            return {"status": "error", "error": "LLM returned no opportunity scan",
+                    "industry": industry, "opportunities": [], "count": 0}
 
         opportunities = []
         try:
             import re
             json_match = re.search(r'\[.*\]', response, re.DOTALL)
             if json_match:
-                opportunities = json.loads(json_match.group(0))
+                opportunities = [o for o in json.loads(json_match.group(0)) if isinstance(o, dict)]
             else:
                 opportunities = [{"name": "scanned_opportunities", "description": response, "competition_level": "unknown"}]
         except json.JSONDecodeError:
@@ -99,15 +103,19 @@ Score across 5 dimensions (1-10 each):
 Return JSON: {{scores: {{viability, edge, timing, recourse, outlook}}, weighted_score: float, pros: string[], cons: string[], verdict: string}}"""
         evaluation = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
 
+        scores = None
         try:
             import re
-            json_match = re.search(r'\{.*\}', evaluation, re.DOTALL)
+            json_match = re.search(r'\{.*\}', evaluation or "", re.DOTALL)
             if json_match:
                 scores = json.loads(json_match.group(0))
-            else:
-                scores = {"scores": {"viability": 5, "edge": 5, "timing": 5, "recourse": 5, "outlook": 5}, "weighted_score": 5.0}
         except json.JSONDecodeError:
-            scores = {"scores": {"viability": 5, "edge": 5, "timing": 5, "recourse": 5, "outlook": 5}, "weighted_score": 5.0}
+            scores = None
+        if not isinstance(scores, dict) or not isinstance(scores.get("scores"), dict) or not scores["scores"]:
+            # A failed/unparseable evaluation used to be invented as 5/5/5/5/5 (weighted 5.0).
+            logger.warning("[VECTOR][news_trends] evaluation unparseable for {}", opportunity.get("name", "unknown"))
+            return {"status": "error", "error": "LLM returned no parseable evaluation",
+                    "opportunity": opportunity.get("name", "unknown"), "evaluation": None}
 
         result = {
             "opportunity": opportunity.get("name", "unknown"),
@@ -160,7 +168,7 @@ Return JSON: {{scores: {{viability, edge, timing, recourse, outlook}}, weighted_
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params") or {}
         result = self.scan_opportunities(p.get("industry", "AI/ML"))
         return {"status": "ok", **result}
 

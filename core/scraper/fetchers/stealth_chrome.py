@@ -1,5 +1,6 @@
 from core.scraper.core._types import Unpack
 from core.scraper.engines._browsers._types import StealthSession
+from core.scraper.engines.static import ensure_public_url, aensure_public_url
 from core.scraper.engines.toolbelt.custom import BaseFetcher, Response
 from core.scraper.engines._browsers._stealth import StealthySession, AsyncStealthySession
 
@@ -59,6 +60,7 @@ class StealthyFetcher(BaseFetcher):
 
         kwargs["selector_config"] = {**cls._generate_parser_arguments(), **selector_config}
 
+        ensure_public_url(url, resolve_dns=not kwargs.get("proxy"))
         with StealthySession(**kwargs) as engine:
             return engine.fetch(url)
 
@@ -111,5 +113,6 @@ class StealthyFetcher(BaseFetcher):
 
         kwargs["selector_config"] = {**cls._generate_parser_arguments(), **selector_config}
 
+        await aensure_public_url(url, resolve_dns=not kwargs.get("proxy"))
         async with AsyncStealthySession(**kwargs) as engine:
             return await engine.fetch(url)

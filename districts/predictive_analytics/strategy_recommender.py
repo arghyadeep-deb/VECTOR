@@ -99,6 +99,13 @@ class StrategyRecommender(AgentBase):
                     historical_data=params.get("historical_data", []),
                     periods=params.get("periods", 7),
                 )
+                if not result.values:
+                    return {
+                        "status": "insufficient_data",
+                        "error": "need at least 3 finite historical_data points to forecast",
+                        "metric_name": result.metric_name,
+                        "type": task_type,
+                    }
                 try:
                     self._get_store().store_forecast(result)
                 except Exception as e:
@@ -117,6 +124,12 @@ class StrategyRecommender(AgentBase):
 
             if task_type in ("detect_anomalies", "anomaly_prediction"):
                 predictor = self._get_anomaly_predictor()
+                if len(params.get("values", []) or []) < 3:
+                    return {
+                        "status": "insufficient_data",
+                        "error": "need at least 3 values for anomaly detection; no anomalies is NOT a clean bill",
+                        "type": task_type,
+                    }
                 anomalies = predictor.detect(
                     metric_name=params.get("metric_name", "unknown"),
                     values=params.get("values", []),
@@ -148,6 +161,12 @@ class StrategyRecommender(AgentBase):
                     scenario_params=params.get("scenario_params", {}),
                     iterations=params.get("iterations", 1000),
                 )
+                if result.iterations == 0:
+                    return {
+                        "status": "error",
+                        "error": "simulation failed (invalid scenario_params or iterations)",
+                        "type": task_type,
+                    }
                 try:
                     self._get_store().store_simulation(result)
                 except Exception as e:
@@ -236,6 +255,8 @@ class StrategyRecommender(AgentBase):
         simulations: list,
     ) -> list[Recommendation]:
         recs = []
+        # Forecasts built on fabricated placeholder history must not drive alerts/recommendations.
+        predictions = {k: v for k, v in predictions.items() if "synthetic_history" not in (v.model_used or "")}
         try:
             recs.extend(self._time_management_recs(predictions, anomalies))
         except Exception as e:
@@ -514,7 +535,7 @@ class StrategyRecommender(AgentBase):
         context: dict,
     ) -> list[Recommendation]:
         recs = []
-        if forecast is None or not forecast.values:
+        if forecast is None or not forecast.values or "synthetic_history" in (forecast.model_used or ""):
             return recs
 
         from districts.predictive_analytics.time_series_forecaster import FORECAST_METRICS

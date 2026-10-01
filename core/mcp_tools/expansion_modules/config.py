@@ -5,12 +5,16 @@ from pathlib import Path
 from loguru import logger
 
 from core.config import CONFIG
+from core.mcp_tools.expansion_modules import is_sensitive_name, redact, resolve_in_root
 from core.mcp_tools.error_handling import safe_json as _safe_json
 from core.mcp_tools.error_handling import register_stub_tool as _reg
 from core.mcp_tools.memory_safety import (
     MEMORY_CLEAR_CONFIRM as _MEMORY_CLEAR_CONFIRM,
     resolve_memory_path as _resolve_memory_path,
 )
+
+
+_ROOT = Path(__file__).resolve().parents[3]  # module-level so tests can point it at a tmp dir
 
 
 def add_config_tools(mcp) -> None:
@@ -21,29 +25,33 @@ def add_config_tools(mcp) -> None:
     import shutil as _shutil
     from pathlib import Path as _Path
 
-    ROOT = _Path(__file__).resolve().parents[3]
+    ROOT = _ROOT
 
     # â”€â”€ config_* (26) — wired to core/config.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
         from core.config import CONFIG as _CONFIG, VectorSettings as _VectorSettings
 
+        # Runtime writes through MCP must not be able to loosen the security posture
+        # (permission tiers, shell/private-URL switches, secrets, DB key/path).
+        _WRITE_DENY = {"permission", "security", "siem", "allow_shell_exec", "write_safe_root",
+                       "allow_private_urls", "allow_commit_drift", "db_path", "env", "control",
+                       "ollama_host", "allowed_origins", "cloud_api_url", "cf_worker_url"}
+
+        def _write_denied(key: str) -> bool:
+            return key in _WRITE_DENY or is_sensitive_name(key)
+
         @mcp.tool
         def config_get(key: str) -> str:
             """Get a VECTOR config value."""
-            value = _CONFIG.get(key)
+            if is_sensitive_name(key):
+                return _safe_json({"key": key, "value": "***REDACTED***"})
+            value = redact(_CONFIG.get(key))
             return _safe_json({"key": key, "value": str(value) if not isinstance(value, (dict, list)) else value})
 
         @mcp.tool
         def config_list() -> str:
             """List all config keys and values (secrets redacted)."""
-            redacted = {}
-            for k, v in _CONFIG.items():
-                if "key" in k.lower() or "secret" in k.lower() or "token" in k.lower() or "password" in k.lower():
-                    redacted[k] = "***REDACTED***"
-                elif isinstance(v, dict):
-                    redacted[k] = {kk: ("***REDACTED***" if "key" in kk.lower() or "secret" in kk.lower() else vv) for kk, vv in v.items()}
-                else:
-                    redacted[k] = v
+            redacted = redact(_CONFIG)
             return _safe_json(redacted)
 
         @mcp.tool
@@ -54,7 +62,7 @@ def add_config_tools(mcp) -> None:
         @mcp.tool
         def config_env() -> str:
             """View environment variables relevant to VECTOR."""
-            relevant = {k: v for k, v in _os.environ.items() if k.startswith("VECTOR_") or k.startswith("OLLAMA_") or k.startswith("OPENAI_")}
+            relevant = {k: ("***REDACTED***" if is_sensitive_name(k) else v) for k, v in _os.environ.items() if k.startswith("VECTOR_") or k.startswith("OLLAMA_") or k.startswith("OPENAI_")}
             return _safe_json(relevant)
 
         @mcp.tool
@@ -68,7 +76,7 @@ def add_config_tools(mcp) -> None:
             """View or change model routing config."""
             models = _CONFIG.get("models", {})
             router = _CONFIG.get("model_router", {})
-            return _safe_json({"models": models, "router": router})
+            return _safe_json({"models": redact(models), "router": redact(router)})
 
         @mcp.tool
         def config_agents() -> str:
@@ -89,20 +97,20 @@ def add_config_tools(mcp) -> None:
         def config_workers() -> str:
             """View worker config."""
             tq = _CONFIG.get("task_queue", {})
-            return _safe_json(tq)
+            return _safe_json(redact(tq))
 
         @mcp.tool
         def config_memory() -> str:
             """View memory config."""
             obsidian = _CONFIG.get("obsidian", {})
-            return _safe_json({"obsidian": obsidian, "db_path": _CONFIG.get("db_path", ""), "vault_path": _CONFIG.get("vault_path", "")})
+            return _safe_json({"obsidian": redact(obsidian), "db_path": _CONFIG.get("db_path", ""), "vault_path": _CONFIG.get("vault_path", "")})
 
         @mcp.tool
         def config_security() -> str:
             """View security config."""
             security = _CONFIG.get("security", {})
             permission = _CONFIG.get("permission", {})
-            return _safe_json({"security": security, "permission": permission})
+            return _safe_json({"security": redact(security), "permission": permission})
 
         @mcp.tool
         def config_network() -> str:
@@ -125,7 +133,7 @@ def add_config_tools(mcp) -> None:
             """View metrics config."""
             cost = _CONFIG.get("cost", {})
             council = _CONFIG.get("council", {})
-            return _safe_json({"cost": cost, "council": council})
+            return _safe_json({"cost": redact(cost), "council": redact(council)})
 
         @mcp.tool
         def config_reset() -> str:
@@ -136,14 +144,7 @@ def add_config_tools(mcp) -> None:
         @mcp.tool
         def config_export() -> str:
             """Export config to JSON (secrets redacted)."""
-            redacted = {}
-            for k, v in _CONFIG.items():
-                if "key" in k.lower() or "secret" in k.lower() or "token" in k.lower():
-                    redacted[k] = "***REDACTED***"
-                elif isinstance(v, dict):
-                    redacted[k] = {kk: ("***REDACTED***" if "key" in kk.lower() or "secret" in kk.lower() else vv) for kk, vv in v.items()}
-                else:
-                    redacted[k] = v
+            redacted = redact(_CONFIG)
             return _safe_json(redacted)
 
         @mcp.tool
@@ -163,7 +164,7 @@ def add_config_tools(mcp) -> None:
             for k, v in _CONFIG.items():
                 dv = getattr(defaults, k, None) if hasattr(defaults, k) else None
                 if v != dv:
-                    diffs[k] = {"current": str(v), "default": str(dv)}
+                    diffs[k] = {"current": "***REDACTED***", "default": "***REDACTED***"} if is_sensitive_name(k) else {"current": str(redact(v)), "default": str(redact(dv))}
             return _safe_json({"diffs": diffs, "total_changes": len(diffs)})
 
         @mcp.tool
@@ -172,11 +173,16 @@ def add_config_tools(mcp) -> None:
             try:
                 changes_dict = _json.loads(changes) if changes else {}
                 applied = []
+                denied = []
                 for k, v in changes_dict.items():
-                    if k in _CONFIG:
+                    if _write_denied(k):
+                        denied.append(k)
+                    elif k in _CONFIG:
                         _CONFIG[k] = v
                         applied.append(k)
-                return _safe_json({"ok": True, "applied": applied, "note": "Changes are runtime-only — update .env to persist"})
+                if denied:
+                    logger.warning("[VECTOR][mcp] config_apply denied protected keys: {}", denied)
+                return _safe_json({"ok": not denied, "applied": applied, "denied": denied, "note": "Changes are runtime-only — update .env to persist"})
             except Exception as e:
                 return _safe_json({"error": str(e)})
 
@@ -194,7 +200,9 @@ def add_config_tools(mcp) -> None:
         def config_restore(backup_path: str) -> str:
             """Restore a config backup."""
             env_file = ROOT / ".env"
-            backup = _Path(backup_path)
+            backup = resolve_in_root(ROOT, backup_path)
+            if backup is None or not backup.name.startswith(".env.backup.") or backup.parent != ROOT.resolve():
+                return _safe_json({"ok": False, "error": "Only .env.backup.* files in the repo root can be restored"})
             if backup.exists():
                 _shutil.copy2(str(backup), str(env_file))
                 return _safe_json({"ok": True, "restored": str(backup)})
@@ -204,14 +212,19 @@ def add_config_tools(mcp) -> None:
         def config_import(path: str) -> str:
             """Import config from JSON file (runtime only)."""
             try:
-                with open(path) as f:
+                src = resolve_in_root(ROOT, path)
+                if src is None:
+                    return _safe_json({"ok": False, "error": "Path traversal denied"})
+                with open(src, encoding="utf-8") as f:
                     data = _json.load(f)
-                applied = []
+                applied, denied = [], []
                 for k, v in data.items():
-                    if k in _CONFIG:
+                    if _write_denied(k):
+                        denied.append(k)
+                    elif k in _CONFIG:
                         _CONFIG[k] = v
                         applied.append(k)
-                return _safe_json({"ok": True, "applied": applied})
+                return _safe_json({"ok": not denied, "applied": applied, "denied": denied})
             except Exception as e:
                 return _safe_json({"error": str(e)})
 
@@ -228,6 +241,9 @@ def add_config_tools(mcp) -> None:
         @mcp.tool
         def config_set(key: str, value: str) -> str:
             """Set a VECTOR config value (runtime only, not persisted)."""
+            if _write_denied(key):
+                logger.warning("[VECTOR][mcp] config_set denied protected key: {}", key)
+                return _safe_json({"ok": False, "error": f"Config key is protected: {key}"})
             if key in _CONFIG:
                 _CONFIG[key] = value
                 return _safe_json({"ok": True, "key": key, "note": "Runtime-only — update .env to persist"})

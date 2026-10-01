@@ -69,6 +69,9 @@ class ConsolidationBot(AgentBase):
         self._consolidation_lock = asyncio.Lock()
         self._last_consolidation_date: datetime.date | None = None
         self._last_consolidation_time: datetime.datetime | None = None
+        # Set when the last consolidation pass could not persist its summary
+        # (remember() returned False) so run() can report it instead of "ok".
+        self._consolidation_write_failed: bool = False
         logger.info(f"[VECTOR][consolidation_bot] ready gen={generation} hp={self.health_points}")
         # Phase 2B: subscribe to memory events
         self.subscribe_to("memory_stored")
@@ -103,7 +106,7 @@ class ConsolidationBot(AgentBase):
                 await self.run({"type": "consolidate", "params": {"source": "event"}})
                 self._last_consolidation_time = now
             except Exception as e:
-                logger.debug(f"[VECTOR][consolidation_bot] handle_event failed: {e}")
+                logger.warning("[VECTOR][consolidation_bot] handle_event failed: {}", e)
         return {"status": "handled", "agent": self.name, "event": et}
 
     # ── mem0 helper ───────────────────────────────────────────────────────────
@@ -231,7 +234,17 @@ class ConsolidationBot(AgentBase):
             )
 
         key = f"consolidation:{datetime.date.today().isoformat()}"
-        self._memory.remember(key, summary, category="consolidation", confidence=_confidence)
+        # remember() swallows write errors and returns False (it never raises).
+        # If the summary was not persisted we must NOT go on to prune the raw
+        # episodes it was meant to replace, nor report success.
+        self._consolidation_write_failed = False
+        if self._memory.remember(key, summary, category="consolidation", confidence=_confidence) is False:
+            self._consolidation_write_failed = True
+            logger.error(
+                "[VECTOR][consolidation_bot] summary write failed for {} — "
+                "raw episodes kept, no pruning, consolidation not recorded", key,
+            )
+            return 0
         self._store_to_mem0(f"Memory consolidation [{key}]: {summary[:400]}")
         self._memory.store_chain(
             situation="memory_consolidation",
@@ -348,9 +361,10 @@ class ConsolidationBot(AgentBase):
     # ── Loop ──────────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
-        task_type = (task or {}).get("type", "")
+        task = task or {}
+        task_type = task.get("type", "")
         if task_type == "store_findings":
-            return self._store_findings(task.get("params", {}))
+            return self._store_findings(task.get("params") or {})
         # classify_chat_intent()'s LLM classifier isn't limited to a fixed
         # vocabulary for non-RED-tier task types (governor.py: "Otherwise pick
         # a short snake_case task_type") — live traces show it invents
@@ -359,7 +373,7 @@ class ConsolidationBot(AgentBase):
         # rather than an exact list so new LLM-invented synonyms (add_note,
         # note_this, etc.) still land here instead of back in the HP-lottery.
         if task_type in ("save_note", "overwrite_note_personal") or "note" in task_type:
-            return self._save_note(task.get("params", {}))
+            return self._save_note(task.get("params") or {})
         # KNOWN_ISSUES #21's residual/#6 in the 2026-07-30 cleanup pass:
         # entity_add/knowledge_add/relation_add/knowledge_relate are real
         # task_types DISTRICT_TASK_MAP routes to memory_curator (a genuine,
@@ -367,9 +381,9 @@ class ConsolidationBot(AgentBase):
         # episodic memory), but until now nothing here declared them, so
         # they fell to the same HP-lottery default as the original #21 bug.
         if task_type in ("entity_add", "knowledge_add", "relation_add", "knowledge_relate"):
-            return self._kg_write(task.get("params", {}), task_type)
+            return self._kg_write(task.get("params") or {}, task_type)
         if task_type == "knowledge_query":
-            return self._kg_query(task.get("params", {}))
+            return self._kg_query(task.get("params") or {})
         # 2026-07-30 audit fix (Phase 2 — memory subsystem): governor.py's
         # DISTRICT_TASK_MAP routes the literal task_types "remember",
         # "recall", and "memory" straight to district=memory_curator (see
@@ -381,16 +395,19 @@ class ConsolidationBot(AgentBase):
         # pass instead — the fact was never actually stored (or looked up),
         # and the reply was a meaningless episode count.
         if task_type in ("remember", "memory_store"):
-            return self._remember_fact(task.get("params", {}))
+            return self._remember_fact(task.get("params") or {})
         if task_type in ("recall", "memory_query", "memory"):
             # "memory" alone is ambiguous (LLM classifier shorthand for
             # "this is memory-flavored", not necessarily read vs write) —
             # treat it as a read, since a misclassified read that runs a
             # lookup is harmless, while a misclassified write would silently
             # fabricate a stored "fact" from a question.
-            return self._recall_query(task.get("params", {}))
+            return self._recall_query(task.get("params") or {})
         if task_type == "consolidate":
             count = await self.consolidate_old_episodes()
+            if self._consolidation_write_failed:
+                return {"status": "error", "consolidated": 0,
+                        "error": "consolidation summary could not be written; raw episodes kept"}
             return {"status": "ok", "consolidated": count}
         # 2026-07-30 audit fix (Phase 2 — orphaned MemoryRouter): anything
         # else that reaches memory_curator — an LLM-invented task_type not
@@ -411,7 +428,7 @@ class ConsolidationBot(AgentBase):
         # consolidate_old_episodes() is still reachable — it just needs the
         # explicit task_type="consolidate" now (handle_event() above already
         # uses that), rather than being every unmatched task_type's default.
-        params = task.get("params", {}) or {}
+        params = task.get("params") or {}
         text = str(
             params.get("query") or params.get("content") or params.get("text") or ""
         ).strip()
@@ -471,7 +488,8 @@ class ConsolidationBot(AgentBase):
             content_hash = hashlib.sha256(content.strip().lower().encode("utf-8")).hexdigest()[:16]
             key = f"fact:content:{content_hash}"
         try:
-            self._memory.remember(key, content, category="semantic_fact", confidence=0.9)
+            if self._memory.remember(key, content, category="semantic_fact", confidence=0.9) is False:
+                return {"status": "error", "error": "memory write failed; fact was not stored"}
             self._memory.store(event_type="remember", content=content, tags=["remember"], source="chat")
             self.award_points(10, "fact_remembered")
             return {"status": "ok", "response": f"Got it — I'll remember: {content}"}
@@ -622,7 +640,8 @@ class ConsolidationBot(AgentBase):
             content_hash = hashlib.sha256(content.strip().lower().encode("utf-8")).hexdigest()[:16]
             key = f"note:content:{content_hash}"
         try:
-            self._memory.remember(key, content, category="personal_note", confidence=1.0)
+            if self._memory.remember(key, content, category="personal_note", confidence=1.0) is False:
+                return {"status": "error", "error": "memory write failed; note was not saved"}
             self.award_points(10, "note_saved")
             return {"status": "ok", "response": f"Noted: {content}"}
         except Exception as e:
@@ -643,7 +662,8 @@ class ConsolidationBot(AgentBase):
             return {"status": "error", "error": "store_findings needs both 'topic' and 'findings'"}
         key = f"finding:{topic}:{datetime.datetime.now().isoformat()}"
         try:
-            self._memory.remember(key, findings, category="research_finding", confidence=0.6)
+            if self._memory.remember(key, findings, category="research_finding", confidence=0.6) is False:
+                return {"status": "error", "error": "memory write failed; findings were not stored"}
             self.award_points(15, "finding_stored")
             return {"status": "ok", "key": key}
         except Exception as e:

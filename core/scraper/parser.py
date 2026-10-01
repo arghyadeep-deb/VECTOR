@@ -679,8 +679,14 @@ class Selector(SelectorsGeneration):
                     element_data = self.retrieve(identifier or selector)
                     if element_data:
                         elements = self.relocate(element_data, percentage)
-                        if elements is not None and auto_save:
+                        # `relocate` returns [] when nothing scores above the threshold; indexing it would raise
+                        if elements and auto_save:
                             self.save(elements[0], identifier or selector)
+                    else:
+                        log.warning(
+                            f"Adaptive lookup found no saved element for identifier '{identifier or selector}'; "
+                            "returning an empty result (save it first with `auto_save=True`)."
+                        )
 
                 return self.__handle_elements(elements)
             else:
@@ -770,7 +776,8 @@ class Selector(SelectorsGeneration):
         for tag in tags:
             selector = tag
             for key, value in attributes.items():
-                value = value.replace('"', r"\"")  # Escape double quotes in user input
+                # Escape backslashes first, then double quotes, so a value can't break out of the CSS string
+                value = value.replace("\\", "\\\\").replace('"', r"\"")
                 # Not escaping anything with the key so the user can pass patterns like {'href*': '/p/'} or get errors :)
                 selector += '[{}="{}"]'.format(key, value)
             if selector != "*":
@@ -1063,8 +1070,10 @@ class Selector(SelectorsGeneration):
             if (grandparent := parent.getparent()) is not None:
                 path_parts.insert(0, grandparent.tag)
 
-        xpath_path = "//{}".format("/".join(path_parts))
-        potential_matches = root.xpath(f"{xpath_path}[count(ancestor::*) = {current_depth}]")
+        # Tag names come from the page (can hold ':' like `o:p`), so bind them as XPath variables, never inline them
+        variables = {f"_t{i}": part for i, part in enumerate(path_parts)}
+        steps = "/".join(f"*[name()=$_t{i}]" for i in range(len(path_parts)))
+        potential_matches = root.xpath(f"//{steps}[count(ancestor::*) = {current_depth}]", **variables)
 
         for potential_match in potential_matches:
             if potential_match != root and self.__are_alike(

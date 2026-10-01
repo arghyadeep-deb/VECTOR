@@ -26,7 +26,7 @@ from core.scraper.core._types import List, Optional, Dict, Tuple, Any, Callable
 from orjson import loads as json_loads, JSONDecodeError
 
 try:
-    from click import command, option, Choice, group, argument
+    from click import command, option, Choice, group, argument, ClickException
 except (ImportError, ModuleNotFoundError) as e:
     raise ModuleNotFoundError(
         "You need to install VECTOR scraper with any of the extras to enable Shell commands. See: https://vector_scraper.readthedocs.io/en/latest/#installation"
@@ -74,7 +74,11 @@ def __Request_and_Save(
         kwargs.setdefault("block_ads", True)
     response = fetcher_func(url, **kwargs)
     Convertor.write_content_to_file(response, str(output_path), css_selector, main_content_only=ai_targeted)
-    log.info(f"Content successfully saved to '{output_path}'")
+    log.info(f"Content saved to '{output_path}'")
+    status = getattr(response, "status", 200)
+    if isinstance(status, int) and status >= 400:
+        # The error page is kept for inspection, but the command must not report success.
+        raise ClickException(f"Request to {url} failed with HTTP status {status} (response saved to '{output_path}')")
 
 
 def __ParseExtractArguments(
@@ -168,8 +172,8 @@ def install(force):  # pragma: no cover
 @option(
     "--host",
     type=str,
-    default="0.0.0.0",
-    help="The host to use if streamable-http transport is enabled (Default: '0.0.0.0')",
+    default="127.0.0.1",
+    help="The host to use if streamable-http transport is enabled (Default: '127.0.0.1'; the server fetches arbitrary URLs, only expose it deliberately)",
 )
 @option(
     "--port", type=int, default=8000, help="The port to use if streamable-http transport is enabled (Default: 8000)"
@@ -204,7 +208,8 @@ def shell(code, level):
     from core.scraper.core.shell import CustomShell
 
     console = CustomShell(code=code, log_level=level)
-    console.start()
+    if console.start() is False:
+        raise ClickException("The code passed with --code failed")
 
 
 @group(
@@ -212,7 +217,6 @@ def shell(code, level):
 )
 def extract():
     """Extract content from web pages and save to files"""
-    raise NotImplementedError("extract must be implemented by subclass")
 
 
 ####
@@ -669,7 +673,7 @@ def stealthy_fetch(
 
 @group()
 def main():
-    raise NotImplementedError("main must be implemented by subclass")
+    """VECTOR Scraper command line interface"""
 
 
 # Adding commands

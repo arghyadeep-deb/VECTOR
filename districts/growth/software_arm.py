@@ -33,6 +33,12 @@ class SoftwareArm:
         try:
             specs = self._specs(issue)
             code = self._build(specs)
+            if not code.get("code"):
+                # Build fell back (rapid_prototyper unavailable): there is nothing
+                # to review, so do not run review/audit over an empty artifact.
+                logger.error("[VECTOR][growth][armB] build produced no code -- aborting")
+                return {"status": "error", "approved": False, "escalated": False,
+                        "release_ready": False, "reason": "build_failed"}
             review = await self._review_fix_loop(code)
             security = self._security_audit(review["code"])
             return {
@@ -58,15 +64,30 @@ class SoftwareArm:
             code = self._fix(code, review=approved)
         logger.warning("[VECTOR][growth][armB] review cap hit ({}) — escalating to owner",
                        self.max_iterations)
+        await self._escalate_to_owner(self.max_iterations)
         return {"approved": False, "escalated": True, "iterations": self.max_iterations, "code": code}
+
+    async def _escalate_to_owner(self, iterations: int) -> None:
+        """Actually notify the owner on escalation (it used to only set a flag and
+        log, so nobody was ever told the beta candidate failed review)."""
+        try:
+            from core.notify import pushover
+            await pushover(
+                f"VECTOR growth ARM B: beta candidate NOT approved after {iterations} "
+                f"review iterations -- needs owner attention.", priority=1)
+        except Exception as exc:
+            logger.error("[VECTOR][growth][armB] owner escalation notify failed: {}", exc)
 
     # ── stages (reuse existing agents; mocked in tests) ──────────────
     def _specs(self, issue: dict | None) -> dict:
         try:
-            from districts.startups.idea_validator import IdeaValidator  # reuse
-            return {"issue": issue or {}, "validated": True}
-        except Exception:
-            return {"issue": issue or {}, "validated": False}
+            from districts.startups.idea_validator import IdeaValidator  # reuse  # noqa: F401
+        except Exception as exc:
+            logger.warning("[VECTOR][growth][armB] idea_validator unavailable: {}", exc)
+        # "validated" must come from an actual validation verdict on the issue, not
+        # from the import having succeeded.
+        issue = issue or {}
+        return {"issue": issue, "validated": issue.get("validated") is True}
 
     def _build(self, specs: dict):
         try:
@@ -83,7 +104,8 @@ class SoftwareArm:
             from districts.coding.bug_hunter import BugHunter         # reuse
             # Conservative default until wired to real verdicts: not approved.
             return False
-        except Exception:
+        except Exception as exc:
+            logger.warning("[VECTOR][growth][armB] reviewers unavailable -- not approved: {}", exc)
             return False
 
     def _fix(self, code, review):

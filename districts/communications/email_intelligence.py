@@ -28,6 +28,7 @@ class EmailIntelligence(AgentBase):
         super().__init__(agent_id="email_intel_001", name="EmailIntelligence", district="communications")
         self.capabilities = ["communications", "draft_reply", "email", "message", "send_email"]
         self._memory: EpisodicMemory | None = None
+        self._fetch_error: str | None = None
         self._model = CONFIG.get("models", {}).get("focus", "vector-focus")
         logger.info("[VECTOR][email_intel] initialized")
 
@@ -50,10 +51,12 @@ class EmailIntelligence(AgentBase):
             return build("gmail", "v1", credentials=creds)
         except Exception as e:
             logger.warning("[VECTOR][email_intel] Gmail service unavailable: {}", e)
+            self._fetch_error = str(e)
             return None
 
     def fetch_recent_threads(self, max_results: int = 20) -> list[dict]:
         """Fetch recent email threads from Gmail."""
+        self._fetch_error = None
         service = self._get_gmail_service()
         if service is None:
             return []
@@ -71,6 +74,7 @@ class EmailIntelligence(AgentBase):
             return result
         except Exception as e:
             logger.warning("[VECTOR][email_intel] fetch threads failed: {}", e)
+            self._fetch_error = str(e)
             return []
 
     def _parse_thread(self, messages: list[dict]) -> dict | None:
@@ -182,6 +186,11 @@ class EmailIntelligence(AgentBase):
         task = {**task, **(task.get("params") or {})}
         try:
             threads = self.fetch_recent_threads(max_results=task.get("limit", 15))
+
+            if not threads and getattr(self, "_fetch_error", None):
+                # Gmail is configured but the fetch failed: that is an error, not "no mail".
+                self.deduct_points(10, "email_fetch_failed")
+                return {"status": "error", "error": f"Gmail fetch failed: {self._fetch_error}", "threads": 0}
 
             if not threads:
                 self.award_points(10, "email_check_no_gmail")

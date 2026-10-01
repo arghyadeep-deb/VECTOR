@@ -11,6 +11,8 @@ from core.memory.obsidian_sync import ObsidianSync
 from core.loop.context_engine import ContextEngine
 from loguru import logger
 
+from districts.projects._safe import safe_note_title
+
 _REASONING = CONFIG["models"]["reasoning"]
 
 
@@ -38,7 +40,9 @@ class DocWriter(AgentBase):
         self._context = ContextEngine()
         logger.info(f"[VECTOR][doc_writer] ready gen={generation}")
 
-    def _generate_doc(self, project_name: str, doc_type: str, context: str, hydration: str) -> str:
+    def _generate_doc(self, project_name: str, doc_type: str, context: str, hydration: str) -> str | None:
+        """Returns the generated doc, or None when the LLM failed (never a
+        canned placeholder that would be written to the vault as a real doc)."""
         templates = {
             "readme": (
                 f"Write a README.md for project: {project_name}\n\n"
@@ -75,8 +79,8 @@ class DocWriter(AgentBase):
                 raise ValueError("empty response")
             return text
         except Exception as e:
-            logger.warning(f"[VECTOR][doc_writer] LLM unavailable: {e}")
-            return f"# {project_name} — {doc_type.title()}\n\n*Documentation generation unavailable.*"
+            logger.warning("[VECTOR][doc_writer] LLM unavailable: {}", e)
+            return None
 
     def write_doc(self, project_name: str, doc_type: str, context: str = "") -> bool:
         """
@@ -87,11 +91,20 @@ class DocWriter(AgentBase):
             logger.warning(f"[VECTOR][doc_writer] unknown doc_type: {doc_type}")
             return False
 
+        safe_name = safe_note_title(project_name)
+        if not safe_name:
+            logger.warning("[VECTOR][doc_writer] empty/invalid project name: {!r}", project_name)
+            return False
+
         hydration = self._context.session_hydration_prompt()
         content = self._generate_doc(project_name, doc_type, context, hydration)
+        if content is None:
+            logger.error("[VECTOR][doc_writer] no doc written for {} ({}): generation failed", project_name, doc_type)
+            self.deduct_points(5, "doc generation failed")
+            return False
 
         date_str = datetime.date.today().isoformat()
-        title = f"{project_name} — {doc_type.title()}"
+        title = f"{safe_name} — {doc_type.title()}"
 
         try:
             self._obsidian.write_note(
@@ -142,7 +155,7 @@ class DocWriter(AgentBase):
             return context
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params") or {}
         query = (
             p.get("query")
             or task.get("query")

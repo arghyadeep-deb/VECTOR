@@ -84,6 +84,11 @@ class Spider(ABC):
     # Robots.txt compliance
     robots_txt_obey: bool = False
 
+    # SSRF guard: every fetched URL (start, followed, sitemap, robots.txt) is
+    # checked against core.security.ssrf_guard. Set True only for spiders that deliberately
+    # crawl localhost/private hosts.
+    allow_private_networks: bool = False
+
     # Development mode
     development_mode: bool = False
     development_cache_dir: Optional[str] = None
@@ -258,8 +263,8 @@ class Spider(ABC):
         if self._original_sigint_handler is not None:
             try:
                 signal.signal(signal.SIGINT, self._original_sigint_handler)
-            except ValueError:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except ValueError as e:
+                logger.warning("[VECTOR][scraper] could not restore SIGINT handler (not main thread?): {}", e)
 
     async def __run(self) -> CrawlResult:
         token = set_logger(self.logger)

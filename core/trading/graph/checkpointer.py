@@ -86,6 +86,10 @@ def clear_all_checkpoints(data_dir: str | Path) -> int:
     dbs = list(cp_dir.glob("*.db"))
     for db in dbs:
         db.unlink()
+        # A stale -wal/-shm left beside a deleted DB can be replayed into the next
+        # DB created at the same path, resurrecting a cleared checkpoint.
+        for suffix in ("-wal", "-shm"):
+            Path(str(db) + suffix).unlink(missing_ok=True)
     return len(dbs)
 
 
@@ -101,7 +105,10 @@ def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
             for table in ("writes", "checkpoints"):
                 conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))
             conn.commit()
-        except sqlite3.OperationalError:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except sqlite3.OperationalError as e:
+            logger.warning(
+                "[VECTOR][trading_checkpoint] could not clear checkpoint for {} on {}: {}",
+                ticker, date, e,
+            )
         finally:
             conn.close()

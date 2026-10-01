@@ -2,6 +2,7 @@ from core.memory.db_utils import apply_pragmas
 import asyncio
 import datetime
 import json
+import re
 import sqlite3
 import threading
 import time
@@ -42,6 +43,9 @@ class DataEngineer(AgentBase):
 
     # Path to VECTOR's primary SQLite DB (same as CONFIG['db_path'])
     VECTOR_DB_PATH: Path = configured_db_path()
+
+    _B2S_ROW_CAP = 10000
+    _PROFILE_LIMIT_MAX = 100000
 
     def __init__(self, generation: int = 1, ghost: dict | None = None):
         super().__init__(
@@ -106,6 +110,23 @@ class DataEngineer(AgentBase):
         except Exception as e:
             logger.error(f"[VECTOR][data_engineer] DB open failed: {e}")
             return None
+
+    @staticmethod
+    def _resolve_table(conn, table) -> str | None:
+        """Allow-list a caller-supplied table name against sqlite_master.
+
+        Table names come from task params and were interpolated straight into
+        f-string SQL (PRAGMA/SELECT ... FROM {table}), so a crafted name could
+        read any table/subquery. Only a plain identifier that is a real
+        table/view in this DB is accepted; the canonical name is returned.
+        """
+        if not isinstance(table, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", table):
+            return None
+        row = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type IN ('table','view') AND name = ?",
+            (table,),
+        ).fetchone()
+        return row[0] if row else None
 
     # ── Core pipeline methods ─────────────────────────────────────────────────
 
@@ -180,12 +201,13 @@ class DataEngineer(AgentBase):
                             for col in cols:
                                 try:
                                     null_count_row = conn.execute(
-                                        f"SELECT COUNT(*) FROM {table} WHERE {col} IS NULL"  # noqa: S608
+                                        f'SELECT COUNT(*) FROM {table} WHERE "{col}" IS NULL'  # noqa: S608
                                     ).fetchone()
                                     null_count = null_count_row[0] if null_count_row else 0
                                     null_fractions.append(null_count / row_count)
-                                except Exception:
-                                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                                except Exception as col_err:
+                                    logger.warning("[VECTOR][data_engineer] null-count failed for {}.{}: {}", table, col, col_err)
+                                    issues.append(f"Column '{table}.{col}' could not be NULL-checked: {col_err}")
                             if null_fractions:
                                 nulls_pct = round(sum(null_fractions) / len(null_fractions) * 100, 1)
                             if nulls_pct > 50:
@@ -198,11 +220,11 @@ class DataEngineer(AgentBase):
                         if ts_cols and row_count > 0:
                             try:
                                 lu_row = conn.execute(
-                                    f"SELECT MAX({ts_cols[0]}) FROM {table}"  # noqa: S608
+                                    f'SELECT MAX("{ts_cols[0]}") FROM {table}'  # noqa: S608
                                 ).fetchone()
                                 last_updated = lu_row[0] if lu_row else None
-                            except Exception:
-                                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                            except Exception as ts_err:
+                                logger.warning("[VECTOR][data_engineer] last_updated failed for {}: {}", table, ts_err)
 
                         table_stats[table] = {
                             "rows": row_count,
@@ -219,6 +241,7 @@ class DataEngineer(AgentBase):
                     except Exception as e:
                         table_stats[table] = {"rows": -1, "nulls_pct": 0.0, "last_updated": None, "error": str(e)}
                         health_score -= 5
+                        issues.append(f"Table '{table}' could not be inspected: {e}")
 
             finally:
                 conn.close()
@@ -244,6 +267,7 @@ class DataEngineer(AgentBase):
         start_ms = time.time() * 1000
         errors: list[str] = []
         processed = 0
+        truncated = False
 
         if table not in self.BRONZE_TABLES:
             return {
@@ -266,9 +290,12 @@ class DataEngineer(AgentBase):
                                          "is_training_data", "avg_reward")
                 ]
 
-                rows = conn.execute(f"SELECT rowid, * FROM {table} LIMIT 10000").fetchall()  # noqa: S608
+                rows = conn.execute(f"SELECT rowid, * FROM {table} LIMIT {self._B2S_ROW_CAP + 1}").fetchall()  # noqa: S608
                 conn.close()
                 conn = None
+                if len(rows) > self._B2S_ROW_CAP:
+                    truncated = True
+                    rows = rows[: self._B2S_ROW_CAP]
 
             except Exception as e:
                 errors.append(str(e))
@@ -304,7 +331,12 @@ class DataEngineer(AgentBase):
                 row_dict[col] = val
 
             if "deduplicate" in transformations:
-                content_key = row_dict.get("content", str(row_dict))
+                # Key on the row's own values, NOT the whole dict: it carries the
+                # unique rowid, so tables without a `content` column
+                # (policy_memory, agent_history) never matched and dedup was a no-op.
+                content_key = row_dict.get("content")
+                if not isinstance(content_key, str):
+                    content_key = str({k: v for k, v in row_dict.items() if k != "rowid"})
                 if content_key in seen_contents:
                     skip = True
                 else:
@@ -325,7 +357,9 @@ class DataEngineer(AgentBase):
         return {
             "table": table,
             "transformations": transformations,
+            "input_rows": len(rows),
             "processed": processed,
+            "truncated": truncated,
             "errors": errors,
             "duration_ms": duration_ms,
         }
@@ -346,6 +380,11 @@ class DataEngineer(AgentBase):
 
         with self._db_lock:
             try:
+                resolved = self._resolve_table(conn, table)
+                if resolved is None:
+                    conn.close()
+                    return {"table": table, "error": f"Table '{table}' not found in DB", "columns": []}
+                table = resolved
                 pragma_rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
                 if not pragma_rows:
                     conn.close()
@@ -405,6 +444,12 @@ class DataEngineer(AgentBase):
 
         with self._db_lock:
             try:
+                resolved = self._resolve_table(conn, table)
+                if resolved is None:
+                    conn.close()
+                    return {"table": table, "error": f"Table '{table}' not found in DB", "profile": {}}
+                table = resolved
+                limit = max(1, min(int(limit), self._PROFILE_LIMIT_MAX))
                 total_rows_row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
                 total_rows = total_rows_row[0] if total_rows_row else 0
 
@@ -447,8 +492,9 @@ class DataEngineer(AgentBase):
                             col_profile["min"] = min(numeric_vals)
                             col_profile["max"] = max(numeric_vals)
                             col_profile["avg"] = round(sum(numeric_vals) / len(numeric_vals), 4)
-                        except (ValueError, TypeError):
-                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        except (ValueError, TypeError) as num_err:
+                            col_profile["numeric_error"] = f"non-numeric values in numeric column: {num_err}"
+                            logger.warning("[VECTOR][data_engineer] numeric profile failed for {}.{}: {}", table, col_name, num_err)
                     elif non_null:
                         from collections import Counter
                         top_vals = Counter(str(v) for v in non_null).most_common(5)
@@ -509,6 +555,9 @@ class DataEngineer(AgentBase):
                 if not table:
                     return {"status": "error", "error": "task.table is required"}
                 result = self.run_bronze_to_silver(table, transformations)
+                if result.get("error") or result.get("errors"):
+                    self.deduct_points(10, "etl_failed")
+                    return {"status": "error", "error": result.get("error") or "; ".join(result["errors"]), "result": result}
                 self.award_points(40, "etl_done")
                 return {"status": "ok", "result": result}
 
@@ -517,6 +566,8 @@ class DataEngineer(AgentBase):
                 if not table:
                     return {"status": "error", "error": "task.table is required"}
                 result = self.generate_data_contract(table)
+                if result.get("error"):
+                    return {"status": "error", "error": result["error"], "result": result}
                 self.award_points(20, "contract_generated")
                 return {"status": "ok", "result": result}
 
@@ -526,6 +577,8 @@ class DataEngineer(AgentBase):
                 if not table:
                     return {"status": "error", "error": "task.table is required"}
                 result = self.profile_dataset(table, limit)
+                if result.get("error"):
+                    return {"status": "error", "error": result["error"], "result": result}
                 self.award_points(25, "profile_done")
                 return {"status": "ok", "result": result}
 

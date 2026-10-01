@@ -75,20 +75,35 @@ class ContactManager(AgentBase):
                 {"role": "user", "content": prompt},
             ],
             timeout=120,
+            district=self.district,
+            sensitive=True,
+            allow_cloud=False,  # contact data is personal: local Ollama only
         )
 
     def add_contact(self, name: str, phone: str = "", email: str = "", notes: str = "") -> dict:
-        logger.info(f"[VECTOR][relationships] Adding contact: {name}")
-        self.add_lesson({"action": "add_contact", "name": name})
+        name = (name or "").strip()
+        if not name:
+            return {"status": "error", "error": "contact name is required"}
+        # Contact names stay out of INFO logs and agent lessons (lessons are
+        # persisted in ghost memory and re-injected into LLM prompts).
+        logger.info("[VECTOR][relationships] Adding contact")
+        self.add_lesson({"action": "add_contact"})
 
         added_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._lock:
             conn = self._get_conn()
             try:
+                # Upsert: INSERT OR REPLACE would wipe last_contacted and
+                # contact_count (interaction history) when a contact is edited.
                 conn.execute(
-                    "INSERT OR REPLACE INTO contacts (name, phone, email, notes, added_at) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO contacts (name, phone, email, notes, added_at) VALUES (?, ?, ?, ?, ?) "
+                    "ON CONFLICT(name) DO UPDATE SET phone = excluded.phone, "
+                    "email = excluded.email, notes = excluded.notes",
                     (name, phone, email, notes, added_at)
                 )
+                row = conn.execute("SELECT added_at FROM contacts WHERE name = ?", (name,)).fetchone()
+                if row and row[0]:
+                    added_at = row[0]
                 conn.commit()
             finally:
                 conn.close()
@@ -103,11 +118,11 @@ class ContactManager(AgentBase):
             source="ContactManager"
         )
 
-        logger.info(f"[VECTOR][relationships] Contact '{name}' added")
+        logger.info("[VECTOR][relationships] Contact saved")
         return result
 
     def get_contact(self, name: str) -> dict:
-        logger.info(f"[VECTOR][relationships] Getting contact: {name}")
+        logger.info("[VECTOR][relationships] Getting contact")
         with self._lock:
             conn = self._get_conn()
             try:
@@ -157,20 +172,25 @@ class ContactManager(AgentBase):
         return {"total_contacts": len(contacts), "contacts": contacts}
 
     def track_interaction(self, name: str, interaction: str, interaction_type: str = "general") -> dict:
-        logger.info(f"[VECTOR][relationships] Tracking interaction with: {name}")
-        self.add_lesson({"action": "track_interaction", "contact": name, "type": interaction_type})
+        logger.info("[VECTOR][relationships] Tracking interaction")
+        self.add_lesson({"action": "track_interaction", "type": interaction_type})
 
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
         with self._lock:
             conn = self._get_conn()
             try:
+                cur = conn.execute(
+                    "UPDATE contacts SET last_contacted = ?, contact_count = COALESCE(contact_count, 0) + 1 WHERE name = ?",
+                    (timestamp, name)
+                )
+                if cur.rowcount == 0:
+                    # Unknown contact: do not log an orphan interaction and
+                    # report it as tracked.
+                    conn.rollback()
+                    return {"status": "error", "error": f"Contact '{name}' not found"}
                 conn.execute(
                     "INSERT INTO interactions (contact_name, interaction_type, content, timestamp) VALUES (?, ?, ?, ?)",
                     (name, interaction_type, interaction, timestamp)
-                )
-                conn.execute(
-                    "UPDATE contacts SET last_contacted = ?, contact_count = contact_count + 1 WHERE name = ?",
-                    (timestamp, name)
                 )
                 conn.commit()
             finally:
@@ -190,11 +210,13 @@ class ContactManager(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = (task or {}).get("params") or {}
         if p.get("name") and p.get("interaction"):
             result = self.track_interaction(p["name"], p["interaction"])
             return {"status": "ok", **result}
         contact = self.get_contact(p.get("name", "")) if p.get("name") else {}
+        if "error" in contact:
+            return {"status": "error", "contact": contact}
         return {"status": "ok", "contact": contact}
 
 

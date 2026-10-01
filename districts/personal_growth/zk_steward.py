@@ -81,7 +81,12 @@ class ZKSteward(AgentBase):
 
     def extract_existing_links(self, content: str) -> set[str]:
         """Extract all [[wikilinks]] already in a note."""
-        return set(re.findall(r'\[\[([^\]]+)\]\]', content))
+        links = set()
+        for raw in re.findall(r'\[\[([^\]]+)\]\]', content):
+            target = raw.split("|", 1)[0].split("#", 1)[0].strip()  # [[Note|alias]], [[Note#Heading]]
+            if target:
+                links.add(target)
+        return links
 
     # ── Concept extraction ────────────────────────────────────────────────────
 
@@ -147,7 +152,15 @@ class ZKSteward(AgentBase):
                 ],
                 timeout=15.0,
             )
-            related = [r.strip().strip("-").strip() for r in response.strip().splitlines() if r.strip()]
+            # LLM output is untrusted: keep only names of real notes (canonical
+            # spelling), never free text that would become a link/[[..]] injection.
+            known = {n["name"].lower(): n["name"] for n in other_notes if n["name"] != note_name}
+            related: list[str] = []
+            for r in response.strip().splitlines():
+                cand = r.strip().lstrip("-*").strip().strip("[]").strip()
+                canon = known.get(cand.lower())
+                if canon and canon not in related:
+                    related.append(canon)
             return related[:4]
         except Exception as e:
             logger.debug("[VECTOR][zk_steward] connection find failed: {}", e)
@@ -158,29 +171,43 @@ class ZKSteward(AgentBase):
     def insert_backlinks(self, note_path: str, related_notes: list[str]) -> int:
         """Add [[wikilinks]] to the bottom of a note. Returns number added."""
         p = Path(note_path)
+        try:
+            resolved = p.resolve()
+            if resolved.suffix.lower() != ".md" or not resolved.is_relative_to(self._vault_path.resolve()):
+                logger.warning("[VECTOR][zk_steward] refusing to edit note outside vault: {}", note_path)
+                return 0
+        except (OSError, ValueError) as e:
+            logger.warning("[VECTOR][zk_steward] bad note path {}: {}", note_path, e)
+            return 0
         if not p.exists():
             return 0
 
-        content = p.read_text(encoding="utf-8", errors="replace")
+        try:
+            content = p.read_text(encoding="utf-8", errors="replace")
+        except OSError as e:
+            logger.warning("[VECTOR][zk_steward] read failed for {}: {}", p.name, e)
+            return 0
         existing_links = self.extract_existing_links(content)
-        new_links = [n for n in related_notes if n not in existing_links and n]
+        clean = []
+        for n in related_notes:
+            n = re.sub(r"[\[\]|#\r\n]", "", str(n or "")).strip()
+            if n and n != p.stem and n not in clean:
+                clean.append(n)
+        new_links = [n for n in clean if n not in existing_links]
 
         if not new_links:
             return 0
 
-        link_section = "\n\n---\n*ZK connections: " + " ".join(f"[[{l}]]" for l in new_links) + "*\n"
-
-        # Avoid duplicate ZK sections
-        if "*ZK connections:" in content:
-            # Update existing section
-            content = re.sub(
-                r'\n\n---\n\*ZK connections:.*?\*\n',
-                link_section,
-                content,
-                flags=re.DOTALL,
-            )
+        zk_re = re.compile(r'\n\n---\n\*ZK connections:.*?\*\n', re.DOTALL)
+        old_section = zk_re.search(content)
+        if old_section:
+            # Keep connections from earlier runs; only add new ones.
+            prior = self.extract_existing_links(old_section.group(0))
+            merged = list(prior) + [l for l in new_links if l not in prior]
+            link_section = "\n\n---\n*ZK connections: " + " ".join(f"[[{l}]]" for l in merged) + "*\n"
+            content = content[:old_section.start()] + link_section + content[old_section.end():]
         else:
-            content += link_section
+            content += "\n\n---\n*ZK connections: " + " ".join(f"[[{l}]]" for l in new_links) + "*\n"
 
         try:
             p.write_text(content, encoding="utf-8")
@@ -286,7 +313,11 @@ class ZKSteward(AgentBase):
                 return {"status": "ok", "response": answer}
 
         try:
-            limit = task.get("limit", 30)
+            params = task.get("params") if isinstance(task.get("params"), dict) else {}
+            limit = task.get("limit") or params.get("limit") or 30
+            if not self._vault_path.exists():
+                logger.error("[VECTOR][zk_steward] vault not found: {}", self._vault_path)
+                return {"status": "error", "error": f"vault not found: {self._vault_path}", "links_added": 0}
             notes = self.scan_vault_notes(limit=limit)
             if not notes:
                 return {"status": "ok", "message": "vault empty or not found", "links_added": 0}
@@ -299,6 +330,11 @@ class ZKSteward(AgentBase):
                 concepts = await self.extract_concepts(note["name"], note["content"])
                 if concepts:
                     concepts_by_note[note["name"]] = concepts
+
+            if not concepts_by_note:
+                # Every extraction failed (LLM down) — not "no new links".
+                logger.error("[VECTOR][zk_steward] concept extraction produced nothing for {} notes", len(notes[:15]))
+                return {"status": "error", "error": "concept extraction failed for all notes", "links_added": 0}
 
             # Phase 2: find connections and insert backlinks
             for note in notes[:15]:

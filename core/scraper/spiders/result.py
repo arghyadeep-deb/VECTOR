@@ -64,6 +64,7 @@ class CrawlStats:
     end_time: float = 0.0
     download_delay: float = 0.0
     blocked_requests_count: int = 0
+    ssrf_blocked_count: int = 0
     custom_stats: Dict = field(default_factory=dict)
     response_status_count: Dict = field(default_factory=dict)
     domains_response_bytes: Dict = field(default_factory=dict)
@@ -109,6 +110,7 @@ class CrawlStats:
             "cache_hits": self.cache_hits,
             "cache_misses": self.cache_misses,
             "blocked_requests_count": self.blocked_requests_count,
+            "ssrf_blocked_count": self.ssrf_blocked_count,
             "response_status_count": self.response_status_count,
             "response_bytes": self.response_bytes,
             "domains_response_bytes": self.domains_response_bytes,
@@ -130,6 +132,16 @@ class CrawlResult:
     def completed(self) -> bool:
         """True if the crawl completed normally (not paused)."""
         return not self.paused
+
+    @property
+    def succeeded(self) -> bool:
+        """True if the crawl ran to completion AND did not fail every request.
+
+        A crawl whose every fetch failed finishes "normally" (`completed`) but did no useful work.
+        """
+        stats = self.stats
+        total_failure = stats.requests_count == 0 and stats.failed_requests_count > 0
+        return self.completed and not total_failure
 
     def __len__(self) -> int:
         return len(self.items)

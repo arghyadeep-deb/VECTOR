@@ -81,6 +81,7 @@ class SalesStrategist(AgentBase):
         stage_counts: dict[str, int] = {}
         weighted_total = 0.0
         at_risk = []
+        unparseable = []
         stage_probabilities = {
             "prospecting": 0.1, "qualified": 0.25, "proposal": 0.5,
             "negotiation": 0.75, "closed_won": 1.0, "closed_lost": 0.0,
@@ -96,11 +97,14 @@ class SalesStrategist(AgentBase):
             last_updated = deal.get("last_updated", "")
             if last_updated:
                 try:
-                    last_dt = datetime.datetime.fromisoformat(last_updated)
-                    if (datetime.datetime.now() - last_dt).days > 14:
+                    last_dt = datetime.datetime.fromisoformat(str(last_updated))
+                    now = datetime.datetime.now(last_dt.tzinfo)  # tz-aware stamps ("...Z") must not crash the subtraction
+                    if (now - last_dt).days > 14:
                         at_risk.append(deal.get("name", "Unknown deal"))
                 except ValueError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    # Staleness unknown -- must not be reported as "healthy".
+                    unparseable.append(deal.get("name", "Unknown deal"))
+                    logger.warning("[VECTOR][sales] unparseable last_updated {!r} on deal {!r}", last_updated, deal.get("name"))
 
         total_value = sum(d.get("value", 0) for d in deals)
         return {
@@ -110,7 +114,12 @@ class SalesStrategist(AgentBase):
             "stage_distribution": stage_counts,
             "at_risk_deals": at_risk,
             "avg_deal_value": round(total_value / len(deals), 2) if deals else 0,
-            "health": "healthy" if not at_risk else f"{len(at_risk)} deals need attention",
+            "unparseable_dates": unparseable,
+            "health": (
+                f"{len(at_risk)} deals need attention" if at_risk
+                else f"unknown: {len(unparseable)} deals have unparseable last_updated" if unparseable
+                else "healthy"
+            ),
         }
 
     async def write_outreach(self, prospect_name: str, company: str,
@@ -174,6 +183,8 @@ class SalesStrategist(AgentBase):
 
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "pipeline")
+        # Governor dispatch nests arguments under task["params"]; accept both shapes.
+        task = {**task, **(task.get("params") or {})}
         try:
             if task_type == "qualify":
                 result = self.qualify_lead(
@@ -185,6 +196,8 @@ class SalesStrategist(AgentBase):
 
             elif task_type == "pipeline":
                 result = self.analyze_pipeline(task.get("deals", []))
+                if "error" in result:
+                    return {"status": "error", "error": result["error"]}
                 self._get_memory().store(
                     event_type="pipeline_analysis",
                     content=f"Pipeline: {result.get('total_deals',0)} deals, weighted={result.get('weighted_pipeline',0):,.0f}",

@@ -12,6 +12,29 @@ from core.mcp_tools.memory_safety import (
     resolve_memory_path as _resolve_memory_path,
 )
 
+_ROOT = Path(__file__).resolve().parents[3]  # module-level so tests can point it at a tmp dir
+
+
+def _resolve_py_script(root: Path, raw: str) -> tuple[Path | None, str | None]:
+    """Resolve a caller-supplied script to profile: an existing .py file inside the repo root.
+
+    Rejects option-looking values (``-c <code>`` would be arbitrary code
+    execution) and anything outside the repo (CWE-22).
+    """
+    raw = (raw or "").strip()
+    if not raw or raw.startswith("-"):
+        return None, "file_path must be a .py file path (must not start with '-')"
+    base = root.resolve()
+    try:
+        p = (base / raw).resolve()
+    except (OSError, ValueError):
+        return None, "invalid file_path"
+    if not p.is_relative_to(base) or p.suffix != ".py":
+        return None, "file_path must be a .py file inside the repo root"
+    if not p.is_file():
+        return None, f"file not found: {raw}"
+    return p, None
+
 
 def add_perf_tools(mcp) -> None:
     import json as _json
@@ -21,7 +44,7 @@ def add_perf_tools(mcp) -> None:
     import shutil as _shutil
     from pathlib import Path as _Path
 
-    ROOT = _Path(__file__).resolve().parents[3]
+    ROOT = _ROOT
 
     # â”€â”€ perf_* (28) — wired to stdlib + core/training/benchmarks/ â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     @mcp.tool
@@ -31,13 +54,17 @@ def add_perf_tools(mcp) -> None:
             import cProfile as _cp
             import pstats as _ps
             import io as _io
+            import sys as _sys
+            script, err = _resolve_py_script(ROOT, file_path)
+            if err:
+                return _safe_json({"error": err})
             pr = _cp.Profile()
             pr.enable()
-            result = _subprocess.run(["python", file_path], cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+            result = _subprocess.run([_sys.executable, str(script)], cwd=str(ROOT), capture_output=True, text=True, timeout=60)
             pr.disable()
             s = _io.StringIO()
             _ps.Stats(pr, stream=s).sort_stats("cumulative").print_stats(20)
-            return _safe_json({"file": file_path, "returncode": result.returncode, "profile": s.getvalue()[:3000]})
+            return _safe_json({"ok": result.returncode == 0, "file": file_path, "returncode": result.returncode, "stderr": result.stderr[-1000:], "profile": s.getvalue()[:3000]})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -160,10 +187,18 @@ def add_perf_tools(mcp) -> None:
             import cProfile as _cp
             import pstats as _ps
             import io as _io
+            import sys as _sys
             pr = _cp.Profile()
             pr.enable()
             if file_path:
-                _subprocess.run(["python", file_path], cwd=str(ROOT), capture_output=True, timeout=30)
+                script, err = _resolve_py_script(ROOT, file_path)
+                if err:
+                    pr.disable()
+                    return _safe_json({"error": err})
+                result = _subprocess.run([_sys.executable, str(script)], cwd=str(ROOT), capture_output=True, text=True, timeout=30)
+                if result.returncode != 0:
+                    pr.disable()
+                    return _safe_json({"error": f"script exited with code {result.returncode}", "stderr": result.stderr[-1000:]})
             pr.disable()
             s = _io.StringIO()
             _ps.Stats(pr, stream=s).sort_stats("tottime").print_stats(10)
@@ -211,11 +246,11 @@ def add_perf_tools(mcp) -> None:
     def perf_history(limit: int = 10) -> str:
         """View performance history from episodic memory."""
         try:
-            from core.memory.episodic import get_episodic_memory
-            mem = get_episodic_memory()
-            entries = mem.recall("performance", limit=limit) if hasattr(mem, "recall") else []
+            from core.memory.episodic import EpisodicMemory
+            entries = EpisodicMemory().recall("performance", limit=max(1, min(int(limit), 200)))
             return _safe_json({"entries": entries})
         except Exception as e:
+            logger.warning("[VECTOR][mcp] perf_history failed: {}", e)
             return _safe_json({"error": str(e)})
 
     @mcp.tool
@@ -234,6 +269,7 @@ def add_perf_tools(mcp) -> None:
         """Measure latency distribution."""
         try:
             import time
+            samples = max(1, min(int(samples), 10000))
             latencies = []
             for _ in range(samples):
                 start = time.perf_counter()
@@ -276,14 +312,13 @@ def add_perf_tools(mcp) -> None:
     def perf_baseline(name: str = "default") -> str:
         """Set a performance baseline."""
         try:
-            from core.memory.episodic import get_episodic_memory
-            mem = get_episodic_memory()
+            from core.memory.episodic import EpisodicMemory
             import psutil
             data = {"cpu": psutil.cpu_percent(interval=1), "memory_mb": psutil.Process().memory_info().rss / 1024 / 1024}
-            if hasattr(mem, "store"):
-                mem.store({"type": "perf_baseline", "name": name, "data": data})
+            EpisodicMemory().store("perf_baseline", _json.dumps({"name": name, "data": data}), tags=["performance", "baseline"])
             return _safe_json({"ok": True, "name": name, "data": data})
         except Exception as e:
+            logger.warning("[VECTOR][mcp] perf_baseline failed: {}", e)
             return _safe_json({"error": str(e)})
 
     @mcp.tool
@@ -293,10 +328,18 @@ def add_perf_tools(mcp) -> None:
             import cProfile as _cp
             import pstats as _ps
             import io as _io
+            import sys as _sys
             pr = _cp.Profile()
             pr.enable()
             if file_path:
-                _subprocess.run(["python", file_path], cwd=str(ROOT), capture_output=True, timeout=30)
+                script, err = _resolve_py_script(ROOT, file_path)
+                if err:
+                    pr.disable()
+                    return _safe_json({"error": err})
+                result = _subprocess.run([_sys.executable, str(script)], cwd=str(ROOT), capture_output=True, text=True, timeout=30)
+                if result.returncode != 0:
+                    pr.disable()
+                    return _safe_json({"error": f"script exited with code {result.returncode}", "stderr": result.stderr[-1000:]})
             pr.disable()
             s = _io.StringIO()
             _ps.Stats(pr, stream=s).sort_stats("cumulative").print_stats(30)
@@ -310,10 +353,12 @@ def add_perf_tools(mcp) -> None:
         try:
             import psutil
             data = {"cpu_percent": psutil.cpu_percent(interval=1), "memory_mb": psutil.Process().memory_info().rss / 1024 / 1024, "timestamp": _time.time()}
-            out = path or str(ROOT / f"perf_export_{int(_time.time())}.json")
-            with open(out, "w") as f:
+            out_path, err = _resolve_memory_path(path, default_name=f"perf_export_{int(_time.time())}.json")
+            if err:
+                return _safe_json({"error": err})
+            with open(out_path, "w", encoding="utf-8") as f:
                 _json.dump(data, f)
-            return _safe_json({"ok": True, "path": out, "data": data})
+            return _safe_json({"ok": True, "path": str(out_path), "data": data})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -321,15 +366,16 @@ def add_perf_tools(mcp) -> None:
     def perf_import(path: str) -> str:
         """Import performance baseline data from JSON."""
         try:
-            with open(path) as f:
+            in_path, err = _resolve_memory_path(path, default_name="perf_export.json")
+            if err:
+                return _safe_json({"error": err})
+            with open(in_path, encoding="utf-8") as f:
                 data = _json.load(f)
-            try:
-                from core.memory.episodic import EpisodicMemory
-                mem = EpisodicMemory()
-                if hasattr(mem, "store"):
-                    mem.store("perf_import", str(data), tags=["performance", "baseline"])
-            except Exception: logger.debug("[VECTOR][mcp] suppressed exception")
-            return _safe_json({"ok": True, "imported": path, "data_keys": list(data.keys())})
+            if not isinstance(data, dict):
+                return _safe_json({"error": "performance baseline JSON must be an object"})
+            from core.memory.episodic import EpisodicMemory
+            EpisodicMemory().store("perf_import", str(data), tags=["performance", "baseline"])
+            return _safe_json({"ok": True, "imported": str(in_path), "data_keys": list(data.keys())})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -337,6 +383,7 @@ def add_perf_tools(mcp) -> None:
     def perf_simulate(scenario: str = "cpu", duration_sec: int = 5) -> str:
         """Simulate a load scenario (cpu/memory/io)."""
         import math as _math
+        duration_sec = max(1, min(int(duration_sec), 30))
         start = _time.time()
         ops = 0
         while _time.time() - start < duration_sec:
@@ -354,6 +401,7 @@ def add_perf_tools(mcp) -> None:
         """Run a load test by spawning concurrent workers."""
         import threading as _th
         import time as _tm
+        workers = max(1, min(int(workers), 32))
         results = []
         def _worker(wid):
             start = _tm.time()
@@ -377,6 +425,8 @@ def add_perf_tools(mcp) -> None:
         import threading as _th
         import time as _tm
         import math as _math
+        workers = max(1, min(int(workers), 32))
+        duration_sec = max(1, min(int(duration_sec), 30))
         results = []
         def _stress(wid):
             start = _tm.time()

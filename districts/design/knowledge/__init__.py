@@ -48,7 +48,14 @@ def _load_csv(filename: str) -> list[dict]:
         _KNOWLEDGE_DIR / filename,
         _KNOWLEDGE_DIR / "stacks" / filename,
     ]
+    root = _KNOWLEDGE_DIR.resolve()
     for path in candidates:
+        # CWE-22: `corpora` is caller-controlled; never read outside the knowledge dir
+        # (an absolute or ../ filename would otherwise escape it).
+        if not path.resolve().is_relative_to(root) or path.suffix.lower() != ".csv":
+            logger.warning("[VECTOR][design_knowledge] rejected corpus path outside knowledge dir: {}", filename)
+            _cache[filename] = []
+            return []
         if path.exists():
             try:
                 rows: list[dict] = []

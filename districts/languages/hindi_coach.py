@@ -111,6 +111,9 @@ class HindiCoach(AgentBase):
 
         prompt = f"Check this Hindi text for grammar errors, verb agreement, and postposition usage. Provide corrections if needed.\n\nText: {text}"
         result = self._call_ollama(prompt, model=CONFIG["models"]["multilingual"])
+        if not (result or "").strip():
+            logger.error("[VECTOR][languages] Hindi grammar check got an empty LLM response")
+            return {"status": "error", "error": "llm returned no response", "original_text": text, "language": self.language}
 
         check_result = {
             "original_text": text,
@@ -135,6 +138,9 @@ class HindiCoach(AgentBase):
 
         prompt = f"Generate 5 example sentences in Hindi using the word '{word}'. Include English translations for each. Vary the difficulty and context."
         sentences_text = self._call_ollama(prompt, model=CONFIG["models"]["multilingual"])
+        if not (sentences_text or "").strip():
+            logger.error("[VECTOR][languages] Hindi sentence generation got an empty LLM response for: {}", word)
+            return {"status": "error", "error": "llm returned no response", "word": word, "language": self.language}
 
         result = {
             "word": word,

@@ -160,7 +160,7 @@ class CurlParser:
     def parse(self, curl_command: str) -> Optional[Request]:
         """Parses the curl command string into a structured context for Fetcher."""
 
-        clean_command = curl_command.strip().lstrip("curl").strip().replace("\\\n", " ")
+        clean_command = re_sub(r"^curl(?=\s|$)", "", curl_command.strip()).strip().replace("\\\n", " ")
 
         try:
             tokens = shlex_split(clean_command)  # Split the string using shell-like syntax
@@ -212,7 +212,7 @@ class CurlParser:
                     cookies[key] = value
                 log.debug(f"Parsed cookies from -b argument: {list(cookies.keys())}")
             except Exception as e:  # pragma: no cover
-                log.error(f"Could not parse cookie string from -b '{parsed_args.cookie}': {e}")
+                log.error(f"Could not parse cookie string from -b: {e}")
 
         # --- Process Data Payload ---
         params = dict()
@@ -293,7 +293,10 @@ class CurlParser:
 
             # Standard proxy dict format
             proxies = {"http": proxy_url, "https": proxy_url}
-            log.debug(f"Using proxy configuration: {proxies}")
+            # never log the proxy credentials (user:pass@ may come from the URL or -U)
+            _proxy_parts = urlparse(proxy_url)
+            _safe_netloc = _proxy_parts.netloc.rsplit("@", 1)[-1]
+            log.debug(f"Using proxy configuration: {_proxy_parts.scheme}://{_safe_netloc}")
 
         # --- Final Context ---
         return Request(
@@ -574,10 +577,15 @@ Type 'exit' or press Ctrl+D to exit.
         if self.code:
             log.info(f"Executing provided code: {self.code}")
             try:
-                ipython_shell.run_cell(self.code, store_history=False)
+                result = ipython_shell.run_cell(self.code, store_history=False)
             except Exception as e:
                 log.error(f"Error executing initial code: {e}")
-            return
+                return False
+            # run_cell reports the failure on the result instead of raising
+            if getattr(result, "success", True) is False:
+                log.error(f"Error executing initial code: {result.error_before_exec or result.error_in_exec}")
+                return False
+            return True
 
         ipython_shell()
 
@@ -676,15 +684,16 @@ class Convertor:
         elif not filename.endswith((".md", ".html", ".txt")):
             raise ValueError("Unknown file type: filename must end with '.md', '.html', or '.txt'")
         else:
-            with open(filename, "w", encoding=page.encoding) as f:
-                extension = filename.split(".")[-1]
-                f.write(
-                    "".join(
-                        cls._extract_content(
-                            page,
-                            cls._extension_map[extension],
-                            css_selector=css_selector,
-                            main_content_only=main_content_only,
-                        )
-                    )
+            extension = filename.split(".")[-1]
+            # Build the full content BEFORE opening the file: a failure while extracting (bad selector, ...)
+            # must not truncate/clobber an existing file.
+            content = "".join(
+                cls._extract_content(
+                    page,
+                    cls._extension_map[extension],
+                    css_selector=css_selector,
+                    main_content_only=main_content_only,
                 )
+            )
+            with open(filename, "w", encoding=page.encoding) as f:
+                f.write(content)

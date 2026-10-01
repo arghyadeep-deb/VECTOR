@@ -3,6 +3,7 @@ Functions related to custom types or type checking
 """
 
 from functools import lru_cache
+from urllib.parse import urlsplit
 
 __all__ = [
     "BaseFetcher",
@@ -30,6 +31,18 @@ from core.scraper.parser import Selector, SQLiteStorageSystem
 
 if TYPE_CHECKING:
     from core.scraper.spiders import Request
+
+
+def _loggable_url(url: str) -> str:
+    """Drop userinfo, query and fragment from a URL before logging (they often carry tokens/credentials)."""
+    try:
+        parts = urlsplit(url)
+        if not parts.scheme or not parts.hostname:
+            return url.split("?", 1)[0].split("#", 1)[0]
+        host = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
+        return f"{parts.scheme}://{host}" + (f":{parts.port}" if parts.port else "") + parts.path
+    except ValueError:
+        return url.split("?", 1)[0].split("#", 1)[0]
 
 
 class Response(Selector):
@@ -78,7 +91,7 @@ class Response(Selector):
             **selector_config,
         )
         # For easier debugging while working from a Python shell
-        log.info(f"Fetched ({status}) <{method} {url}> (referer: {request_headers.get('referer')})")
+        log.info(f"Fetched ({status}) <{method} {_loggable_url(url)}> (referer: {request_headers.get('referer')})")
 
         if meta and not isinstance(meta, dict):
             raise TypeError(f"Response meta should be dictionary but got {type(meta).__name__} instead!")
@@ -176,7 +189,8 @@ class BaseFetcher:
     def __init__(self, *args, **kwargs):
         # For backward-compatibility before 0.2.99
         args_str = ", ".join(args) or ""
-        kwargs_str = ", ".join(f"{k}={v}" for k, v in kwargs.items()) or ""
+        # Values are never logged: they may hold proxy credentials, cookies or headers
+        kwargs_str = ", ".join(f"{k}=..." for k in kwargs) or ""
         if args_str:
             args_str += ", "
 

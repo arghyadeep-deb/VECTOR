@@ -52,6 +52,16 @@ class VideoIngestor(AgentBase):
 
         video_path = self.download_dir / f"lecture_{uuid.uuid4().hex[:8]}.mp4"
 
+        # Caller-supplied URL: block SSRF targets / non-http schemes (a URL
+        # starting with '-' also fails the scheme check, so it can never reach
+        # yt-dlp as an option).
+        from core.security.ssrf_guard import get_ssrf_guard
+        check = get_ssrf_guard().check_url(url)
+        if not check.safe:
+            logger.warning("[VECTOR][learning] Download blocked by SSRF guard: {}", check.reason)
+            return {"url": url, "video_path": None, "download_status": "failed",
+                    "file_size_mb": 0, "error": f"blocked: {check.reason}"}
+
         if "youtube.com" in url or "youtu.be" in url:
             try:
                 result = subprocess.run(
@@ -62,45 +72,46 @@ class VideoIngestor(AgentBase):
                 )
                 if result.returncode == 0:
                     proc = subprocess.run(
-                        ["yt-dlp", "-o", str(video_path), url],
+                        ["yt-dlp", "-o", str(video_path), "--", url],
                         capture_output=True,
                         text=True,
                         timeout=600
                     )
                     if proc.returncode != 0:
-                        logger.warning(f"[VECTOR][learning] yt-dlp failed: {proc.stderr[:200]}")
+                        logger.warning("[VECTOR][learning] yt-dlp failed: {}", proc.stderr[:200])
             except FileNotFoundError:
                 logger.warning("[VECTOR][learning] yt-dlp not found, skipping download")
         else:
             try:
                 import httpx
                 with httpx.stream("GET", url, headers={"User-Agent": "VECTOR-VideoIngestor/1.0"}, timeout=300) as resp:
-                    total = int(resp.headers.get("Content-Length", 0))
-                    downloaded = 0
+                    resp.raise_for_status()
                     with open(video_path, "wb") as f:
                         for chunk in resp.iter_bytes(chunk_size=8192):
                             f.write(chunk)
-                            downloaded += len(chunk)
             except Exception as e:
-                logger.error(f"[VECTOR][learning] Download failed: {e}")
-                video_path = None
+                logger.error("[VECTOR][learning] Download failed: {}", e)
+                video_path.unlink(missing_ok=True)
 
+        ok = video_path.exists() and video_path.stat().st_size > 0
+        if not ok:
+            video_path.unlink(missing_ok=True)
         result = {
             "url": url,
-            "video_path": str(video_path) if video_path and video_path.exists() else None,
-            "download_status": "success" if (video_path and video_path.exists()) else "failed",
-            "file_size_mb": round(video_path.stat().st_size / 1024 / 1024, 2) if video_path and video_path.exists() else 0,
+            "video_path": str(video_path) if ok else None,
+            "download_status": "success" if ok else "failed",
+            "file_size_mb": round(video_path.stat().st_size / 1024 / 1024, 2) if ok else 0,
         }
 
         self.memory.store(
-            event_type="lecture_downloaded",
-            content=f"Downloaded lecture from {url}",
+            event_type="lecture_downloaded" if ok else "lecture_download_failed",
+            content=f"Downloaded lecture from {url}" if ok else f"Lecture download FAILED for {url}",
             tags=["learning", "video", "lecture"],
             context=result,
             source="VideoIngestor"
         )
 
-        logger.info(f"[VECTOR][learning] Download status: {result['download_status']}")
+        logger.info("[VECTOR][learning] Download status: {}", result["download_status"])
         return result
 
     def extract_transcript(self, video_path: str) -> dict:
@@ -113,24 +124,37 @@ class VideoIngestor(AgentBase):
             return {"error": "Video file not found", "path": video_path}
 
         transcript_path = self.transcripts_dir / f"{video_p.stem}_transcript.txt"
+        # whisper CLI names its output <stem>.txt, not <stem>_transcript.txt.
+        whisper_txt = self.transcripts_dir / f"{video_p.stem}.txt"
 
         try:
-            result = subprocess.run(
-                ["whisper", str(video_path), "--output_dir", str(self.transcripts_dir), "--model", "base"],
+            proc = subprocess.run(
+                ["whisper", str(video_p.resolve()), "--output_dir", str(self.transcripts_dir),
+                 "--model", "base", "--output_format", "txt"],
                 capture_output=True,
                 text=True,
                 timeout=600
             )
-            if result.returncode == 0:
-                transcript = transcript_path.read_text(encoding="utf-8", errors="ignore") if transcript_path.exists() else "Transcript extracted via whisper"
-            else:
-                transcript = f"Whisper extraction attempted for {video_p.name}. Transcript would be extracted via OpenAI Whisper model='base'."
-                logger.warning(f"[VECTOR][learning] Whisper failed: {result.stderr[:200]}")
         except FileNotFoundError:
-            transcript = f"Whisper not installed. Simulated transcript for {video_p.name}. Install: pip install openai-whisper"
             logger.warning("[VECTOR][learning] Whisper CLI not found")
+            return {"error": "Whisper not installed (pip install openai-whisper)", "path": video_path}
         except Exception as e:
-            transcript = f"Transcript extraction for {video_p.name} (error: {e})"
+            logger.error("[VECTOR][learning] Whisper error: {}", e)
+            return {"error": f"Transcript extraction failed: {e}", "path": video_path}
+        if proc.returncode != 0:
+            logger.warning("[VECTOR][learning] Whisper failed: {}", proc.stderr[:200])
+            return {"error": f"Whisper failed: {proc.stderr[:200]}", "path": video_path}
+
+        transcript = ""
+        for cand in (whisper_txt, transcript_path):
+            if cand.exists():
+                transcript = cand.read_text(encoding="utf-8", errors="ignore")
+                break
+        if not transcript.strip():
+            logger.warning("[VECTOR][learning] Whisper produced no transcript for {}", video_p.name)
+            return {"error": "Whisper produced an empty or missing transcript", "path": video_path}
+        if not transcript_path.exists():
+            transcript_path.write_text(transcript, encoding="utf-8")
 
         result = {
             "video_path": video_path,
@@ -156,10 +180,10 @@ class VideoIngestor(AgentBase):
         video_p = Path(video_path)
         transcript_path = self.transcripts_dir / f"{video_p.stem}_transcript.txt"
 
-        if transcript_path.exists():
-            transcript = transcript_path.read_text(encoding="utf-8", errors="ignore")
-        else:
-            transcript = f"This lecture covers important topics from {video_p.name}. Full transcript not yet extracted."
+        transcript = transcript_path.read_text(encoding="utf-8", errors="ignore") if transcript_path.exists() else ""
+        if not transcript.strip():
+            logger.warning("[VECTOR][learning] No transcript for {}; not summarizing", video_p.name)
+            return {"error": "No transcript available; run extract_transcript first", "video_path": video_path}
 
         max_chars = 3000
         transcript_snippet = transcript[:max_chars] if len(transcript) > max_chars else transcript
@@ -171,6 +195,9 @@ class VideoIngestor(AgentBase):
 4. Recommended follow-up topics
 Transcript: {transcript_snippet}"""
         summary = self._call_ollama(prompt)
+        if not (summary or "").strip():
+            logger.warning("[VECTOR][learning] Empty summary for {}", video_p.name)
+            return {"error": "Summarization produced no output", "video_path": video_path}
 
         result = {
             "video_path": video_path,
@@ -192,10 +219,13 @@ Transcript: {transcript_snippet}"""
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params", {}) or {}
         if hasattr(self, "ingest_video") and p.get("url"):
             result = await self.ingest_video(p["url"])
             return {"status": "ok", **result}
+        if p.get("url"):
+            # No ingest pipeline exists; never report an ignored URL as ok.
+            return {"status": "not_implemented", "note": "VideoIngestor.ingest_video is not implemented"}
         return {"status": "ok", "agent": self.name}
 
 

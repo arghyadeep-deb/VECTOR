@@ -276,11 +276,15 @@ class UIDesigner(AgentBase):
         except Exception as e:
             logger.warning("[VECTOR][ui_designer] audit LLM failed: {}", e)
 
-        return {"issues": [], "consistency_score": 75,
+        # A failed audit must not look like a clean 75/100 audit.
+        return {"issues": [], "consistency_score": None, "audit_failed": True,
                 "note": "Manual audit required — LLM unavailable"}
 
     async def run(self, task: dict) -> dict:
+        # Governor dispatch nests arguments under task["params"]; take the type
+        # from the unmerged task, then flatten params (same fix as ux_researcher).
         task_type = task.get("type", "tokens")
+        task = {**task, **(task.get("params") or {})}
         try:
             if task_type == "css_variables":
                 css = self.generate_css_variables()
@@ -301,6 +305,8 @@ class UIDesigner(AgentBase):
 
             elif task_type == "audit":
                 result = await self.audit_design_consistency(task.get("html", ""))
+                if result.get("audit_failed"):
+                    return {"status": "error", "error": result["note"], "audit": result}
                 self.award_points(20, "design_audited")
                 return {"status": "ok", "audit": result}
 

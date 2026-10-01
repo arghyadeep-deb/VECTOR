@@ -77,6 +77,29 @@ def _text_list(value: Any) -> list[str]:
     return [str(item).strip() for item in value if str(item).strip()]
 
 
+def _norm(value: Any) -> str:
+    """Lower-case, curly-quote and whitespace-normalised text so a phrase split by a
+    newline / double space / typographic apostrophe is still matched."""
+    text = str(value).replace("\u2019", "'").replace("\u2018", "'")
+    return re.sub(r"\s+", " ", text).strip().casefold()
+
+
+def _flag(value: Any) -> bool:
+    """Fail-safe boolean trigger: only a literal ``False`` means 'not applicable'.
+
+    A malformed flag ("yes", "false", 1) must trigger the safeguard checks, not skip them.
+    """
+    return value is not False
+
+
+def _strict_list(value: Any) -> tuple[list[str], bool]:
+    """Return (items, well_formed). Non-list or blank/non-str entries are malformed."""
+    if not isinstance(value, list):
+        return [], False
+    ok = all(isinstance(item, str) and item.strip() for item in value)
+    return [item.strip() for item in value if isinstance(item, str) and item.strip()], ok
+
+
 def _decimal(value: Any) -> Decimal | None:
     if isinstance(value, bool):
         return None
@@ -189,11 +212,11 @@ class HealthcareCustomerServiceSpecialist(LegalComplianceSpecialist):
     )
 
     def _check_evidence(self, evidence: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        text = str(evidence.get("interaction_text", "")).lower()
+        text = _norm(evidence.get("interaction_text", ""))
         emergency_terms = [term for term in _EMERGENCY_TERMS if term in text]
         clinical_terms = [term for term in _CLINICAL_TERMS if term in text]
         prohibited = [term for term in _MINIMIZING_PHRASES if term in text]
-        account_discussed = evidence.get("account_details_discussed") is True
+        account_discussed = _flag(evidence.get("account_details_discussed"))
         checks = [
             {"check": "emergency_escalation", "passed": not emergency_terms or evidence.get("emergency_escalated") is True, "matched_terms": emergency_terms},
             {"check": "clinical_escalation", "passed": not clinical_terms or evidence.get("clinician_escalated") is True, "matched_terms": clinical_terms},
@@ -239,21 +262,26 @@ class HealthcareMarketingComplianceSpecialist(LegalComplianceSpecialist):
     )
 
     def _check_evidence(self, evidence: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        text = str(evidence.get("content_text", "")).lower()
-        required = _text_list(evidence.get("required_phrases"))
-        prohibited = _text_list(evidence.get("prohibited_phrases"))
-        claims = _text_list(evidence.get("claims"))
-        approved = {item.casefold() for item in _text_list(evidence.get("approved_scope"))}
-        missing_required = [phrase for phrase in required if phrase.casefold() not in text]
-        matched_prohibited = [phrase for phrase in prohibited if phrase.casefold() in text]
-        outside_scope = [claim for claim in claims if claim.casefold() not in approved]
-        patient_content = evidence.get("patient_content") is True
+        text = _norm(evidence.get("content_text", ""))
+        required, required_ok = _strict_list(evidence.get("required_phrases"))
+        prohibited, prohibited_ok = _strict_list(evidence.get("prohibited_phrases"))
+        claims, claims_ok = _strict_list(evidence.get("claims"))
+        approved_items, approved_ok = _strict_list(evidence.get("approved_scope"))
+        approved = {_norm(item) for item in approved_items}
+        missing_required = [phrase for phrase in required if _norm(phrase) not in text]
+        matched_prohibited = [phrase for phrase in prohibited if _norm(phrase) in text]
+        outside_scope = [claim for claim in claims if _norm(claim) not in approved]
+        patient_content = _flag(evidence.get("patient_content"))
         is_public_rx = (
             str(evidence.get("product_category", "")).casefold() == "prescription_drug"
             and str(evidence.get("audience", "")).casefold() == "public"
             and bool(text.strip())
         )
         checks = [
+            {
+                "check": "rule_lists_well_formed",
+                "passed": required_ok and prohibited_ok and claims_ok and approved_ok,
+            },
             {"check": "required_phrases_present", "passed": not missing_required, "missing": missing_required},
             {"check": "prohibited_phrases_absent", "passed": not matched_prohibited, "matched": matched_prohibited},
             {"check": "public_prescription_drug_promotion", "passed": not is_public_rx},
@@ -292,7 +320,9 @@ class LegalBillingTimeTrackingSpecialist(LegalComplianceSpecialist):
 
     def _check_evidence(self, evidence: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         rows = evidence.get("time_entries") if isinstance(evidence.get("time_entries"), list) else []
-        checks: list[dict[str, Any]] = []
+        checks: list[dict[str, Any]] = [
+            {"check": "time_entries_is_list", "passed": isinstance(evidence.get("time_entries"), list)}
+        ]
         subtotal = Decimal("0")
         for index, row in enumerate(rows):
             if not isinstance(row, dict):
@@ -362,9 +392,9 @@ class LegalClientIntakeSpecialist(LegalComplianceSpecialist):
         required_text = ("prospect_name", "contact", "matter_type", "key_facts", "next_step")
         missing_text = [field for field in required_text if not str(evidence.get(field, "")).strip()]
         opposing = _text_list(evidence.get("opposing_parties"))
-        scheduled = evidence.get("consultation_scheduled") is True
+        scheduled = _flag(evidence.get("consultation_scheduled"))
         cleared = str(evidence.get("conflict_status", "")).casefold() == "cleared"
-        deadline_known = evidence.get("deadline_known") is True
+        deadline_known = _flag(evidence.get("deadline_known"))
         deadline = str(evidence.get("deadline", "")).strip()
         checks = [
             {"check": "required_intake_fields", "passed": not missing_text, "missing": missing_text},
@@ -409,12 +439,13 @@ class LegalDocumentReviewSpecialist(LegalComplianceSpecialist):
     )
 
     def _check_evidence(self, evidence: dict[str, Any]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        text = re.sub(r"\s+", " ", str(evidence.get("document_text", ""))).casefold()
-        required = _text_list(evidence.get("required_clauses"))
-        prohibited = _text_list(evidence.get("prohibited_clauses"))
-        missing = [clause for clause in required if clause.casefold() not in text]
-        matched = [clause for clause in prohibited if clause.casefold() in text]
+        text = _norm(evidence.get("document_text", ""))
+        required, required_ok = _strict_list(evidence.get("required_clauses"))
+        prohibited, prohibited_ok = _strict_list(evidence.get("prohibited_clauses"))
+        missing = [clause for clause in required if _norm(clause) not in text]
+        matched = [clause for clause in prohibited if _norm(clause) in text]
         checks = [
+            {"check": "clause_lists_well_formed", "passed": required_ok and prohibited_ok},
             {"check": "required_clauses_present", "passed": not missing, "missing": missing},
             {"check": "prohibited_clauses_absent", "passed": not matched, "matched": matched},
         ]

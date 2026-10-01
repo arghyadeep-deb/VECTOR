@@ -8,6 +8,17 @@ from loguru import logger
 
 
 _HIGH_RISK_DOMAINS = {"lock", "alarm_control_panel", "gate", "garage_door", "camera"}
+# A cover entity that is really a door/garage/gate is a security device.
+_HIGH_RISK_COVER_CLASSES = {"garage", "gate", "door"}
+# Domain an intent must resolve to (stops "lock front door" resolving to a
+# binary_sensor and reporting "Locked" for a service call that did nothing).
+_INTENT_DOMAIN = {
+    "lock": "lock", "unlock": "lock",
+    "arm": "alarm_control_panel", "disarm": "alarm_control_panel",
+    "close": "cover", "open_cover": "cover",
+    "set_temperature": "climate",
+}
+_FAIL = "Sorry, I couldn't execute that command: "
 
 
 @dataclass
@@ -22,20 +33,24 @@ class VoiceCommand:
 
 
 class IntentMapper:
+    # Order matters (first match wins, search() is unanchored): word boundaries
+    # keep "unlock" from parsing as "lock" and "disarm" as "arm"; open_cover and
+    # set_temperature must precede the broader unlock/open and set..to patterns.
     _PATTERNS: List[Tuple[re.Pattern, str, str]] = [
         (re.compile(r"turn (?:on|switch on)\s+(.+)", re.I), "turn_on", "turn_on"),
         (re.compile(r"turn (?:off|switch off)\s+(.+)", re.I), "turn_off", "turn_off"),
-        (re.compile(r"toggle\s+(.+)", re.I), "toggle", "toggle"),
-        (re.compile(r"set\s+(.+?)\s+to\s+(.+)", re.I), "set_value", "set_value"),
-        (re.compile(r"(?:lock|secure)\s+(.+)", re.I), "lock", "lock"),
-        (re.compile(r"(?:unlock|open)\s+(.+)", re.I), "unlock", "unlock"),
-        (re.compile(r"dim\s+(.+?)\s+to\s+(\d+)", re.I), "dim", "turn_on"),
-        (re.compile(r"close\s+(.+)", re.I), "close", "close_cover"),
-        (re.compile(r"open\s+(?:the\s+)?(?:cover|blind|curtain|shade)\s+(.+)", re.I), "open_cover", "open_cover"),
-        (re.compile(r"arm\s+(.+)", re.I), "arm", "alarm_arm_away"),
-        (re.compile(r"disarm\s+(.+)", re.I), "disarm", "alarm_disarm"),
+        (re.compile(r"\btoggle\s+(.+)", re.I), "toggle", "toggle"),
+        (re.compile(r"\bset\s+(?:the\s+)?(?:temperature|thermostat)\s+(?:to\s+)?(\d+)", re.I), "set_temperature", "set_temperature"),
+        (re.compile(r"\bset\s+(.+?)\s+to\s+(.+)", re.I), "set_value", "set_value"),
+        (re.compile(r"\bdisarm\s+(.+)", re.I), "disarm", "alarm_disarm"),
+        (re.compile(r"\barm\s+(.+)", re.I), "arm", "alarm_arm_away"),
+        (re.compile(r"\bunlock\s+(.+)", re.I), "unlock", "unlock"),
+        (re.compile(r"\b(?:lock|secure)\s+(.+)", re.I), "lock", "lock"),
+        (re.compile(r"\bopen\s+(?:the\s+)?(?:cover|blind|curtain|shade)s?\s+(.+)", re.I), "open_cover", "open_cover"),
+        (re.compile(r"\bopen\s+(.+)", re.I), "unlock", "unlock"),
+        (re.compile(r"\bdim\s+(.+?)\s+to\s+(\d+)", re.I), "dim", "turn_on"),
+        (re.compile(r"\bclose\s+(.+)", re.I), "close", "close_cover"),
         (re.compile(r"(?:what'?s? is? )?the\s+(?:temperature|temp)\s+(?:in\s+)?(.+)", re.I), "get_temperature", "get_temperature"),
-        (re.compile(r"set\s+(?:the\s+)?(?:temperature|thermostat)\s+(?:to\s+)?(\d+)", re.I), "set_temperature", "set_temperature"),
     ]
 
     def parse(self, text: str) -> Optional[VoiceCommand]:
@@ -118,17 +133,36 @@ class VoiceBridge:
             return "I couldn't understand that home control command."
 
         domain = ""
-        for entity_name in command.entities:
-            entity, score = self._entity_resolver.resolve(entity_name)
-            if entity:
-                domain = entity.domain
-                command.entities = [entity.entity_id]
-                break
+        resolved = None
+        hint = _INTENT_DOMAIN.get(command.intent)
+        if command.intent == "set_temperature":
+            # The regex captured the number, not a device: target the climate entity.
+            climates = self._entity_manager.get_by_domain("climate")
+            command.entities = []
+            if len(climates) == 1:
+                resolved = climates[0]
+        elif command.intent != "get_temperature":
+            for entity_name in command.entities:
+                entity, score = self._entity_resolver.resolve(entity_name, hint)
+                if entity:
+                    resolved = entity
+                    break
+        if resolved:
+            domain = resolved.domain
+            command.entities = [resolved.entity_id]
 
         command.domain = domain
+        door_like = bool(
+            resolved and domain == "cover"
+            and str(resolved.attributes.get("device_class", "")).lower() in _HIGH_RISK_COVER_CLASSES
+        )
 
-        if ConfirmDialog.needs_confirmation(command):
+        if door_like or ConfirmDialog.needs_confirmation(command):
             return ConfirmDialog.format_confirmation(command)
+
+        if command.intent != "get_temperature" and not resolved:
+            # "I couldn't understand" prefix -> gateway reports rejected, not ok.
+            return "I couldn't understand that home control command: no matching device was found."
 
         result = await self._execute(command)
         return result
@@ -148,17 +182,27 @@ class VoiceBridge:
                     await self._connector.rest.call_service(domain, "turn_off", {"entity_id": eid})
                 return f"Turned off {', '.join(command.entities)}"
 
+            if command.intent == "dim":
+                pct = max(0, min(100, int(command.params.get("brightness", 0))))
+                for eid in command.entities:
+                    await self._connector.rest.call_service("light", "turn_on", {"entity_id": eid, "brightness_pct": pct})
+                return f"Set {', '.join(command.entities)} to {pct}%"
+
             if command.intent == "set_value" and "value" in command.params:
+                if command.domain != "light":
+                    return f"{_FAIL}setting a value is only supported for lights"
                 entity = command.entities[0] if command.entities else ""
-                await self._connector.rest.call_service(command.domain or "light", "turn_on", {
+                await self._connector.rest.call_service("light", "turn_on", {
                     "entity_id": entity,
-                    "brightness_pct": int(command.params["value"]),
+                    "brightness_pct": max(0, min(100, int(command.params["value"]))),
                 })
                 return f"Set {entity} to {command.params['value']}"
 
             if command.intent == "set_temperature":
                 target = command.params.get("temperature", 22)
-                for eid in command.entities or [""]:
+                if not command.entities:
+                    return f"{_FAIL}no single climate device found"
+                for eid in command.entities:
                     await self._connector.rest.call_service("climate", "set_temperature", {
                         "entity_id": eid,
                         "temperature": target,
@@ -167,27 +211,29 @@ class VoiceBridge:
 
             if command.intent == "get_temperature":
                 hint = command.params.get("entity_hint", "")
-                if hint:
-                    entities = self._entity_manager.get_by_domain("climate")
-                    if entities:
-                        e = entities[0]
-                        temp = e.attributes.get("current_temperature", "unknown")
-                        return f"The current temperature is {temp} degrees"
-                return "No climate entities found"
+                climates = self._entity_manager.get_by_domain("climate")
+                if not climates:
+                    return f"{_FAIL}no climate devices found"
+                matches = self._entity_manager.matcher.match(hint, domain="climate") if hint else []
+                e = matches[0][0] if matches else climates[0]
+                temp = e.attributes.get("current_temperature")
+                if e.state in ("unavailable", "unknown") or temp in (None, "", "unknown", "unavailable"):
+                    return f"{_FAIL}no temperature reading available for {e.friendly_name}"
+                return f"The current temperature is {temp} degrees"
 
             if command.intent in ("lock", "arm"):
                 domain = "lock" if command.intent == "lock" else "alarm_control_panel"
                 svc = "lock" if command.intent == "lock" else "alarm_arm_away"
                 for eid in command.entities:
                     await self._connector.rest.call_service(domain, svc, {"entity_id": eid})
-                return f"Locked {', '.join(command.entities)}"
+                return f"{'Locked' if command.intent == 'lock' else 'Armed'} {', '.join(command.entities)}"
 
             if command.intent in ("unlock", "disarm"):
                 domain = "lock" if command.intent == "unlock" else "alarm_control_panel"
                 svc = "unlock" if command.intent == "unlock" else "alarm_disarm"
                 for eid in command.entities:
                     await self._connector.rest.call_service(domain, svc, {"entity_id": eid})
-                return f"Unlocked {', '.join(command.entities)}"
+                return f"{'Unlocked' if command.intent == 'unlock' else 'Disarmed'} {', '.join(command.entities)}"
 
             if command.intent == "close":
                 for eid in command.entities:
@@ -199,8 +245,8 @@ class VoiceBridge:
                     await self._connector.rest.call_service("cover", "open_cover", {"entity_id": eid})
                 return f"Opened {', '.join(command.entities)}"
 
-            return f"Executed {command.intent}"
+            return f"{_FAIL}unsupported action '{command.intent}'"
 
         except Exception as e:
-            logger.error("[HA VoiceBridge] Execute failed: {}", e)
+            logger.error("[VECTOR][ha_voice_bridge] Execute failed: {}", e)
             return f"Sorry, I couldn't execute that command: {e}"

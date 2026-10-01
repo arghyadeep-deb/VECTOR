@@ -20,14 +20,14 @@ __all__ = [
 ]
 
 
+import http.client
 import json
-import logging
 from datetime import datetime, timezone
 from typing import Optional
-from urllib.error import HTTPError, URLError
+from urllib.parse import quote
 from urllib.request import Request, urlopen
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _API = "https://api.stocktwits.com/api/2/streams/symbol/{ticker}.json"
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/VectorTrading)"
@@ -41,14 +41,21 @@ def fetch_stocktwits_messages(ticker: str, limit: int = 30, timeout: float = 10.
     symbol has no messages, or the response shape is unexpected — the
     caller never has to special-case None or exceptions.
     """
-    url = _API.format(ticker=ticker.upper())
+    url = _API.format(ticker=quote(ticker.upper(), safe=""))
     req = Request(url, headers={"User-Agent": _UA, "Accept": "application/json"})
     try:
         with urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read())
-    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
-        logger.warning("StockTwits fetch failed for %s: %s", ticker, exc)
+    except (OSError, http.client.HTTPException, ValueError) as exc:
+        logger.warning("[VECTOR][stocktwits] fetch failed for {}: {}", ticker, type(exc).__name__)
         return f"<stocktwits unavailable: {type(exc).__name__}>"
+
+    # StockTwits can answer HTTP 200 with an error envelope (rate limit etc.).
+    if isinstance(data, dict) and (
+        data.get("errors") or (data.get("response") or {}).get("status", 200) != 200
+    ):
+        logger.warning("[VECTOR][stocktwits] API error envelope for {}", ticker)
+        return "<stocktwits unavailable: API error response>"
 
     messages = data.get("messages", []) if isinstance(data, dict) else []
     if not messages:

@@ -60,9 +60,9 @@ def add_task_tools(mcp) -> None:
         def task_delete(task_id: str) -> str:
             """Cancel/delete a task from the queue."""
             tq = _get_tq()
-            if hasattr(tq, "cancel"):
-                tq.cancel(task_id)
-            return _safe_json({"ok": True, "task_id": task_id})
+            if not hasattr(tq, "cancel"):
+                return _safe_json({"ok": False, "error": "cancel not available"})
+            return _safe_json({"ok": bool(tq.cancel(task_id)), "task_id": task_id})
 
         @mcp.tool
         def task_submit_bg(name: str, work: str = "") -> str:

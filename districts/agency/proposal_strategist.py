@@ -200,6 +200,9 @@ class ProposalStrategist(AgentBase):
 
     async def run(self, task: dict) -> dict:
         task_type = task.get("type", "proposal")
+        # Governor dispatch nests arguments under task["params"]; accept both shapes
+        # (previously params were ignored and silent defaults were used).
+        task = {**task, **(task.get("params") or {})}
         try:
             if task_type == "roi":
                 result = self.calculate_roi(
@@ -230,8 +233,7 @@ class ProposalStrategist(AgentBase):
                 # proposal for a made-up "AI Automation Project"/"Client"
                 # instead of an answer.
                 query = (
-                    (task.get("params") or {}).get("query")
-                    or task.get("query")
+                    task.get("query")
                     or task.get("text")
                     or ""
                 ).strip()
@@ -246,6 +248,9 @@ class ProposalStrategist(AgentBase):
                         )
                         self.award_points(15, "proposal_question_answered")
                         return {"status": "ok", "response": answer}
+                    # The LLM failed: do NOT fall through and fabricate a default
+                    # "AI Automation Project" proposal as the answer to a question.
+                    return {"status": "error", "error": "could not answer proposal question (LLM unavailable)"}
 
                 doc = await self.generate_full_proposal(
                     task.get("project_name", "AI Automation Project"),

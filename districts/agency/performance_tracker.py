@@ -1,4 +1,6 @@
 import sys
+import os
+import shutil
 import uuid
 import json
 import re
@@ -46,17 +48,24 @@ class PerformanceTracker(AgentBase):
                 logger.info(f"[VECTOR][performance_tracker] Loaded {len(self._metrics)} metric streams")
             except Exception as e:
                 logger.error(f"[VECTOR][performance_tracker] Failed to load data: {e}")
+                # Starting empty means the next save would overwrite the unreadable file -- keep a copy.
+                try:
+                    shutil.copy2(self._data_file, self._data_file.with_name(self._data_file.name + ".corrupt"))
+                except OSError as copy_err:
+                    logger.error(f"[VECTOR][performance_tracker] Could not back up unreadable metrics file: {copy_err}")
 
     def _save_data(self) -> bool:
         """Save metrics to persistent storage."""
         try:
             self._data_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._data_file, "w", encoding="utf-8") as f:
+            tmp = self._data_file.with_name(self._data_file.name + ".tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
                 json.dump({
                     "metrics": self._metrics,
                     "alerts": self._alerts[-500:],
                     "thresholds": self._thresholds
                 }, f, indent=2)
+            os.replace(tmp, self._data_file)  # atomic: a crash never leaves a truncated file
             return True
         except Exception as e:
             logger.error(f"[VECTOR][performance_tracker] Failed to save data: {e}")
@@ -429,7 +438,9 @@ class PerformanceTracker(AgentBase):
             r = self.track_metric(p.get("metric", ""), float(p.get("value", 0)), p.get("tags"))
             return {**r, "status": "ok" if r.get("status") == "success" else "error"}
         if task_type == "get_trend":
-            return {"status": "ok", **self.get_trend(p.get("metric", "engagement"), p.get("days", 7))}
+            trend = self.get_trend(p.get("metric", "engagement"), p.get("days", 7))
+            # get_trend reports an unknown metric via an "error" key; don't mask it as ok.
+            return {**trend, "status": "error" if "error" in trend else "ok"}
         if task_type == "alert_anomaly":
             return {"status": "ok", "set": self.alert_anomaly(p.get("metric", ""), float(p.get("threshold", 0)), p.get("direction", "above"))}
         if task_type == "active_alerts":
@@ -439,7 +450,11 @@ class PerformanceTracker(AgentBase):
         if task_type == "get_metric_summary":
             return {"status": "ok", **self.get_metric_summary()}
         if task_type == "get_comparison":
-            return {"status": "ok", **self.get_comparison(p.get("metric_a", ""), p.get("metric_b", ""), p.get("days", 7))}
+            cmp = self.get_comparison(p.get("metric_a", ""), p.get("metric_b", ""), p.get("days", 7))
+            unknown = [k for k in ("stats_a", "stats_b") if "error" in cmp[k]]
+            if unknown:
+                return {**cmp, "status": "error", "error": "Metric not found"}
+            return {"status": "ok", **cmp}
         if task_type == "remove_metric":
             return {"status": "ok", "removed": self.remove_metric(p.get("metric", ""))}
 

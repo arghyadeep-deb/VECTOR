@@ -64,13 +64,38 @@ class StartupAgentBase(AgentBase):
 
     def _parse_json_response(self, text: str, fallback: dict) -> dict:
         """Extract the first JSON object from an LLM response, with fallback."""
+        parsed = self._extract_json(text)
+        return parsed if parsed is not None else fallback
+
+    @staticmethod
+    def _extract_json(text: str) -> dict | None:
+        """First JSON object in an LLM response, or None when the LLM failed
+        (empty reply) or returned unparseable text. Callers use None to fail
+        closed instead of presenting canned fallback data as a real result."""
         try:
-            match = re.search(r'\{.*\}', text, re.DOTALL)
+            match = re.search(r'\{.*\}', text or "", re.DOTALL)
             if match:
-                return json.loads(match.group(0))
-        except (json.JSONDecodeError, AttributeError):
+                data = json.loads(match.group(0))
+                if isinstance(data, dict):
+                    return data
+        except (json.JSONDecodeError, TypeError):
             pass
-        return fallback
+        return None
+
+    @staticmethod
+    def _llm_error(what: str, **extra) -> dict:
+        """Uniform failure result: never mistaken for a successful scan/model."""
+        logger.warning("[VECTOR][startups] {}: LLM returned no parseable result", what)
+        return {"status": "error", "error": f"{what}: LLM unavailable or returned unparseable output", **extra}
+
+    @staticmethod
+    def _num(value, default: float = 0.0) -> float:
+        """Coerce an LLM-supplied number (may be str/None/NaN) to a finite float."""
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return default
+        return f if f == f and f not in (float("inf"), float("-inf")) else default
 
     def _store_result(
         self,
@@ -128,3 +153,28 @@ class StartupAgentBase(AgentBase):
         except Exception as e:
             logger.warning("[VECTOR][startups] answer_startup_question failed ({}): {}", self.name, e)
             return context
+
+    async def answer_startup_task(self, query: str, extra_context: str = "") -> dict:
+        """run() wrapper: a failed/empty LLM answer is an error, not status ok
+        with the raw context echoed back as if it were the answer."""
+        try:
+            from core.brain.blueprint_doctrine import get_regime
+            regime = get_regime()
+        except Exception:
+            regime = "unknown"
+        context = f"Current market regime: {regime}."
+        if extra_context:
+            context += f"\n{extra_context}"
+        prompt = (
+            f"You are VECTOR's {self.name} in the startups district. Answer the "
+            f"owner's question using this real context — do not invent data you "
+            f"don't have:\n\n{context}\n\nQuestion: {query}\n\nBe concrete and specific."
+        )
+        try:
+            answer = self._call_ollama(prompt, temperature=0.6)
+        except Exception as e:
+            logger.warning("[VECTOR][startups] answer failed ({}): {}", self.name, e)
+            answer = ""
+        if not answer or not answer.strip():
+            return {"status": "error", "error": "LLM unavailable: no answer generated"}
+        return {"status": "ok", "response": answer}

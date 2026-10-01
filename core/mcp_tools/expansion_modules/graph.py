@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+import re
 from pathlib import Path
 
 from loguru import logger
@@ -12,6 +14,18 @@ from core.mcp_tools.memory_safety import (
     resolve_memory_path as _resolve_memory_path,
 )
 
+_ROOT = Path(__file__).resolve().parents[3]  # module-level so tests can point it at a tmp dir
+_REF_OK = re.compile(r"[A-Za-z0-9_][A-Za-z0-9_./@^~{}-]{0,199}")
+
+
+def _count_symbols(source: str) -> int:
+    """Number of function/class definitions in ``source`` (0 if it does not parse)."""
+    try:
+        tree = ast.parse(source)
+    except (SyntaxError, ValueError):
+        return 0
+    return sum(isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) for n in ast.walk(tree))
+
 
 def add_graph_tools(mcp) -> None:
     import json as _json
@@ -21,7 +35,7 @@ def add_graph_tools(mcp) -> None:
     import shutil as _shutil
     from pathlib import Path as _Path
 
-    ROOT = _Path(__file__).resolve().parents[3]
+    ROOT = _ROOT
 
     # â”€â”€ graph_* (28) — wired to core/memory/knowledge_graph.py â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
@@ -94,9 +108,13 @@ def add_graph_tools(mcp) -> None:
         def graph_symbols(file_path: str) -> str:
             """List all symbols in a file."""
             try:
+                base = ROOT.resolve()
+                scan_target = (base / file_path).resolve()
+                if not scan_target.is_relative_to(base) or scan_target.suffix != ".py":
+                    return _safe_json({"error": "file_path must be a .py file inside the repo root"})
                 from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
-                result = writer.scan_module(file_path) if hasattr(writer, "scan_module") else {"file": file_path, "symbols": []}
+                result = writer.scan_module(str(scan_target)) if hasattr(writer, "scan_module") else {"file": file_path, "symbols": []}
                 return _safe_json(result)
             except Exception as e:
                 return _safe_json({"error": str(e)})
@@ -106,21 +124,32 @@ def add_graph_tools(mcp) -> None:
             """Export knowledge graph to JSON."""
             kg = _get_kg()
             entities = kg.all_entities() if hasattr(kg, "all_entities") else []
-            out_path = path or str(ROOT / "graph_export.json")
-            with open(out_path, "w") as f:
+            out_path, err = _resolve_memory_path(path, default_name="graph_export.json")
+            if err:
+                return _safe_json({"error": err})
+            with open(out_path, "w", encoding="utf-8") as f:
                 _json.dump({"entities": entities}, f, default=str)
-            return _safe_json({"ok": True, "path": out_path, "entity_count": len(entities)})
+            return _safe_json({"ok": True, "path": str(out_path), "entity_count": len(entities)})
 
         @mcp.tool
         def graph_import(path: str) -> str:
             """Import knowledge graph from JSON."""
             kg = _get_kg()
-            with open(path) as f:
-                data = _json.load(f)
-            count = 0
-            for entity in data.get("entities", []):
-                kg.add_entity(entity.get("name", ""), entity.get("type", "unknown"), entity.get("properties", {}))
-                count += 1
+            in_path, err = _resolve_memory_path(path, default_name="graph_export.json")
+            if err:
+                return _safe_json({"error": err})
+            try:
+                with open(in_path, encoding="utf-8") as f:
+                    data = _json.load(f)
+                count = 0
+                for entity in data.get("entities", []):
+                    if not isinstance(entity, dict) or not entity.get("name"):
+                        continue
+                    kg.add_entity(entity["name"], entity.get("type", "unknown"), entity.get("properties", {}))
+                    count += 1
+            except Exception as e:
+                logger.warning("[VECTOR][mcp] graph_import failed: {}", e)
+                return _safe_json({"error": str(e)})
             return _safe_json({"ok": True, "imported": count})
 
         @mcp.tool
@@ -183,38 +212,61 @@ def add_graph_tools(mcp) -> None:
             kg = _get_kg()
             all_ents = kg.all_entities() if hasattr(kg, "all_entities") else []
             stale = [e for e in all_ents if getattr(e, "created_at", 0) < cutoff]
-            return _safe_json({"removed_count": len(stale), "older_than_days": older_than_days, "note": "Entities are informational — use graph_index to add fresh data"})
+            # The knowledge graph has no delete API, so nothing is removed here.
+            return _safe_json({"removed_count": 0, "stale_count": len(stale), "older_than_days": older_than_days, "note": "Nothing was removed (the knowledge graph has no delete API); stale_count is informational"})
 
         @mcp.tool
         def graph_rebuild(scan_path: str = "core/") -> str:
             """Rebuild the code graph by scanning symbols from Python files."""
             import ast
             kg = _get_kg()
-            scan_dir = ROOT / scan_path
+            base = ROOT.resolve()
+            scan_dir = (base / scan_path).resolve()
+            if not scan_dir.is_relative_to(base):
+                return _safe_json({"error": "scan_path escapes the repo root"})
             count = 0
             for pyfile in scan_dir.rglob("*.py"):
                 try:
-                    tree = ast.parse(pyfile.read_text())
+                    pyfile = pyfile.resolve()
+                    if not pyfile.is_relative_to(base):
+                        continue  # symlink pointing outside the repo
+                    tree = ast.parse(pyfile.read_text(encoding="utf-8", errors="replace"))
                     for node in ast.walk(tree):
                         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                            kg.add_entity(f"{pyfile.relative_to(ROOT)}::{node.name}", "symbol" if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else "class")
+                            kg.add_entity(f"{pyfile.relative_to(base)}::{node.name}", "symbol" if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else "class")
                             count += 1
-                except Exception: logger.debug("[VECTOR][mcp] suppressed exception")
+                except Exception as e:
+                    logger.warning("[VECTOR][mcp] graph_rebuild skipped {}: {}", pyfile, e)
             return _safe_json({"ok": True, "scanned": scan_path, "entities_added": count})
 
         @mcp.tool
         def graph_diff(branch_a: str = "HEAD~1", branch_b: str = "HEAD") -> str:
-            """Show graph changes between two commits (entity diff)."""
+            """Show graph changes between two commits (entity diff). Read-only: never checks out a ref."""
             try:
-                kg = _get_kg()
-                before = kg.entity_count() if hasattr(kg, "entity_count") else 0
-                _subprocess.run(["git", "checkout", branch_a], cwd=str(ROOT), capture_output=True, timeout=30)
-                count_a = kg.entity_count() if hasattr(kg, "entity_count") else 0
-                _subprocess.run(["git", "checkout", branch_b], cwd=str(ROOT), capture_output=True, timeout=30)
-                count_b = kg.entity_count() if hasattr(kg, "entity_count") else 0
-                return _safe_json({"branch_a": branch_a, "entity_count_a": count_a, "branch_b": branch_b, "entity_count_b": count_b, "diff": count_b - count_a, "note": "Counts reflect parsed graph state at each commit"})
+                shas = []
+                for ref in (branch_a, branch_b):
+                    if not _REF_OK.fullmatch(ref or ""):
+                        return _safe_json({"error": f"invalid git ref: {ref!r}"})
+                    rp = _subprocess.run(["git", "rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}"], cwd=str(ROOT), capture_output=True, text=True, timeout=30)
+                    if rp.returncode != 0:
+                        return _safe_json({"error": f"unknown git ref: {ref}", "stderr": rp.stderr[-300:]})
+                    shas.append(rp.stdout.strip())
+                names = _subprocess.run(["git", "diff", "--name-only", "-z", shas[0], shas[1], "--", "*.py"], cwd=str(ROOT), capture_output=True, text=True, timeout=30)
+                if names.returncode != 0:
+                    return _safe_json({"error": f"git diff failed (exit {names.returncode})", "stderr": names.stderr[-300:]})
+                count_a = count_b = 0
+                for rel in [n for n in names.stdout.split("\0") if n]:
+                    for sha, side in ((shas[0], "a"), (shas[1], "b")):
+                        shown = _subprocess.run(["git", "show", f"{sha}:{rel}"], cwd=str(ROOT), capture_output=True, text=True, timeout=30)
+                        n = _count_symbols(shown.stdout) if shown.returncode == 0 else 0  # file absent on that side
+                        if side == "a":
+                            count_a += n
+                        else:
+                            count_b += n
+                return _safe_json({"branch_a": branch_a, "entity_count_a": count_a, "branch_b": branch_b, "entity_count_b": count_b, "diff": count_b - count_a, "note": "Counts are symbols (functions/classes) in the .py files that differ between the two commits; the working tree is not touched"})
             except Exception as e:
-                return _safe_json({"error": str(e), "note": "Uncommitted changes may affect counts"})
+                logger.warning("[VECTOR][mcp] graph_diff failed: {}", e)
+                return _safe_json({"error": str(e)})
 
         @mcp.tool
         def graph_callers(entity: str) -> str:
@@ -269,7 +321,10 @@ def add_graph_tools(mcp) -> None:
             kg = _get_kg()
             if other_path:
                 try:
-                    with open(other_path) as f:
+                    in_path, err = _resolve_memory_path(other_path, default_name="graph_export.json")
+                    if err:
+                        return _safe_json({"error": err})
+                    with open(in_path, encoding="utf-8") as f:
                         data = json.load(f)
                     count = 0
                     for ent in data.get("entities", []):
@@ -291,7 +346,10 @@ def add_graph_tools(mcp) -> None:
             if other_path:
                 try:
                     import json
-                    with open(other_path) as f:
+                    in_path, err = _resolve_memory_path(other_path, default_name="graph_export.json")
+                    if err:
+                        return _safe_json({"error": err})
+                    with open(in_path, encoding="utf-8") as f:
                         data = json.load(f)
                     other_count = len(data.get("entities", []))
                     return _safe_json({"current_entities": current_count, "other_entities": other_count, "diff": current_count - other_count})

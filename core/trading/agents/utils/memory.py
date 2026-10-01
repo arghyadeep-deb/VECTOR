@@ -37,6 +37,16 @@ class TradingMemoryLog:
         """Append pending entry at end of propagate(). No LLM call."""
         if not self._log_path:
             return
+        # Tag fields are '|'-delimited on a single line; reject anything that
+        # could forge or break an entry, and never let LLM prose carry the
+        # entry delimiter (prompt-injected text could otherwise append a
+        # forged resolved entry).
+        for label, value in (("ticker", ticker), ("trade_date", trade_date)):
+            if not isinstance(value, str) or not value or any(c in value for c in "|[]\r\n"):
+                raise ValueError(f"unsafe {label} for memory log tag: {value!r}")
+        final_trade_decision = final_trade_decision.replace(
+            self._SEPARATOR.strip(), "<!-- ENTRY_END_ESCAPED -->"
+        )
         # Idempotency guard: fast raw-text scan instead of full parse
         if self._log_path.exists():
             raw = self._log_path.read_text(encoding="utf-8")

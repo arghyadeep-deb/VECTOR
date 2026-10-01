@@ -43,8 +43,19 @@ __all__ = [
 import asyncio
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 from loguru import logger
+
+
+def _safe_url(url: str) -> str:
+    """URL for logs/audit: no userinfo, query string or fragment (they commonly carry API keys/tokens)."""
+    try:
+        parts = urlsplit(url.strip())
+        port = f":{parts.port}" if parts.port else ""
+        return f"{parts.scheme}://{parts.hostname or ''}{port}{parts.path}"
+    except ValueError:
+        return "<unparseable url>"
 
 
 @dataclass
@@ -96,13 +107,21 @@ class VectorScraper:
     # â”€â”€ SSRF guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     def _check_url(self, url: str) -> bool:
+        """Fail closed: resolve the hostname and refuse loopback/private/link-local/metadata targets.
+
+        Uses a local resolving guard because the shared `is_safe_url()` singleton does not resolve DNS,
+        so a public-looking name that resolves to 127.0.0.1 / 169.254.169.254 / 10.x would pass it.
+        With a proxy the proxy resolves the name, so only the literal/hostname checks apply.
+        """
         try:
-            from core.security.ssrf_guard import is_safe_url
-            if not is_safe_url(url):
-                logger.warning("[VECTOR][scraper] SSRF blocked: {}", url)
-                return False
-        except ImportError:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            from core.security.ssrf_guard import SSRFGuard
+            result = SSRFGuard(resolve_dns=not self._proxy).check_url(url)
+        except Exception as e:
+            logger.error("[VECTOR][scraper] SSRF guard unavailable, refusing {}: {}", _safe_url(url), e)
+            return False
+        if not result.safe:
+            logger.warning("[VECTOR][scraper] SSRF blocked: {} ({})", _safe_url(url), result.reason)
+            return False
         return True
 
     def _audit(self, action: str, url: str, status: int) -> None:
@@ -112,10 +131,10 @@ class VectorScraper:
                 agent_id="vector_scraper",
                 action=action,
                 district="research",
-                payload={"url": url[:100], "status": status},
+                payload={"url": _safe_url(url)[:100], "status": status},
             )
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as e:
+            logger.warning("[VECTOR][scraper] audit log failed for {}: {}", action, e)
 
     # â”€â”€ HTTP fetcher â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
@@ -131,7 +150,7 @@ class VectorScraper:
         HTTP fetch with TLS fingerprint impersonation.
         Bypasses basic bot detection. Fastest option (~100ms).
         """
-        if not self._check_url(url):
+        if not await asyncio.to_thread(self._check_url, url):
             return ScrapeResult(url=url, status_code=403, content="", error="SSRF blocked")
 
         try:
@@ -140,14 +159,12 @@ class VectorScraper:
             if self._proxy:
                 kw["proxy"] = self._proxy
 
-            fetcher = AsyncFetcher(**kw)
-
-            if method.upper() == "GET":
-                resp = await fetcher.get(url, headers=headers)
-            elif method.upper() == "POST":
-                resp = await fetcher.post(url, data=data, headers=headers)
+            # AsyncFetcher(**kw) is a deprecated no-op, so proxy/impersonate/timeout must go on the request itself
+            # (otherwise a configured proxy is silently ignored and the request leaves directly).
+            if method.upper() == "POST":
+                resp = await AsyncFetcher.post(url, data=data, headers=headers, **kw)
             else:
-                resp = await fetcher.get(url, headers=headers)
+                resp = await AsyncFetcher.get(url, headers=headers, **kw)
 
             # scrapling's Response exposes the real fetched markup via
             # html_content; .text is a separate (and here, empty) extracted-
@@ -174,21 +191,21 @@ class VectorScraper:
                 from markdownify import markdownify
                 result.markdown = markdownify(result.html)[:50000]
             except ImportError:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                logger.warning("[VECTOR][scraper] markdownify not installed, markdown output empty")
 
             # Tag fetched content as EXTERNAL_NETWORK (taint tracking)
             try:
                 from core.security.taint_tracker import get_taint_tracker, TaintLabel
                 get_taint_tracker().tag_external(result.content)
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][scraper] taint tagging failed: {}", e)
 
             self._audit("fetch_http", url, result.status_code)
-            logger.info("[VECTOR][scraper] fetch {} → {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] fetch {} → {}", _safe_url(url)[:60], result.status_code)
             return result
 
         except Exception as e:
-            logger.error("[VECTOR][scraper] fetch failed {}: {}", url[:60], e)
+            logger.error("[VECTOR][scraper] fetch failed {}: {}", _safe_url(url)[:60], e)
             return ScrapeResult(url=url, status_code=0, content="",
                                 fetcher_used="http_tls", error=str(e))
 
@@ -206,7 +223,7 @@ class VectorScraper:
         Use for: G2, LinkedIn, Cloudflare-protected sites, finance portals.
         Slower (~3-8s) but bypasses nearly all bot detection.
         """
-        if not self._check_url(url):
+        if not await asyncio.to_thread(self._check_url, url):
             return ScrapeResult(url=url, status_code=403, content="", error="SSRF blocked")
 
         try:
@@ -241,14 +258,14 @@ class VectorScraper:
                 from markdownify import markdownify
                 result.markdown = markdownify(result.html)[:50000]
             except ImportError:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                logger.warning("[VECTOR][scraper] markdownify not installed, markdown output empty")
 
             self._audit("fetch_stealth", url, result.status_code)
-            logger.info("[VECTOR][scraper] stealth {} → {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] stealth {} → {}", _safe_url(url)[:60], result.status_code)
             return result
 
         except Exception as e:
-            logger.error("[VECTOR][scraper] stealth failed {}: {}", url[:60], e)
+            logger.error("[VECTOR][scraper] stealth failed {}: {}", _safe_url(url)[:60], e)
             return ScrapeResult(url=url, status_code=0, content="",
                                 fetcher_used="stealth_browser", error=str(e))
 
@@ -265,7 +282,7 @@ class VectorScraper:
         Full Playwright browser fetch for JS-rendered pages.
         Use for: SPAs, dashboards, login-gated pages (session-based).
         """
-        if not self._check_url(url):
+        if not await asyncio.to_thread(self._check_url, url):
             return ScrapeResult(url=url, status_code=403, content="", error="SSRF blocked")
 
         try:
@@ -299,11 +316,11 @@ class VectorScraper:
                 result.content = "\n".join(resp.css(selector).getall())
 
             self._audit("fetch_dynamic", url, result.status_code)
-            logger.info("[VECTOR][scraper] dynamic {} → {}", url[:60], result.status_code)
+            logger.info("[VECTOR][scraper] dynamic {} → {}", _safe_url(url)[:60], result.status_code)
             return result
 
         except Exception as e:
-            logger.error("[VECTOR][scraper] dynamic failed {}: {}", url[:60], e)
+            logger.error("[VECTOR][scraper] dynamic failed {}: {}", _safe_url(url)[:60], e)
             return ScrapeResult(url=url, status_code=0, content="",
                                 fetcher_used="dynamic_browser", error=str(e))
 
@@ -326,7 +343,7 @@ class VectorScraper:
             "cloudflare" in result.content.lower() or
             "bot detected" in result.content.lower()
         ):
-            logger.info("[VECTOR][scraper] falling back to stealth for {}", url[:60])
+            logger.info("[VECTOR][scraper] falling back to stealth for {}", _safe_url(url)[:60])
             result = await self.fetch_stealth(url)
 
         return result
@@ -366,14 +383,14 @@ class VectorScraper:
         Multi-page spider crawl with automatic link following.
         Supports checkpoints — press Ctrl+C and resume from same directory.
         """
-        if not self._check_url(start_url):
+        if not await asyncio.to_thread(self._check_url, start_url):
             return []
 
         results: list[dict] = []
         visited: set[str] = set()
         queue = [start_url]
 
-        logger.info("[VECTOR][scraper] crawl start: {} max_pages={}", start_url[:60], max_pages)
+        logger.info("[VECTOR][scraper] crawl start: {} max_pages={}", _safe_url(start_url)[:60], max_pages)
 
         while queue and len(visited) < max_pages:
             url = queue.pop(0)
@@ -383,6 +400,7 @@ class VectorScraper:
 
             result = await self.fetch(url)
             if not result.ok:
+                logger.warning("[VECTOR][scraper] crawl skipped {}: {}", _safe_url(url)[:60], result.error or result.status_code)
                 continue
 
             item = {

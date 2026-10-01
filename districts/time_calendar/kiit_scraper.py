@@ -29,6 +29,9 @@ class KIITScraper(AgentBase):
         self._browser = None
         self._page = None
         self._playwright = None
+        # op name -> reason, for scrapes that FAILED (vs. genuinely empty).
+        # Cleared per-op on success so [] can be told apart from "failed".
+        self.last_errors: dict[str, str] = {}
         self._credentials = {
             "username": CONFIG["api_keys"].get("kiit_username", ""),
             "password": CONFIG["api_keys"].get("kiit_password", ""),
@@ -68,6 +71,11 @@ class KIITScraper(AgentBase):
             await page.fill("input[name='password']", password)
             await page.click("button[type='submit'], input[type='submit']")
             await page.wait_for_load_state("networkidle", timeout=10000)
+            # A rejected login re-renders the form: a password field still on
+            # the page means we are NOT authenticated.
+            if await page.query_selector("input[type='password']") is not None:
+                logger.error("[VECTOR][kiit] Login rejected — login form still shown")
+                return False
             logger.info("[VECTOR][kiit] Login attempt completed")
             return True
         except Exception as e:
@@ -83,11 +91,13 @@ class KIITScraper(AgentBase):
             page = await self._get_browser()
             if page is None:
                 logger.warning("[VECTOR][kiit] No browser available — returning empty schedule")
+                self.last_errors["schedule"] = "no_browser"
                 self.deduct_points(10, "schedule_scrape_failed_no_browser")
                 return []
 
             logged_in = await self._login(page)
             if not logged_in:
+                self.last_errors["schedule"] = "login_failed"
                 self.deduct_points(10, "schedule_scrape_failed_login")
                 return []
 
@@ -109,11 +119,13 @@ class KIITScraper(AgentBase):
                         "faculty": texts[3].strip(),
                     })
 
+            self.last_errors.pop("schedule", None)
             self.award_points(10, "schedule_fetched")
             logger.info(f"[VECTOR][kiit] Schedule fetched: {len(schedule)} classes")
             return schedule
         except Exception as e:
             logger.error(f"[VECTOR][kiit] get_schedule error: {e}")
+            self.last_errors["schedule"] = f"error: {e}"
             self.deduct_points(10, "schedule_scrape_failed")
             return []
 
@@ -126,11 +138,13 @@ class KIITScraper(AgentBase):
             page = await self._get_browser()
             if page is None:
                 logger.warning("[VECTOR][kiit] No browser available — returning empty attendance")
+                self.last_errors["attendance"] = "no_browser"
                 self.deduct_points(10, "attendance_scrape_failed_no_browser")
                 return []
 
             logged_in = await self._login(page)
             if not logged_in:
+                self.last_errors["attendance"] = "login_failed"
                 self.deduct_points(10, "attendance_scrape_failed_login")
                 return []
 
@@ -140,6 +154,7 @@ class KIITScraper(AgentBase):
 
             rows = await page.query_selector_all("table tr")
             attendance = []
+            unparsed = 0
             for row in rows[1:]:  # skip header
                 cells = await row.query_selector_all("td")
                 if len(cells) >= 3:
@@ -152,7 +167,14 @@ class KIITScraper(AgentBase):
                         total = int(total_str)
                         percent = round((present / total) * 100, 1) if total > 0 else 0.0
                     except (ValueError, ZeroDivisionError):
-                        present, total, percent = 0, 0, 0.0
+                        # Do not fabricate a 0% row: that would raise a bogus
+                        # "at risk" alert for a row we simply failed to parse.
+                        logger.warning(
+                            "[VECTOR][kiit] Unparseable attendance row for {!r}: {!r}/{!r}",
+                            subject, present_str, total_str,
+                        )
+                        unparsed += 1
+                        continue
                     if subject:
                         attendance.append({
                             "subject": subject,
@@ -161,19 +183,37 @@ class KIITScraper(AgentBase):
                             "percent": percent,
                         })
 
+            if unparsed and not attendance:
+                self.last_errors["attendance"] = f"parse_failed:{unparsed}_rows"
+                self.deduct_points(10, "attendance_scrape_failed_parse")
+                return []
+            if unparsed:
+                self.last_errors["attendance"] = f"partial:{unparsed}_rows_unparsed"
+            else:
+                self.last_errors.pop("attendance", None)
             self.award_points(10, "attendance_fetched")
             logger.info(f"[VECTOR][kiit] Attendance fetched: {len(attendance)} subjects")
             return attendance
         except Exception as e:
             logger.error(f"[VECTOR][kiit] get_attendance error: {e}")
+            self.last_errors["attendance"] = f"error: {e}"
             self.deduct_points(10, "attendance_scrape_failed")
             return []
 
+    @staticmethod
+    def _at_risk(subjects: list[dict]) -> list[str]:
+        # total == 0 means no classes held yet (or unknown) — not "0% attendance".
+        return [
+            s["subject"] for s in subjects
+            if s.get("total", 1) > 0 and s.get("percent", 100) < 75
+        ]
+
     async def check_attendance_alerts(self) -> list[str]:
-        """Return subjects where attendance < 75% — these need urgent alerts."""
+        """Return subjects where attendance < 75% — these need urgent alerts.
+        An empty list is only "all clear" if `last_errors` has no "attendance"."""
         try:
             subjects = await self.get_attendance()
-            at_risk = [s["subject"] for s in subjects if s.get("percent", 100) < 75]
+            at_risk = self._at_risk(subjects)
             if at_risk:
                 self.award_points(20, "detected_attendance_risk")
                 logger.warning(f"[VECTOR][kiit] AT RISK subjects: {at_risk}")
@@ -188,12 +228,16 @@ class KIITScraper(AgentBase):
         logger.info("[VECTOR][kiit] Starting full scrape")
         schedule = await self.get_schedule()
         attendance = await self.get_attendance()
-        alerts = await self.check_attendance_alerts()
+        alerts = self._at_risk(attendance)
+        if alerts:
+            self.award_points(20, "detected_attendance_risk")
+            logger.warning(f"[VECTOR][kiit] AT RISK subjects: {alerts}")
 
         result = {
             "schedule": schedule,
             "attendance": attendance,
             "at_risk_subjects": alerts,
+            "errors": dict(self.last_errors),
             "agent": self.to_dict(),
         }
         logger.info(
@@ -245,6 +289,10 @@ class KIITScraper(AgentBase):
         try:
             if t == "check_attendance":
                 alerts = await self.check_attendance_alerts()
+                if "attendance" in self.last_errors:
+                    # [] here means "could not check", NOT "all clear".
+                    return {"status": "error", "alerts": alerts,
+                            "error": self.last_errors["attendance"]}
                 return {"status": "ok", "alerts": alerts}
 
             # KNOWN_ISSUES bug pattern: any unmatched task_type (e.g. a
@@ -265,7 +313,8 @@ class KIITScraper(AgentBase):
                     return {"status": "ok", "response": answer}
 
             result = await self.scrape_all()
-            return {"status": "ok", **result}
+            status = "error" if self.last_errors else "ok"
+            return {"status": status, **result}
         finally:
             await self.close()
 

@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 from core.scraper.engines._browsers._types import PlaywrightSession
+from core.scraper.engines.static import ensure_public_url, aensure_public_url
 from core.scraper.engines.toolbelt.custom import BaseFetcher, Response
 from core.scraper.engines._browsers._controllers import DynamicSession, AsyncDynamicSession
 
@@ -53,6 +54,7 @@ class DynamicFetcher(BaseFetcher):
 
         kwargs["selector_config"] = {**cls._generate_parser_arguments(), **selector_config}
 
+        ensure_public_url(url, resolve_dns=not kwargs.get("proxy"))
         with DynamicSession(**kwargs) as session:
             return session.fetch(url)
 
@@ -96,6 +98,7 @@ class DynamicFetcher(BaseFetcher):
 
         kwargs["selector_config"] = {**cls._generate_parser_arguments(), **selector_config}
 
+        await aensure_public_url(url, resolve_dns=not kwargs.get("proxy"))
         async with AsyncDynamicSession(**kwargs) as session:
             return await session.fetch(url)
 

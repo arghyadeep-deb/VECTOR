@@ -52,9 +52,11 @@ def test_daily_reviewer_review_llm_unavailable():
         bot._obsidian._vault = vault
         with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
              patch("ollama.chat", side_effect=Exception("offline")):
+            bot._fetch_today = lambda: [{"event_type": "x", "content": "c", "tags": "", "source": "s", "timestamp": "2026-10-01T00:00"}]
             ok = asyncio.run(bot.review())
-    assert ok is True
-    assert bot.health_points > 0
+    # LLM down => the review FAILS (no canned placeholder written as a real reflection)
+    assert ok is False
+    assert not list(vault.rglob("*.md"))
 
 
 def test_journal_writer_init():
@@ -73,8 +75,10 @@ def test_journal_writer_daily_llm_unavailable():
         bot._obsidian._vault = vault
         with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
              patch("ollama.chat", side_effect=Exception("offline")):
+            bot._fetch_events = lambda hours=24: [{"event_type": "x", "content": "c", "tags": "", "source": "s", "timestamp": "2026-10-01T00:00"}]
             ok = asyncio.run(bot.write_daily())
-    assert ok is True
+    assert ok is False
+    assert not list(vault.rglob("*.md"))
 
 
 def test_journal_writer_weekly_llm_unavailable():
@@ -86,8 +90,10 @@ def test_journal_writer_weekly_llm_unavailable():
         bot._obsidian._vault = vault
         with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
              patch("ollama.chat", side_effect=Exception("offline")):
+            bot._fetch_events = lambda hours=24: [{"event_type": "x", "content": "c", "tags": "", "source": "s", "timestamp": "2026-10-01T00:00"}]
             ok = asyncio.run(bot.write_weekly())
-    assert ok is True
+    assert ok is False
+    assert not list(vault.rglob("*.md"))
 
 
 def test_growth_analyst_init():
@@ -106,8 +112,12 @@ def test_growth_analyst_analyse_llm_unavailable():
         bot._obsidian._vault = vault
         with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
              patch("ollama.chat", side_effect=Exception("offline")):
+            bot._fetch_growth_scores = lambda days=21: []
+            bot._fetch_policy_updates = lambda days=7: []
+            bot._fetch_recent_events = lambda days=7: [{"event_type": "x", "content": "c", "tags": "", "source": "s", "timestamp": "2026-10-01T00:00"}]
             ok = asyncio.run(bot.analyse())
-    assert ok is True
+    assert ok is False
+    assert not list(vault.rglob("*.md"))
 
 
 # ─── Health ───────────────────────────────────────────────────────────────────
@@ -462,8 +472,7 @@ def test_doc_writer_readme():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
-             patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", return_value="## Overview\nreal doc"):
             ok = bot.write_doc("VECTOR", "readme", context="Autonomous AI agent")
     assert ok is True
 
@@ -475,8 +484,7 @@ def test_doc_writer_all_types():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
-             patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", return_value="## Overview\nreal doc"):
             for doc_type in DocWriter.DOC_TYPES:
                 ok = bot.write_doc("TestProj", doc_type)
                 assert ok is True, f"Failed for doc_type={doc_type}"

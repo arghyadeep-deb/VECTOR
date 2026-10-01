@@ -150,7 +150,7 @@ class ProblemClusterer(AgentBase):
 
     def label_cluster(self, cluster: dict) -> dict:
         """LLM label + software-solvable verdict; keyword fallback never fails."""
-        sample = "\n".join(f"- {p['title']}" for p in cluster["posts"][:6])
+        sample = "\n".join(f"- {p.get('title', '')}" for p in cluster["posts"][:6])
         label, solvable, idea = "", None, ""
         try:
             raw = self.vchat(
@@ -162,19 +162,28 @@ class ProblemClusterer(AgentBase):
                 "IDEA: <one-sentence software product idea, or 'none'>"
             )
             for line in (raw or "").splitlines():
+                # vchat() echoes the prompt back when the LLM is unreachable; its
+                # "<yes|no>" / "<one-sentence ...>" placeholders must not be parsed
+                # as answers (they made every cluster software_solvable=True).
                 if line.upper().startswith("PROBLEM:"):
-                    label = line.split(":", 1)[1].strip()
+                    val = line.split(":", 1)[1].strip()
+                    label = "" if val.startswith("<") else val
                 elif line.upper().startswith("SOFTWARE_SOLVABLE:"):
-                    solvable = "yes" in line.split(":", 1)[1].lower()
+                    val = line.split(":", 1)[1].strip().lower()
+                    if val.startswith("yes"):
+                        solvable = True
+                    elif val.startswith("no"):
+                        solvable = False
                 elif line.upper().startswith("IDEA:"):
-                    idea = line.split(":", 1)[1].strip()
+                    val = line.split(":", 1)[1].strip()
+                    idea = "" if val.startswith("<") else val
         except Exception as e:
             logger.debug("[VECTOR][clusterer] vchat label failed: {}", e)
         if not label:
-            label = cluster["posts"][0]["title"][:120]
+            label = cluster["posts"][0].get("title", "")[:120]
         if solvable is None:
             solvable = bool(_SOFTWARE_HINTS.search(
-                " ".join(p["title"] for p in cluster["posts"])))
+                " ".join(p.get("title", "") for p in cluster["posts"])))
         cluster["problem"] = label
         cluster["software_solvable"] = solvable
         cluster["product_idea"] = idea if idea.lower() != "none" else ""
@@ -187,7 +196,13 @@ class ProblemClusterer(AgentBase):
         if posts is None:
             from districts.news_trends.social_miner import SocialMiner
             snap = SocialMiner.latest_snapshot()
-            posts = (snap or {}).get("posts", [])
+            if not snap:
+                # no mined data is not "zero clusters / no trends"
+                logger.warning("[VECTOR][clusterer] no mined snapshot available")
+                return {"status": "error", "error": "no mined snapshot available (run SocialMiner first)",
+                        "total_posts": 0, "cluster_count": 0, "software_solvable": 0,
+                        "snapshot": "", "top_clusters": []}
+            posts = snap.get("posts", [])
         clusters = self.cluster(posts)
         top = [self.label_cluster(c) for c in clusters[:self.top_n]]
         solvable = [c for c in top if c.get("software_solvable")]
@@ -197,8 +212,8 @@ class ProblemClusterer(AgentBase):
         stamp = datetime.datetime.now().strftime("%Y%m%d_%H%M")
         out = out_dir / f"clusters_{stamp}.json"
         slim = [{k: v for k, v in c.items() if k != "posts"} | {
-            "examples": [{"title": p["title"], "url": p["url"],
-                          "score": p["score"], "comments": p["comments"]}
+            "examples": [{"title": p.get("title", ""), "url": p.get("url", ""),
+                          "score": p.get("score", 0), "comments": p.get("comments", 0)}
                          for p in c["posts"][:5]],
         } for c in top]
         out.write_text(json.dumps({"analyzed_at": stamp, "total_posts": len(posts),
@@ -211,7 +226,7 @@ class ProblemClusterer(AgentBase):
                 "top_clusters": slim}
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params") or {}
         result = self.analyze(p.get("posts"))
         return {"status": "ok", **result}
 

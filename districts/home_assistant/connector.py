@@ -3,7 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import time
+from urllib.parse import urlparse
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Callable
 
@@ -25,16 +27,19 @@ class HAConfig:
 
     def __post_init__(self):
         if not self.host:
-            raw = os.getenv("HASS_URL") or CONFIG.get("home_assistant", {}).get("host", "homeassistant.local")
-            raw = raw.rstrip("/")
-            parsed = raw.replace("http://", "").replace("https://", "")
-            if "://" not in raw and raw.startswith("http"):
-                self.use_ssl = raw.startswith("https")
-            self.host = parsed.split(":")[0] if ":" in parsed else parsed
+            raw = (os.getenv("HASS_URL") or CONFIG.get("home_assistant", {}).get("host", "homeassistant.local")).strip().rstrip("/")
+            if "://" not in raw:
+                raw = "http://" + raw
+            parsed = urlparse(raw)
+            # An https:// URL must select TLS; the old string-replace parse
+            # dropped the scheme and sent the bearer token in cleartext http.
+            self.use_ssl = parsed.scheme == "https"
+            self.host = parsed.hostname or "homeassistant.local"
+            default_port = 443 if self.use_ssl else 8123
             try:
-                self.port = int(parsed.split(":")[1]) if ":" in parsed else 8123
-            except (IndexError, ValueError):
-                self.port = 8123
+                self.port = parsed.port or default_port
+            except ValueError:
+                self.port = default_port
         if not self.token:
             self.token = os.getenv("HASS_TOKEN") or CONFIG.get("home_assistant", {}).get("token", "")
 
@@ -47,6 +52,10 @@ class HAConfig:
     def ws_url(self) -> str:
         protocol = "wss" if self.use_ssl else "ws"
         return f"{protocol}://{self.host}:{self.port}/api/websocket"
+
+_SLUG_RE = re.compile(r"^[a-z0-9_]+$")
+_ENTITY_ID_RE = re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$")
+
 
 class HARestClient:
     def __init__(self, config: HAConfig):
@@ -96,9 +105,13 @@ class HARestClient:
         return await self._request("GET", "/api/states")
 
     async def get_state(self, entity_id: str) -> Dict[str, Any]:
+        if not _ENTITY_ID_RE.match(entity_id or ""):
+            raise ValueError(f"invalid entity_id: {entity_id!r}")
         return await self._request("GET", f"/api/states/{entity_id}")
 
     async def call_service(self, domain: str, service: str, data: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        if not (_SLUG_RE.match(domain or "") and _SLUG_RE.match(service or "")):
+            raise ValueError(f"invalid service: {domain!r}.{service!r}")
         payload = data or {}
         return await self._request("POST", f"/api/services/{domain}/{service}", json=payload)
 
@@ -238,6 +251,8 @@ class HAWebSocketClient:
         if data:
             payload["service_data"] = data
         result = await self._send(payload)
+        if not result.get("success", False):
+            raise RuntimeError(f"HA call_service {domain}.{service} failed: {result.get('error')}")
         return result.get("result")
 
     def on_event(self, event_type: str, callback: Callable):
@@ -263,19 +278,28 @@ class HAConnector:
         self._connected: bool = False
 
     async def connect(self) -> bool:
+        # Preflight REST: an unreachable HA must report False (callers then say
+        # "couldn't reach"), not hang in the WS reconnect loop or claim success.
         try:
             await self.rest._ensure_client()
-            ws_ok = await self.ws.connect()
-            if ws_ok:
-                self._connected = True
-                logger.info("[HA Connector] Connected via REST + WebSocket")
-            else:
-                logger.warning("[HA Connector] WebSocket failed, REST only")
-                self._connected = True
-            return True
+            await self.rest.get_config()
         except Exception as e:
-            logger.error("[HA Connector] Connect failed: {}", e)
+            logger.error("[VECTOR][ha_connector] Home Assistant unreachable at {}: {}", self._config.base_url, e)
             return False
+        try:
+            ws_ok = await asyncio.wait_for(self.ws.connect(), timeout=15.0)
+        except asyncio.TimeoutError:
+            await self.ws.disconnect()  # stops the endless reconnect loop
+            ws_ok = False
+        except Exception as e:
+            logger.warning("[VECTOR][ha_connector] WebSocket connect error: {}", e)
+            ws_ok = False
+        self._connected = True
+        if ws_ok:
+            logger.info("[VECTOR][ha_connector] Connected via REST + WebSocket")
+        else:
+            logger.warning("[VECTOR][ha_connector] WebSocket failed, REST only")
+        return True
 
     async def disconnect(self):
         self._connected = False
@@ -287,7 +311,7 @@ class HAConnector:
         try:
             cfg = await self.rest.get_config()
             result["rest"] = bool(cfg.get("version"))
-        except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
-        result["ws"] = self._connected
+        except Exception as e:
+            logger.warning("[VECTOR][ha_connector] health check failed: {}", e)
+        result["ws"] = self.ws._ws is not None
         return result

@@ -452,6 +452,9 @@ class EmailAgent(AgentBase):
             if draft_body:
                 re_subject = subject if subject.startswith("Re:") else f"Re: {subject}"
                 result = self.draft_reply(email_id, sender, re_subject, draft_body)
+                if result.get("error"):
+                    logger.warning("[VECTOR][email_agent] auto-draft not saved: {}", result["error"])
+                    return {"status": "error", "error": result["error"]}
                 self._get_memory().store(
                     event_type="email_auto_draft",
                     content=f"Auto-drafted reply to {sender}: {subject}",
@@ -622,6 +625,9 @@ class EmailAgent(AgentBase):
                     bcc=task.get("bcc"),
                     attachments=task.get("attachments"),
                 )
+                if result.get("error"):
+                    self.deduct_points(20, "email_task_failed")
+                    return {**result, "status": "error"}
                 self.award_points(20, "email_replied")
                 return {"status": "ok", **result}
 
@@ -658,6 +664,9 @@ class EmailAgent(AgentBase):
                     bcc=task.get("bcc"),
                     attachments=task.get("attachments"),
                 )
+                if result.get("error"):
+                    self.deduct_points(20, "email_task_failed")
+                    return {**result, "status": "error"}
                 self.award_points(20, "email_forwarded")
                 return {"status": "ok", **result}
 

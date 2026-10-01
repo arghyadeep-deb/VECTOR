@@ -1,3 +1,4 @@
+import re
 import sys
 import uuid
 import json
@@ -122,7 +123,12 @@ Use current knowledge and be thorough.
             research_path = self._obsidian._vault / self._research_dir
             research_path.mkdir(parents=True, exist_ok=True)
 
-            file_path = research_path / f"{research['company']}.md"
+            # CWE-22: company name is caller-supplied; keep the file inside research_path.
+            safe_name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', "_", research["company"]).strip(" .") or "company"
+            file_path = research_path / f"{safe_name}.md"
+            if not file_path.resolve().is_relative_to(research_path.resolve()):
+                logger.warning(f"[VECTOR][company_researcher] Refusing save outside research dir: {research['company']!r}")
+                return False
             content = f"""# {research['company']}
 
 Researched: {research['timestamp']}
@@ -301,6 +307,8 @@ Note: Be clear these are rough estimates based on public data.
         company = p.get("company", "")
         if company:
             result = await self.research_company(company)
+            if "error" in result:
+                return {"status": "error", **result}
             return {"status": "ok", **result}
         # 2026-07-28: when params.company was absent (always true for
         # free-text chat dispatch, which never populates it), this

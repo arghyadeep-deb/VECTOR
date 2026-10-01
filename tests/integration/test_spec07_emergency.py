@@ -276,16 +276,18 @@ class TestRunbookExecutor(unittest.TestCase):
         results = _run(self.executor.execute(scored))
         self.assertEqual(len(results), 3)
 
-    def test_health_critical_runbook_succeeds(self):
+    def test_health_critical_runbook_does_not_claim_notification_sent(self):
+        # The runbook has no delivery channel; it must not report success for a
+        # notification it never sent (delivery is the escalation pushover step).
         scored = self._make_scored("heart_rate_stopped", "health", "CRITICAL")
         results = _run(self.executor.execute(scored))
-        self.assertTrue(results[0].success)
+        self.assertFalse(results[0].success)
 
     def test_battery_critical_runbook_returns_one_result(self):
         scored = self._make_scored("battery_critical", "battery")
         results = _run(self.executor.execute(scored))
         self.assertEqual(len(results), 1)
-        self.assertTrue(results[0].success)
+        self.assertFalse(results[0].success)
 
     def test_unknown_signal_returns_no_runbook_result(self):
         scored = self._make_scored("unknown_signal_xyz", "system")

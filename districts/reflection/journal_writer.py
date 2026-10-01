@@ -36,22 +36,26 @@ class JournalWriter(AgentBase):
         self._context = ContextEngine()
         logger.info(f"[VECTOR][journal_writer] ready gen={generation}")
 
-    def _fetch_events(self, hours: int = 24) -> list[dict]:
-        cutoff = (datetime.datetime.now() - datetime.timedelta(hours=hours)).isoformat()
+    def _fetch_events(self, hours: int = 24) -> list[dict] | None:
+        """Events in the last `hours`. None = the DB read FAILED (distinct from [] = no activity)."""
+        # episodic_memory.timestamp is aware UTC ISO text; a naive local cutoff shifted the window.
+        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=hours)).isoformat()
         try:
             cur = self._memory.conn.cursor()
             cur.execute(
                 "SELECT event_type, content, tags, source, timestamp FROM episodic_memory "
-                "WHERE timestamp > ? ORDER BY timestamp ASC",
+                "WHERE timestamp > ? AND COALESCE(source, '') NOT LIKE '%test%' "
+                "AND COALESCE(tags, '') NOT LIKE '%\"test\"%' ORDER BY timestamp ASC",
                 (cutoff,),
             )
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, r)) for r in cur.fetchall()]
         except Exception as e:
-            logger.warning(f"[VECTOR][journal_writer] fetch failed: {e}")
-            return []
+            logger.warning("[VECTOR][journal_writer] fetch failed: {}", e)
+            return None
 
-    def _narrative(self, events: list[dict], hydration: str, entry_type: str) -> str:
+    def _narrative(self, events: list[dict], hydration: str, entry_type: str) -> str | None:
+        """LLM narrative, or None when no model produced one (never a canned placeholder)."""
         summary = "\n".join(
             f"[{e.get('timestamp','')[:16]}] {e.get('event_type','')}: {e.get('content','')[:100]}"
             for e in events[:80]
@@ -73,17 +77,23 @@ class JournalWriter(AgentBase):
                 raise ValueError("ollama_safe returned empty response")
             return text
         except Exception as e:
-            logger.warning(f"[VECTOR][journal_writer] LLM unavailable: {e}")
-            return f"*{len(events)} events logged. Narrative synthesis unavailable.*"
+            logger.warning("[VECTOR][journal_writer] LLM unavailable: {}", e)
+            return None
 
     async def write_daily(self) -> bool:
         date_str = datetime.date.today().isoformat()
         events = self._fetch_events(hours=24)
-        if not events:
-            events = [{"event_type": "idle", "content": "Quiet day.", "timestamp": date_str, "tags": "", "source": "system"}]
-
-        hydration = self._context.session_hydration_prompt()
-        narrative = self._narrative(events, hydration, "daily")
+        if events is None:
+            logger.error("[VECTOR][journal_writer] daily journal aborted: event fetch failed")
+            return False
+        if events:
+            narrative = self._narrative(events, self._context.session_hydration_prompt(), "daily")
+            if narrative is None:
+                logger.error("[VECTOR][journal_writer] daily journal aborted: no LLM narrative available")
+                return False
+        else:
+            # Nothing logged: state that; don't have the LLM invent a first-person day.
+            narrative = "*No activity was logged in the last 24 hours.*"
 
         try:
             self._obsidian.write_note(
@@ -119,13 +129,20 @@ class JournalWriter(AgentBase):
 
     async def write_weekly(self) -> bool:
         events = self._fetch_events(hours=168)
-        week_label = datetime.date.today().strftime("W%V-%Y")
+        # %G (ISO year) with %V (ISO week): %Y mislabels e.g. 2025-12-29 as W01-2025 and would
+        # overwrite the real W01-2025 note.
+        week_label = datetime.date.today().strftime("W%V-%G")
 
-        if not events:
-            events = [{"event_type": "idle", "content": "Quiet week.", "timestamp": datetime.date.today().isoformat(), "tags": "", "source": "system"}]
-
-        hydration = self._context.session_hydration_prompt()
-        narrative = self._narrative(events, hydration, "weekly review")
+        if events is None:
+            logger.error("[VECTOR][journal_writer] weekly review aborted: event fetch failed")
+            return False
+        if events:
+            narrative = self._narrative(events, self._context.session_hydration_prompt(), "weekly review")
+            if narrative is None:
+                logger.error("[VECTOR][journal_writer] weekly review aborted: no LLM narrative available")
+                return False
+        else:
+            narrative = "*No activity was logged in the last 7 days.*"
 
         try:
             self._obsidian.write_note(
@@ -166,6 +183,8 @@ class JournalWriter(AgentBase):
         real, unrelated file-write side effect from a stray conversational
         message). Grounded in today's real event log."""
         events = self._fetch_events(hours=24)
+        if events is None:
+            return ""  # DB read failed: don't tell the LLM "no activity" and let it answer from nothing
         summary = "\n".join(
             f"[{e.get('timestamp','')[:16]}] {e.get('event_type','')}: {e.get('content','')[:120]}"
             for e in events[:30]

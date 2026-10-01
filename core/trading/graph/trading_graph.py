@@ -1,6 +1,7 @@
 # VectorTrading/graph/trading_graph.py
 
-import logging
+import math
+import re
 
 __all__ = [
     "logger",
@@ -14,8 +15,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Tuple, List, Optional
 
 import yfinance as yf
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 from langgraph.prebuilt import ToolNode
 
@@ -58,6 +58,9 @@ from .setup import GraphSetup
 from .propagation import Propagator
 from .reflection import Reflector
 from .signal_processing import SignalProcessor
+
+
+_TRADE_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 
 
 class VectorTradingGraph:
@@ -256,10 +259,17 @@ class VectorTradingGraph:
                 / bench["Close"].iloc[0]
             )
             alpha = raw - bench_ret
+            # NaN/inf closes (halted or bad data) must not be logged as a real outcome.
+            if not (math.isfinite(raw) and math.isfinite(alpha)):
+                logger.warning(
+                    "[VECTOR][trading_graph] non-finite return for {} on {} vs {} (will retry next run)",
+                    ticker, trade_date, benchmark,
+                )
+                return None, None, None
             return raw, alpha, actual_days
         except Exception as e:
             logger.warning(
-                "Could not resolve outcome for %s on %s vs %s (will retry next run): %s",
+                "[VECTOR][trading_graph] could not resolve outcome for {} on {} vs {} (will retry next run): {}",
                 ticker, trade_date, benchmark, e,
             )
             return None, None, None
@@ -286,12 +296,26 @@ class VectorTradingGraph:
             )
             if raw is None:
                 continue  # price not available yet — try again next run
-            reflection = self.reflector.reflect_on_final_decision(
-                final_decision=entry.get("decision", ""),
-                raw_return=raw,
-                alpha_return=alpha,
-                benchmark_name=benchmark,
-            )
+            try:
+                reflection = self.reflector.reflect_on_final_decision(
+                    final_decision=entry.get("decision", ""),
+                    raw_return=raw,
+                    alpha_return=alpha,
+                    benchmark_name=benchmark,
+                )
+            except Exception as e:
+                logger.warning(
+                    "[VECTOR][trading_graph] reflection failed for {} on {} (entry stays pending): {}",
+                    ticker, entry["date"], e,
+                )
+                continue
+            if not isinstance(reflection, str) or not reflection.strip():
+                # An empty LLM answer must not permanently resolve the entry.
+                logger.warning(
+                    "[VECTOR][trading_graph] empty reflection for {} on {} (entry stays pending)",
+                    ticker, entry["date"],
+                )
+                continue
             updates.append({
                 "ticker": ticker,
                 "trade_date": entry["date"],
@@ -311,30 +335,44 @@ class VectorTradingGraph:
         with a per-ticker SqliteSaver so a crashed run can resume from the last
         successful node on a subsequent invocation with the same ticker+date.
         """
+        # Fail before any LLM/data spend (previously rejected only after the full run).
+        safe_ticker_component(company_name)
+        trade_date = str(trade_date)
+        if not _TRADE_DATE_RE.fullmatch(trade_date):
+            raise ValueError(f"trade_date must be YYYY-MM-DD, got {trade_date!r}")
+        datetime.strptime(trade_date, "%Y-%m-%d")
+
         self.ticker = company_name
 
         # Resolve any pending memory-log entries for this ticker before the pipeline runs.
         self._resolve_pending_entries(company_name)
 
-        # Recompile with a checkpointer if the user opted in.
-        if self.config.get("checkpoint_enabled"):
-            self._checkpointer_ctx = get_checkpointer(
-                self.config["data_cache_dir"], company_name
-            )
-            saver = self._checkpointer_ctx.__enter__()
-            self.graph = self.workflow.compile(checkpointer=saver)
-
-            step = checkpoint_step(
-                self.config["data_cache_dir"], company_name, str(trade_date)
-            )
-            if step is not None:
-                logger.info(
-                    "Resuming from step %d for %s on %s", step, company_name, trade_date
-                )
-            else:
-                logger.info("Starting fresh for %s on %s", company_name, trade_date)
-
+        resume = False
         try:
+            # Recompile with a checkpointer if the user opted in.
+            if self.config.get("checkpoint_enabled"):
+                self._checkpointer_ctx = get_checkpointer(
+                    self.config["data_cache_dir"], company_name
+                )
+                saver = self._checkpointer_ctx.__enter__()
+                self.graph = self.workflow.compile(checkpointer=saver)
+
+                step = checkpoint_step(
+                    self.config["data_cache_dir"], company_name, str(trade_date)
+                )
+                if step is not None:
+                    resume = True
+                    logger.info(
+                        "[VECTOR][trading_graph] resuming from step {} for {} on {}",
+                        step, company_name, trade_date,
+                    )
+                else:
+                    logger.info(
+                        "[VECTOR][trading_graph] starting fresh for {} on {}",
+                        company_name, trade_date,
+                    )
+            if resume:
+                return self._run_graph(company_name, trade_date, resume=True)
             return self._run_graph(company_name, trade_date)
         finally:
             if self._checkpointer_ctx is not None:
@@ -342,8 +380,13 @@ class VectorTradingGraph:
                 self._checkpointer_ctx = None
                 self.graph = self.workflow.compile()
 
-    def _run_graph(self, company_name, trade_date):
-        """Execute the graph and write the resulting state to disk and memory log."""
+    def _run_graph(self, company_name, trade_date, resume=False):
+        """Execute the graph and write the resulting state to disk and memory log.
+
+        ``resume=True`` continues the checkpointed thread (graph input ``None``);
+        passing the fresh initial state instead would restart every node and
+        append a second human message to the checkpointed message history.
+        """
         # Initialize state — inject memory log context for PM.
         past_context = self.memory_log.get_past_context(company_name)
         init_agent_state = self.propagator.create_initial_state(
@@ -356,9 +399,11 @@ class VectorTradingGraph:
             tid = thread_id(company_name, str(trade_date))
             args.setdefault("config", {}).setdefault("configurable", {})["thread_id"] = tid
 
+        graph_input = None if resume else init_agent_state
+
         if self.debug:
             trace = []
-            for chunk in self.graph.stream(init_agent_state, **args):
+            for chunk in self.graph.stream(graph_input, **args):
                 if len(chunk["messages"]) == 0:
                     pass
                 else:
@@ -370,7 +415,7 @@ class VectorTradingGraph:
             for chunk in trace:
                 final_state.update(chunk)
         else:
-            final_state = self.graph.invoke(init_agent_state, **args)
+            final_state = self.graph.invoke(graph_input, **args)
 
         # Store current state for reflection.
         self.curr_state = final_state

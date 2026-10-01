@@ -53,17 +53,27 @@ class ExperimentTracker(AgentBase):
             return {"experiments": [], "next_id": 1}
         try:
             return json.loads(self._EXPERIMENTS_FILE.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as e:
+            # Don't let the next save silently overwrite (and destroy) an
+            # unreadable registry: keep a copy of the bad file first.
+            logger.error("[VECTOR][experiment_tracker] registry unreadable, starting empty: {}", e)
+            try:
+                bak = self._EXPERIMENTS_FILE.with_suffix(".corrupt.json")
+                bak.write_bytes(self._EXPERIMENTS_FILE.read_bytes())
+            except Exception as be:
+                logger.warning("[VECTOR][experiment_tracker] corrupt-registry backup failed: {}", be)
             return {"experiments": [], "next_id": 1}
 
-    def _save_experiments(self, data: dict) -> None:
-        """Persist experiment registry."""
+    def _save_experiments(self, data: dict) -> bool:
+        """Persist experiment registry. Returns False if the write failed."""
         try:
             self._EXPERIMENTS_FILE.write_text(
                 json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
             )
+            return True
         except Exception as e:
             logger.warning("[VECTOR][experiment_tracker] save failed: {}", e)
+            return False
 
     def create_experiment(self, hypothesis: str, control: str, variant: str,
                           metric: str, duration_days: int = 7) -> dict:
@@ -85,12 +95,17 @@ class ExperimentTracker(AgentBase):
         }
         data["experiments"].append(exp)
         data["next_id"] += 1
-        self._save_experiments(data)
+        if not self._save_experiments(data):
+            raise OSError(f"could not persist experiment {exp_id}")
         logger.info("[VECTOR][experiment_tracker] created: {} — {}", exp_id, hypothesis[:60])
         return exp
 
     def add_observation(self, exp_id: str, variant: str, outcome: float, note: str = "") -> bool:
         """Record an observation for an experiment."""
+        if variant not in ("control", "variant"):
+            # analyze_experiment only counts these two arms; anything else would be silently dropped.
+            logger.warning("[VECTOR][experiment_tracker] invalid variant {!r} (use 'control' or 'variant')", variant)
+            return False
         data = self._load_experiments()
         for exp in data["experiments"]:
             if exp["id"] == exp_id:
@@ -100,8 +115,7 @@ class ExperimentTracker(AgentBase):
                     "note": note,
                     "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
                 })
-                self._save_experiments(data)
-                return True
+                return self._save_experiments(data)
         logger.warning("[VECTOR][experiment_tracker] experiment not found: {}", exp_id)
         return False
 
@@ -114,8 +128,13 @@ class ExperimentTracker(AgentBase):
         control_obs = [o["outcome"] for o in obs if o["variant"] == "control"]
         variant_obs = [o["outcome"] for o in obs if o["variant"] == "variant"]
 
-        control_avg = sum(control_obs) / len(control_obs) if control_obs else 0
-        variant_avg = sum(variant_obs) / len(variant_obs) if variant_obs else 0
+        if not control_obs or not variant_obs:
+            # One arm missing: averaging it as 0 would fabricate a huge "improvement".
+            return {"conclusion": "insufficient_data", "confidence": 0.0,
+                    "recommendation": "collect observations for both control and variant"}
+
+        control_avg = sum(control_obs) / len(control_obs)
+        variant_avg = sum(variant_obs) / len(variant_obs)
         improvement = round((variant_avg - control_avg) / max(0.001, abs(control_avg)) * 100, 1)
 
         prompt = (
@@ -152,6 +171,7 @@ class ExperimentTracker(AgentBase):
             "control_avg": control_avg,
             "variant_avg": variant_avg,
             "improvement_pct": improvement,
+            "source": "heuristic_fallback",  # LLM analysis failed; not an LLM judgement
         }
 
     def get_active_experiments(self) -> list[dict]:
@@ -237,6 +257,9 @@ class ExperimentTracker(AgentBase):
                     float(task.get("outcome", 0.0)),
                     task.get("note", ""),
                 )
+                if not ok:
+                    return {"status": "error", "recorded": False,
+                            "error": "observation not recorded (unknown experiment, invalid variant, or save failed)"}
                 self.award_points(10, "observation_recorded")
                 return {"status": "ok", "recorded": ok}
 
@@ -247,9 +270,13 @@ class ExperimentTracker(AgentBase):
                 if not exp:
                     return {"status": "error", "error": f"Experiment {exp_id} not found"}
                 analysis = await self.analyze_experiment(exp)
+                if analysis.get("conclusion") == "insufficient_data":
+                    # Don't close an experiment that still needs observations.
+                    return {"status": "insufficient_data", "analysis": analysis}
                 exp["conclusion"] = analysis
                 exp["status"] = "concluded"
-                self._save_experiments(data)
+                if not self._save_experiments(data):
+                    return {"status": "error", "error": "could not persist conclusion", "analysis": analysis}
                 self.award_points(30, "experiment_analyzed")
                 return {"status": "ok", "analysis": analysis}
 

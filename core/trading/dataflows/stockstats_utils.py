@@ -1,4 +1,5 @@
 import time
+import tempfile
 
 __all__ = [
     "filter_financials_by_date",
@@ -7,8 +8,6 @@ __all__ = [
     "StockstatsUtils",
     "yf_retry",
 ]
-
-import logging
 
 import pandas as pd
 import yfinance as yf
@@ -19,7 +18,7 @@ import os
 from .config import get_config
 from .utils import safe_ticker_component
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def yf_retry(func, max_retries=3, base_delay=2.0):
@@ -35,7 +34,7 @@ def yf_retry(func, max_retries=3, base_delay=2.0):
         except YFRateLimitError:
             if attempt < max_retries:
                 delay = base_delay * (2 ** attempt)
-                logger.warning(f"Yahoo Finance rate limited, retrying in {delay:.0f}s (attempt {attempt + 1}/{max_retries})")
+                logger.warning("[VECTOR][stockstats_utils] Yahoo Finance rate limited, retrying in {:.0f}s (attempt {}/{})", delay, attempt + 1, max_retries)
                 time.sleep(delay)
             else:
                 raise
@@ -91,8 +90,21 @@ def load_ohlcv(symbol: str, curr_date: str) -> pd.DataFrame:
             progress=False,
             auto_adjust=True,
         ))
+        if data is None or data.empty:
+            # Never cache a failed/empty download: it would poison the cache
+            # file for the rest of the day and crash every later read.
+            raise ValueError(f"No price data returned for '{symbol}' ({start_str} to {end_str})")
         data = data.reset_index()
-        data.to_csv(data_file, index=False, encoding="utf-8")
+        # Atomic write: a crash mid-write must not leave a truncated CSV that
+        # on_bad_lines="skip" would later serve as a (partial) fresh history.
+        fd, tmp_path = tempfile.mkstemp(dir=config["data_cache_dir"], suffix=".tmp")
+        os.close(fd)
+        try:
+            data.to_csv(tmp_path, index=False, encoding="utf-8")
+            os.replace(tmp_path, data_file)
+        finally:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
     data = _clean_dataframe(data)
 

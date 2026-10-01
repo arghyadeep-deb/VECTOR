@@ -1,3 +1,5 @@
+import html as _html
+import re
 import sys
 import uuid
 import json
@@ -147,10 +149,24 @@ Make recommendations specific and actionable.
         Export report to specified format.
         Formats: markdown, json, html
         """
-        if output_path is None:
-            output_path = str(self._reports_dir / f"{report.get('title', 'report')[:30]}.{format}")
-
+        if format not in ("markdown", "json", "html"):
+            format = "markdown"
         try:
+            # CWE-22: title and output_path are caller-supplied; confine writes to the reports dir.
+            base = self._reports_dir.resolve()
+            if output_path is None:
+                safe_title = re.sub(r'[^\w\- ]', "_", str(report.get("title", "report"))[:30]).strip() or "report"
+                target = base / f"{safe_title}.{format}"
+            else:
+                target = Path(output_path)
+                if not target.is_absolute():
+                    target = base / target
+                target = target.resolve()
+            if not target.is_relative_to(base):
+                logger.warning(f"[VECTOR][report_generator] Export refused, path outside reports dir: {output_path!r}")
+                return {"status": "error", "message": "output_path must be inside the interview reports directory"}
+            output_path = str(target)
+
             if format == "json":
                 content = json.dumps(report, indent=2)
             elif format == "html":
@@ -205,7 +221,7 @@ Make recommendations specific and actionable.
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>{report.get('title', 'Interview Report')}</title>
+    <title>{_html.escape(str(report.get('title', 'Interview Report')))}</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
                max-width: 800px; margin: 0 auto; padding: 20px; }}
@@ -216,18 +232,18 @@ Make recommendations specific and actionable.
     </style>
 </head>
 <body>
-    <h1>{report.get('title', 'Interview Report')}</h1>
-    <p class="meta">Generated: {report.get('created_at', 'N/A')}</p>
+    <h1>{_html.escape(str(report.get('title', 'Interview Report')))}</h1>
+    <p class="meta">Generated: {_html.escape(str(report.get('created_at', 'N/A')))}</p>
 """
 
         content = report.get("content", "")
-        content_html = content.replace("\n", "<br>\n")
+        content_html = _html.escape(str(content)).replace("\n", "<br>\n")
         html += f"    <div class='content'>{content_html}</div>\n"
 
         if sections:
             html += "    <h2>Sections</h2>\n    <ul>\n"
             for section in sections:
-                html += f"        <li>{section}</li>\n"
+                html += f"        <li>{_html.escape(str(section))}</li>\n"
             html += "    </ul>\n"
 
         html += """</body>

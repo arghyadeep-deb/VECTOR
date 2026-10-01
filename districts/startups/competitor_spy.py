@@ -30,9 +30,10 @@ class CompetitorSpy(StartupAgentBase):
 Business model, target customers, products/pricing, strengths, weaknesses, market share, funding, technology, team quality, customer sentiment.
 Return JSON: {{name, business_model: string, target_market: string, products: string[], pricing: string, strengths: string[], weaknesses: string[], market_share: string, funding: string, overall_strength: strong/moderate/weak, key_insight: string}}"""
         analysis = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        profile = self._parse_json_response(analysis, {
-            "name": name, "overall_strength": "moderate", "key_insight": analysis[:200],
-        })
+        profile = self._extract_json(analysis)
+        if profile is None:
+            # No canned "moderate strength" profile for a failed analysis.
+            return self._llm_error("analyze_competitor", competitor_name=name)
         self.competitor_profiles[name] = profile
 
         result = {"competitor_name": name, "profile": profile, "analyzed_at": self._now_iso()}
@@ -51,7 +52,12 @@ Current profile: {json.dumps(profile)[:500]}
 Look for: product launches, marketing changes, pricing adjustments, partnerships, hiring, funding, expansion.
 Return JSON: {{recent_moves: [{{date: string, move_type: string, description: string, impact: high/medium/low}}], strategic_direction: string, threat_level: high/medium/low, recommended_response: string}}"""
         movements = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        move_data = self._parse_json_response(movements, {"recent_moves": [], "threat_level": "medium"})
+        move_data = self._extract_json(movements)
+        if move_data is None:
+            # Failed tracking must not read as "no moves, medium threat".
+            return self._llm_error("track_movements", competitor_name=competitor_name)
+        if not isinstance(move_data.get("recent_moves"), list):
+            move_data["recent_moves"] = []
 
         if competitor_name not in self.movement_history:
             self.movement_history[competitor_name] = []
@@ -93,6 +99,8 @@ Profiles: {json.dumps(list(self.competitor_profiles.values())[:5], indent=2)}
 Movement summary: {json.dumps(movements_summary, indent=2)}
 Include: landscape overview, each competitor summary, market positioning, strategic recommendations, top 3 threats, opportunities."""
         report = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+        if not report or not report.strip():
+            return self._llm_error("generate_competitive_report")
 
         result = {
             "competitors_analyzed": len(competitors),
@@ -116,7 +124,7 @@ Include: landscape overview, each competitor summary, market positioning, strate
         if query:
             tracked = list(self.movement_history.keys())
             ctx = f"Currently tracking {len(tracked)} competitor(s): {', '.join(tracked) or 'none yet'}."
-            return {"status": "ok", "response": await self.answer_startup_question(query, ctx)}
+            return await self.answer_startup_task(query, ctx)
         result = self.generate_competitive_report()
         return {"status": "ok", **result}
 

@@ -23,39 +23,39 @@ def add_claims_tools(mcp) -> None:
         @mcp.tool
         async def claim_task(issue_id: str, agent_id: str, agent_name: str, title: str = "", priority: str = "medium") -> str:
             """Claim a task for a VECTOR agent — registers distributed ownership."""
-            result = _claim(issue_id, agent_id, agent_name, capabilities=[], title=title, priority=priority)
+            result = await _claim(issue_id, agent_id, agent_name, capabilities=[], title=title, priority=priority)
             return _json.dumps(result)
 
         @mcp.tool
         async def release_task(issue_id: str, agent_id: str) -> str:
             """Release a task claim — makes it available for other districts."""
-            return _json.dumps(_release(issue_id, agent_id))
+            return _json.dumps(await _release(issue_id, agent_id))
 
         @mcp.tool
         async def list_claims(agent_id: str = "") -> str:
             """List active task claims — optionally filter by agent_id."""
-            return _json.dumps(_list(agent_id or None))
+            return _json.dumps(await _list(agent_id or None))
 
         @mcp.tool
         async def steal_task(issue_id: str, stealer_id: str, stealer_name: str) -> str:
             """Steal a stale/stealable task from another agent."""
-            return _json.dumps(_steal(issue_id, stealer_id, stealer_name))
+            return _json.dumps(await _steal(issue_id, stealer_id, stealer_name))
 
         @mcp.tool
         async def get_stealable_tasks() -> str:
             """List all tasks currently marked as stealable."""
-            return _json.dumps(_stealable())
+            return _json.dumps(await _stealable())
 
         @mcp.tool
         async def rebalance_agent_load(agent_ids: str) -> str:
             """Rebalance task load across districts. Pass comma-separated agent IDs."""
             ids = [a.strip() for a in agent_ids.split(",") if a.strip()]
-            return _json.dumps(_rebalance(ids))
+            return _json.dumps(await _rebalance(ids))
 
         @mcp.tool
         async def claim_stats() -> str:
             """Get summary statistics for all task claims."""
-            return _json.dumps(_stats())
+            return _json.dumps(await _stats())
 
         logger.info("[VECTOR][mcp] claims tools registered (7 tools)")
     except ImportError as e:

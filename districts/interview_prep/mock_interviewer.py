@@ -72,6 +72,14 @@ class MockInterviewer(AgentBase):
         self._active_interviews[interview_id] = interview
 
         first_question = self.generate_question(role, difficulty, "behavioral")
+        if "error" in first_question:
+            # Don't leave a half-started session behind or report it as started.
+            del self._active_interviews[interview_id]
+            return {"status": "error", "error": first_question["error"], "role": role}
+        # Record Q1 so get_next_question() doesn't re-ask question #1 and
+        # end_interview() scores it.
+        interview["questions"].append(first_question)
+        interview["current_question"] = 1
 
         self.award_points(10, f"interview_started_{role}")
         logger.info(f"[VECTOR][mock_interviewer] Started interview: {role} ({difficulty})")
@@ -352,6 +360,8 @@ Be honest, constructive, and specific.
         if query and not p.get("topic"):
             return {"status": "ok", "response": self._answer_interview_question(query)}
         q = self.generate_question(p.get("topic", "machine learning"), p.get("difficulty", "medium"))
+        if "error" in q:
+            return {"status": "error", "error": q["error"], "question": q}
         return {"status": "ok", "question": q}
 
 
