@@ -78,10 +78,18 @@ def grep_code(pattern: str, path: str = ".", file_glob: str = "*.py",
     """Search code with ripgrep (falls back to Python glob+re). Returns {matches, count}."""
     import subprocess, re as _re
     results = []
+    # A leading "-" in pattern/path would be read as an rg option instead of
+    # the search term/path -- e.g. "--pre=<cmd>" runs an arbitrary command
+    # per file. file_grep (core/mcp_tools/expansion_modules/files.py) already
+    # guards its one external caller this way; guarded here too at the
+    # primitive level so every current and future caller of grep_code() is
+    # covered, not just that one MCP wrapper.
+    if pattern.startswith("-") or path.startswith("-"):
+        return {"matches": [], "count": 0, "error": "pattern/path must not start with '-'"}
     try:
         # Try ripgrep first
         proc = subprocess.run(
-            ["rg", "--json", "-g", file_glob, "-m", "5", pattern, path],
+            ["rg", "--json", "-g", file_glob, "-m", "5", "--", pattern, path],
             capture_output=True, text=True, timeout=10
         )
         if proc.returncode == 0:
@@ -98,11 +106,11 @@ def grep_code(pattern: str, path: str = ".", file_glob: str = "*.py",
                         })
                         if len(results) >= max_results:
                             break
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as e:
+                    logger.debug("[VECTOR][coding_tools] grep_code: failed to parse rg JSON line: {}", e)
             return {"matches": results, "count": len(results), "engine": "ripgrep"}
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    except (FileNotFoundError, subprocess.TimeoutExpired) as e:
+        logger.debug("[VECTOR][coding_tools] grep_code: ripgrep unavailable, falling back to python: {}", e)
 
     # Fallback: Python search
     compiled = _re.compile(pattern, _re.IGNORECASE)
@@ -113,8 +121,8 @@ def grep_code(pattern: str, path: str = ".", file_glob: str = "*.py",
                     results.append({"file": str(f), "line": i, "text": line.rstrip()})
                     if len(results) >= max_results:
                         break
-        except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        except Exception as e:
+            logger.debug("[VECTOR][coding_tools] grep_code: failed to read {}: {}", f, e)
         if len(results) >= max_results:
             break
     return {"matches": results, "count": len(results), "engine": "python"}
