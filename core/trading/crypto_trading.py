@@ -2,6 +2,9 @@
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
 
+import asyncio
+import math
+
 from loguru import logger
 from core.config import CONFIG
 
@@ -20,17 +23,26 @@ class CryptoTradingAgent:
         """Get crypto price quote via yfinance or CoinGecko."""
         try:
             import yfinance as yf
-            ticker = yf.Ticker(f"{symbol}-USD")
-            info = ticker.fast_info
+
+            def _fetch() -> float | None:
+                return getattr(yf.Ticker(f"{symbol}-USD").fast_info, "last_price", None)
+
+            raw = await asyncio.to_thread(_fetch)
+            price = float(raw) if raw is not None else None
+            if price is None or not math.isfinite(price) or price <= 0:
+                # A missing/zero price must never look like a real quote.
+                logger.warning("[VECTOR][crypto_trading] no valid last_price for {}: {!r}", symbol, raw)
+                return {"symbol": symbol, "price": None, "error": "no valid last_price",
+                        "asset_type": self.ASSET_TYPE, "exchange": self.exchange}
             return {
                 "symbol": symbol,
-                "price": float(info.last_price) if hasattr(info, 'last_price') else 0.0,
+                "price": price,
                 "asset_type": self.ASSET_TYPE,
                 "exchange": self.exchange,
             }
         except Exception as e:
             logger.warning("[VECTOR][crypto_trading] get_quote failed: {}", e)
-            return {"symbol": symbol, "price": 0.0, "error": str(e)}
+            return {"symbol": symbol, "price": None, "error": str(e)}
 
     async def analyze(self, symbol: str) -> dict:
         """Full crypto analysis — technical + fundamental."""

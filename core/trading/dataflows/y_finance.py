@@ -26,13 +26,16 @@ def get_YFin_data_online(
 ):
 
     datetime.strptime(start_date, "%Y-%m-%d")
-    datetime.strptime(end_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    # yfinance treats ``end`` as exclusive; advance a day so end_date's own
+    # bar is included (matches the Alpha Vantage vendor and load_ohlcv).
+    end_exclusive = (end_dt + relativedelta(days=1)).strftime("%Y-%m-%d")
 
     # Create ticker object
     ticker = yf.Ticker(symbol.upper())
 
     # Fetch historical data for the specified date range
-    data = yf_retry(lambda: ticker.history(start=start_date, end=end_date))
+    data = yf_retry(lambda: ticker.history(start=start_date, end=end_exclusive))
 
     # Check if data is empty
     if data.empty:
@@ -177,7 +180,7 @@ def get_stock_stats_indicators_window(
             ind_string += f"{date_str}: {value}\n"
         
     except Exception as e:
-        logger.error("Error getting bulk stockstats data: {}", e)
+        logger.error("[VECTOR][y_finance] bulk stockstats failed: {}", e)
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -250,8 +253,8 @@ def get_stockstats_indicator(
             curr_date,
         )
     except Exception as e:
-        logger.error("Error getting stockstats indicator data for indicator {} on {}: {}", indicator, curr_date, e)
-        return ""
+        logger.error("[VECTOR][y_finance] stockstats indicator {} failed on {}: {}", indicator, curr_date, e)
+        return f"Error: could not compute {indicator} for {symbol} on {curr_date} ({type(e).__name__})"
 
     return str(indicator_value)
 

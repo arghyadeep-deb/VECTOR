@@ -19,15 +19,13 @@ __all__ = [
 ]
 
 
+import http.client
 import json
-import logging
 import time
 from typing import Iterable
-from urllib.error import HTTPError, URLError
+from loguru import logger
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-
-logger = logging.getLogger(__name__)
 
 _API = "https://www.reddit.com/r/{sub}/search.json?{qs}"
 _UA = "tradingagents/0.2 (+https://github.com/TauricResearch/VectorTrading)"
@@ -43,7 +41,8 @@ def _fetch_subreddit(
     sub: str,
     limit: int,
     timeout: float,
-) -> list[dict]:
+) -> list[dict] | None:
+    """Return posts, or None when the fetch itself failed (distinct from [] = no posts)."""
     qs = urlencode({
         "q": ticker,
         "restrict_sr": "on",
@@ -56,9 +55,12 @@ def _fetch_subreddit(
     try:
         with urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read())
-    except (HTTPError, URLError, json.JSONDecodeError, TimeoutError) as exc:
-        logger.warning("Reddit fetch failed for r/%s · %s: %s", sub, ticker, exc)
-        return []
+    except (OSError, http.client.HTTPException, ValueError) as exc:
+        logger.warning("[VECTOR][reddit] fetch failed for r/{} {}: {}", sub, ticker, type(exc).__name__)
+        return None
+    if not isinstance(payload, dict):
+        logger.warning("[VECTOR][reddit] unexpected payload for r/{} {}", sub, ticker)
+        return None
     children = (payload.get("data") or {}).get("children") or []
     return [c.get("data", {}) for c in children if isinstance(c, dict)]
 
@@ -78,10 +80,16 @@ def fetch_reddit_posts(
     """
     blocks = []
     total_posts = 0
-    for i, sub in enumerate(subreddits):
+    failed = 0
+    subs = list(subreddits)
+    for i, sub in enumerate(subs):
         if i > 0:
             time.sleep(inter_request_delay)
         posts = _fetch_subreddit(ticker, sub, limit_per_sub, timeout)
+        if posts is None:
+            failed += 1
+            blocks.append(f"r/{sub}: <fetch FAILED - Reddit data unavailable, NOT evidence of no discussion>")
+            continue
         total_posts += len(posts)
         if not posts:
             blocks.append(f"r/{sub}: <no posts found mentioning {ticker.upper()} in the past 7 days>")
@@ -105,9 +113,11 @@ def fetch_reddit_posts(
             )
         blocks.append("\n".join(lines))
 
-    if total_posts == 0:
+    if failed == len(subs) and subs:
+        return f"<Reddit unavailable: all {failed} subreddit fetches failed for {ticker.upper()}; no sentiment data>"
+    if total_posts == 0 and failed == 0:
         return (
             f"<no Reddit posts found mentioning {ticker.upper()} across "
-            f"{', '.join(f'r/{s}' for s in subreddits)} in the past 7 days>"
+            f"{', '.join(f'r/{s}' for s in subs)} in the past 7 days>"
         )
     return "\n\n".join(blocks)
