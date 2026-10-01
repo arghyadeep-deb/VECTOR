@@ -34,142 +34,166 @@ def add_browser_tools(mcp) -> None:
                 _browser_client = StealthBrowserClient()
             return _browser_client
 
+        def _ssrf_reason(url: str) -> str | None:
+            """None when ``url`` is safe to hand to the browser, else the block reason."""
+            from core.security.ssrf_guard import SSRFGuard
+
+            if (url or "").startswith("@"):
+                return None  # server-side search macro (@google_search:query), not a URL
+            check = SSRFGuard(resolve_dns=True).check_url(url)
+            if check.safe:
+                return None
+            logger.warning("[VECTOR][mcp] browser URL blocked by SSRF guard: {}", check.reason)
+            return check.reason
+
         @mcp.tool
-        def browser_open() -> str:
+        async def browser_open() -> str:
             """Open a new browser session."""
             try:
-                client = _get_browser()
-                tab_id = client.create_tab() if hasattr(client, "create_tab") else "tab_0"
-                return _safe_json({"ok": True, "tab_id": tab_id})
+                tab = await _get_browser().create_tab()
+                return _safe_json({"ok": True, "tab_id": tab.get("tabId") if isinstance(tab, dict) else tab, "tab": tab})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_open failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_close(tab_id: str = "") -> str:
+        async def browser_close(tab_id: str = "") -> str:
             """Close browser session or specific tab."""
             try:
                 client = _get_browser()
-                if tab_id and hasattr(client, "close_tab"):
-                    client.close_tab(tab_id)
-                elif hasattr(client, "close_all_tabs"):
-                    client.close_all_tabs()
+                if tab_id:
+                    await client.close_tab(tab_id)
+                else:
+                    await client.close_all_tabs()
                 return _safe_json({"ok": True})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_close failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_navigate(url: str, tab_id: str = "") -> str:
+        async def browser_navigate(url: str, tab_id: str = "") -> str:
             """Navigate to a URL."""
+            blocked = _ssrf_reason(url)
+            if blocked:
+                return _safe_json({"error": f"URL blocked by SSRF guard: {blocked}"})
             try:
-                client = _get_browser()
-                result = client.navigate(tab_id or "default", url) if hasattr(client, "navigate") else {"url": url}
+                result = await _get_browser().navigate(tab_id or "default", url)
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_navigate failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_screenshot(tab_id: str = "") -> str:
+        async def browser_screenshot(tab_id: str = "") -> str:
             """Take a screenshot of current page."""
             try:
-                client = _get_browser()
-                result = client.screenshot(tab_id or "default") if hasattr(client, "screenshot") else {"status": "screenshot_taken"}
-                return _safe_json(result)
+                png = await _get_browser().screenshot(tab_id or "default")
+                if not png:
+                    return _safe_json({"error": "empty screenshot returned by browser server"})
+                import base64 as _b64
+                return _safe_json({"ok": True, "format": "png", "size_bytes": len(png), "base64": _b64.b64encode(png).decode("ascii")})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_screenshot failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_click(selector: str, tab_id: str = "") -> str:
+        async def browser_click(selector: str, tab_id: str = "") -> str:
             """Click an element by selector."""
             try:
+                import re as _re
                 client = _get_browser()
-                result = client.click(tab_id or "default", selector) if hasattr(client, "click") else {"selector": selector}
+                if _re.fullmatch(r"e\d+", selector or ""):
+                    result = await client.click(tab_id or "default", ref=selector)
+                else:
+                    result = await client.click(tab_id or "default", selector=selector)
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_click failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_type(text: str, selector: str = "", tab_id: str = "") -> str:
+        async def browser_type(text: str, selector: str = "", tab_id: str = "") -> str:
             """Type text into an input element."""
             try:
-                client = _get_browser()
-                result = client.type_text(tab_id or "default", text, ref=selector) if hasattr(client, "type_text") else {"text": text}
+                result = await _get_browser().type_text(tab_id or "default", text, ref=selector or None)
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_type failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_scroll(direction: str = "down", amount: int = 500, tab_id: str = "") -> str:
+        async def browser_scroll(direction: str = "down", amount: int = 500, tab_id: str = "") -> str:
             """Scroll the page."""
             try:
-                client = _get_browser()
-                result = client.scroll(tab_id or "default", direction, amount) if hasattr(client, "scroll") else {"direction": direction}
+                result = await _get_browser().scroll(tab_id or "default", direction, amount)
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_scroll failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_extract(tab_id: str = "") -> str:
+        async def browser_extract(tab_id: str = "") -> str:
             """Extract text content from page."""
             try:
-                client = _get_browser()
-                result = client.snapshot(tab_id or "default") if hasattr(client, "snapshot") else {"status": "extracted"}
+                result = await _get_browser().snapshot(tab_id or "default")
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_extract failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_wait(selector: str = "", ms: int = 1000, tab_id: str = "") -> str:
+        async def browser_wait(selector: str = "", ms: int = 1000, tab_id: str = "") -> str:
             """Wait for an element or time."""
             try:
-                client = _get_browser()
-                result = client.wait(tab_id or "default", selector, ms) if hasattr(client, "wait") else {"ms": ms}
+                result = await _get_browser().wait(tab_id or "default", selector, ms)
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_wait failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_element(selector: str, tab_id: str = "") -> str:
+        async def browser_element(selector: str, tab_id: str = "") -> str:
             """Get info about a page element."""
             try:
-                client = _get_browser()
-                snapshot = client.snapshot(tab_id or "default") if hasattr(client, "snapshot") else {}
+                snapshot = await _get_browser().snapshot(tab_id or "default")
                 return _safe_json({"selector": selector, "snapshot": snapshot})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_element failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_form(selector: str, values: str = "{}", tab_id: str = "") -> str:
+        async def browser_form(selector: str, values: str = "{}", tab_id: str = "") -> str:
             """Fill a form with JSON values."""
             try:
                 client = _get_browser()
                 vals = _json.loads(values) if values else {}
                 results = []
                 for field, value in vals.items():
-                    if hasattr(client, "type_text"):
-                        client.type_text(tab_id or "default", str(value), ref=f"{selector} [name={field}]")
+                    await client.type_text(tab_id or "default", str(value), ref=f"{selector} [name={field}]")
                     results.append({"field": field, "value": value})
                 return _safe_json({"ok": True, "filled": results})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_form failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_back(tab_id: str = "") -> str:
+        async def browser_back(tab_id: str = "") -> str:
             """Navigate back in history."""
             try:
-                client = _get_browser()
-                result = client.go_back(tab_id or "default") if hasattr(client, "go_back") else {"status": "navigated_back"}
+                result = await _get_browser().go_back(tab_id or "default")
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_back failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def browser_forward(tab_id: str = "") -> str:
+        async def browser_forward(tab_id: str = "") -> str:
             """Navigate forward in history."""
             try:
-                client = _get_browser()
-                result = client.go_forward(tab_id or "default") if hasattr(client, "go_forward") else {"status": "navigated_forward"}
+                result = await _get_browser().go_forward(tab_id or "default")
                 return _safe_json(result)
             except Exception as e:
+                logger.warning("[VECTOR][mcp] browser_forward failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
@@ -359,6 +383,9 @@ def add_browser_tools(mcp) -> None:
         @mcp.tool
         async def browser_download(url: str = "", tab_id: str = "") -> str:
             """Download a resource via stealth browser server."""
+            blocked = _ssrf_reason(url)
+            if blocked:
+                return _safe_json({"error": f"URL blocked by SSRF guard: {blocked}"})
             try:
                 import httpx as _httpx
                 base = _get_browser()._base if hasattr(_get_browser(), "_base") else "http://127.0.0.1:9377"

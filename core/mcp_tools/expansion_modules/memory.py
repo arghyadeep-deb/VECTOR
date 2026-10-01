@@ -56,8 +56,10 @@ def add_memory_tools(mcp) -> None:
         @mcp.tool
         def memory_stats() -> str:
             """Get memory index statistics."""
-            mem = _get_epi()
-            return _safe_json(mem.get_stats() if hasattr(mem, "get_stats") else {"status": "ok"})
+            stats = _get_epi().get_stats()
+            if not stats:  # EpisodicMemory.get_stats() returns {} when the DB query failed
+                return _safe_json({"error": "memory stats unavailable (database query failed)"})
+            return _safe_json(stats)
 
         @mcp.tool
         def memory_semantic_search(query: str, limit: int = 5) -> str:
@@ -70,50 +72,51 @@ def add_memory_tools(mcp) -> None:
         def memory_pattern_save(task: str, plan: str, outcome: str, reward: float = 0.0) -> str:
             """Save a task→plan→outcome reasoning pattern."""
             try:
-                from core.memory.reasoning_memory import get_reasoning_memory
-                rm = get_reasoning_memory()
-                rm.store_chain(task, plan, outcome, reward=reward)
-                return _safe_json({"ok": True})
+                chain_id = _get_rm().store_chain(
+                    situation=task, goal_ids=[], steps=[plan], action=plan,
+                    outcome=outcome, reward=reward,
+                )
+                if not chain_id:
+                    return _safe_json({"error": "reasoning chain was not stored"})
+                return _safe_json({"ok": True, "chain_id": chain_id})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] memory_pattern_save failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
         def memory_pattern_recall(task: str, limit: int = 3) -> str:
             """Recall past reasoning patterns similar to a task."""
             try:
-                from core.memory.reasoning_memory import get_reasoning_memory
-                rm = get_reasoning_memory()
-                patterns = rm.inject_past_reasoning(task, limit=limit) if hasattr(rm, "inject_past_reasoning") else []
+                patterns = _get_rm().inject_past_reasoning(task, limit=limit)
                 return _safe_json({"task": task, "patterns": patterns})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] memory_pattern_recall failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
         def memory_recent(limit: int = 10) -> str:
             """Get most recently added memory entries."""
-            mem = _get_epi()
             try:
-                cur = mem.get_temp_cursor() if hasattr(mem, "get_temp_cursor") else None
-                if cur:
+                limit = max(1, min(int(limit), 500))
+                with get_temp_cursor() as cur:
                     cur.execute("SELECT * FROM episodic_memory ORDER BY timestamp DESC LIMIT ?", (limit,))
-                    rows = cur.fetchall()
-                    return _safe_json({"count": len(rows), "entries": rows})
-                return _safe_json({"status": "no cursor available"})
+                    cols = [d[0] for d in cur.description]
+                    rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+                return _safe_json({"count": len(rows), "entries": rows})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] memory_recent failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
         def memory_categories() -> str:
             """List all insight categories in semantic memory."""
-            mem = _get_sem()
             try:
-                cur = mem.get_temp_cursor() if hasattr(mem, "get_temp_cursor") else None
-                if cur:
+                with get_temp_cursor() as cur:
                     cur.execute("SELECT DISTINCT category FROM semantic_memory")
                     rows = [r[0] for r in cur.fetchall()]
-                    return _safe_json({"categories": rows})
-                return _safe_json({"categories": []})
+                return _safe_json({"categories": rows})
             except Exception as e:
+                logger.warning("[VECTOR][mcp] memory_categories failed: {}", e)
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
@@ -126,11 +129,10 @@ def add_memory_tools(mcp) -> None:
                     "message": f'memory_clear deletes all episodic memory; call again with confirm="{_MEMORY_CLEAR_CONFIRM}"',
                     "cleared": False,
                 })
-            mem = _get_epi()
             try:
-                from core.memory.episodic import get_temp_cursor
                 with get_temp_cursor() as cur:
                     cur.execute("DELETE FROM episodic_memory")
+                    cur.execute("DELETE FROM episodic_memory_fts")  # keep the FTS index in step with the table
                 return _safe_json({"ok": True, "cleared": True, "message": "Episodic memory cleared"})
             except Exception as e:
                 return _safe_json({"error": str(e), "cleared": False})

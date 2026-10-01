@@ -42,8 +42,8 @@ class _FakeMCP:
         return deco(fn) if fn is not None else deco
 
 
-def _call(tools, name, **kwargs):
-    out = tools[name](**kwargs)
+def _call(tools, tool_name, /, **kwargs):
+    out = tools[tool_name](**kwargs)
     if inspect.isawaitable(out):
         out = asyncio.run(out)
     return json.loads(out)
@@ -79,9 +79,9 @@ class _FakeBrowserClient:
         _FakeBrowserClient.instances.append(self)
 
     def _rec(self, name, *args, **kw):
-        self.calls.append((name, args, kw))
-
         async def _r():
+            # recorded only when the coroutine is actually awaited/run
+            self.calls.append((name, args, kw))
             return self._ret(name)
 
         return _r()
@@ -129,7 +129,8 @@ def browser_tools(monkeypatch):
 
 
 def _client():
-    return _FakeBrowserClient.instances[-1]
+    # the tool creates the client lazily; blocked calls never create one
+    return _FakeBrowserClient.instances[-1] if _FakeBrowserClient.instances else SimpleNamespace(calls=[])
 
 
 def test_browser_navigate_awaits_client_and_returns_result(browser_tools):
@@ -325,6 +326,8 @@ def test_test_mock_does_not_execute_module(test_tools, monkeypatch):
 
 def test_test_mock_rejects_invalid_names(test_tools):
     assert "error" in _call(test_tools.tools, "test_mock", module="os; import evil")
+    # a stdlib module is not a repo module: it must not be imported/inspected
+    assert "error" in _call(test_tools.tools, "test_mock", module="os")
 
 
 def test_test_data_blocks_traversal(test_tools, tmp_path):
@@ -659,7 +662,7 @@ def test_perf_import_store_failure_is_reported(perf_tools, monkeypatch):
             raise RuntimeError("db down")
 
     monkeypatch.setattr("core.memory.episodic.EpisodicMemory", _BrokenEpi)
-    out = _call(perf_tools.tools, "perf_import", path="b.json")
+    out = _call(perf_tools.tools, "perf_import", path=str(perf_tools.approved / "b.json"))
     assert "error" in out and "ok" not in out  # was: swallowed -> {"ok": True}
 
 

@@ -12,6 +12,43 @@ from core.mcp_tools.memory_safety import (
     resolve_memory_path as _resolve_memory_path,
 )
 
+_ROOT = Path(__file__).resolve().parents[3]  # module-level so tests can point it at a tmp dir
+_DOC_EXTS = frozenset({".md", ".markdown", ".rst", ".txt", ".html", ".htm", ".pdf"})
+_DENY_PARTS = frozenset({".git", ".github", ".claude"})
+
+
+def _doc_path(root: Path, raw: str) -> tuple[Path | None, str | None]:
+    """Resolve a caller-supplied documentation path. Returns (path, error).
+
+    Must stay inside the repo root (CWE-22, symlink-safe via is_relative_to),
+    must be a documentation file type (so a doc tool cannot overwrite/delete
+    source code, configs or secrets) and must not touch VCS/agent config dirs.
+    """
+    base = root.resolve()
+    try:
+        p = (base / (raw or "")).resolve()
+    except (OSError, ValueError):
+        return None, "invalid path"
+    if p == base or not p.is_relative_to(base):
+        return None, "Path traversal denied"
+    if p.suffix.lower() not in _DOC_EXTS:
+        return None, f"not a documentation file type: {p.suffix or '(none)'}"
+    if _DENY_PARTS.intersection(p.relative_to(base).parts):
+        return None, "protected path"
+    return p, None
+
+
+def _py_module_path(root: Path, raw: str) -> tuple[Path | None, str | None]:
+    """Resolve a caller-supplied module file: a .py file inside the repo root."""
+    base = root.resolve()
+    try:
+        p = (base / (raw or "")).resolve()
+    except (OSError, ValueError):
+        return None, "invalid path"
+    if not p.is_relative_to(base) or p.suffix != ".py":
+        return None, "module must be a .py file inside the repo root"
+    return p, None
+
 
 def add_doc_tools(mcp) -> None:
     import json as _json
@@ -21,7 +58,7 @@ def add_doc_tools(mcp) -> None:
     import shutil as _shutil
     from pathlib import Path as _Path
 
-    ROOT = _Path(__file__).resolve().parents[3]
+    ROOT = _ROOT
 
     # â”€â”€ doc_* (28) — wired to districts/documentation/ + stdlib â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     try:
@@ -30,21 +67,27 @@ def add_doc_tools(mcp) -> None:
         @mcp.tool
         def doc_generate(doc_type: str = "weekly_summary") -> str:
             """Generate documentation from source code."""
-            gen = DocGenerator()
-            if doc_type == "weekly_summary" and hasattr(gen, "generate_weekly_summary"):
-                result = gen.generate_weekly_summary()
-            elif doc_type == "changelog" and hasattr(gen, "generate_changelog"):
-                result = gen.generate_changelog()
-            elif doc_type == "district_report" and hasattr(gen, "generate_district_report"):
-                result = gen.generate_district_report()
-            else:
-                result = {"status": "generated", "type": doc_type}
-            return _safe_json(result)
+            try:
+                gen = DocGenerator()
+                if doc_type == "weekly_summary":
+                    result = gen.generate_weekly_summary()
+                elif doc_type == "changelog":
+                    result = gen.generate_changelog()
+                else:
+                    return _safe_json({"error": f"unsupported doc_type '{doc_type}' (use weekly_summary or changelog)"})
+                return _safe_json(result)
+            except Exception as e:
+                logger.warning("[VECTOR][mcp] doc_generate failed: {}", e)
+                return _safe_json({"error": str(e)})
 
         @mcp.tool
         def doc_update(module: str) -> str:
             """Update existing documentation for a module."""
             try:
+                mod_p, err = _py_module_path(ROOT, module)
+                if err:
+                    return _safe_json({"error": err})
+                module = str(mod_p)
                 from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.generate_module_docs(module) if hasattr(writer, "generate_module_docs") else {"module": module, "status": "updated"}
@@ -58,7 +101,9 @@ def add_doc_tools(mcp) -> None:
             try:
                 from core.memory.obsidian_sync import ObsidianSync
                 sync = ObsidianSync()
-                results = sync.search(query) if hasattr(sync, "search") else []
+                if not hasattr(sync, "search"):
+                    return _safe_json({"error": "doc search backend unavailable (ObsidianSync has no search)"})
+                results = sync.search(query)
                 return _safe_json({"query": query, "results": results[:10]})
             except Exception as e:
                 return _safe_json({"error": str(e)})
@@ -67,6 +112,10 @@ def add_doc_tools(mcp) -> None:
         def doc_extract(module: str) -> str:
             """Extract key facts from a module's documentation."""
             try:
+                mod_p, err = _py_module_path(ROOT, module)
+                if err:
+                    return _safe_json({"error": err})
+                module = str(mod_p)
                 from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "scanned"}
@@ -124,6 +173,10 @@ def add_doc_tools(mcp) -> None:
         def doc_validate(module: str) -> str:
             """Validate documentation completeness."""
             try:
+                mod_p, err = _py_module_path(ROOT, module)
+                if err:
+                    return _safe_json({"error": err})
+                module = str(mod_p)
                 from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "validated"}
@@ -135,6 +188,10 @@ def add_doc_tools(mcp) -> None:
         def doc_lint(module: str) -> str:
             """Lint documentation for issues."""
             try:
+                mod_p, err = _py_module_path(ROOT, module)
+                if err:
+                    return _safe_json({"error": err})
+                module = str(mod_p)
                 from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "linted"}
@@ -146,10 +203,13 @@ def add_doc_tools(mcp) -> None:
         def doc_publish(doc_path: str) -> str:
             """Publish docs to the docs/ directory."""
             try:
-                resolved = (ROOT / doc_path).resolve()
+                resolved, err = _doc_path(ROOT, doc_path)
+                if err:
+                    return _safe_json({"error": err})
                 if not resolved.exists():
                     return _safe_json({"error": f"File not found: {doc_path}"})
                 dst = ROOT / "docs" / resolved.name
+                dst.parent.mkdir(parents=True, exist_ok=True)
                 _shutil.copy2(str(resolved), str(dst))
                 return _safe_json({"ok": True, "published": str(dst)})
             except Exception as e:
@@ -159,11 +219,16 @@ def add_doc_tools(mcp) -> None:
         def doc_draft(title: str, content: str = "") -> str:
             """Create a draft documentation page."""
             try:
+                import re as _re
+                slug = _re.sub(r"[^A-Za-z0-9_-]+", "_", title or "").strip("_")[:60]
+                if not slug:
+                    return _safe_json({"error": "title must contain letters or digits"})
                 gen = DocGenerator()
-                if hasattr(gen, "write_document"):
-                    path = gen.write_document(title, content, prefix="draft_")
-                    return _safe_json({"ok": True, "path": path})
-                return _safe_json({"status": "draft_created", "title": title})
+                doc_type = f"draft_{slug}"
+                if not gen.write_document(content, doc_type):
+                    return _safe_json({"error": "draft could not be written"})
+                path = ROOT / "docs" / f"{doc_type}_{_time.strftime('%Y-%m-%d')}.md"
+                return _safe_json({"ok": True, "path": str(path)})
             except Exception as e:
                 return _safe_json({"error": str(e)})
 
@@ -171,7 +236,9 @@ def add_doc_tools(mcp) -> None:
         def doc_archive(doc_path: str) -> str:
             """Archive old documentation."""
             try:
-                resolved = (ROOT / doc_path).resolve()
+                resolved, err = _doc_path(ROOT, doc_path)
+                if err:
+                    return _safe_json({"error": err})
                 archive_dir = ROOT / "docs" / "archive"
                 archive_dir.mkdir(parents=True, exist_ok=True)
                 dst = archive_dir / resolved.name
@@ -199,7 +266,8 @@ def add_doc_tools(mcp) -> None:
                 from core.inference.vectorcode_llm import chat
                 result = chat(f"Translate the following text to {target_lang}:\n\n{content[:2000]}")
                 return _safe_json({"translation": result, "target_lang": target_lang})
-            except Exception:
+            except Exception as e:
+                logger.warning("[VECTOR][mcp] doc_translate unavailable: {}", e)
                 return _safe_json({"status": "unavailable", "message": "Translation requires vectorcode_llm module"})
 
         @mcp.tool
@@ -218,7 +286,15 @@ def add_doc_tools(mcp) -> None:
         def doc_compare(v1_path: str, v2_path: str) -> str:
             """Compare two documentation versions."""
             try:
-                result = _subprocess.run(["diff", "-u", v1_path, v2_path], cwd=str(ROOT), capture_output=True, text=True, timeout=10)
+                p1, err = _doc_path(ROOT, v1_path)
+                if err:
+                    return _safe_json({"error": err})
+                p2, err = _doc_path(ROOT, v2_path)
+                if err:
+                    return _safe_json({"error": err})
+                result = _subprocess.run(["diff", "-u", "--", str(p1), str(p2)], cwd=str(ROOT), capture_output=True, text=True, timeout=10)
+                if result.returncode > 1:  # diff: 0 = same, 1 = differ, >1 = trouble (missing file, ...)
+                    return _safe_json({"error": f"diff failed (exit {result.returncode})", "stderr": result.stderr[:500]})
                 return _safe_json({"diff": result.stdout[:5000] or "No differences"})
             except Exception as e:
                 return _safe_json({"error": str(e)})
@@ -227,8 +303,14 @@ def add_doc_tools(mcp) -> None:
         def doc_move(src: str, dst: str) -> str:
             """Move a documentation file."""
             try:
-                src_resolved = (ROOT / src).resolve()
-                dst_resolved = (ROOT / dst).resolve()
+                src_resolved, err = _doc_path(ROOT, src)
+                if err:
+                    return _safe_json({"error": err})
+                dst_resolved, err = _doc_path(ROOT, dst)
+                if err:
+                    return _safe_json({"error": err})
+                if not src_resolved.exists():
+                    return _safe_json({"error": f"File not found: {src}"})
                 dst_resolved.parent.mkdir(parents=True, exist_ok=True)
                 _shutil.move(str(src_resolved), str(dst_resolved))
                 return _safe_json({"ok": True, "src": src, "dst": dst})
@@ -239,8 +321,14 @@ def add_doc_tools(mcp) -> None:
         def doc_copy(src: str, dst: str) -> str:
             """Copy a documentation file."""
             try:
-                src_resolved = (ROOT / src).resolve()
-                dst_resolved = (ROOT / dst).resolve()
+                src_resolved, err = _doc_path(ROOT, src)
+                if err:
+                    return _safe_json({"error": err})
+                dst_resolved, err = _doc_path(ROOT, dst)
+                if err:
+                    return _safe_json({"error": err})
+                if not src_resolved.exists():
+                    return _safe_json({"error": f"File not found: {src}"})
                 dst_resolved.parent.mkdir(parents=True, exist_ok=True)
                 _shutil.copy2(str(src_resolved), str(dst_resolved))
                 return _safe_json({"ok": True, "src": src, "dst": dst})
@@ -251,9 +339,9 @@ def add_doc_tools(mcp) -> None:
         def doc_delete(doc_path: str) -> str:
             """Delete a documentation file (RED gate)."""
             try:
-                resolved = (ROOT / doc_path).resolve()
-                if not str(resolved).startswith(str(ROOT.resolve())):
-                    return _safe_json({"error": "Path traversal denied"})
+                resolved, err = _doc_path(ROOT, doc_path)
+                if err:
+                    return _safe_json({"error": err})
                 resolved.unlink()
                 return _safe_json({"ok": True, "deleted": doc_path})
             except Exception as e:
@@ -263,13 +351,15 @@ def add_doc_tools(mcp) -> None:
         def doc_export(doc_path: str, format: str = "html") -> str:
             """Export docs to HTML/PDF."""
             try:
-                resolved = (ROOT / doc_path).resolve()
+                resolved, err = _doc_path(ROOT, doc_path)
+                if err:
+                    return _safe_json({"error": err})
                 if format == "html":
                     import markdown as _md
-                    content = resolved.read_text()
+                    content = resolved.read_text(encoding="utf-8", errors="replace")
                     html = _md.markdown(content)
                     out = resolved.with_suffix(".html")
-                    out.write_text(html)
+                    out.write_text(html, encoding="utf-8")
                     return _safe_json({"ok": True, "output": str(out)})
                 return _safe_json({"error": f"Format '{format}' not supported"})
             except Exception as e:
@@ -280,9 +370,12 @@ def add_doc_tools(mcp) -> None:
             """Import external documentation into vault."""
             try:
                 resolved = _Path(path).resolve()
-                if not resolved.exists():
+                if resolved.suffix.lower() not in _DOC_EXTS:
+                    return _safe_json({"error": f"not a documentation file type: {resolved.suffix or '(none)'}"})
+                if not resolved.is_file():
                     return _safe_json({"error": f"File not found: {path}"})
                 dst = ROOT / "docs" / resolved.name
+                dst.parent.mkdir(parents=True, exist_ok=True)
                 _shutil.copy2(str(resolved), str(dst))
                 return _safe_json({"ok": True, "imported": str(dst)})
             except Exception as e:
@@ -292,9 +385,14 @@ def add_doc_tools(mcp) -> None:
         def doc_version(doc_path: str, version: str = "") -> str:
             """Version or tag documentation — create a dated copy in docs/archive/."""
             try:
-                resolved = (ROOT / doc_path).resolve()
+                resolved, err = _doc_path(ROOT, doc_path)
+                if err:
+                    return _safe_json({"error": err})
                 if not resolved.exists():
                     return _safe_json({"error": f"File not found: {doc_path}"})
+                import re as _re
+                if version and not _re.fullmatch(r"[A-Za-z0-9._-]{1,40}", version):
+                    return _safe_json({"error": "invalid version label"})
                 ver = version or _time.strftime("%Y%m%d")
                 archive_name = f"{resolved.stem}-v{ver}{resolved.suffix}"
                 archive_dir = ROOT / "docs" / "archive"
@@ -309,6 +407,10 @@ def add_doc_tools(mcp) -> None:
         def doc_review(module: str) -> str:
             """Review documentation for accuracy — scans source and suggests improvements."""
             try:
+                mod_p, err = _py_module_path(ROOT, module)
+                if err:
+                    return _safe_json({"error": err})
+                module = str(mod_p)
                 from districts.qa.technical_writer import TechnicalWriter
                 writer = TechnicalWriter()
                 result = writer.scan_module(module) if hasattr(writer, "scan_module") else {"module": module, "status": "reviewed"}
@@ -324,7 +426,9 @@ def add_doc_tools(mcp) -> None:
         def doc_approve(doc_path: str) -> str:
             """Approve and finalise documentation — move from draft to docs/."""
             try:
-                resolved = (ROOT / doc_path).resolve()
+                resolved, err = _doc_path(ROOT, doc_path)
+                if err:
+                    return _safe_json({"error": err})
                 if not resolved.exists():
                     return _safe_json({"error": f"File not found: {doc_path}"})
                 if "draft" in resolved.name:
@@ -354,8 +458,11 @@ def add_doc_tools(mcp) -> None:
                 archive_dir = ROOT / "docs" / "archive"
                 if not archive_dir.exists():
                     return _safe_json({"error": "No archive directory found"})
-                resolved = (ROOT / doc_path).resolve()
-                archives = sorted(archive_dir.glob(f"{resolved.stem}*{resolved.suffix}"), key=lambda p: p.stat().st_mtime, reverse=True)
+                resolved, err = _doc_path(ROOT, doc_path)
+                if err:
+                    return _safe_json({"error": err})
+                import glob as _glob
+                archives = sorted(archive_dir.glob(f"{_glob.escape(resolved.stem)}*{_glob.escape(resolved.suffix)}"), key=lambda p: p.stat().st_mtime, reverse=True)
                 if not archives:
                     return _safe_json({"error": f"No archived versions of {doc_path} found"})
                 _shutil.copy2(str(archives[0]), str(resolved))

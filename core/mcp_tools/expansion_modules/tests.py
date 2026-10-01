@@ -11,6 +11,29 @@ from core.mcp_tools.memory_safety import (
     resolve_memory_path as _resolve_memory_path,
 )
 
+_ROOT = Path(__file__).resolve().parents[3]  # module-level so tests can point it at a tmp dir
+
+
+def _safe_target(root: Path, raw: str, default: str = "tests/") -> tuple[str | None, str | None]:
+    """Validate a caller-supplied pytest target. Returns (target, error).
+
+    Rejects option-looking values (``-p``/``-c``/``--rootdir`` injection) and
+    anything that resolves outside the repo root (a foreign conftest.py or
+    plugin would execute arbitrary Python).
+    """
+    raw = (raw or "").strip() or default
+    node_path = raw.split("::", 1)[0]
+    if node_path.startswith("-"):
+        return None, "invalid test path: must not start with '-'"
+    base = root.resolve()
+    try:
+        resolved = (base / node_path).resolve()
+    except (OSError, ValueError):
+        return None, "invalid test path"
+    if resolved != base and not resolved.is_relative_to(base):
+        return None, "test path escapes the repo root"
+    return raw, None
+
 
 def add_test_tools(mcp) -> None:
     import json as _json
@@ -20,17 +43,20 @@ def add_test_tools(mcp) -> None:
     import shutil as _shutil
     from pathlib import Path as _Path
 
-    ROOT = _Path(__file__).resolve().parents[3]
+    ROOT = _ROOT
 
     # â”€â”€ test_* (30) — wired to pytest subprocess + core/training/benchmarks/ â”€â”€â”€
     @mcp.tool
     def test_run(path: str = "") -> str:
         """Run the full test suite or a specific path."""
         try:
-            cmd = ["pytest", path or "tests/", "-v", "--tb=short"]
+            target, err = _safe_target(ROOT, path)
+            if err:
+                return _safe_json({"error": err})
+            cmd = ["pytest", "-v", "--tb=short", "--", target]
             result = _subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=300)
             lines = result.stdout.strip().split("\n")
-            return _safe_json({"passed": result.returncode == 0, "output": "\n".join(lines[-20:]), "full_output_length": len(result.stdout)})
+            return _safe_json({"passed": result.returncode == 0, "returncode": result.returncode, "output": "\n".join(lines[-20:]), "full_output_length": len(result.stdout)})
         except FileNotFoundError:
             return _safe_json({"error": "pytest not installed"})
         except Exception as e:
@@ -39,8 +65,10 @@ def add_test_tools(mcp) -> None:
     @mcp.tool
     def test_filter(keyword: str) -> str:
         """Run tests matching a keyword filter."""
+        if not (keyword or "").strip():
+            return _safe_json({"error": "keyword must not be empty"})
         try:
-            result = _subprocess.run(["pytest", "-k", keyword, "-v", "--tb=short"], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
+            result = _subprocess.run(["pytest", f"-k{keyword}", "-v", "--tb=short"], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
             lines = result.stdout.strip().split("\n")
             return _safe_json({"keyword": keyword, "passed": result.returncode == 0, "output": "\n".join(lines[-20:])})
         except Exception as e:
@@ -80,9 +108,12 @@ def add_test_tools(mcp) -> None:
     def test_debug(path: str = "") -> str:
         """Run tests with verbose debug output."""
         try:
-            cmd = ["pytest", path or "tests/", "-v", "-s", "--tb=long"]
+            target, err = _safe_target(ROOT, path)
+            if err:
+                return _safe_json({"error": err})
+            cmd = ["pytest", "-v", "-s", "--tb=long", "--", target]
             result = _subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=300)
-            return _safe_json({"passed": result.returncode == 0, "output": result.stdout[-5000:], "stderr": result.stderr[-2000:]})
+            return _safe_json({"passed": result.returncode == 0, "returncode": result.returncode, "output": result.stdout[-5000:], "stderr": result.stderr[-2000:]})
         except Exception as e:
             return _safe_json({"error": str(e)})
 
@@ -91,6 +122,8 @@ def add_test_tools(mcp) -> None:
         """Discover all test files in the repo."""
         try:
             result = _subprocess.run(["pytest", "--collect-only", "-q"], cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+            if result.returncode not in (0, 5):
+                return _safe_json({"error": f"pytest collection failed (exit {result.returncode})", "output": result.stdout[:5000], "stderr": result.stderr[-1000:]})
             return _safe_json({"output": result.stdout[:5000]})
         except Exception as e:
             return _safe_json({"error": str(e)})
@@ -100,6 +133,8 @@ def add_test_tools(mcp) -> None:
         """List available pytest fixtures."""
         try:
             result = _subprocess.run(["pytest", "--fixtures", "-q"], cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+            if result.returncode not in (0, 5):
+                return _safe_json({"error": f"pytest --fixtures failed (exit {result.returncode})", "output": result.stdout[:5000], "stderr": result.stderr[-1000:]})
             return _safe_json({"output": result.stdout[:5000]})
         except Exception as e:
             return _safe_json({"error": str(e)})
@@ -122,9 +157,12 @@ def add_test_tools(mcp) -> None:
             import cProfile as _cp
             import pstats as _ps
             import io as _io
+            target, err = _safe_target(ROOT, path)
+            if err:
+                return _safe_json({"error": err})
             pr = _cp.Profile()
             pr.enable()
-            result = _subprocess.run(["pytest", path or "tests/", "-q"], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
+            result = _subprocess.run(["pytest", "-q", "--", target], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
             pr.disable()
             s = _io.StringIO()
             _ps.Stats(pr, stream=s).sort_stats("cumulative").print_stats(20)
@@ -176,7 +214,10 @@ def add_test_tools(mcp) -> None:
     def test_validate(path: str = "") -> str:
         """Validate test structure and configuration."""
         try:
-            result = _subprocess.run(["pytest", "--co", "-q", path or "tests/"], cwd=str(ROOT), capture_output=True, text=True, timeout=60)
+            target, err = _safe_target(ROOT, path)
+            if err:
+                return _safe_json({"error": err})
+            result = _subprocess.run(["pytest", "--co", "-q", "--", target], cwd=str(ROOT), capture_output=True, text=True, timeout=60)
             return _safe_json({"valid": result.returncode == 0, "output": result.stdout[:2000]})
         except Exception as e:
             return _safe_json({"error": str(e)})
@@ -190,7 +231,11 @@ def add_test_tools(mcp) -> None:
     def test_watch(path: str = ".", interval: int = 2) -> str:
         """Watch files and re-run tests on change (polls every N seconds, max 60s)."""
         import time as _time
-        watched = _Path(path)
+        base = ROOT.resolve()
+        watched = (base / (path or ".")).resolve()
+        if watched != base and not watched.is_relative_to(base):
+            return _safe_json({"error": "watch path escapes the repo root"})
+        interval = max(1, min(int(interval), 10))
         mtimes = {p: p.stat().st_mtime for p in watched.rglob("*.py") if p.is_file()}
         start = _time.time()
         cycles = 0
@@ -209,7 +254,10 @@ def add_test_tools(mcp) -> None:
     def test_coverage(path: str = "tests/") -> str:
         """Generate test coverage report using pytest-cov."""
         try:
-            result = _subprocess.run(["pytest", "--cov=core", "--cov-report=term", "--cov-report=html", "-q", path], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
+            target, err = _safe_target(ROOT, path)
+            if err:
+                return _safe_json({"error": err})
+            result = _subprocess.run(["pytest", "--cov=core", "--cov-report=term", "--cov-report=html", "-q", "--", target], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
             html_report = str(ROOT / "htmlcov" / "index.html")
             return _safe_json({"passed": result.returncode == 0, "coverage_output": result.stdout[-3000:], "html_report": html_report if (ROOT / "htmlcov").exists() else None})
         except FileNotFoundError:
@@ -220,6 +268,12 @@ def add_test_tools(mcp) -> None:
     @mcp.tool
     def test_create(name: str, target: str = "tests/") -> str:
         """Create a new test file from a template."""
+        import re as _re
+        if not _re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", name or "") or name.startswith("-"):
+            return _safe_json({"error": "invalid test name: use letters, digits, '_', '-', '.' only"})
+        target_dir = (ROOT.resolve() / (target or "tests/")).resolve()
+        if target_dir != ROOT.resolve() and not target_dir.is_relative_to(ROOT.resolve()):
+            return _safe_json({"error": "target directory escapes the repo root"})
         cls_name = "".join(w.capitalize() for w in name.replace(".", "_").replace("-", "_").split("_"))
         template = f'''"""
 Tests for {name}
@@ -233,9 +287,11 @@ class Test{cls_name}:
     def test_basic(self):
         assert True
 '''
-        test_path = _Path(target) / f"test_{name.lower().replace('.', '_').replace('-', '_')}.py"
+        test_path = target_dir / f"test_{name.lower().replace('.', '_').replace('-', '_')}.py"
         test_path.parent.mkdir(parents=True, exist_ok=True)
-        test_path.write_text(template)
+        if test_path.exists():
+            return _safe_json({"error": f"test file already exists: {test_path.name}"})
+        test_path.write_text(template, encoding="utf-8")
         return _safe_json({"ok": True, "path": str(test_path)})
 
     @mcp.tool
@@ -243,10 +299,12 @@ class Test{cls_name}:
         """Generate tests for a module using vectorcode_llm."""
         try:
             from core.inference.vectorcode_llm import chat as _chat
-            module_path = ROOT / module
-            if not module_path.exists():
+            module_path = (ROOT.resolve() / module).resolve()
+            if not module_path.is_relative_to(ROOT.resolve()) or module_path.suffix != ".py":
+                return _safe_json({"error": "module must be a .py file inside the repo root"})
+            if not module_path.is_file():
                 return _safe_json({"error": f"Module not found: {module}"})
-            source = module_path.read_text()
+            source = module_path.read_text(encoding="utf-8", errors="replace")
             result = _chat(f"Generate pytest test cases for this module:\n\n{source[:3000]}")
             return _safe_json({"module": module, "generated_tests": result[:5000]})
         except ImportError:
@@ -257,7 +315,13 @@ class Test{cls_name}:
     @mcp.tool
     def test_fix(path: str = "") -> str:
         """Re-run failing tests and show diagnostics."""
-        result = _subprocess.run(["pytest", path or "tests/", "-v", "--tb=long", "-x"], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
+        target, err = _safe_target(ROOT, path)
+        if err:
+            return _safe_json({"error": err})
+        try:
+            result = _subprocess.run(["pytest", "-v", "--tb=long", "-x", "--", target], cwd=str(ROOT), capture_output=True, text=True, timeout=300)
+        except Exception as e:
+            return _safe_json({"error": str(e)})
         if result.returncode == 0:
             return _safe_json({"status": "all_passed", "output": result.stdout[-1000:]})
         failures = [line.strip() for line in result.stdout.split("\n") if "FAILED" in line]
@@ -267,7 +331,10 @@ class Test{cls_name}:
     def test_snapshot(name: str = "", path: str = "") -> str:
         """Create/compare snapshot tests."""
         try:
-            cmd = ["pytest", path or "tests/", "-v", "--tb=short"]
+            target, err = _safe_target(ROOT, path)
+            if err:
+                return _safe_json({"error": err})
+            cmd = ["pytest", "-v", "--tb=short", "--", target]
             result = _subprocess.run(cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=300)
             return _safe_json({"snapshot": name or "default", "output": result.stdout[-2000:], "passed": result.returncode == 0, "note": "Install pytest-snapshot for snapshot update: pip install pytest-snapshot"})
         except Exception as e:
@@ -277,12 +344,23 @@ class Test{cls_name}:
     def test_mock(module: str) -> str:
         """Analyse module and suggest mock targets."""
         try:
-            import inspect as _inspect
-            import importlib as _importlib
-            mod_path = module.replace("/", ".").replace(".py", "")
-            mod = _importlib.import_module(mod_path)
-            classes = [n for n, o in _inspect.getmembers(mod, _inspect.isclass)]
-            functions = [n for n, o in _inspect.getmembers(mod, _inspect.isfunction)]
+            import ast as _ast
+            import re as _re
+            mod_path = module.replace("/", ".")
+            if mod_path.endswith(".py"):
+                mod_path = mod_path[:-3]
+            if not _re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*", mod_path):
+                return _safe_json({"error": f"invalid module name: {module}"})
+            # Parse the source instead of importing it: importing a caller-named
+            # module would execute its top-level code.
+            base = ROOT.resolve()
+            rel = mod_path.replace(".", "/")
+            src = next((c for c in (base / f"{rel}.py", base / rel / "__init__.py") if c.is_file()), None)
+            if src is None or not src.resolve().is_relative_to(base):
+                return _safe_json({"error": f"module not found in repo: {module}"})
+            tree = _ast.parse(src.read_text(encoding="utf-8", errors="replace"))
+            classes = [n.name for n in tree.body if isinstance(n, _ast.ClassDef)]
+            functions = [n.name for n in tree.body if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef))]
             return _safe_json({"module": module, "classes": classes, "functions": functions[:30], "mock_targets": [f"{mod_path}.{c}" for c in classes[:5]]})
         except Exception as e:
             return _safe_json({"error": str(e)})
@@ -324,7 +402,9 @@ class Test{cls_name}:
         if name == "default":
             available = sorted(f.name for f in fixtures_dir.iterdir() if f.is_file())
             return _safe_json({"fixtures_dir": str(fixtures_dir), "available": available or ["(none yet)"]})
-        fixture_path = fixtures_dir / name
-        if not fixture_path.exists():
+        fixture_path = (fixtures_dir.resolve() / name).resolve()
+        if not fixture_path.is_relative_to(fixtures_dir.resolve()):
+            return _safe_json({"error": "Fixture path escapes tests/fixtures"})
+        if not fixture_path.is_file():
             return _safe_json({"error": f"Fixture '{name}' not found in {fixtures_dir}"})
-        return _safe_json({"fixture": name, "content": fixture_path.read_text()[:5000]})
+        return _safe_json({"fixture": name, "content": fixture_path.read_text(encoding="utf-8", errors="replace")[:5000]})
