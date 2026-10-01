@@ -1,5 +1,4 @@
 """URL safety checks — blocks requests to private/internal network addresses.
-from loguru import logger
 
 Prevents SSRF (Server-Side Request Forgery) where a malicious prompt or
 skill could trick the agent into fetching internal resources like cloud
@@ -25,14 +24,13 @@ Limitations (documented, not fixable at pre-flight level):
 """
 
 import ipaddress
-import logging
 import os
 import socket
 from urllib.parse import urlparse
 
-from utils import is_truthy_value
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from utils import is_truthy_value
 
 # Hostnames that should always be blocked regardless of IP resolution
 # or any config toggle.  These are cloud metadata endpoints that an
@@ -124,7 +122,7 @@ def _global_allow_private_urls() -> bool:
             return _cached_allow_private
     except Exception as _sve:
         # Config unavailable (e.g. tests, early import) — keep default
-        logger.debug("[VECTOR][tools.url_safety] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][tools.url_safety] suppressed Exception: {}", _sve)
 
     return _cached_allow_private
 
@@ -173,7 +171,7 @@ def is_safe_url(url: str) -> bool:
 
         # Block known internal hostnames — ALWAYS, even with toggle on
         if hostname in _BLOCKED_HOSTNAMES:
-            logger.warning("Blocked request to internal hostname: %s", hostname)
+            logger.warning("Blocked request to internal hostname: {}", hostname)
             return False
 
         # Check the global toggle AFTER blocking metadata hostnames
@@ -187,7 +185,7 @@ def is_safe_url(url: str) -> bool:
         except socket.gaierror:
             # DNS resolution failed — fail closed. If DNS can't resolve it,
             # the HTTP client will also fail, so blocking loses nothing.
-            logger.warning("Blocked request — DNS resolution failed for: %s", hostname)
+            logger.warning("Blocked request — DNS resolution failed for: {}", hostname)
             return False
 
         for family, _, _, _, sockaddr in addr_info:
@@ -200,26 +198,26 @@ def is_safe_url(url: str) -> bool:
             # Always block cloud metadata IPs and link-local, even with toggle on
             if ip in _ALWAYS_BLOCKED_IPS or any(ip in net for net in _ALWAYS_BLOCKED_NETWORKS):
                 logger.warning(
-                    "Blocked request to cloud metadata address: %s -> %s",
+                    "Blocked request to cloud metadata address: {} -> {}",
                     hostname, ip_str,
                 )
                 return False
 
             if not allow_all_private and not allow_private_ip and _is_blocked_ip(ip):
                 logger.warning(
-                    "Blocked request to private/internal address: %s -> %s",
+                    "Blocked request to private/internal address: {} -> {}",
                     hostname, ip_str,
                 )
                 return False
 
         if allow_all_private:
             logger.debug(
-                "Allowing private/internal resolution (security.allow_private_urls=true): %s",
+                "Allowing private/internal resolution (security.allow_private_urls=true): {}",
                 hostname,
             )
         elif allow_private_ip:
             logger.debug(
-                "Allowing trusted hostname despite private/internal resolution: %s",
+                "Allowing trusted hostname despite private/internal resolution: {}",
                 hostname,
             )
 
@@ -228,5 +226,5 @@ def is_safe_url(url: str) -> bool:
     except Exception as exc:
         # Fail closed on unexpected errors — don't let parsing edge cases
         # become SSRF bypass vectors
-        logger.warning("Blocked request — URL safety check error for %s: %s", url, exc)
+        logger.warning("Blocked request — URL safety check error for {}: {}", url, exc)
         return False
