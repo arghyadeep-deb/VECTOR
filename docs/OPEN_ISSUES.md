@@ -1322,6 +1322,82 @@ grew open engineering items; section 0 lists them.
     (`test_safe_ticker_component::test_traversal_string_does_not_escape_join` joins only "AAPL",
     `test_env_overrides::test_unknown_env_var_is_ignored`); no tests for the three `VECTOR_TRADING_*_DIR`
     env overrides; `vector-local` provider in `model_catalog` has no factory route.
+    **`core/mcp_tools/` (33 files) + `core/scraper/` (49 files) audit (commits `5d66a13e`, `0b46bd48`,
+    `fd63bfb9`, `2364a9f6`, `fcdb49c3`, `d41e9a1f`, `46e4b2fd`) — 7 new `tests/test_audit_phase3_*.py` files
+    (~330 test cases), each re-run against the pre-fix tree.** **MCP trust boundary (verified in
+    `core/mcp_server.py`): NO PermissionGateway or tier policy applies to ANY MCP tool call** — `_make_server`
+    just calls `add_*_tools(mcp)`, `call_tool` invokes `tool.fn(**arguments)` directly, and `main()` itself logs
+    "Starting MCP server with UNGATED tools" (Task 60 classified it "Class A / user-only", owner-only gap). The
+    only control is `mcp_secure_call` (rate limit + audit) which **fails open** (any exception → allow, debug
+    log) and is wired into only some tools (builtins/browser/voice/collections/knowledge) and none of the
+    expansion modules. So every tool is a direct sink for a prompt-injected caller and only per-tool validation
+    protects it; several docstrings claim a "RED gate" (`git_merge/rebase/push`, `file_delete`, `doc_delete`)
+    that nothing enforces. **No `eval`/`exec`/`shell=True`/`pickle`/`yaml.load` exists in either package**; the
+    real sinks were subprocess argument injection, path confinement, secret disclosure and tools that never
+    worked. **mcp_tools — fixed:** `git_*` ref/remote argument injection (`--orphan`, `--upload-pack=`,
+    `--exec=`, `ext::sh -c …` remote; now allowlisted + `--`), `git add` of `.env`/secrets and a failed `add`
+    followed by a "successful" commit; `files`/`security_path_check`/`doc_delete`/`review_code` used
+    `str.startswith` (sibling-prefix bypass `repo-evil`); `doc_move/copy/publish/…` had no containment at all
+    (`doc_copy x.md → core/evil.py` planted code); `config_get`/`config_env` echoed the SQLCipher key and
+    `github_token`, and `config_set/apply/import` could rewrite `permission`/`allow_shell_exec` (now redacted /
+    deny-listed); `hook_fire` ran `<hooks_dir>/<name>.ts` with an unvalidated name (`../../x`); `perf_profile` /
+    `perf_hotspots` ran `python <caller file_path>` (`-c "import os;…"` = RCE); pytest tools took caller paths as
+    argv (`-p plugin`, `--rootdir`, foreign `conftest.py`); `test_mock` imported caller-named modules;
+    `write_note` title `../../x` escaped the vault; `read_paper`/`mine_reddit`/`browser_navigate/download` took
+    caller URLs with no SSRF check; `graph_diff` ran `git checkout <caller ref>` on the live working tree
+    (now read-only `rev-parse` + `show`); `marketing_cli` returned stderr as normal output on non-zero exit;
+    **~25 tools never worked** (called methods that don't exist, `await`ed sync code, or never awaited async
+    code — 13 browser tools returned `'<coroutine …>'`, `browser_form` reported `{"ok":true,"filled":[…]}`
+    having typed nothing, 7 claims tools `json.dumps(<coroutine>)`, `file_grep` sliced a dict, `memory_recent`/
+    `memory_categories` returned empty forever, `security_cve_scan` ran a nonexistent `pip audit` and read "no
+    vulnerabilities"). **mcp_tools — NOT fixed (tier policy, owner decision):** which tools are YELLOW/RED —
+    suggested RED: `git_push/rebase/pr_create`, `perf_profile`, `test_*`, `doc_delete`, `memory_clear`,
+    `browser_eval`, `email_delete`, `db_quarantine/reenable`, `marketing_cli`, `openmythos_train`; YELLOW:
+    `git_commit/checkout`, `doc_*` writes, `speak_as`, `write_note`. Other flags: `browser_upload` reads any
+    local file and posts it to whatever page is open (exfil primitive); `browser_cookie`/`browser_storage`
+    return live session secrets; `memory_clear` is a `DELETE FROM episodic_memory` (sacred table) behind a
+    caller-supplied "confirm" string; `knowledge_*` accept any absolute dir and write JSON into it;
+    `security_executor_check` is a substring denylist that says `safe: true` for `rm -fr /`; `swarm_*` call
+    `get_swarm()` without the required `district` (always TypeError); `core/mcp_server.py` has printf-style loguru.
+    **Behavior changes to know about:** `file_copy`/`file_delete` now require the same coding grant `file_write`
+    already did; `perf_export/import` and `graph_export/import/merge/compare` are confined to the approved
+    `memory_exports` dir (graph_export's default no longer writes into the repo root); `doc_*` accept only doc
+    file types inside the repo; git refs like `HEAD~2`/`HEAD^` are rejected by the ref allowlist; the browser
+    tools are now `async def`. **scraper — SSRF verdict (your question):** `scraper/` DID reference
+    `core/security/ssrf_guard.py` in exactly one place (`vector_scraper.py`) and it used `is_safe_url()`, i.e.
+    the module singleton with **`resolve_dns=False`** — demonstrated: with DNS faked so `rebind.example` →
+    169.254.169.254, the old guard returns **True**, the new engine check blocks it. Everything else bypassed the
+    guard entirely: the static HTTP engine (and so `Fetcher`/`AsyncFetcher`/`FetcherSession`, `ai.py`
+    get/bulk_get, spiders, robots/sitemap, shell/cli), the browser fetchers, the four `page.goto` sinks, the MCP
+    `bulk_fetch/bulk_stealthy_fetch/screenshot` tools, and the crawler (start URLs, every followed link,
+    sitemaps and `Sitemap:` lines, robots.txt, redirects/retries, checkpoint-restored requests; `links.py`
+    even extracts `file://`). Now every entry point calls a local `SSRFGuard(resolve_dns=True)` (fails closed on
+    DNS error; blocking lookup kept off the event loop) — **`ssrf_guard.py` and its global default were NOT
+    changed** (documented owner decision above). Also fixed: MCP `follow_redirects=True` silently disabled the
+    engine's "safe" redirect protection (now clamped); the session-level `proxy=` default was popped and traffic
+    went direct (privacy leak) and `AsyncFetcher(**kw)` dropped proxy/impersonate/timeout; proxy credentials and
+    URL query-string tokens/userinfo were logged (engine, browser retry warnings, `Response.__init__`,
+    `BaseFetcher` deprecation warning logged every kwarg, storage debug log, curl translator); `::attr("x|//…")`
+    CSS→XPath injection; `find_similar` XPath built from page tag text; adaptive relocation `IndexError` and
+    silent miss; robots.txt fetch failure/5xx treated as allow-all (now disallow-all, uncached, per RFC 9309); a
+    checkpoint deleted on crash; non-atomic `rename()` (breaks on Windows second save); legacy `.pkl`
+    checkpoints deserialized (pickle banned; no longer migrated); block/ban pages cached and replayed as good;
+    a crawl where every fetch failed reported success (new `CrawlResult.succeeded`); the `core/scraper` CLI
+    `main`/`extract` callbacks raised `NotImplementedError` (every command exited 1); `mcp --http` bound
+    `0.0.0.0` (a network SSRF proxy; now `127.0.0.1`); an unreadable main document returned as an empty 200;
+    stealth flags silently dropped when any `extra_flags` was passed; Chrome flag/launch-option injection
+    (`--remote-debugging-port`, `--load-extension`, `additional_args` `executable_path`/`record_har_path`);
+    `timeout=0` (= wait forever); browser/pool leaks when `close()` raised. **scraper — NOT fixed:** redirect
+    hops and browser sub-resources are not re-validated and DNS rebinding (validate-then-connect resolves
+    twice) is open — needs IP pinning / `page.route` interception / a manual redirect loop (curl_cffi exposes
+    no `resolve`); `vector_scraper.fetch_stealth/fetch_dynamic` always fail (use classmethod-only classes as
+    async context managers); `cdp_url`, `real_chrome`, `user_data_dir`, `executable_path`, `cookies` are
+    caller-controlled through the MCP tools; no crawl limits (max pages/depth/size; `_seen` grows unbounded);
+    `robots_txt_obey` defaults False; ReDoS in caller-supplied regex (`find_by_regex`, `.re/.re_first`, no
+    timeout); package-owned `elements_storage.db` default path is inside the source tree (bypasses CONFIG);
+    `quick_fetch`/`fetch_to_markdown` return `""` on failure and the error body on 4xx/5xx; `--no-sandbox` is
+    now rejected in caller `extra_flags` (Docker-as-root needs it); `STEALTH_ARGS` includes
+    `--disable-cookie-encryption`; `announcements.py`-style phone-homes are in trading, not here.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
