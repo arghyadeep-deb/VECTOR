@@ -66,11 +66,15 @@ class HotFailover:
         try:
             import httpx
             digest = await self._build_digest()
-            resp = await httpx.post(
-                f"{self.secondary_url}/api/v1/failover/heartbeat",
-                json=asdict(digest),
-                timeout=3.0,
-            )
+            # NOTE: `await httpx.post(...)` is invalid -- the module-level
+            # post() is SYNC, not a coroutine, so this raised TypeError on
+            # every real call and was silently swallowed below, meaning no
+            # heartbeat ever actually reached the secondary.
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.post(
+                    f"{self.secondary_url}/api/v1/failover/heartbeat",
+                    json=asdict(digest),
+                )
             return resp.status_code == 200
         except Exception as e:
             logger.debug("[HotFailover] heartbeat send failed: {}", e)

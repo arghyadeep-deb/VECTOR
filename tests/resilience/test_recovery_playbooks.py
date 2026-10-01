@@ -13,16 +13,42 @@ from core.resilience.recovery_playbooks import (
 )
 
 
+def _mock_async_client(status_code=200):
+    """Build a mock for `async with httpx.AsyncClient(...) as client` whose
+    client.get()/post() resolve to a response with the given status_code."""
+    mock_response = AsyncMock()
+    mock_response.status_code = status_code
+    mock_client = AsyncMock()
+    mock_client.get.return_value = mock_response
+    mock_client.post.return_value = mock_response
+    mock_client_cm = AsyncMock()
+    mock_client_cm.__aenter__.return_value = mock_client
+    mock_client_cm.__aexit__.return_value = False
+    return mock_client_cm, mock_client
+
+
 @pytest.mark.asyncio
 async def test_model_crash_playbook():
     playbook = ModelCrashPlaybook()
-    with patch("httpx.post", new_callable=AsyncMock) as mock_post:
-        mock_response = AsyncMock()
-        mock_response.status_code = 200
-        mock_post.return_value = mock_response
+    mock_cm, mock_client = _mock_async_client(status_code=200)
+    with patch("httpx.AsyncClient", return_value=mock_cm):
         result = await playbook.run()
         assert result.success is True
         assert result.name == "model_crash"
+        # A healthy ping must NOT trigger an Ollama restart.
+        assert "Ollama model healthy" in result.actions_taken
+        assert "Attempting Ollama restart" not in result.actions_taken
+
+
+@pytest.mark.asyncio
+async def test_model_crash_playbook_restarts_when_unreachable():
+    playbook = ModelCrashPlaybook()
+    with patch("httpx.AsyncClient", side_effect=OSError("connection refused")):
+        with patch("subprocess.run") as mock_run:
+            result = await playbook.run()
+        assert result.success is True
+        assert "Attempting Ollama restart" in result.actions_taken
+        mock_run.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -55,12 +81,20 @@ async def test_disk_full_playbook():
 @pytest.mark.asyncio
 async def test_network_partition_playbook():
     playbook = NetworkPartitionPlaybook()
-    with patch("httpx.get", new_callable=AsyncMock) as mock_get:
-        mock_response = AsyncMock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
+    mock_cm, mock_client = _mock_async_client(status_code=200)
+    with patch("httpx.AsyncClient", return_value=mock_cm):
         result = await playbook.run()
         assert result.success is True
+        assert all("OK" in a for a in result.actions_taken)
+
+
+@pytest.mark.asyncio
+async def test_network_partition_playbook_reports_unreachable():
+    playbook = NetworkPartitionPlaybook()
+    with patch("httpx.AsyncClient", side_effect=OSError("connection refused")):
+        result = await playbook.run()
+        assert result.success is True
+        assert all("unreachable" in a for a in result.actions_taken)
 
 
 @pytest.mark.asyncio

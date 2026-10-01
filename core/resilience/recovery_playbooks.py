@@ -55,11 +55,15 @@ class ModelCrashPlaybook(RecoveryPlaybook):
         start = time.time()
         actions = []
         try:
-            resp = await httpx.post(
-                "http://127.0.0.1:11434/api/generate",
-                json={"model": "vector-focus", "prompt": "ping", "stream": False},
-                timeout=5.0,
-            )
+            # module-level httpx.post() is SYNC -- `await`-ing it raised
+            # TypeError every time, which the except below swallowed, so
+            # this playbook force-restarted a perfectly healthy Ollama
+            # on every single run.
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.post(
+                    "http://127.0.0.1:11434/api/generate",
+                    json={"model": "vector-focus", "prompt": "ping", "stream": False},
+                )
             if resp.status_code == 200:
                 actions.append("Ollama model healthy")
                 return PlaybookResult(name=self.name, success=True, duration_s=time.time() - start, actions_taken=actions)
@@ -142,7 +146,11 @@ class NetworkPartitionPlaybook(RecoveryPlaybook):
         ]
         for name, url in endpoints:
             try:
-                r = await httpx.get(url, timeout=3.0)
+                # module-level httpx.get() is SYNC -- `await`-ing it raised
+                # TypeError every time, so this always reported every
+                # endpoint "unreachable" regardless of actual reachability.
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    r = await client.get(url)
                 actions.append(f"{name}: {'OK' if r.status_code == 200 else f'status={r.status_code}'}")
             except Exception as e:
                 actions.append(f"{name}: unreachable ({e})")

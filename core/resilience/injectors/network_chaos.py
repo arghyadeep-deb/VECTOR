@@ -24,7 +24,11 @@ class NetworkChaosInjector(FailureInjector):
     async def verify_healthy(self) -> bool:
         import httpx
         try:
-            r = await httpx.get("http://127.0.0.1:11434/api/tags", timeout=3.0)
+            # module-level httpx.get() is SYNC -- `await`-ing it raised
+            # TypeError on every call, so this always reported unhealthy
+            # and run() (base.py) aborted before ever injecting chaos.
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                r = await client.get("http://127.0.0.1:11434/api/tags")
             return r.status_code == 200
         except Exception:
             return False
@@ -55,7 +59,8 @@ class NetworkChaosInjector(FailureInjector):
         for attempt in range(10):
             await asyncio.sleep(3)
             try:
-                r = await httpx.get("http://127.0.0.1:11434/api/tags", timeout=2.0)
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    r = await client.get("http://127.0.0.1:11434/api/tags")
                 if r.status_code == 200:
                     return True, attempt * 3 + 3
             except Exception:
