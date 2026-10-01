@@ -66,10 +66,12 @@ class RunbookExecutor:
         async def pause_inference(emergency: ScoredEmergency) -> dict:
             try:
                 import subprocess
-                (await asyncio.to_thread(subprocess.run, ["nvidia-smi", "-pl", "150"], capture_output=True, timeout=10))
+                r = (await asyncio.to_thread(subprocess.run, ["nvidia-smi", "-pl", "150"], capture_output=True, timeout=10))
+                if r.returncode != 0:
+                    return {"status": "failed", "error": f"nvidia-smi exit {r.returncode}"}
                 return {"status": "power_limit_150w"}
-            except Exception:
-                return {"status": "nvidia_smi_unavailable"}
+            except Exception as e:
+                return {"status": "failed", "error": f"nvidia_smi_unavailable: {e}"}
 
         async def reduce_batch(emergency: ScoredEmergency) -> dict:
             return {"status": "batch_reduction_requested"}
@@ -154,7 +156,7 @@ class RunbookExecutor:
 
     def _runbook_health_critical(self) -> list[RunbookAction]:
         async def notify(emergency: ScoredEmergency) -> dict:
-            return {"status": "notification_sent"}
+            return {"status": "not_sent", "error": "no delivery channel in runbook; owner notification is the escalation pushover step"}
 
         return [
             RunbookAction("send_alert", notify, timeout_seconds=10, safety_level="safe"),
@@ -162,7 +164,7 @@ class RunbookExecutor:
 
     def _runbook_battery_critical(self) -> list[RunbookAction]:
         async def alert(emergency: ScoredEmergency) -> dict:
-            return {"status": "alert_sent", "message": "Critical battery — save work immediately"}
+            return {"status": "not_sent", "error": "no delivery channel in runbook; owner notification is the escalation pushover step"}
 
         return [
             RunbookAction("send_alert", alert, timeout_seconds=10, safety_level="safe"),
@@ -182,7 +184,7 @@ class RunbookExecutor:
                     timeout=action.timeout_seconds,
                 )
                 elapsed = int((time.monotonic() - t0) * 1000)
-                if isinstance(result, dict) and result.get("status") in ("error", "failed"):
+                if isinstance(result, dict) and result.get("status") in ("error", "failed", "not_sent"):
                     results.append(ActionResult(success=False, output=str(result), duration_ms=elapsed, error=result.get("error", "unknown")))
                 else:
                     results.append(ActionResult(success=True, output=str(result), duration_ms=elapsed))

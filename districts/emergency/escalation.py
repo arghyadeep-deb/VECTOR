@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -33,6 +34,9 @@ _ESCALATION_TIERS = {
 
 _ACCELERATION_FACTOR = 0.5
 _ACCELERATION_WINDOW = 3600
+# Alert-storm guard: max real Pushover sends per rolling window.
+_PUSH_MAX_PER_WINDOW = 20
+_PUSH_WINDOW_SEC = 600.0
 
 @dataclass
 class EscalationState:
@@ -47,6 +51,7 @@ class EscalationManager:
         self._state = EscalationState()
         self._last_domain_times: dict[str, float] = {}
         self._test_mode = test_mode
+        self._push_times: deque[float] = deque()
 
     def pause(self) -> None:
         self._paused = True
@@ -119,6 +124,10 @@ class EscalationManager:
 
     async def _step_runbook(self, step: str, emergency: ScoredEmergency, runbook_actions: list | None = None) -> dict:
         if runbook_actions:
+            failed = [a for a in runbook_actions if getattr(a, "success", True) is False]
+            if failed:
+                logger.warning("[VECTOR][escalation] runbook for {}: {}/{} actions failed", emergency.event.signal_name, len(failed), len(runbook_actions))
+                return {"action": "runbook_executed", "steps": len(runbook_actions), "failed_steps": len(failed), "status": "failed"}
             return {"action": "runbook_executed", "steps": len(runbook_actions), "status": "ok"}
         return {"action": "runbook_executed", "status": "no_actions"}
 
@@ -127,6 +136,8 @@ class EscalationManager:
         if self._test_mode:
             # Never hit the live notification API during tests.
             return {"action": f"pushover_{step}", "status": "ok", "message": "test_mode: notification skipped"}
+        if not CONFIG.get("emergency", {}).get("pushover_enabled", True):
+            return {"action": f"pushover_{step}", "status": "skipped", "reason": "pushover disabled in config"}
         try:
             from httpx import AsyncClient
             pushover_token = CONFIG.get("pushover_token", "") or CONFIG.get("api_keys", {}).get("pushover_token", "")
@@ -134,6 +145,13 @@ class EscalationManager:
             if not pushover_token or not pushover_user:
                 # No credentials configured — don't POST to the live API (would hang/fail).
                 return {"action": f"pushover_{step}", "status": "skipped", "reason": "no credentials"}
+            now = time.monotonic()
+            while self._push_times and now - self._push_times[0] > _PUSH_WINDOW_SEC:
+                self._push_times.popleft()
+            if len(self._push_times) >= _PUSH_MAX_PER_WINDOW:
+                logger.warning("[VECTOR][escalation] pushover rate limit hit ({} per {}s) — suppressing {}", _PUSH_MAX_PER_WINDOW, _PUSH_WINDOW_SEC, emergency.event.signal_name)
+                return {"action": f"pushover_{step}", "status": "rate_limited"}
+            self._push_times.append(now)
             payload = {
                 "token": str(pushover_token),
                 "user": str(pushover_user),

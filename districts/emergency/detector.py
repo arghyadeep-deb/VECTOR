@@ -19,6 +19,10 @@ class EmergencyEvent:
     detected_at: float = 0.0
     source: str = ""
     context: dict[str, Any] = field(default_factory=dict)
+    # Explicit per-rule severity floor (0.0 = rule did not declare one). Lets a
+    # rule such as heart_rate_stopped (1.0) keep its severity regardless of the
+    # classifier's time-of-day dampening.
+    severity_floor: float = 0.0
 
 
 class EmergencyDetector:
@@ -58,13 +62,14 @@ class EmergencyDetector:
         self.add_rule("battery", "battery_critical", lambda v: v is not None and v < 10, "Battery level critical", dedup_window=60.0)
         self.add_rule("battery", "battery_low", lambda v: v is not None and v < 20, "Battery level low", dedup_window=120.0)
 
-    def add_rule(self, domain: str, signal_name: str, check_fn: Callable, message: str, severity_score: float = 0.7, dedup_window: float = 60.0) -> None:
+    def add_rule(self, domain: str, signal_name: str, check_fn: Callable, message: str, severity_score: float | None = None, dedup_window: float = 60.0) -> None:
         self._rules.append({
             "domain": domain,
             "signal_name": signal_name,
             "check": check_fn,
             "message": message,
-            "severity_score": severity_score,
+            "severity_score": 0.7 if severity_score is None else severity_score,
+            "severity_explicit": severity_score is not None,
             "dedup_window": dedup_window,
         })
         self._dedup_windows[signal_name] = dedup_window
@@ -101,6 +106,7 @@ class EmergencyDetector:
                             detected_at=now,
                             source=source,
                             context=context or {},
+                            severity_floor=rule["severity_score"] if rule.get("severity_explicit") else 0.0,
                         )
 
                         self._event_buffer.append(event)
@@ -119,7 +125,7 @@ class EmergencyDetector:
                         logger.warning("[EmergencyDetector] {}: {} (value={}, source={})", domain, rule["message"], value, source)
                         return event
                 except Exception as e:
-                    logger.debug("[EmergencyDetector] rule check failed: {}", e)
+                    logger.warning("[EmergencyDetector] rule check failed for {}:{} (value={!r}): {}", domain, signal_name, value, e)
         return None
 
     def _flush_buffer(self) -> None:

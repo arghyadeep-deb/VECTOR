@@ -27,6 +27,7 @@ def set_instance(instance: EmergencyResponseSystem | None) -> None:
 async def _emit(domain: str, signal_name: str, value: Any, source: str = "external", context: dict[str, Any] | None = None) -> EmergencyEvent | None:
     if _system_instance is not None:
         return await _system_instance.emit_signal(domain, signal_name, value, source, context)
+    logger.warning("[VECTOR][emergency] signal {}:{} from {} DROPPED — EmergencyResponseSystem not started", domain, signal_name, source)
     return None
 
 class EmergencyResponseSystem(AgentBase):
@@ -91,6 +92,14 @@ class EmergencyResponseSystem(AgentBase):
         entry = self._build_entry(event, scored, actions, escalation_results)
         self._log.append(entry)
 
+    @staticmethod
+    def _outcome(scored: ScoredEmergency, escalation_results) -> str:
+        if scored.severity not in ("CRITICAL", "HIGH"):
+            return "logged"
+        if any(r.get("status") == "ok" and r.get("action") != "log_only" for r in escalation_results or []):
+            return "escalated"
+        return "escalation_failed"
+
     def _build_entry(self, event: EmergencyEvent, scored: ScoredEmergency, actions, escalation_results) -> EmergencyLogEntry:
         return EmergencyLogEntry(
             event_id=event.event_id,
@@ -105,7 +114,7 @@ class EmergencyResponseSystem(AgentBase):
             acknowledged=False,
             resolved=False,
             duration_seconds=None,
-            outcome="escalated" if scored.severity in ("CRITICAL", "HIGH") else "logged",
+            outcome=self._outcome(scored, escalation_results),
         )
 
     async def run(self, task: dict) -> dict:
@@ -146,7 +155,7 @@ class EmergencyResponseSystem(AgentBase):
                 entry = self._build_entry(event, scored, actions, escalation_results)
                 self._log.append(entry)
                 result["actions_taken"] = [a.name for a in actions] if actions else []
-                result["escalated"] = bool(escalation_results)
+                result["escalated"] = self._outcome(scored, escalation_results) == "escalated"
             else:
                 result["note"] = (
                     "Classified only — severity below the escalation threshold "
