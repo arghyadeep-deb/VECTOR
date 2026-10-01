@@ -264,6 +264,7 @@ class DataEngineer(AgentBase):
         start_ms = time.time() * 1000
         errors: list[str] = []
         processed = 0
+        truncated = False
 
         if table not in self.BRONZE_TABLES:
             return {
