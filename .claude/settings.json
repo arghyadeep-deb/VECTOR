@@ -52,7 +52,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\file_protection.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/file_protection.py\"",
             "timeout": 5000
           }
         ]
@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\pre_write_check.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre_write_check.py\"",
             "timeout": 8000
           }
         ]
@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\pre_commit_gate.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/pre_commit_gate.py\"",
             "timeout": 10000
           }
         ]
@@ -84,17 +84,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\lint_on_save.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/lint_on_save.py\"",
             "timeout": 15000
           },
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\auto_screenshot.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto_screenshot.py\"",
             "timeout": 10000
           },
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\auto_commit.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto_commit.py\"",
             "timeout": 20000
           }
         ]
@@ -105,12 +105,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\auto_test.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/auto_test.py\"",
             "timeout": 130000
           },
           {
             "type": "command",
-            "command": "python \"C:\\Users\\Arghyadeep\\Desktop\\V.E.C.T.O.R\\V.E.C.T.O.R. Codebase\\.claude\\hooks\\finish_notification.py\"",
+            "command": "python \"$CLAUDE_PROJECT_DIR/.claude/hooks/finish_notification.py\"",
             "timeout": 10000
           },
           {
