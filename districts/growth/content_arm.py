@@ -126,7 +126,10 @@ class ContentArm:
 
         if not CONFIG["growth"].get("auto_publish", False):
             logger.info("[VECTOR][growth][armA] auto_publish off -- reel held for owner: {}", reel)
-            await self._instagram_publisher()(reel)  # manual path = notify owner
+            # ALWAYS the notify-only path here. It used to call the configured
+            # instagram_mode publisher (phone / graph_api), which posted with no
+            # approval gate whenever auto_publish was off -- the default.
+            await self._notify_owner_to_post(reel)
             platform_results["instagram"] = "notified_owner"
             return {"platforms": platform_results, "reel": reel}
 
@@ -168,7 +171,9 @@ class ContentArm:
                 from districts.content.phone_poster import PhonePoster
                 res = await PhonePoster().post_youtube(reel, caption=CONFIG["growth"]["brand_line"])
                 logger.info("[VECTOR][growth][armA] YouTube phone-post result: {}", res)
-                return bool(res)
+                # res is a {status, reason} dict -- always truthy, so bool(res)
+                # reported blocked/error as success.
+                return isinstance(res, dict) and res.get("status") in ("uploaded", "pending_upload")
             except Exception as exc:
                 logger.warning("[VECTOR][growth][armA] youtube phone post unavailable: {}", exc)
                 return False
@@ -180,12 +185,19 @@ class ContentArm:
             res = await Uploader().upload_to_youtube(
                 reel, title=title, description=desc, tags=tags, privacy="private"
             )
-            status = res.get("status") if isinstance(res, dict) else res
-            logger.info("[VECTOR][growth][armA] YouTube upload result: {}", status)
-            return status in ("uploaded", "published", True, "ok")
+            logger.info("[VECTOR][growth][armA] YouTube upload result: {}", res)
+            return self._upload_ok(res)
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] youtube publish unavailable: {}", exc)
             return False
+
+    @staticmethod
+    def _upload_ok(res) -> bool:
+        """True only for a real upload. Uploader returns status 'success' even for
+        its no-credentials simulation (simulated=True) -- that is not a publish."""
+        if not isinstance(res, dict) or res.get("simulated"):
+            return False
+        return res.get("status") in ("uploaded", "scheduled", "published", "success")
 
     async def _instagram_publisher_safe(self, reel: str) -> bool:
         """Execute the IG publish strategy and return bool success.
@@ -193,8 +205,7 @@ class ContentArm:
         the callable and reports success/failure for per-platform tracking."""
         try:
             publisher = self._instagram_publisher()
-            await publisher(reel)
-            return True
+            return bool(await publisher(reel))
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] IG publish failed: {}", exc)
             return False
@@ -210,7 +221,7 @@ class ContentArm:
             return self._phone_post
         return self._notify_owner_to_post
 
-    async def _phone_post(self, reel: str | None = None) -> None:
+    async def _phone_post(self, reel: str | None = None) -> bool:
         """Post the reel by driving Instagram on the connected phone. All gating
         (warm-up/cap/spacing + owner approval) lives in PhonePoster — this just
         delegates and logs. Reached only after content_arm's own approval gate."""
@@ -218,27 +229,36 @@ class ContentArm:
             from districts.content.phone_poster import PhonePoster
             res = await PhonePoster().post_instagram(reel or "", caption=CONFIG["growth"]["brand_line"])
             logger.info("[VECTOR][growth][armA] IG phone-post result: {}", res)
+            return isinstance(res, dict) and res.get("status") in ("posted", "pending_share")
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] phone IG post unavailable: {}", exc)
+            return False
 
-    async def _notify_owner_to_post(self, reel: str | None = None) -> None:
+    async def _notify_owner_to_post(self, reel: str | None = None) -> bool:
         """Human-in-the-loop IG: render the reel + Pushover the owner to post it."""
         try:
             from core.notify import pushover
             await pushover(f"VECTOR reel ready to post on Instagram: {reel}")
-        except Exception:
-            logger.info("[VECTOR][growth][armA] (manual IG) owner-notify: reel ready {}", reel)
+            return True
+        except Exception as exc:
+            logger.warning("[VECTOR][growth][armA] (manual IG) owner-notify failed: {} -- reel ready {}", exc, reel)
+            return False
 
-    async def _graph_api_post(self, reel: str | None = None) -> None:
+    async def _graph_api_post(self, reel: str | None = None) -> bool:
         """Official Instagram Graph API Content Publishing (owner must have a
         Business/Creator account + app review). Reached only post-approval."""
         try:
             from districts.content.uploader import Uploader
-            res = await Uploader().upload_to_instagram(reel, caption=CONFIG["growth"]["brand_line"])
-            status = res.get("status") if isinstance(res, dict) else res
-            logger.info("[VECTOR][growth][armA] IG Graph API upload result: {}", status)
+            # upload_to_instagram requires `hashtags`; omitting it raised TypeError
+            # every call, so graph_api mode never published.
+            res = await Uploader().upload_to_instagram(
+                reel, caption=CONFIG["growth"]["brand_line"], hashtags=["VECTOR", "AI"]
+            )
+            logger.info("[VECTOR][growth][armA] IG Graph API upload result: {}", res)
+            return self._upload_ok(res)
         except Exception as exc:
             logger.warning("[VECTOR][growth][armA] IG graph_api publish unavailable: {}", exc)
+            return False
 
 
 if __name__ == "__main__":
