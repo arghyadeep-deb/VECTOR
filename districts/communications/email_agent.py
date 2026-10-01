@@ -426,6 +426,12 @@ class EmailAgent(AgentBase):
             # Check thread for injection too
             if is_prompt_injection(thread_context):
                 logger.warning("[VECTOR][email_agent] injection in thread context — skipping")
+                self._get_memory().store(
+                    event_type="email_injection_blocked",
+                    content=f"Blocked auto-draft (thread injection) from {sender}: {subject}",
+                    tags=["communications", "security", "email"],
+                    source="email_agent",
+                )
                 return {"status": "blocked", "reason": "thread_injection_detected"}
 
         # Build auto-draft prompt
