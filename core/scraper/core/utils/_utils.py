@@ -111,7 +111,8 @@ class _StorageTools:
                 }
             )
 
-            siblings = [child.tag for child in parent.iterchildren() if child != element]
+            # Comments/PIs have a function as `.tag`, which can't be JSON-serialized into storage
+            siblings = [child.tag for child in parent.iterchildren() if child != element and isinstance(child.tag, str)]
             if siblings:
                 result.update({"siblings": tuple(siblings)})
 
@@ -123,8 +124,13 @@ class _StorageTools:
 
     @classmethod
     def _get_element_path(cls, element: html.HtmlElement):
-        parent = element.getparent()
-        return tuple((element.tag,) if parent is None else (cls._get_element_path(parent) + (element.tag,)))
+        # Iterative: a deeply nested DOM (huge_tree allows ~2000 levels) must not hit the recursion limit
+        path = []
+        node = element
+        while node is not None:
+            path.append(node.tag)
+            node = node.getparent()
+        return tuple(reversed(path))
 
 
 @lru_cache(128, typed=True)

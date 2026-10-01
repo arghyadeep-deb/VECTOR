@@ -1,4 +1,24 @@
+from re import compile as re_compile
+
 from core.scraper.core._types import Any, Dict
+
+_SIMPLE_CSS_IDENT = re_compile(r"-?[A-Za-z_][A-Za-z0-9_-]*")
+
+
+def _css_id(value: str) -> str:
+    """``#id`` when the id is a plain identifier, otherwise a quoted attribute selector that matches it exactly"""
+    if _SIMPLE_CSS_IDENT.fullmatch(value):
+        return f"#{value}"
+    return '[id="{}"]'.format(value.replace("\\", "\\\\").replace('"', '\\"'))
+
+
+def _xpath_literal(value: str) -> str:
+    """Quote a string as an XPath 1.0 literal, even when it contains both quote kinds"""
+    if "'" not in value:
+        return f"'{value}'"
+    if '"' not in value:
+        return f'"{value}"'
+    return "concat(" + ", \"'\", ".join(f"'{chunk}'" for chunk in value.split("'")) + ")"
 
 
 class SelectorsGeneration:
@@ -27,11 +47,11 @@ class SelectorsGeneration:
                 if target.attrib.get("id"):
                     # id is enough
                     if css:
-                        part = f"#{target.attrib['id']}"
+                        part = _css_id(target.attrib["id"])
                     elif full_path:
-                        part = f"*[@id='{target.attrib['id']}']"
+                        part = f"*[@id={_xpath_literal(target.attrib['id'])}]"
                     else:
-                        part = f"[@id='{target.attrib['id']}']"
+                        part = f"[@id={_xpath_literal(target.attrib['id'])}]"
                     selectorPath.append(part)
                     if not full_path:
                         return " > ".join(reversed(selectorPath)) if css else "//*" + "/".join(reversed(selectorPath))

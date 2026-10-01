@@ -99,7 +99,8 @@ class SQLiteStorageSystem(StorageSystemMixin):
         apply_pragmas(self.connection)
         self.cursor = self.connection.cursor()
         self._setup_database()
-        log.debug(f'Storage system loaded with arguments (storage_file="{storage_file}", url="{url}")')
+        # Log the base domain only: a full URL can carry credentials/tokens in its query string
+        log.debug(f'Storage system loaded with arguments (storage_file="{storage_file}", site="{self._get_base_url()}")')
 
     def _setup_database(self) -> None:
         self.cursor.execute("""
@@ -153,11 +154,20 @@ class SQLiteStorageSystem(StorageSystemMixin):
 
     def close(self):
         """Close all connections. It will be useful when with some things like scrapy Spider.closed() function/signal"""
-        with self.lock:
+        lock = getattr(self, "lock", None)
+        if lock is None:  # __init__ failed before the connection existed
+            return
+        with lock:
+            if getattr(self, "_closed", False):
+                return
+            self._closed = True
             self.connection.commit()
             self.cursor.close()
             self.connection.close()
 
     def __del__(self):
         """To ensure all connections are closed when the object is destroyed."""
-        self.close()
+        try:
+            self.close()
+        except Exception:  # never raise from a finalizer
+            pass

@@ -9,6 +9,7 @@ So you don't have to learn a new selectors/api method like what bs4 done with so
 """
 
 from functools import lru_cache
+from re import compile as re_compile
 
 __all__ = [
     "css_to_xpath",
@@ -25,6 +26,9 @@ from cssselect.xpath import ExpressionError, XPathExpr as OriginalXPathExpr
 from cssselect.parser import Element, FunctionalPseudoElement, PseudoElement
 
 from core.scraper.core._types import Any, Protocol, Self
+
+
+_ATTRIBUTE_NAME = re_compile(r"[^\W\d][\w.:-]*")
 
 
 class XPathExpr(OriginalXPathExpr):
@@ -121,7 +125,11 @@ class TranslatorMixin:
         """Support selecting attribute values using ::attr() pseudo-element"""
         if function.argument_types() not in (["STRING"], ["IDENT"]):  # pragma: no cover
             raise ExpressionError(f"Expected a single string or ident for ::attr(), got {function.arguments!r}")
-        return XPathExpr.from_xpath(xpath, attribute=function.arguments[0].value)
+        attribute = str(function.arguments[0].value)
+        # The name is spliced into the XPath as `/@name`; refuse anything that isn't a plain (qualified) name
+        if not _ATTRIBUTE_NAME.fullmatch(attribute):
+            raise ExpressionError(f"Invalid attribute name for ::attr(): {attribute!r}")
+        return XPathExpr.from_xpath(xpath, attribute=attribute)
 
     @staticmethod
     def xpath_text_simple_pseudo_element(xpath: OriginalXPathExpr) -> XPathExpr:
