@@ -1413,6 +1413,70 @@ grew open engineering items; section 0 lists them.
     now rejected in caller `extra_flags` (Docker-as-root needs it); `STEALTH_ARGS` includes
     `--disable-cookie-encryption`.
 
+27. **`core/training/` + `core/benchmark/` + `core/telemetry/` + `core/resilience/` deep-verify, `core/mining/`
+    wiring-check only, 2026-10-01 —** resumed slice (a prior fork crashed mid-task from a network outage after
+    finding one bug, completed by the parent session: `core/loop/autonomous_loop.py`'s OpenMythos deploy
+    eval-gate checked `result.get("status") == "ok"` but `SelfImprovementCycle.run_weekly()` never returns
+    "ok" (only "completed"/`failed_*`/`skipped_no_data`) — permanently dead gate, fixed to check "completed";
+    `core/training/weekly_scheduler.py`'s silent-swallow-placeholder logging fixed same commit, `262c9d7db`).
+    Owner correction mid-slice: `core/mining/` is a vendored third-party port with an unidentified upstream
+    license (same disposition as item 9's other unidentified trees) — downgraded from deep-verify to
+    wiring-check-only repo-wide for any module originating from an open-source repo; `core/training/
+    benchmark/telemetry/resilience` are VECTOR-authored and stayed at full depth.
+    **`core/training/` (34 files) — 5 real bugs, commit `ecc4f3e56`:** `data_collector.py`'s `record()`
+    gated its documented "autonomous_loop" source-tag default behind `metadata` being truthy
+    (`metadata.get("source", "autonomous_loop") if metadata else ""`) — the one real caller never passes
+    `metadata=`, so every live-collected training example got `""` instead; fixed to
+    `(metadata or {}).get(...)`. `lora_trainer.py`: `self_improvement_cycle.py`'s Phase-4C eval gate
+    (`val_loss > 1.5 * initial_loss`, "reject regressions") read those two keys from the trainer's result
+    dict, but neither real training path (`_train_with_peft`/`_train_with_unsloth`) ever populated them —
+    gate always compared its own defaults (`0 > 1.5`), permanently False, identical bug class to the
+    eval-gate fix above. Added `_extract_loss_history()` pulling real loss values from the HF Trainer's own
+    `log_history` (train loss — no held-out eval split exists). `openmythos/export_to_ollama.py`:
+    `OllamaExporter.create_modelfile()`'s parameter loop had `if config_name := parameters.get(config_name):`
+    — `config_name` read on the right-hand side before the walrus ever bound it (loop variable was
+    `config_key`); `UnboundLocalError` on the first call with any `parameters` dict, which is the function's
+    whole purpose. Fixed to `parameters.get(config_key)`. **FLAG-FOR-OWNER, not fixed:**
+    `openmythos/trainer.py`'s `SelfImprovementTrainer.generate()` is an explicitly-labeled placeholder
+    (deterministic hash-string output, not real model inference) but is wired into the now-reachable
+    Sunday-reflect deploy gate (`evaluate()` → `should_deploy()` after every weekly training cycle) — the
+    gate's coherence score never reflects actual trained-model quality; wiring real inference needs a
+    decision on what checkpoint to call before promotion to the live Ollama tag. Added a loud warning so
+    this fires visibly in logs instead of silently passing as a real eval. Also flagged:
+    `openmythos/forward.py`'s 4 dedicated webhook endpoints (`/forward/github`, `/gmail`, `/calendar`,
+    `/custom`) never call `_validate_signature()` at all — only the generic `/forward` endpoint does — but
+    confirmed zero real importers of `WebhookForwarder` anywhere in the repo (dormant, only reachable via
+    its own `__main__`), same bar as other dormant-module flags this cycle. New/extended tests:
+    `tests/training/test_data_collector.py` (+2), `test_lora_trainer.py` (+4),
+    `test_openmythos_export_and_eval.py` (new, 3 tests). 60/60 `tests/training/` pass, zero regressions.
+    **`core/benchmark/` (20 files) — clean, zero bugs.** All 4 harness files (runner/task/isolation/report)
+    plus all 14 cognitive-benchmark task modules (T01-T14) read in full; well-constructed throughout, no
+    silent-swallow/path-confinement/printf-loguru/fail-open findings. Not every slice needs to find bugs.
+    **`core/telemetry/` (19 files) — clean, zero bugs.** All energy-vendor monitors (NVIDIA/AMD/Apple/RAPL),
+    the aggregator/store/session/instrumented-engine/vLLM-scraper files read in full. 2 deliberate
+    `threading.Thread()` exceptions to the asyncio-only rule, both already carrying the established
+    2026-09-23 documented-tradeoff comment (concurrent GPU polling alongside arbitrary measured work) — not
+    re-flagged. `TelemetryStore`/`TelemetryAggregator` open raw `sqlite3.connect()` rather than the
+    SQLCipher-aware helper, consistent with the established "legitimate non-sensitive auxiliary store" bar
+    from this cycle's earlier 14-site sqlite triage (metrics/latency/cost data, no prompt/response content).
+    **`core/resilience/` (15 files) — 2 FLAG-FOR-OWNER findings, no autonomous fix (both in dormant,
+    unwired code — confirmed zero real production callers of `ResilienceLayer`/`run_all_playbooks()`
+    anywhere, test-only, same dormant-module bar as this cycle's other flags):**
+    `recovery_playbooks.py`'s `ProcessHangPlaybook.run()` calls `proc.kill()` on *any* system-wide process
+    with `cpu_percent > 90`, with zero scoping to VECTOR's own process tree — a legitimate user's unrelated
+    CPU-heavy work (rendering, a game, a compile job) would be killed if this playbook ever fires
+    automatically. `injectors/process_kill.py`'s `ProcessKillInjector._targets["voice_ws"] = "python"`
+    targets the bare interpreter name for `taskkill /F /IM python` — not a specific subprocess; since
+    VECTOR's own main process is itself Python, this is either a no-op (wrong Windows image-name format,
+    needs `.exe`) or, if it ever matches, catastrophic unscoped self-termination. Both need a real design
+    decision (how to identify "VECTOR's own process" distinctly from the host's other processes) before
+    this subsystem is ever wired into the autonomous loop — not a narrow patch.
+    **`core/mining/` (14 files) — wiring-check only per the owner correction.** Found the one real external
+    caller (`core/api/routers/mining.py` → `core.mining._metrics.parse_gateway_metrics`) and verified it:
+    `mining.py`'s `errors = int(stats.last_error.split()[0])` looked suspicious in isolation (parsing an
+    "error" field as a bare int), but `_metrics.py`'s own producer always formats it as
+    `f"{int(errors)} gateway errors observed"` — the round-trip is internally consistent and correct, not a
+    bug. No further depth per the owner's wiring-check-only scope for vendored/unidentified-license trees.
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
