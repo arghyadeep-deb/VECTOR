@@ -38,6 +38,31 @@ def test_collect_from_feedback_no_path():
     assert result == []
 
 
+def test_record_defaults_source_label_when_no_metadata(tmp_path, monkeypatch):
+    """Regression: record()'s "input" field used
+    `metadata.get("source", "autonomous_loop") if metadata else ""` -- the
+    "autonomous_loop" default was unreachable whenever metadata was None
+    (the only real caller, core/loop/autonomous_loop.py, never passes
+    metadata=), so every live-collected training example silently got an
+    empty "input"/source tag instead of the documented default."""
+    monkeypatch.setattr("core.training.data_collector.data_path", lambda *a, **k: tmp_path)
+    collector = DataCollector()
+    collector.record("do a thing", "did the thing", reward=0.8)
+    files = list(tmp_path.glob("action_*.json"))
+    assert len(files) == 1
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    assert data["input"] == "autonomous_loop"
+
+
+def test_record_uses_metadata_source_when_given(tmp_path, monkeypatch):
+    monkeypatch.setattr("core.training.data_collector.data_path", lambda *a, **k: tmp_path)
+    collector = DataCollector()
+    collector.record("x", "y", reward=0.5, metadata={"source": "manual_feedback"})
+    files = list(tmp_path.glob("action_*.json"))
+    data = json.loads(files[0].read_text(encoding="utf-8"))
+    assert data["input"] == "manual_feedback"
+
+
 def test_collect_from_domain_unknown():
     collector = DataCollector()
     result = collector.collect_from_domain("nonexistent", count=10)

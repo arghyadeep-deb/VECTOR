@@ -48,6 +48,27 @@ class LoRATrainer:
                 logger.warning("[Training] PEFT/Unsloth not available, simulating training")
                 return self._simulate_training(adapter_config, training_args, dataset_size)
 
+    @staticmethod
+    def _extract_loss_history(trainer: Any) -> dict:
+        """Pull initial/final train loss from the HF Trainer's own log history.
+
+        self_improvement_cycle.py's eval gate (Phase 4C, "reject regressions")
+        reads result["val_loss"]/result["initial_loss"] to decide whether an
+        adapter regressed -- but neither key was ever populated by a real
+        training run, only defaulted (0 / 1) at the read site, so the
+        comparison `val_loss > 1.5 * initial_loss` was `0 > 1.5`, permanently
+        False. No held-out eval split exists here (train_dataset only), so
+        this is train loss, not true validation loss -- still a real signal
+        the gate can act on, versus the permanent no-op it had before.
+        """
+        try:
+            history = [h["loss"] for h in trainer.state.log_history if "loss" in h]
+        except AttributeError:
+            return {}
+        if not history:
+            return {}
+        return {"initial_loss": history[0], "val_loss": history[-1]}
+
     def _should_simulate(self, base_model: str) -> bool:
         if os.environ.get("VECTOR_TRAINING_REAL") != "1":
             return True
@@ -112,7 +133,7 @@ class LoRATrainer:
             save_path = str(self.adapters_dir / config.name / "final")
             trainer.save_model(save_path)
             logger.info("[Training] PEFT training complete, saved to {}", save_path)
-            return {
+            result = {
                 "status": "success",
                 "method": "peft",
                 "adapter": config.name,
@@ -121,6 +142,8 @@ class LoRATrainer:
                 "train_samples": size,
                 "epochs": args.num_epochs,
             }
+            result.update(self._extract_loss_history(trainer))
+            return result
         except Exception as e:
             logger.error("[Training] PEFT training failed: {}", e)
             return {"status": "failed", "reason": str(e), "adapter": config.name}
@@ -166,7 +189,7 @@ class LoRATrainer:
             save_path = str(self.adapters_dir / config.name / "unsloth_final")
             model.save_pretrained(save_path)
             logger.info("[Training] Unsloth training complete, saved to {}", save_path)
-            return {
+            result = {
                 "status": "success",
                 "method": "unsloth",
                 "adapter": config.name,
@@ -174,6 +197,8 @@ class LoRATrainer:
                 "save_path": save_path,
                 "train_samples": size,
             }
+            result.update(self._extract_loss_history(trainer))
+            return result
         except Exception as e:
             logger.error("[Training] Unsloth training failed: {}", e)
             return {"status": "failed", "reason": str(e), "adapter": config.name}

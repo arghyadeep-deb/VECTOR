@@ -111,8 +111,8 @@ class OllamaExporter:
             }
 
             for param_name, config_key in param_mapping.items():
-                if config_name := parameters.get(config_name):
-                    content += f"PARAMETER {param_name} {config_name}\n"
+                if config_value := parameters.get(config_key):
+                    content += f"PARAMETER {param_name} {config_value}\n"
 
         with open(modelfile_path, "w", encoding="utf-8") as f:
             f.write(content)

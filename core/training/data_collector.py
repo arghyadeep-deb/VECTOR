@@ -23,7 +23,7 @@ class DataCollector:
         path = self._feedback_dir / f"action_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
         path.write_text(json.dumps({
             "instruction": input_text,
-            "input": metadata.get("source", "autonomous_loop") if metadata else "",
+            "input": (metadata or {}).get("source", "autonomous_loop"),
             "output": output_text,
             "score": reward,
         }, ensure_ascii=False, default=str), encoding="utf-8")

@@ -336,7 +336,26 @@ class SelfImprovementTrainer:
         return (True, "all gates passed")
 
     def generate(self, prompt: str) -> str:
-        """Placeholder: produce a sample output for eval scoring."""
+        """Placeholder: produce a sample output for eval scoring.
+
+        FLAG-FOR-OWNER (2026-10-01 audit): this is wired into the real
+        Sunday-reflect deploy gate (autonomous_loop.py calls
+        SelfImprovementTrainer.evaluate() -> should_deploy() after a weekly
+        training cycle completes) but never calls the actual trained model --
+        it scores a deterministic hash string's length/char-variety, not real
+        output. should_deploy() will pass or fail based on that fake score,
+        not on whether the trained model is actually any good. Wiring this to
+        real inference needs an owner call: what checkpoint to call before
+        it's promoted to the live "vector-chairman" Ollama tag (a staging tag?
+        direct weight loading?), and what the real holdout prompt set should
+        be -- not a narrow patch. Logging loudly so this limitation is visible
+        in production logs instead of silently passing as a real eval.
+        """
+        logger.warning(
+            "[OpenMythos] SelfImprovementTrainer.generate() is a PLACEHOLDER -- "
+            "not calling the real trained model. The deploy eval-gate's "
+            "coherence score does not reflect actual model quality."
+        )
         import hashlib
         return f"VECTOR response to: {prompt[:50]}... [hash={hashlib.md5(prompt.encode()).hexdigest()[:8]}]"
 
