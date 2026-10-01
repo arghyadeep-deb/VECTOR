@@ -1,7 +1,7 @@
 """Small VECTOR-native booking and availability contracts."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 
@@ -51,7 +51,7 @@ class BookingRequest:
     end: datetime
     title: str
     status: BookingStatus = BookingStatus.REQUESTED
-    created_at: datetime = datetime.now(timezone.utc)
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 def has_conflict(request: BookingRequest, events: list[CalendarEvent]) -> bool:

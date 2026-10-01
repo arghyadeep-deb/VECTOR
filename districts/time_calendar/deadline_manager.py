@@ -12,6 +12,21 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
+# Naive timestamps from the calendar are interpreted in the zone events are
+# created in (create_event uses Asia/Kolkata). Fixed offset: no tzdata needed.
+_IST = datetime.timezone(datetime.timedelta(hours=5, minutes=30))
+
+
+def _parse_event_dt(value: str) -> datetime.datetime:
+    """Parse a Google Calendar dateTime into an AWARE datetime.
+    Raises ValueError on garbage. 'Z' and '+05:30' offsets are honoured
+    (the old code stripped 'Z' and then compared naive vs aware -> TypeError)."""
+    dt = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=_IST)
+    return dt
+
+
 class DeadlineManager(AgentBase):
     """
     Manages deadlines via Google Calendar API.
@@ -37,6 +52,9 @@ class DeadlineManager(AgentBase):
         if ghost:
             self.inherit_ghost(ghost)
         self._service = None
+        # None = no fetch yet; "" = last fetch OK; else the failure reason.
+        # Lets callers tell "empty calendar" from "could not read calendar".
+        self.last_fetch_error: str | None = None
         logger.info("[VECTOR][deadline] DeadlineManager initialized")
 
     def _get_service(self):
@@ -80,7 +98,7 @@ class DeadlineManager(AgentBase):
                     logger.info("[VECTOR][deadline] Google Calendar: OAuth token from collections DB")
                     return self._service
             except Exception as _oauth_err:
-                logger.debug("[VECTOR][deadline] OAuth token fallback failed: {}", _oauth_err)
+                logger.warning("[VECTOR][deadline] OAuth token fallback failed: {}", _oauth_err)
 
             logger.warning("[VECTOR][deadline] Google Calendar not configured — no credentials found")
             return None
@@ -107,6 +125,7 @@ class DeadlineManager(AgentBase):
         service = self._get_service()
         if service is None:
             logger.info("[VECTOR][deadline] No calendar service — returning empty events")
+            self.last_fetch_error = "calendar_not_configured"
             return []
         try:
             now = datetime.datetime.now(datetime.timezone.utc)
@@ -134,11 +153,13 @@ class DeadlineManager(AgentBase):
                     "end": end,
                     "description": item.get("description", ""),
                 })
+            self.last_fetch_error = ""
             self.award_points(5, "calendar_fetched")
             logger.info(f"[VECTOR][deadline] Fetched {len(events)} events")
             return events
         except Exception as e:
             logger.error(f"[VECTOR][deadline] get_upcoming_events failed: {e}")
+            self.last_fetch_error = f"fetch_failed: {e}"
             self.deduct_points(5, "calendar_fetch_failed")
             return []
 
@@ -151,7 +172,7 @@ class DeadlineManager(AgentBase):
         """Check if a class/lecture is starting within the next N minutes."""
         try:
             events = self.get_upcoming_events(hours=1)
-            now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+            now = datetime.datetime.now(datetime.timezone.utc)
             threshold = now + datetime.timedelta(minutes=minutes_ahead)
             for event in events:
                 title_lower = event.get("title", "").lower()
@@ -159,13 +180,12 @@ class DeadlineManager(AgentBase):
                 start_str = event.get("start", "")
                 if is_class and start_str:
                     try:
-                        # Parse ISO format, strip timezone suffix
-                        start_dt = datetime.datetime.fromisoformat(start_str.replace("Z", ""))
+                        start_dt = _parse_event_dt(start_str)
                         if now <= start_dt <= threshold:
                             logger.info(f"[VECTOR][deadline] Class soon: {event['title']} at {start_str}")
                             return True
                     except ValueError:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.warning("[VECTOR][deadline] Unparseable event start {!r} — skipped", start_str)
             return False
         except Exception as e:
             logger.error(f"[VECTOR][deadline] is_class_soon error: {e}")
@@ -194,20 +214,31 @@ class DeadlineManager(AgentBase):
         """Compute free time blocks for the rest of today (rough heuristic)."""
         try:
             events = self.get_upcoming_events(hours=12)
+            if self.last_fetch_error:
+                # Calendar unreadable: do NOT report every hour as free.
+                logger.warning("[VECTOR][deadline] free blocks unknown — calendar unavailable: {}", self.last_fetch_error)
+                return []
+            local_tz = datetime.datetime.now().astimezone().tzinfo
+            today = datetime.datetime.now(local_tz).date()
             busy_hours = set()
             for event in events:
                 start_str = event.get("start", "")
                 end_str = event.get("end", "")
-                if start_str and end_str:
+                # Date-only (all-day) events don't block hourly slots.
+                if start_str and end_str and "T" in start_str and "T" in end_str:
                     try:
-                        start_dt = datetime.datetime.fromisoformat(start_str.replace("Z", ""))
-                        end_dt = datetime.datetime.fromisoformat(end_str.replace("Z", ""))
-                        hour = start_dt.hour
-                        while hour < end_dt.hour:
-                            busy_hours.add(hour)
-                            hour += 1
+                        start_dt = _parse_event_dt(start_str).astimezone(local_tz)
+                        end_dt = _parse_event_dt(end_str).astimezone(local_tz)
                     except ValueError:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.warning("[VECTOR][deadline] Unparseable event times {!r}/{!r} — skipped", start_str, end_str)
+                        continue
+                    # Any overlap with an hour slot makes it busy (sub-hour and
+                    # past-midnight events included).
+                    for h in range(24):
+                        slot_start = datetime.datetime.combine(today, datetime.time(h), tzinfo=local_tz)
+                        slot_end = slot_start + datetime.timedelta(hours=1)
+                        if start_dt < slot_end and end_dt > slot_start:
+                            busy_hours.add(h)
             now_hour = datetime.datetime.now().hour
             free = []
             for h in range(now_hour, 24):
@@ -248,14 +279,27 @@ class DeadlineManager(AgentBase):
             "free_blocks_today": free_blocks,
             "upcoming_deadlines": deadlines,
             "total_events_today": len(upcoming),
+            # False => events/free blocks are EMPTY BECAUSE the calendar could
+            # not be read, not because the owner is free.
+            "calendar_available": not self.last_fetch_error,
         }
+        if self.last_fetch_error:
+            result["calendar_error"] = self.last_fetch_error
         logger.info(f"[VECTOR][deadline] Schedule context built — window={energy_window}")
         return result
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        events = self.get_upcoming_events(p.get("hours", 24))
+        p = task.get("params") if isinstance(task.get("params"), dict) else {}
+        raw_hours = p.get("hours", task.get("hours", 24))
+        try:
+            hours = max(1, min(int(raw_hours), 24 * 31))
+        except (TypeError, ValueError):
+            hours = 24
+        events = self.get_upcoming_events(hours)
+        error = self.last_fetch_error
         ctx = self.get_schedule_context()
+        if error:
+            return {"status": "error", "error": error, "events": [], "context": ctx}
         return {"status": "ok", "events": events, "context": ctx}
 
     async def run_forever(self) -> None:
