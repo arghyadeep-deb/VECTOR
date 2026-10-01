@@ -1020,6 +1020,20 @@ grew open engineering items; section 0 lists them.
     significant diffs directly, trusting mechanical/repeated-pattern fixes after the first few
     confirmations, rather than reading every line of every file) — this is a deliberate tradeoff to
     conserve the remaining budget while still not committing anything unreviewed.
+    **Fourth slice, run via a real `claude --cloud` session (not Codex) against `$100` of Anthropic's
+    cloud-session bonus credit, since both the local session and Codex hit their weekly limits** —
+    `districts/intelligence/`+`districts/ops/`+`districts/governance/` (commit `8fe5ebf37`, cherry-picked
+    from the cloud session's own branch after local review). **3 real fail-open bugs fixed**:
+    `districts/governance/llm_council.py`'s `run()` defaulted `requester_hp` to `700` when a caller
+    omitted it — exactly matching the "700+ HP only vote" gate threshold, so any caller that simply didn't
+    pass its real HP silently passed the gate regardless of actual standing; now defaults to `0` (fails the
+    gate unless real HP is supplied). `districts/ops/sre_monitor.py` reported `error_rate=0.0` (healthy) on
+    a DB query failure instead of distinguishing "no errors" from "couldn't check"; now reports `1.0`
+    (worst case) on failure. `districts/ops/incident_commander.py`'s `detect_incidents()` returned `[]`
+    (all-clear, HP awarded) on a DB failure — now returns `None` to signal the query itself failed, checked
+    at every call site, returning `status: error` and deducting HP instead of falsely declaring "all clear."
+    New test `tests/test_ops_governance_audit_phase3.py` (7 tests). Independently re-verified plus
+    `tests/test_llm_council.py` + `tests/integration/test_cross_district.py` (20 more) — zero regressions.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
