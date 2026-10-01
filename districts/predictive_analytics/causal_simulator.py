@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 from dataclasses import dataclass, field
 from typing import Optional
@@ -48,7 +49,6 @@ class CausalSimulator:
                 factors = {}
                 for param_name, param_config in scenario_params.get("parameters", {}).items():
                     dist_type = param_config.get("distribution", "normal")
-                    value = 0.0
                     if dist_type == "normal":
                         value = self._normal_outcome(
                             param_config.get("mean", 0.0),
@@ -65,6 +65,9 @@ class CausalSimulator:
                             param_config.get("low", -1.0),
                             param_config.get("high", 1.0),
                         )
+                    else:
+                        # A typo'd distribution used to contribute 0.0 and report a confident result.
+                        raise ValueError(f"unknown distribution '{dist_type}' for parameter '{param_name}'")
                     weight = param_config.get("weight", 1.0)
                     outcome += value * weight
                     factors[param_name] = value
@@ -237,6 +240,10 @@ class CausalSimulator:
         return result
 
     def load_scenario(self, name: str) -> Optional[dict]:
+        # name becomes a filename: reject separators/traversal (CWE-22) for both the read and the template write.
+        if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", name):
+            logger.warning("[VECTOR][predictive_analytics] Rejected unsafe scenario name: {!r}", name)
+            return None
         scenario_paths = [
             Path(__file__).parent.parent.parent / "data" / "predictive" / "scenarios" / f"{name}.yaml",
             Path(__file__).parent.parent.parent / "data" / "predictive" / "scenarios" / f"{name}.yml",

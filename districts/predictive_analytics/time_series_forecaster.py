@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 import os
+from numbers import Real
 import numpy as np
 
 from loguru import logger
@@ -65,6 +66,14 @@ class TimeSeriesForecaster:
         historical_data: list[float],
         periods: int = 7,
     ) -> ForecastResult:
+        if historical_data:
+            finite = [v for v in historical_data if isinstance(v, Real) and np.isfinite(v)]
+            if len(finite) != len(historical_data):
+                logger.warning(
+                    "[VECTOR][predictive_analytics] {}: dropped {} non-finite/non-numeric points",
+                    metric_name, len(historical_data) - len(finite),
+                )
+                historical_data = finite
         if not historical_data or len(historical_data) < 3:
             logger.warning(f"[VECTOR][predictive_analytics] Insufficient data for {metric_name}")
             return ForecastResult(
@@ -96,9 +105,16 @@ class TimeSeriesForecaster:
         for metric_name in metrics_config:
             try:
                 history = self._collect_history(metric_name, days=30)
-                if not history:
+                synthetic = not history
+                if synthetic:
                     history = self._synthetic_history(metric_name)
                 result = self.forecast(metric_name, history, periods=7)
+                if synthetic:
+                    # Fabricated placeholder history: never present it as a real model forecast.
+                    result.model_used = f"{result.model_used}+synthetic_history"
+                    logger.warning(
+                        "[VECTOR][predictive_analytics] {}: no real history, forecast is synthetic", metric_name
+                    )
                 results[metric_name] = result
             except Exception as e:
                 logger.warning(f"[VECTOR][predictive_analytics] forecast_all failed for {metric_name}: {e}")
@@ -114,10 +130,11 @@ class TimeSeriesForecaster:
                    WHERE metric_name = ? ORDER BY computed_at DESC LIMIT ?""",
                 (metric, days),
             ).fetchall()
+            store._conn.close()
             if rows:
                 return [r[0] for r in reversed(rows)]
-        except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        except Exception as e:
+            logger.warning("[VECTOR][predictive_analytics] history read failed for {}: {}", metric, e)
         if os.environ.get("VECTOR_PREDICTIVE_USE_MEMORY") != "1":
             return []
 
@@ -141,12 +158,11 @@ class TimeSeriesForecaster:
                         try:
                             vals.append(float(v))
                         except (ValueError, TypeError):
-                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                            logger.warning("[VECTOR][predictive_analytics] non-numeric {} in episode skipped", metric)
                 if len(vals) >= 3:
                     return vals[-days:]
-        except Exception:
-            logger.exception("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][predictive_analytics] episodic history read failed for {}: {}", metric, e)
         return []
 
     def _synthetic_history(self, metric_name: str) -> list[float]:
@@ -169,10 +185,15 @@ class TimeSeriesForecaster:
     ) -> ForecastResult:
         prophet_result = self._prophet_forecast(metric_name, historical_data, periods)
         arima_result = self._arima_forecast(metric_name, historical_data, periods)
-        weight_p = 0.6 if prophet_result.model_used != "none" else 0.0
-        weight_a = 0.4 if arima_result.model_used != "none" else 0.0
+        # A sub-model that failed falls back internally to moving_average; don't blend that in as "prophet"/"arima".
+        weight_p = 0.6 if prophet_result.model_used == "prophet" else 0.0
+        weight_a = 0.4 if arima_result.model_used == "arima" else 0.0
         if weight_p + weight_a == 0:
             return self._moving_average_forecast(metric_name, historical_data, periods)
+        if weight_p == 0.0:
+            return arima_result
+        if weight_a == 0.0:
+            return prophet_result
         weight_p = weight_p / (weight_p + weight_a)
         weight_a = weight_a / (weight_p + weight_a)
 
@@ -224,7 +245,7 @@ class TimeSeriesForecaster:
             forecast_values = forecast["yhat"].tail(periods).tolist()
             lower = forecast["yhat_lower"].tail(periods).tolist()
             upper = forecast["yhat_upper"].tail(periods).tolist()
-            timestamps = forecast["ds"].tail(periods).dt.isoformat().tolist()
+            timestamps = [t.isoformat() for t in forecast["ds"].tail(periods)]
 
             return ForecastResult(
                 metric_name=metric_name,

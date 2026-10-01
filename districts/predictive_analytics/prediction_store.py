@@ -137,6 +137,7 @@ class PredictionStore:
                 self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store forecast: {e}")
+            return ""
         return rec_id
 
     def store_anomaly(self, anomaly: MetricAnomaly) -> str:
@@ -162,6 +163,7 @@ class PredictionStore:
                 self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store anomaly: {e}")
+            return ""
         return rec_id
 
     def store_recommendation(self, rec: Recommendation) -> str:
@@ -189,6 +191,7 @@ class PredictionStore:
                 self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store recommendation: {e}")
+            return ""
         return rec_id
 
     def store_simulation(self, simulation) -> str:
@@ -220,6 +223,7 @@ class PredictionStore:
                 self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store simulation: {e}")
+            return ""
         return rec_id
 
     def store_accuracy(self, accuracy: dict) -> str:
@@ -244,6 +248,7 @@ class PredictionStore:
                 self._conn.commit()
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] Failed to store accuracy: {e}")
+            return ""
         return rec_id
 
     def check_accuracy(self, forecast_id: str, actual_value: float) -> dict:
@@ -261,13 +266,16 @@ class PredictionStore:
             if not forecast_values:
                 return {}
             predicted_value = float(forecast_values[0])
+            if not np.isfinite(actual_value) or not np.isfinite(predicted_value):
+                logger.warning("[VECTOR][predictive_analytics] check_accuracy: non-finite value for {}", forecast_id)
+                return {}
             actual_arr = np.array([actual_value], dtype=float)
             predicted_arr = np.array([predicted_value], dtype=float)
             diff = actual_arr - predicted_arr
             rmse = float(np.sqrt(np.mean(diff ** 2))) if len(diff) > 0 else 0.0
             mae = float(np.mean(np.abs(diff))) if len(diff) > 0 else 0.0
-            mape_val = float(np.mean(np.abs(diff / (actual_arr + 1e-10)))) * 100
-            mape = round(mape_val, 4)
+            # actual≈0 makes percentage error undefined; the 1e-10 guard produced ~1e12 "MAPE" poisoning the leaderboard.
+            mape = None if abs(float(actual_value)) < 1e-9 else round(float(np.mean(np.abs(diff / actual_arr))) * 100, 4)
 
             accuracy_entry = {
                 "forecast_id": forecast_id,
@@ -280,7 +288,7 @@ class PredictionStore:
                 "predicted_value": round(float(predicted_value), 4),
             }
             self.store_accuracy(accuracy_entry)
-            logger.info(f"[VECTOR][predictive_analytics] Accuracy for {forecast_id}: RMSE={rmse:.4f} MAE={mae:.4f} MAPE={mape:.2f}%")
+            logger.info("[VECTOR][predictive_analytics] Accuracy for {}: RMSE={:.4f} MAE={:.4f} MAPE={}", forecast_id, rmse, mae, "n/a" if mape is None else f"{mape:.2f}%")
             return accuracy_entry
         except Exception as e:
             logger.warning(f"[VECTOR][predictive_analytics] check_accuracy failed: {e}")
