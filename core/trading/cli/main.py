@@ -14,6 +14,7 @@ from rich.layout import Layout
 from rich.text import Text
 from rich.table import Table
 from collections import deque
+import re
 import time
 from rich.tree import Tree
 from rich import box
@@ -22,10 +23,12 @@ from rich.rule import Rule
 
 from core.trading.graph.trading_graph import VectorTradingGraph
 from core.trading.config import DEFAULT_CONFIG
-from cli.models import AnalystType
-from cli.utils import *
-from cli.announcements import fetch_announcements, display_announcements
-from cli.stats_handler import StatsCallbackHandler
+from core.trading.cli.models import AnalystType
+from core.trading.cli.utils import *
+from core.trading.cli.announcements import fetch_announcements, display_announcements
+from core.trading.cli.stats_handler import StatsCallbackHandler
+from core.trading.dataflows.utils import safe_ticker_component
+from loguru import logger
 
 console = Console()
 
@@ -628,20 +631,29 @@ def get_user_selections():
     }
 
 
+def validate_ticker_input(value: str):
+    """questionary validator: True when empty (defaults to SPY) or path-safe.
+
+    The ticker becomes a results-directory path component, so values such as
+    ".." (all characters individually allowed) must be rejected.
+    """
+    stripped = value.strip()
+    if not stripped:
+        return True
+    try:
+        safe_ticker_component(stripped)
+    except ValueError:
+        return "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK."
+    return True
+
+
 def get_ticker():
     """Get ticker symbol from user input, preserving exchange suffixes."""
     # typer.prompt strips trailing dot-suffixes on some shells (e.g. 000404.SH
     # collapses to 000404). questionary.text reads the raw line.
     ticker = questionary.text(
         "",
-        validate=lambda value: (
-            not value.strip()
-            or (
-                all(ch.isalnum() or ch in "._-^" for ch in value.strip())
-                and len(value.strip()) <= 32
-            )
-        )
-        or "Please enter a valid ticker symbol, e.g. AAPL, 000404.SZ, 0700.HK.",
+        validate=validate_ticker_input,
     ).ask()
 
     if ticker is None:
@@ -663,14 +675,30 @@ def get_analysis_date():
             if analysis_date.date() > datetime.datetime.now().date():
                 console.print("[red]Error: Analysis date cannot be in the future[/red]")
                 continue
-            return date_str
+            # Normalise (e.g. "2024-1-5" -> "2024-01-05") so the value used for
+            # result paths and checkpoint thread ids is canonical.
+            return analysis_date.strftime("%Y-%m-%d")
         except ValueError:
             console.print(
                 "[red]Error: Invalid date format. Please use YYYY-MM-DD[/red]"
             )
 
 
-def save_report_to_disk(final_state, ticker: str, save_path: Path):
+def missing_report_sections(final_state, selected_analysts):
+    """Return report-section keys that are absent/blank in ``final_state``.
+
+    Only analyst sections the user selected are required; the research,
+    trader and portfolio sections are always required.
+    """
+    required = [ANALYST_REPORT_MAP[a] for a in ANALYST_ORDER if a in selected_analysts]
+    required += ["investment_plan", "trader_investment_plan", "final_trade_decision"]
+    return [
+        key for key in required
+        if not str(final_state.get(key) or "").strip()
+    ]
+
+
+def save_report_to_disk(final_state, ticker: str, save_path: Path, missing=None):
     """Save complete analysis report to disk with organized subfolders."""
     save_path.mkdir(parents=True, exist_ok=True)
     sections = []
@@ -756,6 +784,8 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    if missing:
+        header += f"> **INCOMPLETE ANALYSIS** - missing or empty sections: {', '.join(missing)}\n\n"
     (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
     return save_path / "complete_report.md"
 
@@ -901,8 +931,11 @@ def extract_content_string(content):
                 return True
             try:
                 return not bool(ast.literal_eval(s))
-            except (ValueError, SyntaxError):
-                return False  # Can't parse = real text
+            except (ValueError, SyntaxError, TypeError, RecursionError, MemoryError):
+                # Can't parse = real text. TypeError (e.g. "{[]: 1}") and
+                # RecursionError/MemoryError (deeply nested text) come from
+                # untrusted LLM/tool output and must not crash the run.
+                return False
         return not bool(val)
 
     if is_empty(content):
@@ -999,6 +1032,16 @@ def run_analysis(checkpoint: bool = False):
 
     # Track start time for elapsed display
     start_time = time.time()
+
+    # Ticker/date become path components: reject anything that could escape results_dir.
+    try:
+        safe_ticker_component(selections["ticker"])
+        if not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", selections["analysis_date"]):
+            raise ValueError(f"bad analysis date {selections['analysis_date']!r}")
+    except ValueError as e:
+        logger.error("[VECTOR][trading_cli] refusing unsafe ticker/date: {}", e)
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1)
 
     # Create result directory
     results_dir = Path(config["results_dir"]) / selections["ticker"] / selections["analysis_date"]
@@ -1191,6 +1234,16 @@ def run_analysis(checkpoint: bool = False):
         final_state = {}
         for chunk in trace:
             final_state.update(chunk)
+        missing = missing_report_sections(final_state, selected_analyst_keys)
+        if "final_trade_decision" in missing:
+            # No Portfolio Manager decision: the run failed. Do not mark every
+            # agent "completed" or let the empty state pass as a finished report.
+            logger.error("[VECTOR][trading_cli] analysis produced no final decision; missing={}", missing)
+            console.print(
+                "[red]Analysis FAILED: no final trade decision was produced "
+                f"(missing: {', '.join(missing)}).[/red]"
+            )
+            raise typer.Exit(1)
         decision = graph.process_signal(final_state["final_trade_decision"])
 
         # Update all agent statuses to completed
@@ -1210,6 +1263,10 @@ def run_analysis(checkpoint: bool = False):
 
     # Post-analysis prompts (outside Live context for clean interaction)
     console.print("\n[bold cyan]Analysis Complete![/bold cyan]\n")
+    if missing:
+        console.print(
+            f"[yellow]Warning: incomplete analysis - missing or empty sections: {', '.join(missing)}[/yellow]\n"
+        )
 
     # Prompt to save report
     save_choice = typer.prompt("Save report?", default="Y").strip().upper()
@@ -1222,7 +1279,7 @@ def run_analysis(checkpoint: bool = False):
         ).strip()
         save_path = Path(save_path_str)
         try:
-            report_file = save_report_to_disk(final_state, selections["ticker"], save_path)
+            report_file = save_report_to_disk(final_state, selections["ticker"], save_path, missing=missing)
             console.print(f"\n[green]✓ Report saved to:[/green] {save_path.resolve()}")
             console.print(f"  [dim]Complete report:[/dim] {report_file.name}")
         except Exception as e:

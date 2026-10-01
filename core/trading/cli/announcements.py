@@ -9,7 +9,7 @@ import requests
 from rich.console import Console
 from rich.panel import Panel
 
-from cli.config import CLI_CONFIG
+from core.trading.cli.config import CLI_CONFIG
 
 
 def fetch_announcements(url: str = None, timeout: float = None) -> dict:

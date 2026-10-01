@@ -2,7 +2,7 @@ import unittest
 
 import pytest
 
-from cli.utils import normalize_ticker_symbol
+from core.trading.cli.utils import normalize_ticker_symbol
 from core.trading.agents.utils.agent_utils import build_instrument_context
 
 

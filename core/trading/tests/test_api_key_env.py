@@ -71,7 +71,7 @@ def test_case_insensitive_lookup():
 def cli_utils(monkeypatch):
     """Import cli.utils with a fresh environment so module-level state is consistent."""
     import importlib
-    import cli.utils as cli_utils_module
+    import core.trading.cli.utils as cli_utils_module
     return importlib.reload(cli_utils_module)
 
 

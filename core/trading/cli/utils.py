@@ -6,7 +6,7 @@ import questionary
 from dotenv import find_dotenv, set_key
 from rich.console import Console
 
-from cli.models import AnalystType
+from core.trading.cli.models import AnalystType
 from core.trading.llm_clients.api_key_env import get_api_key_env
 from core.trading.llm_clients.model_catalog import get_model_options
 
