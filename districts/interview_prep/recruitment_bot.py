@@ -81,17 +81,11 @@ class RecruitmentBot(AgentBase):
             match = re.search(r'\{.*\}', response, re.DOTALL)
             if match:
                 return _json.loads(match.group())
+            logger.warning("[VECTOR][recruitment_bot] JD analysis: no JSON in model response")
+            return {"error": "JD analysis failed: model returned no parseable JSON"}
         except Exception as e:
             logger.warning("[VECTOR][recruitment_bot] JD analysis failed: {}", e)
-        return {
-            "fit_score": 7,
-            "matching_skills": self.OWNER_PROFILE["skills"][:3],
-            "missing_skills": [],
-            "key_requirements": [],
-            "preparation_tips": ["Research the company", "Practice DSA", "Prepare STAR stories"],
-            "should_apply": True,
-            "resume_keywords": [],
-        }
+            return {"error": f"JD analysis failed: {e}"}
 
     async def review_resume_section(self, section: str, content: str) -> str:
         """Review a resume section and suggest ATS-optimized improvements."""
@@ -104,7 +98,8 @@ class RecruitmentBot(AgentBase):
         try:
             return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=25.0)
         except Exception as e:
-            return f"Resume review failed: {e}"
+            logger.warning("[VECTOR][recruitment_bot] Resume review failed: {}", e)
+            raise
 
     async def generate_cold_outreach(self, target_name: str, company: str, role: str) -> str:
         """Generate a personalized cold outreach message for LinkedIn/email."""
@@ -119,7 +114,8 @@ class RecruitmentBot(AgentBase):
         try:
             return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=20.0)
         except Exception as e:
-            return f"Message generation failed: {e}"
+            logger.warning("[VECTOR][recruitment_bot] Message generation failed: {}", e)
+            raise
 
     def track_application(self, company: str, role: str, status: str, notes: str = "") -> None:
         """Store application in memory and Obsidian tracker."""
@@ -164,7 +160,8 @@ class RecruitmentBot(AgentBase):
         try:
             return chat(model=self._model, messages=[{"role": "user", "content": prompt}], timeout=30.0)
         except Exception as e:
-            return f"Brief generation failed: {e}"
+            logger.warning("[VECTOR][recruitment_bot] Brief generation failed: {}", e)
+            raise
 
     async def _answer_recruitment_question(self, query: str) -> str:
         """Answer a free-text question about placement/recruitment grounded
@@ -209,6 +206,8 @@ class RecruitmentBot(AgentBase):
                     task.get("jd", "Software Engineer role at a tech company"),
                     task.get("company", "Unknown"),
                 )
+                if "error" in result:
+                    return {"status": "error", "error": result["error"]}
                 self.award_points(30, "jd_analyzed")
                 return {"status": "ok", "analysis": result}
 
