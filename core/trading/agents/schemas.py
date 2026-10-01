@@ -30,10 +30,20 @@ __all__ = [
 ]
 
 
+import math
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def _check_price(value: Optional[float], label: str) -> Optional[float]:
+    """Reject NaN / infinite / zero / negative prices (a price must be a positive finite number)."""
+    if value is None:
+        return value
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{label} must be a positive finite number, got {value!r}")
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +159,27 @@ class TraderProposal(BaseModel):
         description="Optional sizing guidance, e.g. '5% of portfolio'.",
     )
 
+    @field_validator("entry_price", "stop_loss")
+    @classmethod
+    def _positive_finite_price(cls, v, info):
+        return _check_price(v, info.field_name)
+
+    @model_validator(mode="after")
+    def _stop_loss_on_correct_side(self):
+        # A long (Buy) stop-loss must sit below the entry; at/above it the
+        # stop is either instantly triggered or protects nothing.
+        if (
+            self.action == TraderAction.BUY
+            and self.entry_price is not None
+            and self.stop_loss is not None
+            and self.stop_loss >= self.entry_price
+        ):
+            raise ValueError(
+                f"stop_loss ({self.stop_loss}) must be below entry_price "
+                f"({self.entry_price}) for a Buy"
+            )
+        return self
+
 
 def render_trader_proposal(proposal: TraderProposal) -> str:
     """Render a TraderProposal to markdown.
@@ -216,6 +247,11 @@ class PortfolioDecision(BaseModel):
         default=None,
         description="Optional recommended holding period, e.g. '3-6 months'.",
     )
+
+    @field_validator("price_target")
+    @classmethod
+    def _positive_finite_target(cls, v):
+        return _check_price(v, "price_target")
 
 
 def render_pm_decision(decision: PortfolioDecision) -> str:
