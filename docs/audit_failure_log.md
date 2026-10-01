@@ -55,6 +55,42 @@ Bugs found in VECTOR itself are recorded in `docs/OPEN_ISSUES.md` item 26, not h
 8. **Reports overstated/understated slightly:** memory_curator predicted 5/6 failing-on-old (actual 6/6);
    projects/home_assistant counts were taken from the diff, not the report headline.
 
+## 2026-10-01 — news_trends / growth / emergency / time_calendar / learning / data_analytics
+
+1. **Partial unreviewed edits reached the remote via the auto-commit hook.** While the data_analytics
+   subagent was still editing, the hook committed five mid-edit snapshots of
+   `districts/data_analytics/data_engineer.py` (`6c2c9c83`, `56c64091`, `6b6ba40c`, `14f03887`,
+   `44ae8f3a`); my subsequent pushes for other districts carried them to
+   `claude/vector-audit-phase-3-continued-zdc5e9`. They were not reviewed/tested at that point. The final,
+   verified version landed in `51daa617`, which supersedes them (net diff reviewed against baseline
+   `d8eb4e7b`; all 22 new tests fail there, pass now). Root cause: the hook commits on every edit and
+   shares the working tree with agents. Mitigation next round: tell agents to edit in a scratch copy, or
+   accept that `auto:` snapshots are expected and always review the net diff against the pre-audit commit,
+   not `HEAD`.
+2. **Old-code baseline corrupted by the same hook.** My throwaway worktree was created at `HEAD`, which by
+   then already contained those snapshots, so it was not a valid "old" for data_analytics. Re-pointed that
+   directory to `d8eb4e7b` before comparing. (The data_analytics agent had independently noticed this and
+   used a scratchpad plugin.) Other districts were unaffected (their files were still uncommitted at
+   worktree creation).
+3. **Shared test file edited by two agents.** `tests/test_phase3b_districts.py` was edited by the learning
+   and news_trends agents concurrently. Split by hunk (`git apply --cached` of the learning hunk only) so
+   no commit contained a test edit whose code wasn't in the same commit.
+4. **Stray files from old-code runs.** Running the new news_trends tests against the pre-fix code created
+   `02 Projects/` and `data/venture/` in the scratch worktree's CWD — the exact `venture_pipeline` bug
+   being fixed. Contained to the throwaway worktree; main repo clean.
+5. **Existing tests edited by subagents (all reviewed, all encoded the bug):**
+   `tests/integration/test_spec07_emergency.py` (2 runbook tests asserted success for unsent
+   notifications), `tests/test_phase3b_districts.py` (summarize_lecture; two TestAINewsBot tests asserting
+   simulated/canned results). Each called out in its commit message.
+6. **Environment gaps, not repo bugs:** `agno` missing →
+   `tests/backend/test_audit_followups.py::test_issue_26_investment_runtime_stubs_fail_closed_without_notimplemented`;
+   `soundfile`/`keyring` missing → `tests/test_growth_router.py::test_form_served_and_post_gated`;
+   `TestTranscriptionBot` (calls district) needs network/LLM providers. None touched by these changes.
+7. **Report wording:** news_trends headline said "17 bugs" but listed 22 numbered edits; counted from the
+   diff. Several agents again did not run fail-on-old themselves (forbidden to use git writes); verified by
+   me.
+8. **Stop-hook fired again mid-run**; only reviewed/tested districts were committed.
+
 ## Unresolved
 
 None blocking. Flagged-not-fixed design items are listed in `docs/OPEN_ISSUES.md` item 26.
