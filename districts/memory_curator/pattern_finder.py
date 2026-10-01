@@ -76,8 +76,8 @@ class PatternFinder(AgentBase):
                 ts = ep["timestamp"]
                 h = int(ts[11:13])
                 hours.append(h)
-            except (IndexError, ValueError):
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except (IndexError, ValueError, TypeError) as e:
+                logger.debug("[VECTOR][pattern_finder] bad episode timestamp {!r}: {}", ep.get("timestamp"), e)
         if not hours:
             return "unknown"
         counts = Counter(hours)
@@ -147,12 +147,13 @@ class PatternFinder(AgentBase):
         # Store patterns in semantic_memory
         ts = datetime.date.today().isoformat()
         for i, p in enumerate(patterns):
-            self._memory.remember(
+            if self._memory.remember(
                 key=f"pattern:{ts}:{i}",
                 value=p,
                 category="pattern",
                 confidence=0.7,
-            )
+            ) is False:
+                logger.warning("[VECTOR][pattern_finder] pattern {} not persisted (memory write failed)", i)
 
         # Write pattern report to Obsidian
         try:
@@ -218,7 +219,12 @@ class PatternFinder(AgentBase):
     # ── Loop ──────────────────────────────────────────────────────────────────
 
     async def run(self, task: dict) -> dict:
-        patterns = await self.find_patterns()
+        params = (task or {}).get("params") or {}
+        try:
+            window = int(params.get("window_hours") or 0) or None
+        except (TypeError, ValueError):
+            window = None
+        patterns = await self.find_patterns(window_hours=window)
         return {"status": "ok", "patterns": patterns, "count": len(patterns)}
 
     async def run_forever(self) -> None:
