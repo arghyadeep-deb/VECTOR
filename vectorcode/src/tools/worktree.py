@@ -1,4 +1,5 @@
 """Git worktree isolation — create isolated copies for risky operations."""
+import re
 import subprocess
 import uuid
 from pathlib import Path
@@ -13,6 +14,21 @@ except Exception:
 from loguru import logger
 
 _WORKTREE_PREFIX = "vector_wt_"
+
+# A ref/branch name starting with "-" becomes a git option instead of a ref
+# (--upload-pack=<cmd> is a known git argument-injection RCE vector) when
+# passed as a bare positional argument with no "--" separator. Same
+# allowlist pattern already fixed in this package's git_tools.py
+# (commit b1523366f) and core/mcp_tools/expansion_modules/git.py.
+_REF_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._/@-]*$")
+
+
+def _bad_ref(value: str, what: str = "ref") -> Optional[str]:
+    v = value or ""
+    if (not _REF_RE.match(v) or ".." in v or "//" in v or "@{" in v
+            or v.endswith((".", "/", ".lock"))):
+        return f"invalid {what}: {v!r}"
+    return None
 
 
 class WorktreeManager:
@@ -57,6 +73,10 @@ class WorktreeManager:
         if not branch_name:
             branch_name = f"{_WORKTREE_PREFIX}{short_id}"
 
+        err = _bad_ref(branch_name, "branch name") or _bad_ref(base, "base ref")
+        if err:
+            raise ValueError(err)
+
         import tempfile
         tmp_dir = Path(tempfile.gettempdir())
         worktree_path = tmp_dir / f"{_WORKTREE_PREFIX}{short_id}"
@@ -66,6 +86,7 @@ class WorktreeManager:
                 "worktree", "add",
                 "-b", branch_name,
                 str(worktree_path),
+                "--",
                 base,
             )
             logger.info(
