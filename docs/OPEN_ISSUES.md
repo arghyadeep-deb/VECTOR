@@ -1027,6 +1027,42 @@ grew open engineering items; section 0 lists them.
     `governance/llm_council.py` `run()` defaulted `requester_hp=700`, which bypassed the strict `<700`
     gate; it now defaults to `0`. 7 new tests are in `tests/test_ops_governance_audit_phase3.py`.
     `districts/intelligence/` was verified clean.
+    **Communications + agency + design + karpathy_lab + interview_prep audit (commits `00f76051`,
+    `c93c8468`, `d0790ccb`, `6cad9348`) — 34 fixes, 5 new test files (`tests/test_audit_phase3_*.py`),
+    each new test confirmed failing on the old code and passing on the new.** Reviewed by five
+    parallel subagents; every diff re-read and re-tested by Claude before commit. Dominant class again:
+    a failure reported as success. `communications` (4): `reply_forward` reported `sent` and left the
+    row in Sent when SMTP failed; `email_agent` awarded HP and masked the error status on a failed
+    reply/forward and on an unsaved auto-draft; `email_intelligence` read any Gmail failure as "no mail".
+    `design` (3): CWE-22 via caller-supplied `corpora` in the knowledge loader; a failed LLM audit
+    returned a clean-looking score of 75; `UIDesigner.run` ignored `task["params"]`. `interview_prep`
+    (6): two CWE-22 writes (company-research note, `export_report`), unescaped HTML export,
+    `RecruitmentBot` fabricating `fit_score=7 / should_apply=True` on LLM failure and writing failure
+    text into the Obsidian placement brief, `MockInterviewer` never recording Q1 / reporting a failed
+    start as ok, failed research reported ok. `agency` (11): a malformed or tz-aware `last_updated`
+    left the pipeline reading `healthy`; `params` dropped in sales/proposal `run`; a failed LLM answer
+    fell through to a fabricated "AI Automation Project" proposal; CWE-22 in content-plan/trend vault
+    writes; non-atomic client/metrics saves that a corrupt load then overwrote (now atomic with a
+    `.corrupt` backup); a bad payment amount half-mutating state; non-numeric `lifetime_value` poisoning
+    summaries. `karpathy_lab` (14): non-zero training exit parsed as a good score; a failed baseline
+    reported `ok` with `best_val_bpb=inf`; `git checkout -b` failure ignored; 404 body saved as a
+    dataset; unvalidated `dataset_name` used as path/URL (CWE-22 + SSRF-guarded); empty preprocess
+    reported success; `tokenize_data` crashed on any vocab >256 (all Indic/Japanese text);
+    `generate_report` mixed every run's steps and let `run_name` steer the write path.
+    **Flagged, not fixed (design calls):** `core/email/receiver.py` returns `[]` on IMAP errors
+    (poll reads as ok/0 fetched) and `sender.send_email` returns `duplicate_suppressed` that
+    `reply_forward` ignores; `DataPrep.preprocess_data/tokenize_data` take arbitrary `input/output`
+    paths from task params (confinement would break the module's own callers);
+    `AutoresearchRunner` runs LLM-written Python unsandboxed and commits in the live repo (RED-gated,
+    documented 58D tradeoff); `feedback_analyst` persists a canned score-6 analysis when
+    `VECTOR_FEEDBACK_LLM` is off, and `generate_session_report/progress_report` invent data
+    ("use placeholder data"); `report_generator`/`feedback_analyst` data dir resolves above the repo
+    root; `feedback_analyst._load_data` overwrites a corrupt JSON; `performance_tracker`
+    `alert_anomaly(direction="both")` only ever alerts "above"; several `{"error":...}` returns lack a
+    `status` key but existing tests pin that contract; `ux_researcher`/`image_prompt_engineer` fallbacks
+    are unlabelled templates; `ProgressTracker` uses `threading.RLock` (banned) and `start_run` reuses
+    old step_logs; agency client data is plaintext JSON outside the encrypted DB; sync `chat()` blocks
+    the event loop in sales/proposal.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
