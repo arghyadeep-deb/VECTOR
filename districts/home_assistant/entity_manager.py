@@ -92,8 +92,21 @@ class EntityMatcher:
     def __init__(self, registry: EntityRegistry):
         self._registry = registry
 
+    _STOP_WORDS = ("the ", "a ", "an ")
+
     def match(self, phrase: str, domain: Optional[str] = None) -> List[Tuple[HAEntity, float]]:
         phrase_lower = phrase.lower().strip()
+        # Strip a leading stop word ("turn off THE fan" -> "fan") so a plain
+        # voice phrase can still substring/fuzzy-match a friendly_name like
+        # "Bedroom Fan" -- without this, "the fan" scores 0 against every
+        # entity (the exact area/alias/equality checks below all miss, and
+        # "the fan" isn't a substring of "bedroom fan"), so a resolvable
+        # command with exactly one matching entity was being rejected as
+        # unresolved instead of executed.
+        for stop in self._STOP_WORDS:
+            if phrase_lower.startswith(stop):
+                phrase_lower = phrase_lower[len(stop):]
+                break
         results: List[Tuple[HAEntity, float]] = []
 
         candidates = self._registry.all()
