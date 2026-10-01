@@ -1112,6 +1112,62 @@ grew open engineering items; section 0 lists them.
     `VECTOR_LANGUAGE_LLM=1` (existing tests pin `ok`). Cross-cutting: `core/memory/obsidian_sync.write_note`
     does not confine `title` to the vault — other districts passing caller-controlled titles are likely
     exposed (needs a core fix).
+    **Time_calendar + growth + emergency + learning + news_trends + data_analytics audit (commits
+    `a2958ee9`, `a38eb25a`, `e1dbdcd8`, `c479b6f3`, `1ead4118`, `51daa617`) — 6 new test files; each new
+    test re-run by Claude against pre-fix code (a throwaway worktree at the true baseline) and confirmed
+    failing there (time_calendar 11/13, growth 14/15, learning 19/27, emergency 10/12, news_trends 23/23,
+    data_analytics 22/22; the rest are controls/regression guards).** **`emergency` (priority) — inventory
+    of real actions, none gated:** the district never imports `permission_gateway`, and its entry points
+    (`escalate_emergency`, `classify_emergency`, `detect_anomaly`, `emergency_alert`, `emergency`,
+    `runbook`) are all **GREEN** in `CONFIG["permission"]`, so they auto-execute via `Governor.dispatch`.
+    Real actions: priority-0/1/2 Pushover to the owner (siren, 30s retry), local beeps, and runbook
+    system mutations — `*.tmp`/`*.log` deletion in the **process CWD** (`cleanup_temp`), `nvidia-smi -pl 150`,
+    `ollama serve`, `ipconfig /renew`, `netsh advfirewall … state on`. **No urgency/severity/override/force
+    flag short-circuits any gate or confirmation (checked: task `params` only carries `domain`/`query`),
+    and there is no approval wait that defaults to approve** — so "emergency" does not bypass the gateway;
+    it simply was never routed through it. Fixed (7): a stopped heart rate (declared severity 1.0) was
+    dampened to LOW during work hours → log-only → owner never notified (`severity_floor`); the
+    `heart_rate_stopped` / `battery_critical` runbooks returned `notification_sent` / `alert_sent` without
+    sending anything; `_step_runbook` and `main._outcome` reported `escalated` when every step failed or
+    was skipped; uncapped priority-2 Pushover on varied-source events (now 20 per 600s, constant in
+    `escalation.py`) and `CONFIG["emergency"]["pushover_enabled"]` ignored; rule-check failures hidden at
+    debug; `_emit()` dropped signals silently. **Flagged (tier policy, owner decision):** should
+    `escalate_emergency` be YELLOW/RED when not owner-initiated; the runbook mutations (esp. CWD file
+    deletion, which can hit repo-root logs) are ungated and gating them as-is would block them all (unknown
+    types are blocked) — needs new tier entries; `CONFIG["emergency"]` `quiet_hours_*` / monthly Pushover
+    cap are unused; `heart_rate_critical/high` still score below CRITICAL in work hours (classifier floors
+    only explicit severities); `process_heart_rate` calls `asyncio.run()` inside a running loop;
+    `districts/health/emergency_detector.py` builds a separate detector nobody consumes.
+    Other districts — `growth` (12): with `auto_publish` off (the default) the IG reel was published via the
+    configured phone/Graph-API publisher with **no approval** despite a comment saying "notify owner";
+    simulated/blocked uploads counted as success; `graph_api` mode always raised TypeError (missing
+    `hashtags`); beta-signup `_privacy_check` returned True on import success and `_store_encrypted` never
+    stored (wrong API); caller `**extra` could overwrite `consent`; software_arm marked `validated: True`
+    on import success and "escalated" without notifying. `learning` (12): SSRF/option-injected download URLs
+    (now guarded + `--`), 404 body saved as a video, canned/simulated transcripts, summaries and concepts
+    stored as real, empty `source_dir` organized the CWD. `news_trends` (22 edits): simulated headlines
+    returned as news, NewsAPI key in the URL query (now `X-Api-Key`), `venture_pipeline` ranked and drafted
+    marketing for `UNVERIFIED` ideas (consumer of the startups fail-closed change) and wrote a stray
+    `02 Projects/` into the CWD, empty Reddit/HN mining wrote an empty snapshot as ok, prompt-echo read as
+    `SOFTWARE_SOLVABLE: yes`. `time_calendar` (6): rejected KIIT login and unreadable calendar read as "no
+    notices"/"all hours free", tz-aware events never matched `is_class_soon`, sub-hour events left slots
+    free, `BookingRequest.created_at` evaluated once at import. `data_analytics` (16 changes/12 groups):
+    caller table names interpolated into PRAGMA/SELECT (`sqlite_master` readable; now allow-listed), failed
+    DB pull published as a quiet-week report, failed benchmarks `ok` and overwrote the baseline with -1,
+    bronze dedup no-op on tables without `content`, fabricated "Sample data" analysis. **Flagged, not
+    fixed:** `DataAnalytics.analyze_dataset(path)` reads any local path and sends 1000 chars to the LLM (no
+    caller found; needs an allowed-roots setting in core); `run_bronze_to_silver` never writes Silver;
+    `benchmark_memory_ops` writes probe rows into the real episodic DB; `DeadlineManager.create_event`
+    inserts real Google Calendar events ungated (no caller); gateway `check_attendance` calls a
+    nonexistent `KIITScraper.get_cached_schedule()`; `TimeBlocker` starves "low" urgency tasks;
+    `venture_pipeline` ranks by demand not verdict (a validated REJECT can still be "top"); sync httpx +
+    `time.sleep` in async `SocialMiner.run`; `note_organizer` writes next to any caller-named dir; offline
+    `VECTOR_LEARNING_LLM` gate returns canned concepts as degraded; `course_tracker` progress always 0%
+    and imports `threading`; `data_engineer._open_db` opens its own keyed connection to the main DB
+    (documented 2026-08-05 deliberate choice — shared `get_db_connection()` singleton can't be closed by
+    callers; same precedent as `emergency/log.py`). Behavior choices worth a second look:
+    `time_calendar.run()` now returns `error` (not `ok`) when Google Calendar isn't configured, and
+    `AINewsBot.run()` with no URL now fetches news (previously summarized `""`).
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
