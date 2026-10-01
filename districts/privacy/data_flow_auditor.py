@@ -39,6 +39,9 @@ class DataFlowAuditor(AgentBase):
                 {"role": "user", "content": prompt},
             ],
             timeout=120,
+            district="privacy",
+            sensitive=True,
+            allow_cloud=False,
         )
 
     def audit_data_flows(self) -> dict:
@@ -53,7 +56,7 @@ class DataFlowAuditor(AgentBase):
         suspicious_flows = []
 
         for event in events:
-            content = event.get("content", "").lower()
+            content = (event.get("content") or "").lower()
             event_type = event.get("event_type", "")
 
             if any(kw in content for kw in ["send", "share", "upload", "export", "api", "http", "post", "request"]):
@@ -70,7 +73,6 @@ class DataFlowAuditor(AgentBase):
             if any(kw in content for kw in risk_keywords):
                 suspicious_flows.append({
                     "event_id": event.get("id", ""),
-                    "content_preview": content[:100],
                     "timestamp": event.get("timestamp", ""),
                     "risk": "HIGH",
                 })
@@ -114,9 +116,7 @@ class DataFlowAuditor(AgentBase):
         storage_leak_keywords = ["publicly", "exposed", "unauthenticated", "no auth", "open"]
 
         for event in events:
-            content = event.get("content", "").lower()
-            tags_raw = event.get("tags")
-            tags = json.loads(tags_raw) if tags_raw and isinstance(tags_raw, str) else (tags_raw or [])
+            content = (event.get("content") or "").lower()
 
             leak_score = 0
             reasons = []
@@ -141,7 +141,6 @@ class DataFlowAuditor(AgentBase):
                     "event_id": event.get("id", ""),
                     "leak_score": leak_score,
                     "reasons": reasons,
-                    "content_preview": content[:150],
                     "timestamp": event.get("timestamp", ""),
                     "severity": "CRITICAL" if leak_score >= 7 else "HIGH" if leak_score >= 5 else "MEDIUM",
                 })
@@ -149,12 +148,13 @@ class DataFlowAuditor(AgentBase):
         self.leak_candidates = leak_indicators
 
         result = {
+            "status": "ok" if events else "no_data",
             "leaks_found": len(leak_indicators),
             "critical_leaks": sum(1 for l in leak_indicators if l["severity"] == "CRITICAL"),
             "high_leaks": sum(1 for l in leak_indicators if l["severity"] == "HIGH"),
             "medium_leaks": sum(1 for l in leak_indicators if l["severity"] == "MEDIUM"),
             "leak_indicators": sorted(leak_indicators, key=lambda x: x["leak_score"], reverse=True)[:10],
-            "risk_level": "CRITICAL" if any(l["severity"] == "CRITICAL" for l in leak_indicators) else "HIGH" if any(l["severity"] == "HIGH" for l in leak_indicators) else "LOW",
+            "risk_level": "CRITICAL" if any(l["severity"] == "CRITICAL" for l in leak_indicators) else "HIGH" if any(l["severity"] == "HIGH" for l in leak_indicators) else "MEDIUM" if leak_indicators else "LOW",
             "scanned_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
 
@@ -185,6 +185,18 @@ Data flow summary: {json.dumps(self.data_flows[:5])}
 Top leaks: {json.dumps([{'event_id': l['event_id'], 'severity': l['severity'], 'score': l['leak_score']} for l in self.leak_candidates[:5]])}
 Include: 1) Executive summary, 2) Key findings, 3) Data flow map summary, 4) Leak severity breakdown, 5) Remediation steps (prioritized), 6) Compliance status."""
         report = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+
+        if not (report or "").strip():
+            logger.error("[VECTOR][privacy] Audit report generation failed: local LLM returned nothing")
+            return {
+                "status": "error",
+                "error": "local LLM returned no report",
+                "audit_scope": "comprehensive",
+                "data_flows_tracked": len(self.data_flows),
+                "leaks_identified": len(self.leak_candidates),
+                "report": "",
+                "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            }
 
         result = {
             "audit_scope": "comprehensive",

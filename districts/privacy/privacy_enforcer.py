@@ -55,6 +55,10 @@ class PrivacyEnforcer(AgentBase):
                 {"role": "user", "content": prompt},
             ],
             timeout=120,
+            # Privacy district prompts carry scanned/PII-adjacent content: never cloud.
+            district="privacy",
+            sensitive=True,
+            allow_cloud=False,
         )
 
     def scan_data_sharing(self) -> dict:
@@ -71,14 +75,15 @@ class PrivacyEnforcer(AgentBase):
         sharing_violations = []
 
         for event in events:
-            content = event.get("content", "").lower()
+            raw_content = event.get("content") or ""
+            content = raw_content.lower()
             context_raw = event.get("context_snapshot")
             context = {}
             if context_raw:
                 try:
                     context = json.loads(context_raw) if isinstance(context_raw, str) else context_raw
                 except (json.JSONDecodeError, TypeError):
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.debug("[VECTOR][privacy] unparseable context_snapshot on event {}", event.get("id", ""))
 
             if any(kw in content for kw in ["share", "send", "upload", "export", "api", "third party"]):
                 shared_data_types.append({
@@ -88,7 +93,8 @@ class PrivacyEnforcer(AgentBase):
                 })
 
                 for ptype, pattern in self.pii_patterns.items():
-                    if re.search(pattern, content):
+                    # Match the ORIGINAL text: lowercasing hid PAN (uppercase-only pattern).
+                    if re.search(pattern, raw_content):
                         sharing_violations.append({
                             "type": ptype,
                             "severity": "high",
@@ -97,6 +103,8 @@ class PrivacyEnforcer(AgentBase):
                         })
 
         result = {
+            # no_data: recall returned nothing (empty or failed read) - LOW is NOT a clean bill of health
+            "status": "ok" if events else "no_data",
             "scanned_events": len(events),
             "data_sharing_incidents": len(shared_data_types),
             "pii_violations": len(sharing_violations),
@@ -121,6 +129,7 @@ class PrivacyEnforcer(AgentBase):
         self.add_lesson({"action": "enforce_gdpr"})
 
         compliance_checks = {}
+        unanswered = 0
         for req in self.gdpr_requirements:
             prompt = f"Check if this data handling context meets GDPR requirement: '{req}'. Data context: {json.dumps(data, indent=2)[:500]}\nReturn JSON: {{compliant: bool, score: 0-100, issues: string[], recommendations: string[]}}"
             check = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
@@ -135,12 +144,22 @@ class PrivacyEnforcer(AgentBase):
             except json.JSONDecodeError:
                 result_check = {"compliant": False, "score": 50, "issues": [check[:200]], "recommendations": []}
 
+            if not isinstance(result_check, dict):
+                result_check = {"compliant": False, "score": 50, "issues": [check[:200]], "recommendations": []}
+            try:
+                result_check["score"] = float(result_check.get("score", 0))
+            except (TypeError, ValueError):
+                result_check["score"] = 0
+            if not check.strip():
+                unanswered += 1
             compliance_checks[req] = result_check
 
         overall_score = round(sum(c.get("score", 0) for c in compliance_checks.values()) / max(len(compliance_checks), 1), 1)
         compliance_level = "COMPLIANT" if overall_score >= 90 else "PARTIAL" if overall_score >= 60 else "NON_COMPLIANT"
 
         result = {
+            # error: the local LLM answered none of the checks; the score is a placeholder, not an assessment
+            "status": "error" if unanswered == len(self.gdpr_requirements) else "ok",
             "checks": compliance_checks,
             "overall_score": overall_score,
             "compliance_level": compliance_level,
@@ -172,7 +191,6 @@ class PrivacyEnforcer(AgentBase):
                 findings.append({
                     "type": ptype,
                     "count": len(matches),
-                    "examples": matches[:3],
                 })
                 placeholder = f"[{ptype.upper()}_REDACTED]"
                 redacted_text = re.sub(pattern, placeholder, redacted_text)
@@ -195,8 +213,8 @@ Return any additional PII found as JSON: {{additional_finds: [{{type, start, end
                     end = item.get("end", start + 1)
                     placeholder = f"[{item.get('type', 'PII').upper()}_REDACTED]"
                     redacted_text = redacted_text[:start] + placeholder + redacted_text[end:]
-        except (json.JSONDecodeError, TypeError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        except (json.JSONDecodeError, TypeError, AttributeError, ValueError):
+            logger.debug("[VECTOR][privacy] LLM PII review output unusable; pattern redaction only")
 
         result = {
             "original_length": len(text),
