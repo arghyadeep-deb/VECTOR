@@ -12,6 +12,8 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
+_ROOT = Path(__file__).resolve().parents[2]
+
 # Heuristic checklist for VECTOR rules compliance
 VECTOR_RULES_CHECKLIST = [
     "session_hydration_prompt() called before LLM",
@@ -247,7 +249,17 @@ class CodeReviewer(AgentBase):
             ctx = ContextEngine()
             hydration = ctx.session_hydration_prompt({"task": "code_review", "file": file_path})
 
-            fpath = Path(file_path)
+            fpath = Path(file_path).resolve()
+            # Reachable directly via Governor dispatch (run() -> review_with_llm())
+            # with a caller-supplied path, unlike core/mcp_tools/builtins.py's
+            # review_code MCP tool which already confines its own call --
+            # this method itself had no confinement at all, so a dispatch
+            # bypassing that one gated tool could read any file on disk and
+            # have its contents sent to an LLM. Same confinement pattern as
+            # that MCP tool (repo root + .py suffix).
+            if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+                logger.warning(f"[VECTOR][code_reviewer] review_with_llm refused out-of-repo/non-.py path: {file_path}")
+                return {"error": "Path must be a .py file inside the VECTOR repo"}
             if not fpath.exists():
                 logger.error(f"[VECTOR][code_reviewer] File not found for LLM review: {file_path}")
                 return {"error": "File not found"}

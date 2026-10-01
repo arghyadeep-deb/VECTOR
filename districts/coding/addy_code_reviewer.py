@@ -9,6 +9,8 @@ from pathlib import Path
 from loguru import logger
 from core.city.prompt_agent import PromptAgent
 
+_ROOT = Path(__file__).resolve().parents[2]
+
 
 class AddyCodeReviewer(PromptAgent):
     """
@@ -45,8 +47,15 @@ class AddyCodeReviewer(PromptAgent):
 
     async def review_file(self, filepath: str) -> dict:
         """Review a single file for code quality."""
+        # Reachable directly via run() with a caller-supplied filepath (no
+        # confinement at all previously) -- its contents get sent to an LLM.
+        # Same confinement core/mcp_tools/builtins.py's review_code MCP tool
+        # already applies for a different reviewer class.
+        resolved = Path(filepath).resolve()
+        if not resolved.is_relative_to(_ROOT) or resolved.suffix != ".py":
+            return {"status": "error", "error": "Path must be a .py file inside the VECTOR repo"}
         try:
-            content = Path(filepath).read_text(encoding="utf-8", errors="ignore")
+            content = resolved.read_text(encoding="utf-8", errors="ignore")
         except Exception as e:
             return {"status": "error", "error": str(e)}
         query = (
