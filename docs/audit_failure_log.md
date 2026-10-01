@@ -135,6 +135,39 @@ Bugs found in VECTOR itself are recorded in `docs/OPEN_ISSUES.md` item 26, not h
    baseline has no write/subprocess/git/network primitives (only a denylist of method names).
 7. **Stop-hook fired mid-run**; only reviewed/tested districts were committed.
 
+## 2026-10-01 — core/trading (agents, dataflows+crypto, graph+llm_clients, cli+package tests)
+
+1. **The absorbed package had never been run inside VECTOR.** `core/trading/cli` could not be imported
+   (stale `from cli.models import …`) and three of the package's own test files failed at collection /
+   errored (`test_api_key_env`, `test_ollama_base_url`, `test_ticker_symbol_handling`). The dataflows agent
+   had to `--deselect` two of them ("No module named 'cli'") until the CLI agent's import-path fix landed.
+   Import-path-only edits to those tests (reviewed) — no assertion changed.
+2. **A broken baseline hides behaviour bugs.** Because the old CLI cannot import, *every* new CLI test fails
+   on the pre-fix tree for that one reason, which proves nothing about the other fixes. To isolate them I
+   patched only the import paths in the throwaway baseline worktree and re-ran: 10 behaviour tests then
+   fail on old for their real reasons; the 5 that pass are the import test (by construction), a happy-path
+   control, an empty-literals control and two deeply-nested `literal_eval` cases that only guard newer
+   Pythons (disclosed by the agent).
+3. **Auto-commit hook snapshotted a test file mid-edit** (`a6c9f09d auto: test_audit_phase3_trading_cli.py`
+   — a new test file only; no source). Reviewed and re-verified before the final CLI commit; no
+   unreviewed source reached the remote this round.
+4. **Independent verification of the headline claim.** The graph agent's "checkpoint resume re-ran every
+   completed node" is a claim about LangGraph semantics; reproduced it myself on a toy graph with
+   `MemorySaver` (old: calls `['a','b','a','b']`, 2 human messages; `invoke(None)`: `['a','b','b']`, 1).
+   Likewise confirmed `invoke_structured_or_freetext` catches the new pydantic `ValidationError` (the agent
+   admitted it had not checked), so the stricter schema degrades to free text instead of crashing.
+5. **Environment (not repo) changes:** agents `pip install`ed pandas, yfinance, stockstats, requests,
+   python-dateutil, loguru (dataflows) and typer, questionary, rich, langchain-core/openai/anthropic/
+   google-genai, langgraph, langgraph-checkpoint-sqlite (cli). `requirements.txt` untouched. If CI lacks
+   these, `core/trading/tests` will not collect there.
+6. **Tool-output blow-up:** one parametrized test ID is a ~10k-character string of nested parentheses; it
+   flooded my result listing (saved to a tool-results file). Re-read results with names truncated.
+7. **Report accuracy:** the dataflows agent's "29 tests, 5 pass on old" matched my run exactly (24 fail on
+   old; the 5 passes are happy-path controls plus an existing CWE-22 guard). The agents agent's schema
+   fix is Buy-only by design (Sell stop side is ambiguous) — flagged, not guessed.
+8. **Stop-hook fired twice mid-run**; only reviewed/tested areas were committed, in the order each agent
+   finished.
+
 ## Unresolved
 
 None blocking. Flagged-not-fixed design items are listed in `docs/OPEN_ISSUES.md` item 26.
