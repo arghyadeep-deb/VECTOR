@@ -67,9 +67,12 @@ class ResilienceMetrics:
             },
         }
 
-    def _chaos_pass_rate(self) -> float:
+    def _chaos_pass_rate(self) -> float | None:
+        # None (not 1.0) when nothing has run -- "no chaos experiments yet"
+        # is not the same as "100% pass rate", and chaos.enabled defaults
+        # to False so this is the common case, not an edge case.
         if not self._chaos_experiments:
-            return 1.0
+            return None
         passed = sum(1 for e in self._chaos_experiments if e.get("passed", False))
         return passed / len(self._chaos_experiments)
 

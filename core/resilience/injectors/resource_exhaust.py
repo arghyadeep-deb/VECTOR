@@ -87,12 +87,20 @@ class ResourceExhaustInjector(FailureInjector):
             return True, 2.0
 
     async def cleanup(self) -> None:
+        import os
         for alloc in self._allocations:
             try:
                 if hasattr(alloc, "terminate"):
                     alloc.terminate()
                 elif hasattr(alloc, "close"):
+                    # NamedTemporaryFile(delete=False) -- close() alone
+                    # leaves the (up to multi-GB) file on disk forever;
+                    # must unlink it explicitly to actually free the space
+                    # this injector just consumed.
+                    name = getattr(alloc, "name", None)
                     alloc.close()
+                    if name:
+                        os.unlink(name)
             except Exception:
                 logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
         self._allocations.clear()

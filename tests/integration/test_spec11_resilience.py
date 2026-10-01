@@ -524,10 +524,20 @@ class TestResilienceMetrics:
         summary = m.get_health_summary()
         assert summary["degradation"]["current_tier"] == "REDUCED"
 
-    def test_chaos_pass_rate_zero_when_no_experiments(self):
+    def test_chaos_pass_rate_none_when_no_experiments(self):
+        # No experiments run != 100% pass rate -- must be distinguishable
+        # (chaos.enabled defaults to False, so this is the common state).
         from core.resilience.metrics import ResilienceMetrics
         m = ResilienceMetrics()
-        assert m._chaos_pass_rate() == 1.0
+        assert m._chaos_pass_rate() is None
+        assert m.get_health_summary()["chaos"]["pass_rate"] is None
+
+    def test_chaos_pass_rate_computed_when_experiments_recorded(self):
+        from core.resilience.metrics import ResilienceMetrics
+        m = ResilienceMetrics()
+        m.record_chaos_experiment({"passed": True})
+        m.record_chaos_experiment({"passed": False})
+        assert m._chaos_pass_rate() == 0.5
 
     def test_to_json_returns_string(self):
         from core.resilience.metrics import ResilienceMetrics
