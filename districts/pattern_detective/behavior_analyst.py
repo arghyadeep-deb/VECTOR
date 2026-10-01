@@ -38,28 +38,57 @@ class BehaviorAnalyst(AgentBase):
                 {"role": "user", "content": prompt},
             ],
             timeout=120,
+            district=self.district,
+            sensitive=True,
+            allow_cloud=False,  # behavioural logs about the owner: local Ollama only
         )
 
+    _OWN_SOURCES = frozenset({"BehaviorAnalyst", "HabitFinder"})
+
+    def _recent_activity(self, limit: int = 100) -> list[dict]:
+        """Recent episodic events as an activity log, excluding this district's
+        own derived events (they would otherwise be analysed as the owner's
+        behaviour)."""
+        events = self.memory.recall("", limit=limit) or []
+        return [
+            {"type": e.get("event_type", "unknown"), "timestamp": e.get("timestamp", "")}
+            for e in events if e.get("source") not in self._OWN_SOURCES
+        ]
+
+    @staticmethod
+    def _to_float(value) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
     def analyze_behavior(self, activity_log: list[dict]) -> dict:
-        logger.info(f"[VECTOR][pattern_detective] Analyzing {len(activity_log)} behavior records")
+        activity_log = [a for a in (activity_log or []) if isinstance(a, dict)]
+        logger.info("[VECTOR][pattern_detective] Analyzing {} behavior records", len(activity_log))
         self.add_lesson({"action": "analyze_behavior", "records": len(activity_log)})
+
+        if not activity_log:
+            # Empty/failed data pull: not "no concerning behaviour".
+            return {"status": "no_data", "total_activities": 0, "activity_types": 0,
+                    "behavior_profile": {}, "insights": ""}
 
         type_counts = collections.Counter(a.get("type", "unknown") for a in activity_log)
         time_by_type = collections.defaultdict(list)
         duration_by_type = collections.defaultdict(list)
+        bad_timestamps = 0
 
         for entry in activity_log:
             entry_type = entry.get("type", "unknown")
-            duration = entry.get("duration", 0)
+            duration = self._to_float(entry.get("duration", 0))
             timestamp = entry.get("timestamp", "")
 
             if timestamp:
                 try:
-                    dt = datetime.datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
+                    dt = datetime.datetime.fromisoformat(str(timestamp).replace("Z", "+00:00"))
                     period = "morning" if 6 <= dt.hour < 12 else "afternoon" if 12 <= dt.hour < 18 else "evening" if 18 <= dt.hour < 22 else "night"
                     time_by_type[entry_type].append(period)
                 except ValueError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    bad_timestamps += 1
 
             if duration:
                 duration_by_type[entry_type].append(duration)
@@ -75,21 +104,29 @@ class BehaviorAnalyst(AgentBase):
                 "total_duration": sum(durations),
             }
 
+        self.behavior_profiles["default"] = behavior_profile
+
+        if bad_timestamps:
+            logger.warning("[VECTOR][pattern_detective] {} record(s) had unparseable timestamps; excluded from time distribution", bad_timestamps)
+
         prompt = f"""Analyze this behavior profile and provide insights:
 {json.dumps(behavior_profile, indent=2)}
 Total activities: {len(activity_log)}
 Provide: 1) Behavioral pattern identification, 2) Productivity analysis, 3) Consistency score (1-10), 4) Key strengths and weaknesses."""
         insights = self._call_ollama(prompt)
+        if not (insights or "").strip():
+            logger.warning("[VECTOR][pattern_detective] Behavior analysis: LLM returned nothing")
+            return {"status": "error", "error": "llm_unavailable", "total_activities": len(activity_log),
+                    "activity_types": len(type_counts), "behavior_profile": behavior_profile, "insights": ""}
 
         result = {
+            "status": "ok",
             "total_activities": len(activity_log),
             "activity_types": len(type_counts),
             "behavior_profile": behavior_profile,
             "insights": insights,
             "analyzed_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
-
-        self.behavior_profiles["default"] = behavior_profile
 
         self.memory.store(
             event_type="behavior_analyzed",
@@ -103,23 +140,23 @@ Provide: 1) Behavioral pattern identification, 2) Productivity analysis, 3) Cons
         return result
 
     def predict_next_action(self, current_context: dict) -> dict:
-        logger.info(f"[VECTOR][pattern_detective] Predicting next action")
+        logger.info("[VECTOR][pattern_detective] Predicting next action")
         self.add_lesson({"action": "predict_next_action"})
 
         profile = self.behavior_profiles.get("default", {})
         if not profile:
             # KNOWN_ISSUES #21: don't close EpisodicMemory()'s shared singleton
             # connection from a local instance — see skill_mapper.py's note.
-            from core.memory.episodic import EpisodicMemory
-            mem = EpisodicMemory()
-            events = mem.recall("", limit=100)
-            if events:
-                activity_log = [
-                    {"type": e.get("event_type", "unknown"), "timestamp": e.get("timestamp", ""), "content": e.get("content", "")[:100]}
-                    for e in events
-                ]
+            activity_log = self._recent_activity(100)
+            if activity_log:
                 self.analyze_behavior(activity_log)
             profile = self.behavior_profiles.get("default", {})
+
+        if not profile:
+            # No history to extrapolate from: do not let the LLM invent a
+            # "most likely next action" with a made-up confidence.
+            return {"status": "no_data", "prediction": {}, "current_context": current_context,
+                    "based_on_profiles": 0}
 
         sorted_activities = sorted(profile.items(), key=lambda x: x[1]["frequency"], reverse=True)
         top_activities = [a for a, d in sorted_activities[:5]]
@@ -130,6 +167,10 @@ Top recurring activities: {top_activities}
 Based on time patterns, what is the most likely next action?
 Return JSON: {{predicted_action: string, confidence: float, reasoning: string, alternative_actions: string[]}}"""
         prediction = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+        if not (prediction or "").strip():
+            logger.warning("[VECTOR][pattern_detective] Prediction: LLM returned nothing")
+            return {"status": "error", "error": "llm_unavailable", "prediction": {},
+                    "current_context": current_context, "based_on_profiles": len(profile)}
 
         try:
             import re
@@ -142,6 +183,7 @@ Return JSON: {{predicted_action: string, confidence: float, reasoning: string, a
             pred_data = {"predicted_action": prediction[:100], "confidence": 0.5, "reasoning": "Based on pattern analysis"}
 
         result = {
+            "status": "ok",
             "prediction": pred_data,
             "current_context": current_context,
             "based_on_profiles": len(profile),
@@ -159,14 +201,21 @@ Return JSON: {{predicted_action: string, confidence: float, reasoning: string, a
         return result
 
     def suggest_improvements(self, behavior: dict) -> dict:
-        logger.info(f"[VECTOR][pattern_detective] Suggesting behavior improvements")
+        logger.info("[VECTOR][pattern_detective] Suggesting behavior improvements")
         self.add_lesson({"action": "suggest_improvements"})
+
+        if not behavior:
+            return {"status": "no_data", "behavior_summary": {}, "improvements": {}}
 
         prompt = f"""Suggest improvements for this behavioral profile:
 {json.dumps(behavior, indent=2)}
 Focus on: 1) Time management improvements, 2) Habit formation suggestions, 3) Productivity boosts, 4) Balance recommendations.
 Format: JSON with improvements (list), priority (high/medium/low), expected_impact, and rationale."""
         suggestions = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+        if not (suggestions or "").strip():
+            logger.warning("[VECTOR][pattern_detective] Improvements: LLM returned nothing")
+            return {"status": "error", "error": "llm_unavailable", "behavior_summary": behavior,
+                    "improvements": {}}
 
         try:
             import re
@@ -179,6 +228,7 @@ Format: JSON with improvements (list), priority (high/medium/low), expected_impa
             improvements = {"improvements": [{"action": suggestions[:200], "priority": "medium", "expected_impact": "moderate"}]}
 
         result = {
+            "status": "ok",
             "behavior_summary": behavior,
             "improvements": improvements,
             "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -196,12 +246,12 @@ Format: JSON with improvements (list), priority (high/medium/low), expected_impa
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        # behavior_analyst has analyse method based on grep results
-        if hasattr(self, "analyse"):
-            result = self.analyse(p.get("window_hours", 48))
-            return {"status": "ok", "analysis": result}
-        return {"status": "ok", "agent": self.name}
+        p = (task or {}).get("params") or {}
+        # Previously this called a non-existent analyse() and returned
+        # status "ok" having done nothing.
+        activity_log = p.get("activity_log") or self._recent_activity(100)
+        result = self.analyze_behavior(activity_log)
+        return {"status": result.get("status", "ok"), "analysis": result}
 
 
 if __name__ == "__main__":

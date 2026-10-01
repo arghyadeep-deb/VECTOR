@@ -38,22 +38,42 @@ class CommunicationAnalyst(AgentBase):
                 {"role": "user", "content": prompt},
             ],
             timeout=120,
+            district=self.district,
+            sensitive=True,
+            allow_cloud=False,  # contact/relationship data: local Ollama only
         )
 
-    def analyze_communication_style(self, contact_name: str) -> dict:
-        logger.info(f"[VECTOR][relationships] Analyzing communication style for: {contact_name}")
-        self.add_lesson({"action": "analyze_communication_style", "contact": contact_name})
+    # Events this agent (and ContactManager's bookkeeping) writes about a
+    # contact. They are derived artefacts, not interactions: counting them made
+    # every analysed contact look "just contacted" and fed analyses back into
+    # themselves.
+    _DERIVED_EVENT_TYPES = frozenset({
+        "communication_style_analyzed", "reconnect_suggested",
+        "relationship_insights_generated", "contact_added",
+    })
 
-        # KNOWN_ISSUES #21: don't close EpisodicMemory()'s shared singleton
-        # connection from a local instance — see skill_mapper.py's note.
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        interactions = mem.recall(contact_name, limit=50)
+    def _recall_interactions(self, contact_name: str, limit: int) -> list[dict]:
+        events = self.memory.recall(contact_name, limit=limit * 3) or []
+        real = [
+            e for e in events
+            if e.get("event_type") not in self._DERIVED_EVENT_TYPES
+            and e.get("source") != "CommunicationAnalyst"
+        ]
+        return real[:limit]
+
+    def analyze_communication_style(self, contact_name: str) -> dict:
+        logger.info("[VECTOR][relationships] Analyzing communication style")
+        self.add_lesson({"action": "analyze_communication_style"})
+
+        interactions = self._recall_interactions(contact_name, 50)
 
         if not interactions:
-            interactions = [{"content": f"Sample interaction with {contact_name} for baseline analysis", "event_type": "message"}]
+            # No real history: do not fabricate a "sample interaction" and
+            # report an LLM-invented style as an analysis of this contact.
+            return {"status": "no_data", "contact_name": contact_name,
+                    "interactions_analyzed": 0, "style_data": {}}
 
-        texts = [i.get("content", "") for i in interactions]
+        texts = [i.get("content") or "" for i in interactions]
         combined_text = " ".join(texts)[:2000]
 
         avg_length = sum(len(t) for t in texts) / max(len(texts), 1)
@@ -66,6 +86,10 @@ Average message length: {round(avg_length)} chars
 Formal messages: {formal_count}, Casual messages: {casual_count}
 Return JSON: {{style: string, formality_score: float, responsiveness: string, tone: string, key_characteristics: string[], recommendations: string[]}}"""
         analysis = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+        if not (analysis or "").strip():
+            logger.warning("[VECTOR][relationships] Style analysis: LLM returned nothing")
+            return {"status": "error", "error": "llm_unavailable", "contact_name": contact_name,
+                    "interactions_analyzed": len(interactions), "style_data": {}}
 
         try:
             import re
@@ -78,6 +102,7 @@ Return JSON: {{style: string, formality_score: float, responsiveness: string, to
             style_data = {"style": analysis[:200], "formality_score": 0.5}
 
         result = {
+            "status": "ok",
             "contact_name": contact_name,
             "interactions_analyzed": len(interactions),
             "avg_message_length": round(avg_length, 1),
@@ -99,16 +124,15 @@ Return JSON: {{style: string, formality_score: float, responsiveness: string, to
         return result
 
     def suggest_reconnect(self, contact_name: str) -> dict:
-        logger.info(f"[VECTOR][relationships] Suggesting reconnection for: {contact_name}")
-        self.add_lesson({"action": "suggest_reconnect", "contact": contact_name})
+        logger.info("[VECTOR][relationships] Suggesting reconnection")
+        self.add_lesson({"action": "suggest_reconnect"})
 
-        # KNOWN_ISSUES #21 — see analyze_communication_style() above.
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        interactions = mem.recall(contact_name, limit=30)
+        interactions = self._recall_interactions(contact_name, 30)
 
-        last_interaction = interactions[0] if interactions else None
-        last_time = last_interaction.get("timestamp", "") if last_interaction else "Unknown"
+        # recall() is relevance-ranked, not chronological: take the newest
+        # timestamp rather than the first row.
+        stamps = [i.get("timestamp") for i in interactions if i.get("timestamp")]
+        last_time = max(stamps) if stamps else "Unknown"
 
         style = self.communication_profiles.get(contact_name, {})
         style_str = style.get("style", "formal" if style.get("formality_score", 0.5) > 0.6 else "casual")
@@ -119,8 +143,13 @@ Communication style: {style_str}
 Recent interactions: {json.dumps([i.get('content','')[:100] for i in interactions[:5]])}
 Include: 1) Best reconnection method (call/message/email), 2) Opening line suggestion, 3) Timing recommendation, 4) Topic ideas, 5) Expected response style."""
         suggestion = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+        if not (suggestion or "").strip():
+            logger.warning("[VECTOR][relationships] Reconnect suggestion: LLM returned nothing")
+            return {"status": "error", "error": "llm_unavailable", "contact_name": contact_name,
+                    "last_interaction": last_time}
 
         result = {
+            "status": "ok",
             "contact_name": contact_name,
             "last_interaction": last_time,
             "reconnection_suggestion": suggestion,
@@ -139,18 +168,20 @@ Include: 1) Best reconnection method (call/message/email), 2) Opening line sugge
         return result
 
     def generate_relationship_insights(self, contact_name: str) -> dict:
-        logger.info(f"[VECTOR][relationships] Generating relationship insights for: {contact_name}")
-        self.add_lesson({"action": "generate_relationship_insights", "contact": contact_name})
+        logger.info("[VECTOR][relationships] Generating relationship insights")
+        self.add_lesson({"action": "generate_relationship_insights"})
 
-        # KNOWN_ISSUES #21 — see analyze_communication_style() above.
-        from core.memory.episodic import EpisodicMemory
-        mem = EpisodicMemory()
-        interactions = mem.recall(contact_name, limit=50)
+        if not (contact_name or "").strip():
+            return {"status": "error", "error": "contact is required", "contact_name": contact_name}
+        interactions = self._recall_interactions(contact_name, 50)
+        if not interactions:
+            # Nothing to base a strength/trust/trajectory rating on.
+            return {"status": "no_data", "contact_name": contact_name, "interaction_count": 0}
 
         interaction_types = collections.Counter(i.get("event_type", "unknown") for i in interactions)
         content_keywords = collections.Counter()
         for i in interactions:
-            words = i.get("content", "").split()[:20]
+            words = (i.get("content") or "").split()[:20]
             content_keywords.update(words)
 
         style = self.communication_profiles.get(contact_name, {})
@@ -162,8 +193,13 @@ Communication style: {style}
 Total interactions: {len(interactions)}
 Include: 1) Relationship strength (1-10), 2) Trust level, 3) Communication health, 4) Shared interests, 5) Relationship trajectory (improving/stable/declining), 6) Actionable recommendations."""
         insights = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
+        if not (insights or "").strip():
+            logger.warning("[VECTOR][relationships] Relationship insights: LLM returned nothing")
+            return {"status": "error", "error": "llm_unavailable", "contact_name": contact_name,
+                    "interaction_count": len(interactions)}
 
         result = {
+            "status": "ok",
             "contact_name": contact_name,
             "interaction_count": len(interactions),
             "interaction_types": dict(interaction_types.most_common(5)),
@@ -184,8 +220,8 @@ Include: 1) Relationship strength (1-10), 2) Trust level, 3) Communication healt
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        result = self.generate_relationship_insights(p.get("contact", ""))
+        p = (task or {}).get("params") or {}
+        result = self.generate_relationship_insights(p.get("contact") or "")
         return {"status": "ok", **result}
 
 
@@ -194,14 +230,15 @@ if __name__ == "__main__":
     agent = CommunicationAnalyst()
     assert agent.district == "relationships"
 
+    # Without recorded interactions the agent must say so, not invent an analysis.
     style = agent.analyze_communication_style("Alice")
-    assert "style_data" in style
-    assert style["contact_name"] == "Alice"
+    assert "style_data" in style and style["contact_name"] == "Alice"
+    assert style["status"] in ("no_data", "ok", "error")
 
     reconnect = agent.suggest_reconnect("Alice")
-    assert "reconnection_suggestion" in reconnect
+    assert reconnect["status"] in ("ok", "error")
 
     insights = agent.generate_relationship_insights("Alice")
-    assert "relationship_insights" in insights
+    assert insights["status"] in ("no_data", "ok", "error")
 
     print("✅ communication_analyst.py OK")

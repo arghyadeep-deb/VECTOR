@@ -168,7 +168,9 @@ class TestCommunicationAnalyst:
 
     def test_analyze_communication_style_keys(self):
         """analyze_communication_style must return contact_name and style_data."""
-        mock_mem = _make_mock_memory(recall_return=[])
+        mock_mem = _make_mock_memory(recall_return=[
+            {"event_type": "message", "content": "hey yeah cool", "timestamp": "2026-05-01T10:00:00Z", "source": "gmail"},
+        ])
         llm_response = '{"style": "casual", "formality_score": 0.3, "responsiveness": "fast", "tone": "friendly", "key_characteristics": [], "recommendations": []}'
         with patch("districts.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
              patch("districts.relationships.communication_analyst.ObsidianSync"), \
@@ -217,7 +219,9 @@ class TestCommunicationAnalyst:
 
     def test_analyze_style_stores_in_memory(self):
         """After analyze_communication_style, EpisodicMemory.store should be called."""
-        mock_mem = _make_mock_memory(recall_return=[])
+        mock_mem = _make_mock_memory(recall_return=[
+            {"event_type": "email", "content": "Please find regards", "timestamp": "2026-05-01T10:00:00Z", "source": "gmail"},
+        ])
         with patch("districts.relationships.communication_analyst.EpisodicMemory", return_value=mock_mem), \
              patch("districts.relationships.communication_analyst.ObsidianSync"), \
              patch(_HYDRATE, return_value="[mock]"), \
