@@ -20,13 +20,12 @@ creation time and before each command (for resync on Modal).
 
 from __future__ import annotations
 
-import logging
 import os
 from contextvars import ContextVar
 from pathlib import Path
 from typing import Dict, List
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Session-scoped list of credential files to mount.
 # Backed by ContextVar to prevent cross-session data bleed in the gateway pipeline.
@@ -71,7 +70,7 @@ def register_credential_file(
     # Reject absolute paths — they bypass the VECTOR_HOME sandbox entirely.
     if os.path.isabs(relative_path):
         logger.warning(
-            "credential_files: rejected absolute path %r (must be relative to VECTOR_HOME)",
+            "credential_files: rejected absolute path {} (must be relative to VECTOR_HOME)",
             relative_path,
         )
         return False
@@ -85,7 +84,7 @@ def register_credential_file(
     containment_error = validate_within_dir(host_path, vector_home)
     if containment_error:
         logger.warning(
-            "credential_files: rejected path traversal %r (%s)",
+            "credential_files: rejected path traversal {} ({})",
             relative_path,
             containment_error,
         )
@@ -93,12 +92,12 @@ def register_credential_file(
 
     resolved = host_path.resolve()
     if not resolved.is_file():
-        logger.debug("credential_files: skipping %s (not found)", resolved)
+        logger.debug("credential_files: skipping {} (not found)", resolved)
         return False
 
     container_path = f"{container_base.rstrip('/')}/{relative_path}"
     _get_registered()[container_path] = str(resolved)
-    logger.debug("credential_files: registered %s -> %s", resolved, container_path)
+    logger.debug("credential_files: registered {} -> {}", resolved, container_path)
     return True
 
 
@@ -147,14 +146,14 @@ def _load_config_files() -> List[Dict[str, str]]:
                     rel = item.strip()
                     if os.path.isabs(rel):
                         logger.warning(
-                            "credential_files: rejected absolute config path %r", rel,
+                            "credential_files: rejected absolute config path {}", rel,
                         )
                         continue
                     host_path = vector_home / rel
                     containment_error = validate_within_dir(host_path, vector_home)
                     if containment_error:
                         logger.warning(
-                            "credential_files: rejected config path traversal %r (%s)",
+                            "credential_files: rejected config path traversal {} ({})",
                             rel, containment_error,
                         )
                         continue
@@ -166,7 +165,7 @@ def _load_config_files() -> List[Dict[str, str]]:
                             "container_path": container_path,
                         })
     except Exception as e:
-        logger.warning("Could not read terminal.credential_files from config: %s", e)
+        logger.warning("Could not read terminal.credential_files from config: {}", e)
 
     _config_files = result
     return _config_files
@@ -255,7 +254,7 @@ def _safe_skills_path(skills_dir: Path) -> str:
         return str(skills_dir)
 
     for link in symlinks:
-        logger.warning("credential_files: skipping symlink in skills dir: %s -> %s",
+        logger.warning("credential_files: skipping symlink in skills dir: {} -> {}",
                        link, os.readlink(link))
 
     import atexit
@@ -285,7 +284,7 @@ def _safe_skills_path(skills_dir: Path) -> str:
             shutil.rmtree(safe_dir, ignore_errors=True)
 
     atexit.register(_cleanup)
-    logger.info("credential_files: created symlink-safe skills copy at %s", safe_dir)
+    logger.info("credential_files: created symlink-safe skills copy at {}", safe_dir)
     return str(safe_dir)
 
 
@@ -311,7 +310,7 @@ def iter_skills_files(
             rel = item.relative_to(skills_dir)
             result.append({
                 "host_path": str(item),
-                "container_path": f"{container_root}/{rel}",
+                "container_path": f"{container_root}/{rel.as_posix()}",
             })
 
     # Include external skill dirs
@@ -327,7 +326,7 @@ def iter_skills_files(
                 rel = item.relative_to(ext_dir)
                 result.append({
                     "host_path": str(item),
-                    "container_path": f"{container_root}/{rel}",
+                    "container_path": f"{container_root}/{rel.as_posix()}",
                 })
     except ImportError:
         logger.debug("[VECTOR] suppressed exception", exc_info=True)
@@ -395,7 +394,7 @@ def iter_cache_files(
             rel = item.relative_to(host_dir)
             result.append({
                 "host_path": str(item),
-                "container_path": f"{container_root}/{rel}",
+                "container_path": f"{container_root}/{rel.as_posix()}",
             })
     return result
 
