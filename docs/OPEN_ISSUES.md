@@ -1168,6 +1168,86 @@ grew open engineering items; section 0 lists them.
     callers; same precedent as `emergency/log.py`). Behavior choices worth a second look:
     `time_calendar.run()` now returns `error` (not `ok`) when Google Calendar isn't configured, and
     `AINewsBot.run()` with no URL now fetches news (previously summarized `""`).
+    **Self_dev + legal_compliance + privacy + personal_growth + calls + chief_of_staff + skills + science
+    + relationships + pattern_detective + reflection audit (commits `5c10506e`, `1ad7b8e0`, `a27246ab`,
+    `5adcc112`, `4f0f5d95`, `80f52bb9`, `f79ddbe2`, `61197622`, `9e14fae7`) — ~118 fixes, 11 new
+    `tests/test_audit_phase3_*.py` files; each re-run by Claude against the pre-audit commit `66c9c9bc`.**
+    **`privacy` (priority) — it DID leak what it protects:** `redact_pii` returned and stored (via
+    `context=result` into episodic memory) the raw emails/phones/Aadhaar it had just matched
+    (`examples: matches[:3]`); `find_leaks` copied scanned event content (`content_preview`, which can be a
+    password/token) into its returned result, `self.leak_candidates` and a new episodic row; both LLM calls
+    omitted `district`/`sensitive`/`allow_cloud`, and `route_policy` only forces local for the
+    `security`/`privacy` district, `sensitive=True`, RED or a narrow secret-word list (emails, phones, PAN,
+    "token" are NOT on it) — so PII-adjacent prompts could reach pooled cloud keys. All three fixed
+    (`district="privacy", sensitive=True, allow_cloud=False`; fields removed). Also: empty/failed reads
+    reported `LOW` risk (now `status: no_data`), MEDIUM rolled up to LOW, empty audit report stored as ok,
+    the uppercase-only PAN regex ran on lowercased text (never matched). **Routing-enforcement verdict:
+    the district has NO cloud-vs-local enforcement logic at all** — it keyword-counts episodic text and
+    runs PII regexes; it never inspects providers or endpoints, so its "cloud vs local enforcement" role
+    is unimplemented (needs a design decision). **Core issues found, not fixed (core/ off limits):**
+    `vectorcode_llm.chat` leaves `local_only=False` if `route_policy` raises (fails OPEN for sensitive
+    prompts, debug-logged; ~L676 and ~L850); `route_policy._is_local` uses substring checks
+    (`"localhost" in base_url`, so `localhost.evil.com` / `http://127.0.0.1@evil.com` pass, and a remote
+    vLLM URL counts as local); the secret-marker list is narrow so privacy depends on callers passing the
+    flags; `EpisodicMemory.recall()` swallows read errors and returns `[]` (indistinguishable from empty
+    memory — 4 districts had to report `no_data` for both). **`calls` (priority) — plaintext call
+    content:** caller numbers and contact names at INFO and in HP-ledger award reasons (now masked to the
+    last 4 digits / constant reasons); the audio filename (often embeds the caller number) logged; first 50
+    chars of the LLM reply logged; **all four LLM paths (spam check, transcript summary, action items,
+    voice response) went through `ProviderClient` with no `district`/`sensitive` flag, so call content
+    could reach pooled cloud keys** (now `sensitive=True, district="calls"`); exception strings that echo
+    the prompt (transcript) logged; raw temp wav left on disk on failure. Also: `"SPAM" in "NOT_SPAM"`
+    added +0.3 spam to every non-spam verdict; `add_contact("")` / hidden-ID VIP whitelisted every
+    hidden-ID caller (fail-open); blank transcription and the canned "I heard you: {text}" fallback
+    reported as success (and the fallback was sent to TTS); TTS `output_path` unconfined (CWE-22). **No real
+    call action exists in the district** (no answer/reject/SMS/ADB/Twilio; TTS only writes a file); whatever
+    consumes `screen_call`'s block/allow decision to act on a call must be gated and there is no call
+    action type in the permission tiers yet (tier-policy decision). **Other districts:** `reflection` —
+    `growth_analyst` queried a nonexistent `semantic_memory.timestamp` column (real column `updated_at`)
+    so the weekly trend NEVER had real data; a canned "LLM reflection unavailable" body was written to
+    the vault as the owner's journal with +50 HP and a 0.85 reasoning chain; a failed DB read was treated
+    as a quiet day (LLM then invented wins/policy rules/score); `growth_score` stored the heading
+    `## GROWTH_SCORE` instead of the number; the cutoff was naive local vs aware-UTC stored timestamps
+    (lost ~5.5h of events in IST); `W%V-%Y` made 2025-12-29 overwrite the real W01-2025 note.
+    `chief_of_staff` — `episodic.store()` saves tags as JSON but the noise filter split on commas, so
+    **tag-based SIGNAL rules (security/threat/malware/deadline) never matched real events and they were
+    dropped as noise**; a ROUTINE substring match (`security_scan`, `deadline_sync`) beat a CRITICAL
+    marker; a failed event pull produced "No significant signals today"; a failed council escalation was
+    reported routed with +10 HP; `run_forever` slept 60 minutes per "minute" tick so the 5-minute 08:00/22:00
+    brief windows were mostly skipped. `legal_compliance` — malformed trigger flags (`"yes"`) skipped the
+    identity/consent/conflict/deadline safeguards (false PASS), string/blank rule lists passed vacuously,
+    prohibited phrases split by a newline or curly apostrophe were missed, unverified checks returned `ok`.
+    `self_dev` — read-only district (no write/subprocess/git primitives; confirmed by search); four
+    verification checks failed open: a failed audit returned `status: ok`, generated agents calling
+    `subprocess`/`eval`/`exec` passed, a plugin entrypoint `../../core/loop/permission_gateway.py` passed
+    confinement, empty skill-comparison expectations passed. `personal_growth` — ZKSteward backlinks
+    wrote to any path (now `.md` inside the vault), a re-run replaced prior links with only the new ones,
+    LLM-suggested link names (hallucinated or `../../x`) were written into notes; canned synthesis written
+    as a real report; own report re-ingested as input. `skills`/`science` — `mastery_tracker.track_mastery`
+    raised TypeError on EVERY call; a NaN score became "Master"; canned skill maps/gaps cached as real;
+    invalid SMILES, NaN/negative physics and CAD input reported `ok`. `relationships`/`pattern_detective`
+    — contact names/phones/messages and the owner's activity log went to cloud-eligible LLM calls and
+    names to INFO logs and persisted ghost-memory lessons (re-injected into prompts); re-adding a contact
+    (`INSERT OR REPLACE`) wiped interaction history; unknown-contact `track_interaction` stored an orphan
+    row and said ok; the analyst analysed its own derived events as the owner's behavior;
+    `BehaviorAnalyst.run` was a silent no-op. **Flagged, not fixed (design / tier-policy):** `contacts.db`
+    (names, phones, emails, notes) and `call_contacts.json` are plaintext outside the SQLCipher DB;
+    `CommunicationAnalyst` never reads real message text (joins two stores); `_normalize_caller_id` turns
+    any 10-digit number into `+1…` so an Indian number can evade the blocklist by format; `calls` never
+    calls `session_hydration_prompt()` (RULE 1) or `policy.get_score/update_from_outcome` (RULE 4);
+    `core/loop/cron_jobs.py` `job_daily_review`/`job_weekly_growth_report` call `agent.run({})` which does
+    nothing under the 2026-08-06 gating and returns ok (needs `{"type":"review"}` etc.; not checked
+    whether scheduled); reflection/chief_of_staff `run_forever` sleep-granularity bug in reflection's
+    instance loops (dead code — the live path is `AutonomousLoop._reflect_tick`); reflection policy
+    learning never aggregates (date in the situation hash, constant 0.65 reward); nudge engine
+    "`nudge_sent`" only means generated+logged (no delivery path exists — gate when one is added);
+    ZKSteward/FeedbackSynthesizer write the owner's vault ungated (confined now; YELLOW tier is a policy
+    call); `behavior_analyst`/`habit_finder` bucket time-of-day in UTC though `vector_timezone` is
+    Asia/Kolkata; `GapAnalyst` returns canned scores/ranks unless `VECTOR_SKILLS_LLM=1` (deliberate gate;
+    marked `source: fallback`); `SkillGrader.passing_score` is caller-set (0 passes everything);
+    chief_of_staff `_rice` treats missing fields as 0; `science` engines in core use a small-angle
+    pendulum and heuristic SMILES validity when rdkit is absent; `legal` keyword emergency detection
+    ("can't breathe" unmatched) and exact-match `prescription_drug`.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
