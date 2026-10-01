@@ -42,41 +42,47 @@ class AINewsBot(AgentBase):
         )
 
     def fetch_ai_news(self, count: int = 5) -> dict:
-        logger.info(f"[VECTOR][news_trends] Fetching {count} AI news articles")
+        logger.info("[VECTOR][news_trends] Fetching {} AI news articles", count)
         self.add_lesson({"action": "fetch_ai_news", "count": count})
 
         articles = []
+        error = ""
 
         try:
             import httpx
-            newsapi_key = CONFIG["api_keys"].get("newsapi_key", "")
-            if newsapi_key:
-                url = f"https://newsapi.org/v2/everything?q=artificial+intelligence+OR+LLM+OR+machine+learning&sortBy=publishedAt&pageSize={count}&apiKey={newsapi_key}"
-                with httpx.Client(timeout=30.0) as client:
-                    resp = client.get(url, headers={"User-Agent": "VECTOR-NewsBot/1.0"})
-                    data = resp.json()
-                    articles = [
-                        {
-                            "title": a.get("title", ""),
-                            "source": a.get("source", {}).get("name", ""),
-                            "url": a.get("url", ""),
-                            "publishedAt": a.get("publishedAt", ""),
-                            "description": a.get("description", ""),
-                        }
-                        for a in data.get("articles", [])[:count]
-                    ]
-            else:
+            newsapi_key = str(CONFIG["api_keys"].get("newsapi_key", "") or "")
+            if not newsapi_key:
                 raise ValueError("No NewsAPI key configured")
+            with httpx.Client(timeout=30.0) as client:
+                resp = client.get(
+                    "https://newsapi.org/v2/everything",
+                    params={"q": "artificial intelligence OR LLM OR machine learning",
+                            "sortBy": "publishedAt", "pageSize": count},
+                    # key in a header, not the URL: httpx errors/logs embed the URL
+                    headers={"User-Agent": "VECTOR-NewsBot/1.0", "X-Api-Key": newsapi_key},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                if data.get("status") == "error":
+                    raise RuntimeError(f"NewsAPI error: {data.get('code', data.get('message', 'unknown'))}")
+                articles = [
+                    {
+                        "title": a.get("title", ""),
+                        "source": (a.get("source") or {}).get("name", ""),
+                        "url": a.get("url", ""),
+                        "publishedAt": a.get("publishedAt", ""),
+                        "description": a.get("description", ""),
+                    }
+                    for a in data.get("articles", [])[:count]
+                ]
         except Exception as e:
-            logger.warning(f"[VECTOR][news_trends] NewsAPI fetch failed: {e}, using simulated news")
-            sample_articles = [
-                {"title": "New LLM Architecture Achieves SOTA on Multiple Benchmarks", "source": "arXiv", "url": "https://arxiv.org", "publishedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "description": "Researchers propose new transformer variant with improved efficiency"},
-                {"title": "OpenAI Releases New Model with Enhanced Reasoning", "source": "OpenAI Blog", "url": "https://openai.com", "publishedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "description": "New model shows significant improvements in mathematical reasoning"},
-                {"title": "AI Startups Raise Record Funding in Q1 2026", "source": "TechCrunch", "url": "https://techcrunch.com", "publishedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "description": "AI sector sees unprecedented investment growth"},
-                {"title": "New Tool for AI Code Generation Released", "source": "Hacker News", "url": "https://news.ycombinator.com", "publishedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "description": "Open source tool for AI-assisted coding"},
-                {"title": "Multimodal AI Models Make Breakthrough in Vision Tasks", "source": "MIT Review", "url": "https://technologyreview.com", "publishedAt": datetime.datetime.now(datetime.timezone.utc).isoformat(), "description": "New approach combines visual and language understanding"},
-            ]
-            articles = sample_articles[:count]
+            # Previously returned five canned "simulated" headlines as real news.
+            error = f"{type(e).__name__}: {e}"
+            logger.warning("[VECTOR][news_trends] NewsAPI fetch failed: {}", error)
+
+        if error:
+            return {"status": "error", "error": error, "articles": [], "count": 0,
+                    "fetched_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
 
         self.news_cache = articles
 
@@ -97,15 +103,27 @@ class AINewsBot(AgentBase):
         return result
 
     def generate_summary(self, article_url: str) -> dict:
-        logger.info(f"[VECTOR][news_trends] Generating summary for: {article_url}")
+        logger.info("[VECTOR][news_trends] Generating summary for: {}", article_url)
         self.add_lesson({"action": "generate_summary", "url": article_url})
 
-        article_text = ""
+        def _err(msg: str) -> dict:
+            return {"status": "error", "error": msg, "article_url": article_url, "summary": ""}
+
+        if not article_url:
+            return _err("no article url given")
+        from core.security.ssrf_guard import get_ssrf_guard
+        chk = get_ssrf_guard().check_url(article_url)
+        if not chk.safe:
+            logger.warning("[VECTOR][news_trends] SSRF blocked: {}", chk.reason)
+            return _err(f"url blocked: {chk.reason}")
+
         try:
             import httpx
             from html.parser import HTMLParser
             with httpx.Client(timeout=30.0) as client:
+                # no redirects: a 302 to an internal host would bypass the check above
                 resp = client.get(article_url, headers={"User-Agent": "VECTOR-NewsBot/1.0"})
+                resp.raise_for_status()
                 class MLStripper(HTMLParser):
                     def __init__(self):
                         super().__init__()
@@ -120,11 +138,17 @@ class AINewsBot(AgentBase):
                 s.feed(html)
                 article_text = s.get_data()[:3000]
         except Exception as e:
-            logger.warning(f"[VECTOR][news_trends] Could not fetch article: {e}")
-            article_text = f"Article content from {article_url}. Full content would be fetched and processed for summary."
+            # Previously fed a canned placeholder to the LLM and returned its
+            # invented "summary" as a real one.
+            logger.warning("[VECTOR][news_trends] Could not fetch article: {}", e)
+            return _err(f"could not fetch article: {type(e).__name__}: {e}")
+        if not article_text.strip():
+            return _err("article had no extractable text")
 
         prompt = f"Summarize this article in 5 bullet points and a 2-sentence overview.\n\nArticle: {article_text}"
         summary = self._call_ollama(prompt)
+        if not (summary or "").strip():
+            return _err("LLM returned no summary")
 
         result = {
             "article_url": article_url,
@@ -147,6 +171,12 @@ class AINewsBot(AgentBase):
         self.add_lesson({"action": "alert_breaking", "topic": topic})
 
         news_result = self.fetch_ai_news(10)
+        if news_result.get("status") == "error":
+            # a failed fetch is not "nothing breaking"
+            return {"status": "error", "error": news_result.get("error", "news fetch failed"),
+                    "topic": topic, "is_breaking": False, "relevant_articles": 0,
+                    "articles": [], "alert_level": "UNKNOWN",
+                    "checked_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
         relevant = [
             a for a in news_result["articles"]
             if topic.lower() in a.get("title", "").lower() or topic.lower() in a.get("description", "").lower()
@@ -178,9 +208,14 @@ class AINewsBot(AgentBase):
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
-        summary = self.generate_summary(p.get("url", ""))
-        return {"status": "ok", **summary}
+        p = task.get("params") or {}
+        url = p.get("url", "")
+        if not url:
+            # governor routes plain "news"/"ai_news" tasks here with no url
+            result = self.fetch_ai_news(int(p.get("count", 5) or 5))
+        else:
+            result = self.generate_summary(url)
+        return {"status": "ok", **result}
 
 
 if __name__ == "__main__":
@@ -189,8 +224,7 @@ if __name__ == "__main__":
     assert bot.district == "news_trends"
 
     news = bot.fetch_ai_news(3)
-    assert "articles" in news
-    assert news["count"] >= 1
+    assert "articles" in news  # empty + status=error when no NewsAPI key/network
 
     summary = bot.generate_summary("https://example.com/article")
     assert "summary" in summary

@@ -48,23 +48,25 @@ class TestAINewsBot:
         assert isinstance(bot.news_cache, list)
         assert isinstance(bot.alerts, list)
 
-    def test_fetch_ai_news_returns_articles(self):
-        """fetch_ai_news falls back to sample articles when no API key configured."""
+    def test_fetch_ai_news_no_key_is_error_not_sample_articles(self):
+        """No NewsAPI key: honest error + zero articles (no simulated news)."""
         bot = self._make_bot()
-        # Ensure no real API key is used by patching CONFIG
         with patch("districts.news_trends.ai_news_bot.CONFIG",
                    {"api_keys": {}, "models": {"focus": "vector-focus"}}):
             result = bot.fetch_ai_news(3)
-        assert "articles" in result
-        assert "count" in result
+        assert result["status"] == "error"
+        assert result["articles"] == []
+        assert result["count"] == 0
         assert "fetched_at" in result
-        assert result["count"] >= 1
-        assert isinstance(result["articles"], list)
 
     def test_generate_summary_calls_ollama(self):
         """generate_summary calls _call_ollama and returns expected keys."""
         bot = self._make_bot()
-        with patch.object(bot, "_call_ollama", return_value="• Point 1\n• Point 2"):
+        import httpx
+        page = httpx.Response(200, text="<p>Real article body</p>",
+                              request=httpx.Request("GET", "https://example.com/article"))
+        with patch.object(httpx.Client, "get", return_value=page), \
+             patch.object(bot, "_call_ollama", return_value="• Point 1\n• Point 2"):
             result = bot.generate_summary("https://example.com/article")
         assert "summary" in result
         assert "article_url" in result

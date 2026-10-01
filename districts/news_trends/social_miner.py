@@ -55,6 +55,8 @@ _PROBLEM_PATTERNS = [
 ]
 _PROBLEM_RE = re.compile("|".join(_PROBLEM_PATTERNS), re.IGNORECASE)
 
+_SUBREDDIT_RE = re.compile(r"^[A-Za-z0-9_]{2,21}$")
+
 _UA = {"User-Agent": "VECTOR-personal-research/1.0 (single-user local agent)"}
 
 
@@ -83,6 +85,8 @@ class SocialMiner(AgentBase):
         self.subreddits: list[str] = list(vcfg.get("subreddits", _DEFAULT_SUBREDDITS))
         self.days: int = int(vcfg.get("window_days", 30))
         self.per_source_limit: int = int(vcfg.get("per_source_limit", 100))
+        self._fetch_ok = 0
+        self._fetch_failed = 0
 
     # ── Reddit (public JSON, no auth) ────────────────────────────────────────
 
@@ -91,12 +95,18 @@ class SocialMiner(AgentBase):
         import httpx
         posts: list[dict] = []
         cutoff = time.time() - self.days * 86400
+        if not _SUBREDDIT_RE.match(str(subreddit)):
+            # subreddit names can arrive via task params; never splice them into the URL path
+            logger.warning("[VECTOR][social_miner] invalid subreddit name {!r} — skipping", subreddit)
+            self._fetch_failed += 1
+            return posts
         url = f"https://www.reddit.com/r/{subreddit}/new.json"
         try:
             r = httpx.get(url, params={"limit": self.per_source_limit},
                           headers=_UA, timeout=20.0, follow_redirects=True)
             if r.status_code == 429:
                 logger.warning("[VECTOR][social_miner] reddit rate-limited on r/{} — skipping", subreddit)
+                self._fetch_failed += 1
                 return posts
             r.raise_for_status()
             for child in r.json().get("data", {}).get("children", []):
@@ -116,7 +126,9 @@ class SocialMiner(AgentBase):
                     "url": f"https://reddit.com{d.get('permalink', '')}",
                     "created_utc": d.get("created_utc", 0),
                 })
+            self._fetch_ok += 1
         except Exception as e:
+            self._fetch_failed += 1
             logger.warning("[VECTOR][social_miner] reddit r/{} failed: {}", subreddit, e)
         return posts
 
@@ -153,7 +165,9 @@ class SocialMiner(AgentBase):
                         "url": f"https://news.ycombinator.com/item?id={hit.get('objectID', '')}",
                         "created_utc": hit.get("created_at_i", 0),
                     })
+                self._fetch_ok += 1
             except Exception as e:
+                self._fetch_failed += 1
                 logger.warning("[VECTOR][social_miner] hn query '{}' failed: {}", q, e)
         return posts
 
@@ -162,10 +176,19 @@ class SocialMiner(AgentBase):
     def mine_all(self) -> dict:
         """Mine every source, dedupe by URL, snapshot to data/venture/."""
         all_posts: list[dict] = []
+        self._fetch_ok = self._fetch_failed = 0
         for sub in self.subreddits:
             all_posts.extend(self.mine_reddit(sub))
             time.sleep(1.0)  # polite pacing — avoids reddit 429s
         all_posts.extend(self.mine_hackernews())
+
+        if self._fetch_ok == 0 and self._fetch_failed > 0:
+            # every fetch failed: not "no problems found", and must not become the
+            # "latest snapshot" that downstream stages cluster
+            logger.error("[VECTOR][social_miner] all {} source fetches failed — no snapshot written",
+                         self._fetch_failed)
+            return {"status": "error", "error": f"all {self._fetch_failed} source fetches failed",
+                    "count": 0, "snapshot": "", "posts": [], "failed_sources": self._fetch_failed}
 
         seen: set[str] = set()
         unique = []
@@ -184,7 +207,11 @@ class SocialMiner(AgentBase):
         logger.info("[VECTOR][social_miner] {} problem posts ({} raw) -> {}",
                     len(unique), len(all_posts), out)
         self.award_points(10, "social_mining_complete")
-        return {"count": len(unique), "snapshot": str(out), "posts": unique}
+        res = {"count": len(unique), "snapshot": str(out), "posts": unique,
+               "failed_sources": self._fetch_failed}
+        if self._fetch_failed:
+            res["status"] = "partial"
+        return res
 
     @staticmethod
     def latest_snapshot() -> dict | None:
@@ -198,7 +225,7 @@ class SocialMiner(AgentBase):
             return None
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params") or {}
         if p.get("subreddits"):
             self.subreddits = list(p["subreddits"])
         if p.get("days"):
