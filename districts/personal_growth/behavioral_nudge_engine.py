@@ -49,6 +49,7 @@ class BehavioralNudgeEngine(AgentBase):
             self.inherit_ghost(ghost)
         self._memory = EpisodicMemory()
         self._last_nudge_time: datetime.datetime | None = None
+        self._last_nudge_source = ""
         # Minimum gap between nudges (avoid spamming)
         self._nudge_cooldown_minutes = 45
         logger.info(f"[VECTOR][behavioral_nudge_engine] ready gen={generation}")
@@ -122,7 +123,7 @@ class BehavioralNudgeEngine(AgentBase):
             logger.warning(
                 f"[VECTOR][behavioral_nudge_engine] analyze_recent_activity failed: {e}"
             )
-            return {"events": [], "last_timestamp": None, "mood_signals": []}
+            return {"events": [], "last_timestamp": None, "mood_signals": [], "error": str(e)}
 
         events = []
         mood_signals = []
@@ -130,13 +131,12 @@ class BehavioralNudgeEngine(AgentBase):
 
         for row in rows:
             event_type = row[0]
-            tags_raw = row[2] if len(row) > 2 else None  # row[2] is timestamp here; fix idx
-            # correct: row = (event_type, tags, timestamp)
+            # row = (event_type, tags, timestamp)
             tags = []
             try:
                 tags = json.loads(row[1]) if row[1] else []
-            except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except Exception as exc:
+                logger.debug("[VECTOR][behavioral_nudge_engine] bad tags json: {}", exc)
             ts = row[2]
             if last_ts is None:
                 last_ts = ts
@@ -270,13 +270,15 @@ class BehavioralNudgeEngine(AgentBase):
                 ],
                 timeout=30.0,
             )
-            if response:
+            if response and response.strip():
+                self._last_nudge_source = "llm"
                 return response.strip()
         except Exception as e:
             logger.warning(
                 f"[VECTOR][behavioral_nudge_engine] LLM nudge failed, using fallback: {e}"
             )
 
+        self._last_nudge_source = "fallback"
         # Fallback nudge mapping
         fallbacks = {
             "high": "Time to grind. Pick one VECTOR district and ship something before lunch.",
@@ -350,6 +352,17 @@ class BehavioralNudgeEngine(AgentBase):
             activity = self.analyze_recent_activity(hours=24)
             proc = self.detect_procrastination_pattern()
 
+            detect_err = str(proc.get("reason", ""))
+            if detect_err.startswith(("query_error", "parse_error")) or activity.get("error"):
+                # Cannot tell idle from active when the activity store is unreadable.
+                logger.error("[VECTOR][behavioral_nudge_engine] activity unreadable: {}", detect_err or activity.get("error"))
+                return {
+                    "status": "error",
+                    "error": f"activity unreadable: {detect_err or activity.get('error')}",
+                    "nudge_sent": False,
+                    "hp": self.health_points,
+                }
+
             context = {
                 **time_ctx,
                 "procrastination_detected": proc["detected"],
@@ -401,6 +414,7 @@ class BehavioralNudgeEngine(AgentBase):
                 "idle_minutes": proc["idle_minutes"],
                 "nudge_sent": nudge_sent,
                 "nudge_text": nudge_text,
+                "nudge_source": self._last_nudge_source if nudge_sent else "",
                 "style_hints": style_hints,
                 "hp": self.health_points,
             }

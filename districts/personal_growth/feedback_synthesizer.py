@@ -34,6 +34,7 @@ class FeedbackSynthesizer(AgentBase):
         self._model = CONFIG.get("models", {}).get("reasoning", "vector-reasoning")
         self._vault_path = Path(CONFIG.get("paths", {}).get("obsidian_vault",
                                 str(Path.home() / "V.E.C.T.O.R Brain")))
+        self._source_errors: list[str] = []
         logger.info("[VECTOR][feedback_synth] initialized")
 
     def _get_memory(self):
@@ -62,11 +63,13 @@ class FeedbackSynthesizer(AgentBase):
                         ts = ts.replace(tzinfo=datetime.timezone.utc)
                     if ts < cutoff:
                         continue
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as exc:
+                    # Unparseable timestamp: cannot prove it is inside the window.
+                    logger.debug("[VECTOR][feedback_synth] skip event, bad timestamp {!r}: {}", ts_str, exc)
+                    continue
 
-                content = e.get("content", "")
-                event_type = e.get("event_type", "")
+                content = e.get("content", "") or ""
+                event_type = e.get("event_type", "") or ""
 
                 # Collect failure signals
                 if "error" in event_type.lower() or "failed" in content.lower():
@@ -79,18 +82,27 @@ class FeedbackSynthesizer(AgentBase):
             return feedback_signals[:30]
         except Exception as e:
             logger.warning("[VECTOR][feedback_synth] memory collection failed: {}", e)
+            self._source_errors.append(f"memory: {e}")
             return []
 
     def collect_from_obsidian(self) -> list[str]:
         """Scan Obsidian vault for feedback notes about VECTOR."""
         feedback = []
         if not self._vault_path.exists():
+            logger.warning("[VECTOR][feedback_synth] vault not found: {}", self._vault_path)
+            self._source_errors.append(f"obsidian: vault not found: {self._vault_path}")
             return feedback
 
         # Look for notes with feedback keywords
         feedback_keywords = ["VECTOR feedback", "VECTOR issue", "VECTOR bug", "VECTOR improvement",
                              "doesn't work", "fix VECTOR", "VECTOR should", "annoying", "wrong output"]
-        for f in sorted(self._vault_path.rglob("*.md"), key=lambda x: x.stat().st_mtime, reverse=True)[:50]:
+        # Exclude our own reports ("VECTOR Feedback <date>.md" contains the
+        # keyword "VECTOR feedback") so output is never re-ingested as input.
+        candidates = [
+            f for f in self._vault_path.rglob("*.md")
+            if not f.name.startswith("VECTOR Feedback ")
+        ]
+        for f in sorted(candidates, key=lambda x: x.stat().st_mtime, reverse=True)[:50]:
             try:
                 content = f.read_text(encoding="utf-8", errors="replace")
                 for kw in feedback_keywords:
@@ -100,8 +112,8 @@ class FeedbackSynthesizer(AgentBase):
                             if kw.lower() in para.lower():
                                 feedback.append(f"[OBSIDIAN:{f.stem}] {para[:150]}")
                         break
-            except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except Exception as exc:
+                logger.warning("[VECTOR][feedback_synth] unreadable note {}: {}", f.name, exc)
         return feedback[:20]
 
     async def synthesize_feedback(self, signals: list[str], obsidian_notes: list[str]) -> dict:
@@ -134,16 +146,27 @@ class FeedbackSynthesizer(AgentBase):
             response = chat(model=self._model, messages=_msgs, timeout=25.0)
             match = re.search(r'\{.*\}', response, re.DOTALL)
             if match:
-                return _json.loads(match.group())
+                parsed = _json.loads(match.group())
+                if isinstance(parsed, dict):
+                    for key in ("themes", "top_improvements", "quick_wins"):
+                        val = parsed.get(key, [])
+                        if isinstance(val, str):
+                            val = [val]
+                        parsed[key] = [str(v) for v in val] if isinstance(val, list) else []
+                    parsed["severity"] = str(parsed.get("severity") or "none").lower()
+                    parsed["sentiment"] = str(parsed.get("sentiment") or "neutral").lower()
+                    return parsed
         except Exception as e:
             logger.warning("[VECTOR][feedback_synth] synthesis failed: {}", e)
 
+        # Never fabricate canned "findings" for real signals: report failure.
         return {
-            "themes": ["system errors", "response quality"],
-            "top_improvements": ["Improve error handling", "Add more context to responses"],
-            "severity": "low",
-            "sentiment": "neutral",
-            "quick_wins": ["Add better logging", "Improve error messages"],
+            "themes": [],
+            "top_improvements": [],
+            "quick_wins": [],
+            "severity": "unknown",
+            "sentiment": "unknown",
+            "synthesis_failed": True,
         }
 
     def write_feedback_report(self, synthesis: dict, signal_count: int) -> str:
@@ -151,7 +174,7 @@ class FeedbackSynthesizer(AgentBase):
         ts = datetime.datetime.now().strftime("%Y-%m-%d")
         content = (
             f"# VECTOR Feedback Report — {ts}\n\n"
-            f"**Severity: {synthesis.get('severity', 'none').upper()}** | "
+            f"**Severity: {str(synthesis.get('severity') or 'none').upper()}** | "
             f"Sentiment: {synthesis.get('sentiment', 'neutral')}\n"
             f"*Signals collected: {signal_count}*\n\n"
             f"## Recurring Themes\n"
@@ -211,14 +234,30 @@ class FeedbackSynthesizer(AgentBase):
                 return {"status": "ok", "response": answer}
 
         try:
-            days = task.get("days", 7)
+            params = task.get("params") if isinstance(task.get("params"), dict) else {}
+            days = task.get("days") or params.get("days") or 7
+            self._source_errors = []
             # Collect from all sources
             memory_signals = self.collect_from_memory(days=days)
             obsidian_notes = self.collect_from_obsidian()
             all_signals = memory_signals + obsidian_notes
+            source_errors = list(self._source_errors)
+
+            if not all_signals and source_errors:
+                # Nothing readable: this is NOT "no issues".
+                logger.error("[VECTOR][feedback_synth] no feedback source readable: {}", source_errors)
+                return {"status": "error", "error": "no feedback source readable", "source_errors": source_errors}
 
             # Synthesize
             synthesis = await self.synthesize_feedback(memory_signals, obsidian_notes)
+            if synthesis.get("synthesis_failed"):
+                self.deduct_points(10, "feedback_synthesis_llm_failed")
+                return {
+                    "status": "error",
+                    "error": "synthesis failed",
+                    "signals_collected": len(all_signals),
+                    "source_errors": source_errors,
+                }
             report_path = self.write_feedback_report(synthesis, len(all_signals))
 
             # Store synthesis in memory
@@ -244,6 +283,7 @@ class FeedbackSynthesizer(AgentBase):
                 "signals_collected": len(all_signals),
                 "synthesis": synthesis,
                 "report_path": report_path,
+                "source_errors": source_errors,
             }
 
         except Exception as e:
