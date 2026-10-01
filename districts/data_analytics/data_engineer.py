@@ -44,6 +44,9 @@ class DataEngineer(AgentBase):
     # Path to VECTOR's primary SQLite DB (same as CONFIG['db_path'])
     VECTOR_DB_PATH: Path = configured_db_path()
 
+    _B2S_ROW_CAP = 10000
+    _PROFILE_LIMIT_MAX = 100000
+
     def __init__(self, generation: int = 1, ghost: dict | None = None):
         super().__init__(
             agent_id=str(uuid.uuid4()),
