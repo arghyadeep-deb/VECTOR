@@ -19,6 +19,8 @@ Use cases:
 """
 from __future__ import annotations
 
+import html as _html
+
 __all__ = [
     "build_composition_from_content",
     "CaptureOptions",
@@ -243,11 +245,18 @@ def build_composition_from_content(
     """
     Build a VECTOR HTML composition from extracted web content.
         """
-    title    = content.title or "Website Overview"
-    headline = content.headline or title
-    desc     = content.description[:200] if content.description else ""
-    url      = content.url
-    domain   = re.sub(r"https?://(www\.)?", "", url).split("/")[0]
+    # content.title/.headline/.description were extracted via regex from a
+    # SCRAPED, attacker-controlled webpage's <title>/og:*/<h1> tags -- this
+    # HTML is then rendered by a real headless browser (capture_screenshot),
+    # so an unescaped </div><script> in a malicious page's title/og tags
+    # executed arbitrary JS in that render context. Escape everything
+    # interpolated into the generated composition, including the
+    # caller-supplied url (defense in depth, lower risk but still rendered).
+    title    = _html.escape(content.title or "Website Overview")
+    headline = _html.escape(content.headline or (content.title or "Website Overview"))
+    desc     = _html.escape(content.description[:200] if content.description else "")
+    url      = _html.escape(content.url)
+    domain   = _html.escape(re.sub(r"https?://(www\.)?", "", content.url).split("/")[0])
 
     screenshot_css = ""
     screenshot_html = ""
