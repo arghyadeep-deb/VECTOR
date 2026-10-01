@@ -106,6 +106,80 @@ async def test_ads_audit_memory_store_call_does_not_crash():
 
 
 @pytest.mark.asyncio
+async def test_ads_dna_capture_screenshot_uses_real_cli_flags():
+    """capture_screenshot.py takes a positional url + --viewport
+    (desktop/tablet/mobile); the call site used to pass --url/--device, which
+    don't exist on that script's argparse at all -- always
+    "unrecognized arguments", always a wasted failing subprocess spawn."""
+    agent = AdsOrchestratorAgent()
+    captured_args = {}
+
+    def _fake_run_script(script_name, args):
+        captured_args[script_name] = args
+        return {"output": "ok"}
+
+    agent._run_script = _fake_run_script
+    agent._load_reference = lambda name: ""
+
+    async def _fake_chat(prompt, model=None):
+        return "brand dna result"
+
+    import districts.marketing.ads_orchestrator_agent as mod
+    original_chat = mod.chat
+    mod.chat = _fake_chat
+    try:
+        await agent.run({"type": "ads_dna", "params": {"url": "https://example.com"}})
+    finally:
+        mod.chat = original_chat
+
+    ss_args = captured_args.get("capture_screenshot.py")
+    assert ss_args is not None
+    assert "--url" not in ss_args, "capture_screenshot.py has no --url flag"
+    assert "--device" not in ss_args, "capture_screenshot.py has no --device flag"
+    assert ss_args[0] == "https://example.com", "url must be passed positionally"
+    assert "--viewport" in ss_args
+
+
+@pytest.mark.asyncio
+async def test_ads_generate_uses_real_cli_flags():
+    """generate_image.py takes a positional prompt + --ratio; the call site
+    used --prompt/--aspect-ratio, neither of which exist on its argparse --
+    always "unrecognized arguments"."""
+    agent = AdsOrchestratorAgent()
+    captured = {}
+    agent._run_script = lambda name, args: captured.setdefault(name, args) or {"output": "ok"}
+    await agent.run({"type": "ads_generate", "params": {"prompt": "a cat", "aspect_ratio": "9:16"}})
+    args = captured["generate_image.py"]
+    assert "--prompt" not in args and "--aspect-ratio" not in args
+    assert args[0] == "a cat"
+    assert "--ratio" in args and args[args.index("--ratio") + 1] == "9:16"
+
+
+@pytest.mark.asyncio
+async def test_ads_photoshoot_uses_real_cli_flags():
+    agent = AdsOrchestratorAgent()
+    captured = {}
+    agent._run_script = lambda name, args: captured.setdefault(name, args) or {"output": "ok"}
+    await agent.run({"type": "ads_photoshoot", "params": {"product": "shoe"}})
+    args = captured["generate_image.py"]
+    assert "--prompt" not in args and "--aspect-ratio" not in args
+    assert "--ratio" in args
+
+
+@pytest.mark.asyncio
+async def test_ads_report_uses_real_cli_flags():
+    """generate_report.py takes a positional input, not --input."""
+    agent = AdsOrchestratorAgent()
+    captured = {}
+    agent._run_script = lambda name, args: captured.setdefault(name, args) or {"output": "ok"}
+    await agent.run({"type": "ads_report", "params": {"audit_markdown": "# audit", "output_path": "x.pdf"}})
+    args = captured["generate_report.py"]
+    assert "--input" not in args
+    assert args[0] == "# audit"
+    assert "--output" in args
+
+
+@pytest.mark.asyncio
 async def test_ads_landing_still_reports_ok_on_genuine_success():
     agent = AdsOrchestratorAgent()
     agent._run_script = lambda *a, **k: {"output": "landing page analysis text"}

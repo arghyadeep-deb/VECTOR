@@ -280,7 +280,10 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                 url = params.get("url", "")
                 if url:
                     page = self._run_script("fetch_page.py", [url])
-                    screenshot = self._run_script("capture_screenshot.py", ["--url", url, "--device", "desktop"])
+                    # capture_screenshot.py takes a positional url + --viewport
+                    # (desktop/tablet/mobile), not --url/--device -- the old argv
+                    # shape always failed with "unrecognized arguments".
+                    screenshot = self._run_script("capture_screenshot.py", [url, "--viewport", "desktop"])
                 else:
                     page = {"html": params.get("html", "")}
                     screenshot = {}
@@ -321,9 +324,12 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                 prompt_text = params.get("prompt", "")
                 aspect = params.get("aspect_ratio", "1:1")
                 output_dir = params.get("output_dir", "output/ads_screenshots")
+                # generate_image.py takes a positional prompt + --ratio
+                # (not --prompt/--aspect-ratio, which don't exist on its
+                # argparse at all -- always "unrecognized arguments").
                 result = self._run_script(
                     "generate_image.py",
-                    ["--prompt", prompt_text, "--aspect-ratio", aspect, "--output-dir", output_dir]
+                    [prompt_text, "--ratio", aspect, "--output-dir", output_dir]
                 )
                 if "error" in result:
                     self.deduct_points(15, "ad_image_generation_failed")
@@ -346,7 +352,7 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                 prompt_text = styles.get(style, styles["studio"])
                 result = self._run_script(
                     "generate_image.py",
-                    ["--prompt", prompt_text, "--aspect-ratio", "1:1", "--output-dir", output_dir]
+                    [prompt_text, "--ratio", "1:1", "--output-dir", output_dir]
                 )
                 if "error" in result:
                     self.deduct_points(15, "photoshoot_failed")
@@ -358,9 +364,11 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
             elif task_type in ("ads_report", "ads_pdf_report"):
                 audit_markdown = params.get("audit_markdown", "")
                 output_path = params.get("output_path", "output/ads_reports/audit_report.pdf")
+                # generate_report.py takes a positional input + --output
+                # (not --input, which doesn't exist on its argparse).
                 result = self._run_script(
                     "generate_report.py",
-                    ["--input", audit_markdown, "--output", output_path]
+                    [audit_markdown, "--output", output_path]
                 )
                 if "error" in result:
                     self.deduct_points(15, "pdf_report_failed")
