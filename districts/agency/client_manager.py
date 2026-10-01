@@ -1,4 +1,7 @@
 import sys
+import os
+import math
+import shutil
 import uuid
 import json
 import re
@@ -50,16 +53,24 @@ class ClientManager(AgentBase):
                 logger.info(f"[VECTOR][client_manager] Loaded {len(self._clients)} clients")
             except Exception as e:
                 logger.error(f"[VECTOR][client_manager] Failed to load clients: {e}")
+                # Starting empty means the next save would overwrite the
+                # unreadable file and destroy the client book -- keep a copy.
+                try:
+                    shutil.copy2(self._client_file, self._client_file.with_name(self._client_file.name + ".corrupt"))
+                except OSError as copy_err:
+                    logger.error(f"[VECTOR][client_manager] Could not back up unreadable clients file: {copy_err}")
 
     def _save_clients(self) -> bool:
         """Save clients to persistent storage."""
         try:
             self._client_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._client_file, "w", encoding="utf-8") as f:
+            tmp = self._client_file.with_name(self._client_file.name + ".tmp")
+            with open(tmp, "w", encoding="utf-8") as f:
                 json.dump({
                     "clients": self._clients,
                     "history": self._engagement_history[-1000:]
                 }, f, indent=2)
+            os.replace(tmp, self._client_file)  # atomic: a crash never leaves a truncated file
             return True
         except Exception as e:
             logger.error(f"[VECTOR][client_manager] Failed to save clients: {e}")
@@ -145,6 +156,10 @@ class ClientManager(AgentBase):
 
         for key, value in updates.items():
             if key in allowed_fields:
+                if key == "lifetime_value":
+                    # A non-numeric value would poison get_client_summary()/get_top_clients() forever.
+                    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                        return {"status": "error", "message": "lifetime_value must be a finite number"}
                 client[key] = value
 
         client["updated_at"] = self._get_timestamp()
@@ -172,6 +187,18 @@ class ClientManager(AgentBase):
 
         if event_type not in self.ENGAGEMENT_TYPES:
             return {"status": "error", "message": f"Unknown engagement type: {event_type}"}
+
+        amount = 0.0
+        if event_type == "payment_received":
+            # Validate BEFORE mutating state: a bad amount used to raise after the
+            # engagement was already counted/appended, leaving unsaved partial state.
+            raw_amount = details.get("amount", 0) if isinstance(details, dict) else 0
+            try:
+                amount = float(raw_amount)
+            except (TypeError, ValueError):
+                return {"status": "error", "message": f"Invalid payment amount: {raw_amount!r}"}
+            if not math.isfinite(amount):
+                return {"status": "error", "message": f"Invalid payment amount: {raw_amount!r}"}
 
         engagement = {
             "id": str(uuid.uuid4()),
@@ -207,7 +234,6 @@ class ClientManager(AgentBase):
         client_data["engagement_score"] += score_change
 
         if event_type == "payment_received":
-            amount = details.get("amount", 0) if details else 0
             client_data["lifetime_value"] += amount
 
         self._save_clients()

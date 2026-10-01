@@ -1,4 +1,5 @@
 import sys
+import re
 import uuid
 import json
 import asyncio as _asyncio
@@ -33,6 +34,11 @@ def _llm(prompt: str, max_tokens: int = 800, temperature: float = 0.8) -> str:
         return r.content
     with _cf.ThreadPoolExecutor(max_workers=1) as pool:
         return pool.submit(_asyncio.run, _call()).result(timeout=90)
+
+
+def _safe_filename(text: str, limit: int = 30) -> str:
+    """Reduce caller-supplied text to a single safe path component (CWE-22)."""
+    return re.sub(r"[^A-Za-z0-9_-]+", "_", str(text)[:limit]).strip("_") or "untitled"
 
 
 class ContentStrategist(AgentBase):
@@ -297,7 +303,9 @@ Make it actionable and ready to execute.
             plan_dir = self._obsidian._vault / self._content_dir / "Plans"
             plan_dir.mkdir(parents=True, exist_ok=True)
 
-            plan_file = plan_dir / f"{plan['topic'][:30]}_{plan['id'][:8]}.md"
+            plan_file = plan_dir / f"{_safe_filename(plan['topic'])}_{plan['id'][:8]}.md"
+            if not plan_file.resolve().is_relative_to(plan_dir.resolve()):
+                raise ValueError("plan path escapes vault plan directory")
             content = f"""# Content Plan: {plan['topic']}
 
 Created: {plan['created_at']}
@@ -339,7 +347,9 @@ Status: {plan['status']}
             trends_dir = self._obsidian._vault / self._content_dir / "Trends"
             trends_dir.mkdir(parents=True, exist_ok=True)
 
-            trend_file = trends_dir / f"{topic}_{self._get_timestamp()[:10]}.md"
+            trend_file = trends_dir / f"{_safe_filename(topic, 80)}_{self._get_timestamp()[:10]}.md"
+            if not trend_file.resolve().is_relative_to(trends_dir.resolve()):
+                raise ValueError("trend path escapes vault trends directory")
             content = f"""# Content Trends: {topic}
 
 Analyzed: {self._trends_cache[topic]['timestamp']}
@@ -364,9 +374,12 @@ Analyzed: {self._trends_cache[topic]['timestamp']}
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params") or {}
         ideas = self.get_topic_ideas(p.get("niche"))
         result = await self.analyze_trends(p.get("topic", "social media"))
+        if "error" in result:
+            # analyze_trends reports an LLM failure via an "error" key; don't mask it as ok.
+            return {"status": "error", "error": result["error"], "ideas": ideas, "trends": result}
         return {"status": "ok", "ideas": ideas, "trends": result}
 
 
