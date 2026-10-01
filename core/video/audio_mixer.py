@@ -150,11 +150,15 @@ class AudioMixer:
 
             mix_inputs.append(f"[{label}]" if not label.startswith("[") else label)
 
-        # amix all inputs
+        # amix all inputs -- use the per-track processed labels (mix_inputs),
+        # not the raw [i:a] streams. Rebuilding from raw indices here used to
+        # silently discard every volume/delay filter chain built above: the
+        # filters were emitted into the ffmpeg command as orphan pads, but
+        # amix mixed the unprocessed originals -- per-track volume and
+        # start_time were completely ignored for any 2+ track mix (e.g.
+        # NarrationPipeline.produce()'s bg_volume=0.15 background-music mix).
         n = len(tracks)
-        mix_inputs_str = "".join(
-            f"[{i}:a]" for i in range(n)
-        )
+        mix_inputs_str = "".join(mix_inputs)
         filters.append(
             f"{mix_inputs_str}amix=inputs={n}:duration=longest:normalize=0[mixed]"
         )
@@ -194,7 +198,10 @@ class AudioMixer:
             "-c:a", "aac", "-b:a", "128k",
             output_path,
         ]
-        subprocess.run(cmd, capture_output=True, timeout=30)
+        result = subprocess.run(cmd, capture_output=True, timeout=30)
+        if result.returncode != 0:
+            logger.warning("[VECTOR][audio_mixer] silence generation failed: {}",
+                            result.stderr[-500:] if result.stderr else "no stderr")
         return MixResult(output_path=output_path, duration_seconds=duration, track_count=0)
 
     def extract_from_video(self, video_path: str, output_path: str) -> Optional[str]:
@@ -222,7 +229,10 @@ class AudioMixer:
             "-filter:a", f"apad=whole_dur={duration:.4f},atrim=duration={duration:.4f}",
             output_path,
         ]
-        subprocess.run(cmd, capture_output=True, timeout=60)
+        result = subprocess.run(cmd, capture_output=True, timeout=60)
+        if result.returncode != 0:
+            logger.warning("[VECTOR][audio_mixer] pad_trim failed: {}",
+                            result.stderr[-500:] if result.stderr else "no stderr")
         return output_path
 
 
