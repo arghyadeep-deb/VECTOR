@@ -1583,6 +1583,78 @@ grew open engineering items; section 0 lists them.
     `core/persona/evolution.py`, `core/scheduler/store.py` (raw-sqlite3 findings); `core/experiments/
     ab_testing.py` (already has its own dedicated fix, commit `9e7f2d04a`).
 
+28. **`districts/marketing/` + `districts/coding/` full multi-bug-class revisit, 2026-10-01 —** resumed
+    slice (a prior fork died mid-task from a Claude rate limit; its committed progress —
+    `amazon_ads_agent.py`/`attribution_agent.py`/`sgtm_agent.py` Rule-1-hydration fix,
+    `geo_optimizer_agent.py` params-vs-task fix, `ads_orchestrator_agent.py` dead-script-path fix — is
+    already recorded above via commits `5f673142b`/`41a8043e6`/`f820438af`). Both districts already had
+    ONE bug class fixed historically (params-vs-task dispatch; `task_type` free-text routing in 7
+    marketing agents) — this slice is their first full multi-bug-class pass.
+    **Marketing (28 files) — fully covered.** Confirmed RULE 1 hydration is already correct everywhere
+    else via the shared `SkillMixin._chat()` helper (handles hydration internally) or direct
+    `session_hydration_prompt()` calls already present in `seo_agent.py`/`seo_portfolio.py`/
+    `meta_ads_agent.py`/`google_ads_agent.py`/`marketing_specialists.py` — no further Rule 1 gaps found.
+    **Fixed**: `ads/scripts/generate_report.py` used stdlib `logging` instead of loguru (rule 6) +
+    3 broken placeholder exception messages (also left a dangling `logging.basicConfig` call under
+    `--verbose`, fixed to `logger.add(sys.stderr, level="DEBUG")`); `ads/scripts/analyze_landing.py`
+    (2 sites) + `ads/scripts/generate_image.py` (1 site) had the loguru `exc_info=True`-does-nothing
+    placeholder pattern (loguru doesn't treat `exc_info=` as a traceback kwarg the way stdlib does —
+    silently drops the real exception); `ads/scripts/capture_screenshot.py`'s `browser.close()` only
+    ran on the success path, leaking a chromium process on any `page.goto()`/`screenshot()` exception
+    (fixed with try/finally). 4 commits: `a2811152d`, `d8d5f8972` (+ the pre-resumed ones above).
+    **FLAG FOR OWNER, not fixed**: `ads/scripts/url_utils.py`'s `validate_url()` does real SSRF
+    DNS-resolution checking, but `fetch_page.py` (follow_redirects=True), `analyze_landing.py`, and
+    `capture_screenshot.py` all navigate/fetch the validated URL afterward with their own independent
+    DNS resolution — redirect hops and the final connection are never re-validated (same unfixed
+    validate-then-connect/DNS-rebinding gap already flagged in `core/scraper`'s audit this cycle,
+    "needs IP pinning"; should use whatever approach the owner picks for that instance too). Also
+    noted but not changed: a near-universal pattern across content-generation methods district-wide
+    (`generate_copy`/`audit_account`/etc.) of returning `{"status": "ok", ...}` with an LLM-failure
+    error string embedded in the content field instead of `status: "error"` — same shape as the
+    "phantom success" bug class fixed elsewhere this cycle, but here it's the district's own original
+    design (15+ call sites, not introduced by any single file) — a real API-contract question for the
+    owner, not a narrow per-file patch.
+    **Coding (28 hand-written files, `vector_mlops/` vendored subtree correctly excluded) — partially
+    covered, ran out of context before finishing all 28.** Covered in full:
+    `git_bot.py` — fixed a subprocess argv-injection risk in `gitnexus_impact()`/
+    `analyze_with_gitnexus()` (caller-controlled `symbol`/`repo_path` as bare argv, same shape as the
+    `vectorcode/src/tools/git_tools.py` fix landing in parallel this session), 2 broken loguru
+    placeholders, and a dead duplicate `except Exception` clause. `coding_tools.py` — fixed the
+    identical argv-injection shape in `grep_code()` at the primitive level (the one external caller,
+    `core/mcp_tools/expansion_modules/files.py`'s `file_grep`, already guarded its own `pattern` arg
+    with an explicit `--pre=<cmd>` RCE comment, but `grep_code()` itself had no guard — now every
+    caller is covered), plus 2 more broken placeholders. `database_optimizer.py` — **the agent was
+    completely non-functional**: `analyze_schema()`/`benchmark_queries()` opened the main DB with a
+    plain `sqlite3.connect()` instead of `core.memory.episodic.get_db_connection()` (rule 7); with
+    SQLCipher active (the live default, confirmed) this fails outright. Fixed to use the shared
+    singleton (never closed, same documented caution as `data_engineer.py`/`blog_publisher.py`); this
+    exposed a second bug the old code never reached (`sqlcipher3`'s driver returns PRAGMA
+    page_size/page_count as `str` not `int`, now coerced). `code_reviewer.py`,
+    `codebase_onboarding_engineer.py`, `rapid_prototyper.py`, `refactor_cleaner.py` — one broken
+    placeholder each (`refactor_cleaner.py`'s own job is detecting dead `except: pass` blocks in other
+    files; it had the modern loguru equivalent of that exact bug in itself). Ruled out, no fix needed:
+    `vectorcode_bridge.py`/`mlops_agent.py`'s `threading.Lock()` use (guard only, not a real
+    `Thread()` spawn); `vectorcode_bridge.py`'s subprocess calls (task payload goes over stdin, not
+    argv; `port`/entry-point args are fixed constants or typed `int`); `code_intel_agent.py`'s
+    subprocess (fixed `["node", str(_DIST)]`, no caller input). **FLAG FOR OWNER, not fixed**:
+    `test_writer.py`'s `run_test_coverage(module_name)` interpolates `module_name` into a `--cov=`
+    flag and a file path with no sanitization — but it has ZERO real callers anywhere in the repo
+    (confirmed via repo-wide grep), so flagged as dormant-but-unsafe-if-ever-wired-up rather than
+    fixed, same bar as `subagent_runner.py`/`parallel_researcher.py` this cycle. 4 commits:
+    `f9d64aa90`, `28c880386`, `5da18ca77` (+ the pre-resumed ones above).
+    **Remaining in `districts/coding/` — genuinely not yet examined** (ran out of context):
+    `addy_code_reviewer.py`, `agent.py`, `architect_bot.py`, `bug_hunter.py`,
+    `code_conductor_agent.py`, `code_explorer.py`, `code_intel_agent.py` (subprocess ruled out above,
+    but not given a full logic read), `developer_advocate.py`, `fastapi_reviewer.py`/
+    `python_reviewer.py`/`security_reviewer.py` (already have the task-type-ordering fix from an
+    earlier slice, but not re-read for other bug classes), `frontend_developer.py`,
+    `gui_automation_agent.py`, `minimal_change_engineer.py`, `mlops_agent.py` (612 lines, largest
+    untouched — spot-checked for subprocess/threading/phantom-success only, not a full read),
+    `obra_code_reviewer.py`, `vectorcode_bridge.py` (subprocess/threading ruled out above, not a full
+    logic read), plus the trivial `__init__.py`/`code_review_graph/__init__.py`/
+    `vectorcode/__init__.py` files (not checked, likely trivial). Next slice should start here before
+    considering `districts/coding/` done.
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
