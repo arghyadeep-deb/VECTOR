@@ -27,9 +27,16 @@ from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
 from districts.marketing._skill_loader import load_skill, SkillMixin
 
-_ADS_SCRIPTS = Path(__file__).parent.parent.parent.parent / "core" / "ads" / "scripts"
-_ADS_REFERENCES = Path(__file__).parent.parent.parent.parent / "core" / "ads" / "references"
-_ADS_TEMPLATES = Path(__file__).parent.parent.parent.parent / "core" / "ads" / "templates"
+# Real location is districts/marketing/ads/{scripts,references,templates}/ --
+# this previously chained 4 .parent hops to a nonexistent core/ads/ one level
+# ABOVE the repo root, so _run_script()/_load_reference()/_load_template()
+# silently found nothing (every script call returned "Script not found", every
+# reference/template load returned "") for every ads_* task type. Phantom
+# failure: callers still returned {"status": "ok"} around the empty/error
+# results (see the status-check fix below).
+_ADS_SCRIPTS = Path(__file__).parent / "ads" / "scripts"
+_ADS_REFERENCES = Path(__file__).parent / "ads" / "references"
+_ADS_TEMPLATES = Path(__file__).parent / "ads" / "templates"
 
 class AdsOrchestratorAgent(AgentBase, SkillMixin):
     """
@@ -121,9 +128,11 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                         results[platform] = result
                 self.award_points(30, "multi_platform_audit_done")
                 self._get_memory().store(
+                    event_type="ads_audit",
                     content=f"Ads audit completed: {platforms}",
                     tags=["marketing", "ads", "audit"],
-                    metadata={"platforms": platforms}
+                    context={"platforms": platforms},
+                    source="ads_orchestrator_agent",
                 )
                 return {"status": "ok", "type": task_type, "results": results}
 
@@ -133,11 +142,16 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                 if not url:
                     return {"status": "error", "error": "url required"}
                 result = self._run_script("analyze_landing.py", [url])
+                if "error" in result:
+                    self.deduct_points(15, "landing_analysis_failed")
+                    return {"status": "error", "type": task_type, "error": result["error"]}
                 self.award_points(20, "landing_analysis_done")
                 self._get_memory().store(
+                    event_type="ads_landing_analysis",
                     content=f"Landing page analyzed: {url}",
                     tags=["marketing", "ads", "landing"],
-                    metadata={"url": url}
+                    context={"url": url},
+                    source="ads_orchestrator_agent",
                 )
                 return {"status": "ok", "type": task_type, "analysis": result}
 
@@ -311,6 +325,9 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                     "generate_image.py",
                     ["--prompt", prompt_text, "--aspect-ratio", aspect, "--output-dir", output_dir]
                 )
+                if "error" in result:
+                    self.deduct_points(15, "ad_image_generation_failed")
+                    return {"status": "error", "type": task_type, "error": result["error"]}
                 self.award_points(25, "ad_image_generated")
                 return {"status": "ok", "type": task_type, "result": result}
 
@@ -331,6 +348,9 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                     "generate_image.py",
                     ["--prompt", prompt_text, "--aspect-ratio", "1:1", "--output-dir", output_dir]
                 )
+                if "error" in result:
+                    self.deduct_points(15, "photoshoot_failed")
+                    return {"status": "error", "type": task_type, "error": result["error"]}
                 self.award_points(20, "photoshoot_done")
                 return {"status": "ok", "type": task_type, "style": style, "result": result}
 
@@ -342,6 +362,9 @@ class AdsOrchestratorAgent(AgentBase, SkillMixin):
                     "generate_report.py",
                     ["--input", audit_markdown, "--output", output_path]
                 )
+                if "error" in result:
+                    self.deduct_points(15, "pdf_report_failed")
+                    return {"status": "error", "type": task_type, "error": result["error"]}
                 self.award_points(25, "pdf_report_done")
                 return {"status": "ok", "type": task_type, "report": result}
 

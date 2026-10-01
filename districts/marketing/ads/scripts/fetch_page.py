@@ -13,9 +13,9 @@ import sys
 from url_utils import validate_url
 
 try:
-    import requests
+    import httpx
 except ImportError:
-    print("Error: requests library required. Install with: pip install -r requirements.txt")
+    print("Error: httpx library required. Install with: pip install -r requirements.txt")
     sys.exit(1)
 
 
@@ -56,33 +56,24 @@ def fetch_page(
         return result
 
     try:
-        session = requests.Session()
-        session.max_redirects = max_redirects
+        with httpx.Client(max_redirects=max_redirects, follow_redirects=follow_redirects) as client:
+            response = client.get(url, headers=DEFAULT_HEADERS, timeout=timeout)
 
-        response = session.get(
-            url,
-            headers=DEFAULT_HEADERS,
-            timeout=timeout,
-            allow_redirects=follow_redirects,
-        )
-
-        result["url"] = response.url
+        result["url"] = str(response.url)
         result["status_code"] = response.status_code
         result["content"] = response.text
         result["headers"] = dict(response.headers)
 
         if response.history:
-            result["redirect_chain"] = [r.url for r in response.history]
+            result["redirect_chain"] = [str(r.url) for r in response.history]
 
-    except requests.exceptions.Timeout:
+    except httpx.TimeoutException:
         result["error"] = f"Request timed out after {timeout} seconds"
-    except requests.exceptions.TooManyRedirects:
+    except httpx.TooManyRedirects:
         result["error"] = f"Too many redirects (max {max_redirects})"
-    except requests.exceptions.SSLError as e:
-        result["error"] = f"SSL error: {e}"
-    except requests.exceptions.ConnectionError as e:
+    except httpx.ConnectError as e:
         result["error"] = f"Connection error: {e}"
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         result["error"] = f"Request failed: {e}"
 
     return result
