@@ -1527,6 +1527,62 @@ grew open engineering items; section 0 lists them.
     at import time — likely a real instance of this cycle's most common bug class, flagged for whichever
     future slice covers `src/vc_tools/`.
 
+29. **`core/video/` deep-verify, 5 of 13 files, 2026-10-02 —** resumed slice (a prior fork on the
+    remaining small `core/` subdirectories died mid-work from a Claude usage-limit rate-limit after
+    committing `core/browser/`+`core/sandbox/`; this is a fresh continuation, not that same fork).
+    5 real bugs found and fixed, each with a new test file, zero regressions:
+    **`video_encoder.py`** (commit `c640a29be`): `_vp9_args()`'s bitrate override used
+    `args.index("0")` to find-and-replace the `-b:v` placeholder — `str(crf) == "0"` is a real VP9
+    near-lossless setting that appears earlier in the arg list, so the search hit the `-crf` value
+    instead whenever both were set, corrupting `-crf` and silently dropping the bitrate override;
+    fixed by building the value directly. Also added logging to `probe_duration`/`probe_dimensions`,
+    which swallowed every exception with none at all.
+    **`audio_mixer.py`** (commit `b25c20e2b`) — most severe finding this slice:
+    `AudioMixer._mix_multi()` built a correct per-track volume/delay filter chain into `mix_inputs`,
+    then discarded it and rebuilt the `amix` input string from the raw unprocessed `[i:a]` streams —
+    any 2+ track mix (e.g. `NarrationPipeline.produce()`'s narration + background music at
+    `bg_volume=0.15`) silently applied NO volume reduction and NO timing offset to any track. Fixed
+    to use the already-built labels. FLAGGED, not fixed: every method in this file returns a
+    success-shaped result even when the underlying ffmpeg call failed (some now log a warning, none
+    raise) — changing that contract touches every caller, a design decision for the owner.
+    **`background_remover.py`** (commit `8df447a8e`): `bg_plate_path` (the documented "inverse-alpha
+    background plate" feature) is accepted by both video-removal methods but never implemented in
+    either — silent non-delivery, not an error. No real caller passes it today; added a warning log
+    rather than implementing an unrequested feature.
+    **`studio_server.py`** (commit `deb55655c`) — 2 independent chaining bugs in `run_workflow()`:
+    (1) its "topological order" was really just a 2-bucket split (no-incoming-edge nodes first, then
+    everything else in original array order) — a real A→B→C chain with C listed before B in the raw
+    `nodes` array (no ordering guarantee in the data model) ran C before B produced output; fixed
+    with a real Kahn's-algorithm topological sort, with a cycle now running every node instead of
+    silently dropping any. (2) the `"output"` node type never wrote its resolved value into
+    `node_outputs` unlike every other node type, so an `"output"` node used as a pass-through (not
+    just a terminal node) broke any node chained after it regardless of ordering — fixed to write
+    through like the other branches.
+    **`website_to_video.py`** (commit `48cb77ac9`) — real XSS: `build_composition_from_content()`
+    interpolated `content.title`/`.headline`/`.description` directly into generated HTML with no
+    escaping. These fields are extracted via regex from a SCRAPED, attacker-controlled webpage's
+    `<title>`/`og:title`/`og:description`/`<h1>` tags, and the composition is then rendered by a real
+    headless browser (`capture_screenshot`) — a malicious page's title/og tags containing
+    `</div><script>...</script>` would execute real JavaScript in VECTOR's own render context. Fixed
+    with `html.escape()` on every interpolated field, including the caller-supplied url (defense in
+    depth). Noted, not fixed: the file's own `__main__` smoke test has a pre-existing, unrelated
+    broken assertion (confirmed broken identically before this fix via `git stash`) — out of scope.
+    **Remaining in `core/video/`** (8 of 13 files, not yet reviewed this slice): `composition_linter.py`,
+    `composition_types.py`, `html_renderer.py`, `hyperframes_sidecar.py`, `provider_capabilities.py`,
+    `vector_composer.py`, `workflow_resolver.py`.
+    **Remaining in the parent slice's full scope, entirely untouched**: `email`(10), `runtime`(8),
+    `jcode`(8), `event_bus`(8), `personality`(7), `persona`(7), `seo`(6), `media`(6),
+    `code_conductor`(6), `vision_control`(5), `stealth_browser`(5), `knowledge`(5), `cloud`(5),
+    `avatar`(5), `ui`(4), `science`(4), `scheduler`(4), `metering`(4), `swarm`(3), `utils`(2),
+    `services`(2), `queue`(2), `monitoring`(2), `models`(2), `migration`(2), `mcp`(2),
+    `integrations`(2), `experiments`(2), `communications`(2), `causal`(2), `audit`(2),
+    `brain_hooks`(1), plus 10 root-level `core/*.py` files (`runtime_paths.py`, `repo_hygiene.py`,
+    `prompt_library.py`, `notify.py`, `mcp_server_stdio.py`, `mcp_server.py`, `errors.py`,
+    `config.py`, `breaker_registry.py`, `api_manager.py`). Known already-flagged (don't re-flag the
+    same issue, but still owed a full logic review beyond it): `core/email/schema.py`,
+    `core/persona/evolution.py`, `core/scheduler/store.py` (raw-sqlite3 findings); `core/experiments/
+    ab_testing.py` (already has its own dedicated fix, commit `9e7f2d04a`).
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
