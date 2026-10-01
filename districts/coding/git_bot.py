@@ -101,8 +101,8 @@ class GitBot(AgentBase):
                         outcome="repo_not_found",
                         reward=0.0,
                     )
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as e:
+                    logger.debug("[VECTOR][git_bot] store_chain (repo_not_found) failed: {}", e)
                 return {"success": False, "hash": "", "message": "Repo not found"}
 
             if files:
@@ -120,8 +120,8 @@ class GitBot(AgentBase):
                     if not diff_staged:
                         logger.warning("[VECTOR][git_bot] Nothing to commit")
                         return {"success": False, "hash": "", "message": "Nothing to commit"}
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as e:
+                    logger.debug("[VECTOR][git_bot] diff --cached check failed: {}", e)
 
             commit_obj = await asyncio.to_thread(repo.index.commit, message)
             commit_hash = commit_obj.hexsha[:8]
@@ -351,6 +351,8 @@ class GitBot(AgentBase):
         GitNexus runs as an MCP server via npx — this calls it via subprocess for standalone use.
         For MCP-integrated use, GitNexus is available as an MCP tool in .mcp.json.
         """
+        if repo_path.startswith("-"):
+            return {"status": "error", "error": f"invalid repo path: {repo_path!r}"}
         try:
             import subprocess
             result = await asyncio.to_thread(
@@ -380,6 +382,8 @@ class GitBot(AgentBase):
         Returns all files/functions affected by changing the given symbol.
         Requires: npm install -g gitnexus && gitnexus setup
         """
+        if symbol.startswith("-") or repo_path.startswith("-"):
+            return {"status": "error", "error": "invalid symbol or repo path"}
         try:
             import subprocess
             result = await asyncio.to_thread(
@@ -402,8 +406,6 @@ class GitBot(AgentBase):
             return {"status": "error", "error": "gitnexus not installed. Run: npm install -g gitnexus"}
         except Exception as e:
             logger.warning("[VECTOR][git_bot] gitnexus_impact error: {}", e)
-            return {"status": "error", "error": str(e)}
-        except Exception as e:
             return {"status": "error", "error": str(e)}
 
     async def run_forever(self) -> None:
