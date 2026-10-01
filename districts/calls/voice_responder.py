@@ -39,7 +39,7 @@ class VoiceResponder(AgentBase):
         self._kokoro_dir = Path(self._voice_config.get("kokoro_model_dir", "./models/kokoro"))
         self._tts_available = self._check_tts()
         self._response_history: list[dict] = []
-        logger.info(f"[VECTOR][voice_responder] VoiceResponder initialized - TTS: {self._tts_available}")
+        logger.info("[VECTOR][voice_responder] VoiceResponder initialized - TTS: {}", self._tts_available)
 
     @staticmethod
     def _ensure_legacy_event_loop() -> None:
@@ -104,6 +104,9 @@ V.E.C.T.O.R. Response:"""
                     temperature=0.7,
                     max_tokens=400,
                     caller_id="voice_responder",
+                    # Caller speech is in the prompt: local Ollama only.
+                    sensitive=True,
+                    district="calls",
                 )
                 return r.content
 
@@ -122,7 +125,7 @@ V.E.C.T.O.R. Response:"""
                 del self._response_history[:-_MAX_RESPONSE_HISTORY]
 
             self.award_points(5, "voice_response_generated")
-            logger.info(f"[VECTOR][voice_responder] Generated response: {response_text[:50]}...")
+            logger.info("[VECTOR][voice_responder] Generated response ({} chars)", len(response_text))
 
             return {
                 "status": "success",
@@ -131,8 +134,11 @@ V.E.C.T.O.R. Response:"""
             }
 
         except Exception as e:
-            logger.error(f"[VECTOR][voice_responder] Response generation failed: {e}")
-            response_text = f"I heard you: {text}"
+            # Provider errors can echo the prompt (caller speech): type only.
+            logger.error("[VECTOR][voice_responder] Response generation failed: {}", type(e).__name__)
+            # Canned reply: must not echo the caller's words back, and must
+            # never be reported as a real generated answer.
+            response_text = "Sorry, I could not generate a reply right now."
             response_entry = {
                 "id": str(uuid.uuid4()),
                 "input": text,
@@ -145,11 +151,11 @@ V.E.C.T.O.R. Response:"""
             if len(self._response_history) > _MAX_RESPONSE_HISTORY:
                 del self._response_history[:-_MAX_RESPONSE_HISTORY]
             return {
-                "status": "success",
+                "status": "degraded",
                 "text": response_text,
                 "response_id": response_entry["id"],
                 "degraded": True,
-                "warning": str(e),
+                "warning": f"LLM unavailable ({type(e).__name__})",
             }
 
     def _get_tone_instruction(self, tone: str) -> str:
@@ -174,12 +180,22 @@ V.E.C.T.O.R. Response:"""
 
         voice_settings = self.VOICE_OPTIONS.get(voice, self.VOICE_OPTIONS["default"])
 
-        if output_path is None:
-            from core.runtime_paths import data_path
+        from core.runtime_paths import data_path
 
-            output_dir = data_path("voice_output")
-            output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir = data_path("voice_output")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        if output_path is None:
             output_path = str(output_dir / f"response_{uuid.uuid4().hex[:8]}.wav")
+        else:
+            # CWE-22: params/context-supplied path must stay inside voice_output.
+            try:
+                resolved = Path(output_path).resolve()
+                if not resolved.is_relative_to(output_dir.resolve()):
+                    raise ValueError("outside voice_output")
+            except (ValueError, OSError):
+                logger.warning("[VECTOR][voice_responder] rejected output_path outside voice_output")
+                return {"status": "error", "message": "output_path must be inside the voice_output directory"}
+            output_path = str(resolved)
 
         try:
             import kokoro_onnx
@@ -200,7 +216,7 @@ V.E.C.T.O.R. Response:"""
             wavfile.write(output_path, sample_rate, audio_int16)
 
             self.award_points(10, "tts_generated")
-            logger.info(f"[VECTOR][voice_responder] TTS generated: {output_path}")
+            logger.info("[VECTOR][voice_responder] TTS generated: {}", Path(output_path).name)
 
             return {
                 "status": "success",
@@ -212,7 +228,7 @@ V.E.C.T.O.R. Response:"""
         except ImportError:
             return {"status": "error", "message": "kokoro_onnx not installed"}
         except Exception as e:
-            logger.error(f"[VECTOR][voice_responder] TTS failed: {e}")
+            logger.error("[VECTOR][voice_responder] TTS failed: {}", type(e).__name__)
             return {"status": "error", "message": str(e)}
 
     async def respond_to_audio(self, audio_path: str, context: dict | None = None) -> dict:

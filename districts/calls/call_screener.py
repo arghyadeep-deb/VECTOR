@@ -9,6 +9,14 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
 _MAX_CALL_HISTORY = 1000
+_VALID_PRIORITIES = {"blocked", "normal", "priority", "vip"}
+_HIDDEN_IDS = {"unknown", "private", "blocked"}
+
+
+def _mask_caller(caller_id: str) -> str:
+    """Redact a phone number for logs: keep only the last 4 characters."""
+    cid = str(caller_id or "")
+    return ("***" + cid[-4:]) if len(cid) > 4 else "***"
 
 
 class CallScreener(AgentBase):
@@ -36,7 +44,7 @@ class CallScreener(AgentBase):
 
         self._contacts_file = data_path("call_contacts.json")
         self._load_contacts()
-        logger.info(f"[VECTOR][call_screener] CallScreener initialized - {len(self._known_contacts)} contacts")
+        logger.info("[VECTOR][call_screener] CallScreener initialized - {} contacts", len(self._known_contacts))
 
     def _load_contacts(self) -> None:
         """Load known contacts from storage."""
@@ -45,9 +53,9 @@ class CallScreener(AgentBase):
                 with open(self._contacts_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     self._known_contacts = data.get("contacts", {})
-                logger.info(f"[VECTOR][call_screener] Loaded {len(self._known_contacts)} contacts")
+                logger.info("[VECTOR][call_screener] Loaded {} contacts", len(self._known_contacts))
             except Exception as e:
-                logger.error(f"[VECTOR][call_screener] Failed to load contacts: {e}")
+                logger.error("[VECTOR][call_screener] Failed to load contacts: {}", type(e).__name__)
 
     def _save_contacts(self) -> bool:
         """Save contacts to storage."""
@@ -57,7 +65,7 @@ class CallScreener(AgentBase):
                 json.dump({"contacts": self._known_contacts}, f, indent=2)
             return True
         except Exception as e:
-            logger.error(f"[VECTOR][call_screener] Failed to save contacts: {e}")
+            logger.error("[VECTOR][call_screener] Failed to save contacts: {}", type(e).__name__)
             return False
 
     def add_contact(self, caller_id: str, name: str, relation: str = "known",
@@ -67,6 +75,12 @@ class CallScreener(AgentBase):
         Priority: blocked, normal, priority, vip
         """
         caller_id = self._normalize_caller_id(caller_id)
+        # A whitelist entry for a hidden/empty ID would allow EVERY hidden-ID
+        # caller (fail-open for scams); an unknown priority string likewise.
+        if caller_id in _HIDDEN_IDS:
+            return {"status": "error", "message": "a real caller number is required"}
+        if priority not in _VALID_PRIORITIES:
+            return {"status": "error", "message": "invalid priority"}
 
         contact = {
             "id": str(uuid.uuid4()),
@@ -83,8 +97,8 @@ class CallScreener(AgentBase):
         self._known_contacts[caller_id] = contact
         self._save_contacts()
 
-        self.award_points(5, f"contact_added_{name}")
-        logger.info(f"[VECTOR][call_screener] Added contact: {name} ({caller_id})")
+        self.award_points(5, "contact_added")
+        logger.info("[VECTOR][call_screener] Added contact ({})", _mask_caller(caller_id))
 
         return {"status": "success", "contact": contact}
 
@@ -130,7 +144,10 @@ class CallScreener(AgentBase):
             self.award_points(3, "known_caller_screened")
 
         elif caller_id == "unknown" or caller_id == "private" or caller_id == "blocked":
-            result["spam_score"] = self._calculate_spam_score(caller_id)
+            _sc = self.get_spam_score(caller_id)
+            result["spam_score"] = float(_sc.get("score", 0.5))
+            if _sc.get("degraded"):
+                result["degraded"] = True
             result["decision"] = "review" if result["spam_score"] < self._spam_threshold else "block"
             result["reason"] = "Unknown caller ID"
 
@@ -138,6 +155,8 @@ class CallScreener(AgentBase):
         else:
             spam_score = self.get_spam_score(caller_id)
             result["spam_score"] = spam_score.get("score", 0.5)
+            if spam_score.get("degraded"):
+                result["degraded"] = True
 
             if result["spam_score"] >= self._spam_threshold and self._auto_reject_enabled:
                 result["decision"] = "auto_reject"
@@ -157,7 +176,7 @@ class CallScreener(AgentBase):
         if len(self._call_history) > _MAX_CALL_HISTORY:
             del self._call_history[:-_MAX_CALL_HISTORY]
 
-        logger.info(f"[VECTOR][call_screener] Screened {caller_id}: {result['decision']}")
+        logger.info("[VECTOR][call_screener] Screened {}: {}", _mask_caller(caller_id), result["decision"])
         return result
 
     def _normalize_caller_id(self, caller_id: str) -> str:
@@ -207,6 +226,9 @@ class CallScreener(AgentBase):
                     factors.append({"factor": "frequent_caller", "contribution": 0.2})
 
         llm_analysis = self._analyze_spam_with_llm(caller_id)
+        # LLM failed/unparseable: the score is heuristic-only, not a confident
+        # verdict. Callers see degraded=True; decisions never become "allow".
+        degraded = not llm_analysis.get("ok", True)
         if llm_analysis.get("is_spam"):
             score += 0.3
             factors.append({"factor": "llm_detection", "contribution": 0.3})
@@ -217,7 +239,8 @@ class CallScreener(AgentBase):
             "caller_id": caller_id,
             "score": round(score, 2),
             "factors": factors,
-            "verdict": "spam" if score >= 0.7 else "likely_spam" if score >= 0.5 else "unknown"
+            "verdict": "spam" if score >= 0.7 else "likely_spam" if score >= 0.5 else "unknown",
+            "degraded": degraded,
         }
 
     def _calculate_spam_score(self, caller_id: str) -> float:
@@ -249,17 +272,26 @@ Respond with ONLY: SPAM or NOT_SPAM
                     temperature=0.1,
                     max_tokens=10,
                     caller_id="call_screener",
+                    # Caller numbers are call content: local Ollama only.
+                    sensitive=True,
+                    district="calls",
                 )
                 return r.content
 
             with _cf.ThreadPoolExecutor(max_workers=1) as pool:
                 llm_response = pool.submit(_asyncio.run, _call()).result(timeout=10).strip().upper()
 
-            return {"is_spam": "SPAM" in llm_response}
+            # "NOT_SPAM" contains "SPAM": test the negative first.
+            if "NOT_SPAM" in llm_response or "NOT SPAM" in llm_response:
+                return {"is_spam": False, "ok": True}
+            if "SPAM" in llm_response:
+                return {"is_spam": True, "ok": True}
+            logger.warning("[VECTOR][call_screener] LLM spam verdict unparseable")
+            return {"is_spam": False, "ok": False}
 
         except Exception as e:
-            logger.warning(f"[VECTOR][call_screener] LLM spam analysis failed: {e}")
-            return {"is_spam": False}
+            logger.warning("[VECTOR][call_screener] LLM spam analysis failed: {}", type(e).__name__)
+            return {"is_spam": False, "ok": False}
 
     def auto_reject(self, caller_id: str) -> dict:
         """
@@ -281,7 +313,7 @@ Respond with ONLY: SPAM or NOT_SPAM
             "reason": f"Spam score ({spam_score['score']:.2f}) exceeded threshold ({self._spam_threshold})"
         }
 
-        logger.info(f"[VECTOR][call_screener] Auto-rejected {caller_id}: {rejection['reason']}")
+        logger.info("[VECTOR][call_screener] Auto-rejected {}: {}", _mask_caller(caller_id), rejection["reason"])
         self.deduct_points(5, "call_auto_rejected")
 
         return {
@@ -293,14 +325,14 @@ Respond with ONLY: SPAM or NOT_SPAM
         """Set the spam score threshold for auto-rejection."""
         if 0.0 <= threshold <= 1.0:
             self._spam_threshold = threshold
-            logger.info(f"[VECTOR][call_screener] Spam threshold set to {threshold}")
+            logger.info("[VECTOR][call_screener] Spam threshold set to {}", threshold)
             return True
         return False
 
     def enable_auto_reject(self, enabled: bool = True) -> None:
         """Enable or disable auto-rejection of spam calls."""
         self._auto_reject_enabled = enabled
-        logger.info(f"[VECTOR][call_screener] Auto-reject {'enabled' if enabled else 'disabled'}")
+        logger.info("[VECTOR][call_screener] Auto-reject {}", "enabled" if enabled else "disabled")
 
     def get_call_history(self, limit: int = 50) -> list[dict]:
         """Get recent call screening history."""
@@ -332,7 +364,7 @@ Respond with ONLY: SPAM or NOT_SPAM
 
     async def run(self, task: dict) -> dict:
         action = task.get("type", "")
-        p = task.get("params", {})
+        p = task.get("params", {}) or {}
         if action == "list_call_contacts":
             return {
                 "status": "ok",
@@ -347,7 +379,8 @@ Respond with ONLY: SPAM or NOT_SPAM
                 notes=p.get("notes", ""),
                 priority=p.get("priority", "normal"),
             )
-            result["status"] = "ok"
+            if result.get("status") == "success":
+                result["status"] = "ok"
             return result
         if action == "call_history":
             return {"status": "ok", "history": self.get_call_history(), "count": len(self._call_history)}

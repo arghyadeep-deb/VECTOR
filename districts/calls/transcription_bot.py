@@ -34,7 +34,7 @@ class TranscriptionBot(AgentBase):
         # whisper.load_model() is heavy (and downloads ~140MB on first ever use),
         # so eager loading in __init__ made every TranscriptionBot() construction
         # block for seconds-to-minutes — flaky under the 60s test timeout.
-        logger.info(f"[VECTOR][transcription_bot] TranscriptionBot initialized - model: {self._whisper_model}")
+        logger.info("[VECTOR][transcription_bot] TranscriptionBot initialized - model: {}", self._whisper_model)
 
     def _init_whisper(self) -> None:
         """Lazily load the Whisper model once, on first use."""
@@ -44,11 +44,11 @@ class TranscriptionBot(AgentBase):
         try:
             import whisper
             self._whisper = whisper.load_model(self._whisper_model)
-            logger.info(f"[VECTOR][transcription_bot] Whisper model loaded: {self._whisper_model}")
+            logger.info("[VECTOR][transcription_bot] Whisper model loaded: {}", self._whisper_model)
         except ImportError:
             logger.warning("[VECTOR][transcription_bot] whisper not installed - transcription disabled")
         except Exception as e:
-            logger.error(f"[VECTOR][transcription_bot] Whisper init failed: {e}")
+            logger.error("[VECTOR][transcription_bot] Whisper init failed: {}", type(e).__name__)
 
     def transcribe_audio(self, audio_path: str, language: Optional[str] = None) -> dict:
         """
@@ -58,7 +58,7 @@ class TranscriptionBot(AgentBase):
         # Check the file first so a missing path fails fast without paying the
         # cost of loading the Whisper model.
         audio_file = Path(audio_path)
-        if not audio_file.exists():
+        if not audio_file.is_file():
             return {"status": "error", "message": "Audio file not found"}
 
         self._init_whisper()
@@ -66,8 +66,6 @@ class TranscriptionBot(AgentBase):
             return {"status": "error", "message": "Whisper not available"}
 
         try:
-            import whisper
-
             options = {
                 "fp16": False,
                 "verbose": False
@@ -77,9 +75,16 @@ class TranscriptionBot(AgentBase):
 
             result = self._whisper.transcribe(str(audio_file), **options)
 
+            text = (result.get("text") or "").strip()
+            if not text:
+                # Silence/undecodable audio is not a successful transcription:
+                # no points, no downstream summarisation of nothing.
+                logger.warning("[VECTOR][transcription_bot] No speech recognised")
+                return {"status": "error", "message": "No speech detected in audio"}
+
             transcription = {
                 "status": "success",
-                "text": result["text"].strip(),
+                "text": text,
                 "language": result.get("language", "unknown"),
                 "duration": result.get("duration", 0),
                 "segments": [
@@ -92,13 +97,17 @@ class TranscriptionBot(AgentBase):
                 ]
             }
 
-            self.award_points(20, f"audio_transcribed_{audio_file.stem}")
-            logger.info(f"[VECTOR][transcription_bot] Transcribed: {audio_file.name} ({transcription['duration']:.1f}s)")
+            # File names of call recordings often embed the caller number.
+            self.award_points(20, "audio_transcribed")
+            logger.info(
+                "[VECTOR][transcription_bot] Transcribed audio ({:.1f}s, {} chars)",
+                float(transcription["duration"] or 0), len(text),
+            )
 
             return transcription
 
         except Exception as e:
-            logger.error(f"[VECTOR][transcription_bot] Transcription failed: {e}")
+            logger.error("[VECTOR][transcription_bot] Transcription failed: {}", type(e).__name__)
             return {"status": "error", "message": str(e)}
 
     async def transcribe_live(self, duration_sec: float = 5.0) -> dict:
@@ -117,7 +126,7 @@ class TranscriptionBot(AgentBase):
         try:
             import sounddevice as sd
 
-            logger.info(f"[VECTOR][transcription_bot] Recording for {duration_sec}s...")
+            logger.info("[VECTOR][transcription_bot] Recording for {}s...", duration_sec)
 
             audio_data = []
             sample_rate = self._sample_rate
@@ -125,7 +134,7 @@ class TranscriptionBot(AgentBase):
 
             def callback(indata, frames, time, status):
                 if status:
-                    logger.warning(f"[VECTOR][transcription_bot] Recording status: {status}")
+                    logger.warning("[VECTOR][transcription_bot] Recording status: {}", status)
                 audio_data.append(indata.copy())
 
             with sd.InputStream(samplerate=sample_rate, channels=1, callback=callback):
@@ -136,18 +145,22 @@ class TranscriptionBot(AgentBase):
 
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
                 wav_path = Path(f.name)
+            try:
                 with wave.open(str(wav_path), 'wb') as wf:
                     wf.setnchannels(1)
                     wf.setsampwidth(2)
                     wf.setframerate(sample_rate)
                     wf.writeframes((audio_array * 32767).astype(np.int16).tobytes())
 
-            result = self.transcribe_audio(str(wav_path))
-
-            try:
-                wav_path.unlink()
-            except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                result = self.transcribe_audio(str(wav_path))
+            finally:
+                # Raw call audio must never be left on disk, even on failure.
+                try:
+                    wav_path.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError as _ue:
+                    logger.warning("[VECTOR][transcription_bot] temp audio cleanup failed: {}", type(_ue).__name__)
 
             if result.get("status") == "success":
                 self.award_points(15, "live_audio_transcribed")
@@ -157,7 +170,7 @@ class TranscriptionBot(AgentBase):
         except ImportError:
             return {"status": "error", "message": "sounddevice not installed"}
         except Exception as e:
-            logger.error(f"[VECTOR][transcription_bot] Live transcription failed: {e}")
+            logger.error("[VECTOR][transcription_bot] Live transcription failed: {}", type(e).__name__)
             return {"status": "error", "message": str(e)}
 
     def summarize_transcript(self, text: str, style: str = "concise") -> dict:
@@ -193,6 +206,9 @@ Summary:"""
                     temperature=0.4,
                     max_tokens=600,
                     caller_id="transcription_bot",
+                    # Call transcripts: local Ollama only, never pooled cloud keys.
+                    sensitive=True,
+                    district="calls",
                 )
                 return r.content
 
@@ -200,7 +216,7 @@ Summary:"""
                 summary = pool.submit(_asyncio.run, _call()).result(timeout=60).strip()
 
             self.award_points(10, "transcript_summarized")
-            logger.info(f"[VECTOR][transcription_bot] Summarized transcript ({style})")
+            logger.info("[VECTOR][transcription_bot] Summarized transcript ({})", style)
             return {
                 "status": "success",
                 "original_length": len(text.split()),
@@ -209,13 +225,19 @@ Summary:"""
                 "style": style
             }
         except Exception as e:
-            logger.error(f"[VECTOR][transcription_bot] Summarization failed: {e}")
-            return {"status": "error", "message": str(e)}
+            # Provider errors can echo the prompt (the transcript): type only.
+            logger.error("[VECTOR][transcription_bot] Summarization failed: {}", type(e).__name__)
+            return {"status": "error", "message": f"Summarization failed ({type(e).__name__})"}
 
     def extract_action_items(self, text: str) -> list[dict]:
         """
         Extract action items and tasks from transcribed text.
         """
+        items = self._extract_action_items_or_none(text)
+        return items if items is not None else []
+
+    def _extract_action_items_or_none(self, text: str) -> list[dict] | None:
+        """Like extract_action_items but returns None when the LLM call failed."""
         prompt = f"""Extract all action items, tasks, and commitments from this transcript.
 For each item include:
 1. Task description
@@ -240,6 +262,9 @@ Transcript:
                     temperature=0.3,
                     max_tokens=600,
                     caller_id="transcription_bot",
+                    # Call transcripts: local Ollama only, never pooled cloud keys.
+                    sensitive=True,
+                    district="calls",
                 )
                 return r.content
 
@@ -250,8 +275,8 @@ Transcript:
             self.award_points(5, "action_items_extracted")
             return action_items
         except Exception as e:
-            logger.error(f"[VECTOR][transcription_bot] Action item extraction failed: {e}")
-            return []
+            logger.error("[VECTOR][transcription_bot] Action item extraction failed: {}", type(e).__name__)
+            return None
 
     def _parse_action_items(self, text: str) -> list[dict]:
         """Parse LLM response into structured action items."""
@@ -291,7 +316,9 @@ Transcript:
         if task_type == "summarize_transcript":
             return self.summarize_transcript(p.get("text", ""), p.get("style", "concise"))
         if task_type == "extract_action_items":
-            items = self.extract_action_items(p.get("text", ""))
+            items = self._extract_action_items_or_none(p.get("text", ""))
+            if items is None:
+                return {"status": "error", "message": "Action item extraction failed", "action_items": []}
             return {"status": "ok", "action_items": items}
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}

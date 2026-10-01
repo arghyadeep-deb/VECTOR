@@ -62,7 +62,8 @@ async def test_transcription_bot_run_extract_action_items_routes_correctly():
         "type": "extract_action_items",
         "params": {"text": "John will send the proposal by Friday."},
     })
-    assert result["status"] == "ok"
+    # "error" when no LLM is reachable (failure is no longer reported as ok).
+    assert result["status"] in ("ok", "error")
     assert "action_items" in result
 
 
@@ -117,7 +118,7 @@ async def test_voice_responder_run_generate_response_routes_correctly():
         "type": "generate_response",
         "params": {"text": "Hello there", "context": {"tone": "friendly"}},
     })
-    assert result["status"] in ("success", "error")
+    assert result["status"] in ("success", "degraded", "error")
 
 
 @pytest.mark.asyncio
