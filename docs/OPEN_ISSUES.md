@@ -1583,7 +1583,7 @@ grew open engineering items; section 0 lists them.
     `core/persona/evolution.py`, `core/scheduler/store.py` (raw-sqlite3 findings); `core/experiments/
     ab_testing.py` (already has its own dedicated fix, commit `9e7f2d04a`).
 
-28. **`districts/marketing/` + `districts/coding/` full multi-bug-class revisit, 2026-10-01 —** resumed
+30. **`districts/marketing/` + `districts/coding/` full multi-bug-class revisit, 2026-10-01 —** resumed
     slice (a prior fork died mid-task from a Claude rate limit; its committed progress —
     `amazon_ads_agent.py`/`attribution_agent.py`/`sgtm_agent.py` Rule-1-hydration fix,
     `geo_optimizer_agent.py` params-vs-task fix, `ads_orchestrator_agent.py` dead-script-path fix — is
@@ -1654,6 +1654,52 @@ grew open engineering items; section 0 lists them.
     logic read), plus the trivial `__init__.py`/`code_review_graph/__init__.py`/
     `vectorcode/__init__.py` files (not checked, likely trivial). Next slice should start here before
     considering `districts/coding/` done.
+
+31. **`vectorcode/src/tools/terminal_tool.py` (full, finished) + `file_state.py`, 2026-10-02 —** resumed
+    slice: two prior forks got real depth on 14 of 129 `src/tools/` files plus 1,408 of
+    `terminal_tool.py`'s 2,157 lines before each ran low on budget (see item 28). This pass
+    finished `terminal_tool.py`'s remaining ~750 lines and separately read `file_state.py`
+    (332 lines) in full.
+    **`terminal_tool.py`, no severe new bug in the finished segment.** The background-spawn
+    path, foreground retry/backoff loop, `check_terminal_requirements()`'s per-backend checks,
+    and the tool-schema/registry wiring at the bottom are all internally consistent.
+    **FLAGGED, not fixed:** the file uses stdlib `logging.getLogger(__name__)` with `%s`
+    placeholders throughout (confirmed real, not the loguru-`%s` bug class — stdlib's `%s`
+    works correctly here) — CLAUDE.md rule 6 says loguru everywhere, and this cycle already
+    converted 2 other files for the same reason (`core/sandbox/mount_security.py`,
+    `vectorcode/src/tools/url_safety.py`), but url_safety.py's conversion was justified by a
+    stray broken `from loguru import logger` import sitting in its docstring — clear evidence
+    loguru was the actual intent. `terminal_tool.py` shows no such evidence; its stdlib logging
+    looks deliberate. A ~24-call-site conversion is a real but non-urgent style fix, not a
+    functional bug — left for a dedicated cleanup pass rather than taken out of this budget.
+    Also investigated and ruled OUT (not a bug): both the foreground and background success
+    paths never set a `"status"` key (only error paths do, each with their own string) — this
+    looked like the exact status-contract-drift class fixed twice already tonight
+    (`autonomous_loop.py`/`lora_trainer.py`), but confirmed via grep that no real VECTOR-side
+    caller parses `terminal_tool`'s JSON for `status=="ok"` — the LLM agent itself consumes the
+    tool's JSON output directly as conversational tool-result text, not as internal
+    control-flow data, so there's no reachable failure mode.
+    **`file_state.py`, clean.** Real per-path locking (`threading.Lock()` as a guard, not a
+    spawn — compliant), bounded dicts via `_cap_dict`'s insertion-order eviction, and the
+    3-case staleness detection in `check_stale()` (sibling-write-after-read, external-mtime-
+    drift, never-read) are all logically sound. No bug found.
+    No commits this pass (nothing to fix, one item flagged for a future cleanup slice, not
+    fixed here).
+    **`vectorcode/src/tools/` running total: 16 of 129 files + `terminal_tool.py` now fully
+    read (18 "files" in effective coverage terms). ~111 files remain, all still unread**:
+    `fuzzy_match.py` (704 lines, next smallest unread) should be picked up first; then the
+    thirteen 1,000+ line files flagged as their own dedicated future slices by the prior fork
+    (`skills_hub.py` 3,226, `mcp_tool.py` 3,066, `browser_tool.py` 2,884, `delegate_tool.py`
+    2,518, `web_tools.py` 2,112, `send_message_tool.py` 1,583, `code_execution_tool.py` 1,581,
+    `tts_tool.py` 1,526, `skills_tool.py` 1,496, `rl_training_tool.py` 1,407,
+    `browser_supervisor.py` 1,363, `process_registry.py` 1,354, `file_operations.py` 1,260,
+    `approval.py` 1,219, `file_tools.py` 1,187, `kanban_tools.py` 1,139, `lsp/servers.py` 1,040,
+    `voice_mode.py` 1,018); plus `browser_*`/`browser_providers/*`, `computer_use*`,
+    `microsoft_graph*`, `mcp_oauth*`, `feishu*`, `environments/*` (daytona/docker/modal/ssh/
+    singularity/local/vercel_sandbox), and the rest not yet enumerated. `vector_cli/` (123
+    files) and `cli/` (24 files) haven't started at all. This directory is clearly far denser
+    than its file count suggested going in — treat every future batch size estimate for it
+    with that in mind.
 
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
