@@ -168,6 +168,48 @@ Bugs found in VECTOR itself are recorded in `docs/OPEN_ISSUES.md` item 26, not h
 8. **Stop-hook fired twice mid-run**; only reviewed/tested areas were committed, in the order each agent
    finished.
 
+## 2026-10-01 — core/mcp_tools (3 areas) + core/scraper (4 areas)
+
+1. **Test seam missing in the OLD code made "fail-on-old" unreliable (two separate ways).** The old
+   `expansion_modules/*` compute `ROOT` as a local inside `add_*_tools` from `__file__`, so a test cannot
+   redirect it; the new code adds a module-level `_ROOT` for testing.
+   - **expansion A:** three tests passed on old (`file_read` sibling-prefix, `security_path_check` sibling-prefix,
+     real-repo dash-ref checkout) because the old root was the real repo and the `../repo-evil` path simply
+     landed outside it — denied for the wrong reason. Bug proven instead from the baseline SOURCE
+     (`str(resolved).startswith(str(ROOT.resolve()))` at old `files.py:34` / `security.py:64`). My direct
+     execution demo of the old tools failed on a baseline-worktree `core.config` import-order problem and was
+     abandoned in favour of the source evidence; the NEW tools were demonstrated to deny the sibling.
+   - **expansion B:** on the unmodified baseline 83 of 102 tests ERRORed at fixture setup
+     (`monkeypatch.setattr(mod, "_ROOT", …)` AttributeError), i.e. they never reached the logic. Re-ran with a
+     bare `_ROOT` attribute shimmed onto the six old modules (logic untouched) and `pytest-timeout=20s`:
+     **98 FAILED / 0 ERROR / 4 PASSED**; the 4 passes are `doc_*` tests with the same redirect limitation;
+     old `doc_move/doc_copy` (no containment) and `doc_delete` (`startswith` then `unlink`) confirmed from source.
+2. **My own check script mis-parsed results twice.** It counted captured log lines starting with `ERROR` as test
+   errors (browsers showed "4 ERROR" while all 81 tests passed) — fixed to match `ERROR tests/…` only. An earlier
+   run of the expansion-B old-code check hit my 110s limit (old `perf_stress`/`perf_load` are unbounded) and
+   printed zeros; re-ran with a hard per-test timeout so a hang counts as a failure.
+3. **Scratch-dir collision again.** A subagent had already used `scratchpad/old` as a plain directory, so my
+   `git worktree add …/old` failed ("already exists") and an `oldcheck` run silently found no worktree. Moved
+   the baseline to `scratchpad/base`. The old-code runs of expansion B can write/delete real files in the
+   baseline worktree (`doc_delete`, `test_create`, `doc_copy`) — restored with `git checkout -- .` +
+   `git clean` after each run; the main repo was verified clean.
+4. **Auto-commit hook snapshots again** touched only test files this round
+   (`291a0d94 auto: test_audit_phase3_scraper_browsers.py`, `a6c9f09d`-style), never source; every source
+   change was reviewed before its commit. The three previous baselines were therefore still valid for
+   `core/mcp_tools` and `core/scraper` (no source commits since `9089265a`).
+5. **Environment (not repo) changes:** agents `pip install`ed cssselect, lxml, orjson, w3lib, tldextract
+   (parser), protego, tld, browserforge, msgspec, patchright, playwright, curl_cffi, click, ipython,
+   markdownify (spiders); I installed `pytest-timeout`. `requirements.txt` untouched.
+6. **Pre-existing failures verified unrelated:** `tests/test_mcp_server_main_dispatch_fix.py` (2 tests) runs
+   `python core/mcp_server.py` as a subprocess and fails `ModuleNotFoundError: No module named 'core'` on the
+   UNMODIFIED baseline too (no PYTHONPATH); `core/scraper/vector_scraper.py` cannot be run as a script
+   (`sys.path[0]` makes `core` resolve to `core/scraper/core`).
+7. **Agent report accuracy:** several agents said they "could not run fail-on-old" (git writes forbidden / `rm`
+   denied); all verified by me. The spiders agent's pickle-checkpoint change and the browsers agent's
+   `--no-sandbox` rejection are behaviour changes, called out in item 26. Agents correctly refrained from
+   editing `core/security/ssrf_guard.py` (documented owner decision) and from inventing MCP tier policy.
+8. **Stop-hook fired repeatedly mid-run**; only reviewed/tested areas were committed, in completion order.
+
 ## Unresolved
 
 None blocking. Flagged-not-fixed design items are listed in `docs/OPEN_ISSUES.md` item 26.
