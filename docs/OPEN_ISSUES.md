@@ -1063,6 +1063,55 @@ grew open engineering items; section 0 lists them.
     are unlabelled templates; `ProgressTracker` uses `threading.RLock` (banned) and `start_run` reuses
     old step_logs; agency client data is plaintext JSON outside the encrypted DB; sync `chat()` blocks
     the event loop in sales/proposal.
+    **Languages + startups + projects + predictive_analytics + memory_curator + home_assistant audit
+    (commits `4defa3d5`, `803dc633`, `43751974`, `61553331`, `114b4187`, `79b6ef1b`) — 6 new test files
+    (`tests/test_audit_phase3_*.py`); each new test re-run by Claude against the pre-fix code in a
+    throwaway worktree and confirmed failing there, passing now.** `memory_curator` (priority): **PASS** on
+    both gates — zero raw `sqlite3`/`sqlcipher` opens (all access via `get_temp_cursor()` /
+    `EpisodicMemory`), and none of the 5 sacred tables is renamed/dropped/altered/vacuumed (only
+    `prune_old_episodes()` in core, decay-gated, plus a capped DELETE on the non-sacred
+    `context_budget_handles` cache). Real bug fixed there: `ConsolidationBot` pruned the raw episodes
+    after `remember()` had *failed* to persist the summary (it returns `False`, never raises) and reported
+    success — a data-loss path; now keeps the episodes and reports an error (+3 more writes that said
+    "Got it/Noted/ok" when nothing was stored). `home_assistant`: `HASS_URL=https://…` never enabled TLS
+    (bearer token sent in cleartext to port 8123); `entity_id`/service injected into URL paths unvalidated;
+    `connect()` hung forever in the WS-reconnect loop when HA was down and returned True anyway; a failed
+    service call, an unresolved device ("kitchen lamp") and the `dim` no-op all reported "Turned on / Executed";
+    "unlock"/"disarm" parsed as lock/arm; door/garage/gate covers now require confirmation; scene restore
+    sent `turn_off` to covers/climate; `threading.Lock` removed. `startups`: a failed/unparseable LLM
+    reply used to score every dimension 5 and **admit the idea past the Equation revenue-velocity gate**
+    (fail-open); missing score now fails closed (counted 0), plus scanner/spy/modeler canned fallbacks
+    (LTV:CAC 5.0 → "GOOD", "12 months MEDIUM risk") now return errors. `projects`: an unreadable store
+    read as "no deadlines"; unparseable dates stored and never alerting; canned doc written to the vault
+    as real; CWE-22 note titles (`ObsidianSync.write_note` doesn't confine); `POST /projects/create`
+    sent `description` but `run` read only `goal`; experiment tracker fabricated an `adopt_variant` win
+    from an empty arm. `predictive_analytics`: forecasts built on **random synthetic history** drove
+    recommendations and Pushover alerts (now tagged `+synthetic_history` and ignored); NaN readings
+    made the anomaly detector report clean; CWE-22 in `load_scenario`; Prophet path always raised
+    (`Series.dt.isoformat`). `languages`: all 5 coaches returned `ok` + stored a memory row when the LLM
+    returned nothing. Test edit to note: `tests/test_phase2_districts.py` two doc_writer tests asserted
+    `write_doc()==True` with the LLM mocked *offline* (encoding the canned-doc-as-success bug); now mock
+    a real reply.
+    **Flagged, not fixed (design / tier-policy):** home_assistant `SceneManager`/`AutomationEngine`
+    `call_service` are **ungated** (lock/alarm-arm/all-switches rules; latent — `evaluate_triggers` has no
+    production caller) — recommend not wiring it until a tier decision; `home_control`/`smart_home` are
+    YELLOW so with `VECTOR_YELLOW_AUTO_CONFIRM=1` any proposer can run lights/climate/covers unattended
+    (consider RED); the "Are you sure…" high-risk confirmation has no pending-state, so lock/alarm via
+    voice can never complete (fail-closed); the gateway `home_control` branch ignores `connect()`'s
+    return, ignores `HASS_URL`, and classifies replies by string prefix; entity matcher silently picks
+    the top of ties. `memory_curator`: with `VECTOR_MEMORY_CURATOR_LLM` unset every consolidation stores a
+    conf-0.3 placeholder then still prunes at 90d, and only 50 of up to 200 old rows reach the summary.
+    `idea_validator` reads the regime via `get_regime()`, which returns NORMAL on any read failure
+    (documented "never freeze"; fails open at the regime gate). `predictive_analytics`: `evaluate_risk`
+    returns 0.0 on an empty/failed simulation (existing tests pin it); `autonomous_loop.predict_cycle`
+    compares a forecast with itself (anomaly step is a no-op) and never closes its stores; Pushover
+    POSTs in `anomaly_predictor`/`strategy_recommender` bypass the gateway; no cap on `iterations`.
+    `projects`: `create_project` never registers a `project_deadline` so created projects never alert,
+    `DeadlineWatcher` silently drops overdue items, pipe-delimited storage corrupts on `|`.
+    `languages`: Hindi/English/Bengali/Assamese return canned "Offline language guidance" as `ok` unless
+    `VECTOR_LANGUAGE_LLM=1` (existing tests pin `ok`). Cross-cutting: `core/memory/obsidian_sync.write_note`
+    does not confine `title` to the vault — other districts passing caller-controlled titles are likely
+    exposed (needs a core fix).
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
