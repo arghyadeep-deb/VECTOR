@@ -228,7 +228,14 @@ class HTMLFrameRenderer:
 
                 await browser.close()
         finally:
+            # shutdown() only stops serve_forever()'s loop -- it does not
+            # release the listening socket. Without server_close(), every
+            # capture() call leaked a bound port/file descriptor forever
+            # (each call picks a fresh port via _find_free_port(), so this
+            # was invisible until enough renders ran to exhaust the range or
+            # hit the OS file-descriptor limit).
             server.shutdown()
+            server.server_close()
 
         avg_ms = sum(capture_times) / len(capture_times) if capture_times else 0.0
         frames_written.sort()
