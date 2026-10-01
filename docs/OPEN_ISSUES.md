@@ -1397,7 +1397,7 @@ grew open engineering items; section 0 lists them.
     timeout); package-owned `elements_storage.db` default path is inside the source tree (bypasses CONFIG);
     `quick_fetch`/`fetch_to_markdown` return `""` on failure and the error body on 4xx/5xx; `--no-sandbox` is
     now rejected in caller `extra_flags` (Docker-as-root needs it); `STEALTH_ARGS` includes
-    `--disable-cookie-encryption`; `announcements.py`-style phone-homes are in trading, not here.
+    `--disable-cookie-encryption`.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
