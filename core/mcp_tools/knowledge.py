@@ -30,7 +30,7 @@ def add_knowledge_tools(mcp) -> None:
         try:
             from pathlib import Path as _Path
             from core.config import CONFIG as _CONFIG
-            root = _Path(project_path).resolve() if project_path else _Path(__file__).parent.parent
+            root = _Path(project_path).resolve() if project_path else _Path(__file__).resolve().parents[2]
             if not root.is_dir():
                 return _safe_json({"error": f"Not a directory: {root}"})
             output_path = None

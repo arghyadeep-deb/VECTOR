@@ -3,6 +3,16 @@
 from __future__ import annotations
 
 
+def _resolve_repo(repo_path: str):
+    """Resolve repo_path to a directory inside the VECTOR repo, else None (CWE-22)."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    candidate = Path(repo_path or ".")
+    resolved = (candidate if candidate.is_absolute() else root / candidate).resolve()
+    return resolved if resolved.is_relative_to(root) else None
+
+
 def add_code_graph_tools(mcp) -> None:
     """Register code-review-graph MCP tools."""
 
@@ -12,7 +22,10 @@ def add_code_graph_tools(mcp) -> None:
         try:
             from districts.coding.code_review_graph import build_graph
 
-            result = build_graph(repo_path)
+            repo = _resolve_repo(repo_path)
+            if repo is None:
+                return f"Error: repo_path '{repo_path}' is outside the VECTOR codebase"
+            result = build_graph(str(repo))
             return str(result)
         except Exception as exc:
             return f"Error: {exc}"

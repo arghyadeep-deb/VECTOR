@@ -114,9 +114,8 @@ def add_email_tools(mcp) -> None:
             """Get email inbox status: unread count and total emails."""
             try:
                 import asyncio as _asyncio
-                result = _asyncio.get_event_loop().run_until_complete(
-                    _email_agent.run({"type": "status"})
-                )
+                # get_event_loop() fails in the MCP worker thread (no current loop).
+                result = _asyncio.run(_email_agent.run({"type": "status"}))
                 return _json.dumps(result)
             except Exception as e:
                 return _json.dumps({"error": str(e)})

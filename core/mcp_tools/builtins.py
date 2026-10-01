@@ -37,8 +37,8 @@ def add_builtin_tools(mcp) -> None:
             return f"Tool '{tool_name}' blocked by MCP security rate limit."
         cli_dir = _ROOT / "districts" / "marketing" / "tools" / "clis"
         script = (cli_dir / f"{tool_name}.js").resolve()
-        if not str(script).startswith(str(cli_dir.resolve())):
-            return f"Access denied: tool path outside CLI directory."
+        if not script.is_relative_to(cli_dir.resolve()):
+            return "Access denied: tool path outside CLI directory."
         if not script.exists():
             available = sorted(f.stem for f in cli_dir.glob("*.js"))
             return f"Tool '{tool_name}' not found. Available ({len(available)}): {', '.join(available)}"
@@ -51,6 +51,12 @@ def add_builtin_tools(mcp) -> None:
                 cwd=str(cli_dir),
             )
             out = result.stdout.strip() or result.stderr.strip() or "No output"
+            if result.returncode != 0:
+                logger.warning(
+                    "[VECTOR][mcp] marketing_cli {} exited rc={}: {}",
+                    tool_name, result.returncode, out[:200],
+                )
+                return f"CLI error for '{tool_name}': exit code {result.returncode}: {out}"
             logger.info(f"[VECTOR][mcp] marketing_cli {tool_name} → {len(out)} chars")
             return out
         except subprocess.TimeoutExpired:
@@ -179,10 +185,15 @@ def add_builtin_tools(mcp) -> None:
     @mcp.tool
     async def mine_reddit(subreddit: str = "LocalLLaMA", limit: int = 10) -> str:
         """Get hot posts from a subreddit via VECTOR's RedditMiner (no OAuth needed)."""
+        import re as _re
+        if not _re.fullmatch(r"[A-Za-z0-9_]{1,21}", subreddit):
+            return f"Reddit mining failed: invalid subreddit '{subreddit}'"
         try:
             from districts.research.reddit_miner import RedditMiner
             miner = RedditMiner()
-            result = await miner.mine_subreddit(subreddit, limit=limit)
+            result = await miner.fetch_hot(subreddit, limit=limit)
+            if not result:
+                return f"Reddit mining failed: no posts returned for r/{subreddit}"
             import json
             return json.dumps(result, indent=2, default=str)
         except Exception as e:
@@ -193,9 +204,19 @@ def add_builtin_tools(mcp) -> None:
     async def read_paper(url: str) -> str:
         """Fetch and summarise an ArXiv paper or research URL using VECTOR's PaperReader."""
         try:
+            query = url.strip()
+            if query.lower().startswith(("http://", "https://")):
+                from core.security.ssrf_guard import get_ssrf_guard
+                check = get_ssrf_guard().check_url(query)
+                if not check.safe:
+                    return f"Paper reading failed: URL blocked ({check.reason})"
+                # PaperReader has no read(); look the paper up by its arXiv id.
+                query = query.rstrip("/").rsplit("/", 1)[-1].removesuffix(".pdf")
             from districts.research.paper_reader import PaperReader
             reader = PaperReader()
-            result = await reader.read(url)
+            result = await reader.search_papers(query, max_results=1)
+            if not result:
+                return f"Paper reading failed: no paper found for '{url}'"
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] read_paper failed: {e}")
@@ -230,11 +251,14 @@ def add_builtin_tools(mcp) -> None:
             reviewer = CodeReviewer()
             _root = _ROOT
             path = Path(file_path).resolve()
-            if not str(path).startswith(str(_root)):
+            if not path.is_relative_to(_root.resolve()):
                 return f"Access denied: '{file_path}' is outside the VECTOR codebase."
+            if path.suffix != ".py":
+                return f"Access denied: '{file_path}' is not a Python file."
             if not path.exists():
                 return f"File not found: {file_path}"
-            result = await reviewer.review_file(str(path))
+            # review_file is synchronous (returns a dict) -- awaiting it raised TypeError.
+            result = await asyncio.to_thread(reviewer.review_file, str(path))
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] review_code failed: {e}")
@@ -247,6 +271,8 @@ def add_builtin_tools(mcp) -> None:
             from districts.coding.git_bot import GitBot
             bot = GitBot()
             result = await asyncio.to_thread(bot.get_status)
+            if not result:
+                return "Git status failed: no repository status available"
             return str(result)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] git_status failed: {e}")
@@ -287,6 +313,10 @@ def add_builtin_tools(mcp) -> None:
     @mcp.tool
     def write_note(title: str, content: str, folder: str = "Research", tags: str = "") -> str:
         """Write a note to the VECTOR Obsidian vault."""
+        # title becomes "<vault>/<folder>/<title>.md"; ObsidianSync only validates the
+        # folder, so a title such as "../../x" would escape the vault (CWE-22).
+        if not title.strip() or "/" in title or "\\" in title or ".." in title or "\x00" in title:
+            return f"Note write failed: invalid title '{title}'"
         try:
             from core.memory.obsidian_sync import ObsidianSync
             sync = ObsidianSync()
@@ -298,12 +328,13 @@ def add_builtin_tools(mcp) -> None:
             return f"Note write failed: {e}"
 
     @mcp.tool
-    def search_vault(query: str, top_k: int = 5) -> str:
+    async def search_vault(query: str, top_k: int = 5) -> str:
         """Search the VECTOR Obsidian vault via LightRAG semantic search."""
         try:
             from core.memory.obsidian_sync import ObsidianSync
             sync = ObsidianSync()
-            results = sync.query(query, top_k=top_k)
+            # ObsidianSync.query is async and takes (text, mode) -- it has no top_k.
+            results = await sync.query(query)
             return str(results)
         except Exception as e:
             logger.error(f"[VECTOR][mcp] search_vault failed: {e}")
@@ -401,7 +432,8 @@ def add_builtin_tools(mcp) -> None:
             message = f"❓ VECTOR needs input:\n{question}"
             if opts_str:
                 message += f"\n\nOptions:\n{opts_str}"
-            await nudge.push(message, priority=10)
+            # NudgeEngine.push is synchronous (returns a dict) and priority is 0-1.
+            nudge.push(message, source="ask_user_question", priority=1.0)
             return f"Question sent to owner: {question}"
         except Exception as e:
             from loguru import logger
