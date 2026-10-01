@@ -1248,6 +1248,80 @@ grew open engineering items; section 0 lists them.
     chief_of_staff `_rice` treats missing fields as 0; `science` engines in core use a small-angle
     pendulum and heuristic SMILES validity when rdkit is absent; `legal` keyword emergency detection
     ("can't breathe" unmatched) and exact-match `prescription_drug`.
+    **`core/trading/` audit (89 files; commits `cd1c3030`, `b01750f4`, `4a15657c`, `8a16600a`) — ~32 fixes,
+    4 new test files (`tests/test_audit_phase3_trading_{agents,dataflows,graph,cli}.py`); each re-run by
+    Claude against the pre-fix tree and confirmed failing there for the stated reason.** **Live-execution
+    verdict (explicit): `core/trading/` introduces NO additional live-execution path.** Checked two ways —
+    my own search of the final tree (order/broker/exchange/wallet/signing/subprocess/`.post(`: zero hits) and
+    all four subagents' independent inventories. The only exchange mention is
+    `crypto_trading.py::SUPPORTED_EXCHANGES = [binance, coinbase, kraken, hyperliquid]`, an inert class
+    constant echoed into a dict — the class has only `get_quote()` (a read-only yfinance lookup) and a
+    placeholder `analyze()` with `paper_mode: True`; no exchange client, no credentials, no signing. Tools
+    exposed to LLM agents are read-only data getters; the only writes are the decision log, the per-ticker
+    state JSON and the package's own LangGraph checkpoint DB. The two documented intentional exceptions
+    (`execution_engine.py` Zerodha, `hedgebot_agent.py` Jupiter/Solana, RED-gated) are unchanged and outside
+    this package. **One mislabel to flag (outside `core/trading/`, not changed):**
+    `districts/investment/trading_conductor_agent.py` is documented "ANALYSIS ONLY" but declares routing
+    capabilities `execute_trade`, `place_order`, `paper_trade`; a Governor task for those types lands on an
+    agent that only returns a rating — not execution, but a misleading capability tag; also
+    `getattr(final_state["final_trade_decision"], "rating", None)` is always `None` there (the decision is a
+    string), so its result `rating` is always `"Hold"` while `decision` carries the real parsed rating.
+    **Order / sizing math — real bugs fixed:** `TraderProposal`/`PortfolioDecision` accepted NaN, inf, 0 and
+    negative `entry_price`/`stop_loss`/`price_target`, and a **Buy with `stop_loss` ≥ `entry_price`** (stop
+    above entry on a long: instantly triggered or protecting nothing); now rejected by validators (a
+    validation error already falls back to free text via `invoke_structured_or_freetext`, verified). **Not
+    fixed (design):** position sizing is free text ("5% of portfolio") — there is no numeric size field, so no
+    [0,1]/portfolio-limit bound exists and nothing under `agents/` computes risk/reward; the Sell-side stop
+    is unchecked (short vs exiting a long is ambiguous); reflection's raw/alpha returns are the stock's
+    return, not direction-adjusted (a profitable Sell shows negative; only the LLM prompt interprets it) and
+    stock/benchmark closes are paired by position (`iloc[n]`), not date. **Finance fail-open fixed:**
+    `SignalProcessor` turned `"Not Buy"` / `"Do not Buy this stock."` into **Buy** (now Hold + warning;
+    explicit `Rating: X` label still wins; `None` text no longer raises); a NaN close was reflected on and
+    stored as a `+nan%` outcome; a reflection LLM error aborted the whole analysis and a blank reflection
+    permanently resolved a memory entry. **Checkpoint "resume" was not a resume:** `_run_graph` always
+    invoked with the fresh initial state, so after a crash the run re-executed every completed node and
+    appended a second human message (reproduced independently on a toy LangGraph: calls
+    `['a','b','a','b']`, 2 human messages; with `invoke(None)`: `['a','b','b']`, 1). **Data / look-ahead:**
+    Alpha Vantage returns errors as HTTP 200 JSON — `Note`, `Error Message`, premium `Information` and `{}`
+    were returned as price data (now raise, so `route_to_vendor` falls back to yfinance); a CSV parse
+    failure returned the **unfiltered** CSV (rows after `end_date` = look-ahead leak); the fundamentals
+    date filter was dead code (guarded by `isinstance(result, dict)` on a JSON string) so balance
+    sheet/cashflow/income never dropped future reports; yfinance `end=` is exclusive so the trade-date bar
+    was dropped (now consistent with the other vendors' `<= curr_date`); an empty `yf.download` poisoned
+    the cache for the day and cache writes were non-atomic (truncated CSV served as fresh history). **Failed
+    fetch read as "nothing":** Reddit/StockTwits errors (429, HTTP-200 error envelope) became "no posts
+    found" / "no messages" i.e. zero sentiment; `crypto_trading.get_quote` returned `price: 0.0` on any
+    failure and on a missing `last_price` (no `error` key), and accepted NaN/≤0. **Secrets:** `requests`
+    embeds the full URL including `apikey=` in its exception text, which reached `logger.error` and the
+    string returned to the LLM; now re-raised without the URL. **Injection / CWE-22:** the decision log is
+    fed back into later prompts as "lessons" and a prompt-injected `<!-- ENTRY_END -->` in the decision text
+    could forge a resolved entry (escaped; unsafe ticker/date raise); the CLI's ticker validator allowed
+    `..` (every char individually allowed), so reports were written outside `results_dir`; ticker/date were
+    validated only after the whole LLM run; StockTwits ticker interpolated raw into the URL path. **CLI:**
+    `core/trading/cli` could not be imported at all (`from cli.models import …`; there is no top-level `cli`
+    package) and 3 of the package's own test files (`test_api_key_env`, `test_ollama_base_url`,
+    `test_ticker_symbol_handling`) failed to collect — import-path-only fix; a run with no final decision
+    was shown as a finished report and offered "Save report?" (now exit 1 with "Analysis FAILED";
+    incomplete sections get an INCOMPLETE banner); hostile `ast.literal_eval` text (`{[]: 1}`) crashed the
+    run; analysis date not normalised. **Flagged, not fixed:** `agents/utils/rating.py::parse_rating`
+    (feeds the memory-log tag) still has the negation weakness ("Not a sell" → Sell; first match wins) so the
+    memory tag can say Buy while `SignalProcessor` says Hold; `--checkpoint` is a no-op in the CLI (it calls
+    `graph.graph.stream` directly, bypassing `propagate`'s checkpointer, memory-log context and
+    `store_decision`); trading LLM clients bypass `core/inference/route_policy`, `budget_gate` and
+    `session_hydration_prompt()` (Key Rules 1 & 5) — safe only because the default is local Ollama; if
+    `TRADING_LLM_PROVIDER` is switched to a cloud provider, tickers/positions go to the cloud ungated;
+    `openai_client` pairs an explicit `base_url` with a provider-keyed API key (a wrong `backend_url` sends
+    e.g. the DeepSeek key to that host); fundamentals look-ahead filters use fiscal period END not filing
+    date, and OVERVIEW/`.info`/insider snapshots ignore `curr_date` (not point-in-time; unsafe for
+    backtests); Reddit/StockTwits are live-only; `_clean_dataframe` `bfill()` can fill leading NaNs with
+    future values; `announcements.py` phones home to `api.tauric.ai` on every start with `requests` and
+    renders remote text as rich markup (blocks on `getpass` if `require_attention`); `ensure_api_key`
+    writes a pasted key to the nearest `.env` (the repo's, if run inside it); `alpha_vantage_common` still
+    uses `requests` (rule: httpx); `StatsCallbackHandler` counts calls at start only (no error callbacks);
+    `save_report_to_disk` overwrites and is non-atomic; vacuous package tests
+    (`test_safe_ticker_component::test_traversal_string_does_not_escape_join` joins only "AAPL",
+    `test_env_overrides::test_unknown_env_var_is_ignored`); no tests for the three `VECTOR_TRADING_*_DIR`
+    env overrides; `vector-local` provider in `model_catalog` has no factory route.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
