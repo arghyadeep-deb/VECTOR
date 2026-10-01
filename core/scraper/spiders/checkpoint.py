@@ -42,7 +42,7 @@ class CheckpointManager:
                 raise ValueError("Checkpoints interval must be equal or greater than 0.")
 
     async def has_checkpoint(self) -> bool:
-        """Check if a checkpoint exists (new JSON or legacy pickle format)."""
+        """Check if a checkpoint exists (JSON, or a legacy pickle file that will be ignored)."""
         if await self._checkpoint_path.exists():
             return True
         legacy = self._checkpoint_path.with_suffix(".pkl")
@@ -63,7 +63,7 @@ class CheckpointManager:
             async with await anyio.open_file(temp_path, "wb") as f:
                 await f.write(serialized)
 
-            await temp_path.rename(self._checkpoint_path)
+            await temp_path.replace(self._checkpoint_path)  # replace(): rename() fails on Windows if the target exists
 
             log.info(f"Checkpoint saved: {len(data.requests)} requests, {len(data.seen)} seen URLs")
         except Exception as e:
@@ -86,53 +86,15 @@ class CheckpointManager:
             log.warning(f"[VECTOR][scraper] JSON checkpoint load failed: {e}")
             return None
 
-    async def _try_load_legacy_pickle(self, path: AsyncPath) -> Optional[CheckpointData]:
-        """Try to load legacy pickle-format checkpoint. Deprecated.
-
-        Uses a RestrictedUnpickler that only permits the handful of classes a
-        checkpoint legitimately contains — any other global (arbitrary callables,
-        os/subprocess, etc.) raises, neutralizing the pickle RCE vector while
-        still allowing genuine legacy checkpoints to migrate to JSON.
-        """
-        import io
-        import pickle
-
-        _ALLOWED = {
-            ("core.scraper.spiders.checkpoint", "CheckpointData"),
-            ("core.scraper.spiders.request", "Request"),
-            ("builtins", "set"), ("builtins", "frozenset"),
-            ("builtins", "list"), ("builtins", "dict"), ("builtins", "tuple"),
-            ("builtins", "bytes"), ("builtins", "str"),
-            ("builtins", "int"), ("builtins", "float"), ("builtins", "bool"),
-        }
-
-        class _RestrictedUnpickler(pickle.Unpickler):
-            def find_class(self, module, name):
-                if (module, name) in _ALLOWED:
-                    return super().find_class(module, name)
-                raise pickle.UnpicklingError(
-                    f"blocked unsafe pickle global {module}.{name}"
-                )
-
-        try:
-            async with await anyio.open_file(path, "rb") as f:
-                content = await f.read()
-            data = _RestrictedUnpickler(io.BytesIO(content)).load()
-            log.warning("[VECTOR][scraper] loaded legacy pickle checkpoint (restricted unpickler) — consider re-saving to migrate")
-            return data
-        except Exception as e:
-            log.error(f"[VECTOR][scraper] legacy pickle load also failed: {e}")
-            return None
-
     async def load(self) -> Optional[CheckpointData]:
-        """Load checkpoint data from disk. Tries JSON first, falls back to legacy pickle."""
+        """Load checkpoint data from disk. JSON only (legacy pickle checkpoints are ignored)."""
         if not await self.has_checkpoint():
             return None
 
         try:
             resolved = Path(str(self._checkpoint_path)).resolve()
             expected_dir = Path(str(self.crawldir)).resolve()
-            if not str(resolved).startswith(str(expected_dir)):
+            if not resolved.is_relative_to(expected_dir):
                 log.error(f"Checkpoint path outside crawl directory — refusing to load: {resolved}")
                 return None
 
@@ -143,13 +105,11 @@ class CheckpointManager:
                     log.info(f"Checkpoint loaded: {len(result.requests)} requests, {len(result.seen)} seen URLs")
                     return result
 
-            legacy_path = json_path.with_suffix(".pkl")
-            if await legacy_path.exists():
-                result = await self._try_load_legacy_pickle(legacy_path)
-                if result is not None:
-                    return result
+            if await json_path.with_suffix(".pkl").exists():
+                # pickle is banned project-wide (RCE on load); legacy checkpoints are not migrated.
+                log.warning("[VECTOR][scraper] ignoring legacy pickle checkpoint (unsupported); starting fresh")
 
-            log.error("Checkpoint exists but neither JSON nor legacy pickle could be loaded")
+            log.error("[VECTOR][scraper] checkpoint exists but could not be loaded as JSON")
             return None
 
         except Exception as e:

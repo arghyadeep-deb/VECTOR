@@ -7,6 +7,9 @@ from core.scraper.core._types import Dict, Optional, Callable, Awaitable
 from core.scraper.core.utils import log
 
 
+_DISALLOW_ALL = "User-agent: *\nDisallow: /\n"
+
+
 class RobotsTxtManager:
     """Manages fetching, parsing, and caching of robots.txt files."""
 
@@ -28,14 +31,20 @@ class RobotsTxtManager:
             response = await self._fetch_fn(robots_url, sid)
             if response.status == 200:
                 content = response.body.decode(response.encoding, errors="replace")
+            elif response.status >= 500:
+                # RFC 9309 2.3.1.4: server errors mean "unreachable" -> assume complete disallow
+                log.warning("[VECTOR][scraper] robots.txt for %s returned %s, treating as disallow-all", domain, response.status)
+                return Protego.parse(_DISALLOW_ALL)
         except Exception as e:
-            log.warning(f"Failed to fetch robots.txt for {domain}: {e}")
+            # Fetch failure is NOT "no robots.txt": fail closed and retry on the next request (not cached)
+            log.warning("[VECTOR][scraper] failed to fetch robots.txt for %s, treating as disallow-all: %s", domain, e)
+            return Protego.parse(_DISALLOW_ALL)
 
         try:
             parser = Protego.parse(content)
         except Exception as e:
-            log.warning(f"Failed to parse robots.txt for {domain}: {e}")
-            parser = Protego.parse("")
+            log.warning("[VECTOR][scraper] failed to parse robots.txt for %s, treating as disallow-all: %s", domain, e)
+            parser = Protego.parse(_DISALLOW_ALL)
 
         self._cache[domain] = parser
         return parser

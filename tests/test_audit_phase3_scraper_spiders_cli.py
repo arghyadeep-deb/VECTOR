@@ -345,7 +345,8 @@ def test_cli_extract_http_error_status_exits_nonzero(tmp_path, monkeypatch):
     monkeypatch.setattr(Fetcher, "get", staticmethod(lambda url, **kw: _write_html_response(404)))
     out = tmp_path / "out.txt"
     result = CliRunner().invoke(cli.main, ["extract", "get", "http://example.com/", str(out)])
-    assert result.exit_code != 0
+    assert result.exit_code == 1
+    assert "HTTP status 404" in result.output
     assert out.exists()  # the error page is still saved for inspection
 
 
@@ -375,7 +376,8 @@ def test_cli_shell_code_failure_exits_nonzero(monkeypatch):
         monkeypatch.setitem(sys.modules, name, types.ModuleType(name))
     sys.modules["IPython.terminal.embed"].InteractiveShellEmbed = FakeShell
     result = CliRunner().invoke(cli.main, ["shell", "-c", "undefined_name"])
-    assert result.exit_code != 0
+    assert result.exit_code == 1
+    assert "--code failed" in result.output
 
 
 def test_write_content_does_not_clobber_existing_file_on_extraction_error(tmp_path):
