@@ -179,7 +179,11 @@ def test_saved_report_flags_incomplete_analysis(cli_main, tmp_path):
     assert "INCOMPLETE" not in ok.read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("payload", ["{[]: 1}", "{[]}", "(" * 100000 + ")" * 100000, "[" * 100000])
+@pytest.mark.parametrize(
+    "payload",
+    ["{[]: 1}", "{[]}", "(" * 100000 + ")" * 100000, "[" * 100000],
+    ids=["malformed-dict", "malformed-set", "huge-nested-parens", "huge-unclosed-bracket"],
+)
 def test_extract_content_string_survives_hostile_text(cli_main, payload):
     # LLM/tool (web-fetched) text reaches ast.literal_eval; it must never crash the run.
     out = cli_main.extract_content_string(payload)
