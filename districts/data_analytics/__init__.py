@@ -10,7 +10,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
-import uuid, asyncio, json, datetime, sqlite3, collections
+import uuid, asyncio, json, datetime, math, sqlite3, collections
 from typing import Optional
 
 
@@ -61,15 +61,18 @@ class DataAnalytics(AgentBase):
                 tables = [row[0] for row in cursor]
                 sample_data = {}
                 for tbl in tables[:3]:
-                    cursor2 = conn.execute(f"SELECT * FROM {tbl} LIMIT 5")
+                    cursor2 = conn.execute('SELECT * FROM "{}" LIMIT 5'.format(tbl.replace('"', '""')))
                     sample_data[tbl] = [dict(zip([d[0] for d in cursor2.description], row)) for row in cursor2]
                 conn.close()
                 lines = [str(sample_data)]
             else:
                 lines = data_p.read_text(encoding="utf-8", errors="ignore").splitlines()[:1000]
         except Exception as e:
-            logger.warning(f"[VECTOR][data_analytics] Could not read dataset: {e}")
-            lines = [f"Sample data from {data_p.name}"]
+            # Previously this substituted a fabricated "Sample data from <name>"
+            # line and went on to have the LLM "analyze" it as if it were the
+            # dataset, then stored the result as a real analysis.
+            logger.warning("[VECTOR][data_analytics] Could not read dataset {}: {}", data_p.name, e)
+            return {"error": f"Could not read dataset '{data_p.name}': {e}"}
 
         sample_text = "\n".join(lines[:100])
         total_rows = len(lines)
@@ -150,13 +153,20 @@ Generate: 1) Key performance indicators, 2) Trend indicators (up/down/stable), 3
             return {"anomalies": [], "count": 0, "status": "no_data"}
 
         numeric_fields = {}
-        for record in data:
-            for key, value in record.items():
-                if isinstance(value, (int, float)):
-                    numeric_fields.setdefault(key, []).append(value)
-
         detected_anomalies = []
-        for field, values in numeric_fields.items():
+        for rec_idx, record in enumerate(data):
+            for key, value in record.items():
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    continue
+                if not math.isfinite(value):
+                    # NaN corrupts sorted()/quartiles (real outliers silently
+                    # missed); inf is itself an anomaly. Report, don't compute.
+                    detected_anomalies.append({"field": key, "value": str(value), "type": "non_finite", "severity": "high", "record_index": rec_idx})
+                    continue
+                numeric_fields.setdefault(key, []).append((rec_idx, value))
+
+        for field, indexed in numeric_fields.items():
+            values = [v for _, v in indexed]
             if len(values) < 3:
                 continue
             mean_val = sum(values) / len(values)
@@ -166,9 +176,9 @@ Generate: 1) Key performance indicators, 2) Trend indicators (up/down/stable), 3
                 iqr = q3 - q1
                 lower_bound = q1 - 1.5 * iqr
                 upper_bound = q3 + 1.5 * iqr
-                for i, val in enumerate(values):
+                for i, val in indexed:
                     if val < lower_bound or val > upper_bound:
-                        detected_anomalies.append({"field": field, "value": val, "type": "statistical_outlier", "boundaries": {"lower": lower_bound, "upper": upper_bound}, "record_index": i})
+                        detected_anomalies.append({"field": field, "value": val, "type": "statistical_outlier", "severity": "medium", "boundaries": {"lower": lower_bound, "upper": upper_bound}, "record_index": i})
 
         prompt = f"""Analyze these data records for contextual anomalies:
 Total records: {len(data)}
@@ -189,7 +199,10 @@ Return JSON: {{anomalies: [{{field, value, anomaly_type, severity, description}}
         except json.JSONDecodeError:
             ctx_anomalies = {"anomalies": []}
 
-        all_anomalies = detected_anomalies + ctx_anomalies.get("anomalies", [])
+        ctx_list = ctx_anomalies.get("anomalies", []) if isinstance(ctx_anomalies, dict) else []
+        if not isinstance(ctx_list, list):
+            ctx_list = []
+        all_anomalies = detected_anomalies + [a for a in ctx_list if isinstance(a, dict)]
 
         result = {
             "total_records": len(data),
@@ -212,6 +225,12 @@ Return JSON: {{anomalies: [{{field, value, anomaly_type, severity, description}}
     def generate_report(self, analysis_type: str) -> dict:
         logger.info(f"[VECTOR][data_analytics] Generating {analysis_type} report")
         self.add_lesson({"action": "generate_report", "type": analysis_type})
+
+        if not self.analyses:
+            # No analyzed datasets: the LLM would be asked for a "comprehensive
+            # report" with an empty data section and fabricate findings.
+            logger.warning("[VECTOR][data_analytics] generate_report({}) called with no analyses", analysis_type)
+            return {"status": "no_data", "report_type": analysis_type, "report": "", "error": "no analyses available to report on", "analyses_included": []}
 
         prompt = f"""Generate a comprehensive {analysis_type} analytics report.
 Current analyses: {list(self.analyses.keys())}

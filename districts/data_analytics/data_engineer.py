@@ -380,6 +380,11 @@ class DataEngineer(AgentBase):
 
         with self._db_lock:
             try:
+                resolved = self._resolve_table(conn, table)
+                if resolved is None:
+                    conn.close()
+                    return {"table": table, "error": f"Table '{table}' not found in DB", "columns": []}
+                table = resolved
                 pragma_rows = conn.execute(f"PRAGMA table_info({table})").fetchall()  # noqa: S608
                 if not pragma_rows:
                     conn.close()
@@ -439,6 +444,12 @@ class DataEngineer(AgentBase):
 
         with self._db_lock:
             try:
+                resolved = self._resolve_table(conn, table)
+                if resolved is None:
+                    conn.close()
+                    return {"table": table, "error": f"Table '{table}' not found in DB", "profile": {}}
+                table = resolved
+                limit = max(1, min(int(limit), self._PROFILE_LIMIT_MAX))
                 total_rows_row = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # noqa: S608
                 total_rows = total_rows_row[0] if total_rows_row else 0
 
@@ -481,8 +492,9 @@ class DataEngineer(AgentBase):
                             col_profile["min"] = min(numeric_vals)
                             col_profile["max"] = max(numeric_vals)
                             col_profile["avg"] = round(sum(numeric_vals) / len(numeric_vals), 4)
-                        except (ValueError, TypeError):
-                            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        except (ValueError, TypeError) as num_err:
+                            col_profile["numeric_error"] = f"non-numeric values in numeric column: {num_err}"
+                            logger.warning("[VECTOR][data_engineer] numeric profile failed for {}.{}: {}", table, col_name, num_err)
                     elif non_null:
                         from collections import Counter
                         top_vals = Counter(str(v) for v in non_null).most_common(5)
@@ -543,6 +555,9 @@ class DataEngineer(AgentBase):
                 if not table:
                     return {"status": "error", "error": "task.table is required"}
                 result = self.run_bronze_to_silver(table, transformations)
+                if result.get("error") or result.get("errors"):
+                    self.deduct_points(10, "etl_failed")
+                    return {"status": "error", "error": result.get("error") or "; ".join(result["errors"]), "result": result}
                 self.award_points(40, "etl_done")
                 return {"status": "ok", "result": result}
 
@@ -551,6 +566,8 @@ class DataEngineer(AgentBase):
                 if not table:
                     return {"status": "error", "error": "task.table is required"}
                 result = self.generate_data_contract(table)
+                if result.get("error"):
+                    return {"status": "error", "error": result["error"], "result": result}
                 self.award_points(20, "contract_generated")
                 return {"status": "ok", "result": result}
 
@@ -560,6 +577,8 @@ class DataEngineer(AgentBase):
                 if not table:
                     return {"status": "error", "error": "task.table is required"}
                 result = self.profile_dataset(table, limit)
+                if result.get("error"):
+                    return {"status": "error", "error": result["error"], "result": result}
                 self.award_points(25, "profile_done")
                 return {"status": "ok", "result": result}
 
