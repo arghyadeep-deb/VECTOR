@@ -124,7 +124,6 @@ def test_engine_fails_closed_on_dns_error():
         "http://[::1]/",
         "http://[::ffff:127.0.0.1]/",
         "http://169.254.169.254/latest/meta-data/",
-        f"http://{REBIND_HOST}#@127.0.0.1/",  # fragment trick: real host is REBIND_HOST (public) -> see below
         "file:///etc/passwd",
         "ftp://example.com/x",
         "gopher://example.com/x",
@@ -133,8 +132,6 @@ def test_engine_fails_closed_on_dns_error():
     ],
 )
 def test_engine_blocks_scheme_and_ip_tricks(monkeypatch, url):
-    if "#@" in url:
-        pytest.skip("host is the public name; covered by test_engine_allows_public_host")
     monkeypatch.setattr(
         socket, "getaddrinfo", _fake_dns({REBIND_HOST: PUBLIC_IP, "localhost.": "127.0.0.1"})
     )

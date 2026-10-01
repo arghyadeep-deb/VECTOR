@@ -8,7 +8,8 @@ __all__ = [
 
 from random import choice
 from time import sleep as time_sleep
-from asyncio import sleep as asyncio_sleep
+from urllib.parse import urlsplit
+from asyncio import sleep as asyncio_sleep, to_thread as asyncio_to_thread
 
 from curl_cffi.curl import CurlError
 from curl_cffi import CurlHttpVersion
@@ -18,6 +19,7 @@ from curl_cffi.requests import (
     AsyncSession as AsyncCurlSession,
 )
 
+from core.security.ssrf_guard import SSRFGuard
 from core.scraper.core.utils import log
 from core.scraper.core._types import (
     Any,
@@ -37,6 +39,46 @@ from ._browsers._types import RequestsSession, GetRequestParams, DataRequestPara
 from .toolbelt.fingerprints import generate_headers, __default_useragent__
 
 _NO_SESSION: Any = object()
+
+
+class SSRFBlockedError(ValueError):
+    """Raised when a URL targets a non-public address; nothing is fetched."""
+
+
+def redact_url(url: str) -> str:
+    """Drop userinfo, query string and fragment so URLs can be logged/raised without secrets."""
+    try:
+        parts = urlsplit(str(url).strip())
+        host = parts.hostname or ""
+        port = f":{parts.port}" if parts.port else ""
+        return f"{parts.scheme}://{host}{port}{parts.path}"
+    except ValueError:
+        return "<unparseable url>"
+
+
+def _redact_proxy(proxy: Any) -> str:
+    """Proxy identity for logs without its credentials (user:pass@host or dict password)."""
+    if isinstance(proxy, dict):
+        return redact_url(str(proxy.get("server", "")))
+    return redact_url(str(proxy)) if proxy else "None"
+
+
+def ensure_public_url(url: str, resolve_dns: bool = True) -> None:
+    """Refuse non-public targets before any request is made.
+
+    Uses a local resolving SSRFGuard (the shared singleton does not resolve DNS), so a public-looking hostname
+    that resolves to loopback/private/link-local/metadata addresses is blocked, and a DNS failure fails closed.
+    Set ``resolve_dns=False`` only when a proxy performs the resolution (the literal/hostname checks still run).
+    """
+    result = SSRFGuard(resolve_dns=resolve_dns).check_url(url)
+    if not result.safe:
+        log.warning(f"[VECTOR][scraper] SSRF blocked {redact_url(url)}: {result.reason}")
+        raise SSRFBlockedError(f"SSRF blocked: {redact_url(url)} ({result.reason})")
+
+
+async def aensure_public_url(url: str, resolve_dns: bool = True) -> None:
+    """Async variant of `ensure_public_url`; keeps the blocking DNS lookup off the event loop."""
+    await asyncio_to_thread(ensure_public_url, url, resolve_dns)
 
 
 def _select_random_browser(impersonate: ImpersonateType) -> Optional[BrowserTypeLiteral]:
@@ -104,6 +146,15 @@ class _ConfigurationLogic(ABC):
     def _get_param(kwargs: Dict, key: str, default: Any) -> Any:
         """Get parameter from kwargs if present, otherwise return default."""
         return kwargs[key] if key in kwargs else default
+
+    def _resolve_dns_locally(self, kwargs: Dict) -> bool:
+        """With a proxy, the proxy resolves the target hostname, so a local lookup proves nothing (and may fail)."""
+        proxied = (
+            self._get_param(kwargs, "proxy", self._default_proxy)
+            or self._get_param(kwargs, "proxies", self._default_proxies)
+            or self._proxy_rotator
+        )
+        return not proxied
 
     def _merge_request_args(self, **method_kwargs) -> Dict[str, Any]:
         """Merge request-specific arguments with default session arguments."""
@@ -231,12 +282,15 @@ class _SyncSessionLogic(_ConfigurationLogic):
         """
         Perform an HTTP request using the configured session.
         """
+        ensure_public_url(kwargs["url"], self._resolve_dns_locally(kwargs))
         stealth = self._stealth if stealth is None else stealth
 
         selector_config = self._get_param(kwargs, "selector_config", self.selector_config) or self.selector_config
         max_retries = self._get_param(kwargs, "retries", self._default_retries)
         retry_delay = self._get_param(kwargs, "retry_delay", self._default_retry_delay)
-        static_proxy = kwargs.pop("proxy", None)
+        # The session-level `proxy=` default must survive the pop below (else traffic silently goes direct).
+        static_proxy = self._get_param(kwargs, "proxy", self._default_proxy)
+        kwargs.pop("proxy", None)
 
         session = self._curl_session
         one_off_request = False
@@ -268,7 +322,7 @@ class _SyncSessionLogic(_ConfigurationLogic):
                         # If it's not enabled, then we will try again with the same proxy
                         if is_proxy_error(e):
                             log.warning(
-                                f"Proxy '{proxy}' failed (attempt {attempt + 1}) | Retrying in {retry_delay} seconds..."
+                                f"Proxy '{_redact_proxy(proxy)}' failed (attempt {attempt + 1}) | Retrying in {retry_delay} seconds..."
                             )
                         else:
                             log.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {retry_delay} seconds...")
@@ -445,12 +499,15 @@ class _ASyncSessionLogic(_ConfigurationLogic):
         """
         Perform an HTTP request using the configured session.
         """
+        await aensure_public_url(kwargs["url"], self._resolve_dns_locally(kwargs))
         stealth = self._stealth if stealth is None else stealth
 
         selector_config = self._get_param(kwargs, "selector_config", self.selector_config) or self.selector_config
         max_retries = self._get_param(kwargs, "retries", self._default_retries)
         retry_delay = self._get_param(kwargs, "retry_delay", self._default_retry_delay)
-        static_proxy = kwargs.pop("proxy", None)
+        # The session-level `proxy=` default must survive the pop below (else traffic silently goes direct).
+        static_proxy = self._get_param(kwargs, "proxy", self._default_proxy)
+        kwargs.pop("proxy", None)
 
         session = self._async_curl_session
         one_off_request = False
@@ -484,7 +541,7 @@ class _ASyncSessionLogic(_ConfigurationLogic):
                         # If it's not enabled, then we will try again with the same proxy
                         if is_proxy_error(e):
                             log.warning(
-                                f"Proxy '{proxy}' failed (attempt {attempt + 1}) | Retrying in {retry_delay} seconds..."
+                                f"Proxy '{_redact_proxy(proxy)}' failed (attempt {attempt + 1}) | Retrying in {retry_delay} seconds..."
                             )
                         else:
                             log.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {retry_delay} seconds...")

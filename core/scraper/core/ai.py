@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from core.scraper.core.shell import Convertor
 from core.scraper.engines.toolbelt.custom import Response as _VectorResponse
-from core.scraper.engines.static import ImpersonateType
+from core.scraper.engines.static import ImpersonateType, aensure_public_url
 from core.scraper.fetchers import (
     FetcherSession,
     AsyncDynamicSession,
@@ -303,6 +303,7 @@ class VectorScraperMCPServer:
         if quality is not None and image_type != "jpeg":
             raise ValueError("'quality' is only valid when 'image_type' is 'jpeg'.")
 
+        await aensure_public_url(url)
         entry = self._get_session(session_id, expected_type=None)
 
         screenshot_kwargs: Dict[str, Any] = {"type": image_type, "full_page": full_page}
@@ -375,7 +376,7 @@ class VectorScraperMCPServer:
         :param cookies: Cookies to use in the request.
         :param timeout: Number of seconds to wait before timing out.
         :param follow_redirects: Whether to follow redirects. Defaults to "safe", which follows redirects but rejects those targeting internal/private IPs (SSRF protection).
-            Pass True to follow all redirects without restriction.
+            Pass False to disable redirects; any other value is treated as "safe".
         :param max_redirects: Maximum number of redirects. Default 30, use -1 for unlimited.
         :param retries: Number of retry attempts. Defaults to 3.
         :param retry_delay: Number of seconds to wait between retry attempts. Defaults to 1 second.
@@ -449,7 +450,7 @@ class VectorScraperMCPServer:
         :param cookies: Cookies to use in the request.
         :param timeout: Number of seconds to wait before timing out.
         :param follow_redirects: Whether to follow redirects. Defaults to "safe", which follows redirects but rejects those targeting internal/private IPs (SSRF protection).
-            Pass True to follow all redirects without restriction.
+            Pass False to disable redirects; any other value is treated as "safe".
         :param max_redirects: Maximum number of redirects. Default 30, use -1 for unlimited.
         :param retries: Number of retry attempts. Defaults to 3.
         :param retry_delay: Number of seconds to wait between retry attempts. Defaults to 1 second.
@@ -463,6 +464,8 @@ class VectorScraperMCPServer:
         """
         normalized_proxy_auth = _normalize_credentials(proxy_auth)
         normalized_auth = _normalize_credentials(auth)
+        # MCP callers are untrusted: never let a caller turn off redirect SSRF protection.
+        follow_redirects = False if follow_redirects is False else "safe"
 
         async with FetcherSession() as session:
             tasks: List[Any] = [
@@ -628,6 +631,8 @@ class VectorScraperMCPServer:
         :param proxy: The proxy to be used with requests, it can be a string or a dictionary with the keys 'server', 'username', and 'password' only.
         :param session_id: Optional session ID from open_session. If provided, reuses the existing browser session instead of creating a new one.
         """
+        for target in urls:
+            await aensure_public_url(target, resolve_dns=not proxy)
         if session_id:
             entry = self._get_session(session_id, "dynamic")
             tasks = [
@@ -836,6 +841,8 @@ class VectorScraperMCPServer:
         :param additional_args: Additional arguments to be passed to Playwright's context as additional settings, and it takes higher priority than VECTOR's settings.
         :param session_id: Optional session ID from open_session. If provided, reuses the existing browser session instead of creating a new one.
         """
+        for target in urls:
+            await aensure_public_url(target, resolve_dns=not proxy)
         if session_id:
             entry = self._get_session(session_id, "stealthy")
             tasks = [
