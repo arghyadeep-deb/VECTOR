@@ -32,10 +32,10 @@ For each revenue stream: type, price, frequency, assumptions, churn, timeline, k
 Include: projections for months 1/3/6/12/24, break-even analysis, primary vs secondary streams.
 Return JSON: {{revenue_streams: [{{type, price, frequency, assumptions, timeline_months, metrics}}], projections: {{month_1, month_3, month_6, month_12, month_24}}, break_even_month: int, primary_stream: string}}"""
         model_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        revenue_model = self._parse_json_response(model_text, {
-            "revenue_streams": [{"type": "subscription", "price": 29, "assumptions": model_text[:200]}],
-            "projections": {"month_1": 0},
-        })
+        revenue_model = self._extract_json(model_text)
+        if revenue_model is None:
+            # No invented $29 subscription model for a failed LLM call.
+            return self._llm_error("model_revenue", startup_idea=idea_name)
         self.models[idea_name] = revenue_model
 
         result = {
@@ -62,10 +62,15 @@ Projections: {json.dumps(revenue_model.get('projections', {}), indent=2)}
 Calculate: CAC, LTV, LTV:CAC ratio (target >3), CAC payback (target <12 months), gross margin, MRR at 12 months.
 Return JSON: {{cac: float, ltv: float, ltv_cac_ratio: float, cac_payback_months: float, gross_margin_pct: float, mrr_at_12mo: float}}"""
         economics = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        unit_econ = self._parse_json_response(economics, {"cac": 100, "ltv": 500, "ltv_cac_ratio": 5.0})
+        unit_econ = self._extract_json(economics)
+        if unit_econ is None:
+            # The old canned fallback (LTV:CAC 5.0) made a failed call read as "GOOD".
+            return self._llm_error("calculate_unit_economics")
+        ratio = self._num(unit_econ.get("ltv_cac_ratio"), 0.0)
+        payback = self._num(unit_econ.get("cac_payback_months"), 99.0)
         unit_econ["health_verdict"] = (
-            "GOOD" if unit_econ.get("ltv_cac_ratio", 0) >= 3 and unit_econ.get("cac_payback_months", 99) <= 12
-            else "NEEDS_WORK" if unit_econ.get("ltv_cac_ratio", 0) >= 1
+            "GOOD" if ratio >= 3 and payback <= 12
+            else "NEEDS_WORK" if ratio >= 1
             else "UNSUSTAINABLE"
         )
 
@@ -75,7 +80,7 @@ Return JSON: {{cac: float, ltv: float, ltv_cac_ratio: float, cac_payback_months:
             "calculated_at": self._now_iso(),
         }
         self._store_result("unit_economics_calculated",
-                           f"Unit economics: LTV/CAC={unit_econ.get('ltv_cac_ratio', 0):.1f}, payback={unit_econ.get('cac_payback_months', 0):.0f}mo",
+                           f"Unit economics: LTV/CAC={ratio:.1f}, payback={self._num(unit_econ.get('cac_payback_months')):.0f}mo",
                            ["startups", "unit_economics", "metrics"], result)
         return result
 
@@ -95,17 +100,26 @@ Revenue projections: {json.dumps(revenue_model.get('projections', {}))}
 Project month-by-month for months 1-24: revenue, costs, net cash. When does runway run out?
 Return JSON: {{monthly_projection: [{{month: int, revenue: float, costs: float, net_cash: float}}], runway_months: int, burn_rate: float, profitability_month: int or null}}"""
         runway_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        runway_data = self._parse_json_response(runway_text, {"runway_months": 12, "burn_rate": monthly_fixed})
+        runway_data = self._extract_json(runway_text)
+        if runway_data is None:
+            # Old fallback fabricated "12 months, MEDIUM risk".
+            return self._llm_error("project_runway")
+        runway_known = isinstance(runway_data.get("runway_months"), (int, float))
 
         result = {
             "initial_cash": initial_cash,
             "monthly_fixed_costs": monthly_fixed,
             "variable_cost_pct": costs.get("variable_pct_of_revenue", 30),
-            "runway_months": runway_data.get("runway_months", 12),
+            "runway_months": runway_data["runway_months"] if runway_known else None,
             "burn_rate": runway_data.get("burn_rate", monthly_fixed),
             "profitability_month": runway_data.get("profitability_month"),
             "monthly_projection": runway_data.get("monthly_projection", []),
-            "risk_level": "HIGH" if runway_data.get("runway_months", 12) < 6 else "MEDIUM" if runway_data.get("runway_months", 12) < 12 else "LOW",
+            "risk_level": (
+                "UNKNOWN" if not runway_known
+                else "HIGH" if runway_data["runway_months"] < 6
+                else "MEDIUM" if runway_data["runway_months"] < 12
+                else "LOW"
+            ),
             "projected_at": self._now_iso(),
         }
         self._store_result("runway_projected",
@@ -121,8 +135,11 @@ Return JSON: {{monthly_projection: [{{month: int, revenue: float, costs: float, 
         # every single time — same bug class as design district's #33.
         query = p.get("query") or p.get("content") or task.get("query")
         if query and not (p.get("idea") or p.get("name")):
-            return {"status": "ok", "response": await self.answer_startup_question(query)}
+            return await self.answer_startup_task(query)
         idea = p.get("idea", {"name": p.get("name", ""), "description": p.get("description", "")})
+        if not isinstance(idea, dict):
+            # venture_pipeline passes the idea as a plain string
+            idea = {"name": str(idea), "description": p.get("description", "")}
         result = self.model_revenue(idea)
         return {"status": "ok", **result}
 

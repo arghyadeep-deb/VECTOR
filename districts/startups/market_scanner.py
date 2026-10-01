@@ -34,9 +34,11 @@ class MarketScanner(StartupAgentBase):
 
 Return JSON: {{segments: [{{name, size, growth_rate, opportunity_level, key_players}}], pain_points: string[], emerging_niches: string[], successful_models: string[]}}"""
         scan = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        scan_data = self._parse_json_response(scan, {
-            "segments": [], "pain_points": [scan[:300]], "successful_models": [],
-        })
+        scan_data = self._extract_json(scan)
+        if scan_data is None:
+            # A failed LLM scan must not read as "0 opportunities" and be
+            # persisted/recorded as a real scan of this niche.
+            return self._llm_error("scan_market", niche=niche)
 
         result = {
             "niche": niche,
@@ -74,9 +76,9 @@ Return JSON: {{segments: [{{name, size, growth_rate, opportunity_level, key_play
 
 Return JSON: {{momentum: string, key_drivers: string[], technologies: string[], regulatory: string[], consumer_shifts: string[], investment_trend: string, forecast: string, confidence: float}}"""
         trends = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        trend_data = self._parse_json_response(trends, {
-            "momentum": "stable", "forecast": trends[:200], "confidence": 0.5,
-        })
+        trend_data = self._extract_json(trends)
+        if trend_data is None:
+            return self._llm_error("analyze_trends", niche=niche)
 
         result = {
             "niche": niche,
@@ -107,14 +109,14 @@ Return JSON: {{momentum: string, key_drivers: string[], technologies: string[], 
 
 Return JSON: {{gaps: [{{type, description, severity: high/medium/low, opportunity_score: 1-10, target_customer: string}}]}}"""
         gaps_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
-        gaps_data = self._parse_json_response(gaps_text, {
-            "gaps": [{"type": "general", "description": gaps_text[:200], "severity": "medium", "opportunity_score": 6}],
-        })
+        gaps_data = self._extract_json(gaps_text)
+        if gaps_data is None:
+            return self._llm_error("identify_gaps", niche=niche)
 
         result = {
             "niche": niche,
             "gaps": gaps_data.get("gaps", []),
-            "high_priority_gaps": [g for g in gaps_data.get("gaps", []) if g.get("opportunity_score", 5) >= 8],
+            "high_priority_gaps": [g for g in gaps_data.get("gaps", []) if isinstance(g, dict) and self._num(g.get("opportunity_score"), 5) >= 8],
             "total_gaps": len(gaps_data.get("gaps", [])),
             "identified_at": self._now_iso(),
         }
@@ -137,7 +139,7 @@ Return JSON: {{gaps: [{{type, description, severity: high/medium/low, opportunit
         query = p.get("query") or p.get("content") or task.get("query")
         if query and not p.get("niche"):
             history_ctx = f"Recent scans: {len(self.scan_history)} niches scanned so far." if self.scan_history else "No scans run yet."
-            return {"status": "ok", "response": await self.answer_startup_question(query, history_ctx)}
+            return await self.answer_startup_task(query, history_ctx)
         result = self.scan_market(p.get("niche", "AI SaaS"))
         return {"status": "ok", **result}
 
