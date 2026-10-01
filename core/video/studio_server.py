@@ -433,10 +433,33 @@ async def run_workflow(workflow_id: str) -> JSONResponse:
         nodes = wf.get("nodes", [])
         edges = wf.get("edges", [])
 
-        # Topological order: nodes without incoming edges first
-        has_incoming = {e["target"] for e in edges}
-        ordered = [n for n in nodes if n["id"] not in has_incoming]
-        ordered += [n for n in nodes if n["id"] in has_incoming]
+        # Real topological order (Kahn's algorithm) -- a prior version just
+        # split nodes into "no incoming edge" vs "has incoming edge" and kept
+        # each bucket's original array order within itself. That only works
+        # for a 2-level graph: a 3+ node chain (A -> B -> C) with C appearing
+        # before B in the raw `nodes` array (the data model gives no ordering
+        # guarantee) ran C before B had produced output, so C's upstream_url
+        # lookup silently got "" instead of B's real result.
+        by_id = {n["id"]: n for n in nodes}
+        indegree = {n["id"]: 0 for n in nodes}
+        adj: dict[str, list[str]] = {n["id"]: [] for n in nodes}
+        for e in edges:
+            if e["source"] in adj and e["target"] in indegree:
+                adj[e["source"]].append(e["target"])
+                indegree[e["target"]] += 1
+        queue = [nid for nid, d in indegree.items() if d == 0]
+        ordered_ids: list[str] = []
+        while queue:
+            nid = queue.pop(0)
+            ordered_ids.append(nid)
+            for nxt in adj.get(nid, []):
+                indegree[nxt] -= 1
+                if indegree[nxt] == 0:
+                    queue.append(nxt)
+        # A cycle leaves some nodes with indegree > 0 forever -- append them
+        # in original order rather than silently dropping them.
+        ordered_ids += [nid for nid in by_id if nid not in ordered_ids]
+        ordered = [by_id[nid] for nid in ordered_ids]
 
         results = []
         node_outputs: dict[str, str] = {}  # node_id → output URL
@@ -474,6 +497,12 @@ async def run_workflow(workflow_id: str) -> JSONResponse:
                     node_outputs[nid] = url
                     results.append({"node_id": nid, "status": "done", "url": url})
                 elif ntype == "output":
+                    # Every other node type writes its resolved value into
+                    # node_outputs so a downstream node can read it -- this
+                    # branch didn't, so an "output" node used as a
+                    # pass-through (a normal workflow shape, not just a
+                    # terminal node) silently broke any node chained after it.
+                    node_outputs[nid] = upstream_url
                     results.append({"node_id": nid, "status": "done", "url": upstream_url})
                 else:
                     results.append({"node_id": nid, "status": "done", "url": ""})
