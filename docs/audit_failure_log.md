@@ -28,6 +28,33 @@ Bugs found in VECTOR itself are recorded in `docs/OPEN_ISSUES.md` item 26, not h
 8. **MCP servers unavailable** (`vector`, `vectorcode-intel` closed; `glif`, `NotFair-*` closed;
    `playwright` timed out). Not needed for this audit; no impact.
 
+## 2026-10-01 — languages / startups / projects / predictive_analytics / memory_curator / home_assistant
+
+1. **Stash hazard avoided.** Last round's subagents used `git stash` in the shared tree (index.lock,
+   stray `sub/r.json`). This round they were forbidden from any git write and I proved fail-on-old myself
+   with a throwaway `git worktree` at `HEAD`, copying each new test file in. Worktree removed afterwards.
+2. **Subagents did not run fail-on-old themselves** (all six said "by reasoning from the diff"). Verified
+   independently: languages 10/10 fail on old, memory_curator 6/6 (the agent predicted 5), startups 25/25,
+   projects 20/20, predictive 21 fail + 1 skipped, home_assistant 22/24 runnable fail and the `connect()`
+   test never returns on the old code (killed by `timeout`) — which is the bug being fixed.
+3. **Command timeout.** A combined run that included the old-code `connect()` hang test exceeded the 120s
+   tool limit and was backgrounded. Re-ran with `timeout` and the hanging tests deselected/isolated.
+4. **Missing packages in the container** (not repo bugs): `ollama`, `fastapi`, `numpy`, `pyyaml`, `pytest`
+   were absent; installed with pip (environment only). `GitPython` is still absent, so
+   `tests/unit/test_permission_gateway_extra.py::TestOwnerReadonlyDispatchStatusHonesty` (3 tests:
+   `git_status`/`recent_commits`) fail with `ModuleNotFoundError: git` — verified they fail **identically on
+   the pre-change code**, so unrelated. `pandas` absent, so the Prophet-timestamp test is skipped here.
+5. **Shared-tree guard test.** `tests/test_r18_eq_equation_capability.py::...only_expected_files_modified`
+   fails whenever other uncommitted files exist (it allow-lists `git status`). It failed mid-audit because
+   of in-flight subagent edits and passes on the clean tree — not a regression.
+6. **Existing tests edited by a subagent.** The projects agent changed two `tests/test_phase2_districts.py`
+   doc_writer tests. Reviewed: they asserted success while the LLM was mocked offline (encoding the bug);
+   changed to mock a real reply, same intent. Called out in the commit message.
+7. **Stop-hook fired repeatedly while subagents were still editing.** Only committed districts that had
+   been reviewed and tested; never committed in-flight work.
+8. **Reports overstated/understated slightly:** memory_curator predicted 5/6 failing-on-old (actual 6/6);
+   projects/home_assistant counts were taken from the diff, not the report headline.
+
 ## Unresolved
 
 None blocking. Flagged-not-fixed design items are listed in `docs/OPEN_ISSUES.md` item 26.
