@@ -68,9 +68,10 @@ def add_neural_tools(mcp) -> None:
             try:
                 from core.training.continuous_rl_trainer import get_trainer
                 trainer = get_trainer()
-                return _safe_json({"status": "training_triggered", "step_count": getattr(trainer, "_step_count", 0)})
-            except Exception:
-                return _safe_json({"status": "trainer not available"})
+                return _safe_json({"ok": False, "status": "not_triggered", "note": "this tool only reports trainer state; no training step was run", "step_count": getattr(trainer, "_step_count", 0)})
+            except Exception as exc:
+                logger.warning("[VECTOR][mcp] neural_train: trainer unavailable: {}", exc)
+                return _safe_json({"ok": False, "status": "trainer not available"})
 
         @mcp.tool
         def neural_status() -> str:
@@ -79,8 +80,9 @@ def add_neural_tools(mcp) -> None:
                 from core.training.continuous_rl_trainer import get_trainer
                 trainer = get_trainer()
                 return _safe_json({"step_count": getattr(trainer, "_step_count", 0), "buffer_size": len(getattr(trainer, "experience_buffer", []))})
-            except Exception:
-                return _safe_json({"status": "trainer not available"})
+            except Exception as exc:
+                logger.warning("[VECTOR][mcp] neural_status: trainer unavailable: {}", exc)
+                return _safe_json({"ok": False, "status": "trainer not available"})
 
         @mcp.tool
         def neural_predict(task: str) -> str:

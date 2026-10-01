@@ -14,6 +14,7 @@ from core.mcp_tools.memory_safety import (
 
 
 def add_swarm_tools(mcp) -> None:
+    import inspect as _inspect
     import json as _json
     import subprocess as _subprocess
     import os as _os
@@ -39,8 +40,9 @@ def add_swarm_tools(mcp) -> None:
             import json as _j
             orch = _get_orch()
             p = _j.loads(params) if params else {}
-            result = orch.dispatch(task_type, p) if hasattr(orch, "dispatch") else {"status": "dispatched"}
-            return _safe_json(result)
+            if not hasattr(orch, "dispatch"):
+                return _safe_json({"ok": False, "error": "orchestrator has no dispatch(); task NOT submitted"})
+            return _safe_json(orch.dispatch(task_type, p))
 
         @mcp.tool
         def swarm_execute(tasks: str = "[]") -> str:
@@ -48,7 +50,16 @@ def add_swarm_tools(mcp) -> None:
             import json as _j
             orch = _get_orch()
             task_list = _j.loads(tasks) if tasks else []
-            result = orch.parallel_dispatch(task_list) if hasattr(orch, "parallel_dispatch") else {"status": "executed", "count": len(task_list)}
+            if not hasattr(orch, "parallel_dispatch"):
+                return _safe_json({"ok": False, "error": "orchestrator has no parallel_dispatch(); tasks NOT executed"})
+            if not isinstance(task_list, list) or len(task_list) > 20:
+                return _safe_json({"ok": False, "error": "tasks must be a JSON list of at most 20 items"})
+            result = orch.parallel_dispatch(task_list)
+            if _inspect.isawaitable(result):
+                # async orchestrator: a sync tool cannot await it; an unawaited coroutine is not a result
+                if hasattr(result, "close"):
+                    result.close()
+                return _safe_json({"ok": False, "error": "parallel_dispatch is async and was not run; tasks NOT executed"})
             return _safe_json(result)
 
         @mcp.tool

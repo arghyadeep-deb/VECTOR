@@ -5,12 +5,16 @@ from pathlib import Path
 from loguru import logger
 
 from core.config import CONFIG
+from core.mcp_tools.expansion_modules import is_protected_write_path, resolve_in_root
 from core.mcp_tools.error_handling import safe_json as _safe_json
 from core.mcp_tools.error_handling import register_stub_tool as _reg
 from core.mcp_tools.memory_safety import (
     MEMORY_CLEAR_CONFIRM as _MEMORY_CLEAR_CONFIRM,
     resolve_memory_path as _resolve_memory_path,
 )
+
+
+_ROOT = Path(__file__).resolve().parents[3]  # module-level so tests can point it at a tmp dir
 
 
 def add_worker_tools(mcp) -> None:
@@ -21,7 +25,7 @@ def add_worker_tools(mcp) -> None:
     import shutil as _shutil
     from pathlib import Path as _Path
 
-    ROOT = _Path(__file__).resolve().parents[3]
+    ROOT = _ROOT
 
     # â”€â”€ worker_* (26) — wired to core/loop/task_queue.py + core/scheduler/ â”€â”€â”€â”€â”€
     try:
@@ -48,17 +52,18 @@ def add_worker_tools(mcp) -> None:
         def worker_submit(name: str, work: str = "") -> str:
             """Submit a worker task."""
             tq = _get_wtq()
-            if hasattr(tq, "submit"):
-                tq.submit(lambda: work, name=name)
-            return _safe_json({"ok": True, "name": name})
+            if not hasattr(tq, "submit"):
+                return _safe_json({"ok": False, "error": "submit not available"})
+            task_id = tq.submit(lambda: work, name=name)
+            return _safe_json({"ok": True, "name": name, "task_id": task_id})
 
         @mcp.tool
         def worker_cancel(task_id: str) -> str:
             """Cancel a running worker."""
             tq = _get_wtq()
-            if hasattr(tq, "cancel"):
-                tq.cancel(task_id)
-            return _safe_json({"ok": True, "task_id": task_id})
+            if not hasattr(tq, "cancel"):
+                return _safe_json({"ok": False, "error": "cancel not available"})
+            return _safe_json({"ok": bool(tq.cancel(task_id)), "task_id": task_id})
 
         @mcp.tool
         def worker_metrics() -> str:
@@ -171,6 +176,9 @@ def add_worker_tools(mcp) -> None:
             """Scale worker concurrency (adjusts max_concurrent config)."""
             try:
                 from core.config import CONFIG as _C
+                count = int(count)
+                if not 1 <= count <= 32:
+                    return _safe_json({"ok": False, "error": "count must be between 1 and 32"})
                 _C.setdefault("task_queue", {})["max_concurrent"] = count
                 return _safe_json({"ok": True, "max_concurrent": count, "note": "Runtime change only — restart to persist"})
             except Exception as e:
@@ -196,7 +204,7 @@ def add_worker_tools(mcp) -> None:
         @mcp.tool
         def worker_timeout(task_id: str, seconds: int = 300) -> str:
             """Set worker task timeout."""
-            return _safe_json({"ok": True, "task_id": task_id, "timeout_sec": seconds, "note": "Timeout handled at task execution level"})
+            return _safe_json({"ok": False, "task_id": task_id, "timeout_sec": seconds, "note": "Not applied: per-task timeouts are enforced at task execution level, nothing was changed"})
 
         @mcp.tool
         def worker_heartbeat(task_id: str) -> str:
@@ -236,17 +244,22 @@ def add_worker_tools(mcp) -> None:
             import json
             tq = _get_wtq()
             summary = tq.summary() if hasattr(tq, "summary") else {"note": "summary not available"}
-            out = path or str(ROOT / f"worker_export_{int(_time.time())}.json")
-            with open(out, "w") as f:
+            dest = resolve_in_root(ROOT, path or f"worker_export_{int(_time.time())}.json")
+            if dest is None or dest.suffix.lower() != ".json" or is_protected_write_path(ROOT, dest):
+                return _safe_json({"ok": False, "error": "export path must be a .json file inside the repo root (not a protected file)"})
+            with open(dest, "w", encoding="utf-8") as f:
                 json.dump(summary, f, default=str)
-            return _safe_json({"ok": True, "path": out, "summary": summary})
+            return _safe_json({"ok": True, "path": str(dest), "summary": summary})
 
         @mcp.tool
         def worker_import(path: str) -> str:
             """Import worker state from JSON (stub — state restored from queue)."""
             try:
                 import json
-                with open(path) as f:
+                src = resolve_in_root(ROOT, path)
+                if src is None:
+                    return _safe_json({"ok": False, "error": "Path traversal denied"})
+                with open(src, encoding="utf-8") as f:
                     data = json.load(f)
                 return _safe_json({"ok": True, "imported": path, "task_count": len(data.get("tasks", [])), "note": "Tasks are ephemeral — use worker_submit to re-create"})
             except Exception as e:
