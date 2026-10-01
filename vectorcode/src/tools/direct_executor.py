@@ -45,9 +45,10 @@ class DirectTaskExecutor:
                               execution_time=elapsed, validated=False)
 
     async def _execute_internal(self, task_desc: str, tools: list) -> str:
-        if any(t["type"] == "bash" for t in tools):
+        bash_tool = next((t for t in tools if t.get("type") == "bash"), None)
+        if bash_tool is not None:
             import subprocess, shlex
-            cmd = tools[0].get("command", "echo no command")
+            cmd = bash_tool.get("command", "echo no command")
             # Never shell=True — split into args to prevent injection
             args = shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
             result = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=30)
