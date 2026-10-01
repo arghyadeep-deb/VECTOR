@@ -7,11 +7,28 @@ All write/push operations are gated through the permission system:
 - git_push                        → high (always ask)
 """
 
+import re
 import sys
 import subprocess
 from pathlib import Path
 
 from loguru import logger
+
+# A branch/remote name that starts with "-" becomes a git option
+# (--upload-pack=<cmd>, --force, ...) instead of a ref/remote -- a known git
+# argument-injection RCE vector. Same allowlist pattern already fixed in
+# core/mcp_tools/expansion_modules/git.py's git_push/git_checkout/git_merge
+# (commits d41e9a1f2/46e4b2fda) -- allowlist, never blocklist.
+_REF_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._/@-]*$")
+_REMOTE_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]*$")
+
+
+def _bad_ref(value: str, what: str = "ref") -> str | None:
+    v = value or ""
+    if (not _REF_RE.match(v) or ".." in v or "//" in v or "@{" in v
+            or v.endswith((".", "/", ".lock"))):
+        return f"invalid {what}: {v!r}"
+    return None
 
 RISK_LEVELS = {
     "git_status":        "safe",
@@ -101,7 +118,10 @@ class GitTools:
 
     def git_create_branch(self, name: str, checkout: bool = True) -> str:
         """Create (and optionally checkout) a new branch. MEDIUM gate."""
-        args = ["checkout", "-b", name] if checkout else ["branch", name]
+        bad = _bad_ref(name, "branch name")
+        if bad:
+            return f"Branch creation failed: {bad}"
+        args = ["checkout", "-b", name, "--"] if checkout else ["branch", "--", name]
         r = self._run(args)
         if r["returncode"] == 0:
             return f"Branch '{name}' created{' and checked out' if checkout else ''}."
@@ -109,10 +129,15 @@ class GitTools:
 
     def git_push(self, remote: str = "origin", branch: str = "") -> str:
         """Push to remote. HIGH gate — always requires approval."""
+        if not _REMOTE_RE.match(remote or ""):
+            return f"push failed: invalid remote name: {remote!r}"
         if not branch:
             # detect current branch
             r = self._run(["rev-parse", "--abbrev-ref", "HEAD"])
             branch = r["stdout"].strip() or "main"
+        bad = _bad_ref(branch, "branch")
+        if bad:
+            return f"push failed: {bad}"
         r = self._run(["push", remote, branch], timeout=60)
         if r["returncode"] == 0:
             return r["stdout"].strip() or f"Pushed to {remote}/{branch}"
