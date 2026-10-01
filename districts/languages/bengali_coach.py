@@ -90,6 +90,9 @@ class BengaliCoach(AgentBase):
         self.add_lesson({"action": "grammar_check", "language": self.language})
         prompt = f"Check this Bengali text for grammar errors. Provide corrections.\nText: {text}"
         result = self._call_ollama(prompt, model=CONFIG["models"]["multilingual"])
+        if not (result or "").strip():
+            logger.error("[VECTOR][languages] Bengali grammar check got an empty LLM response")
+            return {"status": "error", "error": "llm returned no response", "original_text": text, "language": self.language}
         check_result = {"original_text": text, "language": self.language, "corrections": result, "checked_at": self.last_active}
         self.memory.store(event_type="grammar_check", content=f"Grammar check for Bengali text: {text[:30]}...", tags=["language", self.language, "grammar"], context=check_result, source="BengaliCoach")
         return check_result
@@ -99,6 +102,9 @@ class BengaliCoach(AgentBase):
         self.add_lesson({"action": "generate_sentences", "word": word, "language": self.language})
         prompt = f"Generate 5 example sentences in Bengali using the word '{word}'. Include English translations."
         sentences_text = self._call_ollama(prompt, model=CONFIG["models"]["multilingual"])
+        if not (sentences_text or "").strip():
+            logger.error("[VECTOR][languages] Bengali sentence generation got an empty LLM response for: {}", word)
+            return {"status": "error", "error": "llm returned no response", "word": word, "language": self.language}
         result = {"word": word, "language": self.language, "sentences": sentences_text, "count": sentences_text.count("\n") + 1}
         self.memory.store(event_type="sentences_generated", content=f"Generated Bengali sentences for '{word}'", tags=["language", self.language, "sentences"], context=result, source="BengaliCoach")
         return result
