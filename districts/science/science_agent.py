@@ -3,11 +3,25 @@ ScienceAgent — routes physics/chemistry/CAD/causal simulation tasks.
 Inherits AgentBase (HP system). Lazy-imports all heavy science deps.
 Registered in governor DISTRICT_TASK_MAP under 'science'.
 """
+import math
 import uuid
 
 from loguru import logger
 from core.city.agent_base import AgentBase
 from core.config import CONFIG
+
+
+def _num(params: dict, key: str, default: float, *, positive: bool = False,
+         non_negative: bool = False) -> float:
+    """Parse a finite float param; raise ValueError on NaN/inf/out-of-domain input."""
+    value = float(params.get(key, default))
+    if not math.isfinite(value):
+        raise ValueError(f"{key} must be a finite number, got {value}")
+    if positive and value <= 0:
+        raise ValueError(f"{key} must be > 0, got {value}")
+    if non_negative and value < 0:
+        raise ValueError(f"{key} must be >= 0, got {value}")
+    return value
 
 
 class ScienceAgent(AgentBase):
@@ -72,8 +86,11 @@ class ScienceAgent(AgentBase):
 
     # ── main task handler ────────────────────────────────────────────────────
     async def run(self, task: dict) -> dict:
+        task = task or {}
         task_type = task.get("type", "")
-        params = task.get("params", {})
+        params = task.get("params") or {}
+        if task_type in ("what_if", "explain") and "mode" not in params:
+            params = {**params, "mode": task_type}
         logger.info("[VECTOR][science] task={} params={}", task_type, list(params.keys()))
 
         try:
@@ -103,16 +120,19 @@ class ScienceAgent(AgentBase):
 
         sim_type = params.get("simulation", "projectile")
         if sim_type == "projectile":
-            v0 = float(params.get("velocity", 20.0))
-            angle = float(params.get("angle_deg", 45.0))
-            mass = float(params.get("mass_kg", 1.0))
+            v0 = _num(params, "velocity", 20.0, non_negative=True)
+            angle = _num(params, "angle_deg", 45.0)
+            if not 0.0 <= angle <= 90.0:
+                raise ValueError(f"angle_deg must be within 0..90, got {angle}")
+            mass = _num(params, "mass_kg", 1.0, positive=True)
             result = eng.simulate_projectile(v0, angle, mass)
         elif sim_type == "pendulum":
-            length = float(params.get("length_m", 1.0))
-            angle = float(params.get("initial_angle_deg", 10.0))
+            length = _num(params, "length_m", 1.0, positive=True)
+            angle = _num(params, "initial_angle_deg", 10.0)
             result = eng.simulate_pendulum(length, angle)
         else:
-            result = eng.get_capabilities()
+            return {"status": "error", "error": f"unknown simulation: {sim_type!r}",
+                    "supported": ["projectile", "pendulum"], "agent": self.name}
 
         response = (
             f"Physics simulation ({sim_type}): "
@@ -130,6 +150,9 @@ class ScienceAgent(AgentBase):
             return {"status": "error", "error": "No SMILES provided"}
 
         result = eng.analyze_molecule(smiles)
+        if result.get("error") or result.get("valid") is False:
+            return {"status": "error", "error": result.get("error") or "Invalid SMILES",
+                    "result": result, "agent": self.name}
         response = f"Molecule ({smiles}): MW={result.get('molecular_weight', '?')} heavy_atoms={result.get('heavy_atoms', '?')}"
         return {"status": "ok", "result": result, "response": response, "agent": self.name}
 
@@ -141,19 +164,20 @@ class ScienceAgent(AgentBase):
         shape = params.get("shape", "box")
         if shape == "box":
             result = eng.analyze_box(
-                float(params.get("length", 1.0)),
-                float(params.get("width", 1.0)),
-                float(params.get("height", 1.0)),
+                _num(params, "length", 1.0, positive=True),
+                _num(params, "width", 1.0, positive=True),
+                _num(params, "height", 1.0, positive=True),
             )
         elif shape == "cylinder":
             result = eng.analyze_cylinder(
-                float(params.get("radius", 1.0)),
-                float(params.get("height", 1.0)),
+                _num(params, "radius", 1.0, positive=True),
+                _num(params, "height", 1.0, positive=True),
             )
         elif shape == "sphere":
-            result = eng.analyze_sphere(float(params.get("radius", 1.0)))
+            result = eng.analyze_sphere(_num(params, "radius", 1.0, positive=True))
         else:
-            result = eng.get_capabilities()
+            return {"status": "error", "error": f"unknown shape: {shape!r}",
+                    "supported": ["box", "cylinder", "sphere"], "agent": self.name}
 
         response = f"CAD analysis ({shape}): volume={result.get('volume', '?')} surface={result.get('surface_area', '?')}"
         return {"status": "ok", "result": result, "response": response, "agent": self.name}
@@ -165,19 +189,34 @@ class ScienceAgent(AgentBase):
 
         mode = params.get("mode", "explain")
         if mode == "explain":
-            node = params.get("node", params.get("query", "outcome:ok"))
+            node = params.get("node") or params.get("query")
+            if not node:
+                return {"status": "error", "error": "No node/query provided", "agent": self.name}
             result = cr.explain(node)
+            if result.get("error"):
+                return {"status": "error", "error": result["error"], "result": result, "agent": self.name}
             response = f"Causal explanation for '{node}': {len(result.get('causes', []))} upstream causes found."
         elif mode == "what_if":
             action = params.get("action", "")
             hypo = params.get("hypothetical", "")
+            if not action:
+                return {"status": "error", "error": "No action provided", "agent": self.name}
             result = cr.what_if(action, hypo)
+            if result.get("error"):
+                return {"status": "error", "error": result["error"], "result": result, "agent": self.name}
             response = f"What-if analysis for '{action}' → '{hypo}'."
-        else:
+        elif mode in ("estimate", "estimate_effect", "ate", "effect"):
             treatment = params.get("treatment", "")
             outcome = params.get("outcome", "")
+            if not treatment or not outcome:
+                return {"status": "error", "error": "treatment and outcome are required", "agent": self.name}
             result = cr.estimate_effect(treatment, outcome)
+            if result.get("ate") is None:
+                return {"status": "error", "error": f"no ATE estimate ({result.get('method', 'unknown')})",
+                        "result": result, "agent": self.name}
             response = f"ATE estimate {treatment}→{outcome}: {result.get('ate')}"
+        else:
+            return {"status": "error", "error": f"unknown causal mode: {mode!r}", "agent": self.name}
 
         return {"status": "ok", "result": result, "response": response, "agent": self.name}
 
@@ -187,6 +226,9 @@ class ScienceAgent(AgentBase):
         logger.info("[VECTOR][science] experiment: {}", name)
         # Compose: run physics sim, then record in causal graph
         physics_result = await self._handle_physics(params)
+        if physics_result.get("status") != "ok":
+            return {"status": "error", "experiment": name,
+                    "error": physics_result.get("error", "physics step failed"), "agent": self.name}
         cr = self._get_causal()
         if cr and physics_result.get("status") == "ok":
             r = physics_result["result"]

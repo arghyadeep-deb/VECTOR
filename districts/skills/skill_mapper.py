@@ -40,6 +40,17 @@ class SkillMapper(AgentBase):
             timeout=120,
         )
 
+    @staticmethod
+    def _parse_json(text: str):
+        import re
+        m = re.search(r'\{.*\}', text or "", re.DOTALL)
+        if not m:
+            return None
+        try:
+            return json.loads(m.group(0))
+        except json.JSONDecodeError:
+            return None
+
     def map_skills(self, person_name: str) -> dict:
         logger.info(f"[VECTOR][skills] Mapping skills for: {person_name}")
         self.add_lesson({"action": "map_skills", "person": person_name})
@@ -57,7 +68,14 @@ class SkillMapper(AgentBase):
         mem = EpisodicMemory()
         events = mem.recall(person_name, limit=100)
 
-        content_text = " ".join([e.get("content", "") for e in events])[:2000] if events else f"Skills data for {person_name}"
+        if not events:
+            # No history: an LLM asked to "map skills" from nothing just invents
+            # them. Report no_data instead of a fabricated skill map.
+            logger.warning("[VECTOR][skills] No activity history for {}; skill map not generated", person_name)
+            return {"status": "no_data", "error": "no activity history to map skills from",
+                    "person_name": person_name, "skills": [], "total_skills": 0,
+                    "categories": [], "skills_by_category": {}}
+        content_text = " ".join([e.get("content", "") for e in events])[:2000]
 
         prompt = f"""Map out all skills for '{person_name}' based on their activity history:
 {content_text[:1500]}
@@ -66,15 +84,14 @@ Rate proficiency: beginner (1-3), intermediate (4-6), advanced (7-8), expert (9-
 Return JSON: {{skills: [{{name, category, proficiency, evidence: string[], last_practiced: string}}]}}"""
         result_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
 
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', result_text, re.DOTALL)
-            if json_match:
-                skills_data = json.loads(json_match.group(0))
-            else:
-                skills_data = {"skills": [{"name": "detected_skills", "category": "general", "proficiency": 5}]}
-        except json.JSONDecodeError:
-            skills_data = {"skills": [{"name": result_text[:100], "category": "general", "proficiency": 5}]}
+        skills_data = self._parse_json(result_text)
+        if not isinstance(skills_data, dict) or not isinstance(skills_data.get("skills"), list):
+            # LLM failed or returned junk: do NOT invent a canned skill at
+            # proficiency 5 and cache/store it as a real map.
+            logger.warning("[VECTOR][skills] Skill mapping LLM output unusable for {}", person_name)
+            return {"status": "error", "error": "skill mapping failed: no usable LLM output",
+                    "person_name": person_name, "skills": [], "total_skills": 0,
+                    "categories": [], "skills_by_category": {}}
 
         categories = {}
         for s in skills_data.get("skills", []):
@@ -82,6 +99,7 @@ Return JSON: {{skills: [{{name, category, proficiency, evidence: string[], last_
             categories.setdefault(cat, []).append(s)
 
         mapped = {
+            "status": "ok",
             "person_name": person_name,
             "skills": skills_data.get("skills", []),
             "total_skills": len(skills_data.get("skills", [])),
@@ -110,7 +128,11 @@ Return JSON: {{skills: [{{name, category, proficiency, evidence: string[], last_
             self.map_skills(person_name)
 
         mapped = self.skill_maps.get(person_name, {})
-        current_skills = [s["name"] for s in mapped.get("skills", [])]
+        current_skills = [s["name"] for s in mapped.get("skills", []) if isinstance(s, dict) and s.get("name")]
+        if not current_skills:
+            # Gaps against an empty/failed skill map are meaningless.
+            return {"status": "error", "error": "no mapped skills available to compute gaps against",
+                    "person_name": person_name, "current_skills": [], "skill_gaps": [], "gaps_count": 0}
 
         prompt = f"""For person with these current skills: {current_skills}
 Suggest missing skills that would be valuable for career growth, tech industry trends, and productivity.
@@ -118,17 +140,15 @@ Focus on: in-demand technical skills, complementary soft skills, emerging techno
 Return JSON: {{gaps: [{{skill_name, category, importance: 1-10, reason: string, resource: string}}]}}"""
         gaps_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
 
-        try:
-            import re
-            json_match = re.search(r'\{.*\}', gaps_text, re.DOTALL)
-            if json_match:
-                gaps_data = json.loads(json_match.group(0))
-            else:
-                gaps_data = {"gaps": [{"skill_name": gaps_text[:100], "category": "technical", "importance": 7}]}
-        except json.JSONDecodeError:
-            gaps_data = {"gaps": [{"skill_name": gaps_text[:100], "category": "technical", "importance": 7}]}
+        gaps_data = self._parse_json(gaps_text)
+        if not isinstance(gaps_data, dict) or not isinstance(gaps_data.get("gaps"), list):
+            logger.warning("[VECTOR][skills] Skill-gap LLM output unusable for {}", person_name)
+            return {"status": "error", "error": "skill gap suggestion failed: no usable LLM output",
+                    "person_name": person_name, "current_skills": current_skills,
+                    "skill_gaps": [], "gaps_count": 0}
 
         result = {
+            "status": "ok",
             "person_name": person_name,
             "current_skills": current_skills,
             "skill_gaps": gaps_data.get("gaps", []),
@@ -156,12 +176,15 @@ Return JSON: {{gaps: [{{skill_name, category, importance: 1-10, reason: string, 
         skill_data = mem.get_skill(skill_name)
 
         if not skill_data:
-            mem2 = EpisodicMemory()
-            mem2.update_skill(skill_name, 0.3, {"source": "new_tracking"})
-            skill_data = mem2.get_skill(skill_name)
+            # Never seen: don't fabricate a 0.3 "Beginner" row in the DB.
+            return {"skill_name": skill_name, "confidence": 0.0, "level": "Not tracked",
+                    "evidence": "No tracking data for this skill",
+                    "tracked_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
 
-        evidence_text = skill_data.get("evidence", "") if skill_data else ""
-        confidence = skill_data.get("confidence", 0.3) if skill_data else 0.3
+        evidence_text = skill_data.get("evidence", "") or ""
+        confidence = skill_data.get("confidence")
+        if confidence is None:
+            confidence = 0.0
 
         level = "Novice" if confidence < 0.3 else "Beginner" if confidence < 0.5 else "Intermediate" if confidence < 0.7 else "Advanced" if confidence < 0.85 else "Expert"
 
@@ -185,7 +208,7 @@ Return JSON: {{gaps: [{{skill_name, category, importance: 1-10, reason: string, 
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = (task or {}).get("params") or {}
         result = self.track_skill_progress(p.get("skill", "python"))
         return {"status": "ok", **result}
 

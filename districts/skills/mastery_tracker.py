@@ -9,7 +9,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
-import uuid, asyncio, json, datetime
+import uuid, asyncio, json, datetime, math
 from typing import Optional
 
 
@@ -60,6 +60,10 @@ class MasteryTracker(AgentBase):
         logger.info(f"[VECTOR][skills] Tracking mastery of {skill_name}: score={score}")
         self.add_lesson({"action": "track_mastery", "skill": skill_name, "score": score})
 
+        score = float(score)
+        if not math.isfinite(score):
+            # max(0, min(1, nan)) silently yields 1.0 == "Master"
+            raise ValueError(f"mastery score must be a finite number, got {score}")
         score = max(0.0, min(1.0, score))
         level = self._get_level(score)
 
@@ -73,7 +77,7 @@ class MasteryTracker(AgentBase):
         # operate on a closed database" errors elsewhere in the system.
         from core.memory.episodic import EpisodicMemory
         mem = EpisodicMemory()
-        mem.update_skill(skill_name, score, {"tracking": "mastery", "last_update": datetime.datetime.now(datetime.timezone.utc).isoformat()})
+        persisted = mem.update_skill(skill_name, score, {"tracking": "mastery", "last_update": datetime.datetime.now(datetime.timezone.utc).isoformat()})
 
         self.mastery_levels[skill_name] = {
             "score": score,
@@ -81,7 +85,7 @@ class MasteryTracker(AgentBase):
             "progress_delta": round(progress_delta, 3),
             "previous_score": previous_score,
             "last_updated": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            "milestones_passed": [m for m, t in sorted(self.milestones.items()) if previous_score < t <= score],
+            "milestones_passed": [name for thr, name in sorted(self.milestones.items()) if previous_score < thr <= score],
         }
 
         result = {
@@ -90,6 +94,7 @@ class MasteryTracker(AgentBase):
             "level": level,
             "progress_delta": round(progress_delta, 3),
             "milestones_passed": self.mastery_levels[skill_name]["milestones_passed"],
+            "persisted": bool(persisted),
             "tracked_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
 
@@ -119,7 +124,7 @@ class MasteryTracker(AgentBase):
             mem = EpisodicMemory()
             skill_data = mem.get_skill(skill_name)
 
-            if skill_data and skill_data.get("confidence"):
+            if skill_data and skill_data.get("confidence") is not None:
                 score = skill_data["confidence"]
                 level_data = {
                     "score": score,
@@ -148,10 +153,10 @@ class MasteryTracker(AgentBase):
         logger.info(f"[VECTOR][skills] Suggesting next steps for: {skill_name}")
         self.add_lesson({"action": "suggest_next_steps", "skill": skill_name})
 
-        if skill_name not in self.mastery_levels:
-            self.get_mastery_level(skill_name)
-
-        level_data = self.mastery_levels.get(skill_name, {})
+        # get_mastery_level() reads the persisted score but does not populate
+        # self.mastery_levels, so use its return value (was: always score 0.0
+        # for any skill tracked in an earlier process).
+        level_data = self.get_mastery_level(skill_name)
         current_score = level_data.get("score", 0.0)
         current_level = level_data.get("level", "Novice")
 
@@ -162,17 +167,22 @@ Provide: 1) 3 specific action items, 2) Daily/weekly practice recommendations, 3
 Format as JSON: {{next_steps: [{{action, type: practice/project/study, estimated_hours: int}}], weekly_focus: string, projects: string[], mastery_indicators: string[]}}"""
         steps_text = self._call_ollama(prompt, model=CONFIG["models"]["reasoning"])
 
+        steps_data = None
         try:
             import re
-            json_match = re.search(r'\{.*\}', steps_text, re.DOTALL)
+            json_match = re.search(r'\{.*\}', steps_text or "", re.DOTALL)
             if json_match:
                 steps_data = json.loads(json_match.group(0))
-            else:
-                steps_data = {"next_steps": [{"action": steps_text[:200], "type": "study", "estimated_hours": 10}]}
         except json.JSONDecodeError:
-            steps_data = {"next_steps": [{"action": steps_text[:200], "type": "study", "estimated_hours": 10}]}
+            steps_data = None
+        if not isinstance(steps_data, dict) or not steps_data.get("next_steps"):
+            logger.warning("[VECTOR][skills] Next-steps LLM output unusable for {}", skill_name)
+            return {"status": "error", "error": "next-step suggestion failed: no usable LLM output",
+                    "skill_name": skill_name, "current_level": current_level,
+                    "current_score": round(current_score, 3), "next_steps": []}
 
         result = {
+            "status": "ok",
             "skill_name": skill_name,
             "current_level": current_level,
             "current_score": round(current_score, 3),
@@ -195,7 +205,7 @@ Format as JSON: {{next_steps: [{{action, type: practice/project/study, estimated
 
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = (task or {}).get("params") or {}
         result = self.get_mastery_level(p.get("skill", "python"))
         return {"status": "ok", **result}
 
