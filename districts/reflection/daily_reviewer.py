@@ -1,3 +1,4 @@
+import re
 import sys
 import uuid
 import asyncio
@@ -13,6 +14,7 @@ from core.memory.policy import PolicyMemory
 from loguru import logger
 
 _CHAIRMAN = CONFIG["models"]["chairman"]
+_SCORE_RE = re.compile(r"(\d+(?:\.\d+)?)\s*/\s*10\b")
 
 
 class DailyReviewer(AgentBase):
@@ -40,41 +42,50 @@ class DailyReviewer(AgentBase):
         # Phase 2B: subscribe to end-of-day events
         self.subscribe_to("task_completed")
         self.subscribe_to("memory_stored")
+        self._event_review_date: str | None = None
 
     async def handle_event(self, event: dict) -> dict:
         """Phase 2B: Trigger daily review on significant events."""
         await super().handle_event(event)
         et = event.get("event_type", "")
         # Only trigger review if it's late in the day (22:00+)
-        import datetime
         hour = datetime.datetime.now().hour
-        if et in ("task_completed", "memory_stored") and hour >= 22:
+        today = datetime.date.today().isoformat()
+        # Once per day: every task_completed/memory_stored after 22:00 used to run the full
+        # LLM review + policy writes + HP award again.
+        if et in ("task_completed", "memory_stored") and hour >= 22 and self._event_review_date != today:
             try:
-                logger.info(f"[VECTOR][daily_reviewer] event-triggered review: {et}")
-                await self.review()
+                logger.info("[VECTOR][daily_reviewer] event-triggered review: {}", et)
+                if await self.review():
+                    self._event_review_date = today
             except Exception as e:
-                logger.debug(f"[VECTOR][daily_reviewer] handle_event failed: {e}")
+                logger.warning("[VECTOR][daily_reviewer] handle_event failed: {}", e)
         return {"status": "handled", "agent": self.name, "event": et}
 
-    def _fetch_today(self) -> list[dict]:
-        cutoff = (datetime.datetime.now() - datetime.timedelta(hours=24)).isoformat()
+    def _fetch_today(self) -> list[dict] | None:
+        """Last 24h of events. None = the DB read FAILED (distinct from [] = genuinely no activity)."""
+        # episodic_memory.timestamp is stored as aware UTC ISO text; compare like with like
+        # (a naive local cutoff shifted the window by the UTC offset).
+        cutoff = (datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=24)).isoformat()
         try:
             cur = self._memory.conn.cursor()
             # Exclude test-seeded rows — integration tests that write to the live DB must
             # never surface in the owner's nightly reflection (A6 placeholder bug, 2026-07-08)
             cur.execute(
                 "SELECT event_type, content, tags, source, timestamp FROM episodic_memory "
-                "WHERE timestamp > ? AND source NOT LIKE '%test%' AND tags NOT LIKE '%\"test\"%' "
+                "WHERE timestamp > ? AND COALESCE(source, '') NOT LIKE '%test%' "
+                "AND COALESCE(tags, '') NOT LIKE '%\"test\"%' "
                 "ORDER BY timestamp ASC",
                 (cutoff,),
             )
             cols = [d[0] for d in cur.description]
             return [dict(zip(cols, r)) for r in cur.fetchall()]
         except Exception as e:
-            logger.warning(f"[VECTOR][daily_reviewer] fetch failed: {e}")
-            return []
+            logger.warning("[VECTOR][daily_reviewer] fetch failed: {}", e)
+            return None
 
-    def _analyse(self, events: list[dict], hydration: str) -> str:
+    def _analyse(self, events: list[dict], hydration: str) -> str | None:
+        """LLM analysis, or None when no model produced one (never a canned placeholder)."""
         summary = "\n".join(
             f"[{e.get('timestamp','')[:16]}] {e.get('event_type','')}: {e.get('content','')[:120]}"
             for e in events[:60]
@@ -103,8 +114,8 @@ class DailyReviewer(AgentBase):
                 raise ValueError("summarization chain returned empty response")
             return text
         except Exception as e:
-            logger.warning(f"[VECTOR][daily_reviewer] LLM unavailable: {e}")
-            return f"## SUMMARY\n{len(events)} events today. LLM reflection unavailable."
+            logger.warning("[VECTOR][daily_reviewer] LLM unavailable: {}", e)
+            return None
 
     def _extract_policy_rules(self, text: str) -> list[str]:
         rules, in_section = [], False
@@ -121,13 +132,21 @@ class DailyReviewer(AgentBase):
     async def review(self) -> bool:
         date_str = datetime.date.today().isoformat()
         events = self._fetch_today()
-        if not events:
-            events = [{"event_type": "idle", "content": "No activity today.", "timestamp": date_str, "tags": "", "source": "system"}]
+        if events is None:
+            logger.error("[VECTOR][daily_reviewer] review aborted: event fetch failed")
+            return False
 
-        hydration = self._context.session_hydration_prompt()
-        analysis = self._analyse(events, hydration)
+        if events:
+            hydration = self._context.session_hydration_prompt()
+            analysis = self._analyse(events, hydration)
+            if analysis is None:
+                logger.error("[VECTOR][daily_reviewer] review aborted: no LLM analysis available")
+                return False
+        else:
+            # Genuinely no activity: say so plainly; never let the LLM invent wins/policy/score.
+            analysis = "## SUMMARY\nNo activity was recorded in the last 24 hours."
 
-        rules = self._extract_policy_rules(analysis)
+        rules = self._extract_policy_rules(analysis) if events else []
         for i, rule in enumerate(rules[:10]):
             self._memory.remember(
                 key=f"policy_rule:{date_str}:{i}",
@@ -156,30 +175,22 @@ class DailyReviewer(AgentBase):
                 confidence=0.8,
             )
 
-        for line in analysis.splitlines():
-            if line.strip() and ("GROWTH_SCORE" in line or "/10" in line):
-                self._memory.remember(
-                    key=f"growth_score:{date_str}",
-                    value=line.strip(),
-                    category="growth",
-                    confidence=0.9,
-                )
-                break
-
-        self._memory.store_chain(
-            situation="daily_reflection",
-            goal_ids=["self_improvement"],
-            steps=["fetch_events", "llm_analysis", "policy_update", "obsidian_write"],
-            action="review",
-            outcome=f"{len(events)} events; {len(rules)} policy rules",
-            reward=0.85,
-        )
-        self._memory.store(
-            event_type="daily_review",
-            content=f"Daily review: {len(events)} events, {len(rules)} policy updates",
-            tags=["reflection", "daily"],
-            source="daily_reviewer",
-        )
+        # Only a real "N/10" under the GROWTH_SCORE heading counts; the heading line itself
+        # used to be stored as the "score" (and no-data days must not get a score at all).
+        if events:
+            lines = analysis.splitlines()
+            start = next((i for i, ln in enumerate(lines) if "GROWTH_SCORE" in ln), None)
+            for line in (lines[start + 1:] if start is not None else []):
+                if line.startswith("##"):
+                    break
+                if _SCORE_RE.search(line):
+                    self._memory.remember(
+                        key=f"growth_score:{date_str}",
+                        value=line.strip(),
+                        category="growth",
+                        confidence=0.9,
+                    )
+                    break
 
         # A5: prepend top pending hypotheses as "I noticed" lines
         _hyp_section = ""
@@ -215,13 +226,37 @@ class DailyReviewer(AgentBase):
                 folder="Reflections",
                 tags=["reflection", "daily", "vector"],
             )
-            self.award_points(50, f"daily review {date_str}")
-            logger.info(f"[VECTOR][daily_reviewer] done: {len(events)} events, {len(rules)} rules")
-            return True
         except Exception as e:
-            logger.error(f"[VECTOR][daily_reviewer] vault write failed: {e}")
+            logger.error("[VECTOR][daily_reviewer] vault write failed: {}", e)
+            # Record the failure honestly (was: chain reward 0.85 "obsidian_write" stored before the write).
+            self._memory.store_chain(
+                situation="daily_reflection",
+                goal_ids=["self_improvement"],
+                steps=["fetch_events", "llm_analysis", "policy_update", "obsidian_write_failed"],
+                action="review",
+                outcome=f"vault write failed; {len(events)} events; {len(rules)} policy rules",
+                reward=0.2,
+            )
             self.deduct_points(10, "vault write failed")
             return False
+
+        self._memory.store_chain(
+            situation="daily_reflection",
+            goal_ids=["self_improvement"],
+            steps=["fetch_events", "llm_analysis", "policy_update", "obsidian_write"],
+            action="review",
+            outcome=f"{len(events)} events; {len(rules)} policy rules",
+            reward=0.85,
+        )
+        self._memory.store(
+            event_type="daily_review",
+            content=f"Daily review: {len(events)} events, {len(rules)} policy updates",
+            tags=["reflection", "daily"],
+            source="daily_reviewer",
+        )
+        self.award_points(50, f"daily review {date_str}")
+        logger.info("[VECTOR][daily_reviewer] done: {} events, {} rules", len(events), len(rules))
+        return True
 
     async def answer_reflection_question(self, query: str) -> str:
         """Answer a free-text question routed to DailyReviewer instead of
@@ -232,6 +267,8 @@ class DailyReviewer(AgentBase):
         effect from a stray conversational message). Grounded in today's
         real activity log; no invented data."""
         events = self._fetch_today()
+        if events is None:
+            return ""  # DB read failed: don't tell the LLM "no activity" and let it answer from nothing
         summary = "\n".join(
             f"[{e.get('timestamp','')[:16]}] {e.get('event_type','')}: {e.get('content','')[:120]}"
             for e in events[:30]
