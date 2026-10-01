@@ -4,9 +4,30 @@ tests/training/test_self_improvement_cycle.py — Phase 4A/4B/4C tests.
 Tests the SelfImprovementCycle end-to-end with a small model and seeded data.
 Validates that eval gates reject bad models and approve good ones.
 """
+import inspect
+
 import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
+
+
+def test_autonomous_loop_eval_gate_matches_run_weekly_success_contract():
+    """Regression (Phase 3 whole-repo audit, 2026-10-01): autonomous_loop.py's
+    Sunday-reflect block gated the OpenMythos deploy eval-gate on
+    result.get("status") == "ok", but SelfImprovementCycle.run_weekly() never
+    returns "ok" -- only "completed" on success (see the status assignments in
+    core/training/self_improvement_cycle.py and test_run_weekly_skips_on_no_data
+    / test_run_weekly_completes_with_seeded_data below). The eval-gate was
+    permanently unreachable dead code. Source-level lock so the two can't drift
+    apart again without this test failing."""
+    import core.loop.autonomous_loop as al
+    src = inspect.getsource(al)
+    start = src.index("cycle.run_weekly")
+    # Scope to this block only -- "ok" is a legitimate status value elsewhere
+    # in the file for unrelated result dicts (decision-outcome rewards, etc.).
+    block = src[start:start + 800]
+    assert 'result.get("status") == "completed"' in block
+    assert 'result.get("status") == "ok"' not in block
 
 
 @pytest.mark.training

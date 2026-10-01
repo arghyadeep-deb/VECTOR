@@ -136,9 +136,8 @@ class WeeklyTrainingScheduler:
                 job = self._scheduler.get_job("weekly_training")
                 if job and job.next_run_time:
                     return job.next_run_time.isoformat()
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][weekly_sched] get_next_run failed: {}", e)
         return None
 
     def get_log(self, limit: int = 20) -> list[dict]:

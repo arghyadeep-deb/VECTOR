@@ -2214,7 +2214,7 @@ class AutonomousLoop:
                             f"(collect={phases.get('collect',{}).get('samples',0)}, "
                             f"train={phases.get('train',{}).get('status','?')})")
 
-                if result.get("status") == "ok":
+                if result.get("status") == "completed":
                     try:
                         from core.training.openmythos.trainer import SelfImprovementTrainer
                         trainer = SelfImprovementTrainer()
