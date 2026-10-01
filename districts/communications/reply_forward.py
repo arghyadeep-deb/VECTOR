@@ -152,7 +152,11 @@ def handle_reply_email(
             headers=build_threading_headers(original_msg_id, references),
         ))
     except Exception as e:
-        logger.error(f"[VECTOR][reply_forward] Reply delivery failed: {e}")
+        logger.error("[VECTOR][reply_forward] Reply delivery failed: {}", e)
+        # Delivery failed: do not leave a phantom row in Sent or report success.
+        conn.execute("UPDATE emails SET folder_id='draft' WHERE id = ?", (message_id,))
+        conn.commit()
+        return {"error": f"reply delivery failed: {e}", "status": 502, "id": message_id}
 
     return {"id": message_id, "status": "sent"}
 
@@ -248,7 +252,11 @@ def handle_forward_email(
             attachments=attachments or [],
         ))
     except Exception as e:
-        logger.error(f"[VECTOR][reply_forward] Forward delivery failed: {e}")
+        logger.error("[VECTOR][reply_forward] Forward delivery failed: {}", e)
+        # Delivery failed: do not leave a phantom row in Sent or report success.
+        conn.execute("UPDATE emails SET folder_id='draft' WHERE id = ?", (message_id,))
+        conn.commit()
+        return {"error": f"forward delivery failed: {e}", "status": 502, "id": message_id}
 
     return {"id": message_id, "status": "sent"}
 
