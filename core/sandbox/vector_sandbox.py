@@ -39,6 +39,33 @@ class SandboxResult:
         return self.stdout.strip() or self.stderr.strip()
 
 class VectorSandbox:
+    """Runs code/commands in a subprocess with a timeout, output cap, and a
+    scrubbed environment -- NOT a real security sandbox. On POSIX, RLIMIT_AS/
+    RLIMIT_CPU cap memory/CPU (best-effort; silently skipped on any error).
+    On win32 (VECTOR's actual deployment platform) there is no resource
+    limiting, filesystem confinement, or network isolation at all: _run()
+    takes the Windows branch straight to a bare subprocess.Popen.
+
+    This IS live, not just a theoretical risk if wired up later:
+    core/loop/permission_gateway.py's RED-tier "execute_code" action handler
+    runs real caller-supplied code through this exact class (get_sandbox() ->
+    run_code_safe()/run_shell()) after council/owner approval -- the approval
+    gate bounds WHO can trigger it, but once approved the code runs with full
+    filesystem/network/environment access the main VECTOR process itself
+    has, no real isolation beyond the scrubbed env + timeout. A real
+    container-based sandbox already exists in this same package
+    (core/sandbox/runner.py's ContainerRunner -- network=none, read-only
+    mounts, mount allowlist) but execute_code does not use it. FLAG-FOR-OWNER
+    (Phase 3 audit, 2026-10-01): switching execute_code to ContainerRunner
+    when a container runtime is available, or adding real OS-level isolation
+    for the Windows fallback, needs an explicit decision -- not a narrow
+    same-session patch.
+
+    Separately, districts/coding/coding_tools.py::run_code_safely() is also
+    documented to run untrusted/LLM-generated code through this class but
+    has zero real callers anywhere in the repo today (confirmed via grep) --
+    dormant, not currently live, but would inherit this same gap the moment
+    anything calls it."""
     def __init__(self, config: SandboxConfig | None = None) -> None:
         self._config = config or SandboxConfig()
 

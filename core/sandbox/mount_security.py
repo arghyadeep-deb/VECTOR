@@ -13,12 +13,11 @@ from __future__ import annotations
 
 import fnmatch
 import json
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # ---------------------------------------------------------------------------
 # Default blocked patterns
@@ -152,12 +151,12 @@ def validate_mount(
 
     # Check blocked patterns
     if _is_blocked(resolved, allowlist.blocked_patterns):
-        logger.debug("Mount blocked by pattern: %s", mount_path)
+        logger.debug("Mount blocked by pattern: {}", mount_path)
         return False
 
     # Check allowed roots
     if not _is_under_allowed_root(resolved, allowlist.roots):
-        logger.debug("Mount not under any allowed root: %s", mount_path)
+        logger.debug("Mount not under any allowed root: {}", mount_path)
         return False
 
     return True

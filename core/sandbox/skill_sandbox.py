@@ -1,9 +1,12 @@
 """Skill execution sandbox — runs VECTOR skills via VectorSandbox with gateway oversight.
 
 Each skill is classified by the PermissionGateway before execution.
-Skills run in an isolated subprocess (VectorSandbox) so they cannot
-escape to the file system, network, or environment beyond what is
-explicitly allowed.
+Skills run in a subprocess (VectorSandbox) with a scrubbed environment and a
+timeout -- NOT a real security sandbox (no filesystem/network/resource
+isolation on win32, VECTOR's actual deployment platform; see
+core/sandbox/vector_sandbox.py's class docstring). Safe here only because
+this runner always executes VECTOR's own fixed verification script
+(_build_skill_verification_code), never caller-supplied skill content.
 
 Usage:
     from core.sandbox.skill_sandbox import SkillSandboxRunner, SkillSandboxResult

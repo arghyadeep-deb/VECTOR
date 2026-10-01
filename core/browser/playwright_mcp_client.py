@@ -53,6 +53,20 @@ class PlaywrightMCPClient:
             return result.get("result", {})
 
     async def navigate(self, url: str) -> dict:
+        """Navigate the sidecar's real browser to `url`.
+
+        core/browser/page_extract.py (same package) enforces an SSRF check on
+        every fetch; this client had none, and its only real caller
+        (districts/research/web_scout.py) checks is_safe_url() on its other
+        fetch paths but not this one -- a search-result URL could point to a
+        private/metadata address and this would navigate a real browser
+        there ungated. Checked here so every caller is covered, not just the
+        one that happened to remember.
+        """
+        from core.security.ssrf_guard import is_safe_url
+
+        if not is_safe_url(url):
+            raise ValueError(f"navigate blocked by SSRF guard: {url!r}")
         return await self.call_tool("browser_navigate", url=url)
 
     async def snapshot(self) -> str:
