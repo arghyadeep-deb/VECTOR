@@ -54,6 +54,7 @@ class SceneManager:
         except Exception:
             self._previous_states[name] = []
 
+        failed = 0
         services = scene.get("services", [])
         for svc in services:
             domain = svc.get("domain", "")
@@ -62,9 +63,13 @@ class SceneManager:
             try:
                 await self._connector.rest.call_service(domain, service, data)
             except Exception as e:
-                logger.warning("[HA Scenes] {}.{} failed: {}", domain, service, e)
+                failed += 1
+                logger.warning("[VECTOR][ha_scenes] {}.{} failed: {}", domain, service, e)
 
-        logger.info("[HA Scenes] Scene '{}' activated", name)
+        if failed:
+            logger.warning("[VECTOR][ha_scenes] Scene '{}' only partly applied ({}/{} calls failed)", name, failed, len(services))
+            return False
+        logger.info("[VECTOR][ha_scenes] Scene '{}' activated", name)
         return True
 
     async def deactivate(self, name: str) -> bool:
@@ -72,18 +77,32 @@ class SceneManager:
         if not prev:
             logger.warning("[HA Scenes] No saved state for '{}'", name)
             return False
+        failed = 0
         for s in prev:
             eid = s.get("entity_id", "")
             state = s.get("state", "")
-            if eid and state:
-                domain = eid.split(".")[0] if "." in eid else ""
-                if domain in ("light", "switch", "cover", "climate"):
-                    try:
-                        svc = "turn_on" if state == "on" else "turn_off"
-                        await self._connector.rest.call_service(domain, svc, {"entity_id": eid})
-                    except Exception as e:
-                        logger.warning("[HA Scenes] Restore {} failed: {}", eid, e)
-        logger.info("[HA Scenes] Scene '{}' deactivated", name)
+            domain = eid.split(".")[0] if "." in eid else ""
+            # Map each saved state to a service that exists for its domain.
+            # (Old code sent turn_off for any non-"on" state: cover.turn_off
+            # does not exist, and "heat"/"unavailable" were turned OFF.)
+            call = None
+            if domain in ("light", "switch") and state in ("on", "off"):
+                call = (domain, "turn_on" if state == "on" else "turn_off", {})
+            elif domain == "cover" and state in ("open", "closed"):
+                call = (domain, "open_cover" if state == "open" else "close_cover", {})
+            elif domain == "climate" and state not in ("", "unavailable", "unknown"):
+                call = (domain, "set_hvac_mode", {"hvac_mode": state})
+            if call is None:
+                continue
+            try:
+                await self._connector.rest.call_service(call[0], call[1], {"entity_id": eid, **call[2]})
+            except Exception as e:
+                failed += 1
+                logger.warning("[VECTOR][ha_scenes] Restore {} failed: {}", eid, e)
+        if failed:
+            logger.warning("[VECTOR][ha_scenes] Scene '{}' restore incomplete ({} failures)", name, failed)
+            return False
+        logger.info("[VECTOR][ha_scenes] Scene '{}' deactivated", name)
         return True
 
 
@@ -180,9 +199,11 @@ class AutomationEngine:
 
     def _is_on_cooldown(self, rule_name: str) -> bool:
         now = time.monotonic()
-        last = self._last_triggered.get(rule_name, 0)
+        last = self._last_triggered.get(rule_name)
         rule = self._rules.get(rule_name)
-        if rule and (now - last) < rule.cooldown_seconds:
+        # Never-triggered rules are not on cooldown (monotonic() can be < the
+        # cooldown right after boot, so a 0 default wrongly blocked them).
+        if rule and last is not None and (now - last) < rule.cooldown_seconds:
             return True
         return False
 
@@ -204,7 +225,8 @@ class AutomationEngine:
                 cond = rule.conditions
                 if cond.get("present", False) and present:
                     triggered.append(name)
-                elif not present and context.get("absent_seconds", 0) >= cond.get("absent_seconds", 0):
+                elif (not present and not cond.get("present", False)
+                      and context.get("absent_seconds", 0) >= cond.get("absent_seconds", 0)):
                     triggered.append(name)
 
             elif rule.trigger == "event":

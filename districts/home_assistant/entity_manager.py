@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import threading
 import time
 from dataclasses import dataclass, field
 from difflib import SequenceMatcher
@@ -68,30 +67,25 @@ class EntityCache:
     def __init__(self, ttl_seconds: float = 30.0):
         self._store: Dict[str, Tuple[Any, float]] = {}
         self._ttl = ttl_seconds
-        self._lock = threading.Lock()
 
     def get(self, key: str) -> Optional[Any]:
-        with self._lock:
-            entry = self._store.get(key)
-            if entry is None:
-                return None
-            value, expires = entry
-            if time.monotonic() > expires:
-                del self._store[key]
-                return None
-            return value
+        entry = self._store.get(key)
+        if entry is None:
+            return None
+        value, expires = entry
+        if time.monotonic() > expires:
+            del self._store[key]
+            return None
+        return value
 
     def set(self, key: str, value: Any):
-        with self._lock:
-            self._store[key] = (value, time.monotonic() + self._ttl)
+        self._store[key] = (value, time.monotonic() + self._ttl)
 
     def invalidate(self, key: str):
-        with self._lock:
-            self._store.pop(key, None)
+        self._store.pop(key, None)
 
     def clear(self):
-        with self._lock:
-            self._store.clear()
+        self._store.clear()
 
 
 class EntityMatcher:
