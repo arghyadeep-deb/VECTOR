@@ -354,7 +354,9 @@ class DataEngineer(AgentBase):
         return {
             "table": table,
             "transformations": transformations,
+            "input_rows": len(rows),
             "processed": processed,
+            "truncated": truncated,
             "errors": errors,
             "duration_ms": duration_ms,
         }
