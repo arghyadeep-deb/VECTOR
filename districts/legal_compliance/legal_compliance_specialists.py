@@ -19,6 +19,7 @@ for the owner's own human/legal review, per the spec's cross-district link note 
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -35,6 +36,11 @@ class SpecialistProfile:
     audit_action: str
     evidence_fields: tuple[str, ...]
     deliverable: str
+
+
+def _norm(value: Any) -> str:
+    text = str(value).replace("\u2019", "'").replace("\u2018", "'")
+    return re.sub(r"\s+", " ", text).strip().casefold()
 
 
 class LegalComplianceChecker(AgentBase):
@@ -82,14 +88,26 @@ class LegalComplianceChecker(AgentBase):
             return {"verified": False, "verified_by": "none", "checks": [],
                     "note": "document_text (str) and required_clauses (non-empty list) both required"}
 
-        lowered = text.lower()
-        missing = [str(c) for c in required if str(c).lower() not in lowered]
+        # A blank / non-string clause would match every document ("" in text) and pass vacuously.
+        if not all(isinstance(c, str) and c.strip() for c in required):
+            return {"verified": False, "verified_by": "none", "checks": [],
+                    "note": "required_clauses must be non-blank strings"}
+        prohibited = supplied.get("prohibited_phrases")
+        if prohibited is not None and (
+            not isinstance(prohibited, list)
+            or not all(isinstance(p, str) and p.strip() for p in prohibited)
+        ):
+            # Silently skipping a malformed prohibited list would report a clean pass.
+            return {"verified": False, "verified_by": "none", "checks": [],
+                    "note": "prohibited_phrases must be a list of non-blank strings"}
+
+        lowered = _norm(text)
+        missing = [str(c) for c in required if _norm(c) not in lowered]
         checks = [{"check": "required_clauses_present", "passed": not missing, "missing_clauses": missing,
                    "required_clauses": list(required)}]
 
-        prohibited = supplied.get("prohibited_phrases")
-        if isinstance(prohibited, list) and prohibited:
-            found = [str(p) for p in prohibited if str(p).lower() in lowered]
+        if prohibited:
+            found = [str(p) for p in prohibited if _norm(p) in lowered]
             checks.append({"check": "no_prohibited_phrases", "passed": not found, "found_phrases": found})
 
         return {
@@ -116,6 +134,9 @@ class LegalComplianceChecker(AgentBase):
             response: dict[str, Any] = {"status": "ok", "report": report}
             if task_type == self.profile.audit_action:
                 response["verification"] = self.run_checks(evidence)
+                if not response["verification"].get("verified"):
+                    # An unverifiable check is not a completed check.
+                    response["status"] = "needs_human"
             verification = response.get("verification")
             if verification is None:
                 earned = report["status"] == "ready"
