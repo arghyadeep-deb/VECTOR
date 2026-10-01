@@ -27,6 +27,7 @@ class SGTMAgent(AgentBase):
             }
         try:
             from core.inference.provider_client import get_client
+            from core.loop.context_engine import ContextEngine
             client = get_client()
             prompt = f"""Review this sGTM (server-side GTM) setup:
 1. Container hit rate vs client-side baseline
@@ -37,9 +38,14 @@ class SGTMAgent(AgentBase):
 
 Container URL: {container_url}
 Data: {str(data or {})[:500]}"""
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": prompt})
             response = await client.complete(
                 model=CONFIG.get("models", {}).get("focus", "vector-focus"),
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
                 max_tokens=500,
             )
             self.award_points(5, "sgtm_health")

@@ -37,6 +37,18 @@ class GEOOptimizerAgent(AgentBase):
             }
             model = model_map.get(engine, CONFIG.get("models", {}).get("focus", "vector-focus"))
 
+            # RULE 1 GAP, NOT FIXED HERE -- FLAG FOR OWNER: no
+            # session_hydration_prompt() call, unlike every other marketing
+            # agent's LLM call (fixed this cycle in amazon_ads_agent.py/
+            # attribution_agent.py/sgtm_agent.py). This method's whole
+            # purpose is measuring whether an external AI engine cites the
+            # brand ORGANICALLY for a neutral query -- injecting VECTOR's own
+            # internal world-state/owner context as a system prompt could
+            # prime the model toward mentioning the brand, contaminating the
+            # exact signal this agent exists to measure. Plausibly a correct
+            # deliberate omission, but there's no comment recording that as
+            # an intentional decision (the bar this cycle's other
+            # fail-open/RULE-1 flags used), so left as a flag, not a fix.
             response = await client.complete(
                 model=model,
                 messages=[{"role": "user", "content": prompt}],
@@ -85,8 +97,17 @@ class GEOOptimizerAgent(AgentBase):
             "top_queries": [r["query"] for r in cited[:3]],
         }
 
-    async def run(self, params: dict | None = None) -> dict:
-        p = params or {}
+    async def run(self, task: dict | None = None) -> dict:
+        # The Governor dispatches {"type": ..., "params": {...}} (the
+        # standard shape, see districts.md / the Phase 3 params-vs-task
+        # audit); this agent used to take a flat `params` dict directly, so
+        # a real Governor dispatch's brand/queries sat unreached inside
+        # task["params"] and this always ran with silent defaults instead.
+        # Flattening keeps both the Governor's task shape and a direct flat
+        # caller (e.g. core/api/routers/seo.py's agent.run({"url": url}))
+        # working unchanged.
+        t = task or {}
+        p = {**t, **(t.get("params") or {})}
         brand = p.get("brand", CONFIG.get("owner_name", "VECTOR"))
         queries = p.get("queries", ["best AI assistant", "top AI tools 2026"])
         return await self.geo_score(brand, queries)

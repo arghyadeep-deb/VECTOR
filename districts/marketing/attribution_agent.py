@@ -17,6 +17,7 @@ class AttributionAgent(AgentBase):
         """Audit Consent Mode V2 setup — modeled conversions, consent signals."""
         try:
             from core.inference.provider_client import get_client
+            from core.loop.context_engine import ContextEngine
             client = get_client()
             prompt = f"""Audit this tracking setup for Consent Mode V2 compliance:
 1. Consent signal implementation (granted/denied rates)
@@ -26,9 +27,14 @@ class AttributionAgent(AgentBase):
 5. Data gaps and recommendations
 
 Data: {str(ga4_data or {})[:800]}"""
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": prompt})
             response = await client.complete(
                 model=CONFIG.get("models", {}).get("focus", "vector-focus"),
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
                 max_tokens=600,
             )
             self.award_points(8, "attribution_audit")

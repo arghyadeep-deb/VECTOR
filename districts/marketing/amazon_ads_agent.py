@@ -17,6 +17,7 @@ class AmazonAdsAgent(AgentBase):
         """Audit Amazon Ads account — ACOS, TACOS, spend efficiency."""
         try:
             from core.inference.provider_client import get_client
+            from core.loop.context_engine import ContextEngine
             client = get_client()
             prompt = f"""Audit this Amazon Ads account data and provide:
 1. ACOS analysis (target vs actual)
@@ -26,9 +27,16 @@ class AmazonAdsAgent(AgentBase):
 5. Product targeting gaps
 
 Data: {str(account_data or {})[:1000]}"""
+            # RULE 1: session_hydration_prompt() before every LLM call -- this
+            # agent called get_client().complete() with a bare user message
+            # and no hydration at all.
+            hydration = ContextEngine().session_hydration_prompt({"query": prompt})
             response = await client.complete(
                 model=CONFIG.get("models", {}).get("focus", "vector-focus"),
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
                 max_tokens=800,
             )
             self.award_points(8, "amazon_audit")
