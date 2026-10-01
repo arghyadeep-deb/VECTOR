@@ -1020,6 +1020,13 @@ grew open engineering items; section 0 lists them.
     significant diffs directly, trusting mechanical/repeated-pattern fixes after the first few
     confirmations, rather than reading every line of every file) — this is a deliberate tradeoff to
     conserve the remaining budget while still not committing anything unreviewed.
+    **Ops/governance audit (commit `c85bf65c9`) — 3 fail-open bugs fixed.** `ops/sre_monitor.py` set
+    `error_rate=0.0` on a DB failure (reading as perfectly healthy); it now sets `1.0`.
+    `ops/incident_commander.py` `detect_incidents()` returned `[]` on a DB failure (reading as "no
+    incidents"); it now returns `None`, and both `run()` call sites are None-guarded.
+    `governance/llm_council.py` `run()` defaulted `requester_hp=700`, which bypassed the strict `<700`
+    gate; it now defaults to `0`. 7 new tests are in `tests/test_ops_governance_audit_phase3.py`.
+    `districts/intelligence/` was verified clean.
 
 
 This file is the single owner-facing source of truth. Full per-item evidence
