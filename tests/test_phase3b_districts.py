@@ -253,6 +253,7 @@ class TestVideoIngestor:
             # Create a fake video file so Path.exists() passes
             fake_video = Path(d) / "lecture_test.mp4"
             fake_video.write_bytes(b"fake")
+            (agent.transcripts_dir / "lecture_test_transcript.txt").write_text("real transcript text", encoding="utf-8")
             with patch.object(agent, "_call_ollama", return_value="1. Overview\n2. Key points"):
                 result = agent.summarize_lecture(str(fake_video))
             assert "summary" in result

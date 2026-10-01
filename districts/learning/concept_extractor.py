@@ -14,6 +14,9 @@ import uuid, asyncio, json
 from typing import Optional
 
 
+_OFFLINE_RESPONSE = '[{"name":"offline_concept","definition":"Offline concept extraction fallback","importance":5,"related_concepts":[]}]'
+
+
 class ConceptExtractor(AgentBase):
     def __init__(self):
         super().__init__(
@@ -30,7 +33,7 @@ class ConceptExtractor(AgentBase):
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
         if os.getenv("VECTOR_LEARNING_LLM") != "1":
-            return '[{"name":"offline_concept","definition":"Offline concept extraction fallback","importance":5,"related_concepts":[]}]'
+            return _OFFLINE_RESPONSE
         from core.inference.vectorcode_llm import chat as ollama_chat
         from core.loop.context_engine import ContextEngine
         hydration = ContextEngine().session_hydration_prompt()
@@ -52,16 +55,25 @@ Text: {text[:2000]}
 Format: JSON list only, no explanation."""
         response = self._call_ollama(prompt)
 
+        if response == _OFFLINE_RESPONSE:
+            # Canned placeholder, not extraction: never count/store it as learned.
+            logger.warning("[VECTOR][learning] LLM disabled (VECTOR_LEARNING_LLM!=1); no concepts extracted")
+            return {"concepts": [], "count": 0, "source_text_length": len(text), "degraded": "llm_disabled"}
+
         try:
             import re
-            json_match = re.search(r'\[.*\]', response, re.DOTALL)
+            json_match = re.search(r'\[.*\]', response or "", re.DOTALL)
             if json_match:
                 concepts = json.loads(json_match.group(0))
             else:
                 concepts = json.loads(response)
+            if not isinstance(concepts, list):
+                raise TypeError("concepts JSON is not a list")
+            concepts = [c for c in concepts if isinstance(c, dict)]
         except (json.JSONDecodeError, TypeError):
             logger.warning("[VECTOR][learning] Could not parse concepts as JSON")
-            concepts = [{"name": "extracted_concepts", "definition": response, "importance": 5, "related_concepts": []}]
+            return {"concepts": [], "count": 0, "source_text_length": len(text),
+                    "error": "Could not parse concepts from model response"}
 
         result = {
             "concepts": concepts,
@@ -163,7 +175,7 @@ Format: JSON only."""
 
         if task_type == "extract_concepts":
             result = self.extract_concepts(p.get("text", ""))
-            return {"status": "ok", **result}
+            return {"status": "error" if result.get("error") else "ok", **result}
         if task_type == "suggest_prerequisites":
             result = self.suggest_prerequisites(p.get("concept", ""))
             return {"status": "ok", **result}
@@ -185,7 +197,7 @@ Format: JSON only."""
             # best available source text, and extraction over it still yields
             # the concepts the owner is asking about.
             result = self.extract_concepts(p.get("text", "") or query)
-            return {"status": "ok", **result}
+            return {"status": "error" if result.get("error") else "ok", **result}
 
         return {"status": "error", "error": f"unhandled type '{task_type}'", "supported": supported}
 
@@ -198,7 +210,7 @@ if __name__ == "__main__":
     text = "Machine learning is a subset of artificial intelligence that enables systems to learn from data. Deep learning uses neural networks with many layers. Transformers revolutionized NLP."
     result = agent.extract_concepts(text)
     assert "concepts" in result
-    assert result["count"] >= 1
+    assert result["count"] >= 1 or result.get("degraded")
 
     if result["concepts"]:
         cmap = agent.map_concepts(result["concepts"])
