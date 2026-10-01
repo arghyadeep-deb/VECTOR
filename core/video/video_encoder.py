@@ -85,7 +85,8 @@ def probe_duration(path: str) -> float:
             capture_output=True, text=True, timeout=15,
         )
         return float(result.stdout.strip())
-    except Exception:
+    except Exception as e:
+        logger.warning("[VECTOR][video_encoder] probe_duration failed for {}: {}", path, e)
         return 0.0
 
 
@@ -103,7 +104,8 @@ def probe_dimensions(path: str) -> tuple[int, int]:
         )
         parts = result.stdout.strip().split(",")
         return (int(parts[0]), int(parts[1]))
-    except Exception:
+    except Exception as e:
+        logger.warning("[VECTOR][video_encoder] probe_dimensions failed for {}: {}", path, e)
         return (0, 0)
 
 
@@ -222,15 +224,18 @@ class VideoEncoder:
 
     def _vp9_args(self, opts: EncodeOptions, crf: int) -> list[str]:
         # VP9 with alpha channel support (transparent WebM)
-        args = [
+        # The "-b:v" value is 0 for CRF mode, or the real bitrate when
+        # opts.video_bitrate is set -- built directly (not found-and-replaced
+        # by searching for the literal "0") because str(crf) == "0" is a real
+        # VP9 near-lossless setting, which previously made args.index("0")
+        # match the earlier -crf value instead of the -b:v placeholder.
+        bitrate_value = opts.video_bitrate if opts.video_bitrate else "0"
+        return [
             "-c:v", "libvpx-vp9",
             "-pix_fmt", "yuva420p",
-            "-crf", str(crf), "-b:v", "0",
+            "-crf", str(crf), "-b:v", bitrate_value,
             "-metadata:s:v:0", "alpha_mode=1",
         ]
-        if opts.video_bitrate:
-            args[args.index("0")] = opts.video_bitrate
-        return args
 
     def _prores_args(self, opts: EncodeOptions) -> list[str]:
         # ProRes 4444 with alpha — for editing round-trips
