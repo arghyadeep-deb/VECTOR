@@ -91,6 +91,50 @@ Bugs found in VECTOR itself are recorded in `docs/OPEN_ISSUES.md` item 26, not h
    me.
 8. **Stop-hook fired again mid-run**; only reviewed/tested districts were committed.
 
+## 2026-10-01 — skills/reflection/personal_growth/chief_of_staff/calls/relationships/privacy/pattern_detective/legal_compliance/self_dev/science
+
+1. **Non-discriminating tests passed on the pre-fix code (found by the new "PASSED-on-old" check).**
+   Every agent claimed its tests fail on old code, but none could run it (git writes forbidden). I added a
+   baseline check (`oldcheck.sh`: copy the new test file into a worktree at `66c9c9bc`, list tests that
+   still PASS) and read every suspect:
+   - **legal_compliance** — two tests passed on old for an unrelated reason (evidence rejected elsewhere /
+     an empty `prohibited_clauses` list made the evidence incomplete). Probed the old code with the exact
+     intended inputs (string `prohibited_phrases`, string `required_clauses` → `passed: True`), confirming
+     the bug was real, then rewrote both tests to change ONE field of the valid example evidence and assert
+     the new check by name. Now fail on old.
+   - **calls** — three tests (`empty_transcription`, `blank_audio_path`, `tts_output_path_confined`) passed
+     on old ONLY because `whisper`/`kokoro_onnx` are not installed here and the old code did a needless
+     `import whisper` / `import kokoro_onnx` that errored first — masking the bug. Rewrote with fixtures
+     injecting fake `whisper`, `kokoro_onnx` and `scipy.io.wavfile` modules so the old logic runs (a fake
+     `wavfile.write` really creates the file, making the unconfined write observable). Now fail on old.
+   - **Accepted as legitimate controls:** `test_route_policy_goes_local_for_these_kwargs` (core routing),
+     `test_cad_valid_still_ok`, `test_valid_examples_still_pass`, `test_clean_agent_passes_exec_check`,
+     reflection `test_run_params_none_is_safe` (agent disclosed it), physics params 4/5 (pendulum length 0
+     / -1 — old engine already rejected; the other six cases fail on old).
+   - **skills** `test_gap_run_params_none` passes on old: the agent's claim "params None crashed
+     gap_analyst" was overstated — the old `AttributeError` was caught by the surrounding `try` and also
+     returned `error`. Kept as a regression guard, not counted as a bug.
+2. **Shared tests edited by several agents again** — split by owner, each committed with its district:
+   `test_calls_run_wiring.py` + `test_phase3b_districts.py` (VoiceResponder) → calls;
+   `test_phase3a_districts.py` (CommunicationAnalyst) → relationships; `test_phase2_districts.py` (four
+   `*_llm_unavailable` tests that asserted `ok is True` during an outage) → reflection. All encoded the bug.
+3. **Scratch-dir collision.** The relationships agent put its own "old" copy in the same
+   `scratchpad/old` my baseline worktree used. Checked `git status` of the worktree afterwards: only my
+   copied test files were untracked, no sources overwritten.
+4. **Baseline = the pre-audit commit, not HEAD** (lesson from the data_analytics `auto:` snapshots last
+   round): all comparisons this round used `66c9c9bc`. No mid-edit `auto:` snapshot reached the remote
+   this round — every committed district was reviewed first.
+5. **Core defects that block fixes inside districts** (core/ is out of scope): `recall()` hides read
+   errors; `chat()` fails open if `route_policy` raises; `_is_local` substring matching; narrow secret
+   markers. Four districts worked around the first by reporting `no_data`; the privacy/calls leaks were
+   fixed at the call sites (`district`/`sensitive`/`allow_cloud`) rather than by adding `calls` to
+   `route_policy._SENSITIVE_DISTRICTS`, which would be the more robust fix.
+6. **Report accuracy:** several headline counts differed from the numbered lists (chief_of_staff "10" vs 12
+   items, relationships/pattern_detective 13+17 with 11 groups); counted from diffs. The self_dev agent
+   did not read the permission gateway ("nothing to gate") — verified independently by search that the
+   baseline has no write/subprocess/git/network primitives (only a denylist of method names).
+7. **Stop-hook fired mid-run**; only reviewed/tested districts were committed.
+
 ## Unresolved
 
 None blocking. Flagged-not-fixed design items are listed in `docs/OPEN_ISSUES.md` item 26.
