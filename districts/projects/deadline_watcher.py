@@ -32,7 +32,15 @@ class DeadlineWatcher(AgentBase):
         logger.info(f"[VECTOR][deadline_watcher] ready gen={generation}")
 
     def add_deadline(self, name: str, deadline_date: str, project_id: str = "", urgency: str = "medium") -> None:
-        """Register a deadline for tracking."""
+        """Register a deadline for tracking. Raises ValueError on an empty
+        name or a non-ISO date (such a deadline would never alert)."""
+        name = (name or "").strip()
+        if not name:
+            raise ValueError("deadline name is required")
+        try:
+            datetime.date.fromisoformat(deadline_date)
+        except (TypeError, ValueError):
+            raise ValueError(f"deadline date must be YYYY-MM-DD, got {deadline_date!r}") from None
         self._memory.remember(
             key=f"deadline:{deadline_date}:{name.replace(' ', '_')}",
             value=f"{name}|{project_id}|{urgency}",
@@ -45,18 +53,15 @@ class DeadlineWatcher(AgentBase):
         today = datetime.date.today()
         cutoff_start = today.isoformat()
         cutoff_end = (today + datetime.timedelta(days=within_days)).isoformat()
-        try:
-            self._memory = EpisodicMemory()
-            cur = self._memory.conn.cursor()
-            cur.execute(
-                "SELECT key, value FROM semantic_memory "
-                "WHERE category = 'project_deadline' "
-                "ORDER BY key ASC"
-            )
-            rows = cur.fetchall()
-        except Exception as e:
-            logger.warning(f"[VECTOR][deadline_watcher] fetch failed: {e}")
-            return []
+        # Raises on DB failure: an unreadable store must not look like "no deadlines".
+        self._memory = EpisodicMemory()
+        cur = self._memory.conn.cursor()
+        cur.execute(
+            "SELECT key, value FROM semantic_memory "
+            "WHERE category = 'project_deadline' "
+            "ORDER BY key ASC"
+        )
+        rows = cur.fetchall()
 
         deadlines = []
         for key, value in rows:
@@ -79,6 +84,7 @@ class DeadlineWatcher(AgentBase):
                     "urgency": val_parts[2] if len(val_parts) > 2 else "medium",
                 })
             except ValueError:
+                logger.warning("[VECTOR][deadline_watcher] unparseable deadline skipped: {}", key)
                 continue
 
         return sorted(deadlines, key=lambda x: x["days_away"])
@@ -111,11 +117,19 @@ class DeadlineWatcher(AgentBase):
         return fired
 
     async def run(self, task: dict) -> dict:
-        p = task.get("params", {})
+        p = task.get("params") or {}
         if task.get("type") == "add_deadline":
-            self.add_deadline(p.get("name", ""), p.get("date", ""), p.get("project_id", ""), p.get("urgency", "medium"))
+            try:
+                self.add_deadline(p.get("name", ""), p.get("date", ""), p.get("project_id", ""), p.get("urgency", "medium"))
+            except ValueError as e:
+                return {"status": "error", "error": str(e)}
             return {"status": "ok"}
-        alerts = await self.check()
+        try:
+            alerts = await self.check()
+        except Exception as e:
+            logger.error("[VECTOR][deadline_watcher] deadline check failed: {}", e)
+            self.deduct_points(5, "deadline check failed")
+            return {"status": "error", "error": f"deadline store unreadable: {e}", "alerts": [], "count": 0}
         return {"status": "ok", "alerts": alerts, "count": len(alerts)}
 
     async def run_forever(self) -> None:

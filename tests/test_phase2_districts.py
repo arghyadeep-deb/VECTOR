@@ -462,8 +462,7 @@ def test_doc_writer_readme():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
-             patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", return_value="## Overview\nreal doc"):
             ok = bot.write_doc("VECTOR", "readme", context="Autonomous AI agent")
     assert ok is True
 
@@ -475,8 +474,7 @@ def test_doc_writer_all_types():
         vault = Path(d)
         (vault / "Projects").mkdir()
         bot._obsidian._vault = vault
-        with patch("core.inference.vectorcode_llm.chat", side_effect=Exception("offline")), \
-             patch("ollama.chat", side_effect=Exception("offline")):
+        with patch("core.inference.vectorcode_llm.chat", return_value="## Overview\nreal doc"):
             for doc_type in DocWriter.DOC_TYPES:
                 ok = bot.write_doc("TestProj", doc_type)
                 assert ok is True, f"Failed for doc_type={doc_type}"

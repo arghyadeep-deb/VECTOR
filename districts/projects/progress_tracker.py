@@ -52,36 +52,43 @@ class ProgressTracker(AgentBase):
         self.award_points(15, f"progress logged: {project_id}")
         logger.info(f"[VECTOR][progress_tracker] logged: [{project_id}] {milestone}")
 
-    def _fetch_git_activity(self, days: int = 7) -> list[str]:
-        """Pull recent auto-commit events from episodic_memory."""
+    def _query_git_activity(self, days: int = 7) -> list[str]:
+        """Raises on DB failure so 'no commits' is never confused with 'unreadable'."""
         cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat()
+        cur = self._memory.conn.cursor()
+        cur.execute(
+            "SELECT content FROM episodic_memory "
+            "WHERE (event_type = 'git_commit' OR event_type = 'auto_commit') "
+            "AND timestamp > ? ORDER BY timestamp DESC LIMIT 30",
+            (cutoff,),
+        )
+        return [row[0] for row in cur.fetchall()]
+
+    def _query_progress_events(self, days: int = 7) -> list[dict]:
+        cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat()
+        cur = self._memory.conn.cursor()
+        cur.execute(
+            "SELECT content, timestamp FROM episodic_memory "
+            "WHERE event_type = 'project_progress' AND timestamp > ? "
+            "ORDER BY timestamp DESC LIMIT 50",
+            (cutoff,),
+        )
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, r)) for r in cur.fetchall()]
+
+    def _fetch_git_activity(self, days: int = 7) -> list[str]:
+        """Pull recent auto-commit events from episodic_memory ([] on failure)."""
         try:
-            cur = self._memory.conn.cursor()
-            cur.execute(
-                "SELECT content FROM episodic_memory "
-                "WHERE (event_type = 'git_commit' OR event_type = 'auto_commit') "
-                "AND timestamp > ? ORDER BY timestamp DESC LIMIT 30",
-                (cutoff,),
-            )
-            return [row[0] for row in cur.fetchall()]
+            return self._query_git_activity(days)
         except Exception as e:
-            logger.warning(f"[VECTOR][progress_tracker] git fetch failed: {e}")
+            logger.warning("[VECTOR][progress_tracker] git fetch failed: {}", e)
             return []
 
     def _fetch_progress_events(self, days: int = 7) -> list[dict]:
-        cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat()
         try:
-            cur = self._memory.conn.cursor()
-            cur.execute(
-                "SELECT content, timestamp FROM episodic_memory "
-                "WHERE event_type = 'project_progress' AND timestamp > ? "
-                "ORDER BY timestamp DESC LIMIT 50",
-                (cutoff,),
-            )
-            cols = [d[0] for d in cur.description]
-            return [dict(zip(cols, r)) for r in cur.fetchall()]
+            return self._query_progress_events(days)
         except Exception as e:
-            logger.warning(f"[VECTOR][progress_tracker] progress fetch failed: {e}")
+            logger.warning("[VECTOR][progress_tracker] progress fetch failed: {}", e)
             return []
 
     def _summarise(self, git_activity: list[str], progress_events: list[dict], hydration: str) -> str:
@@ -110,8 +117,14 @@ class ProgressTracker(AgentBase):
 
     async def weekly_report(self) -> bool:
         week_label = datetime.date.today().strftime("W%V-%Y")
-        git_activity = self._fetch_git_activity(days=7)
-        progress_events = self._fetch_progress_events(days=7)
+        try:
+            git_activity = self._query_git_activity(days=7)
+            progress_events = self._query_progress_events(days=7)
+        except Exception as e:
+            # Never publish a "No commits this week" report built from a failed read.
+            logger.error("[VECTOR][progress_tracker] weekly report aborted, data unreadable: {}", e)
+            self.deduct_points(5, "progress data unreadable")
+            return False
 
         hydration = self._context.session_hydration_prompt()
         summary = self._summarise(git_activity, progress_events, hydration)
@@ -159,10 +172,11 @@ class ProgressTracker(AgentBase):
         unrelated file-write side effect from a stray conversational
         message). Grounded in real recent git/progress activity."""
         try:
-            git_activity = self._fetch_git_activity(days=7)
-            progress_events = self._fetch_progress_events(days=7)
+            git_activity = self._query_git_activity(days=7)
+            progress_events = self._query_progress_events(days=7)
             context = f"{len(git_activity)} commit(s), {len(progress_events)} progress update(s) in the last 7 days."
-        except Exception:
+        except Exception as e:
+            logger.warning("[VECTOR][progress_tracker] progress data unreadable: {}", e)
             context = "Recent progress data unavailable right now."
         prompt = (
             "You are VECTOR's ProgressTracker in the projects district. "
