@@ -19,7 +19,14 @@ from core.scraper.core._types import Any, List, Optional, ProxyType, Unpack
 from core.scraper.engines.toolbelt.proxy_rotation import is_proxy_error
 from core.scraper.engines.toolbelt.convertor import Response, ResponseFactory
 from core.scraper.engines._browsers._types import StealthSession, StealthFetchParams
-from core.scraper.engines._browsers._base import SyncSession, AsyncSession, StealthySessionMixin
+from core.scraper.engines._browsers._base import (
+    SyncSession,
+    AsyncSession,
+    StealthySessionMixin,
+    _redact_proxy,
+    _check_navigation_url,
+    _async_check_navigation_url,
+)
 from core.scraper.engines._browsers._validators import validate_fetch as _validate, StealthConfig
 
 __CF_PATTERN__ = re_compile(r"^https?://challenges\.cloudflare\.com/cdn-cgi/challenge-platform/.*")
@@ -215,6 +222,8 @@ class StealthySession(SyncSession, StealthySessionMixin):
         if not self._is_alive:  # pragma: no cover
             raise RuntimeError("Context manager has been closed")
 
+        _check_navigation_url(url)
+
         request_headers_keys = {h.lower() for h in params.extra_headers.keys()} if params.extra_headers else set()
         referer = (
             "https://www.google.com/" if (params.google_search and "referer" not in request_headers_keys) else None
@@ -292,7 +301,7 @@ class StealthySession(SyncSession, StealthySessionMixin):
                     if attempt < self._config.retries - 1:
                         if is_proxy_error(e):
                             log.warning(
-                                f"Proxy '{proxy}' failed (attempt {attempt + 1}) | Retrying in {self._config.retry_delay}s..."
+                                f"Proxy '{_redact_proxy(proxy)}' failed (attempt {attempt + 1}) | Retrying in {self._config.retry_delay}s..."
                             )
                         else:
                             log.warning(
@@ -491,6 +500,8 @@ class AsyncStealthySession(AsyncSession, StealthySessionMixin):
         if not self._is_alive:  # pragma: no cover
             raise RuntimeError("Context manager has been closed")
 
+        await _async_check_navigation_url(url)
+
         request_headers_keys = {h.lower() for h in params.extra_headers.keys()} if params.extra_headers else set()
         referer = (
             "https://www.google.com/" if (params.google_search and "referer" not in request_headers_keys) else None
@@ -568,7 +579,7 @@ class AsyncStealthySession(AsyncSession, StealthySessionMixin):
                     if attempt < self._config.retries - 1:
                         if is_proxy_error(e):
                             log.warning(
-                                f"Proxy '{proxy}' failed (attempt {attempt + 1}) | Retrying in {self._config.retry_delay}s..."
+                                f"Proxy '{_redact_proxy(proxy)}' failed (attempt {attempt + 1}) | Retrying in {self._config.retry_delay}s..."
                             )
                         else:
                             log.warning(

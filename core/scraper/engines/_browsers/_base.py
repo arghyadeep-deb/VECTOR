@@ -10,7 +10,8 @@ __all__ = [
 ]
 
 from re import search as re_search
-from asyncio import sleep as asyncio_sleep, Lock
+from asyncio import sleep as asyncio_sleep, to_thread, Lock
+from urllib.parse import urlsplit
 from contextlib import contextmanager, asynccontextmanager
 
 from playwright.sync_api._generated import Page
@@ -53,6 +54,40 @@ from core.scraper.core._types import (
     AsyncGenerator,
 )
 from core.scraper.engines.constants import STEALTH_ARGS, HARMFUL_ARGS, DEFAULT_ARGS
+from core.security.ssrf_guard import SSRFGuard
+
+
+def _redact_proxy(proxy: Any) -> str:
+    """Return only scheme://host[:port] of a proxy so credentials never reach the logs."""
+    try:
+        if isinstance(proxy, dict):
+            return str(proxy.get("server", "") or "<proxy>")
+        if isinstance(proxy, str):
+            parts = urlsplit(proxy)
+            if parts.hostname:
+                return f"{parts.scheme}://{parts.hostname}" + (f":{parts.port}" if parts.port else "")
+    except ValueError:
+        pass
+    return "<proxy>"
+
+
+def _check_navigation_url(url: Any) -> None:
+    """Fail closed before any browser/context/page is created for a caller-supplied URL.
+
+    Only http(s) to public addresses is allowed (file:, chrome:, javascript:, data: and private/metadata hosts are
+    rejected); the hostname is resolved so a public-looking name pointing at 127.0.0.1 / 169.254.169.254 is blocked too.
+    """
+    if not isinstance(url, str):
+        raise TypeError(f"url must be a string, got {type(url).__name__}")
+    result = SSRFGuard(resolve_dns=True).check_url(url)
+    if not result.safe:
+        logger.warning("[VECTOR][scraper] browser navigation blocked by SSRF guard: {}", result.reason)
+        raise ValueError(f"Navigation blocked by SSRF guard: {result.reason}")
+
+
+async def _async_check_navigation_url(url: Any) -> None:
+    # DNS resolution is blocking, keep it off the event loop
+    await to_thread(_check_navigation_url, url)
 
 
 class SyncSession:
@@ -78,17 +113,15 @@ class SyncSession:
         if not self._is_alive:
             return
 
-        if self.context:
-            self.context.close()
-            self.context = None
-
-        if self.browser:
-            self.browser.close()
-            self.browser = None
-
-        if self.playwright:
-            self.playwright.stop()
-            self.playwright = None  # pyright: ignore
+        # Every resource is released even if an earlier close() raises, otherwise the browser process is leaked
+        for attr, action in (("context", "close"), ("browser", "close"), ("playwright", "stop")):
+            resource = getattr(self, attr)
+            if resource:
+                try:
+                    getattr(resource, action)()
+                except Exception as e:
+                    logger.warning("[VECTOR][scraper] failed to {} browser {}: {}", action, attr, e)
+                setattr(self, attr, None)
 
         self._is_alive = False
 
@@ -146,8 +179,8 @@ class SyncSession:
         """Wait for the page to become idle (no network activity) even if there are never-ending requests."""
         try:
             page.wait_for_load_state("networkidle", timeout=timeout)
-        except (PlaywrightError, Exception):
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except (PlaywrightError, Exception) as e:
+            logger.warning("[VECTOR][scraper] networkidle wait did not settle, continuing: {}", e)
 
     def _wait_for_page_stability(self, page: Page | Frame, load_dom: bool, network_idle: bool):
         page.wait_for_load_state(state="load")
@@ -221,8 +254,12 @@ class SyncSession:
             try:
                 yield page_info
             finally:
-                page_info.page.close()
-                self.page_pool.pages.remove(page_info)
+                try:
+                    page_info.page.close()
+                except Exception as e:
+                    logger.warning("[VECTOR][scraper] failed to close page: {}", e)
+                finally:
+                    self.page_pool.pages.remove(page_info)
 
 
 class AsyncSession:
@@ -249,17 +286,15 @@ class AsyncSession:
         if not self._is_alive:  # pragma: no cover
             return
 
-        if self.context:
-            await self.context.close()
-            self.context = None  # pyright: ignore
-
-        if self.browser:
-            await self.browser.close()
-            self.browser = None
-
-        if self.playwright:
-            await self.playwright.stop()
-            self.playwright = None  # pyright: ignore
+        # Every resource is released even if an earlier close() raises, otherwise the browser process is leaked
+        for attr, action in (("context", "close"), ("browser", "close"), ("playwright", "stop")):
+            resource = getattr(self, attr)
+            if resource:
+                try:
+                    await getattr(resource, action)()
+                except Exception as e:
+                    logger.warning("[VECTOR][scraper] failed to {} browser {}: {}", action, attr, e)
+                setattr(self, attr, None)
 
         self._is_alive = False
 
@@ -333,8 +368,8 @@ class AsyncSession:
         """Wait for the page to become idle (no network activity) even if there are never-ending requests."""
         try:
             await page.wait_for_load_state("networkidle", timeout=timeout)
-        except (PlaywrightError, Exception):
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except (PlaywrightError, Exception) as e:
+            logger.warning("[VECTOR][scraper] networkidle wait did not settle, continuing: {}", e)
 
     async def _wait_for_page_stability(self, page: AsyncPage | AsyncFrame, load_dom: bool, network_idle: bool):
         await page.wait_for_load_state(state="load")
@@ -410,8 +445,12 @@ class AsyncSession:
             try:
                 yield page_info
             finally:
-                await page_info.page.close()
-                self.page_pool.pages.remove(page_info)
+                try:
+                    await page_info.page.close()
+                except Exception as e:
+                    logger.warning("[VECTOR][scraper] failed to close page: {}", e)
+                finally:
+                    self.page_pool.pages.remove(page_info)
 
 
 class BaseSessionMixin:
@@ -461,9 +500,8 @@ class BaseSessionMixin:
             )
 
         if not config.cdp_url:
-            flags = self._browser_options["args"]
-            if config.extra_flags or extra_flags:
-                flags = list(set(tuple(flags) + tuple(config.extra_flags or extra_flags or ())))
+            # Keep the session's own (stealth/webrtc/webgl) flags AND the caller's extra flags; `or` used to drop the former
+            flags = list(dict.fromkeys((*self._browser_options["args"], *(extra_flags or ()), *(config.extra_flags or ()))))
 
             if config.dns_over_https:
                 doh_flag = "--dns-over-https-templates=https://cloudflare-dns.com/dns-query"

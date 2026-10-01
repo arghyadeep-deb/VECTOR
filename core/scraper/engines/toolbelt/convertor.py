@@ -35,6 +35,16 @@ class ResponseFactory:
             return match.group(1) if match else default
         return default
 
+    @staticmethod
+    def _raise_if_main_document_unreadable(page: Optional[object], final_response: SyncResponse | AsyncResponse, exc: Exception) -> None:
+        """An unreadable main document must not be returned as an empty "successful" Response.
+
+        Captured XHR bodies (``page is None``) and bodyless statuses (1xx/204/3xx) may legitimately be empty.
+        """
+        status = final_response.status
+        if page is not None and not (100 <= status < 200 or status == 204 or 300 <= status < 400):
+            raise RuntimeError(f"Failed to read the page content (HTTP {status}): {exc}") from exc
+
     @classmethod
     def _process_response_history(cls, first_response: SyncResponse, parser_arguments: Dict) -> list[Response]:
         """Process response history to build a list of `Response` objects"""
@@ -126,6 +136,7 @@ class ResponseFactory:
                 page_content = final_response.body()
         except Exception as e:  # pragma: no cover
             log.error(f"Error getting page content: {e}")
+            cls._raise_if_main_document_unreadable(page, final_response, e)
             page_content = b""
 
         response = Response(
@@ -273,6 +284,7 @@ class ResponseFactory:
                 page_content = await final_response.body()
         except Exception as e:  # pragma: no cover
             log.error(f"Error getting page content in async: {e}")
+            cls._raise_if_main_document_unreadable(page, final_response, e)
             page_content = b""
 
         response = Response(

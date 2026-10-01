@@ -3,6 +3,7 @@ from pathlib import Path
 __all__ = [
     "models_default_values",
     "PagesCount",
+    "PositiveSeconds",
     "PlaywrightConfig",
     "RetriesCount",
     "Seconds",
@@ -37,7 +38,65 @@ from core.scraper.engines._browsers._types import PlaywrightFetchParams, Stealth
 
 
 # Custom validators for msgspec
-@lru_cache(8)
+# Chrome switches that hand the caller control over the browser (remote debugging, sandbox/web-security off,
+# extension/profile/proxy/DNS overrides, helper-process wrappers). They are never valid in `extra_flags`.
+_FORBIDDEN_FLAGS = frozenset(
+    {
+        "--remote-debugging-port",
+        "--remote-debugging-address",
+        "--remote-debugging-pipe",
+        "--remote-allow-origins",
+        "--disable-web-security",
+        "--load-extension",
+        "--disable-extensions-except",
+        "--user-data-dir",
+        "--allow-file-access",
+        "--allow-file-access-from-files",
+        "--disable-site-isolation-trials",
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--unsafely-treat-insecure-origin-as-secure",
+        "--host-resolver-rules",
+        "--proxy-server",
+        "--proxy-pac-url",
+        "--proxy-bypass-list",
+        "--renderer-cmd-prefix",
+        "--utility-cmd-prefix",
+        "--gpu-launcher",
+        "--browser-subprocess-path",
+        "--log-file",
+        "--disk-cache-dir",
+        "--crash-dumps-dir",
+    }
+)
+# Playwright launch/context options that must come from the dedicated validated parameters, not `additional_args`
+_FORBIDDEN_ADDITIONAL_ARGS = frozenset(
+    {
+        "args",
+        "ignore_default_args",
+        "executable_path",
+        "channel",
+        "env",
+        "user_data_dir",
+        "downloads_path",
+        "chromium_sandbox",
+        "storage_state",
+        "record_har_path",
+        "record_video_dir",
+    }
+)
+
+
+def _check_extra_flags(flags: Sequence[str]) -> None:
+    for flag in flags:
+        if not flag.startswith("-"):
+            # Chrome treats non-switch arguments as URLs to open, which would bypass the navigation guard
+            raise ValueError(f"extra_flags entries must be browser switches starting with '-', got: {flag!r}")
+        name = flag.split("=", 1)[0].strip().lower()
+        if name in _FORBIDDEN_FLAGS:
+            raise ValueError(f"Browser flag not allowed in extra_flags: {name}")
+
+
 def _is_invalid_file_path(value: str) -> bool | str:  # pragma: no cover
     """Fast file path validation"""
     path = Path(value)
@@ -66,6 +125,7 @@ def _is_invalid_cdp_url(cdp_url: str) -> bool | str:
 PagesCount = Annotated[int, Meta(ge=1, le=50)]
 RetriesCount = Annotated[int, Meta(ge=1, le=10)]
 Seconds = Annotated[float, Meta(ge=0)]
+PositiveSeconds = Annotated[float, Meta(gt=0)]  # a 0 timeout means "wait forever" in Playwright
 
 
 class PlaywrightConfig(Struct, kw_only=True, frozen=False, weakref=True):
@@ -87,7 +147,7 @@ class PlaywrightConfig(Struct, kw_only=True, frozen=False, weakref=True):
     proxy: Optional[str | Dict[str, str] | Tuple] = None  # The default value for proxy in Playwright's source is `None`
     proxy_rotator: Optional[ProxyRotator] = None
     extra_headers: Optional[Dict[str, str]] = None
-    timeout: Seconds = 30000
+    timeout: PositiveSeconds = 30000
     init_script: Optional[str] = None
     user_data_dir: str = ""
     selector_config: Optional[Dict] = {}
@@ -127,10 +187,14 @@ class PlaywrightConfig(Struct, kw_only=True, frozen=False, weakref=True):
             self.cookies = []
         if not self.extra_flags:
             self.extra_flags = []
+        _check_extra_flags(self.extra_flags)
         if not self.selector_config:
             self.selector_config = {}
         if not self.additional_args:
             self.additional_args = {}
+        forbidden_args = _FORBIDDEN_ADDITIONAL_ARGS.intersection(self.additional_args)
+        if forbidden_args:
+            raise ValueError(f"additional_args may not override: {', '.join(sorted(forbidden_args))}")
         if not self.capture_xhr:
             self.capture_xhr = None
 
