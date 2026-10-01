@@ -65,16 +65,22 @@ def capture_screenshot(
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
-            context = browser.new_context(
-                viewport={"width": vp["width"], "height": vp["height"]},
-                device_scale_factor=2 if viewport == "mobile" else 1,
-            )
-            page = context.new_page()
-            page.goto(url, wait_until="networkidle", timeout=timeout)
-            page.wait_for_timeout(1000)
-            page.screenshot(path=output_path, full_page=full_page)
-            result["success"] = True
-            browser.close()
+            try:
+                context = browser.new_context(
+                    viewport={"width": vp["width"], "height": vp["height"]},
+                    device_scale_factor=2 if viewport == "mobile" else 1,
+                )
+                page = context.new_page()
+                page.goto(url, wait_until="networkidle", timeout=timeout)
+                page.wait_for_timeout(1000)
+                page.screenshot(path=output_path, full_page=full_page)
+                result["success"] = True
+            finally:
+                # browser.close() previously only ran on the success path --
+                # a navigation timeout or any other exception from goto/
+                # screenshot left the chromium process running (leaked on
+                # every failed capture, not just occasionally).
+                browser.close()
 
     except PlaywrightTimeout:
         result["error"] = f"Page load timed out after {timeout}ms"

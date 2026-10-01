@@ -167,8 +167,8 @@ def _dims_from_ratio(ratio: str) -> tuple[int, int]:
                 print(f"Error: Dimensions must be 1-{MAX_DIMENSION}. Got {w}x{h}", file=sys.stderr)
                 sys.exit(1)
             return w, h
-        except (ValueError, IndexError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        except (ValueError, IndexError) as e:
+            logger.debug("[VECTOR][generate_image] failed to parse ratio '{}': {}", ratio, e)
     print(f"Error: Unknown ratio '{ratio}'. Use one of: {', '.join(ASPECT_RATIOS.keys())} or WxH (e.g. 1200x628)", file=sys.stderr)
     sys.exit(1)
 

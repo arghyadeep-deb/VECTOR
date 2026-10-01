@@ -155,8 +155,8 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
                         if box and box["y"] < 1080:
                             result["conversion"]["cta_above_fold"] = True
                             break
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as e:
+                    logger.debug("[VECTOR][analyze_landing] CTA selector '{}' failed: {}", selector, e)
 
             # Form analysis
             forms = page.query_selector_all("form")
@@ -178,8 +178,8 @@ def analyze_landing(url: str, timeout: int = 30000) -> dict:
                     if page.query_selector(sel):
                         result["conversion"]["chat_widget"] = True
                         break
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as e:
+                    logger.debug("[VECTOR][analyze_landing] chat-widget selector '{}' failed: {}", sel, e)
 
             # Trust signals
             page_text = page.evaluate("() => document.body.innerText.toLowerCase()")
