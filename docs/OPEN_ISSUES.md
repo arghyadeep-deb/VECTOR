@@ -1478,6 +1478,55 @@ grew open engineering items; section 0 lists them.
     `f"{int(errors)} gateway errors observed"` — the round-trip is internally consistent and correct, not a
     bug. No further depth per the owner's wiring-check-only scope for vendored/unidentified-license trees.
 
+28. **`vectorcode/src/tools/` first-pass deep-verify, 2026-10-02 — FIRST vectorcode/ bug-hunting pass ever**
+    (the 2026-05-17 absorption effort checked licensing/symbol-porting, not logic). Owner-directed scope
+    change same day: `vectorcode/` is no longer wiring-check-only despite originating from absorbed
+    OpenJarvis/Hermes/Ruflo — it's slated to become this system's own future Codex/Claude-Code replacement,
+    so it gets full depth like hand-written VECTOR code. This is a RESUMED slice (a prior fork hit a Claude
+    session rate limit mid-task; its one finding and fix are below, independently re-verified by the parent).
+    **`git_tools.py` — FIXED, commit `b1523366f`:** `git_push(remote, branch)` and
+    `git_create_branch(name)` passed caller-controlled strings as bare positional git arguments with no
+    allowlist or `--` separator — a string starting with `-` is interpreted as a git option
+    (`--upload-pack=<cmd>` is a known git RCE vector). Identical bug class already fixed in
+    `core/mcp_tools/expansion_modules/git.py` (`d41e9a1f2`/`46e4b2fda`) — same allowlist regex pattern
+    applied (`_REF_RE` for branch/ref names, `_REMOTE_RE` for remotes; reject `..`, `//`, `@{`, trailing
+    `.`/`/`/`.lock`), plus a `--` separator on the checkout path. Checked all 4 real callers
+    (`vectorcode/src/repl.py`, `districts/coding/git_bot.py`, `core/mcp_tools/expansion_modules/git.py`,
+    `core/security/mcp_security.py`) — none pass option-like values, no legitimate caller affected. New
+    `tests/test_vectorcode_git_tools_arg_injection.py` (6 tests), module's own `__main__` self-test still
+    passes. Also fixed in the same resumed slice: `bash_tools.py`'s `__main__` self-test used `%s`-style
+    loguru formatting (loguru uses `{}`) — self-test only, no production call site (commit `764ab57ff`).
+    **Remaining `src/tools/` scope (127 of 129 files) — pattern-swept, NOT individually read file-by-file**
+    (context budget on this slice; flagging the real coverage gap rather than overclaiming depth): grepped
+    the whole directory for `shell=True`/`os.system`/`eval(`/`pickle.load` (zero real hits — only JS-`eval`
+    in the browser-automation tools and `skills_guard.py`'s own detector-pattern strings, not actual
+    dangerous usage) and for `requests`/`str.startswith()` path-confinement patterns. Two findings, both
+    **FLAGGED, not fixed** (architecture-level, not narrow bugs): (1) `browser_camofox.py`, `browser_tool.py`,
+    `transcription_tools.py`, `tts_tool.py` use `requests` (CLAUDE.md rule 8 bans it, `httpx` required) —
+    systemic across 4 files, same "still uses requests" class already flagged-not-fixed in `core/trading/`'s
+    `alpha_vantage_common.py` this cycle; a mechanical conversion is plausible but needs per-call-site care
+    (requests/httpx differ on streaming and some error types) that this slice's remaining budget didn't
+    allow for safely. (2) `file_safety.py`'s `is_write_denied()` is a **denylist** of known-sensitive
+    paths/prefixes (`.ssh`, `.aws`, `/etc/passwd`, etc.) rather than an allowlist-confined root — the
+    opposite of the "allowlist, never blocklist" principle this cycle's git-argument-injection fixes
+    establish. An optional `VECTOR_WRITE_SAFE_ROOT` env var *can* upgrade it to allowlist behavior, but only
+    when explicitly configured; unset, any dotfile/config convention not enumerated here is writable. Real
+    callers confirmed: `file_operations.py`, `agent/copilot_acp_client.py`. Also noted, not investigated
+    further (out of this slice's scope): `agent/file_safety.py` appears to be a second, possibly-duplicate
+    implementation alongside `tools/file_safety.py` — worth checking for drift when `vectorcode/src/agent/`
+    (79 files) gets its own slice. `path_security.py`'s shared `validate_within_dir()` helper (used by
+    `skill_manager_tool`/`skills_tool`/`skills_hub`/`cronjob_tools`/`credential_files`) correctly uses
+    `resolve()` + `relative_to()`, not `startswith()` — verified fine, no issue.
+    **Remaining vectorcode/ scope, nothing else started this slice:** `vector_cli/` (123), `cli/` (24) —
+    the rest of this exact 276-file assignment; then `src/evals` (143), `src/learning` (79), `src/agent`
+    (79), `src/plugins` (77), `src/skills` (66), `src/gateway` (64), `src/comms` (58), `src/vc_tools` (52),
+    `src/` root (48), `src/channels` (41), `src/connectors` (36), `src/vc_agents` (34), several smaller
+    dirs, and the 700-file `python/tests/legacy_ported/` ported test suite — roughly 1,867 files.
+    One incidental observation from an unrelated import check, not investigated: `vectorcode/src/vc_tools/
+    storage.py` logs the exact silent-swallow-placeholder pattern (`"[VECTOR] suppressed exception"`) twice
+    at import time — likely a real instance of this cycle's most common bug class, flagged for whichever
+    future slice covers `src/vc_tools/`.
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
