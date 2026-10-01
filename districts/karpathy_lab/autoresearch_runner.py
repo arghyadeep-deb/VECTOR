@@ -80,6 +80,8 @@ class AutoresearchRunner(AgentBase):
         for line in rf.read_text(encoding="utf-8").splitlines():
             try:
                 r = json.loads(line)
+                if not isinstance(r.get("val_bpb"), (int, float)):
+                    continue  # failed run (no score) is not a "best" result
                 if best is None or r.get("val_bpb", 999) < best.get("val_bpb", 999):
                     best = r
             except json.JSONDecodeError:
@@ -121,6 +123,12 @@ class AutoresearchRunner(AgentBase):
                 timeout=self.TIME_BUDGET_MINUTES * 60 + 120,
             )
             output = proc.stdout + proc.stderr
+            if proc.returncode != 0:
+                logger.warning(
+                    "[VECTOR][autoresearch] training exited rc={}: {}",
+                    proc.returncode, output[-300:],
+                )
+                return {}
             return self._parse_training_output(output)
         except subprocess.TimeoutExpired:
             logger.warning("[VECTOR][autoresearch] training timeout")
@@ -189,11 +197,14 @@ class AutoresearchRunner(AgentBase):
         """Create a git branch for this experiment run. Returns branch name or None."""
         try:
             branch = f"autoresearch/{tag}"
-            subprocess.run(
+            proc = subprocess.run(
                 ["git", "checkout", "-b", branch],
                 capture_output=True, check=False,
                 cwd=str(Path(__file__).parent.parent.parent),
             )
+            if proc.returncode != 0:
+                logger.warning("[VECTOR][autoresearch] git checkout -b {} failed rc={}", branch, proc.returncode)
+                return None
             logger.info("[VECTOR][autoresearch] Created experiment branch: {}", branch)
             return branch
         except Exception as e:
@@ -281,6 +292,20 @@ class AutoresearchRunner(AgentBase):
         self._save_result(baseline)
         experiments.append(baseline)
         best_bpb = baseline.get("val_bpb", float("inf"))
+        if "val_bpb" not in baseline:
+            # The baseline produced no score (crash / timeout / missing
+            # summary). Never report that as a successful cycle, and never
+            # let the LLM rewrite a train.py we could not even run.
+            baseline["description"] = "baseline failed"
+            logger.error("[VECTOR][autoresearch] baseline run failed — aborting cycle")
+            return {
+                "status": "training_failed",
+                "reason": "baseline run produced no val_bpb",
+                "experiments": len(experiments),
+                "best_val_bpb": None,
+                "improved": False,
+                "date": datetime.date.today().isoformat(),
+            }
         logger.info(f"[VECTOR][autoresearch] baseline val_bpb={best_bpb:.4f}")
 
         # Improvement iterations
@@ -311,6 +336,10 @@ class AutoresearchRunner(AgentBase):
                 best_code = proposed_code
                 self.award_points(30, f"autoresearch improvement {improvement:.4f}")
                 logger.info(f"[VECTOR][autoresearch] exp {i}: IMPROVED → {new_bpb:.4f}")
+            elif "val_bpb" not in result:
+                result["description"] = "failed (no val_bpb) — reverted"
+                self._train_script.write_text(backup, encoding="utf-8")
+                logger.warning(f"[VECTOR][autoresearch] exp {i}: training failed — reverted")
             else:
                 result["description"] = f"reverted (was {new_bpb:.4f}, best {best_bpb:.4f})"
                 self._train_script.write_text(backup, encoding="utf-8")

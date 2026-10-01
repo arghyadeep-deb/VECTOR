@@ -119,6 +119,11 @@ class ProgressTracker(AgentBase):
         timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
         metrics_json = json.dumps(metrics)
         active_run = run_name or self._current_run
+        if not active_run:
+            # Previously inserted a NULL run_name row that no report could
+            # ever find, while returning a normal-looking log entry.
+            logger.warning("[VECTOR][karpathy_lab] log_step with no active run — step not recorded")
+            return {"error": "no active run; call start_run first", "status": "error"}
 
         with self._lock:
             conn = self._get_conn()
@@ -220,7 +225,8 @@ class ProgressTracker(AgentBase):
             conn = self._get_conn()
             try:
                 cursor = conn.execute(
-                    "SELECT step, metrics, timestamp FROM step_logs ORDER BY step ASC"
+                    "SELECT step, metrics, timestamp FROM step_logs WHERE run_name = ? ORDER BY step ASC",
+                    (run_name,)
                 )
                 rows = cursor.fetchall()
             finally:
@@ -246,9 +252,9 @@ class ProgressTracker(AgentBase):
             "progress_percent": progress["progress_percent"],
             "elapsed_seconds": progress["elapsed_seconds"],
             "loss_summary": {
-                "average": round(avg_loss, 6) if avg_loss else None,
-                "min": round(min_loss, 6) if min_loss else None,
-                "max": round(max_loss, 6) if max_loss else None,
+                "average": round(avg_loss, 6) if avg_loss is not None else None,
+                "min": round(min_loss, 6) if min_loss is not None else None,
+                "max": round(max_loss, 6) if max_loss is not None else None,
                 "count": len(losses),
             },
             "all_steps": steps_data[-20:],
@@ -256,10 +262,19 @@ class ProgressTracker(AgentBase):
         }
 
         prompt = f"Generate a brief training summary for run '{run_name}': Current step {progress['current_step']}/{progress['max_steps']} ({progress['progress_percent']}%), avg loss {round(avg_loss, 4) if avg_loss else 'N/A'}. Keep it concise."
-        summary = self._call_ollama(prompt)
+        try:
+            summary = self._call_ollama(prompt)
+        except Exception as e:
+            logger.warning(f"[VECTOR][karpathy_lab] report summary unavailable: {e}")
+            summary = None
         report["ollama_summary"] = summary
 
-        report_path = self.runs_dir / f"{run_name}_report.json"
+        # run_name is caller-supplied — never let it steer the write path.
+        import re
+        safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", run_name).strip("._") or "run"
+        report_path = (self.runs_dir / f"{safe_name}_report.json").resolve()
+        if not report_path.is_relative_to(self.runs_dir.resolve()):
+            return {"error": "invalid run_name for report path"}
         report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
         report["report_path"] = str(report_path)
 
