@@ -16,7 +16,6 @@ Dependencies:
 
 import argparse
 import json
-import logging
 import math
 import os
 import re
@@ -50,7 +49,7 @@ try:
 except ImportError:
     HAS_MATPLOTLIB = False
 
-logger = logging.getLogger("generate_report")
+from loguru import logger
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -84,9 +83,8 @@ for path in [
             pdfmetrics.registerFont(TTFont("TimesNewRoman", path))
             BODY_FONT = "TimesNewRoman"
             break
-        except Exception:
-            logger.exception("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.debug("[VECTOR][generate_report] failed to register font {}: {}", path, e)
 
 PAGE_WIDTH = 7.0 * inch  # letter minus margins
 MAX_IMG_W = 6.5 * inch
@@ -376,8 +374,8 @@ def render_mermaid(mermaid_code: str) -> str | None:
                        capture_output=True, timeout=15)
         if os.path.exists(out) and os.path.getsize(out) > 0:
             return out
-    except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    except Exception as e:
+        logger.debug("[VECTOR][generate_report] mermaid render failed: {}", e)
     return None
 
 
@@ -629,8 +627,8 @@ def build_pdf(data: dict, output_path: str, brand_name: str = ""):
     for f in temp_files:
         try:
             os.unlink(f)
-        except OSError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        except OSError as e:
+            logger.debug("[VECTOR][generate_report] failed to delete temp file {}: {}", f, e)
 
     return output_path
 
@@ -711,7 +709,8 @@ def main():
     args = parser.parse_args()
 
     if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
+        logger.remove()
+        logger.add(sys.stderr, level="DEBUG")
 
     if not os.path.exists(args.input):
         print(f"Error: file not found: {args.input}", file=sys.stderr)
