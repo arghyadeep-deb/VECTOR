@@ -40,6 +40,7 @@ __all__ = [
 
 
 import asyncio
+import html
 import os
 import shutil
 import tempfile
@@ -332,6 +333,7 @@ class CompositionTemplate:
         bg_color  = "#020A14" if style == "dark" else "#f6f5f1"
         txt_color = "#00D4FF" if style == "dark" else "#0a0a0a"
         accent    = "#00D4FF" if style == "dark" else "#2563eb"
+        safe_title = html.escape(title)
 
         bars_html = ""
         if isinstance(data, dict):
@@ -340,14 +342,14 @@ class CompositionTemplate:
                 pct = (val / max_val) * 100
                 bars_html += f"""
                 <div class="bar-row">
-                  <span class="label">{key}</span>
+                  <span class="label">{html.escape(str(key))}</span>
                   <div class="bar-bg">
                     <div class="bar-fill" style="width:{pct:.1f}%"></div>
                   </div>
-                  <span class="value">{val}</span>
+                  <span class="value">{html.escape(str(val))}</span>
                 </div>"""
 
-        html = f"""<!DOCTYPE html>
+        html_doc = f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -378,7 +380,7 @@ class CompositionTemplate:
 </style>
 </head>
 <body>
-<h1>{title}</h1>
+<h1>{safe_title}</h1>
 <div class="chart">{bars_html}</div>
 <script>
   // VECTOR runtime contract
@@ -392,7 +394,7 @@ class CompositionTemplate:
 </script>
 </body>
 </html>"""
-        Path(output_path).write_text(html, encoding="utf-8")
+        Path(output_path).write_text(html_doc, encoding="utf-8")
         return output_path
 
     @staticmethod
@@ -406,8 +408,10 @@ class CompositionTemplate:
         bg  = "#020A14" if style == "dark" else "#f6f5f1"
         fg  = "#00D4FF" if style == "dark" else "#0a0a0a"
         sub = "rgba(0,212,255,0.6)" if style == "dark" else "#6b6b6b"
+        safe_title = html.escape(title)
+        safe_subtitle = html.escape(subtitle)
 
-        html = f"""<!DOCTYPE html>
+        html_doc = f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
@@ -436,8 +440,8 @@ class CompositionTemplate:
 </style>
 </head>
 <body>
-  <div class="title" id="title">{title}</div>
-  <div class="sub"   id="subtitle">{subtitle}</div>
+  <div class="title" id="title">{safe_title}</div>
+  <div class="sub"   id="subtitle">{safe_subtitle}</div>
 <script>
   window.__vector = {{
     enableRenderMode() {{ document.body.style.animation='none'; }},
@@ -450,7 +454,7 @@ class CompositionTemplate:
 </script>
 </body>
 </html>"""
-        Path(output_path).write_text(html, encoding="utf-8")
+        Path(output_path).write_text(html_doc, encoding="utf-8")
         return output_path
 
     @staticmethod
@@ -481,8 +485,8 @@ class CompositionTemplate:
         sections_html = ""
         for i, sec in enumerate(sections):
             dur = float(sec.get("duration", 8.0))
-            heading = sec.get("heading", "")
-            body = sec.get("body", "")
+            heading = html.escape(str(sec.get("heading", "")))
+            body = html.escape(str(sec.get("body", "")))
             sections_html += f"""
   <div data-start="{current_time:.2f}" data-duration="{dur:.2f}" class="section" id="sec{i}"
        style="visibility:hidden">
@@ -495,9 +499,10 @@ class CompositionTemplate:
         outro_start = current_time
         total_dur = current_time + 5.0
 
-        safe_title = title.replace('"', '&quot;')
+        safe_title = html.escape(title)
+        safe_channel_name = html.escape(channel_name)
 
-        html = f"""<!DOCTYPE html>
+        html_doc = f"""<!DOCTYPE html>
 <html data-composition-variables='[]'>
 <head>
 <meta charset="utf-8">
@@ -586,7 +591,7 @@ class CompositionTemplate:
   <!-- Intro -->
   <div class="intro" data-start="0" data-duration="{intro_dur:.1f}" id="intro">
     <div class="intro-title" id="vid-title">{safe_title}</div>
-    <div class="intro-channel">{channel_name}</div>
+    <div class="intro-channel">{safe_channel_name}</div>
   </div>
 
   <!-- Sections -->
@@ -599,7 +604,7 @@ class CompositionTemplate:
   </div>
 
   <div class="brand-bar"></div>
-  <div class="channel-tag">{channel_name}</div>
+  <div class="channel-tag">{safe_channel_name}</div>
 
 <script>
   window.__timelines = window.__timelines || {{}};
@@ -620,7 +625,7 @@ class CompositionTemplate:
 </script>
 </body>
 </html>"""
-        Path(output_path).write_text(html, encoding="utf-8")
+        Path(output_path).write_text(html_doc, encoding="utf-8")
         return output_path
 
 
