@@ -40,8 +40,8 @@ def _find_readme(repo_path: Path) -> str:
         if candidate.exists():
             try:
                 return candidate.read_text(encoding="utf-8", errors="replace")[:500]
-            except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except Exception as e:
+                logger.debug("[VECTOR][codebase_onboarding_engineer] failed to read {}: {}", candidate, e)
     return ""
 
 def _count_py_files(repo_path: Path) -> int:

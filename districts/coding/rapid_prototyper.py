@@ -369,8 +369,8 @@ class RapidPrototyper(AgentBase):
             if json_match:
                 try:
                     result = json.loads(json_match.group())
-                except json.JSONDecodeError:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except json.JSONDecodeError as e:
+                    logger.debug("[VECTOR][rapid_prototyper] failed to parse JSON block: {}", e)
 
             # Fallback if LLM or parse failed
             if not result:

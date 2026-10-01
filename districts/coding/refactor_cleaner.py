@@ -42,8 +42,8 @@ class RefactorCleaner(PromptAgent):
                         if (node.type is None and len(node.body) == 1
                                 and isinstance(node.body[0], ast.Pass)):
                             dead["empty_except"].append(str(pyfile))
-            except SyntaxError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except SyntaxError as e:
+                logger.debug("[VECTOR][refactor_cleaner] failed to parse {}: {}", pyfile, e)
         return {
             "files_checked": files_checked,
             "findings": dead,

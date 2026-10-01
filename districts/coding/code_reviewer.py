@@ -296,8 +296,8 @@ class CodeReviewer(AgentBase):
                     crg = review_changes([str(fpath)])
                     if crg.get("status") in ("ok", "partial"):
                         result["blast_radius"] = crg
-                except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                except Exception as e:
+                    logger.debug("[VECTOR][code_reviewer] blast-radius lookup failed: {}", e)
                 return result
             else:
                 logger.warning(f"[VECTOR][code_reviewer] LLM response not parseable as JSON: {raw[:200]}")

@@ -7,7 +7,6 @@ and generates optimization recommendations.
 
 import asyncio
 import datetime
-import sqlite3
 import time
 from pathlib import Path
 
@@ -51,7 +50,16 @@ class DatabaseOptimizer(AgentBase):
         if not self._db_path.exists():
             return {"error": "vector_memory.db not found"}
         try:
-            con = sqlite3.connect(str(self._db_path), timeout=5, check_same_thread=False)
+            # RULE 7: go through the main DB's shared SQLCipher-aware
+            # connection, not a plain sqlite3.connect() -- that would either
+            # fail outright (can't read an encrypted file) or silently
+            # bypass encryption if it happened to still work. This is the
+            # shared singleton (same pattern as districts/content/
+            # blog_publisher.py, districts/memory_curator/*) -- never close
+            # it, closing it would take the rest of VECTOR's memory access
+            # down with it.
+            from core.memory.episodic import get_db_connection
+            con = get_db_connection()
             cur = con.cursor()
             tables = cur.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
@@ -68,9 +76,12 @@ class DatabaseOptimizer(AgentBase):
                 }
             # WAL mode check
             wal = cur.execute("PRAGMA journal_mode").fetchone()[0]
-            page_size = cur.execute("PRAGMA page_size").fetchone()[0]
-            page_count = cur.execute("PRAGMA page_count").fetchone()[0]
-            con.close()
+            # sqlcipher3's driver returns PRAGMA integers as str (unlike
+            # stdlib sqlite3's int) -- this surfaced only after fixing the
+            # connection above to actually reach the encrypted DB; the old
+            # plain sqlite3.connect() never got far enough to hit it.
+            page_size = int(cur.execute("PRAGMA page_size").fetchone()[0])
+            page_count = int(cur.execute("PRAGMA page_count").fetchone()[0])
             return {
                 "tables": schema,
                 "wal_mode": wal,
@@ -87,7 +98,8 @@ class DatabaseOptimizer(AgentBase):
             return {"error": "db not found"}
         benchmarks = {}
         try:
-            con = sqlite3.connect(str(self._db_path), timeout=5, check_same_thread=False)
+            from core.memory.episodic import get_db_connection
+            con = get_db_connection()
             cur = con.cursor()
             queries = {
                 "recent_events": "SELECT * FROM episodic_memory ORDER BY timestamp DESC LIMIT 50",
@@ -104,7 +116,6 @@ class DatabaseOptimizer(AgentBase):
                     benchmarks[name] = {"ms": elapsed_ms, "slow": elapsed_ms > 100}
                 except Exception as qe:
                     benchmarks[name] = {"error": str(qe)[:60]}
-            con.close()
         except Exception as e:
             return {"error": str(e)}
         return benchmarks
