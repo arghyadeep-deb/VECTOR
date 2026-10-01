@@ -1,5 +1,7 @@
 
 import sys
+import json
+import re
 import uuid
 import asyncio
 import datetime
@@ -89,7 +91,12 @@ class ChiefOfStaff(AgentBase):
             return ""
 
     def _fetch_events_since(self, hours: int = 24) -> list[dict]:
-        """Pull recent episodic_memory rows ordered ascending by timestamp."""
+        """Pull recent episodic_memory rows ordered ascending by timestamp.
+
+        On failure returns [] but records ``self._events_error`` so callers can tell
+        "no events" from "event pull failed" (a failed pull must never read as all-clear).
+        """
+        self._events_error = None
         cutoff = (
             datetime.datetime.now() - datetime.timedelta(hours=hours)
         ).isoformat()
@@ -105,6 +112,7 @@ class ChiefOfStaff(AgentBase):
             return [dict(zip(cols, r)) for r in cur.fetchall()]
         except Exception as e:
             logger.warning(f"[VECTOR][chief_of_staff] fetch_events failed: {e}")
+            self._events_error = str(e) or type(e).__name__
             return []
 
     def _agent_hp_leaderboard(self) -> list[dict]:
@@ -171,6 +179,60 @@ class ChiefOfStaff(AgentBase):
 
     # ── Core capabilities ──────────────────────────────────────────────────────
 
+    @staticmethod
+    def _parse_tags(tags_raw) -> set[str]:
+        """Tags arrive as a list, a JSON-encoded list (how episodic.store persists them)
+        or a comma-separated string. Naive comma-splitting of '["security", "threat"]'
+        yields '["security"' and never matches 'security' (real events were dropped)."""
+        if isinstance(tags_raw, str):
+            text = tags_raw.strip()
+            if text.startswith("["):
+                try:
+                    parsed = json.loads(text)
+                    if isinstance(parsed, list):
+                        tags_raw = parsed
+                except ValueError:
+                    pass
+        items = tags_raw if isinstance(tags_raw, (list, tuple, set)) else str(tags_raw or "").split(",")
+        return {str(t).strip().strip("[]\"' ").lower() for t in items if str(t).strip()}
+
+    def _classify(self, ev: dict, routine_types: set[str]) -> str:
+        ev_type = str(ev.get("event_type") or "").lower()
+        content = str(ev.get("content") or "")
+        tags = self._parse_tags(ev.get("tags"))
+
+        classification = _NOISE
+
+        # Urgent markers win over the ROUTINE type/substring match, otherwise e.g.
+        # 'security_scan' or a 'CRITICAL' heartbeat is classified ROUTINE and dropped.
+        if (
+            "security" in tags or "threat" in tags or "malware" in tags
+            or "security" in ev_type
+            or "deadline" in tags or "kiit" in tags or "deadline" in ev_type
+            or "CRITICAL" in content
+        ):
+            classification = _SIGNAL
+        elif ev_type in routine_types or any(
+            rt in ev_type for rt in ("scan", "sync", "tick", "heartbeat")
+        ):
+            classification = _ROUTINE
+        elif ev_type == "goal_achieved" or "goal_achieved" in tags:
+            classification = _SIGNAL
+        elif "hp_drop" in ev_type:
+            match = re.search(r"(\d+)\s*HP", content)
+            if match is None:
+                # Unparseable magnitude: cannot prove it is small, so show it.
+                classification = _SIGNAL
+            elif int(match.group(1)) >= _HP_DROP_SIGNAL_THRESHOLD:
+                classification = _SIGNAL
+            else:
+                classification = _ROUTINE
+        elif "council" in tags or "council" in ev_type:
+            classification = _SIGNAL
+        elif "executive_brief" in tags:
+            classification = _SIGNAL
+        return classification
+
     def filter_noise(self, events: list[dict]) -> list[dict]:
         """
         Classify each event as SIGNAL / ROUTINE / NOISE.
@@ -195,48 +257,14 @@ class ChiefOfStaff(AgentBase):
         }
 
         for ev in events:
-            ev_type = (ev.get("event_type") or "").lower()
-            content = ev.get("content") or ""
-            tags_raw = ev.get("tags") or ""
-            tags = set(
-                t.strip().lower()
-                for t in (
-                    tags_raw if isinstance(tags_raw, list) else str(tags_raw).split(",")
-                )
-            )
-
-            classification = _NOISE
-
-            if ev_type in routine_types or any(
-                rt in ev_type for rt in ("scan", "sync", "tick", "heartbeat")
-            ):
-                classification = _ROUTINE
-            elif (
-                "security" in tags
-                or "threat" in tags
-                or "malware" in tags
-                or "security" in ev_type
-            ):
+            if not isinstance(ev, dict):
+                ev = {"event_type": "unparseable_event", "content": str(ev)[:200]}
+            try:
+                classification = self._classify(ev, routine_types)
+            except Exception as e:
+                # Fail toward SHOWING the item — never hide an event we could not parse.
+                logger.warning(f"[VECTOR][chief_of_staff] classify failed, surfacing event: {e}")
                 classification = _SIGNAL
-            elif "deadline" in tags or "kiit" in tags or "deadline" in ev_type:
-                classification = _SIGNAL
-            elif ev_type == "goal_achieved" or "goal_achieved" in tags:
-                classification = _SIGNAL
-            elif "CRITICAL" in content:
-                classification = _SIGNAL
-            elif "hp_drop" in ev_type:
-                # Try to extract HP magnitude from content
-                import re
-                match = re.search(r"(\d+)\s*HP", content)
-                if match and int(match.group(1)) >= _HP_DROP_SIGNAL_THRESHOLD:
-                    classification = _SIGNAL
-                else:
-                    classification = _ROUTINE
-            elif "council" in tags or "council" in ev_type:
-                classification = _SIGNAL
-            elif "executive_brief" in tags:
-                classification = _SIGNAL
-
             ev["classification"] = classification
             if classification == _SIGNAL:
                 signals.append(ev)
@@ -278,11 +306,18 @@ class ChiefOfStaff(AgentBase):
         signals = self.filter_noise(list(all_events))
 
         # Step 4 — build LLM prompt
+        events_error = getattr(self, "_events_error", None)
+        events_unavailable = bool(events_error)
         signal_lines = "\n".join(
-            f"- [{e.get('timestamp', '')[:16]}] {e.get('event_type', '')}: "
-            f"{e.get('content', '')[:120]}"
+            f"- [{str(e.get('timestamp') or '')[:16]}] {e.get('event_type', '')}: "
+            f"{str(e.get('content') or '')[:120]}"
             for e in signals[:20]
-        ) or "No significant signals today."
+        ) or (
+            "EVENT DATA UNAVAILABLE — the episodic event pull failed; "
+            "this is NOT an all-clear."
+            if events_unavailable
+            else "No significant signals today."
+        )
 
         leaderboard = self._agent_hp_leaderboard()
         top3 = "; ".join(
@@ -314,17 +349,25 @@ class ChiefOfStaff(AgentBase):
         hydration = self._context.session_hydration_prompt()
 
         brief_text = await asyncio.to_thread(self._call_chairman, hydration, prompt)
+        llm_ok = bool(brief_text)
         if not brief_text:
             brief_text = (
                 f"## Executive Brief — {date_str}\n\n"
                 f"1. ACCOMPLISHED — {len(all_events)} events processed.\n"
-                f"2. DECISIONS NEEDED — LLM unavailable; check logs.\n"
+                f"2. DECISIONS NEEDED — LLM unavailable; check logs. "
+                f"Unsummarised signals ({len(signals)}):\n{signal_lines}\n"
                 f"3. HP LEADERBOARD — {top3}\n"
                 f"4. GOAL PROGRESS — {goal_summary}\n"
                 "5. RECOMMENDED ACTION — Check system health."
             )
             logger.warning(
                 "[VECTOR][chief_of_staff] chairman unavailable — using fallback brief"
+            )
+        if events_unavailable:
+            brief_text = (
+                f"WARNING: event data unavailable ({events_error}) — "
+                "signals could not be assessed; do NOT read this brief as all-clear.\n\n"
+                + brief_text
             )
 
         note_content = (
@@ -376,6 +419,8 @@ class ChiefOfStaff(AgentBase):
             "brief_text": brief_text,
             "signal_count": len(signals),
             "event_count": len(all_events),
+            "events_unavailable": events_unavailable,
+            "llm_ok": llm_ok,
             "obsidian_ok": obsidian_ok,
             "date": date_str,
         }
@@ -392,8 +437,10 @@ class ChiefOfStaff(AgentBase):
         """
         from core.city.governor import DISTRICT_TASK_MAP
 
-        issue_type = (issue.get("type") or issue.get("task_type") or "unknown").lower()
-        issue_desc = issue.get("description") or str(issue)
+        if not isinstance(issue, dict):
+            issue = {"description": str(issue)} if issue else {}
+        issue_type = str(issue.get("type") or issue.get("task_type") or "unknown").lower()
+        issue_desc = str(issue.get("description") or issue)
 
         # Keyword match
         district = None
@@ -404,6 +451,7 @@ class ChiefOfStaff(AgentBase):
 
         method = "keyword_match"
         council_result: dict | None = None
+        escalation_error: str | None = None
 
         if district:
             logger.info(
@@ -431,7 +479,7 @@ class ChiefOfStaff(AgentBase):
                     stakes="medium",
                     requester_hp=self.health_points,
                 )
-                verdict = council_result.get("verdict", "")
+                verdict = str(council_result.get("verdict") or "")
                 # Try to extract district name from verdict
                 for kw_dist in set(DISTRICT_TASK_MAP.values()):
                     if kw_dist in verdict.lower():
@@ -442,6 +490,7 @@ class ChiefOfStaff(AgentBase):
                 )
             except Exception as e:
                 logger.error(f"[VECTOR][chief_of_staff] council escalation failed: {e}")
+                escalation_error = str(e) or type(e).__name__
 
         # Log the routing decision (RULE 8)
         self._memory.store(
@@ -449,18 +498,26 @@ class ChiefOfStaff(AgentBase):
             content=(
                 f"issue='{issue_type}' routed to '{district}' "
                 f"method={method}"
+                + (f" ESCALATION_FAILED: {escalation_error}" if escalation_error else "")
             ),
             tags=["chief_of_staff", "routing", district],
             source="chief_of_staff",
         )
-        self.award_points(10, f"route_escalation:{issue_type}")
+        if escalation_error:
+            self.deduct_points(5, f"route_escalation_failed:{issue_type}")
+        else:
+            self.award_points(10, f"route_escalation:{issue_type}")
 
-        return {
+        result = {
             "routed_to": district,
             "method": method,
             "council_result": council_result,
             "issue_type": issue_type,
+            "escalation_ok": escalation_error is None,
         }
+        if escalation_error:
+            result["escalation_error"] = escalation_error
+        return result
 
     async def enforce_consistency(self) -> dict:
         """
@@ -484,9 +541,11 @@ class ChiefOfStaff(AgentBase):
             if not agents:
                 continue
             alive_agents = [a for a in agents if getattr(a, "health_points", 0) > 0]
-            if not alive_agents:
-                continue
-            max_hp = max(getattr(a, "health_points", 0) for a in alive_agents)
+            # A district whose agents are ALL dead is the worst case, not a healthy one.
+            max_hp = (
+                max(getattr(a, "health_points", 0) for a in alive_agents)
+                if alive_agents else 0
+            )
             if max_hp <= _DISTRICT_DYING_HP:
                 flagged.append(district)
                 logger.warning(
@@ -570,7 +629,14 @@ class ChiefOfStaff(AgentBase):
                 f"Good morning {date_str}.\n"
                 f"KIIT: {kiit_info}\n"
                 f"{karpathy}\n"
-                "LLM brief unavailable — check logs."
+                "LLM brief unavailable — check logs.\n\n"
+                f"{brief_result.get('brief_text', '')}"
+            )
+
+        if brief_result.get("events_unavailable"):
+            morning_text = (
+                "WARNING: event data unavailable — signals could not be assessed; "
+                "do NOT read this brief as all-clear.\n\n" + morning_text
             )
 
         note_content = (
@@ -630,10 +696,15 @@ class ChiefOfStaff(AgentBase):
             for a in leaderboard
         ) or "No agents."
 
+        events_error = getattr(self, "_events_error", None)
         accomplished_lines = "\n".join(
-            f"- {e.get('event_type', '')}: {e.get('content', '')[:100]}"
+            f"- {e.get('event_type', '')}: {str(e.get('content') or '')[:100]}"
             for e in signals[:15]
-        ) or "No significant events."
+        ) or (
+            "EVENT DATA UNAVAILABLE — the episodic event pull failed; NOT an all-clear."
+            if events_error
+            else "No significant events."
+        )
 
         # Pending tomorrow from deadline/goals semantic memory
         try:
@@ -644,9 +715,13 @@ class ChiefOfStaff(AgentBase):
                 "ORDER BY updated_at DESC LIMIT 5"
             )
             pending_rows = cur.fetchall()
-            pending_lines = "; ".join(f"{r[0]}: {r[1]}" for r in pending_rows)
-        except Exception:
-            pending_lines = "No pending tasks found."
+            pending_lines = (
+                "; ".join(f"{r[0]}: {r[1]}" for r in pending_rows)
+                or "No pending tasks recorded."
+            )
+        except Exception as e:
+            logger.warning(f"[VECTOR][chief_of_staff] pending tasks pull failed: {e}")
+            pending_lines = "Pending tasks UNAVAILABLE (data pull failed) — not an all-clear."
 
         hydration = self._context.session_hydration_prompt()
 
@@ -667,8 +742,15 @@ class ChiefOfStaff(AgentBase):
             evening_text = (
                 f"Evening recap {date_str}.\n"
                 f"Signals today: {len(signals)}.\n"
+                f"{accomplished_lines}\n"
+                f"Pending tomorrow: {pending_lines}\n"
                 f"HP Leaders: {top3}\n"
                 "LLM brief unavailable."
+            )
+        if events_error:
+            evening_text = (
+                f"WARNING: event data unavailable ({events_error}) — "
+                "do NOT read this recap as all-clear.\n\n" + evening_text
             )
 
         note_content = (
@@ -708,6 +790,7 @@ class ChiefOfStaff(AgentBase):
             "signal_count": len(signals),
             "event_count": len(all_events),
             "top_agents": leaderboard,
+            "events_unavailable": bool(events_error),
             "obsidian_ok": obsidian_ok,
             "date": date_str,
         }
@@ -737,7 +820,7 @@ class ChiefOfStaff(AgentBase):
             elif task_type == "evening_brief":
                 result = await self.evening_brief()
             elif task_type == "route":
-                issue = task.get("issue") or task.get("params", {})
+                issue = task.get("issue") or task.get("params") or {}
                 result = await self.route_escalation(issue)
             elif task_type == "consistency_check":
                 result = await self.enforce_consistency()
@@ -776,6 +859,14 @@ class ChiefOfStaff(AgentBase):
             loop = SubconsciousLoop()
             result = await loop.run_once()
             elapsed_ms = int((time.monotonic() - t0) * 1000)
+            if result.get("error"):
+                # run_once swallows its own failures into a "noop" decision; that must not
+                # be reported as a successful all-quiet tick.
+                logger.warning(
+                    f"[VECTOR][chief_of_staff] subconscious tick failed: {result['error']}"
+                )
+                self.deduct_points(5, "subconscious_tick_failed")
+                return {"elapsed_ms": elapsed_ms, **result, "status": "error"}
             logger.info(
                 f"[VECTOR][chief_of_staff] subconscious tick done "
                 f"decision={result.get('decision', '?')} elapsed={elapsed_ms}ms"
@@ -798,24 +889,42 @@ class ChiefOfStaff(AgentBase):
         """
         RULE 2 — never crashes.
         Schedule:
-          08:00-08:04 → morning_brief()
-          22:00-22:04 → evening_brief()
+          08:00 (catch-up until 12:00) → morning_brief(), once/day, retried if undelivered
+          22:00 onward → evening_brief(), once/day, retried if undelivered
           Every 30 min → enforce_consistency()
         """
         logger.info("[VECTOR][chief_of_staff] run_forever started")
         _last_consistency_check = datetime.datetime.min
+        _done: dict[str, datetime.date] = {}            # brief name -> date delivered
+        _attempt: dict[str, datetime.datetime] = {}     # brief name -> last attempt
+        _retry_after = datetime.timedelta(minutes=15)
+
+        async def _maybe_brief(name: str, due: bool, now: datetime.datetime) -> None:
+            # Once per day, caught up if the 5-minute window was missed (sleep/restart),
+            # retried (throttled) if delivery failed instead of being marked sent.
+            if not due or _done.get(name) == now.date():
+                return
+            last = _attempt.get(name)
+            if last is not None and now - last < _retry_after:
+                return
+            _attempt[name] = now
+            result = await getattr(self, name)()
+            if result.get("obsidian_ok"):
+                _done[name] = now.date()
+            else:
+                logger.warning(
+                    f"[VECTOR][chief_of_staff] {name} not delivered — will retry"
+                )
 
         while self.is_alive:
             try:
                 now = datetime.datetime.now()
 
-                # Morning brief at 08:00
-                if now.hour == 8 and 0 <= now.minute < 5:
-                    await self.morning_brief()
+                # Morning brief from 08:00 (catch-up until noon)
+                await _maybe_brief("morning_brief", 8 <= now.hour < 12, now)
 
-                # Evening brief at 22:00
-                if now.hour == 22 and 0 <= now.minute < 5:
-                    await self.evening_brief()
+                # Evening brief from 22:00
+                await _maybe_brief("evening_brief", now.hour >= 22, now)
 
                 # Consistency check every 30 minutes
                 elapsed = (now - _last_consistency_check).total_seconds()
@@ -827,11 +936,11 @@ class ChiefOfStaff(AgentBase):
                 logger.error(f"[VECTOR][chief_of_staff] tick error: {e}")
                 self.deduct_points(5, "tick error")
 
-            # Sleep in small increments so is_alive is checked regularly
+            # Sleep in 1s increments so is_alive is checked regularly (60s per tick).
             for _ in range(60):
                 if not self.is_alive:
                     break
-                await asyncio.sleep(60)
+                await asyncio.sleep(1)
 
         logger.warning("[VECTOR][chief_of_staff] died — HP=0")
 

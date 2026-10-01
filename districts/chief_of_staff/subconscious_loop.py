@@ -60,7 +60,10 @@ Respond with just: noop | act:<action> | escalate:<reason>"""
                 caller_id="subconscious_loop",
                 district="chief_of_staff",
             )
-            decision = (response.content or "noop").strip().lower()
+            decision = (response.content or "").strip().lower()
+            if not decision:
+                # An empty model reply is a failed assessment, not "nothing changed".
+                raise RuntimeError("empty LLM response")
             self._last_report = situation
             self._last_run = datetime.now()
 
