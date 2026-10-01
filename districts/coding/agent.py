@@ -185,10 +185,15 @@ class CodingSwarm(AgentBase):
 
     async def _fallback_response(self, task_type: str, params: dict[str, Any]) -> dict[str, Any]:
         from core.inference.vectorcode_llm import chat
+        from core.loop.context_engine import ContextEngine
         query = params.get("query", params.get("prompt", f"Handle coding task: {task_type}"))
         context = params.get("context", "")
+        # RULE 1: session_hydration_prompt() before every LLM call -- this
+        # fallback built its own system message and called chat() directly
+        # with no hydration at all.
+        hydration = ContextEngine().session_hydration_prompt({"query": query})
         messages = [
-            {"role": "system", "content": f"You are CodingSwarm, VECTOR's coding orchestrator. No specialist matched '{task_type}'. Handle it directly."},
+            {"role": "system", "content": f"{hydration}\n\nYou are CodingSwarm, VECTOR's coding orchestrator. No specialist matched '{task_type}'. Handle it directly."},
         ]
         if context:
             messages.append({"role": "user", "content": f"[Context]\n{context}"})
