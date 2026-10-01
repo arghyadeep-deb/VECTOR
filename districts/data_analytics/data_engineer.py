@@ -328,7 +328,12 @@ class DataEngineer(AgentBase):
                 row_dict[col] = val
 
             if "deduplicate" in transformations:
-                content_key = row_dict.get("content", str(row_dict))
+                # Key on the row's own values, NOT the whole dict: it carries the
+                # unique rowid, so tables without a `content` column
+                # (policy_memory, agent_history) never matched and dedup was a no-op.
+                content_key = row_dict.get("content")
+                if not isinstance(content_key, str):
+                    content_key = str({k: v for k, v in row_dict.items() if k != "rowid"})
                 if content_key in seen_contents:
                     skip = True
                 else:
