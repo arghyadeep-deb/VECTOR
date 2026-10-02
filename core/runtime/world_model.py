@@ -136,13 +136,28 @@ def _voice_section() -> dict[str, Any]:
         consent_granted = has_ambient_consent()
     except Exception:
         consent_granted = False
+    # tts/stt used to be hardcoded "available" regardless of real state --
+    # phantom success, inconsistent with every other section in this file
+    # (sensing/agents/memory all query real state with a safe fallback).
+    # Reuse the existing lightweight, cached TTS check (same file
+    # _runtime_section() already cross-imports from) rather than loading
+    # the real audio models here; no equivalent cheap STT check exists yet,
+    # so report "unknown" honestly instead of guessing.
+    tts_status = "unknown"
+    try:
+        from core.api.routers.status import _get_tts_status_cached
+
+        cached = _get_tts_status_cached()
+        tts_status = cached.get("tts_engine", "unknown")
+    except Exception:
+        tts_status = "unknown"
     return {
         "status": "ok",
         "ambient_enabled": bool(voice_cfg.get("ambient_enabled", False)),
         "ambient_consent": consent_granted,
         "wake_word": voice_cfg.get("wake_word", "Hey Vector"),
-        "tts": "available",
-        "stt": "available",
+        "tts": tts_status,
+        "stt": "unknown",
     }
 
 
