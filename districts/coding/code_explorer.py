@@ -10,6 +10,20 @@ from pathlib import Path
 from loguru import logger
 from core.city.prompt_agent import PromptAgent
 
+# Same confinement pattern as code_reviewer.py's/architect_bot.py's/
+# bug_hunter.py's fixes this cycle: explain_file() reads any
+# caller-supplied path and sends its content into an LLM prompt with no
+# confinement at all -- directly Governor-dispatchable via run()'s
+# task_type == "explain", not dormant.
+_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _confine_py_path(filepath: str) -> Path:
+    resolved = Path(filepath).resolve()
+    if not resolved.is_relative_to(_ROOT) or resolved.suffix != ".py":
+        raise FileNotFoundError(f"Path outside repo or not a .py file: {filepath}")
+    return resolved
+
 
 class CodeExplorer(PromptAgent):
     """
@@ -27,7 +41,7 @@ class CodeExplorer(PromptAgent):
     def get_imports(self, filepath: str) -> list[str]:
         """Extract all imports from a Python file."""
         try:
-            tree = ast.parse(Path(filepath).read_text(encoding="utf-8", errors="ignore"))
+            tree = ast.parse(_confine_py_path(filepath).read_text(encoding="utf-8", errors="ignore"))
             imports = []
             for node in ast.walk(tree):
                 if isinstance(node, ast.Import):
@@ -42,7 +56,7 @@ class CodeExplorer(PromptAgent):
     def get_classes_and_functions(self, filepath: str) -> dict:
         """Extract top-level classes and functions from a Python file."""
         try:
-            tree = ast.parse(Path(filepath).read_text(encoding="utf-8", errors="ignore"))
+            tree = ast.parse(_confine_py_path(filepath).read_text(encoding="utf-8", errors="ignore"))
             result: dict = {"classes": [], "functions": []}
             for node in tree.body:
                 if isinstance(node, ast.ClassDef):
@@ -57,7 +71,7 @@ class CodeExplorer(PromptAgent):
     async def explain_file(self, filepath: str) -> dict:
         """Ask LLM to explain what a file does based on its structure."""
         try:
-            content = Path(filepath).read_text(encoding="utf-8", errors="ignore")[:3000]
+            content = _confine_py_path(filepath).read_text(encoding="utf-8", errors="ignore")[:3000]
         except Exception as e:
             return {"status": "error", "error": str(e)}
         structure = self.get_classes_and_functions(filepath)
