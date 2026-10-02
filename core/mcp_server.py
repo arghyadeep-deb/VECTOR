@@ -208,8 +208,20 @@ def main():
     args = parser.parse_args()
 
     if args.transport == "sse" and args.host not in ("127.0.0.1", "::1", "localhost"):
+        # FLAG FOR OWNER (Phase 3 audit, 2026-10-02): this warning used to tell
+        # the operator to "Set VECTOR_MCP_API_KEY env var for auth" -- but
+        # nothing in this codebase ever reads that env var (confirmed via
+        # repo-wide grep: zero references outside this one message). Setting
+        # it had zero actual effect -- an operator who did so on a trusted
+        # tip would believe the SSE transport is now authenticated when it
+        # is exactly as open as before. Removed the false claim; this
+        # server genuinely has no SSE auth mechanism today, same class as
+        # the already-documented "UNGATED tools" gap below (Task 60).
+        # Adding real auth is a design decision (what scheme, where enforced
+        # in fastmcp's request path), not a narrow patch -- not done here.
         logger.warning(f"[VECTOR][mcp] SSE binding to {args.host} — NOT localhost! "
-                       "Set VECTOR_MCP_API_KEY env var for auth, or use 127.0.0.1 for safety.")
+                       "This server has no SSE authentication mechanism today. "
+                       "Use 127.0.0.1 unless you have added your own auth in front of it.")
 
     # P0-D (M1c/M1d, 2026-09-09): this is unconditional and unmissable by design,
     # not gated on transport/host. Task 60's own dedicated red-team audit already

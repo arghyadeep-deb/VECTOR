@@ -1445,7 +1445,33 @@ except Exception as _cfg_err:
 # ── CONFIG dict — same structure as before, 100% backward compatible ──────────
 
 class _Redacted(str):
-    """String subclass whose repr redacts the value — prevents accidental secret leaks in logs."""
+    """String subclass whose repr redacts the value.
+
+    FLAG FOR OWNER (Phase 3 audit, 2026-10-02): this only redacts repr()/!r
+    (debugger/pretty-print display) — str(), f"{...}", "{}".format(...), and
+    loguru's own "{}" placeholder all call __str__/__format__, which are NOT
+    overridden here and return the real plaintext value (verified: a
+    _Redacted instance is a true str subclass, so str()/f-string formatting
+    reads the underlying character buffer directly). Every one of the ~30
+    real credentials wrapped via _secret() below (every API key, the DB key,
+    the OFP network secret, both OAuth client secrets) has this same gap.
+    NOT fixed here: at least one real call site (core/inference/
+    vectorcode_llm.py:337, `str(CONFIG["api_keys"]["anthropic_key"])`)
+    explicitly relies on str() returning the REAL value to make actual API
+    calls -- overriding __str__/__format__ to redact would silently break
+    every such real integration (confirmed: at least 3 more files use the
+    identical str(CONFIG[...]) extraction pattern for non-secret config,
+    same mechanism). A safe fix needs a separate, explicit "real value"
+    accessor (mirroring pydantic's own SecretStr.get_secret_value()
+    pattern, already used two lines above this class for the underlying
+    settings object) with every current str(CONFIG[...]) consumer migrated
+    to it before __str__/__format__ can safely redact -- a cross-cutting
+    change touching an unknown number of call sites repo-wide, not a
+    same-session narrow patch. No currently-logged leak found (checked the
+    known consumers), but this is a latent footgun: a single future
+    `logger.info(f"... {CONFIG['api_keys']['x']} ...")` anywhere in the
+    codebase would leak a real credential while appearing safe.
+    """
     def __repr__(self) -> str:
         return f"***({len(self)}chars)***"
 
