@@ -54,8 +54,18 @@ def start(install: bool) -> None:
                 check=False,
             )
     else:
-        click.echo("Starting OpenVector gateway (foreground)...")
-        click.echo("Gateway started. Press Ctrl+C to stop.")
+        # Phantom success: this branch printed "Gateway started." without
+        # ever starting anything -- no subprocess, no blocking loop, no
+        # real action at all. Dormant today (this `gateway` click group is
+        # not registered anywhere in the real CLI, confirmed via
+        # repo-wide grep), fixed anyway per this cycle's "fix narrow bugs
+        # even in dormant code" bar, consistent with vectorcode/src/tools/
+        # worktree.py and direct_executor.py's fixes.
+        click.echo(
+            "Foreground gateway start is not implemented here. "
+            "Use --install to register a systemd/launchd service instead."
+        )
+        raise SystemExit(1)
 
 
 @gateway.command()
