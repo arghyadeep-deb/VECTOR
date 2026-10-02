@@ -1736,6 +1736,37 @@ grew open engineering items; section 0 lists them.
     etc.).
     `core/personality/` is now COMPLETE.
 
+33. **`core/runtime/` (7 files, resumed after a rate limit) + `core/persona/` (7 files, singular —
+    distinct from `core/personality/` above), 2026-10-02 — both COMPLETE.** Real line-by-line
+    review, not mechanical grep. `core/runtime/world_model.py` was already fixed by the fork this
+    resumed (hardcoded `tts`/`stt` "available" phantom success, commit `ddd3a266e`) — not re-checked.
+    **1 real bug fixed:** `core/runtime/missions.py`'s `MissionPlanAdvisor._call_model()` called its
+    `chat_fn` directly with no `session_hydration_prompt()` at all (RULE 1 gap) — confirmed
+    `core/inference/ollama_safe.chat()` (the default `chat_fn`) does not inject hydration itself.
+    Reachable via `core/runtime/plans.py`'s two real `MissionPlanAdvisor()` construction sites
+    (`decompose_goal_to_plan()`, `replan_plan()`'s Strategy 2) — not dormant. New
+    `tests/test_mission_plan_advisor_hydration.py` (1 test, injects a fake `chat_fn` via the
+    constructor). Verified `tests/unit/test_planning.py` + `tests/backend/test_missions.py`, zero
+    regressions. Commit `5c52b681e`.
+    **1 flagged, not fixed:** `core/persona/voice_tone.py`'s `ToneModulator.modulate(text, context)`
+    computes `self._collect_rules(context)` into `rules` and never uses it — only an `[URGENT] `
+    prefix on critical urgency is actually applied; the collected time-of-day/mood/social-context
+    instructions are discarded. Zero real callers today (confirmed via repo-wide grep — the one
+    `modulate(...)` call site found is a different class, `core/voice/voice_personality.py`'s own
+    `VoicePersonality.modulate()`). Not fixed: the right fix requires a design decision on what
+    "modulating raw text" against LLM-instruction-shaped rule strings should actually do, not a
+    narrow mechanical patch.
+    **Already-known, not re-flagged:** `core/persona/evolution.py`'s raw `sqlite3.connect()`
+    (person-linked behavioral data, needs owner migration decision, flagged in an earlier pass).
+    **Clean, no new bugs:** `core/runtime/doctor.py`, `executor.py` (both extensively
+    pre-hardened across multiple prior review rounds — 2026-09-23 rounds 3/4, 2026-09-27 —
+    documented inline), `plans.py` (1,278 lines; DAG toposort, `param_bindings`/`_lookup_path`
+    real data handoff, `verify_step_outcome()`'s 5 verification types, `replan_plan()`'s 3-strategy
+    fallback — all read in full, no new issues; both `MissionPlanAdvisor` call sites inherit the
+    `missions.py` hydration fix automatically), `readiness_check.py`, `tls.py`. `core/persona/`:
+    `__init__.py`, `consistency.py`, `identity.py`, `persona_manager.py`, `schemas.py` clean.
+    `core/runtime/` and `core/persona/` are now COMPLETE.
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
