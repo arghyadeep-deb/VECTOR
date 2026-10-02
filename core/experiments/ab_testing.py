@@ -122,27 +122,18 @@ class Experiment:
             variance = sum((x - mean) ** 2 for x in vals) / max(n - 1, 1) if n > 1 else 0.0
             result[v] = {"mean": round(mean, 4), "n": n, "std": round(math.sqrt(variance), 4)}
 
-        # Welch's t-test p-value between first and each other variant
+        # Welch's t-test p-value between first and each other variant (for
+        # display/general stats -- winner() below does NOT reuse these; it
+        # computes its own pairwise p-values against whichever variant is
+        # actually the best, not a value fixed to this baseline).
         if len(self.variants) >= 2:
             base = self.variants[0]
             base_stats = result[base]
             for v in self.variants[1:]:
                 s = result[v]
-                n1, n2 = base_stats["n"], s["n"]
-                if n1 < 2 or n2 < 2:
-                    result[v]["p_value"] = None
-                    continue
-                se = math.sqrt(
-                    (base_stats["std"] ** 2 / n1) + (s["std"] ** 2 / n2)
-                )
-                if se == 0:
-                    result[v]["p_value"] = 1.0
-                    continue
-                t = abs(base_stats["mean"] - s["mean"]) / se
-                # Approximate p-value using normal distribution (valid for n > 30)
-                # For small n this is an approximation; use scipy.stats for exact.
-                p = 2 * (1 - _normal_cdf(t))
-                result[v]["p_value"] = round(p, 4)
+                p = _welch_p_value(base_stats["mean"], base_stats["std"], base_stats["n"],
+                                    s["mean"], s["std"], s["n"])
+                result[v]["p_value"] = p
 
         return result
 
@@ -153,11 +144,19 @@ class Experiment:
         if not candidates:
             return None
         best = max(candidates, key=lambda x: x[1]["mean"])
-        # Check significance vs all others
+        best_stats = best[1]
+        # Check significance vs all others -- stats()'s own p_value field is
+        # always relative to self.variants[0], not to `best`, so it was
+        # silently wrong here (variants[0] itself never even has a p_value
+        # key, so this used to always return None whenever variants[0] also
+        # qualified as a candidate -- the normal case for a control group
+        # with plenty of samples). Compute the real best-vs-other p-value
+        # directly instead of reusing stats()'s baseline-fixed one.
         for v, d in candidates:
             if v == best[0]:
                 continue
-            p = d.get("p_value")
+            p = _welch_p_value(best_stats["mean"], best_stats["std"], best_stats["n"],
+                                d["mean"], d["std"], d["n"])
             if p is None or p >= 0.05:
                 return None  # not significant yet
         return best[0]
@@ -166,6 +165,19 @@ class Experiment:
 def _normal_cdf(z: float) -> float:
     """Approximation of the standard normal CDF."""
     return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+def _welch_p_value(mean1: float, std1: float, n1: int,
+                    mean2: float, std2: float, n2: int) -> float | None:
+    """Welch's t-test p-value (two-sided, normal approximation -- valid for
+    n > 30; use scipy.stats for an exact small-sample result)."""
+    if n1 < 2 or n2 < 2:
+        return None
+    se = math.sqrt((std1 ** 2 / n1) + (std2 ** 2 / n2))
+    if se == 0:
+        return 1.0
+    t = abs(mean1 - mean2) / se
+    return round(2 * (1 - _normal_cdf(t)), 4)
 
 
 class ExperimentRegistry:
