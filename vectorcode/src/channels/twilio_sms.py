@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 from typing import Any, Dict, List, Optional
 
@@ -15,7 +15,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 
 def _create_twilio_client(  # noqa: ANN201
@@ -85,7 +84,7 @@ class TwilioSMSChannel(BaseChannel):
             self._publish_sent(channel, content, conversation_id)
             return True
         except Exception:
-            logger.exception("Failed to send SMS to %s", channel)
+            logger.exception("Failed to send SMS to {}", channel)
             return False
 
     def status(self) -> ChannelStatus:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 import threading
 from typing import Any, Dict, List, Optional
@@ -16,7 +16,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 
 @ChannelRegistry.register("slack")
@@ -131,7 +130,7 @@ class SlackChannel(BaseChannel):
                 if data.get("ok"):
                     self._publish_sent(channel, content, conversation_id)
                     return True
-                logger.warning("Slack API error: %s", data.get("error"))
+                logger.warning("Slack API error: {}", data.get("error"))
                 return False
             logger.warning(
                 "Slack API returned status %d",

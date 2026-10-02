@@ -8,7 +8,7 @@ API reference: https://docs.sendblue.com/api-v2/
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 from typing import Any, Dict, List, Optional
 
@@ -21,7 +21,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.sendblue.co"
 

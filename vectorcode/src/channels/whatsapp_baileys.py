@@ -8,7 +8,7 @@ incoming-message forwarding.
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import shutil
 import subprocess
 import threading
@@ -24,7 +24,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 # Path to the bundled bridge shipped inside the package.
 # In editable installs this lives next to this file; in wheel installs
@@ -123,7 +122,7 @@ class WhatsAppBaileysChannel(BaseChannel):
         # Run npm install if node_modules is missing.
         node_modules = runtime / "node_modules"
         if not node_modules.exists():
-            logger.info("Running npm install in %s", runtime)
+            logger.info("Running npm install in {}", runtime)
             subprocess.run(
                 ["npm", "install", "--production"],
                 cwd=str(runtime),
@@ -151,7 +150,7 @@ class WhatsAppBaileysChannel(BaseChannel):
         try:
             bridge_js = self._ensure_bridge()
         except RuntimeError as exc:
-            logger.error("Bridge setup failed: %s", exc)
+            logger.error("Bridge setup failed: {}", exc)
             self._status = ChannelStatus.ERROR
             return
 
@@ -271,7 +270,7 @@ class WhatsAppBaileysChannel(BaseChannel):
                 try:
                     event = json.loads(line)
                 except json.JSONDecodeError:
-                    logger.debug("Non-JSON line from bridge: %s", line)
+                    logger.debug("Non-JSON line from bridge: {}", line)
                     continue
 
                 self._handle_bridge_event(event)
@@ -321,7 +320,7 @@ class WhatsAppBaileysChannel(BaseChannel):
                 )
 
         elif event_type == "error":
-            logger.error("Bridge error: %s", event.get("message", "unknown"))
+            logger.error("Bridge error: {}", event.get("message", "unknown"))
             self._status = ChannelStatus.ERROR
 
     def _publish_sent(self, channel: str, content: str, conversation_id: str) -> None:

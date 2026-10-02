@@ -8,7 +8,7 @@ Output is saved to ~/.vectorcode/cron/output/{job_id}/{timestamp}.md
 
 import copy
 import json
-import logging
+from loguru import logger
 import tempfile
 import threading
 import os
@@ -19,7 +19,6 @@ from pathlib import Path
 from vector_constants import get_vector_home
 from typing import Optional, Dict, List, Any, Union
 
-logger = logging.getLogger(__name__)
 
 from vector_time import now as _vector_now
 
@@ -76,7 +75,7 @@ def _secure_dir(path: Path):
     try:
         os.chmod(path, 0o700)
     except (OSError, NotImplementedError) as _sve:
-        logger.debug("[VECTOR][cron.jobs] chmod 0o700 not supported on this platform: %s", _sve)
+        logger.debug("[VECTOR][cron.jobs] chmod 0o700 not supported on this platform: {}", _sve)
 
 
 def _secure_file(path: Path):
@@ -85,7 +84,7 @@ def _secure_file(path: Path):
         if path.exists():
             os.chmod(path, 0o600)
     except (OSError, NotImplementedError) as _sve:
-        logger.debug("[VECTOR][cron.jobs] suppressed (OSError, NotImplementedError): %s", _sve)
+        logger.debug("[VECTOR][cron.jobs] suppressed (OSError, NotImplementedError): {}", _sve)
 
 
 def ensure_dirs():
@@ -199,7 +198,7 @@ def parse_schedule(schedule: str) -> Dict[str, Any]:
             "display": f"once in {original}"
         }
     except ValueError as _sve:
-        logger.debug("[VECTOR][cron.jobs] suppressed ValueError: %s", _sve)
+        logger.debug("[VECTOR][cron.jobs] suppressed ValueError: {}", _sve)
     
     raise ValueError(
         f"Invalid schedule '{original}'. Use:\n"
@@ -283,7 +282,7 @@ def _compute_grace_seconds(schedule: dict) -> int:
             grace = period_seconds // 2
             return max(MIN_GRACE, min(grace, MAX_GRACE))
         except Exception as _sve:
-            logger.debug("[VECTOR][cron.jobs] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cron.jobs] suppressed Exception: {}", _sve)
 
     return MIN_GRACE
 
@@ -352,10 +351,10 @@ def load_jobs() -> List[Dict[str, Any]]:
                     logger.warning("Auto-repaired jobs.json (had invalid control characters)")
                 return jobs
         except Exception as e:
-            logger.error("Failed to auto-repair jobs.json: %s", e)
+            logger.error("Failed to auto-repair jobs.json: {}", e)
             raise RuntimeError(f"Cron database corrupted and unrepairable: {e}") from e
     except IOError as e:
-        logger.error("IOError reading jobs.json: %s", e)
+        logger.error("IOError reading jobs.json: {}", e)
         raise RuntimeError(f"Failed to read cron database: {e}") from e
 
 
@@ -374,7 +373,7 @@ def save_jobs(jobs: List[Dict[str, Any]]):
         try:
             os.unlink(tmp_path)
         except OSError as _sve:
-            logger.warning("[VECTOR][cron.jobs] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][cron.jobs] suppressed OSError: {}", _sve)
         raise
 
 
@@ -737,7 +736,7 @@ def mark_job_run(job_id: str, success: bool, error: Optional[str] = None,
                 save_jobs(jobs)
                 return
 
-        logger.warning("mark_job_run: job_id %s not found, skipping save", job_id)
+        logger.warning("mark_job_run: job_id {} not found, skipping save", job_id)
 
 
 def advance_next_run(job_id: str) -> bool:
@@ -870,7 +869,7 @@ def save_job_output(job_id: str, output: str):
         try:
             os.unlink(tmp_path)
         except OSError as _sve:
-            logger.warning("[VECTOR][cron.jobs] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][cron.jobs] suppressed OSError: {}", _sve)
         raise
     
     return output_file

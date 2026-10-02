@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import base64
-import logging
+from loguru import logger
 import os
 import threading
 from email.mime.text import MIMEText
@@ -18,7 +18,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 
 @ChannelRegistry.register("gmail")

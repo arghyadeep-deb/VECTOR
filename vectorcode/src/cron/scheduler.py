@@ -13,7 +13,7 @@ import asyncio
 import concurrent.futures
 import contextvars
 import json
-import logging
+from loguru import logger
 import os
 import subprocess
 import sys
@@ -38,7 +38,6 @@ from vector_constants import get_vector_home
 from vector_cli.config import load_config
 from vector_time import now as _vector_now
 
-logger = logging.getLogger(__name__)
 
 
 def _resolve_cron_enabled_toolsets(job: dict, cfg: dict) -> list[str] | None:
@@ -202,7 +201,7 @@ def _resolve_single_delivery_target(job: dict, deliver_value: str) -> Optional[d
                 else:
                     chat_id = resolved
         except Exception as _sve:
-            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: {}", _sve)
 
         return {
             "platform": platform_name,
@@ -294,7 +293,7 @@ def _send_media_via_adapter(adapter, chat_id: str, media_files: list, metadata: 
                     job.get("id", "?"), media_path, getattr(result, "error", "unknown"),
                 )
         except Exception as e:
-            logger.warning("Job '%s': failed to send media %s: %s", job.get("id", "?"), media_path, e)
+            logger.warning("Job '{}': failed to send media {}: {}", job.get("id", "?"), media_path, e)
 
 
 def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Optional[str]:
@@ -312,7 +311,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
     if not targets:
         if job.get("deliver", "local") != "local":
             msg = f"no delivery target resolved for deliver={job.get('deliver', 'local')}"
-            logger.warning("Job '%s': %s", job["id"], msg)
+            logger.warning("Job '{}': {}", job["id"], msg)
             return msg
         return None  # local-only jobs don't deliver — not a failure
 
@@ -348,7 +347,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         user_cfg = load_config()
         wrap_response = user_cfg.get("cron", {}).get("wrap_response", True)
     except Exception as _sve:
-        logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][cron.scheduler] suppressed Exception: {}", _sve)
 
     if wrap_response:
         task_name = job.get("name", job["id"])
@@ -371,7 +370,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         config = load_gateway_config()
     except Exception as e:
         msg = f"failed to load gateway config: {e}"
-        logger.error("Job '%s': %s", job["id"], msg)
+        logger.error("Job '{}': {}", job["id"], msg)
         return msg
 
     delivery_errors = []
@@ -399,7 +398,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         platform = platform_map.get(platform_name.lower())
         if not platform:
             msg = f"unknown platform '{platform_name}'"
-            logger.warning("Job '%s': %s", job["id"], msg)
+            logger.warning("Job '{}': {}", job["id"], msg)
             delivery_errors.append(msg)
             continue
 
@@ -436,7 +435,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
                     _send_media_via_adapter(runtime_adapter, chat_id, media_files, send_metadata, loop, job)
 
                 if adapter_ok:
-                    logger.info("Job '%s': delivered to %s:%s via live adapter", job["id"], platform_name, chat_id)
+                    logger.info("Job '{}': delivered to {}:{} via live adapter", job["id"], platform_name, chat_id)
                     delivered = True
             except Exception as e:
                 logger.warning(
@@ -448,7 +447,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
             pconfig = config.platforms.get(platform)
             if not pconfig or not pconfig.enabled:
                 msg = f"platform '{platform_name}' not configured/enabled"
-                logger.warning("Job '%s': %s", job["id"], msg)
+                logger.warning("Job '{}': {}", job["id"], msg)
                 delivery_errors.append(msg)
                 continue
 
@@ -467,17 +466,17 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
                     result = future.result(timeout=30)
             except Exception as e:
                 msg = f"delivery to {platform_name}:{chat_id} failed: {e}"
-                logger.error("Job '%s': %s", job["id"], msg)
+                logger.error("Job '{}': {}", job["id"], msg)
                 delivery_errors.append(msg)
                 continue
 
             if result and result.get("error"):
                 msg = f"delivery error: {result['error']}"
-                logger.error("Job '%s': %s", job["id"], msg)
+                logger.error("Job '{}': {}", job["id"], msg)
                 delivery_errors.append(msg)
                 continue
 
-            logger.info("Job '%s': delivered to %s:%s", job["id"], platform_name, chat_id)
+            logger.info("Job '{}': delivered to {}:{}", job["id"], platform_name, chat_id)
 
     if delivery_errors:
         return "; ".join(delivery_errors)
@@ -517,7 +516,7 @@ def _get_script_timeout() -> int:
             if timeout > 0:
                 return timeout
     except Exception as exc:
-        logger.debug("Failed to load cron script timeout from config: %s", exc)
+        logger.debug("Failed to load cron script timeout from config: {}", exc)
 
     return _DEFAULT_SCRIPT_TIMEOUT
 
@@ -585,7 +584,7 @@ def _run_job_script(script_path: str) -> tuple[bool, str]:
             stdout = redact_sensitive_text(stdout)
             stderr = redact_sensitive_text(stderr)
         except Exception as _sve:
-            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: {}", _sve)
 
         if result.returncode != 0:
             parts = [f"Script exited with code {result.returncode}"]
@@ -710,7 +709,7 @@ def _build_job_prompt(job: dict, prerun_script: Optional[tuple] = None) -> str:
                 else:
                     continue  # silent skip — empty output
             except (OSError, PermissionError) as e:
-                logger.warning("context_from: failed to read output for job %r: %s", source_job_id, e)
+                logger.warning("context_from: failed to read output for job %r: {}", source_job_id, e)
                 # silent skip — do not pollute the prompt with error messages
 
     # Always prepend cron execution guidance so the agent knows how
@@ -743,7 +742,7 @@ def _build_job_prompt(job: dict, prerun_script: Optional[tuple] = None) -> str:
         loaded = json.loads(skill_view(skill_name))
         if not loaded.get("success"):
             error = loaded.get("error") or f"Failed to load skill '{skill_name}'"
-            logger.warning("Cron job '%s': skill not found, skipping — %s", job.get("name", job.get("id")), error)
+            logger.warning("Cron job '{}': skill not found, skipping — {}", job.get("name", job.get("id")), error)
             skipped.append(skill_name)
             continue
 
@@ -788,7 +787,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         from vector_state import SessionDB
         _session_db = SessionDB()
     except Exception as e:
-        logger.debug("Job '%s': SQLite session store not available: %s", job.get("id", "?"), e)
+        logger.debug("Job '{}': SQLite session store not available: {}", job.get("id", "?"), e)
     
     job_id = job["id"]
     job_name = job["name"]
@@ -819,8 +818,8 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
     origin = _resolve_origin(job)
     _cron_session_id = f"cron_{job_id}_{_vector_now().strftime('%Y%m%d_%H%M%S')}"
 
-    logger.info("Running job '%s' (ID: %s)", job_name, job_id)
-    logger.info("Prompt: %s", prompt[:100])
+    logger.info("Running job '{}' (ID: {})", job_name, job_id)
+    logger.info("Prompt: {}", prompt[:100])
 
     agent = None
 
@@ -861,7 +860,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
     _prior_terminal_cwd = os.environ.get("TERMINAL_CWD", "_UNSET_")
     if _job_workdir:
         os.environ["TERMINAL_CWD"] = _job_workdir
-        logger.info("Job '%s': using workdir %s", job_id, _job_workdir)
+        logger.info("Job '{}': using workdir {}", job_id, _job_workdir)
 
     try:
         # Re-read .env and config.yaml fresh every run so provider/key
@@ -896,7 +895,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                     elif isinstance(_model_cfg, dict):
                         model = _model_cfg.get("default", model)
         except Exception as e:
-            logger.warning("Job '%s': failed to load config.yaml, using defaults: %s", job_id, e)
+            logger.warning("Job '{}': failed to load config.yaml, using defaults: {}", job_id, e)
 
         # Apply IPv4 preference if configured.
         try:
@@ -905,7 +904,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             if isinstance(_net_cfg, dict) and _net_cfg.get("force_ipv4"):
                 apply_ipv4_preference(force=True)
         except Exception as _sve:
-            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: {}", _sve)
 
         # Reasoning config from config.yaml
         from vector_constants import parse_reasoning_effort
@@ -926,7 +925,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                     if not isinstance(prefill_messages, list):
                         prefill_messages = None
                 except Exception as e:
-                    logger.warning("Job '%s': failed to parse prefill messages file '%s': %s", job_id, pfpath, e)
+                    logger.warning("Job '{}': failed to parse prefill messages file '{}': {}", job_id, pfpath, e)
                     prefill_messages = None
 
         # Max iterations
@@ -949,7 +948,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             runtime = resolve_runtime_provider(**runtime_kwargs)
         except AuthError as auth_exc:
             # Primary provider auth failed — try fallback chain before giving up.
-            logger.warning("Job '%s': primary auth failed (%s), trying fallback", job_id, auth_exc)
+            logger.warning("Job '{}': primary auth failed ({}), trying fallback", job_id, auth_exc)
             fb = _cfg.get("fallback_providers") or _cfg.get("fallback_model")
             fb_list = (fb if isinstance(fb, list) else [fb]) if fb else []
             runtime = None
@@ -963,10 +962,10 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                     if entry.get("api_key"):
                         fb_kwargs["explicit_api_key"] = entry["api_key"]
                     runtime = resolve_runtime_provider(**fb_kwargs)
-                    logger.info("Job '%s': fallback resolved to %s", job_id, runtime.get("provider"))
+                    logger.info("Job '{}': fallback resolved to {}", job_id, runtime.get("provider"))
                     break
                 except Exception as fb_exc:
-                    logger.debug("Job '%s': fallback %s failed: %s", job_id, entry.get("provider"), fb_exc)
+                    logger.debug("Job '{}': fallback {} failed: {}", job_id, entry.get("provider"), fb_exc)
             if runtime is None:
                 raise RuntimeError(format_runtime_provider_error(auth_exc)) from auth_exc
         except Exception as exc:
@@ -989,7 +988,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                         len(pool.entries()),
                     )
             except Exception as e:
-                logger.debug("Job '%s': failed to load credential pool for %s: %s", job_id, runtime_provider, e)
+                logger.debug("Job '{}': failed to load credential pool for {}: {}", job_id, runtime_provider, e)
 
         agent = AIAgent(
             model=model,
@@ -1059,7 +1058,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                             _act = agent.get_activity_summary()
                             _idle_secs = _act.get("seconds_since_activity", 0.0)
                         except Exception as _sve:
-                            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
+                            logger.debug("[VECTOR][cron.scheduler] suppressed Exception: {}", _sve)
                     if _idle_secs >= _cron_inactivity_limit:
                         _inactivity_timeout = True
                         break
@@ -1076,7 +1075,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 try:
                     _activity = agent.get_activity_summary()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][cron.scheduler] suppressed Exception: {}", _sve)
             _last_desc = _activity.get("last_activity_desc", "unknown")
             _secs_ago = _activity.get("seconds_since_activity", 0)
             _cur_tool = _activity.get("current_tool")
@@ -1127,12 +1126,12 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
 {logged_response}
 """
         
-        logger.info("Job '%s' completed successfully", job_name)
+        logger.info("Job '{}' completed successfully", job_name)
         return True, output, final_response, None
         
     except Exception as e:
         error_msg = f"{type(e).__name__}: {str(e)}"
-        logger.exception("Job '%s' failed: %s", job_name, error_msg)
+        logger.exception("Job '{}' failed: {}", job_name, error_msg)
         
         output = f"""# Cron Job: {job_name} (FAILED)
 
@@ -1167,11 +1166,11 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             try:
                 _session_db.end_session(_cron_session_id, "cron_complete")
             except (Exception, KeyboardInterrupt) as e:
-                logger.debug("Job '%s': failed to end session: %s", job_id, e)
+                logger.debug("Job '{}': failed to end session: {}", job_id, e)
             try:
                 _session_db.close()
             except (Exception, KeyboardInterrupt) as e:
-                logger.debug("Job '%s': failed to close SQLite session store: %s", job_id, e)
+                logger.debug("Job '{}': failed to close SQLite session store: {}", job_id, e)
         # Release subprocesses, terminal sandboxes, browser daemons, and the
         # main OpenAI/httpx client held by this ephemeral cron agent. Without
         # this, a gateway that ticks cron every N minutes leaks fds per job
@@ -1180,7 +1179,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             if agent is not None:
                 agent.close()
         except (Exception, KeyboardInterrupt) as e:
-            logger.debug("Job '%s': failed to close agent resources: %s", job_id, e)
+            logger.debug("Job '{}': failed to close agent resources: {}", job_id, e)
         # Each cron run spins up a short-lived worker thread whose event loop
         # dies as soon as the ``ThreadPoolExecutor`` shuts down. Any async
         # httpx clients cached under that loop are now unusable — reap them
@@ -1189,7 +1188,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             from agent.auxiliary_client import cleanup_stale_async_clients
             cleanup_stale_async_clients()
         except Exception as e:
-            logger.debug("Job '%s': failed to reap stale auxiliary clients: %s", job_id, e)
+            logger.debug("Job '{}': failed to reap stale auxiliary clients: {}", job_id, e)
 
 
 def tick(verbose: bool = True, adapters=None, loop=None) -> int:
@@ -1227,11 +1226,11 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
         due_jobs = get_due_jobs()
 
         if verbose and not due_jobs:
-            logger.info("%s - No jobs due", _vector_now().strftime('%H:%M:%S'))
+            logger.info("{} - No jobs due", _vector_now().strftime('%H:%M:%S'))
             return 0
 
         if verbose:
-            logger.info("%s - %s job(s) due", _vector_now().strftime('%H:%M:%S'), len(due_jobs))
+            logger.info("{} - {} job(s) due", _vector_now().strftime('%H:%M:%S'), len(due_jobs))
 
         # Advance next_run_at for all recurring jobs FIRST, under the file lock,
         # before any execution begins.  This preserves at-most-once semantics.
@@ -1256,7 +1255,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                 if _cfg_par is not None:
                     _max_workers = int(_cfg_par) or None
             except Exception as _sve:
-                logger.debug("[VECTOR][cron.scheduler] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][cron.scheduler] suppressed Exception: {}", _sve)
 
         if verbose:
             logger.info(
@@ -1272,7 +1271,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
 
                 output_file = save_job_output(job["id"], output)
                 if verbose:
-                    logger.info("Output saved to: %s", output_file)
+                    logger.info("Output saved to: {}", output_file)
 
                 # Deliver the final response to the origin/target chat.
                 # If the agent responded with [SILENT], skip delivery (but
@@ -1280,7 +1279,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                 deliver_content = final_response if success else f"⚠️ Cron job '{job.get('name', job['id'])}' failed:\n{error}"
                 should_deliver = bool(deliver_content)
                 if should_deliver and success and SILENT_MARKER in deliver_content.strip().upper():
-                    logger.info("Job '%s': agent returned %s — skipping delivery", job["id"], SILENT_MARKER)
+                    logger.info("Job '{}': agent returned {} — skipping delivery", job["id"], SILENT_MARKER)
                     should_deliver = False
 
                 delivery_error = None
@@ -1289,7 +1288,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                         delivery_error = _deliver_result(job, deliver_content, adapters=adapters, loop=loop)
                     except Exception as de:
                         delivery_error = str(de)
-                        logger.error("Delivery failed for job %s: %s", job["id"], de)
+                        logger.error("Delivery failed for job {}: {}", job["id"], de)
 
                 # Treat empty final_response as a soft failure so last_status
                 # is not "ok" — the agent ran but produced nothing useful.
@@ -1302,7 +1301,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
                 return True
 
             except Exception as e:
-                logger.error("Error processing job %s: %s", job['id'], e)
+                logger.error("Error processing job {}: {}", job['id'], e)
                 mark_job_run(job["id"], False, str(e))
                 return False
 
@@ -1338,7 +1337,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
             from tools.mcp_tool import _kill_orphaned_mcp_children
             _kill_orphaned_mcp_children()
         except Exception as _e:
-            logger.debug("Post-tick MCP orphan cleanup failed: %s", _e)
+            logger.debug("Post-tick MCP orphan cleanup failed: {}", _e)
 
         return sum(_results)
     finally:
@@ -1348,7 +1347,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
             try:
                 msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
             except (OSError, IOError) as _sve:
-                logger.warning("[VECTOR][cron.scheduler] suppressed (OSError, IOError): %s", _sve)
+                logger.warning("[VECTOR][cron.scheduler] suppressed (OSError, IOError): {}", _sve)
         lock_fd.close()
 
 

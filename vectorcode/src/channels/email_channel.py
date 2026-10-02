@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 import smtplib
 import threading
@@ -18,7 +18,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 
 @ChannelRegistry.register("email")
@@ -92,7 +91,7 @@ class EmailChannel(BaseChannel):
             self._listener_thread.start()
 
         self._status = ChannelStatus.CONNECTED
-        logger.info("Email channel connected (SMTP: %s)", self._smtp_host)
+        logger.info("Email channel connected (SMTP: {})", self._smtp_host)
 
     def disconnect(self) -> None:
         """Stop the IMAP listener thread."""

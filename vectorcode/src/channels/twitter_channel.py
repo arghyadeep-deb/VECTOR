@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import logging
+from loguru import logger
 import os
 import threading
 import time
@@ -22,7 +22,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 _API_BASE = "https://api.twitter.com/2"
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 from typing import Any, Dict, List, Optional
 
@@ -14,7 +14,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 
 @ChannelRegistry.register("zulip")
@@ -130,7 +129,7 @@ class ZulipChannel(BaseChannel):
             if result.get("result") == "success":
                 self._publish_sent(channel, content, conversation_id)
                 return True
-            logger.warning("Zulip API returned: %s", result.get("msg", ""))
+            logger.warning("Zulip API returned: {}", result.get("msg", ""))
             return False
         except ImportError:
             logger.debug("zulip not installed")
