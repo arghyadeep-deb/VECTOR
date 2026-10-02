@@ -140,7 +140,7 @@ def handle_reply_email(
     conn.commit()
 
     try:
-        send_email(SendEmailParams(
+        send_result = send_email(SendEmailParams(
             to=to,
             from_addr=from_addr,
             subject=subject,
@@ -157,6 +157,16 @@ def handle_reply_email(
         conn.execute("UPDATE emails SET folder_id='draft' WHERE id = ?", (message_id,))
         conn.commit()
         return {"error": f"reply delivery failed: {e}", "status": 502, "id": message_id}
+
+    if send_result.get("status") == "queued_locally":
+        # SMTP not configured: send_email() logged + queued but never
+        # raised (documented dev-mode fallback) -- same "do not report
+        # success" intent as the exception path above, this just doesn't
+        # come as an exception.
+        logger.warning("[VECTOR][reply_forward] Reply not actually sent (SMTP not configured)")
+        conn.execute("UPDATE emails SET folder_id='draft' WHERE id = ?", (message_id,))
+        conn.commit()
+        return {"error": "reply not sent: SMTP not configured", "status": 502, "id": message_id}
 
     return {"id": message_id, "status": "sent"}
 
@@ -241,7 +251,7 @@ def handle_forward_email(
     conn.commit()
 
     try:
-        send_email(SendEmailParams(
+        send_result = send_email(SendEmailParams(
             to=to,
             from_addr=from_addr,
             subject=subject,
@@ -257,6 +267,12 @@ def handle_forward_email(
         conn.execute("UPDATE emails SET folder_id='draft' WHERE id = ?", (message_id,))
         conn.commit()
         return {"error": f"forward delivery failed: {e}", "status": 502, "id": message_id}
+
+    if send_result.get("status") == "queued_locally":
+        logger.warning("[VECTOR][reply_forward] Forward not actually sent (SMTP not configured)")
+        conn.execute("UPDATE emails SET folder_id='draft' WHERE id = ?", (message_id,))
+        conn.commit()
+        return {"error": "forward not sent: SMTP not configured", "status": 502, "id": message_id}
 
     return {"id": message_id, "status": "sent"}
 

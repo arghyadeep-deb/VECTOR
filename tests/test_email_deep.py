@@ -287,6 +287,11 @@ def test_sender_no_smtp():
     p = SendEmailParams(to="dest@x.com", from_addr={"email": "me@x.com", "name": "VECTOR"}, subject="Test", text="Hello")
     result = send_email(p)
     assert "message_id" in result
+    # Regression: this used to return the same {"message_id": ...} shape as
+    # a genuinely delivered email (phantom success) -- status distinguishes
+    # "queued locally, not sent" from a real send without breaking the
+    # documented dev-mode fallback (no SMTP configured -> log + queue, never crash).
+    assert result.get("status") == "queued_locally", result
 
 
 def test_sender_list_recipients():
@@ -518,12 +523,17 @@ def test_reply_forward_reply():
     )
     conn.commit()
     conn.close()
+    # SMTP is not configured in this environment (real CONFIG.get("SMTP_HOST", "")
+    # is "" here, not just a test artifact), so send_email() takes its
+    # documented dev-mode fallback path -- this correctly reports the reply
+    # was NOT actually sent (previously asserted "sent", the exact
+    # phantom-success bug this cycle's audit found and fixed).
     result = handle_reply_email(
         mailbox_id="me@x.com", original_id=seed_id,
         to="bob@x.com", from_addr="me@x.com",
         subject="Re: Original", text="Thanks!"
     )
-    assert result.get("status") == "sent", result
+    assert result.get("status") == 502 and "error" in result, result
 
 
 def test_reply_forward_forward():
@@ -538,12 +548,13 @@ def test_reply_forward_forward():
     )
     conn.commit()
     conn.close()
+    # Same reasoning as test_reply_forward_reply(): no SMTP configured here.
     result = handle_forward_email(
         mailbox_id="me@x.com", original_id=seed_id,
         to="dan@x.com", from_addr="me@x.com",
         subject="Fwd: FwdOrig", text="See below."
     )
-    assert result.get("status") == "sent", result
+    assert result.get("status") == 502 and "error" in result, result
 
 
 def test_reply_forward_missing_original():

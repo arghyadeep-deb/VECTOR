@@ -149,7 +149,13 @@ def send_email(params: SendEmailParams) -> dict[str, str]:
     if not smtp_host:
         logger.warning("[VECTOR][email_sender] SMTP not configured — email queued locally only")
         _record_email_dedup(dedup_hash)
-        return {"message_id": message_id}
+        # Same success-shaped {"message_id": ...} as a genuinely delivered
+        # email below (phantom success) -- callers that only guard a raised
+        # exception (as districts/communications/reply_forward.py did) saw
+        # this as an ordinary successful send. "status" distinguishes the
+        # two without breaking the documented dev-mode graceful-degradation
+        # behavior (not configured -> log + queue, never crash).
+        return {"message_id": message_id, "status": "queued_locally"}
 
     all_recipients = []
     to_list = params.to if isinstance(params.to, list) else [params.to]
@@ -174,7 +180,7 @@ def send_email(params: SendEmailParams) -> dict[str, str]:
         logger.error(f"[VECTOR][email_sender] SMTP error: {e}")
         raise
 
-    return {"message_id": message_id}
+    return {"message_id": message_id, "status": "sent"}
 
 
 if __name__ == "__main__":

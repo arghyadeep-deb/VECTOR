@@ -269,13 +269,19 @@ try:
     conn.commit()
     conn.close()
 
-    # reply
+    # reply -- SMTP is not configured in this environment (confirmed: real
+    # CONFIG.get("SMTP_HOST", "") is "" here, not just a test artifact), so
+    # send_email() takes its documented dev-mode fallback path. This
+    # previously asserted status == "sent" -- the exact phantom-success bug
+    # this cycle's audit found (reply_forward.py's own pre-existing comment
+    # says "do not leave a phantom row in Sent or report success", but the
+    # fallback path wasn't being checked). Correct now: not actually sent.
     r1 = handle_reply_email("me@x.com", sid, "b@x.com", "me@x.com", "Re: Orig", text="ok")
-    assert r1["status"] == "sent", r1
+    assert r1.get("status") == 502 and "error" in r1, r1
 
-    # forward
+    # forward -- same reasoning.
     r2 = handle_forward_email("me@x.com", sid, "c@x.com", "me@x.com", "Fwd: Orig", text="fwd")
-    assert r2["status"] == "sent", r2
+    assert r2.get("status") == 502 and "error" in r2, r2
 
     # missing original
     r3 = handle_reply_email("me@x.com", "no-such-id", "b@x.com", "me@x.com", "Re: X")
