@@ -90,7 +90,7 @@ scripts = {
 steps = iter(scripts[scenario])
 
 async def main():
-    c = BrowserController(max_loop=8, loop_interval=0.0, headless=True)
+    c = BrowserController(max_loop=8, loop_interval=0.0, headless=True, allow_private_navigation=True)
     async def fake_vlm(system_prompt, shot_b64, history):
         return next(steps)
     c._call_vlm = fake_vlm

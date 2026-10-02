@@ -63,12 +63,18 @@ class BrowserController:
         loop_interval: float = 1.0,
         headless: bool = False,
         factors: list[int] | None = None,
+        allow_private_navigation: bool = False,
     ) -> None:
         self._model         = model or CONFIG.get("models", {}).get("vision", "qwen2.5vl:7b")
         self._max_loop      = max_loop
         self._loop_interval = loop_interval
         self._headless      = headless
         self._factors       = factors or [1000, 1000]
+        # SSRFGuard default (False) blocks private/loopback navigate() targets --
+        # a real VLM-proposed URL should never be allowed there. Set True only
+        # for local dev/test callers that intentionally target a known-safe
+        # local address (same convention as SSRFGuard's own allow_private flag).
+        self._allow_private_navigation = allow_private_navigation
 
     async def screenshot_page(self, page) -> dict:
         """Take a screenshot of the current browser page."""
@@ -166,6 +172,18 @@ class BrowserController:
             elif action_type == "navigate":
                 url = inputs.get("url", "")
                 if url:
+                    # VLM-proposed navigation target, not caller-validated --
+                    # same unguarded shape already fixed in
+                    # core/browser/playwright_mcp_client.py's navigate() this
+                    # cycle. governance.classify() above is a permission-tier
+                    # check (who/what), not an SSRF check (where); check
+                    # separately with DNS resolution (the stronger of this
+                    # cycle's two established patterns, consistent with
+                    # core/seo/broken_link_checker.py's fix).
+                    from core.security.ssrf_guard import SSRFGuard
+                    result = SSRFGuard(resolve_dns=True, allow_private=self._allow_private_navigation).check_url(url)
+                    if not result.safe:
+                        return {"status": "error", "error": f"navigate blocked by SSRF guard: {result.reason}"}
                     await page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
             elif action_type == "wait":
@@ -185,9 +203,13 @@ class BrowserController:
             user_text = f"Previous actions:\n{context}\n\n{user_text}"
         try:
             from core.inference.vectorcode_llm import chat
+            from core.loop.context_engine import ContextEngine
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": user_text})
             response = chat(
                 model=self._model,
                 messages=[
+                    {"role": "system", "content": hydration},
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": [
                         {"type": "text", "text": user_text},
