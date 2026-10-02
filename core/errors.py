@@ -18,7 +18,7 @@ __all__ = [
     "AuthenticationError",
     "ConfigurationError",
     "ForbiddenError",
-    "MemoryError",
+    "VectorMemoryError",
     "ModelNotLoadedError",
     "RateLimitError",
     "ServiceUnavailableError",
@@ -123,8 +123,19 @@ class AgentDeadError(VectorError):
         )
 
 
-class MemoryError(VectorError):
-    """Episodic or semantic memory operation failed."""
+class VectorMemoryError(VectorError):
+    """Episodic or semantic memory operation failed.
+
+    Named VectorMemoryError, not MemoryError, to avoid shadowing Python's
+    own builtin MemoryError (the real out-of-memory exception) -- the same
+    reasoning this file already applied to VectorTimeoutError vs. the
+    builtin TimeoutError. A plain `MemoryError` here meant any
+    `except MemoryError:` after `from core.errors import *`/MemoryError
+    would silently stop catching real OOM conditions. Zero real callers
+    import core.errors today (confirmed via repo-wide grep -- this module
+    is itself orphaned, "Gap 20" per its own docstring), so this rename is
+    zero-risk.
+    """
     retryable = False
 
     def __init__(self, operation: str, detail: str = ""):
