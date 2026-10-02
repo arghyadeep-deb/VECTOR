@@ -25,7 +25,6 @@ from loguru import logger
 
 import base64
 import json
-import logging
 import os
 import threading
 import uuid
@@ -37,7 +36,6 @@ from vector_cli.config import load_config
 from tools.browser_camofox_state import get_camofox_identity
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Configuration
@@ -85,7 +83,7 @@ def check_camofox_available() -> bool:
                     host = parsed.hostname or "localhost"
                     _vnc_url = f"http://{host}:{vnc_port}"
             except (ValueError, KeyError) as _sve:
-                logger.debug("[VECTOR][tools.browser_camofox] suppressed (ValueError, KeyError): %s", _sve)
+                logger.debug("[VECTOR][tools.browser_camofox] suppressed (ValueError, KeyError): {}", _sve)
             _vnc_url_checked = True
         return resp.status_code == 200
     except Exception:
@@ -111,7 +109,7 @@ def _managed_persistence_enabled() -> bool:
     try:
         camofox_cfg = load_config().get("browser", {}).get("camofox", {})
     except Exception as exc:
-        logger.warning("managed_persistence check failed, defaulting to disabled: %s", exc)
+        logger.warning("managed_persistence check failed, defaulting to disabled: {}", exc)
         return False
     return bool(camofox_cfg.get("managed_persistence"))
 
@@ -193,7 +191,7 @@ def camofox_soft_cleanup(task_id: Optional[str] = None) -> bool:
     """
     if _managed_persistence_enabled():
         _drop_session(task_id)
-        logger.debug("Camofox soft cleanup for task %s (managed persistence)", task_id)
+        logger.debug("Camofox soft cleanup for task {} (managed persistence)", task_id)
         return True
     return False
 
@@ -528,7 +526,7 @@ def camofox_vision(question: str, annotate: bool = False,
                 )
                 annotation_context = f"\n\nAccessibility tree (element refs for interaction):\n{snap_data.get('snapshot', '')[:3000]}"
             except Exception as _sve:
-                logger.debug("[VECTOR][tools.browser_camofox] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][tools.browser_camofox] suppressed Exception: {}", _sve)
 
         # Redact secrets from annotation context before sending to vision LLM.
         # The screenshot image itself cannot be redacted, but at least the

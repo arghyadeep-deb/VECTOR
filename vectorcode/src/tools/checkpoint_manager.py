@@ -19,8 +19,9 @@ The shadow repo uses GIT_DIR + GIT_WORK_TREE so no git state leaks
 into the user's project directory.
 """
 
+from loguru import logger
+
 import hashlib
-import logging
 import os
 import re
 import shutil
@@ -29,7 +30,6 @@ from pathlib import Path
 from vector_constants import get_vector_home
 from typing import Dict, List, Optional, Set
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -176,11 +176,11 @@ def _run_git(
     normalized_working_dir = _normalize_path(working_dir)
     if not normalized_working_dir.exists():
         msg = f"working directory not found: {normalized_working_dir}"
-        logger.error("Git command skipped: %s (%s)", " ".join(["git"] + list(args)), msg)
+        logger.error("Git command skipped: {} ({})", " ".join(["git"] + list(args)), msg)
         return False, "", msg
     if not normalized_working_dir.is_dir():
         msg = f"working directory is not a directory: {normalized_working_dir}"
-        logger.error("Git command skipped: %s (%s)", " ".join(["git"] + list(args)), msg)
+        logger.error("Git command skipped: {} ({})", " ".join(["git"] + list(args)), msg)
         return False, "", msg
 
     env = _git_env(shadow_repo, str(normalized_working_dir))
@@ -200,24 +200,24 @@ def _run_git(
         stderr = result.stderr.strip()
         if not ok and result.returncode not in allowed_returncodes:
             logger.error(
-                "Git command failed: %s (rc=%d) stderr=%s",
+                "Git command failed: {} (rc={}) stderr={}",
                 " ".join(cmd), result.returncode, stderr,
             )
         return ok, stdout, stderr
     except subprocess.TimeoutExpired:
         msg = f"git timed out after {timeout}s: {' '.join(cmd)}"
-        logger.error(msg, exc_info=True)
+        logger.opt(exception=True).error(msg)
         return False, "", msg
     except FileNotFoundError as exc:
         missing_target = getattr(exc, "filename", None)
         if missing_target == "git":
-            logger.error("Git executable not found: %s", " ".join(cmd), exc_info=True)
+            logger.opt(exception=True).error("Git executable not found: {}", " ".join(cmd))
             return False, "", "git not found"
         msg = f"working directory not found: {normalized_working_dir}"
-        logger.error("Git command failed before execution: %s (%s)", " ".join(cmd), msg, exc_info=True)
+        logger.opt(exception=True).error("Git command failed before execution: {} ({})", " ".join(cmd), msg)
         return False, "", msg
     except Exception as exc:
-        logger.error("Unexpected git error running %s: %s", " ".join(cmd), exc, exc_info=True)
+        logger.opt(exception=True).error("Unexpected git error running {}: {}", " ".join(cmd), exc)
         return False, "", str(exc)
 
 
@@ -252,7 +252,7 @@ def _init_shadow_repo(shadow_repo: Path, working_dir: str) -> Optional[str]:
         str(_normalize_path(working_dir)) + "\n", encoding="utf-8"
     )
 
-    logger.debug("Initialised checkpoint repo at %s for %s", shadow_repo, working_dir)
+    logger.debug("Initialised checkpoint repo at {} for {}", shadow_repo, working_dir)
     return None
 
 
@@ -265,7 +265,7 @@ def _dir_file_count(path: str) -> int:
             if count > _MAX_FILES:
                 return count
     except (PermissionError, OSError) as _sve:
-        logger.warning("[VECTOR][tools.checkpoint_manager] suppressed (PermissionError, OSError): %s", _sve)
+        logger.warning("[VECTOR][tools.checkpoint_manager] suppressed (PermissionError, OSError): {}", _sve)
     return count
 
 
@@ -328,7 +328,7 @@ class CheckpointManager:
 
         # Skip root, home, and other overly broad directories
         if abs_dir in ("/", str(Path.home())):
-            logger.debug("Checkpoint skipped: directory too broad (%s)", abs_dir)
+            logger.debug("Checkpoint skipped: directory too broad ({})", abs_dir)
             return False
 
         # Already checkpointed this turn?
@@ -340,7 +340,7 @@ class CheckpointManager:
         try:
             return self._take(abs_dir, reason)
         except Exception as e:
-            logger.debug("Checkpoint failed (non-fatal): %s", e)
+            logger.debug("Checkpoint failed (non-fatal): {}", e)
             return False
 
     def list_checkpoints(self, working_dir: str) -> List[Dict]:
@@ -553,12 +553,12 @@ class CheckpointManager:
         # Init if needed
         err = _init_shadow_repo(shadow, working_dir)
         if err:
-            logger.debug("Checkpoint init failed: %s", err)
+            logger.debug("Checkpoint init failed: {}", err)
             return False
 
         # Quick size guard — don't try to snapshot enormous directories
         if _dir_file_count(working_dir) > _MAX_FILES:
-            logger.debug("Checkpoint skipped: >%d files in %s", _MAX_FILES, working_dir)
+            logger.debug("Checkpoint skipped: >{} files in {}", _MAX_FILES, working_dir)
             return False
 
         # Stage everything
@@ -566,7 +566,7 @@ class CheckpointManager:
             ["add", "-A"], shadow, working_dir, timeout=_GIT_TIMEOUT * 2,
         )
         if not ok:
-            logger.debug("Checkpoint git-add failed: %s", err)
+            logger.debug("Checkpoint git-add failed: {}", err)
             return False
 
         # Check if there's anything to commit
@@ -578,7 +578,7 @@ class CheckpointManager:
         )
         if ok_diff:
             # No changes to commit
-            logger.debug("Checkpoint skipped: no changes in %s", working_dir)
+            logger.debug("Checkpoint skipped: no changes in {}", working_dir)
             return False
 
         # Commit.  ``--no-gpg-sign`` inline covers shadow repos created before
@@ -589,10 +589,10 @@ class CheckpointManager:
             shadow, working_dir, timeout=_GIT_TIMEOUT * 2,
         )
         if not ok:
-            logger.debug("Checkpoint commit failed: %s", err)
+            logger.debug("Checkpoint commit failed: {}", err)
             return False
 
-        logger.debug("Checkpoint taken in %s: %s", working_dir, reason)
+        logger.debug("Checkpoint taken in {}: {}", working_dir, reason)
 
         # Prune old snapshots
         self._prune(shadow, working_dir)
@@ -620,7 +620,7 @@ class CheckpointManager:
         # listing is already limited by max_snapshots.
         # Full pruning would require rebase --onto or filter-branch which
         # is fragile for a background feature.  We just limit the log view.
-        logger.debug("Checkpoint repo has %d commits (limit %d)", count, self.max_snapshots)
+        logger.debug("Checkpoint repo has {} commits (limit {})", count, self.max_snapshots)
 
 
 def format_checkpoint_list(checkpoints: List[Dict], directory: str) -> str:
@@ -705,7 +705,7 @@ def _shadow_repo_newest_mtime(shadow_repo: Path) -> float:
             except OSError:
                 continue
     except OSError as _sve:
-        logger.warning("[VECTOR][tools.checkpoint_manager] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][tools.checkpoint_manager] suppressed OSError: {}", _sve)
     return newest
 
 
@@ -778,10 +778,10 @@ def prune_checkpoints(
                 result["deleted_orphan"] += 1
             else:
                 result["deleted_stale"] += 1
-            logger.debug("Pruned %s checkpoint repo: %s (%d bytes)", reason, child.name, size)
+            logger.debug("Pruned {} checkpoint repo: {} ({} bytes)", reason, child.name, size)
         except OSError as exc:
             result["errors"] += 1
-            logger.warning("Failed to prune checkpoint repo %s: %s", child.name, exc)
+            logger.warning("Failed to prune checkpoint repo {}: {}", child.name, exc)
 
     return result
 
@@ -835,20 +835,20 @@ def maybe_auto_prune_checkpoints(
         try:
             marker.write_text(str(now), encoding="utf-8")
         except OSError as exc:
-            logger.debug("Could not write checkpoint prune marker: %s", exc)
+            logger.debug("Could not write checkpoint prune marker: {}", exc)
 
         total = result["deleted_orphan"] + result["deleted_stale"]
         if total > 0:
             logger.info(
-                "checkpoint auto-maintenance: pruned %d repo(s) "
-                "(%d orphan, %d stale), reclaimed %.1f MB",
+                "checkpoint auto-maintenance: pruned {} repo(s) "
+                "({} orphan, {} stale), reclaimed {:.1f} MB",
                 total,
                 result["deleted_orphan"],
                 result["deleted_stale"],
                 result["bytes_freed"] / (1024 * 1024),
             )
     except Exception as exc:
-        logger.warning("checkpoint auto-maintenance failed: %s", exc)
+        logger.warning("checkpoint auto-maintenance failed: {}", exc)
         out["error"] = str(exc)
 
     return out

@@ -21,7 +21,6 @@ from loguru import logger
 import asyncio
 import base64
 import json
-import logging
 import os
 import platform
 import re
@@ -39,7 +38,6 @@ from tools.computer_use.backend import (
     UIElement,
 )
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -176,7 +174,7 @@ class _AsyncBridge:
                 try:
                     self._loop.close()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][tools.computer_use.cua_backend] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][tools.computer_use.cua_backend] suppressed Exception: {}", _sve)
 
         self._thread = threading.Thread(target=_run, daemon=True, name="cua-driver-loop")
         self._thread.start()
@@ -241,7 +239,7 @@ class _CuaDriverSession:
             try:
                 await self._exit_stack.aclose()
             except Exception as e:
-                logger.warning("cua-driver shutdown error: %s", e)
+                logger.warning("cua-driver shutdown error: {}", e)
         self._exit_stack = None
         self._session = None
 
@@ -639,7 +637,7 @@ class CuaDriverBackend(ComputerUseBackend):
         try:
             out = self._session.call_tool(name, args)
         except Exception as e:
-            logger.exception("cua-driver %s call failed", name)
+            logger.exception("cua-driver {} call failed", name)
             return ActionResult(ok=False, action=name, message=f"cua-driver error: {e}")
         ok = not out["isError"]
         message = ""

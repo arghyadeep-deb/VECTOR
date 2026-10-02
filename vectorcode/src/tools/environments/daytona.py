@@ -6,7 +6,8 @@ Supports persistent sandboxes: when enabled, sandboxes are stopped on cleanup
 and resumed on next creation, preserving the filesystem across sessions.
 """
 
-import logging
+from loguru import logger
+
 import math
 import os
 import shlex
@@ -25,7 +26,6 @@ from tools.environments.file_sync import (
     unique_parent_dirs,
 )
 
-logger = logging.getLogger(__name__)
 
 
 class DaytonaEnvironment(BaseEnvironment):
@@ -71,7 +71,7 @@ class DaytonaEnvironment(BaseEnvironment):
         disk_gib = max(1, math.ceil(disk / 1024))
         if disk_gib > 10:
             logger.warning(
-                "Daytona: requested disk (%dGB) exceeds platform limit (10GB). "
+                "Daytona: requested disk ({}GB) exceeds platform limit (10GB). "
                 "Capping to 10GB.", disk_gib,
             )
             disk_gib = 10
@@ -84,12 +84,12 @@ class DaytonaEnvironment(BaseEnvironment):
             try:
                 self._sandbox = self._daytona.get(sandbox_name)
                 self._sandbox.start()
-                logger.info("Daytona: resumed sandbox %s for task %s",
+                logger.info("Daytona: resumed sandbox {} for task {}",
                             self._sandbox.id, task_id)
             except DaytonaError:
                 self._sandbox = None
             except Exception as e:
-                logger.warning("Daytona: failed to resume sandbox for task %s: %s",
+                logger.warning("Daytona: failed to resume sandbox for task {}: {}",
                                task_id, e)
                 self._sandbox = None
 
@@ -99,10 +99,10 @@ class DaytonaEnvironment(BaseEnvironment):
                     if page.items:
                         self._sandbox = page.items[0]
                         self._sandbox.start()
-                        logger.info("Daytona: resumed legacy sandbox %s for task %s",
+                        logger.info("Daytona: resumed legacy sandbox {} for task {}",
                                     self._sandbox.id, task_id)
                 except Exception as e:
-                    logger.debug("Daytona: no legacy sandbox found for task %s: %s",
+                    logger.debug("Daytona: no legacy sandbox found for task {}: {}",
                                  task_id, e)
                     self._sandbox = None
 
@@ -116,7 +116,7 @@ class DaytonaEnvironment(BaseEnvironment):
                     resources=resources,
                 )
             )
-            logger.info("Daytona: created sandbox %s for task %s",
+            logger.info("Daytona: created sandbox {} for task {}",
                         self._sandbox.id, task_id)
 
         # Detect remote home dir
@@ -128,8 +128,8 @@ class DaytonaEnvironment(BaseEnvironment):
                 if requested_cwd in ("~", "/home/daytona"):
                     self.cwd = home
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.environments.daytona] suppressed Exception: %s", _sve)
-        logger.info("Daytona: resolved home to %s, cwd to %s", self._remote_home, self.cwd)
+            logger.debug("[VECTOR][tools.environments.daytona] suppressed Exception: {}", _sve)
+        logger.info("Daytona: resolved home to {}, cwd to {}", self._remote_home, self.cwd)
 
         self._sync_manager = FileSyncManager(
             get_files_fn=lambda: iter_sync_files(f"{self._remote_home}/.vector"),
@@ -199,7 +199,7 @@ class DaytonaEnvironment(BaseEnvironment):
         self._sandbox.refresh_data()
         if self._sandbox.state in (self._SandboxState.STOPPED, self._SandboxState.ARCHIVED):
             self._sandbox.start()
-            logger.info("Daytona: restarted sandbox %s", self._sandbox.id)
+            logger.info("Daytona: restarted sandbox {}", self._sandbox.id)
 
     def _before_execute(self) -> None:
         """Ensure sandbox is ready, then sync files via FileSyncManager."""
@@ -219,7 +219,7 @@ class DaytonaEnvironment(BaseEnvironment):
                 try:
                     sandbox.stop()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][tools.environments.daytona] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][tools.environments.daytona] suppressed Exception: {}", _sve)
 
         if login:
             shell_cmd = f"bash -l -c {shlex.quote(cmd_string)}"
@@ -246,16 +246,16 @@ class DaytonaEnvironment(BaseEnvironment):
                 try:
                     self._sync_manager.sync_back()
                 except Exception as e:
-                    logger.warning("Daytona: sync_back failed: %s", e)
+                    logger.warning("Daytona: sync_back failed: {}", e)
 
             try:
                 if self._persistent:
                     self._sandbox.stop()
-                    logger.info("Daytona: stopped sandbox %s (filesystem preserved)",
+                    logger.info("Daytona: stopped sandbox {} (filesystem preserved)",
                                 self._sandbox.id)
                 else:
                     self._daytona.delete(self._sandbox)
-                    logger.info("Daytona: deleted sandbox %s", self._sandbox.id)
+                    logger.info("Daytona: deleted sandbox {}", self._sandbox.id)
             except Exception as e:
-                logger.warning("Daytona: cleanup failed: %s", e)
+                logger.warning("Daytona: cleanup failed: {}", e)
             self._sandbox = None

@@ -6,7 +6,8 @@ configurable resource limits (CPU, memory, disk), and optional filesystem
 persistence via bind mounts.
 """
 
-import logging
+from loguru import logger
+
 import os
 import re
 import shutil
@@ -19,7 +20,6 @@ from typing import Optional
 from tools.environments.base import BaseEnvironment, _popen_bash
 from tools.environments.local import _VECTOR_PROVIDER_ENV_BLOCKLIST
 
-logger = logging.getLogger(__name__)
 
 
 # Common Docker Desktop install paths checked when 'docker' is not in PATH.
@@ -42,14 +42,14 @@ def _normalize_forward_env_names(forward_env: list[str] | None) -> list[str]:
 
     for item in forward_env or []:
         if not isinstance(item, str):
-            logger.warning("Ignoring non-string docker_forward_env entry: %r", item)
+            logger.warning("Ignoring non-string docker_forward_env entry: {}", item)
             continue
 
         key = item.strip()
         if not key:
             continue
         if not _ENV_VAR_NAME_RE.match(key):
-            logger.warning("Ignoring invalid docker_forward_env entry: %r", item)
+            logger.warning("Ignoring invalid docker_forward_env entry: {}", item)
             continue
         if key in seen:
             continue
@@ -68,13 +68,13 @@ def _normalize_env_dict(env: dict | None) -> dict[str, str]:
     if not env:
         return {}
     if not isinstance(env, dict):
-        logger.warning("docker_env is not a dict: %r", env)
+        logger.warning("docker_env is not a dict: {}", env)
         return {}
 
     normalized: dict[str, str] = {}
     for key, value in env.items():
         if not isinstance(key, str) or not _ENV_VAR_NAME_RE.match(key.strip()):
-            logger.warning("Ignoring invalid docker_env key: %r", key)
+            logger.warning("Ignoring invalid docker_env key: {}", key)
             continue
         key = key.strip()
         if not isinstance(value, str):
@@ -83,7 +83,7 @@ def _normalize_env_dict(env: dict | None) -> dict[str, str]:
             if isinstance(value, (int, float, bool)):
                 value = str(value)
             else:
-                logger.warning("Ignoring non-string docker_env value for %r: %r", key, value)
+                logger.warning("Ignoring non-string docker_env value for {}: {}", key, value)
                 continue
         normalized[key] = value
 
@@ -119,7 +119,7 @@ def find_docker() -> Optional[str]:
     override = os.environ.get("VECTOR_DOCKER_BINARY")
     if override and os.path.isfile(override) and os.access(override, os.X_OK):
         _docker_executable = override
-        logger.info("Using VECTOR_DOCKER_BINARY override: %s", override)
+        logger.info("Using VECTOR_DOCKER_BINARY override: {}", override)
         return override
 
     # 2. docker on PATH
@@ -132,14 +132,14 @@ def find_docker() -> Optional[str]:
     found = shutil.which("podman")
     if found:
         _docker_executable = found
-        logger.info("Using podman as container runtime: %s", found)
+        logger.info("Using podman as container runtime: {}", found)
         return found
 
     # 4. Well-known macOS Docker Desktop locations
     for path in _DOCKER_SEARCH_PATHS:
         if os.path.isfile(path) and os.access(path, os.X_OK):
             _docker_executable = path
-            logger.info("Found docker at non-PATH location: %s", path)
+            logger.info("Found docker at non-PATH location: {}", path)
             return path
 
     return None
@@ -200,36 +200,30 @@ def _ensure_docker_available() -> None:
             timeout=5,
         )
     except FileNotFoundError:
-        logger.error(
-            "Docker backend selected but the resolved docker executable '%s' could "
+        logger.opt(exception=True).error(
+            "Docker backend selected but the resolved docker executable '{}' could "
             "not be executed.",
-            docker_exe,
-            exc_info=True,
-        )
+            docker_exe)
         raise RuntimeError(
             "Docker executable could not be executed. Check your Docker installation."
         )
     except subprocess.TimeoutExpired:
-        logger.error(
-            "Docker backend selected but '%s version' timed out. "
+        logger.opt(exception=True).error(
+            "Docker backend selected but '{} version' timed out. "
             "The Docker daemon may not be running.",
-            docker_exe,
-            exc_info=True,
-        )
+            docker_exe)
         raise RuntimeError(
             "Docker daemon is not responding. Ensure Docker is running and try again."
         )
     except Exception:
-        logger.error(
-            "Unexpected error while checking Docker availability.",
-            exc_info=True,
-        )
+        logger.opt(exception=True).error(
+            "Unexpected error while checking Docker availability.")
         raise
     else:
         if result.returncode != 0:
             logger.error(
-                "Docker backend selected but '%s version' failed "
-                "(exit code %d, stderr=%s)",
+                "Docker backend selected but '{} version' failed "
+                "(exit code {}, stderr={})",
                 docker_exe,
                 result.returncode,
                 result.stderr.strip(),
@@ -382,7 +376,7 @@ class DockerEnvironment(BaseEnvironment):
                     f"{mount_entry['host_path']}:{mount_entry['container_path']}:ro",
                 ])
                 logger.info(
-                    "Docker: mounting credential %s -> %s",
+                    "Docker: mounting credential {} -> {}",
                     mount_entry["host_path"],
                     mount_entry["container_path"],
                 )
@@ -395,7 +389,7 @@ class DockerEnvironment(BaseEnvironment):
                     f"{skills_mount['host_path']}:{skills_mount['container_path']}:ro",
                 ])
                 logger.info(
-                    "Docker: mounting skills dir %s -> %s",
+                    "Docker: mounting skills dir {} -> {}",
                     skills_mount["host_path"],
                     skills_mount["container_path"],
                 )
@@ -410,12 +404,12 @@ class DockerEnvironment(BaseEnvironment):
                     f"{cache_mount['host_path']}:{cache_mount['container_path']}:ro",
                 ])
                 logger.info(
-                    "Docker: mounting cache dir %s -> %s",
+                    "Docker: mounting cache dir {} -> {}",
                     cache_mount["host_path"],
                     cache_mount["container_path"],
                 )
         except Exception as e:
-            logger.debug("Docker: could not load credential file mounts: %s", e)
+            logger.debug("Docker: could not load credential file mounts: {}", e)
 
         # Explicit environment variables (docker_env config) — set at container
         # creation so they're available to all processes (including entrypoint).
@@ -475,7 +469,7 @@ class DockerEnvironment(BaseEnvironment):
             from tools.env_passthrough import get_all_passthrough
             passthrough_keys = set(get_all_passthrough())
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: {}", _sve)
         # Explicit docker_forward_env entries are an intentional opt-in and must
         # win over the generic VectorCode secret blocklist. Only implicit passthrough
         # keys are filtered.
@@ -553,7 +547,7 @@ class DockerEnvironment(BaseEnvironment):
                 _storage_opt_ok = False
         except Exception:
             _storage_opt_ok = False
-        logger.debug("Docker --storage-opt support: %s", _storage_opt_ok)
+        logger.debug("Docker --storage-opt support: {}", _storage_opt_ok)
         return _storage_opt_ok
 
     def cleanup(self):
@@ -571,7 +565,7 @@ class DockerEnvironment(BaseEnvironment):
                 except subprocess.TimeoutExpired:
                     pass
                 except Exception as e:
-                    logger.warning("Failed to stop container %s: %s", cid, e)
+                    logger.warning("Failed to stop container {}: {}", cid, e)
                 if not self._persistent:
                     try:
                         subprocess.run(
@@ -579,7 +573,7 @@ class DockerEnvironment(BaseEnvironment):
                             capture_output=True,
                         )
                     except Exception as e:
-                        logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: %s", e)
+                        logger.debug("[VECTOR][tools.environments.docker] suppressed Exception: {}", e)
 
             t = threading.Thread(target=_stop, daemon=True)
             t.start()

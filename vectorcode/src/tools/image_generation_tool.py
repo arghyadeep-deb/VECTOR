@@ -20,6 +20,8 @@ Architecture:
 Pricing shown in UI strings is as-of the initial commit; we accept drift and
 update when it's noticed.
 """
+
+from loguru import logger
 # --- Windows console UTF-8 safety (VECTOR codemod) ---
 import sys as _vsys  # noqa: E402
 for _vstream in (_vsys.stdout, _vsys.stderr):
@@ -32,7 +34,6 @@ for _vstream in (_vsys.stdout, _vsys.stderr):
 
 
 import json
-import logging
 import os
 import datetime
 import threading
@@ -50,7 +51,6 @@ from tools.tool_backend_helpers import (
     prefers_gateway,
 )
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -512,7 +512,7 @@ def _resolve_fal_model() -> tuple:
             if isinstance(raw, str):
                 model_id = raw.strip()
     except Exception as exc:
-        logger.debug("Could not load image_gen.model from config: %s", exc)
+        logger.debug("Could not load image_gen.model from config: {}", exc)
 
     # Env var escape hatch (undocumented; backward-compat for tests/scripts).
     if not model_id:
@@ -523,7 +523,7 @@ def _resolve_fal_model() -> tuple:
 
     if model_id not in FAL_MODELS:
         logger.warning(
-            "Unknown FAL model '%s' in config; falling back to %s",
+            "Unknown FAL model '{}' in config; falling back to {}",
             model_id, DEFAULT_MODEL,
         )
         return DEFAULT_MODEL, FAL_MODELS[DEFAULT_MODEL]
@@ -604,7 +604,7 @@ def _upscale_image(image_url: str, original_prompt: str) -> Optional[Dict[str, A
         if result and "image" in result:
             upscaled_image = result["image"]
             logger.info(
-                "Image upscaled successfully to %sx%s",
+                "Image upscaled successfully to {}x{}",
                 upscaled_image.get("width", "unknown"),
                 upscaled_image.get("height", "unknown"),
             )
@@ -619,7 +619,7 @@ def _upscale_image(image_url: str, original_prompt: str) -> Optional[Dict[str, A
         return None
 
     except Exception as e:
-        logger.error("Error upscaling image: %s", e, exc_info=True)
+        logger.opt(exception=True).error("Error upscaling image: {}", e)
         return None
 
 
@@ -679,7 +679,7 @@ def image_generate_tool(
         aspect_lc = (aspect_ratio or DEFAULT_ASPECT_RATIO).lower().strip()
         if aspect_lc not in VALID_ASPECT_RATIOS:
             logger.warning(
-                "Invalid aspect_ratio '%s', defaulting to '%s'",
+                "Invalid aspect_ratio '{}', defaulting to '{}'",
                 aspect_ratio, DEFAULT_ASPECT_RATIO,
             )
             aspect_lc = DEFAULT_ASPECT_RATIO
@@ -699,7 +699,7 @@ def image_generate_tool(
         )
 
         logger.info(
-            "Generating image with %s (%s) — prompt: %s",
+            "Generating image with {} ({}) — prompt: {}",
             meta.get("display", model_id), model_id, prompt[:80],
         )
 
@@ -742,7 +742,7 @@ def image_generate_tool(
 
         upscaled_count = sum(1 for img in formatted_images if img.get("upscaled"))
         logger.info(
-            "Generated %s image(s) in %.1fs (%s upscaled) via %s",
+            "Generated {} image(s) in {}s ({} upscaled) via {}",
             len(formatted_images), generation_time, upscaled_count, model_id,
         )
 
@@ -762,7 +762,7 @@ def image_generate_tool(
     except Exception as e:
         generation_time = (datetime.datetime.now() - start_time).total_seconds()
         error_msg = f"Error generating image: {str(e)}"
-        logger.error("%s", error_msg, exc_info=True)
+        logger.opt(exception=True).error("{}", error_msg)
 
         response_data = {
             "success": False,
@@ -802,7 +802,7 @@ def check_image_generation_requirements() -> bool:
             fal_client  # noqa: F401 — SDK presence check
             return True
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     # Probe plugin providers. Discovery is idempotent and cheap.
     try:
@@ -817,7 +817,7 @@ def check_image_generation_requirements() -> bool:
             except Exception:
                 continue
     except Exception as _sve:
-        logger.debug("[VECTOR][tools.image_generation_tool] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][tools.image_generation_tool] suppressed Exception: {}", _sve)
 
     return False
 
@@ -907,7 +907,7 @@ def _read_configured_image_provider():
             if isinstance(value, str) and value.strip():
                 return value.strip()
     except Exception as exc:
-        logger.debug("Could not read image_gen.provider: %s", exc)
+        logger.debug("Could not read image_gen.provider: {}", exc)
     return None
 
 
@@ -935,7 +935,7 @@ def _dispatch_to_plugin_provider(prompt: str, aspect_ratio: str):
         _ensure_plugins_discovered()
         provider = get_provider(configured)
     except Exception as exc:
-        logger.debug("image_gen plugin dispatch skipped: %s", exc)
+        logger.debug("image_gen plugin dispatch skipped: {}", exc)
         return None
 
     if provider is None:
@@ -946,7 +946,7 @@ def _dispatch_to_plugin_provider(prompt: str, aspect_ratio: str):
             _ensure_plugins_discovered(force=True)
             provider = get_provider(configured)
         except Exception as exc:
-            logger.debug("image_gen plugin force-refresh skipped: %s", exc)
+            logger.debug("image_gen plugin force-refresh skipped: {}", exc)
 
     if provider is None:
         return json.dumps({
@@ -964,7 +964,7 @@ def _dispatch_to_plugin_provider(prompt: str, aspect_ratio: str):
         result = provider.generate(prompt=prompt, aspect_ratio=aspect_ratio)
     except Exception as exc:
         logger.warning(
-            "Image gen provider '%s' raised: %s",
+            "Image gen provider '{}' raised: {}",
             getattr(provider, "name", "?"), exc,
         )
         return json.dumps({

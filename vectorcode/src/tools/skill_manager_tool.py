@@ -33,8 +33,9 @@ Directory layout for user skills:
             └── SKILL.md
 """
 
+from loguru import logger
+
 import json
-import logging
 import os
 import re
 import shutil
@@ -43,7 +44,6 @@ from pathlib import Path
 from vector_constants import get_vector_home, display_vector_home
 from typing import Dict, Any, Optional, Tuple
 
-logger = logging.getLogger(__name__)
 
 # Import security scanner — external hub installs always get scanned;
 # agent-created skills only get scanned when skills.guard_agent_created is on.
@@ -90,10 +90,10 @@ def _security_scan_skill(skill_dir: Path) -> Optional[str]:
             # findings were detected.  Surface as an error so the agent can
             # retry with the flagged content removed.
             report = format_scan_report(result)
-            logger.warning("Agent-created skill blocked (dangerous findings): %s", reason)
+            logger.warning("Agent-created skill blocked (dangerous findings): {}", reason)
             return f"Security scan blocked this skill ({reason}):\n{report}"
     except Exception as e:
-        logger.warning("Security scan failed for %s: %s", skill_dir, e, exc_info=True)
+        logger.opt(exception=True).warning("Security scan failed for {}: {}", skill_dir, e)
     return None
 
 import yaml
@@ -316,7 +316,7 @@ def _atomic_write_text(file_path: Path, content: str, encoding: str = "utf-8") -
         try:
             os.unlink(temp_path)
         except OSError:
-            logger.error("Failed to remove temporary file %s during atomic write", temp_path, exc_info=True)
+            logger.opt(exception=True).error("Failed to remove temporary file {} during atomic write", temp_path)
         raise
 
 
@@ -477,7 +477,7 @@ def _patch_skill(
             from tools.fuzzy_match import format_no_match_hint
             err_msg += format_no_match_hint(match_error, match_count, old_string, content)
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.skill_manager_tool] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.skill_manager_tool] suppressed Exception: {}", _sve)
         return {
             "success": False,
             "error": err_msg,
@@ -698,7 +698,7 @@ def skill_manage(
             from agent.prompt_builder import clear_skills_system_prompt_cache
             clear_skills_system_prompt_cache(clear_snapshot=True)
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.skill_manager_tool] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.skill_manager_tool] suppressed Exception: {}", _sve)
 
     return json.dumps(result, ensure_ascii=False)
 

@@ -26,8 +26,9 @@ returns a 403 at call time and :func:`_enrich_403` maps it to
 actionable guidance the model can relay to the user.
 """
 
+from loguru import logger
+
 import json
-import logging
 import os
 import urllib.error
 import urllib.parse
@@ -36,7 +37,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from tools.registry import registry
 
-logger = logging.getLogger(__name__)
 
 DISCORD_API_BASE = "https://discord.com/api/v10"
 
@@ -94,7 +94,7 @@ def _discord_request(
         try:
             error_body = e.read().decode("utf-8", errors="replace")
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.discord_tool] suppressed Exception: %s", e)
+            logger.debug("[VECTOR][tools.discord_tool] suppressed Exception: {}", e)
         raise DiscordAPIError(e.code, error_body) from e
 
 
@@ -170,7 +170,7 @@ def _detect_capabilities(token: str, *, force: bool = False) -> Dict[str, Any]:
         caps["detected"] = True
     except Exception as exc:  # nosec — detection is best-effort
         logger.info(
-            "Discord capability detection failed (%s); exposing all actions.", exc,
+            "Discord capability detection failed ({}); exposing all actions.", exc,
         )
 
     _capability_cache = caps
@@ -546,7 +546,7 @@ def _load_allowed_actions_config() -> Optional[List[str]]:
         from vector_cli.config import load_config
         cfg = load_config()
     except Exception as exc:
-        logger.debug("discord: could not load config (%s); allowing all actions.", exc)
+        logger.debug("discord: could not load config ({}); allowing all actions.", exc)
         return None
 
     raw = (cfg.get("discord") or {}).get("server_actions")
@@ -559,7 +559,7 @@ def _load_allowed_actions_config() -> Optional[List[str]]:
         names = [str(n).strip() for n in raw if str(n).strip()]
     else:
         logger.warning(
-            "discord.server_actions: unexpected type %s; ignoring.", type(raw).__name__,
+            "discord.server_actions: unexpected type {}; ignoring.", type(raw).__name__,
         )
         return None
 
@@ -567,8 +567,8 @@ def _load_allowed_actions_config() -> Optional[List[str]]:
     invalid = [n for n in names if n not in _ACTIONS]
     if invalid:
         logger.warning(
-            "discord.server_actions: unknown action(s) ignored: %s. "
-            "Known: %s",
+            "discord.server_actions: unknown action(s) ignored: {}. "
+            "Known: {}",
             ", ".join(invalid), ", ".join(_ACTIONS.keys()),
         )
     return valid
@@ -885,12 +885,12 @@ def _run_discord_action(
             auto_archive_duration=auto_archive_duration,
         )
     except DiscordAPIError as e:
-        logger.warning("Discord API error in %s action '%s': %s", tool_label, action, e)
+        logger.warning("Discord API error in {} action '{}': {}", tool_label, action, e)
         if e.status == 403:
             return json.dumps({"error": _enrich_403(action, e.body)})
         return json.dumps({"error": str(e)})
     except Exception as e:
-        logger.exception("Unexpected error in %s action '%s'", tool_label, action)
+        logger.exception("Unexpected error in {} action '{}'", tool_label, action)
         return json.dumps({"error": f"Unexpected error: {e}"})
 
 

@@ -4,7 +4,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import requests
 import uuid
@@ -18,7 +17,6 @@ from tools.environments.modal_utils import (
 )
 from tools.managed_tool_gateway import resolve_managed_tool_gateway
 
-logger = logging.getLogger(__name__)
 
 
 def _request_timeout_env(name: str, default: float) -> float:
@@ -166,7 +164,7 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
                 timeout=60,
             )
         except Exception as exc:
-            logger.warning("Managed Modal cleanup failed: %s", exc)
+            logger.warning("Managed Modal cleanup failed: {}", exc)
         finally:
             self._sandbox_id = None
 
@@ -254,7 +252,7 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
                 timeout=(self._CONNECT_TIMEOUT_SECONDS, self._CANCEL_READ_TIMEOUT_SECONDS),
             )
         except Exception as exc:
-            logger.warning("Managed Modal exec cancel failed: %s", exc)
+            logger.warning("Managed Modal exec cancel failed: {}", exc)
 
     @staticmethod
     def _coerce_number(value: Any, default: float) -> float:
@@ -275,7 +273,7 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
                     return f"{prefix}: {message}"
                 return f"{prefix}: {json.dumps(payload, ensure_ascii=False)}"
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.environments.managed_modal] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.environments.managed_modal] suppressed Exception: {}", _sve)
 
         text = response.text.strip()
         if text:

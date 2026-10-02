@@ -12,7 +12,6 @@ from loguru import logger
 from functools import cache
 from dataclasses import dataclass
 from datetime import timedelta
-import logging
 import math
 import os
 import shlex
@@ -36,7 +35,6 @@ from tools.environments.file_sync import (
     quoted_rm_command,
 )
 
-logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from vercel.sandbox import Resources, Sandbox, SandboxStatus, WriteFile
@@ -51,7 +49,7 @@ def _ensure_vercel_sdk() -> None:
         from tools.lazy_deps import ensure as _lazy_ensure
         _lazy_ensure("terminal.vercel", prompt=False)
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
     except Exception as e:
         raise ImportError(str(e))
 
@@ -118,7 +116,7 @@ def _retry_vercel_call(
             if attempt >= attempts or not _is_transient_vercel_error(exc):
                 raise
             logger.warning(
-                "Vercel: %s failed (%s); retrying %d/%d",
+                "Vercel: {} failed ({}); retrying {}/{}",
                 label,
                 exc,
                 attempt,
@@ -315,8 +313,8 @@ class VercelSandboxEnvironment(BaseEnvironment):
                 )
             except Exception as exc:
                 logger.warning(
-                    "Vercel: failed to restore snapshot %s for task %s; "
-                    "falling back to a fresh sandbox: %s",
+                    "Vercel: failed to restore snapshot {} for task {}; "
+                    "falling back to a fresh sandbox: {}",
                     snapshot_id,
                     self._task_id,
                     exc,
@@ -377,7 +375,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
             )
         except Exception as exc:
             logger.debug(
-                "Vercel: home detection failed for task %s: %s",
+                "Vercel: home detection failed for task {}: {}",
                 self._task_id,
                 exc,
             )
@@ -419,7 +417,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
         try:
             sandbox.client.close()
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: {}", _sve)
 
     def _stop_sandbox(self, sandbox: Sandbox | None) -> None:
         if sandbox is None:
@@ -434,9 +432,9 @@ class VercelSandboxEnvironment(BaseEnvironment):
             try:
                 sandbox.stop()
             except Exception as _sve:
-                logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: {}", _sve)
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: {}", _sve)
 
     def _snapshot_sandbox(self, sandbox: Sandbox) -> str | None:
         if not self._persistent or not self._task_id:
@@ -445,7 +443,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
             snapshot = sandbox.snapshot()
         except Exception as exc:
             logger.warning(
-                "Vercel: filesystem snapshot failed for task %s: %s",
+                "Vercel: filesystem snapshot failed for task {}: {}",
                 self._task_id,
                 exc,
             )
@@ -454,14 +452,14 @@ class VercelSandboxEnvironment(BaseEnvironment):
         snapshot_id = _extract_snapshot_id(snapshot)
         if not snapshot_id:
             logger.warning(
-                "Vercel: filesystem snapshot for task %s did not return a snapshot id",
+                "Vercel: filesystem snapshot for task {} did not return a snapshot id",
                 self._task_id,
             )
             return None
 
         _store_snapshot(self._task_id, snapshot_id)
         logger.info(
-            "Vercel: saved filesystem snapshot %s for task %s",
+            "Vercel: saved filesystem snapshot {} for task {}",
             snapshot_id,
             self._task_id,
         )
@@ -480,7 +478,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
             sandbox.refresh()
         except Exception as exc:
             logger.warning(
-                "Vercel: sandbox refresh failed for task %s: %s; recreating",
+                "Vercel: sandbox refresh failed for task {}: {}; recreating",
                 self._task_id,
                 exc,
             )
@@ -492,7 +490,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
         status = sandbox.status
         if status in _terminal_sandbox_states():
             logger.warning(
-                "Vercel: sandbox entered state %s for task %s; recreating",
+                "Vercel: sandbox entered state {} for task {}; recreating",
                 status,
                 self._task_id,
             )
@@ -579,7 +577,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
                     cwd=self._workspace_root,
                 )
             except Exception as _sve:
-                logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][tools.environments.vercel_sandbox] suppressed Exception: {}", _sve)
 
     def _before_execute(self) -> None:
         with self._lock:
@@ -638,7 +636,7 @@ class VercelSandboxEnvironment(BaseEnvironment):
                     sync_manager.sync_back()
                 except Exception as exc:
                     logger.warning(
-                        "Vercel: sync_back failed for task %s: %s",
+                        "Vercel: sync_back failed for task {}: {}",
                         self._task_id,
                         exc,
                     )

@@ -24,8 +24,9 @@ Design:
 - Frozen snapshot pattern: system prompt is stable, tool responses show live state
 """
 
+from loguru import logger
+
 import json
-import logging
 import os
 import re
 import tempfile
@@ -43,9 +44,8 @@ except ImportError:
     try:
         import msvcrt
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
-logger = logging.getLogger(__name__)
 
 # Where memory files live — resolved dynamically so profile overrides
 # (VECTOR_HOME env var changes) are always respected.  The old module-level
@@ -174,7 +174,7 @@ class MemoryStore:
                     fd.seek(0)
                     msvcrt.locking(fd.fileno(), msvcrt.LK_UNLCK, 1)
                 except (OSError, IOError) as _sve:
-                    logger.warning("[VECTOR][tools.memory_tool] suppressed (OSError, IOError): %s", _sve)
+                    logger.warning("[VECTOR][tools.memory_tool] suppressed (OSError, IOError): {}", _sve)
             fd.close()
 
     @staticmethod
@@ -455,7 +455,7 @@ class MemoryStore:
                 try:
                     os.unlink(tmp_path)
                 except OSError as _sve:
-                    logger.warning("[VECTOR][tools.memory_tool] suppressed OSError: %s", _sve)
+                    logger.warning("[VECTOR][tools.memory_tool] suppressed OSError: {}", _sve)
                 raise
         except (OSError, IOError) as e:
             raise RuntimeError(f"Failed to write memory file {path}: {e}")

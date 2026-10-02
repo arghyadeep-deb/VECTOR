@@ -33,9 +33,10 @@ Configuration in config.yaml::
           client_name: "My Custom Client"       # default: "VectorCode"
 """
 
+from loguru import logger
+
 import asyncio
 import json
-import logging
 import os
 import re
 import socket
@@ -48,7 +49,6 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Lazy imports -- MCP SDK with OAuth support is optional
@@ -138,7 +138,7 @@ def _can_open_browser() -> bool:
         if os.uname().sysname == "Darwin":
             return True
     except AttributeError as _sve:
-        logger.debug("[VECTOR][tools.mcp_oauth] suppressed AttributeError: %s", _sve)
+        logger.debug("[VECTOR][tools.mcp_oauth] suppressed AttributeError: {}", _sve)
     # Linux/other posix: need DISPLAY or WAYLAND_DISPLAY
     if os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"):
         return True
@@ -152,7 +152,7 @@ def _read_json(path: Path) -> dict | None:
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
-        logger.warning("Failed to read %s: %s", path, exc)
+        logger.warning("Failed to read {}: {}", path, exc)
         return None
 
 
@@ -226,11 +226,11 @@ class VectorCodeTokenStorage:
                     implied_expiry = file_mtime + int(data["expires_in"])
                     data["expires_in"] = int(max(implied_expiry - time.time(), 0))
                 except (TypeError, ValueError) as _sve:
-                    logger.debug("[VECTOR][tools.mcp_oauth] suppressed (TypeError, ValueError): %s", _sve)
+                    logger.debug("[VECTOR][tools.mcp_oauth] suppressed (TypeError, ValueError): {}", _sve)
         try:
             return OAuthToken.model_validate(data)
         except (ValueError, TypeError, KeyError) as exc:
-            logger.warning("Corrupt tokens at %s -- ignoring: %s", self._tokens_path(), exc)
+            logger.warning("Corrupt tokens at {} -- ignoring: {}", self._tokens_path(), exc)
             return None
 
     async def set_tokens(self, tokens: "OAuthToken") -> None:
@@ -249,9 +249,9 @@ class VectorCodeTokenStorage:
             except (TypeError, ValueError) as _sve:
                 # Mock tokens or unusual shapes: skip the expires_at write
                 # rather than fail persistence.
-                logger.debug("[VECTOR][tools.mcp_oauth] suppressed (TypeError, ValueError): %s", _sve)
+                logger.debug("[VECTOR][tools.mcp_oauth] suppressed (TypeError, ValueError): {}", _sve)
         _write_json(self._tokens_path(), payload)
-        logger.debug("OAuth tokens saved for %s", self._server_name)
+        logger.debug("OAuth tokens saved for {}", self._server_name)
 
     # -- client info -------------------------------------------------------
 
@@ -262,12 +262,12 @@ class VectorCodeTokenStorage:
         try:
             return OAuthClientInformationFull.model_validate(data)
         except (ValueError, TypeError, KeyError) as exc:
-            logger.warning("Corrupt client info at %s -- ignoring: %s", self._client_info_path(), exc)
+            logger.warning("Corrupt client info at {} -- ignoring: {}", self._client_info_path(), exc)
             return None
 
     async def set_client_info(self, client_info: "OAuthClientInformationFull") -> None:
         _write_json(self._client_info_path(), client_info.model_dump(mode="json", exclude_none=True))
-        logger.debug("OAuth client info saved for %s", self._server_name)
+        logger.debug("OAuth client info saved for {}", self._server_name)
 
     # -- cleanup -----------------------------------------------------------
 
@@ -320,7 +320,7 @@ def _make_callback_handler() -> tuple[type, dict]:
             self.wfile.write(body.encode())
 
         def log_message(self, fmt: str, *args: Any) -> None:
-            logger.debug("OAuth callback: %s", fmt % args)
+            logger.debug("OAuth callback: {}", fmt % args)
 
     return _Handler, result
 
@@ -426,7 +426,7 @@ def remove_oauth_tokens(server_name: str) -> None:
     """Delete stored OAuth tokens and client info for a server."""
     storage = VectorCodeTokenStorage(server_name)
     storage.remove()
-    logger.info("OAuth tokens removed for '%s'", server_name)
+    logger.info("OAuth tokens removed for '{}'", server_name)
 
 
 # ---------------------------------------------------------------------------
@@ -517,7 +517,7 @@ def _maybe_preregister_client(
 
     client_info = OAuthClientInformationFull.model_validate(info_dict)
     _write_json(storage._client_info_path(), client_info.model_dump(mode="json", exclude_none=True))
-    logger.debug("Pre-registered client_id=%s for '%s'", client_id, storage._server_name)
+    logger.debug("Pre-registered client_id={} for '{}'", client_id, storage._server_name)
 
 
 def build_oauth_auth(
@@ -542,7 +542,7 @@ def build_oauth_auth(
     """
     if not _OAUTH_AVAILABLE:
         logger.warning(
-            "MCP OAuth requested for '%s' but SDK auth types are not available. "
+            "MCP OAuth requested for '{}' but SDK auth types are not available. "
             "Install with: pip install 'mcp>=1.26.0'",
             server_name,
         )
@@ -553,7 +553,7 @@ def build_oauth_auth(
 
     if not _is_interactive() and not storage.has_cached_tokens():
         logger.warning(
-            "MCP OAuth for '%s': non-interactive environment and no cached tokens "
+            "MCP OAuth for '{}': non-interactive environment and no cached tokens "
             "found. The OAuth flow requires browser authorization. Run "
             "interactively first to complete the initial authorization, then "
             "cached tokens will be reused.",

@@ -28,6 +28,8 @@ Usage:
         user_prompt="What architectural style is this building?"
     )
 """
+
+from loguru import logger
 # --- Windows console UTF-8 safety (VECTOR codemod) ---
 import sys as _vsys  # noqa: E402
 for _vstream in (_vsys.stdout, _vsys.stderr):
@@ -41,7 +43,6 @@ for _vstream in (_vsys.stdout, _vsys.stderr):
 
 import base64
 import json
-import logging
 import os
 import uuid
 from pathlib import Path
@@ -52,7 +53,6 @@ from agent.auxiliary_client import async_call_llm, extract_content_or_reasoning
 from tools.debug_helpers import DebugSession
 from tools.website_policy import check_website_access
 
-logger = logging.getLogger(__name__)
 
 _debug = DebugSession("vision_tools", env_var="VISION_TOOLS_DEBUG")
 
@@ -65,7 +65,7 @@ def _resolve_download_timeout() -> float:
         try:
             return float(env_val)
         except ValueError as _sve:
-            logger.debug("[VECTOR][tools.vision_tools] suppressed ValueError: %s", _sve)
+            logger.debug("[VECTOR][tools.vision_tools] suppressed ValueError: {}", _sve)
     try:
         from vector_cli.config import load_config
         cfg = load_config()
@@ -73,7 +73,7 @@ def _resolve_download_timeout() -> float:
         if val is not None:
             return float(val)
     except Exception as _sve:
-        logger.debug("[VECTOR][tools.vision_tools] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][tools.vision_tools] suppressed Exception: {}", _sve)
     return 30.0
 
 _VISION_DOWNLOAD_TIMEOUT = _resolve_download_timeout()
@@ -221,16 +221,14 @@ async def _download_image(image_url: str, destination: Path, max_retries: int = 
             last_error = e
             if attempt < max_retries - 1:
                 wait_time = 2 ** (attempt + 1)  # 2s, 4s, 8s
-                logger.warning("Image download failed (attempt %s/%s): %s", attempt + 1, max_retries, str(e)[:50])
-                logger.warning("Retrying in %ss...", wait_time)
+                logger.warning("Image download failed (attempt {}/{}): {}", attempt + 1, max_retries, str(e)[:50])
+                logger.warning("Retrying in {}s...", wait_time)
                 await asyncio.sleep(wait_time)
             else:
-                logger.error(
-                    "Image download failed after %s attempts: %s",
+                logger.opt(exception=True).error(
+                    "Image download failed after {} attempts: {}",
                     max_retries,
-                    str(e)[:100],
-                    exc_info=True,
-                )
+                    str(e)[:100])
     
     if last_error is None:
         raise RuntimeError(
@@ -339,7 +337,7 @@ def _resize_image_for_vision(image_path: Path, mime_type: Optional[str] = None,
             data_url = _image_to_base64_data_url(image_path, mime_type=mime_type)
         return data_url  # caller will raise the size error
 
-    logger.info("Image file is %.1f MB (estimated base64 %.1f MB, limit %.1f MB), auto-resizing...",
+    logger.info("Image file is {} MB (estimated base64 {} MB, limit {} MB), auto-resizing...",
                 file_size / (1024 * 1024), estimated_b64 / (1024 * 1024),
                 max_base64_bytes / (1024 * 1024))
 
@@ -351,7 +349,7 @@ def _resize_image_for_vision(image_path: Path, mime_type: Optional[str] = None,
     try:
         img = Image.open(image_path)
     except Exception as exc:
-        logger.info("Pillow cannot open image for resizing: %s", exc)
+        logger.info("Pillow cannot open image for resizing: {}", exc)
         if data_url is None:
             data_url = _image_to_base64_data_url(image_path, mime_type=mime_type)
         return data_url  # fall through to size-check in caller
@@ -386,7 +384,7 @@ def _resize_image_for_vision(image_path: Path, mime_type: Optional[str] = None,
                 break
             img = img.resize((new_w, new_h), Image.LANCZOS)
             prev_dims = (new_w, new_h)
-            logger.info("Resized to %dx%d (attempt %d)", new_w, new_h, attempt)
+            logger.info("Resized to {}x{} (attempt {})", new_w, new_h, attempt)
 
         for q in quality_steps:
             buf = _io.BytesIO()
@@ -397,7 +395,7 @@ def _resize_image_for_vision(image_path: Path, mime_type: Optional[str] = None,
             encoded = base64.b64encode(buf.getvalue()).decode("ascii")
             candidate = f"data:{out_mime};base64,{encoded}"
             if len(candidate) <= max_base64_bytes:
-                logger.info("Auto-resized image fits: %.1f MB (quality=%s, %dx%d)",
+                logger.info("Auto-resized image fits: {} MB (quality={}, {}x{})",
                             len(candidate) / (1024 * 1024), q,
                             img.width, img.height)
                 return candidate
@@ -405,7 +403,7 @@ def _resize_image_for_vision(image_path: Path, mime_type: Optional[str] = None,
     # If we still can't get it small enough, return the best attempt
     # and let the caller decide
     if candidate is not None:
-        logger.warning("Auto-resize could not fit image under %.1f MB (best: %.1f MB)",
+        logger.warning("Auto-resize could not fit image under {} MB (best: {} MB)",
                        max_base64_bytes / (1024 * 1024), len(candidate) / (1024 * 1024))
         return candidate
 
@@ -474,8 +472,8 @@ async def vision_analyze_tool(
         if is_interrupted():
             return tool_error("Interrupted", success=False)
 
-        logger.info("Analyzing image: %s", image_url[:60])
-        logger.info("User prompt: %s", user_prompt[:100])
+        logger.info("Analyzing image: {}", image_url[:60])
+        logger.info("User prompt: {}", user_prompt[:100])
         
         # Determine if this is a local file path or a remote URL
         # Strip file:// scheme so file URIs resolve as local paths.
@@ -485,7 +483,7 @@ async def vision_analyze_tool(
         local_path = Path(os.path.expanduser(resolved_url))
         if local_path.is_file():
             # Local file path (e.g. from platform image cache) -- skip download
-            logger.info("Using local image file: %s", image_url)
+            logger.info("Using local image file: {}", image_url)
             temp_image_path = local_path
             should_cleanup = False  # Don't delete cached/local files
         elif _validate_image_url(image_url):
@@ -506,7 +504,7 @@ async def vision_analyze_tool(
         # Get image file size for logging
         image_size_bytes = temp_image_path.stat().st_size
         image_size_kb = image_size_bytes / 1024
-        logger.info("Image ready (%.1f KB)", image_size_kb)
+        logger.info("Image ready ({} KB)", image_size_kb)
 
         detected_mime_type = _detect_image_mime_type(temp_image_path)
         if not detected_mime_type:
@@ -517,7 +515,7 @@ async def vision_analyze_tool(
         logger.info("Converting image to base64...")
         image_data_url = _image_to_base64_data_url(temp_image_path, mime_type=detected_mime_type)
         data_size_kb = len(image_data_url) / 1024
-        logger.info("Image converted to base64 (%.1f KB)", data_size_kb)
+        logger.info("Image converted to base64 ({} KB)", data_size_kb)
 
         # Hard limit (20 MB) — no provider accepts payloads this large.
         if len(image_data_url) > _MAX_BASE64_BYTES:
@@ -576,7 +574,7 @@ async def vision_analyze_tool(
             if _vtemp is not None:
                 vision_temperature = float(_vtemp)
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.vision_tools] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.vision_tools] suppressed Exception: {}", _sve)
         call_kwargs = {
             "task": "vision",
             "messages": messages,
@@ -593,8 +591,8 @@ async def vision_analyze_tool(
             if (_is_image_size_error(_api_err)
                     and len(image_data_url) > _RESIZE_TARGET_BYTES):
                 logger.info(
-                    "API rejected image (%.1f MB, likely too large); "
-                    "auto-resizing to ~%.0f MB and retrying...",
+                    "API rejected image ({} MB, likely too large); "
+                    "auto-resizing to ~{:.0f} MB and retrying...",
                     len(image_data_url) / (1024 * 1024),
                     _RESIZE_TARGET_BYTES / (1024 * 1024),
                 )
@@ -616,7 +614,7 @@ async def vision_analyze_tool(
 
         analysis_length = len(analysis)
         
-        logger.info("Image analysis completed (%s characters)", analysis_length)
+        logger.info("Image analysis completed ({} characters)", analysis_length)
         
         # Prepare successful response
         result = {
@@ -635,7 +633,7 @@ async def vision_analyze_tool(
         
     except Exception as e:
         error_msg = f"Error analyzing image: {str(e)}"
-        logger.error("%s", error_msg, exc_info=True)
+        logger.opt(exception=True).error("{}", error_msg)
         
         # Detect vision capability errors — give the model a clear message
         # so it can inform the user instead of a cryptic API error.
@@ -689,9 +687,8 @@ async def vision_analyze_tool(
                 temp_image_path.unlink()
                 logger.debug("Cleaned up temporary image file")
             except Exception as cleanup_error:
-                logger.warning(
-                    "Could not delete temporary file: %s", cleanup_error, exc_info=True
-                )
+                logger.opt(exception=True).warning(
+                    "Could not delete temporary file: {}", cleanup_error)
 
 
 def check_vision_requirements() -> bool:

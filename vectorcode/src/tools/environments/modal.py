@@ -5,10 +5,11 @@ Uses ``Sandbox.create()`` + ``Sandbox.exec()`` instead of the older runtime
 wrapper, while preserving VectorCode' persistent snapshot behavior across sessions.
 """
 
+from loguru import logger
+
 import asyncio
 import base64
 import io
-import logging
 import shlex
 import tarfile
 import threading
@@ -30,7 +31,6 @@ from tools.environments.file_sync import (
     unique_parent_dirs,
 )
 
-logger = logging.getLogger(__name__)
 
 _SNAPSHOT_STORE = get_vector_home() / "modal_snapshots.json"
 _DIRECT_SNAPSHOT_NAMESPACE = "direct"
@@ -182,7 +182,7 @@ class ModalEnvironment(BaseEnvironment):
                 self._task_id
             )
             if restored_snapshot_id:
-                logger.info("Modal: restoring from snapshot %s", restored_snapshot_id[:20])
+                logger.info("Modal: restoring from snapshot {}", restored_snapshot_id[:20])
 
         import modal as _modal
 
@@ -217,7 +217,7 @@ class ModalEnvironment(BaseEnvironment):
                     )
                 )
         except Exception as e:
-            logger.debug("Modal: could not load credential file mounts: %s", e)
+            logger.debug("Modal: could not load credential file mounts: {}", e)
 
         self._worker.start()
 
@@ -248,7 +248,7 @@ class ModalEnvironment(BaseEnvironment):
                 if not restored_snapshot_id:
                     raise
                 logger.warning(
-                    "Modal: failed to restore snapshot %s, retrying with base image: %s",
+                    "Modal: failed to restore snapshot {}, retrying with base image: {}",
                     restored_snapshot_id[:20], exc,
                 )
                 _delete_direct_snapshot(self._task_id, restored_snapshot_id)
@@ -263,7 +263,7 @@ class ModalEnvironment(BaseEnvironment):
             self._worker.stop()
             raise
 
-        logger.info("Modal: sandbox created (task=%s)", self._task_id)
+        logger.info("Modal: sandbox created (task={})", self._task_id)
 
         self._sync_manager = FileSyncManager(
             get_files_fn=lambda: iter_sync_files("/root/.vector"),
@@ -445,16 +445,16 @@ class ModalEnvironment(BaseEnvironment):
                 if snapshot_id:
                     _store_direct_snapshot(self._task_id, snapshot_id)
                     logger.info(
-                        "Modal: saved filesystem snapshot %s for task %s",
+                        "Modal: saved filesystem snapshot {} for task {}",
                         snapshot_id[:20], self._task_id,
                     )
             except Exception as e:
-                logger.warning("Modal: filesystem snapshot failed: %s", e)
+                logger.warning("Modal: filesystem snapshot failed: {}", e)
 
         try:
             self._worker.run_coroutine(self._sandbox.terminate.aio(), timeout=15)
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.environments.modal] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.environments.modal] suppressed Exception: {}", _sve)
         finally:
             self._worker.stop()
             self._sandbox = None

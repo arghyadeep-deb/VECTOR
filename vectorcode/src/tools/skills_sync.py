@@ -22,15 +22,15 @@ Update logic:
 The manifest lives at ~/.vectorcode/skills/.bundled_manifest.
 """
 
+from loguru import logger
+
 import hashlib
-import logging
 import os
 import shutil
 from pathlib import Path
 from vector_constants import get_vector_home
 from typing import Dict, List, Tuple
 
-logger = logging.getLogger(__name__)
 
 
 VECTOR_HOME = get_vector_home()
@@ -104,10 +104,10 @@ def _write_manifest(entries: Dict[str, str]):
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:
-                logger.warning("[VECTOR][tools.skills_sync] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][tools.skills_sync] suppressed OSError: {}", _sve)
             raise
     except Exception as e:
-        logger.debug("Failed to write skills manifest %s: %s", MANIFEST_FILE, e, exc_info=True)
+        logger.opt(exception=True).debug("Failed to write skills manifest {}: {}", MANIFEST_FILE, e)
 
 
 def _read_skill_name(skill_md: Path, fallback: str) -> str:
@@ -170,7 +170,7 @@ def _dir_hash(directory: Path) -> str:
                 hasher.update(str(rel).encode("utf-8"))
                 hasher.update(fpath.read_bytes())
     except (OSError, IOError) as _sve:
-        logger.warning("[VECTOR][tools.skills_sync] suppressed (OSError, IOError): %s", _sve)
+        logger.warning("[VECTOR][tools.skills_sync] suppressed (OSError, IOError): {}", _sve)
     return hasher.hexdigest()
 
 
@@ -304,7 +304,7 @@ def sync_skills(quiet: bool = False) -> dict:
                 dest_desc.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(desc_md, dest_desc)
             except (OSError, IOError) as e:
-                logger.debug("Could not copy %s: %s", desc_md, e)
+                logger.debug("Could not copy {}: {}", desc_md, e)
 
     _write_manifest(manifest)
 

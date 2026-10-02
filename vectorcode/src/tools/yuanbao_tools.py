@@ -19,11 +19,9 @@ accessed via ``get_active_adapter()``.
 from __future__ import annotations
 from loguru import logger
 
-import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
 
 
 def _get_active_adapter():
@@ -429,7 +427,7 @@ def _check_yuanbao():
         if get_session_env("VECTOR_SESSION_PLATFORM", "") == "yuanbao":
             return True
     except Exception as _sve:
-        logger.debug("[VECTOR][tools.yuanbao_tools] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][tools.yuanbao_tools] suppressed Exception: {}", _sve)
     return _get_active_adapter() is not None
 
 
@@ -459,7 +457,7 @@ async def _handle_yb_send_dm(args, **kw):
             if chat_id.startswith("group:"):
                 group_code = chat_id.split(":", 1)[1]
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.yuanbao_tools] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.yuanbao_tools] suppressed Exception: {}", _sve)
 
     # Parse media_files: list of {{"path": str, "is_voice": bool}} → List[Tuple[str, bool]]
     raw_media = args.get("media_files") or []

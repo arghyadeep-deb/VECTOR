@@ -52,7 +52,6 @@ Adding a new backend:
 from __future__ import annotations
 from loguru import logger
 
-import logging
 import os
 import re
 import shutil
@@ -62,7 +61,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -354,9 +352,9 @@ def _venv_pip_install(specs: tuple[str, ...], *, timeout: int = 300) -> _Install
             )
             if r.returncode == 0:
                 return _InstallResult(True, r.stdout or "", r.stderr or "")
-            logger.debug("uv pip install failed: %s", r.stderr)
+            logger.debug("uv pip install failed: {}", r.stderr)
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-            logger.debug("uv invocation failed: %s", e)
+            logger.debug("uv invocation failed: {}", e)
 
     # Tier 2: python -m pip (with ensurepip bootstrap if needed)
     pip_cmd = [sys.executable, "-m", "pip"]
@@ -456,7 +454,7 @@ def ensure(feature: str, *, prompt: bool = True) -> None:
                 feature, missing, "user declined install at prompt"
             )
 
-    logger.info("Lazy-installing %s for feature %r", " ".join(missing), feature)
+    logger.info("Lazy-installing {} for feature {}", " ".join(missing), feature)
     result = _venv_pip_install(missing)
     if not result.success:
         # Surface the actual pip error so the user can debug PyPI-side
@@ -477,7 +475,7 @@ def ensure(feature: str, *, prompt: bool = True) -> None:
         if hasattr(_md, "_cache_clear"):
             _md._cache_clear()  # type: ignore[attr-defined]
     except Exception as _sve:
-        logger.debug("[VECTOR][tools.lazy_deps] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][tools.lazy_deps] suppressed Exception: {}", _sve)
 
     still_missing = feature_missing(feature)
     if still_missing:
@@ -487,7 +485,7 @@ def ensure(feature: str, *, prompt: bool = True) -> None:
             "(may require Python restart)"
         )
 
-    logger.info("Lazy install complete for feature %r", feature)
+    logger.info("Lazy install complete for feature {}", feature)
 
 
 def is_available(feature: str) -> bool:

@@ -26,7 +26,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import tempfile
 from contextlib import contextmanager
@@ -36,7 +35,6 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from vector_constants import get_vector_home
 
-logger = logging.getLogger(__name__)
 
 # fcntl is Unix-only; on Windows use msvcrt for file locking.
 msvcrt = None
@@ -47,7 +45,7 @@ except ImportError:  # pragma: no cover - platform-specific fallback
     try:
         import msvcrt
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
 
 STATE_ACTIVE = "active"
@@ -93,7 +91,7 @@ def _usage_file_lock():
                 fd.seek(0)
                 msvcrt.locking(fd.fileno(), msvcrt.LK_UNLCK, 1)
             except (OSError, IOError) as _sve:
-                logger.warning("[VECTOR][tools.skill_usage] suppressed (OSError, IOError): %s", _sve)
+                logger.warning("[VECTOR][tools.skill_usage] suppressed (OSError, IOError): {}", _sve)
         fd.close()
 
 
@@ -172,7 +170,7 @@ def _read_bundled_manifest_names() -> Set[str]:
             if name:
                 names.add(name)
     except OSError as e:
-        logger.debug("Failed to read bundled manifest: %s", e)
+        logger.debug("Failed to read bundled manifest: {}", e)
     return names
 
 
@@ -210,7 +208,7 @@ def _read_hub_installed_names() -> Set[str]:
                         names.add(_read_skill_name(skill_md, fallback=resolved.name))
                 return names
     except (OSError, json.JSONDecodeError) as e:
-        logger.debug("Failed to read hub lock file: %s", e)
+        logger.debug("Failed to read hub lock file: {}", e)
     return set()
 
 
@@ -326,7 +324,7 @@ def load_usage() -> Dict[str, Dict[str, Any]]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as e:
-        logger.debug("Failed to read %s: %s", path, e)
+        logger.debug("Failed to read {}: {}", path, e)
         return {}
     if not isinstance(data, dict):
         return {}
@@ -356,10 +354,10 @@ def save_usage(data: Dict[str, Dict[str, Any]]) -> None:
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:
-                logger.warning("[VECTOR][tools.skill_usage] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][tools.skill_usage] suppressed OSError: {}", _sve)
             raise
     except Exception as e:
-        logger.debug("Failed to write %s: %s", path, e, exc_info=True)
+        logger.opt(exception=True).debug("Failed to write {}: {}", path, e)
 
 
 def get_record(skill_name: str) -> Dict[str, Any]:
@@ -396,7 +394,7 @@ def _mutate(skill_name: str, mutator) -> None:
             data[skill_name] = rec
             save_usage(data)
     except Exception as e:
-        logger.debug("skill_usage._mutate(%s) failed: %s", skill_name, e, exc_info=True)
+        logger.opt(exception=True).debug("skill_usage._mutate({}) failed: {}", skill_name, e)
 
 
 # ---------------------------------------------------------------------------
@@ -442,7 +440,7 @@ def mark_agent_created(skill_name: str) -> None:
 def set_state(skill_name: str, state: str) -> None:
     """Set lifecycle state. No-op if *state* is invalid."""
     if state not in _VALID_STATES:
-        logger.debug("set_state: invalid state %r for %s", state, skill_name)
+        logger.debug("set_state: invalid state {} for {}", state, skill_name)
         return
     def _apply(rec: Dict[str, Any]) -> None:
         rec["state"] = state
@@ -470,7 +468,7 @@ def forget(skill_name: str) -> None:
                 del data[skill_name]
                 save_usage(data)
     except Exception as e:
-        logger.debug("skill_usage.forget(%s) failed: %s", skill_name, e, exc_info=True)
+        logger.opt(exception=True).debug("skill_usage.forget({}) failed: {}", skill_name, e)
 
 
 # ---------------------------------------------------------------------------

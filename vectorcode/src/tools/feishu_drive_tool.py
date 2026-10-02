@@ -6,13 +6,13 @@ Uses the same lazy-import + BaseRequest pattern as feishu_comment.py.
 The lark client is injected per-thread by the comment event handler.
 """
 
+from loguru import logger
+
 import json
-import logging
 import threading
 
 from tools.registry import registry, tool_error, tool_result
 
-logger = logging.getLogger(__name__)
 
 # Thread-local storage for the lark client injected by feishu_comment handler.
 _local = threading.local()
@@ -74,7 +74,7 @@ def _do_request(client, method, uri, paths=None, queries=None, body=None):
             body_json = json.loads(raw.content)
             data = body_json.get("data", {})
         except (json.JSONDecodeError, AttributeError) as _sve:
-            logger.debug("[VECTOR][tools.feishu_drive_tool] suppressed (json.JSONDecodeError, AttributeError): %s", _sve)
+            logger.debug("[VECTOR][tools.feishu_drive_tool] suppressed (json.JSONDecodeError, AttributeError): {}", _sve)
     if not data:
         resp_data = getattr(response, "data", None)
         if isinstance(resp_data, dict):
