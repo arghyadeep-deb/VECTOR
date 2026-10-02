@@ -1,9 +1,16 @@
-"""BlueBubbles iMessage adapter — connects to local macOS BlueBubbles server."""
+"""BlueBubbles iMessage adapter — connects to local macOS BlueBubbles server.
 
-import logging
+NOTE: a second, separate BlueBubbles implementation exists at
+vectorcode/src/comms/bluebubbles.py (BlueBubblesChannel, registered on
+ChannelRegistry) -- this BlueBubblesBot class has zero real callers
+anywhere (confirmed via repo-wide grep). Same unexplained-duplication
+shape as the owner's jcode/vectorcode question this cycle; flagged, not
+resolved here.
+"""
+
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import httpx
@@ -23,12 +30,20 @@ class BlueBubblesBot:
     async def start(self):
         logger.info(f"BlueBubbles connecting to {self.server_url}")
 
-    async def send(self, chat_guid: str, text: str):
+    async def send(self, chat_guid: str, text: str) -> bool:
         if not _HTTPX:
-            return
-        async with httpx.AsyncClient() as c:
-            await c.post(f"{self.server_url}/api/private/chat/send-message", params={"password": self.password}, json={"chatGuid": chat_guid, "text": text})
+            return False
+        try:
+            async with httpx.AsyncClient() as c:
+                resp = await c.post(
+                    f"{self.server_url}/api/private/chat/send-message",
+                    params={"password": self.password},
+                    json={"chatGuid": chat_guid, "text": text},
+                )
+                return resp.status_code < 300
+        except Exception as e:
+            logger.warning("[VECTOR][bluebubbles_bot] send failed: {}", e)
+            return False
 
     async def stop(self):
-        from loguru import logger
         logger.debug("[VECTOR][bluebubbles_bot] stop called (no-op)")

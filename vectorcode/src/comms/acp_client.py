@@ -3,14 +3,23 @@
 Provides an OpenAI-compatible HTTP API that forwards requests to VectorCode's
 provider router, enabling editor integration (VS Code, JetBrains, etc.) via
 the ACP protocol.
+
+NOTE: this module's ACPServer is a separate, dormant stub -- not VECTOR's
+real, wired ACP server (vectorcode/src/acp/server.py's ACPServer, used by
+cli.py). _get_completion() here never actually calls any provider/router;
+it returns a canned echo response, contradicting this docstring's
+"forwards requests to VectorCode's provider router" claim. Zero real
+callers of this file today (confirmed via repo-wide grep). Flagged for the
+owner alongside the jcode/vectorcode duplication question rather than
+guessed at: either wire this to the real router or retire it in favor of
+acp/server.py.
 """
 
 import json
-import logging
 import uuid
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from aiohttp import web

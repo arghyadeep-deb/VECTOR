@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.comms._abc import (
     BaseChannel,
@@ -13,8 +14,6 @@ from vectorcode.src.comms._abc import (
 )
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
-
-logger = logging.getLogger(__name__)
 
 @ChannelRegistry.register("bluebubbles")
 class BlueBubblesChannel(BaseChannel):
@@ -85,6 +84,12 @@ class BlueBubblesChannel(BaseChannel):
                 "method": "private-api",
             }
 
+            # FLAG FOR OWNER (not changed here): password sent as a URL query
+            # param, same shape as this cycle's other "credentials in URL"
+            # findings -- but BlueBubbles' private-api method documents this
+            # exact ?password= convention with no header alternative, so
+            # unlike those other instances this may be a vendor requirement,
+            # not VECTOR choosing the weaker option. Confirm before changing.
             resp = httpx.post(
                 url,
                 params={"password": self._password},
@@ -95,12 +100,12 @@ class BlueBubblesChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "BlueBubbles API returned status %d",
+                "BlueBubbles API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("BlueBubbles send failed", exc_info=True)
+        except Exception as e:
+            logger.debug("BlueBubbles send failed: {}", e)
             return False
 
     def status(self) -> ChannelStatus:
