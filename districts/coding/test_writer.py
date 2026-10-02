@@ -11,6 +11,12 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
+# write_tests_for_file() reads a caller-supplied path and sends its content
+# into an LLM prompt (_build_llm_prompt) with no confinement at all --
+# reachable via Governor dispatch (run()'s p["file"]). Same bug class fixed
+# in architect_bot.py/bug_hunter.py/code_explorer.py this cycle.
+_ROOT = Path(__file__).resolve().parents[2]
+
 
 class TestWriter(AgentBase):
     """
@@ -92,7 +98,9 @@ class TestWriter(AgentBase):
         Write pytest test file for a given Python source file.
         Generates comprehensive tests using AST analysis and LLM suggestions.
         """
-        source_path = Path(filepath)
+        source_path = Path(filepath).resolve()
+        if not source_path.is_relative_to(_ROOT) or source_path.suffix != ".py":
+            raise ValueError(f"Path outside repo or not .py: {filepath}")
         if not source_path.exists():
             raise FileNotFoundError(f"Source file not found: {filepath}")
 
@@ -316,9 +324,13 @@ Return pytest code only, no explanations.
             import asyncio as _asyncio
             import concurrent.futures as _cf
             from core.inference.provider_client import ProviderClient as _PC
+            from core.loop.context_engine import ContextEngine
             async def _call():
+                # RULE 1: session_hydration_prompt() before every LLM call.
+                hydration = ContextEngine().session_hydration_prompt({"query": prompt})
                 r = await _PC().chat(
-                    messages=[{"role": "user", "content": prompt}],
+                    messages=[{"role": "system", "content": hydration},
+                              {"role": "user", "content": prompt}],
                     model="domain:coding.generation",
                     tier="coding", temperature=0.3, max_tokens=600,
                     caller_id="test_writer",
@@ -382,8 +394,12 @@ Return pytest code only, no explanations.
         from a sync context)."""
         try:
             from core.inference.provider_client import ProviderClient as _PC
+            from core.loop.context_engine import ContextEngine
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": query})
             r = await _PC().chat(
                 messages=[
+                    {"role": "system", "content": hydration},
                     {"role": "system", "content": (
                         "You are TestWriter, VECTOR's pytest test-generation agent. "
                         "You scan the codebase for untested Python files and write "
