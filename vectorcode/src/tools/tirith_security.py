@@ -23,7 +23,6 @@ never blocks.
 
 import hashlib
 import json
-import logging
 import os
 import platform
 import shutil
@@ -35,9 +34,9 @@ import threading
 import time
 import urllib.request
 
-from vector_constants import get_vector_home
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from vector_constants import get_vector_home
 
 _REPO = "sheeki03/tirith"
 
@@ -164,7 +163,7 @@ def _mark_install_failed(reason: str = ""):
         with open(p, "w") as f:
             f.write(reason)
     except OSError as _sve:
-        logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: {}", _sve)
 
 
 def _clear_install_failed():
@@ -172,7 +171,7 @@ def _clear_install_failed():
     try:
         os.unlink(_failure_marker_path())
     except OSError as _sve:
-        logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: {}", _sve)
 
 
 def _vector_bin_dir() -> str:
@@ -247,11 +246,11 @@ def _verify_cosign(checksums_path: str, sig_path: str, cert_path: str) -> bool |
             logger.info("cosign provenance verification passed")
             return True
         else:
-            logger.warning("cosign verification failed (exit %d): %s",
+            logger.warning("cosign verification failed (exit {}): {}",
                           result.returncode, result.stderr.strip())
             return False
     except (OSError, subprocess.TimeoutExpired) as exc:
-        logger.warning("cosign execution failed: %s", exc)
+        logger.warning("cosign execution failed: {}", exc)
         return None
 
 
@@ -266,7 +265,7 @@ def _verify_checksum(archive_path: str, checksums_path: str, archive_name: str) 
                 expected = parts[0]
                 break
     if not expected:
-        logger.warning("No checksum entry for %s", archive_name)
+        logger.warning("No checksum entry for {}", archive_name)
         return False
 
     sha = hashlib.sha256()
@@ -275,7 +274,7 @@ def _verify_checksum(archive_path: str, checksums_path: str, archive_name: str) 
             sha.update(chunk)
     actual = sha.hexdigest()
     if actual != expected:
-        logger.warning("Checksum mismatch: expected %s, got %s", expected, actual)
+        logger.warning("Checksum mismatch: expected {}, got {}", expected, actual)
         return False
     return True
 
@@ -292,7 +291,7 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
 
     target = _detect_target()
     if not target:
-        logger.info("tirith auto-install: unsupported platform %s/%s",
+        logger.info("tirith auto-install: unsupported platform {}/{}",
                      platform.system(), platform.machine())
         return None, "unsupported_platform"
 
@@ -306,7 +305,7 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
         sig_path = os.path.join(tmpdir, "checksums.txt.sig")
         cert_path = os.path.join(tmpdir, "checksums.txt.pem")
 
-        logger.info("tirith not found — downloading latest release for %s...", target)
+        logger.info("tirith not found — downloading latest release for {}...", target)
 
         try:
             _download_file(f"{base_url}/{archive_name}", archive_path)
@@ -326,7 +325,7 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
                 _download_file(f"{base_url}/checksums.txt.sig", sig_path)
                 _download_file(f"{base_url}/checksums.txt.pem", cert_path)
             except Exception as exc:
-                logger.info("cosign artifacts unavailable (%s), proceeding with SHA-256 only", exc)
+                logger.info("cosign artifacts unavailable ({}), proceeding with SHA-256 only", exc)
             else:
                 cosign_result = _verify_cosign(checksums_path, sig_path, cert_path)
                 if cosign_result is True:
@@ -375,12 +374,12 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
                 try:
                     os.unlink(dest)
                 except OSError as _sve:
-                    logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: %s", _sve)
+                    logger.warning("[VECTOR][tools.tirith_security] suppressed OSError: {}", _sve)
                 return None, "cross_device_copy_failed"
         os.chmod(dest, os.stat(dest).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
         verification = "cosign + SHA-256" if cosign_verified else "SHA-256 only"
-        logger.info("tirith installed to %s (%s)", dest, verification)
+        logger.info("tirith installed to {} ({})", dest, verification)
         return dest, ""
 
     finally:
@@ -427,7 +426,7 @@ def _resolve_tirith_path(configured_path: str) -> str:
         if found:
             _resolved_path = found
             return found
-        logger.warning("Configured tirith path %r not found; scanning disabled", configured_path)
+        logger.warning("Configured tirith path {} not found; scanning disabled", configured_path)
         _resolved_path = _INSTALL_FAILED
         _install_failure_reason = "explicit_path_missing"
         return expanded
@@ -648,12 +647,12 @@ def check_command_security(command: str) -> dict:
         )
     except OSError as exc:
         # Covers FileNotFoundError, PermissionError, exec format error
-        logger.warning("tirith spawn failed: %s", exc)
+        logger.warning("tirith spawn failed: {}", exc)
         if fail_open:
             return {"action": "allow", "findings": [], "summary": f"tirith unavailable: {exc}"}
         return {"action": "block", "findings": [], "summary": f"tirith spawn failed (fail-closed): {exc}"}
     except subprocess.TimeoutExpired:
-        logger.warning("tirith timed out after %ds", timeout)
+        logger.warning("tirith timed out after {}s", timeout)
         if fail_open:
             return {"action": "allow", "findings": [], "summary": f"tirith timed out ({timeout}s)"}
         return {"action": "block", "findings": [], "summary": "tirith timed out (fail-closed)"}
@@ -668,7 +667,7 @@ def check_command_security(command: str) -> dict:
         action = "warn"
     else:
         # Unknown exit code — respect fail_open
-        logger.warning("tirith returned unexpected exit code %d", exit_code)
+        logger.warning("tirith returned unexpected exit code {}", exit_code)
         if fail_open:
             return {"action": "allow", "findings": [], "summary": f"tirith exit code {exit_code} (fail-open)"}
         return {"action": "block", "findings": [], "summary": f"tirith exit code {exit_code} (fail-closed)"}
