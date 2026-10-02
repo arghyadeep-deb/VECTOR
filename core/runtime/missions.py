@@ -678,18 +678,20 @@ class MissionPlanAdvisor:
                 from core.inference.ollama_safe import chat as chat_fn
                 _kwargs["caller_id"] = "runtime_missions_planner"
 
+            objective_prompt = (
+                f"Objective: {objective}\n"
+                f"Maximum steps: {max_steps}\n"
+                "Return JSON only, for example: "
+                '{"steps":[{"action_type":"respond","params":{"message":"..."},'
+                '"reason":"why","confidence":0.8}]}'
+            )
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"query": objective_prompt})
             messages = [
+                {"role": "system", "content": hydration},
                 {"role": "system", "content": self.SYSTEM_PROMPT},
-                {
-                    "role": "user",
-                    "content": (
-                        f"Objective: {objective}\n"
-                        f"Maximum steps: {max_steps}\n"
-                        "Return JSON only, for example: "
-                        '{"steps":[{"action_type":"respond","params":{"message":"..."},'
-                        '"reason":"why","confidence":0.8}]}'
-                    ),
-                },
+                {"role": "user", "content": objective_prompt},
             ]
             return str(chat_fn(model=self._model_name(), messages=messages, timeout=20.0, **_kwargs) or "")
         except Exception:
