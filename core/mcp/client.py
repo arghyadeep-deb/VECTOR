@@ -212,8 +212,8 @@ class MCPClient:
             try:
                 await loop.run_in_executor(None, transport.disconnect)
                 logger.debug("[VECTOR][mcp_client] disconnected from {}", name)
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][mcp_client] disconnect from {} failed: {}", name, e)
         self._transports.clear()
         self._tools_cache.clear()
         self._connected = False
