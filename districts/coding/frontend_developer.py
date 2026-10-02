@@ -72,9 +72,18 @@ class FrontendDeveloper(AgentBase):
             f"Return only the component code."
         )
         try:
+            # RULE 1: session_hydration_prompt() before every LLM call --
+            # this call had none at all (core.inference.vectorcode_llm.chat()
+            # does not inject it), same gap fixed in districts/marketing's
+            # amazon_ads_agent.py/attribution_agent.py/sgtm_agent.py.
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"query": prompt})
             code = chat(
                 model=self._model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
                 timeout=30.0,
             )
             return code.strip()
@@ -96,9 +105,15 @@ class FrontendDeveloper(AgentBase):
             "key metrics to show. Keep it minimal and dark-themed."
         )
         try:
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"query": prompt})
             plan = chat(
                 model=self._model,
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
                 timeout=30.0,
             )
             return plan
@@ -135,9 +150,12 @@ class FrontendDeveloper(AgentBase):
                 "components, plan dashboard pages, and check API endpoint health. "
                 "Answer the user's question directly and concisely."
             )
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"query": query})
             answer = chat(
                 model=self._model,
-                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                messages=[{"role": "system", "content": f"{hydration}\n\n{sys_prompt}"}, {"role": "user", "content": query}],
                 timeout=30.0,
             )
             self.award_points(10, "frontend_qa_answered")
