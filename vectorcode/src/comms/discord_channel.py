@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import threading
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.channels._abc import (
     BaseChannel,
@@ -16,7 +17,13 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+# FLAG FOR OWNER, not fixed: connect() spawns a real threading.Thread
+# running its own asyncio event loop for the discord.py gateway listener
+# (CLAUDE.md rule 8 bans threading in favor of asyncio). Same class as
+# comms/gmail.py's _poll_loop() this cycle. Confined to a zero-real-
+# caller dormant channel today; a real fix means restructuring this to
+# run on VECTOR's own event loop via create_task(), an architecture
+# change, not a narrow patch.
 
 @ChannelRegistry.register("discord")
 class DiscordChannel(BaseChannel):
@@ -116,13 +123,13 @@ class DiscordChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Discord API returned status %d: %s",
+                "Discord API returned status {}: {}",
                 resp.status_code,
                 resp.text,
             )
             return False
-        except Exception:
-            logger.debug("Discord send failed", exc_info=True)
+        except Exception as e:
+            logger.debug("Discord send failed: {}", e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -180,8 +187,8 @@ class DiscordChannel(BaseChannel):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(client.start(self._token))
-        except Exception:
-            logger.debug("Discord gateway loop error", exc_info=True)
+        except Exception as e:
+            logger.debug("Discord gateway loop error: {}", e)
             self._status = ChannelStatus.ERROR
 
     def _publish_sent(self, channel: str, content: str, conversation_id: str) -> None:

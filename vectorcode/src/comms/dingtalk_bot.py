@@ -1,9 +1,18 @@
-"""DingTalk adapter — Stream Mode via dingtalk-stream SDK."""
+"""DingTalk adapter — Stream Mode via dingtalk-stream SDK.
 
-import logging
+FLAG FOR OWNER, not fixed: send() is a no-op stub -- it only logs the
+message, it never actually calls anything on self._client to deliver it
+("phantom success" shape, the dominant bug class this audit cycle; same
+as every send() elsewhere actually making a real network/SDK call).
+dingtalk_stream is not installed in this environment and has zero real
+callers of this class anywhere (confirmed via repo-wide grep), so the
+real fix (wiring the actual SDK send call) can't be verified here --
+flagged for whoever activates this channel, not guessed at blindly.
+"""
+
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import dingtalk_stream
