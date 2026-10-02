@@ -19,7 +19,6 @@ Credential search order (matching Copilot CLI behaviour):
 from __future__ import annotations
 
 import json
-import logging
 import os
 import shutil
 import subprocess
@@ -27,7 +26,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # OAuth device code flow constants (same client ID as opencode/Copilot CLI)
 COPILOT_OAUTH_CLIENT_ID = "Ov23li8tweQw6odWQebz"
@@ -77,7 +76,7 @@ def resolve_copilot_token() -> tuple[str, str]:
             valid, msg = validate_copilot_token(val)
             if not valid:
                 logger.warning(
-                    "Token from %s is not supported: %s", env_var, msg
+                    "Token from {} is not supported: {}", env_var, msg
                 )
                 continue
             return val, env_var
@@ -143,7 +142,7 @@ def _try_gh_cli_token() -> Optional[str]:
                 env=clean_env,
             )
         except (FileNotFoundError, subprocess.TimeoutExpired) as exc:
-            logger.debug("gh CLI token lookup failed (%s): %s", gh_path, exc)
+            logger.debug("gh CLI token lookup failed ({}): {}", gh_path, exc)
             continue
         if result.returncode == 0 and result.stdout.strip():
             return result.stdout.strip()
@@ -191,7 +190,7 @@ def copilot_device_code_login(
         with urllib.request.urlopen(req, timeout=15) as resp:
             device_data = json.loads(resp.read().decode())
     except Exception as exc:
-        logger.error("Failed to initiate device authorization: %s", exc)
+        logger.error("Failed to initiate device authorization: {}", exc)
         print(f"  ✗ Failed to start device authorization: {exc}")
         return None
 
@@ -344,7 +343,7 @@ def exchange_copilot_token(raw_token: str, *, timeout: float = 10.0) -> tuple[st
 
     _jwt_cache[fp] = (api_token, expires_at)
     logger.debug(
-        "Copilot token exchanged, expires_at=%s",
+        "Copilot token exchanged, expires_at={}",
         expires_at,
     )
     return api_token, expires_at
@@ -364,7 +363,7 @@ def get_copilot_api_token(raw_token: str) -> str:
         api_token, _ = exchange_copilot_token(raw_token)
         return api_token
     except Exception as exc:
-        logger.debug("Copilot token exchange failed, using raw token: %s", exc)
+        logger.debug("Copilot token exchange failed, using raw token: {}", exc)
         return raw_token
 
 
