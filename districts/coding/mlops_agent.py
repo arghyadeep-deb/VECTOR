@@ -37,6 +37,12 @@ from core.memory.episodic import EpisodicMemory
 from core.loop.permission_gateway import PermissionGateway, Action
 from loguru import logger
 
+# hf_hub()'s upload action confinement: local_path is caller-supplied and
+# reaches HfApi.upload_file() directly (same bar as architect_bot.py's
+# explain_module() fix this cycle -- confine before any file I/O on an
+# externally-controlled path).
+_ROOT = Path(__file__).resolve().parents[2]
+
 # 2026-07-30 audit fix (Phase 6 — vendored integration reachability):
 # districts/coding/vector_mlops/agent/ is this district's vendored HF-agent
 # toolkit. Its own files do bare `from agent.core import X` / `from
@@ -156,6 +162,7 @@ class MLOpsAgent(AgentBase):
         # work if that deeper capability is actually wanted.
         try:
             from core.inference.vectorcode_llm import chat
+            from core.loop.context_engine import ContextEngine
             sys_prompt = (
                 "You are an ML research assistant. Given a research topic, "
                 "summarize the current state of the art: relevant papers/"
@@ -163,9 +170,12 @@ class MLOpsAgent(AgentBase):
                 "pitfalls. Be concrete and technical. If you are not certain "
                 "of a specific citation, say so rather than inventing one."
             )
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": topic})
             answer = chat(
                 model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
-                messages=[{"role": "system", "content": sys_prompt},
+                messages=[{"role": "system", "content": hydration},
+                          {"role": "system", "content": sys_prompt},
                           {"role": "user", "content": topic}],
                 timeout=60.0,
             )
@@ -292,8 +302,12 @@ class MLOpsAgent(AgentBase):
                     return {"status": "ok", "action": "list", "repo_id": repo_id,
                             "files": list(files)}
                 elif action == "upload" and local_path and path_in_repo:
+                    resolved = Path(local_path).resolve()
+                    if not resolved.is_relative_to(_ROOT):
+                        return {"status": "error",
+                                "error": f"local_path outside repo root: {local_path}"}
                     api.upload_file(
-                        path_or_fileobj=local_path,
+                        path_or_fileobj=str(resolved),
                         path_in_repo=path_in_repo,
                         repo_id=repo_id,
                     )
@@ -425,18 +439,22 @@ class MLOpsAgent(AgentBase):
             grounding = research.get("result", "") if research.get("status") == "ok" else ""
 
             from core.inference.vectorcode_llm import chat
+            from core.loop.context_engine import ContextEngine
+            user_content = f"Goal: {goal}"
+            if grounding:
+                user_content += f"\n\nResearch grounding:\n{grounding}"
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": user_content})
             sys_prompt = (
                 "You are an ML engineering planner. Given a goal and optional "
                 "research grounding, produce a concrete, numbered, multi-step "
                 "engineering plan (data, model, training, evaluation, "
                 "deployment as relevant). Be specific and actionable."
             )
-            user_content = f"Goal: {goal}"
-            if grounding:
-                user_content += f"\n\nResearch grounding:\n{grounding}"
             plan_text = chat(
                 model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
-                messages=[{"role": "system", "content": sys_prompt},
+                messages=[{"role": "system", "content": hydration},
+                          {"role": "system", "content": sys_prompt},
                           {"role": "user", "content": user_content}],
                 timeout=60.0,
             )
@@ -455,6 +473,7 @@ class MLOpsAgent(AgentBase):
         API-key-backed) ml_research sub-agent or any HF Hub/Jobs action."""
         try:
             from core.inference.vectorcode_llm import chat
+            from core.loop.context_engine import ContextEngine
             sys_prompt = (
                 "You are MLOpsAgent, VECTOR's autonomous ML engineering agent. "
                 "You do HF Papers research, submit HF Jobs training runs, inspect "
@@ -462,9 +481,13 @@ class MLOpsAgent(AgentBase):
                 "create multi-step ML engineering plans. Answer the user's "
                 "question directly and concisely."
             )
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": query})
             answer = chat(
                 model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
-                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                messages=[{"role": "system", "content": hydration},
+                          {"role": "system", "content": sys_prompt},
+                          {"role": "user", "content": query}],
                 timeout=30.0,
             )
             return {"status": "ok", "response": answer or "", "agent": self.name}
