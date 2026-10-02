@@ -17,12 +17,10 @@ import io
 import os
 import sys
 import time
-import logging
 from typing import Optional, Tuple
 
-import requests
-
-logger = logging.getLogger(__name__)
+import httpx
+from loguru import logger
 
 # ── Configuration ──────────────────────────────────────────────────────────
 
@@ -43,10 +41,10 @@ def _api_post(path: str, payload: dict) -> dict:
     """POST to the registration API and return the parsed JSON body."""
     url = f"{REGISTRATION_BASE_URL}{path}"
     try:
-        resp = requests.post(url, json=payload, timeout=15)
+        resp = httpx.post(url, json=payload, timeout=15)
         resp.raise_for_status()
         data = resp.json()
-    except requests.RequestException as exc:
+    except httpx.HTTPError as exc:
         raise RegistrationError(f"Network error calling {url}: {exc}") from exc
 
     errcode = data.get("errcode", -1)
@@ -159,8 +157,8 @@ def _ensure_qrcode_installed() -> bool:
     try:
         import qrcode  # noqa: F401
         return True
-    except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    except ImportError as exc:
+        logger.debug("qrcode not installed, will attempt auto-install: {}", exc)
 
     import subprocess
 

@@ -15,11 +15,11 @@ import pytest
 class TestApiPost:
 
     def test_raises_on_network_error(self):
-        import requests
+        import httpx
         from vector_cli.dingtalk_auth import _api_post, RegistrationError
 
-        with patch("vector_cli.dingtalk_auth.requests.post",
-                   side_effect=requests.ConnectionError("nope")):
+        with patch("vector_cli.dingtalk_auth.httpx.post",
+                   side_effect=httpx.ConnectError("nope")):
             with pytest.raises(RegistrationError, match="Network error"):
                 _api_post("/app/registration/init", {"source": "vector"})
 
@@ -30,7 +30,7 @@ class TestApiPost:
         mock_resp.raise_for_status = MagicMock()
         mock_resp.json.return_value = {"errcode": 42, "errmsg": "boom"}
 
-        with patch("vector_cli.dingtalk_auth.requests.post", return_value=mock_resp):
+        with patch("vector_cli.dingtalk_auth.httpx.post", return_value=mock_resp):
             with pytest.raises(RegistrationError, match=r"boom \(errcode=42\)"):
                 _api_post("/app/registration/init", {"source": "vector"})
 
@@ -41,7 +41,7 @@ class TestApiPost:
         mock_resp.raise_for_status = MagicMock()
         mock_resp.json.return_value = {"errcode": 0, "nonce": "abc"}
 
-        with patch("vector_cli.dingtalk_auth.requests.post", return_value=mock_resp):
+        with patch("vector_cli.dingtalk_auth.httpx.post", return_value=mock_resp):
             result = _api_post("/app/registration/init", {"source": "vector"})
             assert result["nonce"] == "abc"
 
