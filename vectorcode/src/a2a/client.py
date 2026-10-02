@@ -18,7 +18,20 @@ class A2AClient:
     sends tasks via /a2a/tasks.
     """
 
-    def __init__(self, base_url: str, *, timeout: float = 30.0) -> None:
+    def __init__(self, base_url: str, *, timeout: float = 30.0, allow_private: bool = False) -> None:
+        # base_url is caller-supplied and every method below makes a real
+        # outbound httpx call to it -- an SSRF primitive with zero
+        # confinement before this fix (same class of gap fixed in
+        # core/browser/ and core/vision_control/browser_controller.py this
+        # cycle). allow_private defaults to False (same convention as
+        # SSRFGuard's own flag and browser_controller.py's
+        # allow_private_navigation) since a legitimate local/LAN-deployed
+        # A2A agent is a real, plausible use case for this client,
+        # unlike an arbitrary-page navigator.
+        from core.security.ssrf_guard import SSRFGuard
+        result = SSRFGuard(resolve_dns=True, allow_private=allow_private).check_url(base_url)
+        if not result.safe:
+            raise ValueError(f"A2AClient base_url blocked by SSRF guard: {result.reason}")
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._card: Optional[AgentCard] = None

@@ -7,14 +7,13 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any
+
+from loguru import logger
 
 from vectorcode.src.a2a.client import A2AClient
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
-
-logger = logging.getLogger(__name__)
 
 class A2AAgentTool(BaseTool):
     """Wraps an external A2A agent as a BaseTool.
@@ -36,7 +35,7 @@ class A2AAgentTool(BaseTool):
                 self.tool_id = self._name
             self._description = card.description or f"External A2A agent: {card.name}"
         except Exception as exc:
-            logger.debug("Failed to fetch A2A agent description: %s", exc)
+            logger.debug("[VECTOR][a2a] Failed to fetch A2A agent description: {}", exc)
             self._description = "External A2A agent"
 
     @property
