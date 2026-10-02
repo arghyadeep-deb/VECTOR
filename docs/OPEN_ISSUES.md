@@ -1860,6 +1860,86 @@ grew open engineering items; section 0 lists them.
     Commit: `5c4c904dd`.
     `core/avatar/`, `core/cloud/`, `core/knowledge/` are now COMPLETE.
 
+36. **Mop-up slice, 2026-10-02 — `core/vision_control/` (2 remaining files) +
+    `core/stealth_browser/` (4 remaining files) + `core/scheduler/` (3 files) +
+    `core/metering/` (2 remaining files) + `core/ui/` (4 files) — ALL COMPLETE.**
+    Collected the small leftovers several prior forks didn't reach, ~4,267 lines total.
+    **Most significant finding: `core/ui/web_ui.py`'s `/ui/ws/chat` WebSocket had ZERO
+    authentication.** `auth_middleware` is registered via `app.middleware("http")` —
+    Starlette's HTTP-scope middleware does not run for websocket-scope connections — so
+    any network client could connect with no key at all, drive a real LLM call
+    (`caller_id="web_ui_ws_chat"`, real inference cost), and trigger an episodic-memory
+    write, regardless of whether `VECTOR_API_KEY` was configured. Identical bug class
+    already fixed in `core/api/routers/notifications.py` this cycle; `voice_ws.py`
+    already did this correctly. Fixed by calling the same canonical
+    `require_auth_handshake()` right after `accept()`. New
+    `tests/test_web_ui_ws_chat_authorization.py` (3 tests, source-ordering checks, same
+    approach as `test_notifications_ws_authorization.py`). Also 4 more
+    "[VECTOR] suppressed exception (degraded mode)" placeholders fixed in the same file
+    (loguru's `exc_info=True` doesn't capture the real exception; the `WebSocketDisconnect`
+    handler specifically downgraded from a scary warning to a plain debug log, since a
+    client disconnecting is routine, not an error). Commit `088285115`.
+    **`core/stealth_browser/`: a real argument-injection RCE in `transcripts.py`** —
+    `_extract_via_ytdlp()` passed a caller-supplied `url` (reachable via Governor dispatch,
+    `districts/research/stealth_scout_agent.py`'s `youtube_transcript` action, zero
+    validation) as a bare positional argv to `yt-dlp`. `_is_youtube_url()`'s `re.search()`
+    only checks substring presence anywhere in the string, so a value like
+    `"--exec=<cmd> #youtube.com"` passes that gate AND starts with `-` — `yt-dlp`'s real
+    `--exec` flag runs an arbitrary shell command after "download" (genuine RCE), same
+    argument-injection shape fixed 25+ times elsewhere this cycle. Fixed with a leading-`-`
+    rejection plus a `--` separator as defense in depth. Also fixed the `__aexit__` bug in
+    `server_manager.py` (unconditionally raised `NotImplementedError` referencing a
+    subclass that doesn't exist anywhere in the repo, contradicting the module's own
+    documented direct-context-manager usage) and 3 more placeholder-logging instances
+    across `client.py`/`transcripts.py`/`server_manager.py`. Investigated and ruled out,
+    not a bug: `macros.py`'s `use_server_macro=True` path interpolates the raw query with
+    no Python-side encoding (inconsistent with the `False` path) — confirmed the Node-side
+    consumer (`core/stealth_browser/server/lib/macros.js`) applies `encodeURIComponent()`
+    before building the real URL regardless, so this is a style inconsistency, not a
+    vulnerability; `client.py`'s `navigate()` forwards the URL to a separate server
+    process rather than fetching it itself, so it's not an SSRF vector the same way
+    `core/browser/`'s fixes were. New
+    `tests/test_stealth_browser_transcripts_argv_injection.py` (3 tests). Commits
+    `683e88487`, plus the earlier `f4abc78bf`/`e6b9c1e86`/`ab09a4a34` batch from the same
+    resumed slice (browser_controller.py SSRF+hydration fix with a new
+    `allow_private_navigation` constructor flag so `tests/test_browser_task_evidence.py`'s
+    own real local test server keeps working without weakening the real default;
+    `core/errors.py`'s `MemoryError`-shadows-the-builtin rename; the same `__aexit__`
+    finding — see those commits for full detail).
+    **`core/scheduler/`: one real wiring-gap flag, not fixed.** `tools.py` registers 5
+    MCP tools (`schedule_task`/`list_scheduled_tasks`/`pause_scheduled_task`/
+    `resume_scheduled_task`/`cancel_scheduled_task`), each correctly guarding
+    `self._scheduler is None` before acting — but `_scheduler` is a class attribute never
+    assigned anywhere in the repo (confirmed via repo-wide grep), so every one of these
+    tools is permanently non-functional today. Not a narrow patch (needs an owner decision
+    on which real `TaskScheduler` instance to inject and how), flagged rather than guessed.
+    `store.py`/`__init__.py` read clean beyond the already-known `scheduler.py`-sibling
+    sqlite flag (not re-flagged).
+    **`core/vision_control/`, `core/metering/`: both clean, no new issues.**
+    `action_parser.py` (pure text parser, no I/O) and `__init__.py` read clean.
+    `inference_observability.py` (dense, carefully self-documented) read clean — explicitly
+    privacy-preserving by design (no prompt/response content logged), so its raw
+    `sqlite3.connect()` on a dedicated non-sensitive telemetry DB is an acceptable,
+    deliberate pattern, not a new finding.
+    Also `core/ui/chat.py`: 2 more of the same placeholder-logging instances (terminal-
+    only, owner-operated, no auth/injection concerns there). Commit `30a697fdb`.
+    This completes `core/vision_control/`, `core/stealth_browser/`, `core/scheduler/`,
+    `core/metering/`, `core/ui/` specifically. **Correction, do not overclaim:** a sibling
+    fork's slice (the 14 tiny `core/` subdirs + root-level files — `swarm`/`science`/
+    `migration`/`mcp`/`experiments`/`audit`/`services`/`causal`/`communications`/
+    `monitoring`/`integrations`/`models`/`utils`/`queue` + `config.py`/`mcp_server.py`/
+    `mcp_server_stdio.py`/`notify.py`/`prompt_library.py`/`repo_hygiene.py`/
+    `runtime_paths.py`/`api_manager.py`/`brain_hooks/`) was still actively in progress as
+    this entry was written (observed mid-edit, uncommitted, on `core/migration/
+    importer.py` — correctly left untouched, not this fork's scope). Real progress
+    confirmed via its own commits so far: `config.py`+`mcp_server.py` (`cb07cb70f`),
+    `brain_hooks`+`api_manager.py`+`mcp_server_stdio.py` (`c3767cbd5`),
+    `communications/hub.py` (`d7d28574d`), plus an unrelated bonus find in
+    `core/api/routers/investment.py` (`94fdff611`, a US ET hardcoded-offset bug wrong
+    ~5 months/year — outside its declared scope but found and fixed anyway). **Do NOT
+    claim all of `core/` is deep-verified until that slice's own completion is confirmed
+    — check its final report/commits before relying on this file's own claim above.**
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
