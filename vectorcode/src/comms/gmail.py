@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import base64
-import logging
 import os
 import threading
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.comms._abc import (
     BaseChannel,
@@ -17,8 +18,6 @@ from vectorcode.src.comms._abc import (
 )
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
-
-logger = logging.getLogger(__name__)
 
 @ChannelRegistry.register("gmail")
 class GmailChannel(BaseChannel):
@@ -134,7 +133,7 @@ class GmailChannel(BaseChannel):
             )
             self._status = ChannelStatus.ERROR
         except Exception:
-            logger.debug("Gmail connect failed", exc_info=True)
+            logger.opt(exception=True).debug("Gmail connect failed")
             self._status = ChannelStatus.ERROR
 
     def disconnect(self) -> None:
@@ -186,7 +185,7 @@ class GmailChannel(BaseChannel):
             self._publish_sent(channel, content, conversation_id)
             return True
         except Exception:
-            logger.debug("Gmail send failed", exc_info=True)
+            logger.opt(exception=True).debug("Gmail send failed")
             return False
 
     def status(self) -> ChannelStatus:
@@ -263,7 +262,7 @@ class GmailChannel(BaseChannel):
                         try:
                             handler(cm)
                         except Exception:
-                            logger.exception("Gmail handler error")
+                            logger.opt(exception=True).error("Gmail handler error")
 
                     if self._bus is not None:
                         self._bus.publish(
@@ -284,7 +283,7 @@ class GmailChannel(BaseChannel):
                     ).execute()
 
             except Exception:
-                logger.debug("Gmail poll error", exc_info=True)
+                logger.opt(exception=True).debug("Gmail poll error")
 
             self._stop_event.wait(self._poll_interval)
 
