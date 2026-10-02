@@ -162,9 +162,15 @@ class GenericSwarm(AgentBase):
 
     async def _fallback(self, task_type: str, params: dict[str, Any]) -> dict[str, Any]:
         from core.inference.vectorcode_llm import chat
+        from core.loop.context_engine import ContextEngine
         query = params.get("query", params.get("prompt", f"{self._district}: {task_type}"))
         context = params.get("context", "")
-        messages = [{"role": "system", "content": f"You are {self._district.title()}Swarm. No specialist for '{task_type}'."}]
+        # RULE 1: session_hydration_prompt() before every LLM call.
+        hydration = ContextEngine().session_hydration_prompt({"query": query})
+        messages = [
+            {"role": "system", "content": hydration},
+            {"role": "system", "content": f"You are {self._district.title()}Swarm. No specialist for '{task_type}'."},
+        ]
         if context:
             messages.append({"role": "user", "content": f"[Context]\n{context}"})
         messages.append({"role": "user", "content": query})
