@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import Any, Dict, List, Optional
 
 from vectorcode.src.channels._abc import (
@@ -13,7 +13,6 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
 
 try:
     from core.engine.webhook.hmac_signer import WebhookSigner as _Signer
@@ -82,6 +81,12 @@ class WebhookChannel(BaseChannel):
         """POST a JSON payload to the configured webhook URL."""
         if not self._url:
             logger.warning("Cannot send: no webhook URL configured")
+            return False
+
+        from core.security.ssrf_guard import SSRFGuard
+        guard_result = SSRFGuard(resolve_dns=True).check_url(self._url)
+        if not guard_result.safe:
+            logger.warning("Webhook send blocked by SSRF guard: {}", guard_result.reason)
             return False
 
         try:
