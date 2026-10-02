@@ -16,6 +16,11 @@ from loguru import logger
 from core.city.agent_base import AgentBase
 from core.config import CONFIG
 
+# Same confinement pattern as code_reviewer.py's/architect_bot.py's/
+# bug_hunter.py's/code_explorer.py's/minimal_change_engineer.py's fixes
+# this cycle: run()'s filename-read branch had no confinement at all.
+_ROOT = Path(__file__).resolve().parents[2]
+
 # FastAPI-specific static pattern checks: (pattern, severity, message)
 _FASTAPI_BANNED = [
     # Sync route handlers in FastAPI are a blocking anti-pattern for I/O-bound routes
@@ -307,7 +312,10 @@ class FastAPIReviewer(AgentBase):
         context = params.get("context", "")
         if not code and filename:
             try:
-                code = Path(filename).read_text(encoding="utf-8", errors="replace")
+                fpath = Path(filename).resolve()
+                if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+                    return {"agent": self.name, "error": f"Cannot read file: path outside repo or not a .py file", "issues": [], "issue_count": 0}
+                code = fpath.read_text(encoding="utf-8", errors="replace")
             except Exception as e:
                 return {"agent": self.name, "error": f"Cannot read file: {e}", "issues": [], "issue_count": 0}
         if not code:

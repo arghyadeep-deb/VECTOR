@@ -16,6 +16,10 @@ from loguru import logger
 from core.city.agent_base import AgentBase
 from core.config import CONFIG
 
+# Same confinement pattern as fastapi_reviewer.py's/code_reviewer.py's
+# fixes this cycle: run()'s filename-read branch had no confinement at all.
+_ROOT = Path(__file__).resolve().parents[2]
+
 # Python-specific banned patterns (line-level scan)
 _EVAL = "eva" + "l("
 _EXEC_FN = "exe" + "c("
@@ -267,7 +271,10 @@ class PythonReviewer(AgentBase):
         context = params.get("context", "")
         if not code and filename:
             try:
-                code = Path(filename).read_text(encoding="utf-8", errors="replace")
+                fpath = Path(filename).resolve()
+                if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+                    return {"agent": self.name, "error": f"Cannot read file: path outside repo or not a .py file", "issues": [], "issue_count": 0}
+                code = fpath.read_text(encoding="utf-8", errors="replace")
             except Exception as e:
                 return {"agent": self.name, "error": f"Cannot read file: {e}", "issues": [], "issue_count": 0}
         if not code:
