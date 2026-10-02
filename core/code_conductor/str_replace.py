@@ -292,10 +292,16 @@ def read_files(
     skipped: list[str] = []
 
     for file_path in paths:
-        p = Path(file_path)
-        if cwd and not p.is_absolute():
-            p = Path(cwd) / p
-        p = p.resolve()
+        # 2026-10-02 (Phase 3 audit): unlike str_replace()/write_file(), this
+        # never called _contained_path() -- an absolute path (or a relative
+        # one escaping via "..") was read with NO confinement at all, even
+        # when a cwd workspace was given. Same real-world input source as
+        # the 2026-09-26 str_replace()/write_file() fix (an LLM plan), same
+        # fix reused for consistency.
+        p, refusal = _contained_path(file_path, cwd)
+        if p is None:
+            skipped.append(f"{file_path} ({refusal})")
+            continue
 
         if not p.exists():
             skipped.append(f"{file_path} (not found)")

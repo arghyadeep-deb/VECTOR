@@ -210,13 +210,22 @@ class CodeConductorAgent(AgentBase):
         elif action == "read_files":
             return read_files(
                 paths=p.get("paths", []),
-                cwd=p.get("cwd", self._cwd),
+                # 2026-10-02: p.get("cwd", self._cwd) only falls back to
+                # self._cwd when the "cwd" key is ABSENT -- a caller-supplied
+                # {"cwd": null} (or "") in the task JSON passed through as a
+                # real None/empty cwd, which read_files()/write_file()'s
+                # shared _contained_path() helper treats as "no workspace to
+                # enforce" (a documented tradeoff for a caller that genuinely
+                # has none) -- disabling confinement entirely instead of
+                # falling back to the real configured repo path. Same `or`
+                # pattern do_str_replace()/code_conduct() already use below.
+                cwd=p.get("cwd") or self._cwd,
             )
         elif action == "write_file":
             return write_file(
                 file_path=p.get("file", p.get("path", "")),
                 content=p.get("content", ""),
-                cwd=p.get("cwd", self._cwd),
+                cwd=p.get("cwd") or self._cwd,
             )
 
         query = (
@@ -252,12 +261,20 @@ if __name__ == "__main__":
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
             f.write("x = 1\n")
             tmp = f.name
+        # 2026-10-02: no explicit cwd here used to fall through to
+        # do_str_replace()'s `cwd or self._cwd` default -- self._cwd is the
+        # agent's configured repo path, which does NOT contain this tempfile
+        # (it lives in the system temp dir), so _contained_path() correctly
+        # refused it as outside the workspace (the 2026-09-26 confinement
+        # fix working as intended) and this smoke test always failed its own
+        # assertion. Pass the tempfile's own directory as cwd, matching how
+        # a real caller scopes a workspace to where its target file lives.
         r = await agent.run({"params": {
-            "action": "str_replace", "file": tmp,
+            "action": "str_replace", "file": tmp, "cwd": os.path.dirname(tmp),
             "old_str": "x = 1", "new_str": "x = 42",
         }})
         assert r["status"] == "ok"
-        import os; os.unlink(tmp)
+        os.unlink(tmp)
 
         print(f"OK code_conductor_agent.py HP={agent.health_points}")
         print(f"  code_map: {result['files_indexed']} files, {result['symbols']} symbols")
