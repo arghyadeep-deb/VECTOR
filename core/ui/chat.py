@@ -391,8 +391,8 @@ def _chat_with_vector(user_input: str, history: list[dict], console: "Console") 
             tags=["chat", "terminal"],
             source="terminal_ui",
         )
-    except Exception:
-        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+    except Exception as e:
+        logger.warning("[VECTOR][chat] failed to store episodic memory: {}", e)
 
     return response
 
@@ -412,8 +412,8 @@ def run_chat() -> None:
         def _bg_notify(msg: str) -> None:
             console.print(f"\n[bold green]{msg}[/bold green]")
         TaskQueue.get().set_terminal_notify(_bg_notify)
-    except Exception:
-        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+    except Exception as e:
+        logger.warning("[VECTOR][chat] failed to wire terminal notify into TaskQueue: {}", e)
 
     history: list[dict] = []
 
