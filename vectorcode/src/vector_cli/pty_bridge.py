@@ -190,7 +190,7 @@ class PtyBridge:
         try:
             fcntl.ioctl(self._fd, termios.TIOCSWINSZ, winsize)
         except OSError as _sve:
-            logger.warning("[VECTOR][vector_cli.pty_bridge] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][vector_cli.pty_bridge] resize failed: {}", _sve)
 
     # -- teardown ---------------------------------------------------------
 
@@ -212,7 +212,7 @@ class PtyBridge:
             try:
                 self._proc.kill(sig)
             except Exception as _sve:
-                logger.debug("[VECTOR][vector_cli.pty_bridge] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][vector_cli.pty_bridge] kill({}) failed: {}", sig, _sve)
             deadline = time.monotonic() + 0.5
             while self._proc.isalive() and time.monotonic() < deadline:
                 time.sleep(0.02)
@@ -220,7 +220,7 @@ class PtyBridge:
         try:
             self._proc.close(force=True)
         except Exception as _sve:
-            logger.debug("[VECTOR][vector_cli.pty_bridge] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][vector_cli.pty_bridge] close() failed: {}", _sve)
 
     # Context-manager sugar — handy in tests and ad-hoc scripts.
     def __enter__(self) -> "PtyBridge":
