@@ -6,6 +6,10 @@ __all__ = [
 
 import imaplib
 import email as email_lib
+import email.message  # noqa: F401 -- binds email.message so email_lib.message.Message
+                       # resolves standalone; relying on some OTHER import to have
+                       # already pulled this in made this module crash with
+                       # AttributeError when run first/alone (confirmed via git stash).
 from email.header import decode_header
 from email.utils import parsedate_to_datetime
 from dataclasses import dataclass
@@ -105,12 +109,21 @@ def fetch_new_emails(since: Optional[datetime] = None, limit: int = 25) -> list[
                 logger.debug(f"[VECTOR][email_receiver] failed to parse message {mid}: {e}")
                 continue
 
+            references = msg.get("References", "")
+            # `or` binds tighter than the ternary, so the obvious-looking
+            # "In-Reply-To or (last reference if References else None)"
+            # actually parsed as "(In-Reply-To or last-reference) if
+            # References else None" -- discarding a genuinely present
+            # In-Reply-To whenever References was simply absent (a common
+            # case: not every client sets References on a first reply).
+            thread_id = msg.get("In-Reply-To") or (references.split()[-1] if references else None)
+
             fetched.append(FetchedEmail(
                 message_id=msg.get("Message-ID", mid.decode()),
                 sender=msg.get("From", ""),
                 subject=_decode_subject(msg.get("Subject", "")),
                 body=_extract_text_body(msg),
-                thread_id=msg.get("In-Reply-To") or msg.get("References", "").split()[-1] if msg.get("References") else None,
+                thread_id=thread_id,
                 raw_headers=str(msg.items()),
                 date=_parse_date(msg),
             ))
