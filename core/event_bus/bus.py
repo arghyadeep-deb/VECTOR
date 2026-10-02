@@ -123,6 +123,14 @@ class AsyncEventBus(EventBus):
             del self._tasks[sub_id]
         self._rate_limiters.pop(sub_id, None)
         self._circuit_breakers.pop(sub_id, None)
+        # The queue created for this subscriber in _get_or_create_queue()
+        # (keyed by sub_id, never changes after creation) was never removed
+        # here -- every subscribe/unsubscribe cycle (e.g. one per WebSocket
+        # connection in core/api/routers/notifications.py+websocket.py)
+        # leaked a stale asyncio.Queue entry forever.
+        queue_key = f"{sub_id}:{subscription.event_type.value if subscription.event_type else '*'}"
+        self._queues.pop(queue_key, None)
+        self._dead_letters.pop(queue_key, None)
         logger.debug("[AsyncEventBus] subscriber {} unsubscribed", sub_id[:8])
 
     async def _consumer_loop(self, subscription: Subscription) -> None:
@@ -178,7 +186,25 @@ class AsyncEventBus(EventBus):
         try:
             result = handler(message)
             if asyncio.iscoroutine(result):
-                asyncio.ensure_future(result)
+                # asyncio.ensure_future(result) alone fires-and-forgets --
+                # any exception raised inside the coroutine is never
+                # retrieved, silently dropped (the classic asyncio "Task
+                # exception was never retrieved" gotcha), unlike the sync
+                # handler path below which logs via except Exception.
+                # Attach a done-callback so an async handler's failure is
+                # visible the same way.
+                task = asyncio.ensure_future(result)
+                recipient = message.recipient
+
+                def _log_if_failed(t: asyncio.Task, recipient: str = recipient) -> None:
+                    if t.cancelled():
+                        return
+                    exc = t.exception()
+                    if exc is not None:
+                        logger.error("[AsyncEventBus] async direct handler error for agent {}: {}",
+                                     recipient[:8], exc)
+
+                task.add_done_callback(_log_if_failed)
             self._direct_messages_sent += 1
             return True
         except Exception as exc:
