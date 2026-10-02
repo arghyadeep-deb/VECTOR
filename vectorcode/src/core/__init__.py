@@ -6,5 +6,5 @@ from loguru import logger
 from vectorcode.src.vc_core import *  # noqa: F401, F403
 try:
     from vectorcode.src.core import config  # noqa: F401
-except ImportError:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+except ImportError as e:
+    logger.debug("[VECTOR][core] config shim import failed: {}", e)
