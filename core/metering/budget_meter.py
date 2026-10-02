@@ -176,7 +176,14 @@ class BudgetMeter:
             if budget.monthly_spent >= budget.monthly_usd:
                 return False, f"Monthly budget exceeded (${budget.monthly_spent:.4f} / ${budget.monthly_usd})"
 
-            # Global check
+            # Global check -- reset every agent's own window first, not just
+            # the requester's. An agent that goes quiet keeps a stale,
+            # un-reset daily_spent forever (nothing else ever calls
+            # _maybe_reset on it), so without this the global sum can
+            # include a ghost charge from a prior day and wrongly block
+            # every OTHER agent's real, current-day activity.
+            for other in self._budgets.values():
+                self._maybe_reset(other)
             all_daily = sum(b.daily_spent for b in self._budgets.values())
             if all_daily >= self._global_daily_limit:
                 return False, f"Global daily budget exceeded (${all_daily:.2f} / ${self._global_daily_limit})"
@@ -302,7 +309,10 @@ if __name__ == "__main__":
     import tempfile
     with tempfile.TemporaryDirectory() as d:
         meter = BudgetMeter(budget_file=Path(d) / "budgets.json")
-        meter.set_limits("agent_001", hourly_usd=0.01, daily_usd=0.05)
+        # hourly_usd must exceed a single real call's cost below (~$0.0105
+        # for 1000/500 tokens at Sonnet pricing) -- it previously didn't,
+        # so status.blocked was already True on the very next assert.
+        meter.set_limits("agent_001", hourly_usd=0.02, daily_usd=0.05)
 
         # Record some usage
         cost = meter.record("agent_001", "claude-sonnet-4", 1000, 500)
