@@ -335,7 +335,7 @@ async def main():
 
     manager.register_route("GET", "/test", test_handler, "Test endpoint")
 
-    logger.info("Routes:", manager.list_routes())
+    logger.info("Routes: {}", manager.list_routes())
 
 
     health = await manager.health_check()

@@ -36,10 +36,17 @@ import time
 from loguru import logger
 
 _MIN_SECRET_LEN = 32
-# A configured secret keeps signed requests valid across restarts/processes.
-# Without one we fall back to an ephemeral per-process secret — fine for local
-# dev, but it must NOT be used in production (signatures would break between
-# the kernel and any other process). ensure_production_secret() fails closed.
+# NOTE (Phase 3 audit, 2026-10-02): _sign_request() below has zero callers
+# anywhere in this repo -- nothing ever signs an outgoing request or verifies
+# an incoming one. MCP_KERNEL_SECRET is validated for presence/strength here
+# and by core/runtime/readiness_check.py's production readiness gate, but
+# today it protects nothing; stdio transport's real security boundary is the
+# OS process pipe (whoever can write to this process's stdin already has
+# equivalent access). Request signing is a real, designed-but-unwired
+# feature -- wiring _sign_request()/a matching verify step into
+# _handle_request() is a design decision (what to sign, which requests),
+# not fixed here. The comments/messages below describe the INTENDED
+# protection once wired, not current enforced behavior.
 _CONFIGURED_SECRET = os.environ.get("MCP_KERNEL_SECRET", "").strip()
 KERNEL_SECRET = _CONFIGURED_SECRET or str(uuid.uuid4())
 KERNEL_SECRET_EPHEMERAL = not _CONFIGURED_SECRET

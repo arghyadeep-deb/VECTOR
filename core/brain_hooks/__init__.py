@@ -24,6 +24,7 @@ Vault QMD index: "vector-brain"
 """
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -31,6 +32,17 @@ from core.config import CONFIG
 
 _BRAIN_DIR = Path(CONFIG["VECTOR_VAULT_PATH"]) if "VECTOR_VAULT_PATH" in CONFIG else Path.home() / "V.E.C.T.O.R Brain"
 _HOOKS_DIR = Path(__file__).parent / "scripts"
+
+# run_hook() builds f"{hook_name}.ts" under _HOOKS_DIR and executes it via
+# node -- an unvalidated name like "../../x" would run an arbitrary .ts file.
+# core/mcp_tools/expansion_modules/hooks.py's own _run_hook() wrapper already
+# validates hook_name with this identical pattern before calling run_hook()
+# (that was the actual fix for this bug class), but that only covers its one
+# current caller -- this module's own public function was still unguarded
+# for any other/future caller. Fixed at the primitive so every caller is
+# covered, matching this cycle's established "fix at the primitive, not just
+# the one known caller" pattern.
+_HOOK_NAME_RE = re.compile(r"^[a-z][a-z0-9_-]*$")
 
 
 def list_commands() -> list[str]:
@@ -67,6 +79,8 @@ def run_hook(hook_name: str, stdin_data: str = "") -> tuple[str, int]:
 
     Returns: (stdout_text, exit_code)
     """
+    if not _HOOK_NAME_RE.match(hook_name or ""):
+        return f"invalid hook name: {hook_name!r}", 1
     script = _HOOKS_DIR / f"{hook_name}.ts"
     if not script.exists():
         return f"Hook script not found: {script}", 1
