@@ -2216,3 +2216,59 @@ isn't "proven in production" until you supply the service/device and run it live
     `commands.py` already counted above, `model_switch.py`, `profiles.py`, `mine_cmd.py`, `skin_
     engine.py`, `backup.py`, `nous_subscription.py`, `mcp_config.py`, `kanban_diagnostics.py`, and
     dozens more).
+
+40. **`vectorcode/src/tools/` 4th slice — completed the 19-file systemic logger-shadow fix, 2026-10-02 —**
+    resumed after a rate-limit (the dead fork's one completed file, `tirith_security.py`, was already
+    independently verified and committed, `c14d585f1`). Fixed the remaining 19 of 23 total files sharing
+    the systemic bug first found in the prior slice (`from loguru import logger` present but shadowed by
+    `logger = logging.getLogger(__name__)` -- in 12 of the 19, the loguru import line was dead text sitting
+    inside the module docstring, never actually executed): `browser_camofox.py`, `checkpoint_manager.py`,
+    `computer_use/cua_backend.py`, `discord_tool.py`, `environments/daytona.py`, `environments/docker.py`,
+    `environments/managed_modal.py`, `environments/modal.py`, `environments/vercel_sandbox.py`,
+    `feishu_drive_tool.py`, `image_generation_tool.py`, `lazy_deps.py`, `mcp_oauth.py`, `memory_tool.py`,
+    `skill_manager_tool.py`, `skill_usage.py`, `skills_sync.py`, `vision_tools.py`, `yuanbao_tools.py`.
+    Moved the real import out of the docstring where needed, removed the stdlib shadow, converted every
+    `%s`/`%d`/`%r`/`%.Nf` placeholder to `{}`/`{:.Nf}` (including 5 stragglers split across adjacent
+    concatenated string literals that the mechanical first pass missed -- only caught via a full AST walk
+    of every logger call's string arguments, not regex on raw text). Commit `5cbac2980`.
+    **One false positive confirmed, not touched**: `environments/base.py` matched the same mechanical
+    `comm -12` cross-reference (its docstring also contains dead `from loguru import logger` text) but its
+    real stdlib `logger = logging.getLogger(__name__)` + `logger.setLevel(logging.INFO)` is genuinely
+    intentional -- `run_agent.py`'s real `quiet_mode` feature calls
+    `logging.getLogger('tools').setLevel(logging.ERROR)` for the whole `tools.*` hierarchy, and this file's
+    opt-in `VECTOR_DEBUG_INTERRUPT` trace depends on participating in that same stdlib hierarchy to
+    override it. Confirmed via a repo-wide grep for the real caller before assuming it was "the same bug" --
+    it is not. Left entirely alone; the dead docstring text is misleading but not itself a functional bug.
+    **Second, separate bug surfaced by the fix, not previously flagged**: 22 logger calls across 9 of the
+    19 files (`checkpoint_manager.py`, `environments/docker.py`, `environments/vercel_sandbox.py`,
+    `image_generation_tool.py`, `memory_tool.py`, `skill_manager_tool.py`, `skill_usage.py`,
+    `skills_sync.py`, `vision_tools.py`) passed `exc_info=True` -- a real, working kwarg under the OLD
+    stdlib logger that becomes a silent no-op under loguru's real logger (verified directly: no traceback
+    printed). These calls would have silently stopped capturing real tracebacks the moment the shadow bug
+    was fixed, with nothing flagging the regression since no test asserts on traceback presence. Converted
+    to `logger.opt(exception=True).<level>(...)`, the pattern already established elsewhere in this exact
+    package (`browser_cdp_tool.py`, `kanban_tools.py`) -- verified it actually captures a real traceback.
+    **Third, separate test-infrastructure bug surfaced, fixed**: pytest's `caplog` fixture hooks stdlib
+    logging's root handler, not loguru -- any test asserting `caplog.text` against a module using real
+    loguru saw an empty string (the message IS logged correctly, visible in captured stderr; caplog just
+    never received it). Latent and invisible before now because every affected module had the OTHER bug
+    (stdlib shadow), which made caplog work by accident. Broke 8 assertions across
+    `test_discord_tool.py`/`test_docker_environment.py`/`test_mcp_oauth.py`/`test_vision_tools.py` once the
+    real fix landed. Fixed with the standard loguru+pytest recipe: an autouse fixture in
+    `vectorcode/python/tests/legacy_ported/conftest.py` that forwards loguru records into stdlib logging
+    for the test's duration. Commit `5b725f8ce`. 25 files in this suite use `caplog` and could hit the same
+    gap for any future loguru-shadow fix elsewhere in `vectorcode/src/`.
+    **Verified**: ran the full existing legacy_ported suite for all 19 files (31 tests) against a stashed
+    pre-fix baseline -- 0 new failures after the caplog fix landed, 0 pre-existing failures fixed (not this
+    slice's goal). 1 of 32 pre-existing failures (`test_non_persistent_cleanup_removes_container`)
+    independently confirmed via 3x isolated runs to fail deterministically on BOTH pre-fix and post-fix
+    code -- a pre-existing thread-timing test fragility (`cleanup()` spawns a daemon thread for `docker
+    stop`; the test asserts on captured subprocess calls immediately after `cleanup()` returns, before the
+    thread necessarily runs), unrelated to this change, not fixed here.
+    New `tests/test_vectorcode_tools_loguru_shadow_regression.py` (4 tests, AST-based, covers all 23 fixed
+    files across both slices): locks in no real loguru import is missing, none is shadowed by stdlib
+    logging, no logger call has a printf-style placeholder, none uses the `exc_info=` kwarg.
+    **Remaining scope in `vectorcode/src/tools/`**: of 129 total files, 40 now have real depth (21 before
+    this slice + 19 here); 89 remain, including all 18 of the 1,000+-line files (each needing its own
+    dedicated slice -- the logger-shadow fix should be applied there too as part of that full read, since
+    none of those 18 were touched by either logger-shadow slice).
