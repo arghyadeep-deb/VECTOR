@@ -160,7 +160,8 @@ def _build_patch_mode_content(patch_text: str) -> List[Any]:
                 )
 
         return content or [acp.tool_content(acp.text_block(patch_text))]
-    except Exception:
+    except Exception as e:
+        logger.debug("[VECTOR][acp_adapter.tools] V4A patch parse failed, falling back to plain text: {}", e)
         return [acp.tool_content(acp.text_block(patch_text))]
 
 
@@ -257,7 +258,7 @@ def _build_tool_complete_content(
                 if diff_content:
                     return diff_content
         except Exception as _sve:
-            logger.debug("[VECTOR][acp_adapter.tools] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][acp_adapter.tools] suppressed Exception: {}", _sve)
 
     return [acp.tool_content(acp.text_block(display_result))]
 
