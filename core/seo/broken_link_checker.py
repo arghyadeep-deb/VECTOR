@@ -25,6 +25,7 @@ from html.parser import HTMLParser
 from typing import Optional
 
 from loguru import logger
+from core.security.ssrf_guard import SSRFGuard
 
 
 class _LinkParser(HTMLParser):
@@ -109,6 +110,13 @@ class BrokenLinkChecker:
         broken: list[dict] = []
         checked: list[dict] = []
         pages_crawled = 0
+        # Every crawled URL -- the initial start_url AND every link discovered
+        # on a crawled page -- previously reached a real urlopen() with no
+        # SSRF check at all. A caller-supplied start_url, or a malicious page
+        # linking to an internal/metadata address, could make VECTOR's own
+        # process fetch http://169.254.169.254/ or an internal service.
+        # Same bug class fixed in core/scraper/+core/browser/ this cycle.
+        ssrf_guard = SSRFGuard(resolve_dns=True)
 
         logger.info("[VECTOR][broken_link] starting crawl: {} max_pages={}", start_url, max_pages)
 
@@ -117,6 +125,12 @@ class BrokenLinkChecker:
             if url in visited:
                 continue
             visited.add(url)
+
+            check = ssrf_guard.check_url(url)
+            if not check.safe:
+                logger.warning("[VECTOR][broken_link] SSRF-blocked, skipping: {} ({})", url, check.reason)
+                checked.append({"url": url, "status": None, "error": f"blocked: {check.reason}"})
+                continue
             pages_crawled += 1
 
             # Check robots

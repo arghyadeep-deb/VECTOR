@@ -46,8 +46,8 @@ def _load_api_key() -> str | None:
                         val = line.split("=", 1)[1].strip().strip("'\"")
                         if val:
                             return val
-        except OSError:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except OSError as e:
+            logger.debug("[VECTOR][pagespeed] couldn't read {}: {}", env_file, e)
     return None
 
 
