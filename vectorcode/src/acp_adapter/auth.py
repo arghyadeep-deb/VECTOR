@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from loguru import logger
+
 
 def detect_provider() -> Optional[str]:
     """Resolve the active VectorCode runtime provider, or None if unavailable."""
@@ -14,7 +16,8 @@ def detect_provider() -> Optional[str]:
         provider = runtime.get("provider")
         if isinstance(api_key, str) and api_key.strip() and isinstance(provider, str) and provider.strip():
             return provider.strip().lower()
-    except Exception:
+    except Exception as e:
+        logger.debug("[VECTOR][acp_adapter] detect_provider failed: {}", e)
         return None
     return None
 

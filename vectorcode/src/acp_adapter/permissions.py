@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from concurrent.futures import TimeoutError as FutureTimeout
 from typing import Callable
+
+from loguru import logger
 
 from acp.schema import (
     AllowedOutcome,
     PermissionOption,
 )
-
-logger = logging.getLogger(__name__)
 
 # Maps ACP PermissionOptionKind -> vector approval result strings
 _KIND_TO_VECTOR = {
@@ -60,7 +59,7 @@ def make_approval_callback(
             future = asyncio.run_coroutine_threadsafe(coro, loop)
             response = future.result(timeout=timeout)
         except (FutureTimeout, Exception) as exc:
-            logger.warning("Permission request timed out or failed: %s", exc)
+            logger.warning("[VECTOR][acp_adapter] Permission request timed out or failed: {}", exc)
             return "deny"
 
         if response is None:
