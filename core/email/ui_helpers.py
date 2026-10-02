@@ -56,10 +56,13 @@ def strip_html(html: str) -> str:
 def get_snippet_text(snippet: Optional[str], max_length: int = 100) -> str:
     if not snippet:
         return ""
-    cleaned = _decode_html_entities(
-        re.sub(r"<style[^>]*>[\s\S]*?</style>", "", snippet, flags=re.IGNORECASE)
-        .__class__(re.sub(r"<[^>]*>", " ", re.sub(r"<style[^>]*>[\s\S]*?</style>", "", snippet, flags=re.IGNORECASE)))
-    )
+    # Was: a chained `.__class__(...)` call on a discarded first re.sub()
+    # result -- str.__class__ is just str, so that was a disguised,
+    # redundant str(...) no-op wrapping an IDENTICAL second computation of
+    # the same style-stripping regex against the same input. Same output,
+    # without computing it twice through an obfuscated type-cast idiom.
+    no_style = re.sub(r"<style[^>]*>[\s\S]*?</style>", "", snippet, flags=re.IGNORECASE)
+    cleaned = _decode_html_entities(re.sub(r"<[^>]*>", " ", no_style))
     cleaned = re.sub(r"\s+", " ", cleaned).strip()
     if not cleaned:
         return ""
