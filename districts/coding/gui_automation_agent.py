@@ -128,13 +128,16 @@ class GUIAutomationAgent(AgentBase):
 
         try:
             from core.inference.vectorcode_llm import chat
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"query": description})
             prompt = (
                 f"Find the element described as: '{description}'\n"
                 f"Respond with ONLY an action like: click(start_box='<point>X Y</point>')\n"
                 f"Use coordinates 0-1000 normalized to screen size."
             )
             messages = [
-                {"role": "system", "content": "You are a GUI element locator. Respond with only an action string."},
+                {"role": "system", "content": f"{hydration}\n\nYou are a GUI element locator. Respond with only an action string."},
                 {"role": "user", "content": [
                     {"type": "text", "text": prompt},
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{shot['base64']}"}},
@@ -205,9 +208,12 @@ class GUIAutomationAgent(AgentBase):
                 "Answer the user's question directly and concisely; do not take "
                 "any GUI action."
             )
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"query": query})
             answer = chat(
                 model=CONFIG.get("models", {}).get("reasoning", "vector-reasoning"),
-                messages=[{"role": "system", "content": sys_prompt},
+                messages=[{"role": "system", "content": f"{hydration}\n\n{sys_prompt}"},
                           {"role": "user", "content": query}],
                 timeout=30.0,
             )
