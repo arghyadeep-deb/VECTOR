@@ -34,20 +34,39 @@ def _get_or_create_key() -> bytes:
     return key
 
 
+class VaultDecryptionError(Exception):
+    """Vault file exists but could not be decrypted (wrong/corrupted key,
+    tampered or corrupted ciphertext). Distinct from "no vault file yet"
+    so a caller never mistakes a real decrypt failure for an empty vault --
+    vault_set() would otherwise silently overwrite (and destroy) every
+    existing credential on the next save."""
+
+
 def _load_vault() -> dict:
-    """Load and decrypt vault contents."""
+    """Load and decrypt vault contents.
+
+    Raises VaultDecryptionError if the vault file exists but cannot be
+    decrypted -- returning {} here previously made vault_set() silently
+    wipe every stored credential on the very next save whenever decryption
+    failed for any reason (wrong/corrupted key, tampered or corrupted
+    ciphertext), indistinguishable from a genuinely empty vault.
+    """
     if not _VAULT_FILE.exists():
         return {}
-    try:
-        from cryptography.fernet import Fernet
+    from cryptography.fernet import Fernet
 
-        key = _get_or_create_key()
-        f = Fernet(key)
-        encrypted = _VAULT_FILE.read_bytes()
+    key = _get_or_create_key()
+    f = Fernet(key)
+    encrypted = _VAULT_FILE.read_bytes()
+    try:
         decrypted = f.decrypt(encrypted)
-        return json.loads(decrypted.decode())
-    except Exception:
-        return {}
+    except Exception as e:
+        raise VaultDecryptionError(
+            f"Vault file exists but could not be decrypted: {e}. "
+            "Refusing to treat this as an empty vault to avoid overwriting "
+            "existing credentials."
+        ) from e
+    return json.loads(decrypted.decode())
 
 
 def _save_vault(data: dict) -> None:
@@ -79,7 +98,7 @@ def vault_set(key: str, value: str) -> None:
         data[key] = value
         _save_vault(data)
         console.print(f"[green]Stored credential: {key}[/green]")
-    except ImportError as exc:
+    except (ImportError, VaultDecryptionError) as exc:
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
 
@@ -95,7 +114,7 @@ def vault_get(key: str) -> None:
             console.print(data[key])
         else:
             console.print(f"[yellow]Key not found: {key}[/yellow]")
-    except ImportError as exc:
+    except (ImportError, VaultDecryptionError) as exc:
         console.print(f"[red]{exc}[/red]")
         sys.exit(1)
 
@@ -116,7 +135,7 @@ def vault_list() -> None:
             preview = v[:4] + "****" if len(v) > 4 else "****"
             table.add_row(k, preview)
         console.print(table)
-    except ImportError as exc:
+    except (ImportError, VaultDecryptionError) as exc:
         console.print(f"[red]{exc}[/red]")
 
 
@@ -133,7 +152,7 @@ def vault_remove(key: str) -> None:
             console.print(f"[green]Removed: {key}[/green]")
         else:
             console.print(f"[yellow]Key not found: {key}[/yellow]")
-    except ImportError as exc:
+    except (ImportError, VaultDecryptionError) as exc:
         console.print(f"[red]{exc}[/red]")
 
 
