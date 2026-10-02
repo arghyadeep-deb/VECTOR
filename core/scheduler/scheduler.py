@@ -7,16 +7,15 @@
 
 from __future__ import annotations
 
-import logging
 import threading
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from core.scheduler.store import SchedulerStore
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from core.scheduler.store import SchedulerStore
 
 # Event type strings (avoids editing core EventType enum)
 SCHEDULER_TASK_START = "scheduler_task_start"
@@ -126,7 +125,7 @@ class TaskScheduler:
             target=self._poll_loop, daemon=True, name="vector-scheduler"
         )
         self._thread.start()
-        logger.info("Scheduler started (poll_interval=%ds)", self._poll_interval)
+        logger.info("Scheduler started (poll_interval={}s)", self._poll_interval)
 
     def stop(self) -> None:
         """Signal the background thread to stop and wait for it."""
@@ -208,8 +207,8 @@ class TaskScheduler:
                 for task_dict in due:
                     task = ScheduledTask.from_dict(task_dict)
                     self._execute_task(task)
-            except Exception:
-                logger.exception("Scheduler poll error")
+            except Exception as e:
+                logger.opt(exception=True).error("Scheduler poll error: {}", e)
             self._stop_event.wait(timeout=self._poll_interval)
 
     def _execute_task(self, task: ScheduledTask) -> None:
@@ -254,7 +253,7 @@ class TaskScheduler:
             success = True
         except Exception as exc:
             error_text = str(exc)
-            logger.error("Task %s failed: %s", task.id, exc)
+            logger.error("Task {} failed: {}", task.id, exc)
 
         finished_at = _now_iso()
 
@@ -328,13 +327,16 @@ class TaskScheduler:
             it = croniter(cron_expr, now)
             return it.get_next(datetime).isoformat()
         except ImportError:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            # croniter is an optional dependency -- missing it is a common,
+            # expected condition (falls through to the basic parser below),
+            # not a warning-worthy anomaly.
+            logger.debug("[VECTOR][scheduler] croniter not installed, using basic cron fallback")
 
         # Basic fallback: parse "minute hour * * *" style expressions
         parts = cron_expr.strip().split()
         if len(parts) < 5:
             logger.warning(
-                "Cannot parse cron without croniter: %s",
+                "Cannot parse cron without croniter: {}",
                 cron_expr,
             )
             return (now + timedelta(hours=1)).isoformat()
