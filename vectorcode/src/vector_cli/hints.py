@@ -10,7 +10,7 @@ def hint_no_config() -> str:
     return (
         "[yellow]Hint:[/yellow] No config file found.\n"
         "  Run [bold]vector init[/bold] to detect hardware and generate "
-        "[cyan]~/.vectorcode.src/config.toml[/cyan].\n"
+        "[cyan]~/.vector/config.toml[/cyan].\n"
         "  Or run [bold]vector quickstart[/bold] for a guided setup."
     )
 
