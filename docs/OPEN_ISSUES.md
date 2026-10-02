@@ -1827,6 +1827,39 @@ grew open engineering items; section 0 lists them.
     Commits: 2a50a1fd6 (sibling, pre-existing), 9b1dd6b26, b6dbd8bd3, ae657abaf,
     4382c3428, 81611796a.
 
+35. **`core/avatar/` (5 files) + `core/cloud/` (5 files) + `core/knowledge/` (5 files)
+    deep-verify, 2026-10-02 — COMPLETE.** ~3,841 lines, genuinely untouched by this audit
+    cycle before now (only old unrelated historical commits existed for these three
+    directories).
+    **Fixed:** `core/cloud/heartbeat.py`'s `build_payload()` — 2 "[VECTOR] silent swallow"
+    placeholder exception logs (agent-registry stats, episodic-memory stats), same systemic
+    bug class fixed 50+ times this cycle. Commit `5c4c904dd`, `tests/test_cloud_heartbeat_silent_swallow.py`
+    (2 tests).
+    **FLAG FOR OWNER, not fixed:** `core/cloud/remote_sync.py` pushes local episodic-memory
+    records to Supabase (`push_episodic()`/`sync_now()`) with no sensitivity filtering at
+    all — every record `EpisodicMemory().recall()` returns gets shipped, including any
+    RED-tier/secret-bearing content that ever lands in episodic memory. Supabase is
+    documented, intentional VECTOR infrastructure (architecture.md's Layer B), not a rogue
+    leak, so this isn't a narrow bug — it's a real data-classification question (should ALL
+    episodic memory sync, or only non-sensitive records) the owner needs to decide, same bar
+    as Codex's earlier plaintext-PII flags this cycle.
+    **Clean, no new bugs (real depth, not a skim):** `core/avatar/avatar_core.py`,
+    `avatar_state.py`, `avatar_voice.py` (extensively pre-hardened — verb-agreement and
+    markdown-stripping fixes already documented inline from 2026-07-29/30), `proactive_care.py`
+    (its `get_fatigue_score()` fallback-to-5.0-on-error behavior is the ALREADY-KNOWN
+    camera/MediaPipe finding from an earlier slice, not re-flagged — and is a safe failure
+    mode here since 5.0 sits below this file's own 7.0 fatigue threshold, so no false
+    intervention fires). `core/cloud/failover.py`, `notify.py` clean. `core/knowledge/`'s
+    `domain_extractor.py`, `wiki_parser.py`, `wiki_merger.py`, `graph_merger.py` (dense,
+    heavily self-tested algorithmic code — node-ID normalization, two-pass `tested_by`
+    linker, entity dedup, layer/tour building, all read in full) — their caller-controlled
+    `project_root`/wiki `root` with zero path confinement is the SAME already-known
+    `knowledge_*`/mcp_tools finding from the earlier core/mcp_tools audit ("`knowledge_*`
+    accept any absolute dir and write JSON into it"), confirmed still the same root cause,
+    not a new finding, not re-flagged.
+    Commit: `5c4c904dd`.
+    `core/avatar/`, `core/cloud/`, `core/knowledge/` are now COMPLETE.
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
