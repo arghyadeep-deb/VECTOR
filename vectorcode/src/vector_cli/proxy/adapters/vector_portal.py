@@ -7,24 +7,34 @@ upstream base URL plus minted bearer for the proxy server to forward to.
 The minted ``agent_key`` (not the OAuth ``access_token``) is what
 ``inference-api.vector.com`` accepts as a bearer. The refresh helper
 already handles both — see :func:`vector_cli.auth.refresh_nous_oauth_from_state`.
+
+NOTE (Phase 3 audit, 2026-10-02): _save_state() used to also call
+vector_cli.auth._write_shared_nous_state(state) -- that name has never
+existed anywhere in auth.py's git history (confirmed), so importing this
+module raised ImportError immediately, making the whole adapter
+unusable. Zero real callers of VectorPortalAdapter exist anywhere in the
+repo (confirmed via grep), so this was never exercised. Removed the
+broken import/call; _save_state() already persists via the same
+providers.nous + _save_auth_store() path auth.py's own
+persist_nous_credentials() uses. If a second, cross-process "shared
+state" write was genuinely intended (distinct from the auth store), that
+needs a real implementation decided by the owner, not a guess here.
 """
 
 from __future__ import annotations
 
-import logging
 import threading
 from typing import Any, Dict, FrozenSet, Optional
+
+from loguru import logger
 
 from vector_cli.auth import (
     DEFAULT_NOUS_INFERENCE_URL,
     _load_auth_store,
     _save_auth_store,
-    _write_shared_nous_state,
     refresh_nous_oauth_from_state,
 )
 from vector_cli.proxy.adapters.base import UpstreamAdapter, UpstreamCredential
-
-logger = logging.getLogger(__name__)
 
 # Endpoints inference-api.vector.com actually serves. Anything else
 # the proxy will reject with 404 — keeps stray clients from leaking weird
@@ -113,7 +123,7 @@ class VectorPortalAdapter(UpstreamAdapter):
         try:
             store = _load_auth_store()
         except Exception as exc:
-            logger.warning("proxy: failed to load auth store: %s", exc)
+            logger.warning("proxy: failed to load auth store: {}", exc)
             return None
         providers = store.get("providers") or {}
         state = providers.get("nous")
@@ -127,11 +137,10 @@ class VectorPortalAdapter(UpstreamAdapter):
             providers = store.setdefault("providers", {})
             providers["nous"] = state
             _save_auth_store(store)
-            _write_shared_nous_state(state)
         except Exception as exc:
             # Best effort — we still return the fresh credential. The next
             # request just won't see cached state, which means another refresh.
-            logger.warning("proxy: failed to persist refreshed Nous state: %s", exc)
+            logger.warning("proxy: failed to persist refreshed Nous state: {}", exc)
 
 
 __all__ = ["VectorPortalAdapter"]
