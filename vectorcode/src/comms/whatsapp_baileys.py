@@ -8,12 +8,13 @@ incoming-message forwarding.
 from __future__ import annotations
 
 import json
-import logging
 import shutil
 import subprocess
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.comms._abc import (
     BaseChannel,
@@ -23,8 +24,6 @@ from vectorcode.src.comms._abc import (
 )
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
-
-logger = logging.getLogger(__name__)
 
 # Path to the bundled bridge shipped inside the package.
 # In editable installs this lives next to this file; in wheel installs
@@ -122,7 +121,7 @@ class WhatsAppBaileysChannel(BaseChannel):
         # Run npm install if node_modules is missing.
         node_modules = runtime / "node_modules"
         if not node_modules.exists():
-            logger.info("Running npm install in %s", runtime)
+            logger.info("Running npm install in {}", runtime)
             subprocess.run(
                 ["npm", "install", "--production"],
                 cwd=str(runtime),
@@ -150,7 +149,7 @@ class WhatsAppBaileysChannel(BaseChannel):
         try:
             bridge_js = self._ensure_bridge()
         except RuntimeError as exc:
-            logger.error("Bridge setup failed: %s", exc)
+            logger.error("Bridge setup failed: {}", exc)
             self._status = ChannelStatus.ERROR
             return
 
@@ -172,11 +171,11 @@ class WhatsAppBaileysChannel(BaseChannel):
             )
             self._reader_thread.start()
             logger.info(
-                "WhatsApp Baileys bridge started (pid=%s)",
+                "WhatsApp Baileys bridge started (pid={})",
                 self._process.pid,
             )
         except Exception:
-            logger.exception("Failed to start bridge subprocess")
+            logger.opt(exception=True).error("Failed to start bridge subprocess")
             self._status = ChannelStatus.ERROR
 
     def disconnect(self) -> None:
@@ -187,14 +186,14 @@ class WhatsAppBaileysChannel(BaseChannel):
             try:
                 self._write_command({"type": "disconnect"})
             except Exception:
-                logger.debug("Could not send disconnect command", exc_info=True)
+                logger.opt(exception=True).debug("Could not send disconnect command")
 
         if self._process is not None:
             try:
                 self._process.terminate()
                 self._process.wait(timeout=5.0)
             except Exception:
-                logger.debug("Bridge process termination error", exc_info=True)
+                logger.opt(exception=True).debug("Bridge process termination error")
             self._process = None
 
         if self._reader_thread is not None:
@@ -227,7 +226,7 @@ class WhatsAppBaileysChannel(BaseChannel):
             self._publish_sent(channel, content, conversation_id)
             return True
         except Exception:
-            logger.debug("WhatsApp Baileys send failed", exc_info=True)
+            logger.opt(exception=True).debug("WhatsApp Baileys send failed")
             return False
 
     def status(self) -> ChannelStatus:
@@ -270,13 +269,13 @@ class WhatsAppBaileysChannel(BaseChannel):
                 try:
                     event = json.loads(line)
                 except json.JSONDecodeError:
-                    logger.debug("Non-JSON line from bridge: %s", line)
+                    logger.debug("Non-JSON line from bridge: {}", line)
                     continue
 
                 self._handle_bridge_event(event)
         except Exception:
             if not self._stop_event.is_set():
-                logger.debug("Reader loop error", exc_info=True)
+                logger.opt(exception=True).debug("Reader loop error")
                 self._status = ChannelStatus.ERROR
 
     def _handle_bridge_event(self, event: Dict[str, Any]) -> None:
@@ -307,7 +306,7 @@ class WhatsAppBaileysChannel(BaseChannel):
                 try:
                     handler(cm)
                 except Exception:
-                    logger.exception("WhatsApp Baileys handler error")
+                    logger.opt(exception=True).error("WhatsApp Baileys handler error")
             if self._bus is not None:
                 self._bus.publish(
                     EventType.CHANNEL_MESSAGE_RECEIVED,
@@ -320,7 +319,7 @@ class WhatsAppBaileysChannel(BaseChannel):
                 )
 
         elif event_type == "error":
-            logger.error("Bridge error: %s", event.get("message", "unknown"))
+            logger.error("Bridge error: {}", event.get("message", "unknown"))
             self._status = ChannelStatus.ERROR
 
     def _publish_sent(self, channel: str, content: str, conversation_id: str) -> None:
