@@ -17,6 +17,14 @@ _SKIP_DIRS = frozenset({
     "models", ".claude", "_cleanup_trash_2026-07-28", "graphify-out",
 })
 
+# Same confinement pattern as districts/coding/code_reviewer.py's
+# review_with_llm() fix this cycle: explain_module() reads a caller-supplied
+# path and sends its contents into an LLM prompt with no confinement at all
+# -- zero real callers today, but the fix is narrow/mechanical with no
+# legitimate-caller risk, same bar this cycle used for worktree.py/
+# direct_executor.py's dormant-but-fixed-anyway findings.
+_ROOT = Path(__file__).resolve().parents[2]
+
 
 def _iter_python_files(root_path: Path) -> list[Path]:
     """All .py files under root, pruning vendor/junk directories while walking."""
@@ -172,7 +180,10 @@ class ArchitectBot(AgentBase):
         Returns explanation string or error string.
         """
         try:
-            fpath = Path(file_path)
+            fpath = Path(file_path).resolve()
+            if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+                logger.error(f"[VECTOR][architect_bot] Path outside repo or not .py: {file_path}")
+                return f"Error: Path outside repo or not a .py file — {file_path}"
             if not fpath.exists():
                 logger.error(f"[VECTOR][architect_bot] File not found: {file_path}")
                 return f"Error: File not found — {file_path}"
