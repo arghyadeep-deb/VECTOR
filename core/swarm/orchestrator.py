@@ -238,12 +238,24 @@ class SwarmOrchestrator:
             except Exception as e:
                 logger.warning("[SwarmOrchestrator] {} dispatch failed: {}", district, e)
 
-        # Fallback: try all swarms in order
+        # Fallback: try all swarms in order. Every real swarm/agent in this
+        # codebase reports failure via a returned {"status": "error", ...}
+        # dict rather than raising (GenericSwarm.dispatch() itself never
+        # raises -- it falls through to its own LLM fallback and returns an
+        # error dict on failure there too) -- checking only for a raised
+        # exception meant this loop accepted the FIRST swarm's error dict
+        # and returned immediately, never actually trying the rest despite
+        # its own name/comment. Now also continues past a result whose own
+        # status says it failed.
         for dist, swarm in self._swarms.items():
             try:
                 if hasattr(swarm, "dispatch"):
-                    return await swarm.dispatch(task_type, params)
-                return await swarm.run({"type": task_type, **params})
+                    result = await swarm.dispatch(task_type, params)
+                else:
+                    result = await swarm.run({"type": task_type, **params})
+                if isinstance(result, dict) and result.get("status") == "error":
+                    continue
+                return result
             except Exception:
                 continue
 
