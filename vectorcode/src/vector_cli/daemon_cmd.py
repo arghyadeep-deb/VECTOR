@@ -122,10 +122,10 @@ def stop() -> None:
             # Force kill if still running
             try:
                 os.kill(pid, signal.SIGKILL)
-            except OSError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
-    except OSError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            except OSError as e:
+                logger.debug("[VECTOR][daemon] SIGKILL failed for PID {}: {}", pid, e)
+    except OSError as e:
+        logger.debug("[VECTOR][daemon] SIGTERM failed for PID {}: {}", pid, e)
 
     _PID_FILE.unlink(missing_ok=True)
     console.print(f"[green]Server stopped[/green] (PID {pid}).")
@@ -162,8 +162,8 @@ def status() -> None:
         hours, remainder = divmod(int(uptime), 3600)
         minutes, seconds = divmod(remainder, 60)
         uptime_info = f"\n  Uptime: {hours}h {minutes}m {seconds}s"
-    except (ImportError, Exception):
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    except Exception as e:
+        logger.debug("[VECTOR][daemon] could not read uptime for PID {}: {}", pid, e)
 
     config = load_config()
     console.print(
