@@ -11,6 +11,28 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 
+# Same confinement pattern as districts/coding/code_reviewer.py's/
+# architect_bot.py's fixes this cycle: scan_file()/analyze_with_llm() read
+# any caller-supplied path with no confinement -- scan_file() is directly
+# Governor-dispatchable via run()'s p["file"], and a secret-shaped pattern
+# match (SECURITY_PATTERNS) in the scanned file would leak up to 50 chars
+# of the match back in the response; analyze_with_llm() (zero real callers
+# today, confirmed via repo-wide grep) sends the full file content to a
+# cloud LLM provider, same severity as the already-fixed code_reviewer.py
+# finding.
+_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _confine_py_path(filepath: str) -> Path:
+    """Resolve filepath and require it stay inside the repo root as a .py
+    file. Raises FileNotFoundError (the same exception type scan_file()/
+    find_pattern_issues()/analyze_with_llm() already raise for a missing
+    file) so existing callers' error handling is unaffected."""
+    resolved = Path(filepath).resolve()
+    if not resolved.is_relative_to(_ROOT) or resolved.suffix != ".py":
+        raise FileNotFoundError(f"Path outside repo or not a .py file: {filepath}")
+    return resolved
+
 
 class BugHunter(AgentBase):
     """
@@ -91,7 +113,7 @@ class BugHunter(AgentBase):
         Perform AST-based static analysis on a Python file.
         Returns dict with bugs categorized by severity.
         """
-        source_path = Path(filepath)
+        source_path = _confine_py_path(filepath)
         if not source_path.exists():
             raise FileNotFoundError(f"Source file not found: {filepath}")
 
@@ -214,7 +236,7 @@ class BugHunter(AgentBase):
         Use regex patterns to find common bug patterns in source code.
         Returns categorized issues.
         """
-        source_path = Path(filepath)
+        source_path = _confine_py_path(filepath)
         if not source_path.exists():
             raise FileNotFoundError(f"Source file not found: {filepath}")
 
@@ -279,7 +301,7 @@ class BugHunter(AgentBase):
         Use Ollama LLM to analyze code for bugs and potential improvements.
         Returns LLM-generated analysis.
         """
-        source_path = Path(filepath)
+        source_path = _confine_py_path(filepath)
         if not source_path.exists():
             raise FileNotFoundError(f"Source file not found: {filepath}")
 
