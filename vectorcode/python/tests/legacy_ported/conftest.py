@@ -20,6 +20,7 @@ test runner at ``scripts/run_tests.sh``.
 """
 
 import asyncio
+import logging
 import os
 import re
 import signal
@@ -29,6 +30,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from loguru import logger
 
 # Ensure project root is importable
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -480,3 +482,28 @@ def _enforce_test_timeout():
     yield
     signal.alarm(0)
     signal.signal(signal.SIGALRM, old)
+
+
+class _LoguruPropagateHandler(logging.Handler):
+    """Forward loguru records into Python's stdlib logging so pytest's
+    caplog fixture (which hooks stdlib logging's root handler, not loguru)
+    can see them. Without this, any test asserting on caplog.text against
+    a module that genuinely uses `from loguru import logger` silently sees
+    an empty string -- the message is still logged correctly (visible in
+    captured stderr), caplog just never receives it. Found while fixing the
+    systemic loguru-shadowed-by-stdlib-logging bug across vectorcode/src/
+    tools/ this cycle: several modules' tests only ever passed because the
+    bug itself (stdlib logging under the hood) made caplog work by
+    accident -- restoring the real loguru logger (the actual fix) then
+    broke caplog-based assertions for an unrelated, pre-existing test-
+    infrastructure reason. Standard loguru+pytest recipe."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        logging.getLogger(record.name).handle(record)
+
+
+@pytest.fixture(autouse=True)
+def _propagate_loguru_to_caplog():
+    handler_id = logger.add(_LoguruPropagateHandler(), format="{message}")
+    yield
+    logger.remove(handler_id)
