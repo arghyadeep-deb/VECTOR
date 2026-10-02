@@ -27,11 +27,21 @@ __all__ = [
 
 
 import json
+import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
 from loguru import logger
+
+# save_agent()/to_python_file() below take agent.name from a parsed migration
+# source file (LangChain/AutoGPT/CrewAI/OpenAI/plain config) -- untrusted
+# structured input by this module's whole purpose. Dormant today (zero real
+# callers, confirmed via repo-wide grep), fixed anyway per this cycle's
+# established "fix narrow bugs even in dormant code" bar, since a migration
+# importer processing external configs is exactly the kind of tool that
+# plausibly gets wired to real input later.
+_SAFE_IDENTIFIER_RE = re.compile(r"[^A-Za-z0-9_]")
 
 
 class MigrationSource(str, Enum):
@@ -69,32 +79,41 @@ class VectorAgentDef:
     def to_python_file(self) -> str:
         """Generate a VECTOR-compatible Python agent file."""
         tools_str = repr(self.tools)
-        return f'''"""VECTOR Agent — migrated from {self.source_framework}."""
+        # self.name/system_prompt/description/district all come from a parsed
+        # migration source file (untrusted structured input) -- class_name is
+        # restricted to a safe Python identifier (a raw name could otherwise
+        # break the class definition's syntax entirely), and every other
+        # value is passed through repr() rather than interpolated into a raw
+        # triple-quoted string, which a prompt/name containing `"""` or a
+        # backslash could break out of to inject arbitrary code into the
+        # generated file.
+        class_name = _SAFE_IDENTIFIER_RE.sub("_", self.name).strip("_").title() or "Migrated"
+        agent_id = _SAFE_IDENTIFIER_RE.sub("_", self.name.lower()).strip("_") or "migrated_agent"
+        return f'''"""VECTOR Agent — migrated from {self.source_framework!r}."""
 from pathlib import Path
 from core.city.agent_base import AgentBase
 from loguru import logger
 
-class {self.name.replace("-","_").replace(" ","_").title()}Agent(AgentBase):
+class {class_name}Agent(AgentBase):
     """
-    {self.description or self.name}
-    Migrated from: {self.source_framework}
+    Migrated agent. See original_config for the source definition.
     """
 
     def __init__(self):
         super().__init__(
-            agent_id="{self.name.lower().replace(" ","_")}",
-            name="{self.name}",
-            district="{self.district}",
+            agent_id={agent_id!r},
+            name={self.name!r},
+            district={self.district!r},
         )
         self.allowed_tools = {tools_str}
 
     @property
     def system_prompt(self) -> str:
-        return """{self.system_prompt[:500]}"""
+        return {self.system_prompt[:500]!r}
 
     async def run(self, task: dict) -> dict:
-        logger.info("[VECTOR][{self.name}] running task: {{}}", task.get("type"))
-        return {{"status": "ok", "agent": self.name}}
+        logger.info("[VECTOR][{class_name}] running task: {{}}", task.get("type"))
+        return {{"status": "ok", "agent": {self.name!r}}}
 '''
 
 
@@ -264,10 +283,17 @@ class VectorMigrator:
 
     def save_agent(self, agent: VectorAgentDef, output_dir: str = "districts/migrated/") -> Path:
         """Save a migrated agent as a VECTOR Python file."""
-        out = Path(output_dir)
+        out = Path(output_dir).resolve()
         out.mkdir(parents=True, exist_ok=True)
-        safe_name = agent.name.lower().replace(" ", "_").replace("-", "_")
-        p = out / f"{safe_name}.py"
+        # agent.name comes from a parsed migration source file -- the old
+        # .replace(" ", "_").replace("-", "_") only stripped spaces/hyphens,
+        # leaving "/" and ".." untouched, so a crafted name (e.g.
+        # "../../../evil") could write the generated .py file outside
+        # output_dir entirely. Confine the resolved path to stay inside it.
+        safe_name = _SAFE_IDENTIFIER_RE.sub("_", agent.name.lower()).strip("_") or "migrated_agent"
+        p = (out / f"{safe_name}.py").resolve()
+        if not p.is_relative_to(out):
+            raise ValueError(f"agent name escapes output_dir: {agent.name!r}")
         p.write_text(agent.to_python_file(), encoding="utf-8")
         logger.info("[VECTOR][migration] saved agent: {}", p)
         return p
