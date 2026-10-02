@@ -18,6 +18,12 @@ from pathlib import Path
 
 from loguru import logger
 
+# file_path is caller-supplied and reaches real file I/O directly -- same
+# confinement anchor used by this package's sibling apply_patch.py and
+# 10+ districts/coding/ files this cycle (resolve + is_relative_to the
+# real repo root, not a configurable/CWD-relative base).
+_ROOT = Path(__file__).resolve().parents[3]
+
 
 @dataclass
 class EditOperation:
@@ -75,8 +81,17 @@ def multiedit(file_path: str, edits: list[dict]) -> dict:
 
     Returns:
         {success, applied, failed, diff, file}
+
+    file_path reaches real file I/O directly with no confinement check --
+    the one real caller (districts/coding/coding_tools.py's
+    multiedit_file()) only gates the ACTION (an active coding grant), not
+    which path a malformed/injected call could name. Confined to the real
+    repo root, same pattern as this package's sibling apply_patch.py and
+    10+ districts/coding/ files this cycle.
     """
-    p = Path(file_path)
+    p = Path(file_path).resolve()
+    if not p.is_relative_to(_ROOT):
+        return {"success": False, "error": f"path outside repo: {file_path!r}"}
     if not p.exists():
         return {"success": False, "error": f"File not found: {file_path}"}
 
@@ -133,9 +148,15 @@ def multiedit(file_path: str, edits: list[dict]) -> dict:
 if __name__ == "__main__":
     import tempfile, os
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as f:
-        f.write("x = 1\ny = 2\nz = 3\n")
-        tmp = f.name
+    # A system-tempdir path is outside the repo root and correctly rejected
+    # by the confinement check above -- use an in-repo tmp dir instead, same
+    # fix applied to this cycle's other self-tests that unknowingly relied
+    # on an out-of-scope path (e.g. core/code_conductor/str_replace.py).
+    tmpdir = _ROOT / "test_tmp" / "multiedit_selftest"
+    tmpdir.mkdir(parents=True, exist_ok=True)
+    tmp_path = tmpdir / "sample.py"
+    tmp_path.write_text("x = 1\ny = 2\nz = 3\n")
+    tmp = str(tmp_path)
 
     result = multiedit(tmp, [
         {"old_string": "x = 1", "new_string": "x = 42"},
@@ -148,4 +169,5 @@ if __name__ == "__main__":
     content = Path(tmp).read_text()
     assert "x = 42" in content and "z = 99" in content
     os.unlink(tmp)
+    tmpdir.rmdir()
     print("OK multiedit.py")
