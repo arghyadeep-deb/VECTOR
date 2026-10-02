@@ -301,8 +301,8 @@ class StealthBrowserClient:
             if close_after and tab_id:
                 try:
                     await self.close_tab(tab_id)
-                except Exception:
-                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                except Exception as e:
+                    logger.warning("[VECTOR][stealth] failed to close tab {}: {}", tab_id, e)
 
     async def search(
         self,

@@ -52,6 +52,17 @@ def _yt_dlp_available() -> bool:
 def _extract_via_ytdlp(url: str) -> dict | None:
     """Extract transcript using yt-dlp subprocess (fast, no browser needed)."""
     try:
+        # url is caller-supplied and reaches yt-dlp as a bare positional argv
+        # (reachable via Governor dispatch -> districts/research/
+        # stealth_scout_agent.py's youtube_transcript action). _is_youtube_url()
+        # only checks substring presence anywhere in the string, so it does
+        # NOT stop a value starting with "-" -- e.g. "--exec=<cmd> #youtube.com"
+        # would be parsed as a yt-dlp option, and --exec runs an arbitrary
+        # shell command after "download" (real RCE). Same argument-injection
+        # shape fixed 25+ times elsewhere this cycle (git tools, mcp_tools).
+        if url.startswith("-"):
+            logger.warning("[VECTOR][transcripts] rejected option-like url: {}", url[:60])
+            return None
         # Get video info + auto-generated subtitles
         result = subprocess.run(
             [
@@ -62,6 +73,7 @@ def _extract_via_ytdlp(url: str) -> dict | None:
                 "--skip-download",
                 "--print-json",
                 "--no-playlist",
+                "--",
                 url,
             ],
             capture_output=True,
@@ -114,8 +126,8 @@ def _extract_via_ytdlp(url: str) -> dict | None:
                             lines.append(line)
                     transcript_text = " ".join(lines)
                     break
-                except Exception:
-                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                except Exception as e:
+                    logger.warning("[VECTOR][transcripts] subtitle fetch/parse failed for {}: {}", sub_url[:60], e)
 
         return {
             "url": url,
