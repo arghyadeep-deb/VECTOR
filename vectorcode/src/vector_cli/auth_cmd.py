@@ -37,11 +37,18 @@ def create_key() -> None:
 
     # Update or add [server.auth] section
     if "[server.auth]" in content:
-        content = re.sub(
+        content, n = re.subn(
             r'(api_key\s*=\s*)"[^"]*"',
             f'\\1"{key}"',
             content,
         )
+        if n == 0:
+            # Section header present but no api_key line matched (e.g. a
+            # hand-edited or malformed section) -- re.sub would silently
+            # leave content unchanged while this command still reported
+            # success below. Append the line instead of claiming a write
+            # that never happened.
+            content += f'\napi_key = "{key}"\n'
     else:
         content += f'\n[server.auth]\napi_key = "{key}"\n'
 
