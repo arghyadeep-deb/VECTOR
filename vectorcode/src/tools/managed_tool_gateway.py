@@ -1,16 +1,14 @@
 """Generic managed-tool gateway helpers for Nous-hosted vendor passthroughs."""
 
 from __future__ import annotations
-from loguru import logger
 
 import json
-import logging
 import os
 from datetime import datetime, timezone
 from dataclasses import dataclass
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 from vector_constants import get_vector_home
 from tools.tool_backend_helpers import managed_nous_tools_enabled
@@ -46,7 +44,7 @@ def _read_nous_provider_state() -> Optional[dict]:
         if isinstance(nous_provider, dict):
             return nous_provider
     except Exception as _sve:
-        logger.debug("[VECTOR][tools.managed_tool_gateway] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][tools.managed_tool_gateway] auth.json read failed: {}", _sve)
     return None
 
 
@@ -98,7 +96,7 @@ def read_nous_access_token() -> Optional[str]:
         if isinstance(refreshed_token, str) and refreshed_token.strip():
             return refreshed_token.strip()
     except Exception as exc:
-        logger.debug("Nous access token refresh failed: %s", exc)
+        logger.debug("Nous access token refresh failed: {}", exc)
 
     return cached_token
 

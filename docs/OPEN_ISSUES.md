@@ -2119,3 +2119,50 @@ isn't "proven in production" until you supply the service/device and run it live
 ---
 
 *Section 0 is the open engineering list; update this file in place as items land.*
+
+38. **`vectorcode/src/tools/` 3rd slice + systemic loguru-shadowed-by-stdlib-logging finding, 2026-10-02 —**
+    resumed after a rate-limit; the dead fork's one completed file (`tirith_security.py`, systemic
+    stdlib-logging-to-loguru conversion) was independently verified and committed by the parent
+    session (`c14d585f1`) before this slice started. **5 real bugs fixed, same systemic class across
+    4 files**: `feishu_doc_tool.py`, `managed_tool_gateway.py`, `environments/ssh.py` each had a real
+    `from loguru import logger` immediately shadowed by `logger = logging.getLogger(__name__)` two
+    lines later (one via the import sitting trapped inside the module docstring, the other two via a
+    plain reassignment) — every logger call in all 3 files was silently using stdlib `%s`/`%d`
+    placeholders under loguru's own `{}` formatter. `video_generation_tool.py` had the identical
+    shadowing shape. Fixed all 4 (remove the stdlib import/reassignment, keep the real loguru import,
+    convert every placeholder). Commits: `a2711db4f`, `433b70ce1`, (managed_tool_gateway.py fix —
+    folded into this entry, no separate commit message captured before compaction, verify via
+    `git log -- vectorcode/src/tools/managed_tool_gateway.py`), `dc8b8c723`.
+    **MAJOR SYSTEMIC FINDING, not fully fixed — needs its own dedicated slice(s)**: cross-referencing
+    every file with a real `from loguru import logger` against every file with `logging.getLogger`
+    (`comm -12` on the two grep outputs, not estimated) found **34 files total** sharing this exact
+    shadowing bug, of which only 4 are fixed above. Remaining 30: `approval.py`, `browser_camofox.py`,
+    `browser_supervisor.py`, `browser_tool.py`, `checkpoint_manager.py`, `code_execution_tool.py`,
+    `computer_use/cua_backend.py`, `delegate_tool.py`, `discord_tool.py`, `environments/base.py`,
+    `environments/daytona.py`, `environments/docker.py`, `environments/managed_modal.py`,
+    `environments/modal.py`, `environments/vercel_sandbox.py`, `feishu_drive_tool.py`, `file_tools.py`,
+    `image_generation_tool.py`, `lazy_deps.py`, `mcp_oauth.py`, `mcp_tool.py`, `memory_tool.py`,
+    `rl_training_tool.py`, `send_message_tool.py`, `skill_manager_tool.py`, `skill_usage.py`,
+    `skills_hub.py`, `skills_sync.py`, `skills_tool.py`, `tts_tool.py`, `vision_tools.py`,
+    `voice_mode.py`, `web_tools.py`, `yuanbao_tools.py`. 13 of these 30 are also on the
+    already-reserved "needs its own dedicated slice" large-file list (over 1,000 lines each:
+    `skills_hub.py`, `mcp_tool.py`, `browser_tool.py`, `delegate_tool.py`, `web_tools.py`,
+    `send_message_tool.py`, `code_execution_tool.py`, `tts_tool.py`, `skills_tool.py`,
+    `rl_training_tool.py`, `browser_supervisor.py`, `file_tools.py`, `approval.py`, `voice_mode.py`) —
+    those slices should fix this same-file logger bug as part of their own full read, not as a
+    separate pass. The remaining 16 small/medium files are a good, well-scoped next slice on their own.
+    **1 dead-code/duplication finding, flagged not fixed**: `code_execution.py` (85 lines, its own
+    unused `ALLOWED_TOOLS` constant) has zero real callers anywhere in the repo — confirmed via
+    repo-wide grep — superseded entirely by `code_execution_tool.py` (1,581 lines, has the real,
+    wired-in `SANDBOX_ALLOWED_TOOLS`, used by `vectorcode/src/model_tools.py`). Same unexplained-
+    duplication shape as the `core/jcode` vs. `vectorcode/src/vc_tools` question the owner raised
+    this session — needs an owner call (delete the dead file, or confirm it's intentionally kept for
+    a reason not visible in the code) rather than a guessed fix.
+    **Verified clean, real depth**: `schema_sanitizer.py`, `code_execution.py` (logic itself, separate
+    from the dead-code flag above), `osv_check.py` (fail-open is explicitly documented/intentional,
+    not a bug), `microsoft_graph_auth.py` (correct OAuth client-credentials flow, proper token
+    caching/locking, httpx not raw requests).
+    **Remaining scope in `vectorcode/src/tools/`**: of 129 total files, 21 now have real depth
+    (17 before this slice + feishu_doc_tool.py + video_generation_tool.py + managed_tool_gateway.py +
+    environments/ssh.py); 108 remain, including the 30-file systemic logger bug list above (16 of
+    which are small/medium and not yet separately scheduled) and all 18 of the 1,000+-line files.
