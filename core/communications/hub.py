@@ -141,8 +141,8 @@ class CommsHub:
                 fn = getattr(adapter, "pending_count", None) or getattr(adapter, "unread_count", None)
                 if callable(fn):
                     total += int(fn() or 0)
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][comms] pending-count check failed for adapter: {}", e)
         return total
 
     def get_comms_status(self) -> dict:
