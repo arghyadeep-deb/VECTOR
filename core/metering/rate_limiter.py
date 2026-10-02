@@ -89,9 +89,9 @@ class _GCRAState:
     """
     tat: float = 0.0     # theoretical arrival time
 
-    def check_and_update(self, now: float, cost: int, rate: float, burst: int) -> tuple[bool, float]:
+    def check_and_update(self, now: float, cost: int, rate: float, burst: int) -> tuple[bool, float, int]:
         """
-        Returns (allowed, retry_after_secs).
+        Returns (allowed, retry_after_secs, tokens_remaining).
         rate  = tokens per second (burst / window_secs)
         burst = maximum tokens
         """
@@ -102,12 +102,12 @@ class _GCRAState:
 
         if allow_at > now:
             # Rate limited
-            return False, allow_at - now
+            return False, allow_at - now, 0
 
         self.tat = new_tat
         tokens_used = new_tat - now
         tokens_remaining = max(0, int((burst / rate - tokens_used) * rate))
-        return True, 0.0
+        return True, 0.0, tokens_remaining
 
 
 # ── GCRARateLimiter ───────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ class GCRARateLimiter:
             if caller_id not in self._states:
                 self._states[caller_id] = _GCRAState()
             state = self._states[caller_id]
-            allowed, retry_after = state.check_and_update(now, cost, self._rate, self._burst)
+            allowed, retry_after, remaining = state.check_and_update(now, cost, self._rate, self._burst)
 
         if not allowed:
             logger.warning(
@@ -166,7 +166,6 @@ class GCRARateLimiter:
                 reason=f"Rate limit exceeded for {operation} (retry in {retry_after:.1f}s)",
             )
 
-        remaining = max(0, int(self._burst - cost))
         return RateLimitResult(allowed=True, tokens_remaining=remaining)
 
     def reset(self, caller_id: str) -> None:
