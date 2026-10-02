@@ -258,8 +258,8 @@ class SessionPersistence:
             try:
                 s = PersistedSession.from_dict(json.loads(p.read_text()))
                 sessions.append(s)
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][session] skipping unreadable session file {}: {}", p.name, e)
         return sorted(sessions, key=lambda s: s.updated_at, reverse=True)
 
     def recover_crashed_sessions(self) -> list[PersistedSession]:

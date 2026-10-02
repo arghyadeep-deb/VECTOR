@@ -276,8 +276,8 @@ class AmbientScheduler:
         if self._directives_file.exists():
             try:
                 return json.loads(self._directives_file.read_text())
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][ambient] directives load failed: {}", e)
         return []
 
     def _save_directives(self, directives: list[dict]) -> None:
@@ -345,8 +345,8 @@ class AmbientScheduler:
         if self._queue_file.exists():
             try:
                 return json.loads(self._queue_file.read_text())
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][ambient] queue load failed: {}", e)
         return []
 
     def _save_queue(self, queue: list[dict]) -> None:
