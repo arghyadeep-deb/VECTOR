@@ -506,4 +506,11 @@ class _LoguruPropagateHandler(logging.Handler):
 def _propagate_loguru_to_caplog():
     handler_id = logger.add(_LoguruPropagateHandler(), format="{message}")
     yield
-    logger.remove(handler_id)
+    try:
+        logger.remove(handler_id)
+    except ValueError:
+        # Some production code under test (e.g. a logging-setup module's
+        # configure()) legitimately calls a bare logger.remove() to reset
+        # ALL loguru sinks -- that already removed this handler, so there
+        # is nothing left to clean up here.
+        pass
