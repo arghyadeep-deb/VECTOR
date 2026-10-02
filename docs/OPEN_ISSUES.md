@@ -1767,6 +1767,66 @@ grew open engineering items; section 0 lists them.
     `__init__.py`, `consistency.py`, `identity.py`, `persona_manager.py`, `schemas.py` clean.
     `core/runtime/` and `core/persona/` are now COMPLETE.
 
+34. core/event_bus/ (remaining 6 of 8 files) + core/jcode/ (8 files) + core/seo/ (6 files)
+    deep-verify, 2026-10-02 -- COMPLETE. Resumed slice (a sibling fork already landed
+    core/event_bus/bus.py, commit 2a50a1fd6, not re-checked).
+    core/event_bus/'s remainder -- clean, zero bugs. base.py, circuit_breaker.py,
+    rate_limiter.py, types.py, worker_pool.py, __init__.py all read in full, no issues.
+    One minor observation, not fixed: wiring.py's DISTRICT_SUBSCRIPTIONS has several pattern
+    keys (engineering, testing, documentation, product) that don't match any real district
+    name in the current manifest -- dead/unreachable config entries, same class as the already-
+    documented 2026-09-08 "strategy" retirement comment in EVENT_TRIGGER_MAP, just never
+    similarly annotated. Cosmetic, not a functional bug.
+    core/jcode/ -- 5 real bugs fixed. tools/apply_patch.py (commit 9b1dd6b26): zero path
+    confinement on patch-supplied paths -- hunk.path/move_to are parsed directly out of the
+    patch TEXT (an LLM-generated patch is this tool's whole purpose), and base / hunk.path
+    silently returns an absolute RHS unmodified, discarding base_dir entirely. Real caller:
+    districts/coding/coding_tools.py's apply_codex_patch() (gated behind an active coding
+    grant, but that grant authorizes editing the repo, not an arbitrary/escaped path). Fixed with a
+    _confine() helper per hunk. tools/multiedit.py (commit b6dbd8bd3): identical shape on
+    file_path, same real caller (multiedit_file()); fixed by confining to the real repo root --
+    also fixed the module's own __main__ self-test, which used a system-tempdir path the new
+    confinement correctly rejected (same situation as core/code_conductor/str_replace.py's
+    self-test fix earlier this cycle). session_persistence.py + ambient_scheduler.py (commit
+    ae657abaf): 3 more "[VECTOR] suppressed exception (degraded mode)" placeholders
+    (list_sessions(), _load_directives(), _load_queue()). Checked and confirmed NOT a live
+    bug: session_persistence.py's load(session_id) takes a caller-supplied id with no
+    confinement, but both real callers (core/loop/autonomous_loop.py, 2 sites) only ever pass an
+    internally-generated uuid.uuid4() -- not changed. cache_tracker.py, semantic_cache.py clean.
+    core/seo/ -- 4 real bugs fixed. broken_link_checker.py (commit 4382c3428):
+    BrokenLinkChecker.check() crawled start_url and every discovered link via a real urlopen()
+    with zero SSRF validation -- same bug class fixed in core/scraper/+core/browser/ this cycle.
+    Real caller: districts/marketing/seo_portfolio.py/seo_agent.py (Governor-dispatchable).
+    Fixed with SSRFGuard(resolve_dns=True) checked on every URL before fetch, start_url and
+    discovered links alike. pagespeed_client.py (same commit): one more silent-swallow placeholder
+    (.env read failure), downgraded to logger.debug with the real exception (a missing optional
+    file is expected, not warning-worthy). portfolio.py (commit 81611796a): record_audit()/
+    add_goal()/get_audit_history()/schedule_followup()/record_followup_metrics() all built a
+    file path from a caller-supplied site_id (and item_id) with zero confinement -- legitimate
+    ids only ever come from _normalize_site_id(), but these methods trusted that invariant rather
+    than enforcing it. Checked real callers: both always validate site_id via get_site() first or
+    use add_site()'s own normalized return -- not exploitable today, hardened anyway at the
+    primitive level (new _safe_site_id() helper), same bar as worktree.py/direct_executor.py's
+    earlier dormant-but-fixed findings. Checked and confirmed NOT bugs, not fixed:
+    pagespeed_client.py's and cms_connector.py's Ghost ?key= query params are each the
+    vendor's own documented, only-supported auth mechanism for these specific public/read-only
+    APIs (no header alternative exists) -- confirmed neither ever reaches a log statement in either
+    file, so there's no leak path; not the same shape as this cycle's other "credentials in URL"
+    fixes, which were VECTOR choosing a weaker option when a header alternative genuinely existed.
+    gsc_client.py reviewed in full -- clean (OAuth Bearer tokens correctly in headers throughout).
+    New tests: tests/test_jcode_apply_patch_confinement.py (4), tests/test_jcode_multiedit_confinement.py
+    (2), tests/test_jcode_silent_swallow_logging.py (3), tests/test_seo_broken_link_checker_ssrf.py
+    (3), tests/test_seo_portfolio_site_id_confinement.py (5) -- 17 new tests total, zero prior
+    coverage existed for any of these files. 145 tests re-verified across this slice's own new tests
+    plus tests/event_bus/, tests/test_coding_tools_grep_code_argv_injection.py,
+    tests/test_audit_phase3_mcp_top.py, tests/test_marketing_district_run_wiring.py, zero
+    regressions. Out-of-scope, flagged only: scripts/audit_toprank.py has one unrelated,
+    pre-existing failing assertion against a "SessionPersistence" string in run_vector.py --
+    confirmed via grep that run_vector.py has zero such references and was never touched by any
+    of tonight's work.
+    Commits: 2a50a1fd6 (sibling, pre-existing), 9b1dd6b26, b6dbd8bd3, ae657abaf,
+    4382c3428, 81611796a.
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
