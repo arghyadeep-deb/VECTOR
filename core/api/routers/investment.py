@@ -237,29 +237,19 @@ async def get_portfolio():
 @router.get("/market-status")
 async def get_market_status():
     """Return open/closed status for US, India, and crypto markets."""
-    import datetime
-
-    def _market_open(open_h: int, open_m: int, close_h: int, close_m: int, tz_offset: float) -> bool:
-        """Very lightweight check — no pytz required."""
-        utc_now = datetime.datetime.now(datetime.timezone.utc)
-        local_h = (utc_now.hour + tz_offset) % 24
-        local_m = utc_now.minute
-        local_mins = local_h * 60 + local_m
-        open_mins = open_h * 60 + open_m
-        close_mins = close_h * 60 + close_m
-        weekday = utc_now.weekday()  # 0=Mon … 6=Sun
-        if weekday >= 5:  # Sat / Sun — all equity markets closed
-            return False
-        return open_mins <= local_mins < close_mins
-
-    # UTC offsets: IST = +5.5, ET = -4 (EDT, summer), crypto always open
-    india_open  = _market_open(9, 15, 15, 30, 5.5)
-    us_open     = _market_open(9, 30, 16, 0, -4.0)
+    # Phase 3 audit (2026-10-02): this endpoint used to re-implement market-hours
+    # math itself with a hardcoded US ET offset of -4.0 ("EDT, summer") applied
+    # YEAR-ROUND -- wrong for the ~5 months/year the US is actually on EST
+    # (UTC-5), which would report the market as open/closed an hour off during
+    # that window. core/utils/market_hours.py already does this correctly via
+    # ZoneInfo("America/New_York"), which resolves real DST transitions from the
+    # IANA database. Delegate to it instead of keeping two implementations.
+    from core.utils.market_hours import is_market_open
 
     return {
-        "us":     {"open": us_open,    "label": "NYSE/NASDAQ",  "tz": "ET"},
-        "india":  {"open": india_open, "label": "NSE/BSE",      "tz": "IST"},
-        "crypto": {"open": True,       "label": "Crypto 24/7",  "tz": "UTC"},
+        "us":     {"open": is_market_open("us-stock"),    "label": "NYSE/NASDAQ",  "tz": "ET"},
+        "india":  {"open": is_market_open("india-stock"), "label": "NSE/BSE",      "tz": "IST"},
+        "crypto": {"open": True,                          "label": "Crypto 24/7",  "tz": "UTC"},
     }
 
 
