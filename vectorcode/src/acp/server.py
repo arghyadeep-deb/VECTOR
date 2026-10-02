@@ -41,7 +41,19 @@ class ACPServer:
       GET  /acp/info         - Agent info (name, capabilities, version)
     """
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8800) -> None:
+    def __init__(self, host: str = "127.0.0.1", port: int = 8800) -> None:
+        # Unsafe default was "0.0.0.0" -- binds all network interfaces by
+        # default on a server with zero authentication on any of its 8
+        # routes (/acp/run executes a real AIAgent conversation). The one
+        # real caller (vectorcode/src/cli.py's `vector acp serve`) already
+        # passes an explicit 127.0.0.1 default at the argparse level, but
+        # this class's own default was the unsafe one -- same
+        # "fix at the primitive, not just the current caller" bar used
+        # repeatedly this cycle. FLAG FOR OWNER, not fixed: none of the 8
+        # ACP routes have any authentication at all (unlike
+        # core/mcp_server.py's SSE transport, which at least warns about
+        # this); adding real auth is a cross-cutting design decision
+        # (what scheme, which routes), not a narrow patch.
         self.host = host
         self.port = port
         self._sessions: dict[str, ACPSession] = {}
