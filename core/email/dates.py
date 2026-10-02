@@ -59,7 +59,13 @@ def format_list_date(date_str: str) -> str:
     if not date:
         return date_str
     now = datetime.now(timezone.utc) if date.tzinfo else datetime.now()
-    if date.date() == now.date():
+    # Compare calendar dates in a common basis: an aware `date` may carry a
+    # non-UTC sender offset (e.g. "+0530" from an email's real Date: header),
+    # so its own .date() is the SENDER's local calendar date, not UTC's --
+    # comparing that directly against `now`'s UTC calendar date misclassifies
+    # "today" near UTC midnight for any non-UTC-offset sender.
+    compare_date = date.astimezone(timezone.utc) if date.tzinfo else date
+    if compare_date.date() == now.date():
         return _time12(date)
     month = date.strftime("%b")
     if date.year == now.year:
