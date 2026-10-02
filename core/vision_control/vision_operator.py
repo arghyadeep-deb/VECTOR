@@ -246,13 +246,18 @@ class VisionOperator:
                     capture_output=True, text=True, timeout=3
                 )
                 original = result.stdout.rstrip("\r\n")
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][vision_op] clipboard read failed: {}", e)
 
-            # Set new content via powershell
+            # Set new content via powershell. A single quote is the only
+            # character with special meaning inside a PowerShell single-
+            # quoted string (ends the literal) -- the correct escape is to
+            # double it ('' inside '...'), not substitute a different
+            # character, which silently corrupted every real apostrophe in
+            # typed text (e.g. "don't" -> "don"t").
             text_no_newline = content.rstrip("\n")
             subprocess.run(
-                ["powershell", "-command", f"Set-Clipboard '{text_no_newline.replace(chr(39), chr(34))}'"],
+                ["powershell", "-command", f"Set-Clipboard '{text_no_newline.replace(chr(39), chr(39) * 2)}'"],
                 timeout=3
             )
             pyautogui.hotkey("ctrl", "v")
@@ -261,7 +266,7 @@ class VisionOperator:
             # Restore clipboard
             if original:
                 subprocess.run(
-                    ["powershell", "-command", f"Set-Clipboard '{original.replace(chr(39), chr(34))}'"],
+                    ["powershell", "-command", f"Set-Clipboard '{original.replace(chr(39), chr(39) * 2)}'"],
                     timeout=3
                 )
 

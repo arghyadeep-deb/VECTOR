@@ -205,8 +205,8 @@ class GUIAgent:
                 if self._on_step:
                     try:
                         self._on_step(step_data)
-                    except Exception:
-                        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                    except Exception as e:
+                        logger.warning("[VECTOR][gui_agent] on_step callback failed: {}", e)
 
                 if terminal:
                     if terminal_type == "finished":
@@ -313,7 +313,11 @@ class GUIAgent:
 
         try:
             from core.inference.vectorcode_llm import chat
+            from core.loop.context_engine import ContextEngine
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            hydration = ContextEngine().session_hydration_prompt({"query": user_content})
             messages = [
+                {"role": "system", "content": hydration},
                 {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
