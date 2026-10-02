@@ -1,14 +1,14 @@
 """SSH remote execution environment with ControlMaster connection persistence."""
-from loguru import logger
 
 import hashlib
-import logging
 import os
 import shlex
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
+
+from loguru import logger
 
 from tools.environments.base import BaseEnvironment, _popen_bash
 from tools.environments.file_sync import (
@@ -19,7 +19,6 @@ from tools.environments.file_sync import (
     unique_parent_dirs,
 )
 
-logger = logging.getLogger(__name__)
 
 
 def _ensure_ssh_available() -> None:
@@ -113,10 +112,10 @@ class SSHEnvironment(BaseEnvironment):
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             home = result.stdout.strip()
             if home and result.returncode == 0:
-                logger.debug("SSH: remote home = %s", home)
+                logger.debug("SSH: remote home = {}", home)
                 return home
         except Exception as _sve:
-            logger.debug("[VECTOR][tools.environments.ssh] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][tools.environments.ssh] remote home lookup failed: {}", _sve)
         if self.user == "root":
             return "/root"
         return f"/home/{self.user}"
@@ -228,7 +227,7 @@ class SSHEnvironment(BaseEnvironment):
                     f"{ssh_stderr.decode(errors='replace').strip()}"
                 )
 
-        logger.debug("SSH: bulk-uploaded %d file(s) via tar pipe", len(files))
+        logger.debug("SSH: bulk-uploaded {} file(s) via tar pipe", len(files))
 
     def _ssh_bulk_download(self, dest: Path) -> None:
         """Download remote .vectorcode/ as a tar archive."""
@@ -281,8 +280,8 @@ class SSHEnvironment(BaseEnvironment):
                        "-O", "exit", f"{self.user}@{self.host}"]
                 subprocess.run(cmd, capture_output=True, timeout=5)
             except (OSError, subprocess.SubprocessError) as _sve:
-                logger.debug("[VECTOR][tools.environments.ssh] suppressed (OSError, subprocess.SubprocessError): %s", _sve)
+                logger.debug("[VECTOR][tools.environments.ssh] tar pipe upload failed: {}", _sve)
             try:
                 self.control_socket.unlink()
             except OSError as _sve:
-                logger.warning("[VECTOR][tools.environments.ssh] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][tools.environments.ssh] cleanup failed: {}", _sve)
