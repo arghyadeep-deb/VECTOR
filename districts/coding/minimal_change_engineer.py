@@ -20,6 +20,13 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.inference.vectorcode_llm import chat
 
+# Same confinement pattern as code_reviewer.py's/architect_bot.py's/
+# bug_hunter.py's/code_explorer.py's fixes this cycle:
+# analyze_change_scope() reads any caller-supplied path with no
+# confinement at all, directly Governor-dispatchable via run()'s
+# task_type == "analyze".
+_ROOT = Path(__file__).resolve().parents[2]
+
 # Keywords that indicate a change has grown beyond the original task scope
 _SCOPE_EXPANSION_SIGNALS = [
     "refactor", "restructure", "clean up", "improve", "optimize",
@@ -84,7 +91,18 @@ class MinimalChangeEngineer(AgentBase):
         Never raises.
         """
         try:
-            fpath = Path(file_path)
+            fpath = Path(file_path).resolve()
+            if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+                logger.error(f"[VECTOR][minimal_change_engineer] Path outside repo or not .py: {file_path}")
+                return {
+                    "file": file_path,
+                    "total_lines": 0,
+                    "min_lines_changed": 0,
+                    "scope_risk": "unknown",
+                    "suggestion": "Path outside repo or not a .py file — cannot analyze",
+                    "task_keywords_matched": [],
+                    "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                }
             if not fpath.exists():
                 logger.error(f"[VECTOR][minimal_change_engineer] File not found: {file_path}")
                 return {
@@ -348,9 +366,12 @@ class MinimalChangeEngineer(AgentBase):
                 "scope creep in proposed changes, and generate minimal-diff "
                 "prompts. Answer the user's question directly and concisely."
             )
+            # RULE 1: session_hydration_prompt() before every LLM call.
+            from core.loop.context_engine import ContextEngine
+            hydration = ContextEngine().session_hydration_prompt({"query": query})
             answer = chat(
                 model=self._model,
-                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}],
+                messages=[{"role": "system", "content": f"{hydration}\n\n{sys_prompt}"}, {"role": "user", "content": query}],
                 timeout=30.0,
             )
             self.award_points(10, "minimal_change_qa_answered")
@@ -404,8 +425,12 @@ class MinimalChangeEngineer(AgentBase):
                 llm_diff = ""
                 if task.get("call_llm", False):
                     from core.prompt_library import get_library as _gl
+                    from core.loop.context_engine import ContextEngine
                     _sys = _gl().get_for_agent("minimal_change_engineer") or ""
-                    messages = ([{"role": "system", "content": _sys}] if _sys else []) + [{"role": "user", "content": prompt}]
+                    # RULE 1: session_hydration_prompt() before every LLM call.
+                    hydration = ContextEngine().session_hydration_prompt({"query": task_desc})
+                    _sys = f"{hydration}\n\n{_sys}" if _sys else hydration
+                    messages = [{"role": "system", "content": _sys}, {"role": "user", "content": prompt}]
                     llm_diff = chat(model=self._model, messages=messages, timeout=30.0)
                 self.award_points(30, "task_done")
                 return {
