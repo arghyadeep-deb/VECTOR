@@ -42,9 +42,18 @@ class ParsedSearch:
 
 
 def _normalize_date(value: str) -> Optional[str]:
+    # None of these 3 formats parse a timezone -- strptime always returns a
+    # NAIVE datetime here. Appending "Z" fabricated a UTC marker the input
+    # never specified, and search_emails() string-compares this directly
+    # against the emails.date column, which is stored via naive local
+    # datetime.now().isoformat() (no "Z") -- the mismatched suffix made
+    # before:/after: filters compare unreliably at boundary timestamps
+    # (e.g. "...00.000000" sorts before "...00Z" lexicographically, even
+    # for the same nominal moment). Dropping the fabricated "Z" matches the
+    # real storage format.
     for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y"):
         try:
-            return datetime.strptime(value, fmt).isoformat() + "Z"
+            return datetime.strptime(value, fmt).isoformat()
         except ValueError:
             continue
     return None
