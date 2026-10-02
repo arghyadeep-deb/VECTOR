@@ -65,11 +65,6 @@ class AgentRegistry:
         Returns the number of definitions loaded.
         """
         try:
-            from agents.loader import load_yaml_definition
-        except ImportError:
-            from loader import load_yaml_definition  # type: ignore[no-reuse-declaration]
-
-        try:
             import yaml
             raw_list = yaml.safe_load(path.read_text(encoding="utf-8"))
             if not isinstance(raw_list, list):
@@ -78,7 +73,6 @@ class AgentRegistry:
             count = 0
             for item in raw_list:
                 try:
-                    defn = load_yaml_definition.__func__ if False else None  # unreachable
                     defn = AgentDefinition(
                         name=item["name"],
                         class_name=item["class_name"],
