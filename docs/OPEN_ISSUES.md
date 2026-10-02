@@ -2166,3 +2166,53 @@ isn't "proven in production" until you supply the service/device and run it live
     (17 before this slice + feishu_doc_tool.py + video_generation_tool.py + managed_tool_gateway.py +
     environments/ssh.py); 108 remain, including the 30-file systemic logger bug list above (16 of
     which are small/medium and not yet separately scheduled) and all 18 of the 1,000+-line files.
+
+39. **`vectorcode/src/vector_cli/` 2nd slice, 2026-10-02 —** resumed slice: a prior fork died from a
+    rate limit right after starting, having found but not finished fixing `vault_cmd.py`'s
+    data-destroying fail-open on decrypt failure (completed and committed separately, `36d5256de`).
+    This slice covered 9 more small files with real depth, continuing from the 11 already done.
+    **Fixed (6 real bugs):** `hints.py`'s `hint_no_config()` told users the config file would be at
+    `~/.vectorcode.src/config.toml` — a Python-module-path fragment leaking into user-facing text,
+    pointing at a directory that never exists (real path confirmed via `vc_core/config.py`:
+    `~/.vector/config.toml`); `__init__.py`'s `kanban_db` import guard had the systemic
+    `"[VECTOR] suppressed exception"` placeholder; `gateway_cmd.py`'s `start()` (no `--install`)
+    printed `"Gateway started. Press Ctrl+C to stop."` with zero real action — no subprocess, no
+    blocking loop — phantom success (dormant: this `gateway` click group is not registered anywhere
+    in the real CLI, confirmed via repo-wide grep, fixed anyway per this cycle's bar);
+    `proxy/adapters/vector_portal.py` — importing this module raised `ImportError` immediately:
+    `vector_cli.auth._write_shared_nous_state` has never existed anywhere in `auth.py`'s git history
+    (confirmed), so this was broken from the file's first commit, not a regression. Removed the dead
+    import/call (`_save_state()` already persists correctly via the same `providers.nous` +
+    `_save_auth_store()` path `auth.py`'s own `persist_nous_credentials()` uses) and fixed its
+    stdlib-logging-instead-of-loguru + `%s`-placeholders in the same pass. **FLAG FOR OWNER, not
+    fixed:** even after the import fix, this module *still* cannot be imported —
+    `vectorcode/src/vector_cli/proxy/adapters/base.py` (and `proxy/__init__.py`,
+    `proxy/adapters/__init__.py`) do not exist anywhere in the repo; `vector_portal.py` is the ONLY
+    file under `proxy/` — an orphaned fragment of an incomplete port with zero real callers anywhere
+    (confirmed via grep), not fixable without inventing a base-class hierarchy the owner hasn't
+    specified. `daemon_cmd.py` — 3 more `"[VECTOR] suppressed exception"` placeholders (SIGTERM/SIGKILL
+    failure paths, psutil uptime lookup), plus simplified a redundant `except (ImportError, Exception)`
+    to just `Exception`.
+    **Verified clean, real depth (14 files):** `init_cmd.py`, `default_soul.py`, `_chat_banner.py`,
+    `_first_run.py`, `colors.py`, `_tool_names.py`, `_chat_notifications.py`, `platforms.py`,
+    `_bg_state.py` (noted a second instance of the same stale `.vectorcode.src` path, but only in an
+    internal docstring, not user-facing — not fixed, too low-value for the remaining budget),
+    `timeouts.py`, `pt_input_extras.py`, `log_config.py` (intentional stdlib `"openjarvis"` named
+    logger for legacy-compat subsystems, not a bug), `add_cmd.py`, `browser_connect.py`,
+    `registry_cmd.py`, `pearl_cmd.py` (pass-through CLI wrapper, user-controlled args by design, not
+    an injection risk).
+    New tests: `tests/test_vectorcode_vector_cli_hints_and_init.py` (2), `tests/test_vectorcode_
+    gateway_cmd_foreground_start.py` (1), `tests/test_vectorcode_vector_portal_logging.py` (3,
+    source-level — the module cannot actually be imported), `tests/test_vectorcode_daemon_cmd_
+    logging.py` (2). 8 tests total, all independently passing. Commits: `86a5f68a2`, `0094423a4`,
+    `354494720`, `dfca9f0f0`.
+    **Remaining scope in `vectorcode/src/vector_cli/`**: of 123 total files, 20 now have real depth
+    (11 before this slice + 9 from this one); 103 remain, including 19 files 1,200+ lines each
+    (`main.py` 10,191, `kanban_db.py` 4,840, `auth.py` 4,370, `config.py` 4,266, `gateway.py` 4,228,
+    `setup.py` 3,372, `web_server.py` 3,175, `models.py` 3,069, `tools_config.py` 2,318, `kanban.py`
+    2,253, `commands.py` 1,621, `skills_hub.py` 1,597, `model_switch.py` 1,468, `plugins_cmd.py`
+    1,281, `doctor.py` 1,274, `runtime_provider.py` 1,256, `plugins.py` 1,198 — each needing its own
+    dedicated future slice) and roughly 80 more untouched small/medium files (e.g. `kanban.py`,
+    `commands.py` already counted above, `model_switch.py`, `profiles.py`, `mine_cmd.py`, `skin_
+    engine.py`, `backup.py`, `nous_subscription.py`, `mcp_config.py`, `kanban_diagnostics.py`, and
+    dozens more).
