@@ -64,6 +64,26 @@ def _save(path: Path, data: Any) -> None:
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
+def _safe_site_id(site_id: str, root: Path) -> Path:
+    """Confine site_id to root/sites/<site_id>, rejecting any traversal.
+
+    record_audit()/add_goal()/get_audit_history()/record_followup_metrics()
+    all build a file path directly from a caller-supplied site_id with no
+    confinement check -- legitimate site_ids only ever come from
+    _normalize_site_id() (which already strips to [a-zA-Z0-9_]), but these
+    methods trusted that invariant rather than enforcing it. Both current
+    real callers happen to validate site_id via get_site() first (which
+    only matches an already-registered, already-normalized id), so this
+    isn't reachable today -- hardened anyway at the primitive level, same
+    bar as this cycle's other narrow/no-current-exploit-path confinement
+    fixes (worktree.py, direct_executor.py).
+    """
+    site_dir = (root / "sites" / site_id).resolve()
+    if not site_dir.is_relative_to((root / "sites").resolve()):
+        raise ValueError(f"invalid site_id: {site_id!r}")
+    return site_dir
+
+
 def _normalize_site_id(site: str) -> str:
     """Convert 'https://example.com/' → 'example_com'."""
     site = site.strip().rstrip("/")
@@ -228,7 +248,7 @@ class SEOPortfolio:
         issues: Optional[list[dict]] = None,
     ) -> str:
         """Save an audit result and update the site's latest state."""
-        site_dir = self._root / "sites" / site_id
+        site_dir = _safe_site_id(site_id, self._root)
         site_dir.mkdir(parents=True, exist_ok=True)
 
         audit_ts = _now().replace(":", "-").replace("+", "")[:19]
@@ -259,7 +279,10 @@ class SEOPortfolio:
         return audit_id
 
     def get_audit_history(self, site_id: str, limit: int = 5) -> list[dict]:
-        audit_dir = self._root / "sites" / site_id / "audits"
+        try:
+            audit_dir = _safe_site_id(site_id, self._root) / "audits"
+        except ValueError:
+            return []
         if not audit_dir.exists():
             return []
         files = sorted(audit_dir.glob("*.json"), reverse=True)[:limit]
@@ -274,7 +297,7 @@ class SEOPortfolio:
         metric: str = "clicks_28d",
         target_delta: float = 0.2,
     ) -> str:
-        site_dir  = self._root / "sites" / site_id
+        site_dir  = _safe_site_id(site_id, self._root)
         site_dir.mkdir(parents=True, exist_ok=True)
         goals = _load(site_dir / "goals.json", {"active": [], "archived": []})
         goal_id = f"goal_{site_id}_{len(goals['active'])+1:03d}"
@@ -324,7 +347,7 @@ class SEOPortfolio:
         _save(self._schedule_path, schedule)
 
         # Also write to site queue
-        site_dir = self._root / "sites" / site_id / "queue"
+        site_dir = _safe_site_id(site_id, self._root) / "queue"
         site_dir.mkdir(parents=True, exist_ok=True)
         _save(site_dir / f"{item_id}.json", item)
 
@@ -361,8 +384,15 @@ class SEOPortfolio:
         baseline_metrics: dict[str, float] | None = None,
     ) -> None:
         """Record observed metrics for a follow-up item."""
-        site_queue = self._root / "sites" / site_id / "queue"
-        item_path  = site_queue / f"{item_id}.json"
+        try:
+            site_queue = _safe_site_id(site_id, self._root) / "queue"
+        except ValueError:
+            logger.warning("[VECTOR][seo_portfolio] invalid site_id: {}", site_id)
+            return
+        item_path = (site_queue / f"{item_id}.json").resolve()
+        if not item_path.is_relative_to(site_queue.resolve()):
+            logger.warning("[VECTOR][seo_portfolio] invalid item_id: {}", item_id)
+            return
         if not item_path.exists():
             logger.warning("[VECTOR][seo_portfolio] followup not found: {}", item_id)
             return
