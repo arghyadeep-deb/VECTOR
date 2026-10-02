@@ -134,7 +134,7 @@ class SentimentAnalyzer:
         if result.confidence >= 0.6:
             logger.debug("[SentimentAnalyzer] keyword: {} (conf={:.2f}, {:.1f}ms)", result.emotion, result.confidence, elapsed * 1000)
             return result
-        if self._method == "embedding" or (self._method == "keyword" and self._embedding_model):
+        if self._method in ("embedding", "llm") or (self._method == "keyword" and self._embedding_model):
             embedding_result = self._embedding_analyze(text)
             elapsed = time.perf_counter() - start
             if embedding_result.confidence > result.confidence:
