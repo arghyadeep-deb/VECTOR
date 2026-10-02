@@ -288,6 +288,25 @@ def _diff_summary(old: str, new: str, max_lines: int = 30) -> str:
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
+def _confine(base: Path, rel_path: str) -> Path:
+    """Resolve rel_path against base and require it stay inside base.
+
+    hunk.path/move_to are parsed directly out of the patch TEXT (the
+    "*** Add File: <path>"/"*** Update File: <path>"/"*** Move to: <path>"
+    directives) -- an LLM-generated patch (this tool's whole purpose) that
+    names an absolute path or a "../" escape previously reached
+    `base / path` with zero confinement. pathlib's own `/` operator
+    returns an absolute RHS unmodified, discarding `base` entirely, so an
+    absolute path escaped silently; a relative "../../x" escaped via
+    resolve(). Same bug class fixed in core/code_conductor/str_replace.py
+    (read_files()) and 5+ districts/coding/ files this cycle.
+    """
+    resolved = (base / rel_path).resolve()
+    if not resolved.is_relative_to(base):
+        raise ValueError(f"path escapes base_dir: {rel_path!r}")
+    return resolved
+
+
 def apply_patch(patch_text: str, base_dir: str = ".") -> dict:
     """
     Apply a Codex-style *** Begin Patch / *** End Patch block.
@@ -306,6 +325,14 @@ def apply_patch(patch_text: str, base_dir: str = ".") -> dict:
     errors: list[str] = []
 
     for hunk in hunks:
+        try:
+            _confine(base, hunk.path)
+            if isinstance(hunk, _UpdateFile) and hunk.move_to:
+                _confine(base, hunk.move_to)
+        except ValueError as e:
+            errors.append(f"✗ {hunk.path}: {e}")
+            logger.error("[VECTOR][apply_patch] rejected {}: {}", hunk.path, e)
+            continue
         if isinstance(hunk, _AddFile):
             dest = base / hunk.path
             dest.parent.mkdir(parents=True, exist_ok=True)
