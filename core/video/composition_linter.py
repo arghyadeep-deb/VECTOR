@@ -553,10 +553,10 @@ def lint_composition(
     )
 
 
-def lint_file(path: str) -> LintResult:
+def lint_file(path: str, is_sub_composition: bool = False) -> LintResult:
     """Lint a composition file by path."""
     html = Path(path).read_text(encoding="utf-8")
-    return lint_composition(html, file_path=path)
+    return lint_composition(html, file_path=path, is_sub_composition=is_sub_composition)
 
 
 def lint_project(project_dir: str) -> dict[str, LintResult]:
@@ -564,7 +564,7 @@ def lint_project(project_dir: str) -> dict[str, LintResult]:
     results: dict[str, LintResult] = {}
     for html_file in Path(project_dir).rglob("*.html"):
         is_sub = "compositions/" in str(html_file).replace("\\", "/")
-        results[str(html_file)] = lint_file(str(html_file))
+        results[str(html_file)] = lint_file(str(html_file), is_sub_composition=is_sub)
     return results
 
 
