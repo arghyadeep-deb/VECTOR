@@ -1940,6 +1940,74 @@ grew open engineering items; section 0 lists them.
     claim all of `core/` is deep-verified until that slice's own completion is confirmed
     — check its final report/commits before relying on this file's own claim above.**
 
+37. **Final core/ mop-up slice, 2026-10-02 — root-level files + 14 tiny subdirectories,
+    ALL COMPLETE. This is the slice item 36 flagged as still in progress — now confirmed
+    done.** Scope: `core/config.py`, `core/mcp_server.py`, `core/mcp_server_stdio.py`,
+    `core/notify.py`, `core/prompt_library.py`, `core/repo_hygiene.py`,
+    `core/runtime_paths.py`, `core/api_manager.py`, `core/brain_hooks/`, `core/errors.py`,
+    plus `core/audit/`, `core/causal/`, `core/communications/`, `core/experiments/`,
+    `core/integrations/`, `core/mcp/`, `core/migration/`, `core/models/`,
+    `core/monitoring/`, `core/queue/`, `core/science/`, `core/services/`, `core/swarm/`,
+    `core/utils/` — ~12,500 lines total.
+    **Most severe finding: `core/audit/merkle_chain.py`'s `_redact()` only inspected
+    top-level payload keys before writing to the persistent, append-only, on-disk audit
+    trail.** This is LIVE code (`core/city/governor.py` — central dispatch for every one
+    of VECTOR's ~230 agents' actions — plus `core/loop/cron_jobs.py`,
+    `core/scraper/vector_scraper.py`, `core/api/routers/audit.py`), not dormant. A nested
+    secret (e.g. `{"request": {"api_key": "sk-..."}}`, a plausible shape for the
+    "tool_call"/"llm_request" actions this chain exists to log) passed through completely
+    unredacted, directly contradicting the class's own docstring promise. Fixed with a
+    recursive `_redact_value()` walking nested dicts/lists. Commit `d95576127`.
+    **Real logic bugs fixed (not security, correctness):**
+    `core/swarm/orchestrator.py`'s `dispatch()` fallback loop ("try all swarms in order")
+    only advanced past a swarm that RAISED — but every real swarm/agent in this codebase
+    reports failure via a returned `{"status": "error"}` dict instead, so it silently
+    never tried more than the first swarm. Commit `c29011eee`.
+    `core/experiments/ab_testing.py`'s `winner()` compared candidates against a p-value
+    that `stats()` only ever computes relative to `variants[0]` — and `variants[0]` itself
+    never gets a p-value key — so `winner()` returned `None` (no significant result)
+    whenever the control/base variant also qualified as a candidate, the normal case.
+    Verified via `git stash` that the new test fails against the pre-fix code. Commit
+    `2d2f3017c`. `core/migration/importer.py`'s `save_agent()`/`to_python_file()` took
+    `agent.name`/`system_prompt` from a parsed, untrusted migration-source config file with
+    no confinement/escaping — a crafted name could path-traverse the output location, and a
+    triple-quote in a prompt could inject arbitrary code into the generated agent `.py`
+    file. Both dormant (zero real callers), fixed anyway. Commit `459e73835`.
+    `core/api/routers/investment.py`'s `/market-status` had its own independent,
+    hardcoded-US-ET-offset market-hours re-implementation (wrong ~5 months/year vs.
+    `core/utils/market_hours.py`'s correct DST-aware version) — found while verifying
+    `market_hours.py` itself; deleted the duplicate. Commit `94fdff611`.
+    `core/swarm/generic_swarm.py`'s `_fallback()` and `core/runtime/missions.py` (prior
+    sibling slice) both had the RULE 1 hydration gap; `core/brain_hooks/__init__.py`'s
+    `run_hook()` had the identical hook-name path-traversal primitive that
+    `core/mcp_tools/`'s wrapper already guards at the call site but not at the source —
+    fixed at the primitive per this cycle's established pattern. Commits `f3d9daf65`,
+    `c3767cbd5`.
+    **~10 more silent-swallow-placeholder fixes** across `core/mcp/client.py`,
+    `core/communications/hub.py`, `core/science/physics_engine.py` (all dormant or
+    low-traffic, fixed per this cycle's "fix narrow bugs even in dormant code" bar) —
+    see commits `844585c76`, `d7d28574d`, `643c023d1`.
+    **One more correctness fix:** `core/science/chemistry_engine.py`'s RDKit-unavailable
+    heuristic fallback doubled every real ring count (SMILES ring-closure digits appear
+    twice per ring). Commit `643c023d1`.
+    **Flagged, not fixed:** `core/mcp_server_stdio.py`'s `MCP_KERNEL_SECRET` is generated,
+    validated for production strength, and gated by `core/runtime/readiness_check.py`'s
+    readiness check, but `_sign_request()` (the only thing that would ever use it) has zero
+    callers anywhere — the comments describing "signed MCP requests" described an intended,
+    unwired feature as if active; corrected the comment, left real signing as a design
+    decision. Commit `c3767cbd5`.
+    **Clean, no issues:** `core/queue/retry_queue.py`, `core/services/` (both files),
+    `core/monitoring/perf_contracts.py`, `core/causal/causal_reasoner.py`,
+    `core/integrations/gmail_auth.py`, `core/models/health_models.py`,
+    `core/science/cad_engine.py` (all geometry formulas verified), `core/__init__.py`.
+    21 commits total this slice.
+    **With this slice done, `core/` (every subdirectory except the 2 confirmed-vendored
+    trees, `core/research_engine/` and `core/coding_assistant/`) is now GENUINELY,
+    confirmedly fully deep-verified — all 3 parallel forks covering the remaining `core/`
+    territory (this slice, item 35's `avatar+cloud+knowledge`, item 36's
+    `vision_control+stealth_browser+scheduler+metering+ui`) have completed and are
+    cross-confirmed via their own commits, not just claimed.**
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
