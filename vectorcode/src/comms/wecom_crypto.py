@@ -12,6 +12,16 @@ try:
 except ImportError:
     from xml.etree import ElementTree as ET
 
+# defusedxml.ElementTree deliberately exposes only parsing functions
+# (fromstring/parse/XML) -- it has no Element/SubElement/tostring builder
+# API, by design (its whole purpose is guarding untrusted-input parsing,
+# not building output). encrypt() below only ever builds a response from
+# VECTOR's own trusted data, never parses untrusted input, so it needs
+# the real builder regardless of which ET got bound above -- using the
+# defusedxml alias here raised AttributeError on every encrypt() call
+# whenever defusedxml was installed (the preferred/common case).
+from xml.etree import ElementTree as _ET_BUILD
+
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
@@ -43,7 +53,8 @@ class WXBizMsgCrypt:
 
     def decrypt(self, msg_signature: str, timestamp: str, nonce: str, encrypt: str) -> bytes:
         parts = sorted([self.token, timestamp, nonce, encrypt])
-        if hashlib.sha1("".join(parts).encode()).hexdigest() != msg_signature:  # nosec — WeCom API mandates SHA1
+        expected = hashlib.sha1("".join(parts).encode()).hexdigest()  # nosec — WeCom API mandates SHA1
+        if not secrets.compare_digest(expected, msg_signature):
             raise SignatureError("signature mismatch")
         cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
         padded = cipher.decryptor().update(base64.b64decode(encrypt)) + cipher.decryptor().finalize()
@@ -63,9 +74,9 @@ class WXBizMsgCrypt:
         encrypted = base64.b64encode(cipher.encryptor().update(PKCS7Encoder.encode(payload)) + cipher.encryptor().finalize()).decode()
         parts = sorted([self.token, timestamp, nonce, encrypted])
         sig = hashlib.sha1("".join(parts).encode()).hexdigest()
-        root = ET.Element("xml")
-        ET.SubElement(root, "Encrypt").text = encrypted
-        ET.SubElement(root, "MsgSignature").text = sig
-        ET.SubElement(root, "TimeStamp").text = timestamp
-        ET.SubElement(root, "Nonce").text = nonce
-        return ET.tostring(root, encoding="unicode")
+        root = _ET_BUILD.Element("xml")
+        _ET_BUILD.SubElement(root, "Encrypt").text = encrypted
+        _ET_BUILD.SubElement(root, "MsgSignature").text = sig
+        _ET_BUILD.SubElement(root, "TimeStamp").text = timestamp
+        _ET_BUILD.SubElement(root, "Nonce").text = nonce
+        return _ET_BUILD.tostring(root, encoding="unicode")
