@@ -1701,6 +1701,41 @@ grew open engineering items; section 0 lists them.
     than its file count suggested going in — treat every future batch size estimate for it
     with that in mind.
 
+32. **`core/personality/` deep-verify, 2026-10-02 — COMPLETE (7 files, 1,205 lines).** Real
+    line-by-line review, not mechanical grep.
+    **1 real bug fixed:** `sentiment.py`'s `SentimentAnalyzer.analyze()` docstring promises a
+    3-tier "keyword → embedding → LLM fallback" cascade (`core/config.py` documents
+    `sentiment_method`'s 3 valid values as `keyword | embedding | llm`), but the
+    embedding-tier gate (`self._method == "embedding" or (self._method == "keyword" and
+    self._embedding_model)`) only matched `method == "embedding"`, never `"llm"` —
+    configuring the full documented cascade silently skipped the embedding tier entirely,
+    jumping straight from keyword to LLM on low keyword confidence. Fixed by including
+    `"llm"` in the gate. New `tests/test_core_personality_sentiment_cascade.py` (4 tests).
+    Verified `tests/personality/` (full suite) + `tests/integration/test_spec03_personality.py`,
+    zero regressions. Commit `697df9a0b`.
+    **2 flagged, not fixed:** `sentiment.py`'s `_llm_analyze()` and `consistency.py`'s
+    `_llm_rewrite()` both call raw `httpx.post()` against `CONFIG['ollama_host']` directly,
+    bypassing `core/inference/provider_client.py` + `route_policy` entirely (CLAUDE.md: never
+    raw `httpx` for LLM calls) with no `session_hydration_prompt()` — low real-world exposure
+    today (`sentiment_method` defaults to `"keyword"`; `_llm_rewrite` only fires on a
+    borderline consistency score), flagged rather than fixed since routing through
+    `provider_client.py` needs confirming its `format="json"` structured-output param is
+    uniformly supported across providers, not a one-line swap. `consistency.py`'s
+    `_TRAIT_CHECKS["language"]` bucket (emoji/filler-word regex patterns) is dead code —
+    `"language"` is never a real `CharacterCard` trait name, so it's never reached via the
+    `for trait_name in active_traits` iteration that drives `_check_traits()`; functionally
+    covered anyway by `_check_speech_patterns()` with different penalty weights, so it's
+    ambiguous whether this is a real scoring-leniency bug (the intended double-penalization
+    under `trait_score`'s 0.40 weight never fires) or just vestigial dead code — flagged for
+    owner judgment rather than guessed at either way.
+    **Clean, no bugs found:** `__init__.py`, `character_card.py`, `tone_adapter.py`,
+    `memory_persona.py`, `middleware.py`. `memory_persona.py` is a clean example of the
+    correct SQLCipher-aware pattern — it uses the shared `get_db_connection()` singleton for
+    the main encrypted DB, with a well-documented, narrowly-scoped private-path exception for
+    tests — the pattern several OTHER files this cycle got wrong (`database_optimizer.py`,
+    etc.).
+    `core/personality/` is now COMPLETE.
+
 This file is the single owner-facing source of truth. Full per-item evidence
 (the detailed 31-repo absorption + open-issues audit with file:line proof) lives
 in git history — the in-tree `repo_analysis/` archives were removed once their
