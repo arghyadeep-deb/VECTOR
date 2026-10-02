@@ -121,8 +121,8 @@ class MerkleAuditChain:
                 if line:
                     try:
                         entries.append(AuditEntry.from_dict(json.loads(line)))
-                    except Exception:
-                        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                    except Exception as e:
+                        logger.warning("[VECTOR][audit] skipped unreadable chain line: {}", e)
         self._cache = entries
         self._loaded = True
         return entries
@@ -135,11 +135,28 @@ class MerkleAuditChain:
         return len(self._load())
 
     def _redact(self, payload: dict) -> dict:
-        """Remove sensitive values before storing."""
-        return {
-            k: "[REDACTED]" if any(s in k.lower() for s in self._SENSITIVE_KEYS) else v
-            for k, v in payload.items()
-        }
+        """Remove sensitive values before storing.
+
+        Recurses into nested dicts/lists -- the old version only checked
+        top-level keys, so a real secret in e.g. {"request": {"api_key":
+        "sk-..."}} (a very plausible shape for the "tool_call"/
+        "llm_request" actions this chain exists to log) was written
+        unredacted to this persistent, append-only, on-disk audit trail,
+        directly contradicting this class's own docstring promise
+        ("secrets auto-redacted").
+        """
+        return self._redact_value(payload)
+
+    def _redact_value(self, value):
+        if isinstance(value, dict):
+            return {
+                k: "[REDACTED]" if any(s in k.lower() for s in self._SENSITIVE_KEYS)
+                else self._redact_value(v)
+                for k, v in value.items()
+            }
+        if isinstance(value, list):
+            return [self._redact_value(v) for v in value]
+        return value
 
     def log(
         self,
