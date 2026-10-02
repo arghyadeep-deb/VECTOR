@@ -745,8 +745,8 @@ async def web_chat(body: dict):
                 tags=["chat", "web"],
                 source="web_ui",
             )
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as e:
+            logger.warning("[VECTOR][web_ui] failed to store episodic memory: {}", e)
 
         return {"response": response}
     except Exception as e:
@@ -756,7 +756,17 @@ async def web_chat(body: dict):
 
 @router.websocket("/ws/chat")
 async def web_chat_ws(websocket: WebSocket):
+    # auth_middleware is registered via app.middleware("http") -- Starlette's
+    # HTTP-scope middleware does NOT run for websocket-scope connections, so
+    # this endpoint was reachable with zero authentication regardless of
+    # VECTOR_API_KEY being set, identical to the /notifications/ws gap
+    # already fixed this cycle (core/api/routers/websocket.py's
+    # require_auth_handshake(), same WS_API_KEY).
     await websocket.accept()
+    from core.api.routers.websocket import require_auth_handshake
+    if not await require_auth_handshake(websocket):
+        logger.warning("[VECTOR][web_ui] ws chat connection rejected -- auth handshake failed")
+        return
     try:
         data = await websocket.receive_json()
         user_message = (data.get("message") or "").strip()
@@ -792,16 +802,16 @@ async def web_chat_ws(websocket: WebSocket):
                 tags=["chat", "web"],
                 source="web_ui_ws",
             )
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as e:
+            logger.warning("[VECTOR][web_ui] failed to store episodic memory: {}", e)
     except WebSocketDisconnect:
-        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        logger.debug("[VECTOR][web_ui] ws chat client disconnected")
     except Exception as e:
         logger.error(f"[VECTOR][web_ui] ws chat: {e}")
         try:
             await websocket.send_json({"type": "error", "message": str(e)})
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as e2:
+            logger.warning("[VECTOR][web_ui] failed to send error to disconnected client: {}", e2)
 
 
 @router.get("/search")
