@@ -41,11 +41,11 @@ the tool surface stable as new providers ship with different capabilities.
 """
 
 from __future__ import annotations
-from loguru import logger
 
 import json
-import logging
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from agent.video_gen_provider import (
     COMMON_ASPECT_RATIOS,
@@ -55,8 +55,6 @@ from agent.video_gen_provider import (
     error_response,
 )
 from tools.registry import registry, tool_error  # bare name: the fully-qualified path made a SECOND registry copy
-
-logger = logging.getLogger(__name__)
 
 
 VIDEO_GENERATE_SCHEMA: Dict[str, Any] = {
@@ -174,7 +172,7 @@ def _read_video_gen_section() -> Dict[str, Any]:
         section = cfg.get("video_gen") if isinstance(cfg, dict) else None
         return section if isinstance(section, dict) else {}
     except Exception as exc:
-        logger.debug("Could not read video_gen config: %s", exc)
+        logger.debug("Could not read video_gen config: {}", exc)
         return {}
 
 
@@ -215,7 +213,7 @@ def check_video_generation_requirements() -> bool:
             except Exception:
                 continue
     except Exception as _sve:
-        logger.debug("[VECTOR][tools.video_generation_tool] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][tools.video_generation_tool] video_gen_registry import failed: {}", _sve)
     return False
 
 
@@ -241,7 +239,7 @@ def _resolve_active_provider():
             provider = get_active_provider()
         return provider
     except Exception as exc:
-        logger.debug("video_gen provider resolution failed: %s", exc)
+        logger.debug("video_gen provider resolution failed: {}", exc)
         return None
 
 
@@ -355,7 +353,7 @@ def _handle_video_generate(args: Dict[str, Any], **_kw: Any) -> str:
         # A provider that hasn't widened its signature is a bug, not a
         # caller error — log and surface a clear contract message.
         logger.warning(
-            "video_gen provider '%s' rejected kwargs (signature too narrow): %s",
+            "video_gen provider {!r} rejected kwargs (signature too narrow): {}",
             getattr(provider, "name", "?"), exc,
         )
         return json.dumps(error_response(
@@ -371,7 +369,7 @@ def _handle_video_generate(args: Dict[str, Any], **_kw: Any) -> str:
         ))
     except Exception as exc:
         logger.warning(
-            "video_gen provider '%s' raised: %s",
+            "video_gen provider {!r} raised: {}",
             getattr(provider, "name", "?"), exc,
         )
         return json.dumps(error_response(
