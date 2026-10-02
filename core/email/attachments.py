@@ -98,7 +98,20 @@ def store_attachments(
 
 
 def get_attachment_path(email_id: str, attachment_id: str, filename: str) -> Path:
-    return _ATTACH_ROOT / email_id / attachment_id / filename
+    """Resolve a stored attachment's path, confined to _ATTACH_ROOT.
+
+    Unlike store_attachments() (which strips directory components and unsafe
+    characters before ever writing a file), this function had no such check
+    on any of its three caller-supplied components -- a filename/email_id/
+    attachment_id containing ".." could resolve outside _ATTACH_ROOT. No real
+    caller exists today, but this must stay safe for whatever reads it next
+    (e.g. an attachment-download HTTP route).
+    """
+    root = _ATTACH_ROOT.resolve()
+    candidate = (root / email_id / attachment_id / filename).resolve()
+    if not candidate.is_relative_to(root):
+        raise ValueError(f"attachment path escaped storage root: {filename!r}")
+    return candidate
 
 
 if __name__ == "__main__":
