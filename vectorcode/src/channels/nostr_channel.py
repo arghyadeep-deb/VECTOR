@@ -129,8 +129,8 @@ class NostrChannel(BaseChannel):
         except ImportError:
             logger.debug("pynostr not installed")
             return False
-        except Exception:
-            logger.debug("Nostr send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Nostr send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

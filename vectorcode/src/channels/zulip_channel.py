@@ -134,8 +134,8 @@ class ZulipChannel(BaseChannel):
         except ImportError:
             logger.debug("zulip not installed")
             return False
-        except Exception:
-            logger.debug("Zulip send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Zulip send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

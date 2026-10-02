@@ -92,7 +92,7 @@ class FeishuChannel(BaseChannel):
             )
             if token_resp.status_code >= 300:
                 logger.warning(
-                    "Feishu token request returned status %d",
+                    "Feishu token request returned status {}",
                     token_resp.status_code,
                 )
                 return False
@@ -126,12 +126,12 @@ class FeishuChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Feishu API returned status %d",
+                "Feishu API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Feishu send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Feishu send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

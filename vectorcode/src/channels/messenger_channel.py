@@ -101,8 +101,8 @@ class MessengerChannel(BaseChannel):
         except ImportError:
             logger.debug("pymessenger not installed")
             return False
-        except Exception:
-            logger.debug("Messenger send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Messenger send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

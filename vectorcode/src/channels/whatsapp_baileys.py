@@ -172,7 +172,7 @@ class WhatsAppBaileysChannel(BaseChannel):
             )
             self._reader_thread.start()
             logger.info(
-                "WhatsApp Baileys bridge started (pid=%s)",
+                "WhatsApp Baileys bridge started (pid={})",
                 self._process.pid,
             )
         except Exception:
@@ -186,15 +186,15 @@ class WhatsAppBaileysChannel(BaseChannel):
         if self._process is not None and self._process.stdin is not None:
             try:
                 self._write_command({"type": "disconnect"})
-            except Exception:
-                logger.debug("Could not send disconnect command", exc_info=True)
+            except Exception as _e:
+                logger.debug("Could not send disconnect command: {}", _e)
 
         if self._process is not None:
             try:
                 self._process.terminate()
                 self._process.wait(timeout=5.0)
-            except Exception:
-                logger.debug("Bridge process termination error", exc_info=True)
+            except Exception as _e:
+                logger.debug("Bridge process termination error: {}", _e)
             self._process = None
 
         if self._reader_thread is not None:
@@ -226,8 +226,8 @@ class WhatsAppBaileysChannel(BaseChannel):
             )
             self._publish_sent(channel, content, conversation_id)
             return True
-        except Exception:
-            logger.debug("WhatsApp Baileys send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("WhatsApp Baileys send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -274,9 +274,9 @@ class WhatsAppBaileysChannel(BaseChannel):
                     continue
 
                 self._handle_bridge_event(event)
-        except Exception:
+        except Exception as _e:
             if not self._stop_event.is_set():
-                logger.debug("Reader loop error", exc_info=True)
+                logger.debug("Reader loop error: {}", _e)
                 self._status = ChannelStatus.ERROR
 
     def _handle_bridge_event(self, event: Dict[str, Any]) -> None:

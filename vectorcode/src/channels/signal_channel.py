@@ -94,12 +94,12 @@ class SignalChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Signal API returned status %d",
+                "Signal API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Signal send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Signal send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

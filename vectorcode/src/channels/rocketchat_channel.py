@@ -134,8 +134,8 @@ class RocketChatChannel(BaseChannel):
         except ImportError:
             logger.debug("rocketchat_API not installed")
             return False
-        except Exception:
-            logger.debug("Rocket.Chat send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Rocket.Chat send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

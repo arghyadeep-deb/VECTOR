@@ -121,12 +121,12 @@ class WebhookChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Webhook returned status %d",
+                "Webhook returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Webhook send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Webhook send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

@@ -127,13 +127,13 @@ class SendBlueChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "SendBlue API returned status %d: %s",
+                "SendBlue API returned status {}: {}",
                 resp.status_code,
                 resp.text[:200],
             )
             return False
-        except Exception:
-            logger.debug("SendBlue send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("SendBlue send failed: {}", _e)
             return False
 
     def handle_webhook(self, payload: Dict[str, Any]) -> None:

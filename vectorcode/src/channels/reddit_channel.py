@@ -136,8 +136,8 @@ class RedditChannel(BaseChannel):
         except ImportError:
             logger.debug("praw not installed")
             return False
-        except Exception:
-            logger.debug("Reddit send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Reddit send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

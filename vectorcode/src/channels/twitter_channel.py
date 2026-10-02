@@ -231,13 +231,13 @@ class TwitterChannel(BaseChannel):
                 self._publish_sent(channel, text, conversation_id)
                 return True
             logger.warning(
-                "Twitter API returned status %d: %s",
+                "Twitter API returned status {}: {}",
                 resp.status_code,
                 resp.text,
             )
             return False
-        except Exception:
-            logger.debug("Twitter send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Twitter send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -309,12 +309,12 @@ class TwitterChannel(BaseChannel):
                             self._since_id = tweet_id
                 else:
                     logger.warning(
-                        "Twitter mentions API returned %d: %s",
+                        "Twitter mentions API returned {}: {}",
                         resp.status_code,
                         resp.text,
                     )
-            except Exception:
-                logger.debug("Twitter poll error", exc_info=True)
+            except Exception as _e:
+                logger.debug("Twitter poll error: {}", _e)
 
             self._stop_event.wait(self._poll_interval)
 

@@ -95,12 +95,12 @@ class BlueBubblesChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "BlueBubbles API returned status %d",
+                "BlueBubbles API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("BlueBubbles send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("BlueBubbles send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

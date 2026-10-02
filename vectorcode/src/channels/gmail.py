@@ -133,8 +133,8 @@ class GmailChannel(BaseChannel):
                 "install with: pip install openjarvis[channel-gmail]",
             )
             self._status = ChannelStatus.ERROR
-        except Exception:
-            logger.debug("Gmail connect failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Gmail connect failed: {}", _e)
             self._status = ChannelStatus.ERROR
 
     def disconnect(self) -> None:
@@ -185,8 +185,8 @@ class GmailChannel(BaseChannel):
 
             self._publish_sent(channel, content, conversation_id)
             return True
-        except Exception:
-            logger.debug("Gmail send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Gmail send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -283,8 +283,8 @@ class GmailChannel(BaseChannel):
                         body={"removeLabelIds": ["UNREAD"]},
                     ).execute()
 
-            except Exception:
-                logger.debug("Gmail poll error", exc_info=True)
+            except Exception as _e:
+                logger.debug("Gmail poll error: {}", _e)
 
             self._stop_event.wait(self._poll_interval)
 

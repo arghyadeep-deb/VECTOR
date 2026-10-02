@@ -129,8 +129,8 @@ class TwitchChannel(BaseChannel):
                 return True
             logger.warning("Twitch API returned status {}", resp.status_code)
             return False
-        except Exception:
-            logger.debug("Twitch send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Twitch send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

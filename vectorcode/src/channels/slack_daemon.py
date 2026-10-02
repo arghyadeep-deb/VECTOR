@@ -5,7 +5,7 @@ try:
     from vectorcode.src.comms.slack_daemon import *
 except ImportError as exc:
     _IMPORT_ERROR = exc
-    logger.debug("[VECTOR] Slack daemon unavailable", exc_info=True)
+    logger.debug("[VECTOR] Slack daemon unavailable: {}", exc)
 
     def _unavailable(*args, **kwargs):
         raise RuntimeError(

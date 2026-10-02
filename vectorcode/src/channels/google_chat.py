@@ -88,12 +88,12 @@ class GoogleChatChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Google Chat API returned status %d",
+                "Google Chat API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Google Chat send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Google Chat send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

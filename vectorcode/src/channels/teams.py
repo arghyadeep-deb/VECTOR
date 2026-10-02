@@ -106,12 +106,12 @@ class TeamsChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Teams API returned status %d",
+                "Teams API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Teams send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Teams send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

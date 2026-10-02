@@ -116,13 +116,13 @@ class DiscordChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Discord API returned status %d: %s",
+                "Discord API returned status {}: {}",
                 resp.status_code,
                 resp.text,
             )
             return False
-        except Exception:
-            logger.debug("Discord send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Discord send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -180,8 +180,8 @@ class DiscordChannel(BaseChannel):
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             loop.run_until_complete(client.start(self._token))
-        except Exception:
-            logger.debug("Discord gateway loop error", exc_info=True)
+        except Exception as _e:
+            logger.debug("Discord gateway loop error: {}", _e)
             self._status = ChannelStatus.ERROR
 
     def _publish_sent(self, channel: str, content: str, conversation_id: str) -> None:

@@ -122,8 +122,8 @@ class MastodonChannel(BaseChannel):
         except ImportError:
             logger.debug("Mastodon.py not installed")
             return False
-        except Exception:
-            logger.debug("Mastodon send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Mastodon send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

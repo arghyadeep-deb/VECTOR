@@ -140,8 +140,8 @@ class EmailChannel(BaseChannel):
 
             self._publish_sent(channel, content, conversation_id)
             return True
-        except Exception:
-            logger.debug("Email send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Email send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -221,8 +221,8 @@ class EmailChannel(BaseChannel):
 
                 imap.close()
                 imap.logout()
-            except Exception:
-                logger.debug("IMAP poll error", exc_info=True)
+            except Exception as _e:
+                logger.debug("IMAP poll error: {}", _e)
 
             self._stop_event.wait(30.0)
 

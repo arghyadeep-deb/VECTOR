@@ -65,7 +65,7 @@ def _resolve_cron_enabled_toolsets(job: dict, cfg: dict) -> list[str] | None:
         return sorted(_get_platform_tools(cfg or {}, "cron"))
     except Exception as exc:
         logger.warning(
-            "Cron toolset resolution failed, falling back to full default toolset: %s",
+            "Cron toolset resolution failed, falling back to full default toolset: {}",
             exc,
         )
         return None
@@ -289,7 +289,7 @@ def _send_media_via_adapter(adapter, chat_id: str, media_files: list, metadata: 
                 raise
             if result and not getattr(result, "success", True):
                 logger.warning(
-                    "Job '%s': media send failed for %s: %s",
+                    "Job '{}': media send failed for {}: {}",
                     job.get("id", "?"), media_path, getattr(result, "error", "unknown"),
                 )
         except Exception as e:
@@ -385,13 +385,13 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
         origin_thread = origin.get("thread_id")
         if origin_thread and not thread_id:
             logger.warning(
-                "Job '%s': origin has thread_id=%s but delivery target lost it "
-                "(deliver=%s, target=%s)",
+                "Job '{}': origin has thread_id={} but delivery target lost it "
+                "(deliver={}, target={})",
                 job["id"], origin_thread, job.get("deliver", "local"), target,
             )
         elif thread_id:
             logger.debug(
-                "Job '%s': delivering to %s:%s thread_id=%s",
+                "Job '{}': delivering to {}:{} thread_id={}",
                 job["id"], platform_name, chat_id, thread_id,
             )
 
@@ -425,7 +425,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
                     if send_result and not getattr(send_result, "success", True):
                         err = getattr(send_result, "error", "unknown")
                         logger.warning(
-                            "Job '%s': live adapter send to %s:%s failed (%s), falling back to standalone",
+                            "Job '{}': live adapter send to {}:{} failed ({}), falling back to standalone",
                             job["id"], platform_name, chat_id, err,
                         )
                         adapter_ok = False  # fall through to standalone path
@@ -439,7 +439,7 @@ def _deliver_result(job: dict, content: str, adapters=None, loop=None) -> Option
                     delivered = True
             except Exception as e:
                 logger.warning(
-                    "Job '%s': live adapter delivery to %s:%s failed (%s), falling back to standalone",
+                    "Job '{}': live adapter delivery to {}:{} failed ({}), falling back to standalone",
                     job["id"], platform_name, chat_id, e,
                 )
 
@@ -803,7 +803,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         _ran_ok, _script_output = prerun_script
         if _ran_ok and not _parse_wake_gate(_script_output):
             logger.info(
-                "Job '%s' (ID: %s): wakeAgent=false, skipping agent run",
+                "Job '{}' (ID: {}): wakeAgent=false, skipping agent run",
                 job_name, job_id,
             )
             silent_doc = (
@@ -853,7 +853,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         # Directory was removed between create-time validation and now.  Log
         # and drop back to old behaviour rather than crashing the job.
         logger.warning(
-            "Job '%s': configured workdir %r no longer exists — running without it",
+            "Job '{}': configured workdir %r no longer exists — running without it",
             job_id, _job_workdir,
         )
         _job_workdir = None
@@ -1083,8 +1083,8 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             _iter_max = _activity.get("max_iterations", 0)
 
             logger.error(
-                "Job '%s' idle for %.0fs (inactivity limit %.0fs) "
-                "| last_activity=%s | iteration=%s/%s | tool=%s",
+                "Job '{}' idle for %.0fs (inactivity limit %.0fs) "
+                "| last_activity={} | iteration={}/{} | tool={}",
                 job_name, _secs_ago, _cron_inactivity_limit,
                 _last_desc, _iter_n, _iter_max,
                 _cur_tool or "none",
@@ -1259,7 +1259,7 @@ def tick(verbose: bool = True, adapters=None, loop=None) -> int:
 
         if verbose:
             logger.info(
-                "Running %d job(s) in parallel (max_workers=%s)",
+                "Running {} job(s) in parallel (max_workers={})",
                 len(due_jobs),
                 _max_workers if _max_workers else "unbounded",
             )

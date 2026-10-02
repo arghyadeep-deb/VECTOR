@@ -721,7 +721,7 @@ def mark_job_run(job_id: str, success: bool, error: Optional[str] = None,
                                 "installed in the gateway's Python env?)"
                             )
                         logger.error(
-                            "Job '%s' (%s) could not compute next_run_at; "
+                            "Job '{}' ({}) could not compute next_run_at; "
                             "leaving enabled and marking state=error so the "
                             "job is not silently disabled.",
                             job.get("name", job["id"]),
@@ -799,7 +799,7 @@ def get_due_jobs() -> List[Dict[str, Any]]:
             job["next_run_at"] = recovered_next
             next_run = recovered_next
             logger.info(
-                "Job '%s' had no next_run_at; recovering one-shot run at %s",
+                "Job '{}' had no next_run_at; recovering one-shot run at {}",
                 job.get("name", job["id"]),
                 recovered_next,
             )
@@ -824,8 +824,8 @@ def get_due_jobs() -> List[Dict[str, Any]]:
                 new_next = compute_next_run(schedule, now.isoformat())
                 if new_next:
                     logger.info(
-                        "Job '%s' missed its scheduled time (%s, grace=%ds). "
-                        "Fast-forwarding to next run: %s",
+                        "Job '{}' missed its scheduled time ({}, grace={}s). "
+                        "Fast-forwarding to next run: {}",
                         job.get("name", job["id"]),
                         next_run,
                         grace,

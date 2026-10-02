@@ -118,8 +118,8 @@ class XMPPChannel(BaseChannel):
         except ImportError:
             logger.debug("slixmpp not installed")
             return False
-        except Exception:
-            logger.debug("XMPP send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("XMPP send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

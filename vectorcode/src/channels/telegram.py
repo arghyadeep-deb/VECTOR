@@ -131,15 +131,15 @@ class TelegramChannel(BaseChannel):
                 resp = httpx.post(url, json=payload, timeout=10.0)
                 if resp.status_code >= 300:
                     logger.warning(
-                        "Telegram API returned status %d: %s",
+                        "Telegram API returned status {}: {}",
                         resp.status_code,
                         resp.text,
                     )
                     return False
             self._publish_sent(channel, content, conversation_id)
             return True
-        except Exception:
-            logger.debug("Telegram send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Telegram send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -183,7 +183,7 @@ class TelegramChannel(BaseChannel):
                     }
                     if cm.conversation_id not in _allowed:
                         logger.debug(
-                            "Ignoring message from unlisted chat %s",
+                            "Ignoring message from unlisted chat {}",
                             cm.conversation_id,
                         )
                         return
@@ -205,8 +205,8 @@ class TelegramChannel(BaseChannel):
 
             app.add_handler(MessageHandler(filters.TEXT, _handle_msg))
             app.run_polling(stop_signals=None, drop_pending_updates=True)
-        except Exception:
-            logger.debug("Telegram poll loop error", exc_info=True)
+        except Exception as _e:
+            logger.debug("Telegram poll loop error: {}", _e)
             self._status = ChannelStatus.ERROR
 
     def _publish_sent(self, channel: str, content: str, conversation_id: str) -> None:

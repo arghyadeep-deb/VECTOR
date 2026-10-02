@@ -5,7 +5,7 @@ try:
     from vectorcode.src.comms.imessage_daemon import *
 except ImportError as exc:
     _IMPORT_ERROR = exc
-    logger.debug("[VECTOR] iMessage daemon unavailable", exc_info=True)
+    logger.debug("[VECTOR] iMessage daemon unavailable: {}", exc)
 
     def _unavailable(*args, **kwargs):
         raise RuntimeError(

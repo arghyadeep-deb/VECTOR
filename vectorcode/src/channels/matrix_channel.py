@@ -102,12 +102,12 @@ class MatrixChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Matrix API returned status %d",
+                "Matrix API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Matrix send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Matrix send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:

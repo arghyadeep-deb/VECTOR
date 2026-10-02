@@ -133,12 +133,12 @@ class SlackChannel(BaseChannel):
                 logger.warning("Slack API error: {}", data.get("error"))
                 return False
             logger.warning(
-                "Slack API returned status %d",
+                "Slack API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Slack send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Slack send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
@@ -205,8 +205,8 @@ class SlackChannel(BaseChannel):
                 self._stop_event.wait(1.0)
 
             client.disconnect()
-        except Exception:
-            logger.debug("Slack Socket Mode loop error", exc_info=True)
+        except Exception as _e:
+            logger.debug("Slack Socket Mode loop error: {}", _e)
             self._status = ChannelStatus.ERROR
 
     def _publish_sent(self, channel: str, content: str, conversation_id: str) -> None:

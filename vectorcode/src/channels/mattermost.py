@@ -99,12 +99,12 @@ class MattermostChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Mattermost API returned status %d",
+                "Mattermost API returned status {}",
                 resp.status_code,
             )
             return False
-        except Exception:
-            logger.debug("Mattermost send failed", exc_info=True)
+        except Exception as _e:
+            logger.debug("Mattermost send failed: {}", _e)
             return False
 
     def status(self) -> ChannelStatus:
