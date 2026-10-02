@@ -55,9 +55,8 @@ class PhysicsEngine:
         if self._physics_client is not None and self._pybullet:
             try:
                 self._pybullet.disconnect(self._physics_client)
-            except Exception:
-                logger.warning("[VECTOR] silent swallow")
-                pass
+            except Exception as e:
+                logger.warning("[VECTOR][physics] disconnect failed: {}", e)
             self._physics_client = None
 
     # ── public simulations ────────────────────────────────────────────────────

@@ -86,7 +86,12 @@ class ChemistryEngine:
         """Rough property estimation from SMILES atom count."""
         atoms = re.findall(r"[A-Z][a-z]?", smiles)
         heavy = len(atoms)
-        rings = smiles.count("1") + smiles.count("2")  # ring-open digits heuristic
+        # Each ring-closure digit appears exactly twice in a SMILES string
+        # (once to open the ring bond, once to close it back to the same
+        # atom) -- counting raw digit occurrences doubled every real ring
+        # (e.g. "c1ccccc1" has 1 ring but 2 "1"s), inflating ring_count 2x
+        # for the common single-digit-per-ring case this heuristic targets.
+        rings = (smiles.count("1") + smiles.count("2")) // 2
         mw_estimate = heavy * 12.0  # very rough: assume mostly carbon
         return {
             "smiles": smiles,
