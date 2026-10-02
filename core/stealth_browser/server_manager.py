@@ -98,8 +98,8 @@ class _CrashReporter:
                 tags=["stealth_browser", "crash", "error"],
                 source=source,
             )
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as e:
+            logger.warning("[VECTOR][stealth] failed to store crash in episodic memory: {}", e)
         # Pushover notification
         try:
             import httpx
@@ -233,8 +233,8 @@ class StealthBrowserServer:
                 async with httpx.AsyncClient(timeout=5.0) as c:
                     headers = {"Authorization": f"Bearer {admin_key}"} if admin_key else {}
                     await c.post(f"{self._base_url}/stop", headers=headers)
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            except Exception as e:
+                logger.warning("[VECTOR][stealth] /stop request failed: {}", e)
             try:
                 self._proc.terminate()
                 self._proc.wait(timeout=5)
@@ -268,8 +268,13 @@ class StealthBrowserServer:
         return self
 
     async def __aexit__(self, *_):
-        # Don't stop on context exit — server runs as long-lived service
-        raise NotImplementedError("StealthBrowserServer.__aexit__ must be implemented by subclass")
+        # Don't stop on context exit -- server runs as long-lived service,
+        # shared across callers via get_server(). This was a bare
+        # `raise NotImplementedError` referencing a subclass that doesn't
+        # exist anywhere in the repo (confirmed via grep) -- the class's
+        # own docstring documents direct `async with StealthBrowserServer()`
+        # usage, which would have crashed on every exit.
+        return False
 
 
 def get_server() -> StealthBrowserServer:
