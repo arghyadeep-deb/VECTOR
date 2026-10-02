@@ -49,16 +49,14 @@ class CloudBrainHeartbeat:
             alive = sum(1 for a in agents if a.get("hp", 0) > 0)
             payload["alive_agents"] = alive
             payload["total_agents"] = len(agents)
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][cloud_heartbeat] agent registry stats unavailable: {}", e)
         try:
             from core.memory.episodic import EpisodicMemory
             stats = EpisodicMemory().get_stats()
             payload["memory_events"] = stats.get("total_events", 0)
-        except Exception:
-            logger.warning("[VECTOR] silent swallow")
-            pass
+        except Exception as e:
+            logger.warning("[VECTOR][cloud_heartbeat] episodic memory stats unavailable: {}", e)
         return payload
 
     async def send(self) -> bool:
