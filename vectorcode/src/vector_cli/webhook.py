@@ -33,15 +33,27 @@ def _subscriptions_path() -> Path:
     return _vector_home() / _SUBSCRIPTIONS_FILENAME
 
 
+class SubscriptionsLoadError(Exception):
+    """webhook_subscriptions.json exists but could not be parsed (corrupted
+    or malformed JSON). Distinct from "file doesn't exist" -- subscribe/
+    remove would otherwise silently overwrite (and destroy) every existing
+    subscription on the next save, same bug class already fixed in
+    vault_cmd.py this cycle."""
+
+
 def _load_subscriptions() -> Dict[str, dict]:
     path = _subscriptions_path()
     if not path.exists():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-        return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
+    except Exception as e:
+        raise SubscriptionsLoadError(
+            f"{path} exists but could not be parsed: {e}. "
+            "Refusing to treat this as an empty subscription list to avoid "
+            "overwriting existing webhooks."
+        ) from e
+    return data if isinstance(data, dict) else {}
 
 
 def _save_subscriptions(subs: Dict[str, dict]) -> None:
@@ -123,14 +135,17 @@ def webhook_command(args):
     if not _require_webhook_enabled():
         return
 
-    if sub in ("subscribe", "add"):
-        _cmd_subscribe(args)
-    elif sub in ("list", "ls"):
-        _cmd_list(args)
-    elif sub in ("remove", "rm"):
-        _cmd_remove(args)
-    elif sub == "test":
-        _cmd_test(args)
+    try:
+        if sub in ("subscribe", "add"):
+            _cmd_subscribe(args)
+        elif sub in ("list", "ls"):
+            _cmd_list(args)
+        elif sub in ("remove", "rm"):
+            _cmd_remove(args)
+        elif sub == "test":
+            _cmd_test(args)
+    except SubscriptionsLoadError as e:
+        print(f"  Error: {e}")
 
 
 def _cmd_subscribe(args):

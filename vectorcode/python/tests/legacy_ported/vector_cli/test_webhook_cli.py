@@ -12,6 +12,7 @@ from vector_cli.webhook import (
     _save_subscriptions,
     _subscriptions_path,
     _is_webhook_enabled,
+    SubscriptionsLoadError,
 )
 
 
@@ -140,10 +141,29 @@ class TestPersistence:
         assert "persist" in data
 
     def test_corrupted_file(self):
+        # Phase 3 audit fix: a corrupted (vs. simply absent) subscriptions
+        # file must NOT be treated as an empty list -- the original
+        # `except Exception: return {}` meant subscribe/remove would
+        # silently overwrite (destroy) every real subscription on the next
+        # save. _load_subscriptions() now raises instead of returning {}.
         path = _subscriptions_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("broken{{{")
-        assert _load_subscriptions() == {}
+        with pytest.raises(SubscriptionsLoadError):
+            _load_subscriptions()
+
+    def test_corrupted_file_via_command_reports_clean_error_not_crash(self, capsys):
+        # webhook_command() (the real CLI entry point) must catch
+        # SubscriptionsLoadError and print it, not let it propagate as an
+        # unhandled exception, and must NOT silently proceed to overwrite
+        # the corrupted file with a single new subscription.
+        path = _subscriptions_path()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("broken{{{")
+        webhook_command(_make_args(webhook_action="subscribe", name="new-hook"))
+        out = capsys.readouterr().out
+        assert "Error" in out
+        assert path.read_text() == "broken{{{"
 
 
 class TestWebhookEnabledGate:
