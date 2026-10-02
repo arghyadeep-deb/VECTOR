@@ -283,7 +283,12 @@ class CodingOrchestrator:
     async def _llm(self, prompt: str, system: str | None = None) -> str:
         try:
             from core.inference.vectorcode_llm import chat
-            messages = []
+            from core.loop.context_engine import ContextEngine
+            # RULE 1: session_hydration_prompt() before every LLM call -- this
+            # drives real file edits via str_replace/write_file, same gap
+            # already fixed in multiple districts/coding files this cycle.
+            hydration = ContextEngine().session_hydration_prompt({"query": prompt})
+            messages = [{"role": "system", "content": hydration}]
             if system:
                 messages.append({"role": "system", "content": system})
             messages.append({"role": "user", "content": prompt})

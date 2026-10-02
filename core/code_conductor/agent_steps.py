@@ -163,8 +163,8 @@ async def run_steps(
                 logger.debug("[VECTOR][steps] unrecognized yield: {}", yielded)
                 last_value = None
 
-    except StopAsyncIteration:
-        logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+    except StopAsyncIteration as e:
+        logger.warning("[VECTOR][steps] generator stopped unexpectedly: {}", e)
     except Exception as e:
         logger.error("[VECTOR][steps] run_steps error: {}", e)
         results.append(StepResult(step_type="error", error=str(e)))

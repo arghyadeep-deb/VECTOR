@@ -62,6 +62,26 @@ class EvalResult:
     error: str = ""
 
 
+def _reject_option_like(sha: str) -> None:
+    """commit_sha is caller-supplied to run_single(); a value starting with
+    "-" (e.g. "--output=<path>", a real arbitrary-file-write primitive on
+    both `git log`/`git diff`) would be parsed as an option, not a
+    revision. A plain "--" separator does NOT fix this here the way it
+    does for other git subcommands this cycle (vectorcode/src/tools/
+    git_tools.py, worktree.py) -- `git log`/`git diff` give `--` its own
+    revision/path-separator meaning, so inserting one would silently
+    change these calls to filter by path instead of looking up the
+    commit (verified: `git log --pretty=%s -- <sha>` returns empty where
+    `git log --pretty=%s <sha>` returns the real message). Validate
+    instead. The one real production caller (run_suite(), via
+    districts/coding/code_conductor_agent.py) only ever passes SHAs it
+    just read from `git log --pretty=%H` itself, so this is dormant
+    today -- fixed anyway, same bar as this cycle's other narrow/
+    no-legitimate-caller-risk findings."""
+    if sha.startswith("-"):
+        raise ValueError(f"invalid commit sha: {sha!r}")
+
+
 def _run_git(args: list[str], cwd: str, check: bool = True) -> str:
     """Run a git command and return stdout."""
     result = subprocess.run(
@@ -131,16 +151,19 @@ class GitEvalRunner:
 
     def _get_commit_info(self, sha: str) -> tuple[str, str]:
         """Returns (message, parent_sha)."""
+        _reject_option_like(sha)
         message = _run_git(["log", "-1", "--pretty=%s", sha], self._cwd)
         parent = _run_git(["rev-parse", f"{sha}^"], self._cwd)
         return message, parent
 
     def _get_target_diff(self, sha: str) -> str:
         """Get the actual diff introduced by this commit."""
+        _reject_option_like(sha)
         return _run_git(["diff", f"{sha}^", sha], self._cwd)
 
     def _checkout_pre_commit(self, parent_sha: str, tmp_dir: str) -> str:
         """Create a worktree at the parent commit state."""
+        _reject_option_like(parent_sha)
         worktree = os.path.join(tmp_dir, "pre_commit")
         _run_git(["worktree", "add", "--detach", worktree, parent_sha], self._cwd)
         return worktree
@@ -148,8 +171,8 @@ class GitEvalRunner:
     def _cleanup_worktree(self, worktree: str) -> None:
         try:
             _run_git(["worktree", "remove", "--force", worktree], self._cwd, check=False)
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+        except Exception as e:
+            logger.warning("[VECTOR][git_eval] worktree cleanup failed for {}: {}", worktree, e)
 
     def _score_diffs(
         self, target_diff: str, agent_diff: str, sha: str, message: str
