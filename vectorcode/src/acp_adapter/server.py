@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import os
 from collections import defaultdict, deque
 from concurrent.futures import ThreadPoolExecutor
@@ -61,8 +60,7 @@ from acp_adapter.events import (
 )
 from acp_adapter.permissions import make_approval_callback
 from acp_adapter.session import SessionManager, SessionState, _expand_acp_enabled_toolsets
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from vector_cli import __version__ as VECTOR_VERSION
@@ -216,8 +214,8 @@ class VectorCodeACPAgent(acp.Agent):
                     available_models=available_models,
                     current_model_id=current_model_id or available_models[0].model_id,
                 )
-        except Exception:
-            logger.debug("Could not build ACP model state", exc_info=True)
+        except Exception as e:
+            logger.opt(exception=True).debug("Could not build ACP model state: {}", e)
 
         if not model:
             return None
@@ -242,8 +240,8 @@ class VectorCodeACPAgent(acp.Agent):
                 detected = detect_provider_for_model(new_model, current_provider)
                 if detected:
                     target_provider, new_model = detected
-        except Exception:
-            logger.debug("Provider detection failed, using model as-is", exc_info=True)
+        except Exception as e:
+            logger.opt(exception=True).debug("Provider detection failed, using model as-is: {}", e)
 
         return target_provider, new_model
 
@@ -276,11 +274,11 @@ class VectorCodeACPAgent(acp.Agent):
                 config_map[name] = config
 
             await asyncio.to_thread(register_mcp_servers, config_map)
-        except Exception:
-            logger.warning(
-                "Session %s: failed to register ACP MCP servers",
+        except Exception as e:
+            logger.opt(exception=True).warning(
+                "Session {}: failed to register ACP MCP servers: {}",
                 state.session_id,
-                exc_info=True,
+                e,
             )
             return
 
@@ -305,15 +303,15 @@ class VectorCodeACPAgent(acp.Agent):
             if callable(invalidate):
                 invalidate()
             logger.info(
-                "Session %s: refreshed tool surface after ACP MCP registration (%d tools)",
+                "Session {}: refreshed tool surface after ACP MCP registration ({} tools)",
                 state.session_id,
                 len(state.agent.tools or []),
             )
-        except Exception:
-            logger.warning(
-                "Session %s: failed to refresh tool surface after ACP MCP registration",
+        except Exception as e:
+            logger.opt(exception=True).warning(
+                "Session {}: failed to refresh tool surface after ACP MCP registration: {}",
                 state.session_id,
-                exc_info=True,
+                e,
             )
 
     # ---- ACP lifecycle ------------------------------------------------------
@@ -341,7 +339,7 @@ class VectorCodeACPAgent(acp.Agent):
 
         client_name = client_info.name if client_info else "unknown"
         logger.info(
-            "Initialize from %s (protocol v%s)",
+            "Initialize from {} (protocol v{})",
             client_name,
             resolved_protocol_version,
         )
@@ -384,7 +382,7 @@ class VectorCodeACPAgent(acp.Agent):
     ) -> NewSessionResponse:
         state = self.session_manager.create_session(cwd=cwd)
         await self._register_session_mcp_servers(state, mcp_servers)
-        logger.info("New session %s (cwd=%s)", state.session_id, cwd)
+        logger.info("New session {} (cwd={})", state.session_id, cwd)
         self._schedule_available_commands_update(state.session_id)
         return NewSessionResponse(
             session_id=state.session_id,
@@ -400,10 +398,10 @@ class VectorCodeACPAgent(acp.Agent):
     ) -> LoadSessionResponse | None:
         state = self.session_manager.update_cwd(session_id, cwd)
         if state is None:
-            logger.warning("load_session: session %s not found", session_id)
+            logger.warning("load_session: session {} not found", session_id)
             return None
         await self._register_session_mcp_servers(state, mcp_servers)
-        logger.info("Loaded session %s", session_id)
+        logger.info("Loaded session {}", session_id)
         self._schedule_available_commands_update(session_id)
         return LoadSessionResponse(models=self._build_model_state(state))
 
@@ -416,10 +414,10 @@ class VectorCodeACPAgent(acp.Agent):
     ) -> ResumeSessionResponse:
         state = self.session_manager.update_cwd(session_id, cwd)
         if state is None:
-            logger.warning("resume_session: session %s not found, creating new", session_id)
+            logger.warning("resume_session: session {} not found, creating new", session_id)
             state = self.session_manager.create_session(cwd=cwd)
         await self._register_session_mcp_servers(state, mcp_servers)
-        logger.info("Resumed session %s", state.session_id)
+        logger.info("Resumed session {}", state.session_id)
         self._schedule_available_commands_update(state.session_id)
         return ResumeSessionResponse(models=self._build_model_state(state))
 
@@ -430,9 +428,9 @@ class VectorCodeACPAgent(acp.Agent):
             try:
                 if getattr(state, "agent", None) and hasattr(state.agent, "interrupt"):
                     state.agent.interrupt()
-            except Exception:
-                logger.debug("Failed to interrupt ACP session %s", session_id, exc_info=True)
-            logger.info("Cancelled session %s", session_id)
+            except Exception as e:
+                logger.opt(exception=True).debug("Failed to interrupt ACP session {}: {}", session_id, e)
+            logger.info("Cancelled session {}", session_id)
 
     async def fork_session(
         self,
@@ -445,7 +443,7 @@ class VectorCodeACPAgent(acp.Agent):
         new_id = state.session_id if state else ""
         if state is not None:
             await self._register_session_mcp_servers(state, mcp_servers)
-        logger.info("Forked session %s -> %s", session_id, new_id)
+        logger.info("Forked session {} -> {}", session_id, new_id)
         if new_id:
             self._schedule_available_commands_update(new_id)
         return ForkSessionResponse(session_id=new_id)
@@ -512,7 +510,7 @@ class VectorCodeACPAgent(acp.Agent):
         """Run VectorCode on the user's prompt and stream events back to the editor."""
         state = self.session_manager.get_session(session_id)
         if state is None:
-            logger.error("prompt: session %s not found", session_id)
+            logger.error("prompt: session {} not found", session_id)
             return PromptResponse(stop_reason="refusal")
 
         user_text = _extract_text(prompt).strip()
@@ -528,7 +526,7 @@ class VectorCodeACPAgent(acp.Agent):
                     await self._conn.session_update(session_id, update)
                 return PromptResponse(stop_reason="end_turn")
 
-        logger.info("Prompt on session %s: %s", session_id, user_text[:100])
+        logger.info("Prompt on session {}: {}", session_id, user_text[:100])
 
         conn = self._conn
         loop = asyncio.get_running_loop()
@@ -579,8 +577,8 @@ class VectorCodeACPAgent(acp.Agent):
                     from tools import terminal_tool as _terminal_tool
                     previous_approval_cb = _terminal_tool._get_approval_callback()
                     _terminal_tool.set_approval_callback(approval_cb)
-                except Exception:
-                    logger.debug("Could not set ACP approval callback", exc_info=True)
+                except Exception as e:
+                    logger.opt(exception=True).debug("Could not set ACP approval callback: {}", e)
             # Signal to tools.approval that we have an interactive callback
             # and the non-interactive auto-approve path must not fire.
             previous_interactive = os.environ.get("VECTOR_INTERACTIVE")
@@ -593,7 +591,7 @@ class VectorCodeACPAgent(acp.Agent):
                 )
                 return result
             except Exception as e:
-                logger.exception("Agent error in session %s", session_id)
+                logger.exception("Agent error in session {}", session_id)
                 return {"final_response": f"Error: {e}", "messages": state.history}
             finally:
                 # Restore VECTOR_INTERACTIVE.
@@ -605,13 +603,13 @@ class VectorCodeACPAgent(acp.Agent):
                     try:
                         from tools import terminal_tool as _terminal_tool
                         _terminal_tool.set_approval_callback(previous_approval_cb)
-                    except Exception:
-                        logger.debug("Could not restore approval callback", exc_info=True)
+                    except Exception as e:
+                        logger.opt(exception=True).debug("Could not restore approval callback: {}", e)
 
         try:
             result = await loop.run_in_executor(_executor, _run_agent)
         except Exception:
-            logger.exception("Executor error for session %s", session_id)
+            logger.exception("Executor error for session {}", session_id)
             return PromptResponse(stop_reason="end_turn")
 
         if result.get("messages"):
@@ -631,8 +629,8 @@ class VectorCodeACPAgent(acp.Agent):
                     final_response,
                     state.history,
                 )
-            except Exception:
-                logger.debug("Failed to auto-title ACP session %s", session_id, exc_info=True)
+            except Exception as e:
+                logger.opt(exception=True).debug("Failed to auto-title ACP session {}: {}", session_id, e)
         if final_response and conn:
             update = acp.update_agent_message_text(final_response)
             await conn.session_update(session_id, update)
@@ -681,11 +679,11 @@ class VectorCodeACPAgent(acp.Agent):
                     available_commands=self._available_commands(),
                 ),
             )
-        except Exception:
-            logger.warning(
-                "Failed to advertise ACP slash commands for session %s",
+        except Exception as e:
+            logger.opt(exception=True).warning(
+                "Failed to advertise ACP slash commands for session {}: {}",
                 session_id,
-                exc_info=True,
+                e,
             )
 
     def _schedule_available_commands_update(self, session_id: str) -> None:
@@ -723,7 +721,7 @@ class VectorCodeACPAgent(acp.Agent):
         try:
             return handler(args, state)
         except Exception as e:
-            logger.error("Slash command /%s error: %s", cmd, e, exc_info=True)
+            logger.opt(exception=True).error("Slash command /{} error: {}", cmd, e)
             return f"Error executing /{cmd}: {e}"
 
     def _cmd_help(self, args: str, state: SessionState) -> str:
@@ -752,7 +750,7 @@ class VectorCodeACPAgent(acp.Agent):
         )
         self.session_manager.save_session(state.session_id)
         provider_label = getattr(state.agent, "provider", None) or target_provider or current_provider
-        logger.info("Session %s: model switched to %s", state.session_id, new_model)
+        logger.info("Session {}: model switched to {}", state.session_id, new_model)
         return f"Model switched to: {new_model}\nProvider: {provider_label}"
 
     def _cmd_tools(self, args: str, state: SessionState) -> str:
@@ -774,6 +772,7 @@ class VectorCodeACPAgent(acp.Agent):
                 lines.append(f"  {name}: {desc}")
             return "\n".join(lines)
         except Exception as e:
+            logger.opt(exception=True).warning("ACP /tools command failed: {}", e)
             return f"Could not list tools: {e}"
 
     def _cmd_context(self, args: str, state: SessionState) -> str:
@@ -839,6 +838,7 @@ class VectorCodeACPAgent(acp.Agent):
                 f"~{approx_tokens:,} -> ~{new_tokens:,} tokens"
             )
         except Exception as e:
+            logger.opt(exception=True).warning("ACP /compact command failed: {}", e)
             return f"Compression failed: {e}"
 
     def _cmd_version(self, args: str, state: SessionState) -> str:
@@ -871,13 +871,13 @@ class VectorCodeACPAgent(acp.Agent):
             )
             self.session_manager.save_session(session_id)
             logger.info(
-                "Session %s: model switched to %s via provider %s",
+                "Session {}: model switched to {} via provider {}",
                 session_id,
                 resolved_model,
                 requested_provider,
             )
             return SetSessionModelResponse()
-        logger.warning("Session %s: model switch requested for missing session", session_id)
+        logger.warning("Session {}: model switch requested for missing session", session_id)
         return None
 
     async def set_session_mode(
@@ -886,11 +886,11 @@ class VectorCodeACPAgent(acp.Agent):
         """Persist the editor-requested mode so ACP clients do not fail on mode switches."""
         state = self.session_manager.get_session(session_id)
         if state is None:
-            logger.warning("Session %s: mode switch requested for missing session", session_id)
+            logger.warning("Session {}: mode switch requested for missing session", session_id)
             return None
         setattr(state, "mode", mode_id)
         self.session_manager.save_session(session_id)
-        logger.info("Session %s: mode switched to %s", session_id, mode_id)
+        logger.info("Session {}: mode switched to {}", session_id, mode_id)
         return SetSessionModeResponse()
 
     async def set_config_option(
@@ -899,7 +899,7 @@ class VectorCodeACPAgent(acp.Agent):
         """Accept ACP config option updates even when VectorCode has no typed ACP config surface yet."""
         state = self.session_manager.get_session(session_id)
         if state is None:
-            logger.warning("Session %s: config update requested for missing session", session_id)
+            logger.warning("Session {}: config update requested for missing session", session_id)
             return None
 
         options = getattr(state, "config_options", None)
@@ -908,5 +908,5 @@ class VectorCodeACPAgent(acp.Agent):
         options[str(config_id)] = value
         setattr(state, "config_options", options)
         self.session_manager.save_session(session_id)
-        logger.info("Session %s: config option %s updated", session_id, config_id)
+        logger.info("Session {}: config option {} updated", session_id, config_id)
         return SetSessionConfigOptionResponse(config_options=[])
