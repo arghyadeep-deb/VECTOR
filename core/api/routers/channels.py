@@ -20,19 +20,26 @@ async def channels_status():
     try:
         active = []
         recent_count = 0
+        # FLAG FOR OWNER: neither candidate data source for "active channels"
+        # has ever actually provided it. The removed first attempt imported
+        # a nonexistent vectorcode.src.channels.channel_directory.ChannelDirectory
+        # (real file is vectorcode/src/gateway/channel_directory.py, module-level
+        # functions only, no such class) -- confirmed via import, it raised
+        # every single call, silently swallowed by the handler below.
+        # ChannelRuntime (this path) has no active_channels() method either
+        # (confirmed: only submit_sync()/stop() exist) -- the hasattr() guard
+        # makes this degrade quietly instead of raising, but it has also never
+        # returned real data. This endpoint has always reported
+        # active_channels=[] / status="inactive" regardless of real channel
+        # state. A real fix needs an owner call on the actual intended data
+        # source (vectorcode/src/gateway/channel_directory.py's real
+        # load_directory() is the most plausible candidate, un-verified here).
         try:
-            from vectorcode.src.channels.channel_directory import ChannelDirectory
-            directory = ChannelDirectory()
-            active = [ch for ch in directory.list_active() if ch]
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
-        if not active:
-            try:
-                from core.engine.channels.runtime import ChannelRuntime
-                runtime = ChannelRuntime()
-                active = [ch.name for ch in runtime.active_channels()] if hasattr(runtime, 'active_channels') else []
-            except Exception:
-                logger.warning("[VECTOR] suppressed exception (fallback degraded)", exc_info=True)
+            from core.engine.channels.runtime import ChannelRuntime
+            runtime = ChannelRuntime()
+            active = [ch.name for ch in runtime.active_channels()] if hasattr(runtime, 'active_channels') else []
+        except Exception as e:
+            logger.warning("[VECTOR][api][channels] ChannelRuntime lookup failed: {}", e)
         try:
             from core.memory.episodic import EpisodicMemory
             recent = EpisodicMemory().recall("channel message", limit=1, event_type="channel_message")
