@@ -2272,3 +2272,43 @@ isn't "proven in production" until you supply the service/device and run it live
     this slice + 19 here); 89 remain, including all 18 of the 1,000+-line files (each needing its own
     dedicated slice -- the logger-shadow fix should be applied there too as part of that full read, since
     none of those 18 were touched by either logger-shadow slice).
+
+41. **`vectorcode/src/channels/` (38 files) + `vectorcode/src/cron/` (3 files), 2026-10-03 —** full
+    deep-verify of a previously-untouched 41-file vectorcode/ slice (the owner clarified "V1 ready"
+    means full depth on ALL of vectorcode/, including currently-dormant/not-yet-wired-in code --
+    channels/ has zero confirmed direct-instantiation callers found, registered only via
+    `@ChannelRegistry.register(...)` for presumed future dynamic dispatch, same bar as other
+    narrow-fix-anyway findings this cycle).
+    **Systemic bug, 31 of 41 files: stdlib `logging.getLogger(__name__)` instead of loguru**
+    (CLAUDE.md rule 6), same class already fixed 23 times across `vectorcode/src/tools/` and
+    `vectorcode/src/vector_cli/`. Fixed all 31 (commit `beccf6dc8`, `webhook.py` separately in
+    `feca4bb02`). Follow-up pass caught two sub-bugs the single-line fix missed: **34 multi-line
+    `%s`/`%d` printf-style placeholders** across 17 files (format string on a separate source line
+    from the `logger.X(` call, invisible to a single-line grep) and **41 `except Exception: /
+    logger.debug(msg, exc_info=True)` sites across 29 files** -- confirmed directly that loguru
+    silently no-ops on an unrecognized `exc_info=True` kwarg (verified with a standalone repro, no
+    error, no traceback), so every one of these 41 sites was dropping the real exception. Both
+    fixed via an AST-aware multi-line regex pass + per-file verification, commit `8f9ca3eaa`.
+    **1 real security finding: `channels/webhook.py`'s `send()` had zero SSRF validation** on the
+    caller-configured target URL before a real `httpx.request()` call -- same bug class fixed in
+    `core/browser/`, `core/seo/`, `core/vision_control/` this cycle. Fixed with
+    `SSRFGuard(resolve_dns=True)`, commit `feca4bb02`.
+    **Checked and confirmed NOT a bug**: `channels/telegram.py`'s bot token in the URL path
+    (`https://api.telegram.org/bot<TOKEN>/...`) is Telegram's own required Bot API convention, no
+    header alternative exists -- not the same shape as this cycle's other credentials-in-URL
+    findings (which were VECTOR choosing the weaker option when a header alternative existed).
+    New tests: `tests/test_vectorcode_webhook_channel_ssrf.py` (4 tests). Verified: syntax-checked
+    all 41 files; re-ran `vectorcode/python/tests/legacy_ported/cron/` (full suite) + 5 gateway
+    discord/slack test files -- ~28 cron failures (Windows chmod/home-dir-expansion environment
+    limitations, one unrelated `vectorcode/src/agent/memory_manager.py` ImportError) + 2 gateway
+    failures (`vectorcode/src/gateway/run.py`, untouched, `asyncio.CancelledError`) all
+    independently reconfirmed via `git stash` to be identical on unmodified code -- zero
+    regressions from any of this slice's 3 commits.
+    **Remaining in this slice's scope**: none -- all 41 files got real depth. `channels/` and
+    `cron/` are now both fully deep-verified.
+    **Flagged for owner, not resolved**: none new this slice (the `channels/` vs. `core/api/routers/
+    channels.py` vs. `vectorcode/src/comms/` naming-overlap question was checked -- confirmed these
+    are three genuinely different things: `channels/` is vectorcode's own multi-platform adapter
+    library, `core/api/routers/channels.py` is VECTOR's own already-wired channel-listing API
+    endpoint, `comms/` -- a sibling fork's scope this same session -- is a separate gateway layer;
+    no actual duplication found here, unlike the jcode/vc_tools finding).
