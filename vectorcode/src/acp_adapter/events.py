@@ -9,19 +9,17 @@ thread while the event loop lives on the main thread).
 
 import asyncio
 import json
-import logging
 from collections import deque
 from typing import Any, Callable, Deque, Dict
 
 import acp
+from loguru import logger
 
 from .tools import (
     build_tool_complete,
     build_tool_start,
     make_tool_call_id,
 )
-
-logger = logging.getLogger(__name__)
 
 
 def _send_update(
@@ -36,8 +34,8 @@ def _send_update(
             conn.session_update(session_id, update), loop
         )
         future.result(timeout=5)
-    except Exception:
-        logger.debug("Failed to send ACP update", exc_info=True)
+    except Exception as e:
+        logger.opt(exception=True).debug("Failed to send ACP update: {}", e)
 
 
 # ------------------------------------------------------------------
@@ -91,8 +89,8 @@ def make_tool_progress_cb(
                 from agent.display import capture_local_edit_snapshot
 
                 snapshot = capture_local_edit_snapshot(name, args)
-            except Exception:
-                logger.debug("Failed to capture ACP edit snapshot for %s", name, exc_info=True)
+            except Exception as e:
+                logger.opt(exception=True).debug("Failed to capture ACP edit snapshot for {}: {}", name, e)
         tool_call_meta[tc_id] = {"args": args, "snapshot": snapshot}
 
         update = build_tool_start(tc_id, name, args)
