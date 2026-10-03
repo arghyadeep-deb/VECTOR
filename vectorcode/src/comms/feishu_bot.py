@@ -1,10 +1,9 @@
 """Feishu/Lark adapter — WebSocket + Webhook + Comment + Card interaction."""
 
 import json
-import logging
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import aiohttp
@@ -36,6 +35,8 @@ class FeishuBot:
                             json={"app_id": self.app_id, "app_secret": self.app_secret})
             data = await r.json()
             self._token = data.get("tenant_access_token")
+            if not self._token:
+                logger.warning("[VECTOR][feishu_bot] token request failed: {}", data)
 
     async def start(self):
         if not _AIOHTTP: return
@@ -71,6 +72,15 @@ class FeishuBot:
                 return (await r.json()).get("data", {}).get("image_key")
 
     async def handle_webhook(self, body: dict) -> dict:
+        # FLAG FOR OWNER, not fixed: self.verification_token is accepted in
+        # __init__ but never checked anywhere here -- any caller can POST a
+        # forged event and have it processed as genuine (dispatched to
+        # _message_callback/_comment_handler with attacker-controlled
+        # content). Feishu's real verification scheme (token field vs
+        # encrypted payload signature, depending on how the app is
+        # configured) needs to be implemented before this is ever exposed
+        # on a real HTTP endpoint -- same "replay/signature gap on inbound
+        # webhook" class flagged elsewhere this cycle, not guessed at here.
         if body.get("type") == "url_verification":
             return {"challenge": body.get("challenge")}
         if body.get("header", {}).get("event_type") == "im.message.receive_v1" and self._message_callback:
