@@ -17,14 +17,19 @@ startup. If nothing needs attention, it replies with [SILENT] to
 suppress delivery.
 """
 
-import logging
-import threading
+import asyncio
 
-logger = logging.getLogger("hooks.boot-md")
+from loguru import logger
 
 from vector_constants import get_vector_home
 VECTOR_HOME = get_vector_home()
 BOOT_FILE = VECTOR_HOME / "BOOT.md"
+
+# asyncio only keeps a weak reference to a bare create_task() result -- the
+# task can be garbage-collected mid-run if nothing else holds it. Keep a
+# strong ref here (same pattern as telegram.py's _media_group_tasks) and
+# drop it once the task finishes.
+_background_tasks: set = set()
 
 
 def _build_boot_prompt(content: str) -> str:
@@ -57,11 +62,11 @@ def _run_boot_agent(content: str) -> None:
         result = agent.run_conversation(prompt)
         response = result.get("final_response", "")
         if response and "[SILENT]" not in response:
-            logger.info("boot-md completed: %s", response[:200])
+            logger.info("boot-md completed: {}", response[:200])
         else:
             logger.info("boot-md completed (nothing to report)")
     except Exception as e:
-        logger.error("boot-md agent failed: %s", e)
+        logger.error("boot-md agent failed: {}", e)
 
 
 async def handle(event_type: str, context: dict) -> None:
@@ -73,13 +78,9 @@ async def handle(event_type: str, context: dict) -> None:
     if not content:
         return
 
-    logger.info("Running BOOT.md (%d chars)", len(content))
+    logger.info("Running BOOT.md ({} chars)", len(content))
 
-    # Run in a background thread so we don't block gateway startup.
-    thread = threading.Thread(
-        target=_run_boot_agent,
-        args=(content,),
-        name="boot-md",
-        daemon=True,
-    )
-    thread.start()
+    # Keep startup non-blocking while using asyncio's managed worker pool.
+    task = asyncio.create_task(asyncio.to_thread(_run_boot_agent, content), name="boot-md")
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
