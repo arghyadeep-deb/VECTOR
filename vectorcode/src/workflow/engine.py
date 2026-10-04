@@ -217,7 +217,7 @@ class WorkflowEngine:
             elif node.node_type == NodeType.CONDITION:
                 result = self._run_condition_node(node, outputs)
             elif node.node_type == NodeType.TRANSFORM:
-                result = self._run_transform_node(node, outputs)
+                result = self._run_transform_node(node, outputs, graph)
             elif node.node_type == NodeType.LOOP:
                 result = self._run_loop_node(node, outputs, system, graph)
             else:
@@ -281,6 +281,12 @@ class WorkflowEngine:
                 agent=node.agent or None,
                 tools=node.tools or None,
             )
+            if result.get("error"):
+                return WorkflowStepResult(
+                    node_id=node.id,
+                    success=False,
+                    output=result.get("content", "Agent execution failed."),
+                )
             return WorkflowStepResult(
                 node_id=node.id,
                 success=True,
@@ -335,22 +341,27 @@ class WorkflowEngine:
         # Supports dict access, comparisons, boolean logic, membership.
         try:
             result = str(_safe_eval_condition(expr, outputs))
-        except Exception:
-            result = "false"
-        return WorkflowStepResult(
-            node_id=node.id,
-            success=True,
-            output=result,
-        )
+            return WorkflowStepResult(
+                node_id=node.id,
+                success=True,
+                output=result,
+            )
+        except Exception as exc:
+            return WorkflowStepResult(
+                node_id=node.id,
+                success=False,
+                output=f"Invalid condition expression: {exc}",
+            )
 
     def _run_transform_node(
         self,
         node: WorkflowNode,
         outputs: Dict[str, str],
+        graph: WorkflowGraph,
     ) -> WorkflowStepResult:
         """Apply a text transformation."""
         expr = node.transform_expr
-        preds = [outputs.get(p, "") for p in outputs if p != "_input"]
+        preds = [outputs.get(p, "") for p in graph.predecessors(node.id)]
         combined = "\n\n".join(preds) if preds else ""
         if expr == "concatenate":
             return WorkflowStepResult(node_id=node.id, output=combined)
@@ -371,18 +382,34 @@ class WorkflowEngine:
         """Execute a loop node (re-runs agent until condition or max iterations)."""
         input_text = self._get_node_input(node, outputs, graph)
         max_iter = node.max_iterations
+        if system is None:
+            return WorkflowStepResult(
+                node_id=node.id,
+                success=False,
+                output="No system available for loop execution.",
+            )
+        if max_iter <= 0:
+            return WorkflowStepResult(
+                node_id=node.id,
+                success=False,
+                output="Loop max_iterations must be greater than zero.",
+            )
         last_output = input_text
         for i in range(max_iter):
-            if system:
-                result = system.ask(last_output, agent=node.agent or None)
-                last_output = result.get("content", "")
-                # Check if loop should terminate
-                if (
-                    node.condition_expr
-                    and node.condition_expr.lower() in last_output.lower()
-                ):
-                    break
-            else:
+            result = system.ask(last_output, agent=node.agent or None)
+            if result.get("error"):
+                return WorkflowStepResult(
+                    node_id=node.id,
+                    success=False,
+                    output=result.get("content", "Loop agent execution failed."),
+                    metadata={"iterations": i + 1},
+                )
+            last_output = result.get("content", "")
+            # Check if loop should terminate
+            if (
+                node.condition_expr
+                and node.condition_expr.lower() in last_output.lower()
+            ):
                 break
         return WorkflowStepResult(
             node_id=node.id,
