@@ -30,12 +30,13 @@ import asyncio
 import hashlib
 import hmac
 import json
-import logging
 import os
 import re
 import subprocess
 import time
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 try:
     from aiohttp import web
@@ -52,8 +53,6 @@ from gateway.platforms.base import (
     MessageType,
     SendResult,
 )
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8644
@@ -175,7 +174,7 @@ class WebhookAdapter(BasePlatformAdapter):
             with _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM) as _s:
                 _s.settimeout(1)
                 _s.connect(('127.0.0.1', self._port))
-            logger.error('[webhook] Port %d already in use. Set a different port in config.yaml: platforms.webhook.port', self._port)
+            logger.error('[webhook] Port {} already in use. Set a different port in config.yaml: platforms.webhook.port', self._port)
             return False
         except (ConnectionRefusedError, OSError):
             pass  # port is free
@@ -188,7 +187,7 @@ class WebhookAdapter(BasePlatformAdapter):
 
         route_names = ", ".join(self._routes.keys()) or "(none configured)"
         logger.info(
-            "[webhook] Listening on %s:%d — routes: %s",
+            "[webhook] Listening on {}:{} — routes: {}",
             self._host,
             self._port,
             route_names,
@@ -222,7 +221,7 @@ class WebhookAdapter(BasePlatformAdapter):
         deliver_type = delivery.get("deliver", "log")
 
         if deliver_type == "log":
-            logger.info("[webhook] Response for %s: %s", chat_id, content[:200])
+            logger.info("[webhook] Response for {}: {}", chat_id, content[:200])
             return SendResult(success=True)
 
         if deliver_type == "github_comment":
@@ -252,7 +251,7 @@ class WebhookAdapter(BasePlatformAdapter):
                 deliver_type, content, delivery
             )
 
-        logger.warning("[webhook] Unknown deliver type: %s", deliver_type)
+        logger.warning("[webhook] Unknown deliver type: {}", deliver_type)
         return SendResult(
             success=False, error=f"Unknown deliver type: {deliver_type}"
         )
@@ -311,12 +310,12 @@ class WebhookAdapter(BasePlatformAdapter):
             self._routes = {**self._dynamic_routes, **self._static_routes}
             self._dynamic_routes_mtime = mtime
             logger.info(
-                "[webhook] Reloaded %d dynamic route(s): %s",
+                "[webhook] Reloaded {} dynamic route(s): {}",
                 len(self._dynamic_routes),
                 ", ".join(self._dynamic_routes.keys()) or "(none)",
             )
         except Exception as e:
-            logger.error("[webhook] Failed to reload dynamic routes: %s", e)
+            logger.error("[webhook] Failed to reload dynamic routes: {}", e)
 
     async def _handle_webhook(self, request: "web.Request") -> "web.Response":
         """POST /webhooks/{route_name} — receive and process a webhook event."""
@@ -343,7 +342,7 @@ class WebhookAdapter(BasePlatformAdapter):
         try:
             raw_body = await request.read()
         except Exception as e:
-            logger.error("[webhook] Failed to read body: %s", e)
+            logger.error("[webhook] Failed to read body: {}", e)
             return web.json_response({"error": "Bad request"}, status=400)
 
         # Validate HMAC signature FIRST (skip for INSECURE_NO_AUTH testing mode)
@@ -361,7 +360,7 @@ class WebhookAdapter(BasePlatformAdapter):
         if secret and secret != _INSECURE_NO_AUTH:
             if not self._validate_signature(request, raw_body, secret):
                 logger.warning(
-                    "[webhook] Invalid signature for route %s", route_name
+                    "[webhook] Invalid signature for route {}", route_name
                 )
                 return web.json_response(
                     {"error": "Invalid signature"}, status=401
@@ -403,7 +402,7 @@ class WebhookAdapter(BasePlatformAdapter):
         allowed_events = route_config.get("events", [])
         if allowed_events and event_type not in allowed_events:
             logger.debug(
-                "[webhook] Ignoring event %s for route %s (allowed: %s)",
+                "[webhook] Ignoring event {} for route {} (allowed: {})",
                 event_type,
                 route_name,
                 allowed_events,
@@ -442,10 +441,10 @@ class WebhookAdapter(BasePlatformAdapter):
                             break  # Load the first matching skill
                     else:
                         logger.warning(
-                            "[webhook] Skill '%s' not found", skill_name
+                            "[webhook] Skill '{}' not found", skill_name
                         )
             except Exception as e:
-                logger.warning("[webhook] Skill loading failed: %s", e)
+                logger.warning("[webhook] Skill loading failed: {}", e)
 
         # Build a unique delivery ID
         delivery_id = request.headers.get(
@@ -464,7 +463,7 @@ class WebhookAdapter(BasePlatformAdapter):
         }
         if delivery_id in self._seen_deliveries:
             logger.info(
-                "[webhook] Skipping duplicate delivery %s", delivery_id
+                "[webhook] Skipping duplicate delivery {}", delivery_id
             )
             return web.json_response(
                 {"status": "duplicate", "delivery_id": delivery_id},
@@ -487,7 +486,7 @@ class WebhookAdapter(BasePlatformAdapter):
                 "payload": payload,
             }
             logger.info(
-                "[webhook] direct-deliver event=%s route=%s target=%s msg_len=%d delivery=%s",
+                "[webhook] direct-deliver event={} route={} target={} msg_len={} delivery={}",
                 event_type,
                 route_name,
                 delivery["deliver"],
@@ -498,7 +497,7 @@ class WebhookAdapter(BasePlatformAdapter):
                 result = await self._direct_deliver(prompt, delivery)
             except Exception:
                 logger.exception(
-                    "[webhook] direct-deliver failed route=%s delivery=%s",
+                    "[webhook] direct-deliver failed route={} delivery={}",
                     route_name,
                     delivery_id,
                 )
@@ -520,7 +519,7 @@ class WebhookAdapter(BasePlatformAdapter):
             # Delivery attempted but target rejected it — surface as 502
             # with a generic error (don't leak adapter-level detail).
             logger.warning(
-                "[webhook] direct-deliver target rejected route=%s target=%s error=%s",
+                "[webhook] direct-deliver target rejected route={} target={} error={}",
                 route_name,
                 delivery["deliver"],
                 result.error,
@@ -565,7 +564,7 @@ class WebhookAdapter(BasePlatformAdapter):
         )
 
         logger.info(
-            "[webhook] %s event=%s route=%s prompt_len=%d delivery=%s",
+            "[webhook] {} event={} route={} prompt_len={} delivery={}",
             request.method,
             event_type,
             route_name,
@@ -699,7 +698,7 @@ class WebhookAdapter(BasePlatformAdapter):
         if deliver_type == "log":
             # Shouldn't reach here — startup validation rejects deliver_only
             # with deliver=log — but guard defensively.
-            logger.info("[webhook] direct-deliver log-only: %s", content[:200])
+            logger.info("[webhook] direct-deliver log-only: {}", content[:200])
             return SendResult(success=True)
 
         if deliver_type == "github_comment":
@@ -727,6 +726,27 @@ class WebhookAdapter(BasePlatformAdapter):
                 success=False, error="Missing repo or pr_number"
             )
 
+        # repo/pr_number are rendered from the webhook payload via
+        # _render_delivery_extra() -- a sender holding the route's HMAC
+        # secret controls the substituted values. pr_number is passed as a
+        # positional gh CLI argument, so an unvalidated value starting with
+        # "-" (e.g. "--repo=attacker/repo") could be parsed as a flag
+        # instead of the PR number, redirecting the comment or otherwise
+        # confusing the CLI (CWE-88 argument injection). Require strict
+        # digits and an owner/repo shape before ever reaching subprocess.
+        if not re.match(r"^\d+$", str(pr_number).strip()):
+            logger.error(
+                "[webhook] github_comment delivery rejected non-numeric pr_number: {!r}",
+                pr_number,
+            )
+            return SendResult(success=False, error="Invalid pr_number")
+        if not re.match(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$", str(repo).strip()):
+            logger.error(
+                "[webhook] github_comment delivery rejected malformed repo: {!r}",
+                repo,
+            )
+            return SendResult(success=False, error="Invalid repo")
+
         try:
             result = subprocess.run(
                 [
@@ -745,12 +765,12 @@ class WebhookAdapter(BasePlatformAdapter):
             )
             if result.returncode == 0:
                 logger.info(
-                    "[webhook] Posted comment on %s#%s", repo, pr_number
+                    "[webhook] Posted comment on {}#{}", repo, pr_number
                 )
                 return SendResult(success=True)
             else:
                 logger.error(
-                    "[webhook] gh pr comment failed: %s", result.stderr
+                    "[webhook] gh pr comment failed: {}", result.stderr
                 )
                 return SendResult(success=False, error=result.stderr)
         except FileNotFoundError:
@@ -762,7 +782,7 @@ class WebhookAdapter(BasePlatformAdapter):
                 success=False, error="gh CLI not installed"
             )
         except Exception as e:
-            logger.error("[webhook] github_comment delivery error: %s", e)
+            logger.error("[webhook] github_comment delivery error: {}", e)
             return SendResult(success=False, error=str(e))
 
     async def _deliver_cross_platform(
