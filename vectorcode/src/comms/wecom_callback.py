@@ -1,14 +1,14 @@
 """WeCom callback verification — URL verification and event callback handling."""
 
 import hashlib
-import logging
+import secrets
 try:
     import defusedxml.ElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from Cryptodome.Cipher import AES
@@ -28,7 +28,9 @@ class WeComCallback:
         if not _CRYPTO: return None
         sort_str = "".join(sorted([self.token, timestamp, nonce]))
         calc_sig = hashlib.sha1(sort_str.encode()).hexdigest()  # nosec — WeCom API mandates SHA1
-        if calc_sig != msg_signature: return None
+        # Timing-unsafe comparison on a crypto signature -- same bug class
+        # already fixed in the sibling wecom_crypto.py this cycle.
+        if not secrets.compare_digest(calc_sig, msg_signature): return None
         try:
             key = base64.b64decode(self.encoding_aes_key + "=")
             cipher = AES.new(key, AES.MODE_CBC, key[:16])
