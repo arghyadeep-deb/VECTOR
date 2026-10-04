@@ -11,7 +11,7 @@ class QESecurityBridge:
     def validate_path(self, path: str) -> bool:
         if not self._allowed: return True
         p = Path(path).resolve()
-        return any(str(p).startswith(str(Path(a).resolve())) for a in self._allowed)
+        return any(p.is_relative_to(Path(a).resolve()) for a in self._allowed)
 
     def validate_command(self, command: str) -> bool:
         blocked = ["rm -rf", "> /dev/", "| sh", "sudo", "chmod 777"]
