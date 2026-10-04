@@ -2312,3 +2312,59 @@ isn't "proven in production" until you supply the service/device and run it live
     library, `core/api/routers/channels.py` is VECTOR's own already-wired channel-listing API
     endpoint, `comms/` -- a sibling fork's scope this same session -- is a separate gateway layer;
     no actual duplication found here, unlike the jcode/vc_tools finding).
+
+42. **`vectorcode/src/gateway/` root slice (partial, 2026-10-04) —** began the requested
+    24-file deep audit, explicitly excluding `platforms/` and the separately-reserved 11,770-line
+    `run.py`. Work was done by Codex (gpt-5.6-sol); Codex's sandbox could not write
+    `.git/index.lock` (`Permission denied`), so every change below was reviewed, in places
+    corrected, and committed by Claude on Codex's behalf — commit hashes are real.
+    **Fixed:** 9 modules used stdlib logging instead of loguru (`builtin_hooks/boot_md.py`,
+    `channel_directory.py`, `delivery.py`, `mirror.py`, `platform_registry.py`, `session.py`,
+    `shutdown_forensics.py`, `status.py`, `stream_consumer.py`, `whatsapp_identity.py`), with
+    `stream_consumer.py` importing loguru and then shadowing it; a complete pass also converted
+    90+ `%s`/`%d`/`%r`/`%.1f` logger placeholders across those files plus `pairing.py`
+    (`cee9fd86e`). `hooks.py` and `pairing.py` used forbidden production `print()` calls, fixed
+    in the same commit and in `484aef3f0`. `delivery.py` interpolated caller-controlled `job_id`
+    into both an output directory and a filename without validating it, allowing `../` or
+    backslash path traversal (CWE-22); both paths now require one safe path component
+    (`71aa5b0ad`). `builtin_hooks/boot_md.py` launched a raw `threading.Thread` (banned by
+    CLAUDE.md); replaced with `asyncio.to_thread()` wrapped in `asyncio.create_task()` — Claude
+    additionally added a module-level strong-reference set, since a bare `create_task()` result
+    with nothing holding a reference to it can be garbage-collected mid-run (`b01435e4b`).
+    `server.py`'s agent-execution gateway defaulted to binding `0.0.0.0` with no stated reason
+    (its one real caller already explicitly binds `127.0.0.1`), and its `/run` handler ran a
+    convoluted `run_in_executor` + nested `asyncio.run`/`asyncio.get_event_loop` dance that also
+    unconditionally hardcoded `sess["status"] = "complete"` regardless of actual outcome; both
+    fixed — direct `await`, default now `127.0.0.1`, status taken from the real result
+    (`9ab8489ff`). **Corrected by Claude during review:** Codex's first pass at
+    `sticker_cache.py` made `_load_cache()` raise on a corrupt/unreadable cache file, matching
+    the vault/webhook fail-open-destroys-data pattern fixed elsewhere this audit — but that
+    pattern fits credential/subscription stores where losing data matters. This cache is cheaply
+    regenerable (one vision call) and has exactly one caller (`telegram.py`'s sticker handler)
+    that does not wrap the lookup in a `try/except`; raising would have crashed sticker handling
+    on any corruption instead of costing one extra vision call. Reverted to fail-open with a
+    logged warning, and updated the matching test to assert the corrected contract
+    (`a82311e19`). New tests: `tests/test_vectorcode_gateway_logging.py` (4),
+    `tests/test_vectorcode_gateway_hooks_and_sticker_cache.py` (2),
+    `tests/test_vectorcode_gateway_delivery_paths.py` (5), and
+    `tests/test_vectorcode_gateway_server.py` (2) — 13/13 passing. Cross-checked against the
+    pre-existing ported suite (`test_delivery.py`, `test_hooks.py`, `test_mirror.py`,
+    `test_pairing.py`, `test_channel_directory.py`, `test_status.py`, `test_stream_consumer.py`,
+    `test_stream_consumer_fresh_final.py`, `test_sticker_cache.py`, `test_platform_base.py`): 5
+    pre-existing failures found, all confirmed via `git stash` to fail identically on the
+    unmodified baseline (Windows file-permission/chmod environmental flakiness in `pairing.py`/
+    `status.py`, and an unrelated count-assertion mismatch in `test_stream_consumer.py`) — none
+    caused by this slice. **FLAGGED, not fixed:** `pairing.py` and `session.py` still import
+    `threading` for synchronous store locks; those stores are called from executor workers, so
+    replacing the locks is an async architecture/migration decision, not a safe one-line audit
+    fix. The HTTP/WebSocket API still has no authentication when an operator explicitly chooses
+    a non-loopback bind; deciding the authentication scheme is owner policy, the unsafe default
+    is fixed. **Depth statement:** real full depth completed for `__init__.py`,
+    `builtin_hooks/__init__.py`, `builtin_hooks/boot_md.py`, `delivery.py`, `display_config.py`,
+    `hooks.py`, `restart.py`, `runtime_footer.py`, `session_context.py`, `slash_access.py`,
+    `sticker_cache.py`, and `whatsapp_identity.py`. The remaining files received targeted
+    security/pattern inspection and several proven fixes, but not the promised complete
+    line-by-line depth; in particular `config.py` (1,373 lines, confirmed already loguru-clean
+    on inspection but not logic-reviewed), `session.py` (1,373), `status.py` (803), and
+    `stream_consumer.py` (985) must be resumed as their own future slice rather than represented
+    as complete.
