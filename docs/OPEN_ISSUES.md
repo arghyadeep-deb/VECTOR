@@ -2939,3 +2939,41 @@ isn't "proven in production" until you supply the service/device and run it live
     `server/agent_manager_routes.py` as its own slice. Commits (server/+cli/, this round):
     `739d3b501`, `eab3e610c`, `577f17b2b`, `90cc714be`, `f5b21b334`, `ac472e3cc`, `e2d76171a`,
     `3cd3a8f13`.
+
+55. **`vectorcode/src/evals/` audit continuation (132 production Python files, partial,
+    2026-10-05) —** established the authoritative 143-file inventory with
+    `git ls-files`; excluded the 11 vendored test files as audit targets, leaving 132
+    production files (~35,592 lines). **Fixed:** `backends/external/_runners/vector_runner.py`
+    referenced `Path` in its argument parser without importing it, so every invocation crashed
+    before parsing. The same runner received `VECTOR_AGENT_PATH` from its caller but never put
+    it on `sys.path`, so its promised `from run_agent import AIAgent` failed unless the foreign
+    framework happened to be installed globally. Both are corrected and exercised through the
+    real `main()` path. `backends/external/vector_agent.py` also no longer exposes its API key
+    in the child process's command-line arguments (visible to local process inspection); the
+    key now travels in the dedicated inherited `VECTOR_EVAL_API_KEY` environment variable.
+    `core/config.py`, `datasets/deepplanning.py`, and `datasets/workarena.py` now use loguru,
+    `{}` placeholders, and `logger.opt(exception=True)` instead of stdlib logging, `%`
+    placeholders, and ignored/incompatible exception kwargs. New top-level regression tests:
+    `tests/test_vectorcode_evals_vector_runner_regressions.py` (3/3 passing) and
+    `tests/test_vectorcode_evals_logging_regressions.py` (4/4 passing); edited modules compile
+    and pass `git diff --check`.
+
+    **FLAGGED, not fixed:** `backends/external/openclaw.py` likewise places its API key in the
+    Node child process argv, but the runner script and its secret-input contract are external
+    to this assigned directory; changing one side would break execution, so this needs an
+    owner-coordinated external-runner change. `backends/external/_subprocess_runner.py` uses a
+    dedicated `threading.Thread` for synchronous 10 Hz energy sampling; replacing it with
+    asyncio would require changing the public synchronous backend contract, so it remains a
+    policy/design decision rather than a narrow audit patch.
+
+    **Depth statement, honestly incomplete:** full line-by-line review completed for
+    `core/config.py`, `datasets/{deepplanning,workarena,taubench,pinchbench,liveresearch}.py`,
+    `backends/{_commit_util,external/_subprocess_runner,external/vector_agent,
+    external/openclaw,external/_runners/vector_runner}.py`. The rest of the 132-file production
+    scope received only inventory and broad known-hazard scans and remains for continuation;
+    in particular, the six owner-prioritized large files were sized but not yet fully read.
+    The vendored `test_config.py` run had one expected logging-capture mismatch (`caplog` cannot
+    observe mandated loguru output) plus six unrelated stale failures for old `jarvis-*`
+    backend names / the removed `vector.evals` package path. No commit hash exists: both
+    required focused commits were attempted with explicit paths, but the sandbox could not
+    create `.git/index.lock` (`Permission denied`), so all verified changes remain uncommitted.
