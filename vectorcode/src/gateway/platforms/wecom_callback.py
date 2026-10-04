@@ -14,7 +14,6 @@ from __future__ import annotations
 from loguru import logger
 
 import asyncio
-import logging
 import socket as _socket
 import time
 from typing import Any, Dict, List, Optional
@@ -42,8 +41,6 @@ except ImportError:
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import BasePlatformAdapter, MessageEvent, MessageType, SendResult
 from gateway.platforms.wecom_crypto import WXBizMsgCrypt, WeComCryptoError
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8645
@@ -117,10 +114,10 @@ class WecomCallbackAdapter(BasePlatformAdapter):
             with _socket.socket(_socket.AF_INET, _socket.SOCK_STREAM) as sock:
                 sock.settimeout(1)
                 sock.connect(("127.0.0.1", self._port))
-            logger.error("[WecomCallback] Port %d already in use", self._port)
+            logger.error("[WecomCallback] Port {} already in use", self._port)
             return False
         except (ConnectionRefusedError, OSError) as _sve:
-            logger.debug("[VECTOR][gateway.platforms.wecom_callback] suppressed (ConnectionRefusedError, OSError): %s", _sve)
+            logger.debug("[WecomCallback] Port {} is free (probe connect failed as expected): {}", self._port, _sve)
 
         try:
             self._http_client = httpx.AsyncClient(timeout=20.0)
@@ -135,7 +132,7 @@ class WecomCallbackAdapter(BasePlatformAdapter):
             self._poll_task = asyncio.create_task(self._poll_loop())
             self._mark_connected()
             logger.info(
-                "[WecomCallback] HTTP server listening on %s:%s%s",
+                "[WecomCallback] HTTP server listening on {}:{}{}",
                 self._host, self._port, self._path,
             )
             for app in self._apps:
@@ -143,7 +140,7 @@ class WecomCallbackAdapter(BasePlatformAdapter):
                     await self._refresh_access_token(app)
                 except Exception as exc:
                     logger.warning(
-                        "[WecomCallback] Initial token refresh failed for app '%s': %s",
+                        "[WecomCallback] Initial token refresh failed for app '{}': {}",
                         app.get("name", "default"), exc,
                     )
             return True
@@ -268,7 +265,7 @@ class WecomCallbackAdapter(BasePlatformAdapter):
                         now = time.time()
                         if event.message_id in self._seen_messages:
                             if now - self._seen_messages[event.message_id] < MESSAGE_DEDUP_TTL_SECONDS:
-                                logger.debug("[WecomCallback] Duplicate MsgId %s, skipping", event.message_id)
+                                logger.debug("[WecomCallback] Duplicate MsgId {}, skipping", event.message_id)
                                 return web.Response(text="success", content_type="text/plain")
                             del self._seen_messages[event.message_id]
                         self._seen_messages[event.message_id] = now
@@ -397,7 +394,7 @@ class WecomCallbackAdapter(BasePlatformAdapter):
             "expires_at": time.time() + expires_in,
         }
         logger.info(
-            "[WecomCallback] Token refreshed for app '%s' (corp=%s), expires in %ss",
+            "[WecomCallback] Token refreshed for app '{}' (corp={}), expires in {}s",
             app.get("name", "default"),
             app.get("corp_id", ""),
             expires_in,
