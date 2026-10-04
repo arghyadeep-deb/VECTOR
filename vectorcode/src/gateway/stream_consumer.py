@@ -14,17 +14,14 @@ Credit: jobless0x (#774, #1312), OutThisLife (#798), clicksingh (#697).
 """
 
 from __future__ import annotations
-from loguru import logger
-
 import asyncio
-import logging
 import queue
 import re
 import time
 from dataclasses import dataclass
 from typing import Any, Optional
 
-logger = logging.getLogger("gateway.stream_consumer")
+from loguru import logger
 
 # Sentinel to signal the stream is complete
 _DONE = object()
@@ -472,7 +469,7 @@ class GatewayStreamConsumer:
                 try:
                     _best_effort_ok = bool(await self._send_or_edit(self._accumulated))
                 except Exception as _sve:
-                    logger.debug("[VECTOR][gateway.stream_consumer] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][gateway.stream_consumer] suppressed Exception: {}", _sve)
             # Only confirm final delivery if the best-effort send above
             # actually succeeded OR if the final response was already
             # confirmed before we were cancelled.  Previously this
@@ -483,7 +480,7 @@ class GatewayStreamConsumer:
             if _best_effort_ok and not self._final_response_sent:
                 self._final_response_sent = True
         except Exception as e:
-            logger.error("Stream consumer error: %s", e)
+            logger.error("Stream consumer error: {}", e)
 
     # Pattern to strip MEDIA:<path> tags (including optional surrounding quotes).
     # Matches the simple cleanup regex used by the non-streaming path in
@@ -535,7 +532,7 @@ class GatewayStreamConsumer:
                 self._edit_supported = False
                 return reply_to_id
         except Exception as e:
-            logger.error("Stream send chunk error: %s", e)
+            logger.error("Stream send chunk error: {}", e)
             return reply_to_id
 
     def _visible_prefix(self) -> str:
@@ -610,7 +607,7 @@ class GatewayStreamConsumer:
                         if result.success:
                             self._last_sent_text = clean_text
                     except Exception as _sve:
-                        logger.debug("[VECTOR][gateway.stream_consumer] suppressed Exception: %s", _sve)
+                        logger.debug("[VECTOR][gateway.stream_consumer] suppressed Exception: {}", _sve)
                 self._already_sent = True
                 self._final_response_sent = True
                 return
@@ -706,7 +703,7 @@ class GatewayStreamConsumer:
             if result.success:
                 self._already_sent = True
         except Exception as e:
-            logger.error("Segment-break tail flush error: %s", e)
+            logger.error("Segment-break tail flush error: {}", e)
 
     async def _try_strip_cursor(self) -> None:
         """Best-effort edit to remove the cursor from the last visible message.
@@ -748,7 +745,7 @@ class GatewayStreamConsumer:
             # multiple tool calls. See: https://github.com/VectorCode/vectorcode/issues/10454
             return result.success
         except Exception as e:
-            logger.error("Commentary send error: %s", e)
+            logger.error("Commentary send error: {}", e)
             return False
 
     def _should_send_fresh_final(self) -> bool:
@@ -789,7 +786,7 @@ class GatewayStreamConsumer:
                 metadata=self.metadata,
             )
         except Exception as e:
-            logger.debug("Fresh-final send failed, falling back to edit: %s", e)
+            logger.debug("Fresh-final send failed, falling back to edit: {}", e)
             return False
         if not getattr(result, "success", False):
             return False
@@ -805,7 +802,7 @@ class GatewayStreamConsumer:
                     await delete_fn(self.chat_id, old_message_id)
                 except Exception as e:
                     logger.debug(
-                        "Fresh-final preview cleanup failed (%s): %s",
+                        "Fresh-final preview cleanup failed ({}): {}",
                         old_message_id, e,
                     )
         # Adopt the new message id as the current message so subsequent
@@ -918,8 +915,8 @@ class GatewayStreamConsumer:
                                 self._current_edit_interval * 2, 10.0,
                             )
                             logger.debug(
-                                "Flood control on edit (strike %d/%d), "
-                                "backoff interval → %.1fs",
+                                "Flood control on edit (strike {}/{}), "
+                                "backoff interval → {:.1f}s",
                                 self._flood_strikes,
                                 self._MAX_FLOOD_STRIKES,
                                 self._current_edit_interval,
@@ -935,7 +932,7 @@ class GatewayStreamConsumer:
                         # fallback mode — send only the missing tail once the
                         # final response is available.
                         logger.debug(
-                            "Edit failed (strikes=%d), entering fallback mode",
+                            "Edit failed (strikes={}), entering fallback mode",
                             self._flood_strikes,
                         )
                         self._fallback_prefix = self._visible_prefix()
@@ -981,5 +978,5 @@ class GatewayStreamConsumer:
                     self._edit_supported = False
                     return False
         except Exception as e:
-            logger.error("Stream send/edit error: %s", e)
+            logger.error("Stream send/edit error: {}", e)
             return False

@@ -9,7 +9,7 @@ Handles:
 """
 
 import hashlib
-import logging
+from loguru import logger
 import os
 import json
 import threading
@@ -18,8 +18,6 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Any
-
-logger = logging.getLogger(__name__)
 
 
 def _now() -> datetime:
@@ -513,7 +511,7 @@ class SessionEntry:
             try:
                 platform = Platform(data["platform"])
             except ValueError as e:
-                logger.debug("Unknown platform value %r: %s", data["platform"], e)
+                logger.debug("Unknown platform value {!r}: {}", data["platform"], e)
 
         last_resume_marked_at = None
         _lrma = data.get("last_resume_marked_at")
@@ -660,7 +658,7 @@ class SessionStore:
             from vector_state import SessionDB
             self._db = SessionDB()
         except Exception as e:
-            print(f"[gateway] Warning: SQLite session store unavailable, falling back to JSONL: {e}")
+            logger.warning("[VECTOR][gateway.session] SQLite session store unavailable; falling back to JSONL: {}", e)
     
     def _ensure_loaded(self) -> None:
         """Load sessions index from disk if not already loaded."""
@@ -686,7 +684,7 @@ class SessionStore:
                             # Skip entries with unknown/removed platform values
                             continue
             except Exception as e:
-                print(f"[gateway] Warning: Failed to load sessions: {e}")
+                logger.warning("[VECTOR][gateway.session] Failed to load sessions: {}", e)
 
         self._loaded = True
     
@@ -710,7 +708,7 @@ class SessionStore:
             try:
                 os.unlink(tmp_path)
             except OSError as e:
-                logger.debug("Could not remove temp file %s: %s", tmp_path, e)
+                logger.debug("Could not remove temp file {}: {}", tmp_path, e)
             raise
     
     def _generate_session_key(self, source: SessionSource) -> str:
@@ -917,13 +915,13 @@ class SessionStore:
             try:
                 self._db.end_session(db_end_session_id, "session_reset")
             except Exception as e:
-                logger.debug("Session DB operation failed: %s", e)
+                logger.debug("Session DB operation failed: {}", e)
 
         if self._db and db_create_kwargs:
             try:
                 self._db.create_session(**db_create_kwargs)
             except Exception as e:
-                print(f"[gateway] Warning: Failed to create SQLite session: {e}")
+                logger.warning("[VECTOR][gateway.session] Failed to create SQLite session: {}", e)
 
         return entry
 
@@ -1047,7 +1045,7 @@ class SessionStore:
                             continue
                     except Exception as exc:
                         logger.debug(
-                            "has_active_processes_fn raised during prune for %s: %s",
+                            "has_active_processes_fn raised during prune for {}: {}",
                             entry.session_key, exc,
                         )
                 if entry.updated_at < cutoff:
@@ -1059,7 +1057,7 @@ class SessionStore:
 
         if removed_keys:
             logger.info(
-                "SessionStore pruned %d entries older than %d days",
+                "SessionStore pruned {} entries older than {} days",
                 len(removed_keys), max_age_days,
             )
         return len(removed_keys)
@@ -1136,13 +1134,13 @@ class SessionStore:
             try:
                 self._db.end_session(db_end_session_id, "session_reset")
             except Exception as e:
-                logger.debug("Session DB operation failed: %s", e)
+                logger.debug("Session DB operation failed: {}", e)
 
         if self._db and db_create_kwargs:
             try:
                 self._db.create_session(**db_create_kwargs)
             except Exception as e:
-                logger.debug("Session DB operation failed: %s", e)
+                logger.debug("Session DB operation failed: {}", e)
 
         return new_entry
 
@@ -1191,13 +1189,13 @@ class SessionStore:
             try:
                 self._db.end_session(db_end_session_id, "session_switch")
             except Exception as e:
-                logger.debug("Session DB end_session failed: %s", e)
+                logger.debug("Session DB end_session failed: {}", e)
 
         if self._db:
             try:
                 self._db.reopen_session(target_session_id)
             except Exception as e:
-                logger.debug("Session DB reopen_session failed: %s", e)
+                logger.debug("Session DB reopen_session failed: {}", e)
 
         return new_entry
 
@@ -1245,7 +1243,7 @@ class SessionStore:
                     codex_message_items=message.get("codex_message_items") if message.get("role") == "assistant" else None,
                 )
             except Exception as e:
-                logger.debug("Session DB operation failed: %s", e)
+                logger.debug("Session DB operation failed: {}", e)
         
         # Also write legacy JSONL (keeps existing tooling working during transition)
         transcript_path = self.get_transcript_path(session_id)
@@ -1278,7 +1276,7 @@ class SessionStore:
                         codex_message_items=msg.get("codex_message_items") if role == "assistant" else None,
                     )
             except Exception as e:
-                logger.debug("Failed to rewrite transcript in DB: %s", e)
+                logger.debug("Failed to rewrite transcript in DB: {}", e)
         
         # JSONL: overwrite the file
         transcript_path = self.get_transcript_path(session_id)
@@ -1294,7 +1292,7 @@ class SessionStore:
             try:
                 db_messages = self._db.get_messages_as_conversation(session_id)
             except Exception as e:
-                logger.debug("Could not load messages from DB: %s", e)
+                logger.debug("Could not load messages from DB: {}", e)
 
         # Load legacy JSONL transcript (may contain more history than SQLite
         # for sessions created before the DB layer was introduced).
@@ -1309,7 +1307,7 @@ class SessionStore:
                             jsonl_messages.append(json.loads(line))
                         except json.JSONDecodeError:
                             logger.warning(
-                                "Skipping corrupt line in transcript %s: %s",
+                                "Skipping corrupt line in transcript {}: {}",
                                 session_id, line[:120],
                             )
 
@@ -1326,7 +1324,7 @@ class SessionStore:
         if len(jsonl_messages) > len(db_messages):
             if db_messages:
                 logger.debug(
-                    "Session %s: JSONL has %d messages vs SQLite %d — "
+                    "Session {}: JSONL has {} messages vs SQLite {} — "
                     "using JSONL (legacy session not yet fully migrated)",
                     session_id, len(jsonl_messages), len(db_messages),
                 )

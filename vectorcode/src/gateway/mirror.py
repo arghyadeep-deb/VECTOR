@@ -10,13 +10,11 @@ the full SessionStore machinery.
 """
 
 import json
-import logging
+from loguru import logger
 from datetime import datetime
 from typing import Optional
 
 from vector_cli.config import get_vector_home
-
-logger = logging.getLogger(__name__)
 
 _SESSIONS_DIR = get_vector_home() / "sessions"
 _SESSIONS_INDEX = _SESSIONS_DIR / "sessions.json"
@@ -48,7 +46,7 @@ def mirror_to_session(
         )
         if not session_id:
             logger.debug(
-                "Mirror: no session found for %s:%s:%s:%s",
+                "Mirror: no session found for {}:{}:{}:{}",
                 platform,
                 chat_id,
                 thread_id,
@@ -67,12 +65,12 @@ def mirror_to_session(
         _append_to_jsonl(session_id, mirror_msg)
         _append_to_sqlite(session_id, mirror_msg)
 
-        logger.debug("Mirror: wrote to session %s (from %s)", session_id, source_label)
+        logger.debug("Mirror: wrote to session {} (from {})", session_id, source_label)
         return True
 
     except Exception as e:
         logger.debug(
-            "Mirror failed for %s:%s:%s:%s: %s",
+            "Mirror failed for {}:{}:{}:{}: {}",
             platform,
             chat_id,
             thread_id,
@@ -157,7 +155,7 @@ def _append_to_jsonl(session_id: str, message: dict) -> None:
         with open(transcript_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(message, ensure_ascii=False) + "\n")
     except Exception as e:
-        logger.debug("Mirror JSONL write failed: %s", e)
+        logger.debug("Mirror JSONL write failed: {}", e)
 
 
 def _append_to_sqlite(session_id: str, message: dict) -> None:
@@ -172,7 +170,7 @@ def _append_to_sqlite(session_id: str, message: dict) -> None:
             content=message.get("content"),
         )
     except Exception as e:
-        logger.debug("Mirror SQLite write failed: %s", e)
+        logger.debug("Mirror SQLite write failed: {}", e)
     finally:
         if db is not None:
             db.close()

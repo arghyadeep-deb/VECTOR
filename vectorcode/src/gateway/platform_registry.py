@@ -28,11 +28,9 @@ Usage (gateway side):
     adapter = platform_registry.create_adapter("irc", platform_config)
 """
 
-import logging
+from loguru import logger
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Optional
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -178,13 +176,13 @@ class PlatformRegistry:
         if entry.name in self._entries:
             prev = self._entries[entry.name]
             logger.info(
-                "Platform '%s' re-registered (was %s, now %s)",
+                "Platform '{}' re-registered (was {}, now {})",
                 entry.name,
                 prev.source,
                 entry.source,
             )
         self._entries[entry.name] = entry
-        logger.debug("Registered platform adapter: %s (%s)", entry.name, entry.source)
+        logger.debug("Registered platform adapter: {} ({})", entry.name, entry.source)
 
     def unregister(self, name: str) -> bool:
         """Remove a platform entry.  Returns True if it existed."""
@@ -221,7 +219,7 @@ class PlatformRegistry:
         if not entry.check_fn():
             hint = f" ({entry.install_hint})" if entry.install_hint else ""
             logger.warning(
-                "Platform '%s' requirements not met%s",
+                "Platform '{}' requirements not met{}",
                 entry.label,
                 hint,
             )
@@ -231,13 +229,13 @@ class PlatformRegistry:
             try:
                 if not entry.validate_config(config):
                     logger.warning(
-                        "Platform '%s' config validation failed",
+                        "Platform '{}' config validation failed",
                         entry.label,
                     )
                     return None
             except Exception as e:
                 logger.warning(
-                    "Platform '%s' config validation error: %s",
+                    "Platform '{}' config validation error: {}",
                     entry.label,
                     e,
                 )
@@ -248,7 +246,7 @@ class PlatformRegistry:
             return adapter
         except Exception as e:
             logger.error(
-                "Failed to create adapter for platform '%s': %s",
+                "Failed to create adapter for platform '{}': {}",
                 entry.label,
                 e,
                 exc_info=True,

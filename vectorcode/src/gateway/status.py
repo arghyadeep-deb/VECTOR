@@ -263,11 +263,11 @@ def _cleanup_invalid_pid_path(pid_path: Path, *, cleanup_stale: bool) -> None:
     try:
         pid_path.unlink(missing_ok=True)
     except Exception as _sve:
-        logger.debug("[VECTOR][gateway.status] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][gateway.status] suppressed Exception: {}", _sve)
     try:
         _get_gateway_lock_path(pid_path).unlink(missing_ok=True)
     except Exception as _sve:
-        logger.debug("[VECTOR][gateway.status] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][gateway.status] suppressed Exception: {}", _sve)
 
 
 def _write_gateway_lock_record(handle) -> None:
@@ -278,7 +278,7 @@ def _write_gateway_lock_record(handle) -> None:
     try:
         os.fsync(handle.fileno())
     except OSError as _sve:
-        logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
 
 
 def _try_acquire_file_lock(handle) -> bool:
@@ -305,7 +305,7 @@ def _release_file_lock(handle) -> None:
         else:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
     except OSError as _sve:
-        logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
 
 
 def acquire_gateway_runtime_lock() -> bool:
@@ -340,7 +340,7 @@ def release_gateway_runtime_lock() -> None:
     try:
         handle.close()
     except OSError as _sve:
-        logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
 
 
 def is_gateway_runtime_lock_active(lock_path: Optional[Path] = None) -> bool:
@@ -363,7 +363,7 @@ def is_gateway_runtime_lock_active(lock_path: Optional[Path] = None) -> bool:
         try:
             handle.close()
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
 
 
 def write_pid_file() -> None:
@@ -387,7 +387,7 @@ def write_pid_file() -> None:
         try:
             path.unlink(missing_ok=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
         raise
 
 
@@ -460,7 +460,7 @@ def remove_pid_file() -> None:
                 return
         path.unlink(missing_ok=True)
     except Exception as _sve:
-        logger.debug("[VECTOR][gateway.status] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][gateway.status] suppressed Exception: {}", _sve)
 
 
 def acquire_scoped_lock(scope: str, identity: str, metadata: Optional[dict[str, Any]] = None) -> tuple[bool, Optional[dict[str, Any]]]:
@@ -488,7 +488,7 @@ def acquire_scoped_lock(scope: str, identity: str, metadata: Optional[dict[str, 
         try:
             lock_path.unlink(missing_ok=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
     if existing:
         try:
             existing_pid = int(existing["pid"])
@@ -528,12 +528,12 @@ def acquire_scoped_lock(scope: str, identity: str, metadata: Optional[dict[str, 
                                         stale = True
                                     break
                     except (OSError, PermissionError) as _sve:
-                        logger.warning("[VECTOR][gateway.status] suppressed (OSError, PermissionError): %s", _sve)
+                        logger.warning("[VECTOR][gateway.status] suppressed (OSError, PermissionError): {}", _sve)
         if stale:
             try:
                 lock_path.unlink(missing_ok=True)
             except OSError as _sve:
-                logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
         else:
             return False, existing
 
@@ -548,7 +548,7 @@ def acquire_scoped_lock(scope: str, identity: str, metadata: Optional[dict[str, 
         try:
             lock_path.unlink(missing_ok=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
         raise
     return True, None
 
@@ -566,7 +566,7 @@ def release_scoped_lock(scope: str, identity: str) -> None:
     try:
         lock_path.unlink(missing_ok=True)
     except OSError as _sve:
-        logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
 
 
 def release_all_scoped_locks(
@@ -610,7 +610,7 @@ def release_all_scoped_locks(
                 lock_file.unlink(missing_ok=True)
                 removed += 1
             except OSError as _sve:
-                logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
     return removed
 
 
@@ -693,7 +693,7 @@ def consume_takeover_marker_for_self() -> bool:
         try:
             path.unlink(missing_ok=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
         return False
 
     # TTL guard: a stale marker older than _TAKEOVER_MARKER_TTL_S is ignored.
@@ -710,7 +710,7 @@ def consume_takeover_marker_for_self() -> bool:
         try:
             path.unlink(missing_ok=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
         return False
 
     # Does the marker name THIS process?
@@ -728,7 +728,7 @@ def consume_takeover_marker_for_self() -> bool:
     try:
         path.unlink(missing_ok=True)
     except OSError as _sve:
-        logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
 
     return matches
 
@@ -738,7 +738,7 @@ def clear_takeover_marker() -> None:
     try:
         _get_takeover_marker_path().unlink(missing_ok=True)
     except OSError as _sve:
-        logger.warning("[VECTOR][gateway.status] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][gateway.status] suppressed OSError: {}", _sve)
 
 
 def get_running_pid(

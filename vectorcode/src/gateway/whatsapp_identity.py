@@ -31,11 +31,10 @@ VectorCode' own session keys.
 from __future__ import annotations
 
 import json
-import logging
 import re
 from typing import Set
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # WhatsApp JIDs are numeric (or plus-prefixed numeric) with optional
 # ``@``, ``.`` and ``:`` separators. ``\w`` is pinned to ASCII so
@@ -111,7 +110,7 @@ def expand_whatsapp_aliases(identifier: str) -> Set[str]:
                     json.loads(mapping_path.read_text(encoding="utf-8"))
                 )
             except (OSError, json.JSONDecodeError) as exc:
-                logger.debug("whatsapp_identity: failed to read %s: %s", mapping_path, exc)
+                logger.debug("whatsapp_identity: failed to read {}: {}", mapping_path, exc)
                 continue
             if mapped and mapped not in resolved:
                 queue.append(mapped)

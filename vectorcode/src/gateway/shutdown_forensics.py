@@ -54,7 +54,7 @@ def _read_proc_field(pid: int, key: str) -> Optional[str]:
                 if line.startswith(key + ":"):
                     return line.split(":", 1)[1].strip()
     except (FileNotFoundError, PermissionError, OSError) as _sve:
-        logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed (FileNotFoundError, PermissionError, OSError): %s", _sve)
+        logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed (FileNotFoundError, PermissionError, OSError): {}", _sve)
     return None
 
 
@@ -90,7 +90,7 @@ def _proc_summary(pid: int) -> Dict[str, Any]:
         try:
             summary["ppid"] = int(ppid)
         except ValueError as _sve:
-            logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed ValueError: %s", _sve)
+            logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed ValueError: {}", _sve)
     uid = _read_proc_field(pid, "Uid")
     if uid is not None:
         # "real effective saved fs"
@@ -148,7 +148,7 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
     try:
         ctx["loadavg_1m"] = os.getloadavg()[0]
     except (OSError, AttributeError) as _sve:
-        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed (OSError, AttributeError): %s", _sve)
+        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed (OSError, AttributeError): {}", _sve)
 
     # /proc/self/status TracerPid: nonzero means a debugger / strace is
     # attached.  Useful when "phantom SIGKILL" turns out to be a manual
@@ -159,7 +159,7 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
             ctx["tracer_pid"] = int(tracer) if tracer.isdigit() else tracer
             ctx["tracer"] = _proc_summary(int(tracer)) if tracer.isdigit() else None
     except (TypeError, ValueError) as _sve:
-        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed (TypeError, ValueError): %s", _sve)
+        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed (TypeError, ValueError): {}", _sve)
 
     # Race-detection hint: did somebody recently start a sibling gateway
     # with --replace?  We can't see the new process directly here, but if
@@ -181,16 +181,16 @@ def snapshot_shutdown_context(received_signal: Any = None) -> Dict[str, Any]:
                         or f"'target_pid': {pid}" in raw
                     )
                 except OSError as _sve:
-                    logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
+                    logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: {}", _sve)
             planned_stop_path = Path(vector_home_str) / ".gateway-planned-stop.json"
             if planned_stop_path.exists():
                 try:
                     raw = planned_stop_path.read_text(encoding="utf-8")
                     ctx["planned_stop_marker"] = raw[:300]
                 except OSError as _sve:
-                    logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
+                    logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: {}", _sve)
     except Exception as _sve:  # noqa: BLE001 — never raise from a signal handler
-        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][gateway.shutdown_forensics] suppressed Exception: {}", _sve)
 
     return ctx
 
@@ -267,14 +267,14 @@ def spawn_async_diagnostic(
         try:
             os.close(fd)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: {}", _sve)
         return None
     finally:
         # Subprocess inherited the fd; we can drop our handle.
         try:
             os.close(fd)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed OSError: {}", _sve)
 
     return proc.pid
 
@@ -357,7 +357,7 @@ def check_systemd_timing_alignment(drain_timeout: float) -> Optional[Dict[str, A
                     if unit_name:
                         break
     except (OSError, FileNotFoundError) as _sve:
-        logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed (OSError, FileNotFoundError): %s", _sve)
+        logger.warning("[VECTOR][gateway.shutdown_forensics] suppressed (OSError, FileNotFoundError): {}", _sve)
     if not unit_name:
         return None
 

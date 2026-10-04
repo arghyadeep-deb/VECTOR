@@ -7,14 +7,12 @@ action="list" and for resolving human-friendly channel names to numeric IDs.
 """
 
 import json
-import logging
+from loguru import logger
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from vector_cli.config import get_vector_home
 from utils import atomic_json_write
-
-logger = logging.getLogger(__name__)
 
 DIRECTORY_PATH = get_vector_home() / "channel_directory.json"
 
@@ -74,7 +72,7 @@ async def build_channel_directory(adapters: Dict[Any, Any]) -> Dict[str, Any]:
             elif platform == Platform.SLACK:
                 platforms["slack"] = await _build_slack(adapter)
         except Exception as e:
-            logger.warning("Channel directory: failed to build %s: %s", platform.value, e)
+            logger.warning("Channel directory: failed to build {}: {}", platform.value, e)
 
     # Platforms that don't support direct channel enumeration get session-based
     # discovery automatically.  Skip infrastructure entries that aren't messaging
@@ -94,7 +92,7 @@ async def build_channel_directory(adapters: Dict[Any, Any]) -> Dict[str, Any]:
     try:
         atomic_json_write(DIRECTORY_PATH, directory)
     except Exception as e:
-        logger.warning("Channel directory: failed to write: %s", e)
+        logger.warning("Channel directory: failed to write: {}", e)
 
     return directory
 
@@ -163,7 +161,7 @@ async def _build_slack(adapter) -> List[Dict[str, Any]]:
                 )
                 if not response.get("ok"):
                     logger.warning(
-                        "Channel directory: users.conversations not ok for team %s: %s",
+                    "Channel directory: users.conversations not ok for team {}: {}",
                         team_id,
                         response.get("error", "unknown"),
                     )
@@ -184,7 +182,7 @@ async def _build_slack(adapter) -> List[Dict[str, Any]]:
                     break
         except Exception as e:
             logger.warning(
-                "Channel directory: failed to list Slack channels for team %s: %s",
+                "Channel directory: failed to list Slack channels for team {}: {}",
                 team_id, e,
             )
             continue
@@ -225,7 +223,7 @@ def _build_from_sessions(platform_name: str) -> List[Dict[str, str]]:
                 "thread_id": origin.get("thread_id"),
             })
     except Exception as e:
-        logger.debug("Channel directory: failed to read sessions for %s: %s", platform_name, e)
+        logger.debug("Channel directory: failed to read sessions for {}: {}", platform_name, e)
 
     return entries
 
