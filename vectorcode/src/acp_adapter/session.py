@@ -13,7 +13,6 @@ from vector_constants import get_vector_home
 
 import copy
 import json
-import logging
 import os
 import re
 import sys
@@ -23,8 +22,6 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from threading import Lock
 from typing import Any, Dict, List, Optional
-
-logger = logging.getLogger(__name__)
 
 
 def _normalize_cwd_for_compare(cwd: str | None) -> str:
@@ -103,8 +100,8 @@ def _register_task_cwd(task_id: str, cwd: str) -> None:
     try:
         from tools.terminal_tool import register_task_env_overrides
         register_task_env_overrides(task_id, {"cwd": cwd})
-    except Exception:
-        logger.debug("Failed to register ACP task cwd override", exc_info=True)
+    except Exception as e:
+        logger.opt(exception=True).debug("Failed to register ACP task cwd override: {}", e)
 
 
 def _expand_acp_enabled_toolsets(
@@ -132,8 +129,8 @@ def _clear_task_cwd(task_id: str) -> None:
     try:
         from tools.terminal_tool import clear_task_env_overrides
         clear_task_env_overrides(task_id)
-    except Exception:
-        logger.debug("Failed to clear ACP task cwd override", exc_info=True)
+    except Exception as e:
+        logger.opt(exception=True).debug("Failed to clear ACP task cwd override: {}", e)
 
 
 @dataclass
@@ -189,7 +186,7 @@ class SessionManager:
             self._sessions[session_id] = state
         _register_task_cwd(session_id, cwd)
         self._persist(state)
-        logger.info("Created ACP session %s (cwd=%s)", session_id, cwd)
+        logger.info("Created ACP session {} (cwd={})", session_id, cwd)
         return state
 
     def get_session(self, session_id: str) -> Optional[SessionState]:
@@ -240,7 +237,7 @@ class SessionManager:
             self._sessions[new_id] = state
         _register_task_cwd(new_id, cwd)
         self._persist(state)
-        logger.info("Forked ACP session %s -> %s", session_id, new_id)
+        logger.info("Forked ACP session {} -> {}", session_id, new_id)
         return state
 
     def list_sessions(self, cwd: str | None = None) -> List[Dict[str, Any]]:
@@ -253,8 +250,8 @@ class SessionManager:
             try:
                 for row in db.list_sessions_rich(source="acp", limit=1000):
                     persisted_rows[str(row["id"])] = dict(row)
-            except Exception:
-                logger.debug("Failed to load ACP sessions from DB", exc_info=True)
+            except Exception as e:
+                logger.opt(exception=True).debug("Failed to load ACP sessions from DB: {}", e)
 
         # Collect in-memory sessions first.
         with self._lock:
@@ -302,7 +299,7 @@ class SessionManager:
                 try:
                     session_cwd = json.loads(mc).get("cwd", ".")
                 except (json.JSONDecodeError, TypeError) as _sve:
-                    logger.debug("[VECTOR][acp_adapter.session] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
+                    logger.debug("[VECTOR][acp_adapter.session] model_config JSON parse failed: {}", _sve)
             if normalized_cwd and _normalize_cwd_for_compare(session_cwd) != normalized_cwd:
                 continue
             results.append({
@@ -344,8 +341,8 @@ class SessionManager:
                     sid = row["id"]
                     _clear_task_cwd(sid)
                     db.delete_session(sid)
-            except Exception:
-                logger.debug("Failed to cleanup ACP sessions from DB", exc_info=True)
+            except Exception as e:
+                logger.opt(exception=True).debug("Failed to cleanup ACP sessions from DB: {}", e)
 
     def save_session(self, session_id: str) -> None:
         """Persist the current state of a session to the database.
@@ -378,8 +375,8 @@ class SessionManager:
             vector_home = get_vector_home()
             self._db_instance = SessionDB(db_path=vector_home / "state.db")
             return self._db_instance
-        except Exception:
-            logger.debug("SessionDB unavailable for ACP persistence", exc_info=True)
+        except Exception as e:
+            logger.opt(exception=True).debug("SessionDB unavailable for ACP persistence: {}", e)
             return None
 
     def _persist(self, state: SessionState) -> None:
@@ -425,8 +422,8 @@ class SessionManager:
                             (cwd_json, model_str, state.session_id),
                         )
                         db._conn.commit()
-                except Exception:
-                    logger.debug("Failed to update ACP session metadata", exc_info=True)
+                except Exception as e:
+                    logger.opt(exception=True).debug("Failed to update ACP session metadata: {}", e)
 
             # Replace stored messages with current history.
             db.clear_messages(state.session_id)
@@ -439,8 +436,8 @@ class SessionManager:
                     tool_calls=msg.get("tool_calls"),
                     tool_call_id=msg.get("tool_call_id"),
                 )
-        except Exception:
-            logger.warning("Failed to persist ACP session %s", state.session_id, exc_info=True)
+        except Exception as e:
+            logger.opt(exception=True).warning("Failed to persist ACP session {}: {}", state.session_id, e)
 
     def _restore(self, session_id: str) -> Optional[SessionState]:
         """Load a session from the database into memory, recreating the AIAgent."""
@@ -452,8 +449,8 @@ class SessionManager:
 
         try:
             row = db.get_session(session_id)
-        except Exception:
-            logger.debug("Failed to query DB for ACP session %s", session_id, exc_info=True)
+        except Exception as e:
+            logger.opt(exception=True).debug("Failed to query DB for ACP session {}: {}", session_id, e)
             return None
 
         if row is None:
@@ -478,7 +475,7 @@ class SessionManager:
                     restored_base_url = meta.get("base_url") or restored_base_url
                     restored_api_mode = meta.get("api_mode") or restored_api_mode
             except (json.JSONDecodeError, TypeError) as _sve:
-                logger.debug("[VECTOR][acp_adapter.session] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
+                logger.debug("[VECTOR][acp_adapter.session] model_config JSON parse failed: {}", _sve)
 
         model = row.get("model") or None
 
