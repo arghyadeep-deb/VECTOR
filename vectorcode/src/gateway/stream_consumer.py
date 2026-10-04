@@ -418,6 +418,18 @@ class GatewayStreamConsumer:
                             self._final_response_sent = await self._send_or_edit(
                                 self._accumulated, finalize=True,
                             )
+                            # The finalize edit above can itself exhaust the
+                            # flood-control strike budget and flip us into
+                            # fallback mode as a side effect (_send_or_edit
+                            # sets _fallback_final_send=True when it gives up
+                            # on editing). That happens AFTER the `if
+                            # self._fallback_final_send` check above already
+                            # ran, so without this, the accumulated text was
+                            # never delivered by any path -- silently dropped
+                            # instead of reaching the user via the fallback
+                            # send.
+                            if self._fallback_final_send:
+                                await self._send_fallback_final(self._accumulated)
                         elif not self._already_sent:
                             self._final_response_sent = await self._send_or_edit(self._accumulated)
                     return
@@ -717,12 +729,19 @@ class GatewayStreamConsumer:
         if not prefix or not prefix.strip():
             return
         try:
-            await self.adapter.edit_message(
+            result = await self.adapter.edit_message(
                 chat_id=self.chat_id,
                 message_id=self._message_id,
                 content=prefix,
             )
-            self._last_sent_text = prefix
+            # Only record the cursor as stripped if the edit actually
+            # succeeded -- unconditionally updating _last_sent_text here
+            # (as a prior version of this code did) would claim the
+            # platform message no longer shows the cursor even when the
+            # edit call returned success=False, leaving internal state
+            # out of sync with what the user actually sees.
+            if getattr(result, "success", False):
+                self._last_sent_text = prefix
         except Exception:
             logger.exception("[VECTOR] silent swallow")
             pass  # best-effort — don't let this block the fallback path
