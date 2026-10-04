@@ -7,16 +7,15 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.vc_core.config import VectorConfig, load_config
 from vectorcode.src.vc_core.events import EventBus, get_event_bus
 from vectorcode.src.vc_engine._abc import InferenceEngine
 from vectorcode.src.vc_system.core import VectorSystem
 from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
-
-logger = logging.getLogger(__name__)
 
 class SystemBuilder:
     """Config-driven fluent builder for VectorSystem."""
@@ -126,7 +125,7 @@ class SystemBuilder:
                     prefer_vendor=config.telemetry.energy_vendor or None,
                 )
             except ImportError:
-                __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
+                logger.opt(exception=True).warning("Optional energy-monitor dependency import failed")
             if energy_monitor is None:
                 try:
                     from core.telemetry.gpu_monitor import GpuMonitor
@@ -136,7 +135,7 @@ class SystemBuilder:
                             poll_interval_ms=config.telemetry.gpu_poll_interval_ms,
                         )
                 except ImportError:
-                    __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
+                    logger.opt(exception=True).warning("Optional GPU-monitor dependency import failed")
         from vectorcode.src.vc_security import setup_security
 
         sec = setup_security(config, engine, bus)
@@ -195,7 +194,7 @@ class SystemBuilder:
                     tool_executor = ToolExecutor(tool_list, bus)
                 skill_few_shot_examples = skill_manager.get_few_shot_examples()
             except Exception as exc:
-                logger.warning("Failed to initialize skills: %s", exc)
+                logger.warning("Failed to initialize skills: {}", exc)
 
         agent_name = self._agent_name or config.agent.default_agent
         container_runner = self._setup_sandbox(config)
@@ -210,7 +209,7 @@ class SystemBuilder:
 
                 trace_store = TraceStore(config.traces.db_path)
             except Exception:
-                logger.warning("Failed to initialize TraceStore", exc_info=True)
+                logger.opt(exception=True).warning("Failed to initialize TraceStore")
 
         capability_policy = sec.capability_policy
         learning_orchestrator = self._setup_learning_orchestrator(config)
@@ -227,7 +226,7 @@ class SystemBuilder:
                 )
                 agent_manager = AgentManager(db_path=am_db)
             except Exception as exc:
-                logger.warning("Failed to initialize agent manager: %s", exc)
+                logger.warning("Failed to initialize agent manager: {}", exc)
 
         agent_executor = None
         agent_scheduler = None
@@ -243,9 +242,8 @@ class SystemBuilder:
 
                         _trace_store = TraceStore(config.traces.db_path)
                     except Exception:
-                        logger.warning(
-                            "Failed to initialize TraceStore",
-                            exc_info=True,
+                        logger.opt(exception=True).warning(
+                            "Failed to initialize TraceStore"
                         )
 
                 agent_executor = AgentExecutor(
@@ -258,7 +256,7 @@ class SystemBuilder:
                     executor=agent_executor,
                 )
             except Exception:
-                logger.warning("Failed to initialize agent scheduler", exc_info=True)
+                logger.opt(exception=True).warning("Failed to initialize agent scheduler")
 
         speech_backend = None
         speech_enabled = self._speech if self._speech is not None else True
@@ -268,7 +266,7 @@ class SystemBuilder:
 
                 speech_backend = get_speech_backend(config)
             except Exception as exc:
-                logger.warning("Failed to initialize speech backend: %s", exc)
+                logger.warning("Failed to initialize speech backend: {}", exc)
 
         system = VectorSystem(
             config=config,
@@ -327,7 +325,7 @@ class SystemBuilder:
             if models:
                 return models[0]
         except Exception as exc:
-            logger.warning("Failed to list models from engine: %s", exc)
+            logger.warning("Failed to list models from engine: {}", exc)
         return config.intelligence.fallback_model or ""
 
     def _setup_telemetry(self, config, bus):
@@ -338,7 +336,7 @@ class SystemBuilder:
             store.subscribe_to_bus(bus)
             return store
         except Exception as exc:
-            logger.warning("Failed to set up telemetry store: %s", exc)
+            logger.warning("Failed to set up telemetry store: {}", exc)
             return None
 
     def _resolve_memory(self, config):
@@ -350,7 +348,7 @@ class SystemBuilder:
             if MemoryRegistry.contains(key):
                 return MemoryRegistry.create(key, db_path=config.memory.db_path)
         except Exception as exc:
-            logger.warning("Failed to resolve memory backend: %s", exc)
+            logger.warning("Failed to resolve memory backend: {}", exc)
         return None
 
     def _resolve_channel(self, config, bus):
@@ -367,7 +365,7 @@ class SystemBuilder:
             kwargs = {"bus": bus, **build_channel_kwargs(config.channel, key)}
             return ChannelRegistry.create(key, **kwargs)
         except Exception as exc:
-            logger.warning("Failed to resolve channel backend %r: %s", key, exc)
+            logger.warning("Failed to resolve channel backend {!r}: {}", key, exc)
             return None
 
     def _resolve_tools(
@@ -417,11 +415,11 @@ class SystemBuilder:
                             tools.extend(external_tools)
                         except Exception as exc:
                             logger.warning(
-                                "Failed to discover external MCP tools: %s",
+                                "Failed to discover external MCP tools: {}",
                                 exc,
                             )
             except (json.JSONDecodeError, TypeError) as exc:
-                logger.warning("Failed to parse MCP server config: %s", exc)
+                logger.warning("Failed to parse MCP server config: {}", exc)
 
         return tools
 
@@ -468,7 +466,7 @@ class SystemBuilder:
                 runtime=config.sandbox.runtime,
             )
         except Exception as exc:
-            logger.warning("Failed to set up container sandbox: %s", exc)
+            logger.warning("Failed to set up container sandbox: {}", exc)
             return None
 
     def _setup_scheduler(self, config, bus):
@@ -499,7 +497,7 @@ class SystemBuilder:
             )
             return store, sched
         except Exception as exc:
-            logger.warning("Failed to set up task scheduler: %s", exc)
+            logger.warning("Failed to set up task scheduler: {}", exc)
             return None, None
 
     def _setup_workflow(self, config, bus):
@@ -517,7 +515,7 @@ class SystemBuilder:
                 default_node_timeout=config.workflow.default_node_timeout,
             )
         except Exception as exc:
-            logger.warning("Failed to set up workflow engine: %s", exc)
+            logger.warning("Failed to set up workflow engine: {}", exc)
             return None
 
     def _setup_sessions(self, config):
@@ -535,7 +533,7 @@ class SystemBuilder:
                 consolidation_threshold=config.sessions.consolidation_threshold,
             )
         except Exception as exc:
-            logger.warning("Failed to set up session store: %s", exc)
+            logger.warning("Failed to set up session store: {}", exc)
             return None
 
     @staticmethod
@@ -567,7 +565,7 @@ class SystemBuilder:
                 lora_config=lora_config,
             )
         except Exception as exc:
-            logger.warning("Failed to set up learning orchestrator: %s", exc)
+            logger.warning("Failed to set up learning orchestrator: {}", exc)
             return None
 
     def _discover_external_mcp(self, server_cfg) -> List[BaseTool]:
@@ -595,7 +593,7 @@ class SystemBuilder:
             transport = StdioTransport(command=[command] + args)
         else:
             logger.warning(
-                "MCP server '%s' has neither 'url' nor 'command' — skipping",
+                "MCP server {!r} has neither 'url' nor 'command' — skipping",
                 name,
             )
             return []
@@ -616,7 +614,7 @@ class SystemBuilder:
             discovered = [t for t in discovered if t.spec.name not in exclude_tools]
 
         logger.info(
-            "Discovered %d tools from MCP server '%s'",
+            "Discovered {} tools from MCP server {!r}",
             len(discovered),
             name,
         )

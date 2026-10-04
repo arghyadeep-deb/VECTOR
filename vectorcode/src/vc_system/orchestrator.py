@@ -7,16 +7,15 @@
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.vc_core.types import Message, Role
 from vectorcode.src.vc_tools._abc import BaseTool
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_system.protocols import OrchestratorDeps
-
-logger = logging.getLogger(__name__)
 
 class QueryOrchestrator:
     def __init__(self, system: OrchestratorDeps) -> None:
@@ -63,7 +62,7 @@ class QueryOrchestrator:
                     config=ctx_cfg,
                 )
             except Exception as exc:
-                logger.warning("Failed to inject memory context: %s", exc)
+                logger.warning("Failed to inject memory context: {}", exc)
 
         use_agent = agent or s.agent_name
         if not agent and use_agent != "none":
@@ -314,5 +313,5 @@ class QueryOrchestrator:
                 elif ToolRegistry.contains(name):
                     tools.append(ToolRegistry.create(name))
             except Exception as exc:
-                logger.warning("Failed to build tool %r: %s", name, exc)
+                logger.warning("Failed to build tool {!r}: {}", name, exc)
         return tools

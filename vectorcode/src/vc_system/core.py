@@ -7,9 +7,10 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.vc_core.config import VectorConfig
 from vectorcode.src.vc_core.events import EventBus
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     try:
         from vector.channels._abc import BaseChannel
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] optional channel type import failed")
     from vectorcode.src.learning._abc import RouterPolicy
     from vectorcode.src.learning.learning_orchestrator import LearningOrchestrator
     from vectorcode.src.vc_mcp.client import MCPClient
@@ -53,8 +54,6 @@ if TYPE_CHECKING:
     from vectorcode.src.vc_traces.collector import TraceCollector
     from vectorcode.src.vc_traces.store import TraceStore
     from vectorcode.src.workflow.engine import WorkflowEngine
-
-logger = logging.getLogger(__name__)
 
 @dataclass
 class VectorSystem:
@@ -271,7 +270,7 @@ class VectorSystem:
                     channel=cm.channel,
                 )
             except Exception:
-                logger.debug("Session save error", exc_info=True)
+                logger.opt(exception=True).debug("Session save error")
 
             if reply:
                 try:
@@ -291,7 +290,7 @@ class VectorSystem:
             try:
                 client.close()
             except Exception:
-                logger.debug("Error closing MCP client", exc_info=True)
+                logger.opt(exception=True).debug("Error closing MCP client")
 
     def close(self) -> None:
         """Release resources."""
