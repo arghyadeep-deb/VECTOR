@@ -263,6 +263,15 @@ class GCalendarConnector(BaseConnector):
             )
             import threading
 
+            # FLAGGED (owner decision, not fixed): CLAUDE.md requires asyncio
+            # over threading, but handle_callback() is a synchronous public
+            # method with real live callers (server/connectors_router.py,
+            # vector_cli/deep_research_setup_cmd.py) -- there is no
+            # guaranteed running event loop to asyncio.create_task() onto
+            # here. Converting this to asyncio would mean making
+            # handle_callback() (and both its callers) async, which is an
+            # API-shape change beyond a narrow bug fix. Same pattern in
+            # gcontacts.py and gdrive.py.
             def _run() -> None:
                 try:
                     run_oauth_flow(
