@@ -2595,6 +2595,42 @@ isn't "proven in production" until you supply the service/device and run it live
     specific paths, but the sandbox could not create `.git/index.lock` (`Permission denied`);
     the verified changes remain uncommitted for review.
 
+49. **`vectorcode/src/agent/` audit continuation (79 tracked Python files, partial,
+    2026-10-05) —** established the authoritative inventory with `git ls-files` and
+    prioritized the credential and execution-safety paths. **Fixed:**
+    `credential_pool.py` imported loguru and then shadowed it with
+    `logging.getLogger(__name__)`; its 16 argument-bearing `%s` log calls therefore did
+    not render diagnostics under VECTOR's required logger. It now uses loguru directly
+    with `{}` placeholders. `file_safety.py` compared resolved sensitive paths without
+    applying the host filesystem's case normalization, allowing differently-cased names
+    such as `.SSH/ID_RSA` to bypass the denylist on Windows; all write-policy operands
+    now pass through `normcase(realpath(...))`. `trajectory.py` likewise used stdlib
+    logging and `%s`, so save success/failure details are now emitted correctly through
+    loguru. New regression tests:
+    `tests/test_vectorcode_agent_credential_pool_logging.py` (2),
+    `tests/test_vectorcode_agent_file_safety_case.py` (2), and
+    `tests/test_vectorcode_agent_trajectory_logging.py` (1); combined result 5/5
+    passing, with touched modules also passing `compileall` and `git diff --check`.
+    **FLAGGED, not fixed — owner/design decision needed:** the credential pool stores
+    OAuth/API tokens in the deliberately permission-restricted, atomically-written
+    `~/.vectorcode/auth.json`. Moving pooled refresh state into the project's keyring
+    path would alter CLI interoperability and single-use refresh-token synchronization,
+    so it is not a safe narrow patch. The pool's synchronous `threading.Lock` similarly
+    requires a caller-contract migration rather than a local substitution.
+    **Depth statement:** genuine full line-by-line review completed for
+    `credential_pool.py`, `tool_guardrails.py`, `file_safety.py`, `retry_utils.py`,
+    `trajectory.py`, `tool_result_classification.py`, `memory_manager.py`,
+    `memory_provider.py`, `prompt_caching.py`, `portal_tags.py`,
+    `lmstudio_reasoning.py`, `manual_compression_feedback.py`, `__init__.py`,
+    `transports/{__init__,base,types}.py`, and the five two-line `lsp` re-export shims
+    (`eventlog.py`, `servers.py`, `install.py`, `workspace.py`, `range_shift.py`). The
+    other 58 files received inventory and broad forbidden-import/logging/subprocess/path/
+    credential scans but not full logic depth. In particular `auxiliary_client.py`
+    (3,491 lines) and the remaining large adapters are explicitly deferred; this entry
+    does not claim the requested directory audit complete. A focused commit was attempted,
+    but the sandbox could not create `.git/index.lock` (`Permission denied`), so there
+    are no commit hashes and all verified changes remain uncommitted on disk.
+
 48. **`vectorcode/src/{vc_agents,connectors,vc_tools}/` continuation (122 tracked Python files,
     partial, 2026-10-05) —** resumed where a prior same-scope fork had stopped after hitting a
     session usage limit (its own partial work — `vc_tools/git_tool.py`, `vc_agents/manager.py`,
@@ -2662,3 +2698,30 @@ isn't "proven in production" until you supply the service/device and run it live
     and most of `vc_tools/` — `browser.py`, `code_interpreter*.py`, `knowledge_search.py`,
     `pdf_tool.py`, `shell_exec.py`, storage backends other than sqlite/knowledge_graph, etc. —
     still need their own continuation pass and should not be treated as audited.
+
+50. **`vectorcode/src/skills/` audit continuation (65 in-scope tracked Python files, partial,
+    2026-10-05) —** established the authoritative inventory with `git ls-files` (66 files total;
+    the explicitly reserved 2,794-line `optional/migration/openclaw-migration/scripts/
+    openclaw_to_vector.py` was excluded and untouched). **Fixed:** `parser.py` used stdlib logging,
+    while `manager.py`, `matcher.py`, `hub.py`, `loader.py`, PowerPoint `clean.py`, Google
+    Workspace `setup.py`, `domain_intel.py`, `memento_cards.py`, and `telephony.py` used stdlib
+    `%s` formatting or `exc_info=True` with loguru, silently losing diagnostic values/tracebacks;
+    these now use loguru's real formatting and exception API. Removed `matcher.py`'s dead stdlib
+    fallback so production logging consistently obeys the repository dependency. The Canvas LMS
+    skill imported the project-banned `requests`; it now uses `httpx` with pagination and HTTP
+    status handling preserved. Telephony's persistent-state loader treated every parse/read/type
+    failure as a new empty state, after which ordinary callers saved and could overwrite owned
+    number IDs, inbound cursors, and provider mappings; an existing invalid state now logs and
+    fails closed with `TelephonyError`, while an absent file still initializes normally. New
+    `tests/test_vectorcode_skills_audit_regressions.py`: 4/4 passing (Canvas two-page pagination,
+    live loguru interpolation, AST guard against regressed stdlib formatting, and byte-preserving
+    telephony corrupt-state rejection). All 65 in-scope files pass `compileall`; `git diff --check`
+    passes. **Depth statement:** genuine full line-by-line review completed only for `manager.py`,
+    `matcher.py`, `parser.py`, and `optional/productivity/canvas/scripts/canvas_api.py`.
+    `telephony.py` received a focused state-persistence/API hazard review, and the other changed
+    modules received focused logging-path review; neither is a claim of full-file logic depth.
+    Every other in-scope file received inventory and broad hazard scans only and remains for a
+    dedicated continuation, including the large `telephony.py` and `maps_client.py` bodies.
+    No commit hash exists: a focused commit was attempted with explicit paths, but the sandbox
+    could not create `.git/index.lock` (`Permission denied`), so the verified changes remain
+    uncommitted on disk.
