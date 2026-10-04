@@ -41,6 +41,13 @@ def _is_read_only_query(query: str) -> bool:
 
     upper = stripped.upper()
 
+    # Reject stacked/multi-statement queries outright: psycopg2's
+    # cursor.execute() (unlike sqlite3's) runs every semicolon-separated
+    # statement in a single call, so "SELECT 1; DROP TABLE users" would
+    # otherwise pass the prefix check below and still execute the DROP.
+    if _WRITE_KEYWORDS.search(stripped):
+        return False
+
     # Direct prefix match for simple statements
     for prefix in _READ_ONLY_PREFIXES:
         if upper.startswith(prefix):
@@ -48,10 +55,6 @@ def _is_read_only_query(query: str) -> bool:
 
     # WITH ... SELECT (common table expressions)
     if upper.startswith("WITH"):
-        # Check that the body after WITH eventually contains SELECT
-        # and does not contain write keywords
-        if _WRITE_KEYWORDS.search(stripped):
-            return False
         # Must contain a SELECT somewhere after WITH
         if re.search(r"\bSELECT\b", upper):
             return True
