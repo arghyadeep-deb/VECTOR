@@ -70,7 +70,7 @@ def _secure_write(path: Path, data: str) -> None:
         try:
             os.unlink(tmp_path)
         except OSError as _sve:
-            logger.warning("[VECTOR][gateway.pairing] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][gateway.pairing] suppressed OSError: {}", _sve)
         raise
 
 
@@ -280,8 +280,12 @@ class PairingStore:
             lockout_key = f"_lockout:{platform}"
             limits[lockout_key] = time.time() + LOCKOUT_SECONDS
             limits[fail_key] = 0  # Reset counter
-            print(f"[pairing] Platform {platform} locked out for {LOCKOUT_SECONDS}s "
-                  f"after {MAX_FAILED_ATTEMPTS} failed attempts", flush=True)
+            logger.warning(
+                "[VECTOR][gateway.pairing] Platform {} locked out for {}s after {} failed attempts",
+                platform,
+                LOCKOUT_SECONDS,
+                MAX_FAILED_ATTEMPTS,
+            )
         self._save_json(self._rate_limit_path(), limits)
 
     # ----- Cleanup -----
