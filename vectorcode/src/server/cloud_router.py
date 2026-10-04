@@ -172,7 +172,7 @@ async def _stream_openai(
                     if delta:
                         yield delta
                 except Exception as _sve:
-                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: {}", _sve)
 
 async def _stream_anthropic(
     model: str,
@@ -219,7 +219,7 @@ async def _stream_anthropic(
                         if text:
                             yield text
                 except Exception as _sve:
-                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: {}", _sve)
 
 async def _stream_google(
     model: str,
@@ -243,11 +243,13 @@ async def _stream_google(
 
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{model}:streamGenerateContent?alt=sse&key={api_key}"
+        f"{model}:streamGenerateContent?alt=sse"
     )
 
     async with httpx.AsyncClient(timeout=180) as client:
-        async with client.stream("POST", url, json=payload) as resp:
+        async with client.stream(
+            "POST", url, json=payload, headers={"x-goog-api-key": api_key}
+        ) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):
@@ -265,7 +267,7 @@ async def _stream_google(
                         if text:
                             yield text
                 except Exception as _sve:
-                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: {}", _sve)
 
 # ---------------------------------------------------------------------------
 # Local (Ollama) direct streaming -- bypasses engine routing entirely
@@ -308,7 +310,7 @@ async def stream_local(
                     if data.get("done"):
                         break
                 except Exception as _sve:
-                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][server.cloud_router] suppressed Exception: {}", _sve)
 
 async def list_local_models() -> list[str]:
     """Return Ollama model names directly from the Ollama API."""
