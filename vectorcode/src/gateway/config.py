@@ -8,7 +8,7 @@ Handles loading and validating configuration for:
 - Delivery preferences
 """
 
-import logging
+from loguru import logger
 import os
 import json
 from pathlib import Path
@@ -19,8 +19,6 @@ from enum import Enum
 # vector_cli not available in VectorCode � use local stubs
 def get_vector_home(): from pathlib import Path; return Path.home() / '.vector'
 def is_truthy_value(v, default=True): return bool(v) if v is not None else default
-
-logger = logging.getLogger(__name__)
 
 
 def _coerce_bool(value: Any, default: bool = True) -> bool:
@@ -62,6 +60,7 @@ class Platform(Enum):
     DINGTALK = "dingtalk"
     API_SERVER = "api_server"
     WEBHOOK = "webhook"
+    MSGRAPH_WEBHOOK = "msgraph_webhook"
     FEISHU = "feishu"
     WECOM = "wecom"
     WECOM_CALLBACK = "wecom_callback"
@@ -412,7 +411,7 @@ class GatewayConfig:
                 platform = Platform(platform_name)
                 reset_by_platform[platform] = SessionResetPolicy.from_dict(policy_data)
             except ValueError as _sve:
-                logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
+                logger.debug("[VECTOR][gateway.config] suppressed ValueError: {}", _sve)
         
         default_policy = SessionResetPolicy()
         if "default_reset_policy" in data:
@@ -494,11 +493,11 @@ def load_gateway_config() -> GatewayConfig:
             with open(gateway_json_path, "r", encoding="utf-8") as f:
                 gw_data = json.load(f) or {}
             logger.info(
-                "Loaded legacy %s — consider moving settings to config.yaml",
+                "Loaded legacy {} — consider moving settings to config.yaml",
                 gateway_json_path,
             )
         except Exception as e:
-            logger.warning("Failed to load %s: %s", gateway_json_path, e)
+            logger.warning("Failed to load {}: {}", gateway_json_path, e)
 
     # Primary source: config.yaml
     try:
@@ -521,7 +520,7 @@ def load_gateway_config() -> GatewayConfig:
                 else:
                     logger.warning(
                         "Ignoring invalid quick_commands in config.yaml "
-                        "(expected mapping, got %s)",
+                        "(expected mapping, got {})",
                         type(qc).__name__,
                     )
 
@@ -793,7 +792,7 @@ def load_gateway_config() -> GatewayConfig:
     except Exception as e:
         logger.warning(
             "Failed to process config.yaml — falling back to .env / gateway.json values. "
-            "Check %s for syntax errors. Error: %s",
+            "Check {} for syntax errors. Error: {}",
             _home / "config.yaml",
             e,
         )
@@ -819,13 +818,13 @@ def _validate_gateway_config(config: "GatewayConfig") -> None:
 
     if not (0 <= policy.at_hour <= 23):
         logger.warning(
-            "Invalid at_hour=%s (must be 0-23). Using default 4.", policy.at_hour
+            "Invalid at_hour={} (must be 0-23). Using default 4.", policy.at_hour
         )
         policy.at_hour = 4
 
     if policy.idle_minutes is None or policy.idle_minutes <= 0:
         logger.warning(
-            "Invalid idle_minutes=%s (must be positive). Using default 1440.",
+            "Invalid idle_minutes={} (must be positive). Using default 1440.",
             policy.idle_minutes,
         )
         policy.idle_minutes = 1440
@@ -846,7 +845,7 @@ def _validate_gateway_config(config: "GatewayConfig") -> None:
         env_name = _token_env_names.get(platform)
         if env_name and pconfig.token is not None and not pconfig.token.strip():
             logger.warning(
-                "%s is enabled but %s is empty. "
+                "{} is enabled but {} is empty. "
                 "The adapter will likely fail to connect.",
                 platform.value, env_name,
             )
@@ -870,7 +869,7 @@ def _validate_gateway_config(config: "GatewayConfig") -> None:
             token = pconfig.token
             if token and token.strip() and not has_usable_secret(token, min_length=4):
                 logger.error(
-                    "%s is enabled but %s is set to a placeholder value ('%s'). "
+                    "{} is enabled but {} is set to a placeholder value ('{}'). "
                     "Set a real bot token before starting the gateway. "
                     "The adapter will NOT be started.",
                     platform.value, env_name, token.strip()[:6] + "...",
@@ -1107,7 +1106,7 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
             try:
                 config.platforms[Platform.API_SERVER].extra["port"] = int(api_server_port)
             except ValueError as _sve:
-                logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
+                logger.debug("[VECTOR][gateway.config] suppressed ValueError: {}", _sve)
         if api_server_host:
             config.platforms[Platform.API_SERVER].extra["host"] = api_server_host
         api_server_model_name = os.environ.get("API_SERVER_MODEL_NAME", "")
@@ -1126,7 +1125,7 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
             try:
                 config.platforms[Platform.WEBHOOK].extra["port"] = int(webhook_port)
             except ValueError as _sve:
-                logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
+                logger.debug("[VECTOR][gateway.config] suppressed ValueError: {}", _sve)
         if webhook_secret:
             config.platforms[Platform.WEBHOOK].extra["secret"] = webhook_secret
 
@@ -1364,11 +1363,11 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
         try:
             config.default_reset_policy.idle_minutes = int(idle_minutes)
         except ValueError as _sve:
-            logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
+            logger.debug("[VECTOR][gateway.config] suppressed ValueError: {}", _sve)
     
     reset_hour = os.environ.get("SESSION_RESET_HOUR")
     if reset_hour:
         try:
             config.default_reset_policy.at_hour = int(reset_hour)
         except ValueError as _sve:
-            logger.debug("[VECTOR][gateway.config] suppressed ValueError: %s", _sve)
+            logger.debug("[VECTOR][gateway.config] suppressed ValueError: {}", _sve)

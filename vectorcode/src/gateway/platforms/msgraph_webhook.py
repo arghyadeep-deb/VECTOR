@@ -6,10 +6,11 @@ import asyncio
 import hmac
 import ipaddress
 import json
-import logging
 from collections import deque
 from hashlib import sha1
 from typing import Any, Awaitable, Callable, Dict, Optional
+
+from loguru import logger
 
 try:
     from aiohttp import web
@@ -26,8 +27,6 @@ from gateway.platforms.base import (
     MessageType,
     SendResult,
 )
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8646
@@ -124,7 +123,7 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
                 networks.append(ipaddress.ip_network(chunk, strict=False))
             except ValueError:
                 logger.warning(
-                    "[msgraph_webhook] Ignoring invalid allowed_source_cidrs entry: %r",
+                    "[msgraph_webhook] Ignoring invalid allowed_source_cidrs entry: {!r}",
                     chunk,
                 )
         return networks
@@ -144,7 +143,7 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         await site.start()
         self._mark_connected()
         logger.info(
-            "[msgraph_webhook] Listening on %s:%d%s",
+            "[msgraph_webhook] Listening on {}:{}{}",
             self._host,
             self._port,
             self._webhook_path,
@@ -164,7 +163,7 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         reply_to: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
     ) -> SendResult:
-        logger.info("[msgraph_webhook] Response for %s: %s", chat_id, content[:200])
+        logger.info("[msgraph_webhook] Response for {}: {}", chat_id, content[:200])
         return SendResult(success=True)
 
     async def get_chat_info(self, chat_id: str) -> Dict[str, Any]:
