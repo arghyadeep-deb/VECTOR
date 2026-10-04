@@ -1,5 +1,4 @@
 """Shared helper classes for gateway platform adapters.
-from loguru import logger
 
 Extracts common patterns that were duplicated across 5-7 adapters:
 message deduplication, text batch aggregation, markdown stripping,
@@ -8,16 +7,15 @@ and thread participation tracking.
 
 import asyncio
 import json
-import logging
 import re
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Dict, Optional
 
+from loguru import logger
+
 if TYPE_CHECKING:
     from gateway.platforms.base import BasePlatformAdapter, MessageEvent
-
-logger = logging.getLogger(__name__)
 
 
 # ─── Message Deduplication ────────────────────────────────────────────────────
@@ -148,7 +146,7 @@ class TextBatchAggregator:
             try:
                 await self._handler(event)
             except Exception:
-                logger.exception("[TextBatchAggregator] Error dispatching batched event for %s", key)
+                logger.exception("[TextBatchAggregator] Error dispatching batched event for {}", key)
 
         if self._pending_tasks.get(key) is current_task:
             self._pending_tasks.pop(key, None)
@@ -221,6 +219,7 @@ class ThreadParticipationTracker:
     def __init__(self, platform_name: str, max_tracked: int = 500):
         self._platform = platform_name
         self._max_tracked = max_tracked
+        self._load_failed = False
         self._threads: set = self._load()
 
     def _state_path(self) -> Path:
@@ -232,11 +231,29 @@ class ThreadParticipationTracker:
         if path.exists():
             try:
                 return set(json.loads(path.read_text(encoding="utf-8")))
-            except Exception as _sve:
-                logger.debug("[VECTOR][gateway.platforms.helpers] suppressed Exception: %s", _sve)
+            except Exception as e:
+                # A corrupt/unparseable file is NOT the same as "no file yet" --
+                # returning {} here indistinguishably let mark()'s _save() below
+                # silently overwrite (destroy) every previously tracked thread
+                # on the very next call. Same bug class fixed in
+                # vector_cli/vault_cmd.py + gateway/platforms/webhook.py this
+                # cycle. _save() now refuses to run while this flag is set.
+                logger.warning("[ThreadParticipationTracker] Failed to load {}: {}", path, e)
+                self._load_failed = True
         return set()
 
     def _save(self) -> None:
+        if self._load_failed:
+            # _load() couldn't parse the existing file -- writing now would
+            # overwrite it with only the in-memory set (just the thread(s)
+            # marked since startup), destroying every previously tracked
+            # thread id. Refuse until a fresh load succeeds.
+            logger.error(
+                "[ThreadParticipationTracker] Refusing to save {} -- last load failed, "
+                "saving now would destroy previously tracked thread ids",
+                self._state_path(),
+            )
+            return
         path = self._state_path()
         path.parent.mkdir(parents=True, exist_ok=True)
         thread_list = list(self._threads)
