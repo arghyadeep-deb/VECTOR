@@ -16,6 +16,17 @@ from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
+# FLAGGED for owner awareness, not fixed: this is a literal-substring
+# blocklist on raw source text, trivially bypassed without any
+# obfuscation -- e.g. `import importlib; importlib.import_module("os")
+# .system(...)` contains neither "os.system" nor "subprocess." as a
+# literal substring, nor does `getattr(__builtins__, "ex" + "ec")(...)`
+# contain "exec(". A real fix is a sandboxed/restricted execution
+# environment, not a narrow patch to this list -- the code's own comment
+# already treats VECTOR_ENABLE_UNTRUSTED_CODE=1 + "isolated lab
+# environment only" as the real security boundary, with this list as a
+# cheap speed-bump on top, not the actual defense. Left as-is; whether
+# that's an acceptable security posture is an owner decision.
 # Dangerous patterns to block
 _BLOCKED_PATTERNS = [
     "os.system",
