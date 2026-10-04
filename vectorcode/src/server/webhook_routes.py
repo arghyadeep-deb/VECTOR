@@ -6,13 +6,12 @@ import asyncio
 import hashlib
 import hmac
 import json
-import logging
+import secrets
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
+from loguru import logger
 from starlette.responses import PlainTextResponse
-
-logger = logging.getLogger(__name__)
 
 def _log_task_exception(task: asyncio.Task) -> None:
     """Log exceptions from background message handling tasks."""
@@ -20,10 +19,9 @@ def _log_task_exception(task: asyncio.Task) -> None:
         return
     exc = task.exception()
     if exc is not None:
-        logger.error(
-            "Background message handling failed: %s",
+        logger.opt(exception=exc).error(
+            "Background message handling failed: {}",
             exc,
-            exc_info=exc,
         )
 
 def _validate_twilio_signature(
@@ -170,7 +168,7 @@ def create_webhook_router(
                         to=from_number,
                     )
             except Exception as _e:
-                logger.warning("Twilio ack failed: %s", _e)
+                logger.warning("Twilio ack failed: {}", _e)
 
             # Process via bridge or agent directly
             response = ""
@@ -230,7 +228,7 @@ def create_webhook_router(
                     )
                 except Exception as _e:
                     logger.warning(
-                        "Twilio reply failed: %s",
+                        "Twilio reply failed: {}",
                         _e,
                     )
 
@@ -253,7 +251,7 @@ def create_webhook_router(
         request: Request,
     ) -> Response:
         auth = request.headers.get("Authorization", "")
-        if bluebubbles_password and auth != bluebubbles_password:
+        if bluebubbles_password and not secrets.compare_digest(auth, bluebubbles_password):
             return Response("Invalid password", status_code=403)
 
         payload = await request.json()
@@ -288,7 +286,7 @@ def create_webhook_router(
         token = request.query_params.get("hub.verify_token", "")
         challenge = request.query_params.get("hub.challenge", "")
 
-        if mode == "subscribe" and token == whatsapp_verify_token:
+        if mode == "subscribe" and secrets.compare_digest(token, whatsapp_verify_token):
             return PlainTextResponse(challenge)
         return Response("Forbidden", status_code=403)
 
@@ -348,7 +346,7 @@ def create_webhook_router(
         # Verify webhook secret if configured
         if sb and sb.webhook_secret:
             header_secret = request.headers.get("x-sendblue-secret", "")
-            if header_secret != sb.webhook_secret:
+            if not secrets.compare_digest(header_secret, sb.webhook_secret):
                 return Response("Invalid secret", status_code=403)
         elif sb:
             logger.warning(
@@ -385,6 +383,15 @@ def create_webhook_router(
             request.app.state._sendblue_queues = _sendblue_queues
 
         def _handle_and_reply() -> None:
+            # NOTE: raw threading (Lock/Event/Thread) used deliberately here,
+            # not an oversight. This whole function already runs off the
+            # event loop via asyncio.to_thread() below; the periodic
+            # "still working" reminder is a fire-and-forget side-timer with
+            # no asyncio event loop available to schedule against from
+            # inside a worker thread. Converting it to asyncio would require
+            # restructuring this handler from sync to async end-to-end --
+            # an architecture change, not a narrow bug fix. Flagging for
+            # owner awareness per this audit's established pattern.
             import threading
 
             lock = _sendblue_queues["_lock"]
