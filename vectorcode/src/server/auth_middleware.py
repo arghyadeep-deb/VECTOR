@@ -2,15 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import secrets
 
+from loguru import logger
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-
-logger = logging.getLogger(__name__)
 
 class AuthMiddleware(BaseHTTPMiddleware):
     """Validates ``Authorization: Bearer <key>`` on ``/v1/*`` and ``/api/*`` routes.
@@ -32,7 +30,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                     status_code=401,
                 )
             scheme, _, token = auth.partition(" ")
-            if scheme.lower() != "bearer" or token != self._api_key:
+            if scheme.lower() != "bearer" or not secrets.compare_digest(token, self._api_key):
                 return JSONResponse(
                     {"detail": "Invalid API key"},
                     status_code=401,
@@ -64,7 +62,7 @@ def check_bind_safety(host: str, *, api_key: str) -> None:
 
     if not is_loop and not api_key:
         logger.error(
-            "Binding to %s requires OPENVECTOR_API_KEY to be set. "
+            "Binding to {} requires OPENVECTOR_API_KEY to be set. "
             "Run: vector auth generate-key",
             host,
         )
