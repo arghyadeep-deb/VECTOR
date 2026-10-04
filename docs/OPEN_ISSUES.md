@@ -2759,7 +2759,7 @@ isn't "proven in production" until you supply the service/device and run it live
     exists: the required focused commit was attempted with explicit paths, but the sandbox could
     not create `.git/index.lock` (`Permission denied`); all verified changes remain uncommitted.
 
-52. **`vectorcode/src/{vc_system,tui_gateway,system,security,scripts,context,workflow,vc_core,mcp}/`
+54. **`vectorcode/src/{vc_system,tui_gateway,system,security,scripts,context,workflow,vc_core,mcp}/`
     audit continuation (60 tracked Python files, partial, 2026-10-05) —** authoritative inventories
     and line counts were established with `git ls-files`; the 5,047-line
     `tui_gateway/server.py` was explicitly deferred under the requested large-file rule. **Fixed:**
