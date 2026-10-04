@@ -1,17 +1,12 @@
 """Lightweight skill matcher — loads data/skills_manifest.json, no faiss/vc_tools deps."""
 from __future__ import annotations
 
-from loguru import logger
 import json
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-try:
-    from loguru import logger
-except ImportError:
-    import logging
-    logger = logging.getLogger(__name__)
+from loguru import logger
 
 from vectorcode.src.skills.types import MatchedSkill
 
@@ -86,7 +81,7 @@ class SkillMatcher:
             with open(path, encoding="utf-8", errors="replace") as fh:
                 self._manifest = json.load(fh)
         except Exception as exc:
-            logger.debug("[VECTOR][skills.matcher] manifest load failed: %s", exc)
+            logger.debug("[VECTOR][skills.matcher] manifest load failed: {}", exc)
             self._manifest = {}
         return self._manifest
 

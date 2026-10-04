@@ -14,7 +14,7 @@ import json
 import os
 import sys
 
-import requests
+import httpx
 
 CANVAS_API_TOKEN = os.environ.get("CANVAS_API_TOKEN", "")
 CANVAS_BASE_URL = os.environ.get("CANVAS_BASE_URL", "").rstrip("/")
@@ -42,7 +42,7 @@ def _paginated_get(url, params=None, max_items=200):
     """Fetch all pages up to max_items, following Canvas Link headers."""
     results = []
     while url and len(results) < max_items:
-        resp = requests.get(url, headers=_headers(), params=params, timeout=30)
+        resp = httpx.get(url, headers=_headers(), params=params, timeout=30)
         resp.raise_for_status()
         results.extend(resp.json())
         params = None  # params are included in the Link URL for subsequent pages
@@ -66,7 +66,7 @@ def list_courses(args):
         params["enrollment_state"] = args.enrollment_state
     try:
         courses = _paginated_get(url, params)
-    except requests.HTTPError as e:
+    except httpx.HTTPStatusError as e:
         print(f"API error: {e.response.status_code} {e.response.text}", file=sys.stderr)
         sys.exit(1)
     output = [
@@ -92,7 +92,7 @@ def list_assignments(args):
         params["order_by"] = args.order_by
     try:
         assignments = _paginated_get(url, params)
-    except requests.HTTPError as e:
+    except httpx.HTTPStatusError as e:
         print(f"API error: {e.response.status_code} {e.response.text}", file=sys.stderr)
         sys.exit(1)
     output = [

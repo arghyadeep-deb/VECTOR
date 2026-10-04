@@ -47,7 +47,7 @@ def subdomains(domain, include_expired=False, limit=200):
                 if dt <= now:
                     continue
             except ValueError as _sve:
-                logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed ValueError: %s", _sve)
+                logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed ValueError: {}", _sve)
         for name in e.get("name_value", "").splitlines():
             name = name.strip().lower()
             if name and name not in seen:
@@ -78,7 +78,7 @@ def check_ssl(host, port=443, timeout=10):
             try:
                 return datetime.strptime(s, fmt).replace(tzinfo=timezone.utc)
             except ValueError as _sve:
-                logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed ValueError: %s", _sve)
+                logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed ValueError: {}", _sve)
         return None
 
     warning = None
@@ -200,7 +200,7 @@ def whois_lookup(domain):
                         result["is_expired"] = days < 0
                     break
                 except ValueError as _sve:
-                    logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed ValueError: %s", _sve)
+                    logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed ValueError: {}", _sve)
     return result
 
 # ─── DNS Records ───────────────────────────────────────────────────────────
@@ -275,7 +275,7 @@ def check_available(domain):
             with ctx.wrap_socket(s, server_hostname=domain):
                 ssl_up = True
     except Exception as _sve:
-        logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][skills.optional.research.domain-intel.scripts.domain_intel] suppressed Exception: {}", _sve)
     signals["ssl_reachable"] = ssl_up
 
     # WHOIS (quick check)

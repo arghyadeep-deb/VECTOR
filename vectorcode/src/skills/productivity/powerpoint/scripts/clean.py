@@ -117,7 +117,7 @@ def get_slide_referenced_files(unpacked_dir: Path) -> set:
             try:
                 referenced.add(target_path.relative_to(unpacked_dir.resolve()))
             except ValueError as _sve:
-                logger.debug("[VECTOR][skills.productivity.powerpoint.scripts.clean] suppressed ValueError: %s", _sve)
+                logger.debug("[VECTOR][skills.productivity.powerpoint.scripts.clean] suppressed ValueError: {}", _sve)
 
     return referenced
 
@@ -158,7 +158,7 @@ def get_referenced_files(unpacked_dir: Path) -> set:
             try:
                 referenced.add(target_path.relative_to(unpacked_dir.resolve()))
             except ValueError as _sve:
-                logger.debug("[VECTOR][skills.productivity.powerpoint.scripts.clean] suppressed ValueError: %s", _sve)
+                logger.debug("[VECTOR][skills.productivity.powerpoint.scripts.clean] suppressed ValueError: {}", _sve)
 
     return referenced
 

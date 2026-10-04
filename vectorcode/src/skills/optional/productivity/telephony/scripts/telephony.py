@@ -141,9 +141,12 @@ def _load_state(path: Path | None = None) -> dict[str, Any]:
         if isinstance(data, dict):
             data.setdefault("version", STATE_VERSION)
             return data
-    except Exception as _sve:
-        logger.debug("[VECTOR][skills.optional.productivity.telephony.scripts.telephony] suppressed Exception: %s", _sve)
-    return {"version": STATE_VERSION}
+        raise ValueError("state root must be a JSON object")
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as exc:
+        logger.error("[VECTOR][skills.telephony] cannot load existing state {}: {}", state_file, exc)
+        raise TelephonyError(
+            f"Cannot load existing telephony state at {state_file}; refusing to replace it"
+        ) from exc
 
 def _save_state(state: dict[str, Any], path: Path | None = None) -> Path:
     state_file = path or _state_path()

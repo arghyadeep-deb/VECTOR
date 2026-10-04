@@ -21,7 +21,7 @@ try:
     from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
     _FULL_DEPS = True
 except Exception as _dep_err:
-    logger.debug("[VECTOR][skills.manager] optional deps unavailable: %s", _dep_err)
+    logger.debug("[VECTOR][skills.manager] optional deps unavailable: {}", _dep_err)
     _FULL_DEPS = False
     # Stub sentinels so class body doesn't fail at parse time
     EventBus = object  # type: ignore[misc,assignment]
@@ -65,7 +65,7 @@ class SkillManager:
                 if cfg_dir:
                     overlay_dir = Path(cfg_dir).expanduser()
             except Exception as _sve:
-                logger.debug("[VECTOR][skills.manager] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][skills.manager] suppressed Exception: {}", _sve)
             if overlay_dir is None:
                 overlay_dir = Path("~/.vector/learning/skills/").expanduser()
         self._overlay_dir = Path(overlay_dir).expanduser()

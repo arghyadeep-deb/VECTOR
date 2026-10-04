@@ -93,7 +93,7 @@ def parse_frontmatter(content: str) -> Tuple[Dict[str, Any], str]:
             frontmatter = parsed
             return frontmatter, body
     except Exception as _sve:
-        logger.debug("[VECTOR][skills.loader] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][skills.loader] suppressed Exception: {}", _sve)
 
     # Fallback: simple key:value for malformed YAML
     for line in yaml_content.strip().split("\n"):
@@ -565,7 +565,7 @@ if __name__ == "__main__":
             load_skill("nonexistent-skill-xyz")
             assert False, "should have raised FileNotFoundError"
         except FileNotFoundError as _sve:
-            logger.warning("[VECTOR][skills.loader] suppressed FileNotFoundError: %s", _sve)
+            logger.warning("[VECTOR][skills.loader] suppressed FileNotFoundError: {}", _sve)
 
     # format_skill_for_injection -- no user_instruction
     skill_dict = {"name": "test", "description": "desc", "body": "skill body"}

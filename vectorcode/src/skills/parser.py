@@ -13,13 +13,12 @@ vendor's fields means adding entries to FIELD_MAPPING -- no logic changes.
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Any, Dict
 
-from vectorcode.src.skills.types import SkillManifest
+from loguru import logger
 
-LOGGER = logging.getLogger(__name__)
+from vectorcode.src.skills.types import SkillManifest
 
 # ---------------------------------------------------------------------------
 # Spec constants
@@ -190,8 +189,8 @@ class SkillParser:
                     oj_meta[attr] = value
             else:
                 unmapped[key] = value
-                LOGGER.warning(
-                    "Unmapped frontmatter field '%s' in skill '%s' "
+                logger.warning(
+                    "Unmapped frontmatter field '{}' in skill '{}' "
                     "(value preserved in metadata.vector.original_frontmatter)",
                     key,
                     manifest.name,

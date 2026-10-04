@@ -59,7 +59,7 @@ def _save(data: dict) -> None:
         try:
             os.unlink(tmp)
         except OSError as _sve:
-            logger.warning("[VECTOR][skills.optional.productivity.memento-flashcards.scripts.memento_cards] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][skills.optional.productivity.memento-flashcards.scripts.memento_cards] suppressed OSError: {}", _sve)
         raise
 
 def _out(obj: object) -> None:
