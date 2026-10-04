@@ -58,3 +58,21 @@ def generate_launchd_plist(output: Path | None = None) -> str:
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(content)
     return content
+
+class ServiceManager:
+    """Thin object wrapper over this module's systemd/launchd generators.
+
+    core/loop/autonomous_loop.py does
+    `from vectorcode.src.daemon.service import ServiceManager` and
+    `self._daemon_mgr = ServiceManager()` -- that class never existed in
+    this file, so the import always raised ImportError, silently caught
+    by autonomous_loop.py's bare except (self._daemon_mgr = None).  Wraps
+    the two generator functions that already constitute this module's
+    entire daemon-management capability; no new behavior invented.
+    """
+
+    def install_systemd(self, output: Path | None = None) -> str:
+        return generate_systemd_service(output)
+
+    def install_launchd(self, output: Path | None = None) -> str:
+        return generate_launchd_plist(output)

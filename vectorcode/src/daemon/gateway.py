@@ -32,7 +32,13 @@ class GatewayDaemon:
         chat_id: str,
         thread_id: Optional[str],
     ) -> str:
-        return f"agent:main:{platform}:{chat_type}:{chat_id}:{thread_id}"
+        # thread_id is optional -- when absent, the key must omit that
+        # segment entirely, not embed the literal string "None". Matches
+        # the canonical key format already used by the live gateway
+        # (vectorcode/src/gateway/session.py's session-key builder).
+        if thread_id:
+            return f"agent:main:{platform}:{chat_type}:{chat_id}:{thread_id}"
+        return f"agent:main:{platform}:{chat_type}:{chat_id}"
 
     def start(self) -> None:
         """Start the daemon (foreground)."""
