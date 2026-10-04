@@ -1,14 +1,8 @@
 """
 vectorcode/src/claims/_service.py
 Core claiming lifecycle — claim, release, handoff, progress, auto-assign.
-
-ClaimService is defined here by importing from the canonical claims.py
-until the full inline decomposition is done in a later cleanup pass.
 """
 from __future__ import annotations
-
-# Re-export from the canonical monolith until inline decomposition is complete.
-# This gives the package the correct public surface immediately.
 
 from vectorcode.src.claims._types import (  # noqa: F401
     ClaimStatus, IssuePriority, IssueComplexity, AgentType,
@@ -40,8 +34,16 @@ class ClaimService:
         required_capabilities: Optional[list[str]] = None,
     ) -> Optional[IssueClaim]:
         existing = self.repo.find_by_issue_id(issue_id)
-        if existing and existing.status == ClaimStatus.active:
-            logger.warning(f"[VECTOR][claims] issue {issue_id} already claimed by {existing.claimant.name}")
+        # find_by_issue_id() returns the latest claim not in a terminal
+        # status (completed/released/expired) -- so "already claimed" must
+        # mean any non-terminal status, not just literally "active".
+        # Checking only `== ClaimStatus.active` let a second claim() call
+        # slip through while the existing claim was paused/blocked/
+        # in_review/pending_handoff/stealable, creating two live claims for
+        # the same issue_id and defeating the mutual-exclusion this system
+        # exists to provide (real caller: swarm.py's start_task()).
+        if existing and existing.status in _ACTIVE_STATUSES:
+            logger.warning(f"[VECTOR][claims] issue {issue_id} already claimed by {existing.claimant.name} (status={existing.status.value})")
             return None
         active_count = self.repo.count_by_agent(claimant.id)
         if active_count >= claimant.max_concurrent_claims:
