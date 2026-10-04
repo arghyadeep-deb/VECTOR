@@ -98,6 +98,14 @@ class AgentManager:
     """Persistent agent lifecycle manager with SQLite backing."""
 
     def __init__(self, db_path: str) -> None:
+        # FLAGGED (owner decision, not fixed): this raw sqlite3.connect()
+        # stores agent_messages.content and agent_checkpoints.
+        # conversation_state -- real conversational data, not a disposable
+        # cache -- outside core.memory.episodic.get_db_connection()'s
+        # SQLCipher encryption (CLAUDE.md rule 7). Migrating this to the
+        # encrypted main DB is a data-migration decision, not a narrow
+        # same-session fix. Same recurring pattern flagged elsewhere this
+        # audit (vault_cmd.py, webhook.py).
         self._db_path = str(db_path)
         self._lock = threading.RLock()
         self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
@@ -471,8 +479,6 @@ class AgentManager:
     @staticmethod
     def list_templates() -> List[Dict[str, Any]]:
         """Discover built-in and user templates."""
-        import importlib.resources
-
         try:
             import tomllib
         except ModuleNotFoundError:
@@ -480,17 +486,26 @@ class AgentManager:
 
         templates: List[Dict[str, Any]] = []
 
-        # Built-in templates
+        # Built-in templates. Previously used
+        # `importlib.resources.files("vector.agents") / "templates"` --
+        # package "vector.agents" does not exist anywhere in this repo
+        # (confirmed: ModuleNotFoundError every time), so this silently
+        # returned zero built-in templates on every call, forever, caught
+        # by the broad except below with only a debug-level log. The real
+        # templates (code_reviewer.toml, inbox_triager.toml,
+        # personal_deep_research.toml, research_monitor.toml) live in
+        # templates/ right next to this file -- use that directly instead
+        # of a package resource lookup that never resolved.
         try:
-            tpl_dir = importlib.resources.files("vector.agents") / "templates"
+            tpl_dir = Path(__file__).parent / "templates"
             for item in tpl_dir.iterdir():
-                if str(item).endswith(".toml"):
+                if item.name.endswith(".toml"):
                     data = tomllib.loads(item.read_text(encoding="utf-8"))
                     tpl = data.get("template", {})
                     tpl["source"] = "built-in"
                     templates.append(tpl)
         except Exception as _sve:
-            logger.debug("[VECTOR][vc_agents.manager] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][vc_agents.manager] suppressed Exception: {}", _sve)
 
         # User templates
         user_dir = Path("~/.vector/templates").expanduser()
@@ -502,7 +517,7 @@ class AgentManager:
                     tpl["source"] = "user"
                     templates.append(tpl)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][vc_agents.manager] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][vc_agents.manager] suppressed Exception: {}", _sve)
 
         return templates
 
