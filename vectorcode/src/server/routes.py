@@ -3,7 +3,6 @@
 from __future__ import annotations
 from loguru import logger
 
-import logging
 import uuid
 from typing import Any
 
@@ -97,10 +96,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
                         )
                     request_body.messages = new_msgs
         except Exception:
-            logging.getLogger("vector.server").debug(
-                "Memory context injection failed",
-                exc_info=True,
-            )
+            logger.opt(exception=True).debug("Memory context injection failed")
 
     # Run complexity analysis on the last user message
     complexity_info = None
@@ -131,10 +127,7 @@ async def chat_completions(request_body: ChatCompletionRequest, request: Request
             if suggested > request_body.max_tokens:
                 request_body.max_tokens = suggested
         except Exception:
-            logging.getLogger("vector.server").debug(
-                "Complexity analysis failed",
-                exc_info=True,
-            )
+            logger.opt(exception=True).debug("Complexity analysis failed")
 
     if request_body.stream:
         bus = getattr(request.app.state, "bus", None)
@@ -353,7 +346,7 @@ async def _handle_stream(
                         if _routed is not None and getattr(_routed, "is_cloud", False):
                             _use_local_fallback = True
                 except Exception as _sve:
-                    logger.debug("[VECTOR][server.routes] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][server.routes] suppressed Exception: {}", _sve)
                 if _use_local_fallback:
                     token_iter = stream_local(
                         model, messages, req.temperature, req.max_tokens
@@ -379,13 +372,7 @@ async def _handle_stream(
         except Exception as exc:
             # Surface errors as a content chunk so the frontend can
             # display them instead of silently failing.
-            import logging
-
-            logging.getLogger("vector.server").error(
-                "Stream error: %s",
-                exc,
-                exc_info=True,
-            )
+            logger.opt(exception=exc).error("Stream error: {}", exc)
             error_chunk = ChatCompletionChunk(
                 id=chunk_id,
                 model=model,
