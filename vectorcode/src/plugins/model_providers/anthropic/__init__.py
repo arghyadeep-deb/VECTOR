@@ -1,13 +1,12 @@
 """Native Anthropic provider profile."""
 
 import json
-import logging
+from loguru import logger
 import urllib.request
 
 from providers import register_provider
 from providers.base import ProviderProfile
 
-logger = logging.getLogger(__name__)
 
 
 class AnthropicProfile(ProviderProfile):
@@ -35,7 +34,7 @@ class AnthropicProfile(ProviderProfile):
                 if isinstance(m, dict) and "id" in m
             ]
         except Exception as exc:
-            logger.debug("fetch_models(anthropic): %s", exc)
+            logger.debug('fetch_models(anthropic): {}', exc)
             return None
 
 

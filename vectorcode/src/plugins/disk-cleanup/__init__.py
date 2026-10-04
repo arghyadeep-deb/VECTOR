@@ -20,8 +20,6 @@ needs to remember to run commands.
 
 from __future__ import annotations
 from loguru import logger
-
-import logging
 import re
 import shlex
 import threading
@@ -30,7 +28,6 @@ from typing import Any, Dict, Optional, Set
 
 from . import disk_cleanup as dg
 
-logger = logging.getLogger(__name__)
 
 
 # Per-task set of "test files newly tracked this turn".  Keyed by task_id
@@ -114,7 +111,7 @@ def _extract_paths_from_terminal(args: Dict[str, Any], result: str) -> Set[str]:
                 if tok.startswith(("/", "~")):
                     paths.add(tok)
         except ValueError as _sve:
-            logger.debug("[VECTOR][plugins.disk-cleanup.__init__] suppressed ValueError: %s", _sve)
+            logger.debug('[VECTOR][plugins.disk-cleanup.__init__] suppressed ValueError: {}', _sve)
     # Only scan the result text if it's a reasonable size (avoid 50KB dumps).
     if isinstance(result, str) and len(result) < 4096:
         for match in _TERMINAL_PATH_REGEX.findall(result):
@@ -179,7 +176,7 @@ def _on_session_end(
     try:
         summary = dg.quick()
     except Exception as exc:
-        logger.debug("disk-cleanup quick cleanup failed: %s", exc)
+        logger.debug('disk-cleanup quick cleanup failed: {}', exc)
         return
 
     if summary["deleted"] or summary["empty_dirs"]:

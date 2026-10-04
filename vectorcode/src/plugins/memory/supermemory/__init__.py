@@ -8,7 +8,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import re
 import threading
@@ -21,7 +20,6 @@ from typing import Any, Dict, List, Optional
 from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 _DEFAULT_CONTAINER_TAG = "vector"
 _DEFAULT_MAX_RECALL_RESULTS = 10
@@ -105,7 +103,7 @@ def _load_supermemory_config(vector_home: str) -> dict:
             if isinstance(raw, dict):
                 config.update({k: v for k, v in raw.items() if v is not None})
         except Exception:
-            logger.debug("Failed to parse %s", config_path, exc_info=True)
+            logger.debug('Failed to parse {}', config_path, exc_info=True)
 
     # Keep raw container_tag — template variables like {identity} are resolved
     # in initialize(), and _sanitize_tag runs AFTER resolution.
@@ -235,7 +233,7 @@ def _format_prefetch_context(static_facts: list, dynamic_facts: list, search_res
                 try:
                     prefix_bits.append(f"[{round(float(similarity) * 100)}%]")
                 except Exception as _sve:
-                    logger.debug("[VECTOR][plugins.memory.supermemory.__init__] suppressed Exception: %s", _sve)
+                    logger.debug('[VECTOR][plugins.memory.supermemory.__init__] suppressed Exception: {}', _sve)
             prefix = " ".join(prefix_bits)
             lines.append(f"- {prefix} {memory}".strip())
         if lines:
@@ -724,7 +722,7 @@ class SupermemoryMemoryProvider(MemoryProvider):
                     try:
                         entry["similarity"] = round(float(item["similarity"]) * 100)
                     except Exception as _sve:
-                        logger.debug("[VECTOR][plugins.memory.supermemory.__init__] suppressed Exception: %s", _sve)
+                        logger.debug('[VECTOR][plugins.memory.supermemory.__init__] suppressed Exception: {}', _sve)
                 formatted.append(entry)
             resp: dict[str, Any] = {"results": formatted, "count": len(formatted)}
             if tag:

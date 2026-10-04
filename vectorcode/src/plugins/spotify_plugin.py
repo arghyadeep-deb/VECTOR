@@ -1,9 +1,8 @@
 """Spotify plugin — control playback, search, manage playlists."""
 
-import logging
+from loguru import logger
 from typing import Optional
 
-logger = logging.getLogger(__name__)
 
 try:
     import spotipy

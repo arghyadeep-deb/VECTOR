@@ -17,7 +17,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import threading
 import time
@@ -26,7 +25,6 @@ from typing import Any, Dict, List
 from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 # Circuit breaker: after this many consecutive failures, pause API calls
 # for _BREAKER_COOLDOWN_SECS to avoid hammering a down server.
@@ -62,7 +60,7 @@ def _load_config() -> dict:
             config.update({k: v for k, v in file_cfg.items()
                            if v is not None and v != ""})
         except Exception as _sve:
-            logger.debug("[VECTOR][plugins.memory.mem0.__init__] suppressed Exception: %s", _sve)
+            logger.debug('[VECTOR][plugins.memory.mem0.__init__] suppressed Exception: {}', _sve)
 
     return config
 
@@ -154,7 +152,7 @@ class Mem0MemoryProvider(MemoryProvider):
             try:
                 existing = json.loads(config_path.read_text())
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.mem0.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.mem0.__init__] suppressed Exception: {}', _sve)
         existing.update(values)
         config_path.write_text(json.dumps(existing, indent=2))
 
@@ -196,8 +194,7 @@ class Mem0MemoryProvider(MemoryProvider):
         if self._consecutive_failures >= _BREAKER_THRESHOLD:
             self._breaker_open_until = time.monotonic() + _BREAKER_COOLDOWN_SECS
             logger.warning(
-                "Mem0 circuit breaker tripped after %d consecutive failures. "
-                "Pausing API calls for %ds.",
+                'Mem0 circuit breaker tripped after {} consecutive failures. Pausing API calls for {}s.',
                 self._consecutive_failures, _BREAKER_COOLDOWN_SECS,
             )
 
@@ -265,7 +262,7 @@ class Mem0MemoryProvider(MemoryProvider):
                 self._record_success()
             except Exception as e:
                 self._record_failure()
-                logger.debug("Mem0 prefetch failed: %s", e)
+                logger.debug('Mem0 prefetch failed: {}', e)
 
         self._prefetch_thread = threading.Thread(target=_run, daemon=True, name="mem0-prefetch")
         self._prefetch_thread.start()
@@ -286,7 +283,7 @@ class Mem0MemoryProvider(MemoryProvider):
                 self._record_success()
             except Exception as e:
                 self._record_failure()
-                logger.warning("Mem0 sync failed: %s", e)
+                logger.warning('Mem0 sync failed: {}', e)
 
         # Wait for any previous sync before starting a new one
         if self._sync_thread and self._sync_thread.is_alive():

@@ -19,7 +19,7 @@ Output is saved as PNG under ``$VECTOR_HOME/cache/images/``.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import Any, Dict, List, Optional, Tuple
 
 from agent.image_gen_provider import (
@@ -31,7 +31,6 @@ from agent.image_gen_provider import (
     success_response,
 )
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -94,7 +93,7 @@ def _load_image_gen_config() -> Dict[str, Any]:
         section = cfg.get("image_gen") if isinstance(cfg, dict) else None
         return section if isinstance(section, dict) else {}
     except Exception as exc:
-        logger.debug("Could not load image_gen config: %s", exc)
+        logger.debug('Could not load image_gen config: {}', exc)
         return {}
 
 
@@ -138,7 +137,7 @@ def _read_codex_access_token() -> Optional[str]:
             return token.strip()
         return None
     except Exception as exc:
-        logger.debug("Could not resolve Codex access token: %s", exc)
+        logger.debug('Could not resolve Codex access token: {}', exc)
         return None
 
 
@@ -157,7 +156,7 @@ def _build_codex_client():
             default_headers=_codex_cloudflare_headers(token),
         )
     except Exception as exc:
-        logger.debug("Could not build Codex image client: %s", exc)
+        logger.debug('Could not build Codex image client: {}', exc)
         return None
 
 

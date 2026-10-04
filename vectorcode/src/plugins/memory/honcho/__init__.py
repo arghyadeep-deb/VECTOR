@@ -17,7 +17,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import re
 import threading
 import time
@@ -27,7 +26,6 @@ from agent.memory_manager import sanitize_context
 from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +255,7 @@ class HonchoMemoryProvider(MemoryProvider):
             try:
                 existing = json.loads(config_path.read_text())
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.honcho.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.honcho.__init__] suppressed Exception: {}', _sve)
         existing.update(values)
         config_path.write_text(json.dumps(existing, indent=2))
 
@@ -285,7 +283,7 @@ class HonchoMemoryProvider(MemoryProvider):
             agent_context = kwargs.get("agent_context", "")
             platform = kwargs.get("platform", "cli")
             if agent_context in ("cron", "flush") or platform == "cron":
-                logger.debug("Honcho skipped: cron/flush context (agent_context=%s, platform=%s)",
+                logger.debug('Honcho skipped: cron/flush context (agent_context={}, platform={})',
                              agent_context, platform)
                 self._cron_skipped = True
                 return
@@ -302,7 +300,7 @@ class HonchoMemoryProvider(MemoryProvider):
 
             # ----- B1: recall_mode from config -----
             self._recall_mode = cfg.recall_mode  # "context", "tools", or "hybrid"
-            logger.debug("Honcho recall_mode: %s", self._recall_mode)
+            logger.debug('Honcho recall_mode: {}', self._recall_mode)
 
             # ----- B5: cost-awareness config -----
             try:
@@ -320,7 +318,7 @@ class HonchoMemoryProvider(MemoryProvider):
                 if cfg.reasoning_level_cap in self._LEVEL_ORDER:
                     self._reasoning_level_cap = cfg.reasoning_level_cap
             except Exception as e:
-                logger.debug("Honcho cost-awareness config parse error: %s", e)
+                logger.debug('Honcho cost-awareness config parse error: {}', e)
 
             # ----- Port #1969: aiPeer sync from SOUL.md — REMOVED -----
             # SOUL.md is persona content, not identity config. aiPeer should
@@ -347,7 +345,7 @@ class HonchoMemoryProvider(MemoryProvider):
         except ImportError:
             logger.debug("honcho-ai package not installed — plugin inactive")
         except Exception as e:
-            logger.warning("Honcho init failed: %s", e)
+            logger.warning('Honcho init failed: {}', e)
             self._manager = None
 
     def _do_session_init(self, cfg, session_id: str, **kwargs) -> None:
@@ -375,7 +373,7 @@ class HonchoMemoryProvider(MemoryProvider):
             or session_id
             or "vector-default"
         )
-        logger.debug("Honcho session key resolved: %s", self._session_key)
+        logger.debug('Honcho session key resolved: {}', self._session_key)
 
         # Create session eagerly
         session = self._manager.get_or_create(self._session_key)
@@ -391,14 +389,14 @@ class HonchoMemoryProvider(MemoryProvider):
                 from vector_constants import get_vector_home
                 mem_dir = str(get_vector_home() / "memories")
                 self._manager.migrate_memory_files(self._session_key, mem_dir)
-                logger.debug("Honcho memory file migration attempted for new session: %s", self._session_key)
+                logger.debug('Honcho memory file migration attempted for new session: {}', self._session_key)
             elif cfg.session_strategy == "per-session":
                 logger.debug(
-                    "Honcho memory file migration skipped: per-session strategy creates a fresh session per run (%s)",
+                    'Honcho memory file migration skipped: per-session strategy creates a fresh session per run ({})',
                     self._session_key,
                 )
         except Exception as e:
-            logger.debug("Honcho memory file migration skipped: %s", e)
+            logger.debug('Honcho memory file migration skipped: {}', e)
 
         # ----- B7: Pre-warming at init -----
         # Context prewarm warms peer.context() (base layer), consumed via
@@ -409,7 +407,7 @@ class HonchoMemoryProvider(MemoryProvider):
             try:
                 self._manager.prefetch_context(self._session_key)
             except Exception as e:
-                logger.debug("Honcho context prewarm failed: %s", e)
+                logger.debug('Honcho context prewarm failed: {}', e)
 
             _prewarm_query = (
                 "Summarize what you know about this user. "
@@ -420,7 +418,7 @@ class HonchoMemoryProvider(MemoryProvider):
                 try:
                     r = self._run_dialectic_depth(_prewarm_query)
                 except Exception as exc:
-                    logger.debug("Honcho dialectic prewarm failed: %s", exc)
+                    logger.debug('Honcho dialectic prewarm failed: {}', exc)
                     self._dialectic_empty_streak += 1
                     return
                 if r and r.strip():
@@ -438,7 +436,7 @@ class HonchoMemoryProvider(MemoryProvider):
                 target=_prewarm_dialectic, daemon=True, name="honcho-prewarm-dialectic"
             )
             self._prefetch_thread.start()
-            logger.debug("Honcho pre-warm started for session: %s", self._session_key)
+            logger.debug('Honcho pre-warm started for session: {}', self._session_key)
 
     def _ensure_session(self) -> bool:
         """Lazily initialize the Honcho session (for tools-only mode).
@@ -463,7 +461,7 @@ class HonchoMemoryProvider(MemoryProvider):
             self._lazy_init_session_id = None
             return self._manager is not None
         except Exception as e:
-            logger.warning("Honcho lazy session init failed: %s", e)
+            logger.warning('Honcho lazy session init failed: {}', e)
             return False
 
     def _format_first_turn_context(self, ctx: dict) -> str:
@@ -585,7 +583,7 @@ class HonchoMemoryProvider(MemoryProvider):
                     self._base_context_cache = self._format_first_turn_context(ctx) if ctx else ""
                     self._last_context_turn = self._turn_count
                 except Exception as e:
-                    logger.debug("Honcho base context fetch failed: %s", e)
+                    logger.debug('Honcho base context fetch failed: {}', e)
                     self._base_context_cache = ""
             base_context = self._base_context_cache
 
@@ -626,7 +624,7 @@ class HonchoMemoryProvider(MemoryProvider):
                 try:
                     r = self._run_dialectic_depth(query)
                 except Exception as exc:
-                    logger.debug("Honcho first-turn dialectic failed: %s", exc)
+                    logger.debug('Honcho first-turn dialectic failed: {}', exc)
                     self._dialectic_empty_streak += 1
                     return
                 if r and r.strip():
@@ -648,8 +646,7 @@ class HonchoMemoryProvider(MemoryProvider):
             self._prefetch_thread.join(timeout=_first_turn_timeout)
             if self._prefetch_thread.is_alive():
                 logger.debug(
-                    "Honcho first-turn dialectic still running after %.1fs — "
-                    "will surface on next turn",
+                    'Honcho first-turn dialectic still running after {}s — will surface on next turn',
                     _first_turn_timeout,
                 )
 
@@ -668,8 +665,7 @@ class HonchoMemoryProvider(MemoryProvider):
         stale_limit = self._dialectic_cadence * self._STALE_RESULT_MULTIPLIER
         if dialectic_result and fired_at >= 0 and (self._turn_count - fired_at) > stale_limit:
             logger.debug(
-                "Honcho pending dialectic discarded as stale: fired_at=%d, "
-                "turn=%d, limit=%d", fired_at, self._turn_count, stale_limit,
+                'Honcho pending dialectic discarded as stale: fired_at={}, turn={}, limit={}', fired_at, self._turn_count, stale_limit,
             )
             dialectic_result = ""
 
@@ -726,7 +722,7 @@ class HonchoMemoryProvider(MemoryProvider):
             try:
                 self._manager.prefetch_context(self._session_key, query)
             except Exception as e:
-                logger.debug("Honcho context prefetch failed: %s", e)
+                logger.debug('Honcho context prefetch failed: {}', e)
 
         # ----- Dialectic prefetch (supplement layer) -----
         # Thread-alive guard with stale-thread recovery: a hung Honcho call
@@ -741,8 +737,7 @@ class HonchoMemoryProvider(MemoryProvider):
         effective = self._effective_cadence()
         if (self._turn_count - self._last_dialectic_turn) < effective:
             logger.debug(
-                "Honcho dialectic prefetch skipped: effective cadence %d "
-                "(base %d, empty streak %d), turns since last: %d",
+                'Honcho dialectic prefetch skipped: effective cadence {} (base {}, empty streak {}), turns since last: {}',
                 effective, self._dialectic_cadence, self._dialectic_empty_streak,
                 self._turn_count - self._last_dialectic_turn,
             )
@@ -756,7 +751,7 @@ class HonchoMemoryProvider(MemoryProvider):
             try:
                 result = self._run_dialectic_depth(query)
             except Exception as e:
-                logger.debug("Honcho prefetch failed: %s", e)
+                logger.debug('Honcho prefetch failed: {}', e)
                 self._dialectic_empty_streak += 1
                 return
             if result and result.strip():
@@ -817,8 +812,7 @@ class HonchoMemoryProvider(MemoryProvider):
         age = time.monotonic() - self._prefetch_thread_started_at
         if age > timeout * self._STALE_THREAD_MULTIPLIER:
             logger.debug(
-                "Honcho prefetch thread age %.1fs exceeds stale threshold "
-                "%.1fs — treating as dead", age, timeout * self._STALE_THREAD_MULTIPLIER,
+                'Honcho prefetch thread age {}s exceeds stale threshold {}s — treating as dead', age, timeout * self._STALE_THREAD_MULTIPLIER,
             )
             return False
         return True
@@ -967,13 +961,13 @@ class HonchoMemoryProvider(MemoryProvider):
             else:
                 # Skip further passes if prior pass delivered strong signal
                 if results and self._signal_sufficient(results[-1]):
-                    logger.debug("Honcho dialectic depth %d: pass %d skipped, prior signal sufficient",
+                    logger.debug('Honcho dialectic depth {}: pass {} skipped, prior signal sufficient',
                                  self._dialectic_depth, i)
                     break
                 prompt = self._build_dialectic_prompt(i, results, is_cold)
 
             level = self._resolve_pass_level(i, query=query)
-            logger.debug("Honcho dialectic depth %d: pass %d, level=%s, cold=%s",
+            logger.debug('Honcho dialectic depth {}: pass {}, level={}, cold={}',
                          self._dialectic_depth, i, level, is_cold)
 
             result = self._manager.dialectic_query(
@@ -1142,7 +1136,7 @@ class HonchoMemoryProvider(MemoryProvider):
                     session.add_message("assistant", chunk)
                 self._manager._flush_session(session)
             except Exception as e:
-                logger.debug("Honcho sync_turn failed: %s", e)
+                logger.debug('Honcho sync_turn failed: {}', e)
 
         if self._sync_thread and self._sync_thread.is_alive():
             self._sync_thread.join(timeout=5.0)
@@ -1176,7 +1170,7 @@ class HonchoMemoryProvider(MemoryProvider):
             try:
                 self._manager.create_conclusion(self._session_key, content)
             except Exception as e:
-                logger.debug("Honcho memory mirror failed: %s", e)
+                logger.debug('Honcho memory mirror failed: {}', e)
 
         t = threading.Thread(target=_write, daemon=True, name="honcho-memwrite")
         t.start()
@@ -1193,7 +1187,7 @@ class HonchoMemoryProvider(MemoryProvider):
         try:
             self._manager.flush_all()
         except Exception as e:
-            logger.debug("Honcho session-end flush failed: %s", e)
+            logger.debug('Honcho session-end flush failed: {}', e)
 
     def get_tool_schemas(self) -> List[Dict[str, Any]]:
         """Return tool schemas, respecting recall_mode.
@@ -1305,7 +1299,7 @@ class HonchoMemoryProvider(MemoryProvider):
             return tool_error(f"Unknown tool: {tool_name}")
 
         except Exception as e:
-            logger.error("Honcho tool %s failed: %s", tool_name, e)
+            logger.error('Honcho tool {} failed: {}', tool_name, e)
             return tool_error(f"Honcho {tool_name} failed: {e}")
 
     def shutdown(self) -> None:
@@ -1317,7 +1311,7 @@ class HonchoMemoryProvider(MemoryProvider):
             try:
                 self._manager.flush_all()
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.honcho.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.honcho.__init__] suppressed Exception: {}', _sve)
 
 
 # ---------------------------------------------------------------------------

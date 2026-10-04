@@ -1,11 +1,10 @@
 """Cognitive Kernel Plugin — working memory, attention control, meta-cognition."""
 
-import logging
+from loguru import logger
 from typing import Any
 
 from plugins.plugin import Plugin, ExtensionPoint
 
-logger = logging.getLogger(__name__)
 
 
 class CognitiveKernelPlugin(Plugin):

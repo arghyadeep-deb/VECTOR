@@ -216,7 +216,7 @@ async def download_transcript_text(
         try:
             destination.unlink(missing_ok=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][plugins.teams_pipeline.meetings] suppressed OSError: %s", _sve)
+            logger.warning('[VECTOR][plugins.teams_pipeline.meetings] suppressed OSError: {}', _sve)
 
     if not text:
         raise TeamsMeetingArtifactNotFoundError(

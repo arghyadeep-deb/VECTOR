@@ -15,7 +15,7 @@ passed in. No calendar scanning, no auto-dial, no consent announcement.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import platform
 
 from plugins.google_meet import process_manager as pm
@@ -35,7 +35,6 @@ from plugins.google_meet.tools import (
     handle_meet_transcript,
 )
 
-logger = logging.getLogger(__name__)
 
 
 _TOOLS = (
@@ -59,7 +58,7 @@ def _on_session_end(**kwargs) -> None:
         if status.get("ok") and status.get("alive"):
             pm.stop(reason="session ended")
     except Exception as e:  # pragma: no cover — defensive
-        logger.debug("google_meet on_session_end cleanup failed: %s", e)
+        logger.debug('google_meet on_session_end cleanup failed: {}', e)
 
 
 def register(ctx) -> None:
@@ -74,7 +73,7 @@ def register(ctx) -> None:
     system = platform.system().lower()
     if system not in ("linux", "darwin"):
         logger.info(
-            "google_meet plugin: platform=%s not supported (linux/macos only)",
+            'google_meet plugin: platform={} not supported (linux/macos only)',
             system,
         )
         return

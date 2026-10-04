@@ -333,7 +333,7 @@ def _extract_spotify_error_detail(response: httpx.Response, *, fallback: str) ->
             elif isinstance(error_obj, str):
                 detail = error_obj
     except Exception as _sve:
-        logger.debug("[VECTOR][plugins.spotify.client] suppressed Exception: %s", _sve)
+        logger.debug('[VECTOR][plugins.spotify.client] suppressed Exception: {}', _sve)
     return detail.strip()
 
 

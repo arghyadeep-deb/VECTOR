@@ -1,11 +1,10 @@
 """Google Meet plugin — audio bridge, bot, process management."""
 
 import asyncio
-import logging
+from loguru import logger
 import subprocess
 from typing import Optional
 
-logger = logging.getLogger(__name__)
 
 
 class GoogleMeetPlugin:

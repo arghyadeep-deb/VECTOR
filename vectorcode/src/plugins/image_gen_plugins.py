@@ -1,10 +1,9 @@
 """Image generation provider plugins — OpenAI, Codex, xAI backends."""
 
-import logging
+from loguru import logger
 import os
 from typing import Optional
 
-logger = logging.getLogger(__name__)
 
 try:
     import httpx

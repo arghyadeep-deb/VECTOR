@@ -21,12 +21,10 @@ from loguru import logger
 
 import importlib
 import importlib.util
-import logging
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
 
 _CONTEXT_ENGINE_PLUGINS_DIR = Path(__file__).parent
 
@@ -59,7 +57,7 @@ def discover_context_engines() -> List[Tuple[str, str, bool]]:
                     meta = yaml.safe_load(f) or {}
                 desc = meta.get("description", "")
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.context_engine.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.context_engine.__init__] suppressed Exception: {}', _sve)
 
         # Quick availability check — try loading and calling is_available()
         available = True
@@ -84,17 +82,17 @@ def load_context_engine(name: str) -> Optional["ContextEngine"]:
     """
     engine_dir = _CONTEXT_ENGINE_PLUGINS_DIR / name
     if not engine_dir.is_dir():
-        logger.debug("Context engine '%s' not found in %s", name, _CONTEXT_ENGINE_PLUGINS_DIR)
+        logger.debug("Context engine '{}' not found in {}", name, _CONTEXT_ENGINE_PLUGINS_DIR)
         return None
 
     try:
         engine = _load_engine_from_dir(engine_dir)
         if engine:
             return engine
-        logger.warning("Context engine '%s' loaded but no engine instance found", name)
+        logger.warning("Context engine '{}' loaded but no engine instance found", name)
         return None
     except Exception as e:
-        logger.warning("Failed to load context engine '%s': %s", name, e)
+        logger.warning("Failed to load context engine '{}': {}", name, e)
         return None
 
 
@@ -135,7 +133,7 @@ def _load_engine_from_dir(engine_dir: Path) -> Optional["ContextEngine"]:
                         try:
                             spec.loader.exec_module(parent_mod)
                         except Exception as _sve:
-                            logger.debug("[VECTOR][plugins.context_engine.__init__] suppressed Exception: %s", _sve)
+                            logger.debug('[VECTOR][plugins.context_engine.__init__] suppressed Exception: {}', _sve)
 
         # Now load the engine module
         spec = importlib.util.spec_from_file_location(
@@ -164,12 +162,12 @@ def _load_engine_from_dir(engine_dir: Path) -> Optional["ContextEngine"]:
                     try:
                         sub_spec.loader.exec_module(sub_mod)
                     except Exception as e:
-                        logger.debug("Failed to load submodule %s: %s", full_sub_name, e)
+                        logger.debug('Failed to load submodule {}: {}', full_sub_name, e)
 
         try:
             spec.loader.exec_module(mod)
         except Exception as e:
-            logger.debug("Failed to exec_module %s: %s", module_name, e)
+            logger.debug('Failed to exec_module {}: {}', module_name, e)
             sys.modules.pop(module_name, None)
             return None
 
@@ -181,7 +179,7 @@ def _load_engine_from_dir(engine_dir: Path) -> Optional["ContextEngine"]:
             if collector.engine:
                 return collector.engine
         except Exception as e:
-            logger.debug("register() failed for %s: %s", name, e)
+            logger.debug('register() failed for {}: {}', name, e)
 
     # Fallback: find a ContextEngine subclass and instantiate it
     from agent.context_engine import ContextEngine
@@ -192,7 +190,7 @@ def _load_engine_from_dir(engine_dir: Path) -> Optional["ContextEngine"]:
             try:
                 return attr()
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.context_engine.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.context_engine.__init__] suppressed Exception: {}', _sve)
 
     return None
 

@@ -19,7 +19,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import re
 from typing import Any, Dict, List
 
@@ -28,7 +27,6 @@ from tools.registry import tool_error
 from .store import MemoryStore
 from .retrieval import FactRetriever
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +141,7 @@ class HolographicMemoryProvider(MemoryProvider):
             with open(config_path, "w") as f:
                 yaml.dump(existing, f, default_flow_style=False)
         except Exception as _sve:
-            logger.debug("[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: %s", _sve)
+            logger.debug('[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: {}', _sve)
 
     def get_config_schema(self):
         from vector_constants import display_vector_home
@@ -216,7 +214,7 @@ class HolographicMemoryProvider(MemoryProvider):
                 lines.append(f"- [{trust:.1f}] {r.get('content', '')}")
             return "## Holographic Memory\n" + "\n".join(lines)
         except Exception as e:
-            logger.debug("Holographic prefetch failed: %s", e)
+            logger.debug('Holographic prefetch failed: {}', e)
             return ""
 
     def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
@@ -249,7 +247,7 @@ class HolographicMemoryProvider(MemoryProvider):
                 category = "user_pref" if target == "user" else "general"
                 self._store.add_fact(content, category=category)
             except Exception as e:
-                logger.debug("Holographic memory_write mirror failed: %s", e)
+                logger.debug('Holographic memory_write mirror failed: {}', e)
 
     def shutdown(self) -> None:
         self._store = None
@@ -382,7 +380,7 @@ class HolographicMemoryProvider(MemoryProvider):
                         self._store.add_fact(content[:400], category="user_pref")
                         extracted += 1
                     except Exception as _sve:
-                        logger.debug("[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: %s", _sve)
+                        logger.debug('[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: {}', _sve)
                     break
 
             for pattern in _DECISION_PATTERNS:
@@ -391,11 +389,11 @@ class HolographicMemoryProvider(MemoryProvider):
                         self._store.add_fact(content[:400], category="project")
                         extracted += 1
                     except Exception as _sve:
-                        logger.debug("[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: %s", _sve)
+                        logger.debug('[VECTOR][plugins.memory.holographic.__init__] suppressed Exception: {}', _sve)
                     break
 
         if extracted:
-            logger.info("Auto-extracted %d facts from conversation", extracted)
+            logger.info('Auto-extracted {} facts from conversation', extracted)
 
 
 # ---------------------------------------------------------------------------

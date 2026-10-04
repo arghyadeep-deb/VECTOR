@@ -32,7 +32,6 @@ from loguru import logger
 import asyncio
 import importlib
 import json
-import logging
 import os
 import threading
 
@@ -43,7 +42,6 @@ from agent.memory_provider import MemoryProvider
 from vector_constants import get_vector_home
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 _DEFAULT_API_URL = "https://api.hindsight.vectorize.io"
 _DEFAULT_LOCAL_URL = "http://localhost:8888"
@@ -71,7 +69,7 @@ def _parse_int_setting(value: Any, default: int) -> int:
     try:
         return int(value)
     except (TypeError, ValueError):
-        logger.warning("Invalid integer Hindsight setting %r; using default %s", value, default)
+        logger.warning('Invalid integer Hindsight setting {}; using default {}', value, default)
         return default
 
 
@@ -206,7 +204,7 @@ def _load_config() -> dict:
         try:
             return json.loads(profile_path.read_text(encoding="utf-8"))
         except Exception as _sve:
-            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
+            logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: {}', _sve)
 
     # Legacy shared path (backward compat)
     legacy_path = Path.home() / ".hindsight" / "config.json"
@@ -214,7 +212,7 @@ def _load_config() -> dict:
         try:
             return json.loads(legacy_path.read_text(encoding="utf-8"))
         except Exception as _sve:
-            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
+            logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: {}', _sve)
 
     return {
         "mode": os.environ.get("HINDSIGHT_MODE", "cloud"),
@@ -396,7 +394,7 @@ def _resolve_bank_id_template(template: str, fallback: str, **placeholders: str)
     try:
         rendered = template.format(**sanitized)
     except (KeyError, IndexError) as exc:
-        logger.warning("Invalid bank_id_template %r: %s — using fallback %r",
+        logger.warning('Invalid bank_id_template {}: {} — using fallback {}',
                        template, exc, fallback)
         return fallback
     while "--" in rendered:
@@ -509,7 +507,7 @@ class HindsightMemoryProvider(MemoryProvider):
             try:
                 existing = json.loads(config_path.read_text())
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: {}', _sve)
         existing.update(values)
         config_path.write_text(json.dumps(existing, indent=2))
 
@@ -694,7 +692,7 @@ class HindsightMemoryProvider(MemoryProvider):
             try:
                 materialized_config = json.loads(config_path.read_text(encoding="utf-8"))
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: {}', _sve)
 
             llm_api_key = env_writes.get("HINDSIGHT_LLM_API_KEY", "")
             if not llm_api_key:
@@ -769,7 +767,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 llm_provider = self._config.get("llm_provider", "")
                 if llm_provider in ("openai_compatible", "openrouter"):
                     llm_provider = "openai"
-                logger.debug("Creating HindsightEmbedded client (profile=%s, provider=%s)",
+                logger.debug('Creating HindsightEmbedded client (profile={}, provider={})',
                              self._config.get("profile", "vector"), llm_provider)
                 kwargs = dict(
                     profile=self._config.get("profile", "vector"),
@@ -794,7 +792,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 kwargs = {"base_url": self._api_url, "timeout": float(timeout)}
                 if self._api_key:
                     kwargs["api_key"] = self._api_key
-                logger.debug("Creating Hindsight cloud client (url=%s, has_key=%s, timeout=%s)",
+                logger.debug('Creating Hindsight cloud client (url={}, has_key={}, timeout={})',
                              self._api_url, bool(self._api_key), kwargs["timeout"])
                 self._client = Hindsight(**kwargs)
         return self._client
@@ -827,7 +825,7 @@ class HindsightMemoryProvider(MemoryProvider):
             if not self._is_retriable_embedded_connection_error(exc):
                 raise
             logger.info(
-                "Hindsight embedded daemon appears unreachable; recreating client and retrying once: %s",
+                'Hindsight embedded daemon appears unreachable; recreating client and retrying once: {}',
                 exc,
             )
             self._client = None
@@ -853,7 +851,7 @@ class HindsightMemoryProvider(MemoryProvider):
             from packaging.version import Version
             installed = pkg_version("hindsight-client")
             if Version(installed) < Version(_MIN_CLIENT_VERSION):
-                logger.warning("hindsight-client %s is outdated (need >=%s), attempting upgrade...",
+                logger.warning('hindsight-client {} is outdated (need >={}), attempting upgrade...',
                                installed, _MIN_CLIENT_VERSION)
                 import shutil
                 import subprocess
@@ -866,12 +864,12 @@ class HindsightMemoryProvider(MemoryProvider):
                              "--quiet", "--upgrade", f"hindsight-client>={_MIN_CLIENT_VERSION}"],
                             check=True, timeout=120, capture_output=True,
                         )
-                        logger.info("hindsight-client upgraded to >=%s", _MIN_CLIENT_VERSION)
+                        logger.info('hindsight-client upgraded to >={}', _MIN_CLIENT_VERSION)
                     except Exception as e:
-                        logger.warning("Auto-upgrade failed: %s. Run: uv pip install 'hindsight-client>=%s'",
+                        logger.warning("Auto-upgrade failed: {}. Run: uv pip install 'hindsight-client>={}'",
                                        e, _MIN_CLIENT_VERSION)
                 else:
-                    logger.warning("uv not found. Run: pip install 'hindsight-client>=%s'", _MIN_CLIENT_VERSION)
+                    logger.warning("uv not found. Run: pip install 'hindsight-client>={}'", _MIN_CLIENT_VERSION)
         except Exception:
             logger.exception("[VECTOR] silent swallow")
             pass  # packaging not available or other issue — proceed anyway
@@ -905,7 +903,7 @@ class HindsightMemoryProvider(MemoryProvider):
             available, reason = _check_local_runtime()
             if not available:
                 logger.warning(
-                    "Hindsight local mode disabled because its runtime could not be imported: %s",
+                    'Hindsight local mode disabled because its runtime could not be imported: {}',
                     reason,
                 )
                 self._mode = "disabled"
@@ -976,15 +974,14 @@ class HindsightMemoryProvider(MemoryProvider):
             from importlib.metadata import version as pkg_version
             _client_version = pkg_version("hindsight-client")
         except Exception as _sve:
-            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
-        logger.info("Hindsight initialized: mode=%s, api_url=%s, bank=%s, budget=%s, memory_mode=%s, prefetch_method=%s, client=%s",
+            logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: {}', _sve)
+        logger.info('Hindsight initialized: mode={}, api_url={}, bank={}, budget={}, memory_mode={}, prefetch_method={}, client={}',
                      self._mode, self._api_url, self._bank_id, self._budget, self._memory_mode, self._prefetch_method, _client_version)
         if self._bank_id_template:
-            logger.debug("Hindsight bank resolved from template %r: profile=%s workspace=%s platform=%s user=%s -> bank=%s",
+            logger.debug('Hindsight bank resolved from template {}: profile={} workspace={} platform={} user={} -> bank={}',
                          self._bank_id_template, self._agent_identity, self._agent_workspace,
                          self._platform, self._user_id, self._bank_id)
-        logger.debug("Hindsight config: auto_retain=%s, auto_recall=%s, retain_every_n=%d, "
-                     "retain_async=%s, retain_context=%s, recall_max_tokens=%d, recall_max_input_chars=%d, tags=%s, recall_tags=%s",
+        logger.debug('Hindsight config: auto_retain={}, auto_recall={}, retain_every_n={}, retain_async={}, retain_context={}, recall_max_tokens={}, recall_max_input_chars={}, tags={}, recall_tags={}',
                      self._auto_retain, self._auto_recall, self._retain_every_n_turns,
                      self._retain_async, self._retain_context, self._recall_max_tokens, self._recall_max_input_chars,
                      self._tags, self._recall_tags)
@@ -1067,7 +1064,7 @@ class HindsightMemoryProvider(MemoryProvider):
         if not result:
             logger.debug("Prefetch: no results available")
             return ""
-        logger.debug("Prefetch: returning %d chars of context", len(result))
+        logger.debug('Prefetch: returning {} chars of context', len(result))
         header = self._recall_prompt_preamble or (
             "# Hindsight Memory (persistent cross-session context)\n"
             "Use this to answer questions about the user and prior sessions. "
@@ -1089,7 +1086,7 @@ class HindsightMemoryProvider(MemoryProvider):
         def _run():
             try:
                 if self._prefetch_method == "reflect":
-                    logger.debug("Prefetch: calling reflect (bank=%s, query_len=%d)", self._bank_id, len(query))
+                    logger.debug('Prefetch: calling reflect (bank={}, query_len={})', self._bank_id, len(query))
                     resp = self._run_hindsight_operation(lambda client: client.areflect(bank_id=self._bank_id, query=query, budget=self._budget))
                     text = resp.text or ""
                 else:
@@ -1102,17 +1099,17 @@ class HindsightMemoryProvider(MemoryProvider):
                         recall_kwargs["tags_match"] = self._recall_tags_match
                     if self._recall_types:
                         recall_kwargs["types"] = self._recall_types
-                    logger.debug("Prefetch: calling recall (bank=%s, query_len=%d, budget=%s)",
+                    logger.debug('Prefetch: calling recall (bank={}, query_len={}, budget={})',
                                  self._bank_id, len(query), self._budget)
                     resp = self._run_hindsight_operation(lambda client: client.arecall(**recall_kwargs))
                     num_results = len(resp.results) if resp.results else 0
-                    logger.debug("Prefetch: recall returned %d results", num_results)
+                    logger.debug('Prefetch: recall returned {} results', num_results)
                     text = "\n".join(f"- {r.text}" for r in resp.results if r.text) if resp.results else ""
                 if text:
                     with self._prefetch_lock:
                         self._prefetch_result = text
             except Exception as e:
-                logger.debug("Hindsight prefetch failed: %s", e, exc_info=True)
+                logger.debug('Hindsight prefetch failed: {}', e, exc_info=True)
 
         self._prefetch_thread = threading.Thread(target=_run, daemon=True, name="hindsight-prefetch")
         self._prefetch_thread.start()
@@ -1207,11 +1204,11 @@ class HindsightMemoryProvider(MemoryProvider):
         self._turn_index = self._turn_counter
 
         if self._turn_counter % self._retain_every_n_turns != 0:
-            logger.debug("sync_turn: buffered turn %d (will retain at turn %d)",
+            logger.debug('sync_turn: buffered turn {} (will retain at turn {})',
                          self._turn_counter, self._turn_counter + (self._retain_every_n_turns - self._turn_counter % self._retain_every_n_turns))
             return
 
-        logger.debug("sync_turn: retaining %d turns, total session content %d chars",
+        logger.debug('sync_turn: retaining {} turns, total session content {} chars',
                      len(self._session_turns), sum(len(t) for t in self._session_turns))
         content = "[" + ",".join(self._session_turns) + "]"
 
@@ -1234,7 +1231,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 )
                 item.pop("bank_id", None)
                 item.pop("retain_async", None)
-                logger.debug("Hindsight retain: bank=%s, doc=%s, async=%s, content_len=%d, num_turns=%d",
+                logger.debug('Hindsight retain: bank={}, doc={}, async={}, content_len={}, num_turns={}',
                              self._bank_id, self._document_id, self._retain_async, len(content), len(self._session_turns))
                 self._run_hindsight_operation(
                     lambda client: client.aretain_batch(
@@ -1246,7 +1243,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 )
                 logger.debug("Hindsight retain succeeded")
             except Exception as e:
-                logger.warning("Hindsight sync failed: %s", e, exc_info=True)
+                logger.warning('Hindsight sync failed: {}', e, exc_info=True)
 
         if self._sync_thread and self._sync_thread.is_alive():
             self._sync_thread.join(timeout=5.0)
@@ -1270,13 +1267,13 @@ class HindsightMemoryProvider(MemoryProvider):
                     context=context,
                     tags=args.get("tags"),
                 )
-                logger.debug("Tool hindsight_retain: bank=%s, content_len=%d, context=%s",
+                logger.debug('Tool hindsight_retain: bank={}, content_len={}, context={}',
                              self._bank_id, len(content), context)
                 self._run_hindsight_operation(lambda client: client.aretain(**retain_kwargs))
                 logger.debug("Tool hindsight_retain: success")
                 return json.dumps({"result": "Memory stored successfully."})
             except Exception as e:
-                logger.warning("hindsight_retain failed: %s", e, exc_info=True)
+                logger.warning('hindsight_retain failed: {}', e, exc_info=True)
                 return tool_error(f"Failed to store memory: {e}")
 
         elif tool_name == "hindsight_recall":
@@ -1293,17 +1290,17 @@ class HindsightMemoryProvider(MemoryProvider):
                     recall_kwargs["tags_match"] = self._recall_tags_match
                 if self._recall_types:
                     recall_kwargs["types"] = self._recall_types
-                logger.debug("Tool hindsight_recall: bank=%s, query_len=%d, budget=%s",
+                logger.debug('Tool hindsight_recall: bank={}, query_len={}, budget={}',
                              self._bank_id, len(query), self._budget)
                 resp = self._run_hindsight_operation(lambda client: client.arecall(**recall_kwargs))
                 num_results = len(resp.results) if resp.results else 0
-                logger.debug("Tool hindsight_recall: %d results", num_results)
+                logger.debug('Tool hindsight_recall: {} results', num_results)
                 if not resp.results:
                     return json.dumps({"result": "No relevant memories found."})
                 lines = [f"{i}. {r.text}" for i, r in enumerate(resp.results, 1)]
                 return json.dumps({"result": "\n".join(lines)})
             except Exception as e:
-                logger.warning("hindsight_recall failed: %s", e, exc_info=True)
+                logger.warning('hindsight_recall failed: {}', e, exc_info=True)
                 return tool_error(f"Failed to search memory: {e}")
 
         elif tool_name == "hindsight_reflect":
@@ -1311,17 +1308,17 @@ class HindsightMemoryProvider(MemoryProvider):
             if not query:
                 return tool_error("Missing required parameter: query")
             try:
-                logger.debug("Tool hindsight_reflect: bank=%s, query_len=%d, budget=%s",
+                logger.debug('Tool hindsight_reflect: bank={}, query_len={}, budget={}',
                              self._bank_id, len(query), self._budget)
                 resp = self._run_hindsight_operation(
                     lambda client: client.areflect(
                         bank_id=self._bank_id, query=query, budget=self._budget
                     )
                 )
-                logger.debug("Tool hindsight_reflect: response_len=%d", len(resp.text or ""))
+                logger.debug('Tool hindsight_reflect: response_len={}', len(resp.text or ""))
                 return json.dumps({"result": resp.text or "No relevant memories found."})
             except Exception as e:
-                logger.warning("hindsight_reflect failed: %s", e, exc_info=True)
+                logger.warning('hindsight_reflect failed: {}', e, exc_info=True)
                 return tool_error(f"Failed to reflect: {e}")
 
         return tool_error(f"Unknown tool: {tool_name}")
@@ -1346,15 +1343,15 @@ class HindsightMemoryProvider(MemoryProvider):
                         try:
                             self._client._client = None
                         except Exception as _sve:
-                            logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
+                            logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: {}', _sve)
                     try:
                         self._client.close()
                     except RuntimeError as _sve:
-                        logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed RuntimeError: %s", _sve)
+                        logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed RuntimeError: {}', _sve)
                 else:
                     self._run_sync(self._client.aclose())
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.hindsight.__init__] suppressed Exception: {}', _sve)
             self._client = None
         # The module-global background event loop (_loop / _loop_thread)
         # is intentionally NOT stopped here. It is shared across every

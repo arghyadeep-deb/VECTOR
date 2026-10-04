@@ -23,7 +23,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,7 +38,6 @@ except Exception:  # pragma: no cover — plugin may load before constants resol
         return Path(val).resolve() if val else (Path.home() / ".vector").resolve()
 
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -74,7 +72,7 @@ def is_safe_path(path: Path) -> bool:
         path.resolve().relative_to(vector_home)
         return True
     except (ValueError, OSError) as _sve:
-        logger.debug("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed (ValueError, OSError): %s", _sve)
+        logger.debug('[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed (ValueError, OSError): {}', _sve)
     # Allow /tmp/vector-* explicitly
     parts = path.parts
     if len(parts) >= 3 and parts[1] == "tmp" and parts[2].startswith("vector-"):
@@ -95,7 +93,7 @@ def _log(message: str) -> None:
             f.write(f"[{ts}] {message}\n")
     except OSError as _sve:
         # Never let the audit log break the agent loop.
-        logger.warning("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: %s", _sve)
+        logger.warning('[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: {}', _sve)
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +118,7 @@ def load_tracked() -> List[Dict[str, Any]]:
                 _log("WARN: tracked.json corrupted — restored from .bak")
                 return data
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed Exception: {}', _sve)
         _log("WARN: tracked.json corrupted, no backup — starting fresh")
         return []
 
@@ -319,9 +317,9 @@ def quick() -> Dict[str, Any]:
                     empty_removed += 1
                     _log(f"DELETED: {dirpath} (empty dir)")
             except OSError as _sve:
-                logger.warning("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: %s", _sve)
+                logger.warning('[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: {}', _sve)
     except OSError as _sve:
-        logger.warning("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: %s", _sve)
+        logger.warning('[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed OSError: {}', _sve)
 
     save_tracked(new_tracked)
     _log(
@@ -487,7 +485,7 @@ def guess_category(path: Path) -> Optional[str]:
             return "temp"
     except ValueError as _sve:
         # Path isn't under VECTOR_HOME (e.g. /tmp/vector-*) — fall through.
-        logger.debug("[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed ValueError: %s", _sve)
+        logger.debug('[VECTOR][plugins.disk-cleanup.disk_cleanup] suppressed ValueError: {}', _sve)
 
     name = path.name
     if name.startswith(_TEST_PATTERNS):

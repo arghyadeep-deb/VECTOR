@@ -90,7 +90,7 @@ class AudioBridge:
                     )
                 except Exception as _sve:
                     # Best-effort teardown — never raise from here.
-                    logger.debug("[VECTOR][plugins.google_meet.audio_bridge] suppressed Exception: %s", _sve)
+                    logger.debug('[VECTOR][plugins.google_meet.audio_bridge] suppressed Exception: {}', _sve)
             self._module_ids = []
         self._torn_down = True
 

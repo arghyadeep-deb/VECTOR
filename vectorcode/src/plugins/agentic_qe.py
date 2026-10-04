@@ -1,11 +1,10 @@
 """Agentic QE Plugin — test generation, security scanning, quality assessment."""
 
-import logging
+from loguru import logger
 from typing import Any, Optional
 
 from plugins.plugin import Plugin, ExtensionPoint
 
-logger = logging.getLogger(__name__)
 
 
 class AgenticQEPlugin(Plugin):

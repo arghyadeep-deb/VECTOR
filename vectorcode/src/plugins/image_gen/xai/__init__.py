@@ -17,11 +17,11 @@ Selection precedence (first hit wins):
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
+import httpx
 
 from agent.image_gen_provider import (
     DEFAULT_ASPECT_RATIO,
@@ -33,7 +33,6 @@ from agent.image_gen_provider import (
 )
 from tools.xai_http import vector_xai_user_agent
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Model catalog
@@ -86,7 +85,7 @@ def _load_xai_config() -> Dict[str, Any]:
         xai_section = section.get("xai") if isinstance(section, dict) else None
         return xai_section if isinstance(xai_section, dict) else {}
     except Exception as exc:
-        logger.debug("Could not load image_gen.xai config: %s", exc)
+        logger.debug('Could not load image_gen.xai config: {}', exc)
         return {}
 
 
@@ -195,20 +194,20 @@ class XAIImageGenProvider(ImageGenProvider):
         base_url = (os.environ.get("XAI_BASE_URL") or "https://api.x.ai/v1").strip().rstrip("/")
 
         try:
-            response = requests.post(
+            response = httpx.post(
                 f"{base_url}/images/generations",
                 headers=headers,
                 json=payload,
                 timeout=120,
             )
             response.raise_for_status()
-        except requests.HTTPError as exc:
-            status = exc.response.status_code if exc.response else 0
+        except httpx.HTTPStatusError as exc:
+            status = exc.response.status_code
             try:
                 err_msg = exc.response.json().get("error", {}).get("message", exc.response.text[:300])
             except Exception:
-                err_msg = exc.response.text[:300] if exc.response else str(exc)
-            logger.error("xAI image gen failed (%d): %s", status, err_msg)
+                err_msg = exc.response.text[:300]
+            logger.error('xAI image gen failed ({}): {}', status, err_msg)
             return error_response(
                 error=f"xAI image generation failed ({status}): {err_msg}",
                 error_type="api_error",
@@ -217,7 +216,7 @@ class XAIImageGenProvider(ImageGenProvider):
                 prompt=prompt,
                 aspect_ratio=aspect,
             )
-        except requests.Timeout:
+        except httpx.TimeoutException:
             return error_response(
                 error="xAI image generation timed out (120s)",
                 error_type="timeout",
@@ -226,7 +225,7 @@ class XAIImageGenProvider(ImageGenProvider):
                 prompt=prompt,
                 aspect_ratio=aspect,
             )
-        except requests.ConnectionError as exc:
+        except httpx.NetworkError as exc:
             return error_response(
                 error=f"xAI connection error: {exc}",
                 error_type="connection_error",

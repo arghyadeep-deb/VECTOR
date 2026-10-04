@@ -23,7 +23,7 @@ Selection precedence (first hit wins):
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -36,7 +36,6 @@ from agent.image_gen_provider import (
     success_response,
 )
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +87,7 @@ def _load_openai_config() -> Dict[str, Any]:
         section = cfg.get("image_gen") if isinstance(cfg, dict) else None
         return section if isinstance(section, dict) else {}
     except Exception as exc:
-        logger.debug("Could not load image_gen config: %s", exc)
+        logger.debug('Could not load image_gen config: {}', exc)
         return {}
 
 

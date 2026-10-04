@@ -24,12 +24,10 @@ from loguru import logger
 
 import importlib
 import importlib.util
-import logging
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
 
 _MEMORY_PLUGINS_DIR = Path(__file__).parent
 
@@ -139,7 +137,7 @@ def discover_memory_providers() -> List[Tuple[str, str, bool]]:
                     meta = yaml.safe_load(f) or {}
                 desc = meta.get("description", "")
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.__init__] suppressed Exception: {}', _sve)
 
         # Quick availability check — try loading and calling is_available()
         available = True
@@ -168,17 +166,17 @@ def load_memory_provider(name: str) -> Optional["MemoryProvider"]:
     """
     provider_dir = find_provider_dir(name)
     if not provider_dir:
-        logger.debug("Memory provider '%s' not found in bundled or user plugins", name)
+        logger.debug("Memory provider '{}' not found in bundled or user plugins", name)
         return None
 
     try:
         provider = _load_provider_from_dir(provider_dir)
         if provider:
             return provider
-        logger.warning("Memory provider '%s' loaded but no provider instance found", name)
+        logger.warning("Memory provider '{}' loaded but no provider instance found", name)
         return None
     except Exception as e:
-        logger.warning("Failed to load memory provider '%s': %s", name, e)
+        logger.warning("Failed to load memory provider '{}': {}", name, e)
         return None
 
 
@@ -222,7 +220,7 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
                         try:
                             spec.loader.exec_module(parent_mod)
                         except Exception as _sve:
-                            logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
+                            logger.debug('[VECTOR][plugins.memory.__init__] suppressed Exception: {}', _sve)
 
         # Now load the provider module
         spec = importlib.util.spec_from_file_location(
@@ -252,12 +250,12 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
                     try:
                         sub_spec.loader.exec_module(sub_mod)
                     except Exception as e:
-                        logger.debug("Failed to load submodule %s: %s", full_sub_name, e)
+                        logger.debug('Failed to load submodule {}: {}', full_sub_name, e)
 
         try:
             spec.loader.exec_module(mod)
         except Exception as e:
-            logger.debug("Failed to exec_module %s: %s", module_name, e)
+            logger.debug('Failed to exec_module {}: {}', module_name, e)
             sys.modules.pop(module_name, None)
             return None
 
@@ -269,7 +267,7 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
             if collector.provider:
                 return collector.provider
         except Exception as e:
-            logger.debug("register() failed for %s: %s", name, e)
+            logger.debug('register() failed for {}: {}', name, e)
 
     # Fallback: find a MemoryProvider subclass and instantiate it
     from agent.memory_provider import MemoryProvider
@@ -280,7 +278,7 @@ def _load_provider_from_dir(provider_dir: Path) -> Optional["MemoryProvider"]:
             try:
                 return attr()
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.__init__] suppressed Exception: {}', _sve)
 
     return None
 
@@ -388,7 +386,7 @@ def discover_plugin_cli_commands() -> List[dict]:
                     help_text = desc
                     description = desc
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.memory.__init__] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.__init__] suppressed Exception: {}', _sve)
 
         handler_fn = getattr(cli_mod, f"{active_provider}_command", None) or \
                      getattr(cli_mod, "honcho_command", None)
@@ -402,6 +400,6 @@ def discover_plugin_cli_commands() -> List[dict]:
             "plugin": active_provider,
         })
     except Exception as e:
-        logger.debug("Failed to scan CLI for memory plugin '%s': %s", active_provider, e)
+        logger.debug("Failed to scan CLI for memory plugin '{}': {}", active_provider, e)
 
     return results

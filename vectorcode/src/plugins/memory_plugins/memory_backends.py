@@ -1,9 +1,8 @@
 """Memory backend plugins — Byterover, Hindsight, Holographic, Honcho, OpenViking, RetainDB, Supermemory."""
 
-import logging
+from loguru import logger
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
 
 
 class ByteroverPlugin:

@@ -1,11 +1,10 @@
 """Disk cleanup plugin — free space by removing cache and temp files."""
 
-import logging
+from loguru import logger
 import os
 import shutil
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
 
 CACHE_DIRS = [
     Path.home() / ".cache" / "vector",

@@ -1,11 +1,10 @@
 """Code Intelligence Plugin — GNN-based code analysis and semantic search."""
 
-import logging
+from loguru import logger
 from typing import Any, Optional
 
 from plugins.plugin import Plugin, ExtensionPoint
 
-logger = logging.getLogger(__name__)
 
 
 class CodeIntelligencePlugin(Plugin):

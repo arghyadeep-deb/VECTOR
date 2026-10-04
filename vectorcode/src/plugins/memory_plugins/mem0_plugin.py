@@ -1,10 +1,9 @@
 """Mem0 memory plugin — LLM fact extraction via Mem0 Platform API."""
 
-import logging
+from loguru import logger
 import os
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
 
 try:
     from mem0 import Memory

@@ -18,7 +18,7 @@ Working directory: $VECTOR_HOME/byterover/ (profile-scoped context tree)
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import os
 import shutil
 import subprocess
@@ -29,7 +29,6 @@ from typing import Any, Dict, List, Optional
 from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 # Timeouts
 _QUERY_TIMEOUT = 10   # brv query — should be fast
@@ -251,7 +250,7 @@ class ByteRoverMemoryProvider(MemoryProvider):
                     timeout=_CURATE_TIMEOUT, cwd=self._cwd,
                 )
             except Exception as e:
-                logger.debug("ByteRover sync failed: %s", e)
+                logger.debug('ByteRover sync failed: {}', e)
 
         # Wait for previous sync
         if self._sync_thread and self._sync_thread.is_alive():
@@ -275,7 +274,7 @@ class ByteRoverMemoryProvider(MemoryProvider):
                     timeout=_CURATE_TIMEOUT, cwd=self._cwd,
                 )
             except Exception as e:
-                logger.debug("ByteRover memory mirror failed: %s", e)
+                logger.debug('ByteRover memory mirror failed: {}', e)
 
         t = threading.Thread(target=_write, daemon=True, name="brv-memwrite")
         t.start()
@@ -304,9 +303,9 @@ class ByteRoverMemoryProvider(MemoryProvider):
                     ["curate", "--", f"[Pre-compression context]\n{combined}"],
                     timeout=_CURATE_TIMEOUT, cwd=self._cwd,
                 )
-                logger.info("ByteRover pre-compression flush: %d messages", len(parts))
+                logger.info('ByteRover pre-compression flush: {} messages', len(parts))
             except Exception as e:
-                logger.debug("ByteRover pre-compression flush failed: %s", e)
+                logger.debug('ByteRover pre-compression flush failed: {}', e)
 
         t = threading.Thread(target=_flush, daemon=True, name="brv-flush")
         t.start()

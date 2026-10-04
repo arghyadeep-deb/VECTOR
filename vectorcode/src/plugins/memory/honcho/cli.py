@@ -260,7 +260,7 @@ def _read_config() -> dict:
         try:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception as _sve:
-            logger.debug("[VECTOR][plugins.memory.honcho.cli] suppressed Exception: %s", _sve)
+            logger.debug('[VECTOR][plugins.memory.honcho.cli] suppressed Exception: {}', _sve)
     return {}
 
 

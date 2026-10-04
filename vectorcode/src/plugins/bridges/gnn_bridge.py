@@ -1,9 +1,8 @@
 """GNN Bridge — code graph analysis using numpy-based graph algorithms."""
 
-import logging
+from loguru import logger
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
 
 try:
     import numpy as np

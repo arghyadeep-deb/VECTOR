@@ -20,7 +20,7 @@ References:
 """
 
 import hashlib
-import logging
+from loguru import logger
 import struct
 import math
 
@@ -30,7 +30,6 @@ try:
 except ImportError:
     _HAS_NUMPY = False
 
-logger = logging.getLogger(__name__)
 
 _TWO_PI = 2.0 * math.pi
 
@@ -193,8 +192,7 @@ def snr_estimate(dim: int, n_items: int) -> float:
 
     if snr < 2.0:
         logger.warning(
-            "HRR storage near capacity: SNR=%.2f (dim=%d, n_items=%d). "
-            "Retrieval accuracy may degrade. Consider increasing dim or reducing stored items.",
+            'HRR storage near capacity: SNR={} (dim={}, n_items={}). Retrieval accuracy may degrade. Consider increasing dim or reducing stored items.',
             snr,
             dim,
             n_items,

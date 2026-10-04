@@ -576,7 +576,7 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
                 page.evaluate(_enable_captions_js())
                 state.set(captions_enabled_attempted=True)
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
             try:
                 page.evaluate(_CAPTION_OBSERVER_JS)
             except Exception as e:
@@ -671,7 +671,7 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
                                         if cancelled:
                                             state.set(last_barge_in_at=now)
                                     except Exception as _sve:
-                                        logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+                                        logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
                 except Exception:
                     # Meet reloaded or we got booted — try to detect and
                     # exit gracefully rather than spinning.
@@ -696,7 +696,7 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
                     " if (b) b.click(); }"
                 )
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
 
             context.close()
             browser.close()
@@ -705,22 +705,22 @@ def run_bot() -> int:  # noqa: C901 — orchestration, explicit branches
                 try:
                     rt["speaker_stop"]()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+                    logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
             if rt["speaker_thread"] is not None:
                 try:
                     rt["speaker_thread"].join(timeout=5.0)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+                    logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
             if rt["session"]:
                 try:
                     rt["session"].close()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+                    logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
             if rt["bridge"]:
                 try:
                     rt["bridge"].teardown()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+                    logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
             state.set(in_call=False, captioning=False, exited=True)
             return 0
 
@@ -737,7 +737,7 @@ def _try_guest_name(page, guest_name: str) -> None:
         if locator.count() and locator.is_visible():
             locator.fill(guest_name, timeout=2_000)
     except Exception as _sve:
-        logger.debug("[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: %s", _sve)
+        logger.debug('[VECTOR][plugins.google_meet.meet_bot] suppressed Exception: {}', _sve)
 
 
 def _detect_admission(page) -> bool:

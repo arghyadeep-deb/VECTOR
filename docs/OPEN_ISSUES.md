@@ -2446,3 +2446,85 @@ isn't "proven in production" until you supply the service/device and run it live
     `tests/test_vectorcode_agents_workflow_engine_phantom_success.py` (2) — 16/16 passing.
     **Depth statement:** genuine full line-by-line depth completed for every file listed above
     as fixed or reviewed; nothing in this slice was deferred by live-vs-dormant status.
+
+44. **`vectorcode/src/plugins/` audit (77 tracked Python files, partial, 2026-10-04) —**
+    audited the authoritative `git ls-files "vectorcode/src/plugins/*.py"` inventory and applied
+    targeted security/correctness fixes across the slice. **Fixed:** 33 files used stdlib
+    `logging.getLogger(__name__)` or imported loguru and then shadowed it; all now use the real
+    loguru logger, and every affected `%s`/`%d`/`%r`/float-style call (including multi-line calls
+    in the four 1,200+-line memory modules) was converted to loguru `{}` formatting so diagnostic
+    arguments are no longer silently dropped. `bridges/qe_security_bridge.py:14` used string
+    prefix matching for path confinement, so an allowed `safe` directory also authorized a
+    sibling `safe-evil`; fixed with `Path.is_relative_to()`. `google_meet/node/protocol.py:119`
+    compared its shared bearer token with timing-variable `!=`, and
+    `teams_pipeline/subscriptions.py:111` did the same for the Graph client-state secret; both now
+    use `secrets.compare_digest()`. `image_gen/xai/__init__.py` and three HTTP paths in
+    `memory/retaindb/__init__.py` used the project-banned `requests` package; migrated to equivalent
+    synchronous `httpx` calls (including `follow_redirects=True` for RetainDB content downloads).
+    `google_meet/cli.py:97-98` installed an import-failure callback that closed over exception
+    variable `e`; Python clears that name after the `except` suite, so every later invocation
+    raised `NameError`; the callback now captures the rendered error in a default argument.
+    New regression suite: `tests/test_vectorcode_plugins_audit_regressions.py` (6 tests), all
+    passing; all 77 plugin files also pass `compileall`, `git diff --check`, and AST-wide guards
+    for forbidden `requests`, stdlib logger shadowing, and printf-style logger placeholders.
+    **FLAGGED, not fixed:** the three tracked `teams_pipeline` modules import nonexistent
+    `plugins.teams_pipeline.models`, `.store`, and `.pipeline` modules, making that feature
+    unimportable; restoring or designing those components is not a narrow audit fix. Multiple
+    memory backends plus Google Meet still rely extensively on banned `threading`; converting
+    their synchronous provider contracts and background lifecycle to asyncio is an architecture
+    migration. `memory/holographic/store.py:116` stores real persistent facts through raw
+    `sqlite3.connect()` rather than VECTOR's SQLCipher connection gateway; encryption/schema
+    migration needs an owner decision. **Depth statement:** every file received syntax, import,
+    logging, dependency, subprocess, filesystem, exception, and credential-pattern inspection.
+    Full line-by-line depth was completed for the bridge files, Google Meet node protocol,
+    Teams subscriptions, xAI image provider, RetainDB HTTP client sections, and the logging call
+    sites changed. The 1,200+-line Hindsight/Honcho files and the remaining large Google Meet and
+    memory implementations received targeted rather than complete line-by-line logic review and
+    must be resumed; this entry deliberately does not represent the requested 77-file audit as
+    complete. Work was done by Codex (gpt-5.6-sol); as with item 42, Codex's sandbox could not
+    write `.git/index.lock` (`Permission denied`), so every change above was reviewed and
+    committed by Claude on Codex's behalf — see commit hashes below.
+
+45. **`vectorcode/src/gateway/{config,session,status,stream_consumer}.py` full-depth follow-up,
+    2026-10-04 —** these 4 files only received a mechanical loguru-shadow logging pass in the
+    `vectorcode/src/gateway/` root slice (item 42); this entry is the deferred real logic review.
+    **Fixed:** `config.py`'s `_apply_env_overrides()` legacy-env-var back-compat branch (the
+    renamed `QQ_HOME_CHANNEL` → `QQBOT_HOME_CHANNEL`) called
+    `logging.getLogger(__name__).warning(...)`, but this module only imports `from loguru import
+    logger` — `logging` is never imported anywhere in the file. Any user still setting the legacy
+    `QQ_HOME_CHANNEL` env var hit a `NameError` inside `load_gateway_config()`, crashing gateway
+    startup, instead of getting the intended one-time deprecation warning. Fixed by using the
+    existing logger (commit `f2a32c563`). `stream_consumer.py` had two related bugs in
+    `GatewayStreamConsumer`, found by investigating a previously-dismissed-as-"pre-existing"
+    failing test rather than taking that dismissal at face value, since this file was now
+    squarely in scope: (1) `run()`'s `got_done` handling calls `_send_or_edit(accumulated,
+    finalize=True)` when no earlier mid-stream fallback was triggered; if *that* finalize edit
+    itself exhausts the flood-control strike budget, `_send_or_edit` sets
+    `self._fallback_final_send=True` as a side effect of giving up — but the `if
+    self._fallback_final_send:` check that would normally flush the pending text via
+    `_send_fallback_final()` already ran earlier in the same `if/elif` chain, using the stale
+    pre-call value. The accumulated text was silently dropped: never sent, never edited, never
+    delivered via the fallback path either. Fixed by re-checking `_fallback_final_send`
+    immediately after that finalize call. (2) `_try_strip_cursor()` unconditionally set
+    `self._last_sent_text` to the cursor-stripped text after calling `adapter.edit_message()`,
+    even when the call returned `success=False`, desyncing internal tracking from what the
+    platform message actually shows; fixed to only update on confirmed success (currently inert
+    given today's single caller's control flow, but the same "treat a non-exception result as
+    success without checking `.success`" bug class fixed everywhere else in this file). Verified
+    fix (1) directly: `vectorcode/python/tests/legacy_ported/gateway/test_stream_consumer.py
+    ::TestSegmentBreakOnToolBoundary::test_edit_failure_sends_only_unsent_tail_at_finish` was
+    failing before this fix (`adapter.send.call_count` was 1, not the expected 2 — the tail text
+    was dropped) and passes after it; the full pre-existing suite (`test_stream_consumer.py` +
+    `test_stream_consumer_fresh_final.py`, 90 tests) passes with zero regressions. New
+    `tests/test_vectorcode_gateway_stream_consumer_finalize_fallback.py` (2 tests) proves fix (2)
+    directly (commit `063405a30`). **Reviewed, no changes needed:** `status.py` (804 lines) — careful,
+    well-reasoned PID/lock-file concurrency logic throughout; one harmless cosmetic artifact
+    (a stray `from loguru import logger` sitting inside the module's own docstring text at line 2,
+    dead but inert since the real import at line 15 works correctly) not worth a fix/test cycle.
+    `session.py` (1,373 lines) — reviewed in full; the `threading.Lock()` usage already flagged
+    in item 42 as an owner migration decision is the only non-bug finding; traced the one
+    `force_new=True` caller (`run.py:5501`) to confirm `get_or_create_session()`'s SQLite
+    end-session gap on that path is unreachable today (the sole caller only passes `force_new=True`
+    after `reset_session()` has already confirmed no entry exists for that key), not a live bug.
+    **Depth statement:** genuine full line-by-line depth completed for all 4 files. No further
+    follow-up needed on this specific scope.

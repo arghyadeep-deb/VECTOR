@@ -26,7 +26,7 @@ from __future__ import annotations
 
 import atexit
 import json
-import logging
+from loguru import logger
 import os
 import threading
 from typing import Any, Dict, List, Optional
@@ -34,7 +34,6 @@ from typing import Any, Dict, List, Optional
 from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 _DEFAULT_ENDPOINT = "http://127.0.0.1:1933"
 _TIMEOUT = 30.0
@@ -325,7 +324,7 @@ class OpenVikingMemoryProvider(MemoryProvider):
                 account=self._account, user=self._user, agent=self._agent,
             )
             if not self._client.health():
-                logger.warning("OpenViking server at %s is not reachable", self._endpoint)
+                logger.warning('OpenViking server at {} is not reachable', self._endpoint)
                 self._client = None
         except ImportError:
             logger.warning("httpx not installed — OpenViking plugin disabled")
@@ -354,7 +353,7 @@ class OpenVikingMemoryProvider(MemoryProvider):
                 "Use viking_remember to store facts, viking_add_resource to index URLs/docs."
             )
         except Exception as e:
-            logger.warning("OpenViking system_prompt_block failed: %s", e)
+            logger.warning('OpenViking system_prompt_block failed: {}', e)
             return (
                 "# OpenViking Knowledge Base\n"
                 f"Active. Endpoint: {self._endpoint}\n"
@@ -402,7 +401,7 @@ class OpenVikingMemoryProvider(MemoryProvider):
                     with self._prefetch_lock:
                         self._prefetch_result = "\n".join(parts)
             except Exception as e:
-                logger.debug("OpenViking prefetch failed: %s", e)
+                logger.debug('OpenViking prefetch failed: {}', e)
 
         self._prefetch_thread = threading.Thread(
             target=_run, daemon=True, name="openviking-prefetch"
@@ -435,7 +434,7 @@ class OpenVikingMemoryProvider(MemoryProvider):
                     "content": assistant_content[:4000],
                 })
             except Exception as e:
-                logger.debug("OpenViking sync_turn failed: %s", e)
+                logger.debug('OpenViking sync_turn failed: {}', e)
 
         # Wait for any previous sync to finish before starting a new one
         if self._sync_thread and self._sync_thread.is_alive():
@@ -466,9 +465,9 @@ class OpenVikingMemoryProvider(MemoryProvider):
 
         try:
             self._client.post(f"/api/v1/sessions/{self._session_id}/commit")
-            logger.info("OpenViking session %s committed (%d turns)", self._session_id, self._turn_count)
+            logger.info('OpenViking session {} committed ({} turns)', self._session_id, self._turn_count)
         except Exception as e:
-            logger.warning("OpenViking session commit failed: %s", e)
+            logger.warning('OpenViking session commit failed: {}', e)
 
     def on_memory_write(self, action: str, target: str, content: str) -> None:
         """Mirror built-in memory writes to OpenViking as explicit memories."""
@@ -490,7 +489,7 @@ class OpenVikingMemoryProvider(MemoryProvider):
                     ],
                 })
             except Exception as e:
-                logger.debug("OpenViking memory mirror failed: %s", e)
+                logger.debug('OpenViking memory mirror failed: {}', e)
 
         t = threading.Thread(target=_write, daemon=True, name="openviking-memwrite")
         t.start()

@@ -21,7 +21,7 @@ Config (env vars or vector config.yaml under retaindb:):
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import os
 import queue
 import re
@@ -36,7 +36,6 @@ from urllib.parse import quote
 from agent.memory_provider import MemoryProvider
 from tools.registry import tool_error
 
-logger = logging.getLogger(__name__)
 
 _DEFAULT_BASE_URL = "https://api.retaindb.com"
 _ASYNC_SHUTDOWN = object()
@@ -194,9 +193,9 @@ class _Client:
         return h
 
     def request(self, method: str, path: str, *, params=None, json_body=None, timeout: float = 8.0) -> Any:
-        import requests
+        import httpx
         url = f"{self.base_url}{path}"
-        resp = requests.request(
+        resp = httpx.request(
             method.upper(), url,
             params=params,
             json=json_body if method.upper() not in {"GET", "DELETE"} else None,
@@ -207,7 +206,7 @@ class _Client:
             payload = resp.json()
         except Exception:
             payload = resp.text
-        if not resp.ok:
+        if not resp.is_success:
             msg = ""
             if isinstance(payload, dict):
                 msg = str(payload.get("message") or payload.get("error") or "")
@@ -283,14 +282,14 @@ class _Client:
 
     def upload_file(self, data: bytes, filename: str, remote_path: str, mime_type: str, scope: str, project_id: str | None) -> dict:
         import io
-        import requests
+        import httpx
         url = f"{self.base_url}/v1/files"
         token = self.api_key.replace("Bearer ", "").strip()
         headers = {"Authorization": f"Bearer {token}", "x-sdk-runtime": "vector-plugin"}
         fields = {"path": remote_path, "scope": scope.upper()}
         if project_id:
             fields["project_id"] = project_id
-        resp = requests.post(url, files={"file": (filename, io.BytesIO(data), mime_type)}, data=fields, headers=headers, timeout=30)
+        resp = httpx.post(url, files={"file": (filename, io.BytesIO(data), mime_type)}, data=fields, headers=headers, timeout=30)
         resp.raise_for_status()
         return resp.json()
 
@@ -304,10 +303,10 @@ class _Client:
         return self.request("GET", f"/v1/files/{quote(file_id, safe='')}")
 
     def read_file_content(self, file_id: str) -> bytes:
-        import requests
+        import httpx
         token = self.api_key.replace("Bearer ", "").strip()
         url = f"{self.base_url}/v1/files/{quote(file_id, safe='')}/content"
-        resp = requests.get(url, headers={"Authorization": f"Bearer {token}", "x-sdk-runtime": "vector-plugin"}, timeout=30, allow_redirects=True)
+        resp = httpx.get(url, headers={"Authorization": f"Bearer {token}", "x-sdk-runtime": "vector-plugin"}, timeout=30, follow_redirects=True)
         resp.raise_for_status()
         return resp.content
 
@@ -384,7 +383,7 @@ class _WriteQueue:
             conn.execute("DELETE FROM pending WHERE id = ?", (row_id,))
             conn.commit()
         except Exception as exc:
-            logger.warning("RetainDB ingest failed (will retry): %s", exc)
+            logger.warning('RetainDB ingest failed (will retry): {}', exc)
             conn = self._get_conn()
             conn.execute("UPDATE pending SET last_error = ? WHERE id = ?", (str(exc), row_id))
             conn.commit()
@@ -400,7 +399,7 @@ class _WriteQueue:
             except queue.Empty:
                 continue
             except Exception as exc:
-                logger.error("RetainDB writer error: %s", exc)
+                logger.error('RetainDB writer error: {}', exc)
 
     def shutdown(self) -> None:
         self._q.put(_ASYNC_SHUTDOWN)
@@ -526,7 +525,7 @@ class RetainDBMemoryProvider(MemoryProvider):
         try:
             self._client.seed_agent_identity(self._agent_id, content, source="soul_md")
         except Exception as exc:
-            logger.debug("RetainDB soul seed failed: %s", exc)
+            logger.debug('RetainDB soul seed failed: {}', exc)
 
     def system_prompt_block(self) -> str:
         project = self._client.project if self._client else "retaindb"
@@ -564,7 +563,7 @@ class RetainDBMemoryProvider(MemoryProvider):
             with self._lock:
                 self._context_result = overlay
         except Exception as exc:
-            logger.debug("RetainDB context prefetch failed: %s", exc)
+            logger.debug('RetainDB context prefetch failed: {}', exc)
 
     def _prefetch_dialectic(self, query: str) -> None:
         try:
@@ -574,7 +573,7 @@ class RetainDBMemoryProvider(MemoryProvider):
                 with self._lock:
                     self._dialectic_result = answer
         except Exception as exc:
-            logger.debug("RetainDB dialectic prefetch failed: %s", exc)
+            logger.debug('RetainDB dialectic prefetch failed: {}', exc)
 
     def _prefetch_agent_model(self) -> None:
         try:
@@ -583,7 +582,7 @@ class RetainDBMemoryProvider(MemoryProvider):
                 with self._lock:
                     self._agent_model = model
         except Exception as exc:
-            logger.debug("RetainDB agent model prefetch failed: %s", exc)
+            logger.debug('RetainDB agent model prefetch failed: {}', exc)
 
     @staticmethod
     def _reasoning_level(query: str) -> str:
@@ -752,7 +751,7 @@ class RetainDBMemoryProvider(MemoryProvider):
             memory_type = "preference" if target == "user" else "factual"
             self._client.add_memory(self._user_id, self._session_id, content, memory_type=memory_type)
         except Exception as exc:
-            logger.debug("RetainDB memory mirror failed: %s", exc)
+            logger.debug('RetainDB memory mirror failed: {}', exc)
 
     def shutdown(self) -> None:
         for t in self._prefetch_threads:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import Any
 
 from gateway.config import Platform
@@ -10,7 +10,6 @@ from plugins.teams_pipeline.pipeline import TeamsMeetingPipeline
 from plugins.teams_pipeline.store import TeamsPipelineStore, resolve_teams_pipeline_store_path
 from plugins.teams_pipeline.subscriptions import build_graph_client
 
-logger = logging.getLogger(__name__)
 
 
 def _teams_delivery_is_configured(teams_extra: dict[str, Any], teams_delivery: dict[str, Any]) -> bool:
@@ -111,14 +110,13 @@ def bind_gateway_runtime(gateway: Any) -> bool:
         error_message = str(exc)
         gateway._teams_pipeline_runtime_error = error_message
         logger.warning(
-            "Teams pipeline runtime unavailable: %s. Installing a drop-scheduler "
-            "so Graph notifications ack cleanly without piling up unbound.",
+            'Teams pipeline runtime unavailable: {}. Installing a drop-scheduler so Graph notifications ack cleanly without piling up unbound.',
             error_message,
         )
 
         async def _drop(notification: dict[str, Any], event: Any) -> None:
             logger.debug(
-                "Dropping Graph notification because runtime is unavailable: id=%s resource=%s",
+                'Dropping Graph notification because runtime is unavailable: id={} resource={}',
                 notification.get("id"),
                 notification.get("resource"),
             )

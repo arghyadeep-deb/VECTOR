@@ -16,7 +16,6 @@ from loguru import logger
 
 import json
 import os
-import logging
 import hashlib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -27,7 +26,6 @@ from typing import Any, TYPE_CHECKING
 if TYPE_CHECKING:
     from honcho import Honcho
 
-logger = logging.getLogger(__name__)
 
 HOST = "vector"
 
@@ -50,7 +48,7 @@ def resolve_active_host() -> str:
         if profile and profile not in ("default", "custom"):
             return f"{HOST}.{profile}"
     except Exception as _sve:
-        logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed Exception: %s", _sve)
+        logger.debug('[VECTOR][plugins.memory.honcho.client] suppressed Exception: {}', _sve)
     return HOST
 
 
@@ -107,7 +105,7 @@ def _parse_context_tokens(host_val, root_val) -> int | None:
             try:
                 return int(val)
             except (ValueError, TypeError) as _sve:
-                logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed (ValueError, TypeError): %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.honcho.client] suppressed (ValueError, TypeError): {}', _sve)
     return None
 
 
@@ -118,7 +116,7 @@ def _parse_dialectic_depth(host_val, root_val) -> int:
             try:
                 return max(1, min(int(val), 3))
             except (ValueError, TypeError) as _sve:
-                logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed (ValueError, TypeError): %s", _sve)
+                logger.debug('[VECTOR][plugins.memory.honcho.client] suppressed (ValueError, TypeError): {}', _sve)
     return 1
 
 
@@ -347,13 +345,13 @@ class HonchoClientConfig:
         resolved_host = host or resolve_active_host()
         path = config_path or resolve_config_path()
         if not path.exists():
-            logger.debug("No global Honcho config at %s, falling back to env", path)
+            logger.debug('No global Honcho config at {}, falling back to env', path)
             return cls.from_env(host=resolved_host)
 
         try:
             raw = json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError) as e:
-            logger.warning("Failed to read %s: %s, falling back to env", path, e)
+            logger.warning('Failed to read {}: {}, falling back to env', path, e)
             return cls.from_env(host=resolved_host)
 
         host_block = (raw.get("hosts") or {}).get(resolved_host, {})
@@ -546,7 +544,7 @@ class HonchoClientConfig:
             if root.returncode == 0:
                 return Path(root.stdout.strip()).name
         except (OSError, subprocess.TimeoutExpired) as _sve:
-            logger.warning("[VECTOR][plugins.memory.honcho.client] suppressed (OSError, subprocess.TimeoutExpired): %s", _sve)
+            logger.warning('[VECTOR][plugins.memory.honcho.client] suppressed (OSError, subprocess.TimeoutExpired): {}', _sve)
         return None
 
     # Honcho enforces a 100-char limit on session IDs. Long gateway session keys
@@ -704,7 +702,7 @@ def get_honcho_client(config: HonchoClientConfig | None = None) -> Honcho:
                         honcho_cfg.get("request_timeout"),
                     )
         except Exception as _sve:
-            logger.debug("[VECTOR][plugins.memory.honcho.client] suppressed Exception: %s", _sve)
+            logger.debug('[VECTOR][plugins.memory.honcho.client] suppressed Exception: {}', _sve)
 
     # Fall back to the default so an unconfigured install cannot hang
     # indefinitely on a stalled Honcho request.
@@ -712,9 +710,9 @@ def get_honcho_client(config: HonchoClientConfig | None = None) -> Honcho:
         resolved_timeout = _DEFAULT_HTTP_TIMEOUT
 
     if resolved_base_url:
-        logger.info("Initializing Honcho client (base_url: %s, workspace: %s)", resolved_base_url, config.workspace_id)
+        logger.info('Initializing Honcho client (base_url: {}, workspace: {})', resolved_base_url, config.workspace_id)
     else:
-        logger.info("Initializing Honcho client (host: %s, workspace: %s)", config.host, config.workspace_id)
+        logger.info('Initializing Honcho client (host: {}, workspace: {})', config.host, config.workspace_id)
 
     # Local Honcho instances don't require an API key, but the SDK
     # expects a non-empty string.  Use a placeholder for local URLs.

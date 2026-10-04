@@ -109,7 +109,7 @@ class RealtimeSession:
             try:
                 self._ws.close()
             except Exception as _sve:
-                logger.debug("[VECTOR][plugins.google_meet.realtime.openai_client] suppressed Exception: %s", _sve)
+                logger.debug('[VECTOR][plugins.google_meet.realtime.openai_client] suppressed Exception: {}', _sve)
             self._ws = None
 
     # ── speaking ──────────────────────────────────────────────────────────

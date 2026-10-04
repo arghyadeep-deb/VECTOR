@@ -1,9 +1,8 @@
 """MinCut Bridge — graph partitioning for module boundary detection."""
 
-import logging
+from loguru import logger
 from typing import Any
 
-logger = logging.getLogger(__name__)
 
 try:
     import numpy as np
