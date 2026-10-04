@@ -19,7 +19,6 @@ rather than parsing the raw JSON themselves.
 """
 
 import json
-import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,9 +26,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from utils import atomic_json_write
 
-import requests
+import httpx
+from loguru import logger
 
-logger = logging.getLogger(__name__)
 
 MODELS_DEV_URL = "https://models.dev/api.json"
 _MODELS_DEV_CACHE_TTL = 3600  # 1 hour in-memory
@@ -192,7 +191,7 @@ def _load_disk_cache() -> Dict[str, Any]:
             with open(cache_path, encoding="utf-8") as f:
                 return json.load(f)
     except Exception as e:
-        logger.debug("Failed to load models.dev disk cache: %s", e)
+        logger.debug("Failed to load models.dev disk cache: {}", e)
     return {}
 
 
@@ -202,7 +201,7 @@ def _save_disk_cache(data: Dict[str, Any]) -> None:
         cache_path = _get_cache_path()
         atomic_json_write(cache_path, data, indent=None, separators=(",", ":"))
     except Exception as e:
-        logger.debug("Failed to save models.dev disk cache: %s", e)
+        logger.debug("Failed to save models.dev disk cache: {}", e)
 
 
 def fetch_models_dev(force_refresh: bool = False) -> Dict[str, Any]:
@@ -222,7 +221,7 @@ def fetch_models_dev(force_refresh: bool = False) -> Dict[str, Any]:
 
     # Try network fetch
     try:
-        response = requests.get(MODELS_DEV_URL, timeout=15)
+        response = httpx.get(MODELS_DEV_URL, timeout=15)
         response.raise_for_status()
         data = response.json()
         if isinstance(data, dict) and data:
@@ -230,13 +229,13 @@ def fetch_models_dev(force_refresh: bool = False) -> Dict[str, Any]:
             _models_dev_cache_time = time.time()
             _save_disk_cache(data)
             logger.debug(
-                "Fetched models.dev registry: %d providers, %d total models",
+                "Fetched models.dev registry: {} providers, {} total models",
                 len(data),
                 sum(len(p.get("models", {})) for p in data.values() if isinstance(p, dict)),
             )
             return data
     except Exception as e:
-        logger.debug("Failed to fetch models.dev: %s", e)
+        logger.debug("Failed to fetch models.dev: {}", e)
 
     # Fall back to disk cache — use a short TTL (5 min) so we retry
     # the network fetch soon instead of serving stale data for a full hour.
@@ -244,7 +243,7 @@ def fetch_models_dev(force_refresh: bool = False) -> Dict[str, Any]:
         _models_dev_cache = _load_disk_cache()
         if _models_dev_cache:
             _models_dev_cache_time = time.time() - _MODELS_DEV_CACHE_TTL + 300
-            logger.debug("Loaded models.dev from disk cache (%d providers)", len(_models_dev_cache))
+            logger.debug("Loaded models.dev from disk cache ({} providers)", len(_models_dev_cache))
 
     return _models_dev_cache
 

@@ -56,7 +56,6 @@ from loguru import logger
 
 import difflib
 import json
-import logging
 import os
 import re
 import shlex
@@ -77,8 +76,6 @@ except ImportError:  # pragma: no cover
     fcntl = None  # type: ignore[assignment]
 
 from vector_constants import get_vector_home
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT_SECONDS = 60
 MAX_TIMEOUT_SECONDS = 300
@@ -124,7 +121,7 @@ class ShellHookSpec:
                 self.compiled_matcher = re.compile(self.matcher)
             except re.error as exc:
                 logger.warning(
-                    "shell hook matcher %r is invalid (%s) — treating as "
+                    "shell hook matcher {!r} is invalid ({}) — treating as "
                     "literal equality", self.matcher, exc,
                 )
                 self.compiled_matcher = None
@@ -198,7 +195,7 @@ def register_from_config(
                 spec.event, spec.command, accept_hooks=effective_accept,
             ):
                 logger.warning(
-                    "shell hook for %s (%s) not allowlisted — skipped. "
+                    "shell hook for {} ({}) not allowlisted — skipped. "
                     "Use --accept-hooks / VECTOR_ACCEPT_HOOKS=1 / "
                     "hooks_auto_accept: true, or approve at the TTY "
                     "prompt next run.",
@@ -213,7 +210,7 @@ def register_from_config(
             _registered.add(key)
             registered.append(spec)
             logger.info(
-                "shell hook registered: %s -> %s (matcher=%s, timeout=%ds)",
+                "shell hook registered: {} -> {} (matcher={}, timeout={}s)",
                 spec.event, spec.command, spec.matcher, spec.timeout,
             )
 
@@ -258,12 +255,12 @@ def _parse_hooks_block(hooks_cfg: Any) -> List[ShellHookSpec]:
             )
             if suggestion:
                 logger.warning(
-                    "unknown hook event %r in hooks: config — did you mean %r?",
+                    "unknown hook event {!r} in hooks: config — did you mean {!r}?",
                     event_name, suggestion[0],
                 )
             else:
                 logger.warning(
-                    "unknown hook event %r in hooks: config (valid: %s)",
+                    "unknown hook event {!r} in hooks: config (valid: {})",
                     event_name, ", ".join(sorted(VALID_HOOKS)),
                 )
             continue
@@ -273,7 +270,7 @@ def _parse_hooks_block(hooks_cfg: Any) -> List[ShellHookSpec]:
 
         if not isinstance(entries, list):
             logger.warning(
-                "hooks.%s must be a list of hook definitions; got %s",
+                "hooks.{} must be a list of hook definitions; got {}",
                 event_name, type(entries).__name__,
             )
             continue
@@ -291,7 +288,7 @@ def _parse_single_entry(
 ) -> Optional[ShellHookSpec]:
     if not isinstance(raw, dict):
         logger.warning(
-            "hooks.%s[%d] must be a mapping with a 'command' key; got %s",
+            "hooks.{}[{}] must be a mapping with a 'command' key; got {}",
             event, index, type(raw).__name__,
         )
         return None
@@ -299,7 +296,7 @@ def _parse_single_entry(
     command = raw.get("command")
     if not isinstance(command, str) or not command.strip():
         logger.warning(
-            "hooks.%s[%d] is missing a non-empty 'command' field",
+            "hooks.{}[{}] is missing a non-empty 'command' field",
             event, index,
         )
         return None
@@ -307,16 +304,16 @@ def _parse_single_entry(
     matcher = raw.get("matcher")
     if matcher is not None and not isinstance(matcher, str):
         logger.warning(
-            "hooks.%s[%d].matcher must be a string regex; ignoring",
+            "hooks.{}[{}].matcher must be a string regex; ignoring",
             event, index,
         )
         matcher = None
 
     if matcher is not None and event not in ("pre_tool_call", "post_tool_call"):
         logger.warning(
-            "hooks.%s[%d].matcher=%r will be ignored at runtime — the "
+            "hooks.{}[{}].matcher={!r} will be ignored at runtime — the "
             "matcher field is only honored for pre_tool_call / "
-            "post_tool_call.  The hook will fire on every %s event.",
+            "post_tool_call.  The hook will fire on every {} event.",
             event, index, matcher, event,
         )
         matcher = None
@@ -326,21 +323,21 @@ def _parse_single_entry(
         timeout = int(timeout_raw)
     except (TypeError, ValueError):
         logger.warning(
-            "hooks.%s[%d].timeout must be an int (got %r); using default %ds",
+            "hooks.{}[{}].timeout must be an int (got {!r}); using default {}s",
             event, index, timeout_raw, DEFAULT_TIMEOUT_SECONDS,
         )
         timeout = DEFAULT_TIMEOUT_SECONDS
 
     if timeout < 1:
         logger.warning(
-            "hooks.%s[%d].timeout must be >=1; using default %ds",
+            "hooks.{}[{}].timeout must be >=1; using default {}s",
             event, index, DEFAULT_TIMEOUT_SECONDS,
         )
         timeout = DEFAULT_TIMEOUT_SECONDS
 
     if timeout > MAX_TIMEOUT_SECONDS:
         logger.warning(
-            "hooks.%s[%d].timeout=%ds exceeds max %ds; clamping",
+            "hooks.{}[{}].timeout={}s exceeds max {}s; clamping",
             event, index, timeout, MAX_TIMEOUT_SECONDS,
         )
         timeout = MAX_TIMEOUT_SECONDS
@@ -431,13 +428,13 @@ def _make_callback(spec: ShellHookSpec) -> Callable[..., Optional[Dict[str, Any]
 
         if r["error"]:
             logger.warning(
-                "shell hook failed (event=%s command=%s): %s",
+                "shell hook failed (event={} command={}): {}",
                 spec.event, spec.command, r["error"],
             )
             return None
         if r["timed_out"]:
             logger.warning(
-                "shell hook timed out after %.2fs (event=%s command=%s)",
+                "shell hook timed out after {:.2f}s (event={} command={})",
                 r["elapsed_seconds"], spec.event, spec.command,
             )
             return None
@@ -445,14 +442,14 @@ def _make_callback(spec: ShellHookSpec) -> Callable[..., Optional[Dict[str, Any]
         stderr = r["stderr"].strip()
         if stderr:
             logger.debug(
-                "shell hook stderr (event=%s command=%s): %s",
+                "shell hook stderr (event={} command={}): {}",
                 spec.event, spec.command, stderr[:400],
             )
         # Non-zero exits: log but still parse stdout so scripts that
         # signal failure via exit code can also return a block directive.
         if r["returncode"] != 0:
             logger.warning(
-                "shell hook exited %d (event=%s command=%s); stderr=%s",
+                "shell hook exited {} (event={} command={}); stderr={}",
                 r["returncode"], spec.event, spec.command, stderr[:400],
             )
         return _parse_response(spec.event, r["stdout"])
@@ -505,7 +502,7 @@ def _parse_response(event: str, stdout: str) -> Optional[Dict[str, Any]]:
         data = json.loads(stdout)
     except json.JSONDecodeError:
         logger.warning(
-            "shell hook stdout was not valid JSON (event=%s): %s",
+            "shell hook stdout was not valid JSON (event={}): {}",
             event, stdout[:200],
         )
         return None
@@ -574,11 +571,11 @@ def save_allowlist(data: Dict[str, Any]) -> None:
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:
-                logger.warning("[VECTOR][agent.shell_hooks] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][agent.shell_hooks] suppressed OSError: {}", _sve)
             raise
     except OSError as exc:
         logger.warning(
-            "Failed to persist shell hook allowlist to %s: %s. "
+            "Failed to persist shell hook allowlist to {}: {}. "
             "The approval is in-memory for this run, but the next "
             "startup will re-prompt (or skip registration on non-TTY "
             "runs without --accept-hooks / VECTOR_ACCEPT_HOOKS).",
@@ -588,12 +585,21 @@ def save_allowlist(data: Dict[str, Any]) -> None:
 
 def _is_allowlisted(event: str, command: str) -> bool:
     data = load_allowlist()
-    return any(
-        isinstance(e, dict)
-        and e.get("event") == event
-        and e.get("command") == command
-        for e in data.get("approvals", [])
-    )
+    current_mtime = script_mtime_iso(command)
+    for entry in data.get("approvals", []):
+        if not isinstance(entry, dict):
+            continue
+        if entry.get("event") != event or entry.get("command") != command:
+            continue
+        approved_mtime = entry.get("script_mtime_at_approval")
+        if approved_mtime != current_mtime:
+            logger.warning(
+                "shell hook changed since approval and requires re-approval: {}",
+                command,
+            )
+            return False
+        return True
+    return False
 
 
 @contextmanager
@@ -637,7 +643,7 @@ def _prompt_and_record(
         _record_approval(event, command)
         logger.info(
             "shell hook auto-approved via --accept-hooks / env / config: "
-            "%s -> %s", event, command,
+            "{} -> {}", event, command,
         )
         return True
 

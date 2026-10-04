@@ -19,10 +19,11 @@ Improvements over v2:
 
 import hashlib
 import json
-import logging
 import re
 import time
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from agent.auxiliary_client import call_llm
 from agent.context_engine import ContextEngine
@@ -32,8 +33,6 @@ from agent.model_metadata import (
     estimate_messages_tokens_rough,
 )
 from agent.redact import redact_sensitive_text
-
-logger = logging.getLogger(__name__)
 
 SUMMARY_PREFIX = (
     "[CONTEXT COMPACTION — REFERENCE ONLY] Earlier turns were compacted "
@@ -423,9 +422,9 @@ class ContextCompressor(ContextEngine):
 
         if not quiet_mode:
             logger.info(
-                "Context compressor initialized: model=%s context_length=%d "
-                "threshold=%d (%.0f%%) target_ratio=%.0f%% tail_budget=%d "
-                "provider=%s base_url=%s",
+                "Context compressor initialized: model={} context_length={} "
+                "threshold={} ({:.0f}%) target_ratio={:.0f}% tail_budget={} "
+                "provider={} base_url={}",
                 model, self.context_length, self.threshold_tokens,
                 threshold_percent * 100, self.summary_target_ratio * 100,
                 self.tail_token_budget,
@@ -476,7 +475,7 @@ class ContextCompressor(ContextEngine):
         if self._ineffective_compression_count >= 2:
             if not self.quiet_mode:
                 logger.warning(
-                    "Compression skipped — last %d compressions saved <10%% each. "
+                    "Compression skipped — last {} compressions saved <10% each. "
                     "Consider /new to start a fresh session, or /compress <topic> "
                     "for focused compression.",
                     self._ineffective_compression_count,
@@ -729,7 +728,7 @@ class ContextCompressor(ContextEngine):
         now = time.monotonic()
         if now < self._summary_failure_cooldown_until:
             logger.debug(
-                "Skipping context summary during cooldown (%.0fs remaining)",
+                "Skipping context summary during cooldown ({:.0f}s remaining)",
                 self._summary_failure_cooldown_until - now,
             )
             return None
@@ -885,9 +884,9 @@ The user has requested that this compaction PRIORITISE preserving all informatio
             # No provider configured — long cooldown, unlikely to self-resolve
             self._summary_failure_cooldown_until = time.monotonic() + _SUMMARY_FAILURE_COOLDOWN_SECONDS
             self._last_summary_error = "no auxiliary LLM provider configured"
-            logging.warning("Context compression: no provider available for "
+            logger.warning("Context compression: no provider available for "
                             "summary. Middle turns will be dropped without summary "
-                            "for %d seconds.",
+                            "for {} seconds.",
                             _SUMMARY_FAILURE_COOLDOWN_SECONDS)
             return None
         except Exception as e:
@@ -910,9 +909,9 @@ The user has requested that this compaction PRIORITISE preserving all informatio
                 and not getattr(self, "_summary_model_fallen_back", False)
             ):
                 self._summary_model_fallen_back = True
-                logging.warning(
-                    "Summary model '%s' not available (%s). "
-                    "Falling back to main model '%s' for compression.",
+                logger.warning(
+                    "Summary model '{}' not available ({}). "
+                    "Falling back to main model '{}' for compression.",
                     self.summary_model, e, self.model,
                 )
                 # Record the aux-model failure so callers can warn the user
@@ -942,9 +941,9 @@ The user has requested that this compaction PRIORITISE preserving all informatio
                 and not getattr(self, "_summary_model_fallen_back", False)
             ):
                 self._summary_model_fallen_back = True
-                logging.warning(
-                    "Summary model '%s' failed (%s). "
-                    "Retrying on main model '%s' before giving up.",
+                logger.warning(
+                    "Summary model '{}' failed ({}). "
+                    "Retrying on main model '{}' before giving up.",
                     self.summary_model, e, self.model,
                 )
                 # Record the aux-model failure (see 404 branch above) — user
@@ -966,9 +965,9 @@ The user has requested that this compaction PRIORITISE preserving all informatio
             if len(err_text) > 220:
                 err_text = err_text[:217].rstrip() + "..."
             self._last_summary_error = err_text
-            logging.warning(
-                "Failed to generate context summary: %s. "
-                "Further summary attempts paused for %d seconds.",
+            logger.warning(
+                "Failed to generate context summary: {}. "
+                "Further summary attempts paused for {} seconds.",
                 e,
                 _transient_cooldown,
             )
@@ -1032,7 +1031,7 @@ The user has requested that this compaction PRIORITISE preserving all informatio
                 if not (m.get("role") == "tool" and m.get("tool_call_id") in orphaned_results)
             ]
             if not self.quiet_mode:
-                logger.info("Compression sanitizer: removed %d orphaned tool result(s)", len(orphaned_results))
+                logger.info("Compression sanitizer: removed {} orphaned tool result(s)", len(orphaned_results))
 
         # 2. Add stub results for assistant tool_calls whose results were dropped
         missing_results = surviving_call_ids - result_call_ids
@@ -1051,7 +1050,7 @@ The user has requested that this compaction PRIORITISE preserving all informatio
                             })
             messages = patched
             if not self.quiet_mode:
-                logger.info("Compression sanitizer: added %d stub tool result(s)", len(missing_results))
+                logger.info("Compression sanitizer: added {} stub tool result(s)", len(missing_results))
 
         return messages
 
@@ -1141,8 +1140,8 @@ The user has requested that this compaction PRIORITISE preserving all informatio
         # assistant + tool_calls group.
         if not self.quiet_mode:
             logger.debug(
-                "Anchoring tail cut to last user message at index %d "
-                "(was %d) to prevent active-task loss after compression",
+                "Anchoring tail cut to last user message at index {} "
+                "(was {}) to prevent active-task loss after compression",
                 last_user_idx,
                 cut_idx,
             )
@@ -1264,7 +1263,7 @@ The user has requested that this compaction PRIORITISE preserving all informatio
         if n_messages <= _min_for_compress:
             if not self.quiet_mode:
                 logger.warning(
-                    "Cannot compress: only %d messages (need > %d)",
+                    "Cannot compress: only {} messages (need > {})",
                     n_messages, _min_for_compress,
                 )
             return messages
@@ -1277,7 +1276,7 @@ The user has requested that this compaction PRIORITISE preserving all informatio
             protect_tail_tokens=self.tail_token_budget,
         )
         if pruned_count and not self.quiet_mode:
-            logger.info("Pre-compression: pruned %d old tool result(s)", pruned_count)
+            logger.info("Pre-compression: pruned {} old tool result(s)", pruned_count)
 
         # Phase 2: Determine boundaries
         compress_start = self.protect_first_n
@@ -1293,19 +1292,19 @@ The user has requested that this compaction PRIORITISE preserving all informatio
 
         if not self.quiet_mode:
             logger.info(
-                "Context compression triggered (%d tokens >= %d threshold)",
+                "Context compression triggered ({} tokens >= {} threshold)",
                 display_tokens,
                 self.threshold_tokens,
             )
             logger.info(
-                "Model context limit: %d tokens (%.0f%% = %d)",
+                "Model context limit: {} tokens ({:.0f}% = {})",
                 self.context_length,
                 self.threshold_percent * 100,
                 self.threshold_tokens,
             )
             tail_msgs = n_messages - compress_end
             logger.info(
-                "Summarizing turns %d-%d (%d turns), protecting %d head + %d tail messages",
+                "Summarizing turns {}-{} ({} turns), protecting {} head + {} tail messages",
                 compress_start + 1,
                 compress_end,
                 len(turns_to_summarize),
@@ -1403,12 +1402,12 @@ The user has requested that this compaction PRIORITISE preserving all informatio
 
         if not self.quiet_mode:
             logger.info(
-                "Compressed: %d -> %d messages (~%d tokens saved, %.0f%%)",
+                "Compressed: {} -> {} messages (~{} tokens saved, {:.0f}%)",
                 n_messages,
                 len(compressed),
                 saved_estimate,
                 savings_pct,
             )
-            logger.info("Compression #%d complete", self.compression_count)
+            logger.info("Compression #{} complete", self.compression_count)
 
         return compressed

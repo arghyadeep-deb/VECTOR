@@ -47,7 +47,6 @@ import contextlib
 import hashlib
 import http.server
 import json
-import logging
 import os
 import secrets
 import socket
@@ -62,9 +61,6 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 from vector_constants import get_vector_home
-
-logger = logging.getLogger(__name__)
-
 
 # =============================================================================
 # OAuth client credential resolution.
@@ -235,9 +231,9 @@ def _credentials_lock(timeout_seconds: float = LOCK_TIMEOUT_SECONDS):
                         try:
                             msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
                         except OSError as _sve:
-                            logger.warning("[VECTOR][agent.google_oauth] suppressed OSError: %s", _sve)
+                            logger.warning("[VECTOR][agent.google_oauth] suppressed OSError: {}", _sve)
                     except ImportError:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         finally:
             os.close(fd)
             _lock_state.depth = 0
@@ -315,7 +311,7 @@ def _scrape_client_credentials() -> Tuple[str, str]:
     try:
         content = oauth_js.read_text(encoding="utf-8", errors="replace")
     except OSError as exc:
-        logger.debug("Failed to read oauth2.js at %s: %s", oauth_js, exc)
+        logger.debug("Failed to read oauth2.js at {}: {}", oauth_js, exc)
         _scraped_creds_cache["resolved"] = "1"
         return "", ""
 
@@ -331,7 +327,7 @@ def _scrape_client_credentials() -> Tuple[str, str]:
     _scraped_creds_cache["resolved"] = "1"
 
     if client_id:
-        logger.info("Scraped Gemini OAuth client from %s", oauth_js)
+        logger.info("Scraped Gemini OAuth client from {}", oauth_js)
 
     return client_id, client_secret
 
@@ -476,7 +472,7 @@ def load_credentials() -> Optional[GoogleCredentials]:
             raw = path.read_text(encoding="utf-8")
         data = json.loads(raw)
     except (json.JSONDecodeError, OSError, IOError) as exc:
-        logger.warning("Failed to read Google OAuth credentials at %s: %s", path, exc)
+        logger.warning("Failed to read Google OAuth credentials at {}: {}", path, exc)
         return None
     if not isinstance(data, dict):
         return None
@@ -506,7 +502,7 @@ def save_credentials(creds: GoogleCredentials) -> Path:
                 if tmp_path.exists():
                     tmp_path.unlink()
             except OSError as _sve:
-                logger.warning("[VECTOR][agent.google_oauth] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][agent.google_oauth] suppressed OSError: {}", _sve)
     return path
 
 
@@ -517,9 +513,9 @@ def clear_credentials() -> None:
         try:
             path.unlink()
         except FileNotFoundError as _sve:
-            logger.warning("[VECTOR][agent.google_oauth] suppressed FileNotFoundError: %s", _sve)
+            logger.warning("[VECTOR][agent.google_oauth] suppressed FileNotFoundError: {}", _sve)
         except OSError as exc:
-            logger.warning("Failed to remove Google OAuth credentials at %s: %s", path, exc)
+            logger.warning("Failed to remove Google OAuth credentials at {}: {}", path, exc)
 
 
 # =============================================================================
@@ -547,7 +543,7 @@ def _post_form(url: str, data: Dict[str, str], timeout: float) -> Dict[str, Any]
         try:
             detail = exc.read().decode("utf-8", errors="replace")
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", exc)
+            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: {}", _sve)
         # Detect invalid_grant to signal credential revocation
         code = "google_oauth_token_http_error"
         if "invalid_grant" in detail.lower():
@@ -624,7 +620,7 @@ def _fetch_user_email(access_token: str, timeout: float = TOKEN_REQUEST_TIMEOUT_
         data = json.loads(raw)
         return str(data.get("email", "") or "")
     except Exception as exc:
-        logger.debug("Userinfo fetch failed (non-fatal): %s", exc)
+        logger.debug("Userinfo fetch failed (non-fatal): {}", exc)
         return ""
 
 
@@ -679,7 +675,7 @@ def get_valid_access_token(*, force_refresh: bool = False) -> str:
             if exc.code == "google_oauth_invalid_grant":
                 logger.warning(
                     "Google OAuth refresh token invalid (revoked/expired). "
-                    "Clearing credentials at %s — user must re-login.",
+                    "Clearing credentials at {} — user must re-login.",
                     _credentials_path(),
                 )
                 clear_credentials()
@@ -734,7 +730,7 @@ class _OAuthCallbackHandler(http.server.BaseHTTPRequestHandler):
     ready: Optional[threading.Event] = None
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002, N802
-        logger.debug("OAuth callback: " + format, *args)
+        logger.debug("OAuth callback: " + format.replace("%s", "{}"), *args)
 
     def do_GET(self) -> None:  # noqa: N802
         parsed = urllib.parse.urlparse(self.path)
@@ -748,7 +744,7 @@ class _OAuthCallbackHandler(http.server.BaseHTTPRequestHandler):
         error = (params.get("error") or [""])[0]
         code = (params.get("code") or [""])[0]
 
-        if state != type(self).expected_state:
+        if not secrets.compare_digest(state, type(self).expected_state):
             type(self).captured_error = "state_mismatch"
             self._respond_html(400, _ERROR_PAGE.format(message="State mismatch — aborting for safety."))
         elif error:
@@ -807,7 +803,7 @@ def _bind_callback_server(preferred_port: int = DEFAULT_REDIRECT_PORT) -> Tuple[
         return server, preferred_port
     except OSError as exc:
         logger.info(
-            "Preferred OAuth callback port %d unavailable (%s); requesting ephemeral port",
+            "Preferred OAuth callback port {} unavailable ({}); requesting ephemeral port",
             preferred_port, exc,
         )
     server = http.server.HTTPServer((REDIRECT_HOST, 0), _OAuthCallbackHandler)
@@ -891,7 +887,7 @@ def start_oauth_flow(
 
             webbrowser.open(auth_url, new=1, autoraise=True)
         except Exception as exc:
-            logger.debug("webbrowser.open failed: %s", exc)
+            logger.debug("webbrowser.open failed: {}", exc)
 
     code: Optional[str] = None
     try:
@@ -910,11 +906,11 @@ def start_oauth_flow(
         try:
             server.shutdown()
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: {}", _sve)
         try:
             server.server_close()
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.google_oauth] suppressed Exception: {}", _sve)
         server_thread.join(timeout=2.0)
 
     if not code:
@@ -1012,7 +1008,7 @@ def _persist_token_response(
         managed_project_id="",
     )
     save_credentials(creds)
-    logger.info("Google OAuth credentials saved to %s", _credentials_path())
+    logger.info("Google OAuth credentials saved to {}", _credentials_path())
     return creds
 
 
