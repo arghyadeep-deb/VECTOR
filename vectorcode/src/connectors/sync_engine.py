@@ -107,7 +107,7 @@ class SyncEngine:
             try:
                 since = datetime.fromisoformat(checkpoint["last_sync"])
             except (ValueError, TypeError) as _sve:
-                logger.debug("[VECTOR][connectors.sync_engine] suppressed (ValueError, TypeError): %s", _sve)
+                logger.debug("[VECTOR][connectors.sync_engine] suppressed (ValueError, TypeError): {}", _sve)
 
         items_ingested = 0
         current_cursor: Optional[str] = prior_cursor

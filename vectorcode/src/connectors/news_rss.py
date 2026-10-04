@@ -85,7 +85,7 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
     try:
         return parsedate_to_datetime(date_str)
     except (ValueError, TypeError) as _sve:
-        logger.debug("[VECTOR][connectors.news_rss] suppressed (ValueError, TypeError): %s", _sve)
+        logger.debug("[VECTOR][connectors.news_rss] suppressed (ValueError, TypeError): {}", _sve)
     try:
         return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
     except (ValueError, TypeError):

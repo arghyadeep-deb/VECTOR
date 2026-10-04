@@ -91,7 +91,7 @@ class GitHubNotificationsConnector(BaseConnector):
                 try:
                     ts = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
                 except ValueError as _sve:
-                    logger.debug("[VECTOR][connectors.github_notifications] suppressed ValueError: %s", _sve)
+                    logger.debug("[VECTOR][connectors.github_notifications] suppressed ValueError: {}", _sve)
 
             yield Document(
                 doc_id=f"github-notification-{notif_id}",

@@ -386,7 +386,7 @@ class AppleContactsConnector(BaseConnector):
                                 "%Y-%m-%d"
                             )
                         except (ValueError, OverflowError) as _sve:
-                            logger.debug("[VECTOR][connectors.apple_contacts] suppressed (ValueError, OverflowError): %s", _sve)
+                            logger.debug("[VECTOR][connectors.apple_contacts] suppressed (ValueError, OverflowError): {}", _sve)
 
                     meta: Dict[str, Any] = {
                         "name": name,

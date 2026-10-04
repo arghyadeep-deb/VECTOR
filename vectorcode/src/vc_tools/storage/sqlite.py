@@ -55,7 +55,7 @@ class SQLiteMemory(MemoryBackend):
             self._rust_impl = _rust.SQLiteMemory(self._db_path)
             self._conn = None  # type: ignore[assignment]
         except (ImportError, AttributeError, RuntimeError, OSError) as exc:
-            logger.debug("[VECTOR] Rust SQLite backend unavailable; using Python SQLite: %s", exc)
+            logger.debug("[VECTOR] Rust SQLite backend unavailable; using Python SQLite: {}", exc)
             Path(self._db_path).parent.mkdir(parents=True, exist_ok=True)
             self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
             apply_pragmas(self._conn)

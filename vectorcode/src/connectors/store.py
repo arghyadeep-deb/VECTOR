@@ -388,6 +388,6 @@ class KnowledgeStore(MemoryBackend):
             with self._lock:
                 self._conn.close()
         except Exception as _sve:
-            logger.debug("[VECTOR][connectors.store] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][connectors.store] suppressed Exception: {}", _sve)
 
 __all__ = ["KnowledgeStore"]

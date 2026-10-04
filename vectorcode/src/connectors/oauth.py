@@ -523,7 +523,7 @@ def _wait_for_callback_code(
     try:
         test_sock.bind((host, port))
     except OSError as _sve:
-        logger.warning("[VECTOR][connectors.oauth] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][connectors.oauth] suppressed OSError: {}", _sve)
     finally:
         test_sock.close()
 

@@ -258,7 +258,7 @@ def _format_gcalendar(doc: Document) -> str:
                     duration = f"{mins} min"
                 time_range = f" ({duration})"
             except (ValueError, TypeError) as _sve:
-                logger.debug("[VECTOR][vc_tools.digest_collect] suppressed (ValueError, TypeError): %s", _sve)
+                logger.debug("[VECTOR][vc_tools.digest_collect] suppressed (ValueError, TypeError): {}", _sve)
     return f"[gcalendar] {time_str} — {title}{time_range}"
 
 def _format_spotify(doc: Document) -> str:
@@ -338,7 +338,7 @@ def _format_doc(source: str, doc: Document) -> str:
         try:
             return formatter(doc)
         except Exception as _sve:  # noqa: BLE001
-            logger.debug("[VECTOR][vc_tools.digest_collect] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][vc_tools.digest_collect] suppressed Exception: {}", _sve)
     # Fallback: connector name + title
     return f"[{source}] {doc.title}"
 
