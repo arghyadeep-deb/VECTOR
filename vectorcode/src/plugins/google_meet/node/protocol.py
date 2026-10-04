@@ -14,6 +14,7 @@ server). Mismatched tokens are rejected before dispatch.
 from __future__ import annotations
 
 import json
+import secrets
 import uuid
 from typing import Any, Dict, Tuple
 
@@ -116,7 +117,7 @@ def validate_request(msg: Dict[str, Any], expected_token: str) -> Tuple[bool, st
     token = msg.get("token")
     if not isinstance(token, str) or not token:
         return False, "missing token"
-    if token != expected_token:
+    if not isinstance(expected_token, str) or not secrets.compare_digest(token, expected_token):
         return False, "token mismatch"
     payload = msg.get("payload")
     if not isinstance(payload, dict):

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -108,7 +109,7 @@ def is_managed_subscription(
         candidate_state = str(
             subscription_payload.get("client_state") or subscription_payload.get("clientState") or ""
         ).strip()
-        if candidate_state and candidate_state == expected_client_state_value:
+        if candidate_state and secrets.compare_digest(candidate_state, expected_client_state_value):
             return True
 
     return False
