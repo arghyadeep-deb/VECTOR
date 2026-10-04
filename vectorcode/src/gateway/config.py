@@ -1304,7 +1304,7 @@ def _apply_env_overrides(config: GatewayConfig) -> None:
             if legacy_home:
                 qq_home = legacy_home
                 qq_home_name_env = "QQ_HOME_CHANNEL_NAME"
-                logging.getLogger(__name__).warning(
+                logger.warning(
                     "QQ_HOME_CHANNEL is deprecated; rename to QQBOT_HOME_CHANNEL "
                     "in your .env for consistency with the platform key."
                 )
