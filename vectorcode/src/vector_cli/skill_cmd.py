@@ -173,9 +173,14 @@ def _get_resolver(source: str, url: str = ""):
 
         from vectorcode.src.skills.sources.github import GitHubResolver
 
-        cache = _Path(
-            "~/.openjarvis/skill-cache/github/" + url.rstrip("/").rsplit("/", 1)[-1]
-        ).expanduser()
+        # The derived cache-dir name is a single path component -- reject
+        # anything that isn't one (empty, ".", "..", or embedding a path
+        # separator) rather than letting a crafted --url (e.g. ending in
+        # "..") place the cache directory outside skill-cache/github/.
+        cache_name = url.rstrip("/").rsplit("/", 1)[-1]
+        if not cache_name or cache_name in (".", "..") or "/" in cache_name or "\\" in cache_name:
+            raise click.BadParameter(f"Could not derive a safe cache directory name from --url: {url!r}")
+        cache = _Path("~/.openjarvis/skill-cache/github/" + cache_name).expanduser()
         return GitHubResolver(cache_root=cache, repo_url=url)
     raise click.BadParameter(f"Unknown source: {source!r}")
 

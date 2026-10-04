@@ -37,8 +37,13 @@ class GitHubResolver(SourceResolver):
             )
         else:
             self._cache_root.parent.mkdir(parents=True, exist_ok=True)
+            # `--` ends option parsing so a repo_url starting with "-" (e.g.
+            # "--upload-pack=...", a known git-clone RCE primitive) is always
+            # treated as a positional argument, never as a flag. repo_url
+            # comes from a CLI --url option (see cli/skill_cmd.py and
+            # vector_cli/skill_cmd.py), so it is attacker-controllable input.
             subprocess.run(
-                ["git", "clone", self._repo_url, str(self._cache_root)],
+                ["git", "clone", "--", self._repo_url, str(self._cache_root)],
                 check=True,
             )
 
