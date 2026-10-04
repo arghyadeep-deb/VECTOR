@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 import json
-import logging
 import sqlite3
 import threading
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _MAX_HISTORY_TURNS = 20
 
@@ -27,6 +26,13 @@ class SessionStore:
 
         secure_create(Path(db_path))
         self._lock = threading.RLock()
+        # FLAGGED, not fixed: this stores real per-sender conversation
+        # history (sender_id + message content, i.e. real user data) via a
+        # raw, unencrypted sqlite3.connect() rather than through
+        # core.memory.episodic.get_db_connection()'s SQLCipher-backed
+        # connection, as CLAUDE.md requires for the main DB. Migrating an
+        # existing on-disk plaintext sessions.db to an encrypted schema is
+        # a data-migration/schema decision for the owner, not a narrow fix.
         self._db = sqlite3.connect(db_path, check_same_thread=False)
         self._db.execute("PRAGMA busy_timeout=5000")
         self._db.row_factory = sqlite3.Row
