@@ -13,10 +13,17 @@ import secrets
 import socket
 import struct
 from typing import Optional
-try:
-    from defusedxml import ElementTree as ET
-except ImportError:
-    from xml.etree import ElementTree as ET
+# NOTE: this module only ever BUILDS XML (encrypt()'s response envelope),
+# it never parses untrusted XML -- confirmed via grep, ET.* is used
+# nowhere else in this file. defusedxml.ElementTree deliberately exposes
+# only parsing functions (fromstring/parse/XML), never Element/SubElement/
+# tostring, since its whole purpose is guarding untrusted-input parsing.
+# A guarded `try: import defusedxml ... except ImportError: xml.etree`
+# dance here was both pointless (nothing to guard) and broken (encrypt()
+# raised AttributeError immediately whenever defusedxml was installed,
+# confirmed live) -- same bug as the dormant comms/wecom_crypto.py copy
+# this is the real counterpart of. Always use the real builder.
+from xml.etree import ElementTree as ET
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -90,7 +97,12 @@ class WXBizMsgCrypt:
 
     def decrypt(self, msg_signature: str, timestamp: str, nonce: str, encrypt: str) -> bytes:
         expected = _sha1_signature(self.token, timestamp, nonce, encrypt)
-        if expected != msg_signature:
+        # Timing-unsafe comparison on a crypto signature -- a plain != leaks
+        # how many leading characters matched via response timing. Same bug
+        # class fixed in vectorcode/src/comms/{wecom_crypto,wecom_callback}.py
+        # this cycle; this is the REAL, live copy those are dormant
+        # duplicates of.
+        if not secrets.compare_digest(expected, msg_signature):
             raise SignatureError("signature mismatch")
         try:
             cipher_text = base64.b64decode(encrypt)
