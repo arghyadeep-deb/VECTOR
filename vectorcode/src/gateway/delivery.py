@@ -8,7 +8,7 @@ Routes messages to the appropriate destination based on:
 - Local (always saved to files)
 """
 
-import logging
+from loguru import logger
 from pathlib import Path
 from datetime import datetime
 from dataclasses import dataclass
@@ -16,13 +16,19 @@ from typing import Dict, List, Optional, Any
 
 from vector_cli.config import get_vector_home
 
-logger = logging.getLogger(__name__)
-
 MAX_PLATFORM_OUTPUT = 4000
 TRUNCATED_VISIBLE = 3800
 
 from .config import Platform, GatewayConfig
 from .session import SessionSource
+
+
+def _validate_job_id(job_id: str) -> str:
+    """Return a job ID that is safe to use as one filesystem component."""
+    value = str(job_id)
+    if value in {"", ".", ".."} or Path(value).name != value or "/" in value or "\\" in value:
+        raise ValueError("job_id must be a safe path component")
+    return value
 
 
 @dataclass
@@ -177,7 +183,7 @@ class DeliveryRouter:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         
         if job_id:
-            output_path = self.output_dir / job_id / f"{timestamp}.md"
+            output_path = self.output_dir / _validate_job_id(job_id) / f"{timestamp}.md"
         else:
             output_path = self.output_dir / "misc" / f"{timestamp}.md"
         
@@ -215,6 +221,7 @@ class DeliveryRouter:
     def _save_full_output(self, content: str, job_id: str) -> Path:
         """Save full cron output to disk and return the file path."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        job_id = _validate_job_id(job_id)
         out_dir = get_vector_home() / "cron" / "output"
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"{job_id}_{timestamp}.txt"
@@ -240,7 +247,7 @@ class DeliveryRouter:
         if len(content) > MAX_PLATFORM_OUTPUT:
             job_id = (metadata or {}).get("job_id", "unknown")
             saved_path = self._save_full_output(content, job_id)
-            logger.info("Cron output truncated (%d chars) — full output: %s", len(content), saved_path)
+            logger.info("Cron output truncated ({} chars) — full output: {}", len(content), saved_path)
             content = (
                 content[:TRUNCATED_VISIBLE]
                 + f"\n\n... [truncated, full output saved to {saved_path}]"
