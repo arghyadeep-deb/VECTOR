@@ -72,7 +72,7 @@ def _new_session_record(session_id: str, model: str, project_dir: str) -> dict:
 class GatewayServer:
     """VectorCode HTTP gateway — exposes agent execution over REST + SSE."""
 
-    def __init__(self, host: str = "0.0.0.0", port: int = 8900) -> None:
+    def __init__(self, host: str = "127.0.0.1", port: int = 8900) -> None:
         self.host = host
         self.port = port
         self._sessions: Dict[str, dict] = {}          # session_id → session state
@@ -219,14 +219,8 @@ class GatewayServer:
                     mode=req.mode,
                     metadata=req.metadata,
                 )
-                loop = asyncio.get_event_loop()
-                result = await loop.run_in_executor(
-                    None,
-                    lambda: asyncio.run(server_ref._run_task(session_id, run_req))
-                    if not asyncio.get_event_loop().is_running()
-                    else server_ref._run_task_sync(session_id, run_req),
-                )
-                sess["status"] = "complete"
+                result = await server_ref._run_task(session_id, run_req)
+                sess["status"] = result.status
                 sess["result"] = result
                 return {
                     "session_id":     result.session_id,
