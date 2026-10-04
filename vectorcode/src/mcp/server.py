@@ -1,11 +1,7 @@
 """VectorCode v3 MCP Server — expose tools, config, and memory via MCP protocol."""
 
-import json
-import logging
+import inspect
 from typing import Any, Optional
-
-logger = logging.getLogger(__name__)
-
 
 class MCPTool:
     def __init__(self, name: str, description: str, handler: callable,
@@ -31,7 +27,9 @@ class MCPServer:
         tool = self._tools.get(name)
         if not tool: return {"error": f"Unknown tool: {name}"}
         try:
-            result = await tool.handler(**args) if hasattr(tool.handler, '__await__') else tool.handler(**args)
+            result = tool.handler(**args)
+            if inspect.isawaitable(result):
+                result = await result
             return {"result": result}
         except Exception as e:
             return {"error": str(e)}

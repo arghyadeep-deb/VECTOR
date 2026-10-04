@@ -1,12 +1,9 @@
 """MCP protocol manager — tool discovery, version negotiation, lifecycle."""
 
-import logging
 from typing import Any
 
-from mcp.server import MCPServer
-from mcp.transports import MCPTransport, StdioTransport, HTTPTransport
-
-logger = logging.getLogger(__name__)
+from .server import MCPServer
+from .transports import HTTPTransport, MCPTransport, StdioTransport
 
 _MCP_SERVERS: dict[str, MCPServer] = {}
 
@@ -18,7 +15,10 @@ def create_server(name: str = "vectorcode") -> MCPServer:
 
 
 def get_server(name: str = "vectorcode") -> MCPServer:
-    return _MCP_SERVERS.get(name, create_server(name))
+    server = _MCP_SERVERS.get(name)
+    if server is None:
+        server = create_server(name)
+    return server
 
 
 def create_transport(server: MCPServer, transport_type: str = "stdio", **kwargs) -> MCPTransport:

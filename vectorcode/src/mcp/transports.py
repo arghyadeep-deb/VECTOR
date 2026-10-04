@@ -2,10 +2,10 @@
 
 import asyncio
 import json
-import logging
+import sys
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class MCPTransport:
@@ -28,7 +28,8 @@ class StdioTransport(MCPTransport):
             if not line: continue
             message = json.loads(line)
             response = await self.handle(message)
-            print(json.dumps(response), flush=True)
+            sys.stdout.write(json.dumps(response) + "\n")
+            sys.stdout.flush()
 
 
 class HTTPTransport(MCPTransport):
