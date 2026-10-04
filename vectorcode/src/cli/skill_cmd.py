@@ -148,7 +148,7 @@ def _parse_source_query(query: str) -> tuple[str, str]:
 def _get_resolver(source: str, url: str = ""):
     """Return a resolver instance for the given source name."""
     if source == "vector":
-        from vectorcode.src.skills.sources.vector import VectorSkillResolver
+        from vectorcode.src.skills.sources.vector_source import VectorSkillResolver
 
         return VectorSkillResolver()
     if source == "openclaw":
