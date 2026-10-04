@@ -1,10 +1,7 @@
 """VectorCode v3 WorkflowEngine — task execution pipeline with lifecycle."""
 
 import asyncio
-import logging
 from typing import Any, Optional
-
-logger = logging.getLogger(__name__)
 
 class WorkflowEngine:
     def __init__(self):
@@ -23,8 +20,13 @@ class WorkflowEngine:
                 results.append({"step": i, "status": "failed", "error": str(e)})
                 break
 
-        self._workflows[wf_id] = {"status": "completed", "results": results}
-        return {"id": wf_id, "status": "completed", "results": results}
+        # Phantom success: the top-level status used to always say
+        # "completed" even when a step failed and the loop broke early
+        # (visible per-step as status="failed", but never surfaced at the
+        # workflow level) -- same bug class fixed 50+ times this cycle.
+        overall = "failed" if any(r["status"] == "failed" for r in results) else "completed"
+        self._workflows[wf_id] = {"status": overall, "results": results}
+        return {"id": wf_id, "status": overall, "results": results}
 
     async def _execute_step(self, step: dict, index: int) -> Any:
         action = step.get("action", "")
