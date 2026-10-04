@@ -2594,3 +2594,71 @@ isn't "proven in production" until you supply the service/device and run it live
     entry explicitly does not claim the learning scope complete. Commit was attempted with
     specific paths, but the sandbox could not create `.git/index.lock` (`Permission denied`);
     the verified changes remain uncommitted for review.
+
+48. **`vectorcode/src/{vc_agents,connectors,vc_tools}/` continuation (122 tracked Python files,
+    partial, 2026-10-05) —** resumed where a prior same-scope fork had stopped after hitting a
+    session usage limit (its own partial work — `vc_tools/git_tool.py`, `vc_agents/manager.py`,
+    `vc_agents/monitor_operative.py`, 4 loguru-shadow files, and `connectors/gcalendar.py`'s
+    threading.Thread design-decision flag — was already committed separately). **Fixed:** 16
+    files used plain stdlib `logging.getLogger(__name__)` with zero loguru import at all
+    (`connectors/{apple_music,gmail_imap,scheduler,whatsapp}.py`, `vc_agents/{__init__,
+    claude_code,executor,morning_digest,prompt_loader,rlm_repl,scheduler}.py`,
+    `vc_tools/{agent_tools,description_loader,http_request,web_search}.py`,
+    `vc_tools/templates/loader.py`) — converted all to loguru and every %-style placeholder
+    found therein (commit `0edf568b2`). A separate, easily-missed shape: 12 *more* files
+    (`connectors/{apple_contacts,attachment_store,gcalendar,gcontacts,gdrive,
+    github_notifications,news_rss,oauth,store,sync_engine}.py`, `vc_tools/digest_collect.py`,
+    `vc_tools/storage/sqlite.py`) already correctly imported loguru with no shadow at all, but
+    still had one leftover %-style placeholder each (mostly the repo-wide
+    `"[VECTOR][module] suppressed <ExcType>: %s"` convention) — missed by a same-line-only grep
+    since the format string and substituted variable often sit on different source lines; found
+    via a multi-line-aware scan of each `logger.*(...)` call's full argument list and fixed
+    (commit `10e58dbae`). Two instances of stdlib's `exc_info=True` kwarg (which loguru's
+    `.debug()`/`.warning()` silently ignore) were replaced with `logger.opt(exception=True)`,
+    loguru's real equivalent. `vc_agents/rlm_repl.py`'s `execute()` had a second, distinct bug:
+    despite the module correctly importing loguru at the top, this one method did a local
+    `import logging; logging.getLogger(__name__).warning(..., "%.200s", code)`, silently
+    bypassing the module's own correct logger with a fresh stdlib one — fixed to use the module
+    logger with `{:.200}` (verified live to truncate identically to `%.200s`).
+    New tests: `tests/test_vectorcode_vc_agents_connectors_vc_tools_logging.py` (5) and
+    `tests/test_vectorcode_connectors_vc_tools_loguru_placeholders.py` (3, including a live
+    loguru-sink proof that `{}` substitutes while `%s` does not) — 8/8 passing.
+    **Reviewed, no bug found:** all 10 `print()` call sites flagged by an initial grep in
+    `vc_agents/{agent_registry,image_agent,insight_agent,memory_agent,reasoning_agent,
+    routing_agent,skill_agent,tool_agent,video_agent,web_search_agent}.py` are inside each
+    file's own `if __name__ == "__main__":` self-test block (confirmed: every `print()` line
+    number falls after that file's `__main__` guard line), matching CLAUDE.md's own mandated
+    per-file self-test convention — not a violation. `threading.RLock()` usage in
+    `connectors/{attachment_store,store,sync_engine}.py`, `vc_agents/digest_store.py`, and
+    `vc_tools/storage/{knowledge_graph,sqlite}.py` is a synchronization primitive protecting
+    shared mutable state, not the banned "spawn a worker thread instead of asyncio" pattern —
+    left as-is. `connectors/{gcontacts,gdrive}.py`'s `handle_callback()` raw `threading.Thread`
+    spawns are the identical shape already flagged (not fixed) via `connectors/gcalendar.py`'s
+    design-decision comment, which explicitly cross-references both files by name — not
+    re-flagged here to avoid triplicating the same comment.
+    **FLAGGED, not fixed — owner decision needed:** raw `sqlite3.connect()` bypassing
+    `core.memory.episodic.get_db_connection()`'s SQLCipher gateway in
+    `connectors/{attachment_store,store,sync_engine}.py`, `vc_agents/digest_store.py`, and
+    `vc_tools/storage/{knowledge_graph,sqlite}.py` — these six persist VECTOR's own connector
+    sync state, attachments, digests, and knowledge-graph data unencrypted on disk, the same
+    bypass pattern flagged repeatedly elsewhere this audit; encrypting them is a migration
+    decision, not a narrow fix. By contrast, `connectors/{apple_contacts,apple_notes,
+    imessage}.py`'s `sqlite3.connect(..., mode=ro)` calls open **Apple's own macOS system
+    databases** (Contacts.sqlite, Notes.sqlite, chat.db) read-only — these are not VECTOR's data
+    store at all and cannot be run through the SQLCipher gateway (VECTOR doesn't create or own
+    them), so they are correctly out of scope for this finding, not an oversight.
+    `vc_tools/db_query.py`'s `sqlite3.connect(conn_str, ...)` is a generic SQL-query tool that
+    connects to whatever connection string its caller supplies (by design, per its own
+    docstring: "execute SQL queries against SQLite and PostgreSQL") — not VECTOR's own
+    persisted store either, so likewise correctly out of scope.
+    **Depth statement:** 27 files received genuine full-depth review with real fixes this
+    continuation (16 + 12, with `connectors/gdrive.py` counted once), plus the 10 `print()`
+    files and the 6 `threading.RLock`/raw-sqlite3 files above received a specific, judgment-based
+    review (not a rushed skim) even though most needed no change. Combined with the prior
+    fork's 10 files, roughly 52 of 122 files in this 3-directory scope now have real depth; the
+    remaining ~70 files (most of `vc_agents/` proper — `agent_registry.py`, `orchestrator.py`,
+    `rlm.py`, `simple.py`, etc. — most of `connectors/` — `dropbox.py`, `gdrive.py`'s own
+    non-threading logic, `notion.py`, `obsidian.py`, `slack_connector.py`, `spotify.py`, etc. —
+    and most of `vc_tools/` — `browser.py`, `code_interpreter*.py`, `knowledge_search.py`,
+    `pdf_tool.py`, `shell_exec.py`, storage backends other than sqlite/knowledge_graph, etc. —
+    still need their own continuation pass and should not be treated as audited.
