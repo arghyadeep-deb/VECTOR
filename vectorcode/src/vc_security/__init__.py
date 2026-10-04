@@ -7,9 +7,10 @@
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
 from typing import Any, Optional
+
+from loguru import logger
 
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_security._abc import BaseScanner
@@ -30,8 +31,6 @@ from vectorcode.src.vc_security.types import (
     SecurityEventType,
     ThreatLevel,
 )
-
-logger = logging.getLogger(__name__)
 
 @dataclass
 class SecurityContext:
@@ -72,7 +71,7 @@ def setup_security(
                 bus=bus,
             )
     except Exception as exc:
-        logger.debug("Failed to set up security scanners: %s", exc)
+        logger.debug("Failed to set up security scanners: {}", exc)
 
     # Capability policy
     cap_policy = None
@@ -84,7 +83,7 @@ def setup_security(
                 policy_path=config.security.capabilities.policy_path or None,
             )
         except Exception as exc:
-            logger.debug("Failed to set up capability policy: %s", exc)
+            logger.debug("Failed to set up capability policy: {}", exc)
 
     # Audit logger
     audit = None
@@ -94,7 +93,7 @@ def setup_security(
             bus=bus,
         )
     except Exception as exc:
-        logger.debug("Failed to set up audit logger: %s", exc)
+        logger.debug("Failed to set up audit logger: {}", exc)
 
     return SecurityContext(
         engine=engine,

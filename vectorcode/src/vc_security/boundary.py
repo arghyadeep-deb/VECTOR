@@ -12,9 +12,10 @@ or external tool calls.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import replace
 from typing import TYPE_CHECKING, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.vc_core.types import ToolCall
 from vectorcode.src.vc_security.guardrails import SecurityBlockError
@@ -22,8 +23,6 @@ from vectorcode.src.vc_security.guardrails import SecurityBlockError
 if TYPE_CHECKING:
     from vectorcode.src.vc_core.events import EventBus
     from vectorcode.src.vc_security._abc import BaseScanner
-
-logger = logging.getLogger(__name__)
 
 class BoundaryGuard:
     """Scans outbound content for secrets and PII at device boundaries.
@@ -65,7 +64,7 @@ class BoundaryGuard:
             return [SecretScanner(), PIIScanner()]
         except (ImportError, Exception) as exc:
             logger.warning(
-                "Rust-backed scanners unavailable (%s); "
+                "Rust-backed scanners unavailable ({}); "
                 "BoundaryGuard running without scanners. "
                 "Build the Rust extension: uv run maturin develop",
                 exc,
@@ -99,7 +98,7 @@ class BoundaryGuard:
                 )
             if self._mode == "warn":
                 logger.warning(
-                    "Secrets/PII detected in outbound content to %s", destination
+                    "Secrets/PII detected in outbound content to {}", destination
                 )
                 return content
             return redacted
@@ -137,4 +136,4 @@ class BoundaryGuard:
                 },
             )
         except Exception:
-            logger.debug("Failed to emit security alert event", exc_info=True)
+            logger.opt(exception=True).debug("Failed to emit security alert event")

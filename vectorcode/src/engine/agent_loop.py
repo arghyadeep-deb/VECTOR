@@ -54,7 +54,7 @@ class _SafeWriter:
         try:
             self._inner.flush()
         except (OSError, ValueError) as _sve:
-            logger.warning("[VECTOR][engine.agent_loop] suppressed (OSError, ValueError): %s", _sve)
+            logger.warning("[VECTOR][engine.agent_loop] suppressed (OSError, ValueError): {}", _sve)
 
     def fileno(self):
         return self._inner.fileno()
@@ -284,13 +284,13 @@ class VectorAgent:
         final_response = ""
 
         logger.info(
-            "[VECTOR][agent_loop] session=%s model=%s task=%s history=%d",
+            "[VECTOR][agent_loop] session={} model={} task={} history={}",
             self.session_id, self.model_id, effective_task_id[:8], len(messages)
         )
 
         while self.iteration_budget.remaining > 0:
             if not self.iteration_budget.consume():
-                logger.warning("[VECTOR][agent_loop] iteration budget exhausted at %d", api_call_count)
+                logger.warning("[VECTOR][agent_loop] iteration budget exhausted at {}", api_call_count)
                 final_response = self._handle_max_iterations(messages, api_call_count)
                 break
 
@@ -299,13 +299,13 @@ class VectorAgent:
                 try:
                     self._step_cb(api_call_count, self.model_id, 0)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: {}", _sve)
 
             # ── Call the model ────────────────────────────────────────────────
             try:
                 response = self._call_model(messages, system_message, tool_schemas)
             except Exception as e:
-                logger.error("[VECTOR][agent_loop] model call failed: %s", e)
+                logger.error("[VECTOR][agent_loop] model call failed: {}", e)
                 final_response = f"[VECTOR error: model call failed — {e}]"
                 break
 
@@ -333,7 +333,7 @@ class VectorAgent:
                 try:
                     self._step_cb(api_call_count, self.model_id, len(tool_calls))
                 except Exception as _sve:
-                    logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: {}", _sve)
 
             # Append assistant message with tool_calls
             assistant_msg: dict = {"role": "assistant", "content": assistant_content or ""}
@@ -551,7 +551,7 @@ class VectorAgent:
                         f"[BLOCKED: user denied {tool_name}]",
                     )
             except Exception as _sve:
-                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: {}", _sve)
 
         # Notify start
         if self._tool_start_cb:
@@ -559,7 +559,7 @@ class VectorAgent:
                 preview = json.dumps(args)[:80]
                 self._tool_start_cb(tool_name, preview)
             except Exception as _sve:
-                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: {}", _sve)
 
         t0 = time.perf_counter()
 
@@ -569,7 +569,7 @@ class VectorAgent:
             output = router.execute(tool_name, args)
         except Exception as e:
             output = f"[{tool_name} error: {e}]"
-            logger.error("[VECTOR][agent_loop] tool %s failed: %s", tool_name, e)
+            logger.error("[VECTOR][agent_loop] tool {} failed: {}", tool_name, e)
 
         duration_ms = int((time.perf_counter() - t0) * 1000)
 
@@ -578,7 +578,7 @@ class VectorAgent:
             try:
                 self._tool_complete_cb(tool_name, str(output)[:100], duration_ms)
             except Exception as _sve:
-                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: {}", _sve)
 
         self.session.tool_calls.append({
             "name": tool_name, "args": args, "duration_ms": duration_ms,
@@ -605,7 +605,7 @@ class VectorAgent:
             )
             return compactor.compact(messages)
         except Exception as e:
-            logger.warning("[VECTOR][agent_loop] compaction failed: %s", e)
+            logger.warning("[VECTOR][agent_loop] compaction failed: {}", e)
             return messages
 
     # ── Max iterations handler ────────────────────────────────────────────────
@@ -615,7 +615,7 @@ class VectorAgent:
             f"⚠️ Iteration budget exhausted ({iteration_count}/{self.max_iterations}). "
             "Generating summary of work completed so far."
         )
-        logger.warning("[VECTOR][agent_loop] %s", warn)
+        logger.warning("[VECTOR][agent_loop] {}", warn)
         if not self.quiet_mode:
             print(warn)
 
@@ -669,7 +669,7 @@ class VectorAgent:
             with traj_path.open("a", encoding="utf-8") as f:
                 f.write(_json.dumps(record, ensure_ascii=False) + "\n")
         except Exception as e:
-            logger.debug("[VECTOR][agent_loop] trajectory save failed: %s", e)
+            logger.debug("[VECTOR][agent_loop] trajectory save failed: {}", e)
 
 
 # ── Convenience factory ───────────────────────────────────────────────────────

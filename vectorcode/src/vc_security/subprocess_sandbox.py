@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import shlex
 import signal
@@ -15,7 +14,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Safe environment variables to pass through
 _SAFE_ENV_VARS = frozenset(
@@ -64,14 +63,26 @@ def build_safe_env(
 
 def kill_process_tree(pid: int) -> None:
     """Kill a process and all its children (best effort)."""
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(pid), "/T", "/F"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError as exc:
+            logger.debug("Failed to terminate Windows process tree {}: {}", pid, exc)
+        return
+
     try:
         os.killpg(os.getpgid(pid), signal.SIGTERM)
     except (OSError, ProcessLookupError) as exc:
-        logger.debug("Failed to terminate process %d: %s", pid, exc)
+        logger.debug("Failed to terminate process {}: {}", pid, exc)
     try:
         os.kill(pid, signal.SIGKILL)
     except (OSError, ProcessLookupError) as exc:
-        logger.debug("Failed to kill process %d: %s", pid, exc)
+        logger.debug("Failed to kill process {}: {}", pid, exc)
 
 def run_sandboxed(
     command: str,
@@ -95,6 +106,11 @@ def run_sandboxed(
 
     result = SandboxResult()
     try:
+        process_group_options = (
+            {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+            if os.name == "nt"
+            else {"preexec_fn": os.setsid}
+        )
         proc = subprocess.Popen(
             shlex.split(command),
             stdout=subprocess.PIPE,
@@ -102,7 +118,7 @@ def run_sandboxed(
             text=True,
             env=env,
             cwd=cwd,
-            preexec_fn=os.setsid,  # New process group
+            **process_group_options,
         )
         try:
             stdout, stderr = proc.communicate(timeout=timeout)

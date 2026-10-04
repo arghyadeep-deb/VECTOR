@@ -27,7 +27,7 @@ class _SafeWriter:
         try:
             self._inner.flush()
         except (OSError, ValueError) as _sve:
-            logger.warning("[VECTOR][engine.safety] suppressed (OSError, ValueError): %s", _sve)
+            logger.warning("[VECTOR][engine.safety] suppressed (OSError, ValueError): {}", _sve)
 
     def fileno(self):
         return self._inner.fileno()

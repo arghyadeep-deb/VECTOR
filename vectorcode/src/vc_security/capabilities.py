@@ -9,13 +9,12 @@ from __future__ import annotations
 
 import fnmatch
 import json
-import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 class Capability(str, Enum):
     """Fine-grained capability labels."""
@@ -69,7 +68,7 @@ class CapabilityPolicy:
         try:
             from vectorcode.src._rust_bridge import get_rust_module
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         _rust = get_rust_module()
         self._rust_impl = _rust.CapabilityPolicy(default_deny=default_deny)
@@ -152,7 +151,7 @@ class CapabilityPolicy:
                 for denied in agent_data.get("deny", []):
                     self.deny(agent_id, denied)
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            logger.warning("Failed to parse capability policy: %s", exc)
+            logger.warning("Failed to parse capability policy: {}", exc)
 
     def save(self, path: Path) -> None:
         """Save policy to a JSON file."""

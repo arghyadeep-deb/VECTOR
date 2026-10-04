@@ -8,10 +8,9 @@
 from __future__ import annotations
 
 import base64
-import logging
 from dataclasses import dataclass
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @dataclass(slots=True)
 class KeyPair:
@@ -92,7 +91,7 @@ def verify_b64(data: bytes, signature_b64: str, public_key: bytes) -> bool:
     try:
         raw = base64.b64decode(signature_b64)
     except Exception as exc:
-        logger.warning("Signature verification failed: %s", exc)
+        logger.warning("Signature verification failed: {}", exc)
         return False
     return verify(data, raw, public_key)
 
@@ -106,7 +105,7 @@ def load_public_key(path: str) -> bytes:
         try:
             raw = base64.b64decode(raw.strip())
         except Exception as exc:
-            logger.warning("Failed to base64-decode public key from %s: %s", path, exc)
+            logger.warning("Failed to base64-decode public key from {}: {}", path, exc)
     return raw
 
 def save_keypair(keypair: KeyPair, private_path: str, public_path: str) -> None:

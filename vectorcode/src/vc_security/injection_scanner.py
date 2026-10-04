@@ -132,7 +132,7 @@ class InjectionScanner:
         try:
             from vectorcode.src._rust_bridge import get_rust_module
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         _rust = get_rust_module()
         self._rust_impl = _rust.InjectionScanner()
@@ -142,7 +142,7 @@ class InjectionScanner:
         try:
             from vectorcode.src._rust_bridge import injection_result_from_json
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         return injection_result_from_json(self._rust_impl.scan(text))
 
