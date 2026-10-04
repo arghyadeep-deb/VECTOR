@@ -7,7 +7,7 @@
 
 Invoked as:
     python vector_runner.py \\
-        --task <prompt> --model <m> --base-url <url> --api-key <k> \\
+        --task <prompt> --model <m> --base-url <url> \\
         --api-mode <mode> --output-json <path> [--workspace <path>] \\
         [--max-iterations 90] [--system-prompt <s>]
 
@@ -24,13 +24,13 @@ import json
 import os
 import sys
 import traceback
+from pathlib import Path
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--task", required=True)
     parser.add_argument("--model", required=True)
     parser.add_argument("--base-url", required=True)
-    parser.add_argument("--api-key", required=True)
     parser.add_argument("--api-mode", default="chat_completions")
     parser.add_argument("--output-json", required=True, type=Path)
     parser.add_argument("--workspace", default="")
@@ -52,6 +52,13 @@ def main() -> int:
         output["error"] = "VECTOR_AGENT_PATH not set"
         args.output_json.write_text(json.dumps(output))
         return 2
+    api_key = os.environ.get("VECTOR_EVAL_API_KEY")
+    if not api_key:
+        output["error"] = "VECTOR_EVAL_API_KEY not set"
+        args.output_json.write_text(json.dumps(output))
+        return 2
+
+    sys.path.insert(0, vector_path)
 
     if args.workspace:
         os.chdir(args.workspace)
@@ -66,7 +73,7 @@ def main() -> int:
     try:
         agent = AIAgent(
             base_url=args.base_url,
-            api_key=args.api_key,
+            api_key=api_key,
             model=args.model,
             api_mode=args.api_mode,
             max_iterations=args.max_iterations,

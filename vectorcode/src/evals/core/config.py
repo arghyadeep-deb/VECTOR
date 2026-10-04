@@ -7,11 +7,12 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import sys
 from pathlib import Path
 from typing import List
+
+from loguru import logger
 
 from vectorcode.src.evals.core.types import (
     BenchmarkConfig,
@@ -34,8 +35,6 @@ else:
             "Python 3.10 requires the 'tomli' package. "
             "Install it with: pip install tomli"
         ) from exc
-
-logger = logging.getLogger(__name__)
 
 VALID_BACKENDS = {
     "vector-direct",
@@ -192,7 +191,7 @@ def load_eval_config(path: str | Path) -> EvalSuiteConfig:
 
         bench_name = b["name"]
         if bench_name not in KNOWN_BENCHMARKS:
-            logger.warning("Unknown benchmark name: '%s'", bench_name)
+            logger.warning("Unknown benchmark name: '{}'", bench_name)
 
         tools_raw = b.get("tools", [])
         record_ids_raw = b.get("record_ids")

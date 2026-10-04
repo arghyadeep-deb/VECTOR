@@ -18,16 +18,15 @@ catalog, and ground-truth product selections with constraint metadata.
 from __future__ import annotations
 
 import json
-import logging
 import random
 import tarfile
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional
 
+from loguru import logger
+
 from vectorcode.src.evals.core.dataset import DatasetProvider
 from vectorcode.src.evals.core.types import EvalRecord
-
-logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = (
     "You are a shopping assistant. Given the user's request and a product catalog, "
@@ -79,12 +78,12 @@ class DeepPlanningDataset(DatasetProvider):
         for level in [1, 2, 3]:
             tar_path = snapshot_dir / f"database_level{level}.tar.gz"
             if not tar_path.exists():
-                logger.warning("Missing %s", tar_path)
+                logger.warning("Missing {}", tar_path)
                 continue
             level_records = self._extract_cases(tar_path, level)
             records.extend(level_records)
 
-        logger.info("Loaded %d DeepPlanning cases", len(records))
+        logger.info("Loaded {} DeepPlanning cases", len(records))
 
         if seed is not None:
             random.Random(seed).shuffle(records)
@@ -165,7 +164,7 @@ class DeepPlanningDataset(DatasetProvider):
                     if rec:
                         records.append(rec)
         except Exception:
-            logger.warning("Failed to read %s", tar_path, exc_info=True)
+            logger.opt(exception=True).warning("Failed to read {}", tar_path)
         return records
 
     def _case_to_record(

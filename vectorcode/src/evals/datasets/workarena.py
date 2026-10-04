@@ -18,15 +18,14 @@ Requires: pip install browsergym-workarena playwright==1.44.0
 
 from __future__ import annotations
 
-import logging
 import os
 import random
 from typing import Iterable, List, Optional
 
+from loguru import logger
+
 from vectorcode.src.evals.core.dataset import DatasetProvider
 from vectorcode.src.evals.core.types import EvalRecord
-
-logger = logging.getLogger(__name__)
 
 _WORKARENA_IMPORT_ERROR: str = ""
 try:
@@ -118,7 +117,7 @@ class WorkArenaDataset(DatasetProvider):
             self._episodes.append([record])
 
         logger.info(
-            "WorkArena[%s]: loaded %d task instances",
+            "WorkArena[{}]: loaded {} task instances",
             self._level,
             len(self._records),
         )
@@ -192,7 +191,9 @@ class WorkArenaDataset(DatasetProvider):
                     return "l3"
                 return "l2"
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug(
+                "[VECTOR][evals.datasets.workarena] compositional task import unavailable"
+            )
 
         if task_class in ATOMIC_TASKS:
             return "l1"

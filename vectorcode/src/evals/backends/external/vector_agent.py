@@ -98,8 +98,6 @@ class VectorAgentBackend(InferenceBackend):
                 model,
                 "--base-url",
                 self._base_url,
-                "--api-key",
-                self._api_key,
                 "--api-mode",
                 self._api_mode,
                 "--max-iterations",
@@ -112,6 +110,7 @@ class VectorAgentBackend(InferenceBackend):
 
             env = dict(os.environ)
             env["VECTOR_AGENT_PATH"] = str(self._entry.path)
+            env["VECTOR_EVAL_API_KEY"] = self._api_key
 
             result = run_one_shot(
                 cmd=cmd,
