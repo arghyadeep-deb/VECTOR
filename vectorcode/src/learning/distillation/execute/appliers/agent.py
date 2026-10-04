@@ -11,8 +11,9 @@ See spec §4.1 op semantics for agent ops.
 from __future__ import annotations
 
 import json
-import logging
 from pathlib import Path
+
+from loguru import logger
 
 from vectorcode.src.learning.distillation.execute.base import (
     ApplyContext,
@@ -23,10 +24,16 @@ from vectorcode.src.learning.distillation.execute.base import (
 from vectorcode.src.learning.distillation.models import Edit, EditOp
 from vectorcode.src.learning.distillation.plan.prompt_diff import apply_unified_diff
 
-logger = logging.getLogger(__name__)
-
 def _agent_prompt_path(ctx: ApplyContext, agent_name: str) -> Path:
-    return ctx.agents_dir / agent_name / "system_prompt.md"
+    return _agent_dir(ctx, agent_name) / "system_prompt.md"
+
+def _agent_dir(ctx: ApplyContext, agent_name: str) -> Path:
+    """Resolve an untrusted agent name without permitting directory escape."""
+    agents_dir = ctx.agents_dir.resolve()
+    agent_dir = (agents_dir / agent_name).resolve()
+    if agent_dir.parent != agents_dir:
+        raise ValueError(f"Invalid agent name: {agent_name!r}")
+    return agent_dir
 
 def _extract_agent_name(edit: Edit) -> str:
     """Extract agent name from edit target or payload."""
@@ -47,7 +54,10 @@ class ReplaceSystemPromptApplier(EditApplier):
         if "new_content" not in edit.payload:
             return ValidationResult(ok=False, reason="Missing new_content in payload")
         agent = _extract_agent_name(edit)
-        prompt_path = _agent_prompt_path(ctx, agent)
+        try:
+            prompt_path = _agent_prompt_path(ctx, agent)
+        except (TypeError, ValueError) as exc:
+            return ValidationResult(ok=False, reason=str(exc))
         if not prompt_path.parent.exists():
             return ValidationResult(
                 ok=False, reason=f"Agent directory not found: {prompt_path.parent}"
@@ -208,7 +218,10 @@ class EditFewShotExemplarsApplier(EditApplier):
         if "exemplars" not in edit.payload:
             return ValidationResult(ok=False, reason="Missing exemplars in payload")
         agent = _extract_agent_name(edit)
-        agent_dir = ctx.agents_dir / agent
+        try:
+            agent_dir = _agent_dir(ctx, agent)
+        except (TypeError, ValueError) as exc:
+            return ValidationResult(ok=False, reason=str(exc))
         if not agent_dir.exists():
             return ValidationResult(
                 ok=False, reason=f"Agent directory not found: {agent_dir}"
@@ -217,7 +230,7 @@ class EditFewShotExemplarsApplier(EditApplier):
 
     def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
         agent = _extract_agent_name(edit)
-        fs_path = ctx.agents_dir / agent / "few_shot.json"
+        fs_path = _agent_dir(ctx, agent) / "few_shot.json"
         fs_path.write_text(
             json.dumps(edit.payload["exemplars"], indent=2),
             encoding="utf-8",
