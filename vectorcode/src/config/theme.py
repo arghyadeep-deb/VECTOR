@@ -2,6 +2,7 @@
 import re
 import os
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 
 
@@ -93,7 +94,7 @@ def _parse_toml_theme(text: str) -> dict:
                 result[k] = v
         return result
     except Exception as _sve:
-        logger.debug("[VECTOR][config.theme] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][config.theme] suppressed Exception: {}", _sve)
 
     # Regex-based fallback
     result: dict = {}
@@ -109,7 +110,7 @@ def _parse_toml_theme(text: str) -> dict:
             try:
                 val = bytes(val, "utf-8").decode("unicode_escape")
             except Exception as _sve:
-                logger.debug("[VECTOR][config.theme] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][config.theme] suppressed Exception: {}", _sve)
             result[key] = val
             continue
         m = re.match(r'^(\w+)\s*=\s*(true|false)$', line)
