@@ -11,13 +11,11 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
-import logging
 import socket
 from typing import Iterable, Optional
 
 import httpx
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _TELEGRAM_API_HOST = "api.telegram.org"
 
@@ -91,7 +89,7 @@ class TelegramFallbackTransport(httpx.AsyncBaseTransport):
                         if self._sticky_ip != ip:
                             self._sticky_ip = ip
                             logger.warning(
-                                "[Telegram] Primary api.telegram.org path unreachable; using sticky fallback IP %s",
+                                "[Telegram] Primary api.telegram.org path unreachable; using sticky fallback IP {}",
                                 ip,
                             )
                 return response
@@ -101,12 +99,12 @@ class TelegramFallbackTransport(httpx.AsyncBaseTransport):
                     raise
                 if ip is None:
                     logger.warning(
-                        "[Telegram] Primary api.telegram.org connection failed (%s); trying fallback IPs %s",
+                        "[Telegram] Primary api.telegram.org connection failed ({}); trying fallback IPs {}",
                         exc,
                         ", ".join(self._fallback_ips),
                     )
                     continue
-                logger.warning("[Telegram] Fallback IP %s failed: %s", ip, exc)
+                logger.warning("[Telegram] Fallback IP {} failed: {}", ip, exc)
                 continue
 
         if last_error is None:
@@ -128,13 +126,13 @@ def _normalize_fallback_ips(values: Iterable[str]) -> list[str]:
         try:
             addr = ipaddress.ip_address(raw)
         except ValueError:
-            logger.warning("Ignoring invalid Telegram fallback IP: %r", raw)
+            logger.warning("Ignoring invalid Telegram fallback IP: {!r}", raw)
             continue
         if addr.version != 4:
-            logger.warning("Ignoring non-IPv4 Telegram fallback IP: %s", raw)
+            logger.warning("Ignoring non-IPv4 Telegram fallback IP: {}", raw)
             continue
         if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_unspecified:
-            logger.warning("Ignoring private/internal Telegram fallback IP: %s", raw)
+            logger.warning("Ignoring private/internal Telegram fallback IP: {}", raw)
             continue
         normalized.append(str(addr))
     return normalized
@@ -178,7 +176,7 @@ async def _query_doh_provider(
                 continue
         return ips
     except Exception as exc:
-        logger.debug("DoH query to %s failed: %s", provider["url"], exc)
+        logger.debug("DoH query to {} failed: {}", provider["url"], exc)
         return []
 
 
@@ -215,11 +213,11 @@ async def discover_fallback_ips() -> list[str]:
     validated = _normalize_fallback_ips(candidates)
 
     if validated:
-        logger.debug("Discovered Telegram fallback IPs via DoH: %s", ", ".join(validated))
+        logger.debug("Discovered Telegram fallback IPs via DoH: {}", ", ".join(validated))
         return validated
 
     logger.info(
-        "DoH discovery yielded no new IPs (system DNS: %s); using seed fallback IPs %s",
+        "DoH discovery yielded no new IPs (system DNS: {}); using seed fallback IPs {}",
         ", ".join(system_ips) or "unknown",
         ", ".join(_SEED_FALLBACK_IPS),
     )
