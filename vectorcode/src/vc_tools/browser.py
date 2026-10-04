@@ -10,6 +10,8 @@ from __future__ import annotations
 import base64
 from typing import Any
 
+from loguru import logger
+
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
@@ -114,7 +116,14 @@ class BrowserNavigateTool(BaseTool):
                     success=False,
                 )
         except ImportError:
-            pass  # ssrf module not available, skip check
+            # Fail open only loudly: a missing/broken SSRF guard module
+            # must not silently disable protection against navigating this
+            # headless browser to internal/metadata/cloud endpoints.
+            logger.warning(
+                "[VECTOR][vc_tools.browser] SSRF guard unavailable (import "
+                "failed) -- navigating to {!r} with NO SSRF protection",
+                url,
+            )
 
         try:
             page = _session.page
