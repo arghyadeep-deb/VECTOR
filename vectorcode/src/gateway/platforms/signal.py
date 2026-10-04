@@ -15,7 +15,6 @@ Requires:
 import asyncio
 import base64
 import json
-import logging
 import os
 import random
 import time
@@ -26,6 +25,7 @@ from typing import Dict, List, Optional, Any
 from urllib.parse import quote, unquote
 
 import httpx
+from loguru import logger
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -40,7 +40,6 @@ from gateway.platforms.base import (
 )
 from gateway.platforms.helpers import redact_phone
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -209,7 +208,7 @@ class SignalAdapter(BasePlatformAdapter):
         self._recipient_number_by_uuid: Dict[str, str] = {}
         self._recipient_cache_lock = asyncio.Lock()
 
-        logger.info("Signal adapter initialized: url=%s account=%s groups=%s",
+        logger.info("Signal adapter initialized: url={} account={} groups={}",
                      self.http_url, redact_phone(self.account),
                      "enabled" if self.group_allow_from else "disabled")
 
@@ -230,7 +229,7 @@ class SignalAdapter(BasePlatformAdapter):
                 return False
             lock_acquired = True
         except Exception as e:
-            logger.warning("Signal: Could not acquire phone lock (non-fatal): %s", e)
+            logger.warning("Signal: Could not acquire phone lock (non-fatal): {}", e)
 
         self.client = httpx.AsyncClient(timeout=30.0)
         try:
@@ -238,10 +237,10 @@ class SignalAdapter(BasePlatformAdapter):
             try:
                 resp = await self.client.get(f"{self.http_url}/api/v1/check", timeout=10.0)
                 if resp.status_code != 200:
-                    logger.error("Signal: health check failed (status %d)", resp.status_code)
+                    logger.error("Signal: health check failed (status {})", resp.status_code)
                     return False
             except Exception as e:
-                logger.error("Signal: cannot reach signal-cli at %s: %s", self.http_url, e)
+                logger.error("Signal: cannot reach signal-cli at {}: {}", self.http_url, e)
                 return False
 
             self._running = True
@@ -249,7 +248,7 @@ class SignalAdapter(BasePlatformAdapter):
             self._sse_task = asyncio.create_task(self._sse_listener())
             self._health_monitor_task = asyncio.create_task(self._health_monitor())
 
-            logger.info("Signal: connected to %s", self.http_url)
+            logger.info("Signal: connected to {}", self.http_url)
             return True
         finally:
             if not self._running:
@@ -268,14 +267,14 @@ class SignalAdapter(BasePlatformAdapter):
             try:
                 await self._sse_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
 
         if self._health_monitor_task:
             self._health_monitor_task.cancel()
             try:
                 await self._health_monitor_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
 
         # Cancel all typing tasks
         for task in self._typing_tasks.values():
@@ -301,7 +300,7 @@ class SignalAdapter(BasePlatformAdapter):
 
         while self._running:
             try:
-                logger.debug("Signal SSE: connecting to %s", url)
+                logger.debug("Signal SSE: connecting to {}", url)
                 async with self.client.stream(
                     "GET", url,
                     headers={"Accept": "text/event-stream"},
@@ -338,7 +337,7 @@ class SignalAdapter(BasePlatformAdapter):
                                     data = json.loads(data_str)
                                     await self._handle_envelope(data)
                                 except json.JSONDecodeError:
-                                    logger.debug("Signal SSE: invalid JSON: %s", data_str[:100])
+                                    logger.debug("Signal SSE: invalid JSON: {}", data_str[:100])
                                 except Exception:
                                     logger.exception("Signal SSE: error handling event")
 
@@ -346,10 +345,10 @@ class SignalAdapter(BasePlatformAdapter):
                 break
             except httpx.HTTPError as e:
                 if self._running:
-                    logger.warning("Signal SSE: HTTP error: %s (reconnecting in %.0fs)", e, backoff)
+                    logger.warning("Signal SSE: HTTP error: {} (reconnecting in {:.0f}s)", e, backoff)
             except Exception as e:
                 if self._running:
-                    logger.warning("Signal SSE: error: %s (reconnecting in %.0fs)", e, backoff)
+                    logger.warning("Signal SSE: error: {} (reconnecting in {:.0f}s)", e, backoff)
 
             if self._running:
                 # Add 20% jitter to prevent thundering herd on reconnection
@@ -372,7 +371,7 @@ class SignalAdapter(BasePlatformAdapter):
 
             elapsed = time.time() - self._last_sse_activity
             if elapsed > HEALTH_CHECK_STALE_THRESHOLD:
-                logger.warning("Signal: SSE idle for %.0fs, checking daemon health", elapsed)
+                logger.warning("Signal: SSE idle for {:.0f}s, checking daemon health", elapsed)
                 try:
                     resp = await self.client.get(
                         f"{self.http_url}/api/v1/check", timeout=10.0
@@ -383,10 +382,10 @@ class SignalAdapter(BasePlatformAdapter):
                         self._last_sse_activity = time.time()
                         logger.debug("Signal: daemon healthy, SSE idle")
                     else:
-                        logger.warning("Signal: health check failed (%d), forcing reconnect", resp.status_code)
+                        logger.warning("Signal: health check failed ({}), forcing reconnect", resp.status_code)
                         self._force_reconnect()
                 except Exception as e:
-                    logger.warning("Signal: health check error: %s, forcing reconnect", e)
+                    logger.warning("Signal: health check error: {}, forcing reconnect", e)
                     self._force_reconnect()
 
     def _force_reconnect(self) -> None:
@@ -397,7 +396,7 @@ class SignalAdapter(BasePlatformAdapter):
                 self._background_tasks.add(task)
                 task.add_done_callback(self._background_tasks.discard)
             except Exception as _sve:
-                logger.debug("[VECTOR][gateway.platforms.signal] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][gateway.platforms.signal] suppressed Exception: {}", _sve)
             self._sse_response = None
 
     # ------------------------------------------------------------------
@@ -476,7 +475,7 @@ class SignalAdapter(BasePlatformAdapter):
                 logger.debug("Signal: ignoring group message (no SIGNAL_GROUP_ALLOWED_USERS)")
                 return
             if "*" not in self.group_allow_from and group_id not in self.group_allow_from:
-                logger.debug("Signal: group %s not in allowlist", group_id[:8] if group_id else "?")
+                logger.debug("Signal: group {} not in allowlist", group_id[:8] if group_id else "?")
                 return
 
         # Build chat info
@@ -501,7 +500,7 @@ class SignalAdapter(BasePlatformAdapter):
                 if not att_id:
                     continue
                 if att_size > SIGNAL_MAX_ATTACHMENT_SIZE:
-                    logger.warning("Signal: attachment too large (%d bytes), skipping", att_size)
+                    logger.warning("Signal: attachment too large ({} bytes), skipping", att_size)
                     continue
                 try:
                     cached_path, ext = await self._fetch_attachment(att_id)
@@ -511,7 +510,7 @@ class SignalAdapter(BasePlatformAdapter):
                         media_urls.append(cached_path)
                         media_types.append(content_type)
                 except Exception:
-                    logger.exception("Signal: failed to fetch attachment %s", att_id)
+                    logger.exception("Signal: failed to fetch attachment {}", att_id)
 
         # Build session source
         source = self.build_source(
@@ -552,7 +551,7 @@ class SignalAdapter(BasePlatformAdapter):
             timestamp=timestamp,
         )
 
-        logger.debug("Signal: message from %s in %s: %s",
+        logger.debug("Signal: message from {} in {}: {}",
                       redact_phone(sender), chat_id[:20], (text or "")[:50])
 
         await self.handle_message(event)
@@ -694,18 +693,18 @@ class SignalAdapter(BasePlatformAdapter):
 
             if "error" in data:
                 if log_failures:
-                    logger.warning("Signal RPC error (%s): %s", method, data["error"])
+                    logger.warning("Signal RPC error ({}): {}", method, data["error"])
                 else:
-                    logger.debug("Signal RPC error (%s): %s", method, data["error"])
+                    logger.debug("Signal RPC error ({}): {}", method, data["error"])
                 return None
 
             return data.get("result")
 
         except Exception as e:
             if log_failures:
-                logger.warning("Signal RPC %s failed: %s", method, e)
+                logger.warning("Signal RPC {} failed: {}", method, e)
             else:
-                logger.debug("Signal RPC %s failed: %s", method, e)
+                logger.debug("Signal RPC {} failed: {}", method, e)
             return None
 
     # ------------------------------------------------------------------
@@ -822,7 +821,7 @@ class SignalAdapter(BasePlatformAdapter):
             try:
                 file_path = await cache_image_from_url(image_url)
             except Exception as e:
-                logger.warning("Signal: failed to download image: %s", e)
+                logger.warning("Signal: failed to download image: {}", e)
                 return SendResult(success=False, error=str(e))
 
         if not file_path or not Path(file_path).exists():

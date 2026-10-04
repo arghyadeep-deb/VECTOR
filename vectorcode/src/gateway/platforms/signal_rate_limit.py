@@ -16,12 +16,11 @@ daemon.
 from __future__ import annotations
 
 import asyncio
-import logging
 import re
 import time
 from typing import Any, Optional
+from loguru import logger
 
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -253,8 +252,8 @@ class SignalAttachmentScheduler:
                 if self.tokens >= n:
                     if not first_pass or total_slept > 0:
                         logger.debug(
-                            "Signal scheduler: tokens sufficient for %d "
-                            "(remaining=%.1f, total_slept=%.1fs)",
+                            "Signal scheduler: tokens sufficient for {} "
+                            "(remaining={:.1f}, total_slept={:.1f}s)",
                             n, self.tokens, total_slept,
                         )
                     return total_slept
@@ -262,8 +261,8 @@ class SignalAttachmentScheduler:
             wait = deficit / self.refill_rate
             if first_pass:
                 logger.info(
-                    "Signal scheduler: pausing %.1fs for %d tokens "
-                    "(available=%.1f, deficit=%.1f, refill=%.4f/s ≈ %.1fs/token)",
+                    "Signal scheduler: pausing {:.1f}s for {} tokens "
+                    "(available={:.1f}, deficit={:.1f}, refill={:.4f}/s ≈ {:.1f}s/token)",
                     wait, n, self.tokens, deficit,
                     self.refill_rate, 1.0 / self.refill_rate,
                 )
@@ -292,9 +291,9 @@ class SignalAttachmentScheduler:
             self.tokens = max(0.0, token_before - float(n_attachments))
             self.last_refill = now
         logger.log(
-            logging.INFO if rpc_duration > 10 and n_attachments > 5 else logging.DEBUG,
-            "Signal scheduler: RPC for %d att took %.1fs — "
-            "tokens %.1f → %.1f (deducted=%d, no upload refill credited, refill=%.4fs⁻¹)",
+            "INFO" if rpc_duration > 10 and n_attachments > 5 else "DEBUG",
+            "Signal scheduler: RPC for {} att took {:.1f}s — "
+            "tokens {:.1f} → {:.1f} (deducted={}, no upload refill credited, refill={:.4f}s⁻¹)",
             n_attachments, rpc_duration,
             token_before, self.tokens,
             n_attachments, self.refill_rate,
@@ -314,8 +313,8 @@ class SignalAttachmentScheduler:
             new_rate = 1.0 / float(retry_after)
             if new_rate != self.refill_rate:
                 logger.info(
-                    "Signal scheduler: calibrating refill_rate to %.4f tokens/sec "
-                    "(server retry_after=%.1fs per token)",
+                    "Signal scheduler: calibrating refill_rate to {:.4f} tokens/sec "
+                    "(server retry_after={:.1f}s per token)",
                     new_rate, retry_after,
                 )
                 self.refill_rate = new_rate
@@ -354,7 +353,7 @@ def get_scheduler() -> SignalAttachmentScheduler:
     if _scheduler is None:
         _scheduler = SignalAttachmentScheduler()
         logger.info(
-            "Signal scheduler: created (capacity=%d tokens, refill=%.4f/s ≈ %.1fs/token)",
+            "Signal scheduler: created (capacity={} tokens, refill={:.4f}/s ≈ {:.1f}s/token)",
             int(_scheduler.capacity),
             _scheduler.refill_rate,
             1.0 / _scheduler.refill_rate,

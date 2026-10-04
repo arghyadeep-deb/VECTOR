@@ -29,12 +29,10 @@ keyboard types). Authorship preserved via Co-authored-by.
 
 from __future__ import annotations
 
-import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # ── button_data prefixes + patterns ──────────────────────────────────
 
@@ -383,7 +381,7 @@ class ApprovalSender:
         keyboard = build_approval_keyboard(req.session_key)
 
         logger.info(
-            "[%s] Sending approval request to %s:%s (session=%.20s…)",
+            "[{}] Sending approval request to {}:{} (session=%.20s…)",
             self._log_tag, chat_type, chat_id, req.session_key,
         )
 
@@ -394,18 +392,18 @@ class ApprovalSender:
                 await self._post_group(chat_id, text, msg_id, keyboard)
             else:
                 logger.warning(
-                    "[%s] Approval: unsupported chat_type %r",
+                    "[{}] Approval: unsupported chat_type {}",
                     self._log_tag, chat_type,
                 )
                 return False
             logger.info(
-                "[%s] Approval message sent to %s:%s",
+                "[{}] Approval message sent to {}:{}",
                 self._log_tag, chat_type, chat_id,
             )
             return True
         except Exception as exc:
             logger.error(
-                "[%s] Failed to send approval message to %s:%s: %s",
+                "[{}] Failed to send approval message to {}:{}: {}",
                 self._log_tag, chat_type, chat_id, exc,
             )
             return False

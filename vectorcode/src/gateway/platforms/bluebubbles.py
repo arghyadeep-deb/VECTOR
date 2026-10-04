@@ -11,15 +11,16 @@ downloading from PR #4588 (YuhangLin).
 
 import asyncio
 import json
-import logging
 import os
 import re
+import secrets
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote
 
 import httpx
+from loguru import logger
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -32,8 +33,6 @@ from gateway.platforms.base import (
     cache_document_from_bytes,
 )
 from gateway.platforms.helpers import strip_markdown
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -171,14 +170,14 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             self._private_api_enabled = bool(server_data.get("private_api"))
             self._helper_connected = bool(server_data.get("helper_connected"))
             logger.info(
-                "[bluebubbles] connected to %s (private_api=%s, helper=%s)",
+                "[bluebubbles] connected to {} (private_api={}, helper={})",
                 self.server_url,
                 self._private_api_enabled,
                 self._helper_connected,
             )
         except Exception as exc:
             logger.error(
-                "[bluebubbles] cannot reach server at %s: %s", self.server_url, exc
+                "[bluebubbles] cannot reach server at {}: {}", self.server_url, exc
             )
             if self.client:
                 await self.client.aclose()
@@ -194,7 +193,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
         await site.start()
         self._mark_connected()
         logger.info(
-            "[bluebubbles] webhook listening on http://%s:%s%s",
+            "[bluebubbles] webhook listening on http://{}:{}{}",
             self.webhook_host,
             self.webhook_port,
             self.webhook_path,
@@ -249,7 +248,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             if isinstance(data, list):
                 return [wh for wh in data if wh.get("url") == url]
         except Exception as _sve:
-            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: {}", _sve)
         return []
 
     async def _register_webhook(self) -> bool:
@@ -268,7 +267,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
         existing = await self._find_registered_webhooks(webhook_url)
         if existing:
             logger.info(
-                "[bluebubbles] webhook already registered: %s", webhook_url
+                "[bluebubbles] webhook already registered: {}", webhook_url
             )
             return True
 
@@ -282,20 +281,20 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             status = res.get("status", 0)
             if 200 <= status < 300:
                 logger.info(
-                    "[bluebubbles] webhook registered with server: %s",
+                    "[bluebubbles] webhook registered with server: {}",
                     webhook_url,
                 )
                 return True
             else:
                 logger.warning(
-                    "[bluebubbles] webhook registration returned status %s: %s",
+                    "[bluebubbles] webhook registration returned status {}: {}",
                     status,
                     res.get("message"),
                 )
                 return False
         except Exception as exc:
             logger.warning(
-                "[bluebubbles] failed to register webhook with server: %s",
+                "[bluebubbles] failed to register webhook with server: {}",
                 exc,
             )
             return False
@@ -323,11 +322,11 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                     removed = True
             if removed:
                 logger.info(
-                    "[bluebubbles] webhook unregistered: %s", webhook_url
+                    "[bluebubbles] webhook unregistered: {}", webhook_url
                 )
         except Exception as exc:
             logger.debug(
-                "[bluebubbles] failed to unregister webhook (non-critical): %s",
+                "[bluebubbles] failed to unregister webhook (non-critical): {}",
                 exc,
             )
         return removed
@@ -369,7 +368,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                         self._guid_cache[target] = guid
                         return guid
         except Exception as _sve:
-            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: {}", _sve)
         return None
 
     async def _create_chat_for_handle(
@@ -599,7 +598,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                     self._api_url(f"/api/v1/chat/{encoded}/typing"), timeout=5
                 )
         except Exception as _sve:
-            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: {}", _sve)
 
     async def stop_typing(self, chat_id: str) -> None:
         if not self._private_api_enabled or not self._helper_connected or not self.client:
@@ -612,7 +611,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                     self._api_url(f"/api/v1/chat/{encoded}/typing"), timeout=5
                 )
         except Exception as _sve:
-            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: {}", _sve)
 
     # ------------------------------------------------------------------
     # Read receipts
@@ -630,7 +629,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                 )
                 return True
         except Exception as _sve:
-            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: {}", _sve)
         return False
 
     # ------------------------------------------------------------------
@@ -669,7 +668,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                 if participants:
                     info["participants"] = participants
         except Exception as _sve:
-            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][gateway.platforms.bluebubbles] suppressed Exception: {}", _sve)
         return info
 
     def format_message(self, content: str) -> str:
@@ -733,7 +732,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
 
         except Exception as exc:
             logger.warning(
-                "[bluebubbles] failed to download attachment %s: %s",
+                "[bluebubbles] failed to download attachment {}: {}",
                 _redact(att_guid),
                 exc,
             )
@@ -774,7 +773,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             or request.headers.get("x-guid")
             or request.headers.get("x-bluebubbles-guid")
         )
-        if token != self.password:
+        if not isinstance(token, str) or not secrets.compare_digest(token, self.password):
             return web.json_response({"error": "unauthorized"}, status=401)
         try:
             raw = await request.read()
@@ -793,7 +792,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                 )[0]
                 payload = json.loads(payload_str) if payload_str else {}
         except Exception as exc:
-            logger.error("[bluebubbles] webhook parse error: %s", exc)
+            logger.error("[bluebubbles] webhook parse error: {}", exc)
             return web.json_response({"error": "invalid payload"}, status=400)
 
         event_type = self._value(payload.get("type"), payload.get("event")) or ""
@@ -930,7 +929,9 @@ class BlueBubblesAdapter(BasePlatformAdapter):
 
         # Fire-and-forget read receipt
         if self.send_read_receipts and session_chat_id:
-            asyncio.create_task(self.mark_read(session_chat_id))
+            read_task = asyncio.create_task(self.mark_read(session_chat_id))
+            self._background_tasks.add(read_task)
+            read_task.add_done_callback(self._background_tasks.discard)
 
         return web.Response(text="ok")
 

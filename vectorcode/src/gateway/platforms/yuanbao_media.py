@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import hashlib
 import hmac
-import logging
 import os
 import re
 import secrets
@@ -30,8 +29,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Any
 
 import httpx
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # ============ 常量 ============
 
@@ -520,7 +518,7 @@ async def upload_to_cos(
     }
 
     logger.info(
-        "COS PUT: bucket=%s region=%s key=%s size=%d mime=%s",
+        "COS PUT: bucket={} region={} key={} size={} mime={}",
         bucket, region, cos_key, file_size, content_type,
     )
 
@@ -546,7 +544,7 @@ async def upload_to_cos(
             result["height"] = size_info["height"]
 
     logger.info(
-        "COS 上传成功: url=%s size=%d",
+        "COS 上传成功: url={} size={}",
         result["url"], file_size,
     )
     return result

@@ -12,15 +12,13 @@ Environment variables:
 """
 
 from __future__ import annotations
-from loguru import logger
-
 import asyncio
 import json
-import logging
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from loguru import logger
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.helpers import MessageDeduplicator
@@ -30,8 +28,6 @@ from gateway.platforms.base import (
     MessageType,
     SendResult,
 )
-
-logger = logging.getLogger(__name__)
 
 # Mattermost post size limit (server default is 16383, but 4000 is the
 # practical limit for readable messages — matching OpenClaw's choice).
@@ -118,11 +114,11 @@ class MattermostAdapter(BasePlatformAdapter):
             async with self._session.get(url, headers=self._headers(), timeout=aiohttp.ClientTimeout(total=30)) as resp:
                 if resp.status >= 400:
                     body = await resp.text()
-                    logger.error("MM API GET %s → %s: %s", path, resp.status, body[:200])
+                    logger.error("MM API GET {} → {}: {}", path, resp.status, body[:200])
                     return {}
                 return await resp.json()
         except aiohttp.ClientError as exc:
-            logger.error("MM API GET %s network error: %s", path, exc)
+            logger.error("MM API GET {} network error: {}", path, exc)
             return {}
 
     async def _api_post(
@@ -138,11 +134,11 @@ class MattermostAdapter(BasePlatformAdapter):
             ) as resp:
                 if resp.status >= 400:
                     body = await resp.text()
-                    logger.error("MM API POST %s → %s: %s", path, resp.status, body[:200])
+                    logger.error("MM API POST {} → {}: {}", path, resp.status, body[:200])
                     return {}
                 return await resp.json()
         except aiohttp.ClientError as exc:
-            logger.error("MM API POST %s network error: %s", path, exc)
+            logger.error("MM API POST {} network error: {}", path, exc)
             return {}
 
     async def _api_put(
@@ -157,11 +153,11 @@ class MattermostAdapter(BasePlatformAdapter):
             ) as resp:
                 if resp.status >= 400:
                     body = await resp.text()
-                    logger.error("MM API PUT %s → %s: %s", path, resp.status, body[:200])
+                    logger.error("MM API PUT {} → {}: {}", path, resp.status, body[:200])
                     return {}
                 return await resp.json()
         except aiohttp.ClientError as exc:
-            logger.error("MM API PUT %s network error: %s", path, exc)
+            logger.error("MM API PUT {} network error: {}", path, exc)
             return {}
 
     async def _upload_file(
@@ -183,7 +179,7 @@ class MattermostAdapter(BasePlatformAdapter):
         async with self._session.post(url, headers=headers, data=form, timeout=aiohttp.ClientTimeout(total=60)) as resp:
             if resp.status >= 400:
                 body = await resp.text()
-                logger.error("MM file upload → %s: %s", resp.status, body[:200])
+                logger.error("MM file upload → {}: {}", resp.status, body[:200])
                 return None
             data = await resp.json()
             infos = data.get("file_infos", [])
@@ -216,7 +212,7 @@ class MattermostAdapter(BasePlatformAdapter):
         self._bot_user_id = me["id"]
         self._bot_username = me.get("username", "")
         logger.info(
-            "Mattermost: authenticated as @%s (%s) on %s",
+            "Mattermost: authenticated as @{} ({}) on {}",
             self._bot_username,
             self._bot_user_id,
             self._base_url,
@@ -235,8 +231,8 @@ class MattermostAdapter(BasePlatformAdapter):
             self._ws_task.cancel()
             try:
                 await self._ws_task
-            except (asyncio.CancelledError, Exception):
-                raise  # must propagate for asyncio to work
+            except asyncio.CancelledError:
+                pass
 
         if self._reconnect_task and not self._reconnect_task.done():
             self._reconnect_task.cancel()
@@ -423,7 +419,7 @@ class MattermostAdapter(BasePlatformAdapter):
                 async with self._session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
                     if resp.status >= 500 or resp.status == 429:
                         if attempt < 2:
-                            logger.debug("Mattermost download retry %d/2 for %s (status %d)",
+                            logger.debug("Mattermost download retry {}/2 for {} (status {})",
                                          attempt + 1, url[:80], resp.status)
                             await asyncio.sleep(1.5 * (attempt + 1))
                             continue
@@ -436,11 +432,11 @@ class MattermostAdapter(BasePlatformAdapter):
                 if attempt < 2:
                     await asyncio.sleep(1.5 * (attempt + 1))
                     continue
-                logger.warning("Mattermost: failed to download %s after %d attempts: %s", url, attempt + 1, exc)
+                logger.warning("Mattermost: failed to download {} after {} attempts: {}", url, attempt + 1, exc)
                 return await self.send(chat_id, f"{caption or ''}\n{url}".strip(), reply_to)
 
         if file_data is None:
-            logger.warning("Mattermost: download returned no data for %s", url)
+            logger.warning("Mattermost: download returned no data for {}", url)
             return await self.send(chat_id, f"{caption or ''}\n{url}".strip(), reply_to)
 
         file_id = await self._upload_file(chat_id, file_data, fname, ct)
@@ -520,12 +516,12 @@ class MattermostAdapter(BasePlatformAdapter):
                 import aiohttp
                 err_str = str(exc).lower()
                 if isinstance(exc, aiohttp.WSServerHandshakeError) and exc.status in (401, 403):
-                    logger.error("Mattermost WS auth failed (HTTP %d) — stopping reconnect", exc.status)
+                    logger.error("Mattermost WS auth failed (HTTP {}) — stopping reconnect", exc.status)
                     return
                 if "401" in err_str or "403" in err_str or "unauthorized" in err_str:
-                    logger.error("Mattermost WS permanent error: %s — stopping reconnect", exc)
+                    logger.error("Mattermost WS permanent error: {} — stopping reconnect", exc)
                     return
-                logger.warning("Mattermost WS error: %s — reconnecting in %.0fs", exc, delay)
+                logger.warning("Mattermost WS error: {} — reconnecting in {:.0f}s", exc, delay)
 
             if self._closing:
                 return
@@ -540,7 +536,7 @@ class MattermostAdapter(BasePlatformAdapter):
         """Single WebSocket session: connect, authenticate, process events."""
         # Build WS URL: https:// → wss://, http:// → ws://
         ws_url = re.sub(r"^http", "ws", self._base_url) + "/api/v4/websocket"
-        logger.info("Mattermost: connecting to %s", ws_url)
+        logger.info("Mattermost: connecting to {}", ws_url)
 
         self._ws = await self._session.ws_connect(ws_url, heartbeat=30.0)
 
@@ -572,7 +568,7 @@ class MattermostAdapter(BasePlatformAdapter):
                 raw_msg.type.CLOSING,
                 raw_msg.type.CLOSED,
             ):
-                logger.info("Mattermost: WebSocket closed (%s)", raw_msg.type)
+                logger.info("Mattermost: WebSocket closed ({})", raw_msg.type)
                 break
 
     async def _handle_ws_event(self, event: Dict[str, Any]) -> None:
@@ -637,7 +633,7 @@ class MattermostAdapter(BasePlatformAdapter):
 
             if require_mention and not is_free_channel and not has_mention:
                 logger.debug(
-                    "Mattermost: skipping non-DM message without @mention (channel=%s)",
+                    "Mattermost: skipping non-DM message without @mention (channel={})",
                     channel_id,
                 )
                 return
@@ -697,9 +693,9 @@ class MattermostAdapter(BasePlatformAdapter):
                             media_urls.append(local_path)
                             media_types.append(mime)
                     else:
-                        logger.warning("Mattermost: failed to download file %s: HTTP %s", fid, resp.status)
+                        logger.warning("Mattermost: failed to download file {}: HTTP {}", fid, resp.status)
             except Exception as exc:
-                logger.warning("Mattermost: error downloading file %s: %s", fid, exc)
+                logger.warning("Mattermost: error downloading file {}: {}", fid, exc)
 
         # Set message type based on downloaded media types.
         if media_types and msg_type == MessageType.TEXT:

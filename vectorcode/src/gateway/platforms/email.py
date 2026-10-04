@@ -1,6 +1,4 @@
-"""
-from loguru import logger
-Email platform adapter for the VectorCode gateway.
+"""Email platform adapter for the VectorCode gateway.
 
 Allows users to interact with VectorCode by sending emails.
 Uses IMAP to receive and SMTP to send messages.
@@ -19,7 +17,6 @@ Environment variables:
 import asyncio
 import email as email_lib
 import imaplib
-import logging
 import os
 import re
 import smtplib
@@ -33,6 +30,7 @@ from email.utils import formatdate
 from email import encoders
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from loguru import logger
 
 from gateway.platforms.base import (
     BasePlatformAdapter,
@@ -44,7 +42,6 @@ from gateway.platforms.base import (
 )
 from gateway.config import Platform, PlatformConfig
 
-logger = logging.getLogger(__name__)
 # Automated sender patterns — emails from these are silently ignored
 _NOREPLY_PATTERNS = (
     "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
@@ -200,7 +197,7 @@ def _extract_attachments(
             try:
                 cached_path = cache_image_from_bytes(payload, ext)
             except ValueError:
-                logger.debug("Skipping non-image attachment %s (invalid magic bytes)", filename)
+                logger.debug("Skipping non-image attachment {} (invalid magic bytes)", filename)
                 continue
             attachments.append({
                 "path": cached_path,
@@ -249,7 +246,7 @@ class EmailAdapter(BasePlatformAdapter):
         # Map chat_id (sender email) -> last subject + message-id for threading
         self._thread_context: Dict[str, Dict[str, str]] = {}
 
-        logger.info("[Email] Adapter initialized for %s", self._address)
+        logger.info("[Email] Adapter initialized for {}", self._address)
 
     def _trim_seen_uids(self) -> None:
         """Keep only the most recent UIDs to prevent unbounded memory growth.
@@ -266,7 +263,7 @@ class EmailAdapter(BasePlatformAdapter):
             sorted_uids = sorted(self._seen_uids, key=lambda u: int(u))
             keep = self._seen_uids_max // 2
             self._seen_uids = set(sorted_uids[-keep:])
-            logger.debug("[Email] Trimmed seen UIDs to %d entries", len(self._seen_uids))
+            logger.debug("[Email] Trimmed seen UIDs to {} entries", len(self._seen_uids))
         except (ValueError, TypeError):
             # Fallback: just clear old entries if sort fails
             self._seen_uids = set(list(self._seen_uids)[-self._seen_uids_max // 2:])
@@ -286,9 +283,9 @@ class EmailAdapter(BasePlatformAdapter):
             # Keep only the most recent UIDs to prevent unbounded growth
             self._trim_seen_uids()
             imap.logout()
-            logger.info("[Email] IMAP connection test passed. %d existing messages skipped.", len(self._seen_uids))
+            logger.info("[Email] IMAP connection test passed. {} existing messages skipped.", len(self._seen_uids))
         except Exception as e:
-            logger.error("[Email] IMAP connection failed: %s", e)
+            logger.error("[Email] IMAP connection failed: {}", e)
             return False
 
         try:
@@ -299,12 +296,12 @@ class EmailAdapter(BasePlatformAdapter):
             smtp.quit()
             logger.info("[Email] SMTP connection test passed.")
         except Exception as e:
-            logger.error("[Email] SMTP connection failed: %s", e)
+            logger.error("[Email] SMTP connection failed: {}", e)
             return False
 
         self._running = True
         self._poll_task = asyncio.create_task(self._poll_loop())
-        print(f"[Email] Connected as {self._address}")
+        logger.info("[Email] Connected as {}", self._address)
         return True
 
     async def disconnect(self) -> None:
@@ -315,7 +312,7 @@ class EmailAdapter(BasePlatformAdapter):
             try:
                 await self._poll_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
             self._poll_task = None
         logger.info("[Email] Disconnected.")
 
@@ -327,7 +324,7 @@ class EmailAdapter(BasePlatformAdapter):
             except asyncio.CancelledError:
                 break
             except Exception as e:
-                logger.error("[Email] Poll error: %s", e)
+                logger.error("[Email] Poll error: {}", e)
             await asyncio.sleep(self._poll_interval)
 
     async def _check_inbox(self) -> None:
@@ -354,17 +351,19 @@ class EmailAdapter(BasePlatformAdapter):
                 for uid in data[0].split():
                     if uid in self._seen_uids:
                         continue
-                    self._seen_uids.add(uid)
-                    # Trim periodically to prevent unbounded memory growth
-                    if len(self._seen_uids) > self._seen_uids_max:
-                        self._trim_seen_uids()
-
                     status, msg_data = imap.uid("fetch", uid, "(RFC822)")
-                    if status != "OK":
+                    if status != "OK" or not msg_data or not msg_data[0]:
                         continue
 
                     raw_email = msg_data[0][1]
                     msg = email_lib.message_from_bytes(raw_email)
+                    self._seen_uids.add(uid)
+                    # Trim periodically to prevent unbounded memory growth.
+                    # Do this only after a successful fetch: otherwise a
+                    # transient IMAP failure would suppress an unread message
+                    # for the lifetime of this adapter process.
+                    if len(self._seen_uids) > self._seen_uids_max:
+                        self._trim_seen_uids()
 
                     sender_raw = msg.get("From", "")
                     sender_addr = _extract_email_address(sender_raw)
@@ -379,7 +378,7 @@ class EmailAdapter(BasePlatformAdapter):
                     # Skip automated/noreply senders before any processing
                     msg_headers = dict(msg.items())
                     if _is_automated_sender(sender_addr, msg_headers):
-                        logger.debug("[Email] Skipping automated sender: %s", sender_addr)
+                        logger.debug("[Email] Skipping automated sender: {}", sender_addr)
                         continue
                     body = _extract_text_body(msg)
                     attachments = _extract_attachments(msg, skip_attachments=self._skip_attachments)
@@ -399,9 +398,9 @@ class EmailAdapter(BasePlatformAdapter):
                 try:
                     imap.logout()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][gateway.platforms.email] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][gateway.platforms.email] suppressed Exception: {}", _sve)
         except Exception as e:
-            logger.error("[Email] IMAP fetch error: %s", e)
+            logger.error("[Email] IMAP fetch error: {}", e)
         return results
 
     async def _dispatch_message(self, msg_data: Dict[str, Any]) -> None:
@@ -414,7 +413,7 @@ class EmailAdapter(BasePlatformAdapter):
 
         # Never reply to automated senders
         if _is_automated_sender(sender_addr, {}):
-            logger.debug("[Email] Dropping automated sender at dispatch: %s", sender_addr)
+            logger.debug("[Email] Dropping automated sender at dispatch: {}", sender_addr)
             return
 
         subject = msg_data["subject"]
@@ -461,7 +460,7 @@ class EmailAdapter(BasePlatformAdapter):
             reply_to_message_id=msg_data["in_reply_to"] or None,
         )
 
-        logger.info("[Email] New message from %s: %s", sender_addr, subject)
+        logger.info("[Email] New message from {}: {}", sender_addr, subject)
         await self.handle_message(event)
 
     async def send(
@@ -479,7 +478,7 @@ class EmailAdapter(BasePlatformAdapter):
             )
             return SendResult(success=True, message_id=message_id)
         except Exception as e:
-            logger.error("[Email] Send failed to %s: %s", chat_id, e)
+            logger.error("[Email] Send failed to {}: {}", chat_id, e)
             return SendResult(success=False, error=str(e))
 
     def _send_email(
@@ -523,7 +522,7 @@ class EmailAdapter(BasePlatformAdapter):
             except Exception:
                 smtp.close()
 
-        logger.info("[Email] Sent reply to %s (subject: %s)", to_addr, subject)
+        logger.info("[Email] Sent reply to {} (subject: {})", to_addr, subject)
         return msg_id
 
     async def send_typing(self, chat_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
@@ -563,7 +562,7 @@ class EmailAdapter(BasePlatformAdapter):
             )
             return SendResult(success=True, message_id=message_id)
         except Exception as e:
-            logger.error("[Email] Send document failed: %s", e)
+            logger.error("[Email] Send document failed: {}", e)
             return SendResult(success=False, error=str(e))
 
     def _send_email_with_attachment(

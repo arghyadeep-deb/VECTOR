@@ -32,19 +32,15 @@ so the heavy-upload path stays in-tree. Authorship preserved via Co-authored-by.
 """
 
 from __future__ import annotations
-from loguru import logger
-
 import asyncio
 import functools
 import hashlib
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional
+from loguru import logger
 
 from gateway.platforms.qqbot.constants import FILE_UPLOAD_TIMEOUT
-
-logger = logging.getLogger(__name__)
 
 
 # ── Error codes ──────────────────────────────────────────────────────
@@ -179,6 +175,10 @@ def _parse_prepare_response(raw: Dict[str, Any]) -> _PrepareResult:
                 block_size=int(p.get("block_size", 0)),
             )
         )
+    if not parts:
+        raise ValueError(
+            f"upload_prepare response contains no valid parts: {str(raw)[:200]}"
+        )
     return _PrepareResult(
         upload_id=upload_id,
         block_size=block_size,
@@ -249,7 +249,7 @@ class ChunkedUploader:
         file_size = path.stat().st_size
 
         logger.info(
-            "[%s] Chunked upload start: file=%s size=%s type=%d",
+            "[{}] Chunked upload start: file={} size={} type={}",
             self._log_tag, file_name, format_size(file_size), file_type,
         )
 
@@ -268,7 +268,7 @@ class ChunkedUploader:
             _PART_FINISH_MAX_TIMEOUT,
         )
         logger.info(
-            "[%s] Prepared: upload_id=%s block_size=%s parts=%d concurrency=%d",
+            "[{}] Prepared: upload_id={} block_size={} parts={} concurrency={}",
             self._log_tag, prepare.upload_id, format_size(prepare.block_size),
             len(prepare.parts), max_concurrent,
         )
@@ -297,7 +297,7 @@ class ChunkedUploader:
         await _run_with_concurrency(tasks, max_concurrent)
 
         logger.info(
-            "[%s] All %d parts uploaded, completing…",
+            "[{}] All {} parts uploaded, completing…",
             self._log_tag, len(prepare.parts),
         )
 
@@ -370,7 +370,7 @@ class ChunkedUploader:
         md5_hex = hashlib.md5(data).hexdigest()
 
         logger.debug(
-            "[%s] Part %d/%d: uploading %s (offset=%d md5=%s)",
+            "[{}] Part {}/{}: uploading {} (offset={} md5={})",
             self._log_tag, part_index, progress.total_parts,
             format_size(length), offset, md5_hex,
         )
@@ -386,7 +386,7 @@ class ChunkedUploader:
         progress.completed_parts += 1
         progress.uploaded_bytes += length
         logger.debug(
-            "[%s] Part %d/%d done (%d/%d total)",
+            "[{}] Part {}/{} done ({}/{} total)",
             self._log_tag, part_index, progress.total_parts,
             progress.completed_parts, progress.total_parts,
         )
@@ -414,7 +414,7 @@ class ChunkedUploader:
                 status = getattr(resp, "status_code", 0)
                 if 200 <= status < 300:
                     logger.debug(
-                        "[%s] PUT part %d/%d: %d OK",
+                        "[{}] PUT part {}/{}: {} OK",
                         self._log_tag, part_index, total_parts, status,
                     )
                     return
@@ -422,7 +422,7 @@ class ChunkedUploader:
                 try:
                     body_preview = getattr(resp, "text", "")[:200]
                 except Exception as _sve:  # pragma: no cover — defensive
-                    logger.debug("[VECTOR][gateway.platforms.qqbot.chunked_upload] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][gateway.platforms.qqbot.chunked_upload] suppressed Exception: {}", _sve)
                 raise RuntimeError(
                     f"COS PUT returned {status}: {body_preview}"
                 )
@@ -431,7 +431,7 @@ class ChunkedUploader:
                 if attempt < _PART_UPLOAD_MAX_RETRIES:
                     delay = 1.0 * (2 ** attempt)
                     logger.warning(
-                        "[%s] PUT part %d/%d attempt %d failed, retry in %.1fs: %s",
+                        "[{}] PUT part {}/{} attempt {} failed, retry in {:.1f}s: {}",
                         self._log_tag, part_index, total_parts,
                         attempt + 1, delay, exc,
                     )
@@ -482,8 +482,8 @@ class ChunkedUploader:
                     ) from exc
                 attempt += 1
                 logger.debug(
-                    "[%s] part_finish retryable error, attempt %d, "
-                    "elapsed=%.1fs: %s",
+                    "[{}] part_finish retryable error, attempt {}, "
+                    "elapsed={:.1f}s: {}",
                     self._log_tag, attempt, elapsed, exc,
                 )
                 await asyncio.sleep(_PART_FINISH_RETRY_INTERVAL)
@@ -518,8 +518,8 @@ class ChunkedUploader:
                 if attempt < _COMPLETE_UPLOAD_MAX_RETRIES:
                     delay = _COMPLETE_UPLOAD_BASE_DELAY * (2 ** attempt)
                     logger.warning(
-                        "[%s] complete_upload attempt %d failed, "
-                        "retry in %.1fs: %s",
+                        "[{}] complete_upload attempt {} failed, "
+                        "retry in {:.1f}s: {}",
                         self._log_tag, attempt + 1, delay, exc,
                     )
                     await asyncio.sleep(delay)

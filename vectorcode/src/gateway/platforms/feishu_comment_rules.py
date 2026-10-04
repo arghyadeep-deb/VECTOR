@@ -8,18 +8,14 @@ Pairing store: ~/.vector/feishu_comment_pairing.json.
 """
 
 from __future__ import annotations
-from loguru import logger
-
 import json
-import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from vector_constants import get_vector_home
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -73,8 +69,9 @@ class ResolvedCommentRule:
 class _MtimeCache:
     """Generic mtime-based file cache.  ``stat()`` per access, re-read only on change."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, fail_closed: bool = False):
         self._path = path
+        self._fail_closed = fail_closed
         self._mtime: float = 0.0
         self._data: Optional[dict] = None
 
@@ -95,8 +92,12 @@ class _MtimeCache:
                 data = json.load(f)
             if not isinstance(data, dict):
                 data = {}
-        except (json.JSONDecodeError, OSError):
-            logger.warning("[Feishu-Rules] Failed to read %s, using empty config", self._path)
+        except (json.JSONDecodeError, OSError) as exc:
+            if self._fail_closed:
+                raise RuntimeError(
+                    f"Refusing to treat unreadable persistent data as empty: {self._path}"
+                ) from exc
+            logger.warning("[Feishu-Rules] Failed to read {}, using empty config", self._path)
             data = {}
 
         self._mtime = mtime
@@ -105,7 +106,7 @@ class _MtimeCache:
 
 
 _rules_cache = _MtimeCache(RULES_FILE)
-_pairing_cache = _MtimeCache(PAIRING_FILE)
+_pairing_cache = _MtimeCache(PAIRING_FILE, fail_closed=True)
 
 
 # ---------------------------------------------------------------------------
@@ -355,7 +356,7 @@ def _main() -> int:
         from vector_cli.env_loader import load_vector_dotenv
         load_vector_dotenv()
     except Exception as _sve:
-        logger.debug("[VECTOR][gateway.platforms.feishu_comment_rules] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][gateway.platforms.feishu_comment_rules] suppressed Exception: {}", _sve)
 
     usage = (
         "Usage: python -m gateway.platforms.feishu_comment_rules <command> [args]\n"

@@ -22,10 +22,10 @@ import asyncio
 import base64
 import hashlib
 import hmac
-import logging
 import os
 import urllib.parse
 from typing import Any, Dict, Optional
+from loguru import logger
 
 from gateway.config import Platform, PlatformConfig
 from gateway.platforms.base import (
@@ -36,7 +36,6 @@ from gateway.platforms.base import (
 )
 from gateway.platforms.helpers import redact_phone, strip_markdown
 
-logger = logging.getLogger(__name__)
 
 TWILIO_API_BASE = "https://api.twilio.com/2010-04-01/Accounts"
 MAX_SMS_LENGTH = 1600  # ~10 SMS segments
@@ -109,7 +108,7 @@ class SmsAdapter(BasePlatformAdapter):
         if insecure_no_sig and not self._webhook_url:
             logger.warning(
                 "[sms] SMS_INSECURE_NO_SIGNATURE=true — Twilio signature validation "
-                "is DISABLED. Any client that can reach port %d can inject messages. "
+                "is DISABLED. Any client that can reach port {} can inject messages. "
                 "Do NOT use this in production.",
                 self._webhook_port,
             )
@@ -128,7 +127,7 @@ class SmsAdapter(BasePlatformAdapter):
         self._running = True
 
         logger.info(
-            "[sms] Twilio webhook server listening on %s:%d, from: %s",
+            "[sms] Twilio webhook server listening on {}:{}, from: {}",
             self._webhook_host,
             self._webhook_port,
             redact_phone(self._from_number),
@@ -179,7 +178,7 @@ class SmsAdapter(BasePlatformAdapter):
                         if resp.status >= 400:
                             error_msg = body.get("message", str(body))
                             logger.error(
-                                "[sms] send failed to %s: %s %s",
+                                "[sms] send failed to {}: {} {}",
                                 redact_phone(chat_id),
                                 resp.status,
                                 error_msg,
@@ -191,7 +190,7 @@ class SmsAdapter(BasePlatformAdapter):
                         msg_sid = body.get("sid", "")
                         last_result = SendResult(success=True, message_id=msg_sid)
                 except Exception as e:
-                    logger.error("[sms] send error to %s: %s", redact_phone(chat_id), e)
+                    logger.error("[sms] send error to {}: {}", redact_phone(chat_id), e)
                     return SendResult(success=False, error=str(e))
         finally:
             # Close session only if we created a fallback (no persistent session)
@@ -291,7 +290,7 @@ class SmsAdapter(BasePlatformAdapter):
             # Twilio sends form-encoded data, not JSON
             form = urllib.parse.parse_qs(raw.decode("utf-8"), keep_blank_values=True)
         except Exception as e:
-            logger.error("[sms] webhook parse error: %s", e)
+            logger.error("[sms] webhook parse error: {}", e)
             return web.Response(
                 text='<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
                 content_type="application/xml",
@@ -333,14 +332,14 @@ class SmsAdapter(BasePlatformAdapter):
 
         # Ignore messages from our own number (echo prevention)
         if from_number == self._from_number:
-            logger.debug("[sms] ignoring echo from own number %s", redact_phone(from_number))
+            logger.debug("[sms] ignoring echo from own number {}", redact_phone(from_number))
             return web.Response(
                 text='<?xml version="1.0" encoding="UTF-8"?><Response></Response>',
                 content_type="application/xml",
             )
 
         logger.info(
-            "[sms] inbound from %s -> %s: %s",
+            "[sms] inbound from {} -> {}: {}",
             redact_phone(from_number),
             redact_phone(to_number),
             text[:80],
