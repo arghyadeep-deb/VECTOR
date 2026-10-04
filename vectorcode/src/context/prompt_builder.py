@@ -1,10 +1,9 @@
 """System prompt assembly — identity, platform hints, skills, context files."""
 
-import logging
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from vectorcode.src.context.vectormd import VectorMD
 
 
 def build_system_prompt(
@@ -52,10 +51,4 @@ def load_project_context(project_dir: Optional[Path] = None) -> str:
     """Load VECTOR.md project config if it exists."""
     if not project_dir:
         return ""
-    vmd = project_dir / "VECTOR.md"
-    if vmd.exists():
-        try:
-            return f"<project_config>\n{vmd.read_text(encoding='utf-8').strip()}\n</project_config>"
-        except Exception as e:
-            logger.warning(f"Failed to load VECTOR.md: {e}")
-    return ""
+    return VectorMD(project_dir).as_system_block()
