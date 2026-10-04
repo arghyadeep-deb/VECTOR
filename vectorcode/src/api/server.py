@@ -5,12 +5,11 @@ Endpoints: /v1/chat/completions, /v1/models, /v1/responses, /v1/runs, /health
 
 import asyncio
 import json
-import logging
 import time
 import uuid
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from aiohttp import web
@@ -72,7 +71,7 @@ class APIServer:
         }
 
         if stream:
-            response = web.StreamResponse(status=200, headers={"Content-Type": "text/event-line"})
+            response = web.StreamResponse(status=200, headers={"Content-Type": "text/event-stream"})
             await response.prepare(request)
             chunk = json.dumps({"choices": [{"delta": {"content": content}}]})
             await response.write(f"data: {chunk}\n\n".encode())
@@ -111,7 +110,7 @@ class APIServer:
         run_id = request.match_info["run_id"]
         run = self._runs.get(run_id)
         if not run: return web.json_response({"error": "not found"}, status=404)
-        response = web.StreamResponse(status=200, headers={"Content-Type": "text/event-line"})
+        response = web.StreamResponse(status=200, headers={"Content-Type": "text/event-stream"})
         await response.prepare(request)
         for event in run.get("events", []):
             await response.write(f"data: {json.dumps(event)}\n\n".encode())
