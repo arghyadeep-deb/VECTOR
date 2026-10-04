@@ -346,6 +346,19 @@ class ReplTool(BaseTool):
                 output += ("\n" if output else "") + err
             result_holder["output"] = output
 
+        # NOTE on CLAUDE.md's "asyncio only, never threading" rule: this is a
+        # deliberate, narrow exception, not an oversight. `code` is
+        # arbitrary synchronous user code run via exec()/eval(); asyncio's
+        # cooperative scheduling cannot preempt a blocking/CPU-bound
+        # synchronous call (e.g. `while True: pass`), so
+        # asyncio.to_thread()+wait_for() would hit the exact same
+        # un-interruptible-OS-thread problem with extra asyncio ceremony on
+        # top, not actually fix anything. A raw daemon thread that gets
+        # abandoned via `thread.is_alive()` after `join(timeout=...)` is the
+        # standard pattern for a hard wall-clock timeout on code that cannot
+        # be cooperatively cancelled. Flagging for owner awareness, not
+        # fixing -- there is no asyncio-only way to hard-kill a stuck
+        # synchronous call.
         thread = threading.Thread(target=_run, daemon=True)
         thread.start()
         thread.join(timeout=self._timeout)

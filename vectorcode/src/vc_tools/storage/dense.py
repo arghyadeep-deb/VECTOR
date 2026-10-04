@@ -25,7 +25,6 @@ Design notes
 
 from __future__ import annotations
 
-import logging
 import re
 import threading
 import uuid
@@ -33,11 +32,11 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 
+from loguru import logger
+
 from vectorcode.src.vc_core.registry import MemoryRegistry
 from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 from vectorcode.src.vc_tools.storage.embeddings import Embedder, OllamaEmbedder
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Markdown-aware chunking
@@ -493,12 +492,19 @@ def dedupe_chunks(
     report.output_count = len(survivors)
     return survivors, report
 
-def log_dedupe_report(report: DedupeReport, *, level: int = logging.INFO) -> None:
-    """Emit a human-readable summary of a dedupe pass at ``level``."""
+def log_dedupe_report(report: DedupeReport, *, level: str = "INFO") -> None:
+    """Emit a human-readable summary of a dedupe pass at ``level``.
+
+    ``level`` is a loguru level name (e.g. "INFO", "DEBUG"), not a stdlib
+    numeric level -- loguru's ``.log()`` accepts a numeric level too, but
+    silently does NOT apply %-style formatting the way stdlib's logger.log
+    does (confirmed live: it printed the literal "%s" instead of
+    substituting), so this also converts both calls below to {}-style.
+    """
     pct = report.removed_fraction * 100
     logger.log(
         level,
-        "dedupe: %d -> %d chunks (%d removed, %.1f%%) across %d clusters",
+        "dedupe: {} -> {} chunks ({} removed, {:.1f}%) across {} clusters",
         report.input_count,
         report.output_count,
         report.removed_count,
@@ -508,7 +514,7 @@ def log_dedupe_report(report: DedupeReport, *, level: int = logging.INFO) -> Non
     for grp in report.groups:
         logger.log(
             level,
-            "  kept %s  dropped %d (across %d files): %s | %r",
+            "  kept {}  dropped {} (across {} files): {} | {!r}",
             grp.kept_source,
             len(grp.dropped_indices),
             grp.distinct_files,
