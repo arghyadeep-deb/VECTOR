@@ -2725,3 +2725,137 @@ isn't "proven in production" until you supply the service/device and run it live
     No commit hash exists: a focused commit was attempted with explicit paths, but the sandbox
     could not create `.git/index.lock` (`Permission denied`), so the verified changes remain
     uncommitted on disk.
+
+51. **`vectorcode/src/{vc_security,telemetry,engine,vc_engine,mining,providers,speech,utils,memory}/`
+    audit continuation (116 tracked Python files, partial, 2026-10-05) —** authoritative inventory
+    established with `git ls-files`. **Fixed:** nine `vc_security` modules now use loguru correctly
+    instead of stdlib logging, `%` placeholders, or ignored `exc_info=True`; three `engine` modules
+    had the same placeholder defect fixed. `vc_security/subprocess_sandbox.py` no longer passes the
+    POSIX-only `preexec_fn=os.setsid` on Windows and now uses a Windows process group plus fixed-argv
+    tree termination. `memory/swarm_db.py` now rejects path separators/traversal in caller-supplied
+    swarm IDs before creating a database. `utils/usage_pricing.py` now timestamps records so bounded
+    summaries work, refuses to overwrite corrupt accounting state, and saves atomically. Regression
+    tests in `tests/test_vectorcode_vc_security_logging.py` and
+    `tests/test_vectorcode_memory_utils_audit_regressions.py`: 7/7 passing; touched modules pass
+    `compileall` and `git diff --check`.
+    **FLAGGED, not fixed — owner/design decisions needed:** capability enforcement is currently
+    permit-by-default for unknown agents (`vc_security/capabilities.py` and its permission-gateway
+    construction); configured scanner initialization can fail open to an unwrapped engine or an
+    empty `BoundaryGuard`; Ed25519 private keys are written without the existing restrictive-create
+    helper; `engine/tool_exec.py` uses banned `ThreadPoolExecutor` and compares Windows path scopes
+    case-sensitively; multiple LLM paths do not visibly enforce session hydration or the Permission
+    Gateway locally; direct `sqlite3.connect()` persists VECTOR-owned audit/memory/FAISS/swarm data
+    in `vc_security/audit.py` and `memory/{backends,faiss_index,swarm_db}.py`, requiring an owner-led
+    SQLCipher migration rather than a silent local rewrite.
+    **Depth statement:** full line-by-line review completed for all 18 `telemetry` re-export shims;
+    `engine` files other than the separately large `agent_loop.py`; and the independently reviewed
+    `vc_security/{__init__,_abc,audit,boundary,capabilities,file_policy,file_utils,signing,ssrf,
+    subprocess_sandbox,taint,types}.py`, `memory/{faiss_index,provider,swarm_db}.py`,
+    `providers/{retry,retry_utils,router}.py`, and `utils/{subdirectory_hints,usage_pricing}.py`.
+    Logging-specific review/fixes were also completed for the remaining changed `vc_security` files
+    and `engine/agent_loop.py`, but those are not claimed as full logic depth. The rest of
+    `vc_engine/`, `mining/`, `providers/`, `speech/`, `utils/`, `memory/`, plus the unlisted
+    `vc_security` files and full `engine/agent_loop.py`, remain for continuation. No commit hash
+    exists: the required focused commit was attempted with explicit paths, but the sandbox could
+    not create `.git/index.lock` (`Permission denied`); all verified changes remain uncommitted.
+
+52. **`vectorcode/src/{vc_system,tui_gateway,system,security,scripts,context,workflow,vc_core,mcp}/`
+    audit continuation (60 tracked Python files, partial, 2026-10-05) —** authoritative inventories
+    and line counts were established with `git ls-files`; the 5,047-line
+    `tui_gateway/server.py` was explicitly deferred under the requested large-file rule. **Fixed:**
+    `mcp/protocol_manager.py` imported the unrelated installed PyPI `mcp` package and therefore
+    failed on every import, while `get_server()` eagerly replaced an existing named server;
+    imports now target the local compatibility package and registered servers retain identity.
+    `mcp/server.py` returned un-awaited coroutine objects; it now awaits any awaitable handler
+    result. The MCP transport now uses loguru and writes its required JSON-lines protocol directly
+    to stdout without production `print()`. Workflow agent and loop nodes no longer report success
+    for explicit agent error results or missing execution systems, invalid condition expressions
+    fail their step instead of silently becoming successful `false`, and transforms consume only
+    graph predecessors rather than unrelated branch outputs. `context/__init__.py`'s nonexistent
+    import path no longer gets silently swallowed, and `load_project_context()` now routes
+    `VECTOR.md` through the existing prompt-injection scanner before embedding it. Reviewed
+    `vc_system/{builder,core,orchestrator}.py` logging paths now use loguru, `{}` formatting, and
+    `logger.opt(exception=True)`. Four new regression files provide 11 tests; all pass together,
+    and every edited Python module passes `py_compile`.
+
+    **FLAGGED, not fixed — owner/design decisions needed:** `workflow/engine.py` uses the
+    project-banned `ThreadPoolExecutor`, and its timeout is ineffective because
+    `future.result(timeout=...)` runs only after `as_completed()` yields a finished future;
+    converting the public synchronous workflow API to asyncio is not a narrow patch. It also
+    stores `WorkflowEdge.condition` but never consults it, so conditional routing executes every
+    branch; skip/failure/result semantics need an explicit decision. `security/safe_executor.py`
+    allows caller-controlled arguments to powerful interpreters/package managers (`python -c`,
+    npm lifecycle commands, git configuration), so its executable allowlist is not an argument-
+    level security boundary; tightening that contract could break intended callers.
+    `security/injection_scanner.py` has a fallback scanner that returns an empty list on canonical
+    import failure, which fails open; hard-fail versus typed-blocking-result behavior affects
+    callers and remains open.
+
+    **Depth statement:** genuine full line-by-line review completed for all seven `system/` files,
+    all seven `security/` files, all six `workflow/` files, and all six `mcp/` files. Full review
+    also completed for `context/{__init__,prompt_builder,session_memory,vectormd}.py` and
+    `vc_system/{__init__,_channel_kwargs,orchestrator,protocols}.py`; `vc_system/builder.py` and
+    `core.py` received focused logging/correctness review but not a complete logic pass. The
+    remaining `context` files, `vc_system/bundles.py`, most of `tui_gateway/`, all `scripts/`, all
+    `vc_core/` (including the 1,978-line config), and the deferred TUI server remain for future
+    line-by-line slices. A focused commit was attempted with explicit paths, but the sandbox could
+    not create `.git/index.lock` (`Permission denied`); there are no commit hashes and all verified
+    changes remain uncommitted on disk.
+
+52. **`vectorcode/src/{vc_agents,connectors,vc_tools}/` continuation, round 2 (2026-10-05) —**
+    resumed this 122-file slice after a prior continuation fork finished cleanly (not a usage-limit
+    cutoff) at ~52/122 files covered. Computed the exact remaining-file set via `git log` against
+    the prior round's commits (0edf568b2, 10e58dbae, plus individually-named earlier fixes): 85
+    files were still unreviewed at the start of this round. **Fixed:** a repo-wide bug across 13
+    files (`vc_agents/{image_agent,insight_agent,memory_agent,reasoning_agent,skill_agent,
+    tool_agent,video_agent,_abc}.py`, `connectors/{__init__,apple_health}.py`,
+    `vc_tools/{__init__,_abc}.py`, `vc_tools/storage/__init__.py`) — 67 "suppressed exception"
+    diagnostic calls passed `exc_info=True` to a loguru logger; confirmed live that loguru
+    silently accepts and drops that stdlib kwarg with no traceback ever logged, so every one of
+    these diagnostics (mostly guarded-import fallbacks) was permanently blind to the actual
+    exception. Replaced with `logger.opt(exception=True)`, loguru's real equivalent, confirmed
+    live to attach the traceback. `vc_tools/db_query.py`'s `_is_read_only_query()` only scanned
+    the full query string for write keywords (DROP/DELETE/INSERT/UPDATE/ALTER/CREATE/TRUNCATE) in
+    its `WITH`-CTE branch — a simple-statement query only had its *prefix* checked against the
+    read-only allowlist. Because psycopg2's `cursor.execute()` (unlike sqlite3's) runs every
+    semicolon-separated statement in one call, a query like `"SELECT 1; DROP TABLE users;"` passed
+    the read-only guard and then actually executed the `DROP TABLE` against the PostgreSQL
+    backend — a complete bypass of the tool's own `read_only=True` safety parameter via SQL
+    statement stacking. Fixed by scanning for write keywords up front, uniformly, before any
+    prefix match. `vc_tools/browser.py`'s `BrowserNavigateTool` wrapped its SSRF check in
+    `except ImportError: pass` — if the SSRF guard module failed to import for any reason, the
+    headless browser navigated to the caller-supplied URL (including internal addresses or cloud
+    metadata endpoints) with zero protection and zero diagnostic; now logs a loud warning naming
+    the exact URL that proceeded unprotected. New tests, all passing:
+    `tests/test_vectorcode_vc_agents_connectors_vc_tools_exc_info_dropped.py` (14),
+    `tests/test_vectorcode_vc_tools_db_query_stacked_statement_bypass.py` (9, verified 3 fail
+    against the pre-fix code via `git stash`), `tests/test_vectorcode_vc_tools_browser_ssrf_fail_open_logged.py`
+    (1). **Reviewed, no bug found:** `knowledge_sql.py` (already scans unconditionally, and
+    sqlite3 itself rejects multi-statement `execute()` calls, so no stacking bypass exists there),
+    `file_read.py`/`file_write.py` (both correctly use `Path.is_relative_to()` for confinement,
+    not the vulnerable `startswith()` pattern), `dropbox.py` (httpx already used correctly; its
+    OAuth token exchange is an explicitly-documented stub, not a silently-incomplete one),
+    `apple_notes.py`/`imessage.py` (confirmed read-only connections to Apple's own system
+    databases, correctly out of scope per the prior round's classification). **FLAGGED, not
+    fixed:** `code_interpreter.py`'s `_BLOCKED_PATTERNS` is a literal-substring blocklist on raw
+    source text, trivially bypassed without obfuscation (e.g. `importlib.import_module("os")
+    .system(...)` contains neither `"os.system"` nor `"subprocess."` verbatim); a real fix means
+    building sandboxed execution, not patching this list, and the tool's own comment already
+    treats `VECTOR_ENABLE_UNTRUSTED_CODE=1` + isolated-lab-only as the real boundary — added an
+    explicit comment rather than attempting a fix. `vc_agents/digest_store.py` and
+    `vc_tools/storage/knowledge_graph.py` were found during a repo-wide `sqlite3.connect()` sweep
+    as two more files bypassing the SQLCipher gateway (distinct from the already-flagged 6 and
+    the 3 correctly-out-of-scope Apple system-DB readers) — not fixed, same owner migration
+    decision as the earlier-flagged instances. **Depth statement:** real depth given to the 13
+    exc_info files, `db_query.py`, `knowledge_sql.py`, `file_read.py`, `file_write.py`,
+    `browser.py`, `code_interpreter.py`, `dropbox.py`, plus a targeted grep-based security sweep
+    (requests/httpx usage, API-key-in-URL, raw `sqlite3.connect`, timing-unsafe comparison,
+    `0.0.0.0` binds, `pickle`, `os.system`/`os.popen`) across all 85 files in this round's
+    starting scope. Roughly 65 of those 85 files (most of `vc_agents/` proper beyond the 8 fixed,
+    `connectors/{notion,outlook,slack_connector,spotify,strava,oura,weather,hackernews,
+    google_tasks,granola,chunker,pipeline,gmail,obsidian}.py`, and most of `vc_tools/`'s
+    storage-backend and tool-wrapper files) received only the grep sweep, not full line-by-line
+    logic review, and are not represented as complete — a third round should resume from this
+    list rather than re-deriving it. Commits: `c9a01abbf` (exc_info fix), `e7d416124` (db_query
+    stacked-statement fix), `eeeaa2fca` (code_interpreter.py flag-only), `f5fe83811` (browser.py
+    SSRF fail-open fix).
