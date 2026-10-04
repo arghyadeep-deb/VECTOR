@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -14,7 +13,7 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @ChannelRegistry.register("matrix")
 class MatrixChannel(BaseChannel):
@@ -102,7 +101,7 @@ class MatrixChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Matrix API returned status %d",
+                "Matrix API returned status {}",
                 resp.status_code,
             )
             return False

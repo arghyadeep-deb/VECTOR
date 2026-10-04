@@ -8,7 +8,6 @@ API reference: https://docs.sendblue.com/api-v2/
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -21,7 +20,7 @@ from vectorcode.src.comms._abc import (
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _API_BASE = "https://api.sendblue.co"
 
@@ -127,7 +126,7 @@ class SendBlueChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "SendBlue API returned status %d: %s",
+                "SendBlue API returned status {}: {}",
                 resp.status_code,
                 resp.text[:200],
             )

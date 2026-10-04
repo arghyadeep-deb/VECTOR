@@ -2,12 +2,11 @@
 
 import hashlib
 import hmac
-import logging
 import os
 import time
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import httpx

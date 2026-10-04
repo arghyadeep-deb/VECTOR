@@ -9,7 +9,6 @@ Accessibility permission for AppleScript Messages control.
 
 from __future__ import annotations
 
-import logging
 import os
 import signal
 import sqlite3
@@ -18,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _DEFAULT_DB_PATH = str(Path.home() / "Library" / "Messages" / "chat.db")
 _POLL_INTERVAL = 5
@@ -92,7 +91,7 @@ def run_daemon(
 
     last_rowid = _get_max_rowid(db_path)
     logger.info(
-        "iMessage daemon started — monitoring %s from ROWID %d",
+        "iMessage daemon started — monitoring {} from ROWID {}",
         chat_identifier,
         last_rowid,
     )
@@ -117,7 +116,7 @@ def run_daemon(
         for msg in messages:
             last_rowid = msg["rowid"]
             text = msg["text"]
-            logger.info("Received: %s", text[:100])
+            logger.info("Received: {}", text[:100])
 
             if handler is not None:
                 try:
@@ -126,7 +125,7 @@ def run_daemon(
                         send_imessage(chat_identifier, response)
                 except Exception:
                     logger.exception(
-                        "Handler failed for message %d",
+                        "Handler failed for message {}",
                         msg["rowid"],
                     )
 

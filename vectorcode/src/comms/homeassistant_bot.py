@@ -1,10 +1,9 @@
 """Home Assistant adapter — WebSocket API for smart home control."""
 
 import json
-import logging
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import aiohttp

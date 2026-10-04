@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, List, Optional
 
 from vectorcode.src.comms._abc import (
@@ -14,7 +13,7 @@ from vectorcode.src.comms._abc import (
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @ChannelRegistry.register("webchat")
 class WebChatChannel(BaseChannel):

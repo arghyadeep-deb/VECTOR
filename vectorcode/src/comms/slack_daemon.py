@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _PID_FILE = str(Path.home() / ".vector" / "slack-daemon.pid")
 
@@ -66,7 +66,7 @@ def run_slack_daemon(
         tools=tools,
         max_turns=5,
     )
-    logger.info("Slack daemon: agent ready with %d tools", len(tools))
+    logger.info("Slack daemon: agent ready with {} tools", len(tools))
 
     app = App(token=bot_token)
 
@@ -79,7 +79,7 @@ def run_slack_daemon(
             return
 
         ts = event.get("ts", "")
-        logger.info("Slack DM: %s", text[:60])
+        logger.info("Slack DM: {}", text[:60])
 
         say(text="Message received! Working on it now...", thread_ts=ts)
         processing.set()
@@ -106,13 +106,13 @@ def run_slack_daemon(
             reply = _to_slack_fmt(result.content or "No results found.")
         except Exception as exc:
             reply = f"Error: {exc}"
-            logger.error("Slack daemon error: %s", exc)
+            logger.error("Slack daemon error: {}", exc)
         finally:
             processing.clear()
             stop.set()
 
         say(text=reply, thread_ts=ts)
-        logger.info("Slack DM reply sent (%d chars)", len(reply))
+        logger.info("Slack DM reply sent ({} chars)", len(reply))
 
     handler = SocketModeHandler(app, app_token)
 

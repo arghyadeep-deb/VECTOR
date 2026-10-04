@@ -1,10 +1,9 @@
 """Feishu comment handler — Drive doc comment threads with AI reply."""
 
 import json
-import logging
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import aiohttp

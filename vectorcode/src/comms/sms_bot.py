@@ -1,9 +1,8 @@
 """SMS adapter — Twilio-based SMS send/receive."""
 
-import logging
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from twilio.rest import Client
@@ -34,5 +33,4 @@ class SMSBot:
         self._client.messages.create(body=text, from_=self.from_number, to=to)
 
     async def stop(self):
-        from loguru import logger
-        logger.debug("[VECTOR][sms_bot] stop called (no-op)")
+                logger.debug("[VECTOR][sms_bot] stop called (no-op)")

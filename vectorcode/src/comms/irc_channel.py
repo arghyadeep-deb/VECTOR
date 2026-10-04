@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import socket
 import ssl
@@ -16,7 +15,7 @@ from vectorcode.src.comms._abc import (
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @ChannelRegistry.register("irc")
 class IRCChannel(BaseChannel):

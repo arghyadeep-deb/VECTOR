@@ -1,9 +1,8 @@
 """Slack bot adapter using slack-bolt Socket Mode."""
 
-import logging
 from typing import Optional, Callable, Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from slack_bolt import App

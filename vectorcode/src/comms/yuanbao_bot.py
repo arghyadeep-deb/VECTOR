@@ -4,11 +4,10 @@ import asyncio
 import hashlib
 import hmac
 import json
-import logging
 import time
 from typing import Any, Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import aiohttp

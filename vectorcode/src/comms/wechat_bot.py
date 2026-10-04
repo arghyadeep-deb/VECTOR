@@ -1,6 +1,5 @@
 """WeChat adapter — Tencent iLink Bot API integration (WxWork/iLink REST API)."""
 
-import logging
 from typing import Callable, Optional
 
 try:
@@ -9,7 +8,7 @@ try:
 except ImportError:
     _HTTPX = False
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _WECHAT_API_BASE = "https://qyapi.weixin.qq.com/cgi-bin"
 

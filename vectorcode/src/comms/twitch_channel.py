@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -14,7 +13,7 @@ from vectorcode.src.comms._abc import (
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @ChannelRegistry.register("twitch")
 class TwitchChannel(BaseChannel):
@@ -127,7 +126,7 @@ class TwitchChannel(BaseChannel):
             if resp.status_code < 300:
                 self._publish_sent(channel, content, conversation_id)
                 return True
-            logger.warning("Twitch API returned status %d", resp.status_code)
+            logger.warning("Twitch API returned status {}", resp.status_code)
             return False
         except Exception:
             logger.debug("Twitch send failed", exc_info=True)

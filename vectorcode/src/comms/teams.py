@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -14,7 +13,7 @@ from vectorcode.src.comms._abc import (
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @ChannelRegistry.register("teams")
 class TeamsChannel(BaseChannel):
@@ -106,7 +105,7 @@ class TeamsChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Teams API returned status %d",
+                "Teams API returned status {}",
                 resp.status_code,
             )
             return False

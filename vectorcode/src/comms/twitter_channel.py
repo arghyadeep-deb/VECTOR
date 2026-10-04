@@ -5,7 +5,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
-import logging
 import os
 import threading
 import time
@@ -22,7 +21,7 @@ from vectorcode.src.comms._abc import (
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.vc_core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _API_BASE = "https://api.twitter.com/2"
 
@@ -227,7 +226,7 @@ class TwitterChannel(BaseChannel):
                 self._publish_sent(channel, text, conversation_id)
                 return True
             logger.warning(
-                "Twitter API returned status %d: %s",
+                "Twitter API returned status {}: {}",
                 resp.status_code,
                 resp.text,
             )
@@ -305,7 +304,7 @@ class TwitterChannel(BaseChannel):
                             self._since_id = tweet_id
                 else:
                     logger.warning(
-                        "Twitter mentions API returned %d: %s",
+                        "Twitter mentions API returned {}: {}",
                         resp.status_code,
                         resp.text,
                     )

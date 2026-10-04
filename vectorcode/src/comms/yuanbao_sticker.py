@@ -1,9 +1,8 @@
 """Yuanbao sticker handler — sticker send/receive for Yuanbao platform."""
 
-import logging
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 class StickerInfo:
     def __init__(self, sticker_id: str = "", pack_id: str = "", url: str = ""):

@@ -1,10 +1,9 @@
 """Signal messenger adapter — connects to signal-cli daemon HTTP mode."""
 
 import json
-import logging
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import httpx
@@ -39,5 +38,4 @@ class SignalBot:
             await client.post(f"{self.http_url}/api/v1/rpc", json=payload)
 
     async def stop(self):
-        from loguru import logger
-        logger.debug("[VECTOR][signal_bot] stop called (no-op)")
+                logger.debug("[VECTOR][signal_bot] stop called (no-op)")

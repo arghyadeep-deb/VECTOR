@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any, Dict, List, Optional
 
@@ -14,7 +13,7 @@ from vectorcode.src.channels._abc import (
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @ChannelRegistry.register("signal")
 class SignalChannel(BaseChannel):
@@ -94,7 +93,7 @@ class SignalChannel(BaseChannel):
                 self._publish_sent(channel, content, conversation_id)
                 return True
             logger.warning(
-                "Signal API returned status %d",
+                "Signal API returned status {}",
                 resp.status_code,
             )
             return False

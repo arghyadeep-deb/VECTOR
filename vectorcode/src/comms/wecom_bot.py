@@ -1,10 +1,9 @@
 """WeCom (Enterprise WeChat) adapter — AI Bot WebSocket gateway."""
 
 import json
-import logging
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import aiohttp

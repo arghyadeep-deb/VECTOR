@@ -1,9 +1,8 @@
 """Matrix adapter — homeserver-agnostic chat via mautrix SDK."""
 
-import logging
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     from maatrix import MatrixClient as _MC

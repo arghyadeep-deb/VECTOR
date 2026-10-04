@@ -1,10 +1,9 @@
 """WhatsApp adapter — Business API and web-based backends."""
 
 import json
-import logging
 from typing import Callable, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 try:
     import httpx
@@ -36,5 +35,4 @@ class WhatsAppBot:
             )
 
     async def stop(self):
-        from loguru import logger
-        logger.debug("[VECTOR][whatsapp_bot] stop called (no-op)")
+                logger.debug("[VECTOR][whatsapp_bot] stop called (no-op)")
