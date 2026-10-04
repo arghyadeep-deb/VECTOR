@@ -2859,3 +2859,83 @@ isn't "proven in production" until you supply the service/device and run it live
     list rather than re-deriving it. Commits: `c9a01abbf` (exc_info fix), `e7d416124` (db_query
     stacked-statement fix), `eeeaa2fca` (code_interpreter.py flag-only), `f5fe83811` (browser.py
     SSRF fail-open fix).
+
+53. **`vectorcode/src/{environments,cli,server}/` audit (partial, 2026-10-05) —** assigned
+    scope was all tracked Python files in these 3 directories (24 + 21 + 21 files, ~20,459
+    lines combined); `server/` got substantial real depth, `cli/` got one file, `environments/`
+    got none beyond an initial grep triage. **Fixed, `server/` (13 files, 15 commits):**
+    `auth_middleware.py` — the bearer-token check on every `/v1/*`/`/api/*` request used plain
+    `!=` instead of `secrets.compare_digest()`, a timing side-channel on the real API key.
+    `webhook_routes.py` — three more timing-unsafe secret comparisons (`bluebubbles_password`,
+    `whatsapp_verify_token`, SendBlue's `webhook_secret`), all fixed the same way; the WhatsApp
+    POST handler's HMAC check already correctly used `hmac.compare_digest()`. `cloud_router.py`
+    — `_stream_google()` passed the Gemini API key in the URL query string (`?key=`, logged by
+    proxies/access logs); moved to the documented `x-goog-api-key` header alternative.
+    `connectors_router.py` — three findings: (1) loguru imported then immediately shadowed by
+    `logging.getLogger(__name__)`, breaking every placeholder in the file; (2) two
+    `threading.Thread` background-task sites (CLAUDE.md: asyncio only) converted to
+    `asyncio.create_task(asyncio.to_thread(...))` with a strong-reference set (bare
+    `create_task()` results can be GC'd mid-run) and `_sync_threads`/`.is_alive()` renamed to
+    `_sync_tasks`/`not .done()`; (3) a real, independently-confirmed bug found via the new
+    test: `sync_status()`'s `effective_state` logic had two dead-identical branches (`elif
+    status.state != "idle": effective_state = status.state` then `else: effective_state =
+    status.state` — same assignment either way) and never checked `bg["state"] == "complete"`.
+    Real connectors' own `sync_status()` reports `"idle"` on success, not `"complete"`
+    (confirmed in `apple_health.py`), so `GET /sync` never actually surfaced a finished
+    background sync to any UI polling on it — fixed by checking `bg["state"] == "complete"`
+    explicitly. `session_store.py`, `routes.py`, `channel_bridge.py`, `api_routes.py`,
+    `ws_bridge.py`, `upload_router.py`, `app.py`, `stream_bridge.py` — the same
+    loguru-shadowed-by-stdlib-logging pattern (one as a local in-function shadow inside two
+    `except` blocks in `stream_bridge.py`, which had loguru correctly imported at module level)
+    plus the resulting broken `%s`/`%d`/`%r` placeholders and `exc_info=True` kwargs (stdlib-only,
+    silently ignored by loguru) across all eight; converted to `logger.opt(exception=...)`
+    where a traceback mattered. `app.py` also had a trace-store init failure logged as the
+    literal, content-free message `"[VECTOR] silent swallow"` (an auto-generated leftover from
+    an earlier automated pass) — replaced with a real diagnostic message. `ws_bridge.py` had a
+    bare `except (RuntimeError, asyncio.QueueFull): pass` with zero logging — added a debug log.
+    `middleware.py` reviewed, clean, no changes needed. **Fixed, `cli/` (1 file):** `auth.py` —
+    one broken `%s` placeholder (loguru was otherwise used correctly throughout, mostly via
+    f-strings); reviewed the credential-storage design (keyring + XOR-"obfuscation"-not-
+    encryption file fallback) and confirmed it is honestly self-documented as weak-by-design,
+    not a new finding. **FLAGGED, not fixed:** `server/api_routes.py`'s `/memory/index` resolves
+    an arbitrary user-supplied path with zero confinement (CWE-22 shape), but "index any local
+    path I choose" is this endpoint's actual intended feature on a single-owner local-first
+    system, already gated behind `auth_middleware.py`'s API key — restricting it would be a
+    product decision, not a bug fix, documented with a comment instead. `webhook_routes.py`'s
+    SendBlue handler nests a raw `threading.Thread`/`Event` for a periodic reminder inside a
+    function that already runs via `asyncio.to_thread()` — no event loop is reachable from
+    inside that worker thread to schedule an asyncio timer against, so converting it needs an
+    end-to-end sync-to-async restructure, not a narrow fix; same reasoning applies to
+    `cli/digest_cmd.py`'s background-audio-playback thread in a one-shot synchronous CLI command
+    (flagged in this entry only, not yet commented in the file itself). `cli/agent_cmd.py`'s two
+    `threading.Event()` uses are the standard idiom for blocking a synchronous process on a
+    signal handler and are not a bug. New tests, all passing: 9 new test files across the
+    `server/` fixes (`test_vectorcode_server_auth_middleware_timing_safe.py`,
+    `test_vectorcode_server_webhook_routes_timing_safe.py`,
+    `test_vectorcode_server_cloud_router_gemini_key_header.py`,
+    `test_vectorcode_server_connectors_router_asyncio_sync.py`,
+    `test_vectorcode_server_routes_loguru_logging.py`,
+    `test_vectorcode_server_channel_bridge_logging.py`,
+    `test_vectorcode_server_misc_logging_fixes.py`) plus `test_vectorcode_cli_auth_logging.py`.
+    **Depth statement, honestly incomplete:** `server/agent_manager_routes.py` (2,166 lines,
+    exceeds this audit's ~1,500-line single-file threshold) was deliberately not opened at all
+    and needs its own dedicated future slice. `server/dashboard.py`, `digest_routes.py`,
+    `cost_calculator.py`, `savings.py`, `models.py`, `comparison.py` passed an initial grep
+    triage for the known bug-class patterns (all clean) but were not read line-by-line for
+    logic bugs. In `cli/`, only `auth.py` got real depth; `digest_cmd.py` and `agent_cmd.py` got
+    a targeted look at their flagged `threading` usage only (not a full read); `mine_cmd.py`
+    (978 lines) got a pattern grep only (clean); the remaining ~17 `cli/` files
+    (`chat_cmd.py`, `completion.py`, `doctor.py`, `init_cmd.py`, `profiles.py`,
+    `registry_cmd.py`, `scan_cmd.py`, `scheduler_cmd.py`, `self_update.py`, `skill_cmd.py`,
+    `workflow_cmd.py`, `ask.py`, and the small `_`-prefixed helper files) were not reviewed at
+    all this round. **`environments/` (24 files, ~7,288 lines) received no real review this
+    round** — only the very first broad grep pass across the whole assigned scope, which
+    surfaced that most files there use plain stdlib `logging.getLogger(__name__)` consistently
+    (not the loguru-shadow shape, just never-adopted-loguru) and that `yc_bench_env.py`/
+    `terminalbench2_env.py` use heavy `print()` for benchmark-harness CLI result output, which
+    looks like legitimate human-facing eval console output rather than a bug, but neither
+    conclusion was verified with a full read. A continuation round should start with
+    `environments/` in full, then the ~17 untouched `cli/` files, then
+    `server/agent_manager_routes.py` as its own slice. Commits (server/+cli/, this round):
+    `739d3b501`, `eab3e610c`, `577f17b2b`, `90cc714be`, `f5b21b334`, `ac472e3cc`, `e2d76171a`,
+    `3cd3a8f13`.
