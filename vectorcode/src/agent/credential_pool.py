@@ -3,7 +3,6 @@
 from __future__ import annotations
 from loguru import logger
 
-import logging
 import random
 import threading
 import time
@@ -33,9 +32,6 @@ from vector_cli.auth import (
     read_credential_pool,
     write_credential_pool,
 )
-
-logger = logging.getLogger(__name__)
-
 
 def _load_config_safe() -> Optional[dict]:
     """Load config.yaml, returning None on any error."""
@@ -440,7 +436,7 @@ class CredentialPool:
             file_expires = creds.get("expiresAt", 0)
             # If the credentials file has a different token pair, sync it
             if file_refresh and file_refresh != entry.refresh_token:
-                logger.debug("Pool entry %s: syncing tokens from credentials file (refresh token changed)", entry.id)
+                logger.debug("Pool entry {}: syncing tokens from credentials file (refresh token changed)", entry.id)
                 updated = replace(
                     entry,
                     access_token=file_access,
@@ -454,7 +450,7 @@ class CredentialPool:
                 self._persist()
                 return updated
         except Exception as exc:
-            logger.debug("Failed to sync from credentials file: %s", exc)
+            logger.debug("Failed to sync from credentials file: {}", exc)
         return entry
 
     def _sync_nous_entry_from_auth_store(self, entry: PooledCredential) -> PooledCredential:
@@ -479,7 +475,7 @@ class CredentialPool:
             store_access = state.get("access_token", "")
             if store_refresh and store_refresh != entry.refresh_token:
                 logger.debug(
-                    "Pool entry %s: syncing tokens from auth.json (Nous refresh token changed)",
+                    "Pool entry {}: syncing tokens from auth.json (Nous refresh token changed)",
                     entry.id,
                 )
                 field_updates: Dict[str, Any] = {
@@ -509,7 +505,7 @@ class CredentialPool:
                 self._persist()
                 return updated
         except Exception as exc:
-            logger.debug("Failed to sync Nous entry from auth.json: %s", exc)
+            logger.debug("Failed to sync Nous entry from auth.json: {}", exc)
         return entry
 
     def _sync_device_code_entry_to_auth_store(self, entry: PooledCredential) -> None:
@@ -571,7 +567,7 @@ class CredentialPool:
 
                 _save_auth_store(auth_store)
         except Exception as exc:
-            logger.debug("Failed to sync %s pool entry back to auth store: %s", self.provider, exc)
+            logger.debug("Failed to sync {} pool entry back to auth store: {}", self.provider, exc)
 
     def _refresh_entry(self, entry: PooledCredential, *, force: bool) -> Optional[PooledCredential]:
         if entry.auth_type != AUTH_TYPE_OAUTH or not entry.refresh_token:
@@ -605,7 +601,7 @@ class CredentialPool:
                             refreshed["expires_at_ms"],
                         )
                     except Exception as wexc:
-                        logger.debug("Failed to write refreshed token to credentials file: %s", wexc)
+                        logger.debug("Failed to write refreshed token to credentials file: {}", wexc)
             elif self.provider == "openai-codex":
                 refreshed = auth_mod.refresh_codex_oauth_pure(
                     entry.access_token,
@@ -654,7 +650,7 @@ class CredentialPool:
             else:
                 return entry
         except Exception as exc:
-            logger.debug("Credential refresh failed for %s/%s: %s", self.provider, entry.id, exc)
+            logger.debug("Credential refresh failed for {}/{}: {}", self.provider, entry.id, exc)
             # For anthropic claude_code entries: the refresh token may have been
             # consumed by another process. Check if ~/.claude/.credentials.json
             # has a newer token pair and retry once.
@@ -687,10 +683,10 @@ class CredentialPool:
                                 refreshed["expires_at_ms"],
                             )
                         except Exception as wexc:
-                            logger.debug("Failed to write refreshed token to credentials file (retry path): %s", wexc)
+                            logger.debug("Failed to write refreshed token to credentials file (retry path): {}", wexc)
                         return updated
                     except Exception as retry_exc:
-                        logger.debug("Retry refresh also failed: %s", retry_exc)
+                        logger.debug("Retry refresh also failed: {}", retry_exc)
                 elif not self._entry_needs_refresh(synced):
                     # Credentials file had a valid (non-expired) token — use it directly
                     logger.debug("Credentials file has valid token, using without refresh")
@@ -868,7 +864,7 @@ class CredentialPool:
                 return None
             _label = entry.label or entry.id[:8]
             logger.info(
-                "credential pool: marking %s exhausted (status=%s), rotating",
+                "credential pool: marking {} exhausted (status={}), rotating",
                 _label, status_code,
             )
             self._mark_exhausted(entry, status_code, error_context)
@@ -876,7 +872,7 @@ class CredentialPool:
             next_entry = self._select_unlocked()
             if next_entry:
                 _next_label = next_entry.label or next_entry.id[:8]
-                logger.info("credential pool: rotated to %s", _next_label)
+                logger.info("credential pool: rotated to {}", _next_label)
             return next_entry
 
     def acquire_lease(self, credential_id: Optional[str] = None) -> Optional[str]:
@@ -1193,7 +1189,7 @@ def _seed_from_singletons(provider: str, entries: List[PooledCredential]) -> Tup
                         },
                     )
         except Exception as exc:
-            logger.debug("Copilot token seed failed: %s", exc)
+            logger.debug("Copilot token seed failed: {}", exc)
 
     elif provider == "qwen-oauth":
         # Qwen OAuth tokens live in ~/.qwen/oauth_creds.json, written by
@@ -1223,7 +1219,7 @@ def _seed_from_singletons(provider: str, entries: List[PooledCredential]) -> Tup
                         },
                     )
         except Exception as exc:
-            logger.debug("Qwen OAuth token seed failed: %s", exc)
+            logger.debug("Qwen OAuth token seed failed: {}", exc)
 
     elif provider == "openai-codex":
         # Respect user suppression — `vector auth remove openai-codex` marks
@@ -1427,7 +1423,7 @@ def _seed_custom_pool(pool_key: str, entries: List[PooledCredential]) -> Tuple[b
                             },
                         )
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.credential_pool] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.credential_pool] suppressed Exception: {}", _sve)
 
     return changed, active_sources
 

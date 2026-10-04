@@ -6,11 +6,10 @@ the file-write logic live here.
 """
 
 import json
-import logging
 from datetime import datetime
 from typing import Any, Dict, List
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 def convert_scratchpad_to_think(content: str) -> str:
@@ -51,6 +50,6 @@ def save_trajectory(trajectory: List[Dict[str, Any]], model: str,
     try:
         with open(filename, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        logger.info("Trajectory saved to %s", filename)
+        logger.info("Trajectory saved to {}", filename)
     except Exception as e:
-        logger.warning("Failed to save trajectory: %s", e)
+        logger.warning("Failed to save trajectory: {}", e)
