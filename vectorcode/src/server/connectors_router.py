@@ -1,15 +1,23 @@
 """FastAPI router for /v1/connectors — connector management endpoints."""
 
 from __future__ import annotations
-from loguru import logger
 
-import logging
+import asyncio
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Module-level cache of connector instances (keyed by connector_id).
 _instances: Dict[str, Any] = {}
+
+# Strong references to fire-and-forget background tasks: asyncio only
+# keeps a weak reference to a bare create_task() result, so a task with
+# nothing else holding it can be garbage-collected mid-run.
+_background_tasks: set = set()
+
+def _track_background_task(task: "asyncio.Task") -> None:
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 def _ensure_connectors_registered() -> None:
     """Ensure ConnectorRegistry is populated.
@@ -27,7 +35,7 @@ def _ensure_connectors_registered() -> None:
     try:
         import vectorcode.src.connectors  # noqa: F401
     except Exception as _sve:
-        logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][server.connectors_router] suppressed Exception: {}", _sve)
 
     # If the registry is still empty, reload individual connector submodules
     # that are already present in sys.modules.
@@ -46,7 +54,7 @@ def _ensure_connectors_registered() -> None:
                 try:
                     importlib.reload(sys.modules[mod_name])
                 except Exception as _sve:
-                    logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][server.connectors_router] suppressed Exception: {}", _sve)
 
 # ---------------------------------------------------------------------------
 # Pydantic request model -- defined at module level so FastAPI can resolve
@@ -113,7 +121,7 @@ def create_connectors_router():
                 ).fetchone()
                 chunks = rows[0] if rows else 0
         except Exception as _sve:
-            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: {}", _sve)
 
         return {
             "connector_id": connector_id,
@@ -166,14 +174,14 @@ def create_connectors_router():
         except NotImplementedError:
             pass  # non-OAuth connectors legitimately have no auth_url
         except Exception as _sve:
-            logger.warning("[VECTOR][server.connectors_router] auth_url() failed: %s", _sve)
+            logger.warning("[VECTOR][server.connectors_router] auth_url() failed: {}", _sve)
 
         # Serialise MCP tool names only (ToolSpec objects are not JSON-safe).
         mcp_tools = []
         try:
             mcp_tools = [t.name for t in instance.mcp_tools()]
         except Exception as _sve:
-            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: {}", _sve)
 
         # Include OAuth provider setup info if applicable
         oauth_setup = None
@@ -193,7 +201,7 @@ def create_connectors_router():
                     "has_credentials": has_creds,
                 }
         except Exception as _sve:
-            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][server.connectors_router] suppressed Exception: {}", _sve)
 
         return {
             "connector_id": connector_id,
@@ -250,7 +258,6 @@ def create_connectors_router():
 
         # Auto-ingest after successful connection
         if instance.is_connected():
-            import threading
 
             def _ingest() -> None:
                 try:
@@ -265,17 +272,17 @@ def create_connectors_router():
                         engine = SyncEngine(pipeline)
                         engine.sync(instance)
                     logger.info(
-                        "Auto-ingested %s after connect",
+                        "Auto-ingested {} after connect",
                         connector_id,
                     )
                 except Exception as exc:
                     logger.warning(
-                        "Auto-ingest failed for %s: %s",
+                        "Auto-ingest failed for {}: {}",
                         connector_id,
                         exc,
                     )
 
-            threading.Thread(target=_ingest, daemon=True).start()
+            _track_background_task(asyncio.create_task(asyncio.to_thread(_ingest)))
 
         return {
             "connector_id": connector_id,
@@ -440,15 +447,15 @@ def create_connectors_router():
             )
         )
 
-    # Track background sync state per connector
-    _sync_threads: Dict[str, Any] = {}
+    # Track background sync state per connector. _sync_tasks holds
+    # asyncio.Task objects (not threads -- see the asyncio.to_thread()
+    # conversion below), keyed by connector_id.
+    _sync_tasks: Dict[str, "asyncio.Task"] = {}
     _sync_state: Dict[str, Dict[str, Any]] = {}  # {connector_id: {state, error}}
 
     @router.post("/{connector_id}/sync")
-    def trigger_sync(connector_id: str) -> Dict[str, Any]:
+    async def trigger_sync(connector_id: str) -> Dict[str, Any]:
         """Trigger a sync in the background and return immediately."""
-        import threading
-
         _ensure_connectors_registered()
         if not ConnectorRegistry.contains(connector_id):
             raise HTTPException(
@@ -463,8 +470,8 @@ def create_connectors_router():
             )
 
         # If already syncing, don't start another
-        existing = _sync_threads.get(connector_id)
-        if existing and existing.is_alive():
+        existing = _sync_tasks.get(connector_id)
+        if existing and not existing.done():
             return {
                 "connector_id": connector_id,
                 "status": "already_syncing",
@@ -483,7 +490,7 @@ def create_connectors_router():
                     pipeline = IngestionPipeline(store=store)
                     engine = SyncEngine(pipeline=pipeline)
                     engine.sync(inst)
-                logger.info("Sync completed for %s", connector_id)
+                logger.info("Sync completed for {}", connector_id)
                 _sync_state[connector_id] = {"state": "complete", "error": None}
             except Exception as exc:
                 error_msg = str(exc)
@@ -495,12 +502,12 @@ def create_connectors_router():
                     error_msg = "Rate limited — wait a minute and try again."
                 elif "timeout" in error_msg.lower():
                     error_msg = "Connection timed out."
-                logger.error("Sync failed for %s: %s", connector_id, error_msg)
+                logger.error("Sync failed for {}: {}", connector_id, error_msg)
                 _sync_state[connector_id] = {"state": "error", "error": error_msg}
 
-        t = threading.Thread(target=_run_sync, daemon=True)
-        t.start()
-        _sync_threads[connector_id] = t
+        t = asyncio.create_task(asyncio.to_thread(_run_sync))
+        _track_background_task(t)
+        _sync_tasks[connector_id] = t
 
         return {
             "connector_id": connector_id,
@@ -522,18 +529,26 @@ def create_connectors_router():
         except Exception as exc:
             raise HTTPException(status_code=500, detail=str(exc))
 
-        # Override with router-level sync state (background thread tracking)
+        # Override with router-level sync state (background task tracking)
         bg = _sync_state.get(connector_id, {})
-        bg_thread = _sync_threads.get(connector_id)
-        is_bg_running = bg_thread is not None and bg_thread.is_alive()
+        bg_task = _sync_tasks.get(connector_id)
+        is_bg_running = bg_task is not None and not bg_task.done()
 
-        # Determine effective state
+        # Determine effective state. bg["state"] == "complete" must be
+        # checked explicitly: real connectors' own sync_status() reports
+        # "idle" on a successful sync (confirmed in apple_health.py), not
+        # "complete" -- so without this branch, a finished background sync
+        # always fell through to status.state ("idle"), and callers polling
+        # for "complete" never saw it (the two branches below used to be
+        # identical dead code: `elif status.state != "idle": effective_state
+        # = status.state` followed by `else: effective_state = status.state`
+        # -- same assignment either way).
         if is_bg_running:
             effective_state = "syncing"
         elif bg.get("state") == "error":
             effective_state = "error"
-        elif status.state != "idle":
-            effective_state = status.state
+        elif bg.get("state") == "complete":
+            effective_state = "complete"
         else:
             effective_state = status.state
 
