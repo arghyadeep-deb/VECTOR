@@ -7,16 +7,15 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from typing import Any
+
+from loguru import logger
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_security.ssrf import check_ssrf
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
-
-logger = logging.getLogger(__name__)
 
 @ToolRegistry.register("web_search")
 class WebSearchTool(BaseTool):
@@ -180,7 +179,7 @@ class WebSearchTool(BaseTool):
             )
         except Exception as exc:
             logger.debug(
-                "Tavily error (%s), falling back to DuckDuckGo", type(exc).__name__
+                "Tavily error ({}), falling back to DuckDuckGo", type(exc).__name__
             )
 
         try:

@@ -19,12 +19,11 @@ like the hardcoded constants.
 from __future__ import annotations
 
 import json
-import logging
 import os
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 def _vector_home() -> Path:
     """Resolve $VECTOR_HOME, defaulting to ~/.vector."""
@@ -43,12 +42,12 @@ def load_system_prompt_override(agent_name: str) -> str | None:
     try:
         content = prompt_path.read_text(encoding="utf-8")
         logger.info(
-            "Loaded system prompt override for %s from %s", agent_name, prompt_path
+            "Loaded system prompt override for {} from {}", agent_name, prompt_path
         )
         return content
     except Exception:
-        logger.warning(
-            "Failed to read system prompt override at %s", prompt_path, exc_info=True
+        logger.opt(exception=True).warning(
+            "Failed to read system prompt override at {}", prompt_path
         )
         return None
 
@@ -67,19 +66,18 @@ def load_few_shot_exemplars(
     try:
         data = json.loads(fs_path.read_text(encoding="utf-8"))
         if not isinstance(data, list):
-            logger.warning("few_shot.json for %s is not a list", agent_name)
+            logger.warning("few_shot.json for {} is not a list", agent_name)
             return []
         logger.info(
-            "Loaded %d few-shot exemplars for %s from %s",
+            "Loaded {} few-shot exemplars for {} from {}",
             len(data),
             agent_name,
             fs_path,
         )
         return data
     except Exception:
-        logger.warning(
-            "Failed to read few-shot exemplars at %s",
+        logger.opt(exception=True).warning(
+            "Failed to read few-shot exemplars at {}",
             fs_path,
-            exc_info=True,
         )
         return []

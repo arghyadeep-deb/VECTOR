@@ -90,7 +90,7 @@ class RLMRepl:
 
                 self._namespace[mod_name] = importlib.import_module(mod_name)
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         # answer dict — code can set answer["ready"] = True, answer["value"] = ...
         self._namespace["answer"] = {"ready": False, "value": None}
@@ -153,8 +153,7 @@ class RLMRepl:
 
     def execute(self, code: str) -> str:
         """Execute code in the REPL namespace."""
-        import logging
-        logging.getLogger(__name__).warning("[VECTOR][rlm_repl] code execution: %.200s", code)
+        logger.warning("[VECTOR][rlm_repl] code execution: {:.200}", code)
 
         # Security check
         violation = self.security_check(code)

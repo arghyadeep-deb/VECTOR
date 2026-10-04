@@ -7,18 +7,17 @@
 
 from __future__ import annotations
 
-import logging
 import threading
 import time
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger
 
 from vectorcode.src.vc_core.events import EventType
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_agents.executor import AgentExecutor
     from vectorcode.src.vc_agents.manager import AgentManager
-
-logger = logging.getLogger(__name__)
 
 def _next_cron_fire(cron_expr: str, now: float | None = None) -> float:
     """Calculate the next fire time for a cron expression.
@@ -101,7 +100,7 @@ class AgentScheduler:
             }
 
         logger.info(
-            "Registered agent %s (%s), next fire: %s",
+            "Registered agent {} ({}), next fire: {}",
             agent_id,
             schedule_type,
             next_fire,
@@ -111,7 +110,7 @@ class AgentScheduler:
         """Remove an agent from scheduling."""
         with self._lock:
             self._agents.pop(agent_id, None)
-        logger.info("Deregistered agent %s", agent_id)
+        logger.info("Deregistered agent {}", agent_id)
 
     def start(self) -> None:
         """Start the scheduler background thread."""
@@ -173,11 +172,11 @@ class AgentScheduler:
             ):
                 continue
 
-            logger.info("Firing tick for agent %s", agent_id)
+            logger.info("Firing tick for agent {}", agent_id)
             try:
                 self._executor.execute_tick(agent_id)
             except Exception:
-                logger.exception("Error executing tick for agent %s", agent_id)
+                logger.exception("Error executing tick for agent {}", agent_id)
 
             # Update next fire time
             with self._lock:
@@ -221,7 +220,7 @@ class AgentScheduler:
             if current_retries >= max_retries:
                 self._manager.update_agent(agent["id"], status="error")
                 logger.warning(
-                    "Agent %s stall retries exhausted (%d/%d), setting error",
+                    "Agent {} stall retries exhausted ({}/{}), setting error",
                     agent["id"],
                     current_retries,
                     max_retries,
@@ -242,7 +241,7 @@ class AgentScheduler:
                         },
                     )
                 logger.warning(
-                    "Agent %s stalled (retry %d/%d)",
+                    "Agent {} stalled (retry {}/{})",
                     agent["id"],
                     current_retries + 1,
                     max_retries,
@@ -281,7 +280,7 @@ class AgentScheduler:
                     },
                 )
             logger.info(
-                "Learning triggered for agent %s after %d ticks",
+                "Learning triggered for agent {} after {} ticks",
                 agent_id,
                 threshold,
             )

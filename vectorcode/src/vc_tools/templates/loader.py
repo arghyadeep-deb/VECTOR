@@ -9,17 +9,16 @@ from __future__ import annotations
 
 import ast
 import json
-import logging
 import re
 import shlex
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from loguru import logger
+
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
-
-logger = logging.getLogger(__name__)
 
 _SHELL_VALUE_REJECT = re.compile(r"[;&|`$<>\r\n]")
 _SHELL_INTERPRETERS = {"sh", "bash", "zsh", "fish", "cmd", "cmd.exe", "powershell", "powershell.exe", "pwsh", "pwsh.exe"}
@@ -290,7 +289,7 @@ def discover_templates(
         try:
             templates.append(load_template(path))
         except Exception as exc:
-            logger.debug("Skipping unparseable template %s: %s", path, exc)
+            logger.debug("Skipping unparseable template {}: {}", path, exc)
     return templates
 
 __all__ = ["ToolTemplate", "discover_templates", "load_template"]

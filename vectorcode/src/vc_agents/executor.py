@@ -7,9 +7,10 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import TYPE_CHECKING, Any
+
+from loguru import logger
 
 from vectorcode.src.vc_agents._abc import AgentResult
 from vectorcode.src.vc_agents.errors import (
@@ -23,8 +24,6 @@ from vectorcode.src.vc_core.events import EventBus, EventType
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_agents.manager import AgentManager
-
-logger = logging.getLogger(__name__)
 
 _MAX_RETRIES = 3
 
@@ -110,12 +109,12 @@ class AgentExecutor:
             self._manager.start_tick(agent_id)
             self._set_activity(agent_id, "Preparing tick...")
         except ValueError:
-            logger.warning("Agent %s already running, skipping tick", agent_id)
+            logger.warning("Agent {} already running, skipping tick", agent_id)
             return
 
         agent = self._manager.get_agent(agent_id)
         if agent is None:
-            logger.error("Agent %s not found", agent_id)
+            logger.error("Agent {} not found", agent_id)
             return
 
         self._bus.publish(
@@ -207,7 +206,7 @@ class AgentExecutor:
                 last_error = e
                 delay = retry_delay(attempt)
                 logger.info(
-                    "Agent %s tick retry %d/%d in %ds: %s",
+                    "Agent {} tick retry {}/{} in {}s: {}",
                     agent["id"],
                     attempt + 1,
                     _MAX_RETRIES,
@@ -221,7 +220,7 @@ class AgentExecutor:
                     raise classified from e
                 delay = retry_delay(attempt)
                 logger.info(
-                    "Agent %s tick retry %d/%d in %ds: %s",
+                    "Agent {} tick retry {}/{} in {}s: {}",
                     agent["id"],
                     attempt + 1,
                     _MAX_RETRIES,
@@ -253,7 +252,7 @@ class AgentExecutor:
             raise FatalError("No model configured for agent")
 
         logger.info(
-            "Agent %s [%s]: using model=%s, engine=%s",
+            "Agent {} [{}]: using model={}, engine={}",
             agent["name"],
             agent["id"],
             model,
@@ -297,7 +296,7 @@ class AgentExecutor:
 
                 _ensure_registries_populated()
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
             from vectorcode.src.vc_core.registry import ToolRegistry
 
             for tname in tool_names:
@@ -308,10 +307,10 @@ class AgentExecutor:
                         self._inject_tool_deps(tool)
                         tool_instances.append(tool)
                     except Exception:
-                        logger.warning("Failed to instantiate tool %s", tname)
+                        logger.warning("Failed to instantiate tool {}", tname)
             if tool_instances:
                 logger.info(
-                    "Agent %s: resolved %d/%d tools",
+                    "Agent {}: resolved {}/{} tools",
                     agent["name"],
                     len(tool_instances),
                     len(tool_names),
@@ -349,7 +348,7 @@ class AgentExecutor:
             for m in pending:
                 self._manager.mark_message_delivered(m["id"])
             logger.info(
-                "Agent %s: delivering %d pending message(s)",
+                "Agent {}: delivering {} pending message(s)",
                 agent["name"],
                 len(pending),
             )
@@ -359,7 +358,7 @@ class AgentExecutor:
             )
         else:
             logger.info(
-                "Agent %s: no pending messages, running with instruction only",
+                "Agent {}: no pending messages, running with instruction only",
                 agent["name"],
             )
 
@@ -417,7 +416,7 @@ class AgentExecutor:
         agent_ctx.memory_results = memory_results
         self._set_activity(agent["id"], "Generating response...")
         logger.info(
-            "Agent %s: calling agent.run() with %d chars input",
+            "Agent {}: calling agent.run() with {} chars input",
             agent["name"],
             len(input_text),
         )
@@ -432,15 +431,15 @@ class AgentExecutor:
                 "Retrying (empty response)...",
             )
             logger.warning(
-                "Agent %s: empty content, retrying once",
+                "Agent {}: empty content, retrying once",
                 agent["name"],
             )
             result = agent_instance.run(input_text, context=agent_ctx)
 
         _elapsed = time.time() - _t0
         logger.info(
-            "Agent %s: agent.run() completed in %.1fs, "
-            "content_len=%d, turns=%d, tokens=%s",
+            "Agent {}: agent.run() completed in {:.1f}s, "
+            "content_len={}, turns={}, tokens={}",
             agent["name"],
             _elapsed,
             len(result.content or ""),
@@ -489,7 +488,7 @@ class AgentExecutor:
         if error is None:
             # Success
             logger.info(
-                "Tick succeeded for agent %s in %.1fs, response_len=%d",
+                "Tick succeeded for agent {} in {:.1f}s, response_len={}",
                 agent_id,
                 duration,
                 len(result.content or "") if result else 0,
@@ -560,7 +559,7 @@ class AgentExecutor:
             )
         elif isinstance(error, EscalateError):
             logger.warning(
-                "Tick escalated for agent %s after %.1fs: %s",
+                "Tick escalated for agent {} after {:.1f}s: {}",
                 agent_id,
                 duration,
                 error,
@@ -578,7 +577,7 @@ class AgentExecutor:
             )
         else:
             logger.error(
-                "Tick failed for agent %s after %.1fs: %s",
+                "Tick failed for agent {} after {:.1f}s: {}",
                 agent_id,
                 duration,
                 error,
@@ -652,8 +651,7 @@ class AgentExecutor:
         try:
             self._trace_store.save(trace)
         except Exception:
-            logger.warning(
-                "Failed to save trace for agent %s",
+            logger.opt(exception=True).warning(
+                "Failed to save trace for agent {}",
                 agent_id,
-                exc_info=True,
             )

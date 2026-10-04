@@ -20,12 +20,11 @@ The TOML file format (written by the applier) is::
 
 from __future__ import annotations
 
-import logging
 import os
 from pathlib import Path
 from typing import Dict, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 _cache: Optional[Dict[str, str]] = None
 
@@ -38,10 +37,9 @@ def _load_overrides() -> Dict[str, str]:
     try:
         content = desc_path.read_text(encoding="utf-8")
     except Exception:
-        logger.warning(
-            "Failed to read tool description overrides at %s",
+        logger.opt(exception=True).warning(
+            "Failed to read tool description overrides at {}",
             desc_path,
-            exc_info=True,
         )
         return {}
 
@@ -59,7 +57,7 @@ def _load_overrides() -> Dict[str, str]:
                 overrides[current_tool] = value
     if overrides:
         logger.info(
-            "Loaded %d tool description overrides from %s",
+            "Loaded {} tool description overrides from {}",
             len(overrides),
             desc_path,
         )

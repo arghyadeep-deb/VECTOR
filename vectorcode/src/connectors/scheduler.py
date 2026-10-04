@@ -26,14 +26,13 @@ Typical usage::
 
 from __future__ import annotations
 
-import logging
 import threading
 from typing import Dict, List, Optional
 
+from loguru import logger
+
 from vectorcode.src.connectors._abc import BaseConnector
 from vectorcode.src.connectors.sync_engine import SyncEngine
-
-logger = logging.getLogger(__name__)
 
 class SyncScheduler:
     """Runs incremental sync for all registered connectors on a schedule.
@@ -87,7 +86,7 @@ class SyncScheduler:
         )
         self._thread.start()
         logger.info(
-            "SyncScheduler started (interval=%ds, connectors=%d)",
+            "SyncScheduler started (interval={}s, connectors={})",
             self._interval,
             len(self._connectors),
         )
@@ -122,7 +121,7 @@ class SyncScheduler:
                     results[conn.connector_id] = count
                 except Exception as exc:
                     logger.error(
-                        "run_once sync failed for %s: %s", conn.connector_id, exc
+                        "run_once sync failed for {}: {}", conn.connector_id, exc
                     )
         return results
 
@@ -138,13 +137,13 @@ class SyncScheduler:
                     try:
                         count = self._engine.sync(conn)
                         logger.debug(
-                            "Scheduled sync completed for %s (%d items)",
+                            "Scheduled sync completed for {} ({} items)",
                             conn.connector_id,
                             count,
                         )
                     except Exception as exc:
                         logger.error(
-                            "Scheduled sync failed for %s: %s",
+                            "Scheduled sync failed for {}: {}",
                             conn.connector_id,
                             exc,
                         )

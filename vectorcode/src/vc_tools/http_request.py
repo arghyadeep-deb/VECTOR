@@ -7,19 +7,17 @@
 
 from __future__ import annotations
 
-import logging
 import os
 import time
 from typing import Any
 
 import httpx
+from loguru import logger
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_security.ssrf import check_ssrf
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
-
-logger = logging.getLogger(__name__)
 
 # Maximum response body size: 1 MB
 _MAX_RESPONSE_BYTES = 1_048_576
@@ -118,7 +116,7 @@ class HttpRequestTool(BaseTool):
 
             _rust = get_rust_module()
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         if _rust is not None and not headers:
             try:
                 content = _rust.HttpRequestTool().execute(url, method, body)
@@ -136,7 +134,7 @@ class HttpRequestTool(BaseTool):
                     },
                 )
             except Exception as exc:
-                logger.debug("Rust HTTP request fallback to httpx: %s", exc)
+                logger.debug("Rust HTTP request fallback to httpx: {}", exc)
 
         try:
             t0 = time.time()

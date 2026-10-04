@@ -14,17 +14,16 @@ query or terminate running agents.
 from __future__ import annotations
 
 import json
-import logging
 import threading
 import time
 import uuid
 from typing import Any, Dict
 
+from loguru import logger
+
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Module-level state — tracks spawned agents
@@ -204,7 +203,7 @@ class AgentSendTool(BaseTool):
                 },
             )
         except Exception as exc:
-            logger.debug("Event bus publish failed for agent_send: %s", exc)
+            logger.debug("Event bus publish failed for agent_send: {}", exc)
 
         return ToolResult(
             tool_name="agent_send",

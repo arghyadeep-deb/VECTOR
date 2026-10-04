@@ -22,17 +22,16 @@ single :class:`~vector.connectors._abc.Document` with ``doc_type``
 from __future__ import annotations
 
 import hashlib
-import logging
 import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator, List, Optional
 
+from loguru import logger
+
 from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.vc_core.registry import ConnectorRegistry
 from vectorcode.src.vc_tools._abc import ToolSpec
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Export line regex
@@ -63,7 +62,7 @@ def _parse_timestamp(ts_str: str) -> Optional[datetime]:
             return dt.replace(tzinfo=timezone.utc)
         except ValueError:
             continue
-    logger.debug("Could not parse WhatsApp timestamp: %r", ts_str)
+    logger.debug("Could not parse WhatsApp timestamp: {!r}", ts_str)
     return None
 
 # ---------------------------------------------------------------------------
@@ -238,7 +237,7 @@ class WhatsAppConnector(BaseConnector):
         try:
             raw = path.read_text(encoding="utf-8", errors="replace")
         except OSError:
-            logger.warning("Could not read WhatsApp export file: %s", path)
+            logger.warning("Could not read WhatsApp export file: {}", path)
             return None
 
         chat_name = path.stem

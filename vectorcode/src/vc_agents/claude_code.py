@@ -15,20 +15,19 @@ is not used -- inference is handled entirely by the Claude Agent SDK.
 from __future__ import annotations
 
 import json
-import logging
 import os
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Any, List, Optional
 
+from loguru import logger
+
 from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, BaseAgent
 from vectorcode.src.vc_core.events import EventBus
 from vectorcode.src.vc_core.registry import AgentRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_engine._abc import InferenceEngine
-
-logger = logging.getLogger(__name__)
 
 # Sentinel markers for parsing subprocess output
 _OUTPUT_START = "---VECTOR_OUTPUT_START---"
@@ -184,7 +183,7 @@ class ClaudeCodeAgent(BaseAgent):
         if proc.returncode != 0:
             stderr = proc.stderr.strip() if proc.stderr else "Unknown error"
             logger.error(
-                "claude_code_runner exited with code %d: %s",
+                "claude_code_runner exited with code {}: {}",
                 proc.returncode,
                 stderr,
             )

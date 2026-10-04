@@ -16,16 +16,15 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import subprocess
 import sys
 from datetime import datetime
 from typing import Iterator, Optional
 
+from loguru import logger
+
 from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.vc_core.registry import ConnectorRegistry
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # AppleScript helpers
@@ -82,10 +81,10 @@ def _run_osascript(script: str, *, timeout: int = 120) -> Optional[str]:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-        logger.debug("osascript failed (rc=%d): %s", result.returncode, result.stderr)
+        logger.debug("osascript failed (rc={}): {}", result.returncode, result.stderr)
         return None
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
-        logger.debug("osascript error: %s", exc)
+        logger.debug("osascript error: {}", exc)
         return None
 
 def _track_doc_id(name: str, artist: str) -> str:
@@ -112,7 +111,7 @@ def _parse_played_date(raw: str) -> Optional[datetime]:
             return datetime.strptime(raw.strip(), fmt)
         except ValueError:
             continue
-    logger.debug("Could not parse played_date: %r", raw)
+    logger.debug("Could not parse played_date: {!r}", raw)
     return None
 
 # ---------------------------------------------------------------------------
@@ -184,7 +183,7 @@ class AppleMusicConnector(BaseConnector):
         for line in lines:
             parts = line.split("|||")
             if len(parts) < 7:
-                logger.debug("Skipping malformed line: %r", line)
+                logger.debug("Skipping malformed line: {!r}", line)
                 continue
 
             name = parts[0].strip()

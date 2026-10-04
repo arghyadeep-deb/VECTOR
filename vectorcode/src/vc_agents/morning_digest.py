@@ -13,12 +13,11 @@ the LLM (narrative synthesis), and text_to_speech (audio generation).
 from __future__ import annotations
 
 import json
-import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Any, List, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
 from vectorcode.src.vc_agents.digest_store import DigestArtifact, DigestStore
