@@ -13,6 +13,7 @@ Absorbed:
 from core.memory.db_utils import apply_pragmas
 import sqlite3
 import json
+import re
 import time
 import threading
 from pathlib import Path
@@ -21,6 +22,7 @@ from typing import Optional
 from loguru import logger
 
 _DB_ROOT = Path.home() / ".vector" / "swarms"
+_SWARM_ID_RE = re.compile(r"[A-Za-z0-9_-]+\Z")
 
 
 def _conn(db_path: Path) -> sqlite3.Connection:
@@ -39,6 +41,8 @@ class SwarmDatabase:
     """
 
     def __init__(self, swarm_id: str = "default"):
+        if not isinstance(swarm_id, str) or not _SWARM_ID_RE.fullmatch(swarm_id):
+            raise ValueError("swarm_id may contain only letters, numbers, '_' and '-'")
         self.swarm_id = swarm_id
         self._db_path = _DB_ROOT / f"{swarm_id}.db"
         self._lock = threading.RLock()
