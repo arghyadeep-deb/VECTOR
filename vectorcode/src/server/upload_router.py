@@ -3,17 +3,15 @@
 from __future__ import annotations
 
 import io
-import logging
 import uuid
 from typing import List, Optional
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from loguru import logger
 from pydantic import BaseModel
 
 from vectorcode.src.connectors.store import KnowledgeStore
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
-
-logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/connectors/upload", tags=["upload"])
 
@@ -63,7 +61,7 @@ def _extract_text_from_pdf(data: bytes) -> str:
             pages = [p.extract_text() or "" for p in pdf.pages]
         return "\n\n".join(pages)
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.debug("pdfplumber not available, trying PyPDF2")
 
     # Fall back to PyPDF2
     try:
@@ -139,7 +137,7 @@ async def ingest_paste(body: PasteRequest) -> IngestResponse:
             chunk_index=idx,
         )
 
-    logger.info("Ingested %d chunks from pasted text (doc_id=%s)", len(chunks), doc_id)
+    logger.info("Ingested {} chunks from pasted text (doc_id={})", len(chunks), doc_id)
     return IngestResponse(chunks_added=len(chunks))
 
 @router.post("/ingest/files", response_model=IngestResponse)
@@ -199,7 +197,7 @@ async def ingest_files(
 
         total_chunks += len(chunks)
         logger.info(
-            "Ingested %d chunks from file %s (doc_id=%s)",
+            "Ingested {} chunks from file {} (doc_id={})",
             len(chunks),
             filename,
             doc_id,

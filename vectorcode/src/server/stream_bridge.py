@@ -187,10 +187,7 @@ class AgentStreamBridge:
             try:
                 agent_result = agent_task.result()
             except Exception as exc:
-                import logging
-
-                logger = logging.getLogger("vector.server")
-                logger.error("Agent stream error: %s", exc, exc_info=True)
+                logger.opt(exception=exc).error("Agent stream error: {}", exc)
 
                 error_str = str(exc)
                 if "context length" in error_str.lower() or (
@@ -282,11 +279,8 @@ class AgentStreamBridge:
                             yield f"data: {chunk.model_dump_json()}\n\n"
                     used_real_streaming = True
                 except Exception as stream_exc:
-                    import logging as _logging
-
-                    _logger = _logging.getLogger("vector.server")
-                    _logger.warning(
-                        "Real streaming failed, falling back to word replay: %s",
+                    logger.warning(
+                        "Real streaming failed, falling back to word replay: {}",
                         stream_exc,
                     )
 

@@ -4,13 +4,11 @@ from __future__ import annotations
 
 import inspect
 import json
-import logging
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
+from loguru import logger
 from pydantic import BaseModel
-
-logger = logging.getLogger(__name__)
 
 # ---- Request/Response models ----
 
@@ -70,7 +68,7 @@ async def list_agents(request: Request):
                 }
             )
     except Exception as exc:
-        logger.warning("Failed to list registered agents: %s", exc)
+        logger.warning("Failed to list registered agents: {}", exc)
 
     running = []
     try:
@@ -227,6 +225,14 @@ async def memory_index(req: MemoryIndexRequest, request: Request):
 
         from vectorcode.src.vc_tools.storage.ingest import ingest_path
 
+        # FLAGGED, not fixed: no path-confinement check here -- req.path is
+        # resolved and read unconditionally. This matches the CWE-22
+        # unvalidated-path pattern this audit has flagged elsewhere, but
+        # "index files from any local path I choose" is this endpoint's
+        # actual intended feature on a single-owner local-first system
+        # (not a multi-tenant SaaS), and auth_middleware.py already gates
+        # /api/* behind an API key. Restricting it to an allowlisted root
+        # would be a product/scope decision, not a narrow bug fix.
         target = Path(req.path).expanduser().resolve()
         if not target.exists():
             raise HTTPException(status_code=404, detail=f"Path not found: {req.path}")
@@ -390,7 +396,7 @@ async def list_skills(request: Request):
             skills.append({"name": key})
         return {"skills": skills}
     except Exception as exc:
-        logger.warning("Failed to list skills: %s", exc)
+        logger.warning("Failed to list skills: {}", exc)
         return {"skills": []}
 
 @skills_router.post("")
@@ -504,7 +510,7 @@ async def prometheus_metrics(request: Request):
 
         return PlainTextResponse("\n".join(lines) + "\n", media_type="text/plain")
     except Exception as exc:
-        logger.warning("Failed to collect Prometheus metrics: %s", exc)
+        logger.warning("Failed to collect Prometheus metrics: {}", exc)
         from starlette.responses import PlainTextResponse
 
         return PlainTextResponse("# No metrics available\n", media_type="text/plain")
@@ -648,7 +654,7 @@ async def learning_stats(request: Request):
             "discovered_count": len(discovery.discovered_skills),
         }
     except Exception as exc:
-        logger.warning("Failed to load skill discovery stats: %s", exc)
+        logger.warning("Failed to load skill discovery stats: {}", exc)
         result["skill_discovery"] = {"available": False}
 
     return result
@@ -684,7 +690,7 @@ async def learning_policy(request: Request):
             "efficiency_weight": lc.metrics.efficiency_weight,
         }
     except Exception as exc:
-        logger.warning("Failed to load learning config: %s", exc)
+        logger.warning("Failed to load learning config: {}", exc)
         result["enabled"] = False
         result["routing"] = {"policy": "heuristic", "min_samples": 5}
         result["intelligence"] = {"policy": "none"}
@@ -789,7 +795,7 @@ async def list_optimize_runs(request: Request):
         store.close()
         return {"runs": runs}
     except Exception as exc:
-        logger.warning("Failed to list optimization runs: %s", exc)
+        logger.warning("Failed to list optimization runs: {}", exc)
         return {"runs": []}
 
 @optimize_router.get("/runs/{run_id}")
@@ -818,7 +824,7 @@ async def get_optimize_run(run_id: str, request: Request):
             "best_trial_id": (run.best_trial.trial_id if run.best_trial else None),
         }
     except Exception as exc:
-        logger.warning("Failed to get optimization run %s: %s", run_id, exc)
+        logger.warning("Failed to get optimization run {}: {}", run_id, exc)
         return {"run_id": run_id, "status": "not_found"}
 
 @optimize_router.post("/runs")

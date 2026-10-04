@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import logging
 import pathlib
 import time
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from loguru import logger
 
 from vectorcode.src.server.api_routes import include_all_routes
 from vectorcode.src.server.comparison import comparison_router
@@ -17,8 +17,6 @@ from vectorcode.src.server.dashboard import dashboard_router
 from vectorcode.src.server.digest_routes import create_digest_router
 from vectorcode.src.server.routes import router
 from vectorcode.src.server.upload_router import router as upload_router
-
-logger = logging.getLogger(__name__)
 
 def _restore_sendblue_bindings(app: FastAPI) -> None:
     """Restore SendBlue channel bindings from the database on startup.
@@ -102,12 +100,12 @@ def _restore_sendblue_bindings(app: FastAPI) -> None:
                     )
 
                 logger.info(
-                    "Restored SendBlue channel binding: %s",
+                    "Restored SendBlue channel binding: {}",
                     from_number,
                 )
                 return  # Only need one SendBlue binding
     except Exception as exc:
-        logger.debug("SendBlue binding restore skipped: %s", exc)
+        logger.debug("SendBlue binding restore skipped: {}", exc)
 
 # No-cache headers applied to static file responses
 _NO_CACHE_HEADERS = {
@@ -231,9 +229,9 @@ def create_app(
             _bus = getattr(app.state, "bus", None)
             if _bus is not None:
                 _trace_store.subscribe_to_bus(_bus)
-    except Exception:
-        logger.exception("[VECTOR] silent swallow")
-        pass  # traces are optional; don't block server startup
+    except Exception as exc:
+        logger.warning("Trace store initialization skipped: {}", exc)
+        # traces are optional; don't block server startup
 
     app.include_router(router)
     app.include_router(dashboard_router)
@@ -254,7 +252,7 @@ def create_app(
         if middleware_cls is not None:
             app.add_middleware(middleware_cls)
     except Exception as exc:
-        logger.debug("Security middleware init skipped: %s", exc)
+        logger.debug("Security middleware init skipped: {}", exc)
 
     # API key authentication middleware
     if api_key:
@@ -263,7 +261,7 @@ def create_app(
 
             app.add_middleware(AuthMiddleware, api_key=api_key)
         except Exception as exc:
-            logger.debug("Auth middleware init skipped: %s", exc)
+            logger.debug("Auth middleware init skipped: {}", exc)
 
     # Mount webhook routes (always — SendBlue may be configured dynamically)
     if webhook_config:
@@ -281,7 +279,7 @@ def create_app(
             )
             app.include_router(webhook_router)
         except Exception as exc:
-            logger.debug("Webhook routes init skipped: %s", exc)
+            logger.debug("Webhook routes init skipped: {}", exc)
 
     # Serve static frontend assets if the static/ directory exists
     static_dir = pathlib.Path(__file__).parent / "static"

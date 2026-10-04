@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.comms._abc import BaseChannel, ChannelStatus
 from vectorcode.src.vc_core.events import EventBus, EventType
 from vectorcode.src.server.session_store import SessionStore
-
-logger = logging.getLogger(__name__)
 
 _DEFAULT_MAX_LENGTH = 4000
 _SMS_MAX_LENGTH = 1600
@@ -105,7 +104,7 @@ class ChannelBridge:
                     conversation_id=conversation_id,
                     metadata=metadata,
                 )
-        logger.warning("No adapter found for channel %s", channel)
+        logger.warning("No adapter found for channel {}", channel)
         return False
 
     # --------------------------------------------------------------
@@ -260,7 +259,7 @@ class ChannelBridge:
                 result = self._deep_research_agent.run(content)
                 response_text = result.content or "No results found."
             except Exception as exc:
-                logger.error("DeepResearch agent failed: %s", exc)
+                logger.error("DeepResearch agent failed: {}", exc)
                 response_text = f"Research error: {exc}"
         elif self._system is not None:
             try:
@@ -368,11 +367,11 @@ class ChannelBridge:
         ch = self._channels.get(channel_type)
         if ch is None:
             logger.warning(
-                "No adapter for notification channel %s",
+                "No adapter for notification channel {}",
                 channel_type,
             )
             return
         try:
             ch.send(sender_id, message)
         except Exception:
-            logger.exception("Failed to send notification to %s", channel_type)
+            logger.exception("Failed to send notification to {}", channel_type)

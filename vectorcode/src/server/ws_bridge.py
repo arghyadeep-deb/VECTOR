@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any
+
+from loguru import logger
 
 from vectorcode.src.vc_core.events import Event, EventBus, EventType
 
@@ -12,8 +13,6 @@ try:
     from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 except ImportError:  # pragma: no cover
     pass  # FastAPI is optional; create_ws_router will fail at call time
-
-logger = logging.getLogger(__name__)
 
 # Agent-related event types to forward
 _AGENT_EVENTS = {
@@ -50,8 +49,8 @@ def create_ws_router(event_bus: EventBus) -> Any:
                 continue
             try:
                 loop.call_soon_threadsafe(queue.put_nowait, payload)
-            except (RuntimeError, asyncio.QueueFull):
-                pass  # Loop closed or client is slow
+            except (RuntimeError, asyncio.QueueFull) as exc:
+                logger.debug("WS event delivery skipped for a client: {}", exc)
 
     # Subscribe to all agent events
     for event_type in _AGENT_EVENTS:
@@ -71,7 +70,7 @@ def create_ws_router(event_bus: EventBus) -> Any:
                 payload = await queue.get()
                 await websocket.send_json(payload)
         except WebSocketDisconnect:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.debug("Agent-events WebSocket client disconnected")
         finally:
             clients.pop(websocket, None)
 
