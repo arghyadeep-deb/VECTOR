@@ -1,12 +1,11 @@
 """VectorCode v3 SwarmCoordinator — multi-agent coordination with topologies."""
 
 import asyncio
-import logging
 from typing import Any, Optional
 
-from agents.agent import Agent
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from agents.agent import Agent
 
 class SwarmCoordinator:
     def __init__(self, topology: str = "mesh", **kwargs):

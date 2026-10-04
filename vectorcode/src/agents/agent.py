@@ -20,6 +20,16 @@ class Agent:
         self.last_active = self.created_at
 
     def can_execute(self, task_type: str) -> bool:
+        # Deliberately ignores task_type -- this is a general-availability
+        # check, not a capability check. coordinator.py's assign_task()
+        # relies on this exact behavior: a real capability match is done
+        # separately via `task_type in a.capabilities` at its first tier,
+        # and this method is reused unmodified as the capability-blind
+        # "any available agent" fallback at its second tier. Do not change
+        # this to check capabilities -- it would silently defeat that
+        # fallback (both tiers would then return the same, possibly empty,
+        # result). The task_type parameter is kept for interface
+        # consistency with that call site, not because it's used.
         return self.status in ("idle", "active")
 
     def assign_task(self, task: Any) -> None:
