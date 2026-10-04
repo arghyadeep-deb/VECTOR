@@ -7,17 +7,16 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Any, List
+
+from loguru import logger
 
 from vectorcode.src.bench._stats import compute_stats
 from vectorcode.src.bench._abc import BaseBenchmark, BenchmarkResult
 from vectorcode.src.vc_core.registry import BenchmarkRegistry
 from vectorcode.src.vc_core.types import Message, Role
 from vectorcode.src.vc_engine._abc import InferenceEngine
-
-logger = logging.getLogger(__name__)
 
 _PROMPT = "Write a short paragraph about artificial intelligence."
 
@@ -47,7 +46,7 @@ class ThroughputBenchmark(BaseBenchmark):
             try:
                 engine.generate(messages, model=model)
             except Exception as exc:
-                logger.debug("Warmup request failed: %s", exc)
+                logger.debug("Warmup request failed: {}", exc)
 
         per_sample_tps: List[float] = []
         per_sample_tokens: List[float] = []
@@ -67,7 +66,7 @@ class ThroughputBenchmark(BaseBenchmark):
                 per_sample_tokens.append(float(tokens))
                 per_sample_latency.append(elapsed)
             except Exception as exc:
-                logger.debug("Measurement request failed: %s", exc)
+                logger.debug("Measurement request failed: {}", exc)
                 errors += 1
 
         total_tokens = sum(per_sample_tokens)

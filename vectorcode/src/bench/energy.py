@@ -7,17 +7,16 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Any, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.bench._stats import compute_stats
 from vectorcode.src.bench._abc import BaseBenchmark, BenchmarkResult
 from vectorcode.src.vc_core.registry import BenchmarkRegistry
 from vectorcode.src.vc_core.types import Message, Role
 from vectorcode.src.vc_engine._abc import InferenceEngine
-
-logger = logging.getLogger(__name__)
 
 _PROMPT = "Write a short paragraph about artificial intelligence."
 
@@ -53,7 +52,7 @@ class EnergyBenchmark(BaseBenchmark):
             try:
                 engine.generate(messages, model=model)
             except Exception as exc:
-                logger.debug("Warmup request failed: %s", exc)
+                logger.debug("Warmup request failed: {}", exc)
 
         per_energy_j: List[float] = []
         per_power_w: List[float] = []
@@ -93,7 +92,7 @@ class EnergyBenchmark(BaseBenchmark):
 
                     detector.record(tps)
                 except Exception as exc:
-                    logger.debug("Measurement request failed: %s", exc)
+                    logger.debug("Measurement request failed: {}", exc)
                     errors += 1
 
             ss_result = detector.result
@@ -112,7 +111,7 @@ class EnergyBenchmark(BaseBenchmark):
                     per_latency.append(elapsed)
                     per_tokens.append(float(tokens))
                 except Exception as exc:
-                    logger.debug("Measurement request failed: %s", exc)
+                    logger.debug("Measurement request failed: {}", exc)
                     errors += 1
             ss_result = None
 

@@ -7,17 +7,16 @@
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Any, List
+
+from loguru import logger
 
 from vectorcode.src.bench._stats import compute_stats
 from vectorcode.src.bench._abc import BaseBenchmark, BenchmarkResult
 from vectorcode.src.vc_core.registry import BenchmarkRegistry
 from vectorcode.src.vc_core.types import Message, Role
 from vectorcode.src.vc_engine._abc import InferenceEngine
-
-logger = logging.getLogger(__name__)
 
 _CANNED_PROMPTS = [
     "Hello",
@@ -51,7 +50,7 @@ class LatencyBenchmark(BaseBenchmark):
             try:
                 engine.generate(messages, model=model)
             except Exception as exc:
-                logger.debug("Warmup request failed: %s", exc)
+                logger.debug("Warmup request failed: {}", exc)
 
         latencies: List[float] = []
         errors = 0
@@ -64,7 +63,7 @@ class LatencyBenchmark(BaseBenchmark):
                 engine.generate(messages, model=model)
                 latencies.append(time.time() - t0)
             except Exception as exc:
-                logger.debug("Measurement request failed: %s", exc)
+                logger.debug("Measurement request failed: {}", exc)
                 errors += 1
 
         if not latencies:
