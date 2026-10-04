@@ -20,9 +20,10 @@ OperativeAgent pattern (session_store, memory_backend, operator_id).
 from __future__ import annotations
 
 import json
-import logging
 import re
 from typing import Any, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
 from vectorcode.src.vc_agents.prompt_loader import (
@@ -34,8 +35,6 @@ from vectorcode.src.vc_core.registry import AgentRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolCall, ToolResult, _message_to_dict
 from vectorcode.src.vc_engine._abc import InferenceEngine
 from vectorcode.src.vc_tools._abc import BaseTool
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Valid strategy values
@@ -347,7 +346,7 @@ class MonitorOperativeAgent(ToolUsingAgent):
                     except (json.JSONDecodeError, TypeError) as exc:
                         logger.debug(
                             "Failed to parse tool call arguments"
-                            " for state tracking: %s",
+                            " for state tracking: {}",
                             exc,
                         )
 
@@ -540,8 +539,8 @@ class MonitorOperativeAgent(ToolUsingAgent):
             summary = result.get("content", "")
             if summary:
                 return summary
-        except Exception:
-            logger.debug("Observation summarization failed, falling back to truncation")
+        except Exception as e:
+            logger.debug("Observation summarization failed, falling back to truncation: {}", e)
         # Fallback to truncation
         return content[:2000] + "\n... [truncated]"
 
@@ -617,13 +616,13 @@ class MonitorOperativeAgent(ToolUsingAgent):
                             self._memory_backend.store(key, value)
                         except Exception as exc:
                             logger.debug(
-                                "Failed to store causality relation in memory: %s",
+                                "Failed to store causality relation in memory: {}",
                                 exc,
                             )
-        except (json.JSONDecodeError, Exception):
+        except Exception as e:
             logger.debug(
-                "Causality extraction failed for tool %s output",
-                tool_name,
+                "Causality extraction failed for tool {} output: {}",
+                tool_name, e,
             )
 
     def _store_scratchpad(self, tool_name: str, content: str) -> None:
@@ -640,8 +639,8 @@ class MonitorOperativeAgent(ToolUsingAgent):
         snippet = content[:1000] if len(content) > 1000 else content
         try:
             self._memory_backend.store(key, snippet)
-        except Exception:
-            logger.debug("Could not store scratchpad for tool %s", tool_name)
+        except Exception as e:
+            logger.debug("Could not store scratchpad for tool {}: {}", tool_name, e)
 
     def _store_structured(self, tool_name: str, content: str) -> None:
         """Try to parse JSON from tool output and store structured data."""
@@ -663,7 +662,7 @@ class MonitorOperativeAgent(ToolUsingAgent):
                 self._memory_backend.store(key, content[:1000])
             except Exception as exc:
                 logger.debug(
-                    "Failed to store structured data for tool %s: %s",
+                    "Failed to store structured data for tool {}: {}",
                     tool_name,
                     exc,
                 )
@@ -681,10 +680,10 @@ class MonitorOperativeAgent(ToolUsingAgent):
             result = self._memory_backend.retrieve(state_key)
             if result:
                 return result if isinstance(result, str) else str(result)
-        except Exception:
+        except Exception as e:
             logger.debug(
-                "No previous state for monitor_operative %s",
-                self._operator_id,
+                "No previous state for monitor_operative {}: {}",
+                self._operator_id, e,
             )
         return ""
 
@@ -705,10 +704,10 @@ class MonitorOperativeAgent(ToolUsingAgent):
                     for m in recent
                     if isinstance(m, dict)
                 ]
-        except Exception:
+        except Exception as e:
             logger.debug(
-                "Could not load session for monitor_operative %s",
-                self._operator_id,
+                "Could not load session for monitor_operative {}: {}",
+                self._operator_id, e,
             )
         return []
 
@@ -726,10 +725,10 @@ class MonitorOperativeAgent(ToolUsingAgent):
                 session_id,
                 {"role": "assistant", "content": response},
             )
-        except Exception:
+        except Exception as e:
             logger.debug(
-                "Could not save session for monitor_operative %s",
-                self._operator_id,
+                "Could not save session for monitor_operative {}: {}",
+                self._operator_id, e,
             )
 
     def _auto_persist_state(self, content: str) -> None:
@@ -740,10 +739,10 @@ class MonitorOperativeAgent(ToolUsingAgent):
         try:
             summary = content[:1000] if content else ""
             self._memory_backend.store(state_key, summary)
-        except Exception:
+        except Exception as e:
             logger.debug(
-                "Could not auto-persist state for monitor_operative %s",
-                self._operator_id,
+                "Could not auto-persist state for monitor_operative {}: {}",
+                self._operator_id, e,
             )
 
 __all__ = ["MonitorOperativeAgent", "MONITOR_OPERATIVE_SYSTEM_PROMPT"]
