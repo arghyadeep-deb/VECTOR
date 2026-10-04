@@ -2368,3 +2368,81 @@ isn't "proven in production" until you supply the service/device and run it live
     on inspection but not logic-reviewed), `session.py` (1,373), `status.py` (803), and
     `stream_consumer.py` (985) must be resumed as their own future slice rather than represented
     as complete.
+
+43. **`vectorcode/src/{agents remainder, api, bench, claims, config, daemon, display, districts}/`
+    full-depth audit (2026-10-04) —** completed the requested deep audit of the remaining small
+    `agents/` files plus every file in `api/`, `bench/`, `claims/`, `config/`, `daemon/`,
+    `display/`, and `districts/__init__.py`. `gateway/` was explicitly out of scope (a sibling
+    fork's territory, item 42 above). **Fixed, each with a new regression test:**
+    `agents/loader.py`'s `definitions_from_markdown_dir()` only wrapped the file-read step in
+    try/except — one malformed agent `.md` file (e.g. a non-numeric `hp:`) raised uncaught and
+    the caller (`registry.py`'s `get_registry()`, which populates the real agent registry on
+    every process start) caught it at the whole-batch level, silently dropping every other
+    agent in the directory, not just the bad one; isolated per-file. `api/server.py`'s two SSE
+    streaming endpoints sent `Content-Type: text/event-line` (not a real MIME type; should be
+    `text/event-stream`) — fixed both (dormant, zero callers). `claims/_service.py`'s
+    `ClaimService.claim()` duplicate-claim guard only checked `status == ClaimStatus.active`,
+    not the full `_ACTIVE_STATUSES` set the rest of the module uses as "still live" — an issue
+    sitting in `paused`/`blocked`/`in_review`/`pending_handoff`/`stealable` could be claimed a
+    second time, creating two live claims for one issue; **live bug** (real caller:
+    `swarm.py`'s `SwarmAgent.start_task()`, return value unchecked). Same unfixed bug confirmed
+    present in the now-dead `vectorcode/src/claims.py` monolith (see flag below). Also removed a
+    stale docstring in `_service.py` claiming it "imports from the canonical claims.py" — it
+    never has. `config/env_detector.py`'s `adjust_paths()` and `config/theme.py`'s
+    `ThemeEngine.__init__`→`_load_custom_themes()`/`save_theme()` both called `Path.home()` with
+    no `from pathlib import Path` anywhere in either file — 100% reproducible `NameError` on
+    every call (confirmed by running each file's own mandated self-test block directly and
+    watching it crash); both dormant but part of documented public API, fixed. `daemon/gateway.py`'s
+    `GatewayDaemon.session_key()` embedded the literal string `"None"` into the key when
+    `thread_id` was absent instead of omitting the segment, diverging from the live canonical
+    key format in `gateway/session.py`; fixed to match. `daemon/service.py` was missing a
+    `ServiceManager` class entirely — `core/loop/autonomous_loop.py` (live core autonomous loop)
+    does `from vectorcode.src.daemon.service import ServiceManager` inside a bare
+    try/except, so this **live** `ImportError` was silently swallowed every single time and
+    `self._daemon_mgr` was always `None`; added a thin `ServiceManager` wrapping the two
+    generator functions that already made up the module's whole capability. Six systemic
+    stdlib-logging-instead-of-loguru fixes (`agents/coordinator.py`,
+    `bench/{energy,latency,throughput}.py`) plus two %-style→`{}` loguru placeholder fixes in
+    `config/theme.py`. `agents/workflow_engine.py`'s `execute()` always reported top-level
+    `status: "completed"` even when a step failed and the loop broke early — the "phantom
+    success" bug class, dominant this whole cycle; fixed to reflect the real per-step outcome.
+    `agents/manager.py`'s silent `except Exception: <empty stub>` fallback got a real warning
+    log. **Reviewed, no changes needed:** `agents/{__init__,_abc,agent,deep_research,
+    digest_store,executor,scheduler}.py`, `bench/{__init__,_abc,_stats}.py`,
+    `claims/{__init__,_types,_persistence,_stealing}.py`, `config/__init__.py`,
+    `daemon/{__init__,session_expiry}.py`, `display/{__init__,spinner,renderer,diff_preview}.py`,
+    `districts/__init__.py` (a 6-line shim; real districts live at the top-level `districts/`
+    package). `display/renderer.py`'s unusual `from vectorcode.display.spinner import *`-via-shim
+    import chain was verified working end-to-end despite looking circular. **FLAGGED, not
+    fixed — owner decision needed:**
+    (a) `vectorcode/src/claims.py` (63KB monolith) and the `vectorcode/src/claims/` package
+    (this audit's scope) share the same import name. Confirmed empirically: `import
+    vectorcode.src.claims` resolves to the package (`claims/__init__.py`, has `__path__` set),
+    so `claims.py` is 100% dead, unreachable code — Python's package-over-module precedence
+    shadows it completely. The package is a clean 1:1 structural split of the monolith into
+    `_types.py`/`_persistence.py`/`_service.py`/`_stealing.py` with identical class names, so
+    unlike the already-deferred jcode-vs-vc_tools duplication (two genuinely different
+    unwired approaches), this looks like simple leftover-file cruft from the refactor, not an
+    open design question — but deleting a 63KB file is bigger than this session's narrow-fix
+    scope. For precedent: `config/__init__.py` solves the identical "package shadows a
+    same-named sibling module" shape correctly via a `_reexport_config_module()` helper that
+    `exec_module()`s the shadowed file directly and merges its public names in — that pattern
+    only makes sense when the shadowed module still holds unique live content (it does, for
+    `config.py`'s `VectorConfig`/`SESSION_DIR`/etc.); `claims.py` has no unique content left, so
+    re-exporting would just resurface its already-identified duplicate-claim bug under a second
+    mechanism. Recommend: delete `vectorcode/src/claims.py` once confirmed truly redundant.
+    (b) `daemon/service.py`'s new `ServiceManager` fixes the `ImportError`, but
+    `core/loop/autonomous_loop.py` never actually reads `self._daemon_mgr` anywhere after
+    assigning it — the wiring is orphaned even with the import now working. Whether
+    `autonomous_loop.py` is supposed to call it (e.g. on startup, to ensure the systemd/launchd
+    unit is installed) is a real design question outside this session's scope (that file isn't
+    part of the assigned directories). New tests: `tests/test_vectorcode_agents_loader_markdown_batch_isolation.py`
+    (2), `tests/test_vectorcode_api_server_sse_content_type.py` (1),
+    `tests/test_vectorcode_bench_loguru_smoke.py` (3),
+    `tests/test_vectorcode_claims_service_duplicate_claim.py` (2, verified both fail against the
+    pre-fix code before confirming they pass against the fix),
+    `tests/test_vectorcode_config_missing_path_import.py` (3),
+    `tests/test_vectorcode_daemon_gateway_and_service.py` (3), plus the earlier
+    `tests/test_vectorcode_agents_workflow_engine_phantom_success.py` (2) — 16/16 passing.
+    **Depth statement:** genuine full line-by-line depth completed for every file listed above
+    as fixed or reviewed; nothing in this slice was deferred by live-vs-dormant status.
