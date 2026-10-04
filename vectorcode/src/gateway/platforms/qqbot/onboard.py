@@ -15,11 +15,12 @@ Reference: https://bot.q.qq.com/wiki/develop/api-v2/
 
 from __future__ import annotations
 
-import logging
 import time
 from enum import IntEnum
 from typing import Optional, Tuple
 from urllib.parse import quote
+
+from loguru import logger
 
 from .constants import (
     ONBOARD_API_TIMEOUT,
@@ -31,8 +32,6 @@ from .constants import (
 )
 from .crypto import decrypt_secret, generate_bind_key
 from .utils import get_api_headers
-
-logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +103,7 @@ def _create_bind_task(timeout: float = ONBOARD_API_TIMEOUT) -> Tuple[str, str]:
     if not task_id:
         raise RuntimeError("create_bind_task: missing task_id in response")
 
-    logger.debug("create_bind_task ok: task_id=%s", task_id)
+    logger.debug("create_bind_task ok: task_id={}", task_id)
     return task_id, key
 
 
@@ -170,7 +169,7 @@ def qr_register(timeout_seconds: int = 600) -> Optional[dict]:
         try:
             task_id, aes_key = _create_bind_task()
         except Exception as exc:
-            logger.warning("[QQBot onboard] Failed to create bind task: %s", exc)
+            logger.warning("[QQBot onboard] Failed to create bind task: {}", exc)
             return None
 
         url = build_connect_url(task_id)
@@ -206,7 +205,7 @@ def qr_register(timeout_seconds: int = 600) -> Optional[dict]:
 
             if status == BindStatus.EXPIRED:
                 if refresh_count >= _MAX_REFRESHES:
-                    logger.warning("[QQBot onboard] QR code expired %d times — giving up", _MAX_REFRESHES)
+                    logger.warning("[QQBot onboard] QR code expired {} times — giving up", _MAX_REFRESHES)
                     return None
                 print(f"\n  QR code expired, refreshing... ({refresh_count + 1}/{_MAX_REFRESHES})")
                 break  # next for-loop iteration creates a new task
@@ -214,7 +213,7 @@ def qr_register(timeout_seconds: int = 600) -> Optional[dict]:
             time.sleep(ONBOARD_POLL_INTERVAL)
         else:
             # deadline reached without completing
-            logger.warning("[QQBot onboard] Poll timed out after %ds", timeout_seconds)
+            logger.warning("[QQBot onboard] Poll timed out after {}s", timeout_seconds)
             return None
 
     return None
