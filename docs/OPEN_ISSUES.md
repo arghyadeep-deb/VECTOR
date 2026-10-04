@@ -2528,3 +2528,69 @@ isn't "proven in production" until you supply the service/device and run it live
     after `reset_session()` has already confirmed no entry exists for that key), not a live bug.
     **Depth statement:** genuine full line-by-line depth completed for all 4 files. No further
     follow-up needed on this specific scope.
+
+46. **`vectorcode/src/gateway/platforms/` 12-file continuation (2026-10-05) —** audited
+    `signal_rate_limit.py`, `sms.py`, `feishu_comment_rules.py`, `qqbot/keyboards.py`,
+    `yuanbao_sticker.py`, `qqbot/chunked_upload.py`, `email.py`, `yuanbao_media.py`,
+    `mattermost.py`, `bluebubbles.py`, `signal.py`, and `whatsapp.py` (7,828 lines total).
+    **Fixed:** nine files used stdlib logging (four even imported loguru first and immediately
+    shadowed it); all affected production logging now uses loguru and its `{}` formatting, so
+    diagnostic arguments are no longer silently discarded. Production `print()` calls in Email
+    and WhatsApp were likewise replaced with structured loguru calls (the explicit
+    `feishu_comment_rules.py` CLI retains stdout output). Feishu's generic mtime cache treated a
+    corrupt/unreadable persistent pairing-approval store as genuinely empty, allowing the next
+    add to overwrite and destroy existing approvals; pairing data now fails closed while the
+    cheaply replaceable rules config retains its logged empty-config fallback. Email marked an
+    IMAP UID seen *before* FETCH succeeded, permanently suppressing a still-unread message after
+    one transient fetch failure; the UID is now recorded only after a valid fetch. Email,
+    Mattermost, Signal, and WhatsApp shutdown paths re-raised `CancelledError` from tasks they had
+    themselves cancelled, aborting the remainder of disconnect cleanup; those expected local
+    cancellations are now consumed. BlueBubbles compared its webhook password with timing-variable
+    `!=` and launched read receipts through an unreferenced `asyncio.create_task()`; it now uses
+    `secrets.compare_digest()` and holds the task in the adapter's background-task set. WhatsApp
+    converted Baileys device-qualified JIDs such as `user:2@server` into invalid `user@2@server`
+    identifiers, breaking reply/mention identity matching; it now removes the device suffix.
+    QQBot chunked-upload parsing accepted a non-empty raw `parts` array containing no dictionaries,
+    then skipped every upload and called completion; it now rejects that malformed response.
+    `SMS_WEBHOOK_HOST=0.0.0.0` was reviewed and retained because the endpoint fails startup without
+    a configured Twilio URL unless an explicitly named insecure-development override is set, and
+    live requests use HMAC-SHA1 plus `compare_digest()`. New regression suite:
+    `tests/test_vectorcode_gateway_platforms_audit_regressions.py` (9 tests), all passing; all 12
+    targets also pass `compileall` and `git diff --check`. The existing relevant legacy batch ran
+    338/349 passing; its 11 failures were unrelated pre-existing config/sandbox/fixture expectation
+    failures (gateway config bridging, HOME/lock state, a MagicMock awaited as a task, and an email
+    subject expectation), not regressions in this diff. **Depth statement:** full line-by-line
+    review completed for `signal_rate_limit.py`, `sms.py`, `feishu_comment_rules.py`,
+    `qqbot/keyboards.py`, `qqbot/chunked_upload.py`, and `email.py`; the remaining six received
+    complete security-pattern/import/task/subprocess/filesystem inspection plus focused logic-path
+    review, but their unchanged long catalogue/media/adapter sections still need a final dedicated
+    line-by-line pass before this 12-file slice can honestly be called complete. Commit was
+    attempted with specific paths, but the sandbox could not create `.git/index.lock` (`Permission
+    denied`); all changes remain uncommitted on disk for review and commit by the owner/parent agent.
+
+47. **`vectorcode/src/learning/` audit continuation (79 tracked Python files, partial,
+    2026-10-05) —** established the authoritative inventory with `git ls-files` and completed
+    full-depth review of `distillation/pending_queue.py`, `distillation/execute/base.py`,
+    `distillation/execute/loop.py`, `distillation/execute/appliers/{agent,intelligence,tools}.py`,
+    `distillation/checkpoint/store.py`, `distillation/models.py`,
+    `distillation/storage/paths.py`, and `distillation/orchestrator.py`. **Fixed:** model-produced
+    pending-queue session/edit identifiers were interpolated directly into filesystem paths, so
+    separator-bearing identifiers could address paths outside the intended queue or create nested
+    queue paths; all queue operations now require the resulting file's parent to be exactly the
+    queue directory. Agent names from edit payloads/targets were likewise joined directly below
+    `agents/`, allowing prompt or few-shot writes to escape that tree; these paths now require a
+    direct child of `agents/`. Both touched production modules now use loguru and `{}` formatting,
+    and corrupt pending records read through `get()` emit a useful warning. New regression suite
+    `tests/test_learning_path_confinement.py`: 5/5 passing. **FLAGGED, not fixed — owner/design
+    decision needed:** the orchestrator calls each applier's rollback after a benchmark rejection,
+    but every concrete rollback is a no-op and the orchestrator never stages/commits through its
+    injected `CheckpointStore`; a rejected edit therefore remains on disk while its outcome says
+    `rejected_by_gate`. Correct per-edit checkpoint transactions affect session semantics and are
+    not a safe narrow patch. The whole-scope scan also found widespread stdlib/printf-style logging
+    and banned `threading` plus raw SQLite in the two learning stores; those require continuation,
+    with store encryption and async contracts treated as owner-level migration questions.
+    **Depth statement:** only the ten files named above received genuine full logic depth. The
+    remaining 69 received inventory and broad hotspot scans but not line-by-line review, so this
+    entry explicitly does not claim the learning scope complete. Commit was attempted with
+    specific paths, but the sandbox could not create `.git/index.lock` (`Permission denied`);
+    the verified changes remain uncommitted for review.
