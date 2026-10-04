@@ -12,6 +12,8 @@ import json
 import time
 from typing import Optional
 
+from loguru import logger
+
 from vector_cli.config import get_vector_home
 
 
@@ -25,11 +27,21 @@ STICKER_VISION_PROMPT = (
 
 
 def _load_cache() -> dict:
-    """Load the sticker cache from disk."""
+    """Load the sticker cache from disk.
+
+    Unlike the vault/webhook stores, this is a cheaply-regenerable
+    performance cache (sticker descriptions are re-derived from a vision
+    call on a miss), and its only caller (telegram.py's sticker handler)
+    does not wrap the lookup in a try/except -- letting a corrupt-file
+    exception propagate would crash sticker handling entirely instead of
+    just costing one extra vision call. Fail open, but log loudly so
+    silent corruption is still visible.
+    """
     if CACHE_PATH.exists():
         try:
             return json.loads(CACHE_PATH.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("[VECTOR][gateway.sticker_cache] Cache file unreadable, treating as empty: {}", e)
             return {}
     return {}
 
