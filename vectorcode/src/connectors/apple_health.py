@@ -117,9 +117,8 @@ class AppleHealthConnector(BaseConnector):
                     self._status.last_sync = datetime.now()
                     return
                 except Exception:
-                    logger.debug(
-                        "HealthKit DB not readable, falling back to export XML",
-                        exc_info=True,
+                    logger.opt(exception=True).debug(
+                        "HealthKit DB not readable, falling back to export XML"
                     )
 
             # Fall back to export XML

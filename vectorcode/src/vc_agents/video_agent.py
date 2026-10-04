@@ -73,7 +73,7 @@ class VideoAgent:
             try:
                 return [p.name for p in registry.list_providers()]
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         return ["sadtalker-local"]
 
 

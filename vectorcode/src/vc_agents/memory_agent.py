@@ -61,7 +61,7 @@ class MemoryAgent:
             try:
                 mgr.add(content, metadata={"session_id": self.session_id, "source": source})
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     def search(self, query: str, limit: int = 5) -> list[dict]:
         """Search session + long-term memory for relevant facts."""
@@ -74,7 +74,7 @@ class MemoryAgent:
                 vc_results = mgr.search(query, limit=limit)
                 results.extend(vc_results or [])
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         # Supplement with VECTOR's episodic memory
         try:

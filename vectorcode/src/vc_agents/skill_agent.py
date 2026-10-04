@@ -93,7 +93,7 @@ class SkillAgent:
                                        "path": parsed["path"]})
                         seen.add(parsed["name"])
                     except Exception:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
             for md in skill_dir.glob("*.md"):
                 name = md.stem
                 if name not in seen:
