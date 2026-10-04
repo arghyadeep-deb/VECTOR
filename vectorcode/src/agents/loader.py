@@ -258,29 +258,39 @@ def definitions_from_markdown_dir(dir: Path) -> list["AgentDefinition"]:
         if not front:
             continue
 
-        slug = str(front.get("name") or md_file.stem).strip()
-        description = str(front.get("description") or f"Markdown-defined agent {slug}").strip()
-        model = _model_from_frontmatter(front.get("model"))
+        try:
+            slug = str(front.get("name") or md_file.stem).strip()
+            description = str(front.get("description") or f"Markdown-defined agent {slug}").strip()
+            model = _model_from_frontmatter(front.get("model"))
 
-        # Tools list → capabilities (lowercase, deduped)
-        tools = front.get("tools") or []
-        if isinstance(tools, str):
-            tools = [t.strip() for t in tools.split(",") if t.strip()]
-        capabilities = sorted({str(t).lower() for t in tools})
+            # Tools list → capabilities (lowercase, deduped)
+            tools = front.get("tools") or []
+            if isinstance(tools, str):
+                tools = [t.strip() for t in tools.split(",") if t.strip()]
+            capabilities = sorted({str(t).lower() for t in tools})
 
-        defn = AgentDefinition(
-            name=slug,
-            class_name=_slug_to_class_name(slug),
-            district=_district_from_name(slug, description),
-            description=description,
-            model=model,
-            hp=int(front.get("hp", 500)),
-            capabilities=capabilities,
-            config={
-                "source": "markdown",
-                "source_path": str(md_file).replace("\\", "/"),
-            },
-        )
+            defn = AgentDefinition(
+                name=slug,
+                class_name=_slug_to_class_name(slug),
+                district=_district_from_name(slug, description),
+                description=description,
+                model=model,
+                hp=int(front.get("hp", 500)),
+                capabilities=capabilities,
+                config={
+                    "source": "markdown",
+                    "source_path": str(md_file).replace("\\", "/"),
+                },
+            )
+        except Exception as e:
+            # One malformed frontmatter field (e.g. a non-numeric `hp:`) must
+            # not take down every other agent in this directory -- this used
+            # to raise uncaught, which propagates out of this function and
+            # causes the caller (registry.py's get_registry()) to drop the
+            # ENTIRE markdown-agent batch, not just this file.
+            logger.warning(f"[VECTOR][loader] skipping malformed agent frontmatter in {md_file}: {e}")
+            continue
+
         results.append(defn)
 
     logger.info(f"[VECTOR][loader] loaded {len(results)} agents from markdown ({dir})")
