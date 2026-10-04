@@ -7,20 +7,22 @@
 
 from __future__ import annotations
 
-import logging
 import shutil
 import subprocess
 from typing import Any
 
+from loguru import logger
+
 try:
     from vectorcode.src._rust_bridge import get_rust_module
-except ImportError:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+except ImportError as _sve:
+    logger.debug("[VECTOR][vc_tools.git_tool] rust bridge unavailable, using subprocess fallback: {}", _sve)
+
+    def get_rust_module():
+        return None
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
-
-logger = logging.getLogger(__name__)
 
 # Maximum output size (50 KB)
 _MAX_OUTPUT_BYTES = 50 * 1024
@@ -152,11 +154,16 @@ class GitStatusTool(BaseTool):
                 metadata={"returncode": 0},
             )
         except Exception as exc:
-            return ToolResult(
-                tool_name="git_status",
-                content=f"Git status error: {exc}",
-                success=False,
-            )
+            # Rust acceleration unavailable or failed -- fall back to the
+            # subprocess path below rather than reporting a hard failure.
+            # This matches GitLogTool's existing fallback pattern; before
+            # this fix, GitStatusTool/GitDiffTool had no such fallback and
+            # unconditionally failed whenever the rust module didn't expose
+            # this method (confirmed live in this environment: _rust was
+            # not None, but had no GitStatusTool/GitDiffTool attribute).
+            logger.debug("Rust git_status fallback to CLI: {}", exc)
+
+        return _run_git(["git", "status", "--porcelain"], cwd=repo_path)
 
 # ---------------------------------------------------------------------------
 # GitDiffTool
@@ -220,11 +227,12 @@ class GitDiffTool(BaseTool):
                     metadata={"returncode": 0},
                 )
             except Exception as exc:
-                return ToolResult(
-                    tool_name="git_diff",
-                    content=f"Git diff error: {exc}",
-                    success=False,
-                )
+                # See GitStatusTool.execute() -- fall back to the subprocess
+                # path instead of reporting a hard failure. Before this fix
+                # this branch unconditionally failed whenever the rust
+                # module didn't expose GitDiffTool (confirmed live in this
+                # environment).
+                logger.debug("Rust git_diff fallback to CLI: {}", exc)
 
         cmd = ["git", "diff"]
         if staged:
@@ -378,7 +386,7 @@ class GitLogTool(BaseTool):
                 metadata={"returncode": 0},
             )
         except Exception as exc:
-            logger.debug("Rust git_log fallback to CLI: %s", exc)
+            logger.debug("Rust git_log fallback to CLI: {}", exc)
 
         cmd = ["git", "log", f"-{count}"]
         if oneline:
