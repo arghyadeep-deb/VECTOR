@@ -14,7 +14,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 from typing import Any, List, Optional
 
 from vectorcode.src.vc_agents._abc import AgentContext, AgentResult, ToolUsingAgent
@@ -23,8 +22,6 @@ from vectorcode.src.vc_core.registry import AgentRegistry
 from vectorcode.src.vc_core.types import Message, Role, ToolCall, ToolResult
 from vectorcode.src.vc_engine._abc import InferenceEngine
 from vectorcode.src.vc_tools._abc import BaseTool
-
-logger = logging.getLogger(__name__)
 
 @AgentRegistry.register("operative")
 class OperativeAgent(ToolUsingAgent):
@@ -195,7 +192,7 @@ class OperativeAgent(ToolUsingAgent):
                         if args.get("key", "") == state_key:
                             state_stored_by_tool = True
                     except (json.JSONDecodeError, TypeError) as _sve:
-                        logger.debug("[VECTOR][vc_agents.operative] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
+                        logger.debug("[VECTOR][vc_agents.operative] suppressed (json.JSONDecodeError, TypeError): {}", _sve)
 
                 messages.append(
                     Message(
@@ -262,8 +259,8 @@ class OperativeAgent(ToolUsingAgent):
             result = self._memory_backend.retrieve(state_key)
             if result:
                 return result if isinstance(result, str) else str(result)
-        except Exception:
-            logger.debug("No previous state for operator %s", self._operator_id)
+        except Exception as e:
+            logger.debug("No previous state for operator {}: {}", self._operator_id, e)
         return ""
 
     def _load_session(self) -> list[Message]:
@@ -284,8 +281,8 @@ class OperativeAgent(ToolUsingAgent):
                     for m in recent
                     if isinstance(m, dict)
                 ]
-        except Exception:
-            logger.debug("Could not load session for operator %s", self._operator_id)
+        except Exception as e:
+            logger.debug("Could not load session for operator {}: {}", self._operator_id, e)
         return []
 
     def _save_session(self, input_text: str, response: str) -> None:
@@ -302,8 +299,8 @@ class OperativeAgent(ToolUsingAgent):
                 session_id,
                 {"role": "assistant", "content": response},
             )
-        except Exception:
-            logger.debug("Could not save session for operator %s", self._operator_id)
+        except Exception as e:
+            logger.debug("Could not save session for operator {}: {}", self._operator_id, e)
 
     def _auto_persist_state(self, content: str) -> None:
         """Auto-persist a state summary if the agent didn't store state explicitly."""
@@ -314,10 +311,10 @@ class OperativeAgent(ToolUsingAgent):
             # Store a summary of the agent's response as state
             summary = content[:1000] if content else ""
             self._memory_backend.store(state_key, summary)
-        except Exception:
+        except Exception as e:
             logger.debug(
-                "Could not auto-persist state for operator %s",
-                self._operator_id,
+                "Could not auto-persist state for operator {}: {}",
+                self._operator_id, e,
             )
 
 __all__ = ["OperativeAgent"]

@@ -20,7 +20,6 @@ Typical usage::
 from __future__ import annotations
 from loguru import logger
 
-import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
 
@@ -29,8 +28,6 @@ from vectorcode.src.vc_tools.storage._abc import RetrievalResult
 
 if TYPE_CHECKING:
     from vectorcode.src.connectors.embedding_store import EmbeddingStore
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Abstract Reranker
@@ -115,7 +112,7 @@ class ColBERTReranker(Reranker):
                 if torch.cuda.is_available():
                     gpus = 1
             except Exception as _sve:
-                logger.debug("[VECTOR][connectors.retriever] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][connectors.retriever] suppressed Exception: {}", _sve)
 
             os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
             config = ColBERTConfig(gpus=gpus)
@@ -124,7 +121,7 @@ class ColBERTReranker(Reranker):
         except Exception as exc:
             if not self._warned:
                 logger.warning(
-                    "ColBERTReranker: failed to load colbert-ai (%s). "
+                    "ColBERTReranker: failed to load colbert-ai ({}). "
                     "Falling back to BM25 order.",
                     exc,
                 )
@@ -196,7 +193,7 @@ class ColBERTReranker(Reranker):
             return reranked
 
         except Exception as exc:
-            logger.warning("ColBERTReranker.rerank failed (%s); using BM25 order.", exc)
+            logger.warning("ColBERTReranker.rerank failed ({}); using BM25 order.", exc)
             return candidates[:top_k]
 
 # ---------------------------------------------------------------------------

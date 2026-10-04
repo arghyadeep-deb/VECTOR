@@ -19,7 +19,6 @@ from __future__ import annotations
 from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
-import logging
 import sqlite3
 import threading
 from pathlib import Path
@@ -27,8 +26,6 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     import torch  # type: ignore[import]
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # DDL for the lightweight SQLite index
@@ -140,7 +137,7 @@ class EmbeddingStore:
             return _torch.load(str(tensor_path), weights_only=True)
         except Exception as exc:
             logger.warning(
-                "EmbeddingStore.get: failed to load tensor for %s (%s)", chunk_id, exc
+                "EmbeddingStore.get: failed to load tensor for {} ({})", chunk_id, exc
             )
             return None
 
@@ -190,6 +187,6 @@ class EmbeddingStore:
             with self._lock:
                 self._conn.close()
         except Exception as _sve:
-            logger.debug("[VECTOR][connectors.embedding_store] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][connectors.embedding_store] suppressed Exception: {}", _sve)
 
 __all__ = ["EmbeddingStore"]

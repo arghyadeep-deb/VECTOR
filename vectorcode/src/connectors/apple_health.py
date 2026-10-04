@@ -19,7 +19,6 @@ from loguru import logger
 
 import hashlib
 import json
-import logging
 import sqlite3
 try:
     import defusedxml.ElementTree as ET
@@ -33,8 +32,6 @@ from typing import Any, Dict, Iterator, List, Optional
 from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 from vectorcode.src.vc_core.registry import ConnectorRegistry
-
-logger = logging.getLogger(__name__)
 
 _DEFAULT_EXPORT_PATH = str(
     DEFAULT_CONFIG_DIR / "connectors" / "apple_health_export" / "export.xml"
@@ -253,13 +250,13 @@ class AppleHealthConnector(BaseConnector):
                     try:
                         hr_by_day[day].append(float(elem.get("value", 0)))
                     except (ValueError, TypeError) as _sve:
-                        logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): %s", _sve)
+                        logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): {}", _sve)
 
                 elif rec_type == _ACTIVE_ENERGY:
                     try:
                         energy_by_day[day] += float(elem.get("value", 0))
                     except (ValueError, TypeError) as _sve:
-                        logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): %s", _sve)
+                        logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): {}", _sve)
 
                 elem.clear()
 
@@ -401,7 +398,7 @@ class AppleHealthConnector(BaseConnector):
                 try:
                     parts.append(f"{float(w['total_distance']):.1f} km")
                 except (ValueError, TypeError) as _sve:
-                    logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): %s", _sve)
+                    logger.debug("[VECTOR][connectors.apple_health] suppressed (ValueError, TypeError): {}", _sve)
             duration_s = w.get("duration_seconds", 0)
             if duration_s:
                 parts.append(_format_duration(float(duration_s)))
