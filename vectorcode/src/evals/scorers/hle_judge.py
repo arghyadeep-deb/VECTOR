@@ -79,7 +79,10 @@ class HLEScorer(LLMJudgeScorer):
             if structured_match:
                 is_correct = structured_match.group(1).lower() == "yes"
             else:
-                is_correct = "CORRECT" in raw.upper() and "INCORRECT" not in raw.upper()
+                return None, {
+                    "match_type": "llm_fallback_unparseable",
+                    "raw_judge_output": raw,
+                }
 
             meta: Dict[str, Any] = {
                 "match_type": "llm_fallback",
@@ -97,7 +100,7 @@ class HLEScorer(LLMJudgeScorer):
 
         except Exception as exc:
             LOGGER.error("HLE LLM judge failed: %s", exc)
-            return False, {
+            return None, {
                 "match_type": "llm_fallback_error",
                 "error": str(exc),
             }

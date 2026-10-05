@@ -148,9 +148,15 @@ class PaperArenaScorer(LLMJudgeScorer):
 
         try:
             raw = self._ask_judge(prompt, max_tokens=4096)
-            is_correct = bool(re.search(r"\bCORRECT\b", raw, re.IGNORECASE))
-            if re.search(r"\bINCORRECT\b", raw, re.IGNORECASE):
-                is_correct = False
+            correct = bool(re.search(r"\bCORRECT\b", raw, re.IGNORECASE))
+            incorrect = bool(re.search(r"\bINCORRECT\b", raw, re.IGNORECASE))
+            if correct == incorrect:
+                return None, {
+                    "match_type": "llm_judge_unparseable",
+                    "raw_judge_output": raw,
+                    "question_type": record.metadata.get("question_type", "OA"),
+                }
+            is_correct = correct
 
             return is_correct, {
                 "match_type": "llm_judge",
@@ -158,7 +164,7 @@ class PaperArenaScorer(LLMJudgeScorer):
                 "question_type": record.metadata.get("question_type", "OA"),
             }
         except Exception as exc:
-            return False, {
+            return None, {
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }

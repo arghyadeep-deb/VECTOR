@@ -71,6 +71,12 @@ class LogHubScorer(LLMJudgeScorer):
         try:
             raw = self._ask_judge(prompt, temperature=0.0, max_tokens=32)
             has_anomaly = bool(_ANOMALY_PATTERN.search(raw))
+            has_normal = bool(_NORMAL_PATTERN.search(raw))
+            if has_anomaly == has_normal:
+                return None, {
+                    "match_type": "llm_fallback_unparseable",
+                    "raw_judge_output": raw,
+                }
             predicted = "anomaly" if has_anomaly else "normal"
             reference = record.reference.lower().strip()
             is_correct = predicted == reference
@@ -81,7 +87,7 @@ class LogHubScorer(LLMJudgeScorer):
                 "raw_judge_output": raw,
             }
         except Exception as exc:
-            return False, {
+            return None, {
                 "match_type": "llm_fallback_error",
                 "error": str(exc),
             }

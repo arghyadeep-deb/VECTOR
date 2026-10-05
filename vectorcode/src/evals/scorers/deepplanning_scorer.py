@@ -74,9 +74,15 @@ class DeepPlanningScorer(LLMJudgeScorer):
 
         try:
             raw = self._ask_judge(prompt, max_tokens=4096)
-            is_correct = bool(re.search(r"\bCORRECT\b", raw, re.IGNORECASE))
-            if re.search(r"\bINCORRECT\b", raw, re.IGNORECASE):
-                is_correct = False
+            correct = bool(re.search(r"\bCORRECT\b", raw, re.IGNORECASE))
+            incorrect = bool(re.search(r"\bINCORRECT\b", raw, re.IGNORECASE))
+            if correct == incorrect:
+                return None, {
+                    "match_type": "llm_judge_unparseable",
+                    "raw_judge_output": raw,
+                    "task_type": task_type,
+                }
+            is_correct = correct
 
             return is_correct, {
                 "match_type": "llm_judge",
@@ -84,7 +90,7 @@ class DeepPlanningScorer(LLMJudgeScorer):
                 "task_type": task_type,
             }
         except Exception as exc:
-            return False, {
+            return None, {
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }

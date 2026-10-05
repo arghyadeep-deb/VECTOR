@@ -90,9 +90,12 @@ class KnowledgeBaseScorer(LLMJudgeScorer):
                 raw,
                 re.MULTILINE | re.IGNORECASE,
             )
-            is_correct = (
-                overall_match.group(1).lower() == "yes" if overall_match else False
-            )
+            if overall_match is None:
+                return None, {
+                    "match_type": "llm_judge_unparseable",
+                    "raw_judge_output": raw,
+                }
+            is_correct = overall_match.group(1).lower() == "yes"
 
             completeness_match = re.search(
                 r"^completeness:\s*(complete|partial|missing)",
@@ -110,7 +113,7 @@ class KnowledgeBaseScorer(LLMJudgeScorer):
             }
         except Exception as exc:
             LOGGER.error("Knowledge base LLM judge failed: %s", exc)
-            return False, {
+            return None, {
                 "match_type": "llm_judge_error",
                 "error": str(exc),
             }
