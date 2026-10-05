@@ -191,7 +191,7 @@ class _NullSampler(_Sampler):
     method = "unavailable"
 
     def start(self) -> None:
-        raise NotImplementedError("_NullSampler.start must be implemented by subclass")
+        """No-op: the fallback sampler deliberately collects no readings."""
 
     def stop(self) -> List[EnergySample]:
         return []
