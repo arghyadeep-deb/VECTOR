@@ -1,5 +1,4 @@
 """Shared auxiliary client router for side tasks.
-from loguru import logger
 
 Provides a single resolution chain so every consumer (context compression,
 session search, web extraction, vision analysis, browser vision) picks up
@@ -36,7 +35,6 @@ Payment / credit exhaustion fallback:
 """
 
 import json
-import logging
 import os
 import threading
 import time
@@ -46,14 +44,12 @@ from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse, parse_qs, urlunparse
 
 from openai import OpenAI
+from loguru import logger
 
 from agent.credential_pool import load_pool
 from vector_cli.config import get_vector_home
 from vector_constants import OPENROUTER_BASE_URL
 from utils import base_url_host_matches, base_url_hostname, normalize_proxy_env_vars
-
-logger = logging.getLogger(__name__)
-
 
 def _extract_url_query_params(url: str):
     """Extract query params from URL, return (clean_url, default_query dict or None)."""
@@ -147,7 +143,7 @@ def _fixed_temperature_for_model(
         ``None`` — no override; caller should use its own default.
     """
     if _is_kimi_model(model):
-        logger.debug("Omitting temperature for Kimi model %r (server-managed)", model)
+        logger.debug("Omitting temperature for Kimi model {!r} (server-managed)", model)
         return OMIT_TEMPERATURE
     return None
 
@@ -254,7 +250,7 @@ def _codex_cloudflare_headers(access_token: str) -> Dict[str, str]:
         if isinstance(acct_id, str) and acct_id:
             headers["ChatGPT-Account-ID"] = acct_id
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
     return headers
 
 
@@ -270,7 +266,7 @@ def _to_openai_base_url(base_url: str) -> str:
     url = str(base_url or "").strip().rstrip("/")
     if url.endswith("/anthropic"):
         rewritten = url[: -len("/anthropic")] + "/v1"
-        logger.debug("Auxiliary client: rewrote base URL %s → %s", url, rewritten)
+        logger.debug("Auxiliary client: rewrote base URL {} → {}", url, rewritten)
         return rewritten
     return url
 
@@ -280,14 +276,14 @@ def _select_pool_entry(provider: str) -> Tuple[bool, Optional[Any]]:
     try:
         pool = load_pool(provider)
     except Exception as exc:
-        logger.debug("Auxiliary client: could not load pool for %s: %s", provider, exc)
+        logger.debug("Auxiliary client: could not load pool for {}: {}", provider, exc)
         return False, None
     if not pool or not pool.has_credentials():
         return False, None
     try:
         return True, pool.select()
     except Exception as exc:
-        logger.debug("Auxiliary client: could not select pool entry for %s: %s", provider, exc)
+        logger.debug("Auxiliary client: could not select pool entry for {}: {}", provider, exc)
         return True, None
 
 
@@ -457,7 +453,7 @@ class _CodexCompletionsAdapter:
                 if collected_output_items:
                     final.output = list(collected_output_items)
                     logger.debug(
-                        "Codex auxiliary: backfilled %d output items from stream events",
+                        "Codex auxiliary: backfilled {} output items from stream events",
                         len(collected_output_items),
                     )
                 elif collected_text_deltas and not has_function_calls:
@@ -470,7 +466,7 @@ class _CodexCompletionsAdapter:
                         content=[SimpleNamespace(type="output_text", text=assembled)],
                     )]
                     logger.debug(
-                        "Codex auxiliary: synthesized from %d deltas (%d chars)",
+                        "Codex auxiliary: synthesized from {} deltas ({} chars)",
                         len(collected_text_deltas), len(assembled),
                     )
 
@@ -508,7 +504,7 @@ class _CodexCompletionsAdapter:
                     total_tokens=getattr(resp_usage, "total_tokens", 0),
                 )
         except Exception as exc:
-            logger.debug("Codex auxiliary Responses API call failed: %s", exc)
+            logger.debug("Codex auxiliary Responses API call failed: {}", exc)
             raise
 
         content = "".join(text_parts).strip() or None
@@ -749,7 +745,7 @@ def _read_nous_auth() -> Optional[dict]:
             return None
         return provider
     except Exception as exc:
-        logger.debug("Could not read Nous auth: %s", exc)
+        logger.debug("Could not read Nous auth: {}", exc)
         return None
 
 
@@ -780,7 +776,7 @@ def _resolve_nous_runtime_api(*, force_refresh: bool = False) -> Optional[tuple[
             force_mint=force_refresh,
         )
     except Exception as exc:
-        logger.debug("Auxiliary Nous runtime credential resolution failed: %s", exc)
+        logger.debug("Auxiliary Nous runtime credential resolution failed: {}", exc)
         return None
 
     api_key = str(creds.get("api_key") or "").strip()
@@ -822,7 +818,7 @@ def _read_codex_access_token() -> Optional[str]:
             claims = json.loads(base64.urlsafe_b64decode(payload))
             exp = claims.get("exp", 0)
             if exp and time.time() > exp:
-                logger.debug("Codex access token expired (exp=%s), skipping", exp)
+                logger.debug("Codex access token expired (exp={}), skipping", exp)
                 return None
         except Exception:
             logger.exception("[VECTOR] silent swallow")
@@ -830,7 +826,7 @@ def _read_codex_access_token() -> Optional[str]:
 
         return access_token.strip()
     except Exception as exc:
-        logger.debug("Could not read Codex auth for auxiliary client: %s", exc)
+        logger.debug("Could not read Codex auth for auxiliary client: {}", exc)
         return None
 
 
@@ -858,7 +854,7 @@ def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
                 if not is_provider_explicitly_configured("anthropic"):
                     continue
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
             return _try_anthropic()
 
         pool_present, entry = _select_pool_entry(provider_id)
@@ -873,7 +869,7 @@ def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
             model = _API_KEY_PROVIDER_AUX_MODELS.get(provider_id)
             if model is None:
                 continue  # skip provider if we don't know a valid aux model
-            logger.debug("Auxiliary text client: %s (%s) via pool", pconfig.name, model)
+            logger.debug("Auxiliary text client: {} ({}) via pool", pconfig.name, model)
             if provider_id == "gemini":
                 from agent.gemini_native_adapter import GeminiNativeClient, is_native_gemini_base_url
 
@@ -899,7 +895,7 @@ def _resolve_api_key_provider() -> Tuple[Optional[OpenAI], Optional[str]]:
         model = _API_KEY_PROVIDER_AUX_MODELS.get(provider_id)
         if model is None:
             continue  # skip provider if we don't know a valid aux model
-        logger.debug("Auxiliary text client: %s (%s)", pconfig.name, model)
+        logger.debug("Auxiliary text client: {} ({})", pconfig.name, model)
         if provider_id == "gemini":
             from agent.gemini_native_adapter import GeminiNativeClient, is_native_gemini_base_url
 
@@ -962,12 +958,12 @@ def _try_nous(vision: bool = False) -> Tuple[Optional[OpenAI], Optional[str]]:
         _remaining = nous_rate_limit_remaining()
         if _remaining is not None and _remaining > 0:
             logger.debug(
-                "Auxiliary: skipping Nous Portal (rate-limited, resets in %.0fs)",
+                "Auxiliary: skipping Nous Portal (rate-limited, resets in {:.0f}s)",
                 _remaining,
             )
             return None, None
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
 
     nous = _read_nous_auth()
     runtime = _resolve_nous_runtime_api(force_refresh=False)
@@ -990,18 +986,18 @@ def _try_nous(vision: bool = False) -> Tuple[Optional[OpenAI], Optional[str]]:
         if recommended:
             model = recommended
             logger.debug(
-                "Auxiliary/%s: using Portal-recommended model %s",
+                "Auxiliary/{}: using Portal-recommended model {}",
                 "vision" if vision else "text", model,
             )
         else:
             logger.debug(
-                "Auxiliary/%s: no Portal recommendation, falling back to %s",
+                "Auxiliary/{}: no Portal recommendation, falling back to {}",
                 "vision" if vision else "text", model,
             )
     except Exception as exc:
         logger.debug(
-            "Auxiliary/%s: recommended-models lookup failed (%s); "
-            "falling back to %s",
+            "Auxiliary/{}: recommended-models lookup failed ({}); "
+            "falling back to {}",
             "vision" if vision else "text", exc, model,
         )
 
@@ -1036,7 +1032,7 @@ def _read_main_model() -> str:
             if isinstance(default, str) and default.strip():
                 return default.strip()
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
     return ""
 
 
@@ -1055,7 +1051,7 @@ def _read_main_provider() -> str:
             if isinstance(provider, str) and provider.strip():
                 return provider.strip().lower()
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
     return ""
 
 
@@ -1071,7 +1067,7 @@ def _resolve_custom_runtime() -> Tuple[Optional[str], Optional[str], Optional[st
 
         runtime = resolve_runtime_provider(requested="custom")
     except Exception as exc:
-        logger.debug("Auxiliary client: custom runtime resolution failed: %s", exc)
+        logger.debug("Auxiliary client: custom runtime resolution failed: {}", exc)
         runtime = None
 
     if not isinstance(runtime, dict):
@@ -1173,7 +1169,7 @@ def _try_custom_endpoint() -> Tuple[Optional[Any], Optional[str]]:
     if custom_base.lower().startswith(_CODEX_AUX_BASE_URL.lower()):
         return None, None
     model = _read_main_model() or "gpt-4o-mini"
-    logger.debug("Auxiliary client: custom endpoint (%s, api_mode=%s)", model, custom_mode or "chat_completions")
+    logger.debug("Auxiliary client: custom endpoint ({}, api_mode={})", model, custom_mode or "chat_completions")
     _clean_base, _dq = _extract_url_query_params(custom_base)
     _extra = {"default_query": _dq} if _dq else {}
     if custom_mode == "codex_responses":
@@ -1215,7 +1211,7 @@ def _try_codex() -> Tuple[Optional[Any], Optional[str]]:
         if not codex_token:
             return None, None
         base_url = _CODEX_AUX_BASE_URL
-    logger.debug("Auxiliary client: Codex OAuth (%s via Responses API)", _CODEX_AUX_MODEL)
+    logger.debug("Auxiliary client: Codex OAuth ({} via Responses API)", _CODEX_AUX_MODEL)
     real_client = OpenAI(
         api_key=codex_token,
         base_url=base_url,
@@ -1256,12 +1252,12 @@ def _try_anthropic() -> Tuple[Optional[Any], Optional[str]]:
                 if cfg_base_url:
                     base_url = cfg_base_url
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
 
     from agent.anthropic_adapter import _is_oauth_token
     is_oauth = _is_oauth_token(token)
     model = _API_KEY_PROVIDER_AUX_MODELS.get("anthropic", "claude-haiku-4-5-20251001")
-    logger.debug("Auxiliary client: Anthropic native (%s) at %s (oauth=%s)", model, base_url, is_oauth)
+    logger.debug("Auxiliary client: Anthropic native ({}) at {} (oauth={})", model, base_url, is_oauth)
     try:
         real_client = build_anthropic_client(token, base_url)
     except ImportError:
@@ -1428,7 +1424,7 @@ def _evict_cached_clients(provider: str) -> None:
                     if callable(close_fn):
                         close_fn()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
             _client_cache.pop(key, None)
 
 
@@ -1468,7 +1464,7 @@ def _refresh_provider_credentials(provider: str) -> bool:
             _evict_cached_clients(normalized)
             return True
     except Exception as exc:
-        logger.debug("Auxiliary provider credential refresh failed for %s: %s", normalized, exc)
+        logger.debug("Auxiliary provider credential refresh failed for {}: {}", normalized, exc)
         return False
     return False
 
@@ -1507,14 +1503,14 @@ def _try_payment_fallback(
         client, model = try_fn()
         if client is not None:
             logger.info(
-                "Auxiliary %s: %s on %s — falling back to %s (%s)",
+                "Auxiliary {}: {} on {} — falling back to {} ({})",
                 task or "call", reason, failed_provider, label, model or "default",
             )
             return client, model, label
         tried.append(label)
 
     logger.warning(
-        "Auxiliary %s: %s on %s and no fallback available (tried: %s)",
+        "Auxiliary {}: {} on {} and no fallback available (tried: {})",
         task or "call", reason, failed_provider, ", ".join(tried),
     )
     return None, None, ""
@@ -1554,7 +1550,7 @@ def _resolve_auto(main_runtime: Optional[Dict[str, Any]] = None) -> Tuple[Option
                 and _cfg_provider != "custom"
                 and not _cfg_provider.startswith("custom:")):
             logger.warning(
-                "OPENAI_BASE_URL is set (%s) but model.provider is '%s'. "
+                "OPENAI_BASE_URL is set ({}) but model.provider is '{}'. "
                 "Auxiliary clients may route to the wrong endpoint. "
                 "Run: vector model to reconfigure, or remove "
                 "OPENAI_BASE_URL from ~/.vectorcode/.env",
@@ -1588,7 +1584,7 @@ def _resolve_auto(main_runtime: Optional[Dict[str, Any]] = None) -> Tuple[Option
             api_mode=runtime_api_mode or None,
         )
         if client is not None:
-            logger.info("Auxiliary auto-detect: using main provider %s (%s)",
+            logger.info("Auxiliary auto-detect: using main provider {} ({})",
                         main_provider, resolved or main_model)
             return client, resolved or main_model
 
@@ -1598,13 +1594,13 @@ def _resolve_auto(main_runtime: Optional[Dict[str, Any]] = None) -> Tuple[Option
         client, model = try_fn()
         if client is not None:
             if tried:
-                logger.info("Auxiliary auto-detect: using %s (%s) — skipped: %s",
+                logger.info("Auxiliary auto-detect: using {} ({}) — skipped: {}",
                             label, model or "default", ", ".join(tried))
             else:
-                logger.info("Auxiliary auto-detect: using %s (%s)", label, model or "default")
+                logger.info("Auxiliary auto-detect: using {} ({})", label, model or "default")
             return client, model
         tried.append(label)
-    logger.warning("Auxiliary auto-detect: no provider available (tried: %s). "
+    logger.warning("Auxiliary auto-detect: no provider available (tried: {}). "
                    "Compression, summarization, and memory flush will not work. "
                    "Set OPENROUTER_API_KEY or configure a local model in config.yaml.",
                    ", ".join(tried))
@@ -1642,13 +1638,13 @@ def _to_async_client(sync_client, model: str, is_vision: bool = False):
         if isinstance(sync_client, GeminiNativeClient):
             return AsyncGeminiNativeClient(sync_client), model
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
     try:
         from agent.copilot_acp_client import CopilotACPClient
         if isinstance(sync_client, CopilotACPClient):
             return sync_client, model
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     async_kwargs = {
         "api_key": sync_client.api_key,
@@ -1752,7 +1748,7 @@ def resolve_provider_client(
         if _needs_codex_wrap(client_obj, base_url_str, final_model_str):
             logger.debug(
                 "resolve_provider_client: wrapping client in CodexAuxiliaryClient "
-                "(api_mode=%s, model=%s, base_url=%s)",
+                "(api_mode={}, model={}, base_url={})",
                 api_mode or "auto-detected", final_model_str,
                 base_url_str[:60] if base_url_str else "")
             return CodexAuxiliaryClient(client_obj, final_model_str)
@@ -1769,8 +1765,8 @@ def resolve_provider_client(
         # the provider's own default model instead.
         if model and "/" in model and resolved and "/" not in resolved:
             logger.debug(
-                "Dropping OpenRouter-format model %r for non-OpenRouter "
-                "auxiliary provider (using %r instead)", model, resolved)
+                "Dropping OpenRouter-format model {!r} for non-OpenRouter "
+                "auxiliary provider (using {!r} instead)", model, resolved)
             model = None
         final_model = model or resolved
         return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
@@ -1781,7 +1777,7 @@ def resolve_provider_client(
         client, default = _try_openrouter()
         if client is None:
             logger.warning(
-                "resolve_provider_client: openrouter requested but %s",
+                "resolve_provider_client: openrouter requested but {}",
                 _describe_openrouter_unavailable(),
             )
             return None, None
@@ -1903,7 +1899,7 @@ def resolve_provider_client(
                 _clean_base2, _dq2 = _extract_url_query_params(custom_base)
                 _extra2 = {"default_query": _dq2} if _dq2 else {}
                 logger.debug(
-                    "resolve_provider_client: named custom provider %r (%s, api_mode=%s)",
+                    "resolve_provider_client: named custom provider {!r} ({}, api_mode={})",
                     provider, final_model, entry_api_mode or "chat_completions")
                 # anthropic_messages: route through the Anthropic Messages API
                 # via AnthropicAuxiliaryClient. Mirrors the anonymous-custom
@@ -1914,7 +1910,7 @@ def resolve_provider_client(
                         real_client = build_anthropic_client(custom_key, custom_base)
                     except ImportError:
                         logger.warning(
-                            "Named custom provider %r declares api_mode="
+                            "Named custom provider {!r} declares api_mode="
                             "anthropic_messages but the anthropic SDK is not "
                             "installed — falling back to OpenAI-wire.",
                             provider,
@@ -1942,11 +1938,11 @@ def resolve_provider_client(
                 return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
                         else (client, final_model))
             logger.warning(
-                "resolve_provider_client: named custom provider %r has no base_url",
+                "resolve_provider_client: named custom provider {!r} has no base_url",
                 provider)
             return None, None
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     # ── API-key providers from PROVIDER_REGISTRY ─────────────────────
     try:
@@ -1956,12 +1952,12 @@ def resolve_provider_client(
             resolve_external_process_provider_credentials,
         )
     except ImportError:
-        logger.debug("vector_cli.auth not available for provider %s", provider)
+        logger.debug("vector_cli.auth not available for provider {}", provider)
         return None, None
 
     pconfig = PROVIDER_REGISTRY.get(provider)
     if pconfig is None:
-        logger.warning("resolve_provider_client: unknown provider %r", provider)
+        logger.warning("resolve_provider_client: unknown provider {!r}", provider)
         return None, None
 
     if pconfig.auth_type == "api_key":
@@ -1979,8 +1975,8 @@ def resolve_provider_client(
             tried_sources = list(pconfig.api_key_env_vars)
             if provider == "copilot":
                 tried_sources.append("gh auth token")
-            logger.debug("resolve_provider_client: provider %s has no API "
-                         "key configured (tried: %s)",
+            logger.debug("resolve_provider_client: provider {} has no API "
+                         "key configured (tried: {})",
                          provider, ", ".join(tried_sources))
             return None, None
 
@@ -1996,7 +1992,7 @@ def resolve_provider_client(
 
             if is_native_gemini_base_url(base_url):
                 client = GeminiNativeClient(api_key=api_key, base_url=base_url)
-                logger.debug("resolve_provider_client: %s (%s)", provider, final_model)
+                logger.debug("resolve_provider_client: {} ({})", provider, final_model)
                 return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
                         else (client, final_model))
 
@@ -2022,19 +2018,19 @@ def resolve_provider_client(
                 from vector_cli.models import _should_use_copilot_responses_api
                 if _should_use_copilot_responses_api(final_model):
                     logger.debug(
-                        "resolve_provider_client: copilot model %s needs "
+                        "resolve_provider_client: copilot model {} needs "
                         "Responses API — wrapping with CodexAuxiliaryClient",
                         final_model)
                     client = CodexAuxiliaryClient(client, final_model)
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         # Honor api_mode for any API-key provider (e.g. direct OpenAI with
         # codex-family models).  The copilot-specific wrapping above handles
         # copilot; this covers the general case (#6800).
         client = _wrap_if_needed(client, final_model, base_url)
 
-        logger.debug("resolve_provider_client: %s (%s)", provider, final_model)
+        logger.debug("resolve_provider_client: {} ({})", provider, final_model)
         return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
                 else (client, final_model))
 
@@ -2066,10 +2062,10 @@ def resolve_provider_client(
                 command=command,
                 args=args,
             )
-            logger.debug("resolve_provider_client: %s (%s)", provider, final_model)
+            logger.debug("resolve_provider_client: {} ({})", provider, final_model)
             return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
                     else (client, final_model))
-        logger.warning("resolve_provider_client: external-process provider %s not "
+        logger.warning("resolve_provider_client: external-process provider {} not "
                        "directly supported", provider)
         return None, None
 
@@ -2096,13 +2092,13 @@ def resolve_provider_client(
             real_client = build_anthropic_bedrock_client(region)
         except ImportError as exc:
             logger.warning("resolve_provider_client: cannot create Bedrock "
-                           "client: %s", exc)
+                           "client: {}", exc)
             return None, None
         client = AnthropicAuxiliaryClient(
             real_client, final_model, api_key="aws-sdk",
             base_url=f"https://bedrock-runtime.{region}.amazonaws.com",
         )
-        logger.debug("resolve_provider_client: bedrock (%s, %s)", final_model, region)
+        logger.debug("resolve_provider_client: bedrock ({}, {})", final_model, region)
         return (_to_async_client(client, final_model, is_vision=is_vision) if async_mode
                 else (client, final_model))
 
@@ -2113,11 +2109,11 @@ def resolve_provider_client(
         if provider == "openai-codex":
             return resolve_provider_client("openai-codex", model, async_mode)
         # Other OAuth providers not directly supported
-        logger.warning("resolve_provider_client: OAuth provider %s not "
+        logger.warning("resolve_provider_client: OAuth provider {} not "
                        "directly supported, try 'auto'", provider)
         return None, None
 
-    logger.warning("resolve_provider_client: unhandled auth_type %s for %s",
+    logger.warning("resolve_provider_client: unhandled auth_type {} for {}",
                    pconfig.auth_type, provider)
     return None, None
 
@@ -2291,7 +2287,7 @@ def resolve_vision_provider_client(
                 )
                 if sync_client is not None:
                     logger.info(
-                        "Vision auto-detect: using main provider %s (%s)",
+                        "Vision auto-detect: using main provider {} ({})",
                         main_provider, default_model or resolved_model or main_model,
                     )
                     return _finalize(main_provider, sync_client, default_model)
@@ -2302,7 +2298,7 @@ def resolve_vision_provider_client(
                     is_vision=True)
                 if rpc_client is not None:
                     logger.info(
-                        "Vision auto-detect: using main provider %s (%s)",
+                        "Vision auto-detect: using main provider {} ({})",
                         main_provider, rpc_model or vision_model,
                     )
                     return _finalize(
@@ -2409,7 +2405,7 @@ def _store_cached_client(cache_key: tuple, client: Any, default_model: Optional[
                 if callable(close_fn):
                     close_fn()
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
         _client_cache[cache_key] = (client, default_model, bound_loop)
 
 
@@ -2439,7 +2435,7 @@ def _refresh_nous_auxiliary_client(
             import asyncio as _aio
             current_loop = _aio.get_event_loop()
         except RuntimeError as _sve:
-            logger.debug("[VECTOR][agent.auxiliary_client] suppressed RuntimeError: %s", _sve)
+            logger.debug("[VECTOR][agent.auxiliary_client] suppressed RuntimeError: {}", _sve)
         client, final_model = _to_async_client(sync_client, final_model or "", is_vision=is_vision)
     else:
         client = sync_client
@@ -2507,7 +2503,7 @@ def _force_close_async_httpx(client: Any) -> None:
         if inner is not None and not getattr(inner, "is_closed", True):
             inner._state = ClientState.CLOSED
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
 
 
 def shutdown_cached_clients() -> None:
@@ -2533,7 +2529,7 @@ def shutdown_cached_clients() -> None:
                 if close_fn and not inspect.iscoroutinefunction(close_fn):
                     close_fn()
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.auxiliary_client] suppressed Exception: {}", _sve)
         _client_cache.clear()
 
 
@@ -2561,6 +2557,31 @@ def _is_openrouter_client(client: Any) -> bool:
         if obj and base_url_host_matches(str(getattr(obj, "base_url", "") or ""), "openrouter.ai"):
             return True
     return False
+
+
+def _failed_provider_label(requested_provider: Optional[str], client: Any) -> str:
+    """Return the concrete backend label for fallback exclusion.
+
+    Auto resolution deliberately exposes only the client/model pair.  Using
+    the requested ``"auto"`` value as the failed label makes the fallback
+    chain retry the same backend first (most commonly an exhausted
+    OpenRouter account).  Recover the providers whose clients have a stable,
+    unambiguous identity; unknown clients retain the requested label.
+    """
+    normalized = _normalize_aux_provider(requested_provider)
+    if normalized != "auto":
+        return normalized
+    if _is_openrouter_client(client):
+        return "openrouter"
+    if isinstance(client, (CodexAuxiliaryClient, AsyncCodexAuxiliaryClient)):
+        return "openai-codex"
+    if isinstance(client, (AnthropicAuxiliaryClient, AsyncAnthropicAuxiliaryClient)):
+        return "anthropic"
+    for obj in (client, getattr(client, "_client", None), getattr(client, "client", None)):
+        base_url = str(getattr(obj, "base_url", "") or "")
+        if base_url_host_matches(base_url, "inference-api.vector.com"):
+            return "nous"
+    return normalized
 
 
 def _cached_client_accepts_slash_models(client: Any, cached_default: Optional[str]) -> bool:
@@ -2616,7 +2637,7 @@ def _get_cached_client(
             import asyncio as _aio
             current_loop = _aio.get_event_loop()
         except RuntimeError as _sve:
-            logger.debug("[VECTOR][agent.auxiliary_client] suppressed RuntimeError: %s", _sve)
+            logger.debug("[VECTOR][agent.auxiliary_client] suppressed RuntimeError: {}", _sve)
     runtime = _normalize_main_runtime(main_runtime)
     cache_key = _client_cache_key(
         provider,
@@ -2757,7 +2778,7 @@ def _get_task_timeout(task: str, default: float = _DEFAULT_AUX_TIMEOUT) -> float
         try:
             return float(raw)
         except (ValueError, TypeError) as _sve:
-            logger.debug("[VECTOR][agent.auxiliary_client] suppressed (ValueError, TypeError): %s", _sve)
+            logger.debug("[VECTOR][agent.auxiliary_client] suppressed (ValueError, TypeError): {}", _sve)
     return default
 
 
@@ -2893,7 +2914,16 @@ def _build_call_kwargs(
     # Provider-specific extra_body
     merged_extra = dict(extra_body or {})
     if provider == "nous" or auxiliary_is_nous:
-        merged_extra.setdefault("tags", []).extend(["product=vectorcode"])
+        raw_tags = merged_extra.get("tags", [])
+        if isinstance(raw_tags, (list, tuple)):
+            tags = list(raw_tags)
+        elif raw_tags:
+            tags = [str(raw_tags)]
+        else:
+            tags = []
+        if "product=vectorcode" not in tags:
+            tags.append("product=vectorcode")
+        merged_extra["tags"] = tags
     if merged_extra:
         kwargs["extra_body"] = merged_extra
 
@@ -2985,7 +3015,7 @@ def call_llm(
         )
         if client is None and resolved_provider != "auto" and not resolved_base_url:
             logger.warning(
-                "Vision provider %s unavailable, falling back to auto vision backends",
+                "Vision provider {} unavailable, falling back to auto vision backends",
                 resolved_provider,
             )
             effective_provider, client, final_model = resolve_vision_provider_client(
@@ -3025,7 +3055,7 @@ def call_llm(
             # resolved_model may be an OpenRouter-format slug that doesn't
             # work on other providers.
             if not resolved_base_url:
-                logger.info("Auxiliary %s: provider %s unavailable, trying auto-detection chain",
+                logger.info("Auxiliary {}: provider {} unavailable, trying auto-detection chain",
                             task or "call", resolved_provider)
                 client, final_model = _get_cached_client("auto", main_runtime=main_runtime)
         if client is None:
@@ -3038,7 +3068,7 @@ def call_llm(
     # Log what we're about to do — makes auxiliary operations visible
     _base_info = str(getattr(client, "base_url", resolved_base_url) or "")
     if task:
-        logger.info("Auxiliary %s: using %s (%s)%s",
+        logger.info("Auxiliary {}: using {} ({}){}",
                      task, resolved_provider or "auto", final_model or "default",
                      f" at {_base_info}" if _base_info and "openrouter" not in _base_info else "")
 
@@ -3066,7 +3096,7 @@ def call_llm(
             retry_kwargs = dict(kwargs)
             retry_kwargs.pop("temperature", None)
             logger.info(
-                "Auxiliary %s: provider rejected temperature; retrying once without it",
+                "Auxiliary {}: provider rejected temperature; retrying once without it",
                 task or "call",
             )
             try:
@@ -3124,7 +3154,7 @@ def call_llm(
                 is_vision=(task == "vision"),
             )
             if refreshed_client is not None:
-                logger.info("Auxiliary %s: refreshed Nous runtime credentials after 401, retrying",
+                logger.info("Auxiliary {}: refreshed Nous runtime credentials after 401, retrying",
                             task or "call")
                 if refreshed_model and refreshed_model != kwargs.get("model"):
                     kwargs["model"] = refreshed_model
@@ -3137,7 +3167,7 @@ def call_llm(
                 and not client_is_nous):
             if _refresh_provider_credentials(resolved_provider):
                 logger.info(
-                    "Auxiliary %s: refreshed %s credentials after auth error, retrying",
+                    "Auxiliary {}: refreshed {} credentials after auth error, retrying",
                     task or "call", resolved_provider,
                 )
                 retry_client, retry_model = (
@@ -3193,10 +3223,11 @@ def call_llm(
         is_auto = resolved_provider in ("auto", "", None)
         if should_fallback and is_auto:
             reason = "payment error" if _is_payment_error(first_err) else "connection error"
-            logger.info("Auxiliary %s: %s on %s (%s), trying fallback",
+            logger.info("Auxiliary {}: {} on {} ({}), trying fallback",
                         task or "call", reason, resolved_provider, first_err)
+            failed_provider = _failed_provider_label(resolved_provider, client)
             fb_client, fb_model, fb_label = _try_payment_fallback(
-                resolved_provider, task, reason=reason)
+                failed_provider, task, reason=reason)
             if fb_client is not None:
                 fb_kwargs = _build_call_kwargs(
                     fb_label, fb_model, messages,
@@ -3298,7 +3329,7 @@ async def async_call_llm(
         )
         if client is None and resolved_provider != "auto" and not resolved_base_url:
             logger.warning(
-                "Vision provider %s unavailable, falling back to auto vision backends",
+                "Vision provider {} unavailable, falling back to auto vision backends",
                 resolved_provider,
             )
             effective_provider, client, final_model = resolve_vision_provider_client(
@@ -3330,7 +3361,7 @@ async def async_call_llm(
                     f"variable, or switch to a different provider with `vector model`."
                 )
             if not resolved_base_url:
-                logger.info("Auxiliary %s: provider %s unavailable, trying auto-detection chain",
+                logger.info("Auxiliary {}: provider {} unavailable, trying auto-detection chain",
                             task or "call", resolved_provider)
                 client, final_model = _get_cached_client("auto", async_mode=True)
         if client is None:
@@ -3362,7 +3393,7 @@ async def async_call_llm(
             retry_kwargs = dict(kwargs)
             retry_kwargs.pop("temperature", None)
             logger.info(
-                "Auxiliary %s (async): provider rejected temperature; retrying once without it",
+                "Auxiliary {} (async): provider rejected temperature; retrying once without it",
                 task or "call",
             )
             try:
@@ -3415,7 +3446,7 @@ async def async_call_llm(
                 is_vision=(task == "vision"),
             )
             if refreshed_client is not None:
-                logger.info("Auxiliary %s (async): refreshed Nous runtime credentials after 401, retrying",
+                logger.info("Auxiliary {} (async): refreshed Nous runtime credentials after 401, retrying",
                             task or "call")
                 if refreshed_model and refreshed_model != kwargs.get("model"):
                     kwargs["model"] = refreshed_model
@@ -3428,7 +3459,7 @@ async def async_call_llm(
                 and not client_is_nous):
             if _refresh_provider_credentials(resolved_provider):
                 logger.info(
-                    "Auxiliary %s (async): refreshed %s credentials after auth error, retrying",
+                    "Auxiliary {} (async): refreshed {} credentials after auth error, retrying",
                     task or "call", resolved_provider,
                 )
                 if task == "vision":
@@ -3469,10 +3500,11 @@ async def async_call_llm(
         is_auto = resolved_provider in ("auto", "", None)
         if should_fallback and is_auto:
             reason = "payment error" if _is_payment_error(first_err) else "connection error"
-            logger.info("Auxiliary %s (async): %s on %s (%s), trying fallback",
+            logger.info("Auxiliary {} (async): {} on {} ({}), trying fallback",
                         task or "call", reason, resolved_provider, first_err)
+            failed_provider = _failed_provider_label(resolved_provider, client)
             fb_client, fb_model, fb_label = _try_payment_fallback(
-                resolved_provider, task, reason=reason)
+                failed_provider, task, reason=reason)
             if fb_client is not None:
                 fb_kwargs = _build_call_kwargs(
                     fb_label, fb_model, messages,
