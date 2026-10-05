@@ -411,11 +411,30 @@ class DistillationOrchestrator:
         return session
 
     def _read_prompt(self, target: str) -> str:
-        """Read a prompt file from the config tree."""
+        """Read a prompt file from the config tree.
+
+        ``target`` originates from the teacher/planner LLM's edit output
+        (see plan/prompt_diff.py's ``prompt_reader(edit.target)`` call) --
+        an untrusted, model-produced string. The same unconfined
+        agent-name-into-path shape was already found and fixed as a write
+        primitive in execute/appliers/agent.py; this is the read-path
+        counterpart, confined the same way.
+        """
         parts = target.split(".")
         if len(parts) >= 2:
             agent_name = parts[1]
-            path = self._home / "agents" / agent_name / "system_prompt.md"
+            agents_dir = (self._home / "agents").resolve()
+            try:
+                agent_dir = (agents_dir / agent_name).resolve()
+            except (OSError, ValueError):
+                return ""
+            if agent_dir.parent != agents_dir:
+                logger.warning(
+                    "Refusing to read prompt for unsafe agent name {!r} "
+                    "(from target {!r})", agent_name, target,
+                )
+                return ""
+            path = agent_dir / "system_prompt.md"
             if path.exists():
                 return path.read_text(encoding="utf-8")
         return ""
