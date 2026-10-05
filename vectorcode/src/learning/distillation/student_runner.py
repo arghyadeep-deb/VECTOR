@@ -12,12 +12,11 @@ OpenAI-compatible engine) and returns structured results.
 
 from __future__ import annotations
 
-import logging
 import time
 from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 @dataclass(slots=True)
 class StudentResult:
@@ -79,7 +78,7 @@ class VLLMStudentRunner:
             data = resp.json()
         except Exception as exc:
             latency = time.time() - t0
-            logger.warning("Student runner failed: %s", exc)
+            logger.warning("Student runner failed: {}", exc)
             return StudentResult(
                 content=f"Error: {exc}",
                 latency_seconds=latency,
@@ -101,6 +100,16 @@ class VLLMStudentRunner:
             tokens_used=tokens,
             trace_id=f"distill_{session_id}_{hash(query) % 10000}",
         )
+
+    def close(self) -> None:
+        """Release the owned HTTP connection pool."""
+        self._client.close()
+
+    def __enter__(self) -> "VLLMStudentRunner":
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> None:
+        self.close()
 
 def build_benchmark_samples_from_traces(
     trace_store: Any,
@@ -133,5 +142,5 @@ def build_benchmark_samples_from_traces(
                 feedback_score=fb if fb is not None else 0.0,
             )
         )
-    logger.info("Built %d benchmark samples from traces", len(samples))
+    logger.info("Built {} benchmark samples from traces", len(samples))
     return samples

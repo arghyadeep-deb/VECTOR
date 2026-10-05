@@ -15,13 +15,12 @@ See spec §6.3.
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Callable, Optional
 
-from vectorcode.src.learning.distillation.models import Edit, EditOp
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from vectorcode.src.learning.distillation.models import Edit, EditOp
 
 # Threshold: if more than this fraction of lines change, downgrade to REPLACE
 _DOWNGRADE_THRESHOLD = 0.5

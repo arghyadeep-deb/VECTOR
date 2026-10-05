@@ -12,14 +12,13 @@ written via AgentConfigEvolver.
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, List
+
+from loguru import logger
 
 from vectorcode.src.vc_core.config import GEPAOptimizerConfig
 from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._abc import AgentLearningPolicy
-
-logger = logging.getLogger(__name__)
 
 # Optional dependency
 try:
@@ -197,7 +196,7 @@ class GEPAAgentOptimizer:
         try:
             best_candidate = self._run_gepa(adapter, traces)
         except Exception as exc:
-            logger.warning("GEPA optimization failed: %s", exc)
+            logger.warning("GEPA optimization failed: {}", exc)
             return {"status": "error", "reason": str(exc)}
 
         config_updates = self._to_config_updates(best_candidate)
