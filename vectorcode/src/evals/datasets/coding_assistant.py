@@ -1566,12 +1566,15 @@ _HARD_TASKS: List[Dict[str, Any]] = [
 def _build_all_tasks() -> List[Dict[str, Any]]:
     """Combine all difficulty tiers with assigned difficulty labels."""
     tasks = []
-    for task in _EASY_TASKS:
-        tasks.append({**task, "difficulty": "easy"})
-    for task in _MEDIUM_TASKS:
-        tasks.append({**task, "difficulty": "medium"})
-    for task in _HARD_TASKS:
-        tasks.append({**task, "difficulty": "hard"})
+    for difficulty, tier in (
+        ("easy", _EASY_TASKS),
+        ("medium", _MEDIUM_TASKS),
+        ("hard", _HARD_TASKS),
+    ):
+        for task in tier:
+            tasks.append(
+                {**task, "difficulty": difficulty, "task_index": len(tasks)}
+            )
     return tasks
 
 _ALL_TASKS = _build_all_tasks()
@@ -1600,7 +1603,7 @@ class CodingAssistantDataset(DatasetProvider):
             tasks = tasks[:max_samples]
 
         self._records = []
-        for i, task in enumerate(tasks):
+        for task in tasks:
             prompt = _PROMPT_TEMPLATE.format(
                 bug_report=task["bug_report"],
                 buggy_code=task["buggy_code"],
@@ -1608,7 +1611,7 @@ class CodingAssistantDataset(DatasetProvider):
             )
             self._records.append(
                 EvalRecord(
-                    record_id=f"coding-assistant-{i}",
+                    record_id=f"coding-assistant-{task['task_index']}",
                     problem=prompt,
                     reference=task.get("fixed_code", ""),
                     category="agentic",
