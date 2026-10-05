@@ -32,6 +32,11 @@ class LoopVerdict:
     blocked: bool = False
     reason: str = ""
     warned: bool = False
+    # Stable key identifying *which* cycle/condition triggered this verdict,
+    # independent of `reason`'s human-readable text (which can embed a
+    # monotonically-increasing count -- see check_call()'s warn-before-block
+    # dedup, which must not use `reason` itself as the dedup key).
+    trigger_key: str = ""
 
 class LoopGuard:
     """Detect and prevent degenerate agent loops.
@@ -79,7 +84,15 @@ class LoopGuard:
                 verdict = rust_result
             elif rust_result is not None:
                 self._emit_triggered("rust_guard", tool_name)
-                verdict = LoopVerdict(blocked=True, reason=rust_result)
+                # trigger_key is coarser here (per tool_name) than the
+                # Python path's per-condition keys, since the Rust
+                # backend's message format isn't under our control and
+                # may itself embed a changing count -- using it directly
+                # as the dedup key would risk the same warn-forever bug
+                # fixed above for the pure-Python path.
+                verdict = LoopVerdict(
+                    blocked=True, reason=rust_result, trigger_key=f"rust_guard:{tool_name}"
+                )
             else:
                 verdict = LoopVerdict()
         else:
@@ -87,7 +100,15 @@ class LoopGuard:
 
         # Wrap with warn-before-block logic
         if verdict.blocked and self._config.warn_before_block:
-            cycle_key = verdict.reason
+            # Use the stable trigger_key, not verdict.reason -- reason's
+            # text embeds a growing call count for the identical_call
+            # trigger, so using it as the dedup key meant every single
+            # repeated call produced a "new" cycle_key and the guard warned
+            # forever without ever reaching the block stage (confirmed
+            # live: 8 identical calls with max_identical_calls=3 all came
+            # back blocked=False). Fall back to `reason` only if a verdict
+            # (e.g. from the Rust backend) doesn't set trigger_key.
+            cycle_key = verdict.trigger_key or verdict.reason
             if cycle_key not in self._warned_cycles:
                 self._warned_cycles.add(cycle_key)
                 return LoopVerdict(blocked=False, warned=True, reason=verdict.reason)
@@ -107,6 +128,7 @@ class LoopGuard:
                     f"{self._call_counts[call_hash]} times "
                     f"(max {self._config.max_identical_calls})."
                 ),
+                trigger_key=f"identical_call:{call_hash}",
             )
 
         # 2. Per-tool budget (polling tools)
@@ -119,6 +141,7 @@ class LoopGuard:
                     f"Tool '{tool_name}' exceeded poll budget "
                     f"({self._config.poll_tool_budget})."
                 ),
+                trigger_key=f"poll_budget:{tool_name}",
             )
 
         # 3. Ping-pong detection
@@ -129,6 +152,7 @@ class LoopGuard:
                 return LoopVerdict(
                     blocked=True,
                     reason="Repetitive tool-calling pattern detected (ping-pong).",
+                    trigger_key="ping_pong",
                 )
 
         return LoopVerdict()

@@ -285,6 +285,14 @@ class OrchestratorAgent(ToolUsingAgent):
             )
 
             # Execute each tool (with loop guard check) and append results
+            # FLAGGED (not fixed): parallel tool execution below uses
+            # concurrent.futures.ThreadPoolExecutor, the same
+            # asyncio-policy-violating pattern already flagged (not fixed)
+            # in evals/core/agentic_runner.py and
+            # evals/backends/external/_subprocess_runner.py this audit
+            # cycle -- converting this run() method's whole call chain to
+            # async is a bigger architectural change than a narrow fix,
+            # since run()/_executor.execute() are synchronous throughout.
             if self._parallel_tools and len(tool_calls) > 1:
                 # Parallel execution
                 def _exec_tool(tc: ToolCall) -> tuple:
