@@ -87,7 +87,7 @@ def load_state() -> Dict[str, Any]:
             base.update({k: v for k, v in data.items() if k in base or k.startswith("_")})
             return base
     except (OSError, json.JSONDecodeError) as e:
-        logger.debug("Failed to read curator state: %s", e)
+        logger.debug("Failed to read curator state: {}", e)
     return _default_state()
 
 def save_state(data: Dict[str, Any]) -> None:
@@ -105,10 +105,10 @@ def save_state(data: Dict[str, Any]) -> None:
             try:
                 os.unlink(tmp)
             except OSError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
             raise
     except Exception as e:
-        logger.debug("Failed to save curator state: %s", e, exc_info=True)
+        logger.opt(exception=True).debug("Failed to save curator state: {}", e)
 
 def set_paused(paused: bool) -> None:
     state = load_state()
@@ -128,7 +128,7 @@ def _load_config() -> Dict[str, Any]:
         from vector_cli.config import load_config
         cfg = load_config()
     except Exception as e:
-        logger.debug("Failed to load config for curator: %s", e)
+        logger.debug("Failed to load config for curator: {}", e)
         return {}
     if not isinstance(cfg, dict):
         return {}
@@ -224,7 +224,7 @@ def should_run_now(now: Optional[datetime] = None) -> bool:
             )
             save_state(state)
         except Exception as e:  # pragma: no cover — best-effort persistence
-            logger.debug("Failed to seed curator last_run_at: %s", e)
+            logger.debug("Failed to seed curator last_run_at: {}", e)
         return False
 
     if now is None:
@@ -449,7 +449,7 @@ def _reports_root() -> Path:
     try:
         root.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        logger.debug("Curator reports dir create failed: %s", e)
+        logger.debug("Curator reports dir create failed: {}", e)
     return root
 
 def _needle_in_path_component(needle: str, path: str) -> bool:
@@ -962,7 +962,7 @@ def _write_run_report(
     try:
         root.mkdir(parents=True, exist_ok=True)
     except Exception as e:
-        logger.debug("Curator report dir create failed: %s", e)
+        logger.debug("Curator report dir create failed: {}", e)
         return None
 
     stamp = started_at.strftime("%Y%m%d-%H%M%S")
@@ -975,7 +975,7 @@ def _write_run_report(
     try:
         run_dir.mkdir(parents=True, exist_ok=False)
     except Exception as e:
-        logger.debug("Curator run dir create failed: %s", e)
+        logger.debug("Curator run dir create failed: {}", e)
         return None
 
     # Diff before/after
@@ -1064,7 +1064,7 @@ def _write_run_report(
                 pruned=pruned_names,
             )
     except Exception as e:
-        logger.debug("Curator cron skill rewrite failed: %s", e, exc_info=True)
+        logger.opt(exception=True).debug("Curator cron skill rewrite failed: {}", e)
         cron_rewrites = {
             "rewrites": [],
             "jobs_updated": 0,
@@ -1111,14 +1111,14 @@ def _write_run_report(
             encoding="utf-8",
         )
     except Exception as e:
-        logger.debug("Curator run.json write failed: %s", e)
+        logger.debug("Curator run.json write failed: {}", e)
 
     # REPORT.md — human-readable
     try:
         md = _render_report_markdown(payload)
         (run_dir / "REPORT.md").write_text(md, encoding="utf-8")
     except Exception as e:
-        logger.debug("Curator REPORT.md write failed: %s", e)
+        logger.debug("Curator REPORT.md write failed: {}", e)
 
     # cron_rewrites.json — only when at least one job was touched, to
     # keep run dirs uncluttered for the common no-op case.
@@ -1129,7 +1129,7 @@ def _write_run_report(
                 encoding="utf-8",
             )
     except Exception as e:
-        logger.debug("Curator cron_rewrites.json write failed: %s", e)
+        logger.debug("Curator cron_rewrites.json write failed: {}", e)
 
     return run_dir
 
@@ -1387,9 +1387,9 @@ def run_curator_review(
                 try:
                     on_summary(f"curator: snapshot created ({snap.name})")
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         except Exception as e:
-            logger.debug("Curator pre-run snapshot failed: %s", e, exc_info=True)
+            logger.opt(exception=True).debug("Curator pre-run snapshot failed: {}", e)
         counts = apply_automatic_transitions(now=start)
 
     auto_summary_parts = []
@@ -1450,7 +1450,7 @@ def run_curator_review(
                     f"{prefix}{auto_summary}; llm: {llm_meta.get('summary', 'no change')}"
                 )
         except Exception as e:
-            logger.debug("Curator LLM pass failed: %s", e, exc_info=True)
+            logger.opt(exception=True).debug("Curator LLM pass failed: {}", e)
             final_summary = f"{prefix}{auto_summary}; llm: error ({e})"
             llm_meta = {
                 "final": "",
@@ -1475,7 +1475,7 @@ def run_curator_review(
             if rename_lines:
                 final_summary = f"{final_summary}\n{rename_lines}"
         except Exception as e:
-            logger.debug("Curator rename summary build failed: %s", e, exc_info=True)
+            logger.opt(exception=True).debug("Curator rename summary build failed: {}", e)
 
         elapsed = (datetime.now(timezone.utc) - start).total_seconds()
         state2 = load_state()
@@ -1503,7 +1503,7 @@ def run_curator_review(
             if report_path is not None:
                 state2["last_report_path"] = str(report_path)
         except Exception as e:
-            logger.debug("Curator report write failed: %s", e, exc_info=True)
+            logger.opt(exception=True).debug("Curator report write failed: {}", e)
 
         save_state(state2)
 
@@ -1511,11 +1511,21 @@ def run_curator_review(
             try:
                 on_summary(f"curator: {final_summary}")
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     if synchronous:
         _llm_pass()
     else:
+        # FLAGGED, not fixed: CLAUDE.md bans threading.Thread in favor of
+        # asyncio, but this entire module (curator.py) is synchronous
+        # top-to-bottom -- run_curator_review/maybe_run_curator are plain
+        # `def`, not `async def`, and _llm_pass() itself calls synchronous
+        # I/O (skill_usage, save_state, report writing). Converting this
+        # one call site to asyncio.create_task() would need either an
+        # async-ification of the whole module and its caller chain, or
+        # routing through loop.run_in_executor() from whichever async
+        # context calls maybe_run_curator() -- an owner architecture
+        # decision, not a safe narrow patch.
         t = threading.Thread(target=_llm_pass, daemon=True, name="curator-review")
         t.start()
 
@@ -1650,7 +1660,7 @@ def _run_llm_review(prompt: str) -> Dict[str, Any]:
         _api_mode = _rp.get("api_mode")
         _resolved_provider = _rp.get("provider") or _provider
     except Exception as e:
-        logger.debug("Curator provider resolution failed: %s", e, exc_info=True)
+        logger.opt(exception=True).debug("Curator provider resolution failed: {}", e)
 
     result_meta["model"] = _model_name
     result_meta["provider"] = _resolved_provider or ""
@@ -1721,7 +1731,7 @@ def _run_llm_review(prompt: str) -> Dict[str, Any]:
             try:
                 review_agent.close()
             except Exception:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
     return result_meta
 
 # ---------------------------------------------------------------------------
@@ -1745,5 +1755,5 @@ def maybe_run_curator(
                 return None
         return run_curator_review(on_summary=on_summary)
     except Exception as e:
-        logger.debug("maybe_run_curator failed: %s", e, exc_info=True)
+        logger.opt(exception=True).debug("maybe_run_curator failed: {}", e)
         return None
