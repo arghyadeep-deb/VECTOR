@@ -131,8 +131,18 @@ class SkillExecutor:
         # Parse rendered args and merge into a copy of the parent context
         try:
             args: Dict[str, Any] = json.loads(rendered_args)
-        except json.JSONDecodeError:
-            args = {}
+        except json.JSONDecodeError as exc:
+            return ToolResult(
+                tool_name=skill_name,
+                content=f"Invalid sub-skill arguments JSON: {exc}",
+                success=False,
+            )
+        if not isinstance(args, dict):
+            return ToolResult(
+                tool_name=skill_name,
+                content="Sub-skill arguments must decode to a JSON object.",
+                success=False,
+            )
 
         child_ctx = {**parent_ctx, **args}
 

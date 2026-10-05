@@ -73,7 +73,14 @@ async def run_sparc_stage(
         raise ValueError(f"Unknown SPARC stage: {stage!r}")
 
     prompt_template = STAGE_PROMPTS[stage]
-    prompt = prompt_template.format(task=task, **context)
+    prompt_context = {
+        "spec": "",
+        "pseudocode": "",
+        "architecture": "",
+        "refinement": "",
+        **context,
+    }
+    prompt = prompt_template.format(task=task, **prompt_context)
 
     logger.info(f"[SPARC] Running stage: {stage}")
     result = await agent.run_conversation(prompt)
@@ -110,6 +117,10 @@ async def run_sparc_full(task: str, agent: Any) -> dict:
 
 def sparc_slash_command(stage: Optional[str], task: str, agent: Any) -> str:
     """Entry point for /sparc slash command in REPL."""
+    if stage not in (None, "full", *SPARC_STAGES):
+        task = f"{stage} {task}".strip()
+        stage = "full"
+
     if stage == "full" or stage is None:
         loop = asyncio.new_event_loop()
         try:
