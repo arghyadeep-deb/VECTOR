@@ -29,7 +29,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import time
 import urllib.error
@@ -38,8 +37,6 @@ import urllib.request
 import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
-
-logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -164,7 +161,7 @@ def _post_json(
         try:
             detail = exc.read().decode("utf-8", errors="replace")
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.google_code_assist] suppressed Exception: %s", exc)
+            logger.debug("[VECTOR][agent.google_code_assist] suppressed Exception: {}", _sve)
         # Special case: VPC-SC violation should be distinguishable
         if _is_vpc_sc_violation(detail):
             raise CodeAssistError(
@@ -247,13 +244,13 @@ def load_code_assist(
             return _parse_load_response(resp)
         except CodeAssistError as exc:
             if exc.code == "code_assist_vpc_sc":
-                logger.info("VPC-SC violation on %s — defaulting to standard-tier", endpoint)
+                logger.info("VPC-SC violation on {} — defaulting to standard-tier", endpoint)
                 return CodeAssistProjectInfo(
                     current_tier_id=STANDARD_TIER_ID,
                     cloudaicompanion_project=project_id,
                 )
             last_err = exc
-            logger.warning("loadCodeAssist failed on %s: %s", endpoint, exc)
+            logger.warning("loadCodeAssist failed on {}: {}", endpoint, exc)
             continue
     if last_err:
         raise last_err
@@ -328,11 +325,11 @@ def onboard_user(
             try:
                 poll_resp = _post_json(poll_url, {}, access_token, user_agent_model=user_agent_model)
             except CodeAssistError as exc:
-                logger.warning("Onboarding poll attempt %d failed: %s", attempt + 1, exc)
+                logger.warning("Onboarding poll attempt {} failed: {}", attempt + 1, exc)
                 continue
             if poll_resp.get("done"):
                 return poll_resp
-        logger.warning("Onboarding did not complete within %d attempts", _ONBOARDING_POLL_ATTEMPTS)
+        logger.warning("Onboarding did not complete within {} attempts", _ONBOARDING_POLL_ATTEMPTS)
     return resp
 
 
