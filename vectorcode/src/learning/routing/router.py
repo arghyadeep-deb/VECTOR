@@ -7,14 +7,13 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import List, Optional
 
 from vectorcode.src.vc_core.registry import ModelRegistry
 from vectorcode.src.vc_core.types import RoutingContext
 from vectorcode.src.learning._abc import QueryAnalyzer, RouterPolicy
 
-logger = logging.getLogger(__name__)
 
 def build_routing_context(
     query: str, *, urgency: float = 0.5, model: str | None = None
@@ -50,7 +49,7 @@ def _model_size(key: str) -> float:
         spec = ModelRegistry.get(key)
         return spec.parameter_count_b
     except (KeyError, AttributeError) as exc:
-        logger.debug("Failed to compute model score: %s", exc)
+        logger.debug("Failed to compute model score: {}", exc)
         return 0.0
 
 def _find_model_by_tag(available: List[str], tag: str) -> Optional[str]:

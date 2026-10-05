@@ -15,12 +15,11 @@ See spec §4.1 (tier table) and §6.2.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import Sequence
 
 from vectorcode.src.learning.distillation.models import Edit, EditOp, EditRiskTier
 
-logger = logging.getLogger(__name__)
 
 # The canonical (op) → tier mapping. Every EditOp must appear here.
 TIER_TABLE: dict[EditOp, EditRiskTier] = {
@@ -56,7 +55,7 @@ def assign_tiers(edits: Sequence[Edit]) -> list[Edit]:
         correct_tier = assign_tier(edit.op)
         if edit.risk_tier != correct_tier:
             logger.info(
-                "Edit %s: overwriting teacher tier %s → %s (op=%s)",
+                "Edit {}: overwriting teacher tier {} → {} (op={})",
                 edit.id,
                 edit.risk_tier.value,
                 correct_tier.value,

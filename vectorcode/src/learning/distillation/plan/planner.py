@@ -15,7 +15,7 @@ See spec §6.
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
@@ -30,7 +30,6 @@ from vectorcode.src.learning.distillation.plan.prompt_diff import (
 )
 from vectorcode.src.learning.distillation.plan.risk_tier import assign_tiers
 
-logger = logging.getLogger(__name__)
 
 _PLANNER_SYSTEM_PROMPT = """\
 You are a meta-engineer planning improvements to a local AI assistant called \
@@ -250,7 +249,7 @@ class LearningPlanner:
             try:
                 edits.append(Edit.model_validate(raw))
             except Exception as e:
-                logger.warning("Skipping invalid edit: %s — %s", raw.get("id", "?"), e)
+                logger.warning("Skipping invalid edit: {} — {}", raw.get("id", "?"), e)
         return edits
 
     def _wire_cluster_edit_ids(

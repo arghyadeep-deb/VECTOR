@@ -13,12 +13,11 @@ dataclass works without any optional deps; :class:`LoRATrainer` raises
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
 
 # Optional imports -----------------------------------------------------------
 try:
@@ -227,7 +226,7 @@ class LoRATrainer:
             num_loss_steps += steps_in_epoch
 
             logger.info(
-                "Epoch %d/%d  loss=%.4f",
+                "Epoch {}/{}  loss={:.4f}",
                 epoch + 1,
                 self.config.num_epochs,
                 epoch_loss,
@@ -328,7 +327,7 @@ class LoRATrainer:
         )
         self.model = get_peft_model(self.model, lora_config)
         logger.info(
-            "LoRA applied: rank=%d, alpha=%d, targets=%s",
+            "LoRA applied: rank={}, alpha={}, targets={}",
             self.config.lora_rank,
             self.config.lora_alpha,
             self.config.target_modules,
@@ -351,7 +350,7 @@ class LoRATrainer:
                     messages, tokenize=False, add_generation_prompt=False
                 )
             except Exception as exc:
-                logger.debug("Auto chat template failed, using manual format: %s", exc)
+                logger.debug("Auto chat template failed, using manual format: {}", exc)
 
         eos = ""
         if self.tokenizer is not None:
@@ -419,7 +418,7 @@ class LoRATrainer:
         if self.tokenizer is not None:
             self.tokenizer.save_pretrained(path)
 
-        logger.info("Adapter saved to %s", path)
+        logger.info("Adapter saved to {}", path)
 
 __all__ = [
     "HAS_TORCH",

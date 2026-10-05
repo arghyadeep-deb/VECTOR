@@ -13,7 +13,7 @@ rewards guides the optimizer toward better configurations.
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import re
 import uuid
 from typing import Any, Dict, List, Optional
@@ -30,7 +30,6 @@ from vectorcode.src.learning.optimize.types import (
     TrialResult,
 )
 
-logger = logging.getLogger(__name__)
 
 class LLMOptimizer:
     """Uses a cloud LLM to propose optimal VectorCode configs.
@@ -569,7 +568,7 @@ class LLMOptimizer:
                             break
                     except json.JSONDecodeError as exc:
                         logger.debug(
-                            "Failed to parse LLM optimizer JSON response: %s",
+                            "Failed to parse LLM optimizer JSON response: {}",
                             exc,
                         )
                         continue
@@ -585,7 +584,7 @@ class LLMOptimizer:
                     target_primitive=data.get("target_primitive", ""),
                 )
             except json.JSONDecodeError as exc:
-                logger.debug("Failed to parse LLM optimizer JSON response: %s", exc)
+                logger.debug("Failed to parse LLM optimizer JSON response: {}", exc)
 
         # Fallback: wrap raw text as summary
         return TrialFeedback(summary_text=response)
@@ -608,7 +607,7 @@ class LLMOptimizer:
                 data = json.loads(raw_json)
                 return self._config_from_dict(data, trial_id)
             except json.JSONDecodeError as exc:
-                logger.debug("Failed to parse LLM optimizer JSON response: %s", exc)
+                logger.debug("Failed to parse LLM optimizer JSON response: {}", exc)
 
         # Try to extract from a generic ``` code block
         code_block_match = re.search(r"```\s*\n?(.*?)\n?\s*```", response, re.DOTALL)
@@ -618,7 +617,7 @@ class LLMOptimizer:
                 data = json.loads(raw_json)
                 return self._config_from_dict(data, trial_id)
             except json.JSONDecodeError as exc:
-                logger.debug("Failed to parse LLM optimizer JSON response: %s", exc)
+                logger.debug("Failed to parse LLM optimizer JSON response: {}", exc)
 
         # Try to find a raw JSON object in the response by scanning
         # for each '{' and attempting to parse from that position.
@@ -629,7 +628,7 @@ class LLMOptimizer:
                 if isinstance(data, dict):
                     return self._config_from_dict(data, trial_id)
             except json.JSONDecodeError as exc:
-                logger.debug("Failed to parse LLM optimizer JSON response: %s", exc)
+                logger.debug("Failed to parse LLM optimizer JSON response: {}", exc)
                 continue
 
         # Last resort: return config with at least the fixed params

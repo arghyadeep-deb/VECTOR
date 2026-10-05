@@ -22,7 +22,7 @@ See spec §5.1.
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -34,7 +34,6 @@ from vectorcode.src.learning.distillation.diagnose.types import (
     ToolCallRecord,
 )
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class TeacherAgentResult:
@@ -128,7 +127,7 @@ class TeacherAgent:
             # or lower `max_cost_usd` in the config.
             if total_cost >= self._max_cost_usd:
                 logger.warning(
-                    "Teacher budget exceeded before turn %d: $%.2f >= $%.2f",
+                    "Teacher budget exceeded before turn {}: ${:.2f} >= ${:.2f}",
                     turn,
                     total_cost,
                     self._max_cost_usd,
@@ -207,7 +206,7 @@ class TeacherAgent:
                         tool_result = tool.fn(**tc_args)
                     except Exception as e:
                         tool_result = json.dumps({"error": str(e)})
-                        logger.warning("Tool %s raised: %s", tc_name, e)
+                        logger.warning("Tool {} raised: {}", tc_name, e)
                 else:
                     tool_result = json.dumps({"error": f"Unknown tool: {tc_name}"})
                 elapsed_ms = (time.monotonic() - start_time) * 1000
@@ -248,7 +247,7 @@ class TeacherAgent:
             # Check cost budget
             if total_cost >= self._max_cost_usd:
                 logger.warning(
-                    "Teacher cost budget exceeded: $%.2f >= $%.2f",
+                    "Teacher cost budget exceeded: ${:.2f} >= ${:.2f}",
                     total_cost,
                     self._max_cost_usd,
                 )
@@ -262,7 +261,7 @@ class TeacherAgent:
                 )
 
         # Exhausted max_turns
-        logger.warning("Teacher exhausted max_turns=%d", self._max_turns)
+        logger.warning("Teacher exhausted max_turns={}", self._max_turns)
         return TeacherAgentResult(
             content=final_content,
             turns=self._max_turns,

@@ -7,14 +7,14 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import re
 from typing import List, Tuple
 
 from vectorcode.src.vc_core.types import Trace
 from vectorcode.src.evals.core.backend import InferenceBackend
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 _SYSTEM_PROMPT = (
     "You are an expert evaluator of AI assistant traces. "

@@ -18,7 +18,7 @@ imported without GPU dependencies.
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import shutil
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -38,7 +38,6 @@ except ImportError:
 from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._abc import IntelligenceLearningPolicy
 
-logger = logging.getLogger(__name__)
 
 def _select_torch_device():
     """Select the best available PyTorch device (cuda > mps > cpu)."""
@@ -164,7 +163,7 @@ class OrchestratorGRPOTrainer:
                 )
                 return
             except ImportError as exc:
-                logger.debug("FP8 not available for GRPO: %s", exc)
+                logger.debug("FP8 not available for GRPO: {}", exc)
 
         self.optimizer = torch.optim.AdamW(
             self.policy.model.parameters(),

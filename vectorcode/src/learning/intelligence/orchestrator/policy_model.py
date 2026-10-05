@@ -13,7 +13,7 @@ module can be imported without GPU dependencies.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import re
 from typing import Any, List, Optional
 
@@ -32,7 +32,6 @@ except ImportError:
     HAS_TORCH = False
     torch = None  # type: ignore[assignment]
 
-logger = logging.getLogger(__name__)
 
 class OrchestratorPolicyModel:
     """Wrapper around a causal LM for orchestrator policy prediction.
@@ -106,7 +105,7 @@ class OrchestratorPolicyModel:
                     load_in_8bit=True
                 )
             except ImportError as exc:
-                logger.debug("FP8 not available, falling back to BF16: %s", exc)
+                logger.debug("FP8 not available, falling back to BF16: {}", exc)
 
         if device is not None:
             if device == "auto":

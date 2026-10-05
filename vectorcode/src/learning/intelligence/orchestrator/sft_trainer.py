@@ -13,7 +13,7 @@ imports are guarded so the module can be imported without GPU dependencies.
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterator, List
@@ -33,7 +33,6 @@ except ImportError:
 from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._abc import IntelligenceLearningPolicy
 
-logger = logging.getLogger(__name__)
 
 def _select_torch_device():
     """Select the best available PyTorch device (cuda > mps > cpu)."""
@@ -172,7 +171,7 @@ class OrchestratorSFTDataset:
                     messages, tokenize=False, add_generation_prompt=False
                 )
             except Exception as exc:
-                logger.debug("Auto chat template failed, using fallback: %s", exc)
+                logger.debug("Auto chat template failed, using fallback: {}", exc)
 
         # Manual fallback
         parts: list[str] = []

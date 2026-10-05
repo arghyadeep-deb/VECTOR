@@ -13,7 +13,7 @@ See spec §3, §7.2, §7.7.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,7 +35,6 @@ from vectorcode.src.learning.distillation.models import (
 from vectorcode.src.learning.distillation.pending_queue import PendingQueue
 from vectorcode.src.learning.distillation.plan.planner import LearningPlanner
 
-logger = logging.getLogger(__name__)
 
 class DistillationOrchestrator:
     """Top-level driver for a distillation learning session.
@@ -294,7 +293,7 @@ class DistillationOrchestrator:
                 try:
                     applier.apply(edit, ctx)
                 except Exception as exc:
-                    logger.warning("Edit %s apply failed: %s", edit.id, exc)
+                    logger.warning("Edit {} apply failed: {}", edit.id, exc)
                     outcomes.append(
                         EditOutcome(
                             edit_id=edit.id,
@@ -345,7 +344,7 @@ class DistillationOrchestrator:
                         applier.rollback(edit, ctx)
                     except Exception as rb_exc:
                         logger.warning(
-                            "Edit %s rollback failed: %s", edit.id, rb_exc
+                            "Edit {} rollback failed: {}", edit.id, rb_exc
                         )
                     outcomes.append(
                         EditOutcome(
@@ -394,7 +393,7 @@ class DistillationOrchestrator:
             )
 
         except Exception as e:
-            logger.exception("Session %s failed: %s", session_id, e)
+            logger.exception("Session {} failed: {}", session_id, e)
             session = session.model_copy(
                 update={
                     "status": SessionStatus.FAILED,

@@ -12,7 +12,7 @@ class registered as ``"learned"`` in ``RouterPolicyRegistry``.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import Any, Dict, List, Optional
 
 from vectorcode.src.vc_core.registry import RouterPolicyRegistry
@@ -20,7 +20,6 @@ from vectorcode.src.vc_core.types import RoutingContext
 from vectorcode.src.learning._abc import RouterPolicy
 from vectorcode.src.learning.routing._utils import classify_query
 
-logger = logging.getLogger(__name__)
 
 class LearnedRouterPolicy(RouterPolicy):
     """Trace-driven router that learns query_class -> model mappings.
@@ -166,7 +165,7 @@ class LearnedRouterPolicy(RouterPolicy):
         try:
             traces = trace_store.list_traces()
         except Exception as exc:
-            logger.warning("Learned router update failed: %s", exc)
+            logger.warning("Learned router update failed: {}", exc)
             return {"updated": False, "reason": "Could not access trace store"}
 
         class_model_scores: Dict[str, Dict[str, List[float]]] = {}

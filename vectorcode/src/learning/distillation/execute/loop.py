@@ -13,7 +13,7 @@ See spec §7.2.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from datetime import datetime, timezone
 
 from vectorcode.src.learning.distillation.execute.appliers.agent import (
@@ -46,7 +46,6 @@ from vectorcode.src.learning.distillation.models import (
     EditRiskTier,
 )
 
-logger = logging.getLogger(__name__)
 
 def _build_registry() -> EditApplierRegistry:
     """Build and populate the default applier registry."""
@@ -182,7 +181,7 @@ def execute_edits(
                 )
             )
         except Exception as e:
-            logger.warning("Edit %s failed: %s", edit.id, e)
+            logger.warning("Edit {} failed: {}", edit.id, e)
             outcomes.append(
                 EditOutcome(
                     edit_id=edit.id,

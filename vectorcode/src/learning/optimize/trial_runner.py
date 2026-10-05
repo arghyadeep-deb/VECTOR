@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, List, Optional
@@ -20,7 +20,7 @@ from vectorcode.src.learning.optimize.types import (
     TrialResult,
 )
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 @dataclass(slots=True)
 class BenchmarkSpec:
@@ -292,7 +292,7 @@ class MultiBenchTrialRunner:
             harness_kwargs["n_tasks"] = spec.max_samples
 
         LOGGER.info(
-            "Running terminal-bench native: model=%s, max_tasks=%s",
+            "Running terminal-bench native: model={}, max_tasks={}",
             litellm_model,
             spec.max_samples,
         )
@@ -302,7 +302,7 @@ class MultiBenchTrialRunner:
             harness = Harness(**harness_kwargs)
             tb_results: BenchmarkResults = harness.run()
         except Exception as e:
-            LOGGER.error("terminal-bench harness failed: %s", e)
+            LOGGER.error("terminal-bench harness failed: {}", e)
             return BenchmarkScore(
                 benchmark="terminalbench-native",
                 accuracy=0.0,
@@ -336,7 +336,7 @@ class MultiBenchTrialRunner:
             )
 
         LOGGER.info(
-            "terminal-bench native: %d/%d resolved (%.1f%%), %.1fs total",
+            "terminal-bench native: {}/{} resolved ({:.1f}%), {:.1f}s total",
             resolved,
             total_tasks,
             accuracy * 100,

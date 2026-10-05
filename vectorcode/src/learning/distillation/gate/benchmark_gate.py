@@ -13,14 +13,13 @@ See spec §7.3.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from dataclasses import dataclass
 from typing import Callable
 
 from vectorcode.src.learning.distillation.gate.regression import regression_check
 from vectorcode.src.learning.distillation.models import BenchmarkSnapshot
 
-logger = logging.getLogger(__name__)
 
 # Type for the scorer callable: takes benchmark_version, subsample_size,
 # seed and returns a BenchmarkSnapshot.
@@ -104,7 +103,7 @@ class BenchmarkGate:
                 f"{cid}: {d:+.3f}" for cid, d in reg.regressed_clusters.items()
             )
             reason = f"regression in clusters: {clusters_str}"
-            logger.info("Gate rejected: %s", reason)
+            logger.info("Gate rejected: {}", reason)
             return GateResult(
                 accepted=False,
                 snapshot=after,
@@ -118,7 +117,7 @@ class BenchmarkGate:
                 f"no improvement: delta={delta:.4f}, "
                 f"min_improvement={self._min_improvement}"
             )
-            logger.info("Gate rejected: %s", reason)
+            logger.info("Gate rejected: {}", reason)
             return GateResult(
                 accepted=False,
                 snapshot=after,
@@ -126,7 +125,7 @@ class BenchmarkGate:
                 reason=reason,
             )
 
-        logger.info("Gate accepted: delta=%.4f", delta)
+        logger.info("Gate accepted: delta={:.4f}", delta)
         return GateResult(
             accepted=True,
             snapshot=after,

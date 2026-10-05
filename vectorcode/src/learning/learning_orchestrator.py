@@ -13,12 +13,11 @@ gates acceptance on an evaluation function.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import time
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
 
-logger = logging.getLogger(__name__)
 
 class LearningOrchestrator:
     """Orchestrate a single trace->learn->eval cycle.
@@ -126,7 +125,7 @@ class LearningOrchestrator:
                         for name, r in skill_results.items()
                     }
         except Exception as exc:
-            logger.warning("Skill auto-optimize probe failed: %s", exc)
+            logger.warning("Skill auto-optimize probe failed: {}", exc)
 
         # 1. Mine training data from traces
         sft_pairs = self._miner.extract_sft_pairs(agent=agent_id)
@@ -221,7 +220,7 @@ class LearningOrchestrator:
             trainer = LoRATrainer(self._lora_config, model_name=model_name)
             return trainer.train(sft_pairs)
         except Exception as exc:
-            logger.warning("LoRA training failed: %s", exc)
+            logger.warning("LoRA training failed: {}", exc)
             return {"status": "error", "reason": str(exc)}
 
     def _maybe_optimize_skills(
@@ -251,9 +250,7 @@ class LearningOrchestrator:
             )
             return opt.optimize(self._trace_store, mgr)
         except Exception as exc:
-            import logging
-
-            logging.getLogger(__name__).warning("Skill auto-optimize failed: %s", exc)
+            logger.warning("Skill auto-optimize failed: {}", exc)
             return None
 
 __all__ = ["LearningOrchestrator"]

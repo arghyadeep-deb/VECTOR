@@ -14,7 +14,7 @@ See spec §5.
 from __future__ import annotations
 
 import json
-import logging
+from loguru import logger
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -29,7 +29,6 @@ from vectorcode.src.learning.distillation.diagnose.tools import (
 from vectorcode.src.learning.distillation.diagnose.types import ToolCallRecord
 from vectorcode.src.learning.distillation.models import FailureCluster
 
-logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """\
 You are a meta-engineer analyzing the performance of a local AI assistant \
@@ -205,7 +204,7 @@ class DiagnosisRunner:
         # Fallback: if no clusters parsed, ask the teacher to emit only the JSON
         if not clusters:
             logger.warning(
-                "No clusters in primary diagnosis (%d chars, %d tool calls). "
+                "No clusters in primary diagnosis ({} chars, {} tool calls). "
                 "Attempting fallback extraction.",
                 len(agent_result.content),
                 len(agent_result.tool_call_records),
@@ -272,7 +271,7 @@ def _parse_clusters(content: str) -> list[FailureCluster]:
         try:
             return _parse_cluster_list(fence_match.group(1))
         except Exception as e:
-            logger.warning("Failed to parse clusters from JSON code fence: %s", e)
+            logger.warning("Failed to parse clusters from JSON code fence: {}", e)
 
     # Fallback: try to find any JSON array in the content
     # Use greedy match to capture the full array (not just the first [...])
@@ -314,6 +313,6 @@ def _parse_cluster_list(json_str: str) -> list[FailureCluster]:
                 )
             )
         except Exception as e:
-            logger.warning("Skipping invalid cluster: %s", e)
+            logger.warning("Skipping invalid cluster: {}", e)
             continue
     return clusters

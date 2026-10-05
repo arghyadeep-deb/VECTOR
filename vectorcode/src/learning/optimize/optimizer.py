@@ -11,7 +11,7 @@ into a single propose -> evaluate -> analyze -> repeat loop.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 import uuid
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
@@ -31,7 +31,7 @@ from vectorcode.src.learning.optimize.types import (
     TrialResult,
 )
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 # Mapping from objective metric names to RunSummary stat attribute + ".mean"
 _SUMMARY_STAT_MAP: Dict[str, str] = {
@@ -193,7 +193,7 @@ class OptimizationEngine:
 
         for trial_num in range(1, self.max_trials + 1):
             LOGGER.info(
-                "Trial %d/%d (id=%s)",
+                "Trial {}/{} (id={})",
                 trial_num,
                 self.max_trials,
                 config.trial_id,
@@ -273,7 +273,7 @@ class OptimizationEngine:
             # Early stopping
             if trials_without_improvement >= self.early_stop_patience:
                 LOGGER.info(
-                    "Early stopping after %d trials without improvement.",
+                    "Early stopping after {} trials without improvement.",
                     self.early_stop_patience,
                 )
                 break

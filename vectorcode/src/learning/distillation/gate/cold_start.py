@@ -14,11 +14,10 @@ See spec §13.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from dataclasses import dataclass
 from typing import Any
 
-logger = logging.getLogger(__name__)
 
 @dataclass
 class ReadinessResult:

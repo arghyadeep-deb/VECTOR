@@ -19,7 +19,6 @@ benchmarks.
 from __future__ import annotations
 from loguru import logger
 
-import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,7 +28,7 @@ from vectorcode.src.vc_core.types import Trace, TraceStep
 from vectorcode.src.vc_skills.manager import SkillManager
 from vectorcode.src.vc_skills.overlay import SkillOverlay, write_overlay
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 @dataclass(slots=True)
 class SkillOptimizationResult:
@@ -99,7 +98,7 @@ class SkillOptimizer:
                 if cfg_dir:
                     overlay_dir = Path(cfg_dir).expanduser()
             except Exception as _sve:
-                logger.debug("[VECTOR][learning.agents.skill_optimizer] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][learning.agents.skill_optimizer] suppressed Exception: {}", _sve)
             if overlay_dir is None:
                 overlay_dir = Path(
                     "~/.vector/learning/skills/"
@@ -125,7 +124,7 @@ class SkillOptimizer:
                 else:
                     output = self._run_dspy(skill_name, skill_traces)
             except Exception as exc:
-                LOGGER.warning("Skill optimizer failed for '%s': %s", skill_name, exc)
+                LOGGER.warning("Skill optimizer failed for '{}': {}", skill_name, exc)
                 results[skill_name] = SkillOptimizationResult(
                     skill_name=skill_name,
                     status="error",
@@ -225,7 +224,7 @@ class SkillOptimizer:
             updates = optimizer.optimize(_BucketStore(skill_traces)) or {}
         except Exception as exc:
             LOGGER.warning(
-                "DSPyAgentOptimizer raised for '%s' (using empty output): %s",
+                "DSPyAgentOptimizer raised for '{}' (using empty output): {}",
                 skill_name,
                 exc,
             )
@@ -279,7 +278,7 @@ class SkillOptimizer:
             updates = optimizer.optimize(_BucketStore(skill_traces)) or {}
         except Exception as exc:
             LOGGER.warning(
-                "GEPAAgentOptimizer raised for '%s' (using empty output): %s",
+                "GEPAAgentOptimizer raised for '{}' (using empty output): {}",
                 skill_name,
                 exc,
             )
