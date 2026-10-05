@@ -7,15 +7,11 @@
 
 from __future__ import annotations
 from loguru import logger
-
-import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from vectorcode.src.operators.loader import load_operator
 from vectorcode.src.operators.types import OperatorManifest
-
-logger = logging.getLogger(__name__)
 
 # Default tick prompt sent to the operative agent
 _TICK_PROMPT = "[OPERATOR TICK] Execute your operational protocol."
@@ -39,7 +35,7 @@ class OperatorManager:
     def register(self, manifest: OperatorManifest) -> None:
         """Register an operator manifest."""
         self._manifests[manifest.id] = manifest
-        logger.info("Registered operator: %s", manifest.id)
+        logger.info("Registered operator: {}", manifest.id)
 
     def discover(self, directory: str | Path) -> List[OperatorManifest]:
         """Discover and register operator manifests from a directory.
@@ -57,7 +53,9 @@ class OperatorManager:
                 self.register(manifest)
                 found.append(manifest)
             except Exception:
-                logger.warning("Failed to load operator from %s", toml_path)
+                logger.opt(exception=True).warning(
+                    "Failed to load operator from {}", toml_path
+                )
         return found
 
     # -- Lifecycle -----------------------------------------------------------
@@ -87,10 +85,10 @@ class OperatorManager:
             existing = scheduler.list_tasks()
             for t in existing:
                 if t.id == task_id and t.status == "active":
-                    logger.info("Operator %s already active", operator_id)
+                    logger.info("Operator {} already active", operator_id)
                     return task_id
         except Exception as _sve:
-            logger.debug("[VECTOR][operators.manager] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][operators.manager] suppressed Exception: {}", _sve)
 
         tools_str = ",".join(manifest.tools) if manifest.tools else ""
 
@@ -114,8 +112,10 @@ class OperatorManager:
         task_dict = task.to_dict()
         task_dict["id"] = task_id
         scheduler._store.save_task(task_dict)
+        if task.id != task_id:
+            scheduler._store.delete_task(task.id)
 
-        logger.info("Activated operator %s (task_id=%s)", operator_id, task_id)
+        logger.info("Activated operator {} (task_id={})", operator_id, task_id)
         return task_id
 
     def deactivate(self, operator_id: str) -> None:
@@ -126,9 +126,9 @@ class OperatorManager:
         task_id = f"operator:{operator_id}"
         try:
             scheduler.cancel_task(task_id)
-            logger.info("Deactivated operator %s", operator_id)
+            logger.info("Deactivated operator {}", operator_id)
         except KeyError:
-            logger.warning("No active task for operator %s", operator_id)
+            logger.warning("No active task for operator {}", operator_id)
 
     def pause(self, operator_id: str) -> None:
         """Pause an active operator."""
@@ -136,7 +136,7 @@ class OperatorManager:
         if scheduler is None:
             raise RuntimeError("TaskScheduler not available.")
         scheduler.pause_task(f"operator:{operator_id}")
-        logger.info("Paused operator %s", operator_id)
+        logger.info("Paused operator {}", operator_id)
 
     def resume(self, operator_id: str) -> None:
         """Resume a paused operator."""
@@ -144,7 +144,7 @@ class OperatorManager:
         if scheduler is None:
             raise RuntimeError("TaskScheduler not available.")
         scheduler.resume_task(f"operator:{operator_id}")
-        logger.info("Resumed operator %s", operator_id)
+        logger.info("Resumed operator {}", operator_id)
 
     def status(self) -> List[Dict[str, Any]]:
         """Return status of all registered operators.
@@ -178,7 +178,7 @@ class OperatorManager:
                             info["last_run"] = t.last_run
                             break
                 except Exception as _sve:
-                    logger.debug("[VECTOR][operators.manager] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][operators.manager] suppressed Exception: {}", _sve)
 
             results.append(info)
         return results
