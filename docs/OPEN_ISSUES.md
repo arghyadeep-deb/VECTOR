@@ -4065,3 +4065,121 @@ isn't "proven in production" until you supply the service/device and run it live
     confirmed failing pre-fix via `git stash`.
     **Commit status:** `38509d2b1` (codex_event_projector.py), `90dd88164` (run_agent.py think-
     scrubber wiring), `2675f9b61` (usage_pricing.py rollover), `a0dffa4b6` (lsp/cli.py which-alias).
+
+77. **`vectorcode/src/evals/` audit, round 9 scorer pass (2026-10-06) —** reconstructed prior
+    coverage from `git log --oneline -- vectorcode/src/evals/` and audited the remaining LLM-judge
+    paths first because hard-failing an unavailable/unparseable judge has repeatedly corrupted eval
+    accuracy. **Fixed with proof tests:** `ama_bench_judge.py` no longer substitutes an unrelated
+    token-F1 threshold when its judge cannot be parsed, and contradictory output containing both
+    yes and no is rejected; `email_triage.py` no longer converts an absent verdict or judge-call
+    exception into the already-known-false exact-match fallback; `research_mining.py` no longer
+    invents neutral score 3 for every missing dimension; `liveresearch.py` and
+    `liveresearchbench.py` no longer turn wholly unparseable output into zero coverage;
+    `pinchbench.py` now preserves missing backends, judge exceptions, and unparseable output through
+    both direct and hybrid grading instead of assigning score zero; and shared `_checklist.py` plus
+    its four composite callers (`browser_assistant.py`, `daily_digest.py`, `doc_qa.py`,
+    `security_scanner.py`) now propagate incomplete/failed checklist judgments as indeterminate.
+    New regression coverage: `tests/test_vectorcode_evals_round9_judge_indeterminate.py` (8 tests),
+    8/8 passing; scorer package compile check and `git diff --check` pass. The wider eval suite
+    produced 155 passes and 13 pre-existing failures, all in untouched legacy tests/config fixtures
+    still importing `vector.*`, naming `jarvis-*` backends, or expecting stdlib `caplog` capture
+    after loguru migration. **Not a directory-closeout:** the non-scorer remainder still needs the
+    promised file-by-file depth pass; structural sweeps found no additional duplicate literal dict
+    keys and only the two already-fixed stateful runner classes. **Commit status:** not committed:
+    this Codex sandbox was denied permission to create `.git/index.lock`; all source/test changes
+    remain in the working tree for the parent session to review and commit. This OPEN_ISSUES entry
+    is intentionally also left uncommitted as required.
+
+78. **`vectorcode/src/skills/` audit, round 8 (2026-10-06) —** reconciled the 65 tracked
+    Python files against all prior skills commits and the round-6 reviewed-clean inventory, then
+    gave full-depth review to the remaining slice (excluding the separately reserved 2,794-line
+    OpenClaw migration): blockchain `base_client.py` / `solana_client.py`, Memento
+    `youtube_quiz.py`, Google Workspace `_vector_home.py` / `google_api.py` / `gws_bridge.py`,
+    `maps_client.py`, Godmode `godmode_race.py` / `load_godmode.py` / `parseltongue.py`, source
+    resolvers `base.py` / `openclaw.py` / `vector_cache.py` / `vector_source.py`, and
+    `tool_translator.py`.
+    **Fixed with proof tests:** `load_godmode.py` now reads dynamically executed Python as UTF-8
+    (instead of Windows cp1252) and restores the caller's `sys.argv` in `finally` when a loaded
+    script raises; `solana_client.py` now prices native SOL for wallets with no SPL-token holdings;
+    Google OAuth refresh writes now use a shared same-directory tempfile + flush/fsync +
+    `os.replace()` helper, and Drive literal searches correctly escape apostrophes/backslashes;
+    `maps_client.py` no longer prints a phantom JSON error for the first failed Overpass mirror
+    before a later mirror succeeds; fixed-repository OpenClaw/VECTOR clones now terminate Git
+    option parsing before the caller-supplied destination path and removed unused stdlib-logging
+    imports.
+    **Flagged, not fixed (owner decision):** `red-teaming/godmode/scripts/godmode_race.py` is a
+    standalone, direct OpenRouter fan-out implemented with `ThreadPoolExecutor`. It bypasses
+    `context_engine.session_hydration_prompt()`, the central inference route/free-model whitelist,
+    Permission Gateway, structured loguru observability, and the repository's asyncio-only rule;
+    its model lists also include paid models. There are no production callers beyond its loader
+    and standalone CLI. Decide whether this optional red-team tool is intentionally exempt,
+    should be deleted/disabled, or should be reworked through VECTOR's inference and permission
+    stack; this audit did not guess at that policy boundary.
+    **Reviewed, no additional genuine bug found:** both blockchain clients beyond the native-SOL
+    fix, `youtube_quiz.py`, Godmode obfuscation/scoring logic, source base/cache resolvers, and tool
+    translation logic.
+    New tests: `tests/test_vectorcode_skills_round8_regressions.py` (1),
+    `tests/test_vectorcode_skills_round8_clients.py` (4), and
+    `tests/test_vectorcode_skills_round8_sources.py` (2). Relevant combined regression run: 18/18
+    passing; full `vectorcode/src/skills` compileall and `git diff --check` also pass.
+    **Commit status:** uncommitted — this Codex workspace exposes `.git` read-only, so Git could
+    not create `.git/index.lock`; source and proof-test changes are left for the parent session to
+    review and commit. Per instruction, this OPEN_ISSUES entry is also intentionally uncommitted.
+
+79. **`vectorcode/src/vc_agents/`+`vc_tools/`+`connectors/` audit, round 7, partial pass
+    (2026-10-06) —** time-boxed fork pass; did not reach full round-7 scope. Read with real depth:
+    `vc_agents/{digest_store,digest_evaluator,rlm,native_react,native_openhands,openhands,
+    deep_research,errors}.py`, `vc_tools/{apply_patch,knowledge_sql,skill_manage,mcp_adapter,
+    user_profile_manage,_markdown_store}.py`.
+    **Fixed with proof tests:**
+    - `vc_tools/skill_manage.py` (`47f5908b7`) -- `name` flowed straight into
+      `self._skills_dir / f"{name}.toml"` across create/load/delete with zero validation: a
+      `"../../somewhere/evil"` or an absolute-path `name` escaped the configured skills directory
+      entirely (CWE-22), including via **delete**, which could remove an arbitrary `.toml` file the
+      process can reach. Fixed with `_resolve_skill_path()` (resolve + require
+      `candidate.parent == skills_dir.resolve()`). Same commit also fixed unescaped TOML
+      interpolation of `description`/`tool_name`/`arguments_template`/`output_key` (a value
+      containing a quote or newline produced malformed TOML on the next load, or could inject an
+      unintended table -- the exact bug shape already fixed once this cycle in
+      `learning/distillation/execute/base.py`'s `format_toml_value()`) and made the write atomic
+      (tempfile + fsync + os.replace). 8 new tests, 7/8 confirmed failing pre-fix via `git stash`.
+    - `vc_tools/_markdown_store.py` (`1a927586a`) -- shared CRUD base for `memory_manage.py` /
+      `user_profile_manage.py`. `_remove(entry="")`'s filter
+      `[ln for ln in lines if entry not in ln]` evaluates `"" not in ln` as False for every line (the
+      empty string is a substring of everything), producing an EMPTY `new_lines` list that doesn't
+      match the "not found" length-equality check -- so it fell through and wrote back `""` as the
+      new file content, reporting **success**. Any caller passing an empty/unset entry to `remove`
+      silently destroyed the user's entire persistent memory file or `USER.md`. Fixed by rejecting
+      empty `entry`/`old` up front in `_remove()`/`_update()` (matching the guard `_add()` already
+      had) and made all three mutating methods write atomically. 4 new tests, 2/4 confirmed failing
+      pre-fix via `git stash`.
+    **Reviewed, no bug found:** `vc_agents/digest_store.py` (raw `sqlite3.connect()`, not routed
+    through SQLCipher -- flagged below, not fixed), `digest_evaluator.py`, `rlm.py`,
+    `native_react.py` (confirmed `_thought_sigs`-style dead-but-harmless pattern not present),
+    `native_openhands.py` (`_thought_sigs` local dict is genuinely dead code -- Gemini
+    thought_signature replay is actually handled by `CloudEngine`'s own internal
+    `self._thought_sigs` instance state in `vc_engine/cloud.py`, confirmed by reading both sides;
+    harmless, not fixed), `openhands.py`, `deep_research.py`, `errors.py`, `vc_tools/apply_patch.py`
+    (see flag below), `vc_tools/knowledge_sql.py` (uses sqlite3's single-statement `execute()`, not
+    vulnerable to the stacked-statement bypass already fixed in `db_query.py`'s psycopg2 path;
+    forbidden-keyword blocklist is whole-string, not prefix-only, so it already catches stacked
+    writes too), `vc_tools/mcp_adapter.py`.
+    **Flagged, not fixed (owner decision, same shape as the already-flagged `file_read`/
+    `file_write` finding):** `vc_tools/apply_patch.py` only blocks `is_sensitive_file()`-matched
+    targets -- it has no `allowed_dirs`-style confinement at all (not even a dormant/unwired one),
+    so an agent can patch-write to any non-"sensitive" path the OS process can reach, anywhere on
+    the filesystem. `vc_agents/digest_store.py` and `connectors/store.py`'s `KnowledgeStore` both
+    construct their own raw `sqlite3.connect()` instead of going through
+    `core.memory.episodic.get_db_connection()` (SQLCipher) -- this is real digest/knowledge-chunk
+    content (meeting notes, emails, messages), not a throwaway cache, so whether it should be
+    encrypted-at-rest is an owner call, not something to change unilaterally.
+    **Not reached this round** (listed here rather than silently omitted -- most of the
+    directory's remaining scope from round 6's own completion report is still untouched):
+    `vc_agents/{channel_agent,web_search_agent,templates/__init__}.py`;
+    `vc_tools/{audio_tool,browser_axtree,calculator,channel_tools,image_tool,knowledge_search,
+    knowledge_tools,llm_tool,memory_manage,pdf_tool,retrieval,scan_chunks,storage_tools,
+    templates/*,text_to_speech,think}.py`; all of `vc_tools/storage/*` beyond the
+    already-fixed `dense.py`.
+    New tests: `tests/test_vectorcode_vc_tools_skill_manage_traversal.py` (8),
+    `tests/test_vectorcode_vc_tools_markdown_store.py` (4) -- 12/12 passing.
+    **Commit status:** `47f5908b7` (skill_manage.py), `1a927586a` (_markdown_store.py).
