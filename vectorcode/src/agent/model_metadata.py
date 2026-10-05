@@ -1,12 +1,10 @@
 """Model metadata, context lengths, and token estimation utilities.
-from loguru import logger
 
 Pure utility functions with no AIAgent dependency. Used by ContextCompressor
 and run_agent.py for pre-flight context checks.
 """
 
 import ipaddress
-import logging
 import os
 import re
 import time
@@ -14,14 +12,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-import requests
+import httpx
 import yaml
+from loguru import logger
 
 from utils import base_url_host_matches, base_url_hostname
 
 from vector_constants import OPENROUTER_MODELS_URL
-
-logger = logging.getLogger(__name__)
 
 
 def _resolve_requests_verify() -> bool | str:
@@ -369,7 +366,7 @@ def is_local_endpoint(base_url: str) -> bool:
         if isinstance(addr, ipaddress.IPv4Address) and addr in _TAILSCALE_CGNAT:
             return True
     except ValueError as _sve:
-        logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: %s", _sve)
+        logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: {}", _sve)
     # Bare IP that looks like a private range (e.g. 172.26.x.x for WSL)
     # or Tailscale CGNAT (100.64.x.x–100.127.x.x).
     parts = host.split(".")
@@ -385,7 +382,7 @@ def is_local_endpoint(base_url: str) -> bool:
             if first == 100 and 64 <= second <= 127:
                 return True
         except ValueError as _sve:
-            logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: %s", _sve)
+            logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: {}", _sve)
     return False
 
 
@@ -411,7 +408,7 @@ def detect_local_server_type(base_url: str, api_key: str = "") -> Optional[str]:
                 if r.status_code == 200:
                     return "lm-studio"
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
             # Ollama exposes /api/tags and responds with {"models": [...]}
             # LM Studio returns {"error": "Unexpected endpoint"} with status 200
             # on this path, so we must verify the response contains "models".
@@ -423,9 +420,9 @@ def detect_local_server_type(base_url: str, api_key: str = "") -> Optional[str]:
                         if "models" in data:
                             return "ollama"
                     except Exception as _sve:
-                        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+                        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
             # llama.cpp exposes /v1/props (older builds used /props without the /v1 prefix)
             try:
                 r = client.get(f"{server_url}/v1/props")
@@ -434,7 +431,7 @@ def detect_local_server_type(base_url: str, api_key: str = "") -> Optional[str]:
                 if r.status_code == 200 and "default_generation_settings" in r.text:
                     return "llamacpp"
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
             # vLLM: /version
             try:
                 r = client.get(f"{server_url}/version")
@@ -443,9 +440,9 @@ def detect_local_server_type(base_url: str, api_key: str = "") -> Optional[str]:
                     if "version" in data:
                         return "vllm"
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
 
     return None
 
@@ -532,7 +529,7 @@ def fetch_model_metadata(force_refresh: bool = False) -> Dict[str, Dict[str, Any
         return _model_metadata_cache
 
     try:
-        response = requests.get(OPENROUTER_MODELS_URL, timeout=10, verify=_resolve_requests_verify())
+        response = httpx.get(OPENROUTER_MODELS_URL, timeout=10, verify=_resolve_requests_verify())
         response.raise_for_status()
         data = response.json()
 
@@ -552,11 +549,11 @@ def fetch_model_metadata(force_refresh: bool = False) -> Dict[str, Dict[str, Any
 
         _model_metadata_cache = cache
         _model_metadata_cache_time = time.time()
-        logger.debug("Fetched metadata for %s models from OpenRouter", len(cache))
+        logger.debug("Fetched metadata for {} models from OpenRouter", len(cache))
         return cache
 
     except Exception as e:
-        logging.warning(f"Failed to fetch model metadata from OpenRouter: {e}")
+        logger.warning("Failed to fetch model metadata from OpenRouter: {}", e)
         return _model_metadata_cache or {}
 
 
@@ -595,7 +592,7 @@ def fetch_endpoint_model_metadata(
         try:
             if detect_local_server_type(normalized, api_key=api_key) == "lm-studio":
                 server_url = normalized[:-3].rstrip("/") if normalized.endswith("/v1") else normalized
-                response = requests.get(
+                response = httpx.get(
                     server_url.rstrip("/") + "/api/v1/models",
                     headers=headers,
                     timeout=10,
@@ -648,7 +645,7 @@ def fetch_endpoint_model_metadata(
     for candidate in candidates:
         url = candidate.rstrip("/") + "/models"
         try:
-            response = requests.get(url, headers=headers, timeout=10, verify=_resolve_requests_verify())
+            response = httpx.get(url, headers=headers, timeout=10, verify=_resolve_requests_verify())
             response.raise_for_status()
             payload = response.json()
             cache: Dict[str, Dict[str, Any]] = {}
@@ -680,10 +677,10 @@ def fetch_endpoint_model_metadata(
                     # Try /v1/props first (current llama.cpp); fall back to /props for older builds
                     base = candidate.rstrip("/").replace("/v1", "")
                     _verify = _resolve_requests_verify()
-                    props_resp = requests.get(base + "/v1/props", headers=headers, timeout=5, verify=_verify)
-                    if not props_resp.ok:
-                        props_resp = requests.get(base + "/props", headers=headers, timeout=5, verify=_verify)
-                    if props_resp.ok:
+                    props_resp = httpx.get(base + "/v1/props", headers=headers, timeout=5, verify=_verify)
+                    if not props_resp.is_success:
+                        props_resp = httpx.get(base + "/props", headers=headers, timeout=5, verify=_verify)
+                    if props_resp.is_success:
                         props = props_resp.json()
                         gen_settings = props.get("default_generation_settings", {})
                         n_ctx = gen_settings.get("n_ctx")
@@ -691,7 +688,7 @@ def fetch_endpoint_model_metadata(
                         if n_ctx and model_alias and model_alias in cache:
                             cache[model_alias]["context_length"] = n_ctx
                 except Exception as _sve:
-                    logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
 
             _endpoint_model_metadata_cache[normalized] = cache
             _endpoint_model_metadata_cache_time[normalized] = time.time()
@@ -700,7 +697,7 @@ def fetch_endpoint_model_metadata(
             last_error = exc
 
     if last_error:
-        logger.debug("Failed to fetch model metadata from %s/models: %s", normalized, last_error)
+        logger.debug("Failed to fetch model metadata from {}/models: {}", normalized, last_error)
     _endpoint_model_metadata_cache[normalized] = {}
     _endpoint_model_metadata_cache_time[normalized] = time.time()
     return {}
@@ -745,7 +742,7 @@ def _load_context_cache() -> Dict[str, int]:
             data = yaml.safe_load(f) or {}
         return data.get("context_lengths", {})
     except Exception as e:
-        logger.debug("Failed to load context length cache: %s", e)
+        logger.debug("Failed to load context length cache: {}", e)
         return {}
 
 
@@ -765,9 +762,9 @@ def save_context_length(model: str, base_url: str, length: int) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
             yaml.dump({"context_lengths": cache}, f, default_flow_style=False)
-        logger.info("Cached context length %s -> %s tokens", key, f"{length:,}")
+        logger.info("Cached context length {} -> {} tokens", key, f"{length:,}")
     except Exception as e:
-        logger.debug("Failed to save context length cache: %s", e)
+        logger.debug("Failed to save context length cache: {}", e)
 
 
 def get_cached_context_length(model: str, base_url: str) -> Optional[int]:
@@ -790,7 +787,7 @@ def _invalidate_cached_context_length(model: str, base_url: str) -> None:
         with open(path, "w") as f:
             yaml.dump({"context_lengths": cache}, f, default_flow_style=False)
     except Exception as e:
-        logger.debug("Failed to invalidate context length cache entry %s: %s", key, e)
+        logger.debug("Failed to invalidate context length cache entry {}: {}", key, e)
 
 
 def get_next_probe_tier(current_length: int) -> Optional[int]:
@@ -934,7 +931,7 @@ def query_ollama_num_ctx(model: str, base_url: str, api_key: str = "") -> Option
                             try:
                                 return int(parts[-1])
                             except ValueError as _sve:
-                                logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: %s", _sve)
+                                logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: {}", _sve)
 
             # Fall back to GGUF model_info context_length (training max)
             model_info = data.get("model_info", {})
@@ -942,7 +939,7 @@ def query_ollama_num_ctx(model: str, base_url: str, api_key: str = "") -> Option
                 if "context_length" in key and isinstance(value, (int, float)):
                     return int(value)
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
     return None
 
 
@@ -988,7 +985,7 @@ def _query_local_context_length(model: str, base_url: str, api_key: str = "") ->
                                     try:
                                         return int(parts[-1])
                                     except ValueError as _sve:
-                                        logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: %s", _sve)
+                                        logger.debug("[VECTOR][agent.model_metadata] suppressed ValueError: {}", _sve)
                     # Fall back to GGUF model_info context_length (training max)
                     model_info = data.get("model_info", {})
                     for key, value in model_info.items():
@@ -1038,7 +1035,7 @@ def _query_local_context_length(model: str, base_url: str, api_key: str = "") ->
                         if ctx and isinstance(ctx, (int, float)):
                             return int(ctx)
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.model_metadata] suppressed Exception: {}", _sve)
 
     return None
 
@@ -1070,7 +1067,7 @@ def _query_anthropic_context_length(model: str, base_url: str, api_key: str) -> 
             "x-api-key": api_key,
             "anthropic-version": "2023-06-01",
         }
-        resp = requests.get(url, headers=headers, timeout=10, verify=_resolve_requests_verify())
+        resp = httpx.get(url, headers=headers, timeout=10, verify=_resolve_requests_verify())
         if resp.status_code != 200:
             return None
         data = resp.json()
@@ -1080,7 +1077,7 @@ def _query_anthropic_context_length(model: str, base_url: str, api_key: str) -> 
                 if isinstance(ctx, int) and ctx > 0:
                     return ctx
     except Exception as e:
-        logger.debug("Anthropic /v1/models query failed: %s", e)
+        logger.debug("Anthropic /v1/models query failed: {}", e)
     return None
 
 
@@ -1128,7 +1125,7 @@ def _fetch_codex_oauth_context_lengths(access_token: str) -> Dict[str, int]:
         return _codex_oauth_context_cache
 
     try:
-        resp = requests.get(
+        resp = httpx.get(
             "https://chatgpt.com/backend-api/codex/models?client_version=1.0.0",
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=10,
@@ -1136,13 +1133,13 @@ def _fetch_codex_oauth_context_lengths(access_token: str) -> Dict[str, int]:
         )
         if resp.status_code != 200:
             logger.debug(
-                "Codex /models probe returned HTTP %s; falling back to hardcoded defaults",
+                "Codex /models probe returned HTTP {}; falling back to hardcoded defaults",
                 resp.status_code,
             )
             return {}
         data = resp.json()
     except Exception as exc:
-        logger.debug("Codex /models probe failed: %s", exc)
+        logger.debug("Codex /models probe failed: {}", exc)
         return {}
 
     entries = data.get("models", []) if isinstance(data, dict) else []
@@ -1289,7 +1286,7 @@ def get_model_context_length(
             # live /models probe in step 5 below.
             if provider == "openai-codex" and cached >= 400_000:
                 logger.info(
-                    "Dropping stale Codex cache entry %s@%s -> %s (pre-fix value); "
+                    "Dropping stale Codex cache entry {}@{} -> {} (pre-fix value); "
                     "re-resolving via live /models probe",
                     model, base_url, f"{cached:,}",
                 )
@@ -1334,8 +1331,8 @@ def get_model_context_length(
                     save_context_length(model, base_url, local_ctx)
                     return local_ctx
             logger.info(
-                "Could not detect context length for model %r at %s — "
-                "defaulting to %s tokens (probe-down). Set model.context_length "
+                "Could not detect context length for model {!r} at {} — "
+                "defaulting to {} tokens (probe-down). Set model.context_length "
                 "in config.yaml to override.",
                 model, base_url, f"{DEFAULT_FALLBACK_CONTEXT:,}",
             )
