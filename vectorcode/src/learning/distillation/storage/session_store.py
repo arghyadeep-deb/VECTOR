@@ -22,7 +22,6 @@ from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
 import json
-import logging
 import sqlite3
 import threading
 from datetime import datetime
@@ -37,8 +36,6 @@ from vectorcode.src.learning.distillation.models import (
     SessionStatus,
     TriggerKind,
 )
-
-logger = logging.getLogger(__name__)
 
 _CREATE_SESSIONS = """\
 CREATE TABLE IF NOT EXISTS learning_sessions (
@@ -143,7 +140,7 @@ class SessionStore:
                 try:
                     self._conn.execute(stmt)
                 except sqlite3.OperationalError as _sve:
-                    logger.debug("[VECTOR][learning.distillation.storage.session_store] suppressed sqlite3.OperationalError: %s", _sve)
+                    logger.debug("[VECTOR][learning.distillation.storage.session_store] suppressed sqlite3.OperationalError: {}", _sve)
             self._conn.commit()
 
     def close(self) -> None:
