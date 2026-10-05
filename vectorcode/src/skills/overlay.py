@@ -23,17 +23,16 @@ Example:
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from loguru import logger
 
 try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib  # type: ignore[no-redef]
-
-LOGGER = logging.getLogger(__name__)
 
 @dataclass(slots=True)
 class SkillOverlay:
@@ -68,8 +67,8 @@ class SkillOverlayLoader:
             with open(path, "rb") as fh:
                 data = tomllib.load(fh)
         except Exception as exc:
-            LOGGER.warning(
-                "Failed to load overlay for skill '%s' at %s: %s",
+            logger.warning(
+                "Failed to load overlay for skill '{}' at {}: {}",
                 skill_name,
                 path,
                 exc,
@@ -78,8 +77,8 @@ class SkillOverlayLoader:
 
         opt = data.get("optimized", {})
         if not isinstance(opt, dict) or not opt:
-            LOGGER.warning(
-                "Overlay file %s missing [optimized] section",
+            logger.warning(
+                "Overlay file {} missing [optimized] section",
                 path,
             )
             return None
@@ -133,14 +132,26 @@ def write_overlay(overlay: SkillOverlay, root: Path) -> Path:
     return path
 
 def _escape(text: str) -> str:
-    """Minimal TOML string escaping for the basic-string format."""
-    return (
-        str(text)
-        .replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-    )
+    """TOML basic-string escaping.
+
+    Covers every control character the TOML spec forbids unescaped inside a
+    basic string (U+0000-U+0008, U+000B-U+001F, U+007F), not just the common
+    \\n/\\r/\\t cases. An unescaped control character (e.g. a stray \\x0b in
+    DSPy/GEPA-generated optimizer output) previously produced a syntactically
+    invalid TOML file that silently failed to load back via
+    SkillOverlayLoader.load() -- the optimization result was written once
+    and then permanently unreadable, with only a logged warning as the trace.
+    """
+    text = str(text)
+    out: list[str] = []
+    simple = {"\\": "\\\\", '"': '\\"', "\b": "\\b", "\t": "\\t", "\n": "\\n", "\f": "\\f", "\r": "\\r"}
+    for ch in text:
+        if ch in simple:
+            out.append(simple[ch])
+        elif ord(ch) < 0x20 or ord(ch) == 0x7F:
+            out.append(f"\\u{ord(ch):04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
 
 __all__ = ["SkillOverlay", "SkillOverlayLoader", "write_overlay"]
