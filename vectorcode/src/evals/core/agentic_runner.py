@@ -15,7 +15,6 @@ from loguru import logger
 import asyncio
 import copy
 import json
-import logging
 import math
 import re
 import statistics
@@ -29,7 +28,7 @@ from typing import Any, Callable, Optional
 from vectorcode.src.evals.core.event_recorder import AgentEvent, EventRecorder, EventType
 from vectorcode.src.evals.core.trace import QueryTrace, TurnTrace
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 # ---------------------------------------------------------------------------
 # Energy computation helpers
@@ -127,6 +126,7 @@ class AgenticRunner:
         Returns:
             List of ``QueryTrace`` objects with energy-correlated telemetry.
         """
+        self._traces = []
         records = list(self._dataset.iter_records())
         total = max_queries if max_queries is not None else len(records)
         records = records[:total]
@@ -158,7 +158,7 @@ class AgenticRunner:
             except asyncio.TimeoutError:
                 elapsed = time.time() - start_time
                 LOGGER.warning(
-                    "Query %s timed out after %.0fs (limit=%ss)",
+                    "Query {} timed out after {:.0f}s (limit={}s)",
                     query_id,
                     elapsed,
                     self._query_timeout,
@@ -180,7 +180,7 @@ class AgenticRunner:
                 "TIMEOUT" if trace.timed_out else ("OK" if trace.completed else "FAIL")
             )
             LOGGER.info(
-                "Task %s: %s in %.1fs",
+                "Task {}: {} in {:.1f}s",
                 query_id,
                 status,
                 trace.total_wall_clock_s,
@@ -191,7 +191,7 @@ class AgenticRunner:
 
             if len(self._traces) % self._FLUSH_INTERVAL == 0:
                 LOGGER.debug(
-                    "Processed %d/%d queries",
+                    "Processed {}/{} queries",
                     len(self._traces),
                     len(work_items),
                 )
@@ -206,7 +206,7 @@ class AgenticRunner:
         """Concurrent execution via asyncio.Semaphore + thread pool."""
         total = len(work_items)
         LOGGER.info(
-            "Running %d queries with concurrency=%d",
+            "Running {} queries with concurrency={}",
             total,
             self._concurrency,
         )
@@ -243,7 +243,7 @@ class AgenticRunner:
                 except asyncio.TimeoutError:
                     elapsed = time.time() - start_time
                     LOGGER.warning(
-                        "Query %s timed out after %.0fs (limit=%ss)",
+                        "Query {} timed out after {:.0f}s (limit={}s)",
                         query_id,
                         elapsed,
                         self._query_timeout,
@@ -266,7 +266,7 @@ class AgenticRunner:
                     else ("OK" if trace.completed else "FAIL")
                 )
                 LOGGER.info(
-                    "Task %s: %s in %.1fs",
+                    "Task {}: {} in {:.1f}s",
                     query_id,
                     status,
                     trace.total_wall_clock_s,
@@ -444,7 +444,7 @@ class AgenticRunner:
                 _run_body()
 
         except Exception as exc:
-            LOGGER.warning("Agent failed on query %s: %s", query_id, exc)
+            LOGGER.warning("Agent failed on query {}: {}", query_id, exc)
             end_time = time.time()
             # Unsubscribe EventBus relays
             if agent_bus is not None:
@@ -452,7 +452,7 @@ class AgenticRunner:
                     try:
                         agent_bus.unsubscribe(etype, cb)
                     except Exception as _sve:
-                        logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: %s", exc)
+                        logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: {}", _sve)
             return QueryTrace(
                 query_id=query_id,
                 workload_type=str(workload_type),
@@ -469,7 +469,7 @@ class AgenticRunner:
                 try:
                     agent_bus.unsubscribe(etype, cb)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][evals.core.agentic_runner] suppressed Exception: {}", _sve)
 
         end_time = time.time()
         end_ns = time.monotonic_ns()
