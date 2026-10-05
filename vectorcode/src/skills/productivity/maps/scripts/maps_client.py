@@ -228,7 +228,7 @@ def http_get_text(url, params=None, retries=MAX_RETRIES, silent=False):
         raise RuntimeError(msg)
     error_exit(msg)
 
-def http_post(url, data_str, retries=MAX_RETRIES):
+def http_post(url, data_str, retries=MAX_RETRIES, silent=False):
     """
     Perform an HTTP POST with a plain-text body (for Overpass QL).
     Returns parsed JSON.
@@ -254,6 +254,8 @@ def http_post(url, data_str, retries=MAX_RETRIES):
             if exc.code in (429, 503, 502, 504):
                 time.sleep(RETRY_DELAY * attempt)
             else:
+                if silent:
+                    raise RuntimeError(last_error)
                 error_exit(last_error)
         except urllib.error.URLError as exc:
             last_error = f"URL error: {exc.reason}"
@@ -262,7 +264,10 @@ def http_post(url, data_str, retries=MAX_RETRIES):
             last_error = f"JSON parse error: {exc}"
             time.sleep(RETRY_DELAY * attempt)
 
-    error_exit(f"POST failed after {retries} attempts. Last error: {last_error}")
+    message = f"POST failed after {retries} attempts. Last error: {last_error}"
+    if silent:
+        raise RuntimeError(message)
+    error_exit(message)
 
 def overpass_query(query):
     """POST an Overpass QL query, trying each URL in OVERPASS_URLS in turn.
@@ -275,11 +280,7 @@ def overpass_query(query):
     last_error = None
     for url in OVERPASS_URLS:
         try:
-            return http_post(url, post_data, retries=1)
-        except SystemExit:
-            # error_exit inside http_post -- keep trying the next mirror.
-            last_error = f"mirror {url} exhausted retries"
-            continue
+            return http_post(url, post_data, retries=1, silent=True)
         except Exception as exc:
             last_error = f"{url}: {exc}"
             continue

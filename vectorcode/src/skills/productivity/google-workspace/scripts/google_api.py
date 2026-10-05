@@ -36,7 +36,7 @@ _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from _vector_home import get_vector_home
+from _vector_home import atomic_write_text, get_vector_home
 
 VECTOR_HOME = get_vector_home()
 TOKEN_PATH = VECTOR_HOME / "google_token.json"
@@ -67,7 +67,7 @@ def _ensure_authenticated():
 
 def _stored_token_scopes() -> list[str]:
     try:
-        data = json.loads(TOKEN_PATH.read_text())
+        data = json.loads(TOKEN_PATH.read_text(encoding="utf-8"))
     except Exception:
         return list(SCOPES)
     scopes = data.get("scopes")
@@ -173,11 +173,12 @@ def get_credentials():
     creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), _stored_token_scopes())
     if creds.expired and creds.refresh_token:
         creds.refresh(Request())
-        TOKEN_PATH.write_text(
+        atomic_write_text(
+            TOKEN_PATH,
             json.dumps(
                 _normalize_authorized_user_payload(json.loads(creds.to_json())),
                 indent=2,
-            )
+            ),
         )
     if not creds.valid:
         print("Token is invalid. Re-run setup.", file=sys.stderr)
@@ -534,7 +535,11 @@ def calendar_delete(args):
 # =========================================================================
 
 def drive_search(args):
-    query = args.query if args.raw_query else f"fullText contains '{args.query}'"
+    if args.raw_query:
+        query = args.query
+    else:
+        literal = args.query.replace("\\", "\\\\").replace("'", "\\'")
+        query = f"fullText contains '{literal}'"
     if _gws_binary():
         results = _run_gws(
             ["drive", "files", "list"],

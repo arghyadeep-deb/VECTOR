@@ -26,18 +26,21 @@ def _gm_load(path):
     ns = dict(globals())
     ns["__name__"] = "_godmode_module"
     ns["__file__"] = str(path)
-    exec(compile(open(path).read(), str(path), 'exec'), ns)
+    with open(path, encoding="utf-8") as source_file:
+        source = source_file.read()
+    exec(compile(source, str(path), 'exec'), ns)
     return ns
 
-for _gm_script in ["parseltongue.py", "godmode_race.py", "auto_jailbreak.py"]:
-    _gm_path = _gm_scripts_dir / _gm_script
-    if _gm_path.exists():
-        _gm_ns = _gm_load(_gm_path)
-        for _gm_k, _gm_v in _gm_ns.items():
-            if not _gm_k.startswith('_gm_') and (callable(_gm_v) or _gm_k.isupper()):
-                globals()[_gm_k] = _gm_v
-
-sys.argv = _gm_old_argv
+try:
+    for _gm_script in ["parseltongue.py", "godmode_race.py", "auto_jailbreak.py"]:
+        _gm_path = _gm_scripts_dir / _gm_script
+        if _gm_path.exists():
+            _gm_ns = _gm_load(_gm_path)
+            for _gm_k, _gm_v in _gm_ns.items():
+                if not _gm_k.startswith('_gm_') and (callable(_gm_v) or _gm_k.isupper()):
+                    globals()[_gm_k] = _gm_v
+finally:
+    sys.argv = _gm_old_argv
 
 # Cleanup loader vars
 for _gm_cleanup in ['_gm_scripts_dir', '_gm_old_argv', '_gm_load', '_gm_ns', '_gm_k',

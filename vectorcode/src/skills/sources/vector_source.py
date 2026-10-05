@@ -7,7 +7,6 @@ Layout:
 
 from __future__ import annotations
 
-import logging
 import subprocess
 from pathlib import Path
 from typing import List
@@ -15,8 +14,6 @@ from typing import List
 import yaml
 
 from vectorcode.src.skills.sources.base import ResolvedSkill, SourceResolver
-
-LOGGER = logging.getLogger(__name__)
 
 VECTOR_SKILL_REPO_URL = "https://github.com/VECTOR/vector-agent.git"
 
@@ -43,7 +40,7 @@ class VectorSkillResolver(SourceResolver):
         else:
             self._cache_root.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(
-                ["git", "clone", VECTOR_SKILL_REPO_URL, str(self._cache_root)],
+                ["git", "clone", "--", VECTOR_SKILL_REPO_URL, str(self._cache_root)],
                 check=True,
             )
 

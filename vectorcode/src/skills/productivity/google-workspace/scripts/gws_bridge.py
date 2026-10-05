@@ -15,7 +15,7 @@ _SCRIPTS_DIR = str(Path(__file__).resolve().parent)
 if _SCRIPTS_DIR not in sys.path:
     sys.path.insert(0, _SCRIPTS_DIR)
 
-from _vector_home import get_vector_home
+from _vector_home import atomic_write_text, get_vector_home
 
 def get_token_path() -> Path:
     return get_vector_home() / "google_token.json"
@@ -62,8 +62,9 @@ def refresh_token(token_data: dict) -> dict:
         tz=timezone.utc,
     ).isoformat()
 
-    get_token_path().write_text(
-        json.dumps(_normalize_authorized_user_payload(token_data), indent=2)
+    atomic_write_text(
+        get_token_path(),
+        json.dumps(_normalize_authorized_user_payload(token_data), indent=2),
     )
     return token_data
 
@@ -74,7 +75,7 @@ def get_valid_token() -> str:
         print("ERROR: No Google token found. Run setup.py --auth-url first.", file=sys.stderr)
         sys.exit(1)
 
-    token_data = json.loads(token_path.read_text())
+    token_data = json.loads(token_path.read_text(encoding="utf-8"))
 
     expiry = token_data.get("expiry", "")
     if expiry:

@@ -305,15 +305,16 @@ def cmd_wallet(args):
     # Fetch prices for fungible tokens (cap lookups to avoid API abuse)
     sol_price = None
     prices: Dict[str, float] = {}
-    if not skip_prices and fungible:
+    if not skip_prices:
         sol_price = fetch_sol_price()
         # Prioritize known tokens, then a small sample of unknowns.
         # CoinGecko free tier = 1 request per mint, so we cap lookups.
-        known_mints = [t["mint"] for t in fungible if t["mint"] in KNOWN_TOKENS]
-        other_mints = [t["mint"] for t in fungible if t["mint"] not in KNOWN_TOKENS][:15]
-        mints_to_price = known_mints + other_mints
-        if mints_to_price:
-            prices = fetch_prices(mints_to_price, max_lookups=30)
+        if fungible:
+            known_mints = [t["mint"] for t in fungible if t["mint"] in KNOWN_TOKENS]
+            other_mints = [t["mint"] for t in fungible if t["mint"] not in KNOWN_TOKENS][:15]
+            mints_to_price = known_mints + other_mints
+            if mints_to_price:
+                prices = fetch_prices(mints_to_price, max_lookups=30)
 
     # Enrich tokens with labels and USD values
     enriched = []
