@@ -82,7 +82,8 @@ class ResearchMiningScorer(LLMJudgeScorer):
                     raw,
                     re.MULTILINE | re.IGNORECASE,
                 )
-                scores[dim] = int(match.group(1)) if match else 3
+                if match:
+                    scores[dim] = int(match.group(1))
 
             overall_match = re.search(
                 r"^overall_correct:\s*(yes|no)",
@@ -90,9 +91,15 @@ class ResearchMiningScorer(LLMJudgeScorer):
                 re.MULTILINE | re.IGNORECASE,
             )
 
-            avg_score = sum(scores.values()) / len(scores)
+            avg_score = sum(scores.values()) / len(scores) if scores else 0.0
             if overall_match:
                 is_correct = overall_match.group(1).lower() == "yes"
+            elif len(scores) != 5:
+                return None, {
+                    "match_type": "llm_judge_unparseable",
+                    "scores": scores,
+                    "raw_judge_output": raw,
+                }
             else:
                 is_correct = avg_score >= 3.5
 

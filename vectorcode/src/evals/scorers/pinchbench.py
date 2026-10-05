@@ -251,7 +251,7 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
     Matches PinchBench's lib_grading._parse_judge_response() logic.
     """
     if not raw or not raw.strip():
-        return {"scores": {}, "total": 0.0, "notes": "Empty judge response"}
+        return {"scores": {}, "total": 0.0, "notes": "Empty judge response", "parsed": False}
 
     # Try JSON code block
     code_block = re.search(r"```json\s*(.*?)\s*```", raw, re.DOTALL)
@@ -312,19 +312,25 @@ def _parse_judge_response(raw: str) -> Dict[str, Any]:
                     "scores": {},
                     "total": total,
                     "notes": "Score extracted from prose",
+                    "parsed": True,
                 }
         except ValueError as _sve:
             logger.debug("[VECTOR][evals.scorers.pinchbench] suppressed ValueError: %s", _sve)
 
     LOGGER.warning("Failed to parse judge response")
-    return {"scores": {}, "total": 0.0, "notes": "Failed to parse judge response"}
+    return {"scores": {}, "total": 0.0, "notes": "Failed to parse judge response", "parsed": False}
 
 def _normalize_judge_response(parsed: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize various judge response formats to standard structure.
 
     Matches PinchBench's lib_grading._normalize_judge_response().
     """
-    result: Dict[str, Any] = {"scores": {}, "total": 0.0, "notes": ""}
+    result: Dict[str, Any] = {
+        "scores": {},
+        "total": 0.0,
+        "notes": "",
+        "parsed": True,
+    }
 
     # Extract scores
     scores_data = parsed.get("scores", parsed.get("criteria_scores", {}))
@@ -427,10 +433,10 @@ def _grade_llm_judge(
     """Grade using an LLM judge with the task's rubric."""
     rubric = record.metadata.get("llm_judge_rubric")
     if not rubric:
-        return {"score": 0.0, "breakdown": {}, "notes": "No LLM judge rubric defined"}
+        return {"score": None, "breakdown": {}, "notes": "No LLM judge rubric defined"}
 
     if judge_backend is None:
-        return {"score": 0.0, "breakdown": {}, "notes": "No judge backend configured"}
+        return {"score": None, "breakdown": {}, "notes": "No judge backend configured"}
 
     summary = _summarize_transcript(transcript)
     prompt = _build_judge_prompt(
@@ -446,12 +452,20 @@ def _grade_llm_judge(
         )
     except Exception as exc:
         LOGGER.error("LLM judge call failed for %s: %s", record.record_id, exc)
-        return {"score": 0.0, "breakdown": {}, "notes": f"Judge error: {exc}"}
+        return {"score": None, "breakdown": {}, "notes": f"Judge error: {exc}"}
 
     parsed = _parse_judge_response(raw)
+    scores = parsed.get("scores", {})
+    if not parsed.get("parsed", False):
+        return {
+            "score": None,
+            "breakdown": {},
+            "notes": parsed.get("notes", "Unparseable judge response"),
+            "raw_judge_output": raw,
+        }
     return {
         "score": parsed.get("total", 0.0),
-        "breakdown": parsed.get("scores", {}),
+        "breakdown": scores,
         "notes": parsed.get("notes", ""),
     }
 
@@ -471,6 +485,8 @@ def _grade_hybrid(
     llm = _grade_llm_judge(
         record, transcript, workspace_path, judge_backend, judge_model
     )
+    if llm["score"] is None:
+        return llm
 
     auto_w = float(weights.get("automated", 0.5))
     llm_w = float(weights.get("llm_judge", 0.5))
@@ -561,6 +577,8 @@ class PinchBenchScorer(LLMJudgeScorer):
             judge_backend=self._judge_backend,
             judge_model=self._judge_model,
         )
+        if result["score"] is None:
+            return None, {**result}
         is_correct = result["score"] >= 0.5
         return is_correct, {**result}
 

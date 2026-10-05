@@ -110,13 +110,12 @@ class AMABenchScorer(LLMJudgeScorer):
         if label is None:
             LOGGER.warning(
                 "AMA-Bench judge returned unparseable output for %s, "
-                "falling back to F1 threshold: %r",
+                "leaving the result unscored: %r",
                 record.record_id,
                 raw[:200],
             )
-            is_correct = f1 >= 0.5
-            return is_correct, {
-                "match_type": "f1_fallback",
+            return None, {
+                "match_type": "llm_judge_unparseable",
                 "raw_judge_output": raw[:200],
                 "f1": round(f1, 4),
                 "capability": record.metadata.get("capability", ""),
@@ -151,10 +150,15 @@ def _parse_judge_label(raw: str) -> Optional[str]:
         if tok in ("yes", "no"):
             return tok
 
-    # Last resort: search for yes/no anywhere in the cleaned text
-    if re.search(r"\byes\b", text):
+    # Last resort: accept exactly one of the two labels.  A response containing
+    # both is contradictory and cannot be scored safely.
+    has_yes = re.search(r"\byes\b", text) is not None
+    has_no = re.search(r"\bno\b", text) is not None
+    if has_yes == has_no:
+        return None
+    if has_yes:
         return "yes"
-    if re.search(r"\bno\b", text):
+    if has_no:
         return "no"
 
     return None

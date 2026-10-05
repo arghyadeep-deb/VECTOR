@@ -223,6 +223,11 @@ class SecurityScannerScorer(Scorer):
                 checklist_items,
                 context=record.problem,
             )
+            if checklist_score is None:
+                return None, {
+                    "reason": "checklist_judge_failed",
+                    "checklist_details": checklist_details,
+                }
         else:
             # Without judge, give partial credit based on structural heuristics
             has_recommendations = any(

@@ -395,6 +395,12 @@ class LiveResearchBenchScorer(LLMJudgeScorer):
 
         parsed = _parse_judge_response(raw)
         scores = parsed.get("scores", {})
+        if not scores:
+            return None, {
+                "reason": "unparseable_judge_response",
+                "raw_judge_output": raw,
+                "notes": parsed.get("notes", ""),
+            }
 
         # Compute weighted total using task-specific or default weights
         dimension_weights = record.metadata.get("dimension_weight", DEFAULT_WEIGHTS)

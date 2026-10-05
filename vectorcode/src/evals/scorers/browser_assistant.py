@@ -139,6 +139,11 @@ class BrowserAssistantScorer(Scorer):
                     [f"The answer covers: {fact}" for fact in semantic_facts],
                     context=record.problem,
                 )
+                if semantic_score is None:
+                    return None, {
+                        "reason": "semantic_checklist_judge_failed",
+                        "semantic_details": semantic_details,
+                    }
             else:
                 # Heuristic fallback: word-level matching
                 ans_norm = normalize_str(model_answer)
@@ -174,6 +179,11 @@ class BrowserAssistantScorer(Scorer):
                 items,
                 context=record.problem,
             )
+            if quality_score is None:
+                return None, {
+                    "reason": "quality_checklist_judge_failed",
+                    "quality_details": quality_details,
+                }
         else:
             # Heuristic
             has_numbers = bool(re.search(r"\d+", model_answer))

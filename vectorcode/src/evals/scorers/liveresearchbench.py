@@ -74,10 +74,7 @@ def _parse_judge_response(raw: str, num_items: int) -> List[Dict[str, Any]]:
     items default to ``covered=False``.
     """
     if not raw or not raw.strip():
-        return [
-            {"index": i + 1, "covered": False, "reason": "empty judge response"}
-            for i in range(num_items)
-        ]
+        return []
 
     judgments: Dict[int, Dict[str, Any]] = {}
 
@@ -140,6 +137,9 @@ def _parse_judge_response(raw: str, num_items: int) -> List[Dict[str, Any]]:
 
     if not judgments:
         LOGGER.warning("Failed to parse judge response — marking all items uncovered")
+
+    if not judgments:
+        return []
 
     # Fill gaps with covered=False so downstream code always sees N items.
     return [
@@ -212,6 +212,12 @@ class LiveResearchBenchScorer(LLMJudgeScorer):
             }
 
         judgments = _parse_judge_response(raw, num_items=len(checklist))
+        if not judgments:
+            return None, {
+                "reason": "unparseable_judge_response",
+                "raw_judge_output": raw,
+                "checklist_size": len(checklist),
+            }
         covered_count = sum(1 for j in judgments if j["covered"])
         coverage = covered_count / len(checklist)
         is_correct = coverage >= PASS_THRESHOLD

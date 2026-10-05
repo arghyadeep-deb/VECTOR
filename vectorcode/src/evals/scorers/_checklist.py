@@ -18,7 +18,7 @@ from __future__ import annotations
 import logging
 import re
 import string
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 LOGGER = logging.getLogger(__name__)
 
@@ -87,7 +87,7 @@ class ChecklistScorer:
         model_answer: str,
         checklist: List[str],
         context: str = "",
-    ) -> Tuple[float, List[Dict[str, Any]]]:
+    ) -> Tuple[Optional[float], List[Dict[str, Any]]]:
         """Evaluate model_answer against checklist items.
 
         Returns (score, details) where:
@@ -123,12 +123,14 @@ class ChecklistScorer:
             )
         except Exception as exc:
             LOGGER.error("Checklist judge failed: %s", exc)
-            return 0.0, [
-                {"item": item, "passed": False, "reasoning": f"judge error: {exc}"}
+            return None, [
+                {"item": item, "passed": None, "reasoning": f"judge error: {exc}"}
                 for item in checklist
             ]
 
         details = self._parse_response(raw, checklist)
+        if any(d["passed"] is None for d in details):
+            return None, details
         passed = sum(1 for d in details if d["passed"])
         score = passed / len(details) if details else 0.0
 
@@ -150,7 +152,7 @@ class ChecklistScorer:
                 passed = match.group(1).lower() == "yes"
                 reasoning = match.group(2).strip() if match.group(2) else ""
             else:
-                passed = False
+                passed = None
                 reasoning = "could not parse judge response"
 
             details.append(

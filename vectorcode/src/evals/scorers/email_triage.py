@@ -97,11 +97,14 @@ class EmailTriageScorer(LLMJudgeScorer):
                 raw,
                 re.MULTILINE | re.IGNORECASE,
             )
-            is_correct = (
-                overall_match.group(1).lower() == "yes"
-                if overall_match
-                else (urgency_match and category_match)
-            )
+            if overall_match is None:
+                return None, {
+                    "match_type": "llm_judge_unparseable",
+                    "pred_urgency": pred_urgency,
+                    "pred_category": pred_category,
+                    "raw_judge_output": raw,
+                }
+            is_correct = overall_match.group(1).lower() == "yes"
 
             urg_match = re.search(
                 r"^urgency_correct:\s*(yes|no)",
@@ -128,8 +131,8 @@ class EmailTriageScorer(LLMJudgeScorer):
             }
         except Exception as exc:
             LOGGER.error("Email triage LLM judge failed: %s", exc)
-            return urgency_match and category_match, {
-                "match_type": "exact_fallback",
+            return None, {
+                "match_type": "llm_judge_error",
                 "urgency_correct": urgency_match,
                 "category_correct": category_match,
                 "error": str(exc),

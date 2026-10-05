@@ -134,6 +134,11 @@ class DailyDigestScorer(Scorer):
                 items,
                 context=record.problem,
             )
+            if checklist_score is None:
+                return None, {
+                    "reason": "checklist_judge_failed",
+                    "checklist_details": checklist_details,
+                }
         else:
             # Heuristic fallback
             ans_lower = model_answer.lower()
