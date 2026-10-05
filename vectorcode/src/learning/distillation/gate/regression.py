@@ -52,7 +52,15 @@ def regression_check(
     regressed: dict[str, float] = {}
 
     for cluster_id, before_score in before.cluster_scores.items():
-        after_score = after.cluster_scores.get(cluster_id, 0.0)
+        # A cluster absent from `after` means it wasn't sampled this run
+        # (subsample_size can skip clusters) -- NOT that it scored zero.
+        # Defaulting to 0.0 here would manufacture a false regression of
+        # up to -before_score for every unsampled cluster, spuriously
+        # rejecting a genuinely improving edit. Skip clusters we have no
+        # after-data for; we simply can't assess them this run.
+        if cluster_id not in after.cluster_scores:
+            continue
+        after_score = after.cluster_scores[cluster_id]
         delta = after_score - before_score
         if delta < -max_regression:
             regressed[cluster_id] = delta

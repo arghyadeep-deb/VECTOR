@@ -141,15 +141,28 @@ def maybe_downgrade_to_replace(
     patched = apply_unified_diff(original, diff_str)
 
     if patched is None:
-        # Can't apply the diff — downgrade to REPLACE with a warning
+        # Can't apply the diff -- there is no real "new content" to fall
+        # back to here (the teacher only sent a diff, not a full prompt).
+        # Using diff_str itself as new_content would show the reviewer raw
+        # diff markup (@@ -1,5 +1,8 @@, -old, +new, ...) as if it were the
+        # actual new system prompt -- silently presenting garbage as real
+        # content in the review queue this downgrade exists to populate
+        # honestly. Surface the failure instead of fabricating content.
         logger.warning(
-            "Edit %s: diff could not be applied, downgrading to REPLACE",
+            "Edit %s: diff could not be applied, downgrading to REPLACE "
+            "with an explicit failure placeholder (no real content available)",
             edit.id,
         )
         return edit.model_copy(
             update={
                 "op": EditOp.REPLACE_SYSTEM_PROMPT,
-                "payload": {"new_content": diff_str},
+                "payload": {
+                    "new_content": (
+                        "[EDIT FAILED: the proposed diff could not be applied "
+                        "to the current prompt and no fallback content was "
+                        "provided. This edit should be rejected in review.]"
+                    ),
+                },
             }
         )
 
