@@ -69,6 +69,15 @@ class PersonalBenchmarkSynthesizer:
         3. For each class, pick the trace with the highest feedback as reference.
         4. Return a :class:`PersonalBenchmark` capped at *max_samples*.
         """
+        # NOTE (flagged, not fixed): *workflow_id* only labels the returned
+        # PersonalBenchmark -- it is never used to filter which traces are
+        # pulled in below. Trace (vc_core/types.py) has no workflow_id field
+        # and TraceStore.list_traces() has no matching filter clause, so a
+        # multi-workflow deployment would mix every workflow's traces into a
+        # benchmark that claims to represent just one. Adding real scoping
+        # needs a Trace schema change plus a TraceStore filter, not a narrow
+        # patch here -- an owner decision on whether workflow_id tracking
+        # should exist at all.
         # Fetch a large pool of traces (limit high enough to cover most stores)
         all_traces = self._store.list_traces(limit=10_000)
 
