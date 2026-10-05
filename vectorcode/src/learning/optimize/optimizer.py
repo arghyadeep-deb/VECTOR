@@ -47,6 +47,30 @@ _SUMMARY_STAT_MAP: Dict[str, str] = {
     "mean_itl_ms": "itl_stats",
 }
 
+def _escape_toml_string(value: Any) -> str:
+    """TOML basic-string escaping for OptimizationEngine's no-tomli_w fallback.
+
+    Covers every control character the TOML spec forbids unescaped inside a
+    basic string (U+0000-U+0008, U+000B-U+001F, U+007F), not just the common
+    \\n/\\r/\\t cases -- values written here (e.g. agent.system_prompt /
+    intelligence.system_prompt trial params) can be DSPy/GEPA-generated
+    optimizer output, which previously produced a syntactically invalid
+    TOML recipe file on any stray control character (same bug class fixed
+    in skills/overlay.py's write_overlay() this audit cycle).
+    """
+    text = str(value)
+    out: list[str] = []
+    simple = {"\\": "\\\\", '"': '\\"', "\b": "\\b", "\t": "\\t", "\n": "\\n", "\f": "\\f", "\r": "\\r"}
+    for ch in text:
+        if ch in simple:
+            out.append(simple[ch])
+        elif ord(ch) < 0x20 or ord(ch) == 0x7F:
+            out.append(f"\\u{ord(ch):04x}")
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
 def _get_objective_value(trial: TrialResult, obj: ObjectiveSpec) -> float:
     """Read the metric value from a TrialResult for a given objective."""
     # Direct attributes on TrialResult
@@ -420,18 +444,19 @@ class OptimizationEngine:
             lines.append(f"[{section}]")
             for key, val in values.items():
                 if isinstance(val, str):
-                    lines.append(f'{key} = "{val}"')
+                    lines.append(f'{key} = "{_escape_toml_string(val)}"')
                 elif isinstance(val, bool):
                     lines.append(f"{key} = {'true' if val else 'false'}")
                 elif isinstance(val, (int, float)):
                     lines.append(f"{key} = {val}")
                 elif isinstance(val, list):
                     items = ", ".join(
-                        f'"{v}"' if isinstance(v, str) else str(v) for v in val
+                        f'"{_escape_toml_string(v)}"' if isinstance(v, str) else str(v)
+                        for v in val
                     )
                     lines.append(f"{key} = [{items}]")
                 else:
-                    lines.append(f'{key} = "{val}"')
+                    lines.append(f'{key} = "{_escape_toml_string(val)}"')
             lines.append("")
         path.write_text("\n".join(lines), encoding="utf-8")
 
