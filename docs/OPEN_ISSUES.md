@@ -3783,3 +3783,87 @@ isn't "proven in production" until you supply the service/device and run it live
     user_profile_manage, apply_patch, audio_tool, browser_axtree, calculator, channel_tools,
     code_interpreter_docker, _markdown_store).
 
+71. **`vectorcode/src/agent/` audit, round 8 (2026-10-05) —** re-derived the
+    remaining inventory from `git log --oneline -- vectorcode/src/agent/` and
+    `git ls-files`, then prioritized the two Gemini adapters, Codex app-server
+    transports, substantive LSP modules, skill handling, and the recurring
+    provider/utility logging family. **Security fix:** `context_references.py`
+    applied its sensitive credential-path denylist with case-sensitive `Path`
+    comparisons; on Windows, differently-cased spellings such as
+    `.SSH/ID_RSA`, `.AWS/credentials`, and VectorCode `.ENV` bypassed the
+    blocklist. Comparisons now use the platform's normalized path spelling and
+    proof tests cover all three cases. **Correctness fix:** skill config prompt
+    injection used `value if value else "(not set)"`, silently misrepresenting
+    explicit `0` and `False`; it now distinguishes only `None`/empty string.
+    **Observability fixes:** 25+ remaining modules used stdlib logging, shadowed
+    a correct Loguru import (including imports trapped inside docstrings), sent
+    `%` placeholders to Loguru, or used stdlib-only `exc_info=True`. Corrected
+    the Gemini native/Cloud Code adapters, Codex app-server/session and other
+    transports, LSP client/manager, all three skill helpers, image/video/web
+    provider registries, and the affected utilities. A final AST/pattern sweep
+    found no unbound `logger` users and no remaining invalid Loguru arguments in
+    the newly reviewed set; the sole `%s` hit is Google OAuth's deliberate
+    callback adapter which converts stdlib formats to Loguru before dispatch.
+    New tests: `tests/test_vectorcode_agent_{context_reference_safety,
+    gemini_adapter_logging,lsp_logging,round8_logging,
+    skill_handling_regressions,transport_logging}.py`: **14/14 pass**; the full
+    `vectorcode/src/agent/` tree compiles and `git diff --check` passes.
+    **Owner decisions, not guessed at:** `lsp/manager.py`,
+    `transports/codex_app_server.py`, `display.py`, and `title_generator.py`
+    contain production `threading.Thread` bridges despite the repository ban;
+    each has an exact audit comment because replacing it requires changing a
+    synchronous public call chain to asyncio (the previously flagged Copilot
+    and curator threads remain unchanged). **Depth statement:** genuine deep
+    review was concentrated on the explicitly prioritized Gemini, Codex
+    app-server, LSP, skill-handling, and context-reference paths; the broad
+    utility/provider-family pass was targeted recurring-pattern review, not a
+    claim that every remaining utility received fresh line-by-line semantic
+    review. Work was done by Codex (gpt-5.6-sol); as with other items, Codex's
+    sandbox could not write `.git/index.lock`, so Claude reviewed and committed
+    on its behalf after independently running all 14 new tests: `f0228d3a2`
+    (context_references.py), `51833cdf6` (skill_commands.py), `10e96268e`
+    (remaining 28-file logging batch).
+
+72. **`vectorcode/src/skills/` audit, round 6 (2026-10-05) —** reconstructed the
+    remaining scope from Git history plus round 5's explicit handoff and completed a full
+    line-by-line review of 29 files (4,281 lines), excluding the separately-reserved 2,794-line
+    `optional/migration/openclaw-migration/scripts/openclaw_to_vector.py`. **Fixed with new
+    regression coverage:** `optional/creative/meme-generation/scripts/generate_meme.py` preferred
+    the project-banned `requests` client; it now uses `httpx` and preserves status checking.
+    `productivity/powerpoint/scripts/add_slide.py` accepted caller-controlled slide/layout names
+    containing `..` or absolute paths, allowing reads outside the expected unpacked Office
+    directories via both traversal and pathlib's absolute-path override; direct-child confinement
+    now guards both paths. `productivity/ocr-and-documents/scripts/extract_marker.py` likewise
+    joined document-renderer-provided image names directly to `output_dir`, allowing an output
+    escape; it now resolves/confines every image path and also correctly supports Marker/PIL image
+    objects as well as raw byte values. `builtin/sparc/coordinator.py` did not implement the
+    advertised `/sparc <task>` syntax (it treated the task's first word as an unknown stage), and
+    every standalone stage after `specification` crashed on absent prior-stage format keys; both
+    invocation forms now work. `executor.py` silently converted malformed/non-object sub-skill
+    arguments into an empty context and could report phantom success; it now returns an explicit
+    failed `ToolResult` without invoking the child. `creative/pixel-art/scripts/pixel_art.py` and
+    `pixel_art_video.py` now reject non-positive block/timing values before division/ffmpeg work,
+    compute integral frame counts for fractional durations, and support tiny images whose
+    dimensions previously made three animation initializers raise an invalid-`randint` error.
+    `productivity/powerpoint/scripts/office/helpers/{merge_runs,simplify_redlines}.py` wrote parsed
+    XML directly over the only copy, and `office/pack.py` opened the destination archive in `w`
+    mode; an interrupted/failed write could truncate an existing valid document. These writes now
+    use same-directory temporary files plus `os.replace()`, with failure-preservation tests.
+    **FLAGGED, not guessed at:** `office/pack.py` imports `DOCXSchemaValidator`,
+    `PPTXSchemaValidator`, and `RedliningValidator` from a `validators` module that does not exist
+    anywhere in the repository or its Git history. Consequently the module is unimportable and
+    its advertised DOCX/PPTX validation/auto-repair path has no implementation. Reconstructing
+    three schema validators is an owner-level feature/architecture decision, not a narrow audit
+    repair. Also left untouched as already documented: `builtin/sparc/__init__.py`'s wrong
+    cross-tree import (item 56). **Reviewed with no additional genuine bug found:** package
+    `__init__.py`; palette constants; Excalidraw upload; YouTube transcript helper; GRPO template;
+    fitness/nutrition and drug-discovery standalone scripts; FastMCP templates; PyMuPDF extraction;
+    PowerPoint XML merge/redline logic beyond the atomic-save issue; arXiv and Polymarket CLIs;
+    and the deeper `dependency.py`, `index.py`, and `tool_adapter.py` logic. Five new test files,
+    17 focused tests pass; the broader existing+new skills selection also passes, and
+    `python -m compileall -q vectorcode/src/skills` plus `git diff --check` pass. **Commit status:**
+    work was done by Codex (gpt-5.6-sol); as with other items, Codex's sandbox could not write
+    `.git/index.lock`, so Claude reviewed and committed on its behalf after independently running
+    all 17 new tests and confirming the `office/pack.py` import failure live:
+    `0cc389734` (sparc/executor fixes), `6dbb1da4e` (document path confinement + atomic writes),
+    `dd8a83ffd` (pixel-art/meme-generation fixes).
