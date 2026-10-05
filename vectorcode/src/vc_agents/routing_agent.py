@@ -70,7 +70,18 @@ class RoutingAgent:
     def route(self, task: str, task_type: str = "") -> dict:
         """Full routing decision: model + district for a given task."""
         model = self.route_to_model(task)
-        district = self.route_to_district(task_type or task.split()[0] if task else "research")
+        # `X or Y if C else Z` parses as `(X or Y) if C else Z` in Python --
+        # not the intended `X or (Y if C else Z)`. With the old parse, an
+        # explicitly-passed task_type was silently discarded and replaced
+        # with "research" whenever task happened to be empty. Parenthesized
+        # explicitly to get the intended fallback order: task_type first,
+        # then the task's first word, then "research". task.split() also
+        # returns [] (not [""]) for a whitespace-only task, which would
+        # still IndexError on [0] -- guard with the split result directly.
+        task_words = task.split() if task else []
+        district = self.route_to_district(
+            task_type or (task_words[0] if task_words else "research")
+        )
         return {
             "task": task[:100],
             "recommended_model": model,
