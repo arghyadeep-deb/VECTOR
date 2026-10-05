@@ -57,7 +57,7 @@ def _resolve_home_dir() -> str:
         if profile_home:
             return profile_home
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: {}", _sve)
 
     home = os.environ.get("HOME", "").strip()
     if home:
@@ -74,7 +74,7 @@ def _resolve_home_dir() -> str:
         if resolved:
             return resolved
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: {}", _sve)
 
     # Last resort: /tmp (writable on any POSIX system). Avoids crashing the
     # subprocess with no HOME; callers can set VECTOR_HOME explicitly if they
@@ -352,7 +352,7 @@ class CopilotACPClient:
             try:
                 proc.kill()
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.copilot_acp_client] suppressed Exception: {}", _sve)
 
     def _create_chat_completion(
         self,
@@ -458,6 +458,14 @@ class CopilotACPClient:
             for line in proc.stderr:
                 stderr_tail.append(line.rstrip("\n"))
 
+        # NOTE: CLAUDE.md's "asyncio only" rule is not followed here -- these
+        # two daemon threads drain the ACP subprocess's blocking stdout/stderr
+        # pipes concurrently with the synchronous JSON-RPC request loop below.
+        # _create_chat_completion() is itself a synchronous entry point (an
+        # OpenAI-client-compatible `.create()` call), so converting this to
+        # asyncio subprocess streams would mean making the whole call chain
+        # async -- a real architectural change, not a narrow fix. Flagging
+        # for an owner decision rather than guessing at a rewrite.
         out_thread = threading.Thread(target=_stdout_reader, daemon=True)
         err_thread = threading.Thread(target=_stderr_reader, daemon=True)
         out_thread.start()
