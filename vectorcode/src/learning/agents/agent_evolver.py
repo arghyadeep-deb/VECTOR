@@ -12,6 +12,7 @@ updated TOML config files with automatic versioning and rollback.
 
 from __future__ import annotations
 
+import json
 import shutil
 from collections import defaultdict
 from pathlib import Path
@@ -42,13 +43,11 @@ def _format_toml_value(value: Any) -> str:
     if isinstance(value, float):
         return str(value)
     if isinstance(value, str):
-        # Escape backslashes and quotes for TOML basic strings
-        escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
+        return json.dumps(value, ensure_ascii=False)
     if isinstance(value, list):
         items = ", ".join(_format_toml_value(v) for v in value)
         return f"[{items}]"
-    return repr(value)
+    raise TypeError(f"Unsupported TOML value type: {type(value).__name__}")
 
 def _write_toml(path: Path, data: Dict[str, Any]) -> None:
     """Write a dict as TOML to *path* using manual formatting."""

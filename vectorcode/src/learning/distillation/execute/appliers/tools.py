@@ -17,6 +17,8 @@ from vectorcode.src.learning.distillation.execute.base import (
     ApplyResult,
     EditApplier,
     ValidationResult,
+    format_toml_key,
+    format_toml_value,
 )
 from vectorcode.src.learning.distillation.models import Edit, EditOp
 
@@ -32,8 +34,9 @@ class AddToolToAgentApplier(EditApplier):
         return ValidationResult(ok=True)
 
     def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
-        agent = edit.payload["agent"]
+        agent = format_toml_key(edit.payload["agent"])
         tool_name = edit.payload["tool_name"]
+        tool_value = format_toml_value(tool_name)
         config_path = ctx.config_path
         content = (
             config_path.read_text(encoding="utf-8") if config_path.exists() else ""
@@ -55,12 +58,12 @@ class AddToolToAgentApplier(EditApplier):
                     if match:
                         existing = match.group(1)
                         if tool_name not in existing:
-                            new_list = existing.rstrip() + f', "{tool_name}"'
+                            new_list = existing.rstrip() + f", {tool_value}"
                             lines[i] = f"tools = [{new_list}]"
                     break
             content = "\n".join(lines) + "\n"
         else:
-            content += f'\n{section}\ntools = ["{tool_name}"]\n'
+            content += f"\n{section}\ntools = [{tool_value}]\n"
 
         config_path.write_text(content, encoding="utf-8")
         return ApplyResult(changed_files=[str(config_path)])
@@ -81,7 +84,7 @@ class RemoveToolFromAgentApplier(EditApplier):
         return ValidationResult(ok=True)
 
     def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
-        agent = edit.payload["agent"]
+        agent = format_toml_key(edit.payload["agent"])
         tool_name = edit.payload["tool_name"]
         config_path = ctx.config_path
         content = (
@@ -125,8 +128,8 @@ class EditToolDescriptionApplier(EditApplier):
         return ValidationResult(ok=True)
 
     def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
-        tool_name = edit.payload["tool_name"]
-        new_desc = edit.payload["new_description"]
+        tool_name = format_toml_key(edit.payload["tool_name"])
+        new_desc = format_toml_value(edit.payload["new_description"])
         desc_path = ctx.tools_dir / "descriptions.toml"
         desc_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -144,17 +147,17 @@ class EditToolDescriptionApplier(EditApplier):
                 if in_section and line.strip().startswith("["):
                     break
                 if in_section and line.strip().startswith("description"):
-                    lines[i] = f'description = "{new_desc}"'
+                    lines[i] = f"description = {new_desc}"
                     found = True
                     break
             if not found:
                 for i, line in enumerate(lines):
                     if line.strip() == section:
-                        lines.insert(i + 1, f'description = "{new_desc}"')
+                        lines.insert(i + 1, f"description = {new_desc}")
                         break
             content = "\n".join(lines) + "\n"
         else:
-            content += f'\n{section}\ndescription = "{new_desc}"\n'
+            content += f"\n{section}\ndescription = {new_desc}\n"
 
         desc_path.write_text(content, encoding="utf-8")
         return ApplyResult(changed_files=[str(desc_path)])

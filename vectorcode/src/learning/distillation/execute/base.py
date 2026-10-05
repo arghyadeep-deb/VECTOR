@@ -13,12 +13,36 @@ See spec §7.1.
 
 from __future__ import annotations
 
+import json
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar
 
 from vectorcode.src.learning.distillation.models import Edit, EditOp
+
+
+_BARE_TOML_KEY = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def format_toml_key(value: object) -> str:
+    """Format an untrusted key or dotted-key segment without TOML injection."""
+    text = str(value)
+    return text if _BARE_TOML_KEY.fullmatch(text) else json.dumps(text, ensure_ascii=False)
+
+
+def format_toml_value(value: object) -> str:
+    """Serialize the scalar/list values accepted in model-generated edits."""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(value)
+    if isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    if isinstance(value, list):
+        return "[" + ", ".join(format_toml_value(item) for item in value) + "]"
+    raise TypeError(f"Unsupported TOML value type: {type(value).__name__}")
 
 @dataclass
 class ApplyContext:

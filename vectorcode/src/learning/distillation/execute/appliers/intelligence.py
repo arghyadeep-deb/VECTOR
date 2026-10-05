@@ -15,6 +15,8 @@ from vectorcode.src.learning.distillation.execute.base import (
     ApplyResult,
     EditApplier,
     ValidationResult,
+    format_toml_key,
+    format_toml_value,
 )
 from vectorcode.src.learning.distillation.models import Edit, EditOp
 
@@ -31,8 +33,8 @@ class SetModelForQueryClassApplier(EditApplier):
         return ValidationResult(ok=True)
 
     def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
-        query_class = edit.payload["query_class"]
-        model = edit.payload["model"]
+        query_class = format_toml_key(edit.payload["query_class"])
+        model = format_toml_value(edit.payload["model"])
         config_path = ctx.config_path
         content = (
             config_path.read_text(encoding="utf-8") if config_path.exists() else ""
@@ -46,19 +48,19 @@ class SetModelForQueryClassApplier(EditApplier):
             for i, line in enumerate(lines):
                 stripped = line.strip()
                 if stripped.startswith(f"{query_class}") and "=" in stripped:
-                    lines[i] = f'{query_class} = "{model}"'
+                    lines[i] = f"{query_class} = {model}"
                     found = True
                     break
             if not found:
                 # Append after the [learning.routing.policy_map] header
                 for i, line in enumerate(lines):
                     if line.strip() == "[learning.routing.policy_map]":
-                        lines.insert(i + 1, f'{query_class} = "{model}"')
+                        lines.insert(i + 1, f"{query_class} = {model}")
                         break
             content = "\n".join(lines) + "\n"
         else:
             # Append the section
-            content += f'\n[learning.routing.policy_map]\n{query_class} = "{model}"\n'
+            content += f"\n[learning.routing.policy_map]\n{query_class} = {model}\n"
 
         config_path.write_text(content, encoding="utf-8")
         return ApplyResult(changed_files=[str(config_path)])
@@ -79,17 +81,15 @@ class SetModelParamApplier(EditApplier):
         return ValidationResult(ok=True)
 
     def apply(self, edit: Edit, ctx: ApplyContext) -> ApplyResult:
-        model = edit.payload["model"]
-        param = edit.payload["param"]
-        value = edit.payload["value"]
+        model = format_toml_key(str(edit.payload["model"]).replace(":", "-"))
+        param = format_toml_key(edit.payload["param"])
+        value = format_toml_value(edit.payload["value"])
         config_path = ctx.config_path
         content = (
             config_path.read_text(encoding="utf-8") if config_path.exists() else ""
         )
 
-        # Sanitize model name for TOML section header (replace : with -)
-        section_key = model.replace(":", "-")
-        section_header = f"[models.{section_key}]"
+        section_header = f"[models.{model}]"
 
         if section_header in content:
             lines = content.splitlines()
