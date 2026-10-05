@@ -90,7 +90,10 @@ class TerminalBenchScorer(LLMJudgeScorer):
                         "Could not parse grade from response: %s",
                         raw[:50],
                     )
-                    is_correct = False
+                    return None, {
+                        "match_type": "llm_judge_unparseable",
+                        "raw_judge_output": raw,
+                    }
 
             meta: Dict[str, Any] = {
                 "raw_judge_output": raw,
