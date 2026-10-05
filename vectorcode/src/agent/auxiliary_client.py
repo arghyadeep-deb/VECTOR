@@ -1479,6 +1479,27 @@ def _try_payment_fallback(
     Iterates the standard auto-detection chain, skipping the provider that
     failed.
 
+    FLAGGED, not fixed (audit finding): unlike run_agent.py's own provider
+    retry logic, this function never calls CredentialPool.mark_exhausted_
+    and_rotate() on the pool-backed provider that just failed. Consequence:
+    the NEXT unrelated auxiliary call (even seconds later) re-resolves the
+    same exhausted credential from scratch and takes the same 402/connection
+    hit again before falling back -- wasteful, though not an outage, since
+    the fallback chain below still runs every time.
+    A correct fix is more than a one-line addition: load_pool(provider)
+    creates a brand-new CredentialPool with no memory of which specific
+    entry.id was actually used for the failed call (that's only tracked by
+    the earlier, now-out-of-scope pool object's in-memory _current_id).
+    For a single-entry pool this is harmless (there's only one entry to
+    mark), but for a genuinely multi-entry rotating pool, calling
+    mark_exhausted_and_rotate() on a freshly-loaded pool object could select
+    and exhaust a DIFFERENT entry than the one that actually failed,
+    leaving the real offender untouched. Fixing this properly means
+    threading the specific pool entry (or at least its id) from the
+    resolution call sites (call_llm/async_call_llm, resolve_provider_client)
+    through to here -- a larger refactor than this audit's narrow-bug-fix
+    mandate covers. Left for an owner decision.
+
     Returns:
         (client, model, provider_label) or (None, None, "") if no fallback.
     """
