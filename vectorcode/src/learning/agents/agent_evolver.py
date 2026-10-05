@@ -21,6 +21,18 @@ from vectorcode.src.vc_core.types import StepType, Trace
 from vectorcode.src.learning.routing._utils import classify_query
 from vectorcode.src.vc_traces.store import TraceStore
 
+
+def _is_safe_path_component(value: str) -> bool:
+    """True if *value* is safe to use as exactly one path segment.
+
+    agent_name ultimately traces back to a stored Trace's ``agent`` field
+    (analyze() -> recommended_agent -> write_config/list_versions/
+    rollback) -- a value like "../../../../.ssh/authorized_keys" must
+    not be allowed to walk writes/reads outside config_dir/history_dir.
+    """
+    return bool(value) and value not in (".", "..") and "/" not in value and "\\" not in value
+
+
 def _format_toml_value(value: Any) -> str:
     """Format a Python value as a TOML literal."""
     if isinstance(value, bool):
@@ -205,6 +217,11 @@ class AgentConfigEvolver:
 
         Returns the :class:`Path` to the written config file.
         """
+        if not _is_safe_path_component(agent_name):
+            raise ValueError(
+                f"agent_name {agent_name!r} must be a single path component "
+                f"with no '..' or path separators"
+            )
         config_path = self._config_dir / f"{agent_name}.toml"
 
         # Archive the existing config before overwriting
@@ -236,6 +253,11 @@ class AgentConfigEvolver:
         Versions are numbered starting from 1 (oldest archived) through to
         the current (highest version number).
         """
+        if not _is_safe_path_component(agent_name):
+            raise ValueError(
+                f"agent_name {agent_name!r} must be a single path component "
+                f"with no '..' or path separators"
+            )
         versions: List[Dict[str, Any]] = []
 
         # Collect archived versions from .history/
