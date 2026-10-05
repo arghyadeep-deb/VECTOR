@@ -98,6 +98,7 @@ from tools.browser_tool import cleanup_browser
 
 # Agent internals extracted to agent/ package for modularity
 from agent.memory_manager import StreamingContextScrubber, build_memory_context_block, sanitize_context
+from agent.think_scrubber import StreamingThinkScrubber
 from agent.retry_utils import jittered_backoff
 from agent.error_classifier import classify_api_error, FailoverReason
 from agent.prompt_builder import (
@@ -1234,6 +1235,14 @@ class AIAgent:
         # deltas (#5719).  sanitize_context() alone can't survive chunk
         # boundaries because the block regex needs both tags in one string.
         self._stream_context_scrubber = StreamingContextScrubber()
+        # Stateful scrubber for <think>/<reasoning>/... blocks split across
+        # stream deltas. _strip_think_blocks() alone is regex-based and
+        # stateless per call, so a delta boundary that splits an open tag
+        # from its body (e.g. delta1="<think>", delta2="reasoning text")
+        # causes the open tag to be erased with nothing to consume, while
+        # the body in delta2 looks like ordinary content and leaks to the
+        # user (see agent/think_scrubber.py docstring, #8878/#9568).
+        self._stream_think_scrubber = StreamingThinkScrubber()
         # Visible assistant text already delivered through live token callbacks
         # during the current model response. Used to avoid re-sending the same
         # commentary when the provider later returns it as a completed interim
@@ -6046,20 +6055,32 @@ class AIAgent:
 
     def _reset_stream_delivery_tracking(self) -> None:
         """Reset tracking for text delivered during the current model response."""
+        # Flush any benign partial-tag tail held by the think scrubber (it sits
+        # upstream of the context scrubber in the pipeline, so its tail must
+        # pass through the context scrubber too), then reset it so a hung
+        # block from an interrupted prior stream can't taint the next turn.
+        think_scrubber = getattr(self, "_stream_think_scrubber", None)
+        think_tail = think_scrubber.flush() if think_scrubber is not None else ""
         # Flush any benign partial-tag tail held by the context scrubber so it
         # reaches the UI before we clear state for the next model call.  If
         # the scrubber is mid-span, flush() drops the orphaned content.
         scrubber = getattr(self, "_stream_context_scrubber", None)
         if scrubber is not None:
-            tail = scrubber.flush()
-            if tail:
-                callbacks = [cb for cb in (self.stream_delta_callback, self._stream_callback) if cb is not None]
-                for cb in callbacks:
-                    try:
-                        cb(tail)
-                    except Exception as _sve:
-                        logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
-                self._record_streamed_assistant_text(tail)
+            if think_tail:
+                think_tail = scrubber.feed(think_tail)
+            tail = think_tail + (scrubber.flush() or "")
+        else:
+            tail = think_tail
+        if think_scrubber is not None:
+            think_scrubber.reset()
+        if tail:
+            callbacks = [cb for cb in (self.stream_delta_callback, self._stream_callback) if cb is not None]
+            for cb in callbacks:
+                try:
+                    cb(tail)
+                except Exception as _sve:
+                    logger.debug("[VECTOR][run_agent] suppressed Exception: %s", _sve)
+            self._record_streamed_assistant_text(tail)
         self._current_streamed_assistant_text = ""
 
     def _record_streamed_assistant_text(self, text: str) -> None:
@@ -6114,11 +6135,17 @@ class AIAgent:
         else:
             prepended_break = False
         if isinstance(text, str):
-            # Strip <think> blocks first (per-delta is safe for closed pairs; the
-            # unterminated-tag path is handled downstream by stream_consumer).
+            # Strip <think> blocks through the stateful think scrubber first
+            # (a stateless per-delta regex would erase a split open tag and
+            # leak the body of the next delta -- see _stream_think_scrubber).
             # Then feed through the stateful context scrubber so memory-context
             # spans split across chunks cannot leak to the UI (#5719).
-            text = self._strip_think_blocks(text or "")
+            think_scrubber = getattr(self, "_stream_think_scrubber", None)
+            if think_scrubber is not None:
+                text = think_scrubber.feed(text or "")
+            else:
+                # Defensive: legacy callers without the scrubber attribute.
+                text = self._strip_think_blocks(text or "")
             scrubber = getattr(self, "_stream_context_scrubber", None)
             if scrubber is not None:
                 text = scrubber.feed(text)
