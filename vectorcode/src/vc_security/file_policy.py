@@ -42,6 +42,8 @@ def is_sensitive_file(path: Union[str, Path]) -> bool:
         from vectorcode.src._rust_bridge import get_rust_module
 
         _rust = get_rust_module()
+        if _rust is None:
+            return _is_sensitive_file_py(str(path))
         return _rust.is_sensitive_file(str(path))
     except ImportError:
         return _is_sensitive_file_py(str(path))
