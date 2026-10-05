@@ -91,15 +91,13 @@ class OpenClawBackend(InferenceBackend):
                 prompt,
                 "--model",
                 model,
-                "--base-url",
-                self._base_url,
-                "--api-key",
-                self._api_key,
                 "--output-json",
                 str(output_json),
             ]
             env = dict(os.environ)
             env["OPENCLAW_PATH"] = str(self._entry.path)
+            env["OPENCLAW_BASE_URL"] = self._base_url
+            env["OPENCLAW_API_KEY"] = self._api_key
 
             result = run_one_shot(
                 cmd=cmd,

@@ -3,7 +3,7 @@
 //
 // Invoked as:
 //   node openclaw_runner.mjs \
-//     --task <prompt> --model <m> --base-url <url> --api-key <k> \
+//     --task <prompt> --model <m> \
 //     --output-json <path> [--workspace <path>]
 //
 // Loads OpenClaw from $OPENCLAW_PATH and runs `openclaw agent --local
@@ -65,12 +65,12 @@ async function main() {
   const childEnv = {
     ...env,
     OPENCLAW_MODEL: args.model,
-    OPENCLAW_BASE_URL: args.base_url,
-    OPENCLAW_API_KEY: args.api_key,
+    OPENCLAW_BASE_URL: env.OPENCLAW_BASE_URL,
+    OPENCLAW_API_KEY: env.OPENCLAW_API_KEY,
     OPENCLAW_CONFIG_PATH: configPath,
   };
   if (requestedModel.startsWith('ollama/')) {
-    childEnv.OLLAMA_API_KEY = args.api_key || 'ollama';
+    childEnv.OLLAMA_API_KEY = env.OPENCLAW_API_KEY || 'ollama';
   }
 
   // Use the SAME node executable that's running this script — picking up
