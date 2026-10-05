@@ -12,14 +12,12 @@ gradient with KL penalty vs a frozen reference model.
 
 from __future__ import annotations
 
-import logging
+from loguru import logger
 from typing import Any, Dict, List, Protocol, runtime_checkable
 
 from vectorcode.src.vc_core.config import GRPOConfig
 from vectorcode.src.vc_core.registry import LearningRegistry
 from vectorcode.src.learning._abc import IntelligenceLearningPolicy
-
-logger = logging.getLogger(__name__)
 
 # Optional imports
 try:
@@ -135,7 +133,7 @@ class GRPOTrainer:
         try:
             return self._run_grpo(prompts, ground_truths)
         except Exception as exc:
-            logger.warning("GRPO training failed: %s", exc)
+            logger.warning("GRPO training failed: {}", exc)
             return {"status": "error", "reason": str(exc)}
 
     def _mine_prompts(self, trace_store: Any) -> List[str]:
@@ -204,7 +202,9 @@ class GRPOTrainer:
                     load_in_8bit=True
                 )
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug(
+                    "[VECTOR] bitsandbytes unavailable, falling back to bf16 ref model"
+                )
         ref_model = AutoModelForCausalLM.from_pretrained(
             self.config.model_name, **ref_kwargs
         )
@@ -242,7 +242,7 @@ class GRPOTrainer:
 
             avg_epoch_loss = epoch_loss / epoch_steps if epoch_steps else 0.0
             logger.info(
-                "GRPO epoch %d/%d  loss=%.4f",
+                "GRPO epoch {}/{}  loss={:.4f}",
                 epoch + 1,
                 self.config.num_epochs,
                 avg_epoch_loss,
@@ -337,6 +337,21 @@ class GRPOTrainer:
             advantages = (r_tensor - mean_r) / std_r
 
             for adv, lp, ref_lp in zip(advantages, log_probs, ref_lps):
+                # DESIGN QUESTION, not fixed: `lp` and `lp.detach()` are the
+                # SAME tensor's values (detach() only strips grad tracking),
+                # so `lp - lp.detach()` is identically 0.0 for every sample,
+                # every call -- ratio is mathematically guaranteed to always
+                # equal exp(0) == 1.0. clipped therefore always equals 1.0
+                # too (1.0 is always inside [1-clip_ratio, 1+clip_ratio]),
+                # and policy_loss collapses to a plain REINFORCE-style
+                # -advantage term; config.clip_ratio is silently inert. A
+                # real PPO/GRPO ratio needs an "old" log-prob frozen BEFORE
+                # the policy update it's being compared against (typically
+                # via multiple inner optimizer steps per sampled batch,
+                # which _run_grpo's single-pass-per-epoch structure doesn't
+                # do). Fixing this is a training-loop redesign decision,
+                # not a narrow bug patch -- flagging rather than guessing
+                # at the intended multi-epoch-per-batch semantics.
                 ratio = torch.exp(lp - lp.detach())  # importance ratio
                 clipped = torch.clamp(
                     ratio,

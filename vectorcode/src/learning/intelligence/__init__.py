@@ -12,8 +12,8 @@ from loguru import logger
 try:
     from vectorcode.src.learning.intelligence import sft_trainer as _sft  # noqa: F401
 except ImportError:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    logger.opt(exception=True).debug("[VECTOR] sft_trainer registration unavailable")
 try:
     from vectorcode.src.learning.intelligence import grpo_trainer as _grpo  # noqa: F401
 except ImportError:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    logger.opt(exception=True).debug("[VECTOR] grpo_trainer registration unavailable")
