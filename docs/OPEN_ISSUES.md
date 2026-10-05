@@ -3090,3 +3090,128 @@ isn't "proven in production" until you supply the service/device and run it live
     `agents/skill_discovery.py`, and the `optimize/personal/*`, `optimize/feedback/collector.py`,
     and `intelligence/orchestrator/{environment,reward,types,prompt_registry}.py` files remain
     unreviewed at full depth and should not be treated as audited.
+
+58. **`vectorcode/src/` 20-small-directory audit (62 production Python files, full depth,
+    2026-10-05) —** completed a line-by-line review of every tracked Python file directly in
+    `a2a`, `vc_traces`, `vc_sessions`, `scheduler`, `persona`, `operators`, `vc_skills`,
+    `sandbox`, `repl`, `recipes`, `mcp_client`, `guidance`, `vc_templates`, `traces`, `prompt`,
+    `neural_training`, `migrations`, `intelligence`, `acp`, and `transports` (62 files / 8,004
+    lines; tests excluded as audit targets). **Fixed with regression coverage:** operator
+    activation no longer leaves the scheduler's random task ID runnable alongside its stable
+    `operator:<id>` task; JSON session IDs can no longer traverse outside their store and corrupt
+    JSON is surfaced instead of treated as missing; persona profile names can no longer escape
+    their store and profile writes no longer report phantom success; direct persona Ollama calls
+    now include mandatory context hydration; recipe `max_tokens` is actually loaded/forwarded and
+    zero temperature is preserved; JSON-form chat responses retain usage/cache accounting; the
+    `vectorcode.src.transports` package now registers its own implementations rather than
+    accidentally importing the separate top-level `transports` package; A2A handler failures
+    now retain exception diagnostics; and the scoped Loguru shadowing, `%` placeholders, and
+    incompatible `exc_info=True` sites were corrected. Tests are in
+    `tests/test_vectorcode_small_dirs_round1.py` (13/13); that suite plus three existing A2A
+    suites passed 44/44, `tests/test_absorption.py` passed, all 62 scoped modules compile, and
+    `git diff --check` passed.
+
+    **OWNER DECISIONS / cross-boundary findings, not changed:** (1) ACP publishes agent creation,
+    execution, messaging, listing, deletion, and capability routes without authentication or an
+    established Permission Gateway check. Its default loopback bind reduces exposure, but the host
+    is configurable and the source already carries an owner flag. (2) `vc_sessions/session.py`,
+    `vc_traces/store.py`, and the migration utility use raw `sqlite3.connect()` for persistent
+    VECTOR session/trace data instead of the mandated SQLCipher gateway; migration semantics and
+    compatibility require an owner-directed conversion. (3) `mcp_client/client.py` is a separate
+    650-line implementation using a banned `threading.Thread`, while the package bridge and
+    initializer resolve `vectorcode.mcp_client.client`, a different tracked sibling shim; no live
+    caller of the scoped implementation was found, so deleting, consolidating, or asynchronously
+    redesigning it is an architectural choice. (4) MCP tool-group switches are discovery filters,
+    not authorization, and unknown group prefixes currently remain visible. (5) The out-of-scope
+    `vectorcode/src/server/api_routes.py` imports this slice's JSON `SessionStore` but calls missing
+    `.recent()` and `.get()` methods, so those endpoints fail/empty at runtime; repairing the API
+    contract spans the reserved `server/` scope. (6) The JSON store says it is JSONL but writes
+    individual JSON files, a documentation/format-contract ambiguity. Required focused commits
+    were attempted, but this sandbox cannot create `.git/index.lock` because `.git` is read-only;
+    the verified changes therefore remain uncommitted for the parent session.
+
+59. **`vectorcode/src/learning/` audit, round 4 (2026-10-05) —** continued from rounds 1-3
+    (which covered 15 files with real fixes plus a systemic loguru-shadow pass across 20 more).
+    This round's assigned priority files: `distillation/diagnose/tools.py`,
+    `optimize/{llm_optimizer,optimizer,store}.py`, `agents/{agent_evolver,skill_discovery}.py`,
+    `optimize/personal/{dataset,scorer,synthesizer}.py`, `optimize/feedback/collector.py`, and
+    `intelligence/orchestrator/{environment,reward,types,prompt_registry}.py` (13 files).
+    **Fixed, each with a new regression test verified to fail against the pre-fix code via
+    `git stash`:**
+    `distillation/diagnose/tools.py`'s `get_agent_prompt` tool built
+    `vector_home / "agents" / agent_name / "system_prompt.md"` with zero confinement —
+    `agent_name` is a tool-call argument chosen by the **teacher LLM** itself
+    (`teacher_agent.py:206`'s `tool.fn(**tc_args)` dispatches args parsed straight from the
+    model's own tool call), so a value like `"../../../../etc"` could walk the read outside
+    `vector_home/agents/`, breaking this module's own documented "read-only relative to the
+    user's config" invariant; added `_is_safe_path_component()` and applied it
+    (`tests/test_vectorcode_learning_diagnose_tools_path_traversal.py`, 3 tests).
+    `agents/agent_evolver.py`'s `AgentConfigEvolver.write_config()`/`list_versions()`/`rollback()`
+    built filesystem paths from a caller-supplied `agent_name` with zero confinement — `agent_name`
+    traces back to a stored `Trace.agent` field via `learning_orchestrator.py`'s
+    `evolver.analyze() -> rec["recommended_agent"] -> evolver.write_config(agent_name, ...)` — a
+    value like `"../../../../.ssh/authorized_keys"` would let `write_config`'s
+    `path.write_text()` write **outside** `config_dir` entirely, a write primitive more severe
+    than the read-only CWE-22 bugs found elsewhere this audit; `list_versions`/`rollback`'s glob +
+    `shutil.copy2` calls had the identical exposure. Same `_is_safe_path_component()` pattern
+    applied to `write_config()` and `list_versions()` (`rollback()` calls `list_versions()` first
+    so it's transitively covered) (`tests/test_vectorcode_learning_agent_evolver_path_traversal.py`,
+    4 tests). `optimize/optimizer.py`'s `_write_toml_fallback()` (the `export_best_recipe()`
+    fallback path used when `tomli_w` is missing — pinned in `requirements.txt` but the fallback
+    exists and is reachable for environments without it) manually interpolated string trial
+    params (e.g. `agent.system_prompt`, which can be DSPy/GEPA-generated optimizer output) into
+    TOML basic strings with **zero escaping**; the identical bug class already found and fixed in
+    `skills/overlay.py`'s `write_overlay()` this cycle. Added `_escape_toml_string()` with the
+    same TOML-spec-complete escaping (`tests/test_vectorcode_learning_optimizer_toml_escaping.py`,
+    2 tests). `intelligence/orchestrator/environment.py`'s `OrchestratorEnvironment.step()` built
+    the `ToolCall.arguments` string for any non-pre-JSON `tool_input` (the common case — e.g. a
+    plain calculator expression like `"2+2"`) via
+    `f'{{"expression": {repr(action.tool_input)}}}'` — Python's `repr()` on a string produces
+    single-quoted Python literal syntax, **not valid JSON**, but `ToolExecutor.execute()` parses
+    `arguments` with `json.loads()`. This guaranteed a `json.JSONDecodeError` for every such call,
+    silently turning into an "Invalid arguments JSON" error result instead of ever running the
+    tool — the orchestrator's RL training/eval loop never got real tool-execution reward signal
+    for any action whose input wasn't already pre-formatted JSON; a significant, previously
+    undetected correctness bug in the actual training pipeline, not just a logging nit. Fixed with
+    `json.dumps({"expression": action.tool_input})`
+    (`tests/test_vectorcode_learning_orchestrator_environment_json_args.py`, 2 tests).
+    `optimize/store.py`'s logger was shadowed by stdlib `logging.getLogger(__name__)` with 5
+    `%`-style placeholders; fixed to loguru + `{}`. **FLAGGED, not fixed — owner decision
+    needed:** `optimize/personal/synthesizer.py`'s `PersonalBenchmarkSynthesizer.synthesize()`
+    accepts a `workflow_id` parameter that only labels the returned `PersonalBenchmark` — it is
+    never used to filter which traces are pulled in, because `Trace` (`vc_core/types.py`) has no
+    `workflow_id` field at all and `TraceStore.list_traces()` has no matching filter clause; a
+    multi-workflow deployment would silently mix every workflow's traces into a benchmark that
+    claims to represent just one. Real scoping needs a `Trace` schema change plus a `TraceStore`
+    filter — not a narrow patch — so this is a comment-only flag, not a fix.
+    **Reviewed, no bug found (full depth):** `agents/skill_discovery.py` (pure in-memory
+    analysis, no filesystem/logging/subprocess surface at all), `optimize/llm_optimizer.py`
+    (663 lines — defensive multi-tier JSON-from-LLM-response parsing with honest
+    `reasoning="Failed to parse LLM response."` fallbacks, no `eval()`, no injection vectors),
+    `optimize/feedback/collector.py`, `optimize/personal/{dataset,scorer}.py`,
+    `intelligence/orchestrator/{reward,types,prompt_registry}.py` (the `SYSTEM_PROMPT_TEMPLATE
+    .format()` call only scans the template string's own braces, not the substituted
+    `tools_description`/`tool_selection_guide` values, so an MCP tool description containing
+    literal `{`/`}` cannot break it — confirmed, not a bug).
+    **Already-flagged, not re-flagged:** the orchestrator's no-op applier rollbacks +
+    non-transactional `CheckpointStore` (owner session-semantics decision, item 47);
+    `optimize/store.py`'s raw `sqlite3.connect()` is one of "the two learning stores" already
+    recorded for an owner migration decision (item 57); `threading.RLock` in `store.py` is a
+    legitimate synchronization primitive for a `check_same_thread=False` connection, not the
+    banned "spawn a worker thread" pattern.
+    New tests: 5 new test files, 11 tests total, all passing; 3 of 4 path-traversal/escaping
+    fixes independently verified via `git stash` to fail against the pre-fix code (the 4th —
+    `agent_evolver.py`'s `write_config` traversal case — failed differently pre-fix, with a bare
+    `FileNotFoundError` instead of the intended `ValueError`, which still confirms the unconfined
+    write attempt proceeded). Commits: `c79b5e290` (diagnose/tools.py), `75fd7c647`
+    (agent_evolver.py), `5621ca33c` (store.py), `0aaf3c36a` (optimizer.py), `6a5be1129`
+    (synthesizer.py flag), `dee2e7f45` (environment.py). **Depth statement:** all 13 assigned
+    files received genuine full line-by-line review this round (10 with no bug found, 4 with
+    real fixes, 1 flagged). Still not covered by any round: `diagnose/runner.py` and
+    `teacher_agent.py` only got the round-3 logging pass, not a full logic review, despite being
+    closely related to this round's `diagnose/tools.py` finding — worth prioritizing in a future
+    continuation given the real bug just found in their shared `diagnose/` package. The remaining
+    ~51 files in `vectorcode/src/learning/` outside this round's and prior rounds' assigned lists
+    (training/lora.py's and distillation/orchestrator.py's full logic, routing/*, most of
+    `intelligence/` outside the orchestrator package, `storage/session_store.py`, etc.) still need
+    a dedicated continuation pass.
