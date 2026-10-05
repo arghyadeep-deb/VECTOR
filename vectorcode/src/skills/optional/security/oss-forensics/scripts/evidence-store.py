@@ -27,6 +27,7 @@ import os
 import datetime
 import hashlib
 import sys
+import tempfile
 
 EVIDENCE_TYPES = [
     "git",           # Local git repository data (commits, reflog, fsck)
@@ -77,9 +78,22 @@ class EvidenceStore:
                 sys.exit(1)
 
     def _save(self):
+        # Chain-of-custody data must survive a crash mid-write: write to a
+        # temp file in the same directory and atomically replace, so a
+        # previously-good store is never left truncated/corrupted.
         self.data["metadata"]["last_updated"] = _now_iso()
-        with open(self.filepath, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, indent=2, ensure_ascii=False)
+        directory = os.path.dirname(os.path.abspath(self.filepath)) or "."
+        fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".evidence-", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(self.data, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_path, self.filepath)
+        except Exception:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
 
     def _next_id(self) -> str:
         return f"EV-{len(self.data['evidence']) + 1:04d}"
