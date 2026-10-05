@@ -103,6 +103,10 @@ def pixel_art(input_path, output_path, preset="arcade", **overrides):
         )
     cfg = {**PRESETS[preset], **overrides}
 
+    block = cfg["block"]
+    if not isinstance(block, int) or isinstance(block, bool) or block <= 0:
+        raise ValueError("block must be a positive integer")
+
     img = Image.open(input_path).convert("RGB")
 
     img = ImageEnhance.Contrast(img).enhance(cfg["contrast"])
@@ -111,7 +115,6 @@ def pixel_art(input_path, output_path, preset="arcade", **overrides):
     img = ImageOps.posterize(img, cfg["posterize_bits"])
 
     w, h = img.size
-    block = cfg["block"]
     small = img.resize(
         (max(1, w // block), max(1, h // block)),
         Image.NEAREST,

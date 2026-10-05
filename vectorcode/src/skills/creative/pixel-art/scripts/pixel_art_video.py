@@ -39,6 +39,11 @@ def _pixel_cross(draw, x, y, color, arm=2):
         _px(draw, x + i, y, color, 1)
         _px(draw, x, y + i, color, 1)
 
+def _randint_with_margin(rng, extent, margin):
+    """Choose an in-bounds coordinate, shrinking the margin for small images."""
+    effective_margin = min(margin, max(0, (extent - 1) // 2))
+    return rng.randint(effective_margin, max(effective_margin, extent - 1 - effective_margin))
+
 # ── Animation init/draw pairs ──────────────────────────────────────────
 
 def init_stars(rng, W, H):
@@ -50,7 +55,7 @@ def draw_stars(draw, stars, t, W, H):
             _pixel_cross(draw, sx, sy, (255, 255, 220), arm=2)
 
 def init_fireflies(rng, W, H):
-    return [{"x": rng.randint(20, W - 20), "y": rng.randint(H // 4, H - 20),
+    return [{"x": _randint_with_margin(rng, W, 20), "y": _randint_with_margin(rng, H, 20),
              "phase": rng.uniform(0, 6.28), "speed": rng.uniform(0.3, 0.8)}
             for _ in range(10)]
 
@@ -78,7 +83,7 @@ def draw_leaves(draw, leaves, t, W, H):
             leaf["color"], 2)
 
 def init_dust_motes(rng, W, H):
-    return [{"x": rng.randint(30, W - 30), "y": rng.randint(30, H - 30),
+    return [{"x": _randint_with_margin(rng, W, 30), "y": _randint_with_margin(rng, H, 30),
              "phase": rng.uniform(0, 6.28), "speed": rng.uniform(0.2, 0.5),
              "amp": rng.uniform(2, 6)} for _ in range(20)]
 
@@ -127,7 +132,7 @@ def draw_lightning(draw, state, t, W, H):
         state["flash"] = False
 
 def init_bubbles(rng, W, H):
-    return [{"x": rng.randint(20, W - 20), "y": rng.randint(H, H * 2),
+    return [{"x": _randint_with_margin(rng, W, 20), "y": rng.randint(H, H * 2),
              "speed": rng.uniform(0.3, 0.8), "size": rng.choice([1, 2, 2])}
             for _ in range(15)]
 
@@ -254,6 +259,10 @@ def pixel_art_video(
         raise ValueError(
             f"Unknown scene {scene!r}. Choose from: {sorted(SCENES)}"
         )
+    if not isinstance(fps, int) or isinstance(fps, bool) or fps <= 0:
+        raise ValueError("fps must be a positive integer")
+    if not isinstance(duration, (int, float)) or isinstance(duration, bool) or duration <= 0:
+        raise ValueError("duration must be positive")
     _ensure_ffmpeg()
 
     base = Image.open(base_image).convert("RGB")
@@ -265,7 +274,7 @@ def pixel_art_video(
         init_fn, draw_fn = _LAYERS[name]
         layers.append((draw_fn, init_fn(rng, W, H)))
 
-    n_frames = fps * duration
+    n_frames = max(1, round(fps * duration))
     os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
 
     with tempfile.TemporaryDirectory(prefix="pixelart_frames_") as frames_dir:

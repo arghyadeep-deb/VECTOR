@@ -23,6 +23,14 @@ import shutil
 import sys
 from pathlib import Path
 
+def _confined_child(directory: Path, name: str) -> Path:
+    """Resolve a direct child of *directory*, rejecting traversal and absolute paths."""
+    directory = directory.resolve()
+    candidate = (directory / name).resolve()
+    if candidate.parent != directory:
+        raise ValueError(f"Source must be a direct child of {directory}: {name!r}")
+    return candidate
+
 def get_next_slide_number(slides_dir: Path) -> int:
     existing = [int(m.group(1)) for f in slides_dir.glob("slide*.xml")
                 if (m := re.match(r"slide(\d+)\.xml", f.name))]
@@ -33,7 +41,7 @@ def create_slide_from_layout(unpacked_dir: Path, layout_file: str) -> None:
     rels_dir = slides_dir / "_rels"
     layouts_dir = unpacked_dir / "ppt" / "slideLayouts"
 
-    layout_path = layouts_dir / layout_file
+    layout_path = _confined_child(layouts_dir, layout_file)
     if not layout_path.exists():
         print(f"Error: {layout_path} not found", file=sys.stderr)
         sys.exit(1)
@@ -88,7 +96,7 @@ def duplicate_slide(unpacked_dir: Path, source: str) -> None:
     slides_dir = unpacked_dir / "ppt" / "slides"
     rels_dir = slides_dir / "_rels"
 
-    source_slide = slides_dir / source
+    source_slide = _confined_child(slides_dir, source)
 
     if not source_slide.exists():
         print(f"Error: {source_slide} not found", file=sys.stderr)

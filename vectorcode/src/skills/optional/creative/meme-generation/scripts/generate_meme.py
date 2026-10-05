@@ -22,11 +22,7 @@ import textwrap
 from io import BytesIO
 from pathlib import Path
 
-try:
-    import requests as _requests
-except ImportError:
-    _requests = None
-
+import httpx
 from PIL import Image, ImageDraw, ImageFont
 
 SCRIPT_DIR = Path(__file__).parent
@@ -37,13 +33,10 @@ IMGFLIP_CACHE_FILE = CACHE_DIR / "imgflip_memes.json"
 IMGFLIP_CACHE_MAX_AGE = 86400  # 24 hours
 
 def _fetch_url(url: str, timeout: int = 15) -> bytes:
-    """Fetch URL content, using requests if available, else urllib."""
-    if _requests is not None:
-        resp = _requests.get(url, timeout=timeout)
-        resp.raise_for_status()
-        return resp.content
-    import urllib.request
-    return urllib.request.urlopen(url, timeout=timeout).read()
+    """Fetch URL content and reject non-success responses."""
+    response = httpx.get(url, timeout=timeout)
+    response.raise_for_status()
+    return response.content
 
 def load_curated_templates() -> dict:
     """Load templates with hand-tuned text field positions."""
