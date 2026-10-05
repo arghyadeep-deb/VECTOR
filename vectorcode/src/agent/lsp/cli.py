@@ -244,7 +244,7 @@ def _cmd_which(server_id: str) -> int:
     import os
     import shutil as _shutil
 
-    recipe = INSTALL_RECIPES.get(server_id)
+    recipe = INSTALL_RECIPES.get(_recipe_pkg_for(server_id))
     bin_name = (recipe or {}).get("bin", server_id)
     staged = vector_lsp_bin_dir() / bin_name
     if staged.exists():
