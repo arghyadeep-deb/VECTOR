@@ -169,7 +169,7 @@ def _remove_env_source(provider: str, removed) -> RemovalResult:
                 for line in env_path.read_text(errors="replace").splitlines()
             )
     except OSError as _sve:
-        logger.warning("[VECTOR][agent.credential_sources] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][agent.credential_sources] suppressed OSError: {}", _sve)
     shell_exported = env_in_process and not env_in_dotenv
 
     cleared = remove_env_value(env_var)

@@ -49,12 +49,11 @@ from __future__ import annotations
 import abc
 import base64
 import datetime
-import logging
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 # Common aspect ratios across providers (Veo / Kling / xAI / Pixverse). The

@@ -13,11 +13,9 @@ from __future__ import annotations
 from loguru import logger
 
 import enum
-import logging
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional
 
-logger = logging.getLogger(__name__)
 
 
 # ── Error taxonomy ──────────────────────────────────────────────────────
@@ -397,7 +395,7 @@ def classify_api_error(
                             if isinstance(_inner_err, dict):
                                 _metadata_msg = str(_inner_err.get("message") or "").lower()
                     except (json.JSONDecodeError, TypeError) as _sve:
-                        logger.debug("[VECTOR][agent.error_classifier] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
+                        logger.debug("[VECTOR][agent.error_classifier] suppressed (json.JSONDecodeError, TypeError): {}", _sve)
         if not _body_msg:
             _body_msg = str(body.get("message") or "").lower()
     # Combine all message sources for pattern matching
@@ -944,7 +942,7 @@ def _extract_error_body(error: Exception) -> dict:
             if isinstance(json_body, dict):
                 return json_body
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.error_classifier] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.error_classifier] suppressed Exception: {}", _sve)
     return {}
 
 

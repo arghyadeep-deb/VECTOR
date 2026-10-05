@@ -35,12 +35,11 @@ main model.
 from __future__ import annotations
 
 import base64
-import logging
 import mimetypes
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 _VALID_MODES = frozenset({"auto", "native", "text"})
@@ -89,7 +88,7 @@ def _lookup_supports_vision(provider: str, model: str) -> Optional[bool]:
         from agent.models_dev import get_model_capabilities
         caps = get_model_capabilities(provider, model)
     except Exception as exc:  # pragma: no cover - defensive
-        logger.debug("image_routing: caps lookup failed for %s:%s — %s", provider, model, exc)
+        logger.debug("image_routing: caps lookup failed for {}:{} — {}", provider, model, exc)
         return None
     if caps is None:
         return None
@@ -176,7 +175,7 @@ def _file_to_data_url(path: Path) -> Optional[str]:
     try:
         raw = path.read_bytes()
     except Exception as exc:
-        logger.warning("image_routing: failed to read %s — %s", path, exc)
+        logger.warning("image_routing: failed to read {} — {}", path, exc)
         return None
     mime = _guess_mime(path)
     b64 = base64.b64encode(raw).decode("ascii")

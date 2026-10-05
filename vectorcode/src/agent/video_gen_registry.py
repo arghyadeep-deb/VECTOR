@@ -21,13 +21,11 @@ same.
 
 from __future__ import annotations
 
-import logging
 import threading
 from typing import Dict, List, Optional
 
 from agent.video_gen_provider import VideoGenProvider
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 _providers: Dict[str, VideoGenProvider] = {}
@@ -53,9 +51,9 @@ def register_provider(provider: VideoGenProvider) -> None:
         existing = _providers.get(name)
         _providers[name] = provider
     if existing is not None:
-        logger.debug("Video gen provider '%s' re-registered (was %r)", name, type(existing).__name__)
+        logger.debug("Video gen provider '{}' re-registered (was {!r})", name, type(existing).__name__)
     else:
-        logger.debug("Registered video gen provider '%s' (%s)", name, type(provider).__name__)
+        logger.debug("Registered video gen provider '{}' ({})", name, type(provider).__name__)
 
 
 def list_providers() -> List[VideoGenProvider]:
@@ -90,7 +88,7 @@ def get_active_provider() -> Optional[VideoGenProvider]:
             if isinstance(raw, str) and raw.strip():
                 configured = raw.strip()
     except Exception as exc:
-        logger.debug("Could not read video_gen.provider from config: %s", exc)
+        logger.debug("Could not read video_gen.provider from config: {}", exc)
 
     with _lock:
         snapshot = dict(_providers)
@@ -100,7 +98,7 @@ def get_active_provider() -> Optional[VideoGenProvider]:
         if provider is not None:
             return provider
         logger.debug(
-            "video_gen.provider='%s' configured but not registered; falling back",
+            "video_gen.provider='{}' configured but not registered; falling back",
             configured,
         )
 

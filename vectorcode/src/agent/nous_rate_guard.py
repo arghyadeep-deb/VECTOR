@@ -14,13 +14,11 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import tempfile
 import time
 from typing import Any, Mapping, Optional
 
-logger = logging.getLogger(__name__)
 
 _STATE_SUBDIR = "rate_limits"
 _STATE_FILENAME = "nous.json"
@@ -63,7 +61,7 @@ def _parse_reset_seconds(headers: Optional[Mapping[str, str]]) -> Optional[float
                 if val > 0:
                     return val
             except (TypeError, ValueError) as _sve:
-                logger.debug("[VECTOR][agent.nous_rate_guard] suppressed (TypeError, ValueError): %s", _sve)
+                logger.debug("[VECTOR][agent.nous_rate_guard] suppressed (TypeError, ValueError): {}", _sve)
 
     return None
 
@@ -125,7 +123,7 @@ def record_nous_rate_limit(
             try:
                 os.unlink(tmp_path)
             except OSError as _sve:
-                logger.warning("[VECTOR][agent.nous_rate_guard] suppressed OSError: %s", _sve)
+                logger.warning("[VECTOR][agent.nous_rate_guard] suppressed OSError: {}", _sve)
             raise
 
         logger.info(
@@ -133,7 +131,7 @@ def record_nous_rate_limit(
             reset_at - now, reset_at,
         )
     except Exception as exc:
-        logger.debug("Failed to write Nous rate limit state: %s", exc)
+        logger.debug("Failed to write Nous rate limit state: {}", exc)
 
 
 def nous_rate_limit_remaining() -> Optional[float]:
@@ -154,7 +152,7 @@ def nous_rate_limit_remaining() -> Optional[float]:
         try:
             os.unlink(path)
         except OSError as _sve:
-            logger.warning("[VECTOR][agent.nous_rate_guard] suppressed OSError: %s", _sve)
+            logger.warning("[VECTOR][agent.nous_rate_guard] suppressed OSError: {}", _sve)
         return None
     except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
         return None
@@ -165,9 +163,9 @@ def clear_nous_rate_limit() -> None:
     try:
         os.unlink(_state_path())
     except FileNotFoundError as _sve:
-        logger.warning("[VECTOR][agent.nous_rate_guard] suppressed FileNotFoundError: %s", _sve)
+        logger.warning("[VECTOR][agent.nous_rate_guard] suppressed FileNotFoundError: {}", _sve)
     except OSError as exc:
-        logger.debug("Failed to clear Nous rate limit state: %s", exc)
+        logger.debug("Failed to clear Nous rate limit state: {}", exc)
 
 
 def format_remaining(seconds: float) -> str:

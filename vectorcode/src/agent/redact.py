@@ -11,8 +11,6 @@ import logging
 import os
 import re
 
-logger = logging.getLogger(__name__)
-
 # Sensitive query-string parameter names (case-insensitive exact match).
 # Ported from nearai/ironclaw#2529 — catches tokens whose values don't match
 # any known vendor prefix regex (e.g. opaque tokens, short OAuth codes).

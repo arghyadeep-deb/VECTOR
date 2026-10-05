@@ -20,7 +20,6 @@ from loguru import logger
 import asyncio
 import base64
 import json
-import logging
 import time
 import uuid
 from types import SimpleNamespace
@@ -29,8 +28,6 @@ from typing import Any, Dict, Iterator, List, Optional
 import httpx
 
 from agent.gemini_schema import sanitize_gemini_tool_parameters
-
-logger = logging.getLogger(__name__)
 
 DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
@@ -85,7 +82,7 @@ def probe_gemini_tier(
                 headers={"Content-Type": "application/json"},
             )
     except Exception as exc:
-        logger.debug("probe_gemini_tier: network error: %s", exc)
+        logger.debug("probe_gemini_tier: network error: {}", exc)
         return "unknown"
 
     headers_lower = {k.lower(): v for k, v in resp.headers.items()}
@@ -610,7 +607,7 @@ def _iter_sse_events(response: httpx.Response) -> Iterator[Dict[str, Any]]:
             try:
                 payload = json.loads(data)
             except json.JSONDecodeError:
-                logger.debug("Non-JSON Gemini SSE line: %s", data[:200])
+                logger.debug("Non-JSON Gemini SSE line: {}", data[:200])
                 continue
             if isinstance(payload, dict):
                 yield payload
@@ -826,7 +823,7 @@ class GeminiNativeClient:
         try:
             self._http.close()
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.gemini_native_adapter] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.gemini_native_adapter] suppressed Exception: {}", _sve)
 
     def __enter__(self):
         return self

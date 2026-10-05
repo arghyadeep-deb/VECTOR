@@ -20,13 +20,12 @@ If unset, :func:`get_active_provider` applies fallback logic:
 
 from __future__ import annotations
 
-import logging
 import threading
 from typing import Dict, List, Optional
 
 from agent.image_gen_provider import ImageGenProvider
+from loguru import logger
 
-logger = logging.getLogger(__name__)
 
 
 _providers: Dict[str, ImageGenProvider] = {}
@@ -52,9 +51,9 @@ def register_provider(provider: ImageGenProvider) -> None:
         existing = _providers.get(name)
         _providers[name] = provider
     if existing is not None:
-        logger.debug("Image gen provider '%s' re-registered (was %r)", name, type(existing).__name__)
+        logger.debug("Image gen provider '{}' re-registered (was {!r})", name, type(existing).__name__)
     else:
-        logger.debug("Registered image gen provider '%s' (%s)", name, type(provider).__name__)
+        logger.debug("Registered image gen provider '{}' ({})", name, type(provider).__name__)
 
 
 def list_providers() -> List[ImageGenProvider]:
@@ -89,7 +88,7 @@ def get_active_provider() -> Optional[ImageGenProvider]:
             if isinstance(raw, str) and raw.strip():
                 configured = raw.strip()
     except Exception as exc:
-        logger.debug("Could not read image_gen.provider from config: %s", exc)
+        logger.debug("Could not read image_gen.provider from config: {}", exc)
 
     with _lock:
         snapshot = dict(_providers)

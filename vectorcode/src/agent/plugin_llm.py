@@ -62,13 +62,9 @@ from loguru import logger
 
 import base64
 import json
-import logging
 import re
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Union
-
-logger = logging.getLogger(__name__)
-
 
 # ---------------------------------------------------------------------------
 # Public dataclasses
@@ -537,7 +533,7 @@ def _extract_text(response: Any) -> str:
                         parts.append(txt)
             return "".join(parts)
     except (AttributeError, IndexError, TypeError) as _sve:
-        logger.debug("[VECTOR][agent.plugin_llm] suppressed (AttributeError, IndexError, TypeError): %s", _sve)
+        logger.debug("[VECTOR][agent.plugin_llm] suppressed (AttributeError, IndexError, TypeError): {}", _sve)
     return ""
 
 

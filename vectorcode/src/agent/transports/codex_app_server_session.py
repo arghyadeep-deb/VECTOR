@@ -25,7 +25,6 @@ call is synchronous and behaves like AIAgent's existing chat_completions loop.
 from __future__ import annotations
 from loguru import logger
 
-import logging
 import os
 import threading
 import time
@@ -38,8 +37,6 @@ from agent.transports.codex_app_server import (
     CodexAppServerError,
 )
 from agent.transports.codex_event_projector import CodexEventProjector
-
-logger = logging.getLogger(__name__)
 
 
 # How many tailing stderr lines from the codex subprocess to attach to a
@@ -253,7 +250,7 @@ class CodexAppServerSession:
             )
         self._thread_id = thread_id
         logger.info(
-            "codex app-server thread started: id=%s profile=%s cwd=%s",
+            "codex app-server thread started: id={} profile={} cwd={}",
             self._thread_id[:8],
             self._permission_profile,
             self._cwd,
@@ -268,7 +265,7 @@ class CodexAppServerSession:
             try:
                 self._client.close()
             except Exception as _sve:  # pragma: no cover - best-effort cleanup
-                logger.debug("[VECTOR][agent.transports.codex_app_server_session] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.transports.codex_app_server_session] suppressed Exception: {}", _sve)
             self._client = None
         self._thread_id = None
 
@@ -499,7 +496,7 @@ class CodexAppServerSession:
                 try:
                     self._on_event(note)
                 except Exception:  # pragma: no cover - display callback
-                    logger.debug("on_event callback raised", exc_info=True)
+                    logger.opt(exception=True).debug("on_event callback raised")
 
             # Track in-progress fileChange items so the approval bridge
             # can surface a real change summary when codex requests
@@ -591,7 +588,7 @@ class CodexAppServerSession:
             )
         except CodexAppServerError as exc:
             # "no active turn to interrupt" is fine — already done.
-            logger.debug("turn/interrupt non-fatal: %s", exc)
+            logger.debug("turn/interrupt non-fatal: {}", exc)
         except TimeoutError:
             logger.warning("turn/interrupt timed out")
 
@@ -648,7 +645,7 @@ class CodexAppServerSession:
         else:
             # Unknown server request — codex can extend this surface. Reject
             # cleanly so codex doesn't hang waiting for us.
-            logger.warning("Unknown codex server request: %s", method)
+            logger.warning("Unknown codex server request: {}", method)
             self._client.respond_error(
                 rid, code=-32601, message=f"Unsupported method: {method}"
             )

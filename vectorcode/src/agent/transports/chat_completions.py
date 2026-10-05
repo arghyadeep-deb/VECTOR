@@ -324,7 +324,7 @@ class ChatCompletionsTransport(ProviderTransport):
                         try:
                             extra = extra.model_dump()
                         except Exception as _sve:
-                            logger.debug("[VECTOR][agent.transports.chat_completions] suppressed Exception: %s", _sve)
+                            logger.debug("[VECTOR][agent.transports.chat_completions] suppressed Exception: {}", _sve)
                     tc_provider_data["extra_content"] = extra
                 tool_calls.append(ToolCall(
                     id=tc.id,

@@ -42,7 +42,7 @@ import os
 import sys
 from typing import Any, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 # Tools we expose. Each name MUST match a registered VECTOR tool that
@@ -156,7 +156,7 @@ def _build_server() -> Any:
                 try:
                     return handle_function_call(tool_name, kwargs or {})
                 except Exception as exc:
-                    logger.exception("tool %s raised", tool_name)
+                    logger.exception("tool {} raised", tool_name)
                     return json.dumps({"error": str(exc), "tool": tool_name})
             _dispatch.__name__ = tool_name
             _dispatch.__doc__ = description

@@ -274,9 +274,9 @@ class LSPClient:
                     break
                 text = line.decode("utf-8", errors="replace").rstrip()
                 if text:
-                    logger.debug("[%s] stderr: %s", self.server_id, text[:1000])
+                    logger.debug("[{}] stderr: {}", self.server_id, text[:1000])
         except (asyncio.CancelledError, OSError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     async def _reader_loop(self) -> None:
         if self._proc is None or self._proc.stdout is None:
@@ -285,7 +285,7 @@ class LSPClient:
             while True:
                 msg = await read_message(self._proc.stdout)
                 if msg is None:
-                    logger.debug("[%s] server closed stdout cleanly", self.server_id)
+                    logger.debug("[{}] server closed stdout cleanly", self.server_id)
                     break
                 kind, key = classify_message(msg)
                 if kind == "response":
@@ -295,11 +295,11 @@ class LSPClient:
                 elif kind == "notification":
                     self._dispatch_notification(key, msg)
                 else:
-                    logger.warning("[%s] dropping invalid message: %r", self.server_id, msg)
+                    logger.warning("[{}] dropping invalid message: {!r}", self.server_id, msg)
         except LSPProtocolError as e:
-            logger.warning("[%s] protocol error in reader loop: %s", self.server_id, e)
+            logger.warning("[{}] protocol error in reader loop: {}", self.server_id, e)
         except (asyncio.CancelledError, OSError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         finally:
             # Wake up any pending requests so they can fail fast.
             for fut in list(self._pending.values()):
@@ -395,11 +395,11 @@ class LSPClient:
                 try:
                     await asyncio.wait_for(self._send_request("shutdown", None), timeout=2.0)
                 except (asyncio.TimeoutError, LSPRequestError, LSPProtocolError):
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
                 try:
                     await self._send_notification("exit", None)
                 except Exception:
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         finally:
             self._state = "stopped"
             await self._cleanup_process()
@@ -410,13 +410,13 @@ class LSPClient:
             try:
                 await self._reader_task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         if self._stderr_task is not None and not self._stderr_task.done():
             self._stderr_task.cancel()
             try:
                 await self._stderr_task
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         proc = self._proc
         self._proc = None
         if proc is None:
@@ -431,9 +431,9 @@ class LSPClient:
                         proc.kill()
                         await proc.wait()
                     except ProcessLookupError:
-                        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
             except ProcessLookupError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     # ------------------------------------------------------------------
     # request / notification plumbing
@@ -481,7 +481,7 @@ class LSPClient:
             self._proc.stdin.write(encode_message(make_notification(method, params)))
             await self._proc.stdin.drain()
         except (BrokenPipeError, ConnectionResetError, OSError) as e:
-            logger.debug("[%s] notify %s failed: %s", self.server_id, method, e)
+            logger.debug("[{}] notify {} failed: {}", self.server_id, method, e)
 
     async def _send_response(self, req_id: Any, result: Any) -> None:
         if self._proc is None or self._proc.stdin is None or self._proc.stdin.is_closing():
@@ -490,7 +490,7 @@ class LSPClient:
             self._proc.stdin.write(encode_message(make_response(req_id, result)))
             await self._proc.stdin.drain()
         except (BrokenPipeError, ConnectionResetError, OSError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     async def _send_error_response(self, req_id: Any, code: int, message: str) -> None:
         if self._proc is None or self._proc.stdin is None or self._proc.stdin.is_closing():
@@ -499,7 +499,7 @@ class LSPClient:
             self._proc.stdin.write(encode_message(make_error_response(req_id, code, message)))
             await self._proc.stdin.drain()
         except (BrokenPipeError, ConnectionResetError, OSError):
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     def _dispatch_response(self, req_id: int, msg: dict) -> None:
         fut = self._pending.get(req_id)
@@ -527,7 +527,7 @@ class LSPClient:
         try:
             result = await handler(params)
         except Exception as e:  # noqa: BLE001 — protocol must not blow up
-            logger.warning("[%s] request handler %s failed: %s", self.server_id, method, e)
+            logger.warning("[{}] request handler {} failed: {}", self.server_id, method, e)
             await self._send_error_response(req_id, -32000, f"handler failed: {e}")
             return
         await self._send_response(req_id, result)
@@ -539,7 +539,7 @@ class LSPClient:
         try:
             handler(msg.get("params"))
         except Exception as e:  # noqa: BLE001
-            logger.debug("[%s] notification handler %s failed: %s", self.server_id, method, e)
+            logger.debug("[{}] notification handler {} failed: {}", self.server_id, method, e)
 
     # ------------------------------------------------------------------
     # built-in server-→-client request handlers
@@ -755,7 +755,7 @@ class LSPClient:
                 timeout=DIAGNOSTICS_REQUEST_TIMEOUT,
             )
         except (LSPRequestError, LSPProtocolError, asyncio.TimeoutError) as e:
-            logger.debug("[%s] document diagnostic pull failed: %s", self.server_id, e)
+            logger.debug("[{}] document diagnostic pull failed: {}", self.server_id, e)
             return
         if not isinstance(result, dict):
             return
@@ -808,7 +808,7 @@ class LSPClient:
                 try:
                     await t
                 except (asyncio.CancelledError, Exception):  # noqa: BLE001
-                    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
             # If we got a fresh push for our version, we're done.
             current_v = self._published_version.get(abs_path)

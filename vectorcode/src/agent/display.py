@@ -1,11 +1,9 @@
 """CLI presentation -- spinner, kawaii faces, tool preview formatting.
-from loguru import logger
 
 Pure display functions and classes with no AIAgent dependency.
 Used by AIAgent._execute_tool_calls for CLI feedback.
 """
 
-import logging
 import os
 import sys
 import threading
@@ -14,13 +12,13 @@ from dataclasses import dataclass, field
 from difflib import unified_diff
 from pathlib import Path
 
+from loguru import logger
 from utils import safe_json_loads
 
 # ANSI escape codes for coloring tool failure indicators
 _RED = "\033[31m"
 _RESET = "\033[0m"
 
-logger = logging.getLogger(__name__)
 
 _ANSI_RESET = "\033[0m"
 
@@ -69,7 +67,7 @@ def _diff_ansi() -> dict[str, str]:
             or_, og, ob = int(ok_h[1:3], 16), int(ok_h[3:5], 16), int(ok_h[5:7], 16)
             plus = f"\033[38;2;255;255;255;48;2;{max(or_//4,10)};{max(og//2,20)};{max(ob//4,10)}m"
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.display] suppressed Exception: {}", _sve)
 
     _diff_colors_cached = {
         "dim": dim, "file": file_c, "hunk": hunk,
@@ -154,7 +152,7 @@ def get_tool_emoji(tool_name: str, default: str = "⚡") -> str:
         if emoji:
             return emoji
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.display] suppressed Exception: {}", _sve)
     # 3. Hardcoded fallback
     return default
 
@@ -562,7 +560,7 @@ def render_edit_diff_with_delta(
     try:
         rendered_lines = _summarize_rendered_diff_sections(diff)
     except Exception as exc:
-        logger.debug("Could not render inline diff: %s", exc)
+        logger.debug("Could not render inline diff: {}", exc)
         return False
     return _emit_inline_diff("\n".join(rendered_lines), print_fn)
 
@@ -613,7 +611,7 @@ class KawaiiSpinner:
                 if faces:
                     return faces
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.display] suppressed Exception: {}", _sve)
         return cls.KAWAII_WAITING
 
     @classmethod
@@ -626,7 +624,7 @@ class KawaiiSpinner:
                 if faces:
                     return faces
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.display] suppressed Exception: {}", _sve)
         return cls.KAWAII_THINKING
 
     @classmethod
@@ -639,7 +637,7 @@ class KawaiiSpinner:
                 if verbs:
                     return verbs
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.display] suppressed Exception: {}", _sve)
         return cls.THINKING_VERBS
 
     def __init__(self, message: str = "", spinner_type: str = 'dots', print_fn=None):
@@ -668,14 +666,14 @@ class KawaiiSpinner:
             try:
                 self._print_fn(text)
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.display] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.display] suppressed Exception: {}", _sve)
             return
         try:
             self._out.write(text + end)
             if flush:
                 self._out.flush()
         except (ValueError, OSError) as _sve:
-            logger.debug("[VECTOR][agent.display] suppressed (ValueError, OSError): %s", _sve)
+            logger.debug("[VECTOR][agent.display] suppressed (ValueError, OSError): {}", _sve)
 
     @property
     def _is_tty(self) -> bool:
@@ -747,6 +745,9 @@ class KawaiiSpinner:
             return
         self.running = True
         self.start_time = time.time()
+        # OWNER DECISION: CLAUDE.md bans threading.Thread. The spinner is a
+        # synchronous context-manager API, so replacing this animation worker
+        # safely requires changing its callers rather than a narrow audit fix.
         self.thread = threading.Thread(target=self._animate, daemon=True)
         self.thread.start()
 

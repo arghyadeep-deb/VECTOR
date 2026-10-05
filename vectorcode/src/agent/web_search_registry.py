@@ -32,13 +32,12 @@ through to an extract-capable backend.
 
 from __future__ import annotations
 
-import logging
 import threading
 from typing import Dict, List, Optional
 
 from agent.web_search_provider import WebSearchProvider
+from loguru import logger
 
-logger = logging.getLogger(__name__)
 
 
 _providers: Dict[str, WebSearchProvider] = {}
@@ -109,7 +108,7 @@ def _read_config_key(*path: str) -> Optional[str]:
         if isinstance(cur, str) and cur.strip():
             return cur.strip()
     except Exception as exc:
-        logger.debug("Could not read config %s: %s", ".".join(path), exc)
+        logger.debug("Could not read config {}: {}", ".".join(path), exc)
     return None
 
 
@@ -177,7 +176,7 @@ def _resolve(configured: Optional[str], *, capability: str) -> Optional[WebSearc
         try:
             return bool(p.is_available())
         except Exception as exc:  # noqa: BLE001
-            logger.debug("provider %s.is_available() raised %s", p.name, exc)
+            logger.debug("provider {}.is_available() raised {}", p.name, exc)
             return False
 
     # 1. Explicit config wins — return regardless of is_available() so the

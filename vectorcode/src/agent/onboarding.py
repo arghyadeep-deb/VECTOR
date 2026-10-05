@@ -12,11 +12,10 @@ it without pulling in heavy modules.
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 from typing import Any, Mapping, Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 # -------------------------------------------------------------------------
@@ -152,7 +151,7 @@ def mark_seen(config_path: Path, flag: str) -> bool:
         import yaml
         from utils import atomic_yaml_write
     except Exception as e:  # pragma: no cover — dependency issue
-        logger.debug("onboarding: failed to import yaml/utils: %s", e)
+        logger.debug("onboarding: failed to import yaml/utils: {}", e)
         return False
 
     try:
@@ -172,7 +171,7 @@ def mark_seen(config_path: Path, flag: str) -> bool:
         atomic_yaml_write(config_path, cfg)
         return True
     except Exception as e:
-        logger.debug("onboarding: failed to mark flag %s: %s", flag, e)
+        logger.debug("onboarding: failed to mark flag {}: {}", flag, e)
         return False
 
 

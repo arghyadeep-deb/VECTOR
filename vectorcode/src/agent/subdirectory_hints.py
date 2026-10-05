@@ -1,5 +1,4 @@
 """Progressive subdirectory hint discovery.
-from loguru import logger
 
 As the agent navigates into subdirectories via tool calls (read_file, terminal,
 search_files, etc.), this module discovers and loads project context files
@@ -14,15 +13,15 @@ the conversation without modifying the system prompt (preserving prompt caching)
 Inspired by Block/goose's SubdirectoryHintTracker.
 """
 
-import logging
 import os
 import shlex
 from pathlib import Path
 from typing import Dict, Any, Optional, Set
 
+from loguru import logger
+
 from agent.prompt_builder import _scan_context_content
 
-logger = logging.getLogger(__name__)
 
 # Context files to look for in subdirectories, in priority order.
 # Same filenames as prompt_builder.py but we load ALL found (not first-wins)
@@ -137,7 +136,7 @@ class SubdirectoryHintTracker:
                     break  # filesystem root
                 p = parent
         except (OSError, ValueError) as _sve:
-            logger.warning("[VECTOR][agent.subdirectory_hints] suppressed (OSError, ValueError): %s", _sve)
+            logger.warning("[VECTOR][agent.subdirectory_hints] suppressed (OSError, ValueError): {}", _sve)
 
     def _extract_paths_from_command(self, cmd: str, candidates: Set[Path]):
         """Extract path-like tokens from a shell command string."""
@@ -206,7 +205,7 @@ class SubdirectoryHintTracker:
                 # First match wins per directory (like startup loading)
                 break
             except Exception as exc:
-                logger.debug("Could not read %s: %s", hint_path, exc)
+                logger.debug("Could not read {}: {}", hint_path, exc)
 
         if not found_hints:
             return None

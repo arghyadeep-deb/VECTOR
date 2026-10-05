@@ -39,7 +39,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import re
 import shutil
@@ -52,7 +51,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from vectorcode.src.vector_constants import get_vector_home
 
-logger = logging.getLogger(__name__)
 
 
 DEFAULT_KEEP = 5
@@ -101,7 +99,7 @@ def _backup_cron_jobs_into(dest: Path) -> Dict[str, Any]:
     try:
         raw = src.read_text(encoding="utf-8")
     except OSError as e:
-        logger.debug("Failed to read cron/jobs.json for backup: %s", e)
+        logger.debug("Failed to read cron/jobs.json for backup: {}", e)
         info["reason"] = f"read error: {e}"
         return info
     # Count jobs as a nice diagnostic — but don't fail the snapshot if the
@@ -123,7 +121,7 @@ def _backup_cron_jobs_into(dest: Path) -> Dict[str, Any]:
     try:
         (dest / CRON_JOBS_FILENAME).write_text(raw, encoding="utf-8")
     except OSError as e:
-        logger.debug("Failed to write cron backup file: %s", e)
+        logger.debug("Failed to write cron backup file: {}", e)
         info["reason"] = f"write error: {e}"
         return info
     info["backed_up"] = True
@@ -146,7 +144,7 @@ def _load_config() -> Dict[str, Any]:
         from vectorcode.src.vector_cli.config import load_config
         cfg = load_config()
     except Exception as e:
-        logger.debug("Failed to load config for curator backup: %s", e)
+        logger.debug("Failed to load config for curator backup: {}", e)
         return {}
     if not isinstance(cfg, dict):
         return {}
@@ -228,7 +226,7 @@ def snapshot_skills(reason: str = "manual") -> Optional[Path]:
     try:
         backups.mkdir(parents=True, exist_ok=True)
     except OSError as e:
-        logger.debug("Failed to create backups dir %s: %s", backups, e)
+        logger.debug("Failed to create backups dir {}: {}", backups, e)
         return None
 
     # Uniquify: if a snapshot with the same second already exists (can
@@ -245,7 +243,7 @@ def snapshot_skills(reason: str = "manual") -> Optional[Path]:
     try:
         dest.mkdir(parents=True, exist_ok=False)
     except OSError as e:
-        logger.debug("Failed to create snapshot dir %s: %s", dest, e)
+        logger.debug("Failed to create snapshot dir {}: {}", dest, e)
         return None
 
     archive = dest / "skills.tar.gz"
@@ -267,16 +265,16 @@ def snapshot_skills(reason: str = "manual") -> Optional[Path]:
                         _count_skill_files(skills),
                         cron_info=cron_info)
     except (OSError, tarfile.TarError) as e:
-        logger.debug("Curator snapshot failed: %s", e, exc_info=True)
+        logger.opt(exception=True).debug("Curator snapshot failed: {}", e)
         # Clean up partial snapshot
         try:
             shutil.rmtree(dest, ignore_errors=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: {}", e)
         return None
 
     _prune_old(keep=get_keep())
-    logger.info("Curator snapshot created: %s (%s)", snap_id, reason)
+    logger.info("Curator snapshot created: {} ({})", snap_id, reason)
     return dest
 
 
@@ -308,12 +306,12 @@ def _prune_old(keep: int) -> List[str]:
             shutil.rmtree(path)
             deleted.append(path.name)
         except OSError as e:
-            logger.debug("Failed to prune %s: %s", path, e)
+            logger.debug("Failed to prune {}: {}", path, e)
     for path in stale_staging:
         try:
             shutil.rmtree(path)
         except OSError as e:
-            logger.debug("Failed to clean stale staging dir %s: %s", path, e)
+            logger.debug("Failed to clean stale staging dir {}: {}", path, e)
     return deleted
 
 
@@ -518,7 +516,7 @@ def _restore_cron_skill_links(snapshot_dir: Path) -> Dict[str, Any]:
             if changed:
                 save_jobs(live_jobs)
     except Exception as e:  # noqa: BLE001 — rollback must not die mid-restore
-        logger.debug("Cron skill-link restore failed: %s", e, exc_info=True)
+        logger.opt(exception=True).debug("Cron skill-link restore failed: {}", e)
         report["error"] = f"restore failed mid-flight: {e}"
 
     return report
@@ -591,11 +589,11 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
             try:
                 shutil.move(str(dest), str(orig))
             except OSError as _sve:
-                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
+                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: {}", e)
         try:
             shutil.rmtree(staged, ignore_errors=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: {}", e)
         return (False, f"failed to stage current skills: {e}", None)
 
     # Step 4: extract the snapshot into skills/
@@ -621,11 +619,11 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
             try:
                 shutil.move(str(dest), str(orig))
             except OSError as _sve:
-                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
+                logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: {}", e)
         try:
             shutil.rmtree(staged, ignore_errors=True)
         except OSError as _sve:
-            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", e)
+            logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: {}", e)
         return (False, f"snapshot extract failed (state restored): {e}", None)
 
     # Extract succeeded — the staging dir has served its purpose. The
@@ -633,7 +631,7 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
     try:
         shutil.rmtree(staged, ignore_errors=True)
     except OSError as _sve:
-        logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: %s", _sve)
+        logger.warning("[VECTOR][agent.curator_backup] suppressed OSError: {}", _sve)
 
     # Reconcile cron skill-links. Surgical: only the skills/skill fields
     # on jobs matched by id. Everything else in jobs.json is live state
@@ -661,7 +659,7 @@ def rollback(backup_id: Optional[str] = None) -> Tuple[bool, str, Optional[Path]
                 parts.append(f"{cron_report['unchanged']} already matched")
             summary_bits.append("cron links: " + ", ".join(parts))
 
-    logger.info("Curator rollback: restored from %s (cron_report=%s)",
+    logger.info("Curator rollback: restored from {} (cron_report={})",
                 target.name, cron_report)
     return (True, "; ".join(summary_bits), target)
 

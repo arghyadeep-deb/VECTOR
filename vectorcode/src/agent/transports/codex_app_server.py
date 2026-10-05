@@ -102,6 +102,9 @@ class CodexAppServerClient:
         self._closed = False
         self._initialized = False
 
+        # OWNER DECISION: CLAUDE.md bans threading.Thread. This transport's
+        # request API is synchronous and depends on concurrent pipe draining;
+        # replacing these readers requires an async transport/caller refactor.
         self._reader = threading.Thread(target=self._read_stdout, daemon=True)
         self._reader.start()
         self._stderr_reader = threading.Thread(target=self._read_stderr, daemon=True)
@@ -143,7 +146,7 @@ class CodexAppServerClient:
             if self._proc.stdin and not self._proc.stdin.closed:
                 self._proc.stdin.close()
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: {}", _sve)
         try:
             self._proc.terminate()
             self._proc.wait(timeout=timeout)
@@ -152,7 +155,7 @@ class CodexAppServerClient:
                 self._proc.kill()
                 self._proc.wait(timeout=1.0)
             except Exception as _sve:
-                logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: {}", _sve)
 
     def __enter__(self) -> "CodexAppServerClient":
         return self
@@ -297,7 +300,7 @@ class CodexAppServerClient:
                 try:
                     pending.queue.put_nowait(msg)
                 except queue.Full as _sve:  # pragma: no cover - defensive
-                    logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed queue.Full: %s", _sve)
+                    logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed queue.Full: {}", _sve)
             return
         # Server-initiated request (has id + method)
         if "id" in msg and "method" in msg:
@@ -322,7 +325,7 @@ class CodexAppServerClient:
                     if len(self._stderr_lines) > 500:
                         self._stderr_lines = self._stderr_lines[-500:]
         except Exception as _sve:  # pragma: no cover
-            logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.transports.codex_app_server] suppressed Exception: {}", _sve)
 
 
 def parse_codex_version(output: str) -> Optional[tuple[int, int, int]]:

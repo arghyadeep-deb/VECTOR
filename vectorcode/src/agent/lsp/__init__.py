@@ -86,7 +86,7 @@ def shutdown_service() -> None:
         try:
             svc.shutdown()
         except Exception as e:  # noqa: BLE001
-            logger.debug("LSP shutdown error: %s", e)
+            logger.debug("LSP shutdown error: {}", e)
 
 def _atexit_shutdown() -> None:
     """atexit-registered wrapper.  Logs at debug because by the time
@@ -95,6 +95,6 @@ def _atexit_shutdown() -> None:
     try:
         shutdown_service()
     except Exception as e:  # noqa: BLE001
-        logger.debug("atexit LSP shutdown failed: %s", e)
+        logger.debug("atexit LSP shutdown failed: {}", e)
 
 __all__ = ["get_service", "shutdown_service", "LSPService"]

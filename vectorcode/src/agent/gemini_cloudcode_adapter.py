@@ -30,7 +30,6 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
 import time
 import uuid
@@ -48,8 +47,6 @@ from agent.google_code_assist import (
     ProjectContext,
     resolve_project_context,
 )
-
-logger = logging.getLogger(__name__)
 
 
 # =============================================================================
@@ -81,7 +78,7 @@ def _coerce_content_to_text(content: Any) -> str:
                     pieces.append(p["text"])
                 # Multimodal (image_url, etc.) — stub for now; log and skip
                 elif p.get("type") in ("image_url", "input_audio"):
-                    logger.debug("Dropping multimodal part (not yet supported): %s", p.get("type"))
+                    logger.debug("Dropping multimodal part (not yet supported): {}", p.get("type"))
         return "\n".join(pieces)
     return str(content)
 
@@ -500,7 +497,7 @@ def _iter_sse_events(response: httpx.Response) -> Iterator[Dict[str, Any]]:
                 try:
                     yield json.loads(data)
                 except json.JSONDecodeError:
-                    logger.debug("Non-JSON SSE line: %s", data[:200])
+                    logger.debug("Non-JSON SSE line: {}", data[:200])
 
 
 def _translate_stream_event(
@@ -615,7 +612,7 @@ class GeminiCloudCodeClient:
         try:
             self._http.close()
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.gemini_cloudcode_adapter] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.gemini_cloudcode_adapter] suppressed Exception: {}", _sve)
 
     # Implement the OpenAI SDK's context-manager-ish closure check
     def __enter__(self):
@@ -826,7 +823,7 @@ def _gemini_http_error(response: httpx.Response) -> CodeAssistError:
                 try:
                     retry_delay_seconds = float(delay_raw[:-1])
                 except ValueError as _sve:
-                    logger.debug("[VECTOR][agent.gemini_cloudcode_adapter] suppressed ValueError: %s", _sve)
+                    logger.debug("[VECTOR][agent.gemini_cloudcode_adapter] suppressed ValueError: {}", _sve)
             elif isinstance(delay_raw, (int, float)):
                 retry_delay_seconds = float(delay_raw)
 

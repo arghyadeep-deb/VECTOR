@@ -30,14 +30,13 @@ Supported languages: en, zh, ja, de, es, fr, tr, uk.  Unknown values fall back t
 
 from __future__ import annotations
 
-import logging
 import os
 import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 SUPPORTED_LANGUAGES: tuple[str, ...] = (
     "en", "zh", "zh-hant", "ja", "de", "es", "fr", "tr", "uk",
@@ -131,7 +130,7 @@ def _load_catalog(lang: str) -> dict[str, str]:
 
     path = _locales_dir() / f"{lang}.yaml"
     if not path.is_file():
-        logger.debug("i18n catalog missing for %s at %s", lang, path)
+        logger.debug("i18n catalog missing for {} at {}", lang, path)
         with _catalog_lock:
             _catalog_cache[lang] = {}
         return {}
@@ -141,7 +140,7 @@ def _load_catalog(lang: str) -> dict[str, str]:
         with path.open("r", encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
     except Exception as exc:
-        logger.warning("Failed to load i18n catalog %s: %s", path, exc)
+        logger.warning("Failed to load i18n catalog {}: {}", path, exc)
         with _catalog_lock:
             _catalog_cache[lang] = {}
         return {}
@@ -179,7 +178,7 @@ def _config_language_cached() -> str | None:
         if lang:
             return _normalize_lang(lang)
     except Exception as exc:
-        logger.debug("Could not read display.language from config: %s", exc)
+        logger.debug("Could not read display.language from config: {}", exc)
     return None
 
 
@@ -234,7 +233,7 @@ def t(key: str, lang: str | None = None, **format_kwargs: Any) -> str:
     if value is None:
         # Last-ditch: return the key itself.  A broken catalog should not
         # crash anything; it just looks ugly until someone fixes it.
-        logger.debug("i18n miss: key=%r lang=%r", key, target)
+        logger.debug("i18n miss: key={!r} lang={!r}", key, target)
         value = key
 
     if format_kwargs:

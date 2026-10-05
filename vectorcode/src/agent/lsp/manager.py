@@ -78,6 +78,10 @@ class _BackgroundLoop:
     def start(self) -> None:
         if self._thread is not None:
             return
+        # OWNER DECISION: CLAUDE.md bans threading.Thread in production. This
+        # bridge exists because the file-operations API is synchronous while
+        # LSP subprocess I/O is async; removing it requires an async refactor
+        # of that public call chain, so the audit does not guess at a rewrite.
         self._thread = threading.Thread(
             target=self._run_forever,
             name="vector-lsp-loop",
@@ -97,7 +101,7 @@ class _BackgroundLoop:
             try:
                 loop.close()
             except Exception:  # noqa: BLE001
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     def run(self, coro, *, timeout: Optional[float] = None) -> Any:
         """Submit a coroutine to the loop and block until done.
@@ -120,7 +124,7 @@ class _BackgroundLoop:
         try:
             loop.call_soon_threadsafe(loop.stop)
         except RuntimeError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         if self._thread is not None:
             self._thread.join(timeout=2.0)
         self._loop = None
@@ -190,7 +194,7 @@ class LSPService:
             from vector_cli.config import load_config
             cfg = load_config()
         except Exception as e:  # noqa: BLE001
-            logger.debug("LSP config load failed: %s", e)
+            logger.debug("LSP config load failed: {}", e)
             return None
 
         lsp_cfg = (cfg.get("lsp") or {}) if isinstance(cfg, dict) else {}
@@ -291,7 +295,7 @@ class LSPService:
             diags = self._loop.run(self._snapshot_async(file_path), timeout=8.0)
             self._delta_baseline[os.path.abspath(file_path)] = diags or []
         except Exception as e:  # noqa: BLE001
-            logger.debug("baseline snapshot failed for %s: %s", file_path, e)
+            logger.debug("baseline snapshot failed for {}: {}", file_path, e)
             self._mark_broken_for_file(file_path, e)
             self._delta_baseline[os.path.abspath(file_path)] = []
 
@@ -340,12 +344,12 @@ class LSPService:
             diags = self._loop.run(self._open_and_wait_async(file_path), timeout=t) or []
         except asyncio.TimeoutError as e:
             eventlog.log_timeout(server_id, file_path)
-            logger.debug("LSP diagnostics timeout for %s: %s", file_path, e)
+            logger.debug("LSP diagnostics timeout for {}: {}", file_path, e)
             self._mark_broken_for_file(file_path, e)
             return []
         except Exception as e:  # noqa: BLE001
             eventlog.log_server_error(server_id, file_path, e)
-            logger.debug("LSP diagnostics fetch failed for %s: %s", file_path, e)
+            logger.debug("LSP diagnostics fetch failed for {}: {}", file_path, e)
             self._mark_broken_for_file(file_path, e)
             return []
 
@@ -422,7 +426,7 @@ class LSPService:
                 # but don't block.  We're already on a slow path.
                 self._loop.run(client.shutdown(), timeout=1.0)
             except Exception:  # noqa: BLE001
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         if not already_broken:
             eventlog.log_spawn_failed(srv.server_id, per_server_root, exc)
@@ -434,7 +438,7 @@ class LSPService:
         try:
             self._loop.run(self._shutdown_async(), timeout=10.0)
         except Exception as e:  # noqa: BLE001
-            logger.debug("LSP shutdown error: %s", e)
+            logger.debug("LSP shutdown error: {}", e)
         self._loop.stop()
         clear_cache()
 
@@ -450,7 +454,7 @@ class LSPService:
             version = await client.open_file(file_path, language_id=language_id_for(file_path))
             await client.wait_for_diagnostics(file_path, version, mode=self._wait_mode)
         except Exception as e:  # noqa: BLE001
-            logger.debug("snapshot open/wait failed: %s", e)
+            logger.debug("snapshot open/wait failed: {}", e)
             return []
         self._last_used[(client.server_id, client.workspace_root)] = time.time()
         return list(client.diagnostics_for(file_path))
@@ -464,7 +468,7 @@ class LSPService:
             await client.save_file(file_path)
             await client.wait_for_diagnostics(file_path, version, mode=self._wait_mode)
         except Exception as e:  # noqa: BLE001
-            logger.debug("open/wait failed for %s: %s", file_path, e)
+            logger.debug("open/wait failed for {}: {}", file_path, e)
             return []
         self._last_used[(client.server_id, client.workspace_root)] = time.time()
         return list(client.diagnostics_for(file_path))

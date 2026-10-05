@@ -4,13 +4,12 @@ Runs asynchronously after the first response is delivered so it never
 adds latency to the user-facing reply.
 """
 
-import logging
 import threading
 from typing import Callable, Optional
 
 from agent.auxiliary_client import call_llm
+from loguru import logger
 
-logger = logging.getLogger(__name__)
 
 # Callback signature: (task_name, exception) -> None. Used to surface
 # auxiliary failures to the user through AIAgent._emit_auxiliary_failure
@@ -70,13 +69,13 @@ def generate_title(
     except Exception as e:
         # Log at WARNING so this shows up in agent.log without debug mode.
         # Full detail at debug level for operators who need the stack.
-        logger.warning("Title generation failed: %s", e)
-        logger.debug("Title generation traceback", exc_info=True)
+        logger.warning("Title generation failed: {}", e)
+        logger.opt(exception=True).debug("Title generation traceback")
         if failure_callback is not None:
             try:
                 failure_callback("title generation", e)
             except Exception:
-                logger.debug("Title generation failure_callback raised", exc_info=True)
+                logger.opt(exception=True).debug("Title generation failure_callback raised")
         return None
 
 
@@ -114,9 +113,9 @@ def auto_title_session(
 
     try:
         session_db.set_session_title(session_id, title)
-        logger.debug("Auto-generated session title: %s", title)
+        logger.debug("Auto-generated session title: {}", title)
     except Exception as e:
-        logger.debug("Failed to set auto-generated title: %s", e)
+        logger.debug("Failed to set auto-generated title: {}", e)
 
 
 def maybe_auto_title(
@@ -144,6 +143,9 @@ def maybe_auto_title(
     if user_msg_count > 2:
         return
 
+    # OWNER DECISION: CLAUDE.md bans threading.Thread. This public helper is
+    # synchronous and intentionally returns before the title LLM call finishes;
+    # moving it to asyncio requires changing the caller contract.
     thread = threading.Thread(
         target=auto_title_session,
         args=(session_db, session_id, user_message, assistant_response),

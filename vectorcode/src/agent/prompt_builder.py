@@ -1,18 +1,17 @@
 """System prompt assembly -- identity, platform hints, skills index, context files.
-from loguru import logger
 
 All functions are stateless. AIAgent._build_system_prompt() calls these to
 assemble pieces, then combines them with memory and ephemeral prompts.
 """
 
 import json
-import logging
 import os
 import re
 import threading
 from collections import OrderedDict
 from pathlib import Path
 
+from loguru import logger
 from vector_constants import get_vector_home, get_skills_dir, is_wsl
 from typing import Optional
 
@@ -27,7 +26,6 @@ from agent.skill_utils import (
 )
 from utils import atomic_json_write
 
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Context file scanning — detect prompt injection in AGENTS.md, .cursorrules,
@@ -68,7 +66,7 @@ def _scan_context_content(content: str, filename: str) -> str:
             findings.append(pid)
 
     if findings:
-        logger.warning("Context file %s blocked: %s", filename, ", ".join(findings))
+        logger.warning("Context file {} blocked: {}", filename, ", ".join(findings))
         return f"[BLOCKED: {filename} contained potential prompt injection ({', '.join(findings)}). Content not loaded.]"
 
     return content
@@ -511,7 +509,7 @@ def clear_skills_system_prompt_cache(*, clear_snapshot: bool = False) -> None:
         try:
             _skills_prompt_snapshot_path().unlink(missing_ok=True)
         except OSError as e:
-            logger.debug("Could not remove skills prompt snapshot: %s", e)
+            logger.debug("Could not remove skills prompt snapshot: {}", e)
 
 
 def _build_skills_manifest(skills_dir: Path) -> dict[str, list[int]]:
@@ -561,7 +559,7 @@ def _write_skills_snapshot(
     try:
         atomic_json_write(_skills_prompt_snapshot_path(), payload)
     except Exception as e:
-        logger.debug("Could not write skills prompt snapshot: %s", e)
+        logger.debug("Could not write skills prompt snapshot: {}", e)
 
 
 def _build_snapshot_entry(
@@ -613,7 +611,7 @@ def _parse_skill_file(skill_file: Path) -> tuple[bool, dict, str]:
 
         return True, frontmatter, extract_skill_description(frontmatter)
     except Exception as e:
-        logger.warning("Failed to parse skill file %s: %s", skill_file, e)
+        logger.warning("Failed to parse skill file {}: {}", skill_file, e)
         return True, {}, ""
 
 
@@ -762,7 +760,7 @@ def build_skills_system_prompt(
                 cat = "/".join(rel.parts[:-1]) if len(rel.parts) > 1 else "general"
                 category_descriptions[cat] = str(cat_desc).strip().strip("'\"")
             except Exception as e:
-                logger.debug("Could not read skill description %s: %s", desc_file, e)
+                logger.debug("Could not read skill description {}: {}", desc_file, e)
 
         _write_skills_snapshot(
             skills_dir,
@@ -806,7 +804,7 @@ def build_skills_system_prompt(
                     (frontmatter_name, entry["description"])
                 )
             except Exception as e:
-                logger.debug("Error reading external skill %s: %s", skill_file, e)
+                logger.debug("Error reading external skill {}: {}", skill_file, e)
 
         # External category descriptions
         for desc_file in iter_skill_index_files(ext_dir, "DESCRIPTION.md"):
@@ -820,7 +818,7 @@ def build_skills_system_prompt(
                 cat = "/".join(rel.parts[:-1]) if len(rel.parts) > 1 else "general"
                 category_descriptions.setdefault(cat, str(cat_desc).strip().strip("'\""))
             except Exception as e:
-                logger.debug("Could not read external skill description %s: %s", desc_file, e)
+                logger.debug("Could not read external skill description {}: {}", desc_file, e)
 
     if not skills_by_category:
         result = ""
@@ -888,7 +886,7 @@ def build_nous_subscription_prompt(valid_tool_names: "set[str] | None" = None) -
         from vector_cli.nous_subscription import get_nous_subscription_features
         from tools.tool_backend_helpers import managed_nous_tools_enabled
     except Exception as exc:
-        logger.debug("Failed to import Nous subscription helper: %s", exc)
+        logger.debug("Failed to import Nous subscription helper: {}", exc)
         return ""
 
     if not managed_nous_tools_enabled():
@@ -975,7 +973,7 @@ def load_soul_md() -> Optional[str]:
         from vector_cli.config import ensure_vector_home
         ensure_vector_home()
     except Exception as e:
-        logger.debug("Could not ensure VECTOR_HOME before loading SOUL.md: %s", e)
+        logger.debug("Could not ensure VECTOR_HOME before loading SOUL.md: {}", e)
 
     soul_path = get_vector_home() / "SOUL.md"
     if not soul_path.exists():
@@ -988,7 +986,7 @@ def load_soul_md() -> Optional[str]:
         content = _truncate_content(content, "SOUL.md")
         return content
     except Exception as e:
-        logger.debug("Could not read SOUL.md from %s: %s", soul_path, e)
+        logger.debug("Could not read SOUL.md from {}: {}", soul_path, e)
         return None
 
 
@@ -1006,12 +1004,12 @@ def _load_vector_md(cwd_path: Path) -> str:
         try:
             rel = str(vector_md_path.relative_to(cwd_path))
         except ValueError as _sve:
-            logger.debug("[VECTOR][agent.prompt_builder] suppressed ValueError: %s", _sve)
+            logger.debug("[VECTOR][agent.prompt_builder] suppressed ValueError: {}", _sve)
         content = _scan_context_content(content, rel)
         result = f"## {rel}\n\n{content}"
         return _truncate_content(result, ".vector.md")
     except Exception as e:
-        logger.debug("Could not read %s: %s", vector_md_path, e)
+        logger.debug("Could not read {}: {}", vector_md_path, e)
         return ""
 
 
@@ -1027,7 +1025,7 @@ def _load_agents_md(cwd_path: Path) -> str:
                     result = f"## {name}\n\n{content}"
                     return _truncate_content(result, "AGENTS.md")
             except Exception as e:
-                logger.debug("Could not read %s: %s", candidate, e)
+                logger.debug("Could not read {}: {}", candidate, e)
     return ""
 
 
@@ -1043,7 +1041,7 @@ def _load_claude_md(cwd_path: Path) -> str:
                     result = f"## {name}\n\n{content}"
                     return _truncate_content(result, "CLAUDE.md")
             except Exception as e:
-                logger.debug("Could not read %s: %s", candidate, e)
+                logger.debug("Could not read {}: {}", candidate, e)
     return ""
 
 
@@ -1058,7 +1056,7 @@ def _load_cursorrules(cwd_path: Path) -> str:
                 content = _scan_context_content(content, ".cursorrules")
                 cursorrules_content += f"## .cursorrules\n\n{content}\n\n"
         except Exception as e:
-            logger.debug("Could not read .cursorrules: %s", e)
+            logger.debug("Could not read .cursorrules: {}", e)
 
     cursor_rules_dir = cwd_path / ".cursor" / "rules"
     if cursor_rules_dir.exists() and cursor_rules_dir.is_dir():
@@ -1070,7 +1068,7 @@ def _load_cursorrules(cwd_path: Path) -> str:
                     content = _scan_context_content(content, f".cursor/rules/{mdc_file.name}")
                     cursorrules_content += f"## .cursor/rules/{mdc_file.name}\n\n{content}\n\n"
             except Exception as e:
-                logger.debug("Could not read %s: %s", mdc_file, e)
+                logger.debug("Could not read {}: {}", mdc_file, e)
 
     if not cursorrules_content:
         return ""
