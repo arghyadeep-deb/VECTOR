@@ -3215,3 +3215,67 @@ isn't "proven in production" until you supply the service/device and run it live
     (training/lora.py's and distillation/orchestrator.py's full logic, routing/*, most of
     `intelligence/` outside the orchestrator package, `storage/session_store.py`, etc.) still need
     a dedicated continuation pass.
+
+60. **`vectorcode/src/agent/` audit, round 5 (2026-10-05) — CRITICAL: `run_agent.py` was
+    completely unimportable.** Four prior rounds had covered ~24 files with real depth. This
+    round found and fixed two independent, severe import-chain breaks, both caused by earlier
+    automated "cleanup" commits that over-reached well beyond their stated scope, and both
+    confirmed live via a real `import run_agent` (not a static `ast.parse()` check, which is all
+    the pre-existing "regression test" for this area ever did — that's exactly why neither break
+    was caught for 4-5 months). **Fixed:**
+    (1) `fed812acc` ("convert 214 pass-only ABC stubs to raise NotImplementedError",
+    2026-06-18) deleted `vectorcode/src/agent/context_engine.py` *in its entirety* — 206 lines
+    defining the `ContextEngine` ABC that `context_compressor.py`'s `ContextCompressor` class
+    subclasses. The file legitimately contains `@abstractmethod` stubs (correctly bodyless) but
+    also several real default-implementation methods (`on_session_reset`, `get_status`,
+    `update_model`, `get_tool_schemas`); the automated stub-detector apparently misread the
+    whole module as dead code. `context_compressor.py`'s module-level
+    `from agent.context_engine import ContextEngine` has been raising `ModuleNotFoundError` ever
+    since. Restored byte-for-byte from `git show fed812acc^:vectorcode/src/agent/context_engine.py`
+    (commit `61f93b35c`).
+    (2) `d18ec4130` ("phase-1: consolidate duplicate infrastructure", 2026-05-21) shrank
+    `agent/memory_manager.py` from 528 lines to a 9-line re-export shim pointing at the new
+    canonical `memory/manager.py`, migrating `MemoryManager`/`sanitize_context`/
+    `get_memory_manager`/`reset_memory_manager` — but silently dropped `StreamingContextScrubber`
+    entirely (a security-relevant stateful scrubber that prevents a streamed `<memory-context>`
+    span from leaking its payload to the UI when the open/close tags straddle two stream chunks)
+    and never re-exported `build_memory_context_block` even though that function did make it into
+    the new module. `run_agent.py`'s module-level import of both names has been raising
+    `ImportError` ever since. Restored `StreamingContextScrubber` into `memory/manager.py`
+    byte-for-byte from `git show d18ec4130^:...` and re-exported both symbols from the shim
+    (commit `59f7f6bfe`).
+    Together, (1) and (2) meant `run_agent.py` — the primary agent entry point — could not be
+    imported at all. Confirmed fixed: `import run_agent` now succeeds.
+    (3) Separately, a real (non-import) bug: `ContextCompressor.on_session_reset()` — called on
+    `/new`/`/reset` against the same long-lived instance `run_agent.py` reuses for the agent's
+    whole process lifetime — never restored `self.summary_model` or cleared
+    `self._summary_model_fallen_back` after `_generate_summary()`'s fallback-to-main-model path
+    fired. A single transient failure of the user's configured (typically cheaper/faster) aux
+    summary model therefore permanently and silently downgraded every future compression to the
+    full-price main model for the rest of the process, even across fresh `/new` sessions. Fixed
+    by capturing `self._summary_model_override` in `__init__` and restoring it in
+    `on_session_reset()` (commit `433918f5f`).
+    New tests: `test_vectorcode_agent_context_engine_restoration.py` (4, including a real
+    `import run_agent` smoke test), `test_vectorcode_agent_memory_manager_scrubber_restoration.py`
+    (6, including the exact split-across-chunks leak scenario the class's docstring describes),
+    `test_vectorcode_agent_context_compressor_session_reset.py` (3) — 13/13 passing, all 13
+    independently verified to fail against the pre-fix code via `git stash` + removing the
+    restored file. **Depth statement:** this round focused entirely on the two import breaks and
+    the session-reset bug once found — `context_compressor.py`'s own compression/pruning/tail-
+    protection logic (prune boundary vs. final tail-cut boundary using two independently-computed
+    token-walk calculations that could disagree slightly) was read in full and is suspected to
+    have a minor latent inconsistency, but reordering the computation to share one boundary is a
+    non-trivial change with its own regression risk in a correctness-sensitive pipeline — flagging
+    for a future owner-reviewed pass rather than guessing at a fix under this round's time budget.
+    `auxiliary_client.py`'s remaining provider-resolution/streaming-adapter logic
+    (`_CodexCompletionsAdapter`, `_try_anthropic`/`_try_nous`/`_try_custom_endpoint` chains) was
+    this round's other assigned priority but was not reached — the import-chain findings
+    consumed the round's full budget and were judged far higher priority (the whole agent was
+    unimportable). **Strongly recommend**: given two independent instances of an "automated
+    cleanup/consolidation commit deletes or drops real code" bug class have now been found in
+    `vectorcode/src/agent/` alone (plus 5 instances of the related "blanket NotImplementedError
+    conversion breaks a concrete class" bug class found across `vectorcode/src/{agent,evals,
+    learning}/` this audit cycle), a repo-wide audit specifically diffing `fed812acc` and
+    `d18ec4130` (and any other similarly-scoped "consolidation"/"cleanup" commits) against what
+    each touched file's real callers still expect would likely surface more of the same —
+    this is a distinct, higher-value lead than continuing the file-by-file sweep.
