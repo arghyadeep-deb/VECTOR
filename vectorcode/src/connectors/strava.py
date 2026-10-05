@@ -11,6 +11,7 @@ Uses OAuth2 tokens stored locally. Refresh handled automatically.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
@@ -74,7 +75,41 @@ class StravaConnector(BaseConnector):
         self._token_path.write_text(json.dumps(tokens), encoding="utf-8")
 
     def _get_access_token(self) -> str:
+        """Return a valid access token, refreshing it first if it has expired.
+
+        Strava access tokens are short-lived (~6h). ``_strava_refresh_token``
+        existed in this module but was never actually called anywhere --
+        the module docstring's "Refresh handled automatically" claim was
+        false, so every sync() after the token expired failed with a 401
+        until the user manually re-authenticated. Wired here: refresh
+        proactively (with a 60s safety margin) using the client_id/secret
+        persisted at handle_callback() time, and persist the new tokens
+        (including the next expires_at) so later calls see it too.
+        """
         tokens = self._load_tokens()
+        expires_at = tokens.get("expires_at")
+        if (
+            expires_at is not None
+            and float(expires_at) > time.time() + 60
+        ):
+            return tokens["access_token"]
+
+        client_id = tokens.get("client_id")
+        client_secret = tokens.get("client_secret")
+        refresh_token = tokens.get("refresh_token")
+        if not (client_id and client_secret and refresh_token):
+            # No way to refresh (e.g. pre-fix credentials file, or refresh
+            # already attempted and the server didn't return one) -- fall
+            # back to whatever access_token is on disk and let the API
+            # call itself raise if it's actually expired.
+            return tokens["access_token"]
+
+        refreshed = _strava_refresh_token(client_id, client_secret, refresh_token)
+        tokens["access_token"] = refreshed.get("access_token", tokens["access_token"])
+        tokens["refresh_token"] = refreshed.get("refresh_token", refresh_token)
+        if "expires_at" in refreshed:
+            tokens["expires_at"] = refreshed["expires_at"]
+        self._save_tokens(tokens)
         return tokens["access_token"]
 
     def is_connected(self) -> bool:
@@ -132,6 +167,8 @@ class StravaConnector(BaseConnector):
             "client_id": client_id,
             "client_secret": client_secret,
         }
+        if "expires_at" in tokens:
+            payload["expires_at"] = tokens["expires_at"]
         for filename in provider.credential_files:
             save_tokens(str(_CONNECTORS_DIR / filename), payload)
 
