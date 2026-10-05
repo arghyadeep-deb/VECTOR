@@ -25,8 +25,8 @@ from typing import Any, Dict, List, Optional
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
 
 from loguru import logger
-from transports.base import ProviderTransport            # type: ignore[import]
-from transports.types import (                           # type: ignore[import]
+from .base import ProviderTransport
+from .types import (
     NormalizedResponse, ToolCall, Usage,
 )
 
@@ -314,7 +314,11 @@ class ChatCompletionsTransport(ProviderTransport):
                         try:
                             extra = extra.model_dump()
                         except Exception as _sve:
-                            logger.debug("[VECTOR][transports.chat_completions] suppressed Exception: %s", _sve)
+                            logger.debug(
+                                "[VECTOR][transports.chat_completions] "
+                                "failed to serialize tool metadata: {}",
+                                _sve,
+                            )
                     tc_provider_data["extra_content"] = extra
 
                 # Extract id / name / arguments
@@ -338,10 +342,15 @@ class ChatCompletionsTransport(ProviderTransport):
         usage_obj = getattr(response, "usage", None) if not isinstance(response, dict) else response.get("usage")
         usage: Optional[Usage] = None
         if usage_obj is not None:
+            def usage_value(name: str) -> int:
+                if isinstance(usage_obj, dict):
+                    return usage_obj.get(name, 0) or 0
+                return getattr(usage_obj, name, 0) or 0
+
             usage = Usage(
-                prompt_tokens=getattr(usage_obj, "prompt_tokens", 0) or 0,
-                completion_tokens=getattr(usage_obj, "completion_tokens", 0) or 0,
-                total_tokens=getattr(usage_obj, "total_tokens", 0) or 0,
+                prompt_tokens=usage_value("prompt_tokens"),
+                completion_tokens=usage_value("completion_tokens"),
+                total_tokens=usage_value("total_tokens"),
             )
 
         # Reasoning fields (DeepSeek / Moonshot / OpenRouter unified format)
@@ -379,21 +388,29 @@ class ChatCompletionsTransport(ProviderTransport):
 
     def extract_cache_stats(self, response: Any) -> Optional[Dict[str, int]]:
         """Extract OpenRouter/OpenAI cache stats from prompt_tokens_details."""
-        usage = getattr(response, "usage", None)
+        usage = response.get("usage") if isinstance(response, dict) else getattr(response, "usage", None)
         if usage is None:
             return None
-        details = getattr(usage, "prompt_tokens_details", None)
+        details = (
+            usage.get("prompt_tokens_details")
+            if isinstance(usage, dict)
+            else getattr(usage, "prompt_tokens_details", None)
+        )
         if details is None:
             return None
-        cached = getattr(details, "cached_tokens", 0) or 0
-        written = getattr(details, "cache_write_tokens", 0) or 0
+        if isinstance(details, dict):
+            cached = details.get("cached_tokens", 0) or 0
+            written = details.get("cache_write_tokens", 0) or 0
+        else:
+            cached = getattr(details, "cached_tokens", 0) or 0
+            written = getattr(details, "cache_write_tokens", 0) or 0
         if cached or written:
             return {"cached_tokens": cached, "creation_tokens": written}
         return None
 
 
 # ── Auto-register on import ──────────────────────────────────────────────────
-from transports import register_transport  # type: ignore[import]  # noqa: E402
+from . import register_transport  # noqa: E402
 
 register_transport("chat_completions", ChatCompletionsTransport)
 

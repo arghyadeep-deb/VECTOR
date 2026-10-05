@@ -21,8 +21,8 @@ from typing import Any, Dict, List, Optional
 
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
 
-from transports.base import ProviderTransport            # type: ignore[import]
-from transports.types import (                           # type: ignore[import]
+from .base import ProviderTransport
+from .types import (
     NormalizedResponse, ToolCall, Usage, build_tool_call,
 )
 
@@ -408,7 +408,7 @@ class AnthropicTransport(ProviderTransport):
 
 
 # ── Auto-register on import ──────────────────────────────────────────────────
-from transports import register_transport  # type: ignore[import]  # noqa: E402
+from . import register_transport  # noqa: E402
 
 register_transport("anthropic_messages", AnthropicTransport)
 

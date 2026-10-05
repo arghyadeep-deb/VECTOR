@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Optional
 # ── sys.path inserts (exactly 2) ─────────────────────────────────────────────
 
 from loguru import logger
-from transports.types import NormalizedResponse  # type: ignore[import]
+from .types import NormalizedResponse
 
 try:
     from core.config import CONFIG  # type: ignore
@@ -153,7 +153,7 @@ class ProviderTransport(ABC):
                 raw = resp.json()
         except Exception as e:
             logger.error(f"[VECTOR][transport:{self.api_mode}] HTTP call failed: {e}")
-            from transports.types import NormalizedResponse as NR  # type: ignore[import]
+            from .types import NormalizedResponse as NR
             return NR(content=f"[Transport error: {e}]", tool_calls=None, finish_reason="stop")
 
         return self.normalize_response(raw)
@@ -169,7 +169,7 @@ if __name__ == "__main__":
         ProviderTransport()  # type: ignore[abstract]
         assert False, "Should not be instantiable"
     except TypeError as _sve:
-        logger.debug("[VECTOR][transports.base] suppressed TypeError: %s", _sve)
+        logger.debug("[VECTOR][transports.base] expected abstract-class error: {}", _sve)
 
     # Build a concrete stub to verify the ABC contract
     class _StubTransport(ProviderTransport):
@@ -187,7 +187,7 @@ if __name__ == "__main__":
             return {"model": model, "messages": messages}
 
         def normalize_response(self, response, **kwargs):
-            from transports.types import NormalizedResponse as NR  # type: ignore[import]
+            from .types import NormalizedResponse as NR
             return NR(content="ok", tool_calls=None, finish_reason="stop")
 
     stub = _StubTransport()

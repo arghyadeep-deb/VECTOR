@@ -69,12 +69,12 @@ def list_transports() -> Dict[str, Type]:
 def _auto_register() -> None:
     """Import all built-in transports so they self-register."""
     try:
-        from transports import anthropic as _ant      # noqa: F401  # type: ignore[import]
+        from . import anthropic as _ant  # noqa: F401
     except Exception as e:
         logger.warning(f"[VECTOR][transports] failed to load anthropic transport: {e}")
 
     try:
-        from transports import chat_completions as _cc  # noqa: F401  # type: ignore[import]
+        from . import chat_completions as _cc  # noqa: F401
     except Exception as e:
         logger.warning(f"[VECTOR][transports] failed to load chat_completions transport: {e}")
 
