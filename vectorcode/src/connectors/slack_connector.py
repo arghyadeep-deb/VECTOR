@@ -17,6 +17,7 @@ from typing import Any, Dict, Iterator, List, Optional
 from urllib.parse import urlencode
 
 import httpx
+from loguru import logger
 
 from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
@@ -148,6 +149,15 @@ def _slack_api_with_retry(
                 _time.sleep(5)
                 continue
         return data
+    # Unreachable under any real max_retries (>= 0): every loop iteration
+    # either `continue`s, raises via raise_for_status(), or returns `data`.
+    # Kept as a defensive fallback with a loud warning rather than a silent
+    # {} -- the real fix for "persistent API errors look like empty
+    # results" is the ok=False checks added at each call site in sync().
+    logger.warning(
+        "[VECTOR][connectors.slack] {} exited its retry loop without "
+        "returning a response -- this should be unreachable", method,
+    )
     return {}
 
 # ---------------------------------------------------------------------------
@@ -271,6 +281,16 @@ class SlackConnector(BaseConnector):
 
         # Step 1: build user map
         users_resp = _slack_api_users_list(token)
+        if not users_resp.get("ok", True):
+            # A persistent API error (exhausted rate-limit retries, revoked
+            # token, etc.) looks identical to "no users" to .get("members",
+            # []) below -- sync() would otherwise silently proceed with an
+            # empty user_map and no indication the call actually failed.
+            logger.warning(
+                "[VECTOR][connectors.slack] users.list failed ({}); "
+                "author names will fall back to raw user IDs",
+                users_resp.get("error"),
+            )
         members: List[Dict[str, Any]] = users_resp.get("members", [])
         user_map = _build_user_map(members)
 
@@ -280,6 +300,17 @@ class SlackConnector(BaseConnector):
         # Step 2: paginate through channels
         while True:
             channels_resp = _slack_api_conversations_list(token, cursor=channels_cursor)
+            if not channels_resp.get("ok", True):
+                # Same shape: an exhausted-retry or auth error here returns
+                # a real dict with ok=False, not an exception -- without
+                # this check, sync() silently treats it as "no more
+                # channels" and completes having synced nothing, with
+                # self._items_synced giving no hint why.
+                logger.warning(
+                    "[VECTOR][connectors.slack] conversations.list failed "
+                    "({}); stopping sync early", channels_resp.get("error"),
+                )
+                break
             channels: List[Dict[str, Any]] = channels_resp.get("channels", [])
 
             for channel in channels:
@@ -303,8 +334,16 @@ class SlackConnector(BaseConnector):
                             http_method="POST",
                         )
                         if not join_resp.get("ok"):
+                            logger.debug(
+                                "[VECTOR][connectors.slack] could not join "
+                                "channel {}: {}", chan_id, join_resp.get("error"),
+                            )
                             continue
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug(
+                            "[VECTOR][connectors.slack] join {} failed: {}",
+                            chan_id, exc,
+                        )
                         continue
 
                 # Step 3: paginate through message history
@@ -314,9 +353,17 @@ class SlackConnector(BaseConnector):
                         history_resp = _slack_api_conversations_history(
                             token, chan_id, cursor=history_cursor
                         )
-                    except Exception:
+                    except Exception as exc:
+                        logger.debug(
+                            "[VECTOR][connectors.slack] history fetch for {} "
+                            "failed: {}", chan_id, exc,
+                        )
                         break  # Skip channels we can't read
                     if not history_resp.get("ok", True):
+                        logger.debug(
+                            "[VECTOR][connectors.slack] history fetch for {} "
+                            "returned not-ok: {}", chan_id, history_resp.get("error"),
+                        )
                         break  # not_in_channel or other error
                     messages: List[Dict[str, Any]] = history_resp.get("messages", [])
 
