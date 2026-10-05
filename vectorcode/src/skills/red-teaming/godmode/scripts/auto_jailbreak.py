@@ -17,6 +17,7 @@ Usage in execute_code:
 
 import os
 import json
+import tempfile
 import time
 import yaml
 from pathlib import Path
@@ -49,9 +50,9 @@ import inspect as _inspect
 _caller_globals = _inspect.stack()[0][0].f_globals if len(_inspect.stack()) > 0 else globals()
 
 if _parseltongue_path.exists():
-    exec(compile(open(_parseltongue_path).read(), str(_parseltongue_path), 'exec'), _caller_globals)
+    exec(compile(_parseltongue_path.read_text(encoding="utf-8"), str(_parseltongue_path), 'exec'), _caller_globals)
 if _race_path.exists():
-    exec(compile(open(_race_path).read(), str(_race_path), 'exec'), _caller_globals)
+    exec(compile(_race_path.read_text(encoding="utf-8"), str(_race_path), 'exec'), _caller_globals)
 
 # ===================================================================
 # VectorCode config paths
@@ -374,18 +375,44 @@ def _build_messages(system_prompt=None, prefill=None, query=None):
         messages.append({"role": "user", "content": query})
     return messages
 
+def _atomic_write(path: Path, content: str):
+    """Publish *content* without exposing a truncated destination file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=path.parent, delete=False
+        ) as handle:
+            temp_path = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        if temp_path is not None:
+            temp_path.unlink(missing_ok=True)
+
+def _load_config():
+    """Load config without converting corruption into a destructive reset."""
+    if not CONFIG_PATH.exists():
+        return {}
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as handle:
+            cfg = yaml.safe_load(handle) or {}
+    except (OSError, yaml.YAMLError) as exc:
+        raise ValueError(f"Cannot safely update invalid config: {CONFIG_PATH}") from exc
+    if not isinstance(cfg, dict):
+        raise ValueError(f"Cannot safely update non-mapping config: {CONFIG_PATH}")
+    return cfg
+
 def _write_config(system_prompt: str = None, prefill_file: str = None):
     """Write jailbreak settings to config.yaml (merges, doesn't overwrite)."""
-    cfg = {}
-    if CONFIG_PATH.exists():
-        try:
-            with open(CONFIG_PATH) as f:
-                cfg = yaml.safe_load(f) or {}
-        except Exception:
-            cfg = {}
+    cfg = _load_config()
 
-    if "agent" not in cfg:
+    if "agent" not in cfg or cfg["agent"] is None:
         cfg["agent"] = {}
+    elif not isinstance(cfg["agent"], dict):
+        raise ValueError("Cannot safely update config: 'agent' must be a mapping")
 
     if system_prompt is not None:
         cfg["agent"]["system_prompt"] = system_prompt
@@ -393,16 +420,16 @@ def _write_config(system_prompt: str = None, prefill_file: str = None):
     if prefill_file is not None:
         cfg["agent"]["prefill_messages_file"] = prefill_file
 
-    with open(CONFIG_PATH, "w") as f:
-        yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True,
-                  width=120, sort_keys=False)
+    content = yaml.dump(
+        cfg, default_flow_style=False, allow_unicode=True, width=120, sort_keys=False
+    )
+    _atomic_write(CONFIG_PATH, content)
 
     return str(CONFIG_PATH)
 
 def _write_prefill(prefill_messages: list):
     """Write prefill messages to ~/.vectorcode/prefill.json."""
-    with open(PREFILL_PATH, "w") as f:
-        json.dump(prefill_messages, f, indent=2, ensure_ascii=False)
+    _atomic_write(PREFILL_PATH, json.dumps(prefill_messages, indent=2, ensure_ascii=False))
     return str(PREFILL_PATH)
 
 # ===================================================================
@@ -707,19 +734,22 @@ def undo_jailbreak(verbose=True):
     """Remove jailbreak settings from config.yaml and delete prefill.json."""
     if CONFIG_PATH.exists():
         try:
-            with open(CONFIG_PATH) as f:
-                cfg = yaml.safe_load(f) or {}
+            cfg = _load_config()
             if "agent" in cfg:
+                if not isinstance(cfg["agent"], dict):
+                    raise ValueError("Cannot safely update config: 'agent' must be a mapping")
                 cfg["agent"].pop("system_prompt", None)
                 cfg["agent"].pop("prefill_messages_file", None)
-            with open(CONFIG_PATH, "w") as f:
-                yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True,
-                          width=120, sort_keys=False)
+            content = yaml.dump(
+                cfg, default_flow_style=False, allow_unicode=True, width=120, sort_keys=False
+            )
+            _atomic_write(CONFIG_PATH, content)
             if verbose:
                 print(f"[UNDO] Cleared system_prompt and prefill_messages_file from {CONFIG_PATH}")
         except Exception as e:
             if verbose:
                 print(f"[UNDO] Error updating config: {e}")
+            return False
 
     if PREFILL_PATH.exists():
         PREFILL_PATH.unlink()
@@ -728,6 +758,7 @@ def undo_jailbreak(verbose=True):
 
     if verbose:
         print("[UNDO] Jailbreak removed. Restart VectorCode for changes to take effect.")
+    return True
 
 # ===================================================================
 # CLI entry point
