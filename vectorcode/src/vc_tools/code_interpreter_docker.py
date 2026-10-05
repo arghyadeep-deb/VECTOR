@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from loguru import logger
+
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
@@ -112,7 +114,18 @@ class DockerCodeInterpreterTool(BaseTool):
                     stderr=True,
                 ).decode("utf-8", errors="replace")
             finally:
-                container.remove(force=True)
+                # A failure here (daemon busy, container already gone) must
+                # not mask whatever exception/result the try block already
+                # produced -- e.g. a wait() timeout would otherwise surface
+                # as a confusing "Docker execution error" instead of the
+                # correct "Execution timed out" message below.
+                try:
+                    container.remove(force=True)
+                except Exception as cleanup_exc:
+                    logger.warning(
+                        f"[VECTOR][code_interpreter_docker] failed to remove "
+                        f"container {container.id}: {cleanup_exc}"
+                    )
 
             output = stdout
             if stderr:
