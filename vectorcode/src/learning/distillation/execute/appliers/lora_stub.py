@@ -50,13 +50,22 @@ def _check_lora_deps() -> tuple[bool, str]:
 _LORA_AVAILABLE, _LORA_UNAVAIL_REASON = _check_lora_deps()
 
 
+def _edit_path(parent: Path, edit_id: str, *, suffix: str = "") -> Path:
+    """Return a direct child of *parent* for an untrusted edit identifier."""
+    parent = parent.resolve()
+    path = (parent / f"{edit_id}{suffix}").resolve()
+    if path.parent != parent:
+        raise ValueError(f"Unsafe edit id: {edit_id!r}")
+    return path
+
+
 # --- Queue file for deferred edits when LoRA is unavailable -----------------
 
 def _queue_edit(edit: Edit, ctx: ApplyContext) -> Path:
     """Persist the edit to a queue JSON file and return the path."""
     queue_dir = ctx.vector_home / "lora_queue"
     queue_dir.mkdir(parents=True, exist_ok=True)
-    path = queue_dir / f"{edit.id}.json"
+    path = _edit_path(queue_dir, edit.id, suffix=".json")
     path.write_text(json.dumps(edit.model_dump(), indent=2, default=str))
     return path
 
@@ -68,6 +77,12 @@ class LoraStubApplier(EditApplier):
 
     Real fine-tune when GPU + PEFT + transformers are present; graceful
     degradation to a queue artifact otherwise.
+
+    DESIGN QUESTION: risk_tier.py always assigns this op MANUAL, while both
+    shipped execution loops skip MANUAL edits before resolving an applier.
+    Consequently neither this queue fallback nor the real training branch is
+    reachable through those loops. Enabling either path needs an explicit
+    owner decision about the approval-to-execution flow.
     """
 
     op = EditOp.LORA_FINETUNE
@@ -105,12 +120,12 @@ class LoraStubApplier(EditApplier):
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         # Remove queue artifact if it exists
-        queue_path = ctx.vector_home / "lora_queue" / f"{edit.id}.json"
+        queue_path = _edit_path(ctx.vector_home / "lora_queue", edit.id, suffix=".json")
         if queue_path.exists():
             queue_path.unlink()
             logger.info(f"[LoRA] Rolled back queued edit {edit.id}")
         # If a real adapter was written, remove it
-        adapter_dir = ctx.vector_home / "lora_adapters" / edit.id
+        adapter_dir = _edit_path(ctx.vector_home / "lora_adapters", edit.id)
         if adapter_dir.exists():
             import shutil
             shutil.rmtree(adapter_dir)
@@ -130,7 +145,7 @@ def _run_lora_finetune(edit: Edit, ctx: ApplyContext) -> ApplyResult:
     r: int = int(payload.get("lora_r", 8))
     lora_alpha: int = int(payload.get("lora_alpha", 16))
     epochs: int = int(payload.get("epochs", 1))
-    adapter_dir = ctx.vector_home / "lora_adapters" / edit.id
+    adapter_dir = _edit_path(ctx.vector_home / "lora_adapters", edit.id)
 
     if not training_data:
         logger.warning(f"[LoRA] No training_data in payload for edit {edit.id}; skipping")

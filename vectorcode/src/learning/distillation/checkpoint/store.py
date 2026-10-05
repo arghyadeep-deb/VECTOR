@@ -18,19 +18,16 @@ See spec §7.4 and §7.6.
 """
 
 from __future__ import annotations
-from loguru import logger
-
-import logging
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+
+from loguru import logger
 
 from vectorcode.src.learning.distillation.storage.paths import (
     ConfigurationError,
     _find_source_root,
 )
-
-logger = logging.getLogger(__name__)
 
 # Files and directories the checkpoint repo tracks.
 _TRACKED_PATHS = ("config.toml", "agents", "tools")
@@ -87,7 +84,11 @@ class CheckpointStore:
             try:
                 self._root.relative_to(source_root)
             except ValueError as _sve:
-                logger.debug("[VECTOR][learning.distillation.checkpoint.store] suppressed ValueError: %s", _sve)
+                logger.debug(
+                    "[VECTOR][learning.distillation.checkpoint.store] "
+                    "suppressed ValueError: {}",
+                    _sve,
+                )
             else:
                 raise ConfigurationError(
                     f"CheckpointStore root ({self._root}) is inside the "
