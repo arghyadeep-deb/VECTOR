@@ -3707,3 +3707,79 @@ isn't "proven in production" until you supply the service/device and run it live
     of the smaller utility/provider-registry files. Explicitly not representing this directory's
     audit as complete.
 
+70. **`vectorcode/src/{vc_agents,connectors,vc_tools}/` continuation round (2026-10-05) —**
+    resumed after a prior round-3 attempt crashed from a network error (ENOTFOUND) having
+    committed exactly 1 fix (`bac30b978`, slack_connector.py). Confirmed via `git log` that
+    three full prior rounds covered ~53 of 122 files with real depth; continued into the
+    remaining ~69. **Fixed, each with a new regression test verified via `git stash` to fail
+    pre-fix:** `vc_tools/shell_exec.py`'s `_BASE_ENV_KEYS` built a *replacement* environment
+    (not an extension of `os.environ`) containing only `PATH`/`HOME`/`USER`/`LANG`/`TERM` --
+    on this Windows host, Win32's `CreateProcess`/Winsock initialization needs `SYSTEMROOT`
+    present in the child environment, and without it ANY command doing DNS resolution or other
+    socket activity failed with `socket.gaierror: [Errno 11001] getaddrinfo failed` regardless
+    of whether the command itself was fine (confirmed live with a minimal
+    `socket.gethostbyname()` repro in a subprocess, both before and after). This silently broke
+    a large fraction of what an agent would plausibly run through this tool on this platform
+    (curl, ping, pip install, git fetch, any network-touching script) -- failures that looked
+    like "the command is broken," not "the sandbox's environment is incomplete." Added
+    `SYSTEMROOT`/`WINDIR`/`COMSPEC` to `_BASE_ENV_KEYS` (non-secret OS-identity variables,
+    consistent with the tool's existing minimal-env security posture). `vc_agents/loop_guard.py`:
+    `check_call()`'s warn-before-block wrapper deduplicated on `verdict.reason`, the
+    human-readable message string -- for the `identical_call` trigger, that message embeds the
+    live call count ("...repeated {n} times..."), incrementing every call, so the dedup key was
+    never the same twice and the guard warned forever without ever reaching the "block" stage
+    its own docstring promises. Confirmed live: 8 identical calls with `max_identical_calls=3`
+    all came back `blocked=False`, defeating the entire purpose of a component whose job is to
+    prevent degenerate agent tool-calling loops. Fixed by adding a stable `trigger_key` field to
+    `LoopVerdict`, set independently of the human-readable `reason` text at each blocking site,
+    and using it (not `reason`) as the dedup key. `connectors/dropbox.py`'s `sync()` caught ANY
+    exception from the text-download call -- including a revoked/expired OAuth token, not just
+    "this file isn't actually text" -- and silently substituted placeholder content with zero
+    logging; a persistent auth failure partway through a sync would look like a fully successful
+    sync that just happened to produce `[File: name]` placeholders for every subsequent file.
+    Same "phantom success" bug class already fixed in `connectors/slack_connector.py` this audit
+    cycle (there via an unchecked response field; here via silent exception swallowing). Added a
+    loguru warning; kept the existing fallback behavior otherwise. **FLAGGED, not fixed --
+    design/policy decisions:** `vc_tools/file_read.py` and `file_write.py` both accept an
+    `allowed_dirs` constructor parameter and implement real `Path.is_relative_to()` confinement,
+    but both real call sites (`vc_mcp/server.py`, `vc_system/orchestrator.py`) instantiate via
+    `ToolRegistry.create(key)` with no extra args -- `allowed_dirs` is always `None` in
+    production, so `_is_path_allowed()` always returns `True` and this directory allowlist
+    provides zero actual confinement today. Only `is_sensitive_file()`'s blocklist
+    (secrets/credentials/keys) is really enforced; an agent can read (and, via `file_write.py`,
+    write) any non-"sensitive" file the OS process can access, anywhere on the filesystem.
+    Whether confinement should come from wiring this parameter at the two call sites, or is
+    intentionally deferred to a higher-level permission-gateway tier, is an owner decision --
+    same shape as other unwired-security-control findings this audit cycle (`skills/security.py`'s
+    capability gate, `agent/types.py`'s manifest signing). `vc_agents/orchestrator.py`'s parallel
+    tool-call path uses `concurrent.futures.ThreadPoolExecutor`, the same asyncio-policy-violating
+    pattern already flagged (not fixed) in `evals/core/agentic_runner.py` and
+    `evals/backends/external/_subprocess_runner.py` -- converting `run()`'s whole synchronous call
+    chain to async is a bigger architectural change than a narrow fix. **Reviewed, no bug found:**
+    `vc_agents/{agent_registry,rlm,simple,native_react,native_openhands,openhands,digest_store,
+    channel_agent,routing_agent,errors,web_search_agent,deep_research,digest_evaluator}.py`
+    (pattern-scanned for the established bug classes, with `digest_store.py`'s `threading.RLock()`
+    confirmed to be a legitimate sync primitive, not the banned spawn-pattern; all `print()` hits
+    confirmed inside `__main__` self-test blocks). `vc_agents/__init__.py`'s backward-compat
+    `import vectorcode.src.vc_agents.react` fails every time (the shim file was apparently never
+    created) -- confirmed zero real callers anywhere in the repo reference that path, and the
+    surrounding `try/except ImportError` + debug-log already degrades gracefully with zero actual
+    impact; not a bug, working as designed. `connectors/{obsidian,notion,spotify}.py` (obsidian.py
+    in full: local filesystem walk, no API calls, permission errors on individual files correctly
+    treated as skip-and-continue rather than phantom success since the overall sync makes no false
+    claim about files it couldn't read; notion.py and spotify.py's exception handling checked and
+    found to have no equivalent of dropbox.py's silent-swallow bug). New tests:
+    `tests/test_vectorcode_vc_tools_shell_exec_env.py` (3, Windows-specific),
+    `tests/test_vectorcode_vc_agents_loop_guard_warn_then_block.py` (3),
+    `tests/test_vectorcode_connectors_dropbox_download_logging.py` (2) -- 8/8 passing.
+    **Depth statement:** 7 files got genuine full-depth review this round (3 fixed, 2 flagged, 2
+    files' exception-handling spot-checked clean alongside obsidian.py's full read), plus 13
+    `vc_agents/` files pattern-scanned rather than fully read line-by-line. ~60 files remain
+    across all three directories, prioritized by the next round as: `connectors/` (apple_notes,
+    chunker, gmail, google_tasks, granola, hackernews, imessage, oura, outlook, pipeline, strava,
+    weather -- most untouched), most of `vc_tools/` (knowledge_search/knowledge_sql/
+    knowledge_tools, llm_tool, mcp_adapter, memory_manage, pdf_tool, repl, retrieval, scan_chunks,
+    skill_manage, storage backends other than sqlite/knowledge_graph/dense, text_to_speech, think,
+    user_profile_manage, apply_patch, audio_tool, browser_axtree, calculator, channel_tools,
+    code_interpreter_docker, _markdown_store).
+
