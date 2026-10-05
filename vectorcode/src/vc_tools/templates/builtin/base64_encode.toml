@@ -8,4 +8,4 @@ type = "string"
 description = "Text to encode."
 [tool.action]
 type = "python"
-expression = "str(input)"
+expression = "base64_encode(input)"

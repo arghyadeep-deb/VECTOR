@@ -11,4 +11,4 @@ type = "string"
 description = "Regex pattern."
 [tool.action]
 type = "python"
-expression = "str(input)"
+expression = "regex_extract(pattern, input)"

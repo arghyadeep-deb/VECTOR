@@ -8,4 +8,4 @@ type = "string"
 description = "Text to hash."
 [tool.action]
 type = "python"
-expression = "str(input)"
+expression = "sha256(input)"

@@ -8,10 +8,13 @@
 from __future__ import annotations
 
 import ast
+import base64
+import hashlib
 import json
 import re
 import shlex
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,6 +25,23 @@ from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
 
 _SHELL_VALUE_REJECT = re.compile(r"[;&|`$<>\r\n]")
 _SHELL_INTERPRETERS = {"sh", "bash", "zsh", "fish", "cmd", "cmd.exe", "powershell", "powershell.exe", "pwsh", "pwsh.exe"}
+
+
+def _tmpl_base64_encode(value: Any) -> str:
+    return base64.b64encode(str(value).encode("utf-8")).decode("ascii")
+
+
+def _tmpl_sha256(value: Any) -> str:
+    return hashlib.sha256(str(value).encode("utf-8")).hexdigest()
+
+
+def _tmpl_regex_extract(pattern: Any, text: Any) -> str:
+    matches = re.findall(str(pattern), str(text))
+    return json.dumps(matches)
+
+
+def _tmpl_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 class _SafeExpressionEvaluator(ast.NodeVisitor):
@@ -39,6 +59,10 @@ class _SafeExpressionEvaluator(ast.NodeVisitor):
         "sorted": sorted,
         "list": list,
         "dict": dict,
+        "base64_encode": _tmpl_base64_encode,
+        "sha256": _tmpl_sha256,
+        "regex_extract": _tmpl_regex_extract,
+        "now_iso": _tmpl_now_iso,
     }
 
     def __init__(self, params: Dict[str, Any]) -> None:
