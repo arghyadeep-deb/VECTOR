@@ -684,7 +684,7 @@ def format_token_count_compact(value: int) -> str:
 
     sign = "-" if value < 0 else ""
     units = ((1_000_000_000, "B"), (1_000_000, "M"), (1_000, "K"))
-    for threshold, suffix in units:
+    for i, (threshold, suffix) in enumerate(units):
         if abs_value >= threshold:
             scaled = abs_value / threshold
             if scaled < 10:
@@ -693,6 +693,14 @@ def format_token_count_compact(value: int) -> str:
                 text = f"{scaled:.1f}"
             else:
                 text = f"{scaled:.0f}"
+            # Rounding up can push the displayed number to "1000" (e.g.
+            # 999_999 is just under the M threshold, so it lands here and
+            # ".0f" rounds 999.999 up to "1000" -- producing "1000K"
+            # instead of rolling over into the next bigger unit, "1M".
+            if float(text) >= 1000 and i > 0:
+                threshold, suffix = units[i - 1]
+                scaled = abs_value / threshold
+                text = f"{scaled:.2f}" if scaled < 10 else f"{scaled:.1f}"
             if "." in text:
                 text = text.rstrip("0").rstrip(".")
             return f"{sign}{text}{suffix}"
