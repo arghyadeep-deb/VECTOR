@@ -344,20 +344,29 @@ def _ensure_reference_path_allowed(path: Path) -> None:
     home = Path(os.path.expanduser("~")).resolve()
     vector_home = get_vector_home().resolve()
 
-    blocked_exact = {home / rel for rel in _SENSITIVE_HOME_FILES}
-    blocked_exact.add(vector_home / ".env")
+    # Windows path comparisons are case-insensitive even though Path equality
+    # is not. Normalize spellings before applying the credential denylist so
+    # aliases such as ``.SSH/ID_RSA`` cannot bypass it.
+    normalized_path = os.path.normcase(str(path.resolve()))
+    blocked_exact = {
+        os.path.normcase(str((home / rel).resolve())) for rel in _SENSITIVE_HOME_FILES
+    }
+    blocked_exact.add(os.path.normcase(str((vector_home / ".env").resolve())))
     blocked_dirs = [home / rel for rel in _SENSITIVE_HOME_DIRS]
     blocked_dirs.extend(vector_home / rel for rel in _SENSITIVE_VECTOR_DIRS)
 
-    if path in blocked_exact:
+    if normalized_path in blocked_exact:
         raise ValueError("path is a sensitive credential file and cannot be attached")
 
     for blocked_dir in blocked_dirs:
         try:
-            path.relative_to(blocked_dir)
+            common = os.path.commonpath(
+                [normalized_path, os.path.normcase(str(blocked_dir.resolve()))]
+            )
         except ValueError:
             continue
-        raise ValueError("path is a sensitive credential or internal VectorCode path and cannot be attached")
+        if common == os.path.normcase(str(blocked_dir.resolve())):
+            raise ValueError("path is a sensitive credential or internal VectorCode path and cannot be attached")
 
 
 def _strip_trailing_punctuation(value: str) -> str:
