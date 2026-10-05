@@ -12,6 +12,7 @@ Extracts fixed code from model output, runs the test suite, and computes:
 
 from __future__ import annotations
 
+import builtins
 import logging
 import re
 from typing import Any, Dict, Optional, Tuple
@@ -115,6 +116,13 @@ def _run_single_test(code: str, test_code: str) -> bool:
 
     import types
     safe_builtins = {k: __builtins__[k] for k in _CODING_SAFE_BUILTINS_KEYS if k in __builtins__}
+
+    def _safe_test_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name not in {"solution", "pytest"}:
+            raise ImportError(f"test import is not allowed: {name}")
+        return builtins.__import__(name, globals, locals, fromlist, level)
+
+    test_builtins = {**safe_builtins, "__import__": _safe_test_import}
     mod = types.ModuleType("solution")
     mod.__dict__.setdefault("__builtins__", safe_builtins)
     try:
@@ -125,7 +133,16 @@ def _run_single_test(code: str, test_code: str) -> bool:
     import sys
     sys.modules["solution"] = mod
     try:
-        exec(test_code, {"__name__": "__main__", "__builtins__": safe_builtins})  # noqa: S102
+        test_namespace = {"__name__": "__main__", "__builtins__": test_builtins}
+        exec(test_code, test_namespace)  # noqa: S102
+        test_functions = [
+            value
+            for name, value in test_namespace.items()
+            if name.startswith("test_") and callable(value)
+        ]
+        if len(test_functions) != 1:
+            return False
+        test_functions[0]()
         return True
     except Exception:
         return False
