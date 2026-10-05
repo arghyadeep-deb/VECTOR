@@ -16,6 +16,7 @@ from datetime import datetime
 from typing import Any, Dict, Iterator, List, Optional
 
 import httpx
+from loguru import logger
 
 from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
 from vectorcode.src.connectors.oauth import delete_tokens, load_tokens, save_tokens
@@ -258,7 +259,20 @@ class DropboxConnector(BaseConnector):
                 if suffix in _TEXT_EXTENSIONS:
                     try:
                         content = _dropbox_api_download(token, path_lower)
-                    except Exception:  # noqa: BLE001
+                    except Exception as exc:  # noqa: BLE001
+                        # Any download failure here (including a revoked/
+                        # expired token, not just a genuinely-binary file
+                        # misclassified as text) was silently swallowed --
+                        # the sync would report success while every
+                        # subsequent text file silently got placeholder
+                        # content instead of its real body. Log loudly so
+                        # a persistent auth failure doesn't look like a
+                        # clean sync.
+                        logger.warning(
+                            "[VECTOR][connectors.dropbox] Failed to download {}: {}",
+                            path_lower,
+                            exc,
+                        )
                         content = f"[File: {name}]"
                 else:
                     content = f"[File: {name}]"
