@@ -24,6 +24,18 @@ from typing import Any
 
 from vectorcode.src.learning.distillation.diagnose.types import DiagnosticTool
 
+
+def _is_safe_path_component(value: str) -> bool:
+    """True if *value* is safe to use as exactly one path segment.
+
+    agent_name is a tool-call argument chosen by the teacher LLM (see
+    teacher_agent.py's ``tool.fn(**tc_args)``) -- a value like
+    ``"../../../../etc"`` must not be allowed to walk get_agent_prompt's
+    read outside ``vector_home / "agents"``.
+    """
+    return bool(value) and value not in (".", "..") and "/" not in value and "\\" not in value
+
+
 def build_diagnostic_tools(
     *,
     trace_store: Any,
@@ -183,6 +195,8 @@ def build_diagnostic_tools(
     # get_agent_prompt
     # ------------------------------------------------------------------
     def _get_agent_prompt(agent_name: str) -> str:
+        if not _is_safe_path_component(agent_name):
+            return f"Invalid agent_name '{agent_name}': must be a single path component with no '..' or separators."
         prompt_path = vector_home / "agents" / agent_name / "system_prompt.md"
         try:
             return prompt_path.read_text(encoding="utf-8")
@@ -236,7 +250,7 @@ def build_diagnostic_tools(
                     if tools_list:
                         tools_list[-1]["description"] = desc
         except FileNotFoundError as _sve:
-            logger.warning("[VECTOR][learning.distillation.diagnose.tools] suppressed FileNotFoundError: %s", _sve)
+            logger.warning("[VECTOR][learning.distillation.diagnose.tools] suppressed FileNotFoundError: {}", _sve)
         return json.dumps(tools_list, default=str)
 
     # ------------------------------------------------------------------
