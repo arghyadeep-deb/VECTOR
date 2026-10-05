@@ -11,6 +11,7 @@ from loguru import logger
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULES = (
+    ROOT / "vectorcode/src/evals/cli.py",
     ROOT / "vectorcode/src/evals/core/config.py",
     ROOT / "vectorcode/src/evals/datasets/deepplanning.py",
     ROOT / "vectorcode/src/evals/datasets/workarena.py",

@@ -9,8 +9,8 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-import logging
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -33,8 +33,6 @@ from vectorcode.src.evals.core.display import (
     print_subject_table,
     print_suite_summary,
 )
-
-LOGGER = logging.getLogger(__name__)
 
 # Registry of available benchmarks and their metadata
 BENCHMARKS = {
@@ -165,12 +163,8 @@ BACKENDS = {
 }
 
 def _setup_logging(verbose: bool) -> None:
-    level = logging.DEBUG if verbose else logging.INFO
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    logger.remove()
+    logger.add(sys.stderr, level="DEBUG" if verbose else "INFO")
 
 def _build_backend(
     backend_name: str,
@@ -574,8 +568,8 @@ def _build_judge_backend(judge_model: str, engine_key: str = "cloud"):
     try:
         return VectorDirectBackend(engine_key=engine_key)
     except RuntimeError as exc:
-        LOGGER.warning(
-            "Judge backend (%s) unavailable: %s — "
+        logger.warning(
+            "Judge backend ({}) unavailable: {} — "
             "deterministic scorers will still work; "
             "LLM-judge scorers will fail when scoring.",
             engine_key,
@@ -849,7 +843,7 @@ def _run_agentic(
                 interval_ms=100,
             )
     except ImportError:
-        __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
+        logger.opt(exception=True).warning("Optional telemetry dependency import failed")
     # Set up run directory
     model_slug = config.model.replace("/", "-").replace(":", "-")
     if config.output_path:
@@ -891,7 +885,7 @@ def _run_agentic(
             try:
                 telemetry_session.stop()
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.cli] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.cli] suppressed Exception: {}", _sve)
 
     # Export results
     jsonl_path = run_dir / "traces.jsonl"
@@ -924,7 +918,7 @@ def _run_agentic(
         export_hf_dataset(traces, hf_path)
         console.print(f"  [green]HF Arrow:[/green]  {hf_path}")
     except ImportError:
-        __import__("logging").getLogger(__name__).warning("optional dep import failed", exc_info=True)
+        logger.opt(exception=True).warning("Optional Hugging Face dependency import failed")
     # Print summary table
     print_section(console, "Agentic Results")
     _print_agentic_summary(console, traces, config)
@@ -1266,7 +1260,7 @@ def run(
     # (via iter_episodes), so passing --episode-mode here is optional for
     # benchmarks like lifelong-agent that always require it.
     if episode_mode and agentic:
-        LOGGER.warning(
+        logger.warning(
             "--episode-mode and --agentic both set; using --episode-mode "
             "(provides proper multi-turn interaction via EvalRunner)"
         )
