@@ -27,6 +27,11 @@ class FileWriteTool(BaseTool):
         self,
         allowed_dirs: Optional[List[str]] = None,
     ) -> None:
+        # FLAGGED (not fixed -- see the identical note in file_read.py):
+        # allowed_dirs is always None from both real call sites, so
+        # _is_path_allowed() always returns True -- this is a write
+        # primitive with zero actual directory confinement in production
+        # today, beyond is_sensitive_file()'s blocklist.
         self._allowed_dirs = [Path(d).resolve() for d in (allowed_dirs or [])]
 
     @property
