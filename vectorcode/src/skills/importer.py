@@ -30,6 +30,18 @@ from vectorcode.src.skills.tool_translator import ToolTranslator
 # Subdirectories of a skill that are always copied (never gated by --with-scripts)
 COPIED_SUBDIRS = ("references", "assets", "templates")
 
+
+def _is_safe_path_component(value: str) -> bool:
+    """True if *value* is safe to use as exactly one path segment.
+
+    resolved.name comes from a skill's own SKILL.md YAML frontmatter
+    (parsed via yaml.safe_load of a cloned, potentially attacker-controlled
+    git repo for the "github" source) -- a malicious name like
+    "../../../../.ssh" must not be allowed to escape target_root, since the
+    code below runs shutil.rmtree() and mkdir() on the resulting path.
+    """
+    return bool(value) and value not in (".", "..") and "/" not in value and "\\" not in value
+
 @dataclass(slots=True)
 class ImportResult:
     """Result of importing a single skill."""
@@ -70,6 +82,14 @@ class SkillImporter:
         tools, untranslated tools, and warnings.
         """
         result = ImportResult()
+        if not _is_safe_path_component(resolved.source) or not _is_safe_path_component(resolved.name):
+            result.success = False
+            result.warnings.append(
+                f"Refusing to install skill with unsafe source/name "
+                f"({resolved.source!r}/{resolved.name!r}): must be a single "
+                f"path component with no '..' or path separators"
+            )
+            return result
         target_dir = self._target_root / resolved.source / resolved.name
         result.target_path = target_dir
 
