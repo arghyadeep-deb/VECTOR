@@ -37,9 +37,9 @@ from __future__ import annotations
 from loguru import logger
 
 import hashlib
-import logging
 import math
 import re
+import secrets
 import shutil
 import sqlite3
 import subprocess
@@ -47,8 +47,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from vectorcode.src.evals.core.scorer import Scorer
 from vectorcode.src.evals.core.types import EvalRecord
-
-logger = logging.getLogger(__name__)
 
 _REL_TOLERANCE = 1e-6
 _ABS_TOLERANCE = 1e-6
@@ -152,7 +150,7 @@ class LifelongAgentScorer(Scorer):
         try:
             conn = build_db(table_info)
         except Exception as exc:
-            logger.warning("DB build failed for %s: %s", record.record_id, exc)
+            logger.warning("DB build failed for {}: {}", record.record_id, exc)
             return None, {"reason": f"db_build_failed: {exc}", "match_type": "error"}
 
         try:
@@ -231,7 +229,7 @@ class LifelongAgentScorer(Scorer):
             # Ground-truth SQL failed on SQLite (likely MySQL-specific syntax).
             # Fall back: compare normalized SQL strings and table state hashes.
             logger.warning(
-                "MD5 task %s: ground-truth SQL failed on SQLite (%s). "
+                "MD5 task {}: ground-truth SQL failed on SQLite ({}). "
                 "Falling back to normalized SQL comparison. Use MySQL/Docker "
                 "for faithful evaluation of DML tasks.",
                 table_name,
@@ -302,7 +300,7 @@ class LifelongAgentScorer(Scorer):
             except sqlite3.Error as exc:
                 meta["sql_error"] = str(exc)
                 logger.debug(
-                    "SQL execution failed, trying text parsing: %s",
+                    "SQL execution failed, trying text parsing: {}",
                     exc,
                 )
 
@@ -340,7 +338,7 @@ class LifelongAgentScorer(Scorer):
         # produces unreliable results (IDs from intermediate reasoning, not
         # the final answer).  Return unscorable rather than misleading scores.
         logger.error(
-            "KG task %s: single-shot scoring is NOT possible for knowledge "
+            "KG task {}: single-shot scoring is NOT possible for knowledge "
             "graph tasks. The original benchmark requires multi-turn "
             "interaction with a SPARQL endpoint to resolve variable "
             "references. Use episode_mode=True for faithful evaluation.",
@@ -387,7 +385,7 @@ class LifelongAgentScorer(Scorer):
                 "Install Docker and ensure the daemon is running."
             )
             logger.error(
-                "OS task %s: Docker not available — task NOT scorable. "
+                "OS task {}: Docker not available — task NOT scorable. "
                 "Install Docker for faithful evaluation.",
                 record.record_id,
             )
@@ -412,7 +410,7 @@ class LifelongAgentScorer(Scorer):
             meta["docker_eval_completed"] = True
             return is_correct, meta
         except Exception as exc:
-            logger.warning("Docker OS eval failed: %s", exc)
+            logger.warning("Docker OS eval failed: {}", exc)
             meta["reason"] = f"docker_eval_error: {exc}"
             meta["docker_eval_completed"] = False
             return None, meta
@@ -459,7 +457,7 @@ def build_db(table_info: Dict[str, Any]) -> sqlite3.Connection:
                 )
             except sqlite3.Error as exc:
                 logger.debug(
-                    "Skipping row %d in table %s: %s",
+                    "Skipping row {} in table {}: {}",
                     row_idx,
                     table_name,
                     exc,
@@ -604,7 +602,7 @@ def _parse_text_answer(text: str) -> Optional[List[List[Any]]]:
             return [list(parsed)]
         return [[parsed]]
     except (ValueError, SyntaxError) as _sve:
-        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, SyntaxError): %s", _sve)
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, SyntaxError): {}", _sve)
 
     if "," in answer_text:
         parts = [p.strip().strip("'\"") for p in answer_text.split(",")]
@@ -627,11 +625,11 @@ def _try_numeric(s: str) -> Any:
     try:
         return int(s)
     except (ValueError, TypeError) as _sve:
-        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): %s", _sve)
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): {}", _sve)
     try:
         return float(s)
     except (ValueError, TypeError) as _sve:
-        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): %s", _sve)
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): {}", _sve)
     return s if s else None
 
 # ====================================================================
@@ -751,7 +749,7 @@ def _evaluate_os_in_docker(
     eval_info: Dict[str, Any],
 ) -> bool:
     """Run OS evaluation in Docker matching the original's protocol."""
-    container_name = "lifelong-agent-os-eval"
+    container_name = f"lifelong-agent-os-eval-{secrets.token_hex(8)}"
     # Try the original's custom image first, fall back to ubuntu:22.04
     image = "ubuntu:22.04"
     try:
@@ -764,12 +762,12 @@ def _evaluate_os_in_docker(
             image = "local-os/default"
         else:
             logger.warning(
-                "OS eval: 'local-os/default' image not found, using '%s'. "
+                "OS eval: 'local-os/default' image not found, using '{}'. "
                 "Build the original's Docker image for faithful evaluation.",
                 image,
             )
     except Exception as _sve:
-        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed Exception: {}", _sve)
 
     try:
         subprocess.run(
@@ -802,7 +800,7 @@ def _evaluate_os_in_docker(
             )
             if result.returncode != 0:
                 logger.warning(
-                    "Init command failed (exit %d): %s",
+                    "Init command failed (exit {}): {}",
                     result.returncode,
                     result.stderr.decode(errors="replace")[:200],
                 )
@@ -841,14 +839,17 @@ def _evaluate_os_in_docker(
         logger.warning("Docker command timed out")
         return False
     except subprocess.CalledProcessError as exc:
-        logger.warning("Docker command failed: %s", exc)
+        logger.warning("Docker command failed: {}", exc)
         return False
     finally:
-        subprocess.run(
-            ["docker", "rm", "-f", container_name],
-            capture_output=True,
-            timeout=30,
-        )
+        try:
+            subprocess.run(
+                ["docker", "rm", "-f", container_name],
+                capture_output=True,
+                timeout=30,
+            )
+        except (subprocess.TimeoutExpired, OSError) as exc:
+            logger.warning("Docker cleanup failed for {}: {}", container_name, exc)
 
 # ====================================================================
 # Value comparison (matches original's DirectTypeAnswerValidator)
@@ -904,7 +905,7 @@ def values_match(expected: Any, actual: Any) -> bool:
             abs_tol=_ABS_TOLERANCE,
         )
     except (ValueError, TypeError) as _sve:
-        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): %s", _sve)
+        logger.debug("[VECTOR][evals.scorers.lifelong_agent_scorer] suppressed (ValueError, TypeError): {}", _sve)
 
     return str(expected).strip() == str(actual).strip()
 
