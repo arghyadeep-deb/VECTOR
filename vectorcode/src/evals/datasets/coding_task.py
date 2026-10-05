@@ -248,7 +248,7 @@ class CodingTaskDataset(DatasetProvider):
         split: Optional[str] = None,
         seed: Optional[int] = None,
     ) -> None:
-        rows = list(_TASKS)
+        rows = list(enumerate(_TASKS))
 
         if seed is not None:
             rng = random.Random(seed)
@@ -258,7 +258,7 @@ class CodingTaskDataset(DatasetProvider):
             rows = rows[:max_samples]
 
         self._records = []
-        for idx, task in enumerate(rows):
+        for task_idx, task in rows:
             prompt = _PROMPT_TEMPLATE.format(
                 spec=task["spec"],
                 signature=task["signature"],
@@ -266,7 +266,7 @@ class CodingTaskDataset(DatasetProvider):
             )
             self._records.append(
                 EvalRecord(
-                    record_id=f"coding-task-{idx}",
+                    record_id=f"coding-task-{task_idx}",
                     problem=prompt,
                     reference=task["reference"],
                     category="use-case",

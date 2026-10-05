@@ -646,7 +646,7 @@ class DailyDigestDataset(DatasetProvider):
             + ["hard"] * len(_HARD_TASKS)
         )
 
-        paired = list(zip(all_tasks, difficulties))
+        paired = list(zip(range(len(all_tasks)), all_tasks, difficulties))
         if seed is not None:
             rng = random.Random(seed)
             rng.shuffle(paired)
@@ -655,7 +655,7 @@ class DailyDigestDataset(DatasetProvider):
             paired = paired[:max_samples]
 
         self._records: List[EvalRecord] = []
-        for idx, (task, diff) in enumerate(paired):
+        for task_idx, task, diff in paired:
             prompt = _PROMPT_TEMPLATE.format(
                 role=task["role"],
                 company=task["company"],
@@ -668,7 +668,7 @@ class DailyDigestDataset(DatasetProvider):
 
             self._records.append(
                 EvalRecord(
-                    record_id=f"daily-digest-{idx:03d}",
+                    record_id=f"daily-digest-{task_idx:03d}",
                     problem=prompt,
                     reference="; ".join(task["must_mention"]),
                     category="agentic",
