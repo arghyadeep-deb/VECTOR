@@ -12,15 +12,14 @@ from __future__ import annotations
 
 import hashlib
 import json
-import logging
 import re
 import uuid
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
-from agent.prompt_builder import DEFAULT_AGENT_IDENTITY
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from agent.prompt_builder import DEFAULT_AGENT_IDENTITY
 
 
 # Matches Codex/Harmony tool-call serialization that occasionally leaks into
@@ -796,7 +795,7 @@ def _normalize_codex_response(response: Any) -> tuple[Any, str]:
         out_text = getattr(response, "output_text", None)
         if isinstance(out_text, str) and out_text.strip():
             logger.debug(
-                "Codex response has empty output but output_text is present (%d chars); "
+                "Codex response has empty output but output_text is present ({} chars); "
                 "synthesizing output item.", len(out_text.strip()),
             )
             output = [SimpleNamespace(
@@ -962,7 +961,7 @@ def _normalize_codex_response(response: Any) -> tuple[Any, str]:
         logger.warning(
             "Codex response contains leaked tool-call text in assistant content "
             "(no structured function_call items). Treating as incomplete so the "
-            "continuation path can re-elicit a proper tool call. Leaked snippet: %r",
+            "continuation path can re-elicit a proper tool call. Leaked snippet: {!r}",
             final_text[:300],
         )
         # Clear the text so downstream code doesn't surface the garbage as
