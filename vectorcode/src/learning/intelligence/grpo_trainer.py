@@ -358,10 +358,17 @@ class GRPOTrainer:
 
 @LearningRegistry.register("grpo")
 class _GRPOLearningPolicy(IntelligenceLearningPolicy):
-    """Wrapper to register GRPOTrainer in the LearningRegistry."""
+    """Wrapper to register GRPOTrainer in the LearningRegistry.
+
+    Intentionally stateless: update() builds its own GRPOConfig and
+    GRPOTrainer from scratch on every call, so __init__ takes no action.
+    (A blanket "pass-only stub -> raise NotImplementedError" pass once
+    turned this no-op into an unconditional raise, making this registry
+    entry permanently unconstructable -- restored.)
+    """
 
     def __init__(self, **kwargs: object) -> None:
-        raise NotImplementedError("_GRPOLearningPolicy.__init__ must be implemented by subclass")
+        pass
 
     def update(self, trace_store: Any, **kwargs: object) -> Dict[str, Any]:
         from vectorcode.src.vc_core.config import GRPOConfig

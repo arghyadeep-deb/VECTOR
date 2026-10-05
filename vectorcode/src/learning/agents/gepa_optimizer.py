@@ -314,10 +314,17 @@ class GEPAAgentOptimizer:
 
 @LearningRegistry.register("gepa")
 class _GEPALearningPolicy(AgentLearningPolicy):
-    """Wrapper to register GEPAAgentOptimizer in the LearningRegistry."""
+    """Wrapper to register GEPAAgentOptimizer in the LearningRegistry.
+
+    Intentionally stateless: update() builds its own GEPAOptimizerConfig
+    and GEPAAgentOptimizer from scratch on every call, so __init__ takes
+    no action. (A blanket "pass-only stub -> raise NotImplementedError"
+    pass once turned this no-op into an unconditional raise, making this
+    registry entry permanently unconstructable -- restored.)
+    """
 
     def __init__(self, **kwargs: object) -> None:
-        raise NotImplementedError("_GEPALearningPolicy.__init__ must be implemented by subclass")
+        pass
 
     def update(self, trace_store: Any, **kwargs: object) -> Dict[str, Any]:
         config = GEPAOptimizerConfig()
