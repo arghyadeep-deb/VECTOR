@@ -136,10 +136,14 @@ def chunk_text(
         current_tokens.extend(para_tokens)
         current_offset += len(para_tokens)
 
-    # Flush remaining tokens
+    # Flush remaining tokens. The min_chunk_size filter exists to drop noisy
+    # leftover fragments when sibling chunks already captured the bulk of the
+    # document -- but if no chunk has been produced yet, this remainder IS
+    # the entire document, and dropping it would silently discard a whole
+    # short document (e.g. a short note or email) instead of filtering noise.
     if current_tokens:
         chunk_content = " ".join(current_tokens)
-        if _count_tokens(chunk_content) >= cfg.min_chunk_size:
+        if _count_tokens(chunk_content) >= cfg.min_chunk_size or not chunks:
             chunks.append(
                 Chunk(
                     content=chunk_content,
