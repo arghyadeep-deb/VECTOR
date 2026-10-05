@@ -101,8 +101,17 @@ class TrialRunner:
             summary: RunSummary = eval_runner.run()
             eval_results = eval_runner.results
         finally:
-            backend.close()
-            judge_backend.close()
+            # Each close() must run even if the other raises -- backend.close()
+            # raising would otherwise skip judge_backend.close() entirely,
+            # leaking its connection/resources.
+            try:
+                backend.close()
+            except Exception as exc:
+                LOGGER.warning("Failed to close backend: {}", exc)
+            try:
+                judge_backend.close()
+            except Exception as exc:
+                LOGGER.warning("Failed to close judge_backend: {}", exc)
 
         return self._summary_to_result(trial, summary, eval_results=eval_results)
 
@@ -277,7 +286,7 @@ class MultiBenchTrialRunner:
             "dataset_version": "0.1.1",
             "model_name": litellm_model,
             "agent_import_path": (
-                "vector.evals.backends.tb_agent:VectorCodeTerminalBenchAgent"
+                "vectorcode.src.evals.backends.tb_agent:VectorCodeTerminalBenchAgent"
             ),
             "agent_kwargs": {
                 "model_name": litellm_model,
