@@ -55,40 +55,50 @@ class HackerNewsConnector(BaseConnector):
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None
     ) -> Iterator[Document]:
         """Yield Documents for the top 5 Hacker News stories."""
-        top_ids = _hn_top_story_ids()
+        try:
+            top_ids = _hn_top_story_ids()
 
-        for story_id in top_ids[:5]:
-            item = _hn_item(story_id)
-            if item is None:
-                continue
+            for story_id in top_ids[:5]:
+                item = _hn_item(story_id)
+                if item is None:
+                    continue
 
-            title = item.get("title", "")
-            score = item.get("score", 0)
-            descendants = item.get("descendants", 0)
-            url = item.get("url", "")
-            by = item.get("by", "")
-            ts = datetime.now()
-            if item.get("time"):
-                ts = datetime.fromtimestamp(item["time"])
+                title = item.get("title", "")
+                score = item.get("score", 0)
+                descendants = item.get("descendants", 0)
+                url = item.get("url", "")
+                by = item.get("by", "")
+                ts = datetime.now()
+                if item.get("time"):
+                    ts = datetime.fromtimestamp(item["time"])
 
-            yield Document(
-                doc_id=f"hn-{story_id}",
-                source="hackernews",
-                doc_type="story",
-                content=f"Score: {score}, Comments: {descendants}",
-                title=title,
-                author=by,
-                timestamp=ts,
-                url=url or None,
-                metadata={
-                    "story_id": story_id,
-                    "score": score,
-                    "descendants": descendants,
-                },
-            )
+                yield Document(
+                    doc_id=f"hn-{story_id}",
+                    source="hackernews",
+                    doc_type="story",
+                    content=f"Score: {score}, Comments: {descendants}",
+                    title=title,
+                    author=by,
+                    timestamp=ts,
+                    url=url or None,
+                    metadata={
+                        "story_id": story_id,
+                        "score": score,
+                        "descendants": descendants,
+                    },
+                )
 
-        self._status.state = "idle"
-        self._status.last_sync = datetime.now()
+            self._status.state = "idle"
+            self._status.error = None
+            self._status.last_sync = datetime.now()
+        except Exception as exc:
+            # SyncStatus.state defaults to "idle", the same value a
+            # successful sync ends on -- without this, a caller polling
+            # sync_status() after a failed sync (e.g. the HN API down)
+            # cannot tell a crash apart from "nothing synced yet".
+            self._status.state = "error"
+            self._status.error = str(exc)
+            raise
 
     def sync_status(self) -> SyncStatus:
         return self._status

@@ -66,28 +66,39 @@ class OuraConnector(BaseConnector):
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None
     ) -> Iterator[Document]:
         """Yield Documents for sleep, readiness, and activity."""
-        token = self._load_token()
-        start = (since or datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
-        end = datetime.now().strftime("%Y-%m-%d")
+        try:
+            token = self._load_token()
+            start = (since or datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+            end = datetime.now().strftime("%Y-%m-%d")
 
-        for data_type in ("sleep", "daily_readiness", "daily_activity"):
-            data = _oura_api_get(
-                token, data_type, params={"start_date": start, "end_date": end}
-            )
-            for item in data.get("data", []):
-                day = item.get("day", start)
-                yield Document(
-                    doc_id=f"oura-{data_type}-{day}",
-                    source="oura",
-                    doc_type=data_type,
-                    content=json.dumps(item),
-                    title=f"Oura {data_type.replace('_', ' ').title()} — {day}",
-                    timestamp=datetime.fromisoformat(day),
-                    metadata={"data_type": data_type, "day": day},
+            for data_type in ("sleep", "daily_readiness", "daily_activity"):
+                data = _oura_api_get(
+                    token, data_type, params={"start_date": start, "end_date": end}
                 )
+                for item in data.get("data", []):
+                    day = item.get("day", start)
+                    yield Document(
+                        doc_id=f"oura-{data_type}-{day}",
+                        source="oura",
+                        doc_type=data_type,
+                        content=json.dumps(item),
+                        title=f"Oura {data_type.replace('_', ' ').title()} — {day}",
+                        timestamp=datetime.fromisoformat(day),
+                        metadata={"data_type": data_type, "day": day},
+                    )
 
-        self._status.state = "idle"
-        self._status.last_sync = datetime.now()
+            self._status.state = "idle"
+            self._status.error = None
+            self._status.last_sync = datetime.now()
+        except Exception as exc:
+            # SyncStatus.state defaults to "idle" -- the same value a
+            # successful sync ends on -- so without this, a failed sync
+            # (expired PAT, one of the three endpoints down) is
+            # indistinguishable from "nothing synced yet" to any caller
+            # polling sync_status().
+            self._status.state = "error"
+            self._status.error = str(exc)
+            raise
 
     def sync_status(self) -> SyncStatus:
         return self._status

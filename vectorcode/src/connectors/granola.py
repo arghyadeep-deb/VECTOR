@@ -196,6 +196,7 @@ class GranolaConnector(BaseConnector):
         self._items_total: int = 0
         self._last_sync: Optional[datetime] = None
         self._last_cursor: Optional[str] = None
+        self._last_error: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Internal key resolution
@@ -263,91 +264,107 @@ class GranolaConnector(BaseConnector):
         """
         api_key = self._resolve_api_key()
         if not api_key:
+            # Silently yields zero documents on missing credentials, same as
+            # before this fix -- changing this to raise would be a behavior
+            # change beyond this fix's narrow scope (status reporting), so
+            # it's flagged here rather than altered. is_connected() is the
+            # documented way callers are expected to check for this case
+            # first.
             return
 
-        # Convert since to ISO string if provided.
-        # Granola API requires ISO 8601 with Z suffix (not +00:00).
-        created_after: Optional[str] = None
-        if since is not None:
-            if since.tzinfo is not None:
-                since = since.replace(tzinfo=None)
-            created_after = since.strftime("%Y-%m-%dT%H:%M:%SZ")
+        try:
+            # Convert since to ISO string if provided.
+            # Granola API requires ISO 8601 with Z suffix (not +00:00).
+            created_after: Optional[str] = None
+            if since is not None:
+                if since.tzinfo is not None:
+                    since = since.replace(tzinfo=None)
+                created_after = since.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        page_cursor: Optional[str] = cursor
-        synced = 0
+            page_cursor: Optional[str] = cursor
+            synced = 0
 
-        while True:
-            list_resp = _granola_api_list_notes(
-                api_key,
-                cursor=page_cursor,
-                created_after=created_after,
-            )
-            notes: List[Dict[str, Any]] = list_resp.get("notes", [])
-
-            for note_summary in notes:
-                note_id: str = note_summary.get("id", "")
-                if not note_id:
-                    continue
-
-                # Fetch full note with transcript
-                note = _granola_api_get_note(api_key, note_id)
-
-                title: str = note.get("title", "")
-                owner: Dict[str, Any] = note.get("owner") or {}
-                author: str = owner.get("email", "")
-
-                attendees: List[Dict[str, Any]] = note.get("attendees") or []
-                participants: List[str] = [
-                    a.get("email", "") for a in attendees if a.get("email")
-                ]
-
-                created_at_str: str = note.get("created_at", "")
-                timestamp = _parse_iso_datetime(created_at_str)
-
-                content = _format_note_content(note)
-
-                # Build URL from calendar event if available, else None
-                cal_event: Optional[Dict[str, Any]] = note.get("calendar_event")
-                url: Optional[str] = None
-                if cal_event:
-                    url = note.get("url")
-
-                doc = Document(
-                    doc_id=f"granola:{note_id}",
-                    source="granola",
-                    doc_type="document",
-                    content=content,
-                    title=title,
-                    author=author,
-                    participants=participants,
-                    timestamp=timestamp,
-                    url=url,
-                    metadata={
-                        "note_id": note_id,
-                        "owner_name": owner.get("name", ""),
-                        "updated_at": note.get("updated_at", ""),
-                    },
+            while True:
+                list_resp = _granola_api_list_notes(
+                    api_key,
+                    cursor=page_cursor,
+                    created_after=created_after,
                 )
-                synced += 1
-                yield doc
+                notes: List[Dict[str, Any]] = list_resp.get("notes", [])
 
-            has_more: bool = list_resp.get("hasMore", False)
-            if not has_more:
-                self._last_cursor = None
-                break
-            page_cursor = list_resp.get("cursor")
-            self._last_cursor = page_cursor
+                for note_summary in notes:
+                    note_id: str = note_summary.get("id", "")
+                    if not note_id:
+                        continue
 
-        self._items_synced = synced
-        self._last_sync = datetime.now(tz=timezone.utc)
+                    # Fetch full note with transcript
+                    note = _granola_api_get_note(api_key, note_id)
+
+                    title: str = note.get("title", "")
+                    owner: Dict[str, Any] = note.get("owner") or {}
+                    author: str = owner.get("email", "")
+
+                    attendees: List[Dict[str, Any]] = note.get("attendees") or []
+                    participants: List[str] = [
+                        a.get("email", "") for a in attendees if a.get("email")
+                    ]
+
+                    created_at_str: str = note.get("created_at", "")
+                    timestamp = _parse_iso_datetime(created_at_str)
+
+                    content = _format_note_content(note)
+
+                    # Build URL from calendar event if available, else None
+                    cal_event: Optional[Dict[str, Any]] = note.get("calendar_event")
+                    url: Optional[str] = None
+                    if cal_event:
+                        url = note.get("url")
+
+                    doc = Document(
+                        doc_id=f"granola:{note_id}",
+                        source="granola",
+                        doc_type="document",
+                        content=content,
+                        title=title,
+                        author=author,
+                        participants=participants,
+                        timestamp=timestamp,
+                        url=url,
+                        metadata={
+                            "note_id": note_id,
+                            "owner_name": owner.get("name", ""),
+                            "updated_at": note.get("updated_at", ""),
+                        },
+                    )
+                    synced += 1
+                    yield doc
+
+                has_more: bool = list_resp.get("hasMore", False)
+                if not has_more:
+                    self._last_cursor = None
+                    break
+                page_cursor = list_resp.get("cursor")
+                self._last_cursor = page_cursor
+
+            self._items_synced = synced
+            self._last_sync = datetime.now(tz=timezone.utc)
+            self._last_error = None
+        except Exception as exc:
+            # sync_status() always reported state="idle" regardless of
+            # outcome -- without recording the error here, a caller polling
+            # sync_status() after a crashed sync (API down, bad token) can't
+            # tell it apart from "nothing synced yet".
+            self._last_error = str(exc)
+            raise
 
     def sync_status(self) -> SyncStatus:
         """Return sync progress from the most recent :meth:`sync` call."""
         return SyncStatus(
-            state="idle",
+            state="error" if self._last_error else "idle",
             items_synced=self._items_synced,
             last_sync=self._last_sync,
             cursor=self._last_cursor,
+            error=self._last_error,
         )
 
     # ------------------------------------------------------------------
