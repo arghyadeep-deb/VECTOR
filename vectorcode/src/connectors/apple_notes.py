@@ -129,6 +129,7 @@ class AppleNotesConnector(BaseConnector):
         self._items_synced: int = 0
         self._items_total: int = 0
         self._last_sync: Optional[datetime] = None
+        self._last_error: Optional[str] = None
 
     # ------------------------------------------------------------------
     # BaseConnector interface
@@ -226,17 +227,25 @@ class AppleNotesConnector(BaseConnector):
 
             self._items_synced = synced
             self._last_sync = datetime.now(tz=timezone.utc)
-
+            self._last_error = None
+        except Exception as exc:
+            # sync_status() always reported state="idle" regardless of
+            # outcome -- without this, a caller polling sync_status() after
+            # a crashed sync (locked DB, unreadable ZDATA, schema change)
+            # can't tell it apart from "nothing synced yet".
+            self._last_error = str(exc)
+            raise
         finally:
             conn.close()
 
     def sync_status(self) -> SyncStatus:
         """Return sync progress from the most recent :meth:`sync` call."""
         return SyncStatus(
-            state="idle",
+            state="error" if self._last_error else "idle",
             items_synced=self._items_synced,
             items_total=self._items_total,
             last_sync=self._last_sync,
+            error=self._last_error,
         )
 
     # ------------------------------------------------------------------
