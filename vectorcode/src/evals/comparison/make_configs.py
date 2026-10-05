@@ -24,7 +24,7 @@ import click
 # ---------------------------------------------------------------------------
 
 FRAMEWORKS: Dict[str, Dict[str, str]] = {
-    "vector": {"backend_id": "vector-agent"},
+    "vector-agent": {"backend_id": "vector-agent"},
     "vector-distilled": {"backend_id": "vector-agent"},
     "vector": {"backend_id": "vector"},
     "openclaw": {"backend_id": "openclaw"},
