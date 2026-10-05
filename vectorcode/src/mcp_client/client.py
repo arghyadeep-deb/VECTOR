@@ -235,7 +235,10 @@ class StdioMCPClient:
                 try:
                     self._proc.kill()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][mcp_client.client] suppressed Exception: %s", _sve)
+                    logger.debug(
+                        "[VECTOR][mcp_client.client] failed to kill subprocess: {}",
+                        _sve,
+                    )
             self._proc = None
 
     # ── I/O ──────────────────────────────────────────────────────────────────

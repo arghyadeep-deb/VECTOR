@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from typing import Any, Callable, Dict, List, Optional
 
+from loguru import logger
+
 from vectorcode.src.a2a.protocol import (
     A2AResponse,
     A2ATask,
@@ -83,6 +85,9 @@ class A2AServer:
             task.state = TaskState.COMPLETED
             task.history.append({"role": "agent", "content": result})
         except Exception as exc:
+            logger.opt(exception=True).error(
+                "[VECTOR][a2a] task {} handler failed", task.task_id
+            )
             task.output_text = str(exc)
             task.state = TaskState.FAILED
 
