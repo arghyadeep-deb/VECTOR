@@ -3451,3 +3451,48 @@ isn't "proven in production" until you supply the service/device and run it live
     `distillation/student_runner.py`, and `distillation/checkpoint/store.py` -- roughly 14 files
     remain for a future round.
 
+64. **`vectorcode/src/skills/` audit, round 5 (2026-10-05) —** addressed item 63's cross-directory
+    flag and continued into previously-uncovered files. **Fixed:** `overlay.py`'s `write_overlay()`
+    now confines the resolved output path's parent to the given `root` (same pattern as
+    `importer.py`/`learning/distillation/{pending_queue,execute/appliers/agent,diagnose/tools,
+    orchestrator}.py`); the caller in `learning/agents/skill_optimizer.py`'s `optimize()` wraps
+    `write_overlay()` in the same per-skill try/except already used for optimizer-call failures, so
+    the new `ValueError` on an unsafe `skill_name` can't abort the whole batch (commit `bf6cd9b21`,
+    4 new tests, the 2 traversal tests verified via `git stash` to fail pre-fix).
+    `optional/security/oss-forensics/scripts/evidence-store.py`'s `EvidenceStore._save()` wrote
+    directly to the target file with no temp-file/rename step; a crash or `OSError` partway through
+    `json.dump()` (confirmed live by monkeypatching `json.dump` to raise) truncated a previously-
+    good forensic evidence store to empty, with no recovery -- a real threat to the chain-of-custody
+    guarantee this tool exists to provide. Fixed with a temp-file + `os.replace()` atomic write
+    (commit `50b091de5`, 2 new tests, the failure-preservation test verified via `git stash` to fail
+    pre-fix). **Checked and confirmed NOT bugs (real investigation, not a skim):**
+    `builtin/sparc/coordinator.py`'s `sparc_slash_command()` creates a fresh `asyncio` event loop
+    and calls `run_until_complete()` from synchronous code -- traced its one real caller
+    (`repl.py:701`, inside the synchronous `handle_command()`, itself called from a plain blocking
+    `while` loop with `input()`, never from inside a running event loop) and confirmed this cannot
+    hit Python's "event loop already running" conflict; `tool_translator.py` (clean, no logging/
+    path/subprocess issues); `red-teaming/godmode/scripts/{auto_jailbreak,godmode_race,
+    parseltongue,load_godmode}.py` (1,870 lines total; no logging/subprocess/requests/threading
+    usage at all -- `load_godmode.py`'s deliberate `exec(open(path).read())` self-loading design is
+    pre-existing and documented in its own docstring as a workaround for exec-scoping, not touched);
+    `optional/blockchain/{base,solana}/scripts/*_client.py` (`except Exception: return None` on
+    read-only public blockchain API calls -- standalone opt-in CLI scripts with no logging
+    infrastructure at all, not production VECTOR infrastructure, judged not to warrant the same bar
+    as the gateway/security/agent-routing code this pattern was fixed in elsewhere); `productivity/
+    google-workspace/scripts/{gws_bridge,google_api}.py` (both correctly pass the OAuth token via an
+    environment variable to the `gws` subprocess, never via argv -- the safe pattern already
+    established elsewhere this cycle; `subprocess.run()` calls use a list, not `shell=True`, so no
+    shell-injection path); `optional/mcp/fastmcp/scripts/scaffold_fastmcp.py` (writes to a
+    user-supplied `--output` path -- the intended behavior of a local scaffolding CLI, not an
+    untrusted-input-into-path bug). **NOT YET COVERED by this round** (explicitly, not represented
+    as audited): `__init__.py`; `creative/{excalidraw/scripts/upload,pixel-art/scripts/{palettes,
+    pixel_art,pixel_art_video}}.py`; `media/youtube-content/scripts/fetch_transcript.py`;
+    `mlops/training/trl-fine-tuning/templates/basic_grpo_training.py`; `optional/{creative/
+    meme-generation,health/fitness-nutrition,productivity/memento-flashcards/scripts/
+    youtube_quiz,research/drug-discovery}/**/*.py`; `optional/mcp/fastmcp/templates/*.py`;
+    `productivity/{ocr-and-documents,powerpoint}/**/*.py` beyond the already-fixed `clean.py`;
+    `research/{arxiv,polymarket}/scripts/*.py`; `index.py`/`dependency.py`/`tool_adapter.py`/
+    `executor.py` beyond round 3's earlier pass. `builtin/sparc/__init__.py`'s cross-tree import
+    into the separate `vectorcode/skills/` directory (item 56) remains correctly un-touched -- an
+    owner architecture decision, not a narrow fix.
+
