@@ -1,5 +1,4 @@
 """Anthropic Messages API adapter for VectorCode.
-from loguru import logger
 
 Translates between VectorCode's internal OpenAI-style message format and
 Anthropic's Messages API. Follows the same pattern as the codex_responses
@@ -13,11 +12,12 @@ Auth supports:
 
 import copy
 import json
-import logging
 import os
 import platform
 import subprocess
 from pathlib import Path
+
+from loguru import logger
 
 from vector_constants import get_vector_home
 from typing import Any, Dict, List, Optional, Tuple
@@ -27,8 +27,6 @@ try:
     import anthropic as _anthropic_sdk
 except ImportError:
     _anthropic_sdk = None  # type: ignore[assignment]
-
-logger = logging.getLogger(__name__)
 
 THINKING_BUDGET = {"xhigh": 32000, "high": 16000, "medium": 8000, "low": 4000}
 # VectorCode effort → Anthropic adaptive-thinking effort (output_config.effort).
@@ -272,7 +270,7 @@ def _detect_claude_code_version() -> str:
                 if version and version[0].isdigit():
                     return version
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.anthropic_adapter] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.anthropic_adapter] suppressed Exception: {}", _sve)
     return _CLAUDE_CODE_VERSION_FALLBACK
 
 
@@ -599,7 +597,7 @@ def read_claude_code_credentials() -> Optional[Dict[str, Any]]:
                         "source": "claude_code_credentials_file",
                     }
         except (json.JSONDecodeError, OSError, IOError) as e:
-            logger.debug("Failed to read ~/.claude/.credentials.json: %s", e)
+            logger.debug("Failed to read ~/.claude/.credentials.json: {}", e)
 
     return None
 
@@ -614,7 +612,7 @@ def read_claude_managed_key() -> Optional[str]:
             if isinstance(primary_key, str) and primary_key.strip():
                 return primary_key.strip()
         except (json.JSONDecodeError, OSError, IOError) as e:
-            logger.debug("Failed to read ~/.claude.json: %s", e)
+            logger.debug("Failed to read ~/.claude.json: {}", e)
     return None
 
 
@@ -678,7 +676,7 @@ def refresh_anthropic_oauth_pure(refresh_token: str, *, use_json: bool = False) 
                 result = json.loads(resp.read().decode())
         except Exception as exc:
             last_error = exc
-            logger.debug("Anthropic token refresh failed at %s: %s", endpoint, exc)
+            logger.debug("Anthropic token refresh failed at {}: {}", endpoint, exc)
             continue
 
         access_token = result.get("access_token", "")
@@ -714,7 +712,7 @@ def _refresh_oauth_token(creds: Dict[str, Any]) -> Optional[str]:
         logger.debug("Successfully refreshed Claude Code OAuth token")
         return refreshed["access_token"]
     except Exception as e:
-        logger.debug("Failed to refresh Claude Code token: %s", e)
+        logger.debug("Failed to refresh Claude Code token: {}", e)
         return None
 
 
@@ -760,7 +758,7 @@ def _write_claude_code_credentials(
         # Restrict permissions (credentials file)
         cred_path.chmod(0o600)
     except (OSError, IOError) as e:
-        logger.debug("Failed to write refreshed credentials: %s", e)
+        logger.debug("Failed to write refreshed credentials: {}", e)
 
 
 def _resolve_claude_code_token_from_credentials(creds: Optional[Dict[str, Any]] = None) -> Optional[str]:
@@ -944,7 +942,7 @@ def run_vector_oauth_login_pure() -> Optional[Dict[str, Any]]:
         webbrowser.open(auth_url)
         print("  (Browser opened automatically)")
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.anthropic_adapter] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.anthropic_adapter] suppressed Exception: {}", _sve)
 
     print()
     print("After authorizing, you'll see a code. Paste it below.")
@@ -1014,7 +1012,7 @@ def read_vector_oauth_credentials() -> Optional[Dict[str, Any]]:
             if data.get("accessToken"):
                 return data
         except (json.JSONDecodeError, OSError, IOError) as e:
-            logger.debug("Failed to read VectorCode OAuth credentials: %s", e)
+            logger.debug("Failed to read VectorCode OAuth credentials: {}", e)
     return None
 
 
