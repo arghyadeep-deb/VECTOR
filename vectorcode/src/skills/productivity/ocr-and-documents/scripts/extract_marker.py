@@ -14,7 +14,21 @@ Usage:
     python extract_marker.py document.pdf --use_llm     # LLM-boosted accuracy
 """
 import sys
-import os
+from pathlib import Path
+
+def _save_rendered_images(images, output_dir):
+    """Save renderer images without allowing names to escape *output_dir*."""
+    output_root = Path(output_dir).resolve()
+    output_root.mkdir(parents=True, exist_ok=True)
+    for name, image_data in images.items():
+        image_path = (output_root / name).resolve()
+        if not image_path.is_relative_to(output_root) or image_path == output_root:
+            raise ValueError(f"Unsafe rendered image name: {name!r}")
+        image_path.parent.mkdir(parents=True, exist_ok=True)
+        if hasattr(image_data, "save"):
+            image_data.save(image_path)
+        else:
+            image_path.write_bytes(image_data)
 
 def convert(path, output_dir=None, output_format="markdown", use_llm=False):
     from marker.converters.pdf import PdfConverter
@@ -41,12 +55,7 @@ def convert(path, output_dir=None, output_format="markdown", use_llm=False):
 
     # Save images if output_dir specified
     if output_dir and hasattr(rendered, "images") and rendered.images:
-        from pathlib import Path
-        Path(output_dir).mkdir(parents=True, exist_ok=True)
-        for name, img_data in rendered.images.items():
-            img_path = os.path.join(output_dir, name)
-            with open(img_path, "wb") as f:
-                f.write(img_data)
+        _save_rendered_images(rendered.images, output_dir)
         print(f"\nSaved {len(rendered.images)} image(s) to {output_dir}/", file=sys.stderr)
 
 def check_requirements():

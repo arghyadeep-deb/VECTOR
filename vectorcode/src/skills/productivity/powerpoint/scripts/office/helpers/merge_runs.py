@@ -9,6 +9,8 @@ Also:
 """
 
 from pathlib import Path
+import os
+import tempfile
 
 import defusedxml.minidom
 
@@ -31,11 +33,26 @@ def merge_runs(input_dir: str) -> tuple[int, str]:
         for container in containers:
             merge_count += _merge_runs_in(container)
 
-        doc_xml.write_bytes(dom.toxml(encoding="UTF-8"))
+        _atomic_write_bytes(doc_xml, dom.toxml(encoding="UTF-8"))
         return merge_count, f"Merged {merge_count} runs"
 
     except Exception as e:
         return 0, f"Error: {e}"
+
+def _atomic_write_bytes(path: Path, content: bytes) -> None:
+    fd, temp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
+    except BaseException:
+        try:
+            os.unlink(temp_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 def _find_elements(root, tag: str) -> list:
     results = []

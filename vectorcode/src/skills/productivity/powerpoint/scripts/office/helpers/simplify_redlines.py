@@ -15,6 +15,8 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 import zipfile
+import os
+import tempfile
 from pathlib import Path
 
 import defusedxml.minidom
@@ -39,11 +41,26 @@ def simplify_redlines(input_dir: str) -> tuple[int, str]:
             merge_count += _merge_tracked_changes_in(container, "ins")
             merge_count += _merge_tracked_changes_in(container, "del")
 
-        doc_xml.write_bytes(dom.toxml(encoding="UTF-8"))
+        _atomic_write_bytes(doc_xml, dom.toxml(encoding="UTF-8"))
         return merge_count, f"Simplified {merge_count} tracked changes"
 
     except Exception as e:
         return 0, f"Error: {e}"
+
+def _atomic_write_bytes(path: Path, content: bytes) -> None:
+    fd, temp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
+    except BaseException:
+        try:
+            os.unlink(temp_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 def _merge_tracked_changes_in(container, tag: str) -> int:
     merge_count = 0

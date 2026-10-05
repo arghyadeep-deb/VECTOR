@@ -11,6 +11,7 @@ Examples:
 """
 
 import argparse
+import os
 import sys
 import shutil
 import tempfile
@@ -58,10 +59,22 @@ def pack(
                 _condense_xml(xml_file)
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as zf:
-            for f in temp_content_dir.rglob("*"):
-                if f.is_file():
-                    zf.write(f, f.relative_to(temp_content_dir))
+        fd, temp_name = tempfile.mkstemp(
+            dir=output_path.parent, prefix=f".{output_path.name}.", suffix=".tmp"
+        )
+        os.close(fd)
+        try:
+            with zipfile.ZipFile(temp_name, "w", zipfile.ZIP_DEFLATED) as zf:
+                for f in temp_content_dir.rglob("*"):
+                    if f.is_file():
+                        zf.write(f, f.relative_to(temp_content_dir))
+            os.replace(temp_name, output_path)
+        except BaseException:
+            try:
+                os.unlink(temp_name)
+            except FileNotFoundError:
+                pass
+            raise
 
     return None, f"Successfully packed {input_dir} to {output_file}"
 
