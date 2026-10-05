@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from loguru import logger
+
 try:
     import tomllib
 except ModuleNotFoundError:
@@ -108,6 +110,8 @@ class Recipe:
             kwargs["temperature"] = self.temperature
         if self.max_turns is not None:
             kwargs["max_turns"] = self.max_turns
+        if self.max_tokens is not None:
+            kwargs["max_tokens"] = self.max_tokens
         prompt = self.system_prompt
         if prompt is None and self.system_prompt_path is not None:
             p = Path(self.system_prompt_path)
@@ -216,6 +220,7 @@ def load_recipe(path: str | Path) -> Recipe:
         engine_key=engine_sec.get("key"),
         agent_type=agent_sec.get("type"),
         max_turns=agent_sec.get("max_turns"),
+        max_tokens=agent_sec.get("max_tokens"),
         temperature=agent_sec.get("temperature"),
         tools=agent_sec.get("tools", []),
         system_prompt=system_prompt,
@@ -312,8 +317,8 @@ def discover_recipes(
                 recipe = load_recipe(toml_path)
                 if kind is None or recipe.kind == kind:
                     recipes[recipe.name] = recipe
-            except Exception:
-                continue
+            except Exception as exc:
+                logger.warning("[VECTOR][recipes] Failed to load {}: {}", toml_path, exc)
 
     return list(recipes.values())
 

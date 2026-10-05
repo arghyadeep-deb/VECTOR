@@ -136,7 +136,7 @@ def recipe_to_operator(recipe: Recipe) -> OperatorManifest:
         system_prompt=prompt,
         system_prompt_path=prompt_path,
         max_turns=recipe.max_turns or 20,
-        temperature=recipe.temperature or 0.3,
+        temperature=recipe.temperature if recipe.temperature is not None else 0.3,
         schedule_type=recipe.schedule_type,
         schedule_value=recipe.schedule_value or "300",
         required_capabilities=list(recipe.required_capabilities),
