@@ -3571,3 +3571,53 @@ isn't "proven in production" until you supply the service/device and run it live
     trees, which are otherwise this repo's two largest code trees and were both marked "fully
     audited" using a methodology now known to have a blind spot.
 
+67. **`vectorcode/src/agent/` audit, round 6 (2026-10-05) —** priority was `auxiliary_client.py`'s
+    remaining provider-resolution/streaming-adapter logic (3,491 lines; a prior round only fixed
+    its payment-fallback bug and logging). Read in full this round: `_CodexCompletionsAdapter`'s
+    Responses-API streaming adapter, `_AnthropicCompletionsAdapter`, `_try_nous`/
+    `_try_custom_endpoint`/`_try_codex`/`_try_anthropic`'s provider-detection chain,
+    `_resolve_api_key_provider`'s fallback ordering, the client-cache key/eviction/loop-validation
+    logic, and `call_llm()`'s main resolution/retry body — no new correctness bug found in any of
+    these; the code is careful and well-commented throughout, with several issue-number references
+    (`#10200`, `#2681`, `#7559`) showing prior real bugs were already caught here.
+    **FLAGGED, not fixed (commit `40e05451b`):** `_try_payment_fallback()` never calls
+    `CredentialPool.mark_exhausted_and_rotate()` on the pool-backed provider that just failed —
+    unlike `run_agent.py`'s own retry logic, which calls it on every billing/rate-limit/auth
+    failure (3 call sites, confirmed via `grep -rn mark_exhausted_and_rotate`: ONLY `run_agent.py`
+    calls it anywhere in the repo). Consequence: the next unrelated auxiliary call re-resolves the
+    same exhausted credential from scratch and eats the same 402/connection failure again before
+    falling back — wasteful, not an outage, since the fallback chain still runs every time. Not
+    fixed because `load_pool(provider)` creates a brand-new `CredentialPool` with no memory of
+    which specific `entry.id` was used for the failed call (that's only tracked by the earlier,
+    now-out-of-scope pool object's in-memory `_current_id`) — harmless for a single-entry pool
+    (the common case), but a naive fix on a freshly-loaded pool could exhaust the WRONG entry in a
+    genuinely multi-entry rotating pool, defeating the rotation feature those pools exist to
+    support. A correct fix means threading the specific pool entry id from the resolution call
+    sites (`call_llm`/`async_call_llm`/`resolve_provider_client`) through to the exception handler
+    — a larger refactor than this audit's narrow-bug-fix mandate covers; flagged in the function's
+    own docstring for an owner decision.
+    **Reviewed, no severe bug found (lower-confidence, not acted on):** `agent/redact.py`'s
+    (off-by-default, opt-in-only) secret-redaction module has an unused stdlib `logger =
+    logging.getLogger(__name__)` declaration (dead code, zero call sites — harmless, not worth a
+    dedicated fix) and a possible fail-open gap where `_ENV_ASSIGN_RE`/`_JSON_FIELD_RE`'s quoted-
+    value capture (`(['"]?)(\S+)\2`) silently fails to match — and therefore silently fails to
+    redact — a quoted secret value containing an internal space (e.g. `TOKEN="abc def"`); not
+    fixed/flagged further since this is a heuristic best-effort tool that already documents many
+    pattern-specific limitations, and the fix carries its own regex-complexity/backtracking risk.
+    `credential_pool.py` itself was read enough to confirm `load_pool()`'s per-call fresh-instance
+    behavior (used above) but not given an independent full-file pass this round.
+    **Not reached this round** (~40 files, listed here rather than silently omitted):
+    `account_usage.py`, `codex_responses_adapter.py`, `context_references.py`,
+    `copilot_acp_client.py`, `curator_backup.py`, `display.py`, `error_classifier.py`,
+    `gemini_cloudcode_adapter.py`, `gemini_native_adapter.py`, `gemini_schema.py`,
+    `google_code_assist.py`, `i18n.py`, `image_gen_{provider,registry}.py`, `image_routing.py`,
+    `insights.py`, `markdown_tables.py`, `moonshot_schema.py`, `nous_rate_guard.py`,
+    `onboarding.py`, `plugin_llm.py`, `prompt_builder.py`, `rate_limit_tracker.py`,
+    `skill_{commands,preprocessing,utils}.py`, `subdirectory_hints.py`, `think_scrubber.py`,
+    `title_generator.py`, `transports/{bedrock,codex,codex_app_server,
+    codex_app_server_session,codex_event_projector,types,vector_tools_mcp_server}.py`,
+    `usage_pricing.py`, `video_gen_{provider,registry}.py`, `web_search_{provider,registry}.py`.
+    **Depth statement:** this entry represents genuine full-depth review of `auxiliary_client.py`
+    only (now complete across all 6 rounds covering this directory); none of the "not reached"
+    files above should be treated as audited.
+
