@@ -13,6 +13,7 @@ both training and evaluation.
 
 from __future__ import annotations
 
+import json
 import time
 from typing import List, Tuple
 
@@ -75,13 +76,18 @@ class OrchestratorEnvironment:
         if state.num_turns() >= self._max_turns:
             raise ValueError(f"Max turns ({self._max_turns}) exceeded")
 
-        # Execute tool via ToolExecutor
+        # Execute tool via ToolExecutor. ToolExecutor.execute() parses
+        # `arguments` with json.loads() -- repr() produces Python literal
+        # syntax (single-quoted strings), which is not valid JSON and
+        # raised a guaranteed JSONDecodeError for every non-pre-JSON
+        # tool_input (the common case for a plain-string argument like a
+        # calculator expression). Use json.dumps() instead.
         tool_call = ToolCall(
             id=f"orch_{state.num_turns()}",
             name=action.tool_name,
             arguments=action.tool_input
             if action.tool_input.startswith("{")
-            else f'{{"expression": {repr(action.tool_input)}}}',
+            else json.dumps({"expression": action.tool_input}),
         )
 
         t0 = time.time()
