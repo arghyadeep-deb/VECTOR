@@ -18,7 +18,6 @@ This means the same scorer supports both ``backend = "vector-direct"`` and
 
 from __future__ import annotations
 
-import logging
 import re
 import subprocess
 import uuid
@@ -28,7 +27,7 @@ from typing import Any, Dict, Optional, Tuple
 from vectorcode.src.evals.core.scorer import Scorer
 from vectorcode.src.evals.core.types import EvalRecord
 
-LOGGER = logging.getLogger(__name__)
+from loguru import logger
 
 _DEFAULT_AGENT_TIMEOUT = 900.0
 _DEFAULT_VERIFIER_TIMEOUT = 900.0
@@ -245,11 +244,16 @@ class TerminalBenchV21Scorer(Scorer):
             meta["reason"] = f"{type(exc).__name__}: {exc}"
             return False, meta
         finally:
-            subprocess.run(
-                ["docker", "rm", "-f", container],
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
+            try:
+                subprocess.run(
+                    ["docker", "rm", "-f", container],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+            except Exception as cleanup_exc:
+                logger.opt(exception=cleanup_exc).error(
+                    "Failed to remove TerminalBench scorer container {}", container
+                )
 
 __all__ = ["TerminalBenchV21Scorer"]

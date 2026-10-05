@@ -20,7 +20,6 @@ On ``__exit__``:
 
 from __future__ import annotations
 
-import logging
 import re
 import subprocess
 import uuid
@@ -28,7 +27,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, MutableMapping, Optional, Type
 
-LOGGER = logging.getLogger(__name__)
+from loguru import logger
 
 class TerminalBenchV21TaskEnv:
     """Per-task Docker + scoring lifecycle for TerminalBench V2.1."""
@@ -111,14 +110,25 @@ class TerminalBenchV21TaskEnv:
         """
         from vectorcode.src.tools.docker_shell_exec import set_active_container
 
-        set_active_container(None)
-        if self._container:
-            subprocess.run(
-                ["docker", "rm", "-f", self._container],
-                capture_output=True,
-                text=True,
-                timeout=60,
+        try:
+            set_active_container(None)
+        except Exception as cleanup_exc:
+            logger.opt(exception=cleanup_exc).error(
+                "Failed to clear TerminalBench active-container binding"
             )
+        if self._container:
+            container = self._container
             self._container = None
+            try:
+                subprocess.run(
+                    ["docker", "rm", "-f", container],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+            except Exception as cleanup_exc:
+                logger.opt(exception=cleanup_exc).error(
+                    "Failed to remove TerminalBench container {}", container
+                )
 
 __all__ = ["TerminalBenchV21TaskEnv"]

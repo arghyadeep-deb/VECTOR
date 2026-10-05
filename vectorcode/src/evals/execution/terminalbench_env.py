@@ -7,13 +7,13 @@
 
 from __future__ import annotations
 
-import logging
 import tempfile
+import uuid
 from pathlib import Path
 from types import TracebackType
 from typing import Any, MutableMapping, Optional, Type
 
-LOGGER = logging.getLogger(__name__)
+from loguru import logger
 
 class TerminalBenchTaskEnv:
     """Per-task Docker environment for TerminalBench.
@@ -47,7 +47,9 @@ class TerminalBenchTaskEnv:
 
         docker_image_prefix = f"tb__{task_id}".replace(".", "-")
         client_image_name = f"{docker_image_prefix}__client"
-        client_container_name = f"oj-{task_id}".replace(".", "-")
+        client_container_name = (
+            f"oj-{task_id}-{uuid.uuid4().hex[:8]}".replace(".", "-")
+        )
 
         self._logs_tmpdir = tempfile.TemporaryDirectory(prefix="oj_tb_logs_")
         logs_path = Path(self._logs_tmpdir.name)
@@ -82,14 +84,35 @@ class TerminalBenchTaskEnv:
         self._metadata.pop("session", None)
         self._metadata.pop("container", None)
 
+        cleanup_error: Optional[BaseException] = None
         if self._terminal_cm is not None:
-            self._terminal_cm.__exit__(exc_type, exc_val, exc_tb)
-            self._terminal_cm = None
-            self._terminal = None
+            try:
+                self._terminal_cm.__exit__(exc_type, exc_val, exc_tb)
+            except BaseException as cleanup_exc:
+                cleanup_error = cleanup_exc
+            finally:
+                self._terminal_cm = None
+                self._terminal = None
 
         if self._logs_tmpdir is not None:
-            self._logs_tmpdir.cleanup()
-            self._logs_tmpdir = None
+            try:
+                self._logs_tmpdir.cleanup()
+            except BaseException as cleanup_exc:
+                if cleanup_error is None:
+                    cleanup_error = cleanup_exc
+                else:
+                    logger.opt(exception=cleanup_exc).error(
+                        "TerminalBench log cleanup also failed"
+                    )
+            finally:
+                self._logs_tmpdir = None
+
+        if cleanup_error is not None:
+            if exc_type is None:
+                raise cleanup_error
+            logger.opt(exception=cleanup_error).error(
+                "TerminalBench cleanup failed while handling another exception"
+            )
 
     # ------------------------------------------------------------------
     # Test execution
@@ -147,7 +170,7 @@ class TerminalBenchTaskEnv:
                     max_timeout_sec=test_timeout,
                 )
             except TimeoutError:
-                LOGGER.warning("Test command timed out after %.0fs", test_timeout)
+                logger.warning("Test command timed out after {:.0f}s", test_timeout)
                 results["error"] = "test_timeout"
                 self._metadata["is_resolved"] = False
                 self._metadata["test_results"] = results
@@ -167,7 +190,7 @@ class TerminalBenchTaskEnv:
                     for status in parser_results.values()
                 )
             except Exception as exc:
-                LOGGER.warning("Parser failed: %s", exc)
+                logger.warning("Parser failed: {}", exc)
                 results["parse_error"] = str(exc)
                 is_resolved = False
 
@@ -177,7 +200,7 @@ class TerminalBenchTaskEnv:
             return is_resolved, results
 
         except Exception as exc:
-            LOGGER.exception("Test execution failed")
+            logger.exception("Test execution failed")
             results["error"] = str(exc)
             self._metadata["is_resolved"] = False
             self._metadata["test_results"] = results
