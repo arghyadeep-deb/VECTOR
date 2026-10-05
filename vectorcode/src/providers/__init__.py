@@ -33,13 +33,10 @@ from loguru import logger
 
 import importlib
 import importlib.util
-import logging
 import sys
 from pathlib import Path
 
 from providers.base import OMIT_TEMPERATURE, ProviderProfile  # noqa: F401
-
-logger = logging.getLogger(__name__)
 
 _REGISTRY: dict[str, ProviderProfile] = {}
 _ALIASES: dict[str, str] = {}
@@ -133,7 +130,7 @@ def _import_plugin_dir(plugin_dir: Path, source: str) -> None:
         spec.loader.exec_module(module)
     except Exception as exc:
         logger.warning(
-            "Failed to load %s provider plugin %s: %s", source, plugin_dir.name, exc
+            "Failed to load {} provider plugin {}: {}", source, plugin_dir.name, exc
         )
         sys.modules.pop(module_name, None)
 
@@ -186,10 +183,10 @@ def _discover_providers() -> None:
                 importlib.import_module(f"providers.{modname}")
             except ImportError as exc:
                 logger.warning(
-                    "Failed to import legacy provider module %s: %s", modname, exc
+                    "Failed to import legacy provider module {}: {}", modname, exc
                 )
     except Exception as _sve:
-        logger.debug("[VECTOR][providers.__init__] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][providers.__init__] suppressed Exception: {}", _sve)
 
 
 from .router import ModelRouter, split_model_id  # noqa: E402,F401  (cli/repl/agent_loop import ModelRouter from here)

@@ -204,15 +204,22 @@ class _EngineCollector:
     def register_context_engine(self, engine):
         self.engine = engine
 
-    # No-op for other registration methods
+    # No-op for other registration methods: _EngineCollector is instantiated
+    # directly as a fake plugin context (see _load_engine_from_dir above), not
+    # subclassed -- a real context-engine plugin's register(ctx) may call any
+    # of these during its own setup, and raising here aborted that call
+    # entirely (silently, since the caller wraps it in try/except), so the
+    # plugin's engine was never captured. An earlier blanket automated commit
+    # ("convert pass-only ABC stubs to raise NotImplementedError") mistook
+    # this concrete fake-context class for an abstract stub.
     def register_tool(self, *args, **kwargs):
-        raise NotImplementedError("_EngineCollector.register_tool must be implemented by subclass")
+        pass
 
     def register_hook(self, *args, **kwargs):
-        raise NotImplementedError("_EngineCollector.register_hook must be implemented by subclass")
+        pass
 
     def register_cli_command(self, *args, **kwargs):
-        raise NotImplementedError("_EngineCollector.register_cli_command must be implemented by subclass")
+        pass
 
     def register_memory_provider(self, *args, **kwargs):
-        raise NotImplementedError("_EngineCollector.register_memory_provider must be implemented by subclass")
+        pass

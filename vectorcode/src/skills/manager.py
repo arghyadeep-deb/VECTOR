@@ -490,9 +490,15 @@ if _FULL_DEPS:
             super().__init__(tools=[], bus=None)
 else:
     class _NullToolExecutor:  # type: ignore[no-redef]
-        """Stub when vc_tools is not available."""
+        """No-op fallback used as `executor or _NullToolExecutor()` when
+        vc_tools (and thus the real ToolExecutor base class) is not
+        available -- the whole point is graceful degradation without full
+        deps. An earlier blanket automated commit ("convert pass-only ABC
+        stubs to raise NotImplementedError") mistook this concrete,
+        directly-instantiated null object for an abstract stub, making
+        SkillManager unusable whenever vc_tools is missing."""
         def __init__(self) -> None:
-            raise NotImplementedError("_NullToolExecutor.__init__ must be implemented by subclass")
+            pass
 
 
 __all__ = ["SkillManager", "SkillMatcher"]

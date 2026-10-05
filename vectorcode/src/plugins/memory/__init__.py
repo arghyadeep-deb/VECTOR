@@ -292,15 +292,23 @@ class _ProviderCollector:
     def register_memory_provider(self, provider):
         self.provider = provider
 
-    # No-op for other registration methods
+    # No-op for other registration methods: _ProviderCollector is instantiated
+    # directly as a fake plugin context (see _load_provider_from_dir above),
+    # not subclassed -- a real memory-provider plugin's register(ctx) may
+    # call any of these during its own setup, and raising here aborted that
+    # call entirely, so the plugin's provider was never captured. An earlier
+    # blanket automated commit ("convert pass-only ABC stubs to raise
+    # NotImplementedError") mistook this concrete fake-context class for an
+    # abstract stub -- same bug already found in the sibling
+    # plugins/context_engine/__init__.py's _EngineCollector.
     def register_tool(self, *args, **kwargs):
-        raise NotImplementedError("_ProviderCollector.register_tool must be implemented by subclass")
+        pass
 
     def register_hook(self, *args, **kwargs):
-        raise NotImplementedError("_ProviderCollector.register_hook must be implemented by subclass")
+        pass
 
     def register_cli_command(self, *args, **kwargs):
-        raise NotImplementedError("_ProviderCollector.register_cli_command must be implemented by subclass")
+        pass  # CLI registration happens via discover_plugin_cli_commands()
 
 
 def _get_active_memory_provider() -> Optional[str]:

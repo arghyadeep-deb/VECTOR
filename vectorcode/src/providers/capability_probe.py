@@ -29,7 +29,13 @@ except ImportError:
         def set(self, model_id, caps):
             self._data[model_id] = caps
         def save(self):
-            raise NotImplementedError("ModelRegistry.save must be implemented by subclass")
+            # In-memory fallback has nothing to persist; a real config.ModelRegistry
+            # (imported above when available) is the one that actually writes to
+            # disk. An earlier blanket automated commit ("convert pass-only ABC
+            # stubs to raise NotImplementedError") mistook this concrete,
+            # directly-instantiated (self._registry = ModelRegistry()) fallback
+            # for an abstract stub.
+            pass
 
 try:
     from core.config import CONFIG
