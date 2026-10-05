@@ -182,7 +182,7 @@ class MorningBriefDataset(DatasetProvider):
         split: Optional[str] = None,
         seed: Optional[int] = None,
     ) -> None:
-        rows = list(_CONTEXTS)
+        rows = list(enumerate(_CONTEXTS))
 
         if seed is not None:
             rng = random.Random(seed)
@@ -192,7 +192,7 @@ class MorningBriefDataset(DatasetProvider):
             rows = rows[:max_samples]
 
         self._records = []
-        for idx, ctx in enumerate(rows):
+        for idx, ctx in rows:
             prompt = _PROMPT_TEMPLATE.format(
                 date=ctx["date"],
                 calendar=ctx["calendar"],

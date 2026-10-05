@@ -195,7 +195,7 @@ class KnowledgeBaseDataset(DatasetProvider):
         split: Optional[str] = None,
         seed: Optional[int] = None,
     ) -> None:
-        rows = list(_RECORDS)
+        rows = list(enumerate(_RECORDS))
 
         if seed is not None:
             rng = random.Random(seed)
@@ -205,7 +205,7 @@ class KnowledgeBaseDataset(DatasetProvider):
             rows = rows[:max_samples]
 
         self._records = []
-        for idx, rec in enumerate(rows):
+        for idx, rec in rows:
             prompt = _PROMPT_TEMPLATE.format(
                 documents=rec["documents"],
                 question=rec["question"],

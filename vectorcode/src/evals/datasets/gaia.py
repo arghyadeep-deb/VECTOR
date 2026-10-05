@@ -91,22 +91,23 @@ class GAIADataset(DatasetProvider):
         else:
             rows = list(dataset)
 
+        indexed_rows = list(enumerate(rows))
         effective_seed = 42 if seed is None else seed
         if split in ("train", "test", "all"):
-            rows = list(rows)
-            rows = apply_split(rows, split=split, seed=effective_seed, train_frac=0.2)
+            indexed_rows = apply_split(
+                indexed_rows, split=split, seed=effective_seed, train_frac=0.2
+            )
         elif seed is not None:
             rng = random.Random(seed)
-            rows = list(rows)
-            rng.shuffle(rows)
+            rng.shuffle(indexed_rows)
 
         if max_samples is not None:
-            rows = rows[:max_samples]
+            indexed_rows = indexed_rows[:max_samples]
 
         files_location = dataset_location / "2023" / use_split
 
         self._records = []
-        for idx, raw in enumerate(rows):
+        for idx, raw in indexed_rows:
             record = self._convert_row(raw, files_location, idx)
             if record is not None:
                 self._records.append(record)

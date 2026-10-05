@@ -233,7 +233,7 @@ class ResearchMiningDataset(DatasetProvider):
         split: Optional[str] = None,
         seed: Optional[int] = None,
     ) -> None:
-        rows = list(_QUESTIONS)
+        rows = list(enumerate(_QUESTIONS))
 
         if seed is not None:
             rng = random.Random(seed)
@@ -243,7 +243,7 @@ class ResearchMiningDataset(DatasetProvider):
             rows = rows[:max_samples]
 
         self._records = []
-        for idx, q in enumerate(rows):
+        for idx, q in rows:
             prompt = _PROMPT_TEMPLATE.format(
                 question=q["question"],
                 domain=q["domain"],

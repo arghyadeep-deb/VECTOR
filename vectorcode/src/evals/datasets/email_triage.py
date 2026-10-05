@@ -294,7 +294,7 @@ class EmailTriageDataset(DatasetProvider):
         split: Optional[str] = None,
         seed: Optional[int] = None,
     ) -> None:
-        rows = list(_EMAILS)
+        rows = list(enumerate(_EMAILS))
 
         if seed is not None:
             rng = random.Random(seed)
@@ -304,7 +304,7 @@ class EmailTriageDataset(DatasetProvider):
             rows = rows[:max_samples]
 
         self._records = []
-        for idx, email in enumerate(rows):
+        for idx, email in rows:
             prompt = _PROMPT_TEMPLATE.format(
                 sender=email["sender"],
                 subject=email["subject"],

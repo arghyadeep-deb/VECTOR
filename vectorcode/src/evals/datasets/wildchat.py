@@ -47,8 +47,8 @@ class WildChatDataset(DatasetProvider):
             rows = list(dataset)
 
         # Filter to English single-turn conversations
-        filtered: List[MutableMapping[str, object]] = []
-        for row in rows:
+        filtered: List[tuple[int, MutableMapping[str, object]]] = []
+        for row_index, row in enumerate(rows):
             if not isinstance(row, MutableMapping):
                 row = dict(row)
 
@@ -79,7 +79,7 @@ class WildChatDataset(DatasetProvider):
 
             row["_user_content"] = user_content
             row["_asst_content"] = asst_content
-            filtered.append(row)
+            filtered.append((row_index, row))
 
         # Shuffle with seed
         if seed is not None:
@@ -90,7 +90,7 @@ class WildChatDataset(DatasetProvider):
             filtered = filtered[:max_samples]
 
         self._records = []
-        for idx, raw in enumerate(filtered):
+        for idx, raw in filtered:
             self._records.append(
                 EvalRecord(
                     record_id=f"wildchat-{idx}",

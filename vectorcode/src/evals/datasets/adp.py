@@ -72,7 +72,10 @@ def _parse_content(raw: object) -> List[MutableMapping[str, object]]:
             if isinstance(parsed, list):
                 return parsed  # type: ignore[return-value]
         except (ValueError, SyntaxError) as _sve:
-            logger.debug("[VECTOR][evals.datasets.adp] suppressed (ValueError, SyntaxError): %s", _sve)
+            logger.debug(
+                "[VECTOR][evals.datasets.adp] suppressed (ValueError, SyntaxError): {}",
+                _sve,
+            )
     return []
 
 def _extract_problem_reference(
@@ -161,23 +164,24 @@ class ADPDataset(DatasetProvider):
                 # Skip configs that fail to load (gated, missing, etc.)
                 continue
 
+        indexed_rows = list(enumerate(rows))
         effective_seed = 42 if seed is None else seed
         if split in ("train", "test", "all"):
-            rows = apply_split(
-                rows,
+            indexed_rows = apply_split(
+                indexed_rows,
                 split=split,
                 seed=effective_seed,
                 train_frac=0.2,
             )
         elif seed is not None:
             rng = random.Random(seed)
-            rng.shuffle(rows)
+            rng.shuffle(indexed_rows)
 
         if max_samples is not None:
-            rows = rows[:max_samples]
+            indexed_rows = indexed_rows[:max_samples]
 
         records: List[EvalRecord] = []
-        for i, r in enumerate(rows):
+        for i, r in indexed_rows:
             turns = _parse_content(r.get("content"))
             problem, reference = _extract_problem_reference(turns)
             if not problem:

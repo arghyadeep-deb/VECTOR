@@ -56,7 +56,10 @@ def _parse_field(raw: object) -> Any:
         try:
             return ast.literal_eval(raw)
         except (ValueError, SyntaxError) as _sve:
-            logger.debug("[VECTOR][evals.datasets.toolorchestra] suppressed (ValueError, SyntaxError): %s", _sve)
+            logger.debug(
+                "[VECTOR][evals.datasets.toolorchestra] suppressed (ValueError, SyntaxError): {}",
+                _sve,
+            )
     return raw
 
 def _extract_problem_reference(
@@ -123,23 +126,24 @@ class ToolOrchestraDataset(DatasetProvider):
         else:
             rows = list(ds)
 
+        indexed_rows = list(enumerate(rows))
         effective_seed = 42 if seed is None else seed
         if split in ("train", "test", "all"):
-            rows = apply_split(
-                rows,
+            indexed_rows = apply_split(
+                indexed_rows,
                 split=split,
                 seed=effective_seed,
                 train_frac=0.2,
             )
         elif seed is not None:
             rng = random.Random(seed)
-            rng.shuffle(rows)
+            rng.shuffle(indexed_rows)
 
         if max_samples is not None:
-            rows = rows[:max_samples]
+            indexed_rows = indexed_rows[:max_samples]
 
         records: List[EvalRecord] = []
-        for i, r in enumerate(rows):
+        for i, r in indexed_rows:
             problem, reference = _extract_problem_reference(r)
             if not problem:
                 continue
