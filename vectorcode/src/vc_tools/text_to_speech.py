@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -93,7 +94,10 @@ class TextToSpeechTool(BaseTool):
 
         out_dir.mkdir(parents=True, exist_ok=True)
         ext = result.format or "mp3"
-        audio_path = out_dir / f"digest.{ext}"
+        # Unique per call -- the literal "digest" filename silently
+        # overwrote any prior synthesis result written into the same
+        # output_dir (e.g. multiple TTS calls into one caller-chosen folder).
+        audio_path = out_dir / f"tts-{uuid.uuid4().hex[:12]}.{ext}"
         result.save(audio_path)
 
         return ToolResult(
