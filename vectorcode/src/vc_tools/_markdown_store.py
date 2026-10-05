@@ -13,6 +13,8 @@ become thin subclasses that declare their file path and labels.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -92,10 +94,33 @@ class MarkdownStoreTool(BaseTool):
             content=f"Unknown action: {action}",
         )
 
+    def _write_atomic(self, content: str) -> None:
+        """Write *content* to ``self._path`` via tempfile + fsync + os.replace.
+
+        Avoids truncating/corrupting the store if the process crashes
+        mid-write (plain ``write_text()`` is not crash-safe).
+        """
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(self._path.parent), prefix=f".{self._path.name}."
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_name, self._path)
+        except OSError:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
+
     def _read(self) -> ToolResult:
         content = ""
         if self._path.exists():
-            content = self._path.read_text()
+            content = self._path.read_text(encoding="utf-8")
         return ToolResult(
             tool_name=self.spec.name,
             success=True,
@@ -109,9 +134,10 @@ class MarkdownStoreTool(BaseTool):
                 success=False,
                 content="Entry cannot be empty.",
             )
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        existing = self._path.read_text() if self._path.exists() else ""
-        self._path.write_text(existing.rstrip() + f"\n- {entry}\n")
+        existing = (
+            self._path.read_text(encoding="utf-8") if self._path.exists() else ""
+        )
+        self._write_atomic(existing.rstrip() + f"\n- {entry}\n")
         return ToolResult(
             tool_name=self.spec.name,
             success=True,
@@ -119,20 +145,26 @@ class MarkdownStoreTool(BaseTool):
         )
 
     def _update(self, old: str, new: str) -> ToolResult:
+        if not old:
+            return ToolResult(
+                tool_name=self.spec.name,
+                success=False,
+                content="Entry cannot be empty.",
+            )
         if not self._path.exists():
             return ToolResult(
                 tool_name=self.spec.name,
                 success=False,
                 content=self.missing_file_msg,
             )
-        text = self._path.read_text()
+        text = self._path.read_text(encoding="utf-8")
         if old not in text:
             return ToolResult(
                 tool_name=self.spec.name,
                 success=False,
                 content=f"Entry not found: {old}",
             )
-        self._path.write_text(text.replace(old, new, 1))
+        self._write_atomic(text.replace(old, new, 1))
         return ToolResult(
             tool_name=self.spec.name,
             success=True,
@@ -140,13 +172,19 @@ class MarkdownStoreTool(BaseTool):
         )
 
     def _remove(self, entry: str) -> ToolResult:
+        if not entry:
+            return ToolResult(
+                tool_name=self.spec.name,
+                success=False,
+                content="Entry cannot be empty.",
+            )
         if not self._path.exists():
             return ToolResult(
                 tool_name=self.spec.name,
                 success=False,
                 content=self.missing_file_msg,
             )
-        text = self._path.read_text()
+        text = self._path.read_text(encoding="utf-8")
         lines = text.split("\n")
         new_lines = [ln for ln in lines if entry not in ln]
         if len(new_lines) == len(lines):
@@ -155,7 +193,7 @@ class MarkdownStoreTool(BaseTool):
                 success=False,
                 content=f"Entry not found: {entry}",
             )
-        self._path.write_text("\n".join(new_lines))
+        self._write_atomic("\n".join(new_lines))
         return ToolResult(
             tool_name=self.spec.name,
             success=True,
