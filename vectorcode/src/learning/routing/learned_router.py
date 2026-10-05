@@ -142,7 +142,19 @@ class LearnedRouterPolicy(RouterPolicy):
         outcome: Optional[str],
         feedback: Optional[float],
     ) -> None:
-        """Record a single observation for online (incremental) updates."""
+        """Record a single observation for online (incremental) updates.
+
+        DESIGN QUESTION, not fixed (dormant: zero callers found repo-wide,
+        nothing to empirically validate against): once current_count
+        reaches min_samples for a query_class, this method stops updating
+        self._policy_map[qclass] for that class forever, regardless of
+        later evidence -- unlike update()/update_from_traces(), which
+        always re-evaluate from scratch and can change the choice at any
+        confidence level. If this freeze is intentional (stability once
+        "confident"), fine; if not, a model that later degrades would
+        never be routed away from via observe() alone. Needs an owner
+        call once this is actually wired to a caller.
+        """
         qclass = classify_query(query)
         current_count = self._confidence.get(qclass, 0)
 
