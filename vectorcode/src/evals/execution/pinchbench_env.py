@@ -20,6 +20,16 @@ from vectorcode.src.evals.core.types import EvalRecord
 
 LOGGER = logging.getLogger(__name__)
 
+
+def _resolve_within(root: Path, path_value: Any, *, field: str) -> Path:
+    """Resolve a task-supplied path while confining it to *root*."""
+    resolved_root = root.resolve()
+    candidate = (resolved_root / str(path_value)).resolve()
+    if candidate == resolved_root or not candidate.is_relative_to(resolved_root):
+        raise ValueError(f"Unsafe PinchBench {field} path: {path_value!r}")
+    return candidate
+
+
 class PinchBenchTaskEnv:
     """Per-task workspace environment for PinchBench.
 
@@ -65,16 +75,19 @@ class PinchBenchTaskEnv:
             if "content" in file_spec:
                 # Inline content
                 dest_key = file_spec.get("path", file_spec.get("dest", "file.txt"))
-                dest = self._workspace / dest_key
+                dest = _resolve_within(self._workspace, dest_key, field="destination")
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 dest.write_text(file_spec["content"])
             elif "source" in file_spec:
                 # Asset file from repo
-                source = repo_dir / "assets" / file_spec["source"]
+                assets_dir = repo_dir / "assets"
+                source = _resolve_within(
+                    assets_dir, file_spec["source"], field="source"
+                )
                 dest_key = file_spec.get(
                     "dest", file_spec.get("path", file_spec["source"])
                 )
-                dest = self._workspace / dest_key
+                dest = _resolve_within(self._workspace, dest_key, field="destination")
                 dest.parent.mkdir(parents=True, exist_ok=True)
                 if source.exists():
                     shutil.copy2(str(source), str(dest))
