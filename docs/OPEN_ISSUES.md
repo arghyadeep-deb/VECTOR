@@ -3399,3 +3399,55 @@ isn't "proven in production" until you supply the service/device and run it live
     its own future dedicated pass, prioritized by whether a module is a real import target (not a
     vendored `base_*.py`) and whether it was touched by one of the candidate commits listed above.
 
+63. **`vectorcode/src/learning/` audit, round 6 (2026-10-05) —** continued from rounds 1-5
+    (~38 files with prior real depth). Full line-by-line depth this round on
+    `optimize/{llm_optimizer,trial_runner}.py`, `distillation/{plan/planner,models}.py`,
+    `distillation/diagnose/types.py`, `agents/skill_optimizer.py`, and `distillation/cli.py`.
+    **Fixed, each with a new regression test:** `optimize/trial_runner.py`'s
+    `_run_terminalbench_native()` passed `agent_import_path=
+    "vector.evals.backends.tb_agent:VectorCodeTerminalBenchAgent"` to terminal-bench's `Harness` --
+    there is no top-level `vector` package anywhere in this repo (confirmed live:
+    `import vector` raises `ModuleNotFoundError`); the real module is
+    `vectorcode/src/evals/backends/tb_agent.py`. Every terminalbench-native trial would fail to
+    dynamically import the agent and silently report a permanent 0.0-accuracy error score instead
+    of a real result. Fixed to the correct dotted path. Same file: `run_trial()`'s cleanup
+    `finally` block called `backend.close()` then `judge_backend.close()` unguarded --
+    `backend.close()` just forwards to `self._system.close()`, which can raise, and doing so would
+    skip `judge_backend.close()` entirely and leak it. Each `close()` is now wrapped in its own
+    try/except so one failing never skips the other. `distillation/plan/planner.py`'s
+    `_parse_edits()` except-block called `raw.get("id", "?")` unconditionally on `raw` --
+    untrusted teacher-LLM JSON output not guaranteed to be a dict (the model can return a bare
+    string/number/null as one "edit" entry). When it wasn't a dict, the `AttributeError` from
+    `.get()` propagated out of the exception handler itself, crashing the entire `_parse_edits()`
+    call over one malformed entry instead of skipping it and keeping the valid edits -- confirmed
+    live before the fix: `_parse_edits('{"edits": ["not_a_dict"]}')` raised `AttributeError`
+    instead of returning `[]`. Fixed with an `isinstance(raw, dict)` guard. New tests:
+    `tests/test_vectorcode_learning_trial_runner_regressions.py` (3) and
+    `tests/test_vectorcode_learning_planner_malformed_edit.py` (2) -- 5/5 passing, all 4 fix sites
+    independently verified to fail on pre-fix code via `git stash`. Commits: `d5e4d50cc`
+    (trial_runner.py), `fb86e87f7` (planner.py). **Reviewed, no bug found:**
+    `optimize/llm_optimizer.py` (already-correct loguru usage, no path/subprocess/threading
+    issues, LLM calls already build their own deliberate system prompts matching the
+    `teacher_agent.py` exception precedent -- not a hydration gap), `distillation/models.py` and
+    `distillation/diagnose/types.py` (pure Pydantic schema / dataclass definitions, no executable
+    logic), `distillation/cli.py` (deliberately unwired scaffold CLI surface, explicitly documented
+    as such in its own `learning_run()` comment -- not a bug). `agents/skill_optimizer.py` itself
+    has no bug, but **FLAGGED cross-directory finding, not fixed (outside this round's
+    `vectorcode/src/learning/` scope):** its one real dependency,
+    `vectorcode/src/skills/overlay.py`'s `write_overlay(overlay, root)` (reached via
+    `vc_skills.overlay`'s re-export shim), builds `root / overlay.skill_name` with zero path
+    confinement -- `skill_name` originates from trace-step tool-call metadata
+    (`_extract_skill_names()`'s `metadata.get("skill")`), which is not as clearly
+    internally-generated as e.g. `session_dir`. This is the identical unconfined-identifier-into-
+    path shape already fixed 4 times elsewhere this audit cycle (most recently
+    `distillation/orchestrator.py`'s `_read_prompt`); `vectorcode/src/skills/` is a sibling
+    directory already partially covered by its own audit rounds (which already fixed this exact
+    file's TOML-escaping bug in commit `df5864d8b`) -- recommend a `skills/` continuation round
+    apply the same `Path.resolve()` + parent-equality confinement pattern to `write_overlay()`.
+    **Depth statement:** the files named above as fixed/reviewed got genuine full-depth review.
+    Still not covered by any round: `intelligence/orchestrator/{prompt_registry,types,
+    policy_model,reward}.py`, `routing/complexity.py`, `optimize/{types,search_space,config}.py`,
+    `training/data.py`, `distillation/execute/appliers/{lora_stub,tools,intelligence}.py`,
+    `distillation/student_runner.py`, and `distillation/checkpoint/store.py` -- roughly 14 files
+    remain for a future round.
+
