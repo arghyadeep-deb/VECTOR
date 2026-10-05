@@ -3953,3 +3953,50 @@ isn't "proven in production" until you supply the service/device and run it live
     `52cc0dd05` (6 more dataset record_id fixes). The reverted mechanical logging-conversion attempt
     left 6 files showing as modified in git with zero actual content diff (write-then-revert,
     confirmed via `git diff --stat`); those were checked out back to HEAD rather than committed.
+
+75. **`vectorcode/src/{connectors,vc_tools}/` audit, round 6 (2026-10-06) —** continued the
+    `~52 remaining files` inventory listed at the end of item 73 (connectors/vc_agents/vc_tools).
+    **Fixed with proof tests:** the same `SyncStatus`-never-reports-error shape found six times --
+    `connectors/{oura,weather,hackernews,granola}.py` and `connectors/{apple_notes,imessage}.py` --
+    `sync()` only ever set `state="idle"`/cleared the error on its success path; since `"idle"` is
+    also the dataclass default (and, for the two local SQLite-reading connectors and granola, the
+    permanent hardcoded value `sync_status()` returned), a mid-sync exception (expired token, API
+    down, locked DB, malformed credentials file) was indistinguishable from "nothing synced yet" to
+    any caller polling `sync_status()`. All six now set/clear a real error on their state. Also:
+    `vc_tools/code_interpreter_docker.py`'s `execute()` called `container.remove(force=True)` in a
+    `finally` with no exception handling of its own -- if `container.wait(timeout=...)` genuinely
+    timed out and the cleanup `remove()` call then *also* raised (daemon busy, container already
+    gone), the cleanup exception replaced the original timeout, so callers saw a confusing generic
+    "Docker execution error" instead of the correct "Execution timed out after N seconds." message.
+    `remove()` is now wrapped in its own try/except that logs and swallows cleanup failures.
+    **Flagged, not fixed (owner decision):** `connectors/granola.py`'s `sync()` silently yields zero
+    documents when no API key is configured (`if not api_key: return`) instead of raising -- kept as
+    pre-existing behavior (now commented) since changing a generator's control flow on a missing-
+    credential path was judged beyond this round's narrow status-reporting fix, and `is_connected()`
+    is the documented way callers are expected to check for this first. `connectors/pipeline.py`'s
+    `IngestionPipeline.ingest()` only adds a doc's `doc_id` to `self._seen_doc_ids` *after*
+    attachment processing completes -- if `self._store.store()` or attachment extraction raises
+    partway through a document, the doc_id is never marked seen, so a retry of the same batch could
+    re-write chunks for parts that already succeeded. Not fixed: the right behavior (mark seen
+    before vs. after attachment processing, and whether partial writes should be rolled back) is a
+    partial-failure semantics decision for the owner, not a narrow patch.
+    **Reviewed, no bug found:** `connectors/chunker.py` (pure-function text chunker, no I/O; sentence/
+    paragraph/section splitting logic checked for off-by-one and mis-pairing bugs in
+    `_chunk_email`'s header/body reassembly -- correct).
+    New tests: `tests/test_vectorcode_connectors_sync_status_error_reporting.py` (5),
+    `tests/test_vectorcode_connectors_apple_notes_imessage_sync_status_error.py` (2),
+    `tests/test_vectorcode_code_interpreter_docker_cleanup_masking.py` (2) -- 9/9 passing, all
+    confirmed failing pre-fix via `git stash`.
+    **Depth statement:** 7 files got genuine full-depth review this round (6 fixed, 1 reviewed
+    clean) plus 1 more fixed in `vc_tools/`. `connectors/pipeline.py` and `connectors/_abc.py` were
+    read for context but not independently fixed this round. Still remaining from item 73's list:
+    most of `vc_agents/` (`digest_store.py`, `digest_evaluator.py`, `rlm.py`, `native_react.py`,
+    `native_openhands.py`, `openhands.py`, `channel_agent.py`, `deep_research.py`, `errors.py`,
+    `web_search_agent.py`, `templates/`), and most of `vc_tools/` (`apply_patch.py`, `audio_tool.py`,
+    `browser_axtree.py`, `calculator.py`, `channel_tools.py`, `image_tool.py`, `knowledge_search.py`,
+    `knowledge_sql.py`, `knowledge_tools.py`, `llm_tool.py`, `mcp_adapter.py`, `memory_manage.py`,
+    `pdf_tool.py`, `retrieval.py`, `scan_chunks.py`, `skill_manage.py`, `storage/*` beyond
+    `dense.py`, `storage_tools.py`, `templates/`, `text_to_speech.py`, `think.py`,
+    `user_profile_manage.py`).
+    **Commit status:** `727a779bf` (oura/weather/hackernews/granola), `85f78b8fb` (apple_notes/
+    imessage), `382a507a5` (code_interpreter_docker.py).
