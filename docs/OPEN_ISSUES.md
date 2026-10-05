@@ -3279,3 +3279,60 @@ isn't "proven in production" until you supply the service/device and run it live
     `d18ec4130` (and any other similarly-scoped "consolidation"/"cleanup" commits) against what
     each touched file's real callers still expect would likely surface more of the same —
     this is a distinct, higher-value lead than continuing the file-by-file sweep.
+
+61. **`vectorcode/src/learning/` audit, round 5 (2026-10-05) —** continued from rounds 1-4
+    (~28 files with prior real depth). Full line-by-line depth this round on
+    `distillation/diagnose/{runner,teacher_agent}.py`, `training/lora.py`,
+    `distillation/orchestrator.py`, `routing/{router,learned_router}.py`,
+    `distillation/storage/session_store.py`, and
+    `intelligence/{__init__,grpo_trainer,sft_trainer}.py` (sft_trainer.py is a 4-line
+    re-export shim, no issue). **Fixed, each with a new regression test:**
+    `distillation/orchestrator.py`'s `_read_prompt(target)` split a teacher/planner-LLM-produced
+    `target` string on "." and used the second segment (`agent_name`) directly in
+    `self._home / "agents" / agent_name / "system_prompt.md"` with zero confinement -- the
+    read-path counterpart of the identical unconfined-agent-name bug already fixed as a write
+    primitive in `execute/appliers/agent.py` (round 1). A literal ".."-based traversal can't
+    actually be smuggled through `target.split(".")` (any ".." substring is itself composed of
+    the "." delimiter being split on), but pathlib's absolute-path-override behavior is a real
+    escape: `base / agent_name` discards `base` entirely when `agent_name` is itself an absolute
+    path (confirmed live: `Path("a/b") / "C:/x" / "y" == Path("C:/x/y")`) -- verified via
+    `git stash` that this genuinely reads planted secret content on pre-fix code. Fixed the same
+    way as the write-path precedent: resolve and require the agent directory's parent to equal
+    `agents_dir` exactly. `distillation/storage/session_store.py` and
+    `intelligence/grpo_trainer.py` both had the systemic stdlib-logging-instead-of-loguru bug
+    (grpo_trainer.py had zero loguru import at all, not even a shadow); `intelligence/__init__.py`
+    passed stdlib's `exc_info=True` to loguru (silently ignored) in two places. **FLAGGED, not
+    fixed:** `intelligence/grpo_trainer.py`'s `_grpo_step()` computes
+    `ratio = torch.exp(lp - lp.detach())`, which is mathematically guaranteed to always equal
+    `exp(0) == 1.0` since `lp` and `lp.detach()` are the same tensor's values with only
+    grad-tracking stripped -- `clipped` therefore also always equals 1.0, collapsing the intended
+    PPO-style clipped GRPO objective into a plain REINFORCE-style `-advantage` loss and leaving
+    `config.clip_ratio` completely inert. A real ratio needs an "old" log-prob frozen before the
+    policy update it's compared against (typically via multiple inner optimizer steps per sampled
+    batch), which `_run_grpo`'s single-pass-per-epoch structure doesn't do today -- this is a
+    training-loop redesign decision, not a narrow patch, so it's documented in a comment at the
+    exact line rather than guessed at. `routing/learned_router.py`'s `LearnedRouterPolicy.observe()`
+    permanently stops updating a query class's routed model once `current_count` reaches
+    `min_samples`, unlike `update()`/`update_from_traces()` which always re-evaluate from trace
+    history regardless of confidence -- could be an intentional stability mechanism or an
+    online-learning bug; `observe()` has zero callers repo-wide today, so there's nothing to
+    empirically validate this against. On `diagnose/teacher_agent.py`: CLAUDE.md Rule 1 requires
+    `context_engine.session_hydration_prompt()` before every LLM call, and this module's
+    `TeacherAgent.run()` does not call it -- but unlike the 3 other hydration gaps found this audit
+    cycle (where the LLM call had *no* system content at all), this one already builds and passes a
+    deliberate, purpose-built system prompt for its specific offline meta-engineering/distillation
+    task; injecting generic live-agent world-state hydration into that prompt could make it worse,
+    not better, so this is noted here as a judgment call rather than silently "fixed" either way.
+    **Reviewed, no bug found:** `distillation/diagnose/runner.py` (no path-confinement issues --
+    `session_dir` is internally generated, not model-produced), `training/lora.py` (correct guarded
+    optional imports, no logic bugs), `routing/router.py` (clean heuristic rule logic).
+    New tests: `tests/test_vectorcode_learning_orchestrator_read_prompt_path_confinement.py` (2),
+    `tests/test_vectorcode_learning_session_store_logging.py` (2),
+    `tests/test_vectorcode_learning_intelligence_grpo_logging.py` (3) -- 7/7 passing. Commits:
+    `95df1765a` (orchestrator.py), `9e99f7b75` (learned_router.py flag), `135865368`
+    (session_store.py), `a4bd5ee34` (grpo_trainer.py + __init__.py). **Depth statement:** the files
+    named above as fixed/reviewed got genuine full-depth review. Still not covered by any round:
+    `optimize/llm_optimizer.py` (663 lines) and `optimize/trial_runner.py` (404 lines) beyond
+    whatever round 3's mechanical logging pass touched, `distillation/plan/planner.py`,
+    `distillation/models.py`, `distillation/diagnose/types.py`, `agents/skill_optimizer.py`, and a
+    handful of smaller files -- these should not be treated as audited.
