@@ -3523,3 +3523,51 @@ isn't "proven in production" until you supply the service/device and run it live
     remaining backend/core/execution/scorer/tracker file, so those files must remain explicitly
     unaudited rather than being represented as complete in a future handoff.
 
+66. **Real-import smoke sweep of `core/` and `districts/` (2026-10-05, partial, environment-
+    limited) —** triggered by item 60's `run_agent.py`-unimportable finding: a cheap, mechanical
+    sweep (NOT a logic re-audit) attempting a real `import` of every module in these two trees,
+    since the earlier "fully audited" passes may have used `ast.parse()` only, which is exactly
+    what hid that bug for 4-5 months. **Methodology dead-ends hit and worked around, recorded for
+    whoever continues this:** a `multiprocessing.Pool` with the `spawn` context failed outright in
+    this Windows environment (`OSError: [WinError 87] The parameter is incorrect` on every worker,
+    an environment/handle-duplication problem, not a code issue) -- switched to plain
+    `subprocess.run([sys.executable, "-c", ...])` per module via a thread pool instead. The first
+    subprocess attempt then produced a near-total false-failure rate (4033/4066) from a self-
+    inflicted bug: passing `env={"PYTHONPATH": REPO}` *replaces* the subprocess's entire
+    environment instead of extending it, starving Windows socket/DLL initialization of `PATH`/
+    `SYSTEMROOT` etc. and producing `OSError: [WinError 10106]` for nearly everything regardless of
+    the module's actual code. Fixed with `env={**os.environ, "PYTHONPATH": REPO}`. **Scope
+    actually covered: 602 of 4,066 modules (~15%)** before the harness killed the sweep for
+    unrelated host memory pressure (24 parallel subprocesses, several importing `torch`, exhausted
+    available memory) -- explicitly instructed not to restart this myself; a future session should
+    resume with a smaller worker count (e.g. 4-6) and/or a per-batch memory check. **Of the 602
+    checked: 591 genuinely OK, 9 failures, all individually triaged (no unexamined pile):**
+    5 were boring/expected (`ModuleNotFoundError: No module named 'textual'`, an optional TUI
+    dependency not installed). 2 more were the "real bug shape" (sibling-module-in-same-codebase
+    missing) and **fixed, each with a new regression test verified via `git stash` to fail
+    pre-fix:** `core/coding_assistant/core/programmatic.py`'s `ClientMetadata` -- the same
+    `fed812acc` blanket-`NotImplementedError` regression already found 9 times this cycle, here
+    with the `raise` placed directly in the class body (not even `__init__`), crashing the module
+    at class-definition/import time; restored the original no-op telemetry stub
+    (`git show fed812acc^:<path>` confirmed `def __init__(self, name="", version=""): pass`).
+    `core/mining/vllm_pearl.py`'s `from core.mining._discovery import detect_for_engine_model` --
+    no such module; the real function lives in `core/mining/discovery.py` (no underscore); fixed
+    the import path. **FLAGGED, not fixed (same file, separate deeper issue):**
+    `vllm_pearl.py` also does `from core.mining._docker import PearlDockerLauncher`, and
+    `core/mining/_docker.py` has never existed in this repo's entire git history (confirmed via
+    `git log --all --diff-filter=D`) -- not a deletion, a migration that was apparently never
+    completed. The real `PearlDockerLauncher` class only exists in the parallel
+    `vectorcode/src/mining/_docker.py` tree (confirmed: `vectorcode/src/mining/vllm_pearl.py` is
+    itself just a 1-line shim re-exporting from `core.mining.vllm_pearl`, establishing
+    `core/mining/` as the intended canonical location -- but `_docker.py` was never ported there
+    the way its sibling `_abc.py`/`_metrics.py`/`discovery.py` were). `vllm_pearl.py` therefore
+    still cannot fully import even after this round's fix. Porting a class across trees, or
+    redesigning the import boundary, is a bigger and more interpretive change than this audit's
+    narrow-bug-fix mandate covers -- left for an owner decision rather than guessed at. New test:
+    `tests/test_core_sweep_real_import_regressions.py` (4 tests). Commit:
+    `33dc88141`. **NOT YET COVERED, explicitly:** 3,464 of 4,066 modules (~85%) in `core/` and
+    `districts/` were never reached by this sweep. Resuming it (with a safer worker count) is the
+    single highest-leverage next step for catching more `run_agent.py`-shaped bombs in these two
+    trees, which are otherwise this repo's two largest code trees and were both marked "fully
+    audited" using a methodology now known to have a blind spot.
+
