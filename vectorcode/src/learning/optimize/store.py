@@ -9,12 +9,13 @@ from __future__ import annotations
 
 from core.memory.db_utils import apply_pragmas
 import json
-import logging
 import sqlite3
 import threading
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+
+from loguru import logger
 
 from vectorcode.src.learning.optimize.types import (
     BenchmarkScore,
@@ -25,8 +26,6 @@ from vectorcode.src.learning.optimize.types import (
     TrialFeedback,
     TrialResult,
 )
-
-logger = logging.getLogger(__name__)
 
 _CREATE_RUNS = """\
 CREATE TABLE IF NOT EXISTS optimization_runs (
@@ -379,7 +378,7 @@ class OptimizationStore:
             try:
                 benchmarks = json.loads(row[11]) if row[11] else []
             except (json.JSONDecodeError, TypeError) as exc:
-                logger.debug("Failed to parse stored JSON: %s", exc)
+                logger.debug("Failed to parse stored JSON: {}", exc)
 
         # Reconstruct pareto frontier from IDs
         pareto_frontier: List[TrialResult] = []
@@ -391,7 +390,7 @@ class OptimizationStore:
                     trial_map[tid] for tid in frontier_ids if tid in trial_map
                 ]
             except (json.JSONDecodeError, TypeError) as exc:
-                logger.debug("Failed to parse stored JSON: %s", exc)
+                logger.debug("Failed to parse stored JSON: {}", exc)
 
         return OptimizationRun(
             run_id=run_id,
@@ -459,7 +458,7 @@ class OptimizationStore:
                     for s in raw_scores
                 ]
             except (json.JSONDecodeError, TypeError) as exc:
-                logger.debug("Failed to parse stored JSON: %s", exc)
+                logger.debug("Failed to parse stored JSON: {}", exc)
 
         if len(row) > 15:
             try:
@@ -473,7 +472,7 @@ class OptimizationStore:
                         target_primitive=raw_fb.get("target_primitive", ""),
                     )
             except (json.JSONDecodeError, TypeError) as exc:
-                logger.debug("Failed to parse stored JSON: %s", exc)
+                logger.debug("Failed to parse stored JSON: {}", exc)
 
         # per_benchmark column
         per_benchmark: List[BenchmarkScore] = []
@@ -495,7 +494,7 @@ class OptimizationStore:
                     for b in raw_pb
                 ]
             except (json.JSONDecodeError, TypeError) as exc:
-                logger.debug("Failed to parse stored JSON: %s", exc)
+                logger.debug("Failed to parse stored JSON: {}", exc)
 
         config = TrialConfig(
             trial_id=trial_id,
