@@ -7,12 +7,19 @@
 
 from __future__ import annotations
 
+import json
+import os
+import tempfile
 from pathlib import Path
-from typing import Any, List
+from typing import Any, List, Optional
 
 from vectorcode.src.vc_core.registry import ToolRegistry
 from vectorcode.src.vc_core.types import ToolResult
 from vectorcode.src.vc_tools._abc import BaseTool, ToolSpec
+
+def _toml_string(value: object) -> str:
+    """Serialize *value* as an escaped TOML basic string (double-quoted)."""
+    return json.dumps(str(value), ensure_ascii=False)
 
 @ToolRegistry.register("skill_manage")
 class SkillManageTool(BaseTool):
@@ -20,6 +27,21 @@ class SkillManageTool(BaseTool):
 
     def __init__(self, skills_dir: Path | str = "~/.vector/skills/") -> None:
         self._skills_dir = Path(skills_dir).expanduser()
+
+    def _resolve_skill_path(self, name: str) -> Optional[Path]:
+        """Resolve *name* to a `.toml` path confined to the skills dir.
+
+        Returns ``None`` if *name* is empty or the resolved path would
+        escape ``self._skills_dir`` (path traversal via ``..``, an
+        embedded path separator, or an absolute override).
+        """
+        if not name:
+            return None
+        root = self._skills_dir.resolve()
+        candidate = (self._skills_dir / f"{name}.toml").resolve()
+        if candidate.parent != root:
+            return None
+        return candidate
 
     @property
     def spec(self) -> ToolSpec:
@@ -75,29 +97,44 @@ class SkillManageTool(BaseTool):
         )
 
     def _create(self, name: str, description: str, steps: List[dict]) -> ToolResult:
-        if not name:
+        self._skills_dir.mkdir(parents=True, exist_ok=True)
+        path = self._resolve_skill_path(name)
+        if path is None:
             return ToolResult(
                 tool_name=self.spec.name,
                 success=False,
-                content="Skill name is required.",
+                content="Skill name is required and must not contain path separators.",
             )
-        self._skills_dir.mkdir(parents=True, exist_ok=True)
-        path = self._skills_dir / f"{name}.toml"
         lines = [
             "[skill]",
-            f'name = "{name}"',
-            f'description = "{description}"',
+            f"name = {_toml_string(name)}",
+            f"description = {_toml_string(description)}",
             "",
         ]
         for step in steps:
             lines.append("[[skill.steps]]")
-            lines.append(f'tool_name = "{step.get("tool_name", "")}"')
+            lines.append(f"tool_name = {_toml_string(step.get('tool_name', ''))}")
             if "arguments_template" in step:
-                lines.append(f"arguments_template = '{step['arguments_template']}'")
+                lines.append(
+                    f"arguments_template = {_toml_string(step['arguments_template'])}"
+                )
             if "output_key" in step:
-                lines.append(f'output_key = "{step["output_key"]}"')
+                lines.append(f"output_key = {_toml_string(step['output_key'])}")
             lines.append("")
-        path.write_text("\n".join(lines))
+        content = "\n".join(lines)
+        fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_name, path)
+        except OSError:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
         return ToolResult(
             tool_name=self.spec.name,
             success=True,
@@ -127,8 +164,8 @@ class SkillManageTool(BaseTool):
         )
 
     def _load(self, name: str) -> ToolResult:
-        path = self._skills_dir / f"{name}.toml"
-        if not path.exists():
+        path = self._resolve_skill_path(name)
+        if path is None or not path.exists():
             return ToolResult(
                 tool_name=self.spec.name,
                 success=False,
@@ -137,12 +174,12 @@ class SkillManageTool(BaseTool):
         return ToolResult(
             tool_name=self.spec.name,
             success=True,
-            content=path.read_text(),
+            content=path.read_text(encoding="utf-8"),
         )
 
     def _delete(self, name: str) -> ToolResult:
-        path = self._skills_dir / f"{name}.toml"
-        if not path.exists():
+        path = self._resolve_skill_path(name)
+        if path is None or not path.exists():
             return ToolResult(
                 tool_name=self.spec.name,
                 success=False,
