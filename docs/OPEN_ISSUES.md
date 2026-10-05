@@ -3621,3 +3621,38 @@ isn't "proven in production" until you supply the service/device and run it live
     only (now complete across all 6 rounds covering this directory); none of the "not reached"
     files above should be treated as audited.
 
+68. **`vectorcode/src/learning/` audit, round 7 complete (2026-10-05) —** re-derived the
+    remaining set from Git history, then reconciled it with round 6's exact depth statement (item
+    63). Full line-by-line review is now complete for all 15 files named there:
+    `intelligence/orchestrator/{prompt_registry,types,policy_model,reward}.py`,
+    `routing/complexity.py`, `optimize/{types,search_space,config}.py`, `training/data.py`,
+    `distillation/execute/appliers/{lora_stub,tools,intelligence}.py`,
+    `distillation/{student_runner.py,checkpoint/store.py}`. Also rechecked recurring-pattern hits
+    in previously touched files. **Fixed with proof regressions:** (1) sixth learning-directory
+    CWE-22 instance: teacher-generated `Edit.id` was interpolated directly into LoRA queue and
+    adapter paths, including rollback's `shutil.rmtree()` target; a `..` or absolute ID could
+    escape the intended directory. All queue/write/delete/training paths now resolve through one
+    direct-child confinement helper. (2) TOML correctness/config-injection: the agent evolver and
+    intelligence/tool edit appliers interpolated model-generated strings and keys into TOML with
+    incomplete or zero escaping; quotes, control characters, and crafted section/key text could
+    corrupt the config or create unintended assignments. Added spec-compatible scalar/list and
+    quoted-key serialization and verified hostile multiline payloads by parsing every output with
+    `tomllib`. (3) remaining logging regressions: `learning/__init__.py` used stdlib-only
+    `exc_info=True` with Loguru; checkpoint store, student runner, DSPy optimizer, GEPA optimizer,
+    and prompt-diff used stdlib logging and/or printf placeholders. Converted all to Loguru's
+    exception/formatting APIs. (4) `VLLMStudentRunner` owned an `httpx.Client` with no release
+    path; added `close()` and context-manager support. New tests:
+    `tests/test_vectorcode_learning_{lora_path_confinement,agent_evolver_toml,
+    applier_toml_safety,round7_logging,student_runner_close}.py`: **12/12 pass**. Entire
+    `vectorcode/src/learning/` compiles; `git diff --check` passes. No new design/policy question
+    was found in the other reviewed files. **New owner decision:** LoRA edits are always assigned
+    `MANUAL`, and both shipped execution loops skip `MANUAL` edits before applier lookup, making
+    `LoraStubApplier`'s documented deferred queue and real training branches unreachable through
+    the normal pipeline. This conflicts with the applier's stated behavior; changing the
+    approval-to-execution design was not guessed at, and a comment now flags the exact code site.
+    Earlier flags for no-op edit rollback and the dead PPO ratio also remain owner decisions.
+    Work was done by Codex (gpt-5.6-sol); as with other items, Codex's sandbox could not write
+    `.git/index.lock`, so Claude reviewed and committed on its behalf after independently running
+    all 12 new tests: `e2fdff745` (TOML injection fixes), `788503a0d` (lora_stub.py CWE-22 fix),
+    `e75f42538` (unclosed httpx client + remaining logging fixes).
+
