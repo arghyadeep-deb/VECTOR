@@ -48,7 +48,10 @@ class ThinkTool(BaseTool):
             from vectorcode.src._rust_bridge import get_rust_module
 
             _rust = get_rust_module()
-            content = _rust.ThinkTool().execute(thought)
+            if _rust is None:
+                content = thought
+            else:
+                content = _rust.ThinkTool().execute(thought)
         except (ImportError, ModuleNotFoundError):
             # Pure-Python fallback when Rust extension isn't built
             content = thought

@@ -37,6 +37,14 @@ class BM25Memory(MemoryBackend):
 
     def __init__(self) -> None:
         _r = get_rust_module()
+        if _r is None:
+            raise RuntimeError(
+                "BM25Memory requires the compiled vectorcode Rust extension "
+                "(vectorcode.src_rust), which is not available in this "
+                "environment -- there is no pure-Python fallback for this "
+                "backend despite its docstring. Choose a different "
+                "memory backend (e.g. 'dense', 'hybrid', or 'sqlite')."
+            )
         self._rust_impl = _r.BM25Memory()
 
     # -- ABC implementation -------------------------------------------------
