@@ -21,7 +21,6 @@ from loguru import logger
 
 import dataclasses
 import json
-import logging
 import math
 import re
 import statistics
@@ -53,8 +52,6 @@ try:
     from core.telemetry.efficiency import estimate_model_flops_per_token
 except ImportError:  # pragma: no cover
     estimate_model_flops_per_token = None  # type: ignore[assignment]
-
-LOGGER = logging.getLogger(__name__)
 
 _THINK_TAG_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
@@ -118,6 +115,7 @@ class EvalRunner:
         """
         cfg = self._config
         started_at = time.time()
+        self._results = []
 
         self._dataset.load(
             max_samples=cfg.max_samples,
@@ -139,8 +137,8 @@ class EvalRunner:
         except AttributeError:
             _overrides_episodes = False
         if not cfg.episode_mode and _overrides_episodes:
-            LOGGER.info(
-                "%s requires sequential episode processing — "
+            logger.info(
+                "{} requires sequential episode processing — "
                 "auto-enabling episode_mode.",
                 cfg.benchmark,
             )
@@ -165,28 +163,31 @@ class EvalRunner:
                 sample_records = list(self._dataset.iter_records())
                 if sample_records:
                     probe_env = self._dataset.create_task_env(sample_records[0])
-                    if probe_env is not None and getattr(
-                        type(probe_env), "THREAD_SAFE", False
-                    ):
-                        self._task_env_thread_safe = True
+                    if probe_env is not None:
+                        try:
+                            self._task_env_thread_safe = bool(
+                                getattr(type(probe_env), "THREAD_SAFE", False)
+                            )
+                        finally:
+                            probe_env.close()
             except Exception as exc:  # pragma: no cover - probe is best-effort
-                LOGGER.debug("Task env thread-safety probe failed: %s", exc)
+                logger.debug("Task env thread-safety probe failed: {}", exc)
 
         records = list(self._dataset.iter_records())
         if cfg.record_ids:
             wanted = set(cfg.record_ids)
             before = len(records)
             records = [r for r in records if r.record_id in wanted]
-            LOGGER.info(
-                "Filtering %s to %d/%d records via record_ids "
-                "(first 3: %s)",
+            logger.info(
+                "Filtering {} to {}/{} records via record_ids "
+                "(first 3: {})",
                 cfg.benchmark,
                 len(records),
                 before,
                 ", ".join(sorted(wanted)[:3]),
             )
-        LOGGER.info(
-            "Running %s: %d samples, backend=%s, model=%s, workers=%d, episode_mode=%s",
+        logger.info(
+            "Running {}: {} samples, backend={}, model={}, workers={}, episode_mode={}",
             cfg.benchmark,
             len(records),
             cfg.backend,
@@ -201,7 +202,7 @@ class EvalRunner:
             warmup_records = records[:warmup_count]
             for rec in warmup_records:
                 self._process_one(rec)
-            LOGGER.info("Warmup complete: %d samples discarded", len(warmup_records))
+            logger.info("Warmup complete: {} samples discarded", len(warmup_records))
 
         # Open output file for incremental JSONL writing
         output_path = self._resolve_output_path()
@@ -214,8 +215,8 @@ class EvalRunner:
             try:
                 tracker.on_run_start(cfg)
             except Exception as exc:
-                LOGGER.warning(
-                    "Tracker %s.on_run_start failed: %s",
+                logger.warning(
+                    "Tracker {}.on_run_start failed: {}",
                     type(tracker).__name__,
                     exc,
                 )
@@ -257,16 +258,16 @@ class EvalRunner:
             try:
                 tracker.on_summary(summary)
             except Exception as exc:
-                LOGGER.warning(
-                    "Tracker %s.on_summary failed: %s",
+                logger.warning(
+                    "Tracker {}.on_summary failed: {}",
                     type(tracker).__name__,
                     exc,
                 )
             try:
                 tracker.on_run_end()
             except Exception as exc:
-                LOGGER.warning(
-                    "Tracker %s.on_run_end failed: %s",
+                logger.warning(
+                    "Tracker {}.on_run_end failed: {}",
                     type(tracker).__name__,
                     exc,
                 )
@@ -281,8 +282,8 @@ class EvalRunner:
                     f,
                     indent=2,
                 )
-            LOGGER.info("Results written to %s", output_path)
-            LOGGER.info("Summary written to %s", summary_path)
+            logger.info("Results written to {}", output_path)
+            logger.info("Summary written to {}", summary_path)
 
             # Write per-trace data
             traces_dir = self._write_traces(output_path)
@@ -304,7 +305,7 @@ class EvalRunner:
         with open(traces_dir / "traces.jsonl", "w") as f:
             for result in self._results:
                 f.write(json.dumps(_result_to_trace_dict(result), default=str) + "\n")
-        LOGGER.info("Traces written to %s", traces_dir)
+        logger.info("Traces written to {}", traces_dir)
         return traces_dir
 
     def _process_one(self, record: EvalRecord) -> EvalResult:
@@ -506,7 +507,7 @@ class EvalRunner:
                 turn_count=int(full.get("turn_count", 0)),
             )
         except Exception as exc:
-            LOGGER.error("Error processing %s: %s", record.record_id, exc)
+            logger.error("Error processing {}: {}", record.record_id, exc)
             return EvalResult(
                 record_id=record.record_id,
                 model_answer="",
@@ -801,8 +802,8 @@ class EvalRunner:
                 turn_count=len(all_responses),
             )
         except Exception as exc:
-            LOGGER.error(
-                "Interactive processing failed for %s: %s",
+            logger.error(
+                "Interactive processing failed for {}: {}",
                 record.record_id,
                 exc,
             )
@@ -822,7 +823,7 @@ class EvalRunner:
                 try:
                     env.close()
                 except Exception as _sve:
-                    logger.debug("[VECTOR][evals.core.runner] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][evals.core.runner] suppressed Exception: {}", _sve)
 
     @staticmethod
     def _format_messages_as_prompt(messages: List[Dict[str, str]]) -> str:
@@ -880,8 +881,8 @@ class EvalRunner:
         try:
             line = json.dumps(record_dict, default=str)
         except Exception as exc:
-            LOGGER.error(
-                "Failed to serialize result %s to JSON: %s — writing error record",
+            logger.error(
+                "Failed to serialize result {} to JSON: {} — writing error record",
                 result.record_id,
                 exc,
             )
@@ -902,8 +903,8 @@ class EvalRunner:
             try:
                 tracker.on_result(result, self._config)
             except Exception as exc:
-                LOGGER.warning(
-                    "Tracker %s.on_result failed: %s",
+                logger.warning(
+                    "Tracker {}.on_result failed: {}",
                     type(tracker).__name__,
                     exc,
                 )
