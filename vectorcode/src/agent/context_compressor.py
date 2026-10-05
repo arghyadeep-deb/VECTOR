@@ -343,6 +343,15 @@ class ContextCompressor(ContextEngine):
         self._last_aux_model_failure_model = None
         self._last_compression_savings_pct = 100.0
         self._ineffective_compression_count = 0
+        # Restore the originally-configured summary model and clear the
+        # fallen-back flag. Without this, a single transient failure of the
+        # user's configured aux summary model (rate limit, momentary 503)
+        # permanently and silently downgrades every future compression in
+        # this process to the full-price main model -- including across
+        # fresh /new sessions, since this object is reused for the agent's
+        # whole lifetime (see run_agent.py's on_session_reset() call site).
+        self.summary_model = self._summary_model_override
+        self._summary_model_fallen_back = False
 
     def update_model(
         self,
@@ -436,6 +445,10 @@ class ContextCompressor(ContextEngine):
         self.last_completion_tokens = 0
 
         self.summary_model = summary_model_override or ""
+        # Preserved so on_session_reset() can restore the user's configured
+        # aux summary model after a fallback -- see on_session_reset().
+        self._summary_model_override = self.summary_model
+        self._summary_model_fallen_back = False
 
         # Stores the previous compaction summary for iterative updates
         self._previous_summary: Optional[str] = None
