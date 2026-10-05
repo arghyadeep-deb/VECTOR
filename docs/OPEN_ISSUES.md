@@ -3496,3 +3496,30 @@ isn't "proven in production" until you supply the service/device and run it live
     into the separate `vectorcode/skills/` directory (item 56) remains correctly un-touched -- an
     owner architecture decision, not a narrow fix.
 
+65. **`vectorcode/src/evals/` audit, round 6 (2026-10-05) —** continued the directory-wide
+    correctness/security audit from the 16 production files already fixed in prior rounds.
+    **Fixed, each with regression coverage:** 18 additional dataset loaders assigned fallback or
+    positional `record_id` values only after shuffling/splitting, so the same example received a
+    different identity under different seeds and cross-run comparisons silently joined unrelated
+    examples. The affected loaders are `datasets/{adp,email_triage,frames,gaia,generalthoughts,
+    gpqa,hle,ipw_mixed,knowledge_base,math500,mmlu_pro,morning_brief,natural_reasoning,
+    research_mining,simpleqa,supergpqa,toolorchestra,wildchat}.py`. Each now pairs the stable source
+    position with its row before any shuffle/split and preserves that identity through sampling;
+    native IDs remain preferred where present. Also fixed printf-style `%s` placeholders on Loguru
+    calls encountered in `adp.py`, `simpleqa.py`, and `toolorchestra.py`, which previously emitted a
+    literal `%s` and dropped the exception detail. Expanded
+    `tests/test_evals_dataset_identity_regressions.py` with one two-seed identity regression per
+    loader plus three parser-log rendering cases: **24/24 pass**. The combined focused + existing
+    eval suite produced **171 passes, 13 failures**; all 13 are pre-existing legacy-test/config
+    failures unrelated to these loaders (six obsolete `vector.*` mock targets, five stale
+    `jarvis-*` example-config expectations, one additional obsolete `vector.*` CLI mock, and one
+    stdlib `caplog` assertion against current Loguru output). `git diff --check` passes. **Commit
+    blocked by execution environment:** `.git` is read-only and both `git add` and `git commit`
+    fail creating `.git/index.lock` with `Permission denied`; all code/test changes therefore remain
+    uncommitted, and this `OPEN_ISSUES.md` entry is intentionally unstaged as required. **Depth / work
+    remaining:** full-depth reading completed for the fixed dataset files and the earlier inspected
+    dataset batch (`ama_bench.py`, `deepplanning.py`); targeted recurring-pattern scans covered the
+    whole production tree. This round did **not** complete a genuine line-by-line read of every
+    remaining backend/core/execution/scorer/tracker file, so those files must remain explicitly
+    unaudited rather than being represented as complete in a future handoff.
+
