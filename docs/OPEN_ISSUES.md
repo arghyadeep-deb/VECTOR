@@ -3336,3 +3336,66 @@ isn't "proven in production" until you supply the service/device and run it live
     whatever round 3's mechanical logging pass touched, `distillation/plan/planner.py`,
     `distillation/models.py`, `distillation/diagnose/types.py`, `agents/skill_optimizer.py`, and a
     handful of smaller files -- these should not be treated as audited.
+
+62. **Automated cleanup commit over-reach investigation (2026-10-05) — triggered by item 60's
+    `run_agent.py` finding.** Item 60 found that commit `fed812acc` ("convert 214 pass-only ABC
+    stubs to raise NotImplementedError", 2026-06-18) deleted a real file (`agent/context_engine.py`)
+    entirely, and a separate commit `d18ec4130` dropped a real class during a "consolidation."
+    This investigation asked: how much more damage did these two commits (and other similarly
+    bulk/automated commits across the whole repo) do? **Scope covered:** extracted all 162
+    `pass`→`raise NotImplementedError` conversions from `fed812acc`'s full diff (802 files touched
+    total) and triaged every non-vendored hit by file (vendored trees -- `core/research_engine/`,
+    `districts/investment/vector_finagent/`, etc. -- account for the bulk of the 162 and were not
+    re-examined here; their `base_*.py` naming and multi-abstract-method shape is consistent with
+    genuine ABCs, matching this audit's existing wiring-check-only policy for those trees).
+    **Fixed, each with a new regression test verified to fail pre-fix via `git stash`:** 4 more
+    instances of the identical bug class already found 5 times in items covering `vectorcode/src/
+    {agent,learning,evals}/` — a concrete, directly-instantiated "null object" / fallback class
+    whose deliberate no-op body was turned into an unconditional raise:
+    `plugins/context_engine/__init__.py`'s `_EngineCollector` (instantiated in
+    `_load_engine_from_dir()`, passed to a loaded plugin's own `register(ctx)` call -- a plugin
+    calling `register_tool`/`register_hook`/`register_cli_command`/`register_memory_provider`
+    during setup would abort silently and lose its engine registration),
+    `plugins/memory/__init__.py`'s `_ProviderCollector` (identical shape for memory-provider
+    plugins), `skills/manager.py`'s `_NullToolExecutor` (the `_FULL_DEPS=False` branch,
+    instantiated as `executor or _NullToolExecutor()` -- the entire point of this branch is
+    graceful degradation when `vc_tools` is unavailable), and `providers/capability_probe.py`'s
+    fallback `ModelRegistry.save()` (used when `from config import ModelRegistry` fails).
+    All 4 confirmed via `git show fed812acc^:<path>` that the original body was `pass`. Also fixed
+    an unrelated loguru-shadowed-by-stdlib-logging bug found in `providers/__init__.py` while
+    investigating it. Commit: `56348c2e1`.
+    **FLAGGED, NOT FIXED — separate, deeper, pre-existing architectural mismatch (not caused by
+    either commit under investigation):** `vectorcode/src/providers/capability_probe.py` and
+    `vectorcode/src/providers/openai_compat.py` both do `from providers.base import
+    ModelCapabilities` (and, for openai_compat.py, also `BaseProvider`, `CompletionResult`,
+    `Message`, `TokenUsage`, `ToolCall`) -- none of these exist in the current `providers/base.py`
+    at all. That file was redesigned at some point around a declarative `ProviderProfile` dataclass
+    (clean, well-documented, actively used) and now defines nothing else; these two files were
+    never migrated and have likely been unimportable for as long as that redesign has existed.
+    Confirmed this is non-fatal to the package as a whole: `providers/__init__.py`'s own
+    `pkgutil.iter_modules` legacy-discovery loop wraps each module import in `except ImportError`
+    and logs a warning, so the rest of `providers/` still works -- but `capability_probe.py` and
+    `openai_compat.py` are both 100% dead on arrival today. Deciding whether to migrate these two
+    files to the new `ProviderProfile` API, delete them as superseded legacy code, or something
+    else is an owner architecture decision, not a narrow bug fix -- flagging rather than guessing.
+    **Checked and confirmed NOT bugs:** `core/scraper/parser.py`'s `Selectors.__getitem__` and
+    `core/scraper/core/custom_types.py`'s `TextHandlers.__getitem__` -- both `raise
+    NotImplementedError` sites are inside `@overload`-decorated signature stubs (never executed at
+    runtime, purely for static type checkers; the real implementation follows immediately after
+    without the decorator) -- harmless regardless of body content.
+    `core/scraper/engines/_browsers/_base.py`'s `SyncSession.start`/`AsyncSession.start` -- confirmed
+    real subclasses exist and override `.start()` (`DynamicSession`, `StealthySession` /
+    `AsyncDynamicSession`, `AsyncStealthySession` in `_controllers.py`/`_stealth.py`), consistent
+    with a genuine (if informally-typed, not literal `abc.ABC`) abstract base.
+    **NOT YET COVERED by this investigation** (explicitly, not representing as audited): the
+    remaining ~140 of `fed812acc`'s 162 conversions in vendored trees (spot-checked the shape, not
+    individually verified each one); `d18ec4130`'s full file list beyond the already-found
+    `memory_manager.py` instance (item 60); `fed784f60` ("phase-2: deduplicate core/ vs vectorcode/
+    forks (telemetry + sandbox)") was identified as a same-risk-profile candidate commit but not
+    examined at all; `core/` and `districts/` generally were marked fully audited in earlier
+    sessions before this context window, but that audit may have used the same `ast.parse()`-only
+    methodology that hid the `run_agent.py` break for 4-5 months -- re-checking real imports across
+    those two huge trees was judged too large for this investigation's budget and is recommended as
+    its own future dedicated pass, prioritized by whether a module is a real import target (not a
+    vendored `base_*.py`) and whether it was touched by one of the candidate commits listed above.
+
