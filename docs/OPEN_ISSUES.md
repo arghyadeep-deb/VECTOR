@@ -3867,3 +3867,83 @@ isn't "proven in production" until you supply the service/device and run it live
     all 17 new tests and confirming the `office/pack.py` import failure live:
     `0cc389734` (sparc/executor fixes), `6dbb1da4e` (document path confinement + atomic writes),
     `dd8a83ffd` (pixel-art/meme-generation fixes).
+
+73. **`vectorcode/src/{vc_agents,connectors,vc_tools}/` continuation round 5 (2026-10-05) —**
+    resumed after round 4 (~60 of 122 files with real depth, including a LoopGuard safety bug
+    and a shell_exec.py env-var bug). This round covered `connectors/{notion,spotify,outlook,
+    gmail,google_tasks}.py` and `vc_agents/{agent_registry,routing_agent,simple}.py` with full
+    line-by-line depth. **Fixed, each with a new regression test verified via `git stash` to
+    fail pre-fix:** `connectors/strava.py` had a `_strava_refresh_token()` function defined with
+    **zero callers anywhere in the repo** -- the module's own docstring claimed "Refresh handled
+    automatically," but `_get_access_token()` just read the stored `access_token` directly with
+    no expiry check. Strava tokens expire after ~6h, so every `sync()` after that point failed
+    with a 401 until the user manually re-authenticated, despite the connector's own claim.
+    Wired `_get_access_token()` to check a persisted `expires_at` (60s margin) and call the
+    already-existing refresh function, persisting the result; `handle_callback()` now also
+    persists `expires_at` from the initial exchange (commit `fee0ca4e7`).
+    `vc_agents/routing_agent.py`'s `route()` had an operator-precedence bug:
+    `task_type or task.split()[0] if task else "research"` parses in Python as
+    `(task_type or task.split()[0]) if task else "research"`, not the intended
+    `task_type or (task.split()[0] if task else "research")` -- conditional expressions bind
+    looser than `or`. An explicitly-passed `task_type` was silently discarded and replaced with
+    the literal string `"research"` whenever `task` happened to be empty; a whitespace-only
+    `task` also crashed with `IndexError` since `" ".split() == []`, not `[""]`. Fixed with
+    explicit parentheses and a guarded split (commit `5b3cc32a2`).
+    **FLAGGED, not fixed (docs only, commit `2b8a4861b`):** `connectors/google_tasks.py` has the
+    same missing-token-refresh gap as the Strava bug, but with no ready-to-wire refresh function
+    to restore -- it shares `connectors/oauth.py`'s `load_tokens()` (a dumb JSON reader, no
+    refresh logic at all) and doesn't persist a `refresh_token`/`client_secret` pair the way
+    Strava's connector does. `gmail.py`'s `is_connected()` already self-documents this same
+    limitation ("simplified: real impl would also check expiry / refresh token") honestly in a
+    comment; `google_tasks.py` didn't, so a matching comment was added. The right fix (per-
+    connector refresh vs. a shared helper in `oauth.py` covering every Google-family connector
+    at once) is an owner architecture decision, not a narrow patch.
+    **Reviewed, no bug found:** `connectors/notion.py` (uses `resp.raise_for_status()`
+    throughout, no phantom-success risk), `connectors/spotify.py` (same), `connectors/outlook.py`
+    (IMAP + app password, not OAuth -- no token-expiry concern at all), `connectors/gmail.py`'s
+    two `except Exception` sites (both benign best-effort fallbacks for display fields -- body
+    decoding and date parsing -- not phantom-success on the sync itself), `vc_agents/
+    agent_registry.py` (lazy-init singleton registry, clean), `vc_agents/simple.py` (38 lines,
+    trivial single-turn agent).
+    New tests: `tests/test_vectorcode_connectors_strava_token_refresh.py` (3),
+    `tests/test_vectorcode_vc_agents_routing_agent_precedence.py` (4) -- 7/7 passing.
+    **Depth statement:** 8 files got genuine full-depth review this round (2 fixed, 1 flagged, 5
+    reviewed clean). ~52 files remain across all three directories, still not represented as
+    audited: most of `vc_agents/` (`digest_store.py`, `digest_evaluator.py`, `rlm.py`,
+    `native_react.py`, `native_openhands.py`, `openhands.py`, `channel_agent.py`,
+    `deep_research.py`, `errors.py`, `web_search_agent.py`, `templates/`), most of `connectors/`
+    (`_abc.py`, `apple_notes.py`, `chunker.py`, `granola.py`, `hackernews.py`, `imessage.py`,
+    `oura.py`, `pipeline.py`, `weather.py`), and most of `vc_tools/` (`apply_patch.py`,
+    `audio_tool.py`, `browser_axtree.py`, `calculator.py`, `channel_tools.py`,
+    `code_interpreter_docker.py`, `image_tool.py`, `knowledge_search.py`, `knowledge_sql.py`,
+    `knowledge_tools.py`, `llm_tool.py`, `mcp_adapter.py`, `memory_manage.py`, `pdf_tool.py`,
+    `retrieval.py`, `scan_chunks.py`, `skill_manage.py`, `storage/*` beyond `dense.py`,
+    `storage_tools.py`, `templates/`, `text_to_speech.py`, `think.py`,
+    `user_profile_manage.py`).
+
+74. **`vectorcode/src/evals/` audit, round 7 (2026-10-05) —** reconstructed the
+    untouched production inventory from the complete path history (92 Python files after excluding
+    eval-local tests and 39 previously fixed files) and performed a fresh recurring-pattern and
+    subsystem review. **Fixed with proof tests:** the OpenClaw subprocess backend exposed its API
+    key and base URL in process arguments; both now travel through the child environment. Five
+    dataset fallback identities (`livecodebench`, `swebench`, `swefficiency`, `terminalbench`, and
+    `webchorearena`) were assigned after shuffle and now preserve their pre-shuffle source index;
+    `liveresearch` also preserves a legitimate upstream ID of zero. PinchBench fixture destination
+    and asset-source paths allowed both `..` traversal and pathlib absolute-path override outside
+    their workspace/assets roots; both sides are now resolved and confined. The Coding Assistant
+    scorer could not import its synthetic `solution` module and only defined extracted tests without
+    invoking them, making valid fixes unscorable; it now uses a two-module allowlisted test importer
+    and calls the one extracted test. TauBench treated an absent simulation reward as an authoritative
+    zero/failure rather than indeterminate. Framework config generation contained two literal
+    `vector` dictionary keys after debranding, silently erasing the native agent condition; the four
+    advertised conditions are distinct again (`vector-agent`, `vector-distilled`, `vector`,
+    `openclaw`). Six new top-level regression files provide **16/16 passing tests**; the eval package
+    compiles and `git diff --check` passes. The combined existing eval-local plus new suite reached
+    **163 passes / 13 pre-existing failures**: stale tests still import the removed `vector.*` tree,
+    stale example TOMLs still name `jarvis-agent`/`jarvis-direct`, and one test expects stdlib
+    `caplog` to capture Loguru. **Remaining work:** many untouched eval modules still use stdlib
+    logging and/or printf placeholders; a mechanical conversion attempt was rejected by compile
+    verification and fully reverted (zero content diff on recovery files), so this needs a careful
+    follow-up rather than retaining unsafe bulk edits. **Commit status:** Codex could not create
+    `.git/index.lock` because this sandbox exposes `.git` read-only; all scoped source/test changes
+    remain uncommitted for parent review, and this issue entry is intentionally left unstaged.
