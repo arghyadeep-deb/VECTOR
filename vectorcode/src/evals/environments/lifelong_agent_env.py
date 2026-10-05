@@ -16,12 +16,12 @@ Reference: https://github.com/caixd-220529/LifelongAgentBench
 from __future__ import annotations
 from loguru import logger
 
-import logging
 import re
 import shutil
 import sqlite3
 import subprocess
 import time
+import uuid
 from typing import Any, Dict, List, Optional, Tuple
 
 from vectorcode.src.evals.core.types import EvalRecord
@@ -33,8 +33,6 @@ from vectorcode.src.evals.scorers.lifelong_agent_scorer import (
     extract_sql,
     values_match,
 )
-
-logger = logging.getLogger(__name__)
 
 # Per-subset max turns matching the original's default configs
 MAX_TURNS_DB = 3
@@ -137,7 +135,7 @@ class DBEnvironment(TaskEnvironment):
                 self._init_mysql_tables()
             except Exception as exc:
                 logger.warning(
-                    "MySQL setup failed for %s, falling back to SQLite: %s",
+                    "MySQL setup failed for {}, falling back to SQLite: {}",
                     record.record_id,
                     exc,
                 )
@@ -147,7 +145,7 @@ class DBEnvironment(TaskEnvironment):
         if not self._use_mysql:
             self._degraded = True
             logger.warning(
-                "DB task %s using SQLite fallback (DEGRADED MODE). "
+                "DB task {} using SQLite fallback (DEGRADED MODE). "
                 "MySQL-specific SQL features will not work correctly. "
                 "Install Docker and pull mysql:8.0 for faithful evaluation.",
                 record.record_id,
@@ -263,7 +261,7 @@ class DBEnvironment(TaskEnvironment):
             ref_conn.close()
         except Exception as exc:
             logger.warning(
-                "MD5 task %s: ground-truth SQL failed on SQLite (%s). "
+                "MD5 task {}: ground-truth SQL failed on SQLite ({}). "
                 "Falling back to normalized SQL comparison.",
                 table_name,
                 exc,
@@ -410,7 +408,7 @@ class DBEnvironment(TaskEnvironment):
                         padded,
                     )
                 except Exception as exc:
-                    logger.debug("Skipping row in MySQL table %s: %s", table_name, exc)
+                    logger.debug("Skipping row in MySQL table {}: {}", table_name, exc)
 
         conn.commit()
         cursor.close()
@@ -543,13 +541,13 @@ class DBEnvironment(TaskEnvironment):
             try:
                 self._conn.close()
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: {}", _sve)
             self._conn = None
         if self._mysql_conn is not None:
             try:
                 self._mysql_conn.close()
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: {}", _sve)
             self._mysql_conn = None
         if self._mysql_container:
             try:
@@ -559,7 +557,7 @@ class DBEnvironment(TaskEnvironment):
                     timeout=30,
                 )
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: {}", _sve)
             self._mysql_container = None
 
 # ====================================================================
@@ -625,7 +623,7 @@ class KGEnvironment(TaskEnvironment):
             self._degraded = True
             if not self._action_list:
                 logger.warning(
-                    "KG task %s: no SPARQL endpoint and no action_list for "
+                    "KG task {}: no SPARQL endpoint and no action_list for "
                     "oracle simulation. API calls will return empty results.",
                     record.record_id,
                 )
@@ -892,7 +890,8 @@ class OSEnvironment(TaskEnvironment):
                 )
 
         # Start container
-        self._container_name = f"lifelong-os-{record.record_id.replace('/', '-')}"
+        safe_record_id = re.sub(r"[^A-Za-z0-9_.-]", "-", record.record_id)[:40]
+        self._container_name = f"lifelong-os-{safe_record_id}-{uuid.uuid4().hex[:12]}"
         subprocess.run(
             ["docker", "rm", "-f", self._container_name],
             capture_output=True,
@@ -930,7 +929,7 @@ class OSEnvironment(TaskEnvironment):
             )
             if result.returncode != 0:
                 logger.warning(
-                    "Init command failed (exit %d): %s",
+                    "Init command failed (exit {}): {}",
                     result.returncode,
                     result.stderr.decode(errors="replace")[:200],
                 )
@@ -1040,7 +1039,7 @@ class OSEnvironment(TaskEnvironment):
                     timeout=30,
                 )
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed Exception: {}", _sve)
             self._container_name = None
 
 # ====================================================================
@@ -1076,7 +1075,7 @@ def _build_sqlite_db(table_info: Dict[str, Any]) -> sqlite3.Connection:
             try:
                 conn.execute(f'INSERT INTO "{table_name}" VALUES ({ph})', padded)
             except sqlite3.Error as _sve:
-                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed sqlite3.Error: %s", _sve)
+                logger.debug("[VECTOR][evals.environments.lifelong_agent_env] suppressed sqlite3.Error: {}", _sve)
     conn.commit()
     return conn
 
