@@ -3944,6 +3944,12 @@ isn't "proven in production" until you supply the service/device and run it live
     `caplog` to capture Loguru. **Remaining work:** many untouched eval modules still use stdlib
     logging and/or printf placeholders; a mechanical conversion attempt was rejected by compile
     verification and fully reverted (zero content diff on recovery files), so this needs a careful
-    follow-up rather than retaining unsafe bulk edits. **Commit status:** Codex could not create
-    `.git/index.lock` because this sandbox exposes `.git` read-only; all scoped source/test changes
-    remain uncommitted for parent review, and this issue entry is intentionally left unstaged.
+    follow-up rather than retaining unsafe bulk edits. **Commit status:** work was done by Codex
+    (gpt-5.6-sol); as with other items, Codex's sandbox could not write `.git/index.lock`, so Claude
+    reviewed and committed on its behalf after independently running all 16 new tests and confirming
+    the pre-fix test-execution bug by reading the exact exec'd-but-never-called function body:
+    `ac59c6753` (coding_assistant.py), `79bab5a55` (taubench.py), `f3e9ade7c` (openclaw.py),
+    `495cf0ae7` (pinchbench_env.py), `6bc24109e` (make_configs.py duplicate key),
+    `52cc0dd05` (6 more dataset record_id fixes). The reverted mechanical logging-conversion attempt
+    left 6 files showing as modified in git with zero actual content diff (write-then-revert,
+    confirmed via `git diff --stat`); those were checked out back to HEAD rather than committed.
