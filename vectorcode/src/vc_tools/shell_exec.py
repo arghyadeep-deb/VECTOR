@@ -26,8 +26,16 @@ _MAX_TIMEOUT = 300
 # Default timeout (seconds)
 _DEFAULT_TIMEOUT = 30
 
-# Environment variables always passed through
-_BASE_ENV_KEYS = ("PATH", "HOME", "USER", "LANG", "TERM")
+# Environment variables always passed through. SYSTEMROOT/WINDIR/COMSPEC are
+# not secrets -- they're required by Win32's CreateProcess for DLL/Winsock
+# initialization. Without them, any Windows command doing DNS resolution or
+# other socket activity fails with OSError/socket.gaierror regardless of the
+# command itself being fine (confirmed live: a bare `socket.gethostbyname`
+# call in a child process raises "getaddrinfo failed" without SYSTEMROOT).
+_BASE_ENV_KEYS = (
+    "PATH", "HOME", "USER", "LANG", "TERM",
+    "SYSTEMROOT", "WINDIR", "COMSPEC",
+)
 
 @ToolRegistry.register("shell_exec")
 class ShellExecTool(BaseTool):
