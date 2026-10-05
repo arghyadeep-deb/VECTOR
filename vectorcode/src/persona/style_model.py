@@ -217,9 +217,15 @@ class StyleModel:
 
         try:
             import ollama
+            from core.loop.context_engine import ContextEngine
+
+            hydration = ContextEngine().session_hydration_prompt()
             resp = ollama.chat(
                 model="vector-focus",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
             )
             result = resp["message"]["content"].strip()
             return result if result else fallback

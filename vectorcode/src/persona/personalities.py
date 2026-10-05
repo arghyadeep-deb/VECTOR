@@ -8,11 +8,10 @@ Each personality is a dict with:
 """
 
 import json
-import logging
 from pathlib import Path
 from typing import Optional
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 PERSONALITIES: dict = {
     "default": {
