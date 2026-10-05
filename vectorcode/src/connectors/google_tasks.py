@@ -52,6 +52,17 @@ class GoogleTasksConnector(BaseConnector):
         self._status = SyncStatus()
 
     def _get_access_token(self) -> str:
+        # DESIGN NOTE: no expiry check or refresh here -- oauth.load_tokens()
+        # is a dumb JSON reader with no refresh logic, and this connector
+        # doesn't persist a refresh_token/client_secret pair the way
+        # strava.py does. Google OAuth access tokens are short-lived
+        # (~1h), so sync() will start failing with a 401 after that point
+        # until the user re-authenticates. Same gap gmail.py's
+        # is_connected() already self-documents ("simplified: real impl
+        # would also check expiry / refresh token") -- flagging here too
+        # rather than guessing at a fix, since the right design (per-
+        # connector refresh vs. a shared helper in oauth.py) is an owner
+        # decision, not a narrow patch.
         tokens = load_tokens(str(self._credentials_path))
         return tokens.get("access_token") or tokens.get("token", "")
 
