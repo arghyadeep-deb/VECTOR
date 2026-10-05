@@ -4000,3 +4000,68 @@ isn't "proven in production" until you supply the service/device and run it live
     `user_profile_manage.py`).
     **Commit status:** `727a779bf` (oura/weather/hackernews/granola), `85f78b8fb` (apple_notes/
     imessage), `382a507a5` (code_interpreter_docker.py).
+
+76. **`vectorcode/src/agent/` audit, round 9 (2026-10-06) —** finished the ~13 files not yet
+    given real depth across 8 prior rounds: `transports/{anthropic,bedrock,codex,codex_event_projector,
+    __init__}.py`, `insights.py`, `markdown_tables.py`, `gemini_schema.py`, `moonshot_schema.py`,
+    `rate_limit_tracker.py`, `think_scrubber.py`, `usage_pricing.py`, `web_search_provider.py`,
+    `lsp/cli.py`, `lsp/protocol.py`. This closes out `vectorcode/src/agent/` for this audit cycle --
+    every file in the directory now has real round coverage.
+    **Fixed with proof tests:**
+    - `transports/codex_event_projector.py` -- `_deterministic_call_id()`'s fallback path (used
+      whenever a Codex app-server item arrives with no `id`) hashed only the fixed `item_type`
+      string, producing an IDENTICAL `tool_call_id` for every same-type tool call in a session
+      despite the docstring's claim it was a content hash -- two same-type calls without an id in
+      one turn collided, breaking assistant/tool-message correlation. Replaced with a per-type
+      monotonic counter on the projector instance (unique within its lifetime, still deterministic
+      across a replay of the same ordered notification stream).
+    - `run_agent.py` -- the big one this round. `agent/think_scrubber.py`'s `StreamingThinkScrubber`
+      was a fully-implemented, carefully-documented stateful scrubber with **zero callers anywhere
+      in the repo** (confirmed via grep), despite its own docstring describing the exact live bug in
+      `AIAgent._fire_stream_delta()`: that method called the stateless, regex-based
+      `_strip_think_blocks()` per delta, so a provider (MiniMax M2.7 is the documented case) that
+      streams a `<think>` open tag as its own delta gets that delta erased by the "unterminated open
+      at a boundary" regex case -- but the regex has no memory of still being inside a block on the
+      NEXT delta, so the actual reasoning body arriving in that next delta looked like ordinary
+      content and was emitted straight to the user. Wired `StreamingThinkScrubber` into
+      `_fire_stream_delta()` (upstream of the existing memory-context scrubber) and into
+      `_reset_stream_delivery_tracking()` (flush + reset at the top of each new turn, mirroring the
+      existing context-scrubber handling). This is a real, user-visible reasoning-leak fix, not a
+      lint pass -- the module existed and was tested-looking but was simply never plugged in.
+    - `lsp/cli.py` -- `_cmd_which()` looked up `INSTALL_RECIPES.get(server_id)` directly instead of
+      routing through `_recipe_pkg_for(server_id)` like every sibling subcommand
+      (`_cmd_status`/`_cmd_list`/`_cmd_install`/`_cmd_install_all`) does. For the 3 of 4 aliased
+      server ids where the alias actually changes the binary name (`astro-language-server` ->
+      real binary `astro-ls`, `dockerfile-ls` -> real binary `docker-langserver`, `typescript` ->
+      real binary `typescript-language-server`), `vector lsp which <id>` queried the wrong binary
+      name and reported "not installed" even when the server was correctly installed.
+    - `agent/usage_pricing.py` -- `format_token_count_compact()` rounded a value just under a unit
+      threshold (e.g. 999_999, just under the 1_000_000 "M" threshold) up to "1000" with its `.0f`
+      formatting, displaying `"1000K"` instead of rolling over to `"1M"` (same bug recurs at the
+      M/B boundary: `999_994_999` -> `"1000M"` instead of `"1B"`). Fixed by detecting a >=1000
+      rounded value and re-rendering against the next bigger unit. Note: this function currently has
+      zero callers anywhere in the repo (confirmed via grep) -- the fix is still correct and the
+      function is clearly meant to be used (it has a sibling, actively-used formatter in
+      `rate_limit_tracker.py`'s `_fmt_count` with the same unit-ladder shape), but nothing in the
+      live product currently renders through this exact path.
+    **Reviewed, no bug found:** `transports/{anthropic,bedrock,codex,__init__}.py` (already fixed in
+    round 8, confirmed clean), `insights.py` (930 lines, full read -- SQL params, cost aggregation,
+    tool/skill count merging, streak calculation, all checked; the per-model `has_pricing`/
+    `cost_status` fields in `_compute_model_breakdown` are last-session-wins rather than aggregated,
+    but confirmed via grep they are never read by any formatter or external caller, so this is dead
+    data, not a behavioral bug), `markdown_tables.py` (wcwidth-aware CJK table realignment -- noted
+    `is_table_divider()`'s `len(cells) > 1` gate means genuine 1-column markdown tables are never
+    recognized as tables and pass through unrealigned; this degrades gracefully by the module's own
+    "anything that doesn't look like a table passes through unchanged" design and isn't a crash/
+    data-loss issue, so left as-is rather than fixed), `gemini_schema.py`, `moonshot_schema.py`,
+    `rate_limit_tracker.py`, `web_search_provider.py` (intentional ABC `NotImplementedError` defaults
+    gated by `supports_*` flags -- not an instance of the `fed812acc` regression, this is the
+    documented design), `lsp/protocol.py` (LSP JSON-RPC framer, careful header-size capping and
+    error handling, no issues found).
+    New tests: `tests/test_vectorcode_agent_codex_event_projector_call_id.py` (3),
+    `tests/test_run_agent_stream_think_scrubbing.py` (3),
+    `tests/test_vectorcode_agent_lsp_cli_which_alias.py` (3),
+    `tests/test_vectorcode_agent_usage_pricing_format_rollover.py` (3) -- 12/12 passing, all
+    confirmed failing pre-fix via `git stash`.
+    **Commit status:** `38509d2b1` (codex_event_projector.py), `90dd88164` (run_agent.py think-
+    scrubber wiring), `2675f9b61` (usage_pricing.py rollover), `a0dffa4b6` (lsp/cli.py which-alias).
