@@ -14,8 +14,9 @@ from core.coding_assistant.core.output_formatters import create_formatter
 def build_entrypoint_metadata(*args, **kwargs) -> dict:  # type: ignore[misc]
     return {}
 
-class ClientMetadata:  # stub
-    raise NotImplementedError("ClientMetadata.__init__ must be implemented by subclass")
+class ClientMetadata:  # stub -- telemetry removed, fields intentionally unused
+    def __init__(self, name: str = "", version: str = ""):
+        pass
 # [VECTOR] removed: from core.coding_assistant.core.teleport.types import (
 # [VECTOR] removed:     TeleportPushRequiredEvent,
 # [VECTOR] removed:     TeleportPushResponseEvent,

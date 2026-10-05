@@ -29,7 +29,7 @@ from core.mining.constants import (
     PEARL_IMAGE_TAG,
     SIDECAR_PATH,
 )
-from core.mining._discovery import detect_for_engine_model
+from core.mining.discovery import detect_for_engine_model
 from core.mining._docker import PearlDockerLauncher
 from core.mining._metrics import parse_gateway_metrics, parse_vllm_metrics
 from core.mining._abc import (
