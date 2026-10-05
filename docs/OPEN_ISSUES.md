@@ -2977,3 +2977,116 @@ isn't "proven in production" until you supply the service/device and run it live
     backend names / the removed `vector.evals` package path. No commit hash exists: both
     required focused commits were attempted with explicit paths, but the sandbox could not
     create `.git/index.lock` (`Permission denied`), so all verified changes remain uncommitted.
+
+56. **`vectorcode/src/skills/` audit, round 3 (2026-10-05) —** resumed where round 2 left off
+    (commits `5a94883f9`, `28cd89660`, `5790b2d09`, `84525d250` — git-clone argument injection +
+    cache-dir traversal in the github source, the "vector" source's broken-stub wiring, the
+    unwired capability-gate flag, and importer.py's skill-name path traversal). Checked whether
+    `vector_cli/skill_cmd.py` had the identical broken-stub wiring bug the round-2 fix only
+    applied to `cli/skill_cmd.py`: it does not -- `vector_cli/skill_cmd.py` routes its `"vector-
+    cache"` source to the real `VectorCacheResolver` (a `GitHubResolver` subclass), a genuinely
+    different, already-correct class, not a near-duplicate of the broken stub. **Fixed, each with
+    a new regression test:** `overlay.py`'s `_escape()` only covered `\\`/`"`/`\n`/`\r`/`\t`, but
+    TOML's basic-string grammar forbids ANY unescaped control character
+    (U+0000-U+0008, U+000B-U+001F, U+007F) -- `write_overlay()` persists DSPy/GEPA-generated
+    optimizer text, and an unescaped control character (verified live with `\x0b`) produced a
+    syntactically invalid TOML file that then silently and permanently failed to load back via
+    `SkillOverlayLoader.load()`'s own documented "never raises" design, losing the optimization
+    result with only a logged warning as the trace; rewrote `_escape()` to cover every
+    TOML-mandated escape. Confirmed `vectorcode/src/vc_skills/overlay.py` (a different import
+    path used by `learning/agents/skill_optimizer.py`) is a thin re-export shim of this same
+    file, not a second copy of the bug. `skill_utils.py`'s `load_skill()` had the same unconfined
+    `skill_name`-into-path CWE-22 shape already fixed in `importer.py` and
+    `learning/distillation/pending_queue.py` this cycle; this module has zero callers anywhere in
+    the repo (the live loader is the separate, confusingly-similarly-named
+    `vectorcode/src/agent/skill_utils.py`), but fixed anyway per this audit's "dormant doesn't
+    mean low priority" rule. Both files also got the usual loguru-shadowed-by-stdlib-logging
+    fix. **Reviewed, no bug found (full depth):** `telephony.py`'s remaining body (consistent
+    error handling via `TelephonyError`, correct XML escaping in `_twiml_say`/`_twiml_play`, no
+    injection vectors -- the state-loading fix from round 1 was the only real bug in this file),
+    `maps_client.py` in full (every Overpass QL interpolation is either validated-numeric or
+    sourced from a hardcoded internal dict, never raw user input), `executor.py` (confirms the
+    already-flagged capability gate is genuinely never called from `run()`, nothing new),
+    `dependency.py` (the depth-check DFS's `visiting` parameter is dead/vestigial -- added but
+    never checked for a cycle -- but unreachable with bad input today since `validate_dependencies`
+    always runs Kahn's-algorithm cycle detection first; not a live bug, too speculative to fix
+    without a reachable trigger), `tool_adapter.py`, `index.py`, `sources/{base,openclaw,
+    vector_source,vector_cache}.py`. **FLAGGED, not fixed:** `types.py`'s `manifest_bytes()` has
+    zero callers anywhere in the repo -- the entire skill-signing feature (the `signature` field,
+    this serialization method) is fully data-plumbed but entirely unenforced at runtime, the same
+    shape as `security.py`'s capability gate. Separately noted in a comment for whoever eventually
+    wires it up: `manifest_bytes()` excludes `markdown_content` (the actual SKILL.md body the
+    agent executes), so a signature over this serialization would not attest to a skill's real
+    instructions -- a validly-signed skill's content could be swapped without invalidating the
+    signature. Not fixed since there is no live verification path yet to regression-test against.
+    **SIGNIFICANT FINDING, needs owner attention:** `vectorcode/skills/` (no `/src/`) is a
+    separate, git-tracked directory of **15,576 files** -- not a build artifact or typo, a
+    genuinely different tree from `vectorcode/src/skills/` (63 files) that this entire audit has
+    been covering. Discovered because `vectorcode/src/skills/builtin/sparc/__init__.py` imports
+    `from vectorcode.skills.builtin.sparc.coordinator import (...)` (no `.src.` segment) -- this
+    initially looked like the "wrong import path" bug class found repeatedly elsewhere this audit,
+    but verified live that the import actually succeeds and resolves to a real,
+    **completely different 24-line `coordinator.py`** at `vectorcode/skills/builtin/sparc/
+    coordinator.py`, not the 126-line SPARC implementation in `vectorcode/src/skills/`. This is
+    not investigated further here -- it is well outside this slice's assigned scope
+    (`vectorcode/src/skills/` only) and is a much bigger architectural question than a narrow bug:
+    whether `vectorcode/skills/` is a vendored/cached skill marketplace snapshot, a pre-refactor
+    legacy tree that should have been deleted, or something actively relied upon, needs an owner
+    decision before anyone touches it -- the same class of question as the already-deferred
+    jcode-vs-vc_tools duplication, but potentially much larger given the file count.
+    New tests: `tests/test_vectorcode_skills_overlay_toml_escaping.py` (2) and
+    `tests/test_vectorcode_skills_skill_utils_path_confinement.py` (2) -- 4/4 passing, plus the 13
+    pre-existing round-1/round-2 skills tests re-run clean (17/17 total). Commits: `df5864d8b`
+    (overlay.py), `e498bd97e` (types.py flag), `5b36850bd` (skill_utils.py). **Depth statement:**
+    full line-by-line depth this round on `overlay.py`, `skill_utils.py`, `types.py`, `index.py`,
+    `dependency.py`, `tool_adapter.py`, `executor.py`, `sources/{base,openclaw,vector_source,
+    vector_cache}.py`, `telephony.py`'s remaining body, and `maps_client.py` in full. Still not
+    covered by any round: `__init__.py`, `builtin/sparc/coordinator.py` (read but not exercised
+    beyond confirming its own import works; its STAGE_PROMPTS/run_sparc_* logic itself was not
+    deeply re-derived against real agent behavior), and the ~25 remaining `optional/*` and
+    `productivity/*`/`creative/*`/`red-teaming/*`/`research/*`/`media/*`/`mlops/*` scripts
+    (blockchain clients, health calculators, MCP scaffolding templates, meme generation, OCR,
+    PowerPoint helpers, arxiv/polymarket research, godmode red-teaming scripts) -- none of these
+    received real depth this round and should not be treated as audited.
+
+57. **`vectorcode/src/learning/` audit, round 3 (2026-10-05) —** resumed where rounds 1-2 left
+    off (15 of 79 files already had real depth: `distillation/{pending_queue,models,orchestrator,
+    gate/regression,plan/prompt_diff}.py`, `distillation/checkpoint/store.py`,
+    `distillation/storage/paths.py`, `distillation/execute/{base,loop,appliers/{agent,
+    intelligence,tools}}.py`, `agents/{dspy_optimizer,gepa_optimizer}.py`,
+    `intelligence/grpo_trainer.py`). **Correction to a prior round's claim:** round 1/2's summary
+    listed `distillation/execute/loop.py` as already fully reviewed, but it still had the raw
+    stdlib-logging-shadow bug (no loguru import anywhere in the file) -- that claim was inaccurate
+    for this file; fixed this round. **Fixed:** 20 files used plain `logging.getLogger(__name__)`
+    with zero loguru import (`distillation/diagnose/{runner,teacher_agent}.py`,
+    `distillation/execute/loop.py`, `distillation/gate/{benchmark_gate,cold_start}.py`,
+    `distillation/orchestrator.py`, `distillation/plan/{planner,risk_tier}.py`,
+    `intelligence/orchestrator/{grpo_trainer,policy_model,sft_trainer}.py`,
+    `learning_orchestrator.py`, `optimize/feedback/judge.py`, `optimize/{llm_optimizer,optimizer,
+    trial_runner}.py`, `routing/{learned_router,router}.py`, `training/lora.py`), plus
+    `agents/skill_optimizer.py` which had a correct top-level loguru import shadowed by a second,
+    stdlib-backed `LOGGER` name used at 3 call sites. Converted all to loguru and fixed every
+    `%s`/`%d`/`%r`/`%.Nf`-style placeholder found in their logger calls (including several
+    multi-line calls). `learning_orchestrator.py` additionally had a local re-shadow: one
+    `except` branch did a fresh `import logging; logging.getLogger(__name__).warning(...)`
+    inside a method body instead of using the module's own logger -- removed. New test:
+    `tests/test_vectorcode_learning_round3_logging.py` (5 tests, all passing; verified via git
+    stash that 4/5 fail against the pre-fix code). Commit: `a3ddac6fc`. **Also hunted (no new
+    findings):** this directory's two highest-value bug patterns from rounds 1-2 -- CWE-22
+    identifier-into-filesystem-path (checked every `Path(...)`/`os.path.join(...)` site built
+    from an `*_id` variable across all 64 previously-untouched files; every one traced back to an
+    internally-generated id via `uuid.uuid4()` or a timestamp, never a model- or caller-controlled
+    value) and the "blanket NotImplementedError regression" pattern already found 3 times here
+    (grepped for `raise NotImplementedError` repo-wide in this directory; zero live occurrences
+    remain, only historical mentions inside the fix comments from rounds 1-2). The two
+    already-flagged raw-SQLite learning stores (`optimize/store.py`,
+    `distillation/storage/session_store.py`) were re-confirmed bypassing the SQLCipher gateway
+    but not re-flagged as new, per the existing owner-decision record. **Depth statement:** this
+    round covered the systemic logging bug plus a targeted pattern hunt across all 64
+    previously-untouched files in the directory, but did NOT give full line-by-line logic review
+    to every file's business logic -- in particular `distillation/diagnose/tools.py` (548 lines),
+    `optimize/llm_optimizer.py`'s optimization logic beyond its logging, `optimize/store.py`,
+    `optimize/optimizer.py`'s trial-selection logic, `agents/agent_evolver.py`,
+    `agents/skill_discovery.py`, and the `optimize/personal/*`, `optimize/feedback/collector.py`,
+    and `intelligence/orchestrator/{environment,reward,types,prompt_registry}.py` files remain
+    unreviewed at full depth and should not be treated as audited.
