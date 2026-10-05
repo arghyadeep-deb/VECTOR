@@ -20,7 +20,6 @@ from __future__ import annotations
 from loguru import logger
 
 import html
-import logging
 import os
 import re
 import urllib.parse
@@ -28,7 +27,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Callable, Dict, List, MutableMapping, Optional, Tuple, Type
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 _MAX_OBS_CHARS = 16_000
 _MAX_STEPS_DEFAULT = 30
@@ -118,7 +117,7 @@ class WebChoreArenaTaskEnv:
         self._agent_answer = ""
 
         LOGGER.info(
-            "WebChoreArena task %s: started at %s",
+            "WebChoreArena task {}: started at {}",
             self._metadata.get("task_id", "?"),
             start_url,
         )
@@ -135,25 +134,25 @@ class WebChoreArenaTaskEnv:
             try:
                 self._cdp_session.detach()
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: {}", _sve)
             self._cdp_session = None
         if self._context is not None:
             try:
                 self._context.close()
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: {}", _sve)
             self._context = None
         if self._browser is not None:
             try:
                 self._browser.close()
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: {}", _sve)
             self._browser = None
         if self._playwright is not None:
             try:
                 self._playwright.stop()
             except Exception as _sve:
-                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: {}", _sve)
             self._playwright = None
 
     # ------------------------------------------------------------------
@@ -240,7 +239,7 @@ class WebChoreArenaTaskEnv:
                 score *= s
                 details["program_html"] = s
             else:
-                LOGGER.warning("Unknown eval_type: %s", eval_type)
+                LOGGER.warning("Unknown eval_type: {}", eval_type)
 
         is_resolved = score == 1.0
         self._metadata["is_resolved"] = is_resolved
@@ -254,7 +253,7 @@ class WebChoreArenaTaskEnv:
         }
 
         LOGGER.info(
-            "WebChoreArena eval: task=%s score=%.2f resolved=%s",
+            "WebChoreArena eval: task={} score={:.2f} resolved={}",
             self._metadata.get("task_id", "?"),
             score,
             is_resolved,
@@ -323,7 +322,7 @@ class WebChoreArenaTaskEnv:
         matching_rule = eval_config.get("url_note", "GOLD in PRED")
 
         if matching_rule != "GOLD in PRED":
-            LOGGER.warning("Unknown URL matching rule: %s", matching_rule)
+            LOGGER.warning("Unknown URL matching rule: {}", matching_rule)
             return 0.0
 
         # Collect all OR-alternatives for reference URLs
@@ -400,12 +399,12 @@ class WebChoreArenaTaskEnv:
             func_expr = func_expr.replace("__last_url__", self._page.url)
             _ESCAPE = ("__subclasses__", "__bases__", "__mro__", "__globals__", "__code__", "__reduce__", "importlib")
             if any(p in func_expr for p in _ESCAPE):
-                LOGGER.warning("[VECTOR][webchorearena] blocked escape pattern in URL func: %.80s", func_expr)
+                LOGGER.warning("[VECTOR][webchorearena] blocked escape pattern in URL func: {:.80}", func_expr)
                 return 0.0
             try:
                 target_url = eval(func_expr, {"__builtins__": {}})  # noqa: S307
             except Exception as exc:
-                LOGGER.warning("Failed to eval URL func: %s", exc)
+                LOGGER.warning("Failed to eval URL func: {}", exc)
                 return 0.0
 
         if target_url != "last":
@@ -414,7 +413,7 @@ class WebChoreArenaTaskEnv:
                 self._page.goto(resolved, wait_until="domcontentloaded")
                 self._page.wait_for_timeout(3000)
             except Exception as exc:
-                LOGGER.warning("Failed to navigate to %s: %s", resolved, exc)
+                LOGGER.warning("Failed to navigate to {}: {}", resolved, exc)
                 return 0.0
 
         # Select the element
@@ -428,7 +427,7 @@ class WebChoreArenaTaskEnv:
                 try:
                     self._page.evaluate(f"() => {prep_action}")
                 except Exception as _sve:
-                    logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][evals.execution.webchorearena_env] suppressed Exception: {}", _sve)
             try:
                 result = self._page.evaluate(f"() => {locator}")
                 selected_element = str(result) if result else ""
@@ -439,16 +438,16 @@ class WebChoreArenaTaskEnv:
             func_expr = func_expr.replace("__page__", "self._page")
             _ESCAPE = ("__subclasses__", "__bases__", "__mro__", "__globals__", "__code__", "__reduce__", "importlib")
             if any(p in func_expr for p in _ESCAPE):
-                LOGGER.warning("[VECTOR][webchorearena] blocked escape pattern in locator func: %.80s", func_expr)
+                LOGGER.warning("[VECTOR][webchorearena] blocked escape pattern in locator func: {:.80}", func_expr)
                 selected_element = ""
             else:
                 try:
                     selected_element = str(eval(func_expr, {"__builtins__": {}}))  # noqa: S307
                 except Exception as exc:
-                    LOGGER.warning("Failed to eval locator func: %s", exc)
+                    LOGGER.warning("Failed to eval locator func: {}", exc)
                     selected_element = ""
         else:
-            LOGGER.warning("Unknown locator type: %s", locator)
+            LOGGER.warning("Unknown locator type: {}", locator)
             return 0.0
 
         selected_element = html.unescape(selected_element)
@@ -476,7 +475,7 @@ class WebChoreArenaTaskEnv:
                 scores.append(s)
             return sum(scores) / len(scores) if scores else 0.0
         else:
-            LOGGER.warning("Unknown required_contents keys: %s", list(required.keys()))
+            LOGGER.warning("Unknown required_contents keys: {}", list(required.keys()))
             return 0.0
 
     # ------------------------------------------------------------------
@@ -545,19 +544,30 @@ class WebChoreArenaTaskEnv:
 
     def _call_judge(self, prompt: str) -> Optional[str]:
         """Call an LLM judge for fuzzy/ua matching."""
+        backend = None
         try:
-            from vectorcode.src.evals.core.backend import InferenceBackend
+            from core.loop.context_engine import ContextEngine
+            from vectorcode.src.evals.backends.vector_direct import VectorDirectBackend
 
-            backend = InferenceBackend.create_default()
+            hydration = ContextEngine().session_hydration_prompt(
+                {"query": prompt, "domain": "evaluation"}
+            )
+            backend = VectorDirectBackend(
+                engine_key=os.environ.get("JUDGE_ENGINE", "cloud")
+            )
             return backend.generate(
                 prompt,
                 model=os.environ.get("JUDGE_MODEL", "gpt-4o"),
+                system=hydration,
                 temperature=0.0,
                 max_tokens=768,
             )
         except Exception as exc:
-            LOGGER.warning("LLM judge call failed: %s", exc)
+            LOGGER.warning("LLM judge call failed: {}", exc)
             return None
+        finally:
+            if backend is not None:
+                backend.close()
 
     # ------------------------------------------------------------------
     # Action execution
@@ -623,7 +633,7 @@ class WebChoreArenaTaskEnv:
                 self._page.keyboard.press(key)
         except Exception as exc:
             LOGGER.debug(
-                "Action execution error: %s (action: %s)",
+                "Action execution error: {} (action: {})",
                 exc,
                 action_text[:100],
             )
