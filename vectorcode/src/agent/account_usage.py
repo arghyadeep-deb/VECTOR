@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 import httpx
+from loguru import logger
 
 from agent.anthropic_adapter import _is_oauth_token, resolve_anthropic_token
 from vector_cli.auth import _read_codex_tokens, resolve_codex_runtime_credentials
@@ -257,7 +258,12 @@ def _fetch_openrouter_account_usage(base_url: Optional[str], api_key: Optional[s
             key_resp = client.get(key_url, headers=headers)
             key_resp.raise_for_status()
             key_data = (key_resp.json() or {}).get("data") or {}
-        except Exception:
+        except Exception as exc:
+            logger.debug(
+                "[VECTOR][agent.account_usage] OpenRouter /key lookup failed, "
+                "continuing with credits-only usage: {}",
+                exc,
+            )
             key_data = {}
     total_credits = float(credits.get("total_credits") or 0.0)
     total_usage = float(credits.get("total_usage") or 0.0)
@@ -321,6 +327,11 @@ def fetch_account_usage(
             return _fetch_anthropic_account_usage()
         if normalized == "openrouter":
             return _fetch_openrouter_account_usage(base_url, api_key)
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "[VECTOR][agent.account_usage] Failed to fetch account usage for provider {!r}: {}",
+            normalized,
+            exc,
+        )
         return None
     return None
