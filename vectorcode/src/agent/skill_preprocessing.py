@@ -1,11 +1,10 @@
 """Shared SKILL.md preprocessing helpers."""
 
-import logging
 import re
 import subprocess
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Matches ${VECTOR_SKILL_DIR} / ${VECTOR_SESSION_ID} tokens in SKILL.md.
 # Tokens that don't resolve (e.g. ${VECTOR_SESSION_ID} with no session) are
@@ -30,7 +29,7 @@ def load_skills_config() -> dict:
         if isinstance(skills_cfg, dict):
             return skills_cfg
     except Exception:
-        logger.debug("Could not read skills config", exc_info=True)
+        logger.opt(exception=True).debug("Could not read skills config")
     return {}
 
 

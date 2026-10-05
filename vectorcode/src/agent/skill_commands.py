@@ -1,24 +1,21 @@
 """Shared slash command helpers for skills.
-from loguru import logger
 
 Shared between CLI (cli.py) and gateway (gateway/run.py) so both surfaces
 can invoke skills via /skill-name commands.
 """
 
 import json
-import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from vector_constants import display_vector_home
+from loguru import logger
 from agent.skill_preprocessing import (
     expand_inline_shell as _expand_inline_shell,
     load_skills_config as _load_skills_config,
     substitute_template_vars as _substitute_template_vars,
 )
-
-logger = logging.getLogger(__name__)
 
 _skill_commands: Dict[str, Dict[str, Any]] = {}
 # Patterns for sanitizing skill names into clean hyphen-separated slugs.
@@ -102,7 +99,7 @@ def _inject_skill_config(loaded_skill: dict[str, Any], parts: list[str]) -> None
 
         lines = ["", f"[Skill config (from {display_vector_home()}/config.yaml):"]
         for key, value in resolved.items():
-            display_val = str(value) if value else "(not set)"
+            display_val = "(not set)" if value is None or value == "" else str(value)
             lines.append(f"  {key} = {display_val}")
         lines.append("]")
         parts.extend(lines)
@@ -275,7 +272,7 @@ def scan_skill_commands() -> Dict[str, Dict[str, Any]]:
                 except Exception:
                     continue
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.skill_commands] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.skill_commands] suppressed Exception: {}", _sve)
     return _skill_commands
 
 

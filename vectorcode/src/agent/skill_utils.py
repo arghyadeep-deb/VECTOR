@@ -1,12 +1,10 @@
 """Lightweight skill metadata utilities shared by prompt_builder and skills_tool.
-from loguru import logger
 
 This module intentionally avoids importing the tool registry, CLI config, or any
 heavy dependency chain.  It is safe to import at module level without triggering
 tool registration or provider resolution.
 """
 
-import logging
 import os
 import re
 import sys
@@ -14,8 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from vector_constants import get_config_path, get_skills_dir
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # ── Platform mapping ──────────────────────────────────────────────────────
 
@@ -140,7 +137,7 @@ def get_disabled_skill_names(platform: str | None = None) -> Set[str]:
     try:
         parsed = yaml_load(config_path.read_text(encoding="utf-8"))
     except Exception as e:
-        logger.debug("Could not read skill config %s: %s", config_path, e)
+        logger.debug("Could not read skill config {}: {}", config_path, e)
         return set()
     if not isinstance(parsed, dict):
         return set()
@@ -253,7 +250,7 @@ def _configured_external_skills_dirs() -> List[Path]:
             seen.add(p)
             result.append(p)
         else:
-            logger.debug("External skills dir does not exist, skipping: %s", p)
+            logger.debug("External skills dir does not exist, skipping: {}", p)
 
     return result
 
@@ -426,7 +423,7 @@ def resolve_skill_config_values(
             if isinstance(parsed, dict):
                 config = parsed
         except Exception as _sve:
-            logger.debug("[VECTOR][agent.skill_utils] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][agent.skill_utils] suppressed Exception: {}", _sve)
 
     resolved: Dict[str, Any] = {}
     for var in config_vars:
