@@ -34,12 +34,26 @@ class PersonModel:
 
     def _save_profile(self, person_name: str) -> None:
         try:
-            (_STORE / f"{person_name}.json").write_text(
+            self._profile_path(person_name).write_text(
                 json.dumps(self._profiles[person_name], ensure_ascii=False, indent=2),
                 encoding="utf-8",
             )
         except Exception as e:
             logger.error(f"[VECTOR][persona] save failed: {e}")
+            raise
+
+    @staticmethod
+    def _profile_path(person_name: str) -> Path:
+        if (
+            not person_name
+            or len(person_name) > 128
+            or person_name in {".", ".."}
+            or "\x00" in person_name
+            or "/" in person_name
+            or "\\" in person_name
+        ):
+            raise ValueError("Invalid person_name for profile storage")
+        return _STORE / f"{person_name}.json"
 
     # ── Learning ───────────────────────────────────────────────────────────────
 
@@ -160,9 +174,15 @@ class PersonModel:
         )
         try:
             import ollama
+            from core.loop.context_engine import ContextEngine
+
+            hydration = ContextEngine().session_hydration_prompt()
             resp = ollama.chat(
                 model="vector-focus",
-                messages=[{"role": "user", "content": prompt}],
+                messages=[
+                    {"role": "system", "content": hydration},
+                    {"role": "user", "content": prompt},
+                ],
             )
             return resp["message"]["content"].strip()
         except Exception as e:
@@ -176,7 +196,7 @@ class PersonModel:
         person_name = person_name.strip().title()
         if person_name in self._profiles:
             del self._profiles[person_name]
-            p = _STORE / f"{person_name}.json"
+            p = self._profile_path(person_name)
             if p.exists(): p.unlink()
             return True
         return False
