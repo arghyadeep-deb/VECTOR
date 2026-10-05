@@ -145,6 +145,10 @@ class ScanChunksTool(BaseTool):
                 metadata={"chunks_scanned": 0},
             )
 
+        from core.loop.context_engine import ContextEngine
+
+        hydration = ContextEngine().session_hydration_prompt({"query": question})
+
         findings: List[str] = []
         for i in range(0, len(rows), batch_size):
             batch = rows[i : i + batch_size]
@@ -155,6 +159,7 @@ class ScanChunksTool(BaseTool):
             )
 
             messages = [
+                Message(role=Role.SYSTEM, content=hydration),
                 Message(
                     role=Role.USER,
                     content=(
