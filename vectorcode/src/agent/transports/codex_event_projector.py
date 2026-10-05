@@ -28,23 +28,9 @@ Counters tracked alongside projection:
 
 from __future__ import annotations
 
-import hashlib
 import json
 from dataclasses import dataclass, field
 from typing import Any, Optional
-
-
-def _deterministic_call_id(item_type: str, item_id: str) -> str:
-    """Stable id for tool_call message correlation.
-
-    Uses the codex item id directly when present (already a uuid); falls back
-    to a content hash so replay produces the same id across sessions and
-    prefix caches stay valid. See AGENTS.md Pitfall #16 (deterministic IDs in
-    tool call history)."""
-    if item_id:
-        return f"codex_{item_type}_{item_id}"
-    digest = hashlib.sha256(f"{item_type}".encode()).hexdigest()[:16]
-    return f"codex_{item_type}_{digest}"
 
 
 def _format_tool_args(d: dict) -> str:
@@ -74,6 +60,27 @@ class CodexEventProjector:
 
     def __init__(self) -> None:
         self._pending_reasoning: list[str] = []
+        self._fallback_id_counters: dict[str, int] = {}
+
+    def _deterministic_call_id(self, item_type: str, item_id: str) -> str:
+        """Stable id for tool_call message correlation.
+
+        Uses the codex item id directly when present (already a uuid).
+        When absent (observed in practice from the app-server protocol), a
+        hash of `item_type` alone would be identical for EVERY call of that
+        type -- the same fixed string always hashes to the same digest --
+        colliding whenever a turn/session makes more than one same-type
+        tool call without an id. Falls back to a per-type monotonic
+        counter instead: unique within this projector's lifetime, and
+        still deterministic across a replay of the same ordered
+        notification stream (this class's own invariant -- see the class
+        docstring). See AGENTS.md Pitfall #16 (deterministic IDs in tool
+        call history)."""
+        if item_id:
+            return f"codex_{item_type}_{item_id}"
+        count = self._fallback_id_counters.get(item_type, 0)
+        self._fallback_id_counters[item_type] = count + 1
+        return f"codex_{item_type}_fallback{count}"
 
     def project(self, notification: dict) -> ProjectionResult:
         """Project a single notification. Idempotent for non-completion events;
@@ -140,7 +147,7 @@ class CodexEventProjector:
         )
 
     def _project_command(self, item: dict, item_id: str) -> ProjectionResult:
-        call_id = _deterministic_call_id("exec", item_id)
+        call_id = self._deterministic_call_id("exec", item_id)
         args = {
             "command": item.get("command") or "",
             "cwd": item.get("cwd") or "",
@@ -176,7 +183,7 @@ class CodexEventProjector:
         )
 
     def _project_file_change(self, item: dict, item_id: str) -> ProjectionResult:
-        call_id = _deterministic_call_id("apply_patch", item_id)
+        call_id = self._deterministic_call_id("apply_patch", item_id)
         # Reduce the codex changes array to a digest the agent loop will
         # find readable. We record per-file change kinds (Add/Update/Delete)
         # without inlining full file contents — those can be huge.
@@ -217,7 +224,7 @@ class CodexEventProjector:
     def _project_mcp_tool_call(self, item: dict, item_id: str) -> ProjectionResult:
         server = item.get("server") or "mcp"
         tool = item.get("tool") or "unknown"
-        call_id = _deterministic_call_id(f"mcp_{server}_{tool}", item_id)
+        call_id = self._deterministic_call_id(f"mcp_{server}_{tool}", item_id)
         args = item.get("arguments") or {}
         if not isinstance(args, dict):
             args = {"arguments": args}
@@ -259,7 +266,7 @@ class CodexEventProjector:
         self, item: dict, item_id: str
     ) -> ProjectionResult:
         tool = item.get("tool") or "unknown"
-        call_id = _deterministic_call_id(f"dyn_{tool}", item_id)
+        call_id = self._deterministic_call_id(f"dyn_{tool}", item_id)
         args = item.get("arguments") or {}
         if not isinstance(args, dict):
             args = {"arguments": args}
