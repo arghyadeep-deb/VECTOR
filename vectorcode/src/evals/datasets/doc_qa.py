@@ -1062,7 +1062,7 @@ class DocQADataset(DatasetProvider):
             + ["hard"] * len(_HARD_TASKS)
         )
 
-        paired = list(zip(all_tasks, difficulties))
+        paired = list(zip(range(len(all_tasks)), all_tasks, difficulties))
         if seed is not None:
             rng = random.Random(seed)
             rng.shuffle(paired)
@@ -1071,7 +1071,7 @@ class DocQADataset(DatasetProvider):
             paired = paired[:max_samples]
 
         self._records: List[EvalRecord] = []
-        for idx, (task, diff) in enumerate(paired):
+        for task_idx, task, diff in paired:
             doc_listing = "\n\n".join(
                 f"### Document {i + 1}: {doc['title']}\n{doc['content']}"
                 for i, doc in enumerate(task["documents"])
@@ -1087,7 +1087,7 @@ class DocQADataset(DatasetProvider):
 
             self._records.append(
                 EvalRecord(
-                    record_id=f"doc-qa-{idx:03d}",
+                    record_id=f"doc-qa-{task_idx:03d}",
                     problem=prompt,
                     reference="; ".join(ref_parts),
                     category="agentic",

@@ -1036,7 +1036,7 @@ class SecurityScannerDataset(DatasetProvider):
         split: Optional[str] = None,
         seed: Optional[int] = None,
     ) -> None:
-        tasks = list(_ALL_TASKS)
+        tasks = list(enumerate(_ALL_TASKS))
         if seed is not None:
             rng = random.Random(seed)
             rng.shuffle(tasks)
@@ -1044,7 +1044,7 @@ class SecurityScannerDataset(DatasetProvider):
             tasks = tasks[:max_samples]
 
         self._records = []
-        for i, task in enumerate(tasks):
+        for task_idx, task in tasks:
             file_listing = ""
             for fname, content in task["project_files"].items():
                 file_listing += f"### {fname}\n```python\n{content}```\n\n"
@@ -1053,7 +1053,7 @@ class SecurityScannerDataset(DatasetProvider):
 
             self._records.append(
                 EvalRecord(
-                    record_id=f"security-scanner-{i}",
+                    record_id=f"security-scanner-{task_idx}",
                     problem=prompt,
                     reference="",
                     category="agentic",
