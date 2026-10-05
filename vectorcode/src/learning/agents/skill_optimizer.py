@@ -141,7 +141,21 @@ class SkillOptimizer:
                 description=output.description,
                 few_shot=list(output.few_shot),
             )
-            path = write_overlay(overlay, overlay_dir)
+            try:
+                path = write_overlay(overlay, overlay_dir)
+            except Exception as exc:
+                # write_overlay() now rejects an unconfined/unsafe skill_name
+                # (CWE-22 guard) -- that must not abort the whole optimization
+                # batch for every other skill, same as the optimizer-call
+                # failure above.
+                LOGGER.warning("Failed to write overlay for '{}': {}", skill_name, exc)
+                results[skill_name] = SkillOptimizationResult(
+                    skill_name=skill_name,
+                    status="error",
+                    trace_count=len(skill_traces),
+                    error=str(exc),
+                )
+                continue
             results[skill_name] = SkillOptimizationResult(
                 skill_name=skill_name,
                 status="optimized",

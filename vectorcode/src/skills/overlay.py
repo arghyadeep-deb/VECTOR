@@ -108,9 +108,24 @@ def write_overlay(overlay: SkillOverlay, root: Path) -> Path:
     """Write *overlay* to ``<root>/<skill-name>/optimized.toml``.
 
     Creates the directory structure if needed.  Returns the path written.
+
+    ``overlay.skill_name`` is not fully trusted: its one real caller
+    (``learning/agents/skill_optimizer.py``) derives it from trace-step
+    tool-call metadata (``_extract_skill_names()``'s ``metadata.get("skill")``),
+    not an internally-generated identifier. Without confinement, a
+    ``skill_name`` containing ``..`` or an absolute path could write
+    ``optimized.toml`` outside the intended overlay directory -- the same
+    unconfined-identifier-into-path shape fixed elsewhere this audit cycle
+    (``importer.py``, ``learning/distillation/{pending_queue,
+    execute/appliers/agent,diagnose/tools,orchestrator}.py``).
     """
-    root = Path(root).expanduser()
-    skill_dir = root / overlay.skill_name
+    root = Path(root).expanduser().resolve()
+    skill_dir = (root / overlay.skill_name).resolve()
+    if skill_dir.parent != root:
+        raise ValueError(
+            f"Refusing to write overlay for unsafe skill_name {overlay.skill_name!r}: "
+            f"must resolve to a direct child of {root}"
+        )
     skill_dir.mkdir(parents=True, exist_ok=True)
     path = skill_dir / "optimized.toml"
 
