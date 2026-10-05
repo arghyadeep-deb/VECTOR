@@ -3656,3 +3656,54 @@ isn't "proven in production" until you supply the service/device and run it live
     all 12 new tests: `e2fdff745` (TOML injection fixes), `788503a0d` (lora_stub.py CWE-22 fix),
     `e75f42538` (unclosed httpx client + remaining logging fixes).
 
+69. **`vectorcode/src/agent/` audit, round 7 (2026-10-05) —** six prior rounds covered ~27
+    files with real depth (including the critical `run_agent.py`-unimportable fix in round 5).
+    This round re-derived the remaining ~50 files via `git ls-files` diffed against
+    `git log`, and gave genuine full-depth review to 5 of them, prioritized by
+    security/credential-sensitivity and by the established "adapter files have bugs" pattern
+    from prior rounds. **Fixed, each with a new regression test verified via `git stash` to
+    fail pre-fix:**
+    `copilot_acp_client.py` had 3 suppressed-exception `logger.debug(..., "%s", _sve)` calls
+    using a stdlib %-style placeholder under this file's correctly-imported loguru logger —
+    fixed to `{}`. Also added a comment flagging (not fixing) its two daemon `threading.Thread`
+    calls that drain the Copilot ACP subprocess's stdout/stderr pipes — `_create_chat_completion()`
+    is itself a synchronous OpenAI-client-compatible entry point, so converting to asyncio
+    subprocess streams would mean making the whole call chain async, a real architectural
+    change, not a narrow fix. Commit `60c7761d7`.
+    `google_code_assist.py` correctly imported loguru at the top, then immediately shadowed
+    it with `logger = logging.getLogger(__name__)` a few lines later — the classic shadow-import
+    bug found repeatedly this audit cycle. Fixed, converting 5 affected `%`-style call sites to
+    `{}`-style. Also fixed a wrong-variable logging bug in `_post_json()`: the
+    HTTPError-detail-read `except Exception as _sve:` block logged the OUTER exception `exc`
+    instead of the `_sve` it actually caught, so a failure reading the error detail body never
+    actually surfaced why. Commit `62c95106e`.
+    `account_usage.py`'s `fetch_account_usage()` had a bare `except Exception: return None`
+    swallowing ANY failure (network error, auth failure, API schema change, a bug in this code
+    itself) with zero logging — an operator debugging "why does account usage show
+    unavailable" had no diagnostic trail at all. Added a warning log with the provider and
+    exception. Its `_fetch_openrouter_account_usage()` helper had the same shape on a narrower,
+    genuinely-optional `/key` lookup — added a debug log for consistency (it already degraded
+    gracefully to credits-only data, correctly). Commit `366faa636`.
+    `codex_responses_adapter.py` used pure stdlib `logging.getLogger(__name__)` (no loguru
+    import at all, not even a shadow) with `%d`/`%r`-style placeholders across its 2 logger
+    call sites — converted to loguru with `{}`/`{!r}`. Commit `1925f2a4b`.
+    **Reviewed, no bug found:** `usage_pricing.py` (700 lines, read in full — distinct from
+    and not a duplicate of `vectorcode/src/utils/usage_pricing.py`, which persists usage events
+    to disk; this one is pure in-memory cost-estimation logic from static pricing tables and
+    model-metadata lookups, careful defensive guards throughout, no logging to audit since it
+    has none).
+    New tests: `tests/test_vectorcode_agent_copilot_acp_client_logging.py` (2),
+    `tests/test_vectorcode_agent_google_code_assist_logging.py` (3),
+    `tests/test_vectorcode_agent_account_usage_logging.py` (2),
+    `tests/test_vectorcode_agent_codex_responses_adapter_logging.py` (3) — 10/10 passing.
+    **Depth statement:** this round covered 5 of the ~50 remaining files with genuine full
+    depth (4 fixed, 1 reviewed clean). ~45 files remain untouched across all 7 rounds, including
+    several other provider-adapter files with the same risk profile that prompted this round's
+    file selection (`gemini_native_adapter.py`, `gemini_cloudcode_adapter.py`,
+    `transports/codex_app_server*.py`, `transports/bedrock.py`), the `lsp/` subsystem
+    (`client.py`, `manager.py`, `cli.py`, `protocol.py` — only the 5 small shim files in
+    `lsp/` got depth in round 1), `skill_utils.py`/`skill_commands.py`/`skill_preprocessing.py`,
+    `redact.py` (already flagged lower-confidence issues in round 6, not re-examined), and most
+    of the smaller utility/provider-registry files. Explicitly not representing this directory's
+    audit as complete.
+
