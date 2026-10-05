@@ -90,16 +90,16 @@ class SWEfficiencyDataset(DatasetProvider):
         else:
             rows = list(dataset)
 
+        indexed_rows = list(enumerate(rows))
         if seed is not None:
             rng = random.Random(seed)
-            rows = list(rows)
-            rng.shuffle(rows)
+            rng.shuffle(indexed_rows)
 
         if max_samples is not None:
-            rows = rows[:max_samples]
+            indexed_rows = indexed_rows[:max_samples]
 
         self._records = []
-        for idx, raw in enumerate(rows):
+        for idx, raw in indexed_rows:
             record = self._convert_row(raw, idx)
             if record is not None:
                 self._records.append(record)

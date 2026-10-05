@@ -178,7 +178,11 @@ class LiveResearchBenchDataset(DatasetProvider):
 
             self._records.append(
                 EvalRecord(
-                    record_id=f"liveresearch-{q_id or len(self._records)}",
+                    record_id=(
+                        f"liveresearch-{q_id}"
+                        if q_id is not None
+                        else f"liveresearch-{len(self._records)}"
+                    ),
                     problem=research_prompt,
                     reference="",  # No single reference answer; rubric-based
                     category="agentic",

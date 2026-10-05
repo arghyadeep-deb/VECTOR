@@ -78,14 +78,14 @@ class WebChoreArenaDataset(DatasetProvider):
         if not config_dir.exists():
             self._clone_repo(repo_dir)
 
-        tasks = self._load_tasks(config_dir)
+        indexed_tasks = list(enumerate(self._load_tasks(config_dir)))
 
         if seed is not None:
-            random.Random(seed).shuffle(tasks)
+            random.Random(seed).shuffle(indexed_tasks)
         if max_samples is not None:
-            tasks = tasks[:max_samples]
+            indexed_tasks = indexed_tasks[:max_samples]
 
-        self._records = [self._task_to_record(t, i) for i, t in enumerate(tasks)]
+        self._records = [self._task_to_record(task, idx) for idx, task in indexed_tasks]
         logger.info(
             "WebChoreArena[%s]: loaded %d tasks",
             self._subset,
