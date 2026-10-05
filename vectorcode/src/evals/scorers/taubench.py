@@ -36,16 +36,23 @@ class TauBenchScorer(Scorer):
         record: EvalRecord,
         model_answer: str,
     ) -> Tuple[Optional[bool], Dict[str, Any]]:
-        reward = record.metadata.get("tau_reward", 0.0)
+        reward = record.metadata.get("tau_reward")
         info = record.metadata.get("tau_info", {})
         n_messages = record.metadata.get("tau_n_messages", 0)
 
-        is_correct = reward >= 0.5
+        if reward is None:
+            return None, {
+                "reason": "no_environment_results",
+                "message": "TauBench simulation did not produce a reward.",
+            }
+
+        numeric_reward = float(reward)
+        is_correct = numeric_reward >= 0.5
 
         return is_correct, {
-            "score": reward,
+            "score": numeric_reward,
             "breakdown": info,
-            "notes": f"reward={reward:.2f}, messages={n_messages}",
+            "notes": f"reward={numeric_reward:.2f}, messages={n_messages}",
         }
 
 __all__ = ["TauBenchScorer"]
