@@ -1,5 +1,4 @@
 """AWS Bedrock Converse API adapter for VectorCode.
-from loguru import logger
 
 Provides native integration with Amazon Bedrock using the Converse API,
 bypassing the OpenAI-compatible endpoint in favor of direct AWS SDK calls.
@@ -29,13 +28,12 @@ Requires: ``boto3`` (optional dependency — only needed when using the Bedrock 
 """
 
 import json
-import logging
 import os
 import re
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Tuple
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # ---------------------------------------------------------------------------
 # Lazy boto3 import — only loaded when the Bedrock provider is actually used.
@@ -254,7 +252,7 @@ def resolve_aws_auth_env_var(env: Optional[Dict[str, str]] = None) -> Optional[s
             if resolved and resolved.access_key:
                 return "iam-role"
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.bedrock_adapter] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.bedrock_adapter] suppressed Exception: {}", _sve)
     return None
 
 
@@ -285,7 +283,7 @@ def has_aws_credentials(env: Optional[Dict[str, str]] = None) -> bool:
             if resolved and resolved.access_key:
                 return True
     except Exception as _sve:
-        logger.debug("[VECTOR][agent.bedrock_adapter] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][agent.bedrock_adapter] suppressed Exception: {}", _sve)
     return False
 
 
@@ -859,7 +857,7 @@ def build_converse_kwargs(
                 kwargs["toolConfig"] = {"tools": converse_tools}
             else:
                 logger.warning(
-                    "Model %s does not support tool calling — tools stripped. "
+                    "Model {} does not support tool calling — tools stripped. "
                     "The agent will operate in text-only mode.", model
                 )
 
@@ -901,8 +899,8 @@ def call_converse(
     except Exception as exc:
         if is_stale_connection_error(exc):
             logger.warning(
-                "bedrock: stale-connection error on converse(region=%s, model=%s): "
-                "%s — evicting cached client so the next call reconnects.",
+                "bedrock: stale-connection error on converse(region={}, model={}): "
+                "{} — evicting cached client so the next call reconnects.",
                 region, model, type(exc).__name__,
             )
             invalidate_runtime_client(region)
@@ -943,8 +941,8 @@ def call_converse_stream(
     except Exception as exc:
         if is_stale_connection_error(exc):
             logger.warning(
-                "bedrock: stale-connection error on converse_stream(region=%s, "
-                "model=%s): %s — evicting cached client so the next call reconnects.",
+                "bedrock: stale-connection error on converse_stream(region={}, "
+                "model={}): {} — evicting cached client so the next call reconnects.",
                 region, model, type(exc).__name__,
             )
             invalidate_runtime_client(region)
@@ -994,7 +992,7 @@ def discover_bedrock_models(
     try:
         client = _get_bedrock_control_client(region)
     except Exception as e:
-        logger.warning("Failed to create Bedrock client for model discovery: %s", e)
+        logger.warning("Failed to create Bedrock client for model discovery: {}", e)
         return []
 
     models = []
@@ -1036,7 +1034,7 @@ def discover_bedrock_models(
             })
             seen_ids.add(model_id.lower())
     except Exception as e:
-        logger.warning("Failed to list Bedrock foundation models: %s", e)
+        logger.warning("Failed to list Bedrock foundation models: {}", e)
 
     # 2. Discover inference profiles (cross-region, better capacity)
     try:
@@ -1082,7 +1080,7 @@ def discover_bedrock_models(
             })
             seen_ids.add(profile_id.lower())
     except Exception as e:
-        logger.debug("Skipping inference profile discovery: %s", e)
+        logger.debug("Skipping inference profile discovery: {}", e)
 
     # Sort: global cross-region profiles first (recommended), then alphabetical
     models.sort(key=lambda m: (
