@@ -249,7 +249,12 @@ class LearningPlanner:
             try:
                 edits.append(Edit.model_validate(raw))
             except Exception as e:
-                logger.warning("Skipping invalid edit: {} — {}", raw.get("id", "?"), e)
+                # raw is untrusted teacher-LLM output -- it may not even be a
+                # dict (e.g. the model returned a bare string/list entry),
+                # so this diagnostic lookup must not itself raise and crash
+                # the whole parse over one malformed edit.
+                raw_id = raw.get("id", "?") if isinstance(raw, dict) else "?"
+                logger.warning("Skipping invalid edit: {} — {}", raw_id, e)
         return edits
 
     def _wire_cluster_edit_ids(
