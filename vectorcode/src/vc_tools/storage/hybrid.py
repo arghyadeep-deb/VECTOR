@@ -111,11 +111,18 @@ class HybridMemory(MemoryBackend):
             metadata=metadata,
         )
         # Store in dense — it generates its own id
-        dense_id = self._dense.store(
-            content,
-            source=source,
-            metadata=metadata,
-        )
+        try:
+            dense_id = self._dense.store(
+                content,
+                source=source,
+                metadata=metadata,
+            )
+        except Exception:
+            # A failed dual-write must not leave content silently
+            # retrievable from only the sparse half of the index while the
+            # caller believes the overall store() call failed.
+            self._sparse.delete(sparse_id)
+            raise
         # Map sparse_id -> dense_id so we can delete from both
         self._id_map[sparse_id] = dense_id
 
