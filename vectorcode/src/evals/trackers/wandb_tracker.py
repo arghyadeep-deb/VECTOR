@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, List, Optional
 
 from vectorcode.src.evals.core.tracker import ResultTracker
@@ -17,8 +16,6 @@ try:
     import wandb
 except ImportError:
     wandb = None  # type: ignore[assignment]
-
-LOGGER = logging.getLogger(__name__)
 
 def _flatten_metric_stats(prefix: str, ms: Optional[MetricStats]) -> Dict[str, float]:
     """Flatten a MetricStats into a dict with prefixed keys."""
@@ -91,7 +88,6 @@ class WandbTracker(ResultTracker):
             return
         self._step += 1
         log_data: Dict[str, Any] = {
-            "sample/is_correct": 1.0 if result.is_correct else 0.0,
             "sample/latency_seconds": result.latency_seconds,
             "sample/prompt_tokens": result.prompt_tokens,
             "sample/completion_tokens": result.completion_tokens,
@@ -103,6 +99,8 @@ class WandbTracker(ResultTracker):
             "sample/ipw": result.ipw,
             "sample/ipj": result.ipj,
         }
+        if result.is_correct is not None:
+            log_data["sample/is_correct"] = 1.0 if result.is_correct else 0.0
         if result.error:
             log_data["sample/has_error"] = 1.0
         wandb.log(log_data, step=self._step)

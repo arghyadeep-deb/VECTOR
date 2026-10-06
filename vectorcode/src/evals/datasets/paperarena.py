@@ -100,7 +100,7 @@ class PaperArenaDataset(DatasetProvider):
 
         for p in sorted(data_dir.rglob("*.json")):
             try:
-                with open(p) as f:
+                with open(p, encoding="utf-8") as f:
                     data = json.load(f)
                 items = data if isinstance(data, list) else [data]
                 for item in items:
@@ -112,7 +112,7 @@ class PaperArenaDataset(DatasetProvider):
 
         for p in sorted(data_dir.rglob("*.jsonl")):
             try:
-                with open(p) as f:
+                with open(p, encoding="utf-8") as f:
                     for line in f:
                         line = line.strip()
                         if line:

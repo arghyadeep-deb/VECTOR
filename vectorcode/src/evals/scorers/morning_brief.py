@@ -11,14 +11,14 @@ of generated morning briefings.
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Any, Dict, Optional, Tuple
+from loguru import logger
 
 from vectorcode.src.evals.core.scorer import LLMJudgeScorer
 from vectorcode.src.evals.core.types import EvalRecord
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 _JUDGE_PROMPT = """You are evaluating an AI-generated morning briefing.
 
@@ -79,6 +79,7 @@ class MorningBriefScorer(LLMJudgeScorer):
 
             # Extract scores
             scores = {}
+            missing_dimensions = []
             for dim in (
                 "completeness",
                 "prioritization",
@@ -90,7 +91,10 @@ class MorningBriefScorer(LLMJudgeScorer):
                     raw,
                     re.MULTILINE | re.IGNORECASE,
                 )
-                scores[dim] = int(match.group(1)) if match else 3
+                if match:
+                    scores[dim] = int(match.group(1))
+                else:
+                    missing_dimensions.append(dim)
 
             priorities_match = re.search(
                 r"^key_priorities_covered:\s*(yes|partial|no)",
@@ -107,6 +111,20 @@ class MorningBriefScorer(LLMJudgeScorer):
                 re.MULTILINE | re.IGNORECASE,
             )
 
+            if (
+                len(missing_dimensions) == 4
+                and priorities_match is None
+                and overall_match is None
+            ):
+                return None, {
+                    "match_type": "llm_judge_unparseable",
+                    "reason": "unparseable_judge_response",
+                    "raw_judge_output": raw,
+                }
+
+            for dim in missing_dimensions:
+                scores[dim] = 3
+
             # Consider correct if average score >= 3.5 and priorities at least partial
             avg_score = sum(scores.values()) / len(scores)
             if overall_match:
@@ -122,7 +140,7 @@ class MorningBriefScorer(LLMJudgeScorer):
                 "raw_judge_output": raw,
             }
         except Exception as exc:
-            LOGGER.error("Morning brief LLM judge failed: %s", exc)
+            LOGGER.error("Morning brief LLM judge failed: {}", exc)
             return None, {
                 "match_type": "llm_judge_error",
                 "error": str(exc),

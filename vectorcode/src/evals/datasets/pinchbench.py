@@ -157,7 +157,10 @@ class PinchBenchDataset(DatasetProvider):
         tasks = []
         for tf in task_files:
             try:
-                parsed = _parse_task_markdown(tf.read_text(), filename=tf.name)
+                parsed = _parse_task_markdown(
+                    tf.read_text(encoding="utf-8"),
+                    filename=tf.name,
+                )
                 tasks.append(parsed)
             except Exception as exc:
                 LOGGER.warning("Skipping %s: %s", tf.name, exc)

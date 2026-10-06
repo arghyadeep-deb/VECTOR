@@ -224,14 +224,14 @@ class QueryTrace:
     def save_jsonl(self, path: Path) -> None:
         """Append this trace as a JSONL line."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "a") as f:
+        with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(self.to_dict()) + "\n")
 
     @classmethod
     def load_jsonl(cls, path: Path) -> List[QueryTrace]:
         """Load traces from a JSONL file."""
         traces = []
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:

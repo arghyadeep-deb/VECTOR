@@ -152,7 +152,7 @@ def export_jsonl(traces: list[QueryTrace], path: Path) -> Path:
         The path to the written file.
     """
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         for trace in traces:
             f.write(json.dumps(trace.to_dict()) + "\n")
     return path
@@ -441,7 +441,7 @@ def export_summary_json(
     }
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(summary, indent=2, default=str))
+    path.write_text(json.dumps(summary, indent=2, default=str), encoding="utf-8")
     return path
 
 def export_artifacts_manifest(run_dir: Path) -> Optional[Path]:

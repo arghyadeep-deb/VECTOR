@@ -33,10 +33,10 @@ def _load_task_yaml(task_dir: Path) -> Dict[str, Any]:
     try:
         import yaml
 
-        return yaml.safe_load(task_file.read_text()) or {}
+        return yaml.safe_load(task_file.read_text(encoding="utf-8")) or {}
     except ImportError:
         # Fallback: parse instruction manually
-        text = task_file.read_text()
+        text = task_file.read_text(encoding="utf-8")
         result: Dict[str, Any] = {}
         # Extract instruction block
         if "instruction:" in text:

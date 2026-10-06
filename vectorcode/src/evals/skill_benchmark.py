@@ -13,15 +13,16 @@ docs/superpowers/specs/2026-04-08-skills-benchmark-evaluation-design.md
 
 from __future__ import annotations
 
-import logging
 import statistics
 import time
+from contextlib import ExitStack
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from loguru import logger
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 CONDITIONS = (
     "no_skills",
@@ -194,81 +195,93 @@ class SkillBenchmarkRunner:
         from vectorcode.src.evals.scorers.pinchbench import PinchBenchScorer
 
         backend = self._build_backend_for_condition(condition)
+        resources = ExitStack()
+        resources.callback(self._close_backend, backend)
 
-        dataset = PinchBenchDataset(path=None)
-        dataset.load(
-            max_samples=self._config.max_samples,
-            split=None,
-            seed=seed,
-        )
+        with resources:
+            dataset = PinchBenchDataset(path=None)
+            dataset.load(
+                max_samples=self._config.max_samples,
+                split=None,
+                seed=seed,
+            )
 
-        # PinchBenchScorer is an LLM-as-judge scorer; it needs a judge
-        # backend.  We reuse the same engine the agent uses (typically
-        # a local Ollama model) so the headline run is fully local.
+            # PinchBenchScorer is an LLM-as-judge scorer; it needs a judge
+            # backend. We reuse the same engine the agent uses (typically
+            # a local Ollama model) so the headline run is fully local.
+            try:
+                judge_backend = VectorDirectBackend(
+                    engine_key=self._config.engine,
+                )
+            except RuntimeError as exc:
+                LOGGER.warning(
+                    "Judge backend unavailable, automated checks only: {}",
+                    exc,
+                )
+                judge_backend = None
+            if judge_backend is not None:
+                resources.callback(self._close_backend, judge_backend)
+            scorer = PinchBenchScorer(judge_backend, self._config.model)
+
+            runner_cfg = RunConfig(
+                benchmark=self._config.benchmark,
+                backend="vector-agent",
+                model=self._config.model,
+                max_workers=1,
+                episode_mode=False,
+                seed=seed,
+            )
+
+            eval_runner = EvalRunner(
+                config=runner_cfg,
+                dataset=dataset,
+                backend=backend,
+                scorer=scorer,
+            )
+
+            t0 = time.monotonic()
+            summary = eval_runner.run()
+            elapsed = time.monotonic() - t0
+
+            # Aggregate only determinate per-task results. RunSummary doesn't
+            # carry the per-record list; judge outages must not become fails.
+            per_task: Dict[str, bool] = {}
+            for r in eval_runner.results:
+                rid = getattr(r, "record_id", "") or ""
+                is_correct = getattr(r, "is_correct", None)
+                if rid and is_correct is not None:
+                    per_task[rid] = bool(is_correct)
+
+            # Prefer determinate per-task results; fall back to the summary
+            # when every result was indeterminate.
+            if per_task:
+                pass_rate = sum(1 for v in per_task.values() if v) / len(per_task)
+            else:
+                pass_rate = float(getattr(summary, "accuracy", 0.0) or 0.0)
+
+            # Read trace data before the owning backend is closed.
+            skill_invocations = self._extract_skill_invocations(backend)
+
+            # RunSummary tracks input/output tokens separately.
+            total_input = int(getattr(summary, "total_input_tokens", 0) or 0)
+            total_output = int(getattr(summary, "total_output_tokens", 0) or 0)
+            total_tokens = total_input + total_output
+
+            return {
+                "pass_rate": pass_rate,
+                "per_task": per_task,
+                "skill_invocations": skill_invocations,
+                "total_tokens": total_tokens,
+                "total_runtime_seconds": elapsed,
+            }
+
+    @staticmethod
+    def _close_backend(backend: Any) -> None:
+        """Close an owned backend without masking the run's real outcome."""
         try:
-            judge_backend = VectorDirectBackend(
-                engine_key=self._config.engine,
-            )
-        except RuntimeError as exc:
-            LOGGER.warning(
-                "Judge backend unavailable, automated checks only: %s",
-                exc,
-            )
-            judge_backend = None
-        scorer = PinchBenchScorer(judge_backend, self._config.model)
-
-        runner_cfg = RunConfig(
-            benchmark=self._config.benchmark,
-            backend="vector-agent",
-            model=self._config.model,
-            max_workers=1,
-            episode_mode=False,
-            seed=seed,
-        )
-
-        eval_runner = EvalRunner(
-            config=runner_cfg,
-            dataset=dataset,
-            backend=backend,
-            scorer=scorer,
-        )
-
-        t0 = time.monotonic()
-        summary = eval_runner.run()
-        elapsed = time.monotonic() - t0
-
-        # Aggregate per-task results.  RunSummary doesn't carry the
-        # per-record list — that lives on the runner instance via the
-        # `results` property (which returns List[EvalResult]).
-        per_task: Dict[str, bool] = {}
-        for r in eval_runner.results:
-            rid = getattr(r, "record_id", "") or ""
-            ok = bool(getattr(r, "is_correct", False))
-            if rid:
-                per_task[rid] = ok
-
-        # Pass rate.  Prefer the runner-computed accuracy when we have
-        # records; fall back to summary.accuracy otherwise.
-        if per_task:
-            pass_rate = sum(1 for v in per_task.values() if v) / len(per_task)
-        else:
-            pass_rate = float(getattr(summary, "accuracy", 0.0) or 0.0)
-
-        # Skill invocation counts from the trace store (if any)
-        skill_invocations = self._extract_skill_invocations(backend)
-
-        # Token totals.  RunSummary tracks input/output tokens separately.
-        total_input = int(getattr(summary, "total_input_tokens", 0) or 0)
-        total_output = int(getattr(summary, "total_output_tokens", 0) or 0)
-        total_tokens = total_input + total_output
-
-        return {
-            "pass_rate": pass_rate,
-            "per_task": per_task,
-            "skill_invocations": skill_invocations,
-            "total_tokens": total_tokens,
-            "total_runtime_seconds": elapsed,
-        }
+            backend.close()
+        except Exception as exc:
+            LOGGER.warning("Failed to close {}: {}", type(backend).__name__, exc)
 
     def _extract_skill_invocations(self, backend: Any) -> Dict[str, int]:
         """Count per-skill invocations in the trace store from this run.
@@ -360,7 +373,7 @@ class SkillBenchmarkRunner:
 
         results: Dict[str, ConditionResult] = {}
         for condition in CONDITIONS:
-            LOGGER.info("Running condition: %s", condition)
+            LOGGER.info("Running condition: {}", condition)
             results[condition] = self.run_condition(condition)
 
         ended_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

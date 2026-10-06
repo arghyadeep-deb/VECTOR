@@ -132,7 +132,7 @@ class LogHubDataset(DatasetProvider):
         # Load labels: block_id -> "Anomaly" / "Normal"
         labels: Dict[str, str] = {}
         if label_path.exists():
-            with open(label_path) as f:
+            with open(label_path, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     bid = row.get("BlockId", "")
@@ -143,7 +143,7 @@ class LogHubDataset(DatasetProvider):
         block_pattern = re.compile(r"blk_[-]?\d+")
         sessions: Dict[str, List[str]] = {}
 
-        with open(log_path, errors="replace") as f:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
             for line in f:
                 match = block_pattern.search(line)
                 if match:
@@ -194,7 +194,7 @@ class LogHubDataset(DatasetProvider):
         has_anomaly = False
         window_idx = 0
 
-        with open(log_path, errors="replace") as f:
+        with open(log_path, encoding="utf-8", errors="replace") as f:
             for line in f:
                 stripped = line.rstrip()
                 # BGL/Thunderbird: first token is "-" (normal) or fault category

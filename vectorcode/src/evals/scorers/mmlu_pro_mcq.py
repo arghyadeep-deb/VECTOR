@@ -10,14 +10,14 @@ Adapted from IPW's mcq.py evaluation handler.
 
 from __future__ import annotations
 
-import logging
 import re
 from typing import Any, Dict, Optional, Tuple
+from loguru import logger
 
 from vectorcode.src.evals.core.scorer import LLMJudgeScorer
 from vectorcode.src.evals.core.types import EvalRecord
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 class MMLUProScorer(LLMJudgeScorer):
     """Score MMLU-Pro responses by extracting answer letter via LLM."""
@@ -62,8 +62,8 @@ class MMLUProScorer(LLMJudgeScorer):
             extracted = raw_response.strip().upper()
 
             # Handle "The answer is: A" etc.
-            answer_match = re.search(
-                r"(?:THE ANSWER IS:?\s*)?([A-Z])",
+            answer_match = re.fullmatch(
+                rf"(?:THE ANSWER IS:?\s*)?([{re.escape(valid_letters)}])",
                 extracted,
                 re.IGNORECASE,
             )
@@ -76,7 +76,7 @@ class MMLUProScorer(LLMJudgeScorer):
             return None
 
         except Exception as exc:
-            LOGGER.error("Error in LLM-based answer extraction: %s", exc)
+            LOGGER.error("Error in LLM-based answer extraction: {}", exc)
             return None
 
     def score(

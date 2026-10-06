@@ -13,7 +13,6 @@ Env vars (``VECTOR_AGENT_PATH``, ``OPENCLAW_PATH``) override the default path.
 
 from __future__ import annotations
 
-import logging
 import os
 import subprocess
 from dataclasses import dataclass, field
@@ -21,8 +20,9 @@ from pathlib import Path
 from typing import Dict, Optional
 
 import tomllib
+from loguru import logger
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logger
 
 # Map framework name -> env var that overrides its `path` field.
 # Must be kept in sync with the section keys in _third_party.toml.
@@ -154,6 +154,11 @@ def verify_commit_pin(entry: ThirdPartyEntry) -> None:
 
     actual = result.stdout.strip()
     pinned = entry.pinned_commit.strip()
+    if not pinned:
+        raise CommitDriftError(
+            f"{entry.name} has no pinned_commit configured; refusing to "
+            "silently disable commit verification."
+        )
     # Allow short-hash matches (e.g. pinned "abc123" matches actual "abc123def...")
     if not actual.startswith(pinned) and not pinned.startswith(actual):
         msg = (

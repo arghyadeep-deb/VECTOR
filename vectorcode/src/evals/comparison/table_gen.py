@@ -71,7 +71,7 @@ def load_results(glob_pattern: str) -> ResultsFrame:
 
     for p in paths:
         try:
-            raw = json.loads(Path(p).read_text())
+            raw = json.loads(Path(p).read_text(encoding="utf-8"))
             schema = _SummarySchema.model_validate(raw)
         except (json.JSONDecodeError, ValidationError) as e:
             LOGGER.warning("skipping unloadable summary at %s: %s", p, e)
@@ -399,8 +399,11 @@ def main(results_glob: str, tables: str, output_dir: Optional[Path]) -> None:
         except Exception as e:
             click.echo(f"  ! {name} build failed: {e}")
             continue
-        (out / f"{name}.tex").write_text(fragment + "\n")
-        (out / "preview" / f"{name}_preview.tex").write_text(standalone)
+        (out / f"{name}.tex").write_text(fragment + "\n", encoding="utf-8")
+        (out / "preview" / f"{name}_preview.tex").write_text(
+            standalone,
+            encoding="utf-8",
+        )
         click.echo(f"  ✓ {name} → {out}/{name}.tex (+ preview)")
 
 if __name__ == "__main__":
