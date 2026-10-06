@@ -117,8 +117,8 @@ class BulkSender:
         self._channel = channel
         self._channel_id = getattr(channel, "channel_id", "default")
         # messages per second → delay between sends
-        mps = rate_limit_override or _RATE_LIMITS.get(self._channel_id,
-                                                       _RATE_LIMITS["default"])
+        mps = (rate_limit_override if rate_limit_override is not None else
+               _RATE_LIMITS.get(self._channel_id, _RATE_LIMITS["default"]))
         self._delay = 1.0 / max(mps, 0.01)
         self._fail_fast = fail_fast
 

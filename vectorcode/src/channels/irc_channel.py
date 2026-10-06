@@ -17,6 +17,13 @@ from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
 
 
+def _irc_value(value: str) -> str:
+    """Reject values that could inject additional IRC protocol commands."""
+    if "\r" in value or "\n" in value:
+        raise ValueError("IRC values must not contain CR or LF")
+    return value
+
+
 
 @ChannelRegistry.register("irc")
 class IRCChannel(BaseChannel):
@@ -93,17 +100,22 @@ class IRCChannel(BaseChannel):
             return False
 
         try:
+            server = _irc_value(self._server)
+            nick = _irc_value(self._nick)
+            password = _irc_value(self._password)
+            channel = _irc_value(channel)
+            content = _irc_value(content)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             if self._use_tls:
                 ctx = ssl.create_default_context()
-                sock = ctx.wrap_socket(sock, server_hostname=self._server)
+                sock = ctx.wrap_socket(sock, server_hostname=server)
 
-            sock.connect((self._server, self._port))
+            sock.connect((server, self._port))
 
-            if self._password:
-                sock.sendall(f"PASS {self._password}\r\n".encode())
-            sock.sendall(f"NICK {self._nick}\r\n".encode())
-            sock.sendall(f"USER {self._nick} 0 * :{self._nick}\r\n".encode())
+            if password:
+                sock.sendall(f"PASS {password}\r\n".encode())
+            sock.sendall(f"NICK {nick}\r\n".encode())
+            sock.sendall(f"USER {nick} 0 * :{nick}\r\n".encode())
             sock.sendall(f"PRIVMSG {channel} :{content}\r\n".encode())
             sock.sendall(b"QUIT\r\n")
             sock.close()

@@ -26,6 +26,13 @@ from vectorcode.src.core.registry import ChannelRegistry
 _API_BASE = "https://api.twitter.com/2"
 
 
+def _is_newer_tweet_id(candidate: str, current: str | None) -> bool:
+    """Compare Twitter snowflake IDs numerically, not lexicographically."""
+    if current is None:
+        return True
+    return int(candidate) > int(current)
+
+
 # ---------------------------------------------------------------------------
 # OAuth 1.0a signing (stdlib only — no authlib dependency)
 # ---------------------------------------------------------------------------
@@ -305,7 +312,7 @@ class TwitterChannel(BaseChannel):
                                 },
                             )
                         # Track highest ID to avoid reprocessing
-                        if self._since_id is None or tweet_id > self._since_id:
+                        if _is_newer_tweet_id(tweet_id, self._since_id):
                             self._since_id = tweet_id
                 else:
                     logger.warning(

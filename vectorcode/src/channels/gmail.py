@@ -5,6 +5,8 @@ from __future__ import annotations
 import base64
 from loguru import logger
 import os
+from pathlib import Path
+import tempfile
 import threading
 from email.mime.text import MIMEText
 from typing import Any, Dict, List, Optional
@@ -17,6 +19,24 @@ from vectorcode.src.channels._abc import (
 )
 from vectorcode.src.core.events import EventBus, EventType
 from vectorcode.src.core.registry import ChannelRegistry
+
+
+def _atomic_write_text(path: str, content: str) -> None:
+    """Durably replace a UTF-8 text file without exposing a partial write."""
+    target = Path(path)
+    fd, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as token_file:
+            token_file.write(content)
+            token_file.flush()
+            os.fsync(token_file.fileno())
+        os.replace(temporary, target)
+    except BaseException:
+        try:
+            os.unlink(temporary)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 
@@ -114,8 +134,7 @@ class GmailChannel(BaseChannel):
 
                 # Save token for future use
                 if self._token_path and creds:
-                    with open(self._token_path, "w") as token_file:
-                        token_file.write(creds.to_json())
+                    _atomic_write_text(self._token_path, creds.to_json())
 
             self._service = build("gmail", "v1", credentials=creds)
             self._status = ChannelStatus.CONNECTED

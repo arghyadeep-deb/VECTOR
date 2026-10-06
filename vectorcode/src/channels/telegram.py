@@ -107,6 +107,9 @@ class TelegramChannel(BaseChannel):
         if not self._token:
             logger.warning("Cannot send: no Telegram bot token")
             return False
+        if not content.strip():
+            logger.warning("Cannot send: Telegram message content is empty")
+            return False
 
         try:
             import httpx

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from loguru import logger
 from typing import Any, Dict, List, Optional
 
@@ -101,10 +102,14 @@ class WebhookChannel(BaseChannel):
             if metadata:
                 payload["metadata"] = metadata
 
-            headers: Dict[str, str] = {}
+            body_bytes = json.dumps(
+                payload,
+                separators=(",", ":"),
+                ensure_ascii=False,
+            ).encode("utf-8")
+            headers: Dict[str, str] = {"Content-Type": "application/json"}
             if self._secret and _signer is not None:
                 # HMAC-SHA256 signed — receivers verify with their copy of the secret
-                body_bytes = __import__("json").dumps(payload, separators=(",", ":"), ensure_ascii=False).encode()
                 headers = _signer.signed_headers(body_bytes, self._secret)
             elif self._secret:
                 # Fallback: plain secret header when signer unavailable
@@ -113,7 +118,7 @@ class WebhookChannel(BaseChannel):
             resp = httpx.request(
                 self._method,
                 self._url,
-                json=payload,
+                content=body_bytes,
                 headers=headers,
                 timeout=10.0,
             )

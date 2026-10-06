@@ -21,6 +21,7 @@ class YouTubeAdapter:
                 "key": self.api_key, "q": query, "part": "snippet",
                 "type": "video", "maxResults": max_results,
             })
+            r.raise_for_status()
             items = r.json().get("items", [])
             return [{"title": i["snippet"]["title"],
                      "video_id": i["id"]["videoId"],
@@ -35,6 +36,7 @@ class YouTubeAdapter:
                 "key": self.api_key, "id": video_id,
                 "part": "snippet,statistics,contentDetails",
             })
+            r.raise_for_status()
             items = r.json().get("items", [])
             return items[0] if items else {}
 
@@ -53,6 +55,7 @@ class YouTubeAdapter:
                 headers={"Authorization": f"Bearer {self.token}",
                          "Content-Type": "application/json"},
             )
+            r.raise_for_status()
             logger.info("[VECTOR][youtube] commented on {}", video_id)
             return r.json()
 
@@ -63,5 +66,6 @@ class YouTubeAdapter:
                 "key": self.api_key, "id": channel_id,
                 "part": "snippet,statistics",
             })
+            r.raise_for_status()
             items = r.json().get("items", [])
             return items[0] if items else {}

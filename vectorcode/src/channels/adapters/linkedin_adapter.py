@@ -26,6 +26,7 @@ class LinkedInAdapter:
         import asyncio, httpx
         async with httpx.AsyncClient() as client:
             r = await client.get(f"{self._BASE}/me", headers=self._headers())
+            r.raise_for_status()
             return r.json()
 
     async def post_text(self, text: str, visibility: str = "PUBLIC") -> dict:
@@ -46,6 +47,7 @@ class LinkedInAdapter:
         }
         async with httpx.AsyncClient() as client:
             r = await client.post(f"{self._BASE}/ugcPosts", json=payload, headers=self._headers())
+            r.raise_for_status()
             logger.info("[VECTOR][linkedin] posted status={}", r.status_code)
             return r.json()
 
@@ -56,5 +58,6 @@ class LinkedInAdapter:
                 f"{self._BASE}/shares?q=owners&owners=urn:li:person:me&count={count}",
                 headers=self._headers()
             )
+            r.raise_for_status()
             data = r.json()
             return data.get("elements", [])

@@ -3,6 +3,13 @@ from __future__ import annotations
 import asyncio
 from loguru import logger
 
+
+def _irc_value(value: str) -> str:
+    """Reject values that could inject additional IRC protocol commands."""
+    if "\r" in value or "\n" in value:
+        raise ValueError("IRC values must not contain CR or LF")
+    return value
+
 class TwitchAdapter:
     """
     Twitch chat adapter for VECTOR via IRC over WebSocket.
@@ -18,11 +25,15 @@ class TwitchAdapter:
     async def send_message(self, message: str) -> bool:
         try:
             import websockets, json
+            token = _irc_value(self.token)
+            bot_name = _irc_value(self.bot_name)
+            channel = _irc_value(self.channel)
+            message = _irc_value(message)
             async with websockets.connect("wss://irc-ws.chat.twitch.tv:443") as ws:
-                await ws.send(f"PASS {self.token}")
-                await ws.send(f"NICK {self.bot_name}")
-                await ws.send(f"JOIN #{self.channel}")
-                await ws.send(f"PRIVMSG #{self.channel} :{message}")
+                await ws.send(f"PASS {token}")
+                await ws.send(f"NICK {bot_name}")
+                await ws.send(f"JOIN #{channel}")
+                await ws.send(f"PRIVMSG #{channel} :{message}")
                 logger.info("[VECTOR][twitch] sent: {}", message[:50])
                 return True
         except Exception as e:
@@ -33,10 +44,13 @@ class TwitchAdapter:
         """Listen for chat messages and call callback(author, message) for each."""
         try:
             import websockets
+            token = _irc_value(self.token)
+            bot_name = _irc_value(self.bot_name)
+            channel = _irc_value(self.channel)
             async with websockets.connect("wss://irc-ws.chat.twitch.tv:443") as ws:
-                await ws.send(f"PASS {self.token}")
-                await ws.send(f"NICK {self.bot_name}")
-                await ws.send(f"JOIN #{self.channel}")
+                await ws.send(f"PASS {token}")
+                await ws.send(f"NICK {bot_name}")
+                await ws.send(f"JOIN #{channel}")
                 deadline = asyncio.get_event_loop().time() + timeout_secs
                 while asyncio.get_event_loop().time() < deadline:
                     try:
