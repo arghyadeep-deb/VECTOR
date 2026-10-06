@@ -17,25 +17,27 @@ import re
 from loguru import logger
 from providers.base import ModelCapabilities
 
+class _InMemoryModelRegistry:
+    """Non-persistent fallback when the configured cache is unavailable."""
+
+    def __init__(self, path=None):
+        self._data = {}
+
+    def get(self, model_id):
+        return self._data.get(model_id)
+
+    def set(self, model_id, caps):
+        self._data[model_id] = caps
+
+    def save(self):
+        # Intentionally stateless: there is no backing file to flush.
+        pass
+
+
 try:
     from config import ModelRegistry
 except ImportError:
-    class ModelRegistry:  # type: ignore
-        """Stub ModelRegistry when config module doesn't provide one."""
-        def __init__(self, path=None):
-            self._data = {}
-        def get(self, model_id):
-            return self._data.get(model_id)
-        def set(self, model_id, caps):
-            self._data[model_id] = caps
-        def save(self):
-            # In-memory fallback has nothing to persist; a real config.ModelRegistry
-            # (imported above when available) is the one that actually writes to
-            # disk. An earlier blanket automated commit ("convert pass-only ABC
-            # stubs to raise NotImplementedError") mistook this concrete,
-            # directly-instantiated (self._registry = ModelRegistry()) fallback
-            # for an abstract stub.
-            pass
+    ModelRegistry = _InMemoryModelRegistry  # type: ignore[misc, assignment]
 
 try:
     from core.config import CONFIG
@@ -242,7 +244,14 @@ class CapabilityProbe:
     """Probe a model once; cache the result; re-use on subsequent calls."""
 
     def __init__(self) -> None:
-        self._registry = ModelRegistry()
+        try:
+            self._registry = ModelRegistry()
+        except OSError as exc:
+            logger.warning(
+                "[VECTOR][probe] model capability cache unavailable; using memory only: {}",
+                exc,
+            )
+            self._registry = _InMemoryModelRegistry()
 
     def get_or_probe(self, model_id: str, provider) -> ModelCapabilities:
         """Return cached capabilities or probe the model if not yet cached."""

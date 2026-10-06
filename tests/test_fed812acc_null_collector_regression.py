@@ -71,37 +71,9 @@ def test_null_tool_executor_constructs_without_full_deps():
 
 
 def test_capability_probe_fallback_model_registry_save_does_not_raise():
-    # capability_probe.py cannot actually be imported in this environment
-    # right now -- a separate, pre-existing, unrelated bug (`from
-    # providers.base import ModelCapabilities` fails: providers/base.py
-    # was redesigned around a declarative ProviderProfile and no longer
-    # defines ModelCapabilities/BaseProvider/CompletionResult/Message/
-    # TokenUsage/ToolCall at all; flagged separately, not fixed here --
-    # see docs/OPEN_ISSUES.md). Read the fallback ModelRegistry class
-    # straight out of the file's source text (not an import) so this
-    # regression test is independent of that separate break.
-    import ast
-    from pathlib import Path
+    from providers.capability_probe import _InMemoryModelRegistry
 
-    path = (
-        Path(__file__).parent.parent
-        / "vectorcode" / "src" / "providers" / "capability_probe.py"
-    )
-    src = path.read_text(encoding="utf-8")
-    assert 'raise NotImplementedError("ModelRegistry.save' not in src
-
-    tree = ast.parse(src)
-    except_handler = next(
-        node for node in ast.walk(tree) if isinstance(node, ast.ExceptHandler)
-    )
-    class_def = next(
-        n for n in except_handler.body if isinstance(n, ast.ClassDef)
-    )
-    namespace: dict = {}
-    exec(compile(ast.Module(body=[class_def], type_ignores=[]), "<fallback>", "exec"), namespace)
-    FallbackModelRegistry = namespace["ModelRegistry"]
-
-    registry = FallbackModelRegistry()
+    registry = _InMemoryModelRegistry()
     registry.set("some-model", {"vision": True})
     registry.save()  # must not raise
     assert registry.get("some-model") == {"vision": True}
