@@ -65,13 +65,26 @@ class CapabilityPolicy:
         self._policies: Dict[str, AgentPolicy] = {}
         self._default_deny = default_deny
 
+        # Previously called get_rust_module().CapabilityPolicy(...)
+        # unconditionally -- when the Rust extension isn't built,
+        # get_rust_module() returns None (confirmed on this machine), so
+        # __init__ itself raised AttributeError and this RBAC policy class
+        # -- which gates every tool dispatch -- could never be constructed
+        # at all. grant()/deny()/check() had the same unconditional
+        # self._rust_impl.* calls. Now guards for a None Rust impl and
+        # falls back to the pure-Python state (self._policies) that was
+        # already being maintained in parallel regardless of Rust.
         try:
             from vectorcode.src._rust_bridge import get_rust_module
-        except ImportError:
-            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
-        _rust = get_rust_module()
-        self._rust_impl = _rust.CapabilityPolicy(default_deny=default_deny)
+            _rust = get_rust_module()
+        except ImportError:
+            _rust = None
+        self._rust_impl = (
+            _rust.CapabilityPolicy(default_deny=default_deny)
+            if _rust is not None
+            else None
+        )
 
         if policy_path:
             self._load_file(Path(policy_path))
@@ -83,7 +96,8 @@ class CapabilityPolicy:
             AgentPolicy(agent_id=agent_id),
         )
         policy.grants.append(CapabilityGrant(capability=capability, pattern=pattern))
-        self._rust_impl.grant(agent_id, capability, pattern)
+        if self._rust_impl is not None:
+            self._rust_impl.grant(agent_id, capability, pattern)
 
     def deny(self, agent_id: str, capability: str) -> None:
         """Explicitly deny a capability to an agent."""
@@ -92,17 +106,20 @@ class CapabilityPolicy:
             AgentPolicy(agent_id=agent_id),
         )
         policy.deny.append(capability)
-        self._rust_impl.deny(agent_id, capability)
+        if self._rust_impl is not None:
+            self._rust_impl.deny(agent_id, capability)
 
     def check(self, agent_id: str, capability: str, resource: str = "") -> bool:
         """Check whether *agent_id* has *capability* for *resource*.
 
         Returns True if allowed, False if denied.
         """
-        return self._rust_impl.check(agent_id, capability, resource)
+        if self._rust_impl is not None:
+            return self._rust_impl.check(agent_id, capability, resource)
+        return self._check_python(agent_id, capability, resource)
 
     def _check_python(self, agent_id: str, capability: str, resource: str = "") -> bool:
-        """Legacy Python check — kept for reference only."""
+        """Pure-Python check -- used when the Rust backend is unavailable."""
         policy = self._policies.get(agent_id)
         if policy is None:
             # No explicit policy — use default

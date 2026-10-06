@@ -70,22 +70,39 @@ class RateLimiter:
         self._buckets: Dict[str, TokenBucket] = {}
         self._lock = threading.Lock()
 
+        # Previously called get_rust_module().RateLimiter(...) unconditionally
+        # -- when the Rust extension isn't built, get_rust_module() returns
+        # None (confirmed on this machine), so __init__ raised AttributeError
+        # and rate limiting could never be constructed at all. check() and
+        # reset() had the same unconditional self._rust_impl.* calls.
+        # TokenBucket/_get_bucket() below were a fully-implemented,
+        # thread-safe Python fallback that check() never actually used.
         try:
             from vectorcode.src._rust_bridge import get_rust_module
-        except ImportError:
-            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
-        _rust = get_rust_module()
-        self._rust_impl = _rust.RateLimiter(
-            requests_per_minute=self._config.requests_per_minute,
-            burst_size=self._config.burst_size,
+            _rust = get_rust_module()
+        except ImportError:
+            _rust = None
+        self._rust_impl = (
+            _rust.RateLimiter(
+                requests_per_minute=self._config.requests_per_minute,
+                burst_size=self._config.burst_size,
+            )
+            if _rust is not None
+            else None
         )
 
     def check(self, key: str) -> Tuple[bool, float]:
-        """Check if request is allowed for key — always via Rust backend."""
+        """Check if request is allowed for key.
+
+        Prefers the Rust backend when available; falls back to the
+        pure-Python token bucket otherwise.
+        """
         if not self._config.enabled:
             return True, 0.0
-        return self._rust_impl.check(key)
+        if self._rust_impl is not None:
+            return self._rust_impl.check(key)
+        return self._get_bucket(key).consume()
 
     def _get_bucket(self, key: str) -> TokenBucket:
         """Get or create a bucket for the given key."""
@@ -99,9 +116,10 @@ class RateLimiter:
             return self._buckets[key]
 
     def reset(self, key: Optional[str] = None) -> None:
-        """Reset rate limit state for a key or all keys — always via Rust backend."""
-        self._rust_impl.reset(key)
-        return
+        """Reset rate limit state for a key or all keys."""
+        if self._rust_impl is not None:
+            self._rust_impl.reset(key)
+            return
         with self._lock:
             if key:
                 self._buckets.pop(key, None)
