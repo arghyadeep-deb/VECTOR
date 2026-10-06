@@ -7,8 +7,9 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
 
 from vectorcode.src.vc_core.types import ToolCall
 from vectorcode.src.vc_mcp.protocol import (
@@ -19,8 +20,6 @@ from vectorcode.src.vc_mcp.protocol import (
     MCPResponse,
 )
 from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
-
-logger = logging.getLogger(__name__)
 
 # Tool annotation hints per MCP spec 2025-11-25
 _TOOL_ANNOTATIONS: Dict[str, Dict[str, Any]] = {
@@ -77,37 +76,37 @@ class MCPServer:
 
             _tool_classes.append(CalculatorTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         try:
             from vectorcode.src.vc_tools.think import ThinkTool
 
             _tool_classes.append(ThinkTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         try:
             from vectorcode.src.vc_tools.file_read import FileReadTool
 
             _tool_classes.append(FileReadTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         try:
             from vectorcode.src.vc_tools.web_search import WebSearchTool
 
             _tool_classes.append(WebSearchTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         try:
             from vectorcode.src.vc_tools.code_interpreter import CodeInterpreterTool
 
             _tool_classes.append(CodeInterpreterTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
         try:
             from vectorcode.src.vc_tools.repl import ReplTool
 
             _tool_classes.append(ReplTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         # Storage MCP tools
         try:
@@ -127,7 +126,7 @@ class MCPServer:
                 ]
             )
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         # Channel MCP tools
         try:
@@ -145,7 +144,7 @@ class MCPServer:
                 ]
             )
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         # LM tool (needs engine/model — instantiate with None)
         try:
@@ -153,7 +152,7 @@ class MCPServer:
 
             _tool_classes.append(LLMTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         # Retrieval tool (needs backend — instantiate with None)
         try:
@@ -161,13 +160,13 @@ class MCPServer:
 
             _tool_classes.append(RetrievalTool)
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         for cls in _tool_classes:
             try:
                 tools.append(cls())
             except Exception as exc:
-                logger.warning("Failed to instantiate tool from %r: %s", cls, exc)
+                logger.warning("Failed to instantiate tool from {!r}: {}", cls, exc)
 
         # Also check ToolRegistry for any user-registered tools
         try:
@@ -181,9 +180,9 @@ class MCPServer:
                         if isinstance(tool, BaseTool):
                             tools.append(tool)
                     except Exception as exc:
-                        logger.warning("Failed to register user tool: %s", exc)
+                        logger.warning("Failed to register user tool: {}", exc)
         except Exception as exc:
-            logger.warning("Failed to discover tools from registry: %s", exc)
+            logger.warning("Failed to discover tools from registry: {}", exc)
 
         return tools
 
