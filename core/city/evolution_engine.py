@@ -389,25 +389,28 @@ class EvolutionEngine:
         """
         practices = []
         try:
-            from core.memory.episodic import get_db_connection, close_db_connection
+            from core.memory.episodic import get_db_connection
+            # KNOWN_ISSUES #21: get_db_connection() returns a process-wide
+            # singleton. Closing it here (as this used to do, with the wrong
+            # call signature on top of that -- close_db_connection() takes no
+            # arguments) poisons memory access for every other agent/thread
+            # in the system. Never close the shared connection from a routine
+            # caller -- see core/api_manager.py's _check_memory_health() note.
             conn = get_db_connection()
-            try:
-                rows = conn.execute(
-                    "SELECT ghost_memory FROM agent_history WHERE agent_name = ?",
-                    (agent_name,)
-                ).fetchall()
-                for (ghost_json,) in rows:
-                    if not ghost_json:
-                        continue
-                    import json as _json
-                    ghost = _json.loads(ghost_json)
-                    for d in ghost.get("best_decisions", []):
-                        if d.get("reward", 0) > 0.6:
-                            desc = d.get("decision", d.get("description", ""))
-                            if desc:
-                                practices.append(str(desc))
-            finally:
-                close_db_connection(conn)
+            rows = conn.execute(
+                "SELECT ghost_memory FROM agent_history WHERE agent_name = ?",
+                (agent_name,)
+            ).fetchall()
+            for (ghost_json,) in rows:
+                if not ghost_json:
+                    continue
+                import json as _json
+                ghost = _json.loads(ghost_json)
+                for d in ghost.get("best_decisions", []):
+                    if d.get("reward", 0) > 0.6:
+                        desc = d.get("decision", d.get("description", ""))
+                        if desc:
+                            practices.append(str(desc))
         except Exception as e:
             logger.warning("[VECTOR][evolution] get_best_practices query failed for {}: {}", agent_name, e)
         return list(set(practices))
