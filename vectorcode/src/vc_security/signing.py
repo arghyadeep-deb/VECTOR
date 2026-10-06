@@ -8,7 +8,10 @@
 from __future__ import annotations
 
 import base64
+import os
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 from loguru import logger
 
@@ -97,8 +100,6 @@ def verify_b64(data: bytes, signature_b64: str, public_key: bytes) -> bool:
 
 def load_public_key(path: str) -> bytes:
     """Load a raw 32-byte Ed25519 public key from a file."""
-    from pathlib import Path
-
     raw = Path(path).read_bytes()
     # If base64-encoded (common), decode
     if len(raw) > 32:
@@ -108,12 +109,43 @@ def load_public_key(path: str) -> bytes:
             logger.warning("Failed to base64-decode public key from {}: {}", path, exc)
     return raw
 
-def save_keypair(keypair: KeyPair, private_path: str, public_path: str) -> None:
-    """Save keypair to files (base64-encoded)."""
-    from pathlib import Path
+def _write_text_atomic(path: Path, content: str, *, mode: int | None = None) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent)
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if mode is not None:
+            os.chmod(tmp_name, mode)
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
-    Path(private_path).write_text(base64.b64encode(keypair.private_key).decode())
-    Path(public_path).write_text(base64.b64encode(keypair.public_key).decode())
+def save_keypair(keypair: KeyPair, private_path: str, public_path: str) -> None:
+    """Save keypair to files (base64-encoded).
+
+    The private key is written atomically (tempfile + fsync + os.replace)
+    with 0o600 permissions applied before the file becomes visible at its
+    final path -- a plain write_text() previously left the key readable at
+    default permissions and non-atomic, risking both exposure and
+    corruption on a mid-write crash.
+    """
+    _write_text_atomic(
+        Path(private_path),
+        base64.b64encode(keypair.private_key).decode(),
+        mode=0o600,
+    )
+    _write_text_atomic(
+        Path(public_path), base64.b64encode(keypair.public_key).decode()
+    )
 
 __all__ = [
     "KeyPair",
