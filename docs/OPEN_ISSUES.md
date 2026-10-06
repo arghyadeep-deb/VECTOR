@@ -4526,3 +4526,215 @@ isn't "proven in production" until you supply the service/device and run it live
     conflict with the asyncio-only project rule; converting those schedulers/transports is an
     architectural rewrite. **Commit status:** intentionally uncommitted for parent review; this
     entry is also left uncommitted as required for concurrent-session reconciliation.
+
+88. **Miscellaneous repo-root Python audit (2026-10-06) —** completed the line-by-line
+    security/correctness review of `tools/ci_gate.py`, all 25 tracked Python files directly in
+    `tools/vector_dev_orchestrator/` (live `.state/` JSON explicitly excluded), all four
+    `hands/` files, all four `data/` Python files, both `phone_node/` files, the three scoped
+    `cloud/` Python files, and `models/adapters/__init__.py`. `scripts/` was not touched.
+    **Fixed with proof tests:** task IDs and supervisor program IDs are now validated before
+    becoming filenames (closing state-directory traversal); Git worktree creation terminates
+    option parsing before the caller-provided base ref; quota, scheduler-owner, and daily-worker
+    counter state now use flushed/fsynced atomic replacement; corrupt daily-counter state fails
+    closed instead of resetting to zero and bypassing the cap; an explicit `max_tasks=0` is no
+    longer discarded by an `or` default; ADB port forwarding and screenshot pulls no longer
+    report phantom success after command failure; phone-node bearer comparison is constant-time
+    and its config is explicitly UTF-8; the comms bridge preserves a falsy delivery result rather
+    than unconditionally returning `ok: true`; and the CI source gate no longer deletes invalid
+    UTF-8 bytes before compiling. New regression coverage is in
+    `tests/test_misc_root_audit_regressions.py` (10 tests). Focused new + existing phone/comms
+    tests: 35 passed; focused hands tests: 13 passed; scoped `compileall`, worktree-manager
+    self-test, and `git diff --check` passed.
+    **Important correction to the round premise:** `hands/` is not an unwired package in the
+    current tree. `core/loop/autonomous_loop.py` registers `HandRunner`, and
+    `core/loop/permission_gateway.py` dispatches approved hand actions; existing hands wiring and
+    runner tests also exercise those paths. No wiring change was made.
+    **Flagged, not guessed (owner/design decisions):** `phone_node/ambient_server.py` binds its
+    mutating HTTP endpoints to `0.0.0.0` and deliberately permits unauthenticated access when no
+    API key is configured; changing that documented development behavior needs an owner decision.
+    The same file and `cloud/agent_workers/scheduler.py` use `threading`/APScheduler's background
+    thread despite the project asyncio-only rule; converting a Termux HTTP server and scheduler
+    architecture is not a narrow fix. The duplicated training-reference programs under `data/`
+    retain upstream-style `requests`, `pickle`, extensive `print()`, and import-time execution;
+    replacing their tokenizer serialization/training-script architecture is likewise not a safe
+    narrow audit patch. `hands/runner.py` contains an explicitly documented policy-memory write
+    whose key can never be consumed by the decision engine; deciding whether to remove it or add
+    real Hand candidates remains a product-policy choice. All changes are intentionally
+    uncommitted for parent review, including this concurrently reconciled OPEN_ISSUES entry.
+
+89. **Repo-root `scripts/` audit batch 3/3 (2026-10-06) —** completed line-by-line review of
+    all 29 assigned files. **Fixed with proof tests:** the keyring migrator's `str / ".env"`
+    startup crash and timing-unsafe verification; the plaintext-to-SQLCipher migrator's
+    import-time execution, plaintext key disclosure, partial/existing-destination collision,
+    table-only copy (lost indexes/triggers), and non-atomic output; the installed pre-commit
+    syntax gate's fail-open behavior when `git diff`/`git show` fails; `syntax_check.py`'s
+    success exit after missing/broken files; false-success exits in both standalone `test_*.py`
+    diagnostics and the issue-37 verifier; missing session hydration in that verifier's direct
+    LLM calls; `train_wake_head.py`'s final-window off-by-one; both wake trainers overwriting the
+    live ONNX before quality validation; `train_intent_real.py`'s cwd-dependent dataset path;
+    `link_skills.py --include-deprecated` being ignored; and locale-dependent TODO report output.
+    `smoke_test.py` now isolates its real policy writes in a temporary DB and fails when
+    `EvolutionEngine.get_best_practices()` swallows a query error instead of reporting PASS.
+    New regression file: `tests/test_scripts_batch3_audit.py` (8 tests).
+
+    **Live/reference classification (text references alone are not treated as runtime wiring):**
+
+    | Classification | Assigned files |
+    |---|---|
+    | Live/load-bearing | `precommit_syntax_gate.py` (installed by `install_git_hooks.py`); `smoke_test.py` (called by QA agents and documented gate); `train_wake_word.py` (active owner-blocked wake workflow, directly tested) |
+    | Runnable archived diagnostics (BAT/docs callers, not autonomous runtime) | `repro_25_26.py`, `repro_final_fixes.py`, `repro_issue16.py`, `repro_misroute.py`, `repro_regressions.py`, `test_mistral_judge_direct.py`, `verify_issue37_voice.py` |
+    | Maintained/manual tooling with documentation or generated-output references | `manifest_gap.py`, `normalize_finagent_headers.py`, `syntax_check.py`, `test_governor_generalization.py`, `train_intent_real.py`, `verify_fixes.py` |
+    | Unreferenced manual utility / historical one-off (no repo caller found; review before deletion because some mutate files or produce assets) | `link_skills.py`, `make_vector_icon.py`, `mark_dormant_modules.py`, `migrate_secrets_to_keyring.py`, `migrate_to_encrypted.py`, `run_pytest_shards.py`, `scan_nonfinagent_stubs.py`, `scan_pass_stubs.py`, `train_wake_head.py`, `train_wake_v2.py`, `train_wake_word_synthetic.py`, `triage_todos.py`, `wrap_acp_imports.py` |
+
+    The two `scripts/test_*.py` files are **not pytest-collected**: both `pytest.ini` and
+    `pyproject.toml` set `testpaths = tests`; they are direct-run diagnostics. `smoke_test.py`
+    remains genuinely wired, but its corrected swallowed-error check currently exposes an
+    out-of-scope production defect: `EvolutionEngine.get_best_practices()` logs
+    `close_db_connection() takes 0 positional arguments but 1 was given` and returns `[]`.
+    This batch did not modify that `core/` implementation. Verification: new regressions pass,
+    all 29 scripts compile, `syntax_check.py` reports 18/18 and exits 0, pre-commit gate exits 0
+    with no staged files, and the corrected smoke gate now honestly reports 37/38 and exits 1 on
+    the swallowed out-of-scope query failure (it previously reported 38/38). Changes and this
+    entry are intentionally uncommitted for parent review.
+
+90. **Repo-root `scripts/` batch 1 audit (2026-10-06) —** completed a first-pass, line-by-line
+    security/correctness and liveness review of the 30 assigned scripts. **Load-bearing/wired:**
+    `backup_dbs.py` is launched by `core/loop/autonomous_loop.py`; `check_coverage.py` is invoked
+    by `.github/workflows/ci.yml`; `augment_intent_dataset.py` is a stage in
+    `scripts/execute_intent_pipeline.py`. **Explicitly retired:** `absorb_coding_assistant.py`
+    and `absorb_research_engine.py` terminate immediately and are documented as retired in
+    `THIRD_PARTY_NOTICES.md`. **Historical one-time migration/install utilities (no live caller):**
+    `absorb_ldr.py`, `absorb_remaining_skills.py`, and `absorb_skills.py` (the last is retained in
+    the third-party notice only). **Standalone reusable/manual diagnostics, not wired into
+    automation:** `_build_dep_graph.py`, `analyze_coverage.py`, `audit_all_wiring.py`,
+    `audit_exceptions.py`, `audit_final.py`, `audit_hyperframes.py`, `audit_repo_hygiene.py`,
+    `audit_toprank.py`, `audit_vectorcode.py`, `audit_wiring.py`, `auto_retrain_intent.py`,
+    `baseline_test_results.py`, `build_golden_dataset.py`, `build_seed_dataset.py`,
+    `build_skills_manifest.py`, `calibrate_intent_threshold.py`, `capability_smoke.py`,
+    `capture_frontend.py`, `check_absorption.py`, `check_first_party_imports.py`, `check_soak.py`,
+    and `clean_test_pollution.py`. None of the assigned filenames match pytest's test discovery
+    pattern, so none are pytest-collected tests.
+    **Fixed with proof tests:** database backups are now built in an fsynced temporary SQLite file
+    and atomically published, connections close on failures, pruning parses the timestamp format
+    the script actually creates, and failed deletions are no longer counted as successful;
+    dependency-graph `from package import child` and relative imports now resolve to the child
+    module and stale global index entries are cleared; the exception audit now distinguishes
+    re-raises, genuinely logged handlers, and unlogged real handlers, and its auto-fix emits valid
+    Loguru exception logging; `analyze_coverage.py` uses explicit UTF-8 and handles a zero-statement
+    subtotal; persistent JSON/JSONL writes in the intent retraining/build scripts and skill-manifest
+    builder are atomic; the intent augmentation LLM call now includes session hydration and its
+    all-generation-failed case no longer divides by zero; baseline capture propagates pytest's exit
+    status. The absorption check, five historical audit scripts, vectorcode audit, capability
+    smoke, and soak checker now return nonzero when their own evidence reports failure instead of
+    producing shell-level phantom success. `audit_all_wiring.py` no longer treats an unrelated
+    occurrence of a common symbol name as proof that its defining module is wired.
+    New regression coverage: `tests/test_scripts_batch1_audit.py` (7 tests), all passing; scoped
+    `compileall` and `git diff --check` also pass.
+    **Flagged, not guessed (owner decisions):** `build_seed_dataset.py` contains stale architectural
+    training claims (including old HP/model routing and Ollama-first/cloud-fallback policy) that
+    conflict with current `CLAUDE.md`; regenerating or deleting that training corpus is a model
+    policy decision. `capture_frontend.py` uses `threading.Thread`, conflicting with the repository
+    asyncio-only rule, but replacing its synchronous local HTTP-server/Playwright harness is an
+    architectural change. The unreferenced audit/migration/build scripts above are deletion
+    candidates, but some remain useful manual recovery/diagnostic tools, so no deletion was
+    guessed. Changes and this entry are intentionally left uncommitted for parent review.
+
+91. **Real-import smoke sweep of `core/` and `districts/` RESUMED and COMPLETED (2026-10-06) --**
+    Task A of a user-directed Claude/Codex split (Claude: this sweep; Codex: auditing untouched
+    `vectorcode/src/` directories, see adjacent entries). Picks up item 66, which covered 602 of
+    4,066 modules before a host memory-pressure kill from 24 parallel subprocess workers.
+    **Safety fix that worked:** reran with only 4 ThreadPoolExecutor workers instead of 24 (same
+    subprocess+env-extension approach as item 66). Free memory *increased* over the full run
+    (5.7GB -> 13.3GB) -- no pressure this time. **Full sweep completed: 4,370/4,370 modules
+    checked** (count grew slightly from item 66's 4,066 estimate -- the codebase grew since then).
+    **~1,452 raw failures, almost entirely concentrated in 4 large clusters, not spread thin:**
+    1. **`districts/investment/alpha_zoo/` -- REAL BUG, FIXED (commit `df07e9230`):** 442 of 465
+       vendored quant-factor files (`academic/`, `alpha101/`, `gtja191/`, `qlib158/`) imported
+       their shared helpers as `from src.factors.X import ...` -- the upstream package's own
+       internal path, never rewritten when vendored into `.../alpha_zoo/factors/`. Confirmed live
+       impact: `AlphaZooLoader.load_factor()` (called from `districts/investment/stock_analyst.py`)
+       execs each factor file standalone via `importlib.util.spec_from_file_location` with zero
+       package context, so not even a relative import would have resolved -- every factor except
+       a handful raised `ModuleNotFoundError` the instant it was loaded. Mechanical, deterministic
+       fix across all 442 files (`src.factors` -> `districts.investment.alpha_zoo.factors`), with
+       `src.tools.alpha_bench_tool` (a genuinely-never-vendored file, already try/except-guarded)
+       correctly left alone. 9 new tests (`tests/test_alpha_zoo_factor_import_path.py`), confirmed
+       failing pre-fix via `git stash` (442 stale-import hits exactly).
+    2. **`districts/intelligence/shadowbroker_server/` -- NOT A BUG, sweep methodology artifact
+       (262 raw failures, `No module named 'services'`/`'exchange_client'` etc.):** confirmed via
+       `core/api/routers/sb.py`'s own docstring ("single-origin gateway to shadowbroker_server...
+       the dashboard talks to `districts/intelligence/shadowbroker_server/main.py`" over plain
+       HTTP) and `districts/intelligence/vectorintel_agent.py`'s own setup instructions
+       (`cd districts/intelligence/shadowbroker_server && PORT=8002 python main.py`) that this is
+       a self-contained sibling FastAPI server, run as its own process with its own CWD on
+       `sys.path` -- never imported as a dotted submodule of the main VECTOR package. Verified
+       directly: `cd districts/intelligence/shadowbroker_server && python -c "import services"`
+       succeeds with zero error. The sweep's "import everything via `core.`/`districts.`-prefixed
+       dotted path from repo root" methodology is simply the wrong invocation model for this one
+       subsystem. Not a bug, not fixed.
+    3. **`districts/investment/vector_finagent/.../strategies/` -- NOT A BUG, needs a live host
+       runtime (404 raw failures, `No module named 'AlgorithmImports'`):** these are QuantConnect
+       LEAN engine regression-test algorithm files (naming convention `*RegressionAlgorithm.py`
+       matches LEAN's own test suite exactly). `AlgorithmImports` is a module LEAN's own C#/Python
+       bridge synthesizes at runtime inside its proprietary engine -- it does not exist, and
+       cannot be made to exist, as an importable package outside that engine. Not fixable, not a
+       bug, not fixed.
+    4. **`core/research_engine/web/*` (and `followup_research/`, `exporters/pdf_exporter.py`, etc.)
+       -- NOT A BUG, vendored-but-never-ported subtree (~68 raw failures, `No module named
+       'services'`/`'limiter'`/`'auth'`/`'dependencies'`):** `core/research_engine/web/` contains
+       only `__init__.py` + `models/` -- the upstream project's own FastAPI web-server layer
+       (`services/`, `auth/`, `limiter`, `dependencies`) was never vendored in at all. Confirmed
+       zero real-world impact: grepped all 5 external callers of `core.research_engine` (
+       `core/city/governor.py`, `core/loop/autonomous_loop.py`, `core/memory/episodic.py`,
+       `districts/research/deep_researcher.py`, `districts/research/research_api.py`) and verified
+       they only ever import `auto_research_agent`, `api/settings_utils`, `api/research_functions`,
+       `database/sqlcipher_utils` -- all 4 of which import cleanly. `research_api.py` itself
+       documents "Districts never import from core.research_engine directly." Dead vendored code
+       from VECTOR's perspective; matches this tree's explicit "wiring-check only" policy scope.
+       Not fixed.
+    **Sweep-methodology false positives, corrected (not real bugs):** 21 modules whose path
+    contains a leading-digit segment (Alembic migration files like `0001_initial_schema.py`,
+    loaded via `importlib.util.spec_from_file_location` in production, never a literal `import`
+    statement) or a hyphenated directory segment (several `vectorcode/src/*` skill script paths)
+    produced `SyntaxError: invalid decimal literal`/`invalid syntax` only because my sweep's
+    literal `import <dotted.path>` statement text cannot express a non-identifier path segment --
+    `importlib.import_module()` (the string-based API) imports every one of these cleanly,
+    confirmed by direct spot-check. A broader automated re-verification pass of all ~1,446 other
+    failures via in-process `importlib.import_module()` was attempted to catch any further such
+    false positives, but silently died partway through (no traceback, no results file) --
+    almost certainly a vendored module calling `sys.exit()` on a missing optional dependency
+    rather than raising a catchable exception, which only breaks something when run in-process
+    (my original subprocess-isolated sweep was immune to this; the in-process re-verify was not).
+    This was NOT pinned to an exact file/module before aborting the re-verify attempt -- flagged
+    as a secondary finding for a future session with proper per-module subprocess isolation.
+    **Flagged for owner decision, not fixed (same bug shape as the fixed alpha_zoo case, but no
+    safe narrow fix available):** `districts/investment/vector_finagent/Analytics/` (and several
+    sibling subpackages, ~41+ files) do `from config import MarketData` (and `AssetParameters`,
+    `AssetClass`, etc.) as a bare top-level absolute import, which resolves to the WRONG `config`
+    package -- `vectorcode/src/config/__init__.py` (no `MarketData` there) -- rather than whatever
+    local `config` module the vendored finagent package originally shipped with. Unlike
+    alpha_zoo's case, `vector_finagent/` has no top-level `config.py`/`config/` to redirect to
+    (only unrelated nested ones under `agno_trading/config` and `alpha_arena/config`) -- the real
+    target was apparently never vendored in at all (same "incomplete port" shape as
+    `core/mining/_docker.py`, item 66). `finagent_agent.py` (the one confirmed real caller, via
+    `core/config.py` and `districts/investment/finagent_agent.py`) only reaches a narrow set of
+    entry points (`terminal_launcher`, `agents.finagent_core.core_agent`, a `PROVIDERS` dict of
+    backtesting-library adapters) -- whether those specific entry points are themselves affected
+    was not individually re-checked this round; a follow-up should verify that narrower blast
+    radius before deciding whether this needs fixing at all.
+    **NOT individually triaged this round** (time-boxed; smaller long-tail failures, mostly
+    recognizable optional-dependency names suggesting category-b "expected," but not confirmed
+    file-by-file): `textual`(5), `elasticsearch`(2), `pdfplumber`(1), `seaborn`(21), `functime`(5),
+    `finrl.agents`(4), `pmdarima`(4), `flask_limiter`(1), a `playwright_stealth.stealth_sync`
+    ImportError(1), an `alembic.context` AttributeError(1), a `DomainClassification` partial-
+    circular-import ImportError(1), `migrate_bundled_configs`(8), `fincept_strategy_runner`(6),
+    a `FinceptAnalyticsError` NameError(6), `open_mythos`(7), `ccxt`(17) -- these overlap
+    partially with the shadowbroker_server/vector_finagent clusters above (same false-positive
+    shape likely applies to several) but were not individually confirmed one-by-one.
+    **Commit status:** `df07e9230` (alpha_zoo fix + test, self-committed -- this fork, unlike the
+    parallel Codex Task B, can write `.git/index.lock` directly). A results checkpoint (every one
+    of the 4,370 modules checked, with its exact error text) is left at
+    `.smoke_sweep_results.json` in the repo root (untracked -- not committed) for a follow-up
+    session to resume the un-triaged long tail without re-running the full sweep. This OPEN_ISSUES
+    entry is intentionally left uncommitted for the parent session to review and commit, per
+    instruction.
