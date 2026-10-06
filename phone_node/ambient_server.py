@@ -18,6 +18,7 @@ from loguru import logger
 import os
 import sys
 import json
+import hmac
 import time
 import threading
 import datetime
@@ -72,7 +73,7 @@ def _parse_env(text: str) -> dict[str, str]:
 def _load_cfg() -> dict[str, str]:
     if _CFG_PATH.exists():
         try:
-            return _parse_env(_CFG_PATH.read_text())
+            return _parse_env(_CFG_PATH.read_text(encoding="utf-8"))
         except Exception:
             return {}
     return {}
@@ -167,7 +168,7 @@ def _auth_ok(header_value: str | None) -> bool:
     """Local mutating endpoints require bearer auth when VECTOR_API_KEY is set."""
     if not API_KEY:
         return True
-    return header_value == f"Bearer {API_KEY}"
+    return hmac.compare_digest(header_value or "", f"Bearer {API_KEY}")
 
 
 def _classify_remote(text: str) -> str:

@@ -91,6 +91,8 @@ class QuotaBoard:
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as handle:
                 json.dump(data, handle, indent=2)
+                handle.flush()
+                os.fsync(handle.fileno())
             Path(temp).replace(self.path)
         except Exception:
             Path(temp).unlink(missing_ok=True)

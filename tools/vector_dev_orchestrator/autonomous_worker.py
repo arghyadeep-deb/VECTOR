@@ -395,18 +395,34 @@ class AutonomousWorker:
 
     # daily counter
     def _count_today(self) -> int:
+        if not self.counter_path.exists():
+            return 0
         try:
             state = json.loads(self.counter_path.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            return 0
+        except (OSError, ValueError, TypeError, KeyError) as exc:
+            raise RuntimeError(
+                f"Worker counter state is corrupt: {self.counter_path}"
+            ) from exc
 
         return int(state["count"]) if state.get("date") == self.today_fn() else 0
 
     def _bump_today(self) -> None:
-        self.counter_path.write_text(
-            json.dumps({"date": self.today_fn(), "count": self._count_today() + 1}),
-            encoding="utf-8",
+        fd, temp_name = tempfile.mkstemp(
+            prefix="worker_state.", suffix=".tmp", dir=self.state_dir, text=True
         )
+        temporary_path = Path(temp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {"date": self.today_fn(), "count": self._count_today() + 1},
+                    handle,
+                )
+                handle.flush()
+                os.fsync(handle.fileno())
+            temporary_path.replace(self.counter_path)
+        except Exception:
+            temporary_path.unlink(missing_ok=True)
+            raise
 
     # lock
     def _acquire_lock(self) -> bool:
@@ -462,7 +478,11 @@ class AutonomousWorker:
                     item.item_id,
                 )
 
-            limit = max_tasks or self.config.max_tasks_per_run
+            limit = (
+                max_tasks
+                if max_tasks is not None
+                else self.config.max_tasks_per_run
+            )
             failures = 0
 
             if self.config.refresh_quota_telemetry:

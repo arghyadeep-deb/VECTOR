@@ -37,6 +37,7 @@ NEGATION_RESET_WORDS: tuple[str, ...] = (
 )
 
 _SENTENCE_SPLIT_RE = re.compile(r"[.!?;]+")
+_STATE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 
 
 def norm_repo_path(path: str) -> str:
@@ -52,6 +53,16 @@ def norm_repo_path(path: str) -> str:
         text = text[2:]
 
     return text
+
+
+def safe_state_id(value: str, *, field: str) -> str:
+    """Validate an identifier before using it as a state-file name."""
+
+    if not isinstance(value, str) or not _STATE_ID_RE.fullmatch(value):
+        raise ValueError(f"{field} must be a plain state identifier")
+    if value in {".", ".."}:
+        raise ValueError(f"{field} must not be a relative path component")
+    return value
 
 
 def normalize(text: str) -> str:

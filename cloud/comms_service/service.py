@@ -122,7 +122,7 @@ async def send_message(payload: dict, _auth: bool = Depends(require_auth)):
                 _vc_bridge.send_message, platform, to, message
             )
             return {
-                "ok": True,
+                "ok": bool(bridge_result),
                 "platform": platform,
                 "delivered_at": datetime.datetime.now().isoformat(),
                 "via": "vc_bridge",

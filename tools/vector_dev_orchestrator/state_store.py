@@ -23,6 +23,7 @@ from models import (
     TaskStatus,
     TestResult,
 )
+from text_signals import safe_state_id
 
 
 class StateStore:
@@ -34,7 +35,7 @@ class StateStore:
         self.tasks_dir.mkdir(parents=True, exist_ok=True)
 
     def _task_path(self, task_id: str) -> Path:
-        return self.tasks_dir / f"{task_id}.json"
+        return self.tasks_dir / f"{safe_state_id(task_id, field='task_id')}.json"
 
     def save(self, task: DevTask) -> Path:
         path = self._task_path(task.task_id)

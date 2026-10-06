@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from pathlib import Path
 
 from approval import ApprovalPolicy
@@ -98,29 +99,23 @@ class DevOrchestrator:
     ) -> None:
         """Atomically persist the most recently assigned owner."""
 
-        temporary_path = (
-            self.scheduler_state_path.with_suffix(
-                ".json.tmp"
-            )
-        )
-
         payload = {
             "last_owner": owner.value,
         }
-
-        temporary_path.write_text(
-            json.dumps(
-                payload,
-                indent=2,
-                sort_keys=True,
-            )
-            + "\n",
-            encoding="utf-8",
+        fd, temp_name = tempfile.mkstemp(
+            prefix="scheduler.", suffix=".tmp", dir=self.state_root, text=True
         )
-
-        temporary_path.replace(
-            self.scheduler_state_path
-        )
+        temporary_path = Path(temp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            temporary_path.replace(self.scheduler_state_path)
+        except Exception:
+            temporary_path.unlink(missing_ok=True)
+            raise
 
     def prepare_task(
         self,

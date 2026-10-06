@@ -41,9 +41,13 @@ def _check_compile() -> None:
     errors: list[str] = []
     for path in _iter_runtime_py():
         try:
-            compile(path.read_text(encoding="utf-8-sig", errors="ignore"), str(path), "exec")
+            compile(path.read_text(encoding="utf-8-sig"), str(path), "exec")
         except SyntaxError as exc:
             errors.append(f"{path.relative_to(ROOT)}:{exc.lineno}: {exc.msg}")
+        except UnicodeDecodeError as exc:
+            errors.append(
+                f"{path.relative_to(ROOT)}: invalid UTF-8 source at byte {exc.start}"
+            )
     if errors:
         raise SystemExit("Syntax errors:\n" + "\n".join(errors[:50]))
 
@@ -52,8 +56,8 @@ def _check_no_runtime_silent_swallows() -> None:
     hits: list[str] = []
     for path in _iter_runtime_py():
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8-sig", errors="ignore"), filename=str(path))
-        except SyntaxError:
+            tree = ast.parse(path.read_text(encoding="utf-8-sig"), filename=str(path))
+        except (SyntaxError, UnicodeDecodeError):
             continue
         for node in ast.walk(tree):
             if (

@@ -65,6 +65,7 @@ from planner import (
     WorkPackage,
     fingerprint_text,
 )
+from text_signals import safe_state_id
 
 # program statuses
 ACTIVE = "active"
@@ -233,10 +234,10 @@ class Supervisor:
     # --- persistence ---------------------------------------------------
 
     def _path(self, program_id: str) -> Path:
-        return self.dir / f"{program_id}.json"
+        return self.dir / f"{safe_state_id(program_id, field='program_id')}.json"
 
     def _control_path(self, program_id: str) -> Path:
-        return self.dir / f"{program_id}.control"
+        return self.dir / f"{safe_state_id(program_id, field='program_id')}.control"
 
     def save(self, program: Program) -> None:
         program.updated_at = _iso()

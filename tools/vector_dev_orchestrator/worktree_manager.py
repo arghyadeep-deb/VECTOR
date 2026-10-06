@@ -76,6 +76,7 @@ class WorktreeManager:
                 "add",
                 "-b",
                 branch_name,
+                "--",
                 str(path),
                 base_ref,
             ]

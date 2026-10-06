@@ -91,8 +91,18 @@ async def send_alert(title: str, content: str) -> bool:
 
 def setup_port_forward() -> bool:
     """Forward phone's ambient server port to localhost (call once on connect)."""
-    out = _adb("forward", f"tcp:{_PHONE_PORT}", f"tcp:{_PHONE_PORT}")
-    ok = out.strip() != "" or True  # adb forward returns port number on success
+    cmd = [_ADB_PATH]
+    if _DEVICE_ID:
+        cmd += ["-s", _DEVICE_ID]
+    cmd += ["forward", f"tcp:{_PHONE_PORT}", f"tcp:{_PHONE_PORT}"]
+    try:
+        completed = subprocess.run(
+            cmd, timeout=10, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, check=False,
+        )
+        ok = completed.returncode == 0
+    except (OSError, subprocess.SubprocessError):
+        ok = False
     logger.info(f"[VECTOR][adb] port forward :{_PHONE_PORT} → {ok}")
     return ok
 
@@ -108,8 +118,11 @@ def take_screenshot(save_path: Path | None = None) -> Path | None:
         _adb("shell", "screencap", "-p", "/sdcard/vector_cap.png")
         _adb("pull", "/sdcard/vector_cap.png", str(dest))
         _adb("shell", "rm", "/sdcard/vector_cap.png")
-        logger.info(f"[VECTOR][adb] screenshot saved: {dest}")
-        return dest
+        if dest.is_file() and dest.stat().st_size > 0:
+            logger.info(f"[VECTOR][adb] screenshot saved: {dest}")
+            return dest
+        logger.warning(f"[VECTOR][adb] screenshot pull produced no file: {dest}")
+        return None
     except Exception as e:
         logger.warning(f"[VECTOR][adb] screenshot failed: {e}")
         return None
