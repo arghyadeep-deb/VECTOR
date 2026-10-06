@@ -18,7 +18,7 @@ try:
     import defusedxml.ElementTree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional
@@ -91,6 +91,20 @@ def _parse_pub_date(date_str: str) -> Optional[datetime]:
     except (ValueError, TypeError):
         return None
 
+def _is_before(dt: datetime, cutoff: datetime) -> bool:
+    """Compare two datetimes as real instants, never naive-vs-aware.
+
+    parsedate_to_datetime() returns a timezone-aware datetime, while a
+    checkpoint-derived since= (e.g. from SyncEngine) is also aware -- mixing
+    an aware value with a naively-stripped one raises TypeError. Normalize
+    both sides to aware UTC before comparing instead.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.replace(tzinfo=timezone.utc)
+    return dt < cutoff
+
 @ConnectorRegistry.register("news_rss")
 class NewsRSSConnector(BaseConnector):
     """Aggregate headlines from configured RSS/Atom feeds."""
@@ -125,43 +139,54 @@ class NewsRSSConnector(BaseConnector):
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None
     ) -> Iterator[Document]:
         """Yield Documents for recent items across all configured feeds."""
-        feeds = self._load_config()
+        try:
+            feeds = self._load_config()
 
-        for feed in feeds:
-            feed_name = feed.get("name", "Unknown Feed")
-            feed_url = feed.get("url", "")
-            if not feed_url:
-                continue
-
-            try:
-                xml_text = _fetch_feed(feed_url)
-            except httpx.HTTPError:
-                continue
-
-            items = _parse_rss_items(xml_text)
-            for item in items:
-                pub_dt = _parse_pub_date(item["pubDate"])
-
-                # Filter by since if the date is parseable
-                if since and pub_dt and pub_dt.replace(tzinfo=None) < since:
+            for feed in feeds:
+                feed_name = feed.get("name", "Unknown Feed")
+                feed_url = feed.get("url", "")
+                if not feed_url:
                     continue
 
-                title = item["title"] or "Untitled"
-                doc_id = f"rss-{feed_name}-{title[:40]}"
+                try:
+                    xml_text = _fetch_feed(feed_url)
+                except httpx.HTTPError:
+                    continue
 
-                yield Document(
-                    doc_id=doc_id,
-                    source="news_rss",
-                    doc_type="article",
-                    content=item["description"],
-                    title=title,
-                    timestamp=pub_dt or datetime.now(),
-                    url=item["link"] or None,
-                    metadata={"feed_name": feed_name},
-                )
+                items = _parse_rss_items(xml_text)
+                for item in items:
+                    pub_dt = _parse_pub_date(item["pubDate"])
 
-        self._status.state = "idle"
-        self._status.last_sync = datetime.now()
+                    # Filter by since if the date is parseable
+                    if since and pub_dt and _is_before(pub_dt, since):
+                        continue
+
+                    title = item["title"] or "Untitled"
+                    doc_id = f"rss-{feed_name}-{title[:40]}"
+
+                    yield Document(
+                        doc_id=doc_id,
+                        source="news_rss",
+                        doc_type="article",
+                        content=item["description"],
+                        title=title,
+                        timestamp=pub_dt or datetime.now(),
+                        url=item["link"] or None,
+                        metadata={"feed_name": feed_name},
+                    )
+
+            self._status.state = "idle"
+            self._status.last_sync = datetime.now()
+            self._status.error = None
+        except Exception as exc:
+            # self._status.state defaults to "idle" -- the same value a
+            # successful sync ends on -- so without this, a failed sync
+            # (malformed config JSON, an unexpected parse error) is
+            # indistinguishable from "nothing synced yet" to any caller
+            # polling sync_status().
+            self._status.state = "error"
+            self._status.error = str(exc)
+            raise
 
     def sync_status(self) -> SyncStatus:
         return self._status
