@@ -12,15 +12,24 @@ for _vstream in (_vsys.stdout, _vsys.stderr):
 from pathlib import Path
 import json
 import hashlib
+import os
 import platform
 import base64
 import getpass
 import datetime
+import tempfile
 from dataclasses import dataclass, asdict
 from typing import Optional
 
 
 from loguru import logger
+
+
+class CredentialStoreCorruptedError(Exception):
+    """~/.vector/credentials.json exists but could not be parsed (corrupted
+    or malformed JSON). Distinct from "file doesn't exist" -- add()/remove()
+    would otherwise silently treat a corrupted store as empty and overwrite
+    it, destroying every other stored credential's metadata."""
 
 @dataclass
 class CredentialEntry:
@@ -150,29 +159,48 @@ class AuthManager:
     # ── Internal storage helpers ─────────────────────────────────
 
     def _load_file_store(self) -> dict:
-        """Load credentials from the file fallback store."""
+        """Load credentials from the file fallback store.
+
+        Raises CredentialStoreCorruptedError if the file exists but isn't
+        valid JSON -- returning {} here would make add()/remove() silently
+        overwrite a corrupted store with "no credentials", destroying
+        every other stored credential's metadata on the very next write.
+        """
         if not self.STORAGE_PATH.exists():
             return {}
         try:
             raw = json.loads(self.STORAGE_PATH.read_text(encoding="utf-8"))
-            return raw if isinstance(raw, dict) else {}
         except Exception as e:
-            logger.warning(f"[VECTOR][auth] Could not read credentials file: {e}")
-            return {}
+            raise CredentialStoreCorruptedError(
+                f"{self.STORAGE_PATH} exists but could not be parsed: {e}. "
+                "Refusing to treat this as an empty credential store to "
+                "avoid overwriting existing entries."
+            ) from e
+        return raw if isinstance(raw, dict) else {}
 
     def _save_file_store(self, store: dict) -> None:
-        """Persist credentials to file fallback store."""
+        """Durably replace the file fallback store with restricted permissions."""
         self.STORAGE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        self.STORAGE_PATH.write_text(
-            json.dumps(store, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(self.STORAGE_PATH.parent),
+            prefix=f".{self.STORAGE_PATH.name}.",
+            suffix=".tmp",
         )
-        # Restrict permissions on POSIX — best-effort on Windows
+        tmp_path = Path(tmp_name)
         try:
-            import stat
-            self.STORAGE_PATH.chmod(stat.S_IRUSR | stat.S_IWUSR)
-        except Exception as _sve:
-            logger.debug("[VECTOR][cli.auth] suppressed Exception: {}", _sve)
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(store, handle, indent=2, ensure_ascii=False)
+                handle.flush()
+                os.fsync(handle.fileno())
+            try:
+                import stat
+                os.chmod(tmp_path, stat.S_IRUSR | stat.S_IWUSR)
+            except Exception as _sve:
+                logger.debug("[VECTOR][cli.auth] suppressed Exception: {}", _sve)
+            os.replace(tmp_path, self.STORAGE_PATH)
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
 
     # ── Public API ───────────────────────────────────────────────
 
@@ -384,6 +412,14 @@ def _print_credentials_table(entries: list[CredentialEntry]) -> None:
 
 def handle_auth(args) -> None:
     """Dispatch auth subcommands from argparse args."""
+    try:
+        _handle_auth(args)
+    except CredentialStoreCorruptedError as e:
+        print(f"[VECTOR] {e}")
+        print(f"[VECTOR] Inspect or restore {AuthManager.STORAGE_PATH} manually before retrying.")
+
+
+def _handle_auth(args) -> None:
     mgr = get_auth_manager()
     action = getattr(args, "auth_action", None)
 
