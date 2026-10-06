@@ -144,10 +144,20 @@ def chat(
 
     _notifications = NotificationDispatcher(get_status())
 
-    # Conversation state
-    history: List[Message] = []
-    if system_prompt:
-        history.append(Message(role=Role.SYSTEM, content=system_prompt))
+    # Conversation state. Rule 1 (CLAUDE.md): session_hydration_prompt()
+    # before EVERY LLM call -- no exceptions. This REPL sends the full
+    # `history` list to engine.generate()/agent.run() on every turn, so
+    # seeding it once here covers every subsequent call too.
+    from core.loop.context_engine import ContextEngine
+
+    def _fresh_history() -> List[Message]:
+        hydration = ContextEngine().session_hydration_prompt({"query": ""})
+        seeded = [Message(role=Role.SYSTEM, content=hydration)]
+        if system_prompt:
+            seeded.append(Message(role=Role.SYSTEM, content=system_prompt))
+        return seeded
+
+    history: List[Message] = _fresh_history()
 
     # REPL loop
     while True:
@@ -169,9 +179,7 @@ def chat(
             console.print("[dim]Goodbye![/dim]")
             break
         elif cmd == "/clear":
-            history = []
-            if system_prompt:
-                history.append(Message(role=Role.SYSTEM, content=system_prompt))
+            history = _fresh_history()
             console.print("[dim]History cleared.[/dim]")
             continue
         elif cmd == "/model":
