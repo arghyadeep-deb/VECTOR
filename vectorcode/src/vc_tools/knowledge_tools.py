@@ -193,10 +193,17 @@ class KGQueryTool(BaseTool):
                 content="No knowledge graph backend available.",
                 success=False,
             )
+        limit = params.get("limit", 50)
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+            return ToolResult(
+                tool_name="kg_query",
+                content="limit must be an integer between 1 and 1000.",
+                success=False,
+            )
         result = self._backend.query_pattern(
             entity_type=params.get("entity_type"),
             relation_type=params.get("relation_type"),
-            limit=params.get("limit", 50),
+            limit=limit,
         )
         output = {
             "entities": [
@@ -271,11 +278,25 @@ class KGNeighborsTool(BaseTool):
                 content="No knowledge graph backend available.",
                 success=False,
             )
+        direction = params.get("direction", "both")
+        if direction not in {"in", "out", "both"}:
+            return ToolResult(
+                tool_name="kg_neighbors",
+                content="direction must be 'in', 'out', or 'both'.",
+                success=False,
+            )
+        limit = params.get("limit", 50)
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+            return ToolResult(
+                tool_name="kg_neighbors",
+                content="limit must be an integer between 1 and 1000.",
+                success=False,
+            )
         neighbors = self._backend.neighbors(
             params["entity_id"],
             relation_type=params.get("relation_type"),
-            direction=params.get("direction", "both"),
-            limit=params.get("limit", 50),
+            direction=direction,
+            limit=limit,
         )
         output = [
             {

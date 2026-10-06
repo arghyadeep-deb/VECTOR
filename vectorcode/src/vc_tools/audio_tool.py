@@ -69,12 +69,36 @@ class AudioTranscribeTool(BaseTool):
 
         path = Path(file_path)
 
-        if not path.exists():
+        # OWNER DECISION: this tool has no configured allowed-root policy, so
+        # any non-sensitive audio file readable by the process can be uploaded
+        # to the selected provider. Align its root confinement with the open
+        # file_read/file_write policy decision rather than inventing a new root.
+        try:
+            resolved_path = path.resolve(strict=True)
+        except OSError as exc:
+            return ToolResult(
+                tool_name="audio_transcribe",
+                content=f"Cannot resolve file: {exc}",
+                success=False,
+            )
+
+        if not resolved_path.is_file():
             return ToolResult(
                 tool_name="audio_transcribe",
                 content=f"File not found: {file_path}",
                 success=False,
             )
+
+        from vectorcode.src.vc_security.file_policy import is_sensitive_file
+
+        if is_sensitive_file(str(path)) or is_sensitive_file(str(resolved_path)):
+            return ToolResult(
+                tool_name="audio_transcribe",
+                content="Access denied: sensitive files cannot be transcribed.",
+                success=False,
+            )
+
+        path = resolved_path
 
         # Validate format
         suffix = path.suffix.lower()
@@ -127,6 +151,9 @@ class AudioTranscribeTool(BaseTool):
                 success=False,
             )
 
+        # OWNER DECISION: direct OpenAI Whisper billing conflicts with VECTOR's
+        # free-tier-only runtime rule. Decide whether to disable this legacy
+        # provider or route transcription through the approved local/free stack.
         # OpenAI Whisper provider
         try:
             import openai
@@ -153,7 +180,7 @@ class AudioTranscribeTool(BaseTool):
             if language:
                 kwargs["language"] = language
 
-            with open(file_path, "rb") as f:
+            with path.open("rb") as f:
                 kwargs["file"] = f
                 transcription = client.audio.transcriptions.create(**kwargs)
 

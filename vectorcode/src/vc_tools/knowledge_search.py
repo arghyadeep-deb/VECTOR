@@ -113,7 +113,16 @@ class KnowledgeSearchTool(BaseTool):
                 success=False,
             )
 
-        top_k: int = int(params.get("top_k", 10))
+        try:
+            top_k = int(params.get("top_k", 10))
+        except (TypeError, ValueError):
+            top_k = 0
+        if top_k < 1 or top_k > 100:
+            return ToolResult(
+                tool_name="knowledge_search",
+                content="top_k must be an integer between 1 and 100.",
+                success=False,
+            )
         source: Optional[str] = params.get("source")
         doc_type: Optional[str] = params.get("doc_type")
         author: Optional[str] = params.get("author")

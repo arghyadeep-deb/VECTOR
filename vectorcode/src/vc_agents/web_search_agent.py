@@ -7,7 +7,7 @@ districts can call. Falls back to DuckDuckGo if no provider is configured.
 """
 from __future__ import annotations
 
-import time
+from urllib.parse import urljoin
 
 
 try:
@@ -68,6 +68,7 @@ class WebSearchAgent:
                 timeout=10.0,
                 headers={"User-Agent": "VECTOR/1.0"},
             )
+            resp.raise_for_status()
             data = resp.json()
             results = []
             for item in data.get("RelatedTopics", [])[:max_results]:
@@ -99,12 +100,38 @@ class WebSearchAgent:
         # Fallback: raw httpx fetch
         if httpx:
             try:
-                resp = httpx.get(url, timeout=10.0, follow_redirects=True,
-                                  headers={"User-Agent": "VECTOR/1.0"})
+                resp = self._safe_get(url)
                 return {"url": url, "content": resp.text[:5000], "title": url}
             except Exception as e:
                 logger.warning("[VECTOR][vc_web_search] extract fallback failed: {}", e)
         return {"url": url, "content": "", "error": "extraction failed"}
+
+    @staticmethod
+    def _safe_get(url: str, max_redirects: int = 5):
+        """Fetch a public HTTP(S) URL, rechecking every redirect for SSRF."""
+        from core.security.ssrf_guard import get_ssrf_guard
+
+        current_url = url
+        guard = get_ssrf_guard()
+        for _ in range(max_redirects + 1):
+            check = guard.check_url(current_url)
+            if not check.safe:
+                raise ValueError(f"SSRF blocked: {check.reason}")
+            response = httpx.get(
+                current_url,
+                timeout=10.0,
+                follow_redirects=False,
+                headers={"User-Agent": "VECTOR/1.0"},
+            )
+            if response.is_redirect:
+                location = response.headers.get("location")
+                if not location:
+                    response.raise_for_status()
+                current_url = urljoin(current_url, location)
+                continue
+            response.raise_for_status()
+            return response
+        raise ValueError(f"Too many redirects (max {max_redirects})")
 
 
 if __name__ == "__main__":

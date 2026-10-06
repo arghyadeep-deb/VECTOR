@@ -8,6 +8,8 @@
 from __future__ import annotations
 
 import os
+import tempfile
+from pathlib import Path
 from typing import Any
 
 from vectorcode.src.vc_core.registry import ToolRegistry
@@ -56,7 +58,7 @@ class ImageGenerateTool(BaseTool):
                 "required": ["prompt"],
             },
             category="media",
-            required_capabilities=["network:fetch"],
+            required_capabilities=["network:fetch", "file:write"],
         )
 
     def execute(self, **params: Any) -> ToolResult:
@@ -81,6 +83,20 @@ class ImageGenerateTool(BaseTool):
 
         provider = params.get("provider", "openai")
         output_path = params.get("output_path")
+        output: Path | None = None
+        if output_path:
+            # OWNER DECISION: output paths have no configured allowed-root
+            # policy. Align this with file_write's open confinement decision;
+            # do not silently choose a root that may break legitimate callers.
+            output = Path(output_path).resolve()
+            from vectorcode.src.vc_security.file_policy import is_sensitive_file
+
+            if is_sensitive_file(str(output)):
+                return ToolResult(
+                    tool_name="image_generate",
+                    content="Access denied: cannot write to a sensitive file.",
+                    success=False,
+                )
 
         if provider != "openai":
             return ToolResult(
@@ -91,6 +107,9 @@ class ImageGenerateTool(BaseTool):
                 success=False,
             )
 
+        # OWNER DECISION: direct DALL-E billing conflicts with VECTOR's
+        # free-tier-only runtime rule. Decide whether to disable this legacy
+        # provider or route generation through the approved provider stack.
         try:
             import openai
         except ImportError:
@@ -133,9 +152,30 @@ class ImageGenerateTool(BaseTool):
 
                 resp = httpx.get(url, follow_redirects=True, timeout=60.0)
                 resp.raise_for_status()
-                from pathlib import Path
-
-                Path(output_path).write_bytes(resp.content)
+                if output is None:  # pragma: no cover - guarded by output_path
+                    raise ValueError("No output path")
+                output.parent.mkdir(parents=False, exist_ok=True)
+                temp_path: str | None = None
+                try:
+                    with tempfile.NamedTemporaryFile(
+                        mode="wb",
+                        dir=output.parent,
+                        prefix=f".{output.name}.",
+                        suffix=".tmp",
+                        delete=False,
+                    ) as temp_file:
+                        temp_path = temp_file.name
+                        temp_file.write(resp.content)
+                        temp_file.flush()
+                        os.fsync(temp_file.fileno())
+                    os.replace(temp_path, output)
+                    temp_path = None
+                finally:
+                    if temp_path is not None:
+                        try:
+                            os.unlink(temp_path)
+                        except FileNotFoundError:
+                            pass
             except Exception as exc:
                 return ToolResult(
                     tool_name="image_generate",

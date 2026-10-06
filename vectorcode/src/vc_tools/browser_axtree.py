@@ -58,6 +58,12 @@ class BrowserAXTreeTool(BaseTool):
 
     def execute(self, **params: Any) -> ToolResult:
         max_depth = params.get("max_depth", 10)
+        if isinstance(max_depth, bool) or not isinstance(max_depth, int) or max_depth < 1:
+            return ToolResult(
+                tool_name="browser_axtree",
+                content="max_depth must be a positive integer.",
+                success=False,
+            )
 
         try:
             page = _session.page  # type: ignore[union-attr]

@@ -17,6 +17,8 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
+from loguru import logger
+
 from vectorcode.src.channels._abc import BaseChannel, ChannelMessage
 
 # ---------------------------------------------------------------------------
@@ -88,6 +90,9 @@ class ChannelAgent:
         *,
         max_workers: int = 2,
     ) -> None:
+        # OWNER DECISION: this fully implemented bridge currently has no
+        # production caller. Decide whether it should be wired into channel
+        # startup or removed; until then its thread-pool lifecycle is dormant.
         self._channel = channel
         self._agent = agent
         self._pool = ThreadPoolExecutor(max_workers=max_workers)
@@ -109,11 +114,13 @@ class ChannelAgent:
 
         try:
             result = self._agent.run(msg.content)
-            response_text: str = getattr(result, "content", str(result))
-        except Exception as exc:  # noqa: BLE001
-            friendly = (
-                f"Sorry, I ran into an error while processing your request: {exc}"
+            content = getattr(result, "content", None)
+            response_text = str(result) if content is None else str(content)
+        except Exception:  # noqa: BLE001
+            logger.opt(exception=True).error(
+                "[VECTOR][vc_agents.channel_agent] agent processing failed"
             )
+            friendly = "Sorry, I ran into an error while processing your request."
             self._channel.send(
                 msg.channel,
                 friendly,

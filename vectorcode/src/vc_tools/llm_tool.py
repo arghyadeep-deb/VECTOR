@@ -75,6 +75,10 @@ class LLMTool(BaseTool):
                 success=False,
             )
         messages = []
+        from core.loop.context_engine import ContextEngine
+
+        hydration = ContextEngine().session_hydration_prompt({"query": prompt})
+        messages.append(Message(role=Role.SYSTEM, content=hydration))
         system = params.get("system")
         if system:
             messages.append(Message(role=Role.SYSTEM, content=system))

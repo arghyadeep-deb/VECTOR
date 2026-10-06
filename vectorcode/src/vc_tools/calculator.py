@@ -98,20 +98,21 @@ def safe_eval(expression: str) -> float:
         from vectorcode.src._rust_bridge import get_rust_module
 
         _rust = get_rust_module()
-        return float(_rust.CalculatorTool().execute(expression))
+        if _rust is not None:
+            return float(_rust.CalculatorTool().execute(expression))
     except ImportError:
-        import ast as _ast
+        pass
 
-        # Support ^ as the power operator (common math/calculator notation).
-        expression = expression.replace("^", "**")
-        try:
-            tree = _ast.parse(expression, mode="eval")
-        except SyntaxError as exc:
-            raise ValueError(f"Syntax error in expression: {exc}") from exc
-        try:
-            return float(_safe_eval_node(tree.body))
-        except ZeroDivisionError:
-            return math.inf
+    # Support ^ as the power operator (common math/calculator notation).
+    expression = expression.replace("^", "**")
+    try:
+        tree = ast.parse(expression, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError(f"Syntax error in expression: {exc}") from exc
+    try:
+        return float(_safe_eval_node(tree.body))
+    except ZeroDivisionError:
+        return math.inf
 
 @ToolRegistry.register("calculator")
 class CalculatorTool(BaseTool):
