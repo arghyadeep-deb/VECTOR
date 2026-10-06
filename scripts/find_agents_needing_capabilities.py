@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-ROOT = Path(r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase")
+ROOT = Path(__file__).resolve().parent.parent
 DISTRICTS = ROOT / "districts"
 
 needs_caps = []

@@ -8,6 +8,11 @@ from pathlib import Path
 
 results = []
 
+
+def _audit_exit_code(failures: int) -> int:
+    """Return a failing process status when the audit found any failure."""
+    return 1 if failures else 0
+
 def check(label: str, ok: bool, detail: str = ""):
     status = "PASS" if ok else "FAIL"
     results.append((status, label, detail))
@@ -56,7 +61,7 @@ try:
     from core.coding_assistant.core import agent_loop as al
     tc = getattr(al, 'TelemetryClient', None)
     is_noop = tc is not None and hasattr(tc, '__getattr__') and 'noop' in str(tc).lower()
-    check("Telemetry is intentionally no-op", True,
+    check("Telemetry is intentionally no-op", is_noop,
           "NoopTelemetry — VECTOR never sends telemetry (privacy rule)")
 except Exception as e:
     check("Telemetry no-op", False, str(e)[:60])
@@ -224,3 +229,5 @@ if fails:
     for s, label, detail in results:
         if s == "FAIL":
             print(f"  [{label}]" + (f" — {detail}" if detail else ""))
+
+raise SystemExit(_audit_exit_code(fails))

@@ -14,6 +14,7 @@ mic you actually use, with a little variety — a question, a command, a sentenc
 Re-run any time; it overwrites. Delete the .npz to disable verification.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -24,6 +25,14 @@ import numpy as np
 SR = 16000
 CLIPS = 3
 SECONDS = 10
+
+
+def _confirm_overwrite(path: Path, *, force: bool, input_fn=input) -> bool:
+    """Require explicit consent before replacing an enrolled biometric."""
+    if force or not path.exists():
+        return True
+    answer = input_fn(f"Voiceprint already exists at {path}. Overwrite it? [y/N] ")
+    return answer.strip().lower() in {"y", "yes"}
 
 
 def record_clips() -> list[np.ndarray]:
@@ -58,9 +67,18 @@ def load_clips(paths: list[str]) -> list[np.ndarray]:
 
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8")
-    from core.voice.speaker_verify import get_verifier
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("wav", nargs="*", help="existing WAV clips to enroll")
+    parser.add_argument("--force", action="store_true", help="overwrite an existing voiceprint")
+    args = parser.parse_args()
+
+    from core.voice import speaker_verify
+    if not _confirm_overwrite(speaker_verify._VOICEPRINT, force=args.force):
+        print("Enrollment cancelled; existing voiceprint was not changed.")
+        return 1
+    get_verifier = speaker_verify.get_verifier
     v = get_verifier()
-    clips = load_clips(sys.argv[1:]) if len(sys.argv) > 1 else record_clips()
+    clips = load_clips(args.wav) if args.wav else record_clips()
     result = v.enroll(clips, SR)
     print(f"\n{result}")
     if result.get("status") == "ok":

@@ -16,9 +16,11 @@ Scheduled automatically by the autonomous loop at 2 AM via APScheduler.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sqlite3
 import sys
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -51,22 +53,64 @@ def _find_db_files() -> list[Path]:
 
 
 def _backup_path(db: Path, stamp: str) -> Path:
+    # Preserve the real directory structure under BACKUP_DIR/stamp/ instead
+    # of flattening it into a single "__"-joined filename: flattening let
+    # two distinct source paths collide onto the same backup file whenever
+    # either path segment itself contained "__" (e.g. "a__b/c.db" and
+    # "a/b__c.db" both flattened to "a__b__c.db").
     relative = db.relative_to(_BASE_DIR)
-    safe     = str(relative).replace("/", "__").replace("\\", "__")
-    return BACKUP_DIR / stamp / f"{safe}"
+    return BACKUP_DIR / stamp / relative
 
 
 def _sqlite_backup(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(dst.parent), prefix=f".{dst.name}.", suffix=".tmp")
+    os.close(fd)
+    tmp = Path(tmp_name)
+    src_conn = None
+    dst_conn = None
     try:
         src_conn = sqlite3.connect(str(src))
-        dst_conn = sqlite3.connect(str(dst))
+        dst_conn = sqlite3.connect(str(tmp))
         src_conn.backup(dst_conn)
         dst_conn.close()
+        dst_conn = None
         src_conn.close()
+        src_conn = None
+        with tmp.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(tmp, dst)
     except sqlite3.DatabaseError:
         # Not a valid SQLite file (e.g., corrupt or locked differently) — raw copy
-        shutil.copy2(src, dst)
+        if dst_conn is not None:
+            dst_conn.close()
+            dst_conn = None
+        if src_conn is not None:
+            src_conn.close()
+            src_conn = None
+        tmp.unlink(missing_ok=True)
+        _atomic_copy(src, dst)
+    finally:
+        if dst_conn is not None:
+            dst_conn.close()
+        if src_conn is not None:
+            src_conn.close()
+        tmp.unlink(missing_ok=True)
+
+
+def _atomic_copy(src: Path, dst: Path) -> None:
+    """Copy *src* without exposing a partial destination on interruption."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(dst.parent), prefix=f".{dst.name}.", suffix=".tmp")
+    os.close(fd)
+    tmp = Path(tmp_name)
+    try:
+        shutil.copy2(src, tmp)
+        with tmp.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(tmp, dst)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def run_backup(dry_run: bool = False) -> dict:

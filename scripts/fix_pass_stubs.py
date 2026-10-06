@@ -60,6 +60,15 @@ def _is_pass_only(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     return len(body) == 1 and isinstance(body[0], ast.Pass)
 
 
+def _is_abstract(node: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+    """Only explicit abstract methods are safe to turn into hard failures."""
+    for decorator in node.decorator_list:
+        name = decorator.id if isinstance(decorator, ast.Name) else getattr(decorator, "attr", "")
+        if name == "abstractmethod":
+            return True
+    return False
+
+
 def _fix_file(path: Path, dry_run: bool = True) -> int:
     rel = str(path.relative_to(REPO_ROOT)).replace("\\", "/")
     if rel in SKIP_EXACT_FILES:
@@ -83,6 +92,9 @@ def _fix_file(path: Path, dry_run: bool = True) -> int:
 
         fname = node.name
         if fname in INTENTIONAL_PASS_METHODS:
+            continue
+
+        if fname not in LOG_PASS_METHODS and not _is_abstract(node):
             continue
 
         cls_name = _class_name_at(tree, node.lineno)

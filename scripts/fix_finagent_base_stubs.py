@@ -28,6 +28,14 @@ def _is_pass_only(node):
     return len(body) == 1 and isinstance(body[0], ast.Pass)
 
 
+def _is_abstract(node) -> bool:
+    for decorator in node.decorator_list:
+        name = decorator.id if isinstance(decorator, ast.Name) else getattr(decorator, "attr", "")
+        if name == "abstractmethod":
+            return True
+    return False
+
+
 def fix_file(path: Path, dry_run: bool = True) -> int:
     try:
         src = path.read_text(encoding="utf-8", errors="ignore")
@@ -46,6 +54,8 @@ def fix_file(path: Path, dry_run: bool = True) -> int:
             continue
 
         fname = node.name
+        if fname not in LOG_PASS_METHODS and not _is_abstract(node):
+            continue
         cls_name = _class_name_at(tree, node.lineno)
 
         body = node.body

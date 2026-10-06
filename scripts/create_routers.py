@@ -329,8 +329,8 @@ def build_router(filename, prefix, tag, endpoints):
         else:
             lines.append(f'        return await gov.dispatch({{"type": "{name}", "params": body.model_dump()}})')
         lines.append('    except Exception as e:')
-        lines.append(f'        logger.error("[VECTOR][{tag}] {name} failed: %s", e)')
-        lines.append(f'        raise HTTPException(status_code=500, detail=str(e))')
+        lines.append(f'        logger.error("[VECTOR][{tag}] {name} failed: {{}}", e)')
+        lines.append(f'        raise HTTPException(status_code=500, detail="internal server error")')
         lines.append('')
 
     return '\n'.join(lines)

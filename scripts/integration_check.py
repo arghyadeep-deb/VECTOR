@@ -29,7 +29,9 @@ results = []
 
 def check(label, fn):
     try:
-        fn()
+        outcome = fn()
+        if outcome is False:
+            raise AssertionError("predicate returned False")
         results.append((True, label))
         print(f"  PASS {label}")
     except Exception as e:

@@ -24,8 +24,6 @@ import httpx
 
 VECTOR_BASE = os.environ.get("VECTOR_EVAL_BASE_URL", "http://127.0.0.1:8000")
 API_KEY = os.environ.get("VECTOR_API_KEY", "").strip()
-if not API_KEY:
-    print("ERROR: VECTOR_API_KEY not set"); sys.exit(1)
 
 # The 10 tier 6 queries that returned empty
 QUERIES = [
@@ -41,37 +39,53 @@ QUERIES = [
     ("science", "If I mixed baking soda and vinegar in a sealed bottle, what would happen and why?"),
 ]
 
-headers = {
-    "Authorization": f"Bearer {API_KEY}",
-    "Content-Type": "application/json",
-}
+def _diagnostic_exit_code(verdicts: list[str]) -> int:
+    """A diagnostic gate succeeds only when every query returned content."""
+    return 0 if verdicts and all(v == "OK" for v in verdicts) else 1
 
-print(f"Testing {len(QUERIES)} tier 6 queries against {VECTOR_BASE}/command\n")
 
-for category, query in QUERIES:
-    t0 = time.time()
-    try:
-        with httpx.Client(timeout=120.0) as client:
-            r = client.post(
-                f"{VECTOR_BASE}/command",
-                json={"text": query, "priority": "normal", "source": "tier6_diag"},
-                headers=headers,
-            )
+def main() -> int:
+    if not API_KEY:
+        print("ERROR: VECTOR_API_KEY not set")
+        return 1
+    headers = {
+        "Authorization": f"Bearer {API_KEY}",
+        "Content-Type": "application/json",
+    }
+    verdicts: list[str] = []
+    print(f"Testing {len(QUERIES)} tier 6 queries against {VECTOR_BASE}/command\n")
+
+    for category, query in QUERIES:
+        t0 = time.time()
+        try:
+            with httpx.Client(timeout=120.0) as client:
+                r = client.post(
+                    f"{VECTOR_BASE}/command",
+                    json={"text": query, "priority": "normal", "source": "tier6_diag"},
+                    headers=headers,
+                )
+                latency = round(time.time() - t0, 2)
+                status = r.status_code
+                try:
+                    data = r.json()
+                except Exception:
+                    data = {"raw": r.text[:300]}
+                response = data.get("response", "")
+                district = data.get("district", "")
+                action = data.get("action_taken", "")
+                resp_len = len(response)
+                preview = response[:150].replace("\n", " ") if response else "<EMPTY>"
+                verdict = "OK" if r.is_success and resp_len > 10 else "EMPTY"
+                verdicts.append(verdict)
+                print(f"[{verdict}] {category} | HTTP {status} | {latency}s | district={district} | action={action}")
+                print(f"  ({resp_len} chars) {preview}")
+                print()
+        except Exception as e:
+            verdicts.append("ERROR")
             latency = round(time.time() - t0, 2)
-            status = r.status_code
-            try:
-                data = r.json()
-            except Exception:
-                data = {"raw": r.text[:300]}
-            response = data.get("response", "")
-            district = data.get("district", "")
-            action = data.get("action_taken", "")
-            resp_len = len(response)
-            preview = response[:150].replace("\n", " ") if response else "<EMPTY>"
-            verdict = "OK" if resp_len > 10 else "EMPTY"
-            print(f"[{verdict}] {category} | HTTP {status} | {latency}s | district={district} | action={action}")
-            print(f"  ({resp_len} chars) {preview}")
-            print()
-    except Exception as e:
-        latency = round(time.time() - t0, 2)
-        print(f"[ERROR] {category} | {latency}s | {e}\n")
+            print(f"[ERROR] {category} | {latency}s | {e}\n")
+    return _diagnostic_exit_code(verdicts)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

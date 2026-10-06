@@ -302,7 +302,7 @@ def _judge_via_gemini(prompt: str) -> dict | None:
         with httpx.Client(timeout=20.0) as client:
             r = client.post(
                 f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent",
-                params={"key": GEMINI_API_KEY},
+                headers={"x-goog-api-key": GEMINI_API_KEY},
                 json={"contents": [{"parts": [{"text": prompt}]}]},
             )
             r.raise_for_status()

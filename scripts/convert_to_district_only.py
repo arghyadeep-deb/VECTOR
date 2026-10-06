@@ -33,6 +33,10 @@ def convert_dataset():
 
     logger.info(f"Loaded {len(examples)} examples")
 
+    if not examples:
+        logger.error(f"Input dataset is empty: {input_path}")
+        return False
+
     # Convert to district-only
     district_examples = []
     district_counts = defaultdict(int)
