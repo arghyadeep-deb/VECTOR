@@ -41,6 +41,7 @@ import os
 import re
 import socket
 import sys
+import tempfile
 import threading
 import time
 import webbrowser
@@ -157,14 +158,26 @@ def _read_json(path: Path) -> dict | None:
 
 
 def _write_json(path: Path, data: dict) -> None:
-    """Write a dict as JSON with restricted permissions (0o600)."""
+    """Durably replace a JSON file with restricted permissions (0o600)."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+    )
+    tmp = Path(tmp_name)
     try:
-        tmp.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2, default=str)
+            handle.flush()
+            os.fsync(handle.fileno())
         os.chmod(tmp, 0o600)
-        tmp.rename(path)
-    except OSError:
+        os.replace(tmp, path)
+    except (OSError, TypeError, ValueError):
+        try:
+            os.close(fd)
+        except OSError:
+            pass
         tmp.unlink(missing_ok=True)
         raise
 

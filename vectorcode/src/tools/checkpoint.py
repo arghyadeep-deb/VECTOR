@@ -372,9 +372,10 @@ class CheckpointManager:
             # Pre-rollback snapshot so the restore itself is undoable
             self.create_checkpoint(f"pre-rollback (restoring to {commit_hash[:8]})")
 
-            # Restore
+            # Restore the complete tracked tree. ``checkout <hash> -- .``
+            # leaves files added after the target snapshot behind.
             ok_restore, _, restore_err = _run_git(
-                ["checkout", commit_hash, "--", "."],
+                ["read-tree", "--reset", "-u", commit_hash],
                 self._shadow,
                 self.work_dir,
                 timeout=_GIT_TIMEOUT * 2,

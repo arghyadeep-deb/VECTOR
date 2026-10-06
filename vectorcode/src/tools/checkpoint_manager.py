@@ -491,10 +491,16 @@ class CheckpointManager:
         # Take a checkpoint of current state before restoring (so you can undo the undo)
         self._take(abs_dir, f"pre-rollback snapshot (restoring to {commit_hash[:8]})")
 
-        # Restore — full directory or single file
-        restore_target = file_path if file_path else "."
+        # A whole-tree checkout leaves files added after the target snapshot
+        # behind.  read-tree restores the complete tracked tree; checkout is
+        # retained for the deliberately scoped single-file operation.
+        restore_args = (
+            ["checkout", commit_hash, "--", file_path]
+            if file_path
+            else ["read-tree", "--reset", "-u", commit_hash]
+        )
         ok, stdout, err = _run_git(
-            ["checkout", commit_hash, "--", restore_target],
+            restore_args,
             shadow, abs_dir, timeout=_GIT_TIMEOUT * 2,
         )
 
