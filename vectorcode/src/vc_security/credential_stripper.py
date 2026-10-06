@@ -11,10 +11,27 @@ from typing import List, Tuple
 _CREDENTIAL_PATTERNS: List[Tuple[str, re.Pattern[str]]] = [
     ("api_key", re.compile(r"sk-[a-zA-Z0-9_-]{20,}")),
     ("aws_key", re.compile(r"AKIA[0-9A-Z]{16}")),
-    ("github_token", re.compile(r"ghp_[a-zA-Z0-9]{36}")),
-    ("github_token", re.compile(r"gho_[a-zA-Z0-9]{36}")),
-    ("slack_token", re.compile(r"xoxb-[0-9A-Za-z\-]+")),
+    # Was missing ghs_/ghr_/github_pat_ -- scanner.py's SecretScanner
+    # already covers all five GitHub token prefixes.
+    ("github_token", re.compile(r"(?:ghp|gho|ghs|ghr|github_pat)_[A-Za-z0-9_]{36,}")),
+    ("slack_token", re.compile(r"xox[bpors]-[0-9A-Za-z\-]+")),
     ("bearer_token", re.compile(r"Bearer\s+[a-zA-Z0-9_\-.]{20,}")),
+    # The following were entirely absent -- a Stripe key, a DB connection
+    # string, a PEM private key block, or a plain password=/api_key=
+    # assignment could previously reach log output unredacted even though
+    # scanner.py's SecretScanner (used for outbound-content scanning) has
+    # always covered all of them.
+    ("stripe_key", re.compile(r"(?:sk|pk)_(?:test|live)_[A-Za-z0-9]{20,}")),
+    ("db_connection_string", re.compile(r"(?:postgres|mysql|mongodb|redis)://\S{10,}")),
+    ("private_key", re.compile(r"-----BEGIN (?:RSA )?PRIVATE KEY-----")),
+    (
+        "password_assignment",
+        re.compile(r"""(?:password|passwd|pwd)\s*[=:]\s*['"]([^'"]{4,})['"]"""),
+    ),
+    (
+        "generic_api_key",
+        re.compile(r"""(?:api_key|secret_key|auth_token)\s*[=:]\s*['"]([^'"]{8,})['"]"""),
+    ),
 ]
 
 class CredentialStripper:
