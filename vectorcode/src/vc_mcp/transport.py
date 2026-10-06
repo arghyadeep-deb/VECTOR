@@ -91,11 +91,16 @@ class StdioTransport(MCPTransport):
         return MCPResponse.from_json(response_line.strip())
 
     def close(self) -> None:
-        """Terminate the subprocess."""
+        """Terminate the subprocess, force-killing it if it won't exit."""
         if self._process is not None:
-            self._process.terminate()
-            self._process.wait(timeout=5)
+            proc = self._process
             self._process = None
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait(timeout=5)
 
 class StreamableHTTPTransport(MCPTransport):
     """MCP Streamable HTTP transport (JSON-RPC over HTTP).
