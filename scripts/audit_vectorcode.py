@@ -152,3 +152,4 @@ for f, items in sorted(by_file2.items())[:20]:
 
 print()
 print("Audit complete.")
+sys.exit(1 if syntax or stubs or security else 0)

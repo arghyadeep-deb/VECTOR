@@ -35,10 +35,8 @@ def _is_telemetry_path(path: Path) -> bool:
 
 
 def _body_has_logging(body: list) -> bool:
-    """Check if an except body has any logging, print, or raise."""
+    """Check if an except body has any logging or print call."""
     for node in ast.walk(ast.Module(body=body, type_ignores=[])):
-        if isinstance(node, ast.Raise):
-            return True
         if isinstance(node, ast.Call):
             func = node.func
             # logger.xxx(...) or print(...)
@@ -49,6 +47,13 @@ def _body_has_logging(body: list) -> bool:
             if isinstance(func, ast.Name) and func.id == 'print':
                 return True
     return False
+
+
+def _body_has_raise(body: list) -> bool:
+    return any(
+        isinstance(node, ast.Raise)
+        for node in ast.walk(ast.Module(body=body, type_ignores=[]))
+    )
 
 
 def _is_abstract_method(handler: ast.ExceptHandler, parent_func) -> bool:
@@ -81,7 +86,9 @@ def classify_file(path: Path) -> list[dict]:
         body = node.body
 
         # Determine category
-        if _body_has_logging(body):
+        if _body_has_raise(body):
+            cat = 'RE_RAISED'
+        elif _body_has_logging(body):
             cat = 'LOGGED'
         elif len(body) == 1 and isinstance(body[0], ast.Pass):
             if _is_telemetry_path(path):
@@ -99,9 +106,9 @@ def classify_file(path: Path) -> list[dict]:
             if isinstance(val, ast.Constant) and val.value is ...:
                 cat = 'ABC_PASS'
             else:
-                cat = 'LOGGED'  # expression statement, probably a call
+                cat = 'UNLOGGED_REAL'
         else:
-            cat = 'LOGGED'  # has real body
+            cat = 'UNLOGGED_REAL'
 
         exc_type = ''
         if node.type:
@@ -110,8 +117,12 @@ def classify_file(path: Path) -> list[dict]:
             elif isinstance(node.type, ast.Attribute):
                 exc_type = f"{node.type.value.id}.{node.type.attr}" if isinstance(node.type.value, ast.Name) else '?'
 
+        try:
+            display_path = str(path.relative_to(ROOT))
+        except ValueError:
+            display_path = str(path)
         results.append({
-            'file': str(path.relative_to(ROOT)),
+            'file': display_path,
             'line': lineno,
             'exc_type': exc_type or 'bare',
             'category': cat,
@@ -134,7 +145,11 @@ def fix_bare_pass(path: Path, items: list[dict]) -> int:
         for i in range(lineno, min(lineno + 5, len(lines))):
             if lines[i].rstrip() == lines[i].rstrip().lstrip() + 'pass' or lines[i].strip() == 'pass':
                 indent = len(lines[i]) - len(lines[i].lstrip())
-                lines[i] = ' ' * indent + f'logger.debug("[VECTOR] suppressed exception", exc_info=True)\n'
+                prefix = ' ' * indent
+                lines[i] = (
+                    prefix + 'from loguru import logger\n'
+                    + prefix + 'logger.opt(exception=True).debug("[VECTOR] suppressed exception")\n'
+                )
                 fixed += 1
                 break
     path.write_text(''.join(lines), encoding='utf-8')
@@ -155,6 +170,7 @@ def main():
 
     total = sum(len(v) for v in all_results.values())
     bare_real = all_results.get('BARE_PASS_REAL', [])
+    unlogged_real = all_results.get('UNLOGGED_REAL', [])
 
     if FIX_MODE and bare_real:
         by_file: dict[str, list] = defaultdict(list)
@@ -172,9 +188,10 @@ def main():
         f'**Files scanned:** {scanned}  ',
         f'**Total except blocks:** {total}  ',
         f'**BARE_PASS_REAL (needs fix):** {len(bare_real)}  ',
+        f'**UNLOGGED_REAL (needs review):** {len(unlogged_real)}  ',
         '',
     ]
-    order = ['BARE_PASS_REAL', 'BARE_PASS_TELEMETRY', 'ABC_PASS', 'LOGGED', 'RE_RAISED']
+    order = ['BARE_PASS_REAL', 'UNLOGGED_REAL', 'BARE_PASS_TELEMETRY', 'ABC_PASS', 'LOGGED', 'RE_RAISED']
     emoji = {'BARE_PASS_REAL': '🔴', 'BARE_PASS_TELEMETRY': '🟡', 'ABC_PASS': '⚪', 'LOGGED': '🟢', 'RE_RAISED': '🔵'}
     for cat in order:
         items = all_results.get(cat, [])
@@ -194,7 +211,7 @@ def main():
         print(report)
 
     print(f'\nSummary: {total} total, {len(bare_real)} BARE_PASS_REAL, {len(all_results.get("LOGGED", []))} logged')
-    return len(bare_real)
+    return len(bare_real) + len(unlogged_real)
 
 
 if __name__ == '__main__':

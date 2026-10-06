@@ -196,3 +196,5 @@ print(f"RESULT: PASS={passed} FAIL={failed}")
 if failed:
     for r, m in results:
         if r == "FAIL": print(f"  FAIL: {m}")
+
+sys.exit(1 if failed else 0)

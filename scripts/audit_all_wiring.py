@@ -20,7 +20,7 @@ for root, dirs, files in os.walk(CODEBASE):
             with open(fpath, encoding="utf-8") as fh:
                 all_source[rel] = fh.read()
         except Exception:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] unable to read {}", fpath)
 
 def is_wired(module_rel: str, symbol: str) -> tuple[bool, list[str]]:
     """Return (wired, [files that import/use it])."""
@@ -32,9 +32,13 @@ def is_wired(module_rel: str, symbol: str) -> tuple[bool, list[str]]:
     for fpath, src in all_source.items():
         if fpath == module_rel:
             continue
+        direct_symbol_import = re.search(
+            rf"\bfrom\s+{re.escape(mod_dotted)}\s+import\s+[^\n]*\b{re.escape(symbol)}\b",
+            src,
+        )
         if (f"from {mod_dotted}" in src or
             f"import {mod_dotted}" in src or
-            symbol in src):
+            direct_symbol_import):
             callers.append(fpath)
     return bool(callers), callers
 
@@ -134,3 +138,5 @@ if unwired_count:
     for status, mod, sym, note in results:
         if status == "UNWIRED":
             print(f"  - {mod} ({sym})")
+
+sys.exit(1 if unwired_count else 0)

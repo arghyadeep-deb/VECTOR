@@ -52,6 +52,11 @@ EXPECTED_HAND_JOB_IDS = (
 )
 
 
+def verdict_exit_code(*, hands_ok: bool, cron_ok: bool) -> int:
+    """Return failure unless both halves of the soak proof have evidence."""
+    return 0 if hands_ok and cron_ok else 1
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -131,7 +136,7 @@ def main() -> int:
         print("❌ neither hands nor cron jobs have fired — scheduler is not running "
               "(or the loop process isn't up).")
 
-    return 0
+    return verdict_exit_code(hands_ok=hands_ok, cron_ok=cron_ok)
 
 
 if __name__ == "__main__":

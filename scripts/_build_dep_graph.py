@@ -14,6 +14,7 @@ MODULE_INDEX: dict[str, Path] = {}
 
 
 def _build_module_index(py_files: list[Path]) -> None:
+    MODULE_INDEX.clear()
     for pyf in py_files:
         mod = _module_path(pyf)
         MODULE_INDEX[mod] = pyf
@@ -68,15 +69,25 @@ def extract_imports(source: str, module_name: str) -> set[str]:
                     deps.add(top)
         elif isinstance(node, ast.ImportFrom):
             if node.level:
-                base_parts = module_name.split(".")
-                if node.level > len(base_parts):
+                module_file = MODULE_INDEX.get(module_name)
+                module_parts = module_name.split(".")
+                package_parts = module_parts if module_file and module_file.name == "__init__.py" else module_parts[:-1]
+                levels_up = node.level - 1
+                if levels_up > len(package_parts):
                     continue
-                base = ".".join(base_parts[:-node.level])
+                base = ".".join(package_parts[:len(package_parts) - levels_up])
                 resolved = f"{base}.{node.module}" if node.module and base else (node.module or base)
             else:
                 resolved = node.module or ""
             if resolved:
-                deps.add(resolved)
+                added_child = False
+                for alias in node.names:
+                    child = f"{resolved}.{alias.name}"
+                    if alias.name != "*" and _resolve_module(child):
+                        deps.add(child)
+                        added_child = True
+                if not added_child:
+                    deps.add(resolved)
     return deps
 
 

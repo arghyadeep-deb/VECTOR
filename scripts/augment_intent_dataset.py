@@ -9,6 +9,8 @@ Usage:
 import sys
 import json
 import asyncio
+import os
+import tempfile
 from pathlib import Path
 from collections import defaultdict
 
@@ -16,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from loguru import logger
 import ollama
+from core.loop.context_engine import ContextEngine
 
 
 # VECTOR districts (38 total)
@@ -82,7 +85,7 @@ async def generate_variations(district: str, seed_examples: list[str], count: in
     """
     seed_text = "\n".join(f"- {ex}" for ex in seed_examples)
 
-    prompt = f"""Generate {count} different ways a user might ask VECTOR to help with the {district} district.
+    prompt = ContextEngine().session_hydration_prompt() + "\n\n" + f"""Generate {count} different ways a user might ask VECTOR to help with the {district} district.
 
 Examples:
 {seed_text}
@@ -148,9 +151,22 @@ def export_dataset(examples: list[dict], output_path: str) -> None:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(path, "w", encoding="utf-8") as f:
-        for ex in examples:
-            f.write(json.dumps(ex, ensure_ascii=False) + "\n")
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent, prefix=f".{path.name}.",
+            suffix=".tmp", delete=False,
+        ) as f:
+            tmp_name = f.name
+            for ex in examples:
+                f.write(json.dumps(ex, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, path)
+        tmp_name = None
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
 
     logger.info(f"Exported {len(examples)} examples to {output_path}")
 
@@ -178,9 +194,10 @@ async def main():
     print(f"{'=' * 70}")
     print(f"Total examples: {len(examples)}")
     print(f"Districts covered: {len(district_counts)}/{len(DISTRICTS)}")
-    print(f"Average per district: {len(examples) / len(district_counts):.1f}")
-    print(f"Min per district: {min(district_counts.values())}")
-    print(f"Max per district: {max(district_counts.values())}")
+    average = len(examples) / len(district_counts) if district_counts else 0.0
+    print(f"Average per district: {average:.1f}")
+    print(f"Min per district: {min(district_counts.values(), default=0)}")
+    print(f"Max per district: {max(district_counts.values(), default=0)}")
 
     print(f"\nPer-district breakdown:")
     for district in sorted(district_counts.keys()):

@@ -10,6 +10,7 @@ Usage:
 import os
 import sys
 import argparse
+import tempfile
 from pathlib import Path
 from datetime import datetime
 
@@ -112,8 +113,21 @@ def merge_datasets():
             continue
 
     # Write combined dataset
-    with open(combined_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(combined_examples) + "\n")
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=combined_path.parent,
+            prefix=f".{combined_path.name}.", suffix=".tmp", delete=False,
+        ) as f:
+            tmp_name = f.name
+            f.write("\n".join(combined_examples) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, combined_path)
+        tmp_name = None
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
 
     logger.info(f"[AutoRetrain] Combined dataset: {len(combined_examples)} examples ({len(original_examples)} original + {len(misclassified_examples)} misclassified)")
     return True

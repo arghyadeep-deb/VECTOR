@@ -304,6 +304,7 @@ def main() -> int:
     parser.add_argument("--live", metavar="REPO", help="repo name, or 'all'")
     args = parser.parse_args()
 
+    failed = False
     if args.reachability:
         results = check_reachability()
         out = write_reachability_md(results)
@@ -311,6 +312,7 @@ def main() -> int:
         for repo, modules in results.items():
             resolved = sum(1 for m in modules if m["status"] == "RESOLVES")
             print(f"  {repo}: {resolved}/{len(modules)} resolve")
+            failed = failed or resolved != len(modules)
 
     if args.live:
         _use_isolated_db()
@@ -322,11 +324,12 @@ def main() -> int:
             print(f"  verdict={result['verdict']}  -> {out}")
             if result["error"]:
                 print(f"  error: {result['error']}")
+            failed = failed or result["verdict"] == "BROKEN"
 
     if not args.reachability and not args.live:
         parser.print_help()
         return 1
-    return 0
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

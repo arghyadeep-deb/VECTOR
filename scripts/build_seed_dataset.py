@@ -8,7 +8,9 @@ Run: python scripts/build_seed_dataset.py
 from __future__ import annotations
 
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 EXAMPLES: list[dict] = [
@@ -563,20 +565,34 @@ EXAMPLES: list[dict] = [
 ]
 
 
+def _write_jsonl_atomic(path: Path, examples: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent,
+            prefix=f".{path.name}.", suffix=".tmp", delete=False,
+        ) as output:
+            tmp_name = output.name
+            for example in examples:
+                output.write(json.dumps(example, ensure_ascii=False) + "\n")
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(tmp_name, path)
+        tmp_name = None
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
+
+
 def build() -> None:
     assert len(EXAMPLES) == 50, f"Expected 50 examples, got {len(EXAMPLES)}"
 
     seed_path = Path("data/training/seed.jsonl")
-    seed_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(seed_path, "w", encoding="utf-8") as f:
-        for ex in EXAMPLES:
-            f.write(json.dumps(ex, ensure_ascii=False) + "\n")
+    _write_jsonl_atomic(seed_path, EXAMPLES)
 
     coding_path = Path("data/training/coding/seed.jsonl")
-    coding_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(coding_path, "w", encoding="utf-8") as f:
-        for ex in EXAMPLES:
-            f.write(json.dumps(ex, ensure_ascii=False) + "\n")
+    _write_jsonl_atomic(coding_path, EXAMPLES)
 
     print(f"[seed] Written {len(EXAMPLES)} examples to {seed_path}")
     print(f"[seed] Written {len(EXAMPLES)} examples to {coding_path}")

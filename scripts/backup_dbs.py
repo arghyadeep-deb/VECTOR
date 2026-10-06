@@ -13,10 +13,13 @@ and by the NSSM pre-stop hook.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sqlite3
 import sys
+import tempfile
 import time
+from contextlib import closing
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
@@ -55,28 +58,33 @@ def backup_db(src: Path, dest_dir: Path, verify: bool = False) -> bool:
     """
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / src.name
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{src.name}.", suffix=".tmp", dir=dest_dir)
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    tmp_path.unlink()
 
     try:
         # Use sqlite3 online backup — safe while the DB is being written to
-        src_conn = sqlite3.connect(str(src))
-        dst_conn = sqlite3.connect(str(dest))
-        src_conn.backup(dst_conn)
-        dst_conn.close()
-        src_conn.close()
+        with closing(sqlite3.connect(str(src))) as src_conn, closing(sqlite3.connect(str(tmp_path))) as dst_conn:
+            src_conn.backup(dst_conn)
 
         if verify:
             # Quick integrity check on the backup copy
-            chk = sqlite3.connect(str(dest))
-            result = chk.execute("PRAGMA integrity_check").fetchone()
-            chk.close()
+            with closing(sqlite3.connect(str(tmp_path))) as chk:
+                result = chk.execute("PRAGMA integrity_check").fetchone()
             if result[0] != "ok":
-                logger.error("[VECTOR][backup] integrity_check FAILED for {}: {}", dest, result[0])
+                logger.error("[VECTOR][backup] integrity_check FAILED for {}: {}", tmp_path, result[0])
                 return False
 
+        with tmp_path.open("r+b") as backup_file:
+            os.fsync(backup_file.fileno())
+        os.replace(tmp_path, dest)
         return True
     except Exception as e:
         logger.error("[VECTOR][backup] failed to backup {}: {}", src, e)
         return False
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
 def prune_old_backups(backup_root: Path, keep_days: int) -> int:
@@ -88,13 +96,17 @@ def prune_old_backups(backup_root: Path, keep_days: int) -> int:
             continue
         # Directory names are ISO timestamps: 2026-06-18T02-00-00
         try:
-            ts = datetime.fromisoformat(snapshot_dir.name.replace("T", " ").replace("-", ":", 2))
+            ts = datetime.strptime(snapshot_dir.name, "%Y-%m-%dT%H-%M-%S")
         except ValueError:
             continue
         if ts.replace(tzinfo=timezone.utc) < cutoff:
-            shutil.rmtree(snapshot_dir, ignore_errors=True)
-            deleted += 1
-            logger.info("[VECTOR][backup] pruned old snapshot: {}", snapshot_dir.name)
+            try:
+                shutil.rmtree(snapshot_dir)
+            except OSError as exc:
+                logger.error("[VECTOR][backup] failed to prune {}: {}", snapshot_dir, exc)
+            else:
+                deleted += 1
+                logger.info("[VECTOR][backup] pruned old snapshot: {}", snapshot_dir.name)
     return deleted
 
 

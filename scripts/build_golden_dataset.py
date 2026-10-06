@@ -14,6 +14,8 @@ Usage:
 import sys
 import json
 import asyncio
+import os
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -230,15 +232,27 @@ def export_jsonl(examples: list[dict], output_path: str) -> None:
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(path, "w", encoding="utf-8") as f:
-        for ex in examples:
-            # Remove source field for clean training data
-            train_ex = {
-                "text": ex["text"],
-                "district": ex["district"],
-                "task_type": ex["task_type"],
-            }
-            f.write(json.dumps(train_ex, ensure_ascii=False) + "\n")
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=path.parent,
+            prefix=f".{path.name}.", suffix=".tmp", delete=False,
+        ) as f:
+            tmp_name = f.name
+            for ex in examples:
+                train_ex = {
+                    "text": ex["text"],
+                    "district": ex["district"],
+                    "task_type": ex["task_type"],
+                }
+                f.write(json.dumps(train_ex, ensure_ascii=False) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, path)
+        tmp_name = None
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
 
     logger.info(f"Exported {len(examples)} examples to {output_path}")
 

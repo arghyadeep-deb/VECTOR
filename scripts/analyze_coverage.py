@@ -2,7 +2,8 @@
 import json
 import os
 
-data = json.load(open("coverage.json"))
+with open("coverage.json", encoding="utf-8") as coverage_file:
+    data = json.load(coverage_file)
 targets = ["decision_engine.py", "permission_gateway.py", "loop_state.py",
            "policy.py", "semantic.py", "agent_base.py", "agent_registry.py",
            "governor.py", "wiring.py", "episodic.py"]
@@ -23,4 +24,5 @@ for path, info in sorted(data["files"].items()):
         print(f"  missing first 25 lines: {miss}")
         print()
 
-print(f"SUBTOTAL: {total_stmts} stmts, {total_covered} covered, {100*total_covered/total_stmts:.1f}%")
+subtotal_pct = 100 * total_covered / total_stmts if total_stmts else 0.0
+print(f"SUBTOTAL: {total_stmts} stmts, {total_covered} covered, {subtotal_pct:.1f}%")

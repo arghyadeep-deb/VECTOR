@@ -205,3 +205,5 @@ if failed:
     print("FAILURES:")
     for r, m in results:
         if r == "FAIL": print(f"  - {m}")
+
+sys.exit(1 if failed else 0)

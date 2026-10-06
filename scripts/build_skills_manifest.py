@@ -10,8 +10,10 @@ Handles two patterns:
 Usage: python scripts/build_skills_manifest.py [--output data/skills_manifest.json]
 """
 import json
+import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -148,9 +150,21 @@ def main() -> None:
     for e in manifest.values():
         by_cat[e["category"]] = by_cat.get(e["category"], 0) + 1
 
-    output_path.write_text(
-        json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    tmp_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", dir=output_path.parent,
+            prefix=f".{output_path.name}.", suffix=".tmp", delete=False,
+        ) as output:
+            tmp_name = output.name
+            json.dump(manifest, output, indent=2, ensure_ascii=False)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(tmp_name, output_path)
+        tmp_name = None
+    finally:
+        if tmp_name is not None:
+            Path(tmp_name).unlink(missing_ok=True)
 
     print(f"Manifest written to {output_path}")
     print(f"Total skills indexed: {len(manifest)}")

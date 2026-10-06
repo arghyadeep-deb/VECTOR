@@ -1,4 +1,5 @@
 """Check every agency-agents repo file is present in VECTOR."""
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent / "agents" / "districts"
@@ -244,3 +245,5 @@ if missing:
 else:
     print()
     print("100% — every agency-agents agent and strategy doc is in VECTOR.")
+
+sys.exit(1 if missing else 0)
