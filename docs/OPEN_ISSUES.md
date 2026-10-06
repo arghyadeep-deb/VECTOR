@@ -4364,3 +4364,105 @@ isn't "proven in production" until you supply the service/device and run it live
     **Commit status:** committed by the parent session (Codex's sandbox cannot write
     `.git/index.lock`); this OPEN_ISSUES entry was also written by the parent session since the
     task was cut off by the usage-limit error before it could write its own.
+
+84. **`vectorcode/src/connectors/` audit, round 2a (2026-10-06) —** completed a
+    line-by-line review of the assigned `_abc.py`, `gmail.py`, `gdrive.py`,
+    `gcontacts.py`, `outlook.py`, `spotify.py`, `whatsapp.py`, `google_tasks.py`,
+    `github_notifications.py`, and `obsidian.py` set without touching the parallel
+    round's connector files.
+    **Fixed with proof tests:** Spotify persisted all inputs needed for OAuth refresh but
+    never refreshed expired access tokens; it now refreshes proactively and atomically
+    persists the replacement token through the shared OAuth token writer. Spotify,
+    Google Tasks, and GitHub Notifications now expose an `error` status when their initial
+    credential/provider call fails instead of retaining the default indistinguishable
+    `idle` status. Gmail, Drive, and Contacts now do the same for list failures and reject
+    a repeated pagination token rather than looping indefinitely. Drive no longer converts
+    an export failure into indexable placeholder content (phantom success); it raises and
+    records the failure. Google Tasks and GitHub Notifications also no longer append `Z` to
+    an already-offset aware `since` value (invalid RFC 3339 such as `+05:30Z`); both normalize
+    the cutoff to UTC first.
+    New tests: `tests/test_connectors_round2a_regressions.py` (11 tests), all passing.
+    `compileall` and `git diff --check` also passed (only expected CRLF notices).
+    **Flagged, not guessed:** Google Tasks still lacks persisted expiry/client-secret data
+    and therefore has no safe refresh implementation; choosing a shared Google refresh
+    design remains an owner decision. Outlook inherits Gmail IMAP's log-and-return login
+    failure and per-message silent skips, so its status can still claim idle/partial success;
+    fixing that correctly belongs in the shared `gmail_imap.py` implementation, outside this
+    assigned set. WhatsApp and Obsidian likewise skip unreadable files and report partial
+    success; whether one unreadable local file should fail the entire sync or produce a
+    warning-capable status is a policy decision because `SyncStatus` has no warnings field.
+    `_abc.py` itself required no change; its optional `error` field is adequate when concrete
+    connectors actually populate it.
+    **Commit status:** intentionally uncommitted for parent review; this entry is also left
+    uncommitted as required for concurrent-session reconciliation.
+
+85. **`vectorcode/src/connectors/` audit, round 2b (2026-10-06) —** completed the other
+    non-overlapping half of round 2 (`__init__.py`, `apple_contacts.py`, `apple_health.py`,
+    `chunker.py`, `news_rss.py`, `pipeline.py`, `retriever.py`, `scheduler.py`, `store.py`),
+    run in parallel with round 2a above on a disjoint file list. 6 real bugs fixed, each with
+    a proof test confirmed failing pre-fix via `git stash`:
+    - `apple_contacts.py` -- `sync_status()` unconditionally returned `state="idle"`; `sync()`
+      never wrapped its query/iteration body in try/except, so a mid-sync crash (locked DB,
+      missing/renamed table) left it permanently indistinguishable from "nothing synced yet".
+      Same SyncStatus bug class fixed in 9+ other connectors this cycle. Commit `5d3235ce4`.
+    - `apple_health.py` -- `_sync_export_xml()`'s Record and Workout since-filters did
+      `start_dt.replace(tzinfo=None) < since.replace(tzinfo=None)`, stripping real UTC offsets
+      from both sides before comparing. A record at `2024-01-01 00:00:00 -0500` (= 05:00 UTC)
+      was incorrectly treated as before a 02:00 UTC cutoff, even though it's two hours after
+      it -- silently mis-including/excluding records near every incremental-sync boundary
+      whenever the export's offset differs from the caller's. Fixed with a timezone-safe
+      `_is_before()` helper; the HealthKit SQLite path's own since-filter was already correct.
+      Commit `2e2886574`.
+    - `news_rss.py` -- two bugs in one file: (1) `sync()` had no try/except at all, so any
+      failure (malformed config JSON, an unexpected parse error) left `sync_status()` at its
+      default `idle`/no-error state forever. (2) the since-filter did
+      `pub_dt.replace(tzinfo=None) < since`, stripping tzinfo from the parsed publish date but
+      NOT from `since` -- `parsedate_to_datetime()` always returns a timezone-aware datetime,
+      and a checkpoint-derived `since=` from `SyncEngine` is also timezone-aware, so comparing
+      a naive value against an aware one raised `TypeError` on every real incremental sync.
+      This is a confirmed crash, not just a wrong-result bug. Fixed both; reused the same
+      `_is_before()` pattern. Commit `1a48098ba`.
+    - `pipeline.py` -- `IngestionPipeline.ingest()` stored a document's chunks one at a time;
+      `KnowledgeStore.store()` generates a fresh UUID chunk id on every call with no dedup
+      constraint. If storing chunk N of a multi-chunk document raised (a transient DB error),
+      chunks 1..N-1 were already committed but `doc.doc_id` was never marked seen -- a retry
+      after the transient condition cleared re-ingested the whole document from scratch,
+      duplicating the chunks that had already succeeded. Wrapped the per-document store (main
+      + attachment chunks) in try/except that rolls back via `store.delete(doc_id)` before
+      re-raising; always safe because a doc_id reaching that code path is guaranteed to have
+      no prior chunks (already-seen doc_ids are skipped earlier in the loop). Commit
+      `bc4fbb7df`.
+    - `retriever.py` -- `TwoStageRetriever.retrieve()` only invoked a configured `Reranker`
+      when `len(candidates) > top_k`. A reranker's whole purpose is to improve *order*, which
+      matters just as much when the candidate pool is small -- a sparse knowledge base or
+      narrow query commonly returns fewer than `top_k` matches, and in that very common case a
+      configured reranker was silently a no-op. Now reranks whenever a reranker is configured
+      and candidates is non-empty, regardless of size relative to `top_k`. Commit `d9c3fac49`.
+    - `scheduler.py` -- `stop()` unconditionally cleared `self._thread = None` after a 5s
+      `join()`, regardless of whether the background thread actually exited. If a sync cycle
+      in progress outlasted the join timeout, the thread kept running untracked; `start()`'s
+      duplicate guard (`self._thread is not None and self._thread.is_alive()`) then always
+      passed, letting a stop()-then-start() sequence run two `_loop()` threads concurrently
+      against the same connectors/store. Fixed: `stop()` now leaves `self._thread` set (with a
+      warning logged) when the thread is still alive after the join timeout, so `start()`'s
+      existing guard correctly refuses to spawn a duplicate. Commit `f932ac3b4`.
+    **Reviewed, no bug found:** `__init__.py` (intentional, consistent graceful-degradation
+    pattern for optional connector imports), `chunker.py` (pure text-splitting logic; verified
+    its own documented invariants -- e.g. an oversized unsplittable segment always gets its
+    own chunk -- actually hold), `store.py` beyond the already-flagged raw `sqlite3.connect()`
+    vs SQLCipher item (item 56-adjacent, not re-flagged here).
+    **Flagged, not fixed (owner decision):** `scheduler.py` uses `threading.Thread`/
+    `threading.Event`, which CLAUDE.md marks as banned in favor of asyncio; rewriting a
+    long-lived daemon-thread scheduler to asyncio is an architecture change, not a narrow
+    bug fix, so left as a design question rather than guessed at.
+    New tests: `tests/test_vectorcode_connectors_apple_contacts_sync_status_error.py` (2),
+    `tests/test_vectorcode_connectors_apple_health_since_tz.py` (1),
+    `tests/test_vectorcode_connectors_news_rss.py` (2),
+    `tests/test_vectorcode_connectors_pipeline_partial_failure_rollback.py` (1),
+    `tests/test_vectorcode_connectors_retriever_reranker_always_runs.py` (2),
+    `tests/test_vectorcode_connectors_scheduler_stop_start_race.py` (2) -- 10/10 passing,
+    all confirmed failing pre-fix via `git stash`. Broader connector/oauth/pipeline/retriever/
+    scheduler-scoped suite also passes with no regressions.
+    **Commit status:** all 6 fixes self-committed directly by this fork (`5d3235ce4`,
+    `2e2886574`, `1a48098ba`, `bc4fbb7df`, `d9c3fac49`, `f932ac3b4`). This OPEN_ISSUES entry is
+    intentionally left uncommitted for the parent session, per instruction.

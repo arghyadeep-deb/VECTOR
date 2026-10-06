@@ -10,7 +10,7 @@ Uses OAuth2 tokens via the shared Google OAuth helper module.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
 
@@ -76,10 +76,14 @@ class GoogleTasksConnector(BaseConnector):
     def sync(
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None
     ) -> Iterator[Document]:
-        token = self._get_access_token()
-
-        # List all task lists first
-        task_lists = _tasks_api_get(token, "users/@me/lists")
+        self._status = SyncStatus(state="syncing")
+        try:
+            token = self._get_access_token()
+            task_lists = _tasks_api_get(token, "users/@me/lists")
+        except Exception as exc:
+            self._status.state = "error"
+            self._status.error = str(exc)
+            raise
 
         for tl in task_lists.get("items", []):
             tl_id = tl["id"]
@@ -91,9 +95,19 @@ class GoogleTasksConnector(BaseConnector):
                 "showHidden": "false",
             }
             if since:
-                params["updatedMin"] = since.isoformat() + "Z"
+                since_utc = (
+                    since.replace(tzinfo=timezone.utc)
+                    if since.tzinfo is None
+                    else since.astimezone(timezone.utc)
+                )
+                params["updatedMin"] = since_utc.isoformat().replace("+00:00", "Z")
 
-            tasks = _tasks_api_get(token, f"lists/{tl_id}/tasks", params=params)
+            try:
+                tasks = _tasks_api_get(token, f"lists/{tl_id}/tasks", params=params)
+            except Exception as exc:
+                self._status.state = "error"
+                self._status.error = str(exc)
+                raise
 
             for task in tasks.get("items", []):
                 due = task.get("due", "")

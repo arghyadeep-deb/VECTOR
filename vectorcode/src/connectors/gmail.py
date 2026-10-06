@@ -190,6 +190,7 @@ class GmailConnector(BaseConnector):
         self._items_total: int = 0
         self._last_sync: Optional[datetime] = None
         self._last_cursor: Optional[str] = None
+        self._sync_error: Optional[str] = None
 
     # ------------------------------------------------------------------
     # BaseConnector interface
@@ -258,11 +259,16 @@ class GmailConnector(BaseConnector):
 
         page_token: Optional[str] = cursor
         synced = 0
+        self._sync_error = None
 
         while True:
-            list_resp = _gmail_api_list_messages(
-                token, page_token=page_token, query=query
-            )
+            try:
+                list_resp = _gmail_api_list_messages(
+                    token, page_token=page_token, query=query
+                )
+            except Exception as exc:
+                self._sync_error = str(exc)
+                raise
             messages: List[Dict[str, Any]] = list_resp.get("messages", [])
 
             for msg_stub in messages:
@@ -270,7 +276,11 @@ class GmailConnector(BaseConnector):
                 if not msg_id:
                     continue
 
-                msg = _gmail_api_get_message(token, msg_id)
+                try:
+                    msg = _gmail_api_get_message(token, msg_id)
+                except Exception as exc:
+                    self._sync_error = str(exc)
+                    raise
                 payload: Dict[str, Any] = msg.get("payload", {})
                 headers: List[Dict[str, str]] = payload.get("headers", [])
 
@@ -312,6 +322,9 @@ class GmailConnector(BaseConnector):
             if not next_page:
                 self._last_cursor = None
                 break
+            if next_page == page_token:
+                self._sync_error = "Gmail API returned a repeated page token"
+                raise RuntimeError(self._sync_error)
             page_token = next_page
             self._last_cursor = next_page
 
@@ -321,10 +334,11 @@ class GmailConnector(BaseConnector):
     def sync_status(self) -> SyncStatus:
         """Return sync progress from the most recent :meth:`sync` call."""
         return SyncStatus(
-            state="idle",
+            state="error" if self._sync_error else "idle",
             items_synced=self._items_synced,
             last_sync=self._last_sync,
             cursor=self._last_cursor,
+            error=self._sync_error,
         )
 
     # ------------------------------------------------------------------

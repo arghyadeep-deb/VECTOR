@@ -11,6 +11,7 @@ Uses OAuth2 tokens stored locally. Requires user-read-recently-played scope.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
@@ -38,6 +39,23 @@ def _spotify_api_get(
     resp.raise_for_status()
     return resp.json()
 
+def _spotify_refresh_token(
+    client_id: str, client_secret: str, refresh_token: str
+) -> Dict[str, Any]:
+    """Exchange a Spotify refresh token for a fresh access token."""
+    resp = httpx.post(
+        _SPOTIFY_TOKEN_URL,
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": client_id,
+            "client_secret": client_secret,
+        },
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
 @ConnectorRegistry.register("spotify")
 class SpotifyConnector(BaseConnector):
     """Sync recently played tracks from Spotify."""
@@ -54,7 +72,27 @@ class SpotifyConnector(BaseConnector):
         return json.loads(self._token_path.read_text(encoding="utf-8"))
 
     def _get_access_token(self) -> str:
-        return self._load_tokens()["access_token"]
+        tokens = self._load_tokens()
+        expires_at = tokens.get("expires_at")
+        if expires_at is None or float(expires_at) > time.time() + 60:
+            return tokens["access_token"]
+
+        client_id = tokens.get("client_id")
+        client_secret = tokens.get("client_secret")
+        refresh_token = tokens.get("refresh_token")
+        if not (client_id and client_secret and refresh_token):
+            return tokens["access_token"]
+
+        refreshed = _spotify_refresh_token(client_id, client_secret, refresh_token)
+        tokens["access_token"] = refreshed["access_token"]
+        tokens["refresh_token"] = refreshed.get("refresh_token", refresh_token)
+        expires_in = refreshed.get("expires_in")
+        if expires_in is not None:
+            tokens["expires_at"] = time.time() + float(expires_in)
+        from vectorcode.src.connectors.oauth import save_tokens
+
+        save_tokens(str(self._token_path), tokens)
+        return tokens["access_token"]
 
     def is_connected(self) -> bool:
         return self._token_path.exists()
@@ -111,20 +149,27 @@ class SpotifyConnector(BaseConnector):
             "client_id": client_id,
             "client_secret": client_secret,
         }
+        if "expires_in" in tokens:
+            payload["expires_at"] = time.time() + float(tokens["expires_in"])
         for filename in provider.credential_files:
             save_tokens(str(_CONNECTORS_DIR / filename), payload)
 
     def sync(
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None
     ) -> Iterator[Document]:
-        token = self._get_access_token()
-        after_ms = int((since or datetime.now() - timedelta(days=1)).timestamp() * 1000)
-
-        data = _spotify_api_get(
-            token,
-            "me/player/recently-played",
-            params={"limit": "50", "after": str(after_ms)},
-        )
+        self._status = SyncStatus(state="syncing")
+        try:
+            token = self._get_access_token()
+            after_ms = int((since or datetime.now() - timedelta(days=1)).timestamp() * 1000)
+            data = _spotify_api_get(
+                token,
+                "me/player/recently-played",
+                params={"limit": "50", "after": str(after_ms)},
+            )
+        except Exception as exc:
+            self._status.state = "error"
+            self._status.error = str(exc)
+            raise
 
         for item in data.get("items", []):
             track = item.get("track", {})

@@ -13,7 +13,7 @@ from __future__ import annotations
 from loguru import logger
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional
 
@@ -69,12 +69,22 @@ class GitHubNotificationsConnector(BaseConnector):
         self, *, since: Optional[datetime] = None, cursor: Optional[str] = None
     ) -> Iterator[Document]:
         """Yield Documents for each GitHub notification."""
-        token = self._load_token()
-        params: Dict[str, str] = {}
-        if since is not None:
-            params["since"] = f"{since.isoformat()}Z"
-
-        notifications = _github_api_get(token, params=params)
+        self._status = SyncStatus(state="syncing")
+        try:
+            token = self._load_token()
+            params: Dict[str, str] = {}
+            if since is not None:
+                since_utc = (
+                    since.replace(tzinfo=timezone.utc)
+                    if since.tzinfo is None
+                    else since.astimezone(timezone.utc)
+                )
+                params["since"] = since_utc.isoformat().replace("+00:00", "Z")
+            notifications = _github_api_get(token, params=params)
+        except Exception as exc:
+            self._status.state = "error"
+            self._status.error = str(exc)
+            raise
 
         for notif in notifications:
             subject = notif.get("subject", {})

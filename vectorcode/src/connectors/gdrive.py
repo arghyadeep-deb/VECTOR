@@ -145,6 +145,7 @@ class GDriveConnector(BaseConnector):
         self._items_total: int = 0
         self._last_sync: Optional[datetime] = None
         self._last_cursor: Optional[str] = None
+        self._sync_error: Optional[str] = None
 
     # ------------------------------------------------------------------
     # BaseConnector interface
@@ -243,9 +244,14 @@ class GDriveConnector(BaseConnector):
 
         page_token: Optional[str] = cursor
         synced = 0
+        self._sync_error = None
 
         while True:
-            list_resp = _gdrive_api_list_files(token, page_token=page_token)
+            try:
+                list_resp = _gdrive_api_list_files(token, page_token=page_token)
+            except Exception as exc:
+                self._sync_error = str(exc)
+                raise
             files: List[Dict[str, Any]] = list_resp.get("files", [])
 
             for file_meta in files:
@@ -266,8 +272,9 @@ class GDriveConnector(BaseConnector):
                 if export_mime is not None:
                     try:
                         content = _gdrive_api_export(token, file_id, export_mime)
-                    except Exception:  # noqa: BLE001
-                        content = f"[File: {name}] ({mime_type})"
+                    except Exception as exc:
+                        self._sync_error = str(exc)
+                        raise
                 else:
                     content = f"[File: {name}] ({mime_type})"
 
@@ -291,6 +298,9 @@ class GDriveConnector(BaseConnector):
             if not next_page:
                 self._last_cursor = None
                 break
+            if next_page == page_token:
+                self._sync_error = "Drive API returned a repeated page token"
+                raise RuntimeError(self._sync_error)
             page_token = next_page
             self._last_cursor = next_page
 
@@ -300,10 +310,11 @@ class GDriveConnector(BaseConnector):
     def sync_status(self) -> SyncStatus:
         """Return sync progress from the most recent :meth:`sync` call."""
         return SyncStatus(
-            state="idle",
+            state="error" if self._sync_error else "idle",
             items_synced=self._items_synced,
             last_sync=self._last_sync,
             cursor=self._last_cursor,
+            error=self._sync_error,
         )
 
     # ------------------------------------------------------------------
