@@ -55,3 +55,25 @@ def test_corrupt_sticker_cache_fails_open_instead_of_crashing_handler(tmp_path: 
 
     saved = json.loads(cache_path.read_text(encoding="utf-8"))
     assert saved["new-id"]["description"] == "new description"
+
+
+def test_sticker_cache_write_failure_is_nonfatal_and_preserves_old_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_sticker_cache_module()
+    cache_path = tmp_path / "sticker_cache.json"
+    original = '{"existing": {"description": "old"}}'
+    cache_path.write_text(original, encoding="utf-8")
+    module.CACHE_PATH = cache_path
+
+    def fail_replace(_source, _destination):
+        raise OSError("simulated interrupted replace")
+
+    monkeypatch.setattr(module.os, "replace", fail_replace)
+
+    # This cache has no caller-side error handling. Persistence failure must
+    # not turn a valid Telegram sticker into a failed message.
+    module.cache_sticker_description("new-id", "new description")
+
+    assert cache_path.read_text(encoding="utf-8") == original
+    assert list(tmp_path.glob("*.tmp")) == []

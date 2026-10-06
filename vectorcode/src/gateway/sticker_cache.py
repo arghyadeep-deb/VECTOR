@@ -9,6 +9,8 @@ Cache location: ~/.vectorcode/sticker_cache.json
 """
 
 import json
+import os
+import tempfile
 import time
 from typing import Optional
 
@@ -46,13 +48,40 @@ def _load_cache() -> dict:
     return {}
 
 
-def _save_cache(cache: dict) -> None:
-    """Save the sticker cache to disk."""
-    CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CACHE_PATH.write_text(
-        json.dumps(cache, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
+def _save_cache(cache: dict) -> bool:
+    """Best-effort, atomic save for the cheaply-regenerable cache."""
+    tmp_path: Optional[str] = None
+    try:
+        CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(CACHE_PATH.parent),
+            prefix=f".{CACHE_PATH.name}.",
+            suffix=".tmp",
+        )
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(cache, handle, indent=2, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, CACHE_PATH)
+        return True
+    except OSError as exc:
+        logger.warning(
+            "[VECTOR][gateway.sticker_cache] Cache write failed; continuing without persistence: {}",
+            exc,
+        )
+        return False
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except FileNotFoundError:
+                pass
+            except OSError as exc:
+                logger.debug(
+                    "[VECTOR][gateway.sticker_cache] Could not remove temporary cache file {}: {}",
+                    tmp_path,
+                    exc,
+                )
 
 
 def get_cached_description(file_unique_id: str) -> Optional[dict]:

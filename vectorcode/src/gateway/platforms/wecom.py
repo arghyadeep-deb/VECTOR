@@ -234,7 +234,7 @@ class WeComAdapter(BasePlatformAdapter):
             try:
                 await self._listen_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
             self._listen_task = None
 
         if self._heartbeat_task:
@@ -242,7 +242,7 @@ class WeComAdapter(BasePlatformAdapter):
             try:
                 await self._heartbeat_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
             self._heartbeat_task = None
 
         self._fail_pending_responses(RuntimeError("WeCom adapter disconnected"))

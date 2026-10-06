@@ -194,7 +194,7 @@ def _read_json_file(path: Path) -> Optional[dict[str, Any]]:
     if not path.exists():
         return None
     try:
-        raw = path.read_text().strip()
+        raw = path.read_text(encoding="utf-8").strip()
     except OSError:
         return None
     if not raw:
@@ -207,8 +207,25 @@ def _read_json_file(path: Path) -> Optional[dict[str, Any]]:
 
 
 def _write_json_file(path: Path, payload: dict[str, Any]) -> None:
+    """Atomically persist gateway coordination metadata as UTF-8 JSON."""
+    import tempfile
+
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload))
+    fd, tmp_path = tempfile.mkstemp(
+        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def _read_pid_record(pid_path: Optional[Path] = None) -> Optional[dict]:
@@ -216,7 +233,7 @@ def _read_pid_record(pid_path: Optional[Path] = None) -> Optional[dict]:
     if not pid_path.exists():
         return None
 
-    raw = pid_path.read_text().strip()
+    raw = pid_path.read_text(encoding="utf-8").strip()
     if not raw:
         return None
 

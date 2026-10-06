@@ -58,6 +58,7 @@ import mimetypes
 import os
 import re
 import threading
+import tempfile
 import time
 import uuid
 from collections import OrderedDict
@@ -1520,6 +1521,14 @@ class FeishuAdapter(BasePlatformAdapter):
                 self._connection_mode,
             )
             return False
+        if self._connection_mode == "webhook" and not (
+            self._verification_token or self._encrypt_key
+        ):
+            logger.error(
+                "[Feishu] Refusing webhook mode without FEISHU_VERIFICATION_TOKEN "
+                "or FEISHU_ENCRYPT_KEY"
+            )
+            return False
 
         try:
             self._app_lock_identity = self._app_id
@@ -2934,11 +2943,6 @@ class FeishuAdapter(BasePlatformAdapter):
             self._record_webhook_anomaly(remote_ip, "400")
             return web.json_response({"code": 400, "msg": "invalid json"}, status=400)
 
-        # URL verification challenge — respond before other checks so that Feishu's
-        # subscription setup works even before encrypt_key is wired.
-        if payload.get("type") == "url_verification":
-            return web.json_response({"challenge": payload.get("challenge", "")})
-
         # Verification token check — second layer of defence beyond signature (matches openclaw).
         if self._verification_token:
             header = payload.get("header") or {}
@@ -2953,6 +2957,12 @@ class FeishuAdapter(BasePlatformAdapter):
             logger.warning("[Feishu] Webhook rejected: invalid signature from %s", remote_ip)
             self._record_webhook_anomaly(remote_ip, "401-sig")
             return web.Response(status=401, text="Invalid signature")
+
+        # Authenticate URL-verification requests just like event deliveries.
+        # connect() refuses to expose webhook mode when neither credential is
+        # configured, while keeping the handler directly testable in isolation.
+        if payload.get("type") == "url_verification":
+            return web.json_response({"challenge": payload.get("challenge", "")})
 
         if payload.get("encrypt"):
             logger.error("[Feishu] Encrypted webhook payloads are not supported by VectorCode webhook mode")
@@ -3800,14 +3810,29 @@ class FeishuAdapter(BasePlatformAdapter):
         self._seen_message_ids = {k: valid[k] for k in sorted_ids}
 
     def _persist_seen_message_ids(self) -> None:
+        tmp_path: Optional[str] = None
         try:
             self._dedup_state_path.parent.mkdir(parents=True, exist_ok=True)
             recent = self._seen_message_order[-self._dedup_cache_size:]
             # Save as {msg_id: timestamp} so TTL filtering works across restarts.
             payload = {"message_ids": {k: self._seen_message_ids[k] for k in recent if k in self._seen_message_ids}}
-            self._dedup_state_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+            fd, tmp_path = tempfile.mkstemp(
+                dir=str(self._dedup_state_path.parent),
+                suffix=".tmp",
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as file_obj:
+                file_obj.write(json.dumps(payload, ensure_ascii=False))
+                file_obj.flush()
+                os.fsync(file_obj.fileno())
+            os.replace(tmp_path, self._dedup_state_path)
         except OSError:
             logger.warning("[Feishu] Failed to persist dedup state to %s", self._dedup_state_path, exc_info=True)
+        finally:
+            if tmp_path is not None:
+                try:
+                    os.unlink(tmp_path)
+                except FileNotFoundError:
+                    pass
 
     def _is_duplicate(self, message_id: str) -> bool:
         now = time.time()

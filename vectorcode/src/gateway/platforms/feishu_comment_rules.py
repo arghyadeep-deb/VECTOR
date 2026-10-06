@@ -9,6 +9,8 @@ Pairing store: ~/.vector/feishu_comment_pairing.json.
 
 from __future__ import annotations
 import json
+import os
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -236,10 +238,18 @@ def _load_pairing_approved() -> set:
 
 def _save_pairing(data: dict) -> None:
     PAIRING_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = PAIRING_FILE.with_suffix(".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
-    tmp.replace(PAIRING_FILE)
+    fd, tmp_name = tempfile.mkstemp(dir=str(PAIRING_FILE.parent), suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_name, PAIRING_FILE)
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
     # Invalidate cache so next load picks up change
     _pairing_cache._mtime = 0.0
     _pairing_cache._data = None

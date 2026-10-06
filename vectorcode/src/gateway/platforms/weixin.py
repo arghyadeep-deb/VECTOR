@@ -1220,7 +1220,7 @@ class WeixinAdapter(BasePlatformAdapter):
             try:
                 await self._poll_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
         self._poll_task = None
         if self._poll_session and not self._poll_session.closed:
             await self._poll_session.close()

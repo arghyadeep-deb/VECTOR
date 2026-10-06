@@ -267,7 +267,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
         existing = await self._find_registered_webhooks(webhook_url)
         if existing:
             logger.info(
-                "[bluebubbles] webhook already registered: {}", webhook_url
+                "[bluebubbles] webhook already registered: {}", self._webhook_url
             )
             return True
 
@@ -282,7 +282,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
             if 200 <= status < 300:
                 logger.info(
                     "[bluebubbles] webhook registered with server: {}",
-                    webhook_url,
+                    self._webhook_url,
                 )
                 return True
             else:
@@ -322,7 +322,7 @@ class BlueBubblesAdapter(BasePlatformAdapter):
                     removed = True
             if removed:
                 logger.info(
-                    "[bluebubbles] webhook unregistered: {}", webhook_url
+                    "[bluebubbles] webhook unregistered: {}", self._webhook_url
                 )
         except Exception as exc:
             logger.debug(

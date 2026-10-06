@@ -132,6 +132,11 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         self._notification_scheduler = scheduler
 
     async def connect(self) -> bool:
+        if self._client_state is None:
+            raise ValueError(
+                "[msgraph_webhook] client_state is required to authenticate "
+                "Microsoft Graph notifications"
+            )
         app = web.Application()
         app.router.add_get(self._health_path, self._handle_health)
         app.router.add_get(self._webhook_path, self._handle_validation)
@@ -309,7 +314,7 @@ class MSGraphWebhookAdapter(BasePlatformAdapter):
         """
         expected = self._client_state
         if expected is None:
-            return True
+            return False
         provided = self._string_or_none(notification.get("clientState"))
         if provided is None:
             return False

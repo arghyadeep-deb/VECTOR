@@ -18,10 +18,12 @@ cycle. This file had the identical two bugs:
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 sys.path.insert(0, str(Path(__file__).parent.parent / "vectorcode" / "src"))
 
-from gateway.platforms.wecom_crypto import WXBizMsgCrypt, SignatureError
+from gateway.platforms.wecom_crypto import DecryptError, WXBizMsgCrypt, SignatureError, _sha1_signature
 
 _TOKEN = "test_token_12345"
 _AES_KEY = "a" * 43  # must be exactly 43 chars
@@ -70,6 +72,19 @@ def test_encrypt_works_even_with_defusedxml_installed():
     crypt = _crypt()
     result = crypt.encrypt("still works")
     assert "<Encrypt>" in result and "<MsgSignature>" in result
+
+
+def test_decrypt_rejects_noncanonical_base64_even_with_valid_signature():
+    crypt = _crypt()
+    malformed = "!!!!"
+    signature = _sha1_signature(_TOKEN, "1700000000", "nonce123", malformed)
+    with pytest.raises(DecryptError, match="invalid base64"):
+        crypt.decrypt(signature, "1700000000", "nonce123", malformed)
+
+
+def test_encoding_key_must_decode_to_exact_aes256_key():
+    with pytest.raises(ValueError, match="valid base64"):
+        WXBizMsgCrypt(_TOKEN, "!" * 43, _RECEIVE_ID)
 
 
 if __name__ == "__main__":

@@ -505,6 +505,7 @@ def cache_image_from_bytes(data: bytes, ext: str = ".jpg") -> str:
             f"Refusing to cache non-image data as {ext} "
             f"(starts with: {snippet!r})"
         )
+    ext = _safe_cache_extension(ext, ".jpg")
     cache_dir = get_image_cache_dir()
     filename = f"img_{uuid.uuid4().hex[:12]}{ext}"
     filepath = cache_dir / filename
@@ -619,6 +620,7 @@ def cache_audio_from_bytes(data: bytes, ext: str = ".ogg") -> str:
     Returns:
         Absolute path to the cached audio file as a string.
     """
+    ext = _safe_cache_extension(ext, ".ogg")
     cache_dir = get_audio_cache_dir()
     filename = f"audio_{uuid.uuid4().hex[:12]}{ext}"
     filepath = cache_dir / filename
@@ -711,6 +713,7 @@ def get_video_cache_dir() -> Path:
 
 def cache_video_from_bytes(data: bytes, ext: str = ".mp4") -> str:
     """Save raw video bytes to the cache and return the absolute file path."""
+    ext = _safe_cache_extension(ext, ".mp4")
     cache_dir = get_video_cache_dir()
     filename = f"video_{uuid.uuid4().hex[:12]}{ext}"
     filepath = cache_dir / filename
@@ -745,6 +748,14 @@ SUPPORTED_DOCUMENT_TYPES = {
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
 }
+
+
+def _safe_cache_extension(ext: str, default: str) -> str:
+    """Normalize an untrusted media extension to one safe path suffix."""
+    candidate = str(ext or "").strip().lower()
+    if not re.fullmatch(r"\.[a-z0-9]{1,10}", candidate):
+        return default
+    return candidate
 
 
 def get_document_cache_dir() -> Path:

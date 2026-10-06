@@ -10,7 +10,6 @@ import base64
 import hashlib
 import os
 import secrets
-import socket
 import struct
 from typing import Optional
 # NOTE: this module only ever BUILDS XML (encrypt()'s response envelope),
@@ -88,7 +87,12 @@ class WXBizMsgCrypt:
 
         self.token = token
         self.receive_id = receive_id
-        self.key = base64.b64decode(encoding_aes_key + "=")
+        try:
+            self.key = base64.b64decode(encoding_aes_key + "=", validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
+            raise ValueError("encoding_aes_key must be valid base64") from exc
+        if len(self.key) != 32:
+            raise ValueError("encoding_aes_key must decode to 32 bytes")
         self.iv = self.key[:16]
 
     def verify_url(self, msg_signature: str, timestamp: str, nonce: str, echostr: str) -> str:
@@ -105,16 +109,22 @@ class WXBizMsgCrypt:
         if not secrets.compare_digest(expected, msg_signature):
             raise SignatureError("signature mismatch")
         try:
-            cipher_text = base64.b64decode(encrypt)
-        except Exception as exc:
+            cipher_text = base64.b64decode(encrypt, validate=True)
+        except (ValueError, base64.binascii.Error) as exc:
             raise DecryptError(f"invalid base64 payload: {exc}") from exc
+        if not cipher_text or len(cipher_text) % 16:
+            raise DecryptError("ciphertext must contain complete AES blocks")
         try:
             cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
             decryptor = cipher.decryptor()
             padded = decryptor.update(cipher_text) + decryptor.finalize()
             plain = PKCS7Encoder.decode(padded)
+            if len(plain) < 20:
+                raise DecryptError("decrypted payload is too short")
             content = plain[16:]  # skip 16-byte random prefix
-            xml_length = socket.ntohl(struct.unpack("I", content[:4])[0])
+            xml_length = struct.unpack("!I", content[:4])[0]
+            if xml_length > len(content) - 4:
+                raise DecryptError("declared message length exceeds payload")
             xml_content = content[4:4 + xml_length]
             receive_id = content[4 + xml_length:].decode("utf-8")
         except WeComCryptoError:
@@ -141,7 +151,7 @@ class WXBizMsgCrypt:
     def _encrypt_bytes(self, raw: bytes) -> str:
         try:
             random_prefix = os.urandom(16)
-            msg_len = struct.pack("I", socket.htonl(len(raw)))
+            msg_len = struct.pack("!I", len(raw))
             payload = random_prefix + msg_len + raw + self.receive_id.encode("utf-8")
             padded = PKCS7Encoder.encode(payload)
             cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())

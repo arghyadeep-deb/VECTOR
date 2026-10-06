@@ -2777,7 +2777,7 @@ class ConnectionManager:
             try:
                 await self._heartbeat_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
             self._heartbeat_task = None
 
         if self._recv_task:
@@ -2785,7 +2785,7 @@ class ConnectionManager:
             try:
                 await self._recv_task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
             self._recv_task = None
 
         # Fail any pending ACK futures
@@ -3794,7 +3794,7 @@ class HeartbeatManager:
             try:
                 await task
             except asyncio.CancelledError:
-                raise  # must propagate for asyncio to work
+                pass
         if send_finish:
             try:
                 await self.send_heartbeat_once(chat_id, WS_HEARTBEAT_FINISH)

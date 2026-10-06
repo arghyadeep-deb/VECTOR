@@ -26,6 +26,7 @@ import secrets
 import tempfile
 import threading
 import time
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -46,6 +47,15 @@ MAX_PENDING_PER_PLATFORM = 3        # Max pending codes per platform
 MAX_FAILED_ATTEMPTS = 5             # Failed approvals before lockout
 
 PAIRING_DIR = get_vector_dir("platforms/pairing", "pairing")
+_PLATFORM_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def _validate_platform_name(platform: str) -> str:
+    """Return a platform name safe for use in pairing-state filenames."""
+    value = str(platform).strip()
+    if not _PLATFORM_NAME_RE.fullmatch(value):
+        raise ValueError("platform must contain only letters, digits, '_' or '-'")
+    return value
 
 
 def _secure_write(path: Path, data: str) -> None:
@@ -91,10 +101,10 @@ class PairingStore:
         self._lock = threading.RLock()
 
     def _pending_path(self, platform: str) -> Path:
-        return PAIRING_DIR / f"{platform}-pending.json"
+        return PAIRING_DIR / f"{_validate_platform_name(platform)}-pending.json"
 
     def _approved_path(self, platform: str) -> Path:
-        return PAIRING_DIR / f"{platform}-approved.json"
+        return PAIRING_DIR / f"{_validate_platform_name(platform)}-approved.json"
 
     def _rate_limit_path(self) -> Path:
         return PAIRING_DIR / "_rate_limits.json"
@@ -203,11 +213,18 @@ class PairingStore:
             code = code.upper().strip()
 
             pending = self._load_json(self._pending_path(platform))
-            if code not in pending:
+            # Pairing codes are credentials. Compare every stored code in
+            # constant time rather than exposing a dict-membership timing
+            # oracle (the pending set is capped at three entries).
+            matched_code = None
+            for stored_code in pending:
+                if secrets.compare_digest(code, stored_code):
+                    matched_code = stored_code
+            if matched_code is None:
                 self._record_failed_attempt(platform)
                 return None
 
-            entry = pending.pop(code)
+            entry = pending.pop(matched_code)
             self._save_json(self._pending_path(platform), pending)
 
             # Add to approved list

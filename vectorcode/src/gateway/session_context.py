@@ -106,17 +106,15 @@ def set_session_vars(
 
 
 def clear_session_vars(tokens: list) -> None:
-    """Mark session context variables as explicitly cleared.
+    """Restore the context that preceded :func:`set_session_vars`.
 
-    Sets all variables to ``""`` so that ``get_session_env`` returns an empty
-    string instead of falling back to (potentially stale) ``os.environ``
-    values.  The *tokens* argument is accepted for API compatibility with
-    callers that saved the return value of ``set_session_vars``, but the
-    actual clearing uses ``var.set("")`` rather than ``var.reset(token)``
-    to ensure the "explicitly cleared" state is distinguishable from
-    "never set" (which holds the ``_UNSET`` sentinel).
+    Resetting with the returned tokens is important for nested gateway work:
+    blindly writing empty strings here erased an enclosing request's routing
+    context.  When the preceding value was the never-set sentinel, install an
+    explicit empty value after the reset so stale process-wide environment
+    variables still cannot leak into a completed gateway task.
     """
-    for var in (
+    variables = (
         _SESSION_PLATFORM,
         _SESSION_CHAT_ID,
         _SESSION_CHAT_NAME,
@@ -124,8 +122,13 @@ def clear_session_vars(tokens: list) -> None:
         _SESSION_USER_ID,
         _SESSION_USER_NAME,
         _SESSION_KEY,
-    ):
-        var.set("")
+    )
+    if len(tokens) != len(variables):
+        raise ValueError("session context token count does not match variables")
+    for var, token in zip(reversed(variables), reversed(tokens)):
+        var.reset(token)
+        if var.get() is _UNSET:
+            var.set("")
 
 
 def get_session_env(name: str, default: str = "") -> str:
