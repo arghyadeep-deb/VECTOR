@@ -5211,3 +5211,67 @@ isn't "proven in production" until you supply the service/device and run it live
      New tests: `tests/test_vectorcode_server_api_routes_ws_chat_auth.py` (4 tests), all passing,
      confirmed failing pre-fix via `git stash`.
      **Commit status:** `9a03ea707`.
+
+103. **`vectorcode/src/cli/` audit, continuation (2026-10-07) —** direct continuation of item 101
+     (auth.py and scan_cmd.py were already done). This round covered the remaining 21 files with
+     real depth and closes out `vectorcode/src/cli/` for this audit cycle.
+     **Major finding -- a recurring bug class hit 2 more times in this directory:** `_bg_state.py`
+     and `_tool_names.py` are "compatibility shim" modules that do
+     `from vectorcode.src.vector_cli.X import *` and then, unconditionally (not just in the
+     `except ImportError:` branch), redefine the real names with a trivial stub. Since the
+     wildcard import actually succeeds on this install, the stub always won -- the exact same
+     shape already found in `cli/scan_cmd.py` earlier this cycle (item 101). `_bg_state.get_status()`
+     returned a plain dict instead of the real `BgStatus` dataclass, breaking `chat_cmd.py`'s
+     startup banner and notification dispatcher (both read `BgStatus`'s real attributes).
+     `_tool_names.resolve_tool_names(names)` took one positional argument while every real caller
+     (`vector_cli/ask.py`, `vector_cli/chat_cmd.py`) calls it with three -- a **guaranteed
+     TypeError on every agent-mode `ask`/`chat` invocation** that reaches this path. Fixed both
+     (commit `fac045637`) by removing the unconditional stub definitions.
+     **Other fixes, each with proof tests confirmed failing pre-fix via `git stash`:**
+     - `profiles.py` (`566bdd095`) -- same "fail-open destroys data" bug class already fixed in
+       `cli/auth.py` this cycle: a corrupted `profiles.json` was silently treated as "no custom
+       profiles", so the next `_save()` (e.g. creating any new profile) would overwrite it with
+       just the built-ins, destroying every previously saved custom profile. Added
+       `ProfilesCorruptedError` (raised instead of swallowed) and made `_save()` atomic.
+     - `chat_cmd.py` (`8a56b075e`) -- missing the mandatory
+       `context_engine.session_hydration_prompt()` call (CLAUDE.md Rule 1, "before EVERY LLM
+       call -- no exceptions"). The REPL's `history` list (sent whole to `engine.generate()`/
+       `agent.run()` every turn) was seeded only with an optional user-supplied `--system`
+       prompt -- a session invoked without `--system` ran with zero hydration for its entire
+       lifetime. `/clear` also failed to re-seed it. Fixed via a shared `_fresh_history()` helper.
+     - `digest_cmd.py` (`3ddf4815e`) -- `_save_digest_schedule()` wrote the **entire** VECTOR
+       `config.toml` (not just the `[digest]` section) directly via `write_text()`, non-atomically
+       and with no explicit encoding. A crash mid-write would corrupt the whole config file. Made
+       atomic (tempfile+fsync+os.replace) with explicit UTF-8.
+     **Major finding, flagged for owner decision, NOT fixed (design/policy, not a narrow bug):**
+     5 of the 21 assigned files -- `agent_cmd.py` (718 lines, full agent-management CLI: list/
+     create/info/tasks/pause/resume/delete/bind/channels/search), `mine_cmd.py` (978 lines,
+     hardware detection + Docker + HuggingFace model management + process control),
+     `registry_cmd.py` (141 lines, registry introspection), `scheduler_cmd.py` (249 lines),
+     `workflow_cmd.py` (65 lines, itself admits "Full execution would need a VectorSystem --
+     just report for now") -- have **zero callers anywhere in the repo**, confirmed via both
+     static grep (including the bare `cli.X`-style imports `cli.py`'s own monolith uses
+     internally for `doctor`/`profiles`/`completion`/`self_update`, none of which reference these
+     5 names) and the `cli.py` monolith's dynamic `cmd_vector_cli_dispatch()` table (none of
+     these 5 module names appear among its ~30 dispatch targets either). That's ~2,151 lines of
+     fully-functional, never-superficial, genuinely complete CLI features sitting completely
+     unreachable -- not stubs, not WIP, just never wired into the actual command dispatcher.
+     `skill_cmd.py` is reachable only via a test file's direct import (`cli.skill_cmd._get_resolver`,
+     already fixed for a different bug in an earlier round, commit `28cd89660`), with no production
+     caller found either. Syntax-checked all 6 files -- no crashes, genuinely complete code. Did
+     NOT delete or attempt to wire any of this in; whether to restore these commands to the
+     dispatcher, or delete them as superseded by the `cli.py` monolith's own simpler
+     implementations, is the owner's call.
+     **Confirmed clean, no bug found:** `__init__.py`, `_commands.py`, `_runner.py`,
+     `_chat_banner.py`, `_chat_notifications.py`, `hints.py`, `init_cmd.py`, `doctor.py`,
+     `completion.py`, `self_update.py` (delegates entirely to `pip`/`docker pull`'s own integrity
+     mechanisms, no custom unsigned-download-and-execute risk). `ask.py`'s own local `ask()`
+     function has zero callers (only `_build_tools`/`_get_memory_backend` are actually used from
+     this file) -- harmless dead code within an otherwise-live file, not a shadowing bug since
+     nothing imports the real `ask` through it.
+     New tests: `tests/test_vectorcode_cli_profiles_corruption_and_atomicity.py` (3),
+     `tests/test_vectorcode_cli_shim_stubs_do_not_shadow_real_impl.py` (2),
+     `tests/test_vectorcode_cli_chat_cmd_hydration.py` (1),
+     `tests/test_vectorcode_cli_digest_cmd_atomic_config_write.py` (2) -- 8 tests, all passing.
+     **Commit status:** `566bdd095`, `fac045637`, `8a56b075e`, `3ddf4815e` -- all self-committed
+     directly by this fork.
