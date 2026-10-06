@@ -153,6 +153,9 @@ class SessionManager:
             session = self._sessions.get(session_id)
             if session is None:
                 return []
+            if self._is_expired(session):
+                self._remove_session(session_id)
+                return []
             return list(session.history)
 
     def append_message(self, session_id: str, role: str, content: str) -> None:
@@ -165,6 +168,10 @@ class SessionManager:
             session = self._sessions.get(session_id)
             if session is None:
                 logger.warning(f"[VECTOR][session_mgr] append to unknown session {session_id}")
+                return
+            if self._is_expired(session):
+                self._remove_session(session_id)
+                logger.warning(f"[VECTOR][session_mgr] append to expired session {session_id}")
                 return
             session.history.append({"role": role, "content": content, "ts": time.time()})
             # Trim to keep only the most recent MAX_HISTORY turns
@@ -238,6 +245,9 @@ class SessionManager:
             session = self._sessions.get(session_id)
             if session is None:
                 return False
+            if self._is_expired(session):
+                self._remove_session(session_id)
+                return False
             session.metadata[key] = value
             session._touch()
             return True
@@ -247,6 +257,9 @@ class SessionManager:
         with self._lock:
             session = self._sessions.get(session_id)
             if session is None:
+                return default
+            if self._is_expired(session):
+                self._remove_session(session_id)
                 return default
             return session.metadata.get(key, default)
 

@@ -16,17 +16,33 @@ class HomeAssistantBot:
         self.url = url
         self.token = token
         self._ws = None
+        self._session = None
 
     async def connect(self):
         if not _AIOHTTP:
             logger.warning("aiohttp not installed")
-            return
+            return False
         ws_url = self.url.replace("http://", "ws://").replace("https://", "wss://") + "/api/websocket"
-        session = aiohttp.ClientSession()
-        self._ws = await session.ws_connect(ws_url)
-        auth_msg = json.loads(await self._ws.receive_str())
-        await self._ws.send_str(json.dumps({"type": "auth", "access_token": self.token}))
+        self._session = aiohttp.ClientSession()
+        try:
+            self._ws = await self._session.ws_connect(ws_url)
+            auth_required = json.loads(await self._ws.receive_str())
+            if auth_required.get("type") != "auth_required":
+                logger.error("Home Assistant sent an unexpected auth handshake")
+                await self.stop()
+                return False
+            await self._ws.send_str(json.dumps({"type": "auth", "access_token": self.token}))
+            auth_result = json.loads(await self._ws.receive_str())
+            if auth_result.get("type") != "auth_ok":
+                logger.error("Home Assistant authentication failed")
+                await self.stop()
+                return False
+        except Exception:
+            logger.opt(exception=True).error("Home Assistant connection failed")
+            await self.stop()
+            return False
         logger.info("Home Assistant connected")
+        return True
 
     async def get_state(self, entity_id: str) -> Optional[dict]:
         if not self._ws: return None
@@ -47,4 +63,9 @@ class HomeAssistantBot:
         return json.loads(await self._ws.receive_str())
 
     async def stop(self):
-        if self._ws: await self._ws.close()
+        if self._ws:
+            await self._ws.close()
+            self._ws = None
+        if self._session:
+            await self._session.close()
+            self._session = None

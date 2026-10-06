@@ -56,12 +56,26 @@ class WXBizMsgCrypt:
         expected = hashlib.sha1("".join(parts).encode()).hexdigest()  # nosec — WeCom API mandates SHA1
         if not secrets.compare_digest(expected, msg_signature):
             raise SignatureError("signature mismatch")
-        cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
-        padded = cipher.decryptor().update(base64.b64decode(encrypt)) + cipher.decryptor().finalize()
-        plain = PKCS7Encoder.decode(padded)[16:]
-        xml_len = socket.ntohl(struct.unpack("I", plain[:4])[0])
+        try:
+            cipher_text = base64.b64decode(encrypt, validate=True)
+            cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
+            decryptor = cipher.decryptor()
+            padded = decryptor.update(cipher_text) + decryptor.finalize()
+            plain = PKCS7Encoder.decode(padded)[16:]
+            if len(plain) < 4:
+                raise DecryptError("truncated payload")
+            xml_len = struct.unpack("!I", plain[:4])[0]
+        except DecryptError:
+            raise
+        except Exception as exc:
+            raise DecryptError(f"decrypt failed: {exc}") from exc
+        if xml_len > len(plain) - 4:
+            raise DecryptError("invalid message length")
         xml = plain[4:4 + xml_len]
-        rid = plain[4 + xml_len:].decode()
+        try:
+            rid = plain[4 + xml_len:].decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise DecryptError("invalid receive_id encoding") from exc
         if rid != self.receive_id: raise DecryptError("receive_id mismatch")
         return xml
 
@@ -69,9 +83,12 @@ class WXBizMsgCrypt:
         nonce = nonce or ''.join(secrets.choice("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") for _ in range(10))
         timestamp = timestamp or str(int(__import__("time").time()))
         random_prefix = os.urandom(16)
-        payload = random_prefix + struct.pack("I", socket.htonl(len(plaintext))) + plaintext.encode() + self.receive_id.encode()
+        payload = random_prefix + struct.pack("!I", len(plaintext.encode("utf-8"))) + plaintext.encode("utf-8") + self.receive_id.encode("utf-8")
         cipher = Cipher(algorithms.AES(self.key), modes.CBC(self.iv), backend=default_backend())
-        encrypted = base64.b64encode(cipher.encryptor().update(PKCS7Encoder.encode(payload)) + cipher.encryptor().finalize()).decode()
+        encryptor = cipher.encryptor()
+        encrypted = base64.b64encode(
+            encryptor.update(PKCS7Encoder.encode(payload)) + encryptor.finalize()
+        ).decode("ascii")
         parts = sorted([self.token, timestamp, nonce, encrypted])
         sig = hashlib.sha1("".join(parts).encode()).hexdigest()
         root = _ET_BUILD.Element("xml")

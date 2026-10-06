@@ -7,6 +7,8 @@ Cron scheduling via APScheduler.
 """
 import json
 import asyncio
+import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -74,16 +76,30 @@ class MessagingHub:
             try:
                 return json.loads(_PENDING_FILE.read_text(encoding="utf-8"))
             except Exception as _sve:
-                logger.debug("[VECTOR][comms.messenger] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][comms.messenger] pending load failed: {}", _sve)
         return []
 
     def _save_pending(self) -> None:
+        temp_path: Path | None = None
         try:
-            _PENDING_FILE.write_text(
-                json.dumps(self._pending, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            payload = json.dumps(self._pending, ensure_ascii=False, indent=2)
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=_MSG_DIR,
+                prefix=f".{_PENDING_FILE.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as temp_file:
+                temp_path = Path(temp_file.name)
+                temp_file.write(payload)
+                temp_file.flush()
+                os.fsync(temp_file.fileno())
+            os.replace(temp_path, _PENDING_FILE)
         except Exception as e:
             logger.error(f"[VECTOR][comms] pending save failed: {e}")
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
 
     def _queue_message(self, channel: str, text: str, priority: str) -> None:
         self._pending.append({
@@ -96,20 +112,22 @@ class MessagingHub:
 
     async def send_notification(self, text: str, priority: str = "normal") -> dict:
         """Send to all configured primary channels (Telegram first, then email)."""
-        results = {}
+        errors = {}
         for platform in ("telegram", "pushover", "discord", "email"):
             result = await self.send_to_channel(platform, text, priority)
             if result.get("status") == "sent":
-                results[platform] = "sent"
-                break
+                return {"status": "sent", "via": platform}
             elif result.get("status") != "not_configured":
-                results[platform] = result.get("status", "error")
+                errors[platform] = result.get("status", "error")
 
-        if not results:
-            self._queue_message("all", text, priority)
-            return {"status": "queued", "reason": "no platforms configured"}
-
-        return {"status": "sent", "via": list(results.keys())[0]}
+        self._queue_message("all", text, priority)
+        if errors:
+            return {
+                "status": "queued",
+                "reason": "all configured platforms failed",
+                "errors": errors,
+            }
+        return {"status": "queued", "reason": "no platforms configured"}
 
     async def send_to_channel(self, channel: str, text: str, priority: str = "normal") -> dict:
         """Route message to the appropriate platform adapter."""
@@ -172,19 +190,19 @@ class MessagingHub:
 
     async def _send_discord(self, text: str, priority: str) -> dict:
         try:
-            from comms.discord_bot import DiscordBot
+            from .discord_bot import DiscordWebhook
             cfg = CONFIG.get("discord", {}) if isinstance(CONFIG, dict) else {}
             webhook_url = cfg.get("webhook_url") or ""
             if not webhook_url:
                 return {"status": "not_configured", "platform": "discord"}
-            bot = DiscordBot(webhook_url=webhook_url)
+            bot = DiscordWebhook(webhook_url=webhook_url)
             prefix = {"urgent": "**URGENT**\n", "critical": "**CRITICAL**\n"}.get(priority, "")
             result = await bot.send(prefix + text)
             if result.get("success"):
                 return {"status": "sent", "platform": "discord"}
             return {"status": "error", "platform": "discord", "detail": result.get("error")}
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR][comms] Discord adapter import failed")
 
         # Fallback: direct webhook call when discord_bot module is unavailable
         cfg = CONFIG.get("discord", {}) if isinstance(CONFIG, dict) else {}
@@ -325,7 +343,7 @@ class MessagingHub:
             try:
                 self._scheduler.remove_job(job_id)
             except Exception as _sve:
-                logger.debug("[VECTOR][comms.messenger] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][comms.messenger] cron removal failed: {}", _sve)
         before = len(self._cron_jobs)
         self._cron_jobs = [j for j in self._cron_jobs if j.get("job_id") != job_id]
         return len(self._cron_jobs) < before

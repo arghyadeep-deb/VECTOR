@@ -5,13 +5,13 @@ from __future__ import annotations
 import os
 from typing import Any, Dict, List, Optional
 
-from vectorcode.src.channels._abc import (
+from vectorcode.src.comms._abc import (
     BaseChannel,
     ChannelHandler,
     ChannelStatus,
 )
-from vectorcode.src.core.events import EventBus, EventType
-from vectorcode.src.core.registry import ChannelRegistry
+from vectorcode.src.vc_core.events import EventBus, EventType
+from vectorcode.src.vc_core.registry import ChannelRegistry
 
 from loguru import logger
 
@@ -98,7 +98,7 @@ class SignalChannel(BaseChannel):
             )
             return False
         except Exception:
-            logger.debug("Signal send failed", exc_info=True)
+            logger.opt(exception=True).debug("Signal send failed")
             return False
 
     def status(self) -> ChannelStatus:

@@ -203,14 +203,16 @@ class TelegramBot:
                 )
                 data = r.json()
                 if not data.get("ok"):
-                    return []
+                    raise RuntimeError(
+                        f"Telegram getUpdates rejected: {data.get('description', 'unknown error')}"
+                    )
                 updates = data.get("result", [])
                 if updates:
                     self._offset = updates[-1]["update_id"] + 1
                 return updates
         except Exception as e:
             logger.warning(f"[VECTOR][telegram] getUpdates error: {e}")
-            return []
+            raise
 
     def _process_update(self, update: dict) -> None:
         raw_msg = update.get("message") or update.get("edited_message")

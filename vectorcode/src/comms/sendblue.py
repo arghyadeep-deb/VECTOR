@@ -132,7 +132,7 @@ class SendBlueChannel(BaseChannel):
             )
             return False
         except Exception:
-            logger.debug("SendBlue send failed", exc_info=True)
+            logger.opt(exception=True).debug("SendBlue send failed")
             return False
 
     def handle_webhook(self, payload: Dict[str, Any]) -> None:

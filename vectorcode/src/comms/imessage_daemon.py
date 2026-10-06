@@ -65,13 +65,19 @@ def send_imessage(chat_identifier: str, message: str) -> bool:
         f"end tell"
     )
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["osascript", "-e", script],
             capture_output=True,
             text=True,
             timeout=30,
         )
-        return True
+        if result.returncode == 0:
+            return True
+        logger.error(
+            "Failed to send iMessage via AppleScript: {}",
+            result.stderr.strip(),
+        )
+        return False
     except (subprocess.TimeoutExpired, FileNotFoundError):
         logger.error("Failed to send iMessage via AppleScript")
         return False

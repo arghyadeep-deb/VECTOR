@@ -31,10 +31,16 @@ async def upload_image(image_path: str, api_domain: str = "yuanbao.tencent.com",
         upload_info = data.get("data", {})
         with open(image_path, "rb") as f:
             cos_url = f"https://{upload_info.get('bucket', COS_BUCKET)}{upload_info.get('path', '')}"
-            await c.put(cos_url, data=f, headers={
+            upload_response = await c.put(cos_url, data=f, headers={
                 "Authorization": _build_cos_auth(upload_info, "PUT"),
                 "x-cos-security-token": upload_info.get("sessionToken", ""),
             })
+            if upload_response.status_code >= 300:
+                logger.warning(
+                    "Yuanbao COS upload failed with status {}",
+                    upload_response.status_code,
+                )
+                return None
         return upload_info.get("url")
 
 def _build_cos_auth(upload_info: dict, method: str = "PUT") -> str:

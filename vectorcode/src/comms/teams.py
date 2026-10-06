@@ -110,7 +110,7 @@ class TeamsChannel(BaseChannel):
             )
             return False
         except Exception:
-            logger.debug("Teams send failed", exc_info=True)
+            logger.opt(exception=True).debug("Teams send failed")
             return False
 
     def status(self) -> ChannelStatus:

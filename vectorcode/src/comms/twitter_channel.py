@@ -164,8 +164,8 @@ class TwitterChannel(BaseChannel):
 
     def connect(self) -> None:
         """Validate credentials and start mention polling."""
-        if not self._bearer:
-            logger.warning("No Twitter bearer token configured")
+        if not self._bearer or not self._bot_user_id:
+            logger.warning("Twitter bearer token and bot user ID are required")
             self._status = ChannelStatus.ERROR
             return
 
@@ -203,7 +203,7 @@ class TwitterChannel(BaseChannel):
         *conversation_id* is used as ``reply.in_reply_to_tweet_id`` when set.
         Content is truncated to 280 characters.
         """
-        if not self._api_key:
+        if not all((self._api_key, self._api_secret, self._access_token, self._access_secret)):
             logger.warning("Cannot send: no Twitter OAuth credentials")
             return False
 
@@ -232,7 +232,7 @@ class TwitterChannel(BaseChannel):
             )
             return False
         except Exception:
-            logger.debug("Twitter send failed", exc_info=True)
+            logger.opt(exception=True).debug("Twitter send failed")
             return False
 
     def status(self) -> ChannelStatus:
@@ -300,7 +300,7 @@ class TwitterChannel(BaseChannel):
                                 },
                             )
                         # Track highest ID to avoid reprocessing
-                        if self._since_id is None or tweet_id > self._since_id:
+                        if self._since_id is None or int(tweet_id) > int(self._since_id):
                             self._since_id = tweet_id
                 else:
                     logger.warning(
@@ -309,7 +309,7 @@ class TwitterChannel(BaseChannel):
                         resp.text,
                     )
             except Exception:
-                logger.debug("Twitter poll error", exc_info=True)
+                logger.opt(exception=True).debug("Twitter poll error")
 
             self._stop_event.wait(self._poll_interval)
 

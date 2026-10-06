@@ -122,7 +122,7 @@ class MastodonChannel(BaseChannel):
             logger.debug("Mastodon.py not installed")
             return False
         except Exception:
-            logger.debug("Mastodon send failed", exc_info=True)
+            logger.opt(exception=True).debug("Mastodon send failed")
             return False
 
     def status(self) -> ChannelStatus:

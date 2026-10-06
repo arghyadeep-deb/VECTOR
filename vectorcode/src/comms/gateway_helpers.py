@@ -21,6 +21,9 @@ class MessageDeduplicator:
         if len(self._seen) > self._max_size:
             cutoff = now - self._ttl
             self._seen = {k: v for k, v in self._seen.items() if v > cutoff}
+            while len(self._seen) > self._max_size:
+                oldest = min(self._seen, key=self._seen.__getitem__)
+                del self._seen[oldest]
         return False
 
 def strip_markdown(text: str) -> str:

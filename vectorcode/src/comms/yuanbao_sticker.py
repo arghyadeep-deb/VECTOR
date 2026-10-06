@@ -15,10 +15,11 @@ async def send_sticker(bot, user_id: str, sticker: StickerInfo) -> bool:
     try:
         payload = {"to": user_id, "type": "sticker",
                    "sticker_id": sticker.sticker_id, "pack_id": sticker.pack_id}
-        if bot._ws:
-            from .yuanbao_proto import encode_message
-            msg = encode_message(6, payload)
-            await bot._ws.send_bytes(msg)
+        if not bot._ws:
+            return False
+        from .yuanbao_proto import encode_message
+        msg = encode_message(6, payload)
+        await bot._ws.send_bytes(msg)
         return True
     except Exception as e:
         logger.warning(f"Sticker send failed: {e}")

@@ -110,7 +110,7 @@ class IRCChannel(BaseChannel):
             self._publish_sent(channel, content, conversation_id)
             return True
         except Exception:
-            logger.debug("IRC send failed", exc_info=True)
+            logger.opt(exception=True).debug("IRC send failed")
             return False
 
     def status(self) -> ChannelStatus:

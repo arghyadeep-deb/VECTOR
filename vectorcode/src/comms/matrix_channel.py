@@ -106,7 +106,7 @@ class MatrixChannel(BaseChannel):
             )
             return False
         except Exception:
-            logger.debug("Matrix send failed", exc_info=True)
+            logger.opt(exception=True).debug("Matrix send failed")
             return False
 
     def status(self) -> ChannelStatus:

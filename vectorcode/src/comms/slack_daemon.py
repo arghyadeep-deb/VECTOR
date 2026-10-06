@@ -6,7 +6,6 @@ from the server. Uses slack-bolt for reliable Socket Mode handling.
 
 from __future__ import annotations
 
-import logging
 import os
 import re
 import signal
@@ -185,11 +184,6 @@ def stop_daemon() -> bool:
 
 if __name__ == "__main__":
     import argparse
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(name)s %(message)s",
-    )
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="qwen3.5:9b")

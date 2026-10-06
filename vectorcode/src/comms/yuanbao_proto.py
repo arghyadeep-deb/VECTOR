@@ -7,7 +7,7 @@ from typing import Any
 def encode_message(msg_type: int, payload: dict, seq: int = 1) -> bytes:
     """Encode a Yuanbao protocol message."""
     body = json.dumps(payload).encode()
-    header = struct.pack("!HHI", 1, 6, seq)  # version=1, cmd=6 (T06 send)
+    header = struct.pack("!HHI", 1, msg_type, seq)
     return header + body
 
 def decode_message(data: bytes) -> dict:

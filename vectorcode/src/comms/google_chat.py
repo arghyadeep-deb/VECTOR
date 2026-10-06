@@ -92,7 +92,7 @@ class GoogleChatChannel(BaseChannel):
             )
             return False
         except Exception:
-            logger.debug("Google Chat send failed", exc_info=True)
+            logger.opt(exception=True).debug("Google Chat send failed")
             return False
 
     def status(self) -> ChannelStatus:

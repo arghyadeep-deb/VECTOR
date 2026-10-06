@@ -121,7 +121,7 @@ class LineChannel(BaseChannel):
             logger.debug("line-bot-sdk not installed")
             return False
         except Exception:
-            logger.debug("LINE send failed", exc_info=True)
+            logger.opt(exception=True).debug("LINE send failed")
             return False
 
     def status(self) -> ChannelStatus:

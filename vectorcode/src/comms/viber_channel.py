@@ -111,7 +111,7 @@ class ViberChannel(BaseChannel):
             logger.debug("viberbot not installed")
             return False
         except Exception:
-            logger.debug("Viber send failed", exc_info=True)
+            logger.opt(exception=True).debug("Viber send failed")
             return False
 
     def status(self) -> ChannelStatus:
