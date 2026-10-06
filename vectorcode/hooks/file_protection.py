@@ -14,7 +14,11 @@ import sys
 try:
     data = json.loads(sys.stdin.read() or "{}")
 except Exception:
-    sys.exit(0)
+    # Malformed hook payload means we cannot verify the target file is
+    # safe -- fail closed (block) rather than silently allowing the
+    # write through unchecked.
+    print("[VECTOR GATE] BLOCKED — could not parse hook payload; failing closed.")
+    sys.exit(2)
 
 file_path = (
     data.get("file_path")
