@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
+import tempfile
 import threading
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -76,7 +79,21 @@ def _save_digest_schedule(enabled: bool, cron: str) -> None:
         new_lines.append("")
 
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text("\n".join(new_lines))
+    # config.toml is the main VECTOR config file, not just digest settings --
+    # a crash mid-write here must not corrupt/truncate the whole file.
+    fd, tmp_name = tempfile.mkstemp(
+        dir=str(config_path.parent), prefix=f".{config_path.name}.", suffix=".tmp"
+    )
+    tmp_path = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write("\n".join(new_lines))
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_path, config_path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
 
 def _create_scheduler_task(cron: str) -> Optional[str]:
     """Create a digest task in the TaskScheduler. Returns task ID or None."""
