@@ -5162,3 +5162,52 @@ isn't "proven in production" until you supply the service/device and run it live
      high-priority for this directory and remain unaudited.
      **Commit status:** `d832c3cd5` self-committed by the fork; `1c0a25a8f` committed by the
      parent session.
+
+102. **`vectorcode/src/server/` audit, continuation (2026-10-07) —** direct continuation of item
+     100 above (a prior fork was cut off by the Claude session rate limit). Confirmed via
+     `git log` that this directory has more prior coverage than the original directive assumed:
+     `auth_middleware.py` (timing-unsafe bearer-token comparison, already fixed), `webhook_routes.py`
+     (3 timing-unsafe secret comparisons, already fixed, plus the unconfigured-WhatsApp-token gap
+     fixed this round above), `cloud_router.py` (Gemini API key in URL + broken placeholders,
+     already fixed), `connectors_router.py` (loguru shadow, banned threading, stale sync status,
+     already fixed), `routes.py`/`session_store.py` (stdlib-logging-instead-of-loguru, already
+     fixed) -- re-reviewed each briefly, found no further bugs, did not duplicate work.
+     **Fixed with proof tests:** `api_routes.py` -- the real finding this round. `/v1/chat/stream`
+     is a second WebSocket endpoint with the exact same auth bypass just fixed in `ws_bridge.py`'s
+     `/v1/agents/events`: Starlette's `BaseHTTPMiddleware` never runs for WebSocket connections, so
+     this endpoint -- which relays messages straight into the configured LLM engine via
+     `engine.stream()`/`engine.generate()` -- was completely unauthenticated regardless of whether
+     `OPENVECTOR_API_KEY` was set. Materially worse than the event-stream gap since this one spends
+     real inference cost, not just leaks telemetry. Fixed with the same timing-safe query-param
+     key re-check.
+     **Reviewed, no bug found:** `models.py` (pure Pydantic schemas, no logic, no falsy-zero risk
+     possible), `upload_router.py` (uploaded filenames never reach a filesystem path -- content is
+     parsed in-memory and stored via a generated UUID doc_id through `KnowledgeStore`, so the
+     anticipated CWE-22 risk does not apply; no file-size cap before `.read()` noted as a minor DoS
+     concern but not fixed, since `UploadFile.size` reliability varies by FastAPI/Starlette version
+     and a wrong guess could break legitimate large uploads), `channel_bridge.py` (its LLM call path
+     goes through `VectorSystem.ask()`, not a raw engine call, so it is NOT subject to the
+     session-hydration gap below), `agent_manager_routes.py`'s credential-save endpoint (delegates
+     to `vc_core/credentials.py`'s `save_credential()`, which validates the key against an allowlist
+     before use -- no CWE-22 risk at this call site).
+     **Flagged for owner decision, not fixed (architectural, spans multiple files):**
+     - Mandatory `context_engine.session_hydration_prompt()` (CLAUDE.md Rule 1, "no exceptions") is
+       absent from every direct `engine.generate()`/`engine.stream()` call site in this directory --
+       `api_routes.py`, `routes.py`, `agent_manager_routes.py` (via `engine.stream_full()`),
+       `stream_bridge.py` (via `engine.stream_full()`). These bypass the normal agent-loop path and
+       call the raw inference client directly, so chat initiated through this HTTP/WS API surface
+       never gets VECTOR's persona/context injected. Not fixed because it's genuinely ambiguous
+       whether this low-level API is meant to be VECTOR's own chat surface (should always hydrate)
+       or an OpenAI-compatible passthrough for external integrations that supply their own system
+       prompt (should not) -- a design decision, not a narrow bug.
+     - `threading.Thread` usage against the project's asyncio-only policy: 4 sites in
+       `agent_manager_routes.py` (lines ~800, ~1420, ~1527, ~1782, all `daemon=True` background
+       agent-tick runners) plus 1 pre-existing site in `webhook_routes.py`. Converting to asyncio
+       properly is an architecture change, not a narrow fix -- same judgment already applied to
+       similar `ThreadPoolExecutor` usage in `embeddings.py` and `scheduler.py` earlier this cycle.
+     **Not reached:** `__init__.py`, `app.py`, `comparison.py`, `cost_calculator.py`, `dashboard.py`,
+     `digest_routes.py`, `middleware.py`, `savings.py`, `stream_bridge.py` -- genuinely not read
+     this round; still open for a future pass.
+     New tests: `tests/test_vectorcode_server_api_routes_ws_chat_auth.py` (4 tests), all passing,
+     confirmed failing pre-fix via `git stash`.
+     **Commit status:** `9a03ea707`.
