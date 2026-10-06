@@ -4183,3 +4183,68 @@ isn't "proven in production" until you supply the service/device and run it live
     New tests: `tests/test_vectorcode_vc_tools_skill_manage_traversal.py` (8),
     `tests/test_vectorcode_vc_tools_markdown_store.py` (4) -- 12/12 passing.
     **Commit status:** `47f5908b7` (skill_manage.py), `1a927586a` (_markdown_store.py).
+
+80. **`vectorcode/src/vc_agents/` + `vc_tools/` audit, round 8a (2026-10-06) —**
+    completed the assigned line-by-line pass over `channel_agent.py`, `web_search_agent.py`, all
+    four `vc_agents/templates/*.toml` files plus their package initializer, and
+    `vc_tools/{audio_tool,browser_axtree,calculator,channel_tools,image_tool,knowledge_search,
+    knowledge_tools,llm_tool}.py`.
+    **Fixed with proof tests:** the calculator now actually reaches its Python AST fallback when
+    `_rust_bridge.get_rust_module()` returns `None` (the normal state with no compiled extension),
+    instead of raising `AttributeError`; `LLMTool` now prepends the mandatory
+    `ContextEngine.session_hydration_prompt()` before its inference call; web extraction now blocks
+    private/metadata URLs and revalidates every redirect, and both it and DuckDuckGo fallback reject
+    HTTP error statuses; `ChannelAgent` no longer eagerly calls `str(result)` when valid `.content`
+    exists and no longer returns raw exception details to channel users; audio transcription rejects
+    non-files and sensitive resolved targets (including disguised symlinks); image output now declares
+    `file:write`, rejects sensitive targets, and saves atomically with same-directory tempfile +
+    flush/fsync + `os.replace()`; accessibility-tree depth, knowledge-search `top_k`, and graph
+    direction/limit inputs now reject invalid model-supplied values before reaching their backends.
+    **Flagged, not guessed (owner decisions, comments added):** audio input and image output still
+    lack an actual allowed-root policy, the same open architecture decision already recorded for
+    `file_read`/`file_write`; both direct OpenAI media tools also conflict with the standing
+    free-tier-only runtime policy and need a decision to remove/disable them or route them through
+    VECTOR's approved providers. `ChannelAgent` is a fully implemented threaded bridge with no
+    production caller anywhere in the repository; decide whether to wire it into channel startup or
+    remove it (and whether its `ThreadPoolExecutor` is an intentional exception to asyncio-only).
+    **Reviewed, no additional genuine bug found:** `channel_tools.py` and the four TOML templates;
+    all built-ins are discoverable through `AgentManager.list_templates()`.
+    New proof tests: `tests/test_vectorcode_vc_agents_tools_round8a.py` — 14/14 passing. All assigned
+    Python files compile and `git diff --check` passes. The broader pre-existing test run was 27/28:
+    `test_encrypted_memory_key_mismatch_is_actionable` independently remains red because the fixture
+    reports `missing` instead of `key_mismatch_or_corrupt`; no audited file participates in that path.
+    Ruff still reports pre-existing formatting/legacy-typing findings in assigned files; no mechanical
+    cleanup was mixed into this correctness audit. **Commit status:** uncommitted as required; the
+    sandbox cannot write `.git/index.lock`, and this entry is intentionally left for parent review.
+
+81. **`vectorcode/src/evals/` audit, round 10 (2026-10-06) —** reconstructed the
+    round-specific history rather than counting the initial absorption commits: 72 of 131 production
+    Python files had prior-round fixes, leaving 59 files for this pass. All 59 were independently
+    reviewed line by line; test files were evidence only.
+    **Fixed with proof tests:** `gpqa_mcq.py`, `mmlu_pro_mcq.py`, and `supergpqa_mcq.py` used
+    `re.search()` with an optional `THE ANSWER IS` prefix, so the documented fallback phrase
+    `The answer is A` captured its leading `T` and became indeterminate; the three extractors now
+    require a complete valid phrase/letter. `morning_brief.py` no longer converts a wholly
+    unparseable judge response into a hard failure. `skill_benchmark.py` no longer coerces
+    `is_correct=None` to `False`, and it closes both owned agent/judge backends on success and every
+    exceptional exit without allowing cleanup failures to mask the real outcome.
+    `trackers/wandb_tracker.py` no longer publishes indeterminate results as incorrect.
+    `comparison/third_party.py` now rejects an empty `pinned_commit` instead of silently accepting
+    every checkout and bypassing the advertised reproducibility guard. Text I/O now explicitly uses
+    UTF-8 in `comparison/table_gen.py`, `core/{export,trace}.py`, and
+    `datasets/{loghub,paperarena,pinchbench,terminalbench_native}.py`, removing Windows locale-codepage
+    dependence. Edited logging paths use loguru formatting.
+    **Flagged, not guessed (owner decisions):** `comparison/table_gen.py` declares but never uses
+    `T1_FRAMEWORKS_ORDER`, and that four-row taxonomy contains `"vector"` twice after the historical
+    framework rename; choose the intended four framework identities before wiring an ordering that
+    could mislabel results. `core/event_recorder.py` uses `threading.Lock` for real synchronous
+    `ThreadPoolExecutor` callers despite the repository-wide no-`threading` rule; replacing the lock
+    requires an explicit synchronization-policy decision, not deletion. The legacy
+    `vectorcode/src/evals/tests/test_backends.py` suite remains independently broken before reaching
+    implementation because its mocks target the removed `vector.*` package path (6 failures); no
+    round-10 source file participates in that import.
+    New proof tests: `tests/test_evals_round10_regressions.py`. Relevant verification: 21/21 tests
+    passing (new regressions plus existing SuperGPQA tests), full `vectorcode/src/evals` compileall,
+    and scoped `git diff --check` pass. **Commit status:** intentionally uncommitted for parent review;
+    this shared sandbox cannot safely create `.git/index.lock`, and this OPEN_ISSUES edit is also
+    intentionally left uncommitted.
