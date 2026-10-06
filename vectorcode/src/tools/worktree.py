@@ -106,7 +106,7 @@ class WorktreeManager:
         removal fails.
         """
         try:
-            self._git("worktree", "remove", "--force", str(worktree_path))
+            self._git("worktree", "remove", "--force", "--", str(worktree_path))
             logger.info(f"[VECTOR][worktree] removed worktree {worktree_path}")
             return True
         except subprocess.CalledProcessError as e:
@@ -169,9 +169,10 @@ class WorktreeManager:
         if not branch:
             return {"ok": False, "message": "worktree branch not found", "conflicts": []}
 
-        merge_args = ["merge", branch]
+        merge_args = ["merge"]
         if message:
             merge_args += ["-m", message]
+        merge_args += ["--", branch]
 
         try:
             result = self._git(*merge_args)

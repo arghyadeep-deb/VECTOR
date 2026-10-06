@@ -881,14 +881,14 @@ class ProcessRegistry:
         requested_timeout = timeout
         timeout_note = None
 
-        if requested_timeout and requested_timeout > max_timeout:
+        if requested_timeout is not None and requested_timeout > max_timeout:
             effective_timeout = max_timeout
             timeout_note = (
                 f"Requested wait of {requested_timeout}s was clamped "
                 f"to configured limit of {max_timeout}s"
             )
         else:
-            effective_timeout = requested_timeout or max_timeout
+            effective_timeout = max_timeout if requested_timeout is None else requested_timeout
 
         session = self.get(session_id)
         if session is None:

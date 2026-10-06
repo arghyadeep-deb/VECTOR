@@ -6,6 +6,7 @@ import errno
 import json
 import logging
 import os
+import tempfile
 import threading
 from pathlib import Path
 from typing import Optional
@@ -1138,7 +1139,9 @@ class FileTools:
 
     def _safe_path(self, rel: str) -> Path:
         p = (self._root / rel).resolve()
-        if not str(p).startswith(str(self._root)):
+        try:
+            p.relative_to(self._root)
+        except ValueError:
             raise PermissionError(f"Path escape blocked: {rel}")
         return p
 
@@ -1148,7 +1151,19 @@ class FileTools:
     def write(self, path: str, content: str) -> None:
         p = self._safe_path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(content, encoding="utf-8")
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{p.name}.", dir=p.parent)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="") as tmp:
+                tmp.write(content)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            os.replace(tmp_name, p)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
 
     def edit(self, path: str, old_text: str, new_text: str) -> None:
         content = self.read(path)

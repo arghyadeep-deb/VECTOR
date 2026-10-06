@@ -350,7 +350,7 @@ def _install_tirith(*, log_failures: bool = True) -> tuple[str | None, str]:
             # Extract only the tirith binary (safety: reject paths with ..)
             for member in tar.getmembers():
                 if member.name == "tirith" or member.name.endswith("/tirith"):
-                    if ".." in member.name:
+                    if ".." in member.name or not member.isfile():
                         continue
                     member.name = "tirith"
                     tar.extract(member, tmpdir)

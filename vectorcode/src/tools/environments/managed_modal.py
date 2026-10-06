@@ -5,7 +5,7 @@ from loguru import logger
 
 import json
 import os
-import requests
+import httpx
 import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
@@ -227,8 +227,8 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
 
     def _request(self, method: str, path: str, *,
                  json: Dict[str, Any] | None = None,
-                 timeout: int = 30,
-                 extra_headers: Dict[str, str] | None = None) -> requests.Response:
+                 timeout: int | float | tuple[float, float] = 30,
+                 extra_headers: Dict[str, str] | None = None) -> httpx.Response:
         headers = {
             "Authorization": f"Bearer {self._nous_user_token}",
             "Content-Type": "application/json",
@@ -236,12 +236,22 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
         if extra_headers:
             headers.update(extra_headers)
 
-        return requests.request(
+        request_timeout: int | float | httpx.Timeout = timeout
+        if isinstance(timeout, tuple):
+            connect_timeout, read_timeout = timeout
+            request_timeout = httpx.Timeout(
+                connect=connect_timeout,
+                read=read_timeout,
+                write=read_timeout,
+                pool=connect_timeout,
+            )
+
+        return httpx.request(
             method,
             f"{self._gateway_origin}{path}",
             headers=headers,
             json=json,
-            timeout=timeout,
+            timeout=request_timeout,
         )
 
     def _cancel_exec(self, exec_id: str) -> None:
@@ -264,7 +274,7 @@ class ManagedModalEnvironment(BaseModalExecutionEnvironment):
             return default
 
     @staticmethod
-    def _format_error(prefix: str, response: requests.Response) -> str:
+    def _format_error(prefix: str, response: httpx.Response) -> str:
         try:
             payload = response.json()
             if isinstance(payload, dict):

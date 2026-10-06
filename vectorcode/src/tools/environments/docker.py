@@ -419,7 +419,13 @@ class DockerEnvironment(BaseEnvironment):
 
         logger.info(f"Docker volume_args: {volume_args}")
         all_run_args = list(_SECURITY_ARGS) + writable_args + resource_args + volume_args + env_args
-        logger.info(f"Docker run_args: {all_run_args}")
+        logger.info(
+            "Docker run configured with {} argument(s), {} volume mount(s), "
+            "and {} explicit environment variable(s)",
+            len(all_run_args),
+            len(volume_args) // 2,
+            len(self._env),
+        )
 
         # Resolve the docker executable once so it works even when
         # /usr/local/bin is not in PATH (common on macOS gateway/service).
@@ -436,7 +442,11 @@ class DockerEnvironment(BaseEnvironment):
             image,
             "sleep", "infinity",  # no fixed lifetime — idle reaper handles cleanup
         ]
-        logger.debug(f"Starting container: {' '.join(run_cmd)}")
+        logger.debug(
+            "Starting container {} from image {} (command arguments redacted)",
+            container_name,
+            image,
+        )
         result = subprocess.run(
             run_cmd,
             capture_output=True,

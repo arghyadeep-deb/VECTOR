@@ -98,7 +98,7 @@ class GitTools:
         args = ["blame"]
         if end > 0:
             args += [f"-L{start},{end}"]
-        args.append(path)
+        args += ["--", path]
         r = self._run(args)
         return r["stdout"] or r["stderr"]
 

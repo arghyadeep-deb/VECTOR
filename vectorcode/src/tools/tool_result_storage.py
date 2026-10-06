@@ -24,6 +24,7 @@ Defense against context-window overflow operates at three levels:
 
 import logging
 import os
+import re
 import shlex
 import uuid
 
@@ -39,6 +40,7 @@ PERSISTED_OUTPUT_CLOSING_TAG = "</persisted-output>"
 STORAGE_DIR = "/tmp/vector-results"
 HEREDOC_MARKER = "VECTOR_PERSIST_EOF"
 _BUDGET_TOOL_NAME = "__budget_enforcement__"
+_SAFE_RESULT_ID_RE = re.compile(r"[^A-Za-z0-9_.-]+")
 
 
 def _resolve_storage_dir(env) -> str:
@@ -73,6 +75,12 @@ def _heredoc_marker(content: str) -> str:
     if HEREDOC_MARKER not in content:
         return HEREDOC_MARKER
     return f"VECTOR_PERSIST_{uuid.uuid4().hex[:8]}"
+
+
+def _safe_result_filename(tool_use_id: object) -> str:
+    """Return a basename-only filename for an externally supplied tool-call ID."""
+    normalized = _SAFE_RESULT_ID_RE.sub("_", str(tool_use_id)).strip("._")
+    return (normalized[:128] or f"result_{uuid.uuid4().hex}") + ".txt"
 
 
 def _write_to_sandbox(content: str, remote_path: str, env) -> bool:
@@ -147,7 +155,7 @@ def maybe_persist_tool_result(
         return content
 
     storage_dir = _resolve_storage_dir(env)
-    remote_path = f"{storage_dir}/{tool_use_id}.txt"
+    remote_path = f"{storage_dir}/{_safe_result_filename(tool_use_id)}"
     preview, has_more = generate_preview(content, max_chars=config.preview_size)
 
     if env is not None:

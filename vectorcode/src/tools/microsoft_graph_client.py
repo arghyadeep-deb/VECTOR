@@ -7,6 +7,7 @@ import asyncio
 import os
 from pathlib import Path
 from typing import Any, AsyncIterator, Awaitable, Callable
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -331,6 +332,21 @@ class MicrosoftGraphClient:
 
     def _resolve_url(self, path_or_url: str) -> str:
         if path_or_url.startswith(("http://", "https://")):
+            requested = urlsplit(path_or_url)
+            configured = urlsplit(self.base_url)
+            if (
+                requested.scheme.lower(),
+                requested.hostname,
+                requested.port,
+            ) != (
+                configured.scheme.lower(),
+                configured.hostname,
+                configured.port,
+            ):
+                raise MicrosoftGraphClientError(
+                    "Refusing to send Microsoft Graph credentials to a URL "
+                    f"outside the configured Graph origin: {path_or_url}"
+                )
             return path_or_url
         path = path_or_url if path_or_url.startswith("/") else f"/{path_or_url}"
         return f"{self.base_url}{path}"

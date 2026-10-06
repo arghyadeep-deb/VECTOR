@@ -36,6 +36,7 @@ async def transcribe_audio(
                         files={"file": f},
                         data={"model": "whisper-1", "language": language},
                     )
+                resp.raise_for_status()
                 data = resp.json()
                 return {"success": True, "text": data.get("text", "").strip(), "provider": "openai"}
 
@@ -51,6 +52,7 @@ async def transcribe_audio(
                         files={"file": f},
                         data={"model": "whisper-large-v3", "language": language},
                     )
+                resp.raise_for_status()
                 data = resp.json()
                 return {"success": True, "text": data.get("text", "").strip(), "provider": "groq"}
 

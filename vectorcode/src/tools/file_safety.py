@@ -10,10 +10,15 @@ def _vector_home() -> Path:
     return Path(os.path.expanduser(os.environ.get("VECTOR_HOME", "~/.vectorcode")))
 
 
+def _normalized_path(path: str) -> str:
+    """Resolve paths using the host filesystem's case semantics."""
+    return os.path.normcase(os.path.realpath(os.path.expanduser(path)))
+
+
 def build_write_denied_paths(home: str) -> set[str]:
     vector_home = _vector_home()
     return {
-        os.path.realpath(p)
+        _normalized_path(p)
         for p in [
             os.path.join(home, ".ssh", "authorized_keys"),
             os.path.join(home, ".ssh", "id_rsa"),
@@ -37,7 +42,7 @@ def build_write_denied_paths(home: str) -> set[str]:
 
 def build_write_denied_prefixes(home: str) -> list[str]:
     return [
-        os.path.realpath(p) + os.sep
+        _normalized_path(p) + os.sep
         for p in [
             os.path.join(home, ".ssh"),
             os.path.join(home, ".aws"),
@@ -54,8 +59,8 @@ def build_write_denied_prefixes(home: str) -> list[str]:
 
 def is_write_denied(path: str) -> bool:
     """Return True if path is blocked by the write denylist."""
-    home = os.path.realpath(os.path.expanduser("~"))
-    resolved = os.path.realpath(os.path.expanduser(str(path)))
+    home = _normalized_path("~")
+    resolved = _normalized_path(str(path))
     if resolved in build_write_denied_paths(home):
         return True
     for prefix in build_write_denied_prefixes(home):
@@ -63,7 +68,7 @@ def is_write_denied(path: str) -> bool:
             return True
     safe_root = os.environ.get("VECTOR_WRITE_SAFE_ROOT", "")
     if safe_root:
-        safe_root = os.path.realpath(os.path.expanduser(safe_root))
+        safe_root = _normalized_path(safe_root)
         if not (resolved == safe_root or resolved.startswith(safe_root + os.sep)):
             return True
     return False
