@@ -14,11 +14,34 @@ import math
 import sqlite3
 import threading
 import datetime
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
 from core.config import CONFIG  # noqa: F401 — required by every file
 from loguru import logger
+
+
+def _atomic_json_dump(path: str, value: Any) -> None:
+    """Replace a JSON persistence file only after a flushed complete write."""
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(
+        dir=target.parent, prefix=f".{target.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as temp_file:
+            json.dump(value, temp_file)
+            temp_file.flush()
+            os.fsync(temp_file.fileno())
+        os.replace(temp_name, target)
+    except BaseException:
+        try:
+            os.unlink(temp_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 # ── FAISS availability check (once per process) ───────────────────────────────
 _FAISS_WARNED = False
@@ -253,14 +276,12 @@ class FAISSIndex:
             _faiss.write_index(self._index, self._faiss_path)
             # Persist id ↔ pos mappings alongside index
             mapping_path = f"{self._path}.ids.json"
-            with open(mapping_path, "w", encoding="utf-8") as f:
-                json.dump(self._pos_to_id, f)
+            _atomic_json_dump(mapping_path, self._pos_to_id)
             logger.info(f"[VECTOR][faiss_index] saved {len(self._pos_to_id)} vectors → {self._faiss_path}")
         else:
             # Save numpy store
             np_path = f"{self._path}.np.json"
-            with open(np_path, "w", encoding="utf-8") as f:
-                json.dump(self._np_store, f)
+            _atomic_json_dump(np_path, self._np_store)
             logger.info(f"[VECTOR][faiss_index] saved {len(self._np_store)} vectors (numpy) → {np_path}")
 
     def load(self) -> None:

@@ -146,8 +146,16 @@ def make_step_cb(
 
                 if isinstance(tool_info, dict):
                     tool_name = tool_info.get("name") or tool_info.get("function_name")
-                    result = tool_info.get("result") or tool_info.get("output")
-                    function_args = tool_info.get("arguments") or tool_info.get("args")
+                    result = (
+                        tool_info["result"]
+                        if "result" in tool_info
+                        else tool_info.get("output")
+                    )
+                    function_args = (
+                        tool_info["arguments"]
+                        if "arguments" in tool_info
+                        else tool_info.get("args")
+                    )
                 elif isinstance(tool_info, str):
                     tool_name = tool_info
 
@@ -162,7 +170,11 @@ def make_step_cb(
                         tc_id,
                         tool_name,
                         result=str(result) if result is not None else None,
-                        function_args=function_args or meta.get("args"),
+                        function_args=(
+                            function_args
+                            if function_args is not None
+                            else meta.get("args")
+                        ),
                         snapshot=meta.get("snapshot"),
                     )
                     _send_update(conn, session_id, loop, update)

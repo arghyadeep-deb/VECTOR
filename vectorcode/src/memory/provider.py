@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 import sys
+import os
+import tempfile
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -172,13 +174,13 @@ class VectorBuiltinMemoryProvider(MemoryProvider):
 
     def initialize(self, session_id: str, **kwargs) -> None:
         """Resolve the memory path from kwargs or fall back to ~/.vector/memory.md."""
-        from vector_constants import get_vector_memory_path
+        from vector_constants import get_vector_home
 
         vector_home_str = kwargs.get("vector_home", "")
         if vector_home_str:
             self._memory_path = Path(vector_home_str) / "memory.md"
         else:
-            self._memory_path = get_vector_memory_path()
+            self._memory_path = get_vector_home() / "memory.md"
         self._session_id = session_id
         logger.debug(
             f"[VECTOR][memory.provider] builtin initialized, path={self._memory_path}"
@@ -187,9 +189,9 @@ class VectorBuiltinMemoryProvider(MemoryProvider):
     def _memory_path_safe(self) -> Path:
         """Return memory path, initializing with defaults if not yet set."""
         if not hasattr(self, "_memory_path"):
-            from vector_constants import get_vector_memory_path
+            from vector_constants import get_vector_home
 
-            self._memory_path = get_vector_memory_path()
+            self._memory_path = get_vector_home() / "memory.md"
         return self._memory_path
 
     def system_prompt_block(self) -> str:
@@ -299,7 +301,22 @@ class VectorBuiltinMemoryProvider(MemoryProvider):
                     for item in items[:20]:
                         lines.append(f"- {item}")
                     lines.append("")
-            path.write_text("\n".join(lines), encoding="utf-8")
+            payload = "\n".join(lines)
+            fd, temp_name = tempfile.mkstemp(
+                dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+            )
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8", newline="") as temp_file:
+                    temp_file.write(payload)
+                    temp_file.flush()
+                    os.fsync(temp_file.fileno())
+                os.replace(temp_name, path)
+            except BaseException:
+                try:
+                    os.unlink(temp_name)
+                except FileNotFoundError:
+                    pass
+                raise
             total = sum(len(v) for v in sections.values())
             logger.info(
                 f"[VECTOR][memory.provider] wrote memory.md ({total} entries)"

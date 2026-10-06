@@ -483,7 +483,9 @@ class SessionManager:
         try:
             history = db.get_messages_as_conversation(session_id)
         except Exception:
-            logger.warning("Failed to load messages for ACP session %s", session_id, exc_info=True)
+            logger.opt(exception=True).warning(
+                "Failed to load messages for ACP session {}", session_id
+            )
             history = []
 
         try:
@@ -496,7 +498,9 @@ class SessionManager:
                 api_mode=restored_api_mode,
             )
         except Exception:
-            logger.warning("Failed to recreate agent for ACP session %s", session_id, exc_info=True)
+            logger.opt(exception=True).warning(
+                "Failed to recreate agent for ACP session {}", session_id
+            )
             return None
 
         state = SessionState(
@@ -510,7 +514,7 @@ class SessionManager:
         with self._lock:
             self._sessions[session_id] = state
         _register_task_cwd(session_id, cwd)
-        logger.info("Restored ACP session %s from DB (%d messages)", session_id, len(history))
+        logger.info("Restored ACP session {} from DB ({} messages)", session_id, len(history))
         return state
 
     def _delete_persisted(self, session_id: str) -> bool:
@@ -521,7 +525,9 @@ class SessionManager:
         try:
             return db.delete_session(session_id)
         except Exception:
-            logger.debug("Failed to delete ACP session %s from DB", session_id, exc_info=True)
+            logger.opt(exception=True).debug(
+                "Failed to delete ACP session {} from DB", session_id
+            )
             return False
 
     # ---- internal -----------------------------------------------------------
@@ -583,7 +589,9 @@ class SessionManager:
                 }
             )
         except Exception:
-            logger.debug("ACP session falling back to default provider resolution", exc_info=True)
+            logger.opt(exception=True).debug(
+                "ACP session falling back to default provider resolution"
+            )
 
         _register_task_cwd(session_id, cwd)
         agent = AIAgent(**kwargs)

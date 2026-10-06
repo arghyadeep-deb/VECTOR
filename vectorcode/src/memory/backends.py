@@ -28,6 +28,7 @@ class SQLiteBackend:
         self._conn.commit()
 
     async def store(self, namespace: str, key: str, value: Any, ttl: float = 0):
+        now = time.time()
         with self._lock:
             self._conn.execute(
                 "INSERT OR REPLACE INTO memories (id, namespace, key, value, created_at, updated_at, ttl) VALUES (?,?,?,?,?,?,?)",

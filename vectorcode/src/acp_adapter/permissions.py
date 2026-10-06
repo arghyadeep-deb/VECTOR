@@ -72,7 +72,10 @@ def make_approval_callback(
             for opt in options:
                 if opt.option_id == option_id:
                     return _KIND_TO_VECTOR.get(opt.kind, "deny")
-            return "once"  # fallback for unknown option_id
+            # The client must select one of the options we actually offered.
+            # Treat malformed/unknown allowed outcomes as denial rather than
+            # accidentally granting execution.
+            return "deny"
         else:
             return "deny"
 

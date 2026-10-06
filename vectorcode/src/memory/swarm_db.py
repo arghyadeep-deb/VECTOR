@@ -201,7 +201,7 @@ class SwarmDatabase:
                 metadata     = excluded.metadata
         """, (
             task_id, task_text, agent_id, domain, outcome, reward,
-            latency_ms, started_at or now,
+            latency_ms, now if started_at is None else started_at,
             now if outcome != "pending" else None,
             json.dumps(metadata or {}),
             ))
@@ -294,10 +294,14 @@ class SwarmDatabase:
         cutoff = time.time() - older_than_days * 86400
         with self._lock:
             cur = self._conn.cursor()
-            cur.execute("DELETE FROM tasks   WHERE completed_at IS NOT NULL AND completed_at < ?", (cutoff,))
-            cur.execute("DELETE FROM metrics WHERE ts < ?", (cutoff,))
-            cur.execute("DELETE FROM decisions WHERE created_at < ?", (cutoff,))
-            deleted = cur.rowcount
+            deleted = 0
+            for statement in (
+                "DELETE FROM tasks WHERE completed_at IS NOT NULL AND completed_at < ?",
+                "DELETE FROM metrics WHERE ts < ?",
+                "DELETE FROM decisions WHERE created_at < ?",
+            ):
+                cur.execute(statement, (cutoff,))
+                deleted += cur.rowcount
             self._conn.commit()
         logger.info(f"[VECTOR][swarm_db] purged {deleted} old records (>{older_than_days}d)")
         return deleted
