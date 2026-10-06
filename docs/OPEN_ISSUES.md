@@ -4248,3 +4248,70 @@ isn't "proven in production" until you supply the service/device and run it live
     and scoped `git diff --check` pass. **Commit status:** intentionally uncommitted for parent review;
     this shared sandbox cannot safely create `.git/index.lock`, and this OPEN_ISSUES edit is also
     intentionally left uncommitted.
+
+82. **`vectorcode/src/vc_tools/` audit, round 8c (2026-10-06) —** direct continuation of round 8b
+    after a Claude session rate-limit cut it off mid-file; this round finished its remaining
+    assigned list and closes out `vectorcode/src/vc_tools/` for this audit cycle (`vc_agents/` was
+    separately closed out by a parallel Codex round, commit `0512bd189`). Files given real depth
+    this round: `memory_manage.py`, `pdf_tool.py`, `retrieval.py`, `storage_tools.py`,
+    `user_profile_manage.py`, `storage/{__init__,_abc,colbert_backend,context,embeddings,
+    faiss_backend,hybrid,sqlite}.py`, plus `templates/builtin/unit_convert.toml` +
+    `templates/loader.py` found opportunistically while checking the other builtin templates.
+    **Fixed with proof tests:**
+    - `templates/builtin/unit_convert.toml` -- same "doesn't do what it claims" bug class already
+      fixed in `base64_encode`/`hash_compute`/`regex_extract`/`date_info` this cycle. Its expression
+      was `str(float(value))`, completely ignoring the declared `from_unit`/`to_unit` parameters --
+      calling `unit_convert(100, "c", "f")` silently returned `"100.0"` instead of `"212.0"`. Added
+      `convert_unit()` (length/mass/temperature) to `loader.py`'s sandboxed-expression allowlist and
+      wired the template to call it with all three parameters.
+    - `storage/context.py` -- `inject_context()`'s token-budget truncation loop used `break` on the
+      first result whose token count alone exceeded `max_context_tokens`, instead of `continue`.
+      Since results are ordered by relevance score, not size, a single long top-ranked result
+      silently discarded every later, smaller result that would have fit -- context injection
+      failed completely instead of partially.
+    - `storage/sqlite.py` -- `_check_fts5()` existed specifically to detect a SQLite build without
+      the FTS5 extension but had zero callers anywhere in the repo (the "built but never wired"
+      shape found repeatedly this cycle). Without it, `_create_tables()` would surface a cryptic
+      `sqlite3.OperationalError("no such module: fts5")` instead of a clear, actionable error.
+      Wired it into `__init__()`'s Python-SQLite path.
+    - `storage/hybrid.py` -- `HybridMemory.store()` wrote to the sparse backend, then the dense
+      backend, with no error handling. If the dense write raised, the exception correctly
+      propagated to the caller as an overall failure, but the content was already committed to
+      the sparse backend and stayed silently retrievable from there -- a failed store() call with
+      a visible side effect contradicting its own reported failure. Wrapped the dense write in
+      try/except: roll back the sparse write on failure, then re-raise.
+    - `storage/faiss_backend.py` + `storage/colbert_backend.py` -- both backends' `store()` kept a
+      live reference to the caller-supplied `metadata` dict (`metadata if metadata is not None
+      else {}` / `metadata or {}`) instead of copying it, so a caller reusing or mutating that dict
+      after the call silently corrupted the already-"stored" record. `sqlite.py`'s backend is
+      unaffected (serializes metadata to JSON immediately). Neither `faiss` nor `colbert-ai`/`torch`
+      is installed in this sandbox, so both new tests are `pytest.importorskip`-guarded and skip
+      here; the fix itself was verified by isolated logic check (confirmed the pre-fix shape
+      aliases, the post-fix shape doesn't) and `ast.parse` syntax verification, not full live
+      execution against the real backend classes.
+    **Flagged, not fixed (owner decisions):** `storage/sqlite.py` uses raw `sqlite3.connect()` for
+    its own `memory.db` rather than `core.memory.episodic.get_db_connection()` (SQLCipher) -- the
+    same pattern already flagged for `digest_store.py` and `connectors/store.py`'s `KnowledgeStore`
+    this cycle; this backend stores arbitrary agent-retrieved memory content, so whether it counts
+    as "real VECTOR data" requiring encryption is an owner call. `storage/embeddings.py`'s
+    `OllamaEmbedder.embed()` uses `concurrent.futures.ThreadPoolExecutor` to fan out HTTP calls,
+    violating the repo's asyncio-only policy -- same already-flagged pattern as `channel_agent.py`
+    and `godmode_race.py` this cycle; converting it would change the public sync `embed()` API
+    contract, so left as a flagged policy question rather than auto-converted. `pdf_tool.py` has no
+    configured allowed-root confinement (checks `is_sensitive_file()` but reads any path supplied),
+    same already-accepted no-confinement pattern as `audio_tool.py`/`image_tool.py`/`apply_patch.py`.
+    **Reviewed, no bug found:** `memory_manage.py`, `user_profile_manage.py` (both pure delegation
+    to the already-fixed `_markdown_store.py` shared base, no independent logic), `retrieval.py`,
+    `storage_tools.py`, `storage/__init__.py`, `storage/_abc.py`.
+    New tests: `tests/test_vectorcode_vc_tools_templates_unit_convert.py` (4),
+    `tests/test_vectorcode_vc_tools_storage_context_truncation.py` (1),
+    `tests/test_vectorcode_vc_tools_storage_sqlite_fts5_check.py` (2),
+    `tests/test_vectorcode_vc_tools_storage_hybrid_store_rollback.py` (1),
+    `tests/test_vectorcode_vc_tools_storage_metadata_aliasing.py` (2, both skipped here per above).
+    All executable new tests confirmed failing pre-fix via `git stash`; broader `storage`/`sqlite`-
+    related regression run and the full `evals`/`scorer` suite both pass with no regressions.
+    **Commit status:** `4adce1d5b` (unit_convert.toml + loader.py), `cbfe3494c` (context.py),
+    `10abe8d40` (sqlite.py), `91b4e9d5f` (hybrid.py), `37a3111f6` (faiss_backend.py +
+    colbert_backend.py) -- all committed directly by this fork (unlike the Codex rounds, Claude
+    forks can write `.git/index.lock` themselves). This OPEN_ISSUES entry is intentionally left
+    uncommitted for the parent session, per instruction.
