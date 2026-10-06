@@ -127,7 +127,16 @@ def run_sandboxed(
             result.returncode = proc.returncode
         except subprocess.TimeoutExpired:
             kill_process_tree(proc.pid)
-            proc.wait(timeout=5)
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # The process survived SIGKILL/taskkill (e.g. stuck in an
+                # uninterruptible syscall) -- don't let this second timeout
+                # propagate uncaught and crash the caller; the sandbox has
+                # already done everything it can to stop it.
+                logger.warning(
+                    "Process {} did not exit within 5s of being killed", proc.pid
+                )
             result.timed_out = True
             result.killed = True
             result.returncode = -1
