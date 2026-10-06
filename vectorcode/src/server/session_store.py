@@ -157,6 +157,13 @@ class SessionStore:
         self.set_pending_response(sender_id, channel_type, None)
 
     def expire_sessions(self, max_age_hours: int = 24) -> int:
+        # FLAGGED, not fixed: confirmed via repo-wide grep that this method
+        # has zero callers anywhere -- built but never wired into any
+        # periodic/startup task. app.py has no APScheduler or recurring-job
+        # infrastructure to hook into without adding new scheduling
+        # machinery, which is an architecture decision, not a narrow fix.
+        # Net effect: conversation history (real per-sender message
+        # content) never actually expires in practice.
         with self._lock:
             cur = self._db.execute(
                 "UPDATE channel_sessions "
