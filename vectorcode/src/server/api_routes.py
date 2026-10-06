@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
+import secrets
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -533,6 +535,20 @@ async def websocket_chat_stream(websocket: WebSocket):
         {"type": "done",  "content": "..."}   -- final assembled response
         {"type": "error", "detail": "..."}    -- on failure
     """
+    # Starlette's BaseHTTPMiddleware (used by AuthMiddleware on the HTTP
+    # side) only runs for scope["type"] == "http" -- it never sees
+    # WebSocket connections, so this endpoint -- which actually invokes the
+    # LLM engine -- was completely unauthenticated regardless of whether an
+    # API key is configured, even though /v1/* HTTP routes are protected
+    # (the same gap already fixed in ws_bridge.py's /v1/agents/events this
+    # cycle). Re-check the same key here, supplied via a query param since
+    # browsers can't set an Authorization header on a WebSocket handshake.
+    configured_key = os.environ.get("OPENVECTOR_API_KEY", "")
+    if configured_key:
+        supplied_key = websocket.query_params.get("api_key", "")
+        if not secrets.compare_digest(supplied_key, configured_key):
+            await websocket.close(code=4401)
+            return
     await websocket.accept()
     try:
         while True:
