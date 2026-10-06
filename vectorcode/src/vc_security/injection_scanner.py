@@ -129,21 +129,54 @@ class InjectionScanner:
             (re.compile(pat), name, level, desc)
             for pat, name, level, desc in _INJECTION_PATTERNS
         ]
+        # Previously called get_rust_module().InjectionScanner()
+        # unconditionally -- when the Rust extension isn't built,
+        # get_rust_module() returns None (confirmed on this machine), so
+        # every InjectionScanner() call raised AttributeError and the class
+        # could never even be constructed. The carefully-defined
+        # _INJECTION_PATTERNS above (prompt override, jailbreak,
+        # exfiltration, shell/code injection, delimiter injection) existed
+        # but were compiled into self._patterns and then never used by
+        # scan(), which only ever called the Rust implementation.
         try:
             from vectorcode.src._rust_bridge import get_rust_module
-        except ImportError:
-            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
-        _rust = get_rust_module()
-        self._rust_impl = _rust.InjectionScanner()
+            _rust = get_rust_module()
+        except ImportError:
+            _rust = None
+        self._rust_impl = _rust.InjectionScanner() if _rust is not None else None
 
     def scan(self, text: str) -> InjectionScanResult:
-        """Scan text for injection patterns — always via Rust backend."""
-        try:
-            from vectorcode.src._rust_bridge import injection_result_from_json
-        except ImportError:
-            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
+        """Scan text for injection patterns.
 
-        return injection_result_from_json(self._rust_impl.scan(text))
+        Prefers the Rust backend when available; falls back to the
+        pure-Python pattern scan built from _INJECTION_PATTERNS otherwise.
+        """
+        if self._rust_impl is not None:
+            from vectorcode.src._rust_bridge import injection_result_from_json
+
+            return injection_result_from_json(self._rust_impl.scan(text))
+        return self._scan_python(text)
+
+    def _scan_python(self, text: str) -> InjectionScanResult:
+        findings: List[ScanFinding] = []
+        highest = ThreatLevel.LOW
+        for compiled, name, level, desc in self._patterns:
+            for match in compiled.finditer(text):
+                findings.append(
+                    ScanFinding(
+                        pattern_name=name,
+                        matched_text=match.group(0),
+                        threat_level=level,
+                        start=match.start(),
+                        end=match.end(),
+                        description=desc,
+                    )
+                )
+                if _THREAT_ORDER.index(level) > _THREAT_ORDER.index(highest):
+                    highest = level
+        return InjectionScanResult(
+            is_clean=not findings, findings=findings, threat_level=highest
+        )
 
 __all__ = ["InjectionScanner", "InjectionScanResult"]
