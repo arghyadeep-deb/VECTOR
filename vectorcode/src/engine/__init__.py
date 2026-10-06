@@ -33,27 +33,7 @@ __all__ = [
     "_PATH_SCOPED_TOOLS",
 ]
 
-# Discovery helpers
-from typing import List, Optional, Any
+from ._discovery import discover_engines, discover_models, get_engine
 
-def discover_engines() -> List[str]:
-    """Return available engine names."""
-    from vectorcode.src.vc_core.registry import EngineRegistry
-    return list(EngineRegistry._registry.keys()) if hasattr(EngineRegistry, '_registry') else []
-
-def get_engine(name: str) -> Optional[Any]:
-    """Get an engine by name."""
-    from vectorcode.src.vc_core.registry import EngineRegistry
-    return EngineRegistry.get(name) if hasattr(EngineRegistry, 'get') else None
-
-def discover_models() -> List[str]:
-    """Return available model names."""
-    try:
-        import subprocess
-        r = subprocess.run(['ollama', 'list'], capture_output=True, text=True, timeout=5)
-        lines = r.stdout.strip().splitlines()[1:]  # skip header
-        return [l.split()[0] for l in lines if l.strip()]
-    except Exception:
-        return []
-from vectorcode.src.engine import _discovery
+__all__.extend(["discover_engines", "discover_models", "get_engine"])
 

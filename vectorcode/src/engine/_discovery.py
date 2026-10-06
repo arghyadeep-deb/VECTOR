@@ -1,14 +1,10 @@
-"""Engine discovery utilities."""
-from __future__ import annotations
-from typing import List
+"""Compatibility exports for the canonical engine discovery implementation."""
 
-_discovery = None  # sentinel for import compat
+from vectorcode.src.vc_engine._discovery import (
+    _make_engine,
+    discover_engines,
+    discover_models,
+    get_engine,
+)
 
-def list_engines() -> List[str]:
-    return []
-
-def get_default_engine() -> str:
-    return "ollama"
-
-def get_engine(name: str = ""):
-    return None
+__all__ = ["_make_engine", "discover_engines", "discover_models", "get_engine"]

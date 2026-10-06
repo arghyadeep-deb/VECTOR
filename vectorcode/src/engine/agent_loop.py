@@ -53,8 +53,9 @@ class _SafeWriter:
     def flush(self):
         try:
             self._inner.flush()
-        except (OSError, ValueError) as _sve:
-            logger.warning("[VECTOR][engine.agent_loop] suppressed (OSError, ValueError): {}", _sve)
+        except (OSError, ValueError):
+            # Logging writes to this same stream and can recurse/deadlock.
+            return None
 
     def fileno(self):
         return self._inner.fileno()
@@ -212,7 +213,7 @@ class VectorAgent:
     ):
         _install_safe_stdio()
 
-        from session import VectorCodeSession
+        from vectorcode.src.session import VectorCodeSession
         self.session = VectorCodeSession.get()
         self.model_id  = model_id or self.session.current_model or "vector-focus"
         self.max_iterations = max_iterations
@@ -237,7 +238,7 @@ class VectorAgent:
 
     def _get_tool_router(self):
         if self._tool_router is None:
-            from tools.registry import ToolRouter
+            from vectorcode.src.tools.registry import ToolRouter
             self._tool_router = ToolRouter(
                 project_dir=self.project_dir,
                 approval_callback=self._approval_cb,
@@ -387,18 +388,30 @@ class VectorAgent:
         Call the model via the VectorCode transport layer.
         Returns {"content", "tool_calls", "finish_reason", "usage"}.
         """
+        from core.loop.context_engine import ContextEngine
+
+        hydration = ContextEngine().session_hydration_prompt(
+            {"session_id": self.session_id, "model": self.model_id}
+        )
+        effective_system = (
+            f"{hydration}\n\n{system_message}" if hydration and system_message else hydration or system_message
+        )
+        call_messages = list(messages)
+        if effective_system:
+            call_messages.insert(0, {"role": "system", "content": effective_system})
+
         # Bare model names ("vector-focus") are local Ollama models: go straight there. (The router
         # import used to sit OUTSIDE the try below, and `ModelRouter` did not exist, so every call
         # died with an ImportError before the Ollama fallback could run.)
         if "/" not in self.model_id:
-            return self._call_ollama_direct(messages, tool_schemas, system_message)
+            return self._call_ollama_direct(call_messages, tool_schemas)
 
         try:
-            from providers import ModelRouter
+            from vectorcode.src.providers.router import ModelRouter
             router = ModelRouter(project_dir=self.project_dir)
             result = router.complete(
                 self.model_id,
-                messages,
+                call_messages,
                 tools=tool_schemas or None,
                 stream=not self.quiet_mode,
                 max_tokens=8192,
@@ -537,9 +550,13 @@ class VectorAgent:
         try:
             args = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
             if not isinstance(args, dict):
-                args = {}
-        except (json.JSONDecodeError, TypeError):
-            args = {}
+                raise TypeError("tool arguments must decode to an object")
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            return self._make_tool_result(
+                tool_id,
+                tool_name,
+                f"[BLOCKED: invalid tool arguments for {tool_name}: {exc}]",
+            )
 
         # Approval gate for destructive tools
         if self._approval_cb:
@@ -551,7 +568,15 @@ class VectorAgent:
                         f"[BLOCKED: user denied {tool_name}]",
                     )
             except Exception as _sve:
-                logger.debug("[VECTOR][engine.agent_loop] suppressed Exception: {}", _sve)
+                logger.error(
+                    "[VECTOR][engine.agent_loop] approval callback failed closed for {}: {}",
+                    tool_name,
+                    _sve,
+                )
+                return self._make_tool_result(
+                    tool_id, tool_name,
+                    f"[BLOCKED: approval check failed for {tool_name}]",
+                )
 
         # Notify start
         if self._tool_start_cb:
@@ -598,7 +623,7 @@ class VectorAgent:
 
     def _compact_messages(self, messages: list, system_message: str) -> list:
         try:
-            from context.compactor import ContextCompactor
+            from vectorcode.src.context.compactor import ContextCompactor
             compactor = ContextCompactor(
                 model=self.model_id,
                 project_dir=self.project_dir,
@@ -616,8 +641,6 @@ class VectorAgent:
             "Generating summary of work completed so far."
         )
         logger.warning("[VECTOR][agent_loop] {}", warn)
-        if not self.quiet_mode:
-            print(warn)
 
         # Ask model to summarize what was done
         summary_prompt = (
@@ -682,7 +705,7 @@ def make_agent(
     **kwargs,
 ) -> VectorAgent:
     """Factory — creates a VectorAgent with sensible defaults."""
-    from session import VectorCodeSession
+    from vectorcode.src.session import VectorCodeSession
     sess = VectorCodeSession.get()
     return VectorAgent(
         model_id=model_id or sess.current_model or "vector-focus",

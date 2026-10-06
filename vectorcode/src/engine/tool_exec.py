@@ -38,8 +38,8 @@ def _extract_parallel_scope_path(tool_name: str, function_args: dict) -> Optiona
 
 
 def _paths_overlap(left: Path, right: Path) -> bool:
-    left_parts = left.parts
-    right_parts = right.parts
+    left_parts = tuple(os.path.normcase(part) for part in left.parts)
+    right_parts = tuple(os.path.normcase(part) for part in right.parts)
     if not left_parts or not right_parts:
         return bool(left_parts) == bool(right_parts) and bool(left_parts)
     common_len = min(len(left_parts), len(right_parts))
@@ -89,8 +89,15 @@ def execute_tool_calls_sequential(
         raw_args = tc.get("arguments") if isinstance(tc, dict) else tc.function.arguments
         try:
             args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
-        except Exception:
-            args = {}
+            if not isinstance(args, dict):
+                raise TypeError("tool arguments must decode to an object")
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            results.append({
+                "id": tc.get("id") if isinstance(tc, dict) else getattr(tc, "id", None),
+                "name": name,
+                "result": {"error": f"invalid tool arguments: {exc}"},
+            })
+            continue
         call_id = tc.get("id") if isinstance(tc, dict) else getattr(tc, "id", None)
         try:
             result = dispatch_fn(name, args, context)
@@ -115,8 +122,14 @@ def execute_tool_calls_concurrent(
         raw_args = tc.get("arguments") if isinstance(tc, dict) else tc.function.arguments
         try:
             args = json.loads(raw_args) if isinstance(raw_args, str) else (raw_args or {})
-        except Exception:
-            args = {}
+            if not isinstance(args, dict):
+                raise TypeError("tool arguments must decode to an object")
+        except (json.JSONDecodeError, TypeError, ValueError) as exc:
+            return idx, {
+                "id": tc.get("id") if isinstance(tc, dict) else getattr(tc, "id", None),
+                "name": name,
+                "result": {"error": f"invalid tool arguments: {exc}"},
+            }
         call_id = tc.get("id") if isinstance(tc, dict) else getattr(tc, "id", None)
         try:
             result = dispatch_fn(name, args, context)

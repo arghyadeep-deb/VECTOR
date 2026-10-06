@@ -10,6 +10,7 @@ async def ollama_generate(model: str, prompt: str, **kwargs: Any) -> str:
     async with httpx.AsyncClient(timeout=120) as client:
         r = await client.post(f"{OLLAMA_BASE_URL}/api/generate",
                               json={"model": model, "prompt": prompt, "stream": False, **kwargs})
+        r.raise_for_status()
         return r.json().get("response", "")
 
 async def ollama_chat(model: str, messages: List[Dict], **kwargs: Any) -> str:
@@ -17,6 +18,7 @@ async def ollama_chat(model: str, messages: List[Dict], **kwargs: Any) -> str:
     async with httpx.AsyncClient(timeout=120) as client:
         r = await client.post(f"{OLLAMA_BASE_URL}/api/chat",
                               json={"model": model, "messages": messages, "stream": False, **kwargs})
+        r.raise_for_status()
         return r.json().get("message", {}).get("content", "")
 
 def list_models() -> List[str]:

@@ -9,17 +9,14 @@ without changing the collector contract.
 from __future__ import annotations
 
 import asyncio
-import logging
 from pathlib import Path
 from typing import Any
 
 import httpx
+from loguru import logger
 
 from vectorcode.src.mining._metrics import parse_gateway_metrics
 from vectorcode.src.mining._abc import MiningStats, Sidecar
-
-log = logging.getLogger(__name__)
-
 
 class MiningTelemetryCollector:
     """Poll Pearl gateway metrics and write ``MiningStats`` to a store.
@@ -42,15 +39,19 @@ class MiningTelemetryCollector:
     async def collect_once(self) -> MiningStats:
         sidecar = Sidecar.read(self._sidecar_path)
         if sidecar is None:
-            return MiningStats(provider_id="unknown")
+            return MiningStats(provider_id="unknown", last_error="mining sidecar unavailable")
 
         provider_id = sidecar.get("provider", "unknown")
         url = sidecar.get("gateway_metrics_url")
         if not url:
-            return MiningStats(provider_id=provider_id)
+            return MiningStats(
+                provider_id=provider_id,
+                last_error="gateway metrics URL missing from sidecar",
+            )
 
         try:
-            resp = httpx.get(f"{url.rstrip('/')}/metrics", timeout=5.0)
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(f"{url.rstrip('/')}/metrics")
             if resp.status_code != 200:
                 return MiningStats(
                     provider_id=provider_id,
@@ -67,7 +68,7 @@ class MiningTelemetryCollector:
                 stats = await self.collect_once()
                 self._store.record_mining_stats(stats)
             except Exception as exc:  # noqa: BLE001 - keep background task alive
-                log.warning("MiningTelemetryCollector tick error: %s", exc)
+                logger.warning("[VECTOR][mining.collector] tick error: {}", exc)
 
             try:
                 await asyncio.sleep(self._interval_s)

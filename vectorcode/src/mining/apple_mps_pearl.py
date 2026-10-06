@@ -3,4 +3,4 @@ from loguru import logger
 try:
     from core.mining.apple_mps_pearl import *
 except ImportError:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    logger.opt(exception=True).debug("[VECTOR][mining] Apple MPS provider unavailable")

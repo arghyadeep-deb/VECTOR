@@ -1,7 +1,7 @@
 # Ported from GitHub/VectorCode_vectorcode/repo/run_agent.py (run_conversation)
 """The main think→act→observe loop."""
+import asyncio
 import json
-import time
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from loguru import logger
@@ -156,7 +156,7 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
 
         # Small delay between iterations
         if agent.tool_delay > 0:
-            time.sleep(agent.tool_delay)
+            await asyncio.sleep(agent.tool_delay)
 
     # Append final assistant turn
     if final_text:
@@ -212,13 +212,20 @@ async def run_conversation_loop(agent: "AIAgent", user_message: str) -> Dict[str
 
 def _build_system_prompt(agent: "AIAgent") -> str:
     """Build the system prompt for this agent."""
+    from core.loop.context_engine import ContextEngine
+
+    hydration = ContextEngine().session_hydration_prompt(
+        {"session_id": agent.session_id, "model": agent.model}
+    )
     if agent.ephemeral_system_prompt:
-        return agent.ephemeral_system_prompt
-    try:
-        from vectorcode.context.prompt_builder import build_system_prompt
-        return build_system_prompt(agent)
-    except Exception:
-        return "You are VectorCode, an autonomous coding agent."
+        purpose_prompt = agent.ephemeral_system_prompt
+    else:
+        try:
+            from vectorcode.context.prompt_builder import build_system_prompt
+            purpose_prompt = build_system_prompt(agent)
+        except Exception:
+            purpose_prompt = "You are VectorCode, an autonomous coding agent."
+    return f"{hydration}\n\n{purpose_prompt}" if hydration else purpose_prompt
 
 
 async def _call_model(agent: "AIAgent") -> Any:

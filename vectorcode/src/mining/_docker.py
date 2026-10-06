@@ -95,7 +95,7 @@ class PearlDockerLauncher:
             self._client.images.get(tag)
             return tag
         except image_not_found:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR][mining._docker] image not present locally")
 
         pull_error: str | None = None
         try:
@@ -215,11 +215,11 @@ class PearlDockerLauncher:
         must keep the CUDA compiler toolchain.
         """
         dockerfile = repo_path / "miner" / "vllm-miner" / "Dockerfile"
-        text = dockerfile.read_text()
+        text = dockerfile.read_text(encoding="utf-8")
         old = "FROM nvidia/cuda:${CUDA_VERSION}-runtime-ubuntu24.04"
         new = "FROM nvidia/cuda:${CUDA_VERSION}-devel-ubuntu24.04"
         if old in text:
-            dockerfile.write_text(text.replace(old, new))
+            dockerfile.write_text(text.replace(old, new), encoding="utf-8")
 
     def _patch_vllm_entrypoint(self, repo_path: Path) -> None:
         """Patch Pearl's current entrypoint to wait on the UDS gateway socket.
@@ -230,7 +230,7 @@ class PearlDockerLauncher:
         that socket instead.
         """
         entrypoint = repo_path / "miner" / "vllm-miner" / "entrypoint.sh"
-        text = entrypoint.read_text()
+        text = entrypoint.read_text(encoding="utf-8")
         old = (
             "# Wait until the gateway is ready\n"
             "curl -s http://localhost:8339/metrics --retry-delay 1 --retry 20 "
@@ -245,7 +245,7 @@ class PearlDockerLauncher:
             "[ -S /tmp/pearlgw.sock ]"
         )
         if old in text:
-            entrypoint.write_text(text.replace(old, new))
+            entrypoint.write_text(text.replace(old, new), encoding="utf-8")
 
     # -----------------------------------------------------------------
     # Container lifecycle
@@ -257,7 +257,7 @@ class PearlDockerLauncher:
         ``image`` must already be resolved by ``ensure_image()``.
         Returns the docker.models.containers.Container object.
         """
-        extra = config.extra
+        extra = config.extra or {}
         # Resolve secret env vars (we hold the *name*, not the value).
         password_env = extra.get("pearld_rpc_password_env", "PEARLD_RPC_PASSWORD")
         password = os.environ.get(password_env)
@@ -398,11 +398,11 @@ class PearlDockerLauncher:
         try:
             container.stop(timeout=timeout)
         except Exception as _sve:  # noqa: BLE001 - best-effort
-            logger.debug("[VECTOR][mining._docker] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][mining._docker] suppressed Exception: {}", _sve)
         try:
             container.remove()
         except Exception as _sve:  # noqa: BLE001 - best-effort
-            logger.debug("[VECTOR][mining._docker] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][mining._docker] suppressed Exception: {}", _sve)
         self._container = None
 
     def is_running(self) -> bool:

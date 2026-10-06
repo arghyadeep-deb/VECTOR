@@ -149,9 +149,17 @@ def check_pearld_reachable(url: str, user: str, password: str) -> Tuple[bool, st
         if resp.status_code != 200:
             return False, f"HTTP {resp.status_code}"
         data = resp.json()
-        result = data.get("result") or {}
-        blocks = result.get("blocks", "?")
-        headers = result.get("headers", "?")
+        if not isinstance(data, dict):
+            return False, "invalid JSON-RPC response"
+        if data.get("error"):
+            return False, f"JSON-RPC error: {data['error']}"
+        result = data.get("result")
+        if not isinstance(result, dict):
+            return False, "JSON-RPC response missing result"
+        blocks = result.get("blocks")
+        headers = result.get("headers")
+        if not isinstance(blocks, int) or not isinstance(headers, int):
+            return False, "JSON-RPC result missing block heights"
         synced = blocks == headers
         marker = "synced" if synced else f"syncing ({blocks}/{headers})"
         return True, f"block height {blocks} ({marker})"

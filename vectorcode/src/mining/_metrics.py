@@ -13,12 +13,9 @@ only place the metric names live.
 
 from __future__ import annotations
 
-import logging
 import time
 
 from vectorcode.src.mining._abc import MiningStats
-
-log = logging.getLogger(__name__)
 
 # Pearl metric names. See spec §8.2 — verify against the fixture committed
 # in tests/mining/fixtures/gateway_metrics_sample.txt.
