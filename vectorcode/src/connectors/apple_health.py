@@ -63,6 +63,21 @@ def _day_key(dt: datetime) -> str:
     """Return ``YYYY-MM-DD`` for a datetime."""
     return dt.strftime("%Y-%m-%d")
 
+def _is_before(dt: datetime, cutoff: datetime) -> bool:
+    """Compare two datetimes as real instants, not naive wall-clock values.
+
+    Health export records carry their own UTC offset (e.g. ``-0700``) which
+    can differ from ``cutoff``'s. Stripping tzinfo before comparing (as this
+    connector previously did) compares raw wall-clock numbers and silently
+    mis-includes/excludes records near the sync boundary by up to the
+    offset difference.
+    """
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    if cutoff.tzinfo is None:
+        cutoff = cutoff.replace(tzinfo=timezone.utc)
+    return dt < cutoff
+
 def _format_duration(seconds: float) -> str:
     """Return a human-readable duration like ``7h 23m``."""
     hours = int(seconds // 3600)
@@ -220,7 +235,7 @@ class AppleHealthConnector(BaseConnector):
                     elem.clear()
                     continue
 
-                if since and start_dt.replace(tzinfo=None) < since.replace(tzinfo=None):
+                if since and _is_before(start_dt, since):
                     elem.clear()
                     continue
 
@@ -271,7 +286,7 @@ class AppleHealthConnector(BaseConnector):
                     elem.clear()
                     continue
 
-                if since and start_dt.replace(tzinfo=None) < since.replace(tzinfo=None):
+                if since and _is_before(start_dt, since):
                     elem.clear()
                     continue
 
