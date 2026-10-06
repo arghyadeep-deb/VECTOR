@@ -9,6 +9,7 @@ from loguru import logger
 import json
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 from vector_constants import get_vector_home
@@ -265,12 +266,30 @@ def _read_config() -> dict:
 
 
 def _write_config(cfg: dict, path: Path | None = None) -> None:
+    """Write the Honcho config atomically.
+
+    This file holds per-host apiKey/baseUrl credentials -- a crash or kill
+    mid-write (power loss, OOM kill) during a plain write_text() truncates
+    the file, and the next _read_config() swallows the resulting
+    JSONDecodeError and silently falls back to defaults, which looks like
+    the user's Honcho configuration (and API key) was simply lost.
+    """
     path = path or _local_config_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(cfg, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    payload = json.dumps(cfg, indent=2, ensure_ascii=False) + "\n"
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 def _resolve_api_key(cfg: dict) -> str:
