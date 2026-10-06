@@ -111,7 +111,10 @@ class KnowledgeGraphMemory:
                 entity_id=key,
                 entity_type=meta.get("entity_type", "document"),
                 name=meta.get("name", key),
-                properties={"content": content, **(meta.get("properties", {}))},
+                # content must win over any same-named key in the caller's
+                # metadata.properties -- it must never be overridable via
+                # metadata, since that's exactly what retrieve() reads back.
+                properties={**(meta.get("properties", {})), "content": content},
             )
         )
 
