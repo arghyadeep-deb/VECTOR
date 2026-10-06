@@ -162,10 +162,12 @@ class ColBERTMemory(MemoryBackend):
     ) -> str:
         """Persist *content* and return a unique document id."""
         doc_id = uuid.uuid4().hex
+        # Copy defensively -- otherwise a caller mutating their metadata
+        # dict after this call silently corrupts the already-"stored" record.
         self._documents[doc_id] = (
             content,
             source,
-            metadata or {},
+            dict(metadata) if metadata is not None else {},
         )
         self._embeddings[doc_id] = self._encode(content)
 

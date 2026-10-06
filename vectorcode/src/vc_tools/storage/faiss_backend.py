@@ -67,7 +67,9 @@ class FAISSMemory(MemoryBackend):
     ) -> str:
         """Embed and store *content*, returning a unique doc id."""
         doc_id = uuid.uuid4().hex
-        meta = metadata if metadata is not None else {}
+        # Copy defensively -- otherwise a caller mutating their metadata
+        # dict after this call silently corrupts the already-"stored" record.
+        meta = dict(metadata) if metadata is not None else {}
 
         vec = self._embedder.embed([content])
         faiss.normalize_L2(vec)
