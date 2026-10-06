@@ -76,7 +76,13 @@ class HookRegistry:
         """
         Execute all handlers for hook in priority order.
         Each handler runs in a daemon thread with self.default_timeout.
-        Timeouts and exceptions are caught and logged — never re-raised.
+        A timeout is logged and skipped (the handler keeps running in its
+        daemon thread, but fire() moves on). A raised exception is
+        re-raised to the caller after being logged -- this is how a
+        can_block=True Claude hook (see _make_claude_hook_wrapper) signals
+        "abort the lifecycle event": it previously only reached a log line,
+        silently discarding the block signal regardless of what the
+        handler intended.
         """
         for _, fn in self._handlers[hook]:
             exc: List[Exception] = []
@@ -99,6 +105,7 @@ class HookRegistry:
                 logger.error(
                     f"[VECTOR][hooks] {hook.name} handler raised: {exc[0]}"
                 )
+                raise exc[0]
 
     def list_handlers(self, hook: HookName) -> List[Callable]:
         """Return callables registered to hook in current priority order."""
