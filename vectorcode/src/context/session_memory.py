@@ -6,6 +6,8 @@ Sections: Build Commands, Known Issues, Architecture Notes, Preferences.
 
 import sys
 import re
+import os
+import tempfile
 
 from loguru import logger
 from config import VECTOR_DATA_DIR
@@ -72,7 +74,24 @@ def _write_memory(sections: dict[str, list[str]]) -> None:
             for item in items[:20]:
                 lines.append(f"- {item}")
             lines.append("")
-    _MEMORY_PATH.write_text("\n".join(lines), encoding="utf-8")
+    payload = "\n".join(lines)
+    fd, temp_name = tempfile.mkstemp(
+        dir=_MEMORY_PATH.parent,
+        prefix=f".{_MEMORY_PATH.name}.",
+        suffix=".tmp",
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, _MEMORY_PATH)
+    except BaseException:
+        try:
+            os.unlink(temp_name)
+        except FileNotFoundError:
+            pass
+        raise
     logger.info(f"[VECTOR][memory] wrote memory.md ({sum(len(v) for v in sections.values())} entries)")
 
 

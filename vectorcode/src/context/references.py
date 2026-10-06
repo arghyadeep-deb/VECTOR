@@ -240,6 +240,7 @@ def _expand_file_reference(
     ref: ContextReference, cwd: Path
 ) -> Tuple[Optional[str], Optional[str]]:
     path = _resolve_path(cwd, ref.target)
+    _ensure_within_workspace(path, cwd)
     _ensure_path_allowed(path)
     if not path.exists():
         return f"{ref.raw}: file not found", None
@@ -267,6 +268,7 @@ def _expand_folder_reference(
     ref: ContextReference, cwd: Path
 ) -> Tuple[Optional[str], Optional[str]]:
     path = _resolve_path(cwd, ref.target)
+    _ensure_within_workspace(path, cwd)
     _ensure_path_allowed(path)
     if not path.exists():
         return f"{ref.raw}: folder not found", None
@@ -342,6 +344,18 @@ def _resolve_path(cwd: Path, target: str) -> Path:
     if not path.is_absolute():
         path = cwd / path
     return path.resolve()
+
+
+def _ensure_within_workspace(path: Path, cwd: Path) -> None:
+    """Reject resolved paths outside ``cwd``, including Windows case tricks."""
+    normalized_path = os.path.normcase(str(path.resolve()))
+    normalized_cwd = os.path.normcase(str(cwd.resolve()))
+    try:
+        inside_workspace = os.path.commonpath((normalized_path, normalized_cwd)) == normalized_cwd
+    except ValueError:
+        inside_workspace = False
+    if not inside_workspace:
+        raise ValueError("path resolves outside the workspace and cannot be attached")
 
 
 def _ensure_path_allowed(path: Path) -> None:

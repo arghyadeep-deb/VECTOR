@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import os
 import threading
+import json
+import tempfile
 from pathlib import Path
 
 try:
@@ -90,10 +92,29 @@ def save_credential(
         for section, kvs in creds.items():
             lines.append(f"[{section}]")
             for k, v in kvs.items():
-                lines.append(f'{k} = "{v}"')
+                # JSON strings are valid TOML basic strings and safely escape
+                # quotes, backslashes, control characters, and newlines.
+                lines.append(f"{k} = {json.dumps(v, ensure_ascii=False)}")
             lines.append("")
-        p.write_text("\n".join(lines))
-        os.chmod(p, 0o600)
+        fd, temp_name = tempfile.mkstemp(
+            dir=p.parent,
+            prefix=f".{p.name}.",
+            suffix=".tmp",
+        )
+        try:
+            os.chmod(temp_name, 0o600)
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write("\n".join(lines))
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temp_name, p)
+            os.chmod(p, 0o600)
+        except BaseException:
+            try:
+                os.unlink(temp_name)
+            except FileNotFoundError:
+                pass
+            raise
 
     os.environ[key] = stripped
 

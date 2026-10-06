@@ -303,12 +303,19 @@ def validate(messages: list[dict]) -> list[dict]:
                         bid = block.get("id")
                         if bid:
                             prev_tool_use_ids.add(bid)
+            for tool_call in msg.get("tool_calls") or []:
+                if isinstance(tool_call, dict) and tool_call.get("id"):
+                    prev_tool_use_ids.add(tool_call["id"])
             result.append(msg)
 
         elif role == "tool":
             # Check if there's a matching tool_use id
-            tool_use_id = msg.get("tool_use_id") or msg.get("id")
-            if prev_tool_use_ids and tool_use_id not in prev_tool_use_ids:
+            tool_use_id = (
+                msg.get("tool_use_id")
+                or msg.get("tool_call_id")
+                or msg.get("id")
+            )
+            if not tool_use_id or tool_use_id not in prev_tool_use_ids:
                 logger.warning(
                     f"[trajectory_compressor] dropping orphaned tool_result "
                     f"id={tool_use_id!r}"

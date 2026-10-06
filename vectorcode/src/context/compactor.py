@@ -399,7 +399,7 @@ def _embed_vectormd(messages: list[dict], project_dir: Path | None) -> list[dict
     if not project_dir:
         return messages
     try:
-        from context.vectormd import VectorMD
+        from vectorcode.src.context.vectormd import VectorMD
         vmd = VectorMD(project_dir)
         return vmd.inject_into_messages(messages)
     except Exception as e:
