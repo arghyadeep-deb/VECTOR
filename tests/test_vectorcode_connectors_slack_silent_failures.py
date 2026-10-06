@@ -14,18 +14,31 @@ nothing to distinguish that from a genuinely empty workspace.
 
 Also fixed: channel-join and history-fetch exception/not-ok paths were
 bare `except Exception: continue`/`break` with zero logging.
+
+UPDATED (connectors round 1, 2026-10-06): a persistent conversations.list
+failure logging a warning and then silently stopping with docs=[] was
+itself still an instance of the "phantom success" bug class -- an empty
+result is indistinguishable from a genuinely empty workspace, and
+SyncEngine's checkpoint logic (sync_engine.py) relies on connectors raising
+on real failure to record a distinguishable error state. sync() now raises
+RuntimeError instead of logging-and-stopping; this test was updated to
+match that stricter, more correct contract (see
+test_connectors_round1_regressions.py::test_slack_collection_failure_is_not_reported_as_success
+for the new coverage of this exact path).
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import vectorcode.src.connectors.slack_connector as slack_connector
 
 
-def test_sync_logs_and_stops_when_conversations_list_returns_not_ok(monkeypatch, caplog):
+def test_sync_raises_when_conversations_list_returns_not_ok(monkeypatch):
     monkeypatch.setattr(
         slack_connector,
         "load_tokens",
@@ -42,22 +55,10 @@ def test_sync_logs_and_stops_when_conversations_list_returns_not_ok(monkeypatch,
         lambda token, cursor="": {"ok": False, "error": "ratelimited"},
     )
 
-    logged = []
-    monkeypatch.setattr(
-        slack_connector.logger,
-        "warning",
-        lambda *a, **k: logged.append((a, k)),
-    )
-
     conn = slack_connector.SlackConnector(credentials_path="/tmp/does-not-matter.json")
-    docs = list(conn.sync())
-
-    assert docs == []
+    with pytest.raises(RuntimeError, match="ratelimited"):
+        list(conn.sync())
     assert conn._items_synced == 0
-    assert any("conversations.list failed" in str(a) for a, _ in logged), (
-        "a persistent API error must be logged, not silently treated as "
-        "'no channels'"
-    )
 
 
 def test_sync_logs_when_users_list_returns_not_ok(monkeypatch):

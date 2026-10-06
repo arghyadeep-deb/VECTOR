@@ -174,7 +174,7 @@ class AppleMusicConnector(BaseConnector):
             logger.warning("Could not retrieve tracks from Music.app")
             self._status.state = "error"
             self._status.error = "AppleScript query failed"
-            return
+            raise RuntimeError(self._status.error)
 
         lines = [line for line in raw.split("\n") if line.strip()]
         self._status.items_total = len(lines)

@@ -4315,3 +4315,52 @@ isn't "proven in production" until you supply the service/device and run it live
     colbert_backend.py) -- all committed directly by this fork (unlike the Codex rounds, Claude
     forks can write `.git/index.lock` themselves). This OPEN_ISSUES entry is intentionally left
     uncommitted for the parent session, per instruction.
+
+83. **`vectorcode/src/connectors/` audit, round 1, partial pass (2026-10-06) —** first full-depth
+    pass on this 36-file directory beyond the 8 files already fixed for the SyncStatus
+    error-reporting bug class in an earlier round. Codex hit a genuine usage-limit wall mid-edit
+    (not a transient capacity error) after completing 10 files; did not reach the other ~18.
+    **Fixed with proof tests, all verified by the parent session (ran the new test file, fixed one
+    wrong-class-name import in it, confirmed each surprising claim against the actual diff, ran
+    `git stash` to confirm the sync_engine.py fix fails pre-fix):**
+    - `oauth.py` -- the Google/generic OAuth callback flows sent no `state` parameter and never
+      validated one on return, a classic OAuth CSRF gap; added `secrets.token_urlsafe(32)`
+      state generation plus `secrets.compare_digest()` verification on callback, timing-safe.
+      Also fixed the callback-wait loop resetting `server.timeout` to the full value on every
+      retry instead of tracking a real deadline (the documented "2 minute timeout" could run
+      unbounded), and made `save_tokens()`'s write atomic (tempfile + fsync + os.replace,
+      chmod 0o600 before the file is visible at its final path instead of after).
+    - `embedding_store.py` -- `chunk_id` (connector-originated, not a safe filename) was
+      interpolated directly into a tensor filename (CWE-22); now SHA-256 hashed, with a
+      `_indexed_tensor_path()` confinement check on read/delete and an atomic write on store.
+    - `sync_engine.py` -- two bugs: (1) `last_sync` was stamped to "now" on every checkpoint
+      write, including mid-batch and error checkpoints, so a sync that crashed partway still
+      advanced the watermark used to compute `since=` on the next run, silently skipping
+      records; now only the final successful checkpoint advances `last_sync`. (2) the cursor
+      used for checkpointing never advanced past the pre-sync value during a run; now refreshed
+      from `connector.sync_status().cursor` at each checkpoint.
+    - `slack_connector.py` -- a persistent `conversations.list` failure (e.g. rate-limited,
+      invalid auth) logged a warning and silently stopped with zero results, still a "phantom
+      success" shape (indistinguishable from a genuinely empty workspace, and `SyncEngine`'s new
+      checkpoint logic above needs connectors to raise on real failure to record a
+      distinguishable error state). Now raises `RuntimeError`. The parent session updated a
+      *pre-existing* test (`test_vectorcode_connectors_slack_silent_failures.py`, written for the
+      prior log-and-stop fix) to match this stricter, more correct contract rather than reverting
+      the new fix -- verified the new behavior is itself covered by this round's own new test.
+    - `gcalendar.py`, `apple_music.py`, `notion.py`, `gmail_imap.py`, `attachment_store.py`,
+      `strava.py` -- each had at least one silent-failure/phantom-success or boundary gap fixed
+      (calendar-fetch errors reported as empty success, cursor-non-advance not rejected, IMAP
+      zero-limit expanding to a full mailbox fetch, attachment lookup accepting a non-digest key,
+      minor cursor/error-boundary fixes). See `tests/test_connectors_round1_regressions.py` for
+      per-fix coverage.
+    New tests: `tests/test_connectors_round1_regressions.py` (11 tests, one wrong-class-name
+    import fixed by the parent session before they would run), all passing; broader
+    connector/oauth-scoped suite (84 tests) also passing after the parent session updated the one
+    stale pre-existing Slack test described above.
+    **Remaining scope for a follow-up round:** ~18 of 36 connectors/ files were not yet reached by
+    this pass (Codex's own usage-limit error fired mid-edit on sync_engine.py, not at a clean
+    stopping point) -- re-run `git log --oneline --name-only -- vectorcode/src/connectors/` to
+    rebuild the exact remaining list before continuing.
+    **Commit status:** committed by the parent session (Codex's sandbox cannot write
+    `.git/index.lock`); this OPEN_ISSUES entry was also written by the parent session since the
+    task was cut off by the usage-limit error before it could write its own.

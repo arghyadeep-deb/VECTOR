@@ -19,7 +19,10 @@ from __future__ import annotations
 from core.memory.db_utils import apply_pragmas
 from loguru import logger
 
+import hashlib
+import os
 import sqlite3
+import tempfile
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
@@ -91,10 +94,23 @@ class EmbeddingStore:
             logger.debug("EmbeddingStore.store: torch not available, skipping.")
             return
 
-        filename = f"{chunk_id}.pt"
+        # chunk_id can originate in connector data and is not a safe filename.
+        # Hash it so separators/absolute paths can never escape tensor_dir.
+        filename = f"{hashlib.sha256(chunk_id.encode('utf-8')).hexdigest()}.pt"
         tensor_path = self._tensor_dir / filename
 
-        _torch.save(embedding, str(tensor_path))
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{filename}.", dir=self._tensor_dir)
+        os.close(fd)
+        try:
+            _torch.save(embedding, tmp_name)
+            with open(tmp_name, "r+b") as tmp:
+                os.fsync(tmp.fileno())
+            os.replace(tmp_name, tensor_path)
+        finally:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
 
         with self._lock:
             self._conn.execute(
@@ -123,7 +139,10 @@ class EmbeddingStore:
         if row is None:
             return None
 
-        tensor_path = self._tensor_dir / row[0]
+        tensor_path = self._indexed_tensor_path(row[0])
+        if tensor_path is None:
+            logger.warning("EmbeddingStore.get: unsafe indexed filename for {}", chunk_id)
+            return None
         if not tensor_path.exists():
             # Stale index entry --- clean it up
             with self._lock:
@@ -170,7 +189,10 @@ class EmbeddingStore:
         if row is None:
             return False
 
-        tensor_path = self._tensor_dir / row[0]
+        tensor_path = self._indexed_tensor_path(row[0])
+        if tensor_path is None:
+            logger.warning("EmbeddingStore.delete: unsafe indexed filename for {}", chunk_id)
+            return False
         if tensor_path.exists():
             tensor_path.unlink()
 
@@ -180,6 +202,15 @@ class EmbeddingStore:
             )
             self._conn.commit()
         return True
+
+    def _indexed_tensor_path(self, filename: str) -> Optional[Path]:
+        """Resolve a stored filename only when it remains inside tensor_dir."""
+        candidate = (self._tensor_dir / filename).resolve()
+        try:
+            candidate.relative_to(self._tensor_dir.resolve())
+        except ValueError:
+            return None
+        return candidate
 
     def close(self) -> None:
         """Close the underlying SQLite connection."""

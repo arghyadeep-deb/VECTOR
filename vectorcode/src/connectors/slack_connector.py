@@ -306,11 +306,8 @@ class SlackConnector(BaseConnector):
                 # this check, sync() silently treats it as "no more
                 # channels" and completes having synced nothing, with
                 # self._items_synced giving no hint why.
-                logger.warning(
-                    "[VECTOR][connectors.slack] conversations.list failed "
-                    "({}); stopping sync early", channels_resp.get("error"),
-                )
-                break
+                error = channels_resp.get("error", "unknown_error")
+                raise RuntimeError(f"Slack conversations.list failed: {error}")
             channels: List[Dict[str, Any]] = channels_resp.get("channels", [])
 
             for channel in channels:

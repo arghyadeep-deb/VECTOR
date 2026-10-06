@@ -101,6 +101,7 @@ class SyncEngine:
         checkpoint = self.get_checkpoint(connector_id)
         prior_cursor: Optional[str] = checkpoint["cursor"] if checkpoint else None
         prior_items: int = checkpoint["items_synced"] if checkpoint else 0
+        prior_last_sync: Optional[str] = checkpoint["last_sync"] if checkpoint else None
 
         since: Optional[datetime] = None
         if checkpoint and checkpoint.get("last_sync"):
@@ -111,6 +112,7 @@ class SyncEngine:
 
         items_ingested = 0
         current_cursor: Optional[str] = prior_cursor
+        sync_started_at = datetime.now(tz=timezone.utc).isoformat()
 
         try:
             doc_iter = connector.sync(since=since, cursor=prior_cursor)
@@ -122,10 +124,12 @@ class SyncEngine:
                 if len(batch) >= _BATCH_SIZE:
                     items_ingested += self._pipeline.ingest(batch)
                     batch = []
+                    current_cursor = connector.sync_status().cursor
                     self._save_checkpoint(
                         connector_id,
                         prior_items + items_ingested,
                         cursor=current_cursor,
+                        last_sync=prior_last_sync,
                     )
 
             # Ingest any remaining documents.
@@ -133,20 +137,24 @@ class SyncEngine:
                 items_ingested += self._pipeline.ingest(batch)
 
         except Exception as exc:
+            current_cursor = connector.sync_status().cursor or current_cursor
             self._save_checkpoint(
                 connector_id,
                 prior_items + items_ingested,
                 cursor=current_cursor,
                 error=str(exc),
+                last_sync=prior_last_sync,
             )
             raise
 
         # Final checkpoint — clear any previous error.
+        current_cursor = connector.sync_status().cursor
         self._save_checkpoint(
             connector_id,
             prior_items + items_ingested,
             cursor=current_cursor,
             error=None,
+            last_sync=sync_started_at,
         )
         return items_ingested
 
@@ -180,9 +188,9 @@ class SyncEngine:
         *,
         cursor: Optional[str] = None,
         error: Optional[str] = None,
+        last_sync: Optional[str] = None,
     ) -> None:
         """UPSERT a checkpoint row into the state database."""
-        now = datetime.now(tz=timezone.utc).isoformat()
         with self._lock:
             self._conn.execute(
                 """
@@ -195,7 +203,7 @@ class SyncEngine:
                     last_sync    = excluded.last_sync,
                     error        = excluded.error
                 """,
-                (connector_id, items_synced, cursor, now, error),
+                (connector_id, items_synced, cursor, last_sync, error),
             )
             self._conn.commit()
 

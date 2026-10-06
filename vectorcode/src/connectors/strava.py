@@ -72,7 +72,9 @@ class StravaConnector(BaseConnector):
         return json.loads(self._token_path.read_text(encoding="utf-8"))
 
     def _save_tokens(self, tokens: Dict[str, str]) -> None:
-        self._token_path.write_text(json.dumps(tokens), encoding="utf-8")
+        from vectorcode.src.connectors.oauth import save_tokens
+
+        save_tokens(str(self._token_path), tokens)
 
     def _get_access_token(self) -> str:
         """Return a valid access token, refreshing it first if it has expired.

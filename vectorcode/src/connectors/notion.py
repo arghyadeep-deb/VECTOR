@@ -368,7 +368,12 @@ class NotionConnector(BaseConnector):
             if not has_more:
                 self._last_cursor = None
                 break
-            page_cursor = search_resp.get("next_cursor")
+            next_cursor = search_resp.get("next_cursor")
+            if not next_cursor or next_cursor == page_cursor:
+                raise RuntimeError(
+                    "Notion pagination reported has_more without a new cursor"
+                )
+            page_cursor = next_cursor
             self._last_cursor = page_cursor
 
         self._items_synced = synced

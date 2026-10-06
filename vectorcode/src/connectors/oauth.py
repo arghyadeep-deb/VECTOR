@@ -17,6 +17,9 @@ from loguru import logger
 import base64
 import json
 import os
+import secrets
+import tempfile
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -187,6 +190,7 @@ def build_google_auth_url(
     client_id: str,
     redirect_uri: str = _DEFAULT_REDIRECT_URI,
     scopes: Optional[List[str]] = None,
+    state: Optional[str] = None,
 ) -> str:
     """Build a Google OAuth2 consent URL.
 
@@ -217,6 +221,8 @@ def build_google_auth_url(
         "access_type": "offline",
         "prompt": "consent",
     }
+    if state is not None:
+        params["state"] = state
     return f"{_GOOGLE_AUTH_ENDPOINT}?{urlencode(params)}"
 
 def resolve_google_credentials(connector_path: str) -> str:
@@ -254,8 +260,19 @@ def save_tokens(path: str, tokens: Dict[str, Any]) -> None:
     """
     p = Path(path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(tokens, indent=2), encoding="utf-8")
-    os.chmod(path, 0o600)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{p.name}.", dir=p.parent)
+    try:
+        os.chmod(tmp_name, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+            json.dump(tokens, tmp, indent=2)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.replace(tmp_name, p)
+    finally:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
 
 def delete_tokens(path: str) -> None:
     """Delete the credentials file at *path* if it exists."""
@@ -354,10 +371,12 @@ def run_oauth_flow(
     from http.server import BaseHTTPRequestHandler, HTTPServer
     from urllib.parse import parse_qs, urlparse
 
+    expected_state = secrets.token_urlsafe(32)
     auth_url = build_google_auth_url(
         client_id=client_id,
         redirect_uri=redirect_uri,
         scopes=scopes,
+        state=expected_state,
     )
 
     # Mutable containers used by the callback handler closure.
@@ -368,6 +387,13 @@ def run_oauth_flow(
         def do_GET(self) -> None:  # noqa: N802 — required override name
             parsed = urlparse(self.path)
             params = parse_qs(parsed.query)
+
+            if parsed.path != urlparse(redirect_uri).path or not secrets.compare_digest(
+                params.get("state", [""])[0], expected_state
+            ):
+                self.send_response(400)
+                self.end_headers()
+                return
 
             if "code" in params:
                 auth_code.append(params["code"][0])
@@ -415,18 +441,20 @@ def run_oauth_flow(
             capture_output=True,
         )
         # Wait briefly and retry
-        import time
-
         time.sleep(1)
 
     server = HTTPServer(("127.0.0.1", port), _CallbackHandler)
-    server.timeout = 120  # 2 minute timeout
+    deadline = time.monotonic() + 120
 
     # Open the consent page in the user's default browser
     webbrowser.open(auth_url)
 
     # Wait for the callback (blocking, with per-request timeout)
     while not auth_code and not error:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        server.timeout = remaining
         server.handle_request()
 
     server.server_close()
@@ -471,6 +499,7 @@ def _wait_for_callback_code(
     port: int = 8789,
     path: str = "/callback",
     timeout: int = 120,
+    expected_state: Optional[str] = None,
 ) -> str:
     """Start a localhost HTTP server and wait for ``?code=`` on *path*.
 
@@ -484,7 +513,17 @@ def _wait_for_callback_code(
 
     class _Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:  # noqa: N802
-            params = parse_qs(urlparse(self.path).query)
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+            if parsed.path != path or (
+                expected_state is not None
+                and not secrets.compare_digest(
+                    params.get("state", [""])[0], expected_state
+                )
+            ):
+                self.send_response(400)
+                self.end_headers()
+                return
             if "code" in params:
                 auth_code.append(params["code"][0])
                 self.send_response(200)
@@ -527,14 +566,15 @@ def _wait_for_callback_code(
     finally:
         test_sock.close()
 
-    import time
-
     time.sleep(0.3)
 
     server = HTTPServer((host, port), _Handler)
-    server.timeout = timeout
-
+    deadline = time.monotonic() + timeout
     while not auth_code and not error:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        server.timeout = remaining
         server.handle_request()
     server.server_close()
 
@@ -611,11 +651,13 @@ def run_connector_oauth(
     )
 
     # Build auth URL
+    expected_state = secrets.token_urlsafe(32)
     params: Dict[str, str] = {
         "client_id": client_id,
         "redirect_uri": redirect_uri,
         "response_type": "code",
         "scope": " ".join(provider.scopes),
+        "state": expected_state,
         **provider.extra_auth_params,
     }
     auth_url = f"{provider.auth_endpoint}?{urlencode(params)}"
@@ -626,6 +668,7 @@ def run_connector_oauth(
         host=provider.callback_host,
         port=provider.callback_port,
         path=provider.callback_path,
+        expected_state=expected_state,
     )
 
     # Exchange code for tokens

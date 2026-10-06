@@ -98,6 +98,8 @@ class GmailIMAPConnector(BaseConnector):
         self._password = app_password
         self._credentials_path = credentials_path or _DEFAULT_CREDENTIALS_PATH
         self._imap_host = imap_host or self._default_imap_host
+        if max_messages < 0:
+            raise ValueError("max_messages must be non-negative")
         self._max_messages = max_messages
         self._items_synced = 0
         self._items_total = 0
@@ -167,7 +169,7 @@ class GmailIMAPConnector(BaseConnector):
         self._items_total = len(msg_ids)
 
         # Take the most recent N messages
-        recent = msg_ids[-self._max_messages :]
+        recent = msg_ids[-self._max_messages :] if self._max_messages else []
         synced = 0
 
         for mid in recent:

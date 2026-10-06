@@ -20,7 +20,9 @@ from loguru import logger
 
 import hashlib
 import json
+import os
 import sqlite3
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -100,18 +102,30 @@ class AttachmentStore:
         """
         sha = hashlib.sha256(content).hexdigest()
 
-        # Write blob file (idempotent)
-        blob_dir = self._base_dir / sha[:2]
-        blob_dir.mkdir(parents=True, exist_ok=True)
-        blob_path = blob_dir / sha
-        if not blob_path.exists():
-            blob_path.write_bytes(content)
-            import os
-
-            os.chmod(blob_path, 0o600)
-
-        # Upsert metadata row
+        # Write the content-addressed blob under the same lock as its index
+        # update.  A same-directory temporary plus fsync/replace prevents a
+        # crash from leaving a truncated final blob that later calls mistake
+        # for a valid deduplicated object.
         with self._lock:
+            blob_dir = self._base_dir / sha[:2]
+            blob_dir.mkdir(parents=True, exist_ok=True)
+            blob_path = blob_dir / sha
+            if not blob_path.exists():
+                fd, tmp_name = tempfile.mkstemp(prefix=f".{sha}.", dir=blob_dir)
+                try:
+                    with os.fdopen(fd, "wb") as tmp:
+                        tmp.write(content)
+                        tmp.flush()
+                        os.fsync(tmp.fileno())
+                    os.chmod(tmp_name, 0o600)
+                    os.replace(tmp_name, blob_path)
+                finally:
+                    try:
+                        os.unlink(tmp_name)
+                    except FileNotFoundError:
+                        pass
+
+            # Upsert metadata row.
             existing = self._conn.execute(
                 "SELECT source_doc_ids FROM attachments WHERE sha256 = ?", (sha,)
             ).fetchone()
@@ -171,6 +185,8 @@ class AttachmentStore:
 
     def get_content(self, sha: str) -> Optional[bytes]:
         """Return the raw bytes for *sha*, or ``None`` if the blob is missing."""
+        if len(sha) != 64 or any(ch not in "0123456789abcdef" for ch in sha):
+            return None
         blob_path = self._base_dir / sha[:2] / sha
         if not blob_path.exists():
             return None
