@@ -7,15 +7,14 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, Dict, List
+
+from loguru import logger
 
 from vectorcode.src.vc_core.types import Message
 from vectorcode.src.vc_engine._base import InferenceEngine
 from vectorcode.src.vc_engine._abc import StreamChunk
-
-logger = logging.getLogger(__name__)
 
 class MultiEngine(InferenceEngine):
     """Wraps multiple engines and routes by model name.
@@ -39,7 +38,7 @@ class MultiEngine(InferenceEngine):
                 for model_id in engine.list_models():
                     self._model_map[model_id] = engine
             except Exception as exc:
-                logger.debug("Failed to list models for %s: %s", _key, exc)
+                logger.debug("Failed to list models for {}: {}", _key, exc)
 
     _CLOUD_PREFIXES = ("gpt-", "o1-", "o3-", "o4-", "claude-", "gemini-", "openrouter/")
 
@@ -58,7 +57,7 @@ class MultiEngine(InferenceEngine):
         if any(model.startswith(p) for p in self._CLOUD_PREFIXES):
             for key, eng in self._engines:
                 if key == "cloud":
-                    logger.info("Routing cloud model %r to cloud engine", model)
+                    logger.info("Routing cloud model {!r} to cloud engine", model)
                     return eng
         # Non-cloud models: do NOT silently fall back to cloud. A transient
         # vLLM outage during a long agentic run would otherwise route every

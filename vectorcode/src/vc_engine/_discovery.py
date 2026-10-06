@@ -7,14 +7,13 @@
 
 from __future__ import annotations
 
-import logging
 from typing import Any, Dict, List, Tuple
+
+from loguru import logger
 
 from vectorcode.src.vc_core.config import VectorConfig
 from vectorcode.src.vc_core.registry import EngineRegistry
 from vectorcode.src.vc_engine._base import InferenceEngine
-
-logger = logging.getLogger(__name__)
 
 # Map registry keys to config host attribute (None = no host arg)
 _HOST_MAP: Dict[str, str | None] = {
@@ -69,7 +68,10 @@ def _maybe_register_mining_sidecar_engine() -> None:
         try:
             from vector.mining._constants import SIDECAR_PATH
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.debug(
+                "[VECTOR][vc_engine.discovery] mining constants unavailable"
+            )
+            return
     except ImportError:
         return
 
@@ -118,7 +120,7 @@ def discover_engines(config: VectorConfig) -> List[Tuple[str, InferenceEngine]]:
             if engine.health():
                 healthy.append((key, engine))
         except Exception as exc:
-            logger.debug("Engine %r failed during discovery: %s", key, exc)
+            logger.debug("Engine {!r} failed during discovery: {}", key, exc)
             continue
 
     default_key = config.engine.default
@@ -138,7 +140,7 @@ def discover_models(
         try:
             result[key] = engine.list_models()
         except Exception as exc:
-            logger.debug("Failed to list models for engine %r: %s", key, exc)
+            logger.debug("Failed to list models for engine {!r}: {}", key, exc)
             result[key] = []
     return result
 
@@ -166,7 +168,7 @@ def get_engine(
             if engine.health():
                 return (key, engine)
         except Exception as exc:
-            logger.debug("Engine %r health check failed: %s", key, exc)
+            logger.debug("Engine {!r} health check failed: {}", key, exc)
 
     # Fallback to any healthy engine
     healthy = discover_engines(config)

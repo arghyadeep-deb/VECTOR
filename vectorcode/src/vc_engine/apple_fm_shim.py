@@ -80,6 +80,11 @@ def health() -> JSONResponse:
 
 @app.get("/v1/models")
 def list_models() -> JSONResponse:
+    if apple_fm is None or not apple_fm.SystemLanguageModel.is_available():
+        return JSONResponse(
+            {"status": "unavailable", "reason": _APPLE_FM_UNAVAILABLE_REASON},
+            status_code=503,
+        )
     return JSONResponse(
         {
             "object": "list",

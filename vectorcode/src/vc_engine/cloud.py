@@ -228,14 +228,14 @@ class CloudEngine(InferenceEngine):
 
                 self._openai_client = openai.OpenAI()
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR][vc_engine.cloud] OpenAI SDK unavailable")
         if os.environ.get("ANTHROPIC_API_KEY"):
             try:
                 import anthropic
 
                 self._anthropic_client = anthropic.Anthropic()
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR][vc_engine.cloud] Anthropic SDK unavailable")
         gemini_key = os.environ.get("GEMINI_API_KEY") or os.environ.get(
             "GOOGLE_API_KEY"
         )
@@ -245,7 +245,7 @@ class CloudEngine(InferenceEngine):
 
                 self._google_client = genai.Client(api_key=gemini_key)
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR][vc_engine.cloud] Google SDK unavailable")
         openrouter_key = os.environ.get("OPENROUTER_API_KEY")
         if openrouter_key:
             try:
@@ -256,7 +256,7 @@ class CloudEngine(InferenceEngine):
                     api_key=openrouter_key,
                 )
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR][vc_engine.cloud] OpenRouter SDK unavailable")
         minimax_key = os.environ.get("MINIMAX_API_KEY")
         if minimax_key:
             try:
@@ -267,7 +267,7 @@ class CloudEngine(InferenceEngine):
                     api_key=minimax_key,
                 )
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR][vc_engine.cloud] MiniMax SDK unavailable")
         # Codex — uses the OpenAI Responses API.
         # Supports both standard API keys (api.openai.com) and ChatGPT
         # OAuth tokens (chatgpt.com) via OPENAI_CODEX_BASE_URL override.
@@ -785,6 +785,7 @@ class CloudEngine(InferenceEngine):
             "messages": messages_to_dicts(messages),
             "max_tokens": max_tokens,
             "temperature": temperature,
+            **kwargs,
         }
         t0 = time.monotonic()
         resp = self._openrouter_client.chat.completions.create(**create_kwargs)
@@ -793,7 +794,7 @@ class CloudEngine(InferenceEngine):
         usage = resp.usage
         prompt_tokens = usage.prompt_tokens if usage else 0
         completion_tokens = usage.completion_tokens if usage else 0
-        return {
+        result: Dict[str, Any] = {
             "content": choice.message.content or "",
             "usage": {
                 "prompt_tokens": prompt_tokens,
@@ -804,6 +805,16 @@ class CloudEngine(InferenceEngine):
             "finish_reason": choice.finish_reason or "stop",
             "ttft": elapsed,
         }
+        if hasattr(choice.message, "tool_calls") and choice.message.tool_calls:
+            result["tool_calls"] = [
+                {
+                    "id": tc.id,
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments,
+                }
+                for tc in choice.message.tool_calls
+            ]
+        return result
 
     def _generate_minimax(
         self,
@@ -827,6 +838,7 @@ class CloudEngine(InferenceEngine):
             "messages": messages_to_dicts(messages),
             "max_tokens": max_tokens,
             "temperature": temperature,
+            **kwargs,
         }
         t0 = time.monotonic()
         resp = self._minimax_client.chat.completions.create(**create_kwargs)
@@ -1087,6 +1099,7 @@ class CloudEngine(InferenceEngine):
             "max_tokens": max_tokens,
             "temperature": temperature,
             "stream": True,
+            **kwargs,
         }
         resp = self._openrouter_client.chat.completions.create(**create_kwargs)
         for chunk in resp:
@@ -1113,6 +1126,7 @@ class CloudEngine(InferenceEngine):
             "max_tokens": max_tokens,
             "temperature": temperature,
             "stream": True,
+            **kwargs,
         }
         resp = self._minimax_client.chat.completions.create(**create_kwargs)
         for chunk in resp:

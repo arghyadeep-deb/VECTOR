@@ -8,12 +8,12 @@
 from __future__ import annotations
 
 import json
-import logging
 import asyncio
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, Dict, List
 
 import httpx
+from loguru import logger
 
 from vectorcode.src.vc_core.types import Message
 from vectorcode.src.vc_engine._base import (
@@ -23,8 +23,6 @@ from vectorcode.src.vc_engine._base import (
     messages_to_dicts,
 )
 from vectorcode.src.vc_engine._abc import StreamChunk
-
-logger = logging.getLogger(__name__)
 
 class _OpenAICompatibleEngine(InferenceEngine):
     """Base for engines that serve the OpenAI ``/v1/chat/completions`` API."""
@@ -78,12 +76,9 @@ class _OpenAICompatibleEngine(InferenceEngine):
         data = resp.json()
         choices = data.get("choices", [])
         if not choices:
-            return {
-                "content": "",
-                "usage": data.get("usage", {}),
-                "model": data.get("model", model),
-                "finish_reason": "error",
-            }
+            raise RuntimeError(
+                f"{self.engine_id} returned a successful response without choices"
+            )
         choice = choices[0]
         usage = data.get("usage", {})
         # Ensure prompt_tokens reflects the full prompt size (including
@@ -225,7 +220,7 @@ class _OpenAICompatibleEngine(InferenceEngine):
             httpx.HTTPStatusError,
         ) as exc:
             logger.warning(
-                "Failed to list models from %s at %s: %s",
+                "Failed to list models from {} at {}: {}",
                 self.engine_id,
                 self._host,
                 exc,
@@ -240,7 +235,7 @@ class _OpenAICompatibleEngine(InferenceEngine):
             return resp.status_code == 200
         except Exception as exc:
             logger.debug(
-                "%s health check failed at %s: %s",
+                "{} health check failed at {}: {}",
                 self.engine_id,
                 self._host,
                 exc,

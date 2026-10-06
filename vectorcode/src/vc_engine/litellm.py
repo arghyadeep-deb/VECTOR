@@ -7,15 +7,14 @@
 
 from __future__ import annotations
 
-import logging
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, Dict, List
+
+from loguru import logger
 
 from vectorcode.src.vc_core.registry import EngineRegistry
 from vectorcode.src.vc_core.types import Message
 from vectorcode.src.vc_engine._base import InferenceEngine, messages_to_dicts
-
-logger = logging.getLogger(__name__)
 
 @EngineRegistry.register("litellm")
 class LiteLLMEngine(InferenceEngine):
@@ -100,7 +99,7 @@ class LiteLLMEngine(InferenceEngine):
             cost = litellm.completion_cost(completion_response=resp)
             result["cost_usd"] = cost
         except Exception as exc:
-            logger.debug("Failed to compute cost for LiteLLM call: %s", exc)
+            logger.debug("Failed to compute cost for LiteLLM call: {}", exc)
             result["cost_usd"] = 0.0
 
         return result

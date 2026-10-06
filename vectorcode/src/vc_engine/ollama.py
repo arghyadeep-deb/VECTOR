@@ -10,7 +10,6 @@ from loguru import logger
 
 import asyncio
 import json
-import logging
 import os
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, Dict, List
@@ -26,8 +25,6 @@ from vectorcode.src.vc_engine._base import (
     messages_to_dicts,
 )
 from vectorcode.src.vc_engine._abc import StreamChunk
-
-logger = logging.getLogger(__name__)
 
 @EngineRegistry.register("ollama")
 class OllamaEngine(InferenceEngine):
@@ -72,7 +69,7 @@ class OllamaEngine(InferenceEngine):
                     try:
                         fn["arguments"] = json.loads(args)
                     except (json.JSONDecodeError, TypeError) as _sve:
-                        logger.debug("[VECTOR][vc_engine.ollama] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
+                        logger.debug("[VECTOR][vc_engine.ollama] invalid tool arguments: {}", _sve)
         payload: Dict[str, Any] = {
             "model": model,
             "messages": msg_dicts,
@@ -258,7 +255,7 @@ class OllamaEngine(InferenceEngine):
                     try:
                         fn["arguments"] = json.loads(args)
                     except (json.JSONDecodeError, TypeError) as _sve:
-                        logger.debug("[VECTOR][vc_engine.ollama] suppressed (json.JSONDecodeError, TypeError): %s", _sve)
+                        logger.debug("[VECTOR][vc_engine.ollama] invalid tool arguments: {}", _sve)
 
         payload: Dict[str, Any] = {
             "model": model,
@@ -384,7 +381,7 @@ class OllamaEngine(InferenceEngine):
             httpx.HTTPStatusError,
         ) as exc:
             logger.warning(
-                "Failed to list models from Ollama at %s: %s",
+                "Failed to list models from Ollama at {}: {}",
                 self._host,
                 exc,
             )
@@ -397,7 +394,7 @@ class OllamaEngine(InferenceEngine):
             resp = self._client.get("/api/tags", timeout=2.0)
             return resp.status_code == 200
         except Exception as exc:
-            logger.debug("Ollama health check failed at %s: %s", self._host, exc)
+            logger.debug("Ollama health check failed at {}: {}", self._host, exc)
             return False
 
     def close(self) -> None:

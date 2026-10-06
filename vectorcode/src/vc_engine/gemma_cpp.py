@@ -7,16 +7,15 @@
 
 from __future__ import annotations
 
-import logging
 import os
 from collections.abc import AsyncIterator, Sequence
 from typing import Any, Dict, List
 
+from loguru import logger
+
 from vectorcode.src.vc_core.registry import EngineRegistry
 from vectorcode.src.vc_core.types import Message, Role
 from vectorcode.src.vc_engine._base import InferenceEngine, estimate_prompt_tokens
-
-logger = logging.getLogger(__name__)
 
 def _import_pygemma():
     """Import and return the pygemma.Gemma class. Raises ImportError if unavailable."""
@@ -104,7 +103,7 @@ class GemmaCppEngine(InferenceEngine):
         self._ensure_loaded()
         if model != self._model_type:
             logger.warning(
-                "gemma_cpp: requested model %r but loaded model is %r; "
+                "gemma_cpp: requested model {!r} but loaded model is {!r}; "
                 "proceeding with loaded model",
                 model,
                 self._model_type,
@@ -143,7 +142,7 @@ class GemmaCppEngine(InferenceEngine):
         self._ensure_loaded()
         if model != self._model_type:
             logger.warning(
-                "gemma_cpp: requested model %r but loaded model is %r; "
+                "gemma_cpp: requested model {!r} but loaded model is {!r}; "
                 "proceeding with loaded model",
                 model,
                 self._model_type,

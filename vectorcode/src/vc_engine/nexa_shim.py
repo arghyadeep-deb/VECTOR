@@ -81,6 +81,13 @@ def health() -> JSONResponse:
 
 @app.get("/v1/models")
 def list_models() -> JSONResponse:
+    try:
+        _get_llm()
+    except Exception as exc:
+        return JSONResponse(
+            {"status": "unavailable", "reason": str(exc)},
+            status_code=503,
+        )
     return JSONResponse(
         {
             "object": "list",
