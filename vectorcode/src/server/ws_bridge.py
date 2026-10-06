@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import secrets
 from typing import Any
 
 from loguru import logger
@@ -58,6 +60,19 @@ def create_ws_router(event_bus: EventBus) -> Any:
 
     @router.websocket("/v1/agents/events")
     async def agent_events(websocket: WebSocket) -> None:
+        # Starlette's BaseHTTPMiddleware (used by AuthMiddleware on the
+        # HTTP side) only runs for scope["type"] == "http" -- it never
+        # sees websocket connections, so this endpoint was completely
+        # unauthenticated regardless of whether an API key is configured,
+        # even though /v1/* HTTP routes are protected. Re-check the same
+        # key here, supplied via a query param since browsers can't set
+        # an Authorization header on a WebSocket handshake.
+        configured_key = os.environ.get("OPENVECTOR_API_KEY", "")
+        if configured_key:
+            supplied_key = websocket.query_params.get("api_key", "")
+            if not secrets.compare_digest(supplied_key, configured_key):
+                await websocket.close(code=4401)
+                return
         await websocket.accept()
         # Parse agent_id filter from query string
         agent_id = websocket.query_params.get("agent_id")
