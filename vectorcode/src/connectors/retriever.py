@@ -289,8 +289,15 @@ class TwoStageRetriever:
         if not candidates:
             return []
 
-        # Stage 2: optional reranking
-        if self._reranker is not None and len(candidates) > top_k:
+        # Stage 2: optional reranking. Always rerank whenever a reranker is
+        # configured and there are candidates -- even when len(candidates)
+        # <= top_k, a reranker still improves the *order* of those results,
+        # which is its whole purpose. Gating this on "more candidates than
+        # top_k" (as this previously did) skipped reranking entirely for a
+        # common case: a sparse knowledge base or a narrow query returning
+        # fewer than top_k matches, silently making a configured reranker a
+        # no-op exactly when a small, well-ordered result set matters most.
+        if self._reranker is not None:
             return self._reranker.rerank(query, candidates, top_k=top_k)
 
         return candidates[:top_k]
