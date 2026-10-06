@@ -45,7 +45,7 @@ def devanagari_ratio(text: str) -> float:
     return dev / len(letters)
 
 
-async def main() -> None:
+async def main() -> int:
     print("=== Step 1: core.personality import + PersonalityEngine().process() ===")
     system_prompt = ""
     try:
@@ -55,9 +55,8 @@ async def main() -> None:
         system_prompt = result.get("system_prompt", "")
         print(f"OK: core.personality works. system_prompt length: {len(system_prompt)} chars")
     except Exception as e:
-        print(f"core.personality failed ({type(e).__name__}: {e}) — falling back to VECTOR_PERSONALITY")
-        from core.voice.ambient_listener import VECTOR_PERSONALITY
-        system_prompt = VECTOR_PERSONALITY
+        print(f"FAIL: core.personality failed ({type(e).__name__}: {e})")
+        return 1
 
     print("\n=== Step 2: system_prompt contains the fixed vector.json rules ===")
     assert "English" in system_prompt, "missing English-only instruction!"
@@ -67,11 +66,13 @@ async def main() -> None:
     print(f"\nsystem_prompt non-empty: {bool(system_prompt)} ({len(system_prompt)} chars)")
 
     from core.inference.provider_client import ProviderClient
+    from core.loop.context_engine import ContextEngine
     from core.voice.tts import sanitize_for_speech
+    hydration = ContextEngine().session_hydration_prompt()
 
     print("\n=== Step 3: real LLM call, plain Hindi question, no explicit language demand ===")
     messages = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": hydration + "\n\n" + system_prompt},
         {"role": "user", "content": "आज का मौसम कैसा रहेगा?"},
     ]
     result = await ProviderClient().chat(
@@ -85,6 +86,7 @@ async def main() -> None:
     ratio = devanagari_ratio(clean)
     print(f"Devanagari ratio: {ratio:.2%}")
     print("RESULT: PASS (English)" if ratio < 0.2 else "RESULT: FAIL (still Hindi)")
+    failed = ratio >= 0.2
 
     print("\n=== Step 4: sanitize_for_speech() unit check on a synthetic dirty string ===")
     dirty = "**Sure**, here's the plan:\n- First item\n- Second item\n\n# Heading\nUse `code` and [a link](http://x.com)."
@@ -93,10 +95,11 @@ async def main() -> None:
     print(f"CLEAN: {clean2!r}")
     leaked = [ch for ch in "*_`#[]()" if ch in clean2]
     print("RESULT: PASS (no markdown symbols leaked)" if not leaked else f"RESULT: FAIL (leaked: {leaked})")
+    failed = failed or bool(leaked)
 
     print("\n=== Step 5 (harder case): explicit 'reply in Hindi' demand ===")
     messages2 = [
-        {"role": "system", "content": system_prompt},
+        {"role": "system", "content": hydration + "\n\n" + system_prompt},
         {"role": "user", "content": "कृपया हिंदी में ही जवाब दें। आपका नाम क्या है?"},
     ]
     result2 = await ProviderClient().chat(
@@ -115,6 +118,7 @@ async def main() -> None:
         print("RESULT: KNOWN GAP — explicit Hindi request defeats prompt-only enforcement on the streaming voice path (no deterministic backstop on this path; see KNOWN_ISSUES #37)")
 
     print("\nVERIFY_ISSUE37_DONE_MARKER")
+    return 1 if failed else 0
 
 
-asyncio.run(main())
+raise SystemExit(asyncio.run(main()))

@@ -3,9 +3,10 @@ import os
 import sys
 import time
 import httpx
+from pathlib import Path
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT))
 try:
     from dotenv import load_dotenv
     load_dotenv(ROOT / ".env")
@@ -58,3 +59,4 @@ for category, query, expected in QUERIES:
 
 print("-" * 70)
 print(f"Result: {correct}/{len(QUERIES)} correct")
+raise SystemExit(0 if correct == len(QUERIES) else 1)

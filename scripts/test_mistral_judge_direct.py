@@ -27,6 +27,9 @@ result = _judge_via_mistral(prompt)
 print("RESULT:", result)
 if result and "score" in result:
     print(f"MISTRAL_JUDGE_WORKS score={result['score']} reasoning={result.get('reasoning')}")
+    exit_code = 0
 else:
     print("MISTRAL_JUDGE_FAILED — returned None or unparseable")
+    exit_code = 1
 print("TEST_DONE_MARKER")
+raise SystemExit(exit_code)

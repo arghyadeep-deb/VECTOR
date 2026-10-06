@@ -29,13 +29,18 @@ REPO = Path(__file__).resolve().parent.parent
 def staged_files() -> list[str]:
     r = subprocess.run(["git", "diff", "--cached", "--name-only", "--diff-filter=ACM"],
                        capture_output=True, text=True, cwd=REPO, timeout=30)
+    if r.returncode != 0:
+        raise RuntimeError(r.stderr.strip() or "git diff failed")
     return [f for f in r.stdout.strip().splitlines() if f]
 
 
 def staged_content(path: str) -> bytes:
     r = subprocess.run(["git", "show", f":{path}"],
                        capture_output=True, cwd=REPO, timeout=30)
-    return r.stdout if r.returncode == 0 else b""
+    if r.returncode != 0:
+        detail = r.stderr.decode("utf-8", errors="replace").strip() or "git show failed"
+        raise RuntimeError(f"cannot read staged content for {path}: {detail}")
+    return r.stdout
 
 
 def check_python(path: str, data: bytes) -> str:
@@ -85,7 +90,11 @@ def check_yaml(path: str, data: bytes) -> str:
 
 
 def main() -> int:
-    files = staged_files()
+    try:
+        files = staged_files()
+    except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+        print(f"COMMIT BLOCKED — could not inspect staged files: {exc}", file=sys.stderr)
+        return 1
     if not files:
         return 0
     failures: list[tuple[str, str]] = []
@@ -94,7 +103,11 @@ def main() -> int:
         if name.endswith(".env") or name == ".env" or "/.env" in name:
             failures.append((f, "refusing to commit .env-like file (secrets)"))
             continue
-        data = staged_content(f)
+        try:
+            data = staged_content(f)
+        except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
+            failures.append((f, str(exc)))
+            continue
         if not data:
             continue
         err = ""

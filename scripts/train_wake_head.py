@@ -16,6 +16,7 @@ Output: models/wake/hey_vector.onnx
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +27,16 @@ ROOT = Path(__file__).parent.parent
 WAKE = ROOT / "models" / "wake"
 FEATS = WAKE / "negative_features"
 OUT = WAKE / "hey_vector.onnx"
+CANDIDATE = WAKE / "hey_vector.candidate.onnx"
+
+
+def _promote_candidate(candidate: Path, output: Path, passed: bool) -> bool:
+    """Atomically install a validated model; discard a rejected candidate."""
+    if passed:
+        os.replace(candidate, output)
+        return True
+    candidate.unlink(missing_ok=True)
+    return False
 
 
 class FCNBlock(nn.Module):
@@ -61,7 +72,9 @@ class Net(nn.Module):
 
 def window_stream(stream: np.ndarray, win: int = 16, hop: int = 8) -> np.ndarray:
     """Slice a (T, 96) embedding stream into (N, 16, 96) windows."""
-    n = (len(stream) - win) // hop
+    if win <= 0 or hop <= 0:
+        raise ValueError("win and hop must be positive")
+    n = max(0, (len(stream) - win) // hop + 1)
     idx = np.arange(win)[None, :] + hop * np.arange(n)[:, None]
     return stream[idx]
 
@@ -140,19 +153,21 @@ def main() -> bool:
     # dynamo=False: the legacy exporter writes ONE self-contained .onnx. The new
     # dynamo exporter split weights into hey_vector.onnx.data AND crashes printing
     # an emoji on Windows cp1252 consoles — exactly how the Jul 3 attempt died.
-    torch.onnx.export(model, torch.rand(1, 16, 96), str(OUT),
+    CANDIDATE.unlink(missing_ok=True)
+    torch.onnx.export(model, torch.rand(1, 16, 96), str(CANDIDATE),
                       output_names=["hey_vector"], dynamo=False)
-    size = OUT.stat().st_size
-    print(f"exported {OUT} ({size} bytes)")
+    size = CANDIDATE.stat().st_size
+    print(f"exported candidate {CANDIDATE} ({size} bytes)")
 
     # sanity: load through openwakeword and score a REAL recorded sample
     from openwakeword.model import Model as OWWModel
     import soundfile as sf
-    m = OWWModel(wakeword_models=[str(OUT)], inference_framework="onnx")
+    m = OWWModel(wakeword_models=[str(CANDIDATE)], inference_framework="onnx")
+    model_key = next(iter(m.models))
     sample, sr = sf.read(str(WAKE / "samples" / "sample_001.wav"), dtype="int16")
-    scores = [p["hey_vector"] for p in m.predict_clip(sample)]
+    scores = [p[model_key] for p in m.predict_clip(sample)]
     print(f"real-sample max score: {max(scores):.3f} (threshold 0.5)")
-    return max(scores) > 0.5
+    return _promote_candidate(CANDIDATE, OUT, max(scores) > 0.5)
 
 
 if __name__ == "__main__":

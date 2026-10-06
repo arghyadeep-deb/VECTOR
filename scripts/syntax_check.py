@@ -23,6 +23,7 @@ files = [
 ]
 
 ok = 0
+failed = 0
 for f in files:
     try:
         ast.parse(open(f, encoding="utf-8").read())
@@ -30,7 +31,10 @@ for f in files:
         print(f"  OK  {f}")
     except SyntaxError as e:
         print(f"FAIL  {f}: {e}")
+        failed += 1
     except FileNotFoundError:
         print(f"MISS  {f} (not found)")
+        failed += 1
 
 print(f"\n{ok}/{len(files)} files syntax OK")
+raise SystemExit(1 if failed else 0)

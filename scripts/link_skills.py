@@ -51,7 +51,9 @@ def link_skills(repo_path: Path, include_deprecated: bool = False,
     copied = []
     skipped = []
 
-    skip_buckets = {"deprecated"}
+    skip_buckets = set()
+    if not include_deprecated:
+        skip_buckets.add("deprecated")
     if not include_in_progress:
         skip_buckets.add("in-progress")
     if not include_personal:
@@ -79,7 +81,7 @@ def link_skills(repo_path: Path, include_deprecated: bool = False,
     for s in copied:
         print(f"    + {s}")
     if skipped:
-        print(f"  Skipped : {len(skipped)} (deprecated{'' if not include_deprecated else ''})")
+        print(f"  Skipped : {len(skipped)} ({', '.join(sorted(skip_buckets))})")
 
 
 def main():

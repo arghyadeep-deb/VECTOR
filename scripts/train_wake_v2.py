@@ -18,6 +18,7 @@ Output: models/wake/hey_vector.onnx  (+ .pt checkpoint)
 from __future__ import annotations
 
 import sys
+import os
 from pathlib import Path
 
 import numpy as np
@@ -28,6 +29,16 @@ import torch.nn as nn
 ROOT = Path(__file__).parent.parent
 WAKE = ROOT / "models" / "wake"
 OUT = WAKE / "hey_vector.onnx"
+CANDIDATE = WAKE / "hey_vector.candidate.onnx"
+
+
+def _promote_candidate(candidate: Path, output: Path, passed: bool) -> bool:
+    """Atomically install a validated model; discard a rejected candidate."""
+    if passed:
+        os.replace(candidate, output)
+        return True
+    candidate.unlink(missing_ok=True)
+    return False
 
 NEG_TEXTS = [
     "hey doctor, how are you today", "hey nectar is a strange name",
@@ -227,20 +238,20 @@ def main() -> bool:
         model.load_state_dict(best["state"]); model.to("cpu").eval()
         return model
 
-    def export(model):
+    def export(model, output_path: Path):
         torch.save(model.state_dict(), WAKE / "hey_vector_head.pt")
-        torch.onnx.export(model, torch.rand(1, 16, 96), str(OUT),
+        torch.onnx.export(model, torch.rand(1, 16, 96), str(output_path),
                           output_names=["hey_vector"], dynamo=False)
 
-    def mine_streaming_negatives(kok):
+    def mine_streaming_negatives(kok, model_path: Path):
         """Harvest windows the CURRENT model fires on, via the exact streaming
         pipeline used at inference (batch-computed features differ subtly —
         streaming silence scored 0.8+ despite batch silence being a negative)."""
         from openwakeword.model import Model as OWW
         import onnxruntime as ort
-        sess = ort.InferenceSession(str(OUT))
+        sess = ort.InferenceSession(str(model_path))
         iname = sess.get_inputs()[0].name
-        m = OWW(wakeword_models=[str(OUT)], inference_framework="onnx")
+        m = OWW(wakeword_models=[str(model_path)], inference_framework="onnx")
         rng = np.random.default_rng(11)
         mined = []
         beds = [np.zeros(16000 * 4, np.float32),
@@ -276,10 +287,11 @@ def main() -> bool:
     if model is None:
         print("FAILED: recall never reached 0.88")
         return False
-    export(model)
+    CANDIDATE.unlink(missing_ok=True)
+    export(model, CANDIDATE)
     # hard-negative mining rounds through the streaming pipeline
     for rnd in range(3):
-        mined = mine_streaming_negatives(kok)
+        mined = mine_streaming_negatives(kok, CANDIDATE)
         if len(mined) < 3:
             print(f"  round {rnd}: streaming pipeline clean", flush=True)
             break
@@ -290,24 +302,26 @@ def main() -> bool:
         if model is None:
             print("FAILED after mining round")
             return False
-        export(model)
+        export(model, CANDIDATE)
 
     # ── sanity through the REAL runtime ─────────────────────────────────────
     from openwakeword.model import Model as OWW
-    m = OWW(wakeword_models=[str(OUT)], inference_framework="onnx")
+    m = OWW(wakeword_models=[str(CANDIDATE)], inference_framework="onnx")
+    model_key = next(iter(m.models))
     def clip_score(path, gain=1.0):
         a = load_16k(Path(path))
         m.reset()
-        return max(pr["hey_vector"] for pr in m.predict_clip(to_i16(np.clip(a * gain, -1, 1))))
+        return max(pr[model_key] for pr in m.predict_clip(to_i16(np.clip(a * gain, -1, 1))))
     s_syn = clip_score(WAKE / "synthetic/syn_0000.wav")
     s_real = clip_score(WAKE / "samples/sample_001.wav")
     s_real_q = clip_score(WAKE / "samples/sample_001.wav", 0.4)
     print(f"scores: synthetic={s_syn:.3f} real={s_real:.3f} real-quiet={s_real_q:.3f}", flush=True)
     neg_a = np.zeros(16000 * 2, dtype=np.int16)
     m.reset()
-    s_sil = max(pr["hey_vector"] for pr in m.predict_clip(neg_a))
+    s_sil = max(pr[model_key] for pr in m.predict_clip(neg_a))
     print(f"silence={s_sil:.3f}", flush=True)
-    return s_syn > 0.5 and s_real > 0.5 and s_sil < 0.2
+    passed = s_syn > 0.5 and s_real > 0.5 and s_sil < 0.2
+    return _promote_candidate(CANDIDATE, OUT, passed)
 
 
 if __name__ == "__main__":

@@ -2,7 +2,11 @@
 VECTOR Full Smoke Test — runtime correctness verification.
 Run: python -X utf8 scripts/smoke_test.py
 """
-import sys, asyncio, tempfile, time, pathlib
+import sys, asyncio, tempfile, time, pathlib, os
+
+# The gate exercises real memory writes; isolate them from VECTOR's production DB.
+_SMOKE_TMP = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+os.environ["VECTOR_DB_PATH"] = str(pathlib.Path(_SMOKE_TMP.name) / "smoke_memory.db")
 
 # Import core BEFORE vectorcode/src (to avoid core/ shadowing)
 import core.config
@@ -17,6 +21,7 @@ from core.city.agent_base import AgentBase
 from core.city.evolution_engine import EvolutionEngine
 
 import numpy as np
+from loguru import logger
 from vectorcode.src.claims import ClaimService, Claimant
 from vectorcode.src.guidance import create_guidance_system
 from vectorcode.src.neural_training import VECTORTrainer
@@ -173,8 +178,17 @@ ee = EvolutionEngine()
 stats = ee.get_evolution_stats()
 test("stats is dict", lambda: None if isinstance(stats, dict) else (_ for _ in ()).throw(AssertionError("not dict")))
 test("stats has total_spawns", lambda: None if "total_spawns" in stats else (_ for _ in ()).throw(AssertionError(f"keys={list(stats)}")))
-practices = ee.get_best_practices("nonexistent_agent")
-test("get_best_practices returns list (not crash)", lambda: None if isinstance(practices, list) else (_ for _ in ()).throw(AssertionError("not list")))
+evolution_errors = []
+sink_id = logger.add(lambda message: evolution_errors.append(str(message)), level="WARNING")
+try:
+    practices = ee.get_best_practices("nonexistent_agent")
+finally:
+    logger.remove(sink_id)
+test(
+    "get_best_practices query succeeds",
+    lambda: None if isinstance(practices, list) and not any("query failed" in line for line in evolution_errors)
+    else (_ for _ in ()).throw(AssertionError("query failure was swallowed as an empty list")),
+)
 
 print("\n[14] Swarm Coordinator")
 sc = SwarmCoordinator(topology="hierarchical")

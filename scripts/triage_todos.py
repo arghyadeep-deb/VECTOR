@@ -80,7 +80,7 @@ def report(results: dict, output_path: str | None = None) -> str:
         lines.append('')
     text = '\n'.join(lines)
     if output_path:
-        Path(output_path).write_text(text)
+        Path(output_path).write_text(text, encoding='utf-8')
         print(f'Report written to {output_path}')
     else:
         print(text)

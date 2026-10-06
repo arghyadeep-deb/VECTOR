@@ -19,13 +19,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-_this_dir = str(Path(__file__).resolve().parent)
-_repo_root = str(Path(__file__).resolve().parent.parent)
-if _repo_root not in sys.path:
-    sys.path.insert(0, _repo_root)
+_this_dir = Path(__file__).resolve().parent
+_repo_root = _this_dir.parent
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
 import argparse
 import os
+import secrets
 
 from dotenv import dotenv_values
 
@@ -165,7 +166,7 @@ def _apply_migration(env_secrets: dict[str, str]) -> None:
         if ok:
             # Verify it was stored
             verify = _keyring_get(name)
-            if verify == env_val:
+            if verify is not None and secrets.compare_digest(verify, env_val):
                 print(f"  OK   {name} ({len(env_val)} chars → keyring)")
                 record_secret_event("migrated", name, "env→keyring", True)
                 migrated += 1

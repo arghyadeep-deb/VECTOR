@@ -55,7 +55,8 @@ def train_real():
     from core.city.intent_qwen3_8b import IntentQwen3_8B
 
     classifier = IntentQwen3_8B()
-    classifier.train(dataset_path="data/golden_intent_dataset_district_only.jsonl")
+    dataset_path = Path(__file__).resolve().parent.parent / "data" / "golden_intent_dataset_district_only.jsonl"
+    classifier.train(dataset_path=str(dataset_path))
 
     print("\n" + "=" * 70)
     print("Training complete!")
