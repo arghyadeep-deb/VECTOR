@@ -101,6 +101,21 @@ class SyncScheduler:
         self._stop.set()
         if self._thread is not None and self._thread.is_alive():
             self._thread.join(timeout=5)
+            if self._thread.is_alive():
+                # The sync cycle in progress took longer than the join
+                # timeout -- do NOT clear self._thread here. start()'s
+                # already-running guard checks self._thread.is_alive(), so
+                # leaving the reference in place lets it correctly refuse
+                # to spawn a second thread; clearing it unconditionally
+                # (as this previously did) would let a stop()-then-start()
+                # sequence leak a zombie thread and run two _loop()s
+                # concurrently, racing on the same connectors/store.
+                logger.warning(
+                    "SyncScheduler: background thread did not stop within "
+                    "5s (sync cycle still in progress); leaving it tracked "
+                    "so start() won't spawn a duplicate"
+                )
+                return
         self._thread = None
         logger.info("SyncScheduler stopped")
 
