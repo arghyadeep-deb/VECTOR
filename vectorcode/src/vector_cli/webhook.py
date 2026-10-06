@@ -47,13 +47,15 @@ def _load_subscriptions() -> Dict[str, dict]:
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError(f"expected a JSON object, got {type(data).__name__}")
     except Exception as e:
         raise SubscriptionsLoadError(
             f"{path} exists but could not be parsed: {e}. "
             "Refusing to treat this as an empty subscription list to avoid "
             "overwriting existing webhooks."
         ) from e
-    return data if isinstance(data, dict) else {}
+    return data
 
 
 def _save_subscriptions(subs: Dict[str, dict]) -> None:

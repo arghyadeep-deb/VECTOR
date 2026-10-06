@@ -1145,7 +1145,6 @@ def _setup_tts_provider(config: dict):
     elif selected == "kittentts":
         # Check if already installed
         try:
-            import importlib.util
             already_installed = importlib.util.find_spec("kittentts") is not None
         except Exception:
             already_installed = False

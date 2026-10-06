@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+import tempfile
 
 import click
 from rich.console import Console
@@ -78,8 +80,22 @@ def _save_vault(data: dict) -> None:
     plaintext = json.dumps(data).encode()
     encrypted = f.encrypt(plaintext)
     DEFAULT_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    _VAULT_FILE.write_bytes(encrypted)
-    _VAULT_FILE.chmod(0o600)
+    fd, tmp_name = tempfile.mkstemp(
+        prefix=f".{_VAULT_FILE.name}.", suffix=".tmp", dir=str(_VAULT_FILE.parent)
+    )
+    try:
+        with os.fdopen(fd, "wb") as tmp:
+            tmp.write(encrypted)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        os.chmod(tmp_name, 0o600)
+        os.replace(tmp_name, _VAULT_FILE)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
 
 
 @click.group()

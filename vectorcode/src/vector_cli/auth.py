@@ -21,6 +21,7 @@ import logging
 import os
 import shutil
 import shlex
+import secrets
 import ssl
 import stat
 import sys
@@ -1673,7 +1674,10 @@ def _spotify_validate_redirect_uri(redirect_uri: str) -> tuple[str, int, str]:
     return host, parsed.port, parsed.path or "/"
 
 
-def _make_spotify_callback_handler(expected_path: str) -> tuple[type[BaseHTTPRequestHandler], dict[str, Any]]:
+def _make_spotify_callback_handler(
+    expected_path: str,
+    expected_state: str,
+) -> tuple[type[BaseHTTPRequestHandler], dict[str, Any]]:
     result: dict[str, Any] = {
         "code": None,
         "state": None,
@@ -1691,8 +1695,18 @@ def _make_spotify_callback_handler(expected_path: str) -> tuple[type[BaseHTTPReq
                 return
 
             params = parse_qs(parsed.query)
+            callback_state = params.get("state", [None])[0]
+            if not isinstance(callback_state, str) or not secrets.compare_digest(
+                callback_state, expected_state
+            ):
+                self.send_response(400)
+                self.send_header("Content-Type", "text/plain; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"Invalid OAuth state.")
+                return
+
             result["code"] = params.get("code", [None])[0]
-            result["state"] = params.get("state", [None])[0]
+            result["state"] = callback_state
             result["error"] = params.get("error", [None])[0]
             result["error_description"] = params.get("error_description", [None])[0]
 
@@ -1714,10 +1728,11 @@ def _make_spotify_callback_handler(expected_path: str) -> tuple[type[BaseHTTPReq
 def _spotify_wait_for_callback(
     redirect_uri: str,
     *,
+    expected_state: str,
     timeout_seconds: float = 180.0,
 ) -> dict[str, Any]:
     host, port, path = _spotify_validate_redirect_uri(redirect_uri)
-    handler_cls, result = _make_spotify_callback_handler(path)
+    handler_cls, result = _make_spotify_callback_handler(path, expected_state)
 
     class _ReuseHTTPServer(HTTPServer):
         allow_reuse_address = True
@@ -2082,6 +2097,7 @@ def login_spotify_command(args) -> None:
 
     callback = _spotify_wait_for_callback(
         redirect_uri,
+        expected_state=state_nonce,
         timeout_seconds=float(getattr(args, "timeout", None) or 180.0),
     )
     if callback.get("error"):

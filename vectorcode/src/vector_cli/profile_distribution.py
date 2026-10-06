@@ -376,7 +376,7 @@ def _git_clone(url: str, dest: Path) -> None:
         url = f"https://{url.rstrip('/')}"
     try:
         subprocess.run(
-            ["git", "clone", "--depth", "1", url, str(dest)],
+            ["git", "clone", "--depth", "1", "--", url, str(dest)],
             check=True,
             capture_output=True,
         )
