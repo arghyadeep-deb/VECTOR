@@ -182,6 +182,8 @@ class AppleContactsConnector(BaseConnector):
         self._items_synced: int = 0
         self._items_total: int = 0
         self._last_sync: Optional[datetime] = None
+        self._state: str = "idle"
+        self._last_error: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -335,98 +337,111 @@ class AppleContactsConnector(BaseConnector):
         synced = 0
         total = 0
 
-        for db_path in db_paths:
-            conn = self._open_db(db_path)
-            if conn is None:
-                continue
+        try:
+            for db_path in db_paths:
+                conn = self._open_db(db_path)
+                if conn is None:
+                    continue
 
-            try:
-                rows = conn.execute(_CONTACTS_QUERY).fetchall()
-                total += len(rows)
-                self._items_total = total
+                try:
+                    rows = conn.execute(_CONTACTS_QUERY).fetchall()
+                    total += len(rows)
+                    self._items_total = total
 
-                for row in rows:
-                    pk: int = row[0]
-                    first: str = row[1] or ""
-                    middle: str = row[2] or ""
-                    last: str = row[3] or ""
-                    org: str = row[4] or ""
-                    job_title: str = row[5] or ""
-                    department: str = row[6] or ""
-                    nickname: str = row[7] or ""
-                    birthday_ts: float | None = row[8]
-                    creation_ts: float = row[9] or 0.0
-                    mod_ts: float = row[10] or 0.0
-                    unique_id: str = row[11] or str(pk)
+                    for row in rows:
+                        pk: int = row[0]
+                        first: str = row[1] or ""
+                        middle: str = row[2] or ""
+                        last: str = row[3] or ""
+                        org: str = row[4] or ""
+                        job_title: str = row[5] or ""
+                        department: str = row[6] or ""
+                        nickname: str = row[7] or ""
+                        birthday_ts: float | None = row[8]
+                        creation_ts: float = row[9] or 0.0
+                        mod_ts: float = row[10] or 0.0
+                        unique_id: str = row[11] or str(pk)
 
-                    # Deduplicate across sources
-                    if unique_id in seen_ids:
-                        continue
-                    seen_ids.add(unique_id)
-
-                    timestamp = (
-                        _apple_ts_to_datetime(mod_ts)
-                        if mod_ts
-                        else _apple_ts_to_datetime(creation_ts)
-                    )
-
-                    # Apply since filter
-                    if since is not None:
-                        since_utc = since
-                        if since_utc.tzinfo is None:
-                            since_utc = since_utc.replace(tzinfo=timezone.utc)
-                        if timestamp < since_utc:
+                        # Deduplicate across sources
+                        if unique_id in seen_ids:
                             continue
+                        seen_ids.add(unique_id)
 
-                    name = _build_name(first, middle, last, org)
-                    birthday = ""
-                    if birthday_ts:
-                        try:
-                            birthday = _apple_ts_to_datetime(birthday_ts).strftime(
-                                "%Y-%m-%d"
-                            )
-                        except (ValueError, OverflowError) as _sve:
-                            logger.debug("[VECTOR][connectors.apple_contacts] suppressed (ValueError, OverflowError): {}", _sve)
+                        timestamp = (
+                            _apple_ts_to_datetime(mod_ts)
+                            if mod_ts
+                            else _apple_ts_to_datetime(creation_ts)
+                        )
 
-                    meta: Dict[str, Any] = {
-                        "name": name,
-                        "first_name": first,
-                        "last_name": last,
-                        "organization": org,
-                        "job_title": job_title,
-                        "department": department,
-                        "nickname": nickname,
-                        "birthday": birthday,
-                    }
+                        # Apply since filter
+                        if since is not None:
+                            since_utc = since
+                            if since_utc.tzinfo is None:
+                                since_utc = since_utc.replace(tzinfo=timezone.utc)
+                            if timestamp < since_utc:
+                                continue
 
-                    content = self._build_content(conn, pk, meta)
+                        name = _build_name(first, middle, last, org)
+                        birthday = ""
+                        if birthday_ts:
+                            try:
+                                birthday = _apple_ts_to_datetime(birthday_ts).strftime(
+                                    "%Y-%m-%d"
+                                )
+                            except (ValueError, OverflowError) as _sve:
+                                logger.debug("[VECTOR][connectors.apple_contacts] suppressed (ValueError, OverflowError): {}", _sve)
 
-                    doc = Document(
-                        doc_id=f"apple_contacts:{unique_id}",
-                        source="apple_contacts",
-                        doc_type="contact",
-                        content=content,
-                        title=name,
-                        author=name,
-                        timestamp=timestamp,
-                        metadata=meta,
-                    )
-                    synced += 1
-                    yield doc
+                        meta: Dict[str, Any] = {
+                            "name": name,
+                            "first_name": first,
+                            "last_name": last,
+                            "organization": org,
+                            "job_title": job_title,
+                            "department": department,
+                            "nickname": nickname,
+                            "birthday": birthday,
+                        }
 
-            finally:
-                conn.close()
+                        content = self._build_content(conn, pk, meta)
 
-        self._items_synced = synced
-        self._last_sync = datetime.now(tz=timezone.utc)
+                        doc = Document(
+                            doc_id=f"apple_contacts:{unique_id}",
+                            source="apple_contacts",
+                            doc_type="contact",
+                            content=content,
+                            title=name,
+                            author=name,
+                            timestamp=timestamp,
+                            metadata=meta,
+                        )
+                        synced += 1
+                        yield doc
+
+                finally:
+                    conn.close()
+
+            self._items_synced = synced
+            self._last_sync = datetime.now(tz=timezone.utc)
+            self._state = "idle"
+            self._last_error = None
+        except Exception as exc:
+            # self._state/sync_status() must distinguish a failed sync from
+            # one that simply hasn't run yet -- both previously looked
+            # identical ("idle", 0 items synced). See oura.py et al. for the
+            # same fix applied earlier this audit cycle.
+            self._items_synced = synced
+            self._state = "error"
+            self._last_error = str(exc)
+            raise
 
     def sync_status(self) -> SyncStatus:
         """Return sync progress from the most recent :meth:`sync` call."""
         return SyncStatus(
-            state="idle",
+            state=self._state,
             items_synced=self._items_synced,
             items_total=self._items_total,
             last_sync=self._last_sync,
+            error=self._last_error,
         )
 
     # ------------------------------------------------------------------
