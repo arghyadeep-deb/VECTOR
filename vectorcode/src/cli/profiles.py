@@ -11,6 +11,8 @@ for _vstream in (_vsys.stdout, _vsys.stderr):
 
 import json
 import datetime
+import os
+import tempfile
 from dataclasses import dataclass, field, asdict
 from typing import Optional
 
@@ -66,6 +68,13 @@ _VALID_TOOLSETS = frozenset({"full", "coding", "research", "readonly"})
 
 _profile_manager_instance: Optional["ProfileManager"] = None
 
+
+class ProfilesCorruptedError(Exception):
+    """profiles.json exists but could not be parsed. Distinct from
+    "no custom profiles yet" -- treating a corrupted file as empty would
+    make _save() silently overwrite it with just the built-ins on the very
+    next write, permanently destroying every custom profile."""
+
 class ProfileManager:
     """
     Manages named VectorCode profiles.
@@ -84,18 +93,28 @@ class ProfileManager:
     # ── Persistence ─────────────────────────────────────────────
 
     def _load(self) -> None:
-        """Load custom profiles and active marker from disk."""
+        """Load custom profiles and active marker from disk.
+
+        Raises ProfilesCorruptedError if profiles.json exists but isn't
+        valid JSON -- silently proceeding with just the built-ins would
+        make _save() overwrite the corrupted file with "no custom
+        profiles" on the very next write.
+        """
         if self.PROFILES_PATH.exists():
             try:
                 raw = json.loads(self.PROFILES_PATH.read_text(encoding="utf-8"))
-                for name, data in raw.get("profiles", {}).items():
-                    if name not in _BUILTIN_NAMES:
-                        self._profiles[name] = Profile(**{
-                            k: v for k, v in data.items()
-                            if k in Profile.__dataclass_fields__
-                        })
             except Exception as e:
-                logger.warning(f"[VECTOR][profiles] Could not load profiles: {e}")
+                raise ProfilesCorruptedError(
+                    f"{self.PROFILES_PATH} exists but could not be parsed: {e}. "
+                    "Refusing to treat this as an empty profile store to avoid "
+                    "overwriting existing custom profiles."
+                ) from e
+            for name, data in raw.get("profiles", {}).items():
+                if name not in _BUILTIN_NAMES:
+                    self._profiles[name] = Profile(**{
+                        k: v for k, v in data.items()
+                        if k in Profile.__dataclass_fields__
+                    })
 
         if self.ACTIVE_PATH.exists():
             try:
@@ -103,10 +122,10 @@ class ProfileManager:
                 if active in self._profiles:
                     self._active = active
             except Exception as _sve:
-                logger.debug("[VECTOR][cli.profiles] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][cli.profiles] suppressed Exception: {}", _sve)
 
     def _save(self) -> None:
-        """Persist custom profiles (not built-ins) to disk."""
+        """Durably persist custom profiles (not built-ins) to disk."""
         self.PROFILES_PATH.parent.mkdir(parents=True, exist_ok=True)
         custom = {
             name: asdict(p)
@@ -117,10 +136,21 @@ class ProfileManager:
             "profiles": custom,
             "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
-        self.PROFILES_PATH.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+        fd, tmp_name = tempfile.mkstemp(
+            dir=str(self.PROFILES_PATH.parent),
+            prefix=f".{self.PROFILES_PATH.name}.",
+            suffix=".tmp",
         )
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2, ensure_ascii=False)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_path, self.PROFILES_PATH)
+        except BaseException:
+            tmp_path.unlink(missing_ok=True)
+            raise
         logger.debug(f"[VECTOR][profiles] Saved {len(custom)} custom profile(s)")
 
     def _save_active(self) -> None:
@@ -224,6 +254,14 @@ def _print_profiles_table(profiles: list[Profile], active_name: str) -> None:
 
 def handle_profile(args) -> None:
     """Dispatch profile subcommands from argparse args."""
+    try:
+        _handle_profile(args)
+    except ProfilesCorruptedError as e:
+        print(f"[VECTOR] {e}")
+        print(f"[VECTOR] Inspect or restore {ProfileManager.PROFILES_PATH} manually before retrying.")
+
+
+def _handle_profile(args) -> None:
     mgr = get_profile_manager()
     action = getattr(args, "profile_action", None)
 
@@ -320,6 +358,6 @@ if __name__ == "__main__":
         mgr.PROFILES_PATH.unlink(missing_ok=True)
         mgr.ACTIVE_PATH.unlink(missing_ok=True)
     except Exception as _sve:
-        logger.debug("[VECTOR][cli.profiles] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][cli.profiles] suppressed Exception: {}", _sve)
 
     print("✅ cli/profiles.py OK")
