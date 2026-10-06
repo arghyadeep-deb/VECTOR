@@ -286,7 +286,11 @@ def create_webhook_router(
         token = request.query_params.get("hub.verify_token", "")
         challenge = request.query_params.get("hub.challenge", "")
 
-        if mode == "subscribe" and secrets.compare_digest(token, whatsapp_verify_token):
+        if (
+            mode == "subscribe"
+            and whatsapp_verify_token
+            and secrets.compare_digest(token, whatsapp_verify_token)
+        ):
             return PlainTextResponse(challenge)
         return Response("Forbidden", status_code=403)
 

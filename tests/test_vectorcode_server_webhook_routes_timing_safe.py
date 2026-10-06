@@ -94,6 +94,18 @@ def test_sendblue_rejects_wrong_secret():
     assert resp.status_code == 403
 
 
+def test_whatsapp_verify_rejects_when_token_not_configured():
+    """An empty whatsapp_verify_token must never satisfy the compare --
+    secrets.compare_digest("", "") is True, so an unconfigured token
+    previously let an empty hub.verify_token "verify" successfully."""
+    client = _client(whatsapp_verify_token="")
+    resp = client.get(
+        "/webhooks/whatsapp",
+        params={"hub.mode": "subscribe", "hub.verify_token": "", "hub.challenge": "x"},
+    )
+    assert resp.status_code == 403
+
+
 if __name__ == "__main__":
     import pytest
     sys.exit(pytest.main([__file__, "-v"]))
