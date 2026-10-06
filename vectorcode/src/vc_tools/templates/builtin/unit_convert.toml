@@ -14,4 +14,4 @@ type = "string"
 description = "Target unit."
 [tool.action]
 type = "python"
-expression = "str(float(value))"
+expression = "convert_unit(value, from_unit, to_unit)"

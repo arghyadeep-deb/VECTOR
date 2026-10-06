@@ -44,6 +44,50 @@ def _tmpl_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+_UNIT_TABLES: Dict[str, Dict[str, float]] = {
+    "length": {
+        "m": 1.0, "km": 1000.0, "cm": 0.01, "mm": 0.001,
+        "mi": 1609.344, "yd": 0.9144, "ft": 0.3048, "in": 0.0254,
+    },
+    "mass": {
+        "kg": 1.0, "g": 0.001, "mg": 1e-6,
+        "lb": 0.45359237, "oz": 0.028349523125,
+    },
+}
+_TEMPERATURE_UNITS = {"c", "celsius", "f", "fahrenheit", "k", "kelvin"}
+
+
+def _tmpl_convert_unit(value: Any, from_unit: Any, to_unit: Any) -> str:
+    from_u = str(from_unit).strip().lower()
+    to_u = str(to_unit).strip().lower()
+    v = float(value)
+
+    if from_u in _TEMPERATURE_UNITS or to_u in _TEMPERATURE_UNITS:
+        if from_u in {"f", "fahrenheit"}:
+            celsius = (v - 32.0) * 5.0 / 9.0
+        elif from_u in {"k", "kelvin"}:
+            celsius = v - 273.15
+        elif from_u in {"c", "celsius"}:
+            celsius = v
+        else:
+            raise ValueError(f"unsupported temperature unit: {from_unit}")
+        if to_u in {"f", "fahrenheit"}:
+            result = celsius * 9.0 / 5.0 + 32.0
+        elif to_u in {"k", "kelvin"}:
+            result = celsius + 273.15
+        elif to_u in {"c", "celsius"}:
+            result = celsius
+        else:
+            raise ValueError(f"unsupported temperature unit: {to_unit}")
+        return str(result)
+
+    for table in _UNIT_TABLES.values():
+        if from_u in table and to_u in table:
+            return str(v * table[from_u] / table[to_u])
+
+    raise ValueError(f"unsupported unit conversion: {from_unit} -> {to_unit}")
+
+
 class _SafeExpressionEvaluator(ast.NodeVisitor):
     """Tiny expression evaluator for template expressions.
 
@@ -63,6 +107,7 @@ class _SafeExpressionEvaluator(ast.NodeVisitor):
         "sha256": _tmpl_sha256,
         "regex_extract": _tmpl_regex_extract,
         "now_iso": _tmpl_now_iso,
+        "convert_unit": _tmpl_convert_unit,
     }
 
     def __init__(self, params: Dict[str, Any]) -> None:
