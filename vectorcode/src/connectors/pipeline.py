@@ -140,66 +140,80 @@ class IngestionPipeline:
                 metadata=parent_meta,
             )
 
-            for chunk in chunks:
-                self._store.store(
-                    content=chunk.content,
-                    source=doc.source,
-                    doc_type=doc.doc_type,
-                    doc_id=doc.doc_id,
-                    title=doc.title,
-                    author=doc.author,
-                    participants=doc.participants,
-                    timestamp=timestamp_str,
-                    thread_id=doc.thread_id,
-                    url=doc.url,
-                    metadata=chunk.metadata,
-                    chunk_index=chunk.index,
-                )
-                chunks_stored += 1
-
-            # Process attachments when an attachment store is configured.
-            if self._attachment_store and doc.attachments:
-                for att in doc.attachments:
-                    if not att.content:
-                        continue
-
-                    # Persist the raw blob and obtain its SHA-256.
-                    sha = self._attachment_store.store(
-                        content=att.content,
-                        filename=att.filename,
-                        mime_type=att.mime_type,
-                        source_doc_id=doc.doc_id,
+            doc_chunks_stored = 0
+            try:
+                for chunk in chunks:
+                    self._store.store(
+                        content=chunk.content,
+                        source=doc.source,
+                        doc_type=doc.doc_type,
+                        doc_id=doc.doc_id,
+                        title=doc.title,
+                        author=doc.author,
+                        participants=doc.participants,
+                        timestamp=timestamp_str,
+                        thread_id=doc.thread_id,
+                        url=doc.url,
+                        metadata=chunk.metadata,
+                        chunk_index=chunk.index,
                     )
+                    doc_chunks_stored += 1
 
-                    # Extract searchable text and index it as additional chunks.
-                    extracted = self._extract_attachment_text(att)
-                    if extracted:
-                        att_chunks = self._chunker.chunk(
-                            extracted,
-                            doc_type=doc.doc_type,
-                            metadata={
-                                **parent_meta,
-                                "attachment": att.filename,
-                                "sha256": sha,
-                            },
+                # Process attachments when an attachment store is configured.
+                if self._attachment_store and doc.attachments:
+                    for att in doc.attachments:
+                        if not att.content:
+                            continue
+
+                        # Persist the raw blob and obtain its SHA-256.
+                        sha = self._attachment_store.store(
+                            content=att.content,
+                            filename=att.filename,
+                            mime_type=att.mime_type,
+                            source_doc_id=doc.doc_id,
                         )
-                        for chunk in att_chunks:
-                            self._store.store(
-                                content=chunk.content,
-                                source=doc.source,
-                                doc_type=doc.doc_type,
-                                doc_id=doc.doc_id,
-                                title=f"{doc.title} [{att.filename}]",
-                                author=doc.author,
-                                participants=doc.participants,
-                                timestamp=timestamp_str,
-                                thread_id=doc.thread_id,
-                                url=doc.url,
-                                metadata=chunk.metadata,
-                                chunk_index=chunk.index,
-                            )
-                            chunks_stored += 1
 
+                        # Extract searchable text and index it as additional chunks.
+                        extracted = self._extract_attachment_text(att)
+                        if extracted:
+                            att_chunks = self._chunker.chunk(
+                                extracted,
+                                doc_type=doc.doc_type,
+                                metadata={
+                                    **parent_meta,
+                                    "attachment": att.filename,
+                                    "sha256": sha,
+                                },
+                            )
+                            for chunk in att_chunks:
+                                self._store.store(
+                                    content=chunk.content,
+                                    source=doc.source,
+                                    doc_type=doc.doc_type,
+                                    doc_id=doc.doc_id,
+                                    title=f"{doc.title} [{att.filename}]",
+                                    author=doc.author,
+                                    participants=doc.participants,
+                                    timestamp=timestamp_str,
+                                    thread_id=doc.thread_id,
+                                    url=doc.url,
+                                    metadata=chunk.metadata,
+                                    chunk_index=chunk.index,
+                                )
+                                doc_chunks_stored += 1
+            except Exception:
+                # store.store() generates a fresh UUID chunk id on every
+                # call (no dedup constraint) -- a failure partway through a
+                # multi-chunk document would otherwise leave this doc_id
+                # un-marked-seen while some of its chunks are already
+                # persisted, so a retry re-ingests the whole document and
+                # duplicates those rows. doc.doc_id is guaranteed to have no
+                # PRIOR chunks here (already-seen doc_ids are skipped at the
+                # top of this loop), so rolling it back is always safe.
+                self._store.delete(doc.doc_id)
+                raise
+
+            chunks_stored += doc_chunks_stored
             self._seen_doc_ids.add(doc.doc_id)
 
         return chunks_stored
