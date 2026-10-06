@@ -3,7 +3,7 @@
 See `docs/alpha-zoo/spec.md` for the panel format contract and operator semantics.
 """
 
-from src.factors.base import (
+from districts.investment.alpha_zoo.factors.base import (
     Alpha,
     AlphaCompute,
     Market,

@@ -14,7 +14,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.factors.base import ts_mean
+from districts.investment.alpha_zoo.factors.base import ts_mean
 
 __alpha_meta__ = {
     'id': 'academic_smb',

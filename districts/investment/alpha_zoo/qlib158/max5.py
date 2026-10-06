@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.factors.base import safe_div, ts_max
+from districts.investment.alpha_zoo.factors.base import safe_div, ts_max
 
 __alpha_meta__ = {
     'id': 'qlib158_max5',

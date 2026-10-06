@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-from src.factors.base import ts_corr
+from districts.investment.alpha_zoo.factors.base import ts_corr
 
 __alpha_meta__ = {
     'id': 'qlib158_corr5',

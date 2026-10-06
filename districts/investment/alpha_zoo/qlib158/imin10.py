@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.factors.base import ts_argmin
+from districts.investment.alpha_zoo.factors.base import ts_argmin
 
 __alpha_meta__ = {
     'id': 'qlib158_imin10',

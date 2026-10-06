@@ -15,7 +15,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.factors.base import delta, safe_div, ts_std
+from districts.investment.alpha_zoo.factors.base import delta, safe_div, ts_std
 
 __alpha_meta__ = {
     'id': 'academic_rmw',

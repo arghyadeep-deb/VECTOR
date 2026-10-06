@@ -56,8 +56,8 @@ from typing import Any, Callable, Literal
 import numpy as np
 import pandas as pd
 
-from src.factors.factor_analysis_core import compute_ic_series
-from src.factors.registry import (
+from districts.investment.alpha_zoo.factors.factor_analysis_core import compute_ic_series
+from districts.investment.alpha_zoo.factors.registry import (
     Registry,
     RegistryError,
     SkipAlpha,

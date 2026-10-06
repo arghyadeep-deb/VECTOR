@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.factors.base import safe_div, ts_mean
+from districts.investment.alpha_zoo.factors.base import safe_div, ts_mean
 
 __alpha_meta__ = {
     'id': 'qlib158_ma10',

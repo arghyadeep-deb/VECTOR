@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.factors.base import ts_rank, rank
+from districts.investment.alpha_zoo.factors.base import ts_rank, rank
 
 __alpha_meta__ = {
     'id': 'qlib158_rank60',

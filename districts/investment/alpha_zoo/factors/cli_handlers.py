@@ -70,7 +70,7 @@ except Exception:  # pragma: no cover — rich is a project dep, fallback only
     TextColumn = None  # type: ignore[assignment]
     TimeElapsedColumn = None  # type: ignore[assignment]
 
-from src.factors.registry import Registry, RegistryError
+from districts.investment.alpha_zoo.factors.registry import Registry, RegistryError
 
 
 # Resolve repo root once: this file lives at
@@ -510,13 +510,13 @@ def _run_all_zoos_with_progress(
 def cmd_alpha_bench(args: argparse.Namespace) -> int:
     """``vibe-trading alpha bench --zoo X --universe csi300 --period Y-Z [--top N]``.
 
-    Calls :func:`src.factors.bench_runner.run_bench` for the IC loop so we can
+    Calls :func:`districts.investment.alpha_zoo.factors.bench_runner.run_bench` for the IC loop so we can
     stream Rich progress, then renders the HTML report via helpers imported
     from ``src.tools.alpha_bench_tool`` (we do NOT modify that module).
     """
     try:
         try:
-            from src.factors.bench_runner import run_bench
+            from districts.investment.alpha_zoo.factors.bench_runner import run_bench
         except ImportError as exc:
             _err(f"alpha bench failed: bench_runner unavailable ({exc})")
             return 1
