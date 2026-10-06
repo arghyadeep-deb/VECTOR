@@ -246,18 +246,41 @@ class HonchoMemoryProvider(MemoryProvider):
             return False
 
     def save_config(self, values, vector_home):
-        """Write config to $VECTOR_HOME/honcho.json (Honcho SDK native format)."""
+        """Write config to $VECTOR_HOME/honcho.json (Honcho SDK native format).
+
+        Writes atomically (tempfile + fsync + os.replace): this file stores
+        per-host apiKey/baseUrl, and a crash mid-write would truncate it,
+        with the next read's broad except silently falling back to an
+        empty config.
+        """
         import json
+        import os
+        import tempfile
         from pathlib import Path
         config_path = Path(vector_home) / "honcho.json"
         existing = {}
         if config_path.exists():
             try:
-                existing = json.loads(config_path.read_text())
+                existing = json.loads(config_path.read_text(encoding="utf-8"))
             except Exception as _sve:
                 logger.debug('[VECTOR][plugins.memory.honcho.__init__] suppressed Exception: {}', _sve)
         existing.update(values)
-        config_path.write_text(json.dumps(existing, indent=2))
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(
+            prefix=f".{config_path.name}.", suffix=".tmp", dir=config_path.parent
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                handle.write(json.dumps(existing, indent=2))
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_name, config_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
 
     def get_config_schema(self):
         return [
