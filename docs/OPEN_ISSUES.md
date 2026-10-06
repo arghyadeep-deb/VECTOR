@@ -5275,3 +5275,264 @@ isn't "proven in production" until you supply the service/device and run it live
      `tests/test_vectorcode_cli_digest_cmd_atomic_config_write.py` (2) -- 8 tests, all passing.
      **Commit status:** `566bdd095`, `fac045637`, `8a56b075e`, `3ddf4815e` -- all self-committed
      directly by this fork.
+
+104. **`vectorcode/src/{acp_adapter,memory,tui_gateway,vc_system}/` audit (2026-10-07) —**
+     audited the 31 assigned production files. Narrow fixes made: `memory/backends.py` no longer
+     crashes every `SQLiteBackend.store()` call on an undefined `now`; ACP permission bridging
+     now denies an unknown/malformed allowed option instead of granting execution; ACP tool-event
+     completion preserves valid falsy results/arguments; `SwarmDatabase.record_task()` preserves a
+     caller-supplied epoch timestamp and retention now returns the total deletions across all three
+     tables rather than only the last statement's count; the built-in memory provider now imports
+     the real `get_vector_home()` helper (the referenced `get_vector_memory_path()` does not exist);
+     memory.md and FAISS JSON sidecars now use flushed atomic replacement; and four broken
+     printf-style/`exc_info=True` loguru calls in ACP session restoration were corrected.
+     Regression coverage: `tests/test_vectorcode_assigned_audit_regressions.py` (6 tests), all
+     passing; all assigned packages also pass `compileall` and `git diff --check`.
+     **Owner decisions, not fixed:**
+     - `memory/backends.py` (2 connections), `memory/faiss_index.py` (1), and
+       `memory/swarm_db.py` (1) open real VECTOR data with raw `sqlite3.connect()` instead of the
+       mandatory SQLCipher `core.memory.episodic.get_db_connection()`. Migration/keying semantics
+       need an owner decision; silently changing existing database formats would be unsafe.
+     - The ACP adapter's third-party imports (`import acp`, `from acp.schema ...`) collide with the
+       repo's own `vectorcode/src/acp/` package whenever `vectorcode/src` is on `sys.path` (the
+       normal CLI layout). The local package has no `schema`, `Client`, or `run_agent`, so the
+       adapter cannot import/run in that layout even when `agent-client-protocol` is installed.
+       Resolving this requires renaming/repackaging one of the two public `acp` packages or a
+       deliberate dependency-loading boundary; no brittle `sys.path` surgery was added.
+     - `AutoMemoryBridge` has zero production callers (only its own module and legacy tests mention
+       it), despite its docstring promising periodic episodic-to-FAISS synchronization. Its reverse
+       sync is explicitly still a placeholder. Decide whether to wire it into startup or retire it.
+     - The memory embedding fallback writes random vectors when Ollama fails
+       (`auto_bridge.py`, `pattern_store.py`), making identical text unrelated across calls and
+       persisting semantically meaningless search data. A deterministic/local fallback versus
+       fail-closed behavior is a product-quality decision.
+     - Banned concurrency/logging primitives are structural here: raw `threading` appears in ACP
+       sessions, all three SQLite memory stores, and the TUI gateway/publisher/server; stdlib
+       `logging` is used by ACP transport setup and the TUI gateway. Replacing these requires an
+       asyncio/transport lifecycle redesign rather than a narrow audit patch.
+     **Network boundary result:** the TUI JSON-RPC WebSocket handler itself accepts blindly, but
+     its sole production mount in `vector_cli/web_server.py` performs timing-safe session-token
+     authentication and rejects non-loopback clients before calling it; no duplicate auth patch was
+     made. ACP adapter is stdio-only. The separate HTTP ACP server lives in the colliding
+     `vectorcode/src/acp/` directory outside this assignment and already carries an unauthenticated-
+     routes owner flag.
+     **Commit status:** intentionally uncommitted for parent review (sandbox cannot lock `.git`).
+
+105. **`vectorcode/src/{context,security,system,vc_core,workflow}/` full audit (2026-10-07) —**
+     completed a line-by-line pass over all 33 assigned production files. Confirmed from path-scoped
+     `git log` that `src/security/` is a separate compatibility surface from the previously audited
+     `src/vc_security/`; its credential/file/type modules re-export the canonical implementations,
+     and it contains no independent unconditional Rust constructors. Removed the injection scanner
+     shim's fail-open `ImportError` fallback, which silently replaced a broken security import with
+     a scanner that always returned no findings. Fixed four further defects with regression proof:
+     `context/references.py` claimed workspace confinement but allowed arbitrary absolute/`..` file
+     and folder reads outside `cwd` (CWE-22); `session_memory.py` and `vc_core/credentials.py` could
+     truncate persistent state on interrupted writes (credential TOML also failed to escape quotes,
+     backslashes, control characters, and embedded newlines); `trajectory_compressor.validate()`
+     retained orphan tool results and failed to recognize valid OpenAI `tool_calls` pairs; and
+     `compactor.py` used the ambiguous `context.vectormd` import instead of the canonical package.
+     New proof coverage: `tests/test_context_security_audit_regressions.py` (6 tests), all passing.
+     Existing relevant suites also pass: `tests/test_vectorcode_context_loading.py`,
+     `tests/test_vectorcode_workflow_correctness.py`,
+     `tests/test_vectorcode_agents_workflow_engine_phantom_success.py`, and
+     `vectorcode/python/tests/test_vectorcode_vc1.py`. Two tests in the legacy
+     `test_trajectory_compressor_async.py` fail independently before import because that test builds
+     a nonexistent `vectorcode/python/tests/trajectory_compressor.py` path.
+     **Owner decisions, not changed:** workflow edge `condition` values are parsed/stored but never
+     consulted by `WorkflowEngine`, so all branches execute; intended conditional-routing semantics
+     are not specified. Its `default_node_timeout` is also ineffective for parallel nodes because
+     `as_completed()` yields only finished futures and the thread-pool context waits for running
+     work on exit; a real timeout requires an execution/cancellation architecture decision. The
+     engine and `vc_core.events`/`credentials` use thread pools/locks despite VECTOR's asyncio-only
+     rule; converting these synchronous public APIs was not treated as a narrow audit fix.
+
+106. **`vectorcode/src/{a2a,bench,claims,daemon,display,hooks,mcp,operators,persona,scheduler,
+     transports,vc_mcp,vc_sessions}/` audit (2026-10-07) —** this round's premise ("13 never-audited
+     directories") turned out to be mostly wrong on inspection: `git log` showed 11 of the 13 already
+     had specific, real audit fixes from an earlier session (a2a: SSRF gap + silent-swallow fixes;
+     bench: loguru conversion; claims: duplicate-claim guard; daemon: bad session key +
+     ServiceManager fix; mcp: server double-creation + async-handlers-never-awaited fix; operators:
+     duplicate scheduled task fix; persona: session-hydration + CWE-22 path-traversal fix;
+     scheduler: silent-swallow fix; transports: wrong-sibling-package-import fix; vc_sessions:
+     CWE-22 + corrupt-file fail-open fix). Only `display/` and `vc_mcp/` had no real audit fixes
+     (a mechanical bulk logging pass doesn't count as depth either, see `hooks/` below) — effort
+     this round concentrated there instead of re-litigating already-fixed files.
+     **Fixed with proof tests, all confirmed failing pre-fix via `git stash`:**
+     - `vc_mcp/transport.py` (`60a2a53fc`) — `StdioTransport.close()` called `proc.terminate()`
+       then `proc.wait(timeout=5)` with no handling for `subprocess.TimeoutExpired`. An MCP server
+       subprocess that ignores SIGTERM made `close()` raise uncaught instead of force-killing it,
+       and left `self._process` referencing the dead transport instead of clearing it. Wrapped in
+       try/except, falling back to `kill()`+`wait()` on timeout.
+     - `vc_mcp/server.py` (`10550d3fc`) — imported stdlib `logging` and built its logger via
+       `logging.getLogger(__name__)`, violating CLAUDE.md's loguru-only rule; also used
+       `exc_info=True` (silently ignored by loguru) across 10 sites and %-style placeholders in 3
+       warning calls.
+     - `hooks/registry.py` (`02b065e1a`) — `HookRegistry.fire()` ran each handler in a daemon
+       thread, caught any exception inside that thread, logged it, and moved on without ever
+       re-raising. This defeats `_make_claude_hook_wrapper()`'s documented `can_block=True`
+       contract: a Claude-style hook script (e.g. `file_protection`, meant to block writes to
+       protected paths) exiting 2 makes the wrapper raise `RuntimeError` specifically to abort the
+       lifecycle event, but `fire()` silently discarded that signal into a log line regardless of
+       what the handler intended. Now re-raises after logging. Confirmed via repo-wide grep that
+       `fire()` currently has zero real callers (`vector_cli/doctor_cmd.py` only calls
+       `list_handlers()` for a diagnostic count) -- the fix makes the method honor its own
+       contract for whenever it is wired in, but the blocking mechanism has no live production
+       effect yet; not flagged as a separate unwired-feature item since `fire()`/`register()` are
+       generic infra, not a single feature.
+     Also reviewed with real depth, no bug found: `display/renderer.py` (confirmed its
+     `from vectorcode.display.X import *` style imports -- missing the `.src.` segment -- are
+     legitimate compatibility shims that wildcard-re-export the real `vectorcode.src.display.*`
+     names, not a broken cross-tree import; verified by direct import test), `display/
+     diff_preview.py`, `display/spinner.py` (uses banned `threading.Thread`, but moot --
+     `VectorRenderer`/`get_renderer` have zero callers anywhere in the repo, a genuine
+     built-but-unwired component, flagged for owner decision below), `vc_mcp/client.py`,
+     `vc_mcp/protocol.py`.
+     **Flagged for owner decision, not fixed:** `display/` (`renderer.py`, `spinner.py`,
+     `diff_preview.py`) is a complete, well-built tool-call spinner/diff-preview renderer with
+     zero callers anywhere in the repo -- confirmed via grep for `VectorRenderer`/`get_renderer`,
+     including indented imports inside functions. Either wire it into the real REPL/agent harness
+     or decide it's dead code; not a narrow fix.
+     New tests: `tests/test_vectorcode_vc_mcp_stdio_transport_close.py` (2),
+     `tests/test_vectorcode_vc_mcp_server_loguru.py` (3),
+     `tests/test_vectorcode_hooks_registry_fire_propagates_block.py` (2) -- 7 tests, all passing.
+     **Commit status:** `60a2a53fc`, `10550d3fc`, `02b065e1a` -- all self-committed directly by
+     this fork.
+
+107. **`vectorcode/src/environments/` full audit (2026-10-07) —** audited all 24 assigned
+     production files, including the core agent loop/base environment and every model-family tool
+     parser. Fixed seven concrete defects: tool-returned errors with ordinary positive exit codes
+     were omitted from `AgentResult.tool_errors`; Agentic OPD executed and trusted the model's own
+     `test_solution.py`, allowing a trivial fake-pass script to earn correctness credit; its
+     purported majority-vote hint selection accepted one positive among three votes; TB2's safe tar
+     extractor always raised `NameError` because `shutil` was never imported and test-upload
+     failures then continued into verification instead of failing closed; YC-Bench classified an
+     unfinished simulation with nonnegative funds as survived and discarded an explicit zero-year
+     horizon through `value or default`; web-research efficiency counted LLM turns rather than tool
+     calls and its `lstrip("www.")` domain normalization removed arbitrary leading `w`/`.`
+     characters; and the parser registry had dropped the historical `vector` alias, preventing its
+     entire pre-existing parser suite from running. Streaming JSONL/reward text I/O touched in the
+     fixes now specifies UTF-8.
+     Regression coverage: `tests/test_vectorcode_environments_audit_regressions.py` (8 tests) plus
+     the pre-existing `vectorcode/python/tests/legacy_ported/tools/test_tool_call_parsers.py`; all
+     35 combined tests pass. All assigned files pass `compileall`; `git diff --check` reports no
+     errors.
+     **Owner decisions, not changed:**
+     - The Vector/Longcat/Qwen3 parsers deliberately accept an unterminated final tool-call block,
+       and the Llama JSON parser treats any matching raw JSON object as a call even without its
+       `<|python_tag|>` marker. Both improve recovery from model formatting/truncation, but also
+       create a prompt-injection-adjacent false-positive surface. Changing this needs an explicit
+       policy choice about fail-open recovery versus requiring complete model-family delimiters.
+     - This package structurally uses stdlib `logging`, `print()` in production evaluation paths,
+       thread pools/`threading.Lock`, and process-global environment variables for per-run terminal
+       configuration despite repository policy. Replacing these is a cross-package concurrency and
+       observability redesign, not a narrow correctness patch.
+     - `ToolContext` intentionally gives reward functions unrestricted tool access and constructs
+       several sandbox shell commands from verifier-provided paths. Current production callers use
+       fixed/trusted paths, but making this a safe public API would require defining its trust
+     boundary and shell/path contract rather than guessing at confinement semantics.
+     **Commit status:** intentionally uncommitted for parent review (sandbox cannot lock `.git`).
+
+108. **`vectorcode/src/{telemetry,vc_engine}/` full audit (2026-10-07) —** completed a
+     line-by-line review of all 31 assigned files. Fixed six concrete failures: the `telemetry.itl`
+     compatibility module imported a nonexistent canonical `__all__` and could not be imported;
+     Apple FM and Nexa advertised `/v1/models` as healthy even when their SDK/platform was absent,
+     causing discovery to select an unusable engine; optional mining-sidecar discovery continued
+     with an unbound `SIDECAR_PATH` after its constants import failed; successful OpenAI-compatible
+     responses with no choices became normal-looking empty results; OpenRouter/MiniMax silently
+     dropped caller tools/options; and OpenRouter discarded returned tool calls. Replaced remaining
+     stdlib logging, printf placeholders, and loguru-incompatible `exc_info=True` in the assigned
+     engine files. Regression coverage is in `tests/test_vectorcode_vc_engine_regressions.py` (7
+     tests). That suite plus `tests/unit/test_ollama_multi_backend_fallback_timeout.py` (14 total
+     tests) and the existing `tests/test_vectorcode_engine_mining_audit.py` plus
+     `tests/backend/test_audit_followups.py` (54 tests) pass; assigned files pass `compileall` and
+     `git diff --check`.
+     **Owner/design decision, not changed:** low-level `vc_engine` implementations accept
+     caller-built messages and call providers without locally invoking
+     `ContextEngine.session_hydration_prompt()`. Some callers deliberately provide purpose-built
+     system prompts, while others may rely on higher-layer hydration; enforcing hydration here
+     could duplicate context and break standalone VectorCode use. Decide whether enforcement belongs
+     in `InferenceEngine`, every production caller, or an explicit already-hydrated/purpose-built
+     marker. Cloud/LiteLLM async stream methods also iterate synchronous SDK streams inside async
+     generators and can block the event loop; migration needs a deliberate async-SDK/thread-offload
+     contract. Changes remain uncommitted for parent review as required.
+
+109. **`vectorcode/src/{engine,mining}/` full audit (2026-10-07) —** completed a
+     line-by-line review of all 28 assigned files and confirmed `vectorcode/src/mining/` is a
+     distinct tree from `core/mining/`, not previously covered code. Fixed concrete failures in
+     both live and compatibility paths: the engine-discovery shim always returned empty/`None`
+     and broke SDK/CLI resolution instead of delegating to `vc_engine`; both agent loops called
+     LLMs without mandatory session hydration; the async conversation loop blocked its event loop
+     with `time.sleep`; approval-callback exceptions failed open and executed tools; malformed
+     model tool arguments were silently replaced with `{}` and dispatched; Windows path-overlap
+     detection was case-sensitive; Ollama HTTP errors were treated as empty successful responses;
+     and safe-stdio error logging recursively reused the failing stream and could deadlock loguru.
+     Mining fixes add the missing `Sidecar.read`, make sidecar writes durable/atomic
+     (`fsync` + `os.replace`), restore the fields the metrics parser actually passes to
+     `MiningStats`, distinguish unavailable sidecar/metrics configuration from healthy zero
+     activity, replace blocking HTTP in the async collector, reject JSON-RPC error/malformed
+     responses instead of reporting phantom sync success, correct the accidentally Docker-tagged
+     Pearl git ref to `master`, handle `MiningConfig.extra=None`, specify UTF-8 for patched source
+     files, and correct loguru exception/placeholder usage. Ambiguous top-level imports in
+     `agent_loop.py` now name the intended `vectorcode.src` modules explicitly.
+     Regression coverage: `tests/test_vectorcode_engine_mining_audit.py` (11 tests). Together with
+     `tests/test_mining_import_fix.py`, `tests/test_vectorcode_vc_engine_regressions.py`, and the
+     applicable `test_wave0.py` cases, 28 tests pass. One unrelated pre-existing `test_wave0.py`
+     case still fails before exercising audited code because it patches the nonexistent
+     `vectorcode.engine.conversation` attribute; its compatibility-package ownership is outside
+     this assignment.
+     **Owner decisions, not changed:** `MiningTelemetryCollector` explicitly documents that it is
+     shipped but not wired and has no production caller; decide whether to register it as a daemon
+     task or remove it. `engine/budget.py` and the duplicated budget in `agent_loop.py` use
+     `threading.Lock`, while tool execution uses thread pools, contrary to the repository's broad
+     no-threading policy; replacing these requires choosing an async-only versus sync/thread-safe
+     public contract. The engine and mining compatibility trees also duplicate substantial
+     canonical `vc_engine`/`core.mining` behavior, so consolidation is an architectural decision,
+     not a narrow audit fix. Code/tests were committed concurrently by the parent session as
+     `1ab828563`; this `OPEN_ISSUES.md` entry remains uncommitted for parent review as required.
+
+110. **`vectorcode/src/{agents,providers,speech}/` full audit (2026-10-07) —** completed a
+     line-by-line review of all 34 assigned files (3,754 pre-change lines), including repo-wide
+     caller/import searches and path-scoped history. History showed several narrow October 3–5
+     fixes in `agents/` and `providers/`, but no previous full-directory audit. Fixed the public
+     `agents.deep_research` module, whose placeholder API was incompatible with every real caller,
+     by exporting the complete canonical `vc_agents.deep_research.DeepResearchAgent`. Restored the
+     six provider compatibility types missing from `providers/base.py`, which had made both
+     `capability_probe.py` and `openai_compat.py` unimportable; capability probing now falls back
+     explicitly to memory when its configured cache cannot be opened. Removed three further
+     phantom-success paths: failed workflow subprocesses now fail the workflow, placeholder or
+     unknown workflow actions no longer report completion, and legacy cloud-provider exceptions
+     no longer return success-shaped text responses. Google compatibility requests now preserve
+     the supplied message history and reject unsupported tools instead of discarding both. Speech
+     discovery now verifies health for automatic and explicitly configured backends.
+
+     Additional fixes: coordinator shutdown clears task history and duplicate task IDs cannot
+     strand the first agent as busy; `Agent.to_dict()` preserves metadata; provider replacement
+     retires stale aliases; rate-limit reset parsing accepts `1500ms`, `1.5s`, and ISO timestamps;
+     `TTSResult.save()` uses flushed atomic replacement; compatibility fallbacks expose errors
+     instead of valid-looking empty state; banned `threading` was removed from both retry modules
+     and the synchronous model router; assigned stdlib-logging, malformed-loguru, and production
+     `print()` violations were removed.
+
+     **Owner decisions, not changed:** legacy
+     `agents/{agent,coordinator,workflow_engine}.py` has no production caller (the real runtime uses
+     distinct `vectorcode.src.swarm` and `vectorcode.src.workflow` implementations). Likewise
+     `providers/{capability_probe,openai_compat,rate_limit,rate_limit_tracker,retry,retry_utils}.py`
+     has no functional production consumer; discovery imports these modules, but none registers a
+     profile and live inference routes elsewhere. Decide whether to wire or retire these parallel
+     compatibility surfaces. The dormant agents workflow engine also exposes an arbitrary
+     subprocess action without a Permission Gateway boundary and must not be wired until an
+     authorization contract is chosen. Legacy OpenAI/Anthropic adapters expose paid-provider paths
+     contrary to the current free-tier-only runtime policy; deletion versus SDK retention is an
+     owner choice. `FasterWhisperBackend.health()` proves only package importability, not that its
+     configured model/device/compute type can load; loading a potentially large model during
+     discovery is a startup-latency/product tradeoff, so it was not guessed here.
+
+     New regression coverage:
+     `tests/test_vectorcode_agents_providers_speech_audit_regressions.py` (13 collected tests), plus the
+     updated earlier null-registry regression. Focused verification: 23/23 passed; `compileall`
+     and scoped `git diff --check` passed. Broader related verification reached 221 passes and 7
+     failures, all outside this assignment: sandbox `PermissionError`s writing
+     `~/.vector/personas/*.json`, with no assigned stack frame. The parent session concurrently
+     committed the main code/test batch as `b7b8d6a95` and the later capability-cache fallback
+     plus updated prior regression as `5029a0ab5`; this issue entry alone remains uncommitted for
+     parent review.
