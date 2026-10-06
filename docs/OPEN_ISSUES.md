@@ -4738,3 +4738,156 @@ isn't "proven in production" until you supply the service/device and run it live
     session to resume the un-triaged long tail without re-running the full sweep. This OPEN_ISSUES
     entry is intentionally left uncommitted for the parent session to review and commit, per
     instruction.
+
+92. **`vectorcode/src/plugins/` audit, round 1, partial pass (2026-10-06) --** first-ever
+    line-by-line pass on this 77-file directory (three prior commits -- `148a09cd5`, `d920e3ac8`,
+    `56348c2e1` -- had already applied narrow, single-bug-class sweeps here on 2026-10-04/05, so
+    "never touched this cycle" per the task prompt was stale; treated as a continuation, not a
+    fresh start). Time-boxed single pass as a fork -- did not reach full line-by-line depth on
+    every one of the 77 files; prioritized credential/filesystem-handling code and ran broad
+    pattern sweeps across the rest.
+    **Fixed with proof tests, 3 commits:**
+    - `memory/honcho/cli.py`'s `_write_config()` (`96ab1a94f`) -- wrote the Honcho config, which
+      stores per-host `apiKey`/`baseUrl`, via a plain `path.write_text()`. A crash mid-write
+      truncates the file; `_read_config()`'s broad except then silently falls back to an empty
+      config, which looks like the user's Honcho setup and API key were simply lost. Called from
+      10+ CLI subcommands including `vector honcho setup`. Fixed with tempfile + fsync +
+      os.replace.
+    - 15 call sites across `image_gen/openai/__init__.py`, `image_gen/openai-codex/__init__.py`,
+      `memory/hindsight/__init__.py` (5), `memory/honcho/cli.py` (1 more), `memory/supermemory/
+      __init__.py` (7) (`845eafdcc`) -- all passed stdlib logging's `exc_info=True` kwarg to a
+      loguru logger call. Loguru does not recognize this kwarg; it's silently absorbed as an
+      unused `str.format()` argument, so every one of these failure-path log lines recorded no
+      traceback at all despite clearly intending to. Converted to
+      `logger.opt(exception=True).<level>()`, loguru's real equivalent.
+    - `memory/mem0/__init__.py` and `memory/honcho/__init__.py`'s `save_config()` (`b5d199f47`) --
+      same non-atomic-write bug shape as the `cli.py` fix above, independently present in both
+      providers' own config-save methods (`mem0.json` stores `api_key`; `honcho.json` stores
+      per-host `apiKey`). Also missing explicit UTF-8 encoding on both the read and write side.
+      Fixed identically.
+    **Major architectural finding, flagged not fixed:** a large cluster of this directory is
+    genuinely dead code with zero callers anywhere in the repo, confirmed via grep for both
+    top-of-file and indented-inside-function imports (the `hands/` false-negative from earlier
+    this cycle was specifically checked for and ruled out here) --
+    `google_meet/` (12 files: a full Google Meet bot with a Node.js companion process, audio
+    bridge, and realtime OpenAI client), `teams_pipeline/` (3 files: Microsoft Teams Graph
+    webhook/meeting pipeline), `bridges/` (8 files: cognitive/gnn/mincut/qe_*/sona bridges),
+    `memory_plugins/` (2 files: `mem0_plugin.py`, `memory_backends.py` -- an earlier, superseded
+    duplicate of the now-live `memory/mem0/` provider), and 14 standalone top-level modules
+    (`spotify_plugin.py`, `google_meet_plugin.py`, `image_gen_plugins.py`, `disk_cleanup_plugin.py`
+    + `disk-cleanup/`, `teammate_plugin.py`, `financial_risk.py`, `healthcare_clinical.py`,
+    `legal_contracts.py`, `neural_coordination.py`, `perf_optimizer.py`, `prime_radiant.py`,
+    `quantum_optimizer.py`, `ruvector_upstream.py`, `cognitive_kernel.py`, `code_intelligence.py`,
+    `hyperbolic_reasoning.py`, `test_intelligence.py`). None of these are reachable via the
+    directory's own two real dynamic-loading mechanisms (`memory/__init__.py`'s
+    `load_memory_provider()`, scoped to `memory/<name>/` subdirectories only; `plugins/loader.py`,
+    which only has one caller anywhere -- `cli.py` -- and only scans a `plugins/builtin/`
+    subdirectory that doesn't exist). By contrast, `spotify/`, `image_gen/`, `context_engine/`,
+    `model_providers/`, and the 8 `memory/<name>/` backend subdirectories (byterover, hindsight,
+    holographic, honcho, mem0, openviking, retaindb, supermemory) ARE all genuinely live, reached
+    via `vector_cli/tools_config.py`, `agent/image_gen_provider.py`, `agent/context_engine.py`,
+    `providers/__init__.py`'s dynamic `plugins.model_providers.<name>` registration, and
+    `memory/__init__.py`'s config-driven `load_memory_provider(name)` respectively -- confirmed by
+    reading the loader code itself, not just grepping for static references (the 8 memory backends
+    in particular are loaded entirely dynamically via `importlib.util.spec_from_file_location()`
+    based on `memory.provider` in `config.yaml`, so a static-import grep alone would have falsely
+    flagged all 8 as dead). This needs an owner decision: wire the dead cluster in, or delete it --
+    not a narrow bug fix.
+    **Other findings, flagged not fixed:** `memory/honcho/session.py`'s `HonchoSessionManager` uses
+    `threading.Thread` for its async write-back queue and context-prefetch, against the project's
+    asyncio-only policy (same already-flagged shape as `connectors/scheduler.py`); its
+    `_peers_cache`/`_sessions_cache` dicts are mutated from both the main thread and the background
+    writer thread with no lock at all (unlike `_cache`, which does use `self._cache_lock`), a
+    latent but low-severity race (redundant Honcho peer-lookup calls, not data corruption).
+    `memory/__init__.py`'s `discover_plugin_cli_commands()` falls back to a hardcoded
+    `"honcho_command"` attribute name when `f"{active_provider}_command"` isn't found on a
+    *different* provider's `cli.py` -- a latent copy-paste-looking bug, currently inert since
+    `honcho/` is the only memory backend with a `cli.py` today.
+    New tests: `tests/test_honcho_cli_atomic_config_write.py` (2),
+    `tests/test_plugins_loguru_exc_info_removed.py` (2),
+    `tests/test_memory_providers_atomic_config_write.py` (4) -- 8/8 passing, all confirmed
+    failing pre-fix via `git stash`.
+    **Not reached this round:** full line-by-line depth on `memory/byterover/`, `memory/
+    holographic/` (3 files, 1,369 lines), `memory/openviking/`, `memory/retaindb/`,
+    `spotify/tools.py` (454 lines), the orphaned cluster listed above beyond the liveness check,
+    and `example-dashboard/dashboard/plugin_api.py`.
+    **Commit status:** `96ab1a94f`, `845eafdcc`, `b5d199f47` -- all self-committed directly by
+    this fork. This OPEN_ISSUES entry is intentionally left uncommitted for the parent session to
+    review and commit, per instruction.
+
+93. **`vectorcode/src/tools/` audit, round 1 (2026-10-06) —** first-ever line-by-line audit of
+    this 129-file directory (distinct from root-level `tools/`, the already-audited Claude<->Codex
+    dev orchestrator, and `vectorcode/src/vc_tools/`, already fully closed out -- `vectorcode/src/
+    tools/` is a third, separate, heavily-used package bare-imported as `tools.X` from many
+    production call sites: `agent/lsp/*.py`, `environments/*.py`, `gateway/platforms/discord.py`,
+    `model_tools.py`, `plugins/*`, `rl_cli.py`, `run_agent.py`, `vector_cli/*.py`). Run via 4
+    parallel Codex tasks, each ~30-34 files; all 4 completed without hitting a usage limit this
+    round.
+    **Fixed with proof tests (17 files total across the 4 sub-rounds):**
+    - `environments/docker.py` -- logged the full `docker run` argument list and container-start
+      command at info/debug level, including volume mounts and the real values of every
+      environment variable passed into the sandboxed container -- a credential-in-logs risk.
+      Redacted to counts/metadata.
+    - `worktree.py` -- `git worktree remove --force <path>` and `git merge <branch> -m <message>`
+      both reached a caller-controlled path/branch/message with no `--` separator before the
+      positional argument (git-argument-injection, the same bug class fixed in
+      `tools/vector_dev_orchestrator/worktree_manager.py` and `scripts/profile_distribution.py`
+      this cycle).
+    - `mcp_oauth.py` -- `_write_json()`'s token-cache write used a predictable
+      `path.with_suffix(".tmp")` tmp name with no fsync, risking collision under concurrent OAuth
+      refreshes and data loss on a mid-write crash. Made atomic (tempfile.mkstemp + fsync +
+      os.replace).
+    - `checkpoint.py`, `checkpoint_manager.py` -- atomic persistence fixes for saved checkpoint
+      state.
+    - `file_safety.py`, `file_tools.py`, `git_tools.py`, `process_registry.py`,
+      `tool_result_storage.py`, `tirith_security.py`, `stt_tool.py`, `environments/base.py`,
+      `environments/managed_modal.py`, `code_execution_tool.py`, `direct_executor.py`,
+      `microsoft_graph_client.py` -- path confinement, atomic-write, and phantom-success fixes
+      matching established bug classes from this audit cycle.
+    New tests: `tests/test_tools_batch_a_regressions.py` (3),
+    `tests/test_tools_batch_b_audit_regressions.py` (8),
+    `tests/test_tools_batch_c_regressions.py` (4), `tests/test_tools_batch_d_regressions.py` (5)
+    -- 20 tests total, all passing, all verified by the parent session.
+    **Remaining scope:** `lsp/`, `storage/` (a separate subpackage from the already-fixed
+    `vc_tools/storage/`), `browser_*`, `computer_use/`, and ~70 other files in this directory were
+    reviewed-clean or not yet individually confirmed -- treat as a first pass, not full closeout.
+    **Commit status:** committed by the parent session (Codex's sandbox cannot write
+    `.git/index.lock`): `2504a5353`, `e5effc6c2`.
+
+94. **`vectorcode/src/vector_cli/` audit, round 1 (2026-10-06) —** first-ever line-by-line audit
+    of this 123-file directory (the main `vector` CLI entry point package). Run via 2 parallel
+    Codex tasks; batch A completed cleanly, batch B hit a genuine Codex usage-limit wall mid-write
+    of its own test file, leaving 4 fixes specified by the test but not yet applied to source --
+    completed directly by the parent session using the test's own assertions as the spec, each
+    confirmed failing pre-fix via `git stash`.
+    **Fixed with proof tests:**
+    - `auth.py` -- the Spotify OAuth callback handler had no CSRF state-parameter validation at
+      all (same gap already fixed in `connectors/oauth.py` and `tools/mcp_oauth.py` this cycle).
+      Added `secrets.compare_digest()` verification before accepting the callback.
+    - `setup.py` -- a non-obvious Python scoping bug, not a typo: `_setup_tts_provider()`'s neutts
+      branch calls `importlib.util.find_spec("neutts")` via the module-level import, but a LATER
+      branch in the SAME function (kittentts) had its own local `import importlib.util`. Python
+      decides a name is function-local at compile time based on whether it's assigned anywhere in
+      the function body, independent of execution order -- so `importlib` was local to the whole
+      function, and the neutts branch's reference (which runs before the local import statement
+      is ever reached) raised `UnboundLocalError` every time, silently caught by a broad except
+      and defaulting `already_installed` to False. Effect: the "NeuTTS is already installed" skip
+      path could never fire -- every setup run re-prompted to install dependencies even when
+      already present. Fixed by removing the redundant local import.
+    - `vault_cmd.py` -- `_save_vault()` wrote the encrypted credential vault directly with
+      `write_bytes()` with no atomicity -- a crash mid-write could corrupt/truncate the vault.
+      Made atomic (tempfile + fsync + os.replace + 0o600 before the file is visible at its final
+      path).
+    - `webhook.py` -- `_load_subscriptions()` silently returned `{}` when the parsed JSON was a
+      non-dict value (e.g. a JSON array) instead of raising `SubscriptionsLoadError` -- the exact
+      phantom-empty-store bug the function's own docstring warns against, reachable via one
+      previously-uncovered branch.
+    - `profile_distribution.py` -- `git clone --depth 1 <url> <dest>` had no `--` separator before
+      the caller-provided url (git-argument-injection).
+    New tests: `tests/test_vector_cli_auth_oauth_state.py` (1),
+    `tests/test_vector_cli_batch_b_audit.py` (5) -- 6 tests, all passing.
+    **Remaining scope:** ~115 of 123 files were not individually confirmed this round (batch A's
+    own file list beyond `auth.py` was not deeply verified by the parent session beyond running
+    its tests; batch B's assigned list beyond the 4 completed fixes was not reached before the
+    usage-limit wall) -- treat as a first pass, not full closeout.
+    **Commit status:** committed by the parent session: `15e1857f0`.
