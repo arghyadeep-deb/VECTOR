@@ -93,13 +93,15 @@ def inject_context(
     if not results:
         return messages
 
-    # Truncate to max_context_tokens
+    # Truncate to max_context_tokens. A single over-budget result (often the
+    # top-ranked one) must not discard every later result that would fit --
+    # skip it and keep checking the rest instead of stopping entirely.
     truncated: List[RetrievalResult] = []
     total_tokens = 0
     for r in results:
         tokens = _count_tokens(r.content)
         if total_tokens + tokens > cfg.max_context_tokens:
-            break
+            continue
         truncated.append(r)
         total_tokens += tokens
 
