@@ -5091,3 +5091,74 @@ isn't "proven in production" until you supply the service/device and run it live
     fixed, plus whatever batch C left unconfirmed) were not individually confirmed this round --
     treat as a first pass, not full closeout.
     **Commit status:** committed by the parent session: `ca7f420ad`.
+
+100. **`vectorcode/src/server/` audit, partial pass (2026-10-07) —** first-ever pass on this
+     21-file FastAPI HTTP/WebSocket server layer. Codex was unavailable (genuine usage-limit
+     wall) so this round ran as a solo Claude fork, which hit the Claude session rate limit
+     partway through and was cut off mid-task.
+     **Fixed with proof tests, both verified by the parent session:**
+     - `webhook_routes.py` (`e0519b93a`) -- the WhatsApp webhook verification endpoint called
+       `secrets.compare_digest(token, whatsapp_verify_token)` with no guard for an unconfigured
+       (empty) `whatsapp_verify_token`. `secrets.compare_digest("", "")` returns `True`, so with
+       no token configured, a verification request supplying an empty `hub.verify_token`
+       succeeded and echoed back the attacker-supplied `hub.challenge` -- a real bypass. The
+       file's own sibling checks (bluebubbles_password, sendblue webhook_secret) already guard
+       with `if <secret> and ...`; this one was missing it.
+     - `ws_bridge.py` (`18662effd`, completed by the parent session after the fork was cut off
+       mid-write, confirmed failing pre-fix via `git stash`) -- the real finding this round:
+       Starlette's `BaseHTTPMiddleware` (backing `AuthMiddleware`'s HTTP-side API key check)
+       only runs for `scope["type"] == "http"` and never sees WebSocket connections. The
+       `/v1/agents/events` WS endpoint was therefore **completely unauthenticated** regardless
+       of whether `OPENVECTOR_API_KEY` was configured, even though every `/v1/*` HTTP route was
+       protected. Fixed with an explicit timing-safe re-check inside the WS handler itself
+       (query-param-supplied key, since browsers can't set an Authorization header during a WS
+       handshake).
+     - `session_store.py` (`5b50cb9e4`, docs-only) -- `expire_sessions()` confirmed via
+       repo-wide grep to have zero callers; real conversation history never actually expires.
+       Flagged for owner decision rather than inventing new scheduling infrastructure to wire
+       it in, since `app.py` has no existing periodic-task machinery to hook into.
+     New tests: `tests/test_vectorcode_server_webhook_routes_timing_safe.py` (7),
+     `tests/test_vectorcode_server_ws_bridge_auth.py` (4) -- 11 tests, all passing.
+     **Remaining scope:** ~17 of 21 files (`__init__.py`, `agent_manager_routes.py`,
+     `api_routes.py`, `app.py`, `auth_middleware.py`, `channel_bridge.py`, `cloud_router.py`,
+     `comparison.py`, `connectors_router.py`, `cost_calculator.py`, `dashboard.py`,
+     `digest_routes.py`, `middleware.py`, `models.py`, `routes.py`, `savings.py`,
+     `stream_bridge.py`, `upload_router.py`) were not reached before the rate-limit cutoff --
+     a genuine partial pass, not a full-depth closeout. `auth_middleware.py` and
+     `upload_router.py` specifically (file-upload path confinement, session-token generation)
+     were explicitly flagged as high-priority for this directory and remain unaudited.
+     **Commit status:** `e0519b93a`, `5b50cb9e4` self-committed by the fork; `18662effd`
+     committed by the parent session.
+
+101. **`vectorcode/src/cli/` audit, partial pass (2026-10-07) —** first-ever pass on this 23-file
+     directory (distinct from the already-audited `vectorcode/src/vector_cli/`, confirmed via
+     `git log` before starting). Codex was unavailable (genuine usage-limit wall) so this round
+     ran as a solo Claude fork, which hit the Claude session rate limit partway through and was
+     cut off mid-task (the fork's own last message reported losing a fix in a stash operation,
+     but no stash was found afterward -- the fix was recovered successfully as an uncommitted
+     working-tree change).
+     **Fixed with proof tests, both verified by the parent session:**
+     - `auth.py` (`d832c3cd5`) -- `_load_file_store()` caught any JSON parse failure and
+       returned `{}`, indistinguishable from a genuinely-empty credential store; `add()`/
+       `remove()` would then overwrite the corrupted `~/.vector/credentials.json` on the very
+       next call, permanently destroying every other stored credential's metadata. Same
+       "fail-open destroys data" bug class already fixed in `vault_cmd.py`, `webhook.py`, and
+       `skill_manage.py` earlier this cycle. Added `CredentialStoreCorruptedError` (raised
+       instead of swallowed, with a clean top-level error message) and made `_save_file_store()`
+       atomic (tempfile+fsync+os.replace) -- previously non-atomic, so a crash mid-write could
+       itself produce exactly the corrupted file this fix now protects against.
+     - `scan_cmd.py` (completed by the parent session after the fork was cut off mid-write,
+       confirmed failing pre-fix via `git stash`) -- the fallback `class PrivacyScanner` beneath
+       `except ImportError:` was defined unconditionally at module scope, so it always
+       overwrote the real `PrivacyScanner` that `from vectorcode.src.vector_cli.scan_cmd import *`
+       had already successfully imported above it. The stub's `scan(path)` method doesn't exist
+       on the real class, and the stub has no `run_all()` at all, so every call to
+       `server/routes.py`'s `/v1/security/scan` endpoint crashed with `AttributeError`.
+     New tests: `tests/test_vectorcode_cli_auth_store_integrity.py` (4),
+     `tests/test_vectorcode_cli_scan_cmd_privacy_scanner.py` (2) -- 6 tests, all passing.
+     **Remaining scope:** ~21 of 23 files were not reached before the rate-limit cutoff --
+     a genuine partial pass. `self_update.py` (unverified-download/atomic-replace risk) and
+     `scheduler_cmd.py` (checkpoint-watermark bug class) were explicitly flagged as
+     high-priority for this directory and remain unaudited.
+     **Commit status:** `d832c3cd5` self-committed by the fork; `1c0a25a8f` committed by the
+     parent session.
