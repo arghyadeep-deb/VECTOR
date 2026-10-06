@@ -1,7 +1,7 @@
 """VectorCode v3 Agent — domain entity for the agent lifecycle system."""
 
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 class Agent:
     def __init__(self, agent_id: str, agent_type: str, *,
@@ -12,10 +12,10 @@ class Agent:
         self.id = agent_id
         self.type = agent_type
         self.status = "idle"
-        self.capabilities = capabilities or []
+        self.capabilities = list(capabilities) if capabilities is not None else []
         self.role = role
         self.parent = parent
-        self.metadata = metadata or {}
+        self.metadata = dict(metadata) if metadata is not None else {}
         self.created_at = datetime.now(timezone.utc).isoformat()
         self.last_active = self.created_at
 
@@ -57,6 +57,7 @@ class Agent:
             "capabilities": self.capabilities,
             "role": self.role,
             "parent": self.parent,
+            "metadata": self.metadata,
             "created_at": self.created_at,
             "last_active": self.last_active,
         }

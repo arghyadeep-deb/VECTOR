@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
+import tempfile
 from typing import Any, Dict, List
 
 @dataclass
@@ -25,7 +27,21 @@ class TTSResult:
 
     def save(self, path: Path) -> Path:
         """Write audio bytes to a file and return the path."""
-        path.write_bytes(self.audio)
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="wb", dir=path.parent, prefix=f".{path.name}.", delete=False
+            ) as tmp:
+                temp_path = Path(tmp.name)
+                tmp.write(self.audio)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            os.replace(temp_path, path)
+        finally:
+            if temp_path is not None and temp_path.exists():
+                temp_path.unlink()
         return path
 
 class TTSBackend(ABC):

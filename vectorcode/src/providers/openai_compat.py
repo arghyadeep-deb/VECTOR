@@ -71,7 +71,8 @@ class OpenAICompatProvider(BaseProvider):
 
             if stream:
                 content_parts: list[str] = []
-                print(f"\033[2m[{model}]\033[0m ", end="", flush=True)
+                sys.stdout.write(f"\033[2m[{model}]\033[0m ")
+                sys.stdout.flush()
                 with httpx.Client(timeout=120.0) as client:
                     with client.stream(
                         "POST",
@@ -89,11 +90,15 @@ class OpenAICompatProvider(BaseProvider):
                                 chunk = json.loads(line)
                                 delta = chunk["choices"][0]["delta"].get("content", "")
                                 if delta:
-                                    print(delta, end="", flush=True)
+                                    sys.stdout.write(delta)
+                                    sys.stdout.flush()
                                     content_parts.append(delta)
                             except Exception as _sve:
-                                logger.debug("[VECTOR][providers.openai_compat] suppressed Exception: %s", _sve)
-                print()
+                                logger.debug(
+                                    "[VECTOR][providers.openai_compat] invalid stream chunk: {}",
+                                    _sve,
+                                )
+                sys.stdout.write("\n")
                 content = "".join(content_parts)
                 usage = TokenUsage()
             else:
@@ -116,8 +121,10 @@ class OpenAICompatProvider(BaseProvider):
             return self._make_result(content, model, usage)
 
         except Exception as e:
-            logger.error(f"[VECTOR][openai_compat] completion failed for {model}: {e}")
-            return self._make_result(f"[Error: {e}]", model, TokenUsage())
+            logger.opt(exception=True).error(
+                "[VECTOR][openai_compat] completion failed for {}: {}", model, e
+            )
+            raise
 
     def probe_capabilities(self, model: str) -> ModelCapabilities:
         for key, caps in _CAPS.items():
@@ -165,13 +172,15 @@ class AnthropicProvider(BaseProvider):
                 kwargs["tools"] = tools
 
             if stream:
-                print(f"\033[2m[{model}]\033[0m ", end="", flush=True)
+                sys.stdout.write(f"\033[2m[{model}]\033[0m ")
+                sys.stdout.flush()
                 chunks: list[str] = []
                 with client.messages.stream(**kwargs) as s:
                     for text in s.text_stream:
-                        print(text, end="", flush=True)
+                        sys.stdout.write(text)
+                        sys.stdout.flush()
                         chunks.append(text)
-                print()
+                sys.stdout.write("\n")
                 content = "".join(chunks)
                 usage = TokenUsage()
             else:
@@ -186,8 +195,10 @@ class AnthropicProvider(BaseProvider):
             return self._make_result(content, model, usage)
 
         except Exception as e:
-            logger.error(f"[VECTOR][anthropic] completion failed for {model}: {e}")
-            return self._make_result(f"[Anthropic error: {e}]", model, TokenUsage())
+            logger.opt(exception=True).error(
+                "[VECTOR][anthropic] completion failed for {}: {}", model, e
+            )
+            raise
 
     def probe_capabilities(self, model: str) -> ModelCapabilities:
         for key, caps in self._CAPS.items():
@@ -214,26 +225,36 @@ class GoogleProvider(BaseProvider):
     ) -> CompletionResult:
         try:
             import google.generativeai as genai  # type: ignore
+            if tools:
+                raise NotImplementedError(
+                    "GoogleProvider does not implement tool-call conversion"
+                )
             genai.configure(api_key=self._api_key)
             gclient = genai.GenerativeModel(model)
-            chat = gclient.start_chat(history=[])
-            last = messages[-1]["content"] if messages else ""
+            prompt = "\n\n".join(
+                f"{message.get('role', 'user')}: {message.get('content', '')}"
+                for message in messages
+            )
             if stream:
-                print(f"\033[2m[{model}]\033[0m ", end="", flush=True)
+                sys.stdout.write(f"\033[2m[{model}]\033[0m ")
+                sys.stdout.flush()
                 parts: list[str] = []
-                for chunk in gclient.generate_content(last, stream=True):
+                for chunk in gclient.generate_content(prompt, stream=True):
                     t = chunk.text or ""
-                    print(t, end="", flush=True)
+                    sys.stdout.write(t)
+                    sys.stdout.flush()
                     parts.append(t)
-                print()
+                sys.stdout.write("\n")
                 content = "".join(parts)
             else:
-                resp = gclient.generate_content(last)
+                resp = gclient.generate_content(prompt)
                 content = resp.text or ""
             return self._make_result(content, model, TokenUsage())
         except Exception as e:
-            logger.error(f"[VECTOR][google] completion failed for {model}: {e}")
-            return self._make_result(f"[Google error: {e}]", model, TokenUsage())
+            logger.opt(exception=True).error(
+                "[VECTOR][google] completion failed for {}: {}", model, e
+            )
+            raise
 
     def probe_capabilities(self, model: str) -> ModelCapabilities:
         if "2.5-pro" in model:

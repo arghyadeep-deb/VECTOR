@@ -55,6 +55,11 @@ def register_provider(profile: ProviderProfile) -> None:
     plugins under ``$VECTOR_HOME/plugins/model-providers/`` can override
     bundled profiles without editing repo code.
     """
+    # Replacing a profile must also retire aliases that belonged only to the
+    # previous version; otherwise removed aliases keep resolving forever.
+    for alias, canonical in list(_ALIASES.items()):
+        if canonical == profile.name:
+            del _ALIASES[alias]
     _REGISTRY[profile.name] = profile
     for alias in profile.aliases:
         _ALIASES[alias] = profile.name

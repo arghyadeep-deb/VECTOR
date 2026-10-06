@@ -10,6 +10,8 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING, Optional
 
+from loguru import logger
+
 if TYPE_CHECKING:
     from vectorcode.src.vc_core.config import VectorConfig
     from vectorcode.src.speech._abc import SpeechBackend
@@ -52,7 +54,8 @@ def _create_backend(
             return backend_cls(api_key=api_key)
         else:
             return backend_cls()
-    except Exception:
+    except Exception as exc:
+        logger.debug("[VECTOR][speech] failed to create backend {}: {}", key, exc)
         return None
 
 def get_speech_backend(config: "VectorConfig") -> Optional["SpeechBackend"]:
@@ -67,12 +70,23 @@ def get_speech_backend(config: "VectorConfig") -> Optional["SpeechBackend"]:
     backend_key = config.speech.backend
 
     if backend_key != "auto":
-        return _create_backend(backend_key, config)
+        backend = _create_backend(backend_key, config)
+        return backend if _is_healthy(backend, backend_key) else None
 
     # Auto-discovery: try each in priority order
     for key in DISCOVERY_ORDER:
         backend = _create_backend(key, config)
-        if backend is not None:
+        if _is_healthy(backend, key):
             return backend
 
     return None
+
+
+def _is_healthy(backend: Optional["SpeechBackend"], key: str) -> bool:
+    if backend is None:
+        return False
+    try:
+        return backend.health()
+    except Exception as exc:
+        logger.debug("[VECTOR][speech] health check failed for {}: {}", key, exc)
+        return False

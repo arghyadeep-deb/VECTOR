@@ -11,14 +11,94 @@ Those stay on AIAgent.
 
 from __future__ import annotations
 
-import logging
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Sentinel for "omit temperature entirely" (Kimi: server manages it)
 OMIT_TEMPERATURE = object()
+
+
+@dataclass
+class Message:
+    """Minimal provider-neutral chat message."""
+
+    role: str
+    content: Any
+
+
+@dataclass
+class ToolCall:
+    """Tool invocation returned by a provider."""
+
+    name: str
+    arguments: dict[str, Any] = field(default_factory=dict)
+    id: str = ""
+
+
+@dataclass
+class TokenUsage:
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+
+@dataclass
+class ModelCapabilities:
+    context_window: int = 4096
+    tool_use: bool = False
+    vision: bool = False
+    structured_output: bool = False
+    supports_streaming: bool = True
+
+
+@dataclass
+class CompletionResult:
+    content: str
+    model: str
+    usage: TokenUsage = field(default_factory=TokenUsage)
+    tool_calls: list[ToolCall] = field(default_factory=list)
+    finish_reason: str = "stop"
+
+
+class BaseProvider(ABC):
+    """Compatibility interface used by the legacy concrete provider adapters."""
+
+    provider_name = "base"
+
+    @abstractmethod
+    def complete(
+        self,
+        model: str,
+        messages: list[dict],
+        tools: list[dict] | None = None,
+        stream: bool = True,
+        max_tokens: int = 8192,
+    ) -> CompletionResult:
+        """Complete a chat request."""
+
+    @abstractmethod
+    def probe_capabilities(self, model: str) -> ModelCapabilities:
+        """Return declared capabilities for *model*."""
+
+    @staticmethod
+    def _make_result(
+        content: str,
+        model: str,
+        usage: TokenUsage,
+        *,
+        tool_calls: list[ToolCall] | None = None,
+        finish_reason: str = "stop",
+    ) -> CompletionResult:
+        return CompletionResult(
+            content=content,
+            model=model,
+            usage=usage,
+            tool_calls=list(tool_calls or []),
+            finish_reason=finish_reason,
+        )
 
 
 def _profile_user_agent() -> str:
@@ -176,9 +256,9 @@ class ProviderProfile:
 
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                data = json.loads(resp.read().decode())
+                data = json.loads(resp.read().decode("utf-8"))
             items = data if isinstance(data, list) else data.get("data", [])
             return [m["id"] for m in items if isinstance(m, dict) and "id" in m]
         except Exception as exc:
-            logger.debug("fetch_models(%s): %s", self.name, exc)
+            logger.debug("fetch_models({}): {}", self.name, exc)
             return None

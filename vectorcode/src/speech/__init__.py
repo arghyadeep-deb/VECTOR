@@ -13,11 +13,15 @@ for _mod in ("faster_whisper", "openai_whisper", "deepgram"):
     try:
         importlib.import_module(f".{_mod}", __name__)
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug(
+            "[VECTOR][speech] optional STT backend {} unavailable", _mod
+        )
 
 # Optional TTS backends — each registers itself via @TTSRegistry.register()
 for _mod in ("cartesia_tts", "kokoro_tts", "openai_tts"):
     try:
         importlib.import_module(f".{_mod}", __name__)
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug(
+            "[VECTOR][speech] optional TTS backend {} unavailable", _mod
+        )

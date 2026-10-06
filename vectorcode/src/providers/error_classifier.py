@@ -7,12 +7,8 @@ context, or abort).
 """
 
 import enum
-import json
-import logging
 from dataclasses import dataclass, field
-from typing import Any, Optional
-
-logger = logging.getLogger(__name__)
+from typing import Optional
 
 
 class FailoverReason(enum.Enum):

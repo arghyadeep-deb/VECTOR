@@ -7,11 +7,7 @@ rate-limited provider concurrently.
 from loguru import logger
 import sys
 import random
-import threading
 import time
-
-_jitter_counter = 0
-_jitter_lock = threading.Lock()
 
 
 def jittered_backoff(
@@ -32,20 +28,13 @@ def jittered_backoff(
     Decorrelates concurrent retries — different sessions won't all
     hammer the same provider endpoint at the same instant.
     """
-    global _jitter_counter
-    with _jitter_lock:
-        _jitter_counter += 1
-        tick = _jitter_counter
-
     exponent = max(0, attempt - 1)
     if exponent >= 63 or base_delay <= 0:
         delay = max_delay
     else:
         delay = min(base_delay * (2 ** exponent), max_delay)
 
-    seed = (time.time_ns() ^ (tick * 0x9E3779B9)) & 0xFFFFFFFF
-    rng = random.Random(seed)
-    jitter = rng.uniform(0, jitter_ratio * delay)
+    jitter = random.uniform(0, jitter_ratio * delay)
     return delay + jitter
 
 

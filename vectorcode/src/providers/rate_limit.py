@@ -6,6 +6,8 @@ Supports Nous Portal, OpenRouter, OpenAI-compatible header schema (12 headers).
 import sys
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+import re
 from typing import Any, Mapping, Optional
 
 
@@ -58,9 +60,24 @@ def _safe_int(v: Any, default: int = 0) -> int:
 
 
 def _safe_float(v: Any, default: float = 0.0) -> float:
+    if v is None:
+        return default
+    raw = str(v).strip()
     try:
-        return float(v)
-    except (TypeError, ValueError):
+        return float(raw)
+    except ValueError:
+        pass
+    duration = re.fullmatch(r"(\d+(?:\.\d+)?)(ms|s|m|h)", raw, re.IGNORECASE)
+    if duration:
+        value = float(duration.group(1))
+        unit = duration.group(2).lower()
+        return value * {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}[unit]
+    try:
+        reset_at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if reset_at.tzinfo is None:
+            reset_at = reset_at.replace(tzinfo=timezone.utc)
+        return max(0.0, reset_at.timestamp() - time.time())
+    except ValueError:
         return default
 
 

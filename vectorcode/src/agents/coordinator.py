@@ -1,6 +1,5 @@
 """VectorCode v3 SwarmCoordinator — multi-agent coordination with topologies."""
 
-import asyncio
 from typing import Any, Optional
 
 from loguru import logger
@@ -23,6 +22,7 @@ class SwarmCoordinator:
         for a in self._agents.values():
             a.terminate()
         self._agents.clear()
+        self._tasks.clear()
         self._initialized = False
 
     def spawn_agent(self, agent_type: str, **kwargs) -> Agent:
@@ -44,6 +44,8 @@ class SwarmCoordinator:
     async def assign_task(self, task: dict) -> Optional[str]:
         task_type = task.get("type", "general")
         task_id = task.get("id", f"task-{id(task)}")
+        if task_id in self._tasks:
+            raise ValueError(f"task id already exists: {task_id}")
 
         candidates = [a for a in self._agents.values()
                       if a.can_execute(task_type) and task_type in a.capabilities]

@@ -4,17 +4,20 @@ from loguru import logger
 try:
     from vectorcode.src.vc_agents.manager import AgentManager
 except Exception as e:
-    # Falls back to a stub that always returns None/[] with zero
-    # indication anything went wrong -- same silent-swallow bug class
-    # fixed 60+ times this cycle. Zero real callers today (confirmed via
-    # repo-wide grep), fixed anyway per this cycle's established bar.
-    logger.warning("[VECTOR][agents.manager] real vc_agents.manager unavailable, using empty stub: {}", e)
+    # Preserve importability for diagnostics, but fail calls explicitly rather
+    # than making an unavailable manager look like a valid empty registry.
+    logger.warning("[VECTOR][agents.manager] real vc_agents.manager unavailable: {}", e)
+    _IMPORT_ERROR = str(e)
 
     class AgentManager:  # type: ignore[no-redef]
         def get_agent(self, name: str):
-            return None
+            raise RuntimeError(
+                f"canonical vc_agents.manager is unavailable: {_IMPORT_ERROR}"
+            )
 
         def list_agents(self) -> list:
-            return []
+            raise RuntimeError(
+                f"canonical vc_agents.manager is unavailable: {_IMPORT_ERROR}"
+            )
 
 __all__ = ["AgentManager"]

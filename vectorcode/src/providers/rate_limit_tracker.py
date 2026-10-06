@@ -6,6 +6,8 @@ formatted display for the /usage slash command.
 
 import time
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+import re
 from typing import Any, Mapping, Optional
 
 
@@ -76,8 +78,25 @@ def _safe_int(value: Any, default: int = 0) -> int:
     except (TypeError, ValueError): return default
 
 def _safe_float(value: Any, default: float = 0.0) -> float:
-    try: return float(value)
-    except (TypeError, ValueError): return default
+    if value is None:
+        return default
+    raw = str(value).strip()
+    try:
+        return float(raw)
+    except ValueError:
+        pass
+    duration = re.fullmatch(r"(\d+(?:\.\d+)?)(ms|s|m|h)", raw, re.IGNORECASE)
+    if duration:
+        amount = float(duration.group(1))
+        unit = duration.group(2).lower()
+        return amount * {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}[unit]
+    try:
+        reset_at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if reset_at.tzinfo is None:
+            reset_at = reset_at.replace(tzinfo=timezone.utc)
+        return max(0.0, reset_at.timestamp() - time.time())
+    except ValueError:
+        return default
 
 
 def format_rate_limit_display(state: RateLimitState) -> str:

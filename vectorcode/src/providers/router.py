@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import threading
 import time
 import uuid
 from types import SimpleNamespace
@@ -107,22 +106,15 @@ class ModelRouter:
             return await get_client().chat(messages=messages, provider=provider, model=model,
                                            max_tokens=max_tokens or 4096)
 
-        box: dict = {}
-
-        def _runner():
-            try:
-                box["r"] = asyncio.run(_call())
-            except Exception as exc:  # surfaced to the caller below
-                box["e"] = exc
-
-        t = threading.Thread(target=_runner, daemon=True)
-        t.start()
-        t.join(timeout=180)
-        if "e" in box:
-            raise box["e"]
-        if "r" not in box:
-            raise TimeoutError(f"{provider}/{model} did not answer within 180s")
-        r = box["r"]
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            r = asyncio.run(_call())
+        else:
+            raise RuntimeError(
+                "ModelRouter.complete() is synchronous and cannot be called from "
+                "a running event loop"
+            )
         return _result(getattr(r, "content", "") or "", [], getattr(r, "finish_reason", "stop"),
                        getattr(r, "input_tokens", 0), getattr(r, "output_tokens", 0))
 

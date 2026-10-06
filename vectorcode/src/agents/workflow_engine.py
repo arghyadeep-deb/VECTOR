@@ -36,10 +36,15 @@ class WorkflowEngine:
             # Never shell=True — split into args to prevent injection
             args = shlex.split(cmd) if isinstance(cmd, str) else list(cmd)
             r = subprocess.run(args, shell=False, capture_output=True, text=True, timeout=30)
-            return r.stdout[:5000] or r.stderr[:5000]
+            if r.returncode != 0:
+                detail = (r.stderr or r.stdout).strip()[:5000]
+                raise RuntimeError(
+                    f"workflow command exited with status {r.returncode}: {detail}"
+                )
+            return r.stdout[:5000]
         elif action == "llm":
-            return f"[LLM call: {step.get('prompt', '')[:100]}]"
+            raise RuntimeError("LLM workflow steps are not implemented")
         elif action == "delay":
             await asyncio.sleep(step.get("seconds", 1))
             return "delayed"
-        return f"executed: {action}"
+        raise ValueError(f"unknown workflow action: {action!r}")
