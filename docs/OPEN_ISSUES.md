@@ -4466,3 +4466,29 @@ isn't "proven in production" until you supply the service/device and run it live
     **Commit status:** all 6 fixes self-committed directly by this fork (`5d3235ce4`,
     `2e2886574`, `1a48098ba`, `bc4fbb7df`, `d9c3fac49`, `f932ac3b4`). This OPEN_ISSUES entry is
     intentionally left uncommitted for the parent session, per instruction.
+
+86. **`vectorcode/src/connectors/` fully closed out (2026-10-06) —** round 2a + round 2b together
+    cover the last 19 of 36 files, and cross-checking all four rounds against the full file
+    listing (`git ls-files "vectorcode/src/connectors/*.py"`) confirms every single file now has
+    real audit coverage: 8 from the earlier SyncStatus-focused round (oura, weather, hackernews,
+    granola, apple_notes, imessage, dropbox, strava), 9 from round 1 (apple_music,
+    attachment_store, embedding_store, gcalendar, gmail_imap, notion, oauth, slack_connector,
+    sync_engine), 10 from round 2a (_abc, gmail, gdrive, gcontacts, outlook, spotify, whatsapp,
+    google_tasks, github_notifications, obsidian), 9 from round 2b (__init__, apple_contacts,
+    apple_health, chunker, news_rss, pipeline, retriever, scheduler, store). 36/36.
+    This also closes out the entire `vc_agents/` + `vc_tools/` + `connectors/` + `evals/` +
+    `skills/` + `agent/` group for this audit cycle -- every production file in those six
+    directories now has real line-by-line round coverage, fixed or explicitly reviewed-clean.
+    Remaining open items from this group are all explicit owner-decision flags already recorded
+    in their respective round entries above (not bugs left unfixed): office/pack.py's missing
+    `validators` module, builtin/sparc/__init__.py's cross-tree import, skills/security.py and
+    skills/types.py's unwired gates, godmode_race.py's direct-OpenRouter/ThreadPoolExecutor design,
+    scheduler.py's threading.Thread vs the asyncio-only policy, embeddings.py's ThreadPoolExecutor,
+    sqlite.py's/digest_store.py's/store.py's raw sqlite3.connect() vs SQLCipher, pdf_tool.py's/
+    apply_patch.py's lack of a configured allowed-root policy, audio_tool.py's direct-OpenAI-
+    Whisper billing path, and whatsapp.py/obsidian.py's silent-skip-on-unreadable-file policy.
+    Per the standing session plan, the remaining untouched front is the `core/`+`districts/`
+    real-import smoke sweep (started earlier this audit cycle, ~15%/4066 modules checked, paused
+    after a host memory-pressure kill with an explicit instruction not to restart it without being
+    asked) -- everything else in `vectorcode/src/` was previously established as already covered
+    or deferred in earlier session segments.
