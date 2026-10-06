@@ -12,6 +12,7 @@ read-only  |  auto | block       | block| block
 
 import sys
 import fnmatch
+import os
 from enum import Enum
 
 from loguru import logger
@@ -61,10 +62,14 @@ class PermissionSystem:
                 logger.warning(f"[VECTOR][perms] unknown mode '{mode}', defaulting to standard")
                 mode = PermissionMode.STANDARD
         self.mode = mode
-        self.allow_bash        = allow_bash        or []
-        self.deny_bash         = deny_bash         or ["rm -rf"]
-        self.allow_write_paths = allow_write_paths or []
-        self.deny_write_paths  = deny_write_paths  or [".env", "*.pem", "secrets/**"]
+        self.allow_bash = [] if allow_bash is None else allow_bash
+        self.deny_bash = ["rm -rf"] if deny_bash is None else deny_bash
+        self.allow_write_paths = [] if allow_write_paths is None else allow_write_paths
+        self.deny_write_paths = (
+            [".env", "*.pem", "secrets/**"]
+            if deny_write_paths is None
+            else deny_write_paths
+        )
 
     # ── Public API ─────────────────────────────────────────────────────────────
 
@@ -133,14 +138,24 @@ class PermissionSystem:
             return self.check_write(path)
         if risk_level in ("high", "critical"):
             return self.check_destructive(tool_name)
-        return PermissionResult(True, "unknown risk level — defaulting to allow")
+        logger.warning(
+            "[VECTOR][perms] unknown risk level {!r}; denying action {!r}",
+            risk_level,
+            tool_name,
+        )
+        return PermissionResult(False, "unknown risk level — defaulting to deny")
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
     @staticmethod
     def _matches_any(path: str, patterns: list[str]) -> bool:
+        normalized_path = os.path.normcase(os.path.normpath(path))
         for pat in patterns:
-            if fnmatch.fnmatch(path, pat) or path.endswith(pat.lstrip("*")):
+            normalized_pattern = os.path.normcase(os.path.normpath(pat))
+            suffix = normalized_pattern.lstrip("*")
+            if fnmatch.fnmatch(normalized_path, normalized_pattern) or (
+                suffix and normalized_path.endswith(suffix)
+            ):
                 return True
         return False
 

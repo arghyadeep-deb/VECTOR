@@ -312,7 +312,7 @@ def compute_next_run(schedule: Dict[str, Any], last_run_at: Optional[str] = None
     elif schedule["kind"] == "cron":
         if not HAS_CRONITER:
             logger.warning(
-                "Cannot compute next run for cron schedule %r: 'croniter' "
+                "Cannot compute next run for cron schedule {!r}: 'croniter' "
                 "is not installed. Install the 'cron' extra (pip install "
                 "'vectorcode[cron]') to re-enable recurring cron jobs.",
                 schedule.get("expr"),
@@ -849,6 +849,8 @@ def get_due_jobs() -> List[Dict[str, Any]]:
 
 def save_job_output(job_id: str, output: str):
     """Save job output to file."""
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", job_id):
+        raise ValueError("Cron job_id may contain only letters, numbers, underscores, and hyphens")
     ensure_dirs()
     job_output_dir = OUTPUT_DIR / job_id
     job_output_dir.mkdir(parents=True, exist_ok=True)

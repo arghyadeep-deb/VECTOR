@@ -4492,3 +4492,37 @@ isn't "proven in production" until you supply the service/device and run it live
     after a host memory-pressure kill with an explicit instruction not to restart it without being
     asked) -- everything else in `vectorcode/src/` was previously established as already covered
     or deferred in earlier session segments.
+
+87. **Remaining `vectorcode/src/` small-directory audit, round 1 (2026-10-06) —** completed a
+    line-by-line review of all 41 assigned production files across `api/`, `permissions/`,
+    `ui/`, `acp/`, `intelligence/`, `migrations/`, `neural_training/`, `prompt/`, `traces/`,
+    `vc_templates/`, `config/`, `cron/`, `guidance/`, `mcp_client/`, `recipes/`, `repl/`,
+    `sandbox/`, and `vc_skills/`. History was checked per path first; prior broad migrations
+    and narrow fixes were treated as context rather than depth-audit coverage. The same-named
+    top-level `config.py`, `guidance.py`, `neural_training.py`, and `repl.py` modules were checked
+    for collision behavior but not modified.
+    **Fixed with proof tests:** `permissions/__init__.py` now fails closed for unknown risk
+    levels, preserves explicit empty allow/deny lists instead of replacing them through falsy
+    `or` defaults, and normalizes path case/separators before matching sensitive write paths;
+    `prompt/builder.py` explicitly reads memory/persona files as UTF-8; `recipes/composer.py`
+    preserves an explicit `max_samples=0`; `config/theme.py` rejects path-separator/traversal
+    theme names, safely quotes TOML strings, and uses tempfile + fsync + replace persistence;
+    `cron/jobs.py` confines public job IDs before output writes; and the remaining printf-style
+    Loguru placeholders in `cron/jobs.py`/`cron/scheduler.py` were converted to Loguru formatting.
+    New regression file: `tests/test_vectorcode_remaining_round1_regressions.py` (9 tests).
+    Focused new + existing API/ACP/MCP suite: 19 passed. `compileall` and `git diff --check`
+    passed. A broader legacy cron/prompt/wave3 run had unrelated pre-existing failures: Windows
+    mode-bit assertions, stale prompt expectations, and missing provider APIs; the one initial
+    compatibility failure caused by an over-strict job-ID shape was corrected and re-verified.
+    **Flagged, not guessed (owner/design decisions):** `api/server.py` has no production caller
+    and its `/v1/responses` and `/v1/runs` endpoints report completed/running state without ever
+    executing work; `ui/__init__.py` imports a nonexistent `arc_reactor.py`; and
+    `mcp_client/bridge.py` is unwired and imports a nonexistent `MCPClient.get_or_create` API
+    (the implemented client is `StdioMCPClient`/`MCPClientRegistry`). ACP still exposes execution
+    and session contents without authentication (already noted in its source); selecting an auth
+    scheme is policy, not a narrow patch. `migrations/v1_to_v10.py` uses raw `sqlite3.connect()`;
+    whether this session DB is VECTOR-sensitive data requiring the SQLCipher gateway needs an
+    owner decision. `cron/` and `mcp_client/client.py` retain `threading`/thread-pool designs in
+    conflict with the asyncio-only project rule; converting those schedulers/transports is an
+    architectural rewrite. **Commit status:** intentionally uncommitted for parent review; this
+    entry is also left uncommitted as required for concurrent-session reconciliation.

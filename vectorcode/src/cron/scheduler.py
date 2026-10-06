@@ -167,7 +167,7 @@ def _resolve_single_delivery_target(job: dict, deliver_value: str) -> Optional[d
             chat_id = _get_home_target_chat_id(platform_name)
             if chat_id:
                 logger.info(
-                    "Job '%s' has deliver=origin but no origin; falling back to %s home channel",
+                    "Job '{}' has deliver=origin but no origin; falling back to {} home channel",
                     job.get("name", job.get("id", "?")),
                     platform_name,
                 )
@@ -496,7 +496,7 @@ def _get_script_timeout() -> int:
             if timeout > 0:
                 return timeout
         except Exception:
-            logger.warning("Invalid patched _SCRIPT_TIMEOUT=%r; using env/config/default", _SCRIPT_TIMEOUT)
+            logger.warning("Invalid patched _SCRIPT_TIMEOUT={!r}; using env/config/default", _SCRIPT_TIMEOUT)
 
     env_value = os.environ.get("VECTOR_CRON_SCRIPT_TIMEOUT", "").strip()
     if env_value:
@@ -505,7 +505,7 @@ def _get_script_timeout() -> int:
             if timeout > 0:
                 return timeout
         except Exception:
-            logger.warning("Invalid VECTOR_CRON_SCRIPT_TIMEOUT=%r; using config/default", env_value)
+            logger.warning("Invalid VECTOR_CRON_SCRIPT_TIMEOUT={!r}; using config/default", env_value)
 
     try:
         cfg = load_config() or {}
@@ -680,7 +680,7 @@ def _build_job_prompt(job: dict, prerun_script: Optional[tuple] = None) -> str:
         for source_job_id in context_from:
             # Guard against path traversal — valid job IDs are 12-char hex strings
             if not source_job_id or not all(c in "0123456789abcdef" for c in source_job_id):
-                logger.warning("context_from: skipping invalid job_id %r", source_job_id)
+                logger.warning("context_from: skipping invalid job_id {!r}", source_job_id)
                 continue
             try:
                 job_output_dir = OUTPUT_DIR / source_job_id
@@ -709,7 +709,7 @@ def _build_job_prompt(job: dict, prerun_script: Optional[tuple] = None) -> str:
                 else:
                     continue  # silent skip — empty output
             except (OSError, PermissionError) as e:
-                logger.warning("context_from: failed to read output for job %r: {}", source_job_id, e)
+                logger.warning("context_from: failed to read output for job {!r}: {}", source_job_id, e)
                 # silent skip — do not pollute the prompt with error messages
 
     # Always prepend cron execution guidance so the agent knows how
@@ -853,7 +853,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
         # Directory was removed between create-time validation and now.  Log
         # and drop back to old behaviour rather than crashing the job.
         logger.warning(
-            "Job '{}': configured workdir %r no longer exists — running without it",
+            "Job '{}': configured workdir {!r} no longer exists — running without it",
             job_id, _job_workdir,
         )
         _job_workdir = None
@@ -982,7 +982,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
                 if pool.has_credentials():
                     credential_pool = pool
                     logger.info(
-                        "Job '%s': loaded credential pool for provider %s with %d entries",
+                        "Job '{}': loaded credential pool for provider {} with {} entries",
                         job_id,
                         runtime_provider,
                         len(pool.entries()),
@@ -1083,7 +1083,7 @@ def run_job(job: dict) -> tuple[bool, str, str, Optional[str]]:
             _iter_max = _activity.get("max_iterations", 0)
 
             logger.error(
-                "Job '{}' idle for %.0fs (inactivity limit %.0fs) "
+                "Job '{}' idle for {:.0f}s (inactivity limit {:.0f}s) "
                 "| last_activity={} | iteration={}/{} | tool={}",
                 job_name, _secs_ago, _cron_inactivity_limit,
                 _last_desc, _iter_n, _iter_max,

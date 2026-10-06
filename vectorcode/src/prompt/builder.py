@@ -85,7 +85,7 @@ class SystemPromptBuilder:
         path = Path(path_str).expanduser()
         if not path.exists():
             return ""
-        content = path.read_text()
+        content = path.read_text(encoding="utf-8")
         if len(content) <= max_chars:
             return content
         return self._truncate(content, max_chars)

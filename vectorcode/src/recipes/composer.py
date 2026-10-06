@@ -83,7 +83,9 @@ def recipe_to_eval_suite(
             BenchmarkConfig(
                 name=bname,
                 backend=backend,
-                max_samples=max_samples or recipe.eval_max_samples,
+                max_samples=(
+                    recipe.eval_max_samples if max_samples is None else max_samples
+                ),
                 agent=recipe.agent_type if has_agent else None,
                 tools=list(recipe.tools) if has_agent else [],
                 judge_model=judge_model or recipe.eval_judge_model,

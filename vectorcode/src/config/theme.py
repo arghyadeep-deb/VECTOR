@@ -1,6 +1,8 @@
 """Color theme engine — ANSI color schemes for VectorCode terminal output."""
 import re
 import os
+import json
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -179,10 +181,14 @@ class ThemeEngine:
 
     def save_theme(self, theme: ColorTheme) -> None:
         """Save a custom theme to ~/.vector/themes/{name}.toml."""
+        if not re.fullmatch(r"[A-Za-z0-9_-]+", theme.name):
+            raise ValueError(
+                "Theme name may contain only letters, numbers, underscores, and hyphens"
+            )
         themes_dir = Path.home() / ".vector" / "themes"
         themes_dir.mkdir(parents=True, exist_ok=True)
         out_path = themes_dir / f"{theme.name}.toml"
-        lines = [f'name = "{theme.name}"']
+        lines = [f"name = {json.dumps(theme.name)}"]
         for fname in _THEME_FIELDS:
             if fname == "name":
                 continue
@@ -192,8 +198,22 @@ class ThemeEngine:
             else:
                 # Store escape codes as Python literals so they survive round-trip
                 escaped = val.encode("unicode_escape").decode("ascii")
-                lines.append(f'{fname} = "{escaped}"')
-        out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+                lines.append(f"{fname} = {json.dumps(escaped)}")
+        fd, tmp_path = tempfile.mkstemp(
+            dir=str(themes_dir), prefix=f".{theme.name}.", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write("\n".join(lines) + "\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(tmp_path, out_path)
+        except BaseException:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+            raise
         logger.info(f"[VECTOR][theme] saved theme '{theme.name}' → {out_path}")
 
     # ── private ───────────────────────────────────────────────────────────────
