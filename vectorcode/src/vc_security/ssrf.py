@@ -73,17 +73,30 @@ def is_private_ip(ip_str: str) -> bool:
     return any(addr in net for net in _BLOCKED_CIDR)
 
 def check_ssrf(url: str) -> Optional[str]:
-    """Check a URL for SSRF vulnerabilities — always via Rust backend."""
+    """Check a URL for SSRF vulnerabilities.
+
+    Prefers the Rust backend when available; falls back to the pure-Python
+    implementation otherwise. The previous version called `_rust.check_ssrf`
+    unconditionally -- when the Rust extension isn't built (get_rust_module()
+    returns None, true on this machine and likely most non-release
+    environments), that raised AttributeError on every single call, crashing
+    every caller (http_request.py, browser.py, web_search.py) instead of
+    falling back to the working Python implementation that already exists
+    below. This made outbound-URL SSRF protection entirely unusable, not
+    just degraded, wherever the Rust extension is absent.
+    """
     try:
         from vectorcode.src._rust_bridge import get_rust_module
-    except ImportError:
-        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
-    _rust = get_rust_module()
-    return _rust.check_ssrf(url)
+        _rust = get_rust_module()
+    except ImportError:
+        _rust = None
+    if _rust is not None:
+        return _rust.check_ssrf(url)
+    return _check_ssrf_python(url)
 
 def _check_ssrf_python(url: str) -> Optional[str]:
-    """Legacy Python SSRF check — kept for reference only."""
+    """Pure-Python SSRF check -- used when the Rust backend is unavailable."""
     from urllib.parse import urlparse
 
     parsed = urlparse(url)
