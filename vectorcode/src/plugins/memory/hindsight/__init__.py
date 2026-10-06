@@ -1109,7 +1109,7 @@ class HindsightMemoryProvider(MemoryProvider):
                     with self._prefetch_lock:
                         self._prefetch_result = text
             except Exception as e:
-                logger.debug('Hindsight prefetch failed: {}', e, exc_info=True)
+                logger.opt(exception=True).debug('Hindsight prefetch failed: {}', e)
 
         self._prefetch_thread = threading.Thread(target=_run, daemon=True, name="hindsight-prefetch")
         self._prefetch_thread.start()
@@ -1243,7 +1243,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 )
                 logger.debug("Hindsight retain succeeded")
             except Exception as e:
-                logger.warning('Hindsight sync failed: {}', e, exc_info=True)
+                logger.opt(exception=True).warning('Hindsight sync failed: {}', e)
 
         if self._sync_thread and self._sync_thread.is_alive():
             self._sync_thread.join(timeout=5.0)
@@ -1273,7 +1273,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 logger.debug("Tool hindsight_retain: success")
                 return json.dumps({"result": "Memory stored successfully."})
             except Exception as e:
-                logger.warning('hindsight_retain failed: {}', e, exc_info=True)
+                logger.opt(exception=True).warning('hindsight_retain failed: {}', e)
                 return tool_error(f"Failed to store memory: {e}")
 
         elif tool_name == "hindsight_recall":
@@ -1300,7 +1300,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 lines = [f"{i}. {r.text}" for i, r in enumerate(resp.results, 1)]
                 return json.dumps({"result": "\n".join(lines)})
             except Exception as e:
-                logger.warning('hindsight_recall failed: {}', e, exc_info=True)
+                logger.opt(exception=True).warning('hindsight_recall failed: {}', e)
                 return tool_error(f"Failed to search memory: {e}")
 
         elif tool_name == "hindsight_reflect":
@@ -1318,7 +1318,7 @@ class HindsightMemoryProvider(MemoryProvider):
                 logger.debug('Tool hindsight_reflect: response_len={}', len(resp.text or ""))
                 return json.dumps({"result": resp.text or "No relevant memories found."})
             except Exception as e:
-                logger.warning('hindsight_reflect failed: {}', e, exc_info=True)
+                logger.opt(exception=True).warning('hindsight_reflect failed: {}', e)
                 return tool_error(f"Failed to reflect: {e}")
 
         return tool_error(f"Unknown tool: {tool_name}")

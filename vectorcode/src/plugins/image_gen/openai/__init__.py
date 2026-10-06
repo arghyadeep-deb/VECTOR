@@ -225,7 +225,7 @@ class OpenAIImageGenProvider(ImageGenProvider):
             client = openai.OpenAI()
             response = client.images.generate(**payload)
         except Exception as exc:
-            logger.debug("OpenAI image generation failed", exc_info=True)
+            logger.opt(exception=True).debug("OpenAI image generation failed")
             return error_response(
                 error=f"OpenAI image generation failed: {exc}",
                 error_type="api_error",

@@ -349,7 +349,7 @@ def _ensure_sdk_installed() -> bool:
         import honcho  # noqa: F401
         return True
     except ImportError:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
     print("  honcho-ai is not installed.")
     answer = _prompt("Install it now? (honcho-ai>=2.0.1)", default="y")

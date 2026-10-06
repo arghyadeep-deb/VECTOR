@@ -103,7 +103,7 @@ def _load_supermemory_config(vector_home: str) -> dict:
             if isinstance(raw, dict):
                 config.update({k: v for k, v in raw.items() if v is not None})
         except Exception:
-            logger.debug('Failed to parse {}', config_path, exc_info=True)
+            logger.opt(exception=True).debug('Failed to parse {}', config_path)
 
     # Keep raw container_tag — template variables like {identity} are resolved
     # in initialize(), and _sanitize_tag runs AFTER resolution.
@@ -519,7 +519,7 @@ class SupermemoryMemoryProvider(MemoryProvider):
                     search_mode=self._search_mode,
                 )
             except Exception:
-                logger.warning("Supermemory initialization failed", exc_info=True)
+                logger.opt(exception=True).warning("Supermemory initialization failed")
                 self._active = False
                 self._client = None
 
@@ -556,7 +556,7 @@ class SupermemoryMemoryProvider(MemoryProvider):
             )
             return context
         except Exception:
-            logger.debug("Supermemory prefetch failed", exc_info=True)
+            logger.opt(exception=True).debug("Supermemory prefetch failed")
             return ""
 
     def sync_turn(self, user_content: str, assistant_content: str, *, session_id: str = "") -> None:
@@ -583,7 +583,7 @@ class SupermemoryMemoryProvider(MemoryProvider):
             try:
                 self._client.add_memory(content, metadata=metadata, entity_context=self._entity_context)
             except Exception:
-                logger.debug("Supermemory sync_turn failed", exc_info=True)
+                logger.opt(exception=True).debug("Supermemory sync_turn failed")
 
         if self._sync_thread and self._sync_thread.is_alive():
             self._sync_thread.join(timeout=2.0)
@@ -609,9 +609,9 @@ class SupermemoryMemoryProvider(MemoryProvider):
         try:
             self._client.ingest_conversation(self._session_id, cleaned)
         except urllib.error.HTTPError:
-            logger.warning("Supermemory session ingest failed", exc_info=True)
+            logger.opt(exception=True).warning("Supermemory session ingest failed")
         except Exception:
-            logger.warning("Supermemory session ingest failed", exc_info=True)
+            logger.opt(exception=True).warning("Supermemory session ingest failed")
 
     def on_memory_write(self, action: str, target: str, content: str) -> None:
         if not self._active or not self._write_enabled or not self._client:
@@ -627,7 +627,7 @@ class SupermemoryMemoryProvider(MemoryProvider):
                     entity_context=self._entity_context,
                 )
             except Exception:
-                logger.debug("Supermemory on_memory_write failed", exc_info=True)
+                logger.opt(exception=True).debug("Supermemory on_memory_write failed")
 
         if self._write_thread and self._write_thread.is_alive():
             self._write_thread.join(timeout=2.0)
