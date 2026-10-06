@@ -60,6 +60,13 @@ class SQLiteMemory(MemoryBackend):
             self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
             apply_pragmas(self._conn)
             self._conn.row_factory = sqlite3.Row
+            if not _check_fts5(self._conn):
+                self._conn.close()
+                raise RuntimeError(
+                    "SQLite build lacks the FTS5 extension required by SQLiteMemory; "
+                    "install a Python/SQLite build with FTS5 support or configure a "
+                    "different memory backend."
+                )
             self._create_tables()
 
     def _create_tables(self) -> None:
