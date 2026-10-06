@@ -38,6 +38,7 @@ import io
 import json
 import logging
 import os
+import shutil
 import tarfile
 import tempfile
 import time
@@ -362,7 +363,7 @@ class TerminalBench2EvalEnv(VectorAgentBaseEnv):
         os.makedirs(log_dir, exist_ok=True)
         run_ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self._streaming_path = os.path.join(log_dir, f"samples_{run_ts}.jsonl")
-        self._streaming_file = open(self._streaming_path, "w")
+        self._streaming_file = open(self._streaming_path, "w", encoding="utf-8")
         self._streaming_lock = __import__("threading").Lock()
         print(f"  Streaming results to: {self._streaming_path}")
 
@@ -670,9 +671,16 @@ class TerminalBench2EvalEnv(VectorAgentBaseEnv):
             tests_temp = Path(tempfile.mkdtemp(prefix=f"tb2-tests-{task_name}-"))
             try:
                 _extract_base64_tar(tests_tar, tests_temp)
-                ctx.upload_dir(str(tests_temp), "/tests")
+                upload_results = ctx.upload_dir(str(tests_temp), "/tests")
+                if any(
+                    result.get("exit_code", 0) != 0 or result.get("success") is False
+                    for result in upload_results
+                ):
+                    logger.warning("Task %s: one or more test files failed to upload", task_name)
+                    return 0.0
             except Exception as e:
                 logger.warning("Task %s: failed to upload test files: %s", task_name, e)
+                return 0.0
             finally:
                 shutil.rmtree(tests_temp, ignore_errors=True)
 
@@ -703,7 +711,7 @@ class TerminalBench2EvalEnv(VectorAgentBaseEnv):
 
             reward_file = local_verifier_dir / "reward.txt"
             if reward_file.exists() and reward_file.stat().st_size > 0:
-                content = reward_file.read_text().strip()
+                content = reward_file.read_text(encoding="utf-8").strip()
                 if content == "1":
                     reward = 1.0
                 elif content == "0":

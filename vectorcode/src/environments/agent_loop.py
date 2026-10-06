@@ -446,7 +446,7 @@ class VectorAgentLoop:
                             if isinstance(result_data, dict):
                                 err = result_data.get("error")
                                 exit_code = result_data.get("exit_code")
-                                if err and exit_code and exit_code < 0:
+                                if err:
                                     tool_errors.append(ToolError(
                                         turn=turn + 1, tool_name=tool_name,
                                         arguments=tool_args_raw[:200],

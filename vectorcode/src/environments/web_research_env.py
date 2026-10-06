@@ -366,7 +366,7 @@ class WebResearchEnv(VectorAgentBaseEnv):
                     name = fn.get("name", "")
                     if name:
                         tools_used.append(name)
-        tool_call_count: int = result.turns_used or len(tools_used)
+        tool_call_count = len(tools_used)
 
         cfg = self.config
 
@@ -700,7 +700,7 @@ class WebResearchEnv(VectorAgentBaseEnv):
         for url in urls:
             try:
                 parsed = urlparse(url)
-                domain = parsed.netloc.lower().lstrip("www.")
+                domain = parsed.netloc.lower().removeprefix("www.")
                 if domain:
                     domains.add(domain)
             except Exception as _sve:

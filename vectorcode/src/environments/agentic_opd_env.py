@@ -276,7 +276,7 @@ def _select_best_hint(votes: list[dict]) -> dict | None:
         and isinstance(v.get("hint"), str)
         and len(v["hint"].strip()) > 10
     ]
-    if not good:
+    if len(good) <= len(votes) // 2:
         return None
     return max(good, key=lambda v: len(v["hint"].strip()))
 
@@ -559,9 +559,20 @@ class AgenticOPDEnv(VectorAgentBaseEnv):
         cfg = self.config
 
         # ---- Signal 1: Test correctness ----
-        # Check if test_solution.py exists and passes in the agent's sandbox
+        # Replace any model-authored test file with the benchmark's trusted test
+        # code. Otherwise an agent can print "passed" from its own trivial test
+        # script and receive correctness credit without solving the task.
         correctness = 0.0
         try:
+            test_code = item.get("test_code", "")
+            if not test_code:
+                logger.warning("Coding task has no verifier test_code; correctness=0")
+                raise ValueError("missing verifier test_code")
+
+            write_result = ctx.write_file("test_solution.py", test_code)
+            if write_result.get("error") or write_result.get("exit_code", 0) != 0:
+                raise RuntimeError(f"failed to install verifier tests: {write_result}")
+
             test_result = ctx.terminal("python test_solution.py 2>&1", timeout=30)
             output = test_result.get("output", "")
             exit_code = test_result.get("exit_code", 1)

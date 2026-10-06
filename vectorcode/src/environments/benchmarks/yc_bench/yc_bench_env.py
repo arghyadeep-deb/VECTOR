@@ -270,7 +270,9 @@ def _read_final_score(db_path: str) -> Dict[str, Any]:
             # Table may not exist if simulation didn't progress
             logger.debug("[VECTOR][environments.benchmarks.yc_bench.yc_bench_env] suppressed sqlite3.OperationalError: %s", _sve)
 
-        survived = funds >= 0 and terminal_reason != "bankruptcy"
+        # A run only survives by reaching the horizon. Treat an unfinished or
+        # unreadable event stream as indeterminate/failure, not as success.
+        survived = funds >= 0 and terminal_reason == "horizon_end"
         return {
             "final_funds_cents": funds,
             "survived": survived,
@@ -420,7 +422,7 @@ class YCBenchEvalEnv(VectorAgentBaseEnv):
         os.makedirs(log_dir, exist_ok=True)
         run_ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self._streaming_path = os.path.join(log_dir, f"samples_{run_ts}.jsonl")
-        self._streaming_file = open(self._streaming_path, "w")
+        self._streaming_file = open(self._streaming_path, "w", encoding="utf-8")
         self._streaming_lock = threading.Lock()
 
         print(f"\nYC-Bench eval matrix: {len(self.all_eval_items)} runs")
@@ -502,7 +504,11 @@ class YCBenchEvalEnv(VectorAgentBaseEnv):
         os.environ["YC_BENCH_EXPERIMENT"] = preset
 
         # Determine horizon: explicit config override > preset lookup > default 1
-        horizon = self.config.horizon_years or _PRESET_HORIZONS.get(preset, 1)
+        horizon = (
+            self.config.horizon_years
+            if self.config.horizon_years is not None
+            else _PRESET_HORIZONS.get(preset, 1)
+        )
 
         try:
             # ----------------------------------------------------------
