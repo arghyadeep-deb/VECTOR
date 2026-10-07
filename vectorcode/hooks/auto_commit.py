@@ -29,10 +29,23 @@ SKIP_PATTERNS = [".png", ".jpg", ".log", ".tmp", ".pyc", "__pycache__", ".screen
 if any(s in file_path for s in SKIP_PATTERNS):
     sys.exit(0)
 
+# This hook commits with --no-verify, bypassing pre_commit_gate.py's
+# staged-secret check entirely -- never auto-commit a filename that gate
+# would itself block, or a secret could be written straight into git
+# history with no gate ever seeing it.
+_basename = (file_path.split("/")[-1].split(chr(92))[-1] or "").lower()
+DANGEROUS_NAMES = {
+    ".env", ".env.local", ".env.production", ".env.hardened", ".env.development",
+    "google_credentials.json", "service_account.json", "credentials.json",
+}
+if _basename in DANGEROUS_NAMES or _basename.endswith(".env"):
+    sys.exit(0)
+
 try:
-    # Stage the specific file (safer than -A)
+    # Stage the specific file (safer than -A). "--" prevents a file_path
+    # that starts with "-" from being parsed as a git option.
     if file_path:
-        subprocess.run(["git", "add", file_path], capture_output=True, timeout=10)
+        subprocess.run(["git", "add", "--", file_path], capture_output=True, timeout=10)
     else:
         subprocess.run(["git", "add", "-A"], capture_output=True, timeout=10)
 
@@ -43,12 +56,12 @@ try:
     )
     if diff_check.returncode != 0:
         ts = datetime.now().strftime("%H:%M:%S")
-        msg = f"auto: {file_path.split('/')[-1].split(chr(92))[-1] or 'changes'} [{ts}]"
+        msg = f"auto: {_basename or 'changes'} [{ts}]"
         subprocess.run(
             ["git", "commit", "-m", msg, "--no-verify"],
             capture_output=True, timeout=15
         )
 except Exception:
-    logger.debug("[VECTOR] suppressed exception", exc_info=True)
+    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
 sys.exit(0)
