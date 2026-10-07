@@ -145,13 +145,21 @@ class Sidecar:
 
     @staticmethod
     def write(path: Path, payload: dict[str, Any]) -> None:
-        """Atomically write the sidecar JSON to ``path``."""
+        """Atomically write the sidecar JSON to ``path``.
+
+        fsync before the rename so a crash mid-write (process kill, OOM,
+        power loss) during an active mining session can never leave a
+        truncated sidecar that a concurrent ``vector mine status`` reads as
+        the live state.
+        """
         path.parent.mkdir(parents=True, exist_ok=True)
-        # Atomic write: tmp file + rename
+        # Atomic write: tmp file + fsync + rename
         fd, tmp = tempfile.mkstemp(prefix=".mining-", dir=str(path.parent))
         try:
-            with os.fdopen(fd, "w") as fh:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(payload, fh, indent=2, sort_keys=True)
+                fh.flush()
+                os.fsync(fh.fileno())
             os.replace(tmp, path)
         except Exception:
             try:
@@ -165,7 +173,7 @@ class Sidecar:
         if not path.exists():
             return None
         try:
-            return json.loads(path.read_text())
+            return json.loads(path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             return None
 
