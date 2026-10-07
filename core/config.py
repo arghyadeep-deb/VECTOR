@@ -1632,8 +1632,16 @@ CONFIG: dict = {
         "gemini_key":             _secret(_s.GEMINI_KEY.get_secret_value()),
         "github_token":           _secret(_s.GITHUB_TOKEN.get_secret_value()),
         "github_username":        _s.GITHUB_USERNAME,
-        "pushover_token":         _secret(_s.PUSHOVER_TOKEN.get_secret_value()),
-        "pushover_user":          _s.PUSHOVER_USER,
+        # Keyring-first: PUSHOVER_TOKEN/PUSHOVER_USER are plain pydantic
+        # SecretStr/str fields (env/.env only, no keyring fallback), but
+        # scripts/migrate_secrets_to_keyring.py explicitly migrates both of
+        # these and documents ".env can be deleted once all secrets are in
+        # keyring." Without this fallback, every Pushover call site
+        # (permission_gateway.py RED-tier owner approval, emergency
+        # escalation, health/security alerts) silently goes dark the moment
+        # the owner follows that script's own documented workflow.
+        "pushover_token":         _secret(_get_secret("PUSHOVER_TOKEN", _s.PUSHOVER_TOKEN.get_secret_value())),
+        "pushover_user":          _get_secret("PUSHOVER_USER", _s.PUSHOVER_USER),
         "supabase_url":           _normalize_supabase_url(_s.SUPABASE_URL),
         "supabase_key":           _secret(_s.SUPABASE_KEY.get_secret_value()),
         "virustotal_key":         _secret(_s.VIRUSTOTAL_KEY.get_secret_value()),
@@ -1677,8 +1685,8 @@ CONFIG: dict = {
     "content_niche": _s.CONTENT_NICHE,
     "video_upload_delay_minutes": _s.VIDEO_UPLOAD_DELAY_MINUTES,
     # Top-level aliases so CONFIG.get("pushover_token") works (permission_gateway uses this)
-    "pushover_token": _s.PUSHOVER_TOKEN.get_secret_value(),
-    "pushover_user": _s.PUSHOVER_USER,
+    "pushover_token": _get_secret("PUSHOVER_TOKEN", _s.PUSHOVER_TOKEN.get_secret_value()),
+    "pushover_user": _get_secret("PUSHOVER_USER", _s.PUSHOVER_USER),
     "elevenlabs_key": _s.ELEVENLABS_KEY.get_secret_value(),
     "loop": _s.loop.model_dump(),
     "permission": _s.permission.model_dump(),
