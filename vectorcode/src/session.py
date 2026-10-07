@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 from loguru import logger
+from vectorcode.src.utils import atomic_json_write
 
 _VALID_MODES = {"repl", "auto", "hybrid", "cautious", "standard", "autonomous", "read-only"}
 
@@ -107,7 +108,7 @@ class VectorCodeSession:
         """Persist session to .vector/sessions/<uuid>.json"""
         sessions_dir.mkdir(parents=True, exist_ok=True)
         path = sessions_dir / f"{self.session_id}.json"
-        path.write_text(json.dumps(self.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+        atomic_json_write(path, self.to_dict())
         return path
 
 

@@ -31,6 +31,7 @@ from typing import Optional
 
 import numpy as np
 from loguru import logger
+from vectorcode.src.utils import atomic_json_write
 
 
 # ---------------------------------------------------------------------------
@@ -145,10 +146,10 @@ class A2C:
         return {"policy_loss": policy_loss / n, "value_loss": value_loss / n, "entropy": entropy_total / n, "total": total}
 
     def save(self, path: Path) -> None:
-        path.write_text(json.dumps({k: getattr(self, k).tolist() for k in ["W1","b1","Wp","bp","Wv","bv"]}))
+        atomic_json_write(path, {k: getattr(self, k).tolist() for k in ["W1", "b1", "Wp", "bp", "Wv", "bv"]})
 
     def load(self, path: Path) -> None:
-        d = json.loads(path.read_text())
+        d = json.loads(path.read_text(encoding="utf-8"))
         for k in ["W1","b1","Wp","bp","Wv","bv"]:
             if k in d:
                 setattr(self, k, np.array(d[k], dtype=np.float32))
@@ -238,10 +239,10 @@ class DQN:
         return loss / self.cfg.batch_size
 
     def save(self, path: Path) -> None:
-        path.write_text(json.dumps({k: getattr(self, k).tolist() for k in ["W1","b1","W2","b2"]}))
+        atomic_json_write(path, {k: getattr(self, k).tolist() for k in ["W1", "b1", "W2", "b2"]})
 
     def load(self, path: Path) -> None:
-        d = json.loads(path.read_text())
+        d = json.loads(path.read_text(encoding="utf-8"))
         for k in ["W1","b1","W2","b2"]:
             setattr(self, k, np.array(d[k], dtype=np.float32))
 
@@ -346,10 +347,10 @@ class DecisionTransformer:
         return loss / max(1, len(trajectory) - 1)
 
     def save(self, path: Path) -> None:
-        path.write_text(json.dumps({k: getattr(self, k).tolist() for k in ["Ws","Wa","Wr","Wq","Wk","Wv","Wout","bout"]}))
+        atomic_json_write(path, {k: getattr(self, k).tolist() for k in ["Ws", "Wa", "Wr", "Wq", "Wk", "Wv", "Wout", "bout"]})
 
     def load(self, path: Path) -> None:
-        d = json.loads(path.read_text())
+        d = json.loads(path.read_text(encoding="utf-8"))
         for k in ["Ws","Wa","Wr","Wq","Wk","Wv","Wout","bout"]:
             if k in d:
                 setattr(self, k, np.array(d[k], dtype=np.float32))
@@ -607,10 +608,10 @@ class PPO:
         data = {k: v.tolist() for k, v in self._params().items()}
         data["episode_count"] = self.episode_count
         data["total_reward"] = self.total_reward
-        path.write_text(json.dumps(data))
+        atomic_json_write(path, data)
 
     def load(self, path: Path) -> None:
-        d = json.loads(path.read_text())
+        d = json.loads(path.read_text(encoding="utf-8"))
         for k in self._params():
             if k in d:
                 setattr(self, k, np.array(d[k], dtype=np.float32))
@@ -756,10 +757,10 @@ class SARSA:
             "episode_count": self.episode_count,
             "total_reward": self.total_reward,
         }
-        path.write_text(json.dumps(data))
+        atomic_json_write(path, data)
 
     def load(self, path: Path) -> None:
-        d = json.loads(path.read_text())
+        d = json.loads(path.read_text(encoding="utf-8"))
         self.q_table = {k: np.array(v, dtype=np.float32) for k, v in d.get("q_table", {}).items()}
         self._steps = d.get("steps", 0)
         self.episode_count = d.get("episode_count", 0)
@@ -896,10 +897,10 @@ class QLearning:
             "episode_count": self.episode_count,
             "total_reward": self.total_reward,
         }
-        path.write_text(json.dumps(data))
+        atomic_json_write(path, data)
 
     def load(self, path: Path) -> None:
-        d = json.loads(path.read_text())
+        d = json.loads(path.read_text(encoding="utf-8"))
         self.q_table = {k: np.array(v, dtype=np.float32) for k, v in d.get("q_table", {}).items()}
         self._insert_order = d.get("insert_order", list(self.q_table.keys()))
         self._steps = d.get("steps", 0)
@@ -1195,17 +1196,17 @@ class VECTORTrainer:
     def save_checkpoint(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.model.save(path)
-        path.with_suffix(".meta.json").write_text(json.dumps({
+        atomic_json_write(path.with_suffix(".meta.json"), {
             "algorithm": self.algorithm, "episode_count": self.stats.episode_count,
             "total_reward": self.stats.total_reward, "avg_loss": self.stats.avg_loss,
-        }))
+        })
         logger.info(f"[VECTOR][neural] checkpoint saved: {path}")
 
     def load_checkpoint(self, path: Path) -> None:
         self.model.load(path)
         meta = path.with_suffix(".meta.json")
         if meta.exists():
-            d = json.loads(meta.read_text())
+            d = json.loads(meta.read_text(encoding="utf-8"))
             self.stats.episode_count = d.get("episode_count", 0)
             self.stats.total_reward  = d.get("total_reward", 0.0)
         logger.info(f"[VECTOR][neural] checkpoint loaded: {path}")

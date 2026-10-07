@@ -76,11 +76,8 @@ class AgentState:
         except Exception:
             return None
 
-    def start_task(self, task: str, issue_id: str = "") -> None:
-        self.status          = "busy"
-        self.current_task    = task
-        self.current_issue_id = issue_id or f"swarm-{id(task)}"
-        self.task_started_at = time.time()
+    def start_task(self, task: str, issue_id: str = "") -> bool:
+        claim_issue_id = issue_id or f"swarm-{id(task)}"
         # Register claim in distributed claims system
         svc = self._claim_svc()
         if svc:
@@ -88,7 +85,17 @@ class AgentState:
             agent_id = str(getattr(self.agent, "id", getattr(self.agent, "name", "unknown")))
             agent_name = str(getattr(self.agent, "name", agent_id))
             claimant = Claimant(id=agent_id, type="agent", name=agent_name)
-            svc.claim(self.current_issue_id, claimant, issue_title=task[:80])
+            if svc.claim(claim_issue_id, claimant, issue_title=task[:80]) is None:
+                logger.warning(
+                    "[VECTOR][swarm] task assignment rejected because issue {} is already claimed",
+                    claim_issue_id,
+                )
+                return False
+        self.status          = "busy"
+        self.current_task    = task
+        self.current_issue_id = claim_issue_id
+        self.task_started_at = time.time()
+        return True
 
     def complete_task(self) -> None:
         # Update claim progress to 100% before marking idle
@@ -186,8 +193,7 @@ class SwarmCoordinator:
     def assign_task(self, agent_id: str, task: str) -> bool:
         state = self.get_state(agent_id)
         if state:
-            state.start_task(task)
-            return True
+            return state.start_task(task)
         return False
 
     def complete_task(self, agent_id: str) -> bool:

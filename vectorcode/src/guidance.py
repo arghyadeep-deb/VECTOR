@@ -1272,7 +1272,12 @@ class CoherenceScheduler:
 
         # violation_component: penalise violation events
         violations = sum(1 for e in window if e.event_type == "violation")
-        violation_component = _clamp(1.0 - violations / max(n, 10) / 10, 0.0, 1.0)
+        # Express violations as a per-ten-events rate.  The previous chained
+        # division divided by 10 twice, so even ten violations in ten events
+        # still produced 0.9 and could never meaningfully reduce privileges.
+        violation_component = _clamp(
+            1.0 - (violations / max(n, 10)) * 10.0, 0.0, 1.0
+        )
 
         # rework_component: penalise rework events
         reworks = sum(1 for e in window if e.event_type == "rework")

@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 from loguru import logger
+from vectorcode.src.utils import atomic_json_write
 
 
 # ---------------------------------------------------------------------------
@@ -357,7 +358,7 @@ class ReasoningBank:
             "version": 1,
             "entries": [e.to_dict() for e in self._entries.values()],
         }
-        save_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        atomic_json_write(save_path, payload)
         logger.debug(
             f"[VECTOR][reasoning_bank] saved {len(self._entries)} entries to {save_path}"
         )
@@ -758,7 +759,7 @@ class PatternLearner:
             "version": 1,
             "patterns": [p.to_dict() for p in self._patterns.values()],
         }
-        save_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        atomic_json_write(save_path, payload)
         logger.debug(
             f"[VECTOR][pattern_learner] saved {len(self._patterns)} patterns to {save_path}"
         )

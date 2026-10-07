@@ -38,9 +38,9 @@ class VectorHybrid:
     def needs_approval(self, action: str) -> bool:
         """Return True if the action requires user confirmation."""
         if action in _RED_ACTIONS:
-            return True
+            return self.checkpoints[CheckpointGate.RED_ACTION]
         if action == CheckpointGate.PLAN_APPROVAL.value:
-            return True
+            return self.checkpoints[CheckpointGate.PLAN_APPROVAL]
         return False
 
     def disable_checkpoint(self, gate: CheckpointGate) -> None:

@@ -27,6 +27,7 @@ except ImportError:
     CONFIG = {}
 
 from loguru import logger
+from vectorcode.src.utils import atomic_json_write
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 _VECTOR_DATA_DIR   = Path.home() / ".vector"
@@ -74,8 +75,10 @@ class PooledCredential:
 
     @classmethod
     def from_env(cls, provider: str, var_name: str) -> "Optional[PooledCredential]":
-        """Read API key from env var. Returns None if the var is unset or empty."""
-        api_key = (os.environ.get(var_name) or "").strip()
+        """Read an API key through VECTOR's keyring-first secret manager."""
+        from core.security.secrets_manager import get_secret
+
+        api_key = get_secret(var_name).strip()
         if not api_key:
             return None
         return cls(
@@ -295,10 +298,7 @@ class CredentialPool:
             for entry in entries_snapshot:
                 pool_status[entry.id] = entry.to_status_dict()
             existing[self.provider] = pool_status
-            _STATUS_FILE.write_text(
-                json.dumps(existing, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
+            atomic_json_write(_STATUS_FILE, existing)
         except Exception as exc:
             logger.debug(f"[VECTOR][creds] failed to persist status: {exc}")
 
