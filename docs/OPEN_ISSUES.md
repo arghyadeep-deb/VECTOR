@@ -5892,3 +5892,51 @@ isn't "proven in production" until you supply the service/device and run it live
      `provider_capabilities.py`, `hyperframes_sidecar.py`, `workflow_resolver.py`;
      `collections/__init__.py`.
      **Commit status:** `6239f0756`, `ec9c38e32`.
+
+120. **Follow-up pass on item 119's remaining scope, interrupted by session rate limit
+     (2026-10-07) —** a Claude worker-fork continuing item 119's remaining-scope list
+     (`mining/`, `persona/`, `personality/`, `runtime/doctor.py`+`readiness_check.py`,
+     `sensing/health_monitor.py`+`mediapipe_tasks.py`+`presence_detector.py`, remaining
+     `video/`, `collections/__init__.py`) hit Claude's own account-wide session rate limit
+     partway through and died mid-pass, after self-committing 3 genuine fixes:
+     - `mining/_abc.py` (commit `0f6673fa1`) -- `Sidecar.write()` (backs the live mining
+       runtime state at `~/.vector/runtime/mining.json`, read by `vector mine status` while
+       a miner subprocess is running) opened its tmp file with no `fsync()` before
+       `os.replace()` and no explicit encoding, so a crash mid-write lost durability and a
+       non-ASCII payload depended on the platform default encoding (not UTF-8 on Windows
+       without `PYTHONUTF8=1`). Fixed via `encoding="utf-8"` + `fsync()` before rename,
+       matching the atomic-write pattern used elsewhere this cycle.
+     - `persona/evolution.py` (commit `385038582`) -- `record_signal()` never acquired the
+       `threading.RLock()` created in `__init__` specifically to guard concurrent access
+       (the sqlite connection is opened with `check_same_thread=False`). Its
+       read-modify-write trait adjustment was therefore not atomic: concurrent calls (the
+       singleton `PersonaManager.get()` is reachable from multiple districts/async tasks)
+       could race and lose increments. Proof test: 6 concurrent signals that should
+       accumulate to 0.64 landed at 0.54 pre-fix (5 of 6 increments lost). Fixed by
+       acquiring `self._lock` around the insert+adjust body.
+     - `personality/memory_persona.py` (commit `52be5d4c1`) -- `detect_feedback()` (called
+       on every LLM turn via `PersonalityEngine.process()`) matched feedback phrases with a
+       bare substring check against short common words ("no", "yes", "ok", "sure", ...),
+       so "I **know** the answer", "**yes**terday I went out", "please **bo**ok a flight",
+       and "**ens**ure this works" all silently registered as explicit positive/negative
+       feedback, corrupting the learned-preference signal `store_lesson()`/
+       `query_top_preferences()` relies on. Confirmed live pre-fix via `git stash`. Fixed
+       with `\b`-word-boundary regex matching instead of substring containment.
+     New tests: `tests/test_mining_abc_sidecar.py` (4), `tests/test_persona_evolution_concurrency.py`
+     (2), `tests/test_memory_persona_feedback_boundaries.py` (5) -- 11 total, all passing,
+     the real bugs confirmed failing pre-fix via `git stash` for each. Zero regressions in
+     `tests/personality/`, `tests/persona/`, `tests/test_core_personality_sentiment_cascade.py`
+     (104 passed) -- all independently re-verified by the parent session after the fork died.
+     **Remaining scope (not reached before the rate limit hit, still open for the next
+     round):** most of `mining/` (`__init__.py`, `_constants.py`, `_install.py`,
+     `_metrics.py`, `_miner_loop_main.py`, `_mps_miner_loop_main.py`, `apple_mps_pearl.py`,
+     `constants.py`, `models.py`); most of `persona/` (`consistency.py`, `schemas.py`,
+     `voice_tone.py`, `__init__.py`); most of `personality/` (`character_card.py`,
+     `consistency.py`, `middleware.py`, `tone_adapter.py`, `__init__.py`);
+     `runtime/doctor.py`, `readiness_check.py`, `__init__.py`;
+     `sensing/health_monitor.py`, `mediapipe_tasks.py`, `presence_detector.py`;
+     `video/__init__.py`, `composition_types.py`, `provider_capabilities.py`,
+     `hyperframes_sidecar.py`, `workflow_resolver.py`; `collections/__init__.py`. (Noted
+     in passing, not in scope: `core/runtime/vector_runtime.js` is JavaScript, not Python --
+     out of scope for this audit entirely, not merely deferred.)
+     **Commit status:** `0f6673fa1`, `385038582`, `52be5d4c1`.
