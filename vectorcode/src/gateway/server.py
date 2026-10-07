@@ -13,6 +13,7 @@ Endpoints:
 """
 
 import asyncio
+import hmac
 import sys
 import time
 import uuid
@@ -21,6 +22,11 @@ from typing import Any, Dict, Optional
 
 
 from loguru import logger
+
+from core.security.secrets_manager import get_secret
+from vector_cli.auth import has_usable_secret
+
+from .platforms.base import is_network_accessible
 
 try:
     from core.config import CONFIG
@@ -75,6 +81,7 @@ class GatewayServer:
     def __init__(self, host: str = "127.0.0.1", port: int = 8900) -> None:
         self.host = host
         self.port = port
+        self._api_key = get_secret("VECTOR_GATEWAY_KEY").strip()
         self._sessions: Dict[str, dict] = {}          # session_id → session state
         self._running: Dict[str, asyncio.Task] = {}   # session_id → asyncio.Task
         self._app: Any = None
@@ -129,16 +136,43 @@ class GatewayServer:
             version=_VERSION,
         )
 
-        # CORS — local-only service, allow all origins
+        # Keep wildcard origins for existing clients, without browser credentials.
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
-            allow_credentials=True,
+            allow_credentials=False,
             allow_methods=["*"],
             allow_headers=["*"],
         )
 
         server_ref = self  # closure reference
+
+        @app.middleware("http")
+        async def authenticate_request(request, call_next):
+            if (
+                request.url.path == "/health"
+                or request.method == "OPTIONS"
+                or not server_ref._api_key
+            ):
+                return await call_next(request)
+
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:].strip()
+                if hmac.compare_digest(token, server_ref._api_key):
+                    return await call_next(request)
+
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "error": {
+                        "message": "Invalid API key",
+                        "type": "invalid_request_error",
+                        "code": "invalid_api_key",
+                    }
+                },
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         # ── GET /health ────────────────────────────────────────────────────────
 
@@ -472,6 +506,32 @@ class GatewayServer:
 
     async def start(self) -> None:
         """Start the gateway via uvicorn."""
+        network_accessible = is_network_accessible(self.host)
+        if network_accessible and not self._api_key:
+            message = (
+                f"Refusing to start gateway on {self.host}: network-accessible "
+                "bindings require VECTOR_GATEWAY_KEY. Set a strong key or use "
+                "127.0.0.1."
+            )
+            logger.error("[VECTOR][gateway] {}", message)
+            raise RuntimeError(message)
+
+        if network_accessible and not has_usable_secret(self._api_key, min_length=8):
+            message = (
+                "Refusing to start gateway: VECTOR_GATEWAY_KEY is too short or "
+                "a placeholder. Configure a real secret of at least 8 characters "
+                f"before exposing the gateway on {self.host}."
+            )
+            logger.error("[VECTOR][gateway] {}", message)
+            raise RuntimeError(message)
+
+        if not self._api_key:
+            logger.warning(
+                "[VECTOR][gateway] No VECTOR_GATEWAY_KEY configured; authentication "
+                "is disabled for loopback-only binding {}",
+                self.host,
+            )
+
         if self._app is None:
             self.build_app()
 
