@@ -6477,3 +6477,54 @@ isn't "proven in production" until you supply the service/device and run it live
      synchronous bootstrap function with no running event loop to attach an asyncio task
      to -- an architectural tension with the project's asyncio-only rule, not a narrow fix.
      **Commit status:** `944ec41f4`.
+
+132. **`.claude/hooks/` -- the LIVE hooks directory, every vectorcode/hooks/ vulnerability
+     found unfixed here too (2026-10-07, CRITICAL) —** resolving the standing scope
+     question about whether `.claude/hooks/` counted as in-scope VECTOR code led to a
+     severe discovery: `.claude/settings.json` registers its PreToolUse/PostToolUse hook
+     commands directly against `$CLAUDE_PROJECT_DIR/.claude/hooks/*.py` -- this is the
+     directory that ACTUALLY governs every Edit/Write/MultiEdit/Bash call in this very
+     session. `vectorcode/hooks/` (fixed earlier this cycle -- item 111, commits
+     `04c649f2b`/`0660cb01f`/`3653a78bb`/`f2633c40f`/`2467cd176`) is a completely
+     separate, differently-maintained set of files with different file sizes and mtimes
+     -- **none of those earlier fixes were ever live.** Every one of the same
+     vulnerabilities was present here too, unfixed, until now.
+     **Fixed with proof tests (1 commit, `14bdc164b`):**
+     - `auto_commit.py` -- commits with `--no-verify`, bypassing `pre_commit_gate.py`'s
+       staged-secret check entirely, with no filename check of its own. **CONFIRMED LIVE**
+       via this fix's own regression test: the pre-fix hook actually committed a real
+       `.env` file containing `API_KEY=super-secret` into a test repo's git history
+       (commit `da6b23a`, in an isolated `tmp_path` test repo, not this repo). Added the
+       same `DANGEROUS_NAMES` denylist used in item 111's fix. Also fixed `git add
+       <file_path>` missing a `--` separator.
+     - `file_protection.py` -- malformed hook payload failed OPEN (allowed the write)
+       instead of closed; now exits 2.
+     - `pre_write_check.py` -- `os.unlink(tmp_path)` only ran on the success path, never
+       in the `PyCompileError`/generic-exception branches -- every blocked write leaked a
+       temp `.py` file. Moved cleanup into a `finally` block.
+     - `pre_commit_gate.py` -- if `git diff --cached --name-only` itself failed, the gate
+       silently allowed the commit through unchecked -- the exact case this gate exists
+       to protect against. Now fails closed on both the non-zero-exit and exception paths.
+       (This live version additionally had a syntax-gate check calling
+       `scripts/precommit_syntax_gate.py` that the `vectorcode/hooks/` copy lacks --
+       the two trees have genuinely diverged in both directions, not just gone stale in
+       one.)
+     - `lint_on_save.py` -- ruff/pyflakes subprocess calls had no `--` separator before
+       `file_path`.
+     **Reviewed clean:** `auto_screenshot.py` (fixed directory + timestamp filename, not
+     caller-controlled), `auto_test.py` (hardcoded fast-test target list),
+     `finish_notification.py` (no caller-controlled input).
+     New tests: `tests/test_claude_hooks_live_directory_safety.py` (6), all confirmed
+     failing pre-fix via `git stash` -- including the live secret-commit reproduction
+     above. `compileall` clean on all 5 fixed files.
+     **Lesson for the audit process itself:** two identically-purposed, identically-named
+     sets of files living in different trees is exactly the kind of drift this whole
+     audit cycle has repeatedly found (duplicate `config.py`/`router.py`/error-classifier
+     implementations in `vectorcode/`) -- but this instance was uniquely severe because
+     one copy was dead weight and the other was the actual live safety net for this very
+     session's own tool use. **Not yet checked:** `.claude/skills/*/scripts/` (~26 files)
+     were considered for this same scope question but deliberately left lower-priority --
+     unlike hooks, they only execute when a skill is explicitly invoked by name, not
+     automatically on every tool call, so the blast radius is materially smaller. Worth a
+     dedicated pass later, not urgent the way hooks were.
+     **Commit status:** `14bdc164b`.
