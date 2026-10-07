@@ -25,10 +25,11 @@ if not file_path or not file_path.endswith(".py"):
 if not os.path.exists(file_path):
     sys.exit(0)
 
-# Try ruff first, fall back to pyflakes
+# Try ruff first, fall back to pyflakes. "--" prevents a file_path that
+# starts with "-" from being parsed as an option by either linter.
 linters = [
-    ["ruff", "check", "--select=E,F,W", "--quiet", file_path],
-    ["python", "-m", "pyflakes", file_path],
+    ["ruff", "check", "--select=E,F,W", "--quiet", "--", file_path],
+    ["python", "-m", "pyflakes", "--", file_path],
 ]
 
 for cmd in linters:
