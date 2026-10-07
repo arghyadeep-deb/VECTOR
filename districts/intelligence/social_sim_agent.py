@@ -21,8 +21,9 @@ import sys
 import uuid
 from pathlib import Path
 
-# Activate districts/intelligence/vector_social_sim/ path so "from app.X" imports resolve
-_MIRO_DIR = Path(__file__).parent.parent.parent.parent / "core" / "vector_social_sim"
+# Activate districts/intelligence/vector_social_sim/ path so "from app.X" imports resolve.
+# The vendored tree is a sibling of this wrapper, not a package under core/.
+_MIRO_DIR = Path(__file__).parent / "vector_social_sim"
 if str(_MIRO_DIR) not in sys.path:
     sys.path.insert(0, str(_MIRO_DIR))
 

@@ -30,12 +30,32 @@ __all__ = ["VenturePipeline"]
 
 import datetime
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from loguru import logger
 
 from core.city.agent_base import AgentBase
 from core.config import CONFIG
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Durably replace a report without exposing a partial shared file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 class VenturePipeline(AgentBase):
@@ -174,7 +194,8 @@ class VenturePipeline(AgentBase):
             "social simulation of the target audience.",
             "",
         ]
-        path.write_text("\n".join(lines), encoding="utf-8")
+        report_text = "\n".join(lines)
+        _atomic_write_text(path, report_text)
         # Mirror into the Obsidian Brain when the vault is reachable
         try:
             # CONFIG has no "brain" section: the old lookup yielded Path("") and wrote
@@ -183,7 +204,7 @@ class VenturePipeline(AgentBase):
             brain = Path(vault) / "02 Projects"
             if vault and brain.parent.exists():
                 brain.mkdir(parents=True, exist_ok=True)
-                (brain / path.name).write_text("\n".join(lines), encoding="utf-8")
+                _atomic_write_text(brain / path.name, report_text)
         except Exception as e:
             logger.warning("[VECTOR][venture] brain mirror failed: {}", e)
         return path
