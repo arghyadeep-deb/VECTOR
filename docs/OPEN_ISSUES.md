@@ -6237,3 +6237,97 @@ isn't "proven in production" until you supply the service/device and run it live
      excluding vendored `investment/` and `intelligence/shadowbroker_server/`/
      `vector_social_sim/`) is now COMPLETE**, closing out Phase 3's entire whole-repo
      scope alongside `core/` (item 121) and `vectorcode/`'s earlier rounds.
+
+127. **`vectorcode/src/` never-audited remainder (2026-10-07) —** after ~80 prior audit
+     rounds across `vectorcode/src/` (items 28-110), cross-referenced every item against
+     the actual directory tree to find files with zero prior mention. Found and audited 14
+     small subpackages (~37 files: `core/` [vectorcode's own, distinct from the main repo's
+     top-level `core/`], `guidance/`, `intelligence/`, `neural_training/`, `permissions/`,
+     `prompt/`, `recipes/`, `repl/`, `sandbox/`, `traces/`, `ui/`, `vc_skills/`,
+     `vc_templates/`, `vc_traces/`) plus 28 top-level `vectorcode/src/*.py` files never
+     mentioned anywhere (`_rust_bridge.py`, `agent_task.py`, `agent_types.py`,
+     `autonomous.py`, `bootstrap.py`, `cli_commands.py`, `command_registry.py`,
+     `credential_sources.py`, `event_bus_hooks.py`, `gsd_loop.py`, `mcp_serve.py`,
+     `message_bus.py`, `mini_swe_runner.py`, `monitoring.py`, `neural_flash_attention.py`,
+     `neural_moe_router.py`, `queen.py`, `sdk.py`, `session_db.py`,
+     `toolset_distributions.py`, `toolsets.py`, `utils.py`, `vc_env.py`,
+     `vector_bootstrap.py`, `vector_constants.py`, `vector_logging.py`, `vector_state.py`,
+     `vector_time.py`). Audited by Codex (gpt-5.6-sol), reviewed/tested/committed by Claude.
+     **IMPORTANT CORRECTION to item 121's "core/ audit scope is now fully complete"
+     claim:** auditing `vectorcode/src/sandbox/` (a thin re-export shim) led straight to
+     `core/sandbox/mount_security.py`/`runner.py`/`wasm_runner.py` -- the actual canonical
+     implementation -- which had NEVER been assigned to any of this cycle's 6 Codex core/
+     batches or the 145-file Claude-fork batch (a genuine gap, not a re-audit). A much
+     earlier pass on 2026-10-02 (pre-dating this cycle's batch plan) had touched this same
+     directory, but real, severe bugs survived that pass undetected -- direct evidence for
+     the standing caution in `[[phase3-core-districts-complete-2026-10-07]]` memory that
+     "fully audited" claims are provisional, not guaranteed.
+     **Fixed with proof tests (2 commits):**
+     - `core/sandbox/{mount_security,runner,wasm_runner}.py` (commit `20d1879c7`) --
+       security-critical container/WASM sandbox isolation. `_is_under_allowed_root()`
+       returned `True` (allow all) when the roots list was empty -- fail-open on the mount
+       confinement gate itself. `_is_blocked()`'s pattern matching checked only individual
+       path components, so multi-component blocked patterns like `.git/config` or
+       `.docker/config.json` never matched unless each segment happened to be exactly one
+       path part -- a real bypass of the sensitive-file mount blocklist. Root confinement
+       used `Path.relative_to()` (case-sensitive, not Windows-safe) instead of
+       `os.path.normcase()`+`commonpath()`. `validate_mounts()` returned the original
+       unresolved path after validating its resolved target, letting the container runtime
+       re-resolve a symlink differently later (TOCTOU-adjacent). Container output with no
+       protocol markers was returned as a bare success-shaped dict (phantom success) --
+       now flags `error=True`/`error_type="protocol"`. A WASM module with no callable
+       `_start` export returned success even though nothing executed -- now returns
+       `success=False` explicitly. New tests cover 3 of these in
+       `tests/test_vectorcode_remainder1_regressions.py`; zero regressions in
+       `tests/test_sandbox_smoke.py` + `tests/integration/test_spec115_sandbox.py` (48
+       passed).
+     - `vectorcode/src/{credential_sources,mcp_serve,mini_swe_runner,neural_moe_router,sdk,
+       session_db,vector_constants,vector_logging,vector_time}.py` (commit `3d4887d2d`) --
+       `mini_swe_runner.py`'s model-generated terminal commands defaulted to
+       `LocalEnvironment` (host execution) with no permission-gateway check, despite the
+       runner's own sandbox framing; all public defaults now select Docker, local requires
+       explicit opt-in. `mcp_serve.py`'s `respond_to_approval()` only cleared bridge-local
+       pending state and reported `resolved=true` -- no decision ever reached the
+       authoritative Permission Gateway, a phantom approval; now fails closed with
+       `error_type="approval_gateway_unavailable"`. `session_db.py`'s `close()` left the
+       closed instance cached as the module singleton, so later callers got a dead
+       connection -- the same shared-singleton-closed-by-wrapper bug class fixed
+       repeatedly this cycle; now only clears the singleton when the closing instance is
+       the cached one. `credential_sources.py`'s `atomic_json_write()` used a predictable
+       `.tmp` sibling with no fsync; fixed via `tempfile.mkstemp()`+fsync+`os.replace()`.
+       `neural_moe_router.py`'s weight persistence used a direct `write_text()`; routed
+       through the existing shared `utils.atomic_json_write()`. `vector_logging.py` had the
+       established falsy-zero bug (`max_size_mb=0`/`backup_count=0` silently replaced).
+       `sdk.py`/`vector_time.py` had loguru `%`-style/`exc_info=True` misuse.
+       `vector_constants.py` read a marker file with platform-default encoding, not UTF-8.
+     New tests total: `tests/test_vectorcode_remainder1_regressions.py` (10), confirmed
+     failing pre-fix. Zero regressions in `tests/test_vectorcode_bootstrap.py` +
+     `tests/test_model_catalog.py` (21 passed). All independently re-verified (diffs read,
+     tests re-run, `compileall` clean) by the parent session.
+     **Reviewed clean:** the remaining 18 top-level files and all files in all 14
+     subpackages (sandbox's 2 untouched siblings `skill_sandbox.py`/`vector_sandbox.py`
+     were NOT in this batch's scope and remain unverified -- flagged below).
+     **Flagged for owner, not fixed:** `vectorcode/src/permissions/__init__.py` is built
+     but has zero production callers -- a second, unwired permission implementation that
+     does not protect `mini_swe_runner` or any other execution path; the Permission
+     Gateway should be the one canonical integration, not a second parallel one.
+     `vc_env.py` snapshots secrets from `os.environ` at import time instead of
+     `get_secret()`, but has zero production importers -- prefer deprecating the dead
+     module over fixing it. Banned stdlib `threading` remains in `mcp_serve.py`/
+     `message_bus.py`/`session_db.py`/`vc_traces/store.py`/`vector_logging.py`/
+     `vector_state.py` -- an architectural migration, not a narrow fix. `core/sandbox/
+     wasm_runner.py` accepts `memory_limit_mb`/`timeout` but the installed environment has
+     no `wasmtime` dependency to verify a compatible limiter/epoch API -- fuel is
+     enforced, memory/wall-clock limits are not; needs either a killable worker process or
+     a pinned `wasmtime` version with `Store` limits + epoch interruption.
+     `core/sandbox/runner.py` accepts `max_concurrent` but does not enforce it -- enforcing
+     in a synchronous API needs an approved concurrency primitive given the project's
+     stdlib-`threading` ban.
+     **NOT YET audited (newly discovered gap, needs a follow-up round):**
+     `core/sandbox/skill_sandbox.py` and `core/sandbox/vector_sandbox.py` -- these two
+     `core/sandbox/` files are NOT re-exported by any `vectorcode/src/sandbox/` shim, so
+     they were outside this batch's scope entirely and have never been assigned to any
+     audit round this cycle. Given this round's finding that the sibling files in the same
+     directory had severe bugs, these two should be prioritized next, not assumed clean by
+     association.
+     **Commit status:** `20d1879c7`, `3d4887d2d`.
