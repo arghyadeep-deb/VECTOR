@@ -951,22 +951,7 @@ def cmd_cron(args):
             print(f"Removed cron job #{args.id}")
 
     elif action == "daemon":
-        sub = getattr(args, "daemon_action", "start") or "start"
-        if sub == "start":
-            try:
-                from cron import start_daemon
-            except ImportError:
-                print("[VECTOR] Cron daemon not implemented in this build")
-                return
-            start_daemon()
-            print("[VECTOR] Cron daemon started. Press Ctrl+C to stop.")
-            import time
-            try:
-                while True:
-                    time.sleep(1)
-            except KeyboardInterrupt:
-                from vectorcode.cron import stop_daemon
-                stop_daemon()
+        print("[VECTOR] Cron daemon not implemented in this build")
 
 
 def cmd_acp(args):
@@ -1330,4 +1315,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

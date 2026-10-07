@@ -135,23 +135,3 @@ class EmergencyDetector:
 
     def get_rules(self) -> list[dict[str, Any]]:
         return list(self._rules)
-
-    def process_heart_rate(self, bpm: int | None) -> EmergencyEvent | None:
-        import asyncio
-        if bpm == 0:
-            return asyncio.run(self.process_signal("health", "heart_rate_stopped", bpm))
-        if bpm is not None and bpm < 40:
-            return asyncio.run(self.process_signal("health", "heart_rate_critical", bpm))
-        if bpm is not None and bpm > 140:
-            return asyncio.run(self.process_signal("health", "heart_rate_high", bpm))
-        return None
-
-    def process_system_metrics(self, cpu: float | None, ram: float | None, disk: float | None, gpu_temp: float | None) -> list[EmergencyEvent]:
-        events = []
-        for signal, val in [("high_cpu", cpu), ("high_ram", ram), ("disk_full", disk), ("gpu_temp_high", gpu_temp)]:
-            if val is not None:
-                import asyncio
-                ev = asyncio.run(self.process_signal("system", signal, val))
-                if ev:
-                    events.append(ev)
-        return events
