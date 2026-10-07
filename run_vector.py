@@ -324,8 +324,11 @@ def _start_sidecars() -> None:
         {
             "name": "shadowbroker",
             # Intelligence district — real-time geo/SIGINT/flight/ship intelligence server.
-            # Health endpoint is /api/health (NOT /health).
-            "cmd": ["python", "districts/intelligence/shadowbroker_server/main.py"],
+            # Health endpoint is /api/health (NOT /health). Runs in-process' own venv
+            # (no isolated .venv of its own, unlike the other sidecars) -- must use
+            # sys.executable, not a bare "python" that may resolve to a different or
+            # missing interpreter on PATH.
+            "cmd": [sys.executable, "districts/intelligence/shadowbroker_server/main.py"],
             "cwd": str(Path(__file__).parent),
             "env_extra": {"PORT": "8765"},
             "health_url": "http://127.0.0.1:8765/api/health",
