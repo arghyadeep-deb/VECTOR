@@ -8,7 +8,7 @@ __all__ = [
     "get_api_key",
 ]
 
-import requests
+import httpx
 import pandas as pd
 import json
 from datetime import datetime
@@ -74,10 +74,10 @@ def _make_api_request(function_name: str, params: dict) -> dict | str:
         api_params.pop("entitlement", None)
     
     try:
-        response = requests.get(API_BASE_URL, params=api_params, timeout=30)
+        response = httpx.get(API_BASE_URL, params=api_params, timeout=30)
         response.raise_for_status()
-    except requests.RequestException as exc:
-        # requests embeds the full URL (including ``apikey=``) in its error
+    except httpx.HTTPError as exc:
+        # HTTP clients can embed the full URL (including ``apikey=``) in error
         # text; never let that reach logs, callers or LLM prompts.
         logger.warning("[VECTOR][alpha_vantage] {} request failed: {}", function_name, type(exc).__name__)
         raise RuntimeError(

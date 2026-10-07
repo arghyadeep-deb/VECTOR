@@ -1,5 +1,8 @@
 from typing import Optional
 import datetime
+import inspect
+import os
+import tempfile
 import typer
 import questionary
 from pathlib import Path
@@ -31,6 +34,28 @@ from core.trading.dataflows.utils import safe_ticker_component
 from loguru import logger
 
 console = Console()
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Durably replace a text report without exposing a partial file."""
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as tmp:
+            tmp.write(text)
+            tmp.flush()
+            os.fsync(tmp.fileno())
+            tmp_path = Path(tmp.name)
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
 
 app = typer.Typer(
     name="VectorTrading",
@@ -708,19 +733,19 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path, missing=None)
     analyst_parts = []
     if final_state.get("market_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "market.md").write_text(final_state["market_report"], encoding="utf-8")
+        _atomic_write_text(analysts_dir / "market.md", final_state["market_report"])
         analyst_parts.append(("Market Analyst", final_state["market_report"]))
     if final_state.get("sentiment_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "sentiment.md").write_text(final_state["sentiment_report"], encoding="utf-8")
+        _atomic_write_text(analysts_dir / "sentiment.md", final_state["sentiment_report"])
         analyst_parts.append(("Sentiment Analyst", final_state["sentiment_report"]))
     if final_state.get("news_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "news.md").write_text(final_state["news_report"], encoding="utf-8")
+        _atomic_write_text(analysts_dir / "news.md", final_state["news_report"])
         analyst_parts.append(("News Analyst", final_state["news_report"]))
     if final_state.get("fundamentals_report"):
         analysts_dir.mkdir(exist_ok=True)
-        (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
+        _atomic_write_text(analysts_dir / "fundamentals.md", final_state["fundamentals_report"])
         analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
@@ -733,15 +758,15 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path, missing=None)
         research_parts = []
         if debate.get("bull_history"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "bull.md").write_text(debate["bull_history"], encoding="utf-8")
+            _atomic_write_text(research_dir / "bull.md", debate["bull_history"])
             research_parts.append(("Bull Researcher", debate["bull_history"]))
         if debate.get("bear_history"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "bear.md").write_text(debate["bear_history"], encoding="utf-8")
+            _atomic_write_text(research_dir / "bear.md", debate["bear_history"])
             research_parts.append(("Bear Researcher", debate["bear_history"]))
         if debate.get("judge_decision"):
             research_dir.mkdir(exist_ok=True)
-            (research_dir / "manager.md").write_text(debate["judge_decision"], encoding="utf-8")
+            _atomic_write_text(research_dir / "manager.md", debate["judge_decision"])
             research_parts.append(("Research Manager", debate["judge_decision"]))
         if research_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in research_parts)
@@ -751,7 +776,7 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path, missing=None)
     if final_state.get("trader_investment_plan"):
         trading_dir = save_path / "3_trading"
         trading_dir.mkdir(exist_ok=True)
-        (trading_dir / "trader.md").write_text(final_state["trader_investment_plan"], encoding="utf-8")
+        _atomic_write_text(trading_dir / "trader.md", final_state["trader_investment_plan"])
         sections.append(f"## III. Trading Team Plan\n\n### Trader\n{final_state['trader_investment_plan']}")
 
     # 4. Risk Management
@@ -761,15 +786,15 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path, missing=None)
         risk_parts = []
         if risk.get("aggressive_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "aggressive.md").write_text(risk["aggressive_history"], encoding="utf-8")
+            _atomic_write_text(risk_dir / "aggressive.md", risk["aggressive_history"])
             risk_parts.append(("Aggressive Analyst", risk["aggressive_history"]))
         if risk.get("conservative_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "conservative.md").write_text(risk["conservative_history"], encoding="utf-8")
+            _atomic_write_text(risk_dir / "conservative.md", risk["conservative_history"])
             risk_parts.append(("Conservative Analyst", risk["conservative_history"]))
         if risk.get("neutral_history"):
             risk_dir.mkdir(exist_ok=True)
-            (risk_dir / "neutral.md").write_text(risk["neutral_history"], encoding="utf-8")
+            _atomic_write_text(risk_dir / "neutral.md", risk["neutral_history"])
             risk_parts.append(("Neutral Analyst", risk["neutral_history"]))
         if risk_parts:
             content = "\n\n".join(f"### {name}\n{text}" for name, text in risk_parts)
@@ -779,14 +804,14 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path, missing=None)
         if risk.get("judge_decision"):
             portfolio_dir = save_path / "5_portfolio"
             portfolio_dir.mkdir(exist_ok=True)
-            (portfolio_dir / "decision.md").write_text(risk["judge_decision"], encoding="utf-8")
+            _atomic_write_text(portfolio_dir / "decision.md", risk["judge_decision"])
             sections.append(f"## V. Portfolio Manager Decision\n\n### Portfolio Manager\n{risk['judge_decision']}")
 
     # Write consolidated report
     header = f"# Trading Analysis Report: {ticker}\n\nGenerated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     if missing:
         header += f"> **INCOMPLETE ANALYSIS** - missing or empty sections: {', '.join(missing)}\n\n"
-    (save_path / "complete_report.md").write_text(header + "\n\n".join(sections), encoding="utf-8")
+    _atomic_write_text(save_path / "complete_report.md", header + "\n\n".join(sections))
     return save_path / "complete_report.md"
 
 
@@ -1052,7 +1077,7 @@ def run_analysis(checkpoint: bool = False):
     log_file.touch(exist_ok=True)
 
     def save_message_decorator(obj, func_name):
-        func = getattr(obj, func_name)
+        func = inspect.unwrap(getattr(obj, func_name))
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -1063,7 +1088,7 @@ def run_analysis(checkpoint: bool = False):
         return wrapper
     
     def save_tool_call_decorator(obj, func_name):
-        func = getattr(obj, func_name)
+        func = inspect.unwrap(getattr(obj, func_name))
         @wraps(func)
         def wrapper(*args, **kwargs):
             func(*args, **kwargs)
@@ -1074,7 +1099,7 @@ def run_analysis(checkpoint: bool = False):
         return wrapper
 
     def save_report_section_decorator(obj, func_name):
-        func = getattr(obj, func_name)
+        func = inspect.unwrap(getattr(obj, func_name))
         @wraps(func)
         def wrapper(section_name, content):
             func(section_name, content)
@@ -1083,8 +1108,7 @@ def run_analysis(checkpoint: bool = False):
                 if content:
                     file_name = f"{section_name}.md"
                     text = "\n".join(str(item) for item in content) if isinstance(content, list) else content
-                    with open(report_dir / file_name, "w", encoding="utf-8") as f:
-                        f.write(text)
+                    _atomic_write_text(report_dir / file_name, text)
         return wrapper
 
     message_buffer.add_message = save_message_decorator(message_buffer, "add_message")

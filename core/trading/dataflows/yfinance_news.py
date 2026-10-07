@@ -38,7 +38,7 @@ def _extract_article_data(article: dict) -> dict:
             try:
                 pub_date = datetime.fromisoformat(pub_date_str.replace("Z", "+00:00"))
             except (ValueError, AttributeError):
-                logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                logger.opt(exception=True).warning("[VECTOR] suppressed exception (degraded mode)")
 
         return {
             "title": title,

@@ -1,8 +1,10 @@
 """Append-only markdown decision log for VectorTrading."""
 
 from typing import List, Optional
+import os
 from pathlib import Path
 import re
+import tempfile
 
 from core.trading.agents.utils.rating import parse_rating
 
@@ -27,6 +29,31 @@ class TradingMemoryLog:
         self._max_entries = cfg.get("memory_log_max_entries")
 
     # --- Write path (Phase A) ---
+
+    def _atomic_write(self, text: str) -> None:
+        """Durably replace the log with ``text`` using a unique sibling temp file."""
+        if self._log_path is None:
+            return
+        # Clean up the deterministic temp filename used by older releases.
+        self._log_path.with_suffix(".tmp").unlink(missing_ok=True)
+        tmp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self._log_path.parent,
+                prefix=f".{self._log_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as tmp:
+                tmp.write(text)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+                tmp_path = Path(tmp.name)
+            os.replace(tmp_path, self._log_path)
+        finally:
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
 
     def store_decision(
         self,
@@ -168,9 +195,7 @@ class TradingMemoryLog:
 
         new_blocks = self._apply_rotation(new_blocks)
         new_text = self._SEPARATOR.join(new_blocks)
-        tmp_path = self._log_path.with_suffix(".tmp")
-        tmp_path.write_text(new_text, encoding="utf-8")
-        tmp_path.replace(self._log_path)
+        self._atomic_write(new_text)
 
     def batch_update_with_outcomes(self, updates: List[dict]) -> None:
         """Apply multiple outcome updates in a single read + atomic write.
@@ -222,9 +247,7 @@ class TradingMemoryLog:
 
         new_blocks = self._apply_rotation(new_blocks)
         new_text = self._SEPARATOR.join(new_blocks)
-        tmp_path = self._log_path.with_suffix(".tmp")
-        tmp_path.write_text(new_text, encoding="utf-8")
-        tmp_path.replace(self._log_path)
+        self._atomic_write(new_text)
 
     # --- Helpers ---
 

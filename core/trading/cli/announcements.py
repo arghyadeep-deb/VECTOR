@@ -5,7 +5,8 @@ __all__ = [
     "fetch_announcements",
 ]
 
-import requests
+import httpx
+from loguru import logger
 from rich.console import Console
 from rich.panel import Panel
 
@@ -14,19 +15,23 @@ from core.trading.cli.config import CLI_CONFIG
 
 def fetch_announcements(url: str = None, timeout: float = None) -> dict:
     """Fetch announcements from endpoint. Returns dict with announcements and settings."""
-    endpoint = url or CLI_CONFIG["announcements_url"]
-    timeout = timeout or CLI_CONFIG["announcements_timeout"]
+    endpoint = url if url is not None else CLI_CONFIG["announcements_url"]
+    timeout = timeout if timeout is not None else CLI_CONFIG["announcements_timeout"]
     fallback = CLI_CONFIG["announcements_fallback"]
 
     try:
-        response = requests.get(endpoint, timeout=timeout)
+        response = httpx.get(endpoint, timeout=timeout)
         response.raise_for_status()
         data = response.json()
         return {
             "announcements": data.get("announcements", [fallback]),
             "require_attention": data.get("require_attention", False),
         }
-    except Exception:
+    except Exception as exc:
+        logger.warning(
+            "[VECTOR][trading_announcements] fetch failed; using fallback: {}",
+            type(exc).__name__,
+        )
         return {
             "announcements": [fallback],
             "require_attention": False,
