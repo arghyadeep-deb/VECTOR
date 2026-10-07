@@ -89,6 +89,10 @@ class IntentQwen3_8B:
             return None
 
         try:
+            # Imported in _load_model() only has local scope there; inference
+            # also needs the module for its no_grad context.
+            import torch
+
             # Format prompt
             prompt = f"Classify this query: {text} → District:"
 
@@ -111,7 +115,7 @@ class IntentQwen3_8B:
                 district = generated_text.split("District:")[-1].strip().split()[0]
                 # Validate district
                 from core.city.governor import DISTRICT_TASK_MAP
-                if district in DISTRICT_TASK_MAP:
+                if district in set(DISTRICT_TASK_MAP.values()):
                     return {
                         "type": "",  # Governor will use default task_type
                         "district": district,

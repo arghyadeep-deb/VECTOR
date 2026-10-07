@@ -84,6 +84,8 @@ class BenchmarkRunner:
 
     def run(self) -> BenchmarkReport:
         """Run all loaded tasks in isolated state and return report."""
+        # Results describe one run, not the lifetime of a reusable runner.
+        self.results = []
         logger.info(
             "[VECTOR][bench] starting benchmark with {} tasks",
             len(self.tasks),

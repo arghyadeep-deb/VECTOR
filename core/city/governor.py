@@ -495,7 +495,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "todo_add": "coding",
     "todo_list": "coding",
     "file_edit": "coding",
-    "code_search": "coding",
     "load_skill": "coding",
     "skill_run": "coding",
     # core/jcode/ tools (ported from high-performance agent harness)
@@ -1342,7 +1341,6 @@ DISTRICT_TASK_MAP: dict[str, str] = {
     "error_type": "ops",
     "retry_check": "ops",
     # prompt-agent backed district additions
-    "refactor": "coding",
     "dead_code": "coding",
     "cleanup": "coding",
     "silent_failure": "qa",

@@ -564,6 +564,24 @@ class PermissionGateway:
         pytest's shimmed confirmations. Tests opt in via VECTOR_TRUST_TEST=1."""
         return "pytest" not in sys.modules or os.environ.get("VECTOR_TRUST_TEST") == "1"
 
+    @staticmethod
+    def _execution_succeeded(exec_result: dict) -> bool:
+        """Return whether a handler performed its requested operation.
+
+        Approval and execution are separate facts: permission can be granted
+        while a handler rejects, blocks, fails, or is not implemented.
+        """
+        failure_statuses = {
+            "error", "blocked", "failed", "rejected", "not_implemented",
+            "awaiting_confirmation", "executed_with_warnings",
+        }
+        return not (
+            exec_result.get("status") in failure_statuses
+            or "error" in exec_result
+            or exec_result.get("success") is False
+            or exec_result.get("blocked") is True
+        )
+
     async def execute(self, action: Action) -> GatewayResult:
         level = self._classify(action.action_type)
         logger.info(f'[VECTOR][gateway] {action.action_type} classified as {level} (proposed by {action.proposed_by})')
@@ -584,7 +602,9 @@ class PermissionGateway:
 
         if level == 'GREEN':
             exec_result = await self._execute_action(action)
-            result = GatewayResult(True, 'GREEN', True, exec_result, 'Auto-executed')
+            executed = self._execution_succeeded(exec_result)
+            result = GatewayResult(True, 'GREEN', executed, exec_result,
+                                   'Auto-executed' if executed else 'Approved but execution failed')
             self._write_audit(action, result)
             await self._notify(f'VECTOR: {action.action_type} completed', priority=0)
             return result
@@ -618,7 +638,7 @@ class PermissionGateway:
                     _trust.record_auto_exec(action.action_type)
                     await self._notify(
                         f'VECTOR executed (trusted): {action.action_type}', priority=0)
-                result = GatewayResult(True, 'YELLOW', True, exec_result,
+                result = GatewayResult(True, 'YELLOW', self._execution_succeeded(exec_result), exec_result,
                                        'Auto-executed (trust ladder)')
                 self._write_audit(action, result)
                 return result
@@ -631,7 +651,7 @@ class PermissionGateway:
                 # pure friction. Autonomous proposals still get the wait below;
                 # RED never takes this path.
                 exec_result = await self._execute_action(action)
-                result = GatewayResult(True, 'YELLOW', True, exec_result,
+                result = GatewayResult(True, 'YELLOW', self._execution_succeeded(exec_result), exec_result,
                                        'Owner-initiated command — pre-confirmed')
                 self._write_audit(action, result)
                 if not hasattr(self._notify, "mock_calls"):
@@ -681,7 +701,8 @@ class PermissionGateway:
                         f'consistent approvals. Demote anytime: /gateway/trust',
                         priority=1)
             exec_result = await self._execute_action(action)
-            result = GatewayResult(True, 'YELLOW', True, exec_result, 'Executed after YELLOW window')
+            result = GatewayResult(True, 'YELLOW', self._execution_succeeded(exec_result), exec_result,
+                                   'Executed after YELLOW window')
             self._write_audit(action, result)
             if not hasattr(self._notify, "mock_calls"):
                 await self._notify(f'VECTOR executed (YELLOW): {action.action_type}', priority=0)
@@ -696,7 +717,7 @@ class PermissionGateway:
             if (action.action_type in RED_INTERACTIVE_TOOLS
                     and action.proposed_by in ("api_command", "voice")):
                 exec_result = await self._execute_action(action)
-                result = GatewayResult(True, 'RED', True, exec_result,
+                result = GatewayResult(True, 'RED', self._execution_succeeded(exec_result), exec_result,
                                        'Owner-initiated command — pre-confirmed')
                 self._write_audit(action, result)
                 if not hasattr(self._notify, "mock_calls"):
@@ -717,7 +738,8 @@ class PermissionGateway:
             )
             if _council_verdict == "proceed":
                 exec_result = await self._execute_action(action)
-                result = GatewayResult(True, 'RED', True, exec_result, 'Council approved (auto-proceed)')
+                result = GatewayResult(True, 'RED', self._execution_succeeded(exec_result), exec_result,
+                                       'Council approved (auto-proceed)')
                 self._write_audit(action, result)
                 return result
             if _council_verdict == "reject":
@@ -758,7 +780,8 @@ class PermissionGateway:
                 logger.warning(f"[VECTOR][gateway] RED action {action.action_type} timed out after 5min — rejected for safety")
             if confirmed:
                 exec_result = await self._execute_action(action)
-                result = GatewayResult(True, 'RED', True, exec_result, 'Owner confirmed')
+                result = GatewayResult(True, 'RED', self._execution_succeeded(exec_result), exec_result,
+                                       'Owner confirmed')
             else:
                 result = GatewayResult(False, 'RED', False, {}, 'Timed out waiting for owner')
                 logger.warning(f'[VECTOR][gateway] RED action {action.action_type} aborted - no confirmation')

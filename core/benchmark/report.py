@@ -11,6 +11,7 @@ import json
 import os
 import platform
 import subprocess
+import tempfile
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -69,12 +70,30 @@ class BenchmarkReport:
             "tasks": [r.to_dict() for r in self.results],
         }
 
+    @staticmethod
+    def _atomic_write(path: Path, content: str) -> None:
+        """Durably replace a report without exposing a partial file."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w", encoding="utf-8", dir=path.parent,
+                prefix=f".{path.name}.", suffix=".tmp", delete=False,
+            ) as handle:
+                handle.write(content)
+                handle.flush()
+                os.fsync(handle.fileno())
+                tmp_path = Path(handle.name)
+            os.replace(tmp_path, path)
+        finally:
+            if tmp_path is not None:
+                tmp_path.unlink(missing_ok=True)
+
     # ── JSON output ──────────────────────────────────────────────────────
 
     def save_json(self, path: str | Path) -> Path:
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.to_dict(), indent=2, ensure_ascii=False), encoding="utf-8")
+        self._atomic_write(path, json.dumps(self.to_dict(), indent=2, ensure_ascii=False))
         logger.info("[VECTOR][bench] JSON report saved to {}", path)
         return path
 
@@ -159,8 +178,7 @@ class BenchmarkReport:
 
     def save_markdown(self, path: str | Path) -> Path:
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.to_markdown(), encoding="utf-8")
+        self._atomic_write(path, self.to_markdown())
         logger.info("[VECTOR][bench] Markdown report saved to {}", path)
         return path
 
@@ -230,8 +248,7 @@ class BenchmarkReport:
 
     def save_diff(self, other: BenchmarkReport, path: str | Path) -> Path:
         path = Path(path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.diff(other), encoding="utf-8")
+        self._atomic_write(path, self.diff(other))
         return path
 
     # ── Auto-save with timestamp ─────────────────────────────────────────

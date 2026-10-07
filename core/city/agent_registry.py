@@ -270,7 +270,11 @@ class AgentRegistry:
                 agent_name = agent.get("agent_name") or agent.get("name")
                 district = agent.get("district")
                 generation = agent.get("generation")
-                final_hp = agent.get("final_hp") or agent.get("health_points")
+                final_hp = (
+                    agent["final_hp"]
+                    if agent.get("final_hp") is not None
+                    else agent.get("health_points")
+                )
                 ghost_memory = agent.get("ghost_memory")
                 caps = agent.get("capabilities")
             else:
