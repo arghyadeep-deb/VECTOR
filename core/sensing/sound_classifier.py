@@ -186,12 +186,24 @@ class SoundClassifier:
         return self.sample_and_classify() == "speech"
 
     def _emit_emergency_signal(self) -> None:
+        """Schedule the emergency-signal coroutine. classify_frame() (and its
+        sync caller sample_and_classify()) can run with no running event loop,
+        in which case asyncio.create_task() raises RuntimeError -- previously
+        caught by the bare `except Exception` below and silently discarded, so
+        a loud-sound alert never actually reached districts/emergency from any
+        sync call path. Falls back to asyncio.run() when no loop is running so
+        the signal still fires (blocking briefly, acceptable for a rare alert
+        event) instead of being swallowed."""
+        import asyncio
         try:
             from districts.emergency.main import _emit
-            import asyncio
-            asyncio.create_task(_emit("environment", "alert_sound", True, "sound_classifier"))
-        except Exception:
-            logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+            coro = _emit("environment", "alert_sound", True, "sound_classifier")
+            try:
+                asyncio.get_running_loop().create_task(coro)
+            except RuntimeError:
+                asyncio.run(coro)
+        except Exception as exc:
+            logger.warning(f"[VECTOR][sound] emergency signal emit failed: {exc}", exc_info=True)
 
 
 # â"€â"€ smoke test â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -221,10 +233,17 @@ if __name__ == "__main__":
         result = classifier.classify_frame(speech)
         assert result == "speech", f"Expected 'speech', got {result!r}"
 
-        # 4. background — moderate RMS, low ZCR (low-freq sine proxy)
+        # 4. background — low RMS, low ZCR, below the music rms>0.02 gate.
+        # A pure sine (any amplitude) is strongly tonal by construction (high
+        # spectral_peak_ratio) -- the classifier correctly calls it "music",
+        # not "background"; the previous amplitude (0.05 -> rms ~0.035) hit
+        # exactly that path and was a wrong test expectation, not a
+        # classifier bug. Kept the same low-ZCR 20 Hz sine shape but scaled
+        # so rms lands in [0.01, 0.02): above "silence", below the "music"
+        # rms gate, so SPR doesn't matter and it correctly falls to
+        # "background" regardless of tonal content.
         t = np.linspace(0, 0.5, 8000, dtype=np.float32)
-        # 20 Hz sine: ~40 zero-crossings in 8000 samples → ZCR ≈ 0.005
-        background = np.sin(2 * np.pi * 20 * t) * 0.05
+        background = np.sin(2 * np.pi * 20 * t) * 0.02
         result = classifier.classify_frame(background)
         assert result == "background", f"Expected 'background', got {result!r}"
 
