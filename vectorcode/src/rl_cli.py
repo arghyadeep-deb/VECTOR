@@ -37,6 +37,8 @@ from pathlib import Path
 import fire
 import yaml
 
+from vector_constants import get_vector_home, OPENROUTER_BASE_URL
+
 # Load .env from ~/.vectorcode/.env first, then project root as dev fallback.
 # User-managed env files should override stale shell exports on restart.
 _vector_home = get_vector_home()
@@ -69,8 +71,6 @@ from tools.rl_training_tool import get_missing_keys
 # ============================================================================
 # Config Loading
 # ============================================================================
-
-from vector_constants import get_vector_home, OPENROUTER_BASE_URL
 
 DEFAULT_MODEL = "anthropic/claude-opus-4.5"
 DEFAULT_BASE_URL = OPENROUTER_BASE_URL
@@ -192,7 +192,8 @@ def check_requirements():
     errors = []
     
     # Check API keys
-    if not os.environ.get("OPENROUTER_API_KEY"):
+    from core.security.secrets_manager import get_secret
+    if not get_secret("OPENROUTER_API_KEY"):
         errors.append("OPENROUTER_API_KEY not set - required for agent")
     
     missing_rl_keys = get_missing_keys()
@@ -365,7 +366,8 @@ def main(
         return
     
     # Get API key
-    api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
+    from core.security.secrets_manager import get_secret
+    api_key = api_key or get_secret("OPENROUTER_API_KEY")
     if not api_key:
         print("❌ No API key provided. Set OPENROUTER_API_KEY or pass --api-key")
         sys.exit(1)
