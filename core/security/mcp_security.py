@@ -22,11 +22,13 @@ __all__ = [
 
 
 import sqlite3
+import os
+import shutil
 import threading
 import time
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +39,97 @@ AUDIT_DB_PATH = Path(__file__).parent / "mcp_audit.db"
 RATE_LIMIT_DISTRICT = 100
 RATE_LIMIT_GLOBAL = 500
 RATE_WINDOW = 60
+_MCP_AUDIT_TABLES = ("mcp_audit_log",)
+
+try:
+    import sqlcipher3 as sqlcipher
+    _USE_SQLCIPHER = True
+except ImportError:
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher
+        _USE_SQLCIPHER = True
+    except ImportError:
+        sqlcipher = None
+        _USE_SQLCIPHER = False
+        logger.warning("[VECTOR][mcp] SQLCipher unavailable -- tool-call audit data will be stored UNENCRYPTED")
+
+
+def _sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _get_db_key() -> str:
+    from core.memory.episodic import _get_db_key as _episodic_get_db_key
+    return _episodic_get_db_key()
+
+
+def _looks_like_plaintext_sqlite(path: Path) -> bool:
+    try:
+        return path.read_bytes()[:16] == b"SQLite format 3\x00"
+    except OSError:
+        return False
+
+
+def _configure_sqlcipher_connection(conn) -> None:
+    conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+    conn.execute("PRAGMA cipher_page_size = 4096")
+    apply_pragmas(conn)
+
+
+def _create_tables_on(conn) -> None:
+    conn.execute("""CREATE TABLE IF NOT EXISTS mcp_audit_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tool_name TEXT NOT NULL,
+        source_district TEXT NOT NULL,
+        params TEXT DEFAULT '{}',
+        timestamp REAL NOT NULL,
+        allowed INTEGER NOT NULL DEFAULT 1,
+        risk_level TEXT NOT NULL DEFAULT 'low'
+    )""")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_district ON mcp_audit_log(source_district)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON mcp_audit_log(timestamp)")
+    conn.commit()
+
+
+def _open_sqlcipher_connection(path: Path):
+    conn = sqlcipher.connect(str(path), check_same_thread=False)
+    try:
+        _configure_sqlcipher_connection(conn)
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _migrate_plaintext_mcp_audit_db_to_sqlcipher(path: Path):
+    backup_path = Path(f"{path}.plaintext.bak.{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}")
+    shutil.copy2(path, backup_path)
+    os.remove(path)
+    logger.warning("[VECTOR][mcp] Migrating plaintext audit DB; backup kept at {}", backup_path)
+    conn = sqlcipher.connect(str(path), check_same_thread=False)
+    try:
+        _configure_sqlcipher_connection(conn)
+        _create_tables_on(conn)
+        plain_conn = sqlite3.connect(str(backup_path), check_same_thread=False)
+        try:
+            columns = [row[1] for row in plain_conn.execute('PRAGMA table_info("mcp_audit_log")')]
+            if columns:
+                quoted = ", ".join(f'"{column}"' for column in columns)
+                placeholders = ", ".join("?" for _ in columns)
+                rows = plain_conn.execute(f'SELECT {quoted} FROM "mcp_audit_log"').fetchall()
+                if rows:
+                    conn.executemany(f'INSERT INTO "mcp_audit_log" ({quoted}) VALUES ({placeholders})', rows)
+            conn.commit()
+        finally:
+            plain_conn.close()
+        return conn
+    except Exception:
+        conn.close()
+        if path.exists():
+            os.remove(path)
+        shutil.copy2(backup_path, path)
+        raise
 
 
 @dataclass
@@ -65,43 +158,30 @@ class MCPSecurityMiddleware:
         self._risk_map: dict[str, str] = {}
         self._district_counts: dict[str, list[float]] = defaultdict(list)
         self._global_counts: list[float] = []
-        self._conn: sqlite3.Connection | None = None
+        self._conn = None
         self._lock = threading.RLock()
         self._init_db()
         self._build_risk_map()
 
-    def _get_conn(self) -> sqlite3.Connection:
+    def _get_conn(self):
         with self._lock:
             if self._conn is not None:
                 return self._conn
-            self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-            apply_pragmas(self._conn)
+            self._db_path.parent.mkdir(parents=True, exist_ok=True)
+            if _USE_SQLCIPHER:
+                self._conn = _migrate_plaintext_mcp_audit_db_to_sqlcipher(self._db_path) if _looks_like_plaintext_sqlite(self._db_path) else _open_sqlcipher_connection(self._db_path)
+                self._conn.row_factory = sqlcipher.Row
+            else:
+                self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+                apply_pragmas(self._conn)
+                self._conn.row_factory = sqlite3.Row
             return self._conn
 
     def _init_db(self) -> None:
         try:
             conn = self._get_conn()
             with self._lock:
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS mcp_audit_log (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        tool_name TEXT NOT NULL,
-                        source_district TEXT NOT NULL,
-                        params TEXT DEFAULT '{}',
-                        timestamp REAL NOT NULL,
-                        allowed INTEGER NOT NULL DEFAULT 1,
-                        risk_level TEXT NOT NULL DEFAULT 'low'
-                    )
-                """)
-                conn.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_audit_district
-                    ON mcp_audit_log(source_district)
-                """)
-                conn.execute("""
-                    CREATE INDEX IF NOT EXISTS idx_audit_timestamp
-                    ON mcp_audit_log(timestamp)
-                """)
-                conn.commit()
+                _create_tables_on(conn)
         except Exception as e:
             logger.warning("[VECTOR][mcp] audit db init failed: {}", e)
 
@@ -276,7 +356,6 @@ class MCPSecurityMiddleware:
         try:
             conn = self._get_conn()
             with self._lock:
-                conn.row_factory = sqlite3.Row
                 rows = conn.execute(
                     "SELECT * FROM mcp_audit_log ORDER BY timestamp DESC LIMIT ?",
                     (limit,),
@@ -291,8 +370,6 @@ class MCPSecurityMiddleware:
         try:
             conn = self._get_conn()
             with self._lock:
-                conn.row_factory = sqlite3.Row
-
                 rows = conn.execute("""
                     SELECT source_district, tool_name, risk_level, COUNT(*) as cnt
                     FROM mcp_audit_log
@@ -332,6 +409,12 @@ class MCPSecurityMiddleware:
         except Exception as e:
             logger.warning("[VECTOR][mcp] anomaly report failed: {}", e)
         return anomalies
+
+    def close(self) -> None:
+        with self._lock:
+            if self._conn is not None:
+                self._conn.close()
+                self._conn = None
 
 
 _middleware: MCPSecurityMiddleware | None = None

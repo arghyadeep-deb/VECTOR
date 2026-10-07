@@ -9,10 +9,27 @@ from __future__ import annotations
 
 from core.memory.db_utils import apply_pragmas
 import json
+import os
+import shutil
 import sqlite3
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from loguru import logger
+
+try:
+    import sqlcipher3 as sqlcipher
+    _USE_SQLCIPHER = True
+except ImportError:
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher
+        _USE_SQLCIPHER = True
+    except ImportError:
+        sqlcipher = None
+        _USE_SQLCIPHER = False
+        logger.warning("[VECTOR][scheduler] SQLCipher unavailable -- task data will be stored UNENCRYPTED")
 
 _CREATE_TASKS_TABLE = """\
 CREATE TABLE IF NOT EXISTS scheduled_tasks (
@@ -55,19 +72,97 @@ INSERT INTO task_run_logs
 VALUES (?, ?, ?, ?, ?, ?)
 """
 
+_SCHEDULER_TABLES = ("scheduled_tasks", "task_run_logs")
+
+
+def _sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _get_db_key() -> str:
+    from core.memory.episodic import _get_db_key as _episodic_get_db_key
+    return _episodic_get_db_key()
+
+
+def _looks_like_plaintext_sqlite(path: Path) -> bool:
+    try:
+        return path.read_bytes()[:16] == b"SQLite format 3\x00"
+    except OSError:
+        return False
+
+
+def _configure_sqlcipher_connection(conn) -> None:
+    conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+    conn.execute("PRAGMA cipher_page_size = 4096")
+    apply_pragmas(conn)
+
+
+def _create_tables_on(conn) -> None:
+    conn.execute(_CREATE_TASKS_TABLE)
+    conn.execute(_CREATE_LOGS_TABLE)
+    conn.commit()
+
+
+def _open_sqlcipher_connection(path: Path):
+    conn = sqlcipher.connect(str(path), check_same_thread=False)
+    try:
+        _configure_sqlcipher_connection(conn)
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _migrate_plaintext_scheduler_db_to_sqlcipher(path: Path):
+    backup_path = Path(f"{path}.plaintext.bak.{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}")
+    shutil.copy2(path, backup_path)
+    os.remove(path)
+    logger.warning("[VECTOR][scheduler] Migrating plaintext scheduler DB; backup kept at {}", backup_path)
+    conn = sqlcipher.connect(str(path), check_same_thread=False)
+    try:
+        _configure_sqlcipher_connection(conn)
+        _create_tables_on(conn)
+        plain_conn = sqlite3.connect(str(backup_path), check_same_thread=False)
+        try:
+            existing = {row[0] for row in plain_conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+            for table in _SCHEDULER_TABLES:
+                if table not in existing:
+                    continue
+                columns = [row[1] for row in plain_conn.execute(f'PRAGMA table_info("{table}")')]
+                quoted = ", ".join(f'"{column}"' for column in columns)
+                placeholders = ", ".join("?" for _ in columns)
+                rows = plain_conn.execute(f'SELECT {quoted} FROM "{table}"').fetchall()
+                if rows:
+                    conn.executemany(f'INSERT OR REPLACE INTO "{table}" ({quoted}) VALUES ({placeholders})', rows)
+            conn.commit()
+        finally:
+            plain_conn.close()
+        return conn
+    except Exception:
+        conn.close()
+        if path.exists():
+            os.remove(path)
+        shutil.copy2(backup_path, path)
+        raise
+
 class SchedulerStore:
     """SQLite CRUD store for scheduled tasks and their run logs."""
 
     def __init__(self, db_path: str | Path) -> None:
         self._db_path = str(db_path)
-        self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        apply_pragmas(self._conn)
+        path = Path(self._db_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if _USE_SQLCIPHER:
+            self._conn = _migrate_plaintext_scheduler_db_to_sqlcipher(path) if _looks_like_plaintext_sqlite(path) else _open_sqlcipher_connection(path)
+            self._conn.row_factory = sqlcipher.Row
+        else:
+            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+            apply_pragmas(self._conn)
+            self._conn.row_factory = sqlite3.Row
         self._lock = threading.RLock()
-        self._conn.row_factory = sqlite3.Row
         with self._lock:
-            self._conn.execute(_CREATE_TASKS_TABLE)
-            self._conn.execute(_CREATE_LOGS_TABLE)
-            self._conn.commit()
+            _create_tables_on(self._conn)
 
     # -- Task CRUD -----------------------------------------------------------
 
@@ -171,7 +266,7 @@ class SchedulerStore:
     # -- Helpers -------------------------------------------------------------
 
     @staticmethod
-    def _row_to_dict(row: sqlite3.Row) -> Dict[str, Any]:
+    def _row_to_dict(row) -> Dict[str, Any]:
         d = dict(row)
         if "metadata" in d and isinstance(d["metadata"], str):
             try:

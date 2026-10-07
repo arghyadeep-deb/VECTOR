@@ -3,7 +3,6 @@ Module: agents/relationships/contact_manager.py
 District: relationships | Focus: Contact management, interaction tracking
 """
 
-from core.memory.db_utils import apply_pragmas
 import sys
 from pathlib import Path
 from core.config import CONFIG
@@ -11,7 +10,7 @@ from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
 from loguru import logger
-import uuid, asyncio, json, datetime, sqlite3, threading
+import uuid, asyncio, json, datetime, threading
 from typing import Optional
 
 
@@ -34,35 +33,14 @@ class ContactManager(AgentBase):
         self._init_db()
         logger.info("[VECTOR][relationships] ContactManager ready")
 
-    def _get_conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        apply_pragmas(conn)
-        conn.row_factory = sqlite3.Row
-        return conn
+    def _get_conn(self):
+        from core.relationships.schema import get_connection
+        return get_connection(self.db_path)
 
     def _init_db(self):
         with self._lock:
-            conn = self._get_conn()
-            try:
-                conn.execute("""CREATE TABLE IF NOT EXISTS contacts (
-                    name TEXT PRIMARY KEY,
-                    phone TEXT,
-                    email TEXT,
-                    notes TEXT,
-                    added_at TEXT,
-                    last_contacted TEXT,
-                    contact_count INTEGER DEFAULT 0
-                )""")
-                conn.execute("""CREATE TABLE IF NOT EXISTS interactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    contact_name TEXT,
-                    interaction_type TEXT,
-                    content TEXT,
-                    timestamp TEXT
-                )""")
-                conn.commit()
-            finally:
-                conn.close()
+            from core.relationships.schema import init_schema
+            init_schema(self.db_path)
 
     def _call_ollama(self, prompt: str, model: Optional[str] = None) -> str:
         from core.inference.vectorcode_llm import chat as ollama_chat

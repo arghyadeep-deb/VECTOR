@@ -209,7 +209,13 @@ def get_district_db(key: str, check_same_thread: bool = False) -> sqlite3.Connec
     if entry is None:
         raise KeyError(f"DB '{key}' not in registry. Register it in core/memory/db_registry.py first.")
 
-    if entry.path_template == _MAIN_DB_TEMPLATE:
+    if key == "data.contacts":
+        rel_path = entry.path_template
+        abs_path = _project_root() / rel_path
+        from core.relationships.schema import get_connection as get_contacts_connection
+
+        conn = get_contacts_connection(abs_path)
+    elif entry.path_template == _MAIN_DB_TEMPLATE:
         # Alias of the main encrypted DB — resolve through the same source
         # of truth core.memory.episodic uses (configured_db_path(), which
         # honors VECTOR_DB_PATH for tests/repair) rather than re-deriving

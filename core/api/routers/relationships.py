@@ -1,7 +1,5 @@
 """VECTOR relationships router - /relationships/* endpoints."""
 
-import sqlite3
-
 __all__ = [
     "add_contact",
     "AddContactReq",
@@ -24,14 +22,14 @@ router = APIRouter(prefix="/relationships", tags=["relationships"])
 async def list_contacts():
     """List managed contacts with relationship metadata."""
     try:
+        from core.relationships.schema import get_connection
         from core.runtime_paths import data_path
 
         db_path = data_path("contacts.db")
         if not db_path.exists():
             return {"status": "ok", "contacts": [], "total_contacts": 0, "source": "contacts.db"}
 
-        with sqlite3.connect(db_path, check_same_thread=False) as conn:
-            conn.row_factory = sqlite3.Row
+        with get_connection(db_path) as conn:
             has_contacts = conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'contacts'"
             ).fetchone()
