@@ -5594,3 +5594,141 @@ isn't "proven in production" until you supply the service/device and run it live
      **Commit status:** all 6 code commits already landed (self-committed by the forks, or by
      the parent session completing fork-interrupted work) -- see hashes above. This OPEN_ISSUES
      entry is the only remaining uncommitted piece, left for the parent session per instruction.
+
+112. **`core/engine`, `core/memory`, and `core/voice` deep audit owner decisions (2026-10-07) —**
+     the assigned 73-file pass fixed the process-wide episodic-connection lifecycle bug,
+     memory-mesh infinite retry/phantom-sync state, unsafe/non-atomic wiki exports,
+     non-atomic OAuth fallback-token saves, false OAuth refresh success, and false sub-agent
+     success/missing hydration. The following findings were deliberately not guessed:
+
+     - `core/memory/shared_facts.py::_open_conn()` and
+       `core/memory/db_registry.py::get_district_db()` target the real configured main DB and,
+       after a SQLCipher open failure, explicitly retry it with raw `sqlite3.connect()`. This is
+       the known main-DB exception category the owner asked this audit to flag rather than
+       silently rewrite. Decide whether key/configuration failures must fail closed instead.
+     - `core/voice/ambient_listener.py::_summon_hud()` puts `VECTOR_API_KEY` in the HUD query
+       string and in Chrome/Edge subprocess argv. The API middleware documents this as the
+       current browser-navigation authentication design, so removing it inside the voice module
+       alone would break HUD startup. Choose a session-cookie/bootstrap-token design before
+       changing both sides.
+     - `core/engine/agents/subagent_runner.py` and
+       `core/engine/providers/reliable_provider.py` are complete exported implementations but
+       have no functional production consumer found outside their own packages/tests/scripts.
+       `provider_client.py` mentions `ReliableProvider` only in comments and implements its own
+       retry loop; `SubagentRunner` is only exercised by audit scripts. Decide whether to wire
+       these compatibility surfaces or retire them. `ChannelRuntime` is likewise instantiated
+       only by the channels status fallback, which immediately discovers that the runtime lacks
+       the queried `active_channels()` API; it is not the live channel gateway.
+
+     Regression coverage is in
+     `tests/test_core_engine_memory_voice_audit_regressions.py`. Focused verification at entry
+     time: 66 tests passed across the new regressions and related episodic, memory-mesh, voice,
+     channel-loop, and encrypted-registry suites; final broader verification is recorded in the
+     parent audit handoff.
+
+113. **`core/api/` audit, round 1 (2026-10-07) —** first-ever full-depth audit of this 98-file
+     directory (VECTOR's own FastAPI server -- distinct from `vectorcode/src/server/`, already
+     audited this cycle). Codex hit its usage-limit wall before writing its own entry; committed
+     and documented by the parent session after independent verification (ran all 7 new tests,
+     syntax-checked every touched file, read the `auth_jwt.py` and `websocket.py` diffs in full).
+     **Fixed with proof tests (14 files, commit `17657a58d`):**
+     - `routers/auth_jwt.py` -- `_verify_api_key()` read `VECTOR_API_KEY` only from a plain
+       environment variable instead of `core.security.secrets_manager.get_secret()`'s
+       keyring-first lookup. Worse: `login()`'s localhost-trust-bypass check made the same
+       mistake, so a key configured via keyring (not env var) was invisible to that check --
+       any localhost connection could log in without a password even though a real key WAS
+       configured. Routed both through `get_secret()`.
+     - `routers/websocket.py` -- `vector_ws_state`'s WebSocket endpoint never called
+       `require_auth_handshake()` at all (4th instance of the "WS endpoint bypasses the HTTP
+       auth gate entirely" bug family found today, after `ws_bridge.py` and `api_routes.py`'s
+       `/v1/chat/stream`). Also: the "no API key configured" path previously allowed ANY remote
+       connection with zero auth; now restricted to localhost, matching the HTTP middleware's
+       posture, with JWT/WebAuthn accepted as additional valid credentials.
+     - `routers/voice_ws.py` -- voice-conversation LLM calls were missing the mandatory
+       `context_engine.session_hydration_prompt()` call (CLAUDE.md Rule 1, no exceptions).
+     New tests: `tests/test_core_api_security_regressions.py` (7), all passing. Pre-existing
+     `tests/test_permission_gateway.py` (8) also re-verified with no regressions.
+     **Remaining scope:** ~84 of 98 files not yet individually confirmed -- partial pass.
+     **Commit status:** `17657a58d`.
+
+114. **`core/trading/` audit, round 1 (2026-10-07) —** first-ever full-depth audit of this
+     89-file directory. Policy-boundary check performed FIRST per the owner's standing
+     "ANALYSIS ONLY, never trades" rule: grepped the entire directory for any order-placement
+     or brokerage write-API path. None found -- `crypto_trading.py` (the one exchange-adjacent
+     module) is explicitly "paper mode" and only fetches read-only quotes via yfinance/CoinGecko.
+     No trading-boundary violation. Codex hit its usage-limit wall before writing its own entry;
+     committed by the parent session after independent verification.
+     **Fixed with proof tests (7 files, commit `e40a18958`):** `agents/utils/memory.py`'s
+     decision-log atomic write used a deterministic `.tmp` sibling filename (collision-under-
+     concurrency + no-fsync, the same gap fixed repeatedly elsewhere this cycle) -- replaced with
+     a unique tempfile+fsync+os.replace; `cli/announcements.py`'s explicit `timeout=0` was
+     discarded by a falsy-OR default; `tests/test_deepseek_reasoning.py`'s live-API integration
+     test only gated on a real `DEEPSEEK_API_KEY` being present, so any dev machine with a real
+     key configured would silently make real, billed DeepSeek calls on every normal test run --
+     added an explicit `VECTOR_RUN_LIVE_TESTS=1` opt-in gate. Also: `dataflows/
+     alpha_vantage_common.py` and `dataflows/yfinance_news.py` migrated off the banned `requests`
+     library to `httpx` per CLAUDE.md policy (companion test update: commit `c0c321d64`).
+     New tests: `tests/test_trading_audit_regressions.py` (4), all passing.
+     **Remaining scope:** ~82 of 89 files not yet individually confirmed -- partial pass.
+     **Commit status:** `e40a18958`, `c0c321d64`.
+
+115. **`core/scraper/`+`core/training/` audit, round 1 (2026-10-07) —** first-ever full-depth
+     audit covering 83 of the combined 83 files. Codex hit its usage-limit wall before writing
+     its own entry; committed by the parent session after independent verification.
+     **Fixed with proof tests (13 files, commit `9ca9176d5`):** `scraper/engines/static.py`'s
+     `"safe"` `follow_redirects` mode was conflated with curl's `CurlFollow.SAFE`, which only
+     prevents credential/method leakage across a redirect hop -- it does NOT validate the
+     redirect destination. Automatic redirects in "safe" mode could still silently follow a
+     chain into an internal/private address with zero SSRF validation; disabled automatic
+     redirect-following for this mode entirely until proper per-hop destination validation
+     exists. Remaining fixes: path confinement and non-atomic-write fixes across the training
+     checkpoint/model-save paths matching established bug classes from this cycle.
+     New tests: `tests/test_scraper_training_audit_regressions.py` (15), all passing.
+     **Commit status:** `9ca9176d5`.
+
+116. **`core/mcp_tools/`+`core/inference/`+`core/security/` audit, round 1 (2026-10-07) —**
+     first-ever full-depth audit covering 6 of the combined 80 files (`core/security/` is a
+     THIRD directory with this name audited this cycle, after `vc_security/` and
+     `vectorcode/src/security/`). Codex hit its usage-limit wall before writing its own entry;
+     committed by the parent session after independent verification.
+     **Fixed with proof tests (6 files, commit `17860eddc`):** `security/prompt_injection.py`'s
+     `get_scanner()` singleton cache was keyed by NOTHING (one module-level variable) -- whichever
+     caller requested a scanner first (strict or not) determined the cached instance for the
+     entire process lifetime. A later caller specifically requesting `get_scanner(strict=True)`
+     for a security-sensitive context could silently receive an already-cached non-strict
+     scanner instead, downgrading its policy with zero indication anything was wrong. Fixed by
+     keying the cache dict on the strict flag, giving each policy its own singleton.
+     New tests: `tests/test_inference_route_policy_fail_closed.py` (6), all passing.
+     **Remaining scope:** ~74 of 80 files not yet individually confirmed -- partial pass.
+     **Commit status:** `17860eddc`.
+
+117. **`core/benchmark/`+`core/city/`+`core/loop/` audit, round 1 (2026-10-07) —** first-ever
+     full-depth audit covering 6 of the combined 56 files, including `permission_gateway.py` --
+     per the project's own architecture docs, the single most security-critical file in the
+     codebase ("LLM has ZERO direct access to real-world actions except through this gate").
+     Codex hit its usage-limit wall before writing its own entry; committed by the parent session
+     after independent verification (re-ran the full pre-existing `test_permission_gateway.py`
+     suite to confirm zero regressions before trusting this).
+     **Fixed with proof tests (6 files, commit `572eaa70c`):**
+     - `loop/permission_gateway.py` (critical) -- EVERY execution path (GREEN auto-exec, YELLOW
+       trust-ladder, YELLOW owner-initiated, YELLOW after-window, RED interactive, RED
+       council-approved, RED owner-confirmed) hardcoded
+       `GatewayResult(True, <tier>, True, exec_result, ...)` -- the "executed successfully" flag
+       was ALWAYS `True` regardless of what `exec_result` actually contained. A handler that
+       errored, was blocked, rejected, or was not-implemented was still reported as having
+       succeeded. This flag almost certainly feeds `policy.update_from_outcome()`'s reward
+       signal and HP awards per the project's own decision-loop architecture -- this could have
+       been silently corrupting the policy-learning feedback loop for an unknown period. Added
+       `_execution_succeeded()` to inspect `exec_result`'s actual status/error/success/blocked
+       fields and wired it into every execution path.
+     - `city/agent_registry.py` -- `final_hp = agent.get("final_hp") or
+       agent.get("health_points")` discarded a real `final_hp` of exactly 0 (an agent's literal
+       death condition per VECTOR's own HP system) and silently substituted `health_points`
+       instead.
+     - `benchmark_runner.py`, `report.py` -- a runner-state-reset bug and a non-atomic report
+       write.
+     New tests: `tests/test_regression_assigned_audit_round.py` (5), all passing. Full
+     pre-existing `tests/test_permission_gateway.py` suite (8 tests) re-verified with zero
+     regressions.
+     **Remaining scope:** ~50 of 56 files not yet individually confirmed -- partial pass.
+     **Commit status:** `572eaa70c`.
