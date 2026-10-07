@@ -68,17 +68,11 @@ class SharedFacts:
         districts/emergency/log.py:_open_conn() and
         districts/data_analytics/data_engineer.py:_open_db().
         """
-        conn = None
-        try:
-            from core.memory import episodic
-            if getattr(episodic, "_USE_SQLCIPHER", False):
-                conn = episodic._open_sqlcipher_connection(self._db)
-        except Exception as e:
-            logger.warning(
-                "[VECTOR][shared_facts] SQLCipher open failed, falling back to plain sqlite: {}", e
-            )
-            conn = None
-        if conn is None:
+        from core.memory import episodic
+
+        if getattr(episodic, "_USE_SQLCIPHER", False):
+            conn = episodic._open_sqlcipher_connection(self._db)
+        else:
             conn = sqlite3.connect(self._db, timeout=10, check_same_thread=False)
         apply_pragmas(conn)
         conn.row_factory = self._row_class(conn)

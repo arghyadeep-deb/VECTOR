@@ -7,6 +7,10 @@ __all__ = [
 
 import asyncio
 import json
+import os
+import subprocess
+import tempfile
+import time as _time
 from pathlib import Path
 
 from loguru import logger
@@ -203,9 +207,6 @@ class AmbientListener:
         pygetwindow was missing it launched a fresh window every single wake
         (2026-07-17: owner reported stacking HUD windows).
         """
-        import os
-        import subprocess
-        import time as _time
         _here = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         _focus = os.path.join(_here, "scripts", "vector_focus_hud.ps1")
         try:
@@ -232,21 +233,45 @@ class AmbientListener:
             logger.debug("[VECTOR][voice] HUD launch suppressed — one launched <45s ago")
             return
         self._last_hud_launch = _now
+        bootstrap_path: Path | None = None
         try:
             key = os.environ.get("VECTOR_API_KEY", "")
             # 127.0.0.1, not localhost: VECTOR binds 0.0.0.0 (IPv4) and localhost
             # resolves to ::1 first on Windows.
             url = f"http://127.0.0.1:8000/hud/?key={key}"
+            # Keep the durable key out of process argv. The local bootstrap is
+            # removed after Chrome/Edge has had time to read and navigate it.
+            redirect_target = json.dumps(url).replace("<", "\\u003c")
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                suffix=".html",
+                prefix="vector_hud_",
+                dir=tempfile.gettempdir(),
+                delete=False,
+            ) as bootstrap:
+                bootstrap.write(
+                    "<!doctype html><meta charset=\"utf-8\">"
+                    f"<script>location.replace({redirect_target})</script>"
+                )
+                bootstrap_path = Path(bootstrap.name)
             chrome = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
             edge = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
             exe = chrome if os.path.exists(chrome) else edge
             subprocess.Popen(
-                [exe, f"--app={url}", "--start-fullscreen"],
+                [exe, f"--app={bootstrap_path.as_uri()}", "--start-fullscreen"],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
+            _time.sleep(2.0)
             logger.info("[VECTOR][voice] HUD launched fullscreen")
         except Exception as e:
             logger.warning(f"[VECTOR][voice] HUD summon failed: {e}")
+        finally:
+            if bootstrap_path is not None:
+                try:
+                    bootstrap_path.unlink(missing_ok=True)
+                except OSError as e:
+                    logger.debug(f"[VECTOR][voice] HUD bootstrap cleanup failed: {e}")
 
     def _is_end_phrase(self, text: str) -> bool:
         return text.strip().lower() in _END_PHRASES

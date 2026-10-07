@@ -225,18 +225,11 @@ def get_district_db(key: str, check_same_thread: bool = False) -> sqlite3.Connec
         abs_path.parent.mkdir(parents=True, exist_ok=True)
         rel_path = _MAIN_DB_TEMPLATE
 
-        conn = None
-        try:
-            from core.memory import episodic
-            if getattr(episodic, "_USE_SQLCIPHER", False):
-                conn = episodic._open_sqlcipher_connection(str(abs_path))
-        except Exception as e:
-            logger.warning(
-                "[VECTOR][db_registry] SQLCipher open failed for '{}', falling back to plain sqlite: {}",
-                key, e,
-            )
-            conn = None
-        if conn is None:
+        from core.memory import episodic
+
+        if getattr(episodic, "_USE_SQLCIPHER", False):
+            conn = episodic._open_sqlcipher_connection(str(abs_path))
+        else:
             conn = sqlite3.connect(str(abs_path), check_same_thread=check_same_thread)
             apply_pragmas(conn, foreign_keys=True)
         conn.row_factory = _row_class(conn)
