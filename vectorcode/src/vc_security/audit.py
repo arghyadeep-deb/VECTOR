@@ -10,10 +10,15 @@ from __future__ import annotations
 from core.memory.db_utils import apply_pragmas
 import hashlib
 import json
+import os
+import shutil
 import sqlite3
 import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
+
+from loguru import logger
 
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 from vectorcode.src.vc_core.events import Event, EventBus, EventType
@@ -23,6 +28,110 @@ from vectorcode.src.vc_security.types import (
     SecurityEventType,
     ThreatLevel,
 )
+
+try:
+    import sqlcipher3 as sqlcipher
+    _USE_SQLCIPHER = True
+except ImportError:
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher
+        _USE_SQLCIPHER = True
+    except ImportError:
+        sqlcipher = None
+        _USE_SQLCIPHER = False
+        logger.warning(
+            "[VECTOR][security_audit] SQLCipher not available -- matched secrets, "
+            "PII, and content previews will be stored UNENCRYPTED. Install sqlcipher3."
+        )
+
+
+def _sql_literal(value: str) -> str:
+    """Return a safely quoted SQL literal for a SQLCipher PRAGMA."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _get_db_key() -> str:
+    """Use the owner-managed encryption key shared by VECTOR stores."""
+    from core.memory.episodic import _get_db_key as _episodic_get_db_key
+    return _episodic_get_db_key()
+
+
+def _looks_like_plaintext_sqlite(path: Path) -> bool:
+    try:
+        with path.open("rb") as database:
+            return database.read(16) == b"SQLite format 3\x00"
+    except OSError:
+        return False
+
+
+def _configure_sqlcipher_connection(conn) -> None:
+    conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+    # SQLCipher's default page-size setting is process-wide, so every
+    # connection must explicitly select the page size used by VECTOR stores.
+    conn.execute("PRAGMA cipher_page_size = 4096")
+    apply_pragmas(conn)
+
+
+def _open_sqlcipher_connection(path: Path):
+    conn = sqlcipher.connect(str(path), check_same_thread=False)
+    try:
+        _configure_sqlcipher_connection(conn)
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _migrate_plaintext_audit_db_to_sqlcipher(path: Path):
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    backup_path = Path(f"{path}.plaintext.bak.{stamp}")
+    shutil.copy2(path, backup_path)
+    os.remove(path)
+    logger.warning(
+        "[VECTOR][security_audit] Migrating plaintext audit DB to SQLCipher; "
+        "plaintext backup kept at {}",
+        backup_path,
+    )
+    conn = sqlcipher.connect(str(path), check_same_thread=False)
+    try:
+        _configure_sqlcipher_connection(conn)
+        AuditLogger._create_table_on(conn)
+        plain_conn = sqlite3.connect(str(backup_path), check_same_thread=False)
+        try:
+            columns = [
+                row[1]
+                for row in plain_conn.execute(
+                    'PRAGMA table_info("security_events")'
+                ).fetchall()
+            ]
+            if columns:
+                quoted_columns = ", ".join(f'"{column}"' for column in columns)
+                placeholders = ", ".join("?" for _ in columns)
+                rows = plain_conn.execute(
+                    f'SELECT {quoted_columns} FROM "security_events"'
+                ).fetchall()
+                if rows:
+                    conn.executemany(
+                        f'INSERT INTO "security_events" ({quoted_columns}) '
+                        f'VALUES ({placeholders})',
+                        rows,
+                    )
+            conn.commit()
+        finally:
+            plain_conn.close()
+        logger.info(
+            "[VECTOR][security_audit] SQLCipher migration completed, backup={}",
+            backup_path,
+        )
+        return conn
+    except Exception:
+        conn.close()
+        if path.exists():
+            os.remove(path)
+        shutil.copy2(backup_path, path)
+        raise
+
 
 class AuditLogger:
     """Append-only SQLite audit log for security events.
@@ -46,30 +155,42 @@ class AuditLogger:
         from vectorcode.src.vc_security.file_utils import secure_create
 
         secure_create(self._db_path)
-        self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-        apply_pragmas(self._conn)
+        if _USE_SQLCIPHER:
+            if _looks_like_plaintext_sqlite(self._db_path):
+                self._conn = _migrate_plaintext_audit_db_to_sqlcipher(self._db_path)
+            else:
+                self._conn = _open_sqlcipher_connection(self._db_path)
+            self._conn.row_factory = sqlcipher.Row
+        else:
+            self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+            apply_pragmas(self._conn)
+            self._conn.row_factory = sqlite3.Row
         with self._lock:
-            self._conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS security_events (
-                    id          INTEGER PRIMARY KEY,
-                    timestamp   REAL,
-                    event_type  TEXT,
-                    findings_json TEXT,
-                    content_preview TEXT,
-                    action_taken TEXT,
-                    row_hash    TEXT DEFAULT '',
-                    prev_hash   TEXT DEFAULT ''
-                )
-                """
-            )
-            self._conn.commit()
+            self._create_table_on(self._conn)
             self._migrate_schema()
 
         if bus is not None:
             bus.subscribe(EventType.SECURITY_SCAN, self._on_event)
             bus.subscribe(EventType.SECURITY_ALERT, self._on_event)
             bus.subscribe(EventType.SECURITY_BLOCK, self._on_event)
+
+    @staticmethod
+    def _create_table_on(conn) -> None:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS security_events (
+                id          INTEGER PRIMARY KEY,
+                timestamp   REAL,
+                event_type  TEXT,
+                findings_json TEXT,
+                content_preview TEXT,
+                action_taken TEXT,
+                row_hash    TEXT DEFAULT '',
+                prev_hash   TEXT DEFAULT ''
+            )
+            """
+        )
+        conn.commit()
 
     def _migrate_schema(self) -> None:
         """Add row_hash/prev_hash columns if missing (schema migration)."""

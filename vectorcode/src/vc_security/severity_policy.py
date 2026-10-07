@@ -23,4 +23,4 @@ class SeverityPolicy:
             self._actions.update(overrides)
 
     def action_for(self, level: ThreatLevel) -> str:
-        return self._actions.get(level, "log")
+        return self._actions.get(level, "block")
