@@ -11,8 +11,9 @@ RULE 11: no external cloud API used for generation.
 
 import sys
 import asyncio
-import json
 import mimetypes
+import os
+import tempfile
 import time
 import uuid
 from pathlib import Path
@@ -26,6 +27,37 @@ ensure_paths()
 from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
+
+
+def _is_path_within(candidate: Path, root: Path) -> bool:
+    """Case-insensitive confinement check suitable for Windows paths."""
+    candidate_norm = os.path.normcase(str(candidate.resolve()))
+    root_norm = os.path.normcase(str(root.resolve()))
+    try:
+        return os.path.commonpath((candidate_norm, root_norm)) == root_norm
+    except ValueError:
+        return False
+
+
+def _atomic_write_bytes(path: Path, content: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", dir=path.parent, prefix=f".{path.name}.", suffix=".tmp", delete=False
+        ) as handle:
+            temp_path = handle.name
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+        temp_path = None
+    finally:
+        if temp_path is not None:
+            try:
+                os.unlink(temp_path)
+            except FileNotFoundError:
+                pass
 
 # ── Default simple txt2img workflow ──────────────────────────────────────────
 # Minimal ComfyUI API workflow — works with any checkpoint model loaded in ComfyUI.
@@ -416,14 +448,13 @@ class ComfyUIAdapter(AgentBase):
         filename, subfolder = item["filename"], item.get("subfolder", "")
         output_root = self._output_dir.resolve()
         dest = (output_root / subfolder / filename).resolve()
-        if not dest.is_relative_to(output_root):
+        if not _is_path_within(dest, output_root):
             raise ValueError("ComfyUI output path escapes the configured output directory")
         r = await client.get(f"{self._base_url}/view", params={
             "filename": filename, "subfolder": subfolder, "type": item.get("type", "output"),
         })
         r.raise_for_status()
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(r.content)
+        _atomic_write_bytes(dest, r.content)
         return str(dest)
 
     async def _wait_for_images(self, prompt_id: str) -> list[str]:

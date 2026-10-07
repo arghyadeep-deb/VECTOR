@@ -43,6 +43,8 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
+from core.security.secrets_manager import get_secret
+
 # Aspect ratio shorthand → (width, height)
 ASPECT_RATIOS = {
     "1:1":   (1080, 1080),
@@ -122,7 +124,7 @@ def _actual_dimensions(image_bytes: bytes) -> tuple[int, int] | None:
 
 
 def _get_api_key(provider: str) -> str:
-    """Retrieve API key for the given provider from environment."""
+    """Retrieve an API key through VECTOR's centralized secret manager."""
     key_map = {
         "gemini":    ("GOOGLE_API_KEY",      "console.cloud.google.com/apis/credentials"),
         "openai":    ("OPENAI_API_KEY",       "platform.openai.com/api-keys"),
@@ -138,7 +140,7 @@ def _get_api_key(provider: str) -> str:
         sys.exit(1)
 
     env_var, url = key_map[provider]
-    key = os.environ.get(env_var)
+    key = get_secret(env_var)
 
     if not key:
         print(
@@ -281,11 +283,7 @@ def generate_openai(prompt: str, width: int, height: int, api_key: str, model: s
 
 def generate_stability(prompt: str, width: int, height: int, api_key: str, model: str) -> bytes:
     """Generate image using Stability AI API."""
-    try:
-        import requests
-    except ImportError:
-        print("Error: requests package required. pip install requests", file=sys.stderr)
-        sys.exit(1)
+    import httpx
 
     url = "https://api.stability.ai/v2beta/stable-image/generate/sd3"
     headers = {
@@ -298,7 +296,7 @@ def generate_stability(prompt: str, width: int, height: int, api_key: str, model
         "aspect_ratio": _nearest_stability_ratio(width, height),
         "output_format": "png",
     }
-    resp = requests.post(url, headers=headers, files={"none": ""}, data=data, timeout=120)
+    resp = httpx.post(url, headers=headers, files={"none": (None, "")}, data=data, timeout=120)
     if resp.status_code == 200:
         return resp.content
     raise RuntimeError(f"Stability API error {resp.status_code}: {resp.text[:200]}")
@@ -323,7 +321,7 @@ def generate_replicate(prompt: str, width: int, height: int, api_key: str, model
     """Generate image using Replicate API."""
     try:
         import replicate
-        import requests
+        import httpx
     except ImportError:
         print(
             "Error: replicate package required.\n"
@@ -346,7 +344,7 @@ def generate_replicate(prompt: str, width: int, height: int, api_key: str, model
     url = output[0] if isinstance(output, list) else str(output)
     if urlparse(url).scheme != "https":
         raise RuntimeError(f"Replicate returned non-HTTPS URL: {url[:100]}")
-    resp = requests.get(url, timeout=120)
+    resp = httpx.get(url, timeout=120)
     resp.raise_for_status()
     return resp.content
 
@@ -419,7 +417,7 @@ def run_batch(batch_file: str, output_dir: str, provider: str, model: str | None
         {"prompt": "...", "ratio": "1:1",  "output": "meta-square.png"}
     ]
     """
-    with open(batch_file) as f:
+    with open(batch_file, encoding="utf-8") as f:
         jobs = json.load(f)
 
     if len(jobs) > MAX_BATCH_SIZE:

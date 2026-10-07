@@ -98,7 +98,7 @@ class TrendAnalyzer:
         }
 
     def detect_anomalies(self, metric_name: str, values: list[float], threshold: float | None = None) -> list[dict[str, Any]]:
-        threshold = threshold or self._anomaly_threshold
+        threshold = self._anomaly_threshold if threshold is None else threshold
         if not values:
             return []
         mean = sum(values) / len(values)

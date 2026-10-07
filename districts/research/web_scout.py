@@ -12,6 +12,7 @@ from core.memory.obsidian_sync import ObsidianSync
 from core.loop.context_engine import ContextEngine
 from core.security.ssrf_guard import is_safe_url
 from loguru import logger
+from core.security.secrets_manager import get_secret
 
 
 class WebScout(AgentBase):
@@ -48,8 +49,7 @@ class WebScout(AgentBase):
     async def _search_firecrawl(self, query: str, max_results: int = 5) -> list[dict]:
         """Use Firecrawl for structured web search when API key available."""
         try:
-            import os
-            api_key = os.getenv("FIRECRAWL_API_KEY")
+            api_key = get_secret("FIRECRAWL_API_KEY")
             if not api_key:
                 return []
             from firecrawl import FirecrawlApp

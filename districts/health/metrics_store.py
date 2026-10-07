@@ -340,7 +340,7 @@ class MetricsStore:
         return cursor.rowcount > 0
 
     def prune_old_data(self, retention_days: int | None = None) -> dict[str, int]:
-        days = retention_days or self._retention_days
+        days = self._retention_days if retention_days is None else retention_days
         cutoff = (datetime.datetime.now() - datetime.timedelta(days=days)).isoformat()
         conn = self._ensure_conn()
         counts: dict[str, int] = {}
@@ -361,5 +361,4 @@ class MetricsStore:
     def close(self) -> None:
         if self._conn is not None:
             self._conn.close()
-            import threading
         self._conn = None

@@ -17,6 +17,7 @@ from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
 from core.memory.obsidian_sync import ObsidianSync
+from core.security.secrets_manager import get_secret
 
 class APITester(AgentBase):
     """Tests VECTOR's FastAPI endpoints for correctness and performance."""
@@ -33,9 +34,9 @@ class APITester(AgentBase):
         # the auth middleware returned 401 and the QA agent permanently
         # self-reported "grade=F, 2/8 endpoints OK" for a perfectly healthy API
         # (2026-07-17 browser dogfood spotted the false alarm in VECTOR's own
-        # memory feed). The middleware validates os.environ["VECTOR_API_KEY"].
-        import os as _os
-        self._api_key = _os.environ.get("VECTOR_API_KEY", "")
+        # memory feed). Read through the centralized manager so OS-keyring
+        # deployments authenticate too, not only process-environment setups.
+        self._api_key = get_secret("VECTOR_API_KEY")
         logger.info("[VECTOR][api_tester] initialized — base={} auth={}",
                     self._base_url, "on" if self._api_key else "off")
 
