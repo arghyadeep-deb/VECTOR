@@ -2,17 +2,149 @@
 V.E.C.T.O.R. PersonModel.
 Gap 7: Theory of mind per person — tracks beliefs, preferences, and communication style
 for every person VECTOR interacts with, enabling personalised responses.
+
+Encryption (owner-decision backlog OD-19, 2026-10-07): this file stores real
+third-party PII (name, email, relationship_type, trust_score, free-text
+beliefs/preferences/interaction summaries) for every real person VECTOR
+interacts with -- it was previously a plain, unencrypted sqlite3 database,
+the only one of VECTOR's person-adjacent stores not protected the way the
+main episodic/policy DB is. Now opens via SQLCipher (same AES-256 scheme,
+same encryption key as core.memory.episodic, resolved through
+core.security.secrets_manager's keyring-first lookup) when available, with
+an automatic one-time migration of any pre-existing plaintext database.
+The original plaintext file is NEVER deleted by the migration -- it is
+renamed to a timestamped `.plaintext.bak.<timestamp>` sibling so the owner
+can verify the migration and delete it manually once satisfied.
 """
 from pathlib import Path
 
 import json
-import sqlite3
+import os
+import shutil
 import threading
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
 from loguru import logger
+
+import sqlite3
+# SQLCipher: same AES-256 scheme and key as core.memory.episodic. Prefer
+# sqlcipher3 (Python 3.13+); fall back to the legacy pysqlcipher3 package;
+# fall back further to plain sqlite3 with a loud warning if neither is
+# installed, matching core.memory.episodic's own graceful-degradation
+# policy rather than hard-failing VECTOR's startup over a missing package.
+try:
+    import sqlcipher3 as sqlcipher
+    _USE_SQLCIPHER = True
+except ImportError:
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher  # legacy package
+        _USE_SQLCIPHER = True
+    except ImportError:
+        sqlcipher = None
+        _USE_SQLCIPHER = False
+        logger.warning(
+            "[VECTOR][person_model] SQLCipher not available -- real third-party "
+            "PII (names, emails, relationship data) will be stored UNENCRYPTED. "
+            "Install sqlcipher3 to encrypt."
+        )
+
+_PERSON_MODEL_TABLES = (
+    "persons", "person_beliefs", "person_preferences", "person_interactions",
+)
+
+
+def _sql_literal(value: str) -> str:
+    """Single-quoted SQL literal for a SQLCipher PRAGMA statement."""
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _get_db_key() -> str:
+    """Resolve the same encryption key core.memory.episodic uses, so both
+    stores are protected by one key the owner manages in one place."""
+    from core.memory.episodic import _get_db_key as _episodic_get_db_key
+    return _episodic_get_db_key()
+
+
+def _looks_like_plaintext_sqlite(path: str) -> bool:
+    """A plain SQLite file starts with the literal header "SQLite format 3".
+    A SQLCipher-encrypted file does not (its header is ciphertext)."""
+    try:
+        with open(path, "rb") as f:
+            return f.read(16) == b"SQLite format 3\x00"
+    except OSError:
+        return False
+
+
+def _open_sqlcipher_connection(path: str):
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        db_key = _get_db_key()
+        conn.execute("PRAGMA key = " + _sql_literal(db_key))
+        conn.execute("PRAGMA cipher_page_size = 4096")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _migrate_plaintext_person_db_to_sqlcipher(path: str):
+    """One-time migration: rename the existing plaintext DB to a timestamped
+    backup (never deleted), copy every row from its 4 tables into a fresh
+    SQLCipher-encrypted file at the original path, and return the open
+    encrypted connection. The backup is left in place for the owner to
+    verify and delete manually -- this function never deletes real data."""
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S")
+    backup_path = f"{path}.plaintext.bak.{stamp}"
+    shutil.copy2(path, backup_path)
+    os.remove(path)
+    logger.warning(
+        "[VECTOR][person_model] Migrating plaintext person-model DB to SQLCipher; "
+        "plaintext backup kept at {}", backup_path,
+    )
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        db_key = _get_db_key()
+        conn.execute("PRAGMA key = " + _sql_literal(db_key))
+        conn.execute("PRAGMA cipher_page_size = 4096")
+        PersonModel._create_tables_on(conn)
+        plain_conn = sqlite3.connect(backup_path, check_same_thread=False)
+        try:
+            existing = {
+                row[0] for row in plain_conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            for table in _PERSON_MODEL_TABLES:
+                if table not in existing:
+                    continue
+                columns = [
+                    row[1] for row in plain_conn.execute(f'PRAGMA table_info("{table}")').fetchall()
+                ]
+                if not columns:
+                    continue
+                quoted_cols = ", ".join(f'"{c}"' for c in columns)
+                placeholders = ", ".join("?" for _ in columns)
+                rows = plain_conn.execute(f'SELECT {quoted_cols} FROM "{table}"').fetchall()
+                if rows:
+                    conn.executemany(
+                        f'INSERT OR REPLACE INTO "{table}" ({quoted_cols}) VALUES ({placeholders})',
+                        rows,
+                    )
+            conn.commit()
+        finally:
+            plain_conn.close()
+        logger.info("[VECTOR][person_model] SQLCipher migration completed, backup={}", backup_path)
+        return conn
+    except Exception:
+        conn.close()
+        if os.path.exists(path):
+            os.remove(path)
+        shutil.copy2(backup_path, path)
+        raise
 
 
 class PersonModel:
@@ -34,14 +166,30 @@ class PersonModel:
             base.mkdir(parents=True, exist_ok=True)
             db_path = str(base / "person_models.db")
         self._db_path = db_path
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
-        self._conn.row_factory = sqlite3.Row
-        self._create_tables()
-        logger.info("[VECTOR][person_model] PersonModel initialized")
+
+        if _USE_SQLCIPHER:
+            if os.path.exists(db_path) and _looks_like_plaintext_sqlite(db_path):
+                self._conn = _migrate_plaintext_person_db_to_sqlcipher(db_path)
+            else:
+                self._conn = _open_sqlcipher_connection(db_path)
+            # sqlcipher3 is a separate module from stdlib sqlite3 -- its
+            # Cursor type is NOT compatible with sqlite3.Row, so the row
+            # factory must come from the same module as the connection.
+            self._conn.row_factory = sqlcipher.Row
+            self._create_tables()
+        else:
+            self._conn = sqlite3.connect(db_path, check_same_thread=False)
+            self._conn.row_factory = sqlite3.Row
+            self._create_tables()
+        logger.info("[VECTOR][person_model] PersonModel initialized (sqlcipher={})", _USE_SQLCIPHER)
 
     def _create_tables(self):
         with self.__class__._db_lock:
-            self._conn.executescript("""
+            self.__class__._create_tables_on(self._conn)
+
+    @staticmethod
+    def _create_tables_on(conn) -> None:
+        conn.executescript("""
             CREATE TABLE IF NOT EXISTS persons (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -86,7 +234,7 @@ class PersonModel:
             CREATE INDEX IF NOT EXISTS idx_interactions_person ON person_interactions(person_id);
             CREATE INDEX IF NOT EXISTS idx_interactions_created ON person_interactions(created_at);
         """)
-            self._conn.commit()
+        conn.commit()
 
     # ── Person CRUD ──────────────────────────────────────────────────────────
 
