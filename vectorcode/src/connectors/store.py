@@ -13,21 +13,45 @@ Pure Python ``sqlite3`` (no Rust extension required).
 """
 
 from __future__ import annotations
-from core.memory.db_utils import apply_pragmas
-from loguru import logger
 
 import json
+import os
+import shutil
 import sqlite3
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from loguru import logger
+
+from core.memory.db_utils import apply_pragmas
 from vectorcode.src.vc_core.events import EventType, get_event_bus
 from vectorcode.src.vc_core.registry import MemoryRegistry
 from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
+
+try:
+    import sqlcipher3 as sqlcipher
+    _USE_SQLCIPHER = True
+except ImportError:
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher
+        _USE_SQLCIPHER = True
+    except ImportError:
+        sqlcipher = None
+        _USE_SQLCIPHER = False
+        logger.warning(
+            "[VECTOR][connectors.store] SQLCipher not available -- connector "
+            "knowledge will be stored UNENCRYPTED. Install sqlcipher3 to encrypt."
+        )
+
+_OPERATIONAL_ERRORS = (
+    (sqlite3.OperationalError, sqlcipher.OperationalError)
+    if _USE_SQLCIPHER
+    else (sqlite3.OperationalError,)
+)
 
 # ---------------------------------------------------------------------------
 # DDL
@@ -92,6 +116,93 @@ CREATE INDEX IF NOT EXISTS idx_kc_thread_id  ON knowledge_chunks(thread_id);
 CREATE INDEX IF NOT EXISTS idx_kc_doc_id     ON knowledge_chunks(doc_id);
 """
 
+
+def _sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _get_db_key() -> str:
+    from core.memory.episodic import _get_db_key as _episodic_get_db_key
+    return _episodic_get_db_key()
+
+
+def _looks_like_plaintext_sqlite(path: str) -> bool:
+    try:
+        with open(path, "rb") as file:
+            return file.read(16) == b"SQLite format 3\x00"
+    except OSError:
+        return False
+
+
+def _create_knowledge_schema_on(conn) -> None:
+    conn.executescript(
+        _CREATE_MAIN_TABLE + _CREATE_FTS_TABLE + _CREATE_TRIGGERS + _CREATE_INDEXES
+    )
+    conn.commit()
+
+
+def _open_sqlcipher_connection(path: str):
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+        conn.execute("PRAGMA cipher_page_size = 4096")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _migrate_plaintext_knowledge_db_to_sqlcipher(path: str):
+    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+    backup_path = f"{path}.plaintext.bak.{stamp}"
+    shutil.copy2(path, backup_path)
+    os.remove(path)
+    logger.warning(
+        "[VECTOR][connectors.store] Migrating plaintext knowledge DB to SQLCipher; "
+        "plaintext backup kept at {}",
+        backup_path,
+    )
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+        conn.execute("PRAGMA cipher_page_size = 4096")
+        _create_knowledge_schema_on(conn)
+        plain_conn = sqlite3.connect(backup_path, check_same_thread=False)
+        try:
+            columns = [
+                row[1] for row in plain_conn.execute(
+                    'PRAGMA table_info("knowledge_chunks")'
+                ).fetchall()
+            ]
+            if columns:
+                quoted_cols = ", ".join(f'"{column}"' for column in columns)
+                placeholders = ", ".join("?" for _ in columns)
+                rows = plain_conn.execute(
+                    f'SELECT {quoted_cols} FROM "knowledge_chunks"'
+                ).fetchall()
+                if rows:
+                    conn.executemany(
+                        f'INSERT OR REPLACE INTO "knowledge_chunks" ({quoted_cols}) '
+                        f'VALUES ({placeholders})',
+                        rows,
+                    )
+            conn.commit()
+        finally:
+            plain_conn.close()
+        logger.info(
+            "[VECTOR][connectors.store] SQLCipher migration completed, backup={}",
+            backup_path,
+        )
+        return conn
+    except Exception:
+        conn.close()
+        if os.path.exists(path):
+            os.remove(path)
+        shutil.copy2(backup_path, path)
+        raise
+
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
@@ -134,9 +245,16 @@ class KnowledgeStore(MemoryBackend):
             secure_create(Path(self._db_path))
 
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        if _USE_SQLCIPHER:
+            if os.path.exists(self._db_path) and _looks_like_plaintext_sqlite(self._db_path):
+                self._conn = _migrate_plaintext_knowledge_db_to_sqlcipher(self._db_path)
+            else:
+                self._conn = _open_sqlcipher_connection(self._db_path)
+            self._conn.row_factory = sqlcipher.Row
+        else:
+            self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+            self._conn.row_factory = sqlite3.Row
         apply_pragmas(self._conn, foreign_keys=True)
-        self._conn.row_factory = sqlite3.Row
         self._setup()
 
     def __enter__(self) -> "KnowledgeStore":
@@ -152,10 +270,7 @@ class KnowledgeStore(MemoryBackend):
     def _setup(self) -> None:
         """Create tables, FTS virtual table, triggers and indexes."""
         with self._lock:
-            self._conn.executescript(
-                _CREATE_MAIN_TABLE + _CREATE_FTS_TABLE + _CREATE_TRIGGERS + _CREATE_INDEXES
-            )
-            self._conn.commit()
+            _create_knowledge_schema_on(self._conn)
 
     # ------------------------------------------------------------------
     # MemoryBackend interface
@@ -318,7 +433,7 @@ class KnowledgeStore(MemoryBackend):
         try:
             with self._lock:
                 rows = self._conn.execute(sql, [query] + params + [top_k]).fetchall()
-        except sqlite3.OperationalError:
+        except _OPERATIONAL_ERRORS:
             # Malformed FTS query — return empty rather than crash
             return []
 

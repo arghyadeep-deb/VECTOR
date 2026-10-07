@@ -2,14 +2,133 @@
 
 from __future__ import annotations
 
-from core.memory.db_utils import apply_pragmas
 import json
+import os
+import shutil
 import sqlite3
 import threading
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Dict, List, Optional
+
+from loguru import logger
+
+from core.memory.db_utils import apply_pragmas
+
+try:
+    import sqlcipher3 as sqlcipher
+    _USE_SQLCIPHER = True
+except ImportError:
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher
+        _USE_SQLCIPHER = True
+    except ImportError:
+        sqlcipher = None
+        _USE_SQLCIPHER = False
+        logger.warning(
+            "[VECTOR][digest_store] SQLCipher not available -- digest content "
+            "will be stored UNENCRYPTED. Install sqlcipher3 to encrypt."
+        )
+
+
+def _sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _get_db_key() -> str:
+    from core.memory.episodic import _get_db_key as _episodic_get_db_key
+    return _episodic_get_db_key()
+
+
+def _looks_like_plaintext_sqlite(path: str) -> bool:
+    try:
+        with open(path, "rb") as file:
+            return file.read(16) == b"SQLite format 3\x00"
+    except OSError:
+        return False
+
+
+def _open_sqlcipher_connection(path: str):
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+        conn.execute("PRAGMA cipher_page_size = 4096")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _create_digest_table_on(conn) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS digests (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            text TEXT NOT NULL,
+            audio_path TEXT NOT NULL,
+            sections TEXT NOT NULL,
+            sources_used TEXT NOT NULL,
+            generated_at TEXT NOT NULL,
+            model_used TEXT NOT NULL,
+            voice_used TEXT NOT NULL,
+            quality_score REAL NOT NULL DEFAULT 0.0,
+            evaluator_feedback TEXT NOT NULL DEFAULT ''
+        )
+        """
+    )
+
+
+def _migrate_plaintext_digest_db_to_sqlcipher(path: str):
+    stamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
+    backup_path = f"{path}.plaintext.bak.{stamp}"
+    shutil.copy2(path, backup_path)
+    os.remove(path)
+    logger.warning(
+        "[VECTOR][digest_store] Migrating plaintext digest DB to SQLCipher; "
+        "plaintext backup kept at {}",
+        backup_path,
+    )
+    conn = sqlcipher.connect(path, check_same_thread=False)
+    try:
+        conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+        conn.execute("PRAGMA cipher_page_size = 4096")
+        _create_digest_table_on(conn)
+        plain_conn = sqlite3.connect(backup_path, check_same_thread=False)
+        try:
+            columns = [
+                row[1] for row in plain_conn.execute(
+                    'PRAGMA table_info("digests")'
+                ).fetchall()
+            ]
+            if columns:
+                quoted_cols = ", ".join(f'"{column}"' for column in columns)
+                placeholders = ", ".join("?" for _ in columns)
+                rows = plain_conn.execute(
+                    f'SELECT {quoted_cols} FROM "digests"'
+                ).fetchall()
+                if rows:
+                    conn.executemany(
+                        f'INSERT OR REPLACE INTO "digests" ({quoted_cols}) '
+                        f'VALUES ({placeholders})',
+                        rows,
+                    )
+            conn.commit()
+        finally:
+            plain_conn.close()
+        logger.info(
+            "[VECTOR][digest_store] SQLCipher migration completed, backup={}",
+            backup_path,
+        )
+        return conn
+    except Exception:
+        conn.close()
+        if os.path.exists(path):
+            os.remove(path)
+        shutil.copy2(backup_path, path)
+        raise
 
 @dataclass
 class DigestArtifact:
@@ -33,25 +152,16 @@ class DigestStore:
             db_path = str(Path.home() / ".vector" / "digest.db")
         self._db_path = db_path
         self._lock = threading.RLock()
-        self._conn = sqlite3.connect(db_path, check_same_thread=False)
+        if _USE_SQLCIPHER:
+            if os.path.exists(db_path) and _looks_like_plaintext_sqlite(db_path):
+                self._conn = _migrate_plaintext_digest_db_to_sqlcipher(db_path)
+            else:
+                self._conn = _open_sqlcipher_connection(db_path)
+        else:
+            self._conn = sqlite3.connect(db_path, check_same_thread=False)
         apply_pragmas(self._conn)
         with self._lock:
-            self._conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS digests (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    text TEXT NOT NULL,
-                    audio_path TEXT NOT NULL,
-                    sections TEXT NOT NULL,
-                    sources_used TEXT NOT NULL,
-                    generated_at TEXT NOT NULL,
-                    model_used TEXT NOT NULL,
-                    voice_used TEXT NOT NULL,
-                    quality_score REAL NOT NULL DEFAULT 0.0,
-                    evaluator_feedback TEXT NOT NULL DEFAULT ''
-                )
-                """
-            )
+            _create_digest_table_on(self._conn)
             self._migrate()
             self._conn.commit()
 
