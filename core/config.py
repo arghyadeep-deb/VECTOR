@@ -18,6 +18,12 @@ from typing import Optional
 from pydantic import BaseModel, SecretStr, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Keyring-first secret lookup (env checked first, then OS keyring) for the
+# handful of top-level CONFIG password entries below that aren't modeled as
+# pydantic SecretStr fields. core.security.secrets_manager only depends on
+# core.runtime_paths, so this does not create a circular import with core.config.
+from core.security.secrets_manager import get_secret as _get_secret
+
 _BASE_DIR = Path(__file__).parent.parent
 
 
@@ -1536,6 +1542,22 @@ CONFIG: dict = {
         "legion_wake_broadcast": os.environ.get("LEGION_WAKE_BROADCAST", "255.255.255.255"),
         "legion_wake_port": int(os.environ.get("LEGION_WAKE_PORT", "9")),
     },
+    # core/email/sender.py (SMTP) + core/email/receiver.py (IMAP) read these exact
+    # top-level keys. The primary, owner-connected path is Gmail OAuth (see
+    # docs/EMAIL_SETUP.md) via districts/communications/email_intelligence.py --
+    # these cover the separate raw SMTP/IMAP transport that districts/communications/
+    # email_agent.py's poll_inbox()/send_reply() already call unconditionally.
+    # Before this entry existed, CONFIG never defined these keys at all, so both
+    # files' CONFIG.get(...) always fell through to "" regardless of .env --
+    # IMAP polling and SMTP sending silently no-op'd no matter how .env was set.
+    "SMTP_HOST": os.environ.get("SMTP_HOST", ""),
+    "SMTP_PORT": int(os.environ.get("SMTP_PORT", "587")),
+    "SMTP_USER": os.environ.get("SMTP_USER", ""),
+    "SMTP_PASS": _get_secret("SMTP_PASS"),
+    "IMAP_HOST": os.environ.get("IMAP_HOST", ""),
+    "IMAP_USER": os.environ.get("IMAP_USER", ""),
+    "IMAP_PASS": _get_secret("IMAP_PASS"),
+    "EMAIL_ADDRESS": os.environ.get("EMAIL_ADDRESS", ""),
     "oauth_redirect_base": _s.VECTOR_OAUTH_REDIRECT_BASE,
     "sentry_dsn": _s.SENTRY_DSN,
     "sentry_env": _s.VECTOR_ENV,
