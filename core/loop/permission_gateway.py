@@ -530,7 +530,7 @@ class PermissionGateway:
         except Exception as e:
             logger.debug(f"[VECTOR][gateway] gateway_audit table init skipped: {e}")
 
-    def _persist_audit(self, entry: dict) -> None:
+    def _persist_audit(self, entry: dict) -> bool:
         try:
             from core.memory.episodic import get_temp_cursor
             with get_temp_cursor() as cur:
@@ -542,8 +542,22 @@ class PermissionGateway:
                      int(bool(entry.get("executed"))), entry.get("proposed_by", ""),
                      entry.get("reason", "")),
                 )
+            return True
         except Exception as e:
-            logger.debug(f"[VECTOR][gateway] audit persist skipped: {e}")
+            logger.error(f"[VECTOR][gateway] durable audit write failed: {e}")
+            return False
+
+    def _audit_execution_intent(self, action: Action, level: str) -> bool:
+        """Durably record an action before any handler can perform it."""
+        return self._persist_audit({
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "action_type": action.action_type,
+            "level": level,
+            "approved": False,
+            "executed": False,
+            "proposed_by": action.proposed_by,
+            "reason": "Execution requested; awaiting gate decision",
+        })
 
     def _get_trust(self):
         """Trust ladder (earned autonomy for YELLOW). None if disabled/unavailable —
@@ -585,6 +599,25 @@ class PermissionGateway:
     async def execute(self, action: Action) -> GatewayResult:
         level = self._classify(action.action_type)
         logger.info(f'[VECTOR][gateway] {action.action_type} classified as {level} (proposed by {action.proposed_by})')
+
+        if not self._audit_execution_intent(action, level):
+            logger.critical(
+                f"[VECTOR][gateway] BLOCKED {action.action_type}: durable audit trail unavailable"
+            )
+            result = GatewayResult(
+                False, level, False, {}, "Blocked: durable audit trail unavailable"
+            )
+            self.audit_log.append({
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "action_type": action.action_type,
+                "level": level,
+                "approved": False,
+                "executed": False,
+                "proposed_by": action.proposed_by,
+                "reason": result.reason,
+            })
+            self.audit_log = self.audit_log[-500:]
+            return result
 
         if level == 'FORBIDDEN':
             logger.critical(f'[VECTOR][gateway] BLOCKED FORBIDDEN action: {action.action_type}')
@@ -1127,6 +1160,8 @@ class PermissionGateway:
 
 
     def _classify(self, action_type) -> str:
+        if not isinstance(action_type, str) or not action_type:
+            return 'UNKNOWN'
         if action_type in FORBIDDEN: return 'FORBIDDEN'
         if action_type in GREEN: return 'GREEN'
         if action_type in YELLOW: return 'YELLOW'

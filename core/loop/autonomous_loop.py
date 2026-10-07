@@ -1130,7 +1130,7 @@ class AutonomousLoop:
                         "goal_ids": winner.goal_ids,
                         "score": winner.total_score,
                     })
-                    verdict = str(review.get("verdict", "APPROVED")).upper()
+                    verdict = str(review.get("verdict", "BLOCKED")).upper()
                     if verdict.startswith("BLOCKED"):
                         _rt_reason = review.get('reason', 'adversarial review failed')
                         logger.warning(
@@ -1150,10 +1150,26 @@ class AutonomousLoop:
                         # Apply suggested modification to params if provided
                         if "modified_params" in review:
                             winner.params = {**winner.params, **review["modified_params"]}
-                    else:
+                    elif verdict.startswith("APPROVED"):
                         logger.debug(f"[VECTOR][red_team] RED action '{winner.action_type}' APPROVED")
+                    else:
+                        _rt_reason = f"unparseable adversarial verdict: {verdict!r}"
+                        logger.warning(
+                            f"[VECTOR][red_team] RED action '{winner.action_type}' BLOCKED: "
+                            f"{_rt_reason}"
+                        )
+                        self._record_external_rejection(
+                            winner.action_type, winner.params, f"red_team: {_rt_reason}",
+                            decision_id=winner.decision_id, candidate_id=winner.candidate_id,
+                        )
+                        return False
                 except Exception as rte:
-                    logger.warning(f"[VECTOR][red_team] review failed (proceeding): {rte}")
+                    logger.warning(f"[VECTOR][red_team] review failed (blocked): {rte}")
+                    self._record_external_rejection(
+                        winner.action_type, winner.params, f"red_team unavailable: {rte}",
+                        decision_id=winner.decision_id, candidate_id=winner.candidate_id,
+                    )
+                    return False
 
         return True
 
@@ -1291,6 +1307,12 @@ class AutonomousLoop:
                         # GREEN / UNKNOWN → proceed to bridge (never went
                         # through gw.execute()/_execute_action() above, so
                         # this is still the only real execution).
+                    else:
+                        logger.error(
+                            f"[VECTOR][act] PermissionGateway unavailable; blocking VectorCode action "
+                            f"'{winner.action_type}'"
+                        )
+                        return
                     from districts.coding.vectorcode_bridge import get_bridge
                     bridge = get_bridge()
                     if bridge.is_available():
@@ -1422,6 +1444,12 @@ class AutonomousLoop:
                                     # `return`s). A gateway denial must actually stop
                                     # execution, not just skip one execution route.
                                     return
+                        else:
+                            logger.error(
+                                f"[VECTOR][skills] PermissionGateway unavailable; blocking skill action "
+                                f"'{winner.action_type}'"
+                            )
+                            return
                         if _skill_allowed:
                             # F-5: a matched skill that writes code runs within
                             # the gateway-approved code context.
@@ -1516,6 +1544,12 @@ class AutonomousLoop:
                                 self._get_gateway()._issue_approval_receipt(
                                     winner.action_type, purpose="governor_dispatch"
                                 )
+                    else:
+                        logger.error(
+                            f"[VECTOR][act] PermissionGateway unavailable; blocking action "
+                            f"'{winner.action_type}'"
+                        )
+                        return
                     if not _already_dispatched:
                         result = await self._get_governor().dispatch({
                             "type": winner.action_type,
