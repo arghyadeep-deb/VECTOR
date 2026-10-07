@@ -5821,3 +5821,74 @@ isn't "proven in production" until you supply the service/device and run it live
      `multiedit.py`, and `collections/` outside `auth.py` not yet individually audited --
      partial pass.
      **Commit status:** `5eea316cc`, `781577f8b`, `3b84c355f`, `10bd46c4d`, `094603bd9`.
+
+119. **Follow-up pass on item 118's remaining scope (2026-10-07) —** Claude worker-fork
+     covering `browser/` (8 files), `event_bus/` (7 files), `collections/` (7 files, excl.
+     `auth.py`), `mining/` (`_pearl_subprocess.py`, `discovery.py`, `cpu_pearl.py`),
+     `runtime/` (`tls.py`, `executor.py`, `plans.py`), `persona/` (`persona_manager.py`,
+     `identity.py`), `sensing/` (`camera.py`, `screen_observer.py`, `stuck_detector.py`,
+     `sound_classifier.py`). Note: several other files in this same scope
+     (`event_bus/bus.py`, `runtime/missions.py`+`world_model.py`, `personality/sentiment.py`,
+     `jcode/__init__.py`+`tools/apply_patch.py`+`tools/multiedit.py`, `mining/vllm_pearl.py`,
+     most of `video/`) were found already fixed by a concurrent parallel audit task mid-pass
+     (commits `2a50a1fd6`, `5c52b681e`, `ddd3a266e`, `697df9a0b`, `ae657abaf`, `9b1dd6b26`,
+     `b6dbd8bd3`, `33dc88141`, `fb2f60a14`, `4230072c1`, `c9227e59d`, `48cb77ac9`,
+     `deb55655c`, `8df447a8e`, `b25c20e2b`, `c640a29be`) -- not re-touched, confirmed clean.
+     **Fixed with proof tests (2 commits):**
+     - `collections/storage.py` (commit `6239f0756`) -- `LocalDriver.put()` (the real file-save
+       path behind `POST` uploads via `core/api/routers/collections.py:246`) wrote the object
+       and its `.meta.json` sidecar directly to their real paths with `write_bytes()`/
+       `write_text()`. A crash mid-write (process kill, OOM, power loss) left a truncated file
+       at the real key that `exists()`/`get()` then reported and served as complete, with no
+       way for a caller to detect the upload never finished -- the same non-atomic-write bug
+       class fixed elsewhere this cycle (`vault_cmd.py`, `trading/agents/utils/memory.py`).
+       Fixed via tempfile+fsync+`os.replace()` for both files.
+     - `sensing/sound_classifier.py` (commit `ec9c38e32`) -- `_emit_emergency_signal()` called
+       `asyncio.create_task()` unconditionally; `classify_frame()`'s sync callers
+       (`sample_and_classify()`/`is_speech_active()`) run with no guaranteed event loop, so
+       `create_task()` raised `RuntimeError`, silently swallowed by a bare `except Exception`
+       that only logged "suppressed exception (degraded mode)" -- any loud-sound "alert"
+       classification reached from a sync path never actually emitted the emergency signal.
+       Fixed to fall back to `asyncio.run()` when no loop is running. Also fixed the module's
+       own self-test (case 4): it asserted a pure 20 Hz sine classifies as "background", but a
+       pure tone is strongly tonal by construction (very high `spectral_peak_ratio`) and the
+       classifier correctly called it "music" per its own documented logic -- the test's
+       expectation was wrong, not the classifier; rescaled the sine's amplitude below the
+       music `rms>0.02` gate instead. Note: this module is still not wired into the observe
+       loop at all (pre-existing, already tracked in `docs/design/core-module-triage.md` as
+       "needs a mic sensing hook" -- an owner decision, not touched here).
+     New tests: `tests/test_collections_storage_atomic_write.py` (3),
+     `tests/test_sound_classifier_emergency_signal.py` (2) -- 5 total, all passing, both bugs
+     confirmed failing pre-fix via `git stash`. Zero regressions in `tests/test_collections.py`
+     (55 passed).
+     **Reviewed clean, no new bug found:** `browser/__init__.py`, `auth_profiles.py`
+     (CWE-22-confined via `os.path.realpath`+prefix check, already defense-in-depth from a
+     prior round), `dom_pruner.py`, `governance.py` (fails closed on an unknown action type),
+     `opencli_bridge.py`, `page_extract.py` (DNS-pinned redirect-hop SSRF guard, already very
+     mature), `pii_scrub.py`, `playwright_mcp_client.py` (SSRF guard already added a prior
+     round); `event_bus/__init__.py`, `base.py`, `circuit_breaker.py`, `rate_limiter.py`,
+     `types.py`, `wiring.py`, `worker_pool.py`; `collections/fields.py` (field names are
+     `_IDENT_RE`-validated before any f-string SQL use), `schema.py` (collection names
+     `_NAME_RE`-validated; `store.py`'s `_expand()` relation-target name is incidentally
+     validated by `Collection(name=target_name, ...)`'s own `__post_init__` before use, so the
+     looks-like-an-injection-point f-string there is not actually reachable with an unsafe
+     name -- raises `ValidationError` first, caught at the API boundary as a 404, not a crash
+     or injection), `hooks.py`, `migrations.py` (goes through
+     `core.memory.episodic.get_db_connection()` correctly), `store.py` (SAFE parameterized
+     filter parser confirmed field-whitelisted, bound params throughout); `runtime/tls.py` (no
+     cert-validation bypass), `executor.py` (mature, multi-round-hardened fail-closed status
+     taxonomy), `plans.py` (mature, multi-round-hardened DAG/crash-recovery/replan logic);
+     `mining/_pearl_subprocess.py` (credentials via env vars not argv, no shell=True),
+     `discovery.py`, `cpu_pearl.py`; `persona/persona_manager.py`, `identity.py` (uses
+     `yaml.safe_load`, not `yaml.load`).
+     **Remaining scope (not reached this pass):** most of `mining/` (`__init__.py`, `_abc.py`,
+     `_constants.py`, `_install.py`, `_metrics.py`, `_miner_loop_main.py`,
+     `_mps_miner_loop_main.py`, `apple_mps_pearl.py`, `constants.py`, `models.py`); most of
+     `persona/` (`consistency.py`, `evolution.py`, `schemas.py`, `voice_tone.py`, `__init__.py`);
+     most of `personality/` (`character_card.py`, `consistency.py`, `memory_persona.py`,
+     `middleware.py`, `tone_adapter.py`, `__init__.py`); `runtime/doctor.py`,
+     `readiness_check.py`, `__init__.py`; `sensing/health_monitor.py`, `mediapipe_tasks.py`,
+     `presence_detector.py`; `video/__init__.py`, `composition_types.py`,
+     `provider_capabilities.py`, `hyperframes_sidecar.py`, `workflow_resolver.py`;
+     `collections/__init__.py`.
+     **Commit status:** `6239f0756`, `ec9c38e32`.
