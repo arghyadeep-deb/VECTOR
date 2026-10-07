@@ -8,6 +8,8 @@ and generates evidence-based recommendations for improving VECTOR.
 import asyncio
 import datetime
 import json
+import os
+import tempfile
 from pathlib import Path
 
 from vectorcode.src.bootstrap import ensure_paths
@@ -65,11 +67,30 @@ class ExperimentTracker(AgentBase):
             return {"experiments": [], "next_id": 1}
 
     def _save_experiments(self, data: dict) -> bool:
-        """Persist experiment registry. Returns False if the write failed."""
+        """Persist experiment registry. Returns False if the write failed.
+
+        Writes via tempfile+fsync+os.replace so a crash mid-write (process
+        kill, OOM, power loss) can never leave a truncated experiments.json
+        -- the same registry _load_experiments() already defends against by
+        backing up an unreadable file, but which this write path could
+        itself cause.
+        """
         try:
-            self._EXPERIMENTS_FILE.write_text(
-                json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
+            path = self._EXPERIMENTS_FILE
+            path.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp_name = tempfile.mkstemp(prefix=".experiments.", suffix=".tmp", dir=str(path.parent))
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as tmp:
+                    json.dump(data, tmp, indent=2, ensure_ascii=False)
+                    tmp.flush()
+                    os.fsync(tmp.fileno())
+                os.replace(tmp_name, path)
+            except BaseException:
+                try:
+                    os.unlink(tmp_name)
+                except OSError:
+                    pass
+                raise
             return True
         except Exception as e:
             logger.warning("[VECTOR][experiment_tracker] save failed: {}", e)
