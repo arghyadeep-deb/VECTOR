@@ -5732,3 +5732,92 @@ isn't "proven in production" until you supply the service/device and run it live
      regressions.
      **Remaining scope:** ~50 of 56 files not yet individually confirmed -- partial pass.
      **Commit status:** `572eaa70c`.
+
+118. **14-directory `core/` audit round (2026-10-07) —** Claude worker-fork pass over
+     `brain/`, `browser/`, `collections/`, `control/` (incl. `control/security/`), `email/`,
+     `event_bus/`, `jcode/` (incl. `jcode/tools/`), `mining/`, `persona/`, `personality/`,
+     `resilience/` (incl. `resilience/injectors/`), `runtime/`, `sensing/`, `video/` --
+     145 files, never individually audited before this cycle.
+     **Fixed with proof tests (5 commits):**
+     - `control/phone_controller.py` (commit `5eea316cc`) -- `type_text()` escaped shell
+       metacharacters before `adb shell input text <text>` but never escaped/stripped an
+       embedded literal newline, which acts as a statement separator in the remote device's
+       shell once adb joins its args into one command string -- gateway-approved text content
+       (e.g. an LLM-generated caption) containing `\n` could inject a second arbitrary shell
+       command on the Android device. Newlines are now stripped (`input text` can't represent
+       them anyway).
+     - `control/security/node_router.py` (commit `781577f8b`) -- `_add_ips()` logged
+       `logger.warning(msg, exc_info=True)`; loguru treats unknown kwargs as `str.format()`
+       substitutions, not a stdlib `exc_info` flag, so the actual parse exception/traceback was
+       silently dropped on every bad-IP line. Fixed to `logger.opt(exception=True)`.
+     - `core/config.py` (commit `3b84c355f`) -- `core/email/sender.py` (SMTP) and
+       `core/email/receiver.py` (IMAP) read `CONFIG.get("SMTP_HOST"/"SMTP_PORT"/"SMTP_USER"/
+       "SMTP_PASS"/"IMAP_HOST"/"IMAP_USER"/"IMAP_PASS"/"EMAIL_ADDRESS")`, but `core/config.py`
+       never defined any of those keys under any name (confirmed absent from `.env.example`
+       too) -- every lookup always fell through to `""` regardless of `.env`, so
+       `districts/communications/email_agent.py`'s `poll_inbox()` (called unconditionally, no
+       feature flag) could never actually poll a real inbox. Added the 8 missing keys
+       (passwords via the existing keyring-first `secrets_manager.get_secret()`); with no `.env`
+       values set, behavior is unchanged (both files already degrade gracefully).
+     - `brain/red_team_agent.py` (commit `10bd46c4d`, most severe finding this round) --
+       `core/loop/autonomous_loop.py`'s RED-tier gate calls
+       `red_team.attack_plan({...structured dict...})` and reads
+       `review.get("verdict", "APPROVED")`, but `attack_plan()` never populated a `"verdict"`
+       key at all (only `plan`/`vulnerabilities`/`timestamp`) -- VECTOR Gap 2's "WIRED"
+       adversarial-review safety gate silently defaulted to APPROVED on every call regardless
+       of what the LLM review found. It was worse than a no-op: the real caller passes a dict
+       as `plan` (the method is typed for a free-text `str`), and the old
+       `logger.info(..., plan[:50])` raised slicing that dict, caught by `attack_plan`'s own
+       broad `except Exception`, returning `{"error": ...}` -- still no `"verdict"` key, so the
+       gate defaulted to APPROVED again. Fixed: `attack_plan()` now accepts `str | dict`, asks
+       the model for an explicit BLOCKED/MODIFY/APPROVED line, and parses it with a fail-closed
+       regex (ambiguous/absent -> BLOCKED), mirroring `core/brain/council.py`'s `_parse_vote()`.
+     - `resilience/injectors/process_kill.py` (commit `094603bd9`) -- `_targets` mapped
+       `"voice_ws"` to the bare image name `"python"` (no `.exe`). `voice_ws` is an in-process
+       FastAPI WebSocket route, not a separate OS process, so there was nothing real to safely
+       scope a kill to -- and the bare name is not specific to any one VECTOR process; the
+       autonomous loop and the API server (potentially the very process running the experiment)
+       share it. The only reason this never caused damage is that Windows `taskkill /IM`
+       requires an exact image-name match including the extension, so the missing `.exe` made
+       every real invocation silently match nothing (accidental, not a designed guard) -- a
+       later "obvious" fix adding `.exe` would have mass-killed every VECTOR Python process at
+       once. Target removed; only `"ollama"` (correctly `.exe`-suffixed, a real auto-restarting
+       background service) remains.
+     New tests: `tests/test_core_control_audit_regressions.py` (3),
+     `tests/test_core_email_config_wiring.py` (2), `tests/test_core_brain_red_team_verdict.py`
+     (4), `tests/test_core_resilience_process_kill_safety.py` (2) -- 11 total, all passing, each
+     verified to fail pre-fix via `git stash`. Zero regressions in
+     `tests/test_permission_gateway.py`, `tests/resilience/test_chaos_monkey.py`,
+     `tests/integration/test_spec11_resilience.py`, `tests/test_r26_cognitive_integration.py`,
+     `tests/test_core_email_receiver_thread_id.py`, `tests/test_email_bridge.py`.
+     **Reviewed clean, no new bug found:** `control/pc_controller.py` and
+     `permission_gateway.py`'s `grant_control()`/`verify_control()`/`_issue_approval_receipt()`
+     token mechanism (already hardened through 3 documented 2026-09-23 rounds);
+     `control/wake_on_lan.py`, `control/legion_wake.py`, `control/security/process_snapshot.py`;
+     `control/security/malware_detector.py` and `control/security/threat_detector.py` (both
+     already fail-closed from a prior round, re-confirmed via the existing
+     `tests/test_core_control_network_safety_guards.py`); `email/ai_security.py` and
+     `email/sender.py`/`receiver.py`'s wiring into `districts/communications/email_agent.py`
+     (both genuinely wired, fail-closed, CRLF header injection blocked by stdlib's own
+     `email.header` policy); `collections/auth.py` (bcrypt/`hmac.compare_digest` already
+     timing-safe); `brain/council.py` (already hardened via a documented 2026-09-24 rewrite,
+     confirmed wired into `permission_gateway.py`); `jcode/tools/apply_patch.py` and
+     `multiedit.py`'s CWE-22 confinement (already fixed in the 2026-10-02 Phase 3 cycle --
+     `tests/test_jcode_apply_patch_confinement.py`/`test_jcode_multiedit_confinement.py` (6)
+     re-run and confirmed to test real `resolve()`+`is_relative_to()` confinement, not
+     tautological).
+     **Flagged, not fixed (owner decision, not a code bug):** `resilience/chaos_monkey.py`'s
+     `enabled` flag only gates `run_scheduled()` -- calling `run_experiment()`/
+     `run_random_experiment()`/`run_all_experiments()` directly bypasses it entirely. Not
+     touched because `tests/resilience/test_chaos_monkey.py`'s own
+     `test_experiment_lifecycle`/`test_experiment_failure` call `run_experiment()` directly with
+     `enabled` at its default `False` and expect it to actually run -- the existing test suite
+     establishes `enabled` as a scheduler-only guard, not a blanket kill-switch, and nothing in
+     production currently calls the three unguarded methods directly (grepped repo-wide: zero
+     API/MCP/governor callers). Worth a real decision if/when an admin endpoint or MCP tool
+     exposes chaos experiments directly.
+     **Remaining scope:** `browser/`, `event_bus/`, `mining/`, `persona/`, `personality/`,
+     `runtime/`, `sensing/`, `video/`, most of `jcode/` outside `tools/apply_patch.py`+
+     `multiedit.py`, and `collections/` outside `auth.py` not yet individually audited --
+     partial pass.
+     **Commit status:** `5eea316cc`, `781577f8b`, `3b84c355f`, `10bd46c4d`, `094603bd9`.
