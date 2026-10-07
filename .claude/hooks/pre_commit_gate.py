@@ -82,4 +82,27 @@ if r.returncode != 0:
     print((r.stdout or "") + (r.stderr or ""))
     sys.exit(2)
 
+# Bug-class lint (gap 2 of the post-audit improvement plan): blocking tier
+# only (banned imports: flask, pickle, requests) -- scoped to just the
+# staged .py files so this stays fast on every commit. The advisory tier
+# (threading/env-secret/loguru findings) is reporting-only and runs in CI,
+# not here.
+_staged_py = [f for f in staged if f.endswith(".py")]
+if _staged_py:
+    _lint = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                          "scripts", "bug_class_lint.py")
+    if os.path.exists(_lint):
+        try:
+            lr = subprocess.run(
+                [sys.executable, _lint, "--check", *_staged_py],
+                capture_output=True, text=True, timeout=30,
+            )
+            if lr.returncode != 0:
+                print("[VECTOR GATE] BLOCKED: bug-class lint failed:")
+                print((lr.stdout or "") + (lr.stderr or ""))
+                sys.exit(2)
+        except Exception as exc:
+            print(f"[VECTOR GATE] BLOCKED: bug-class lint could not run ({exc}) -- failing closed.", file=sys.stderr)
+            sys.exit(2)
+
 sys.exit(0)

@@ -36,6 +36,11 @@ jobs:
           python -m compileall -q core districts vectorcode scripts agents tests
           echo "✅ Syntax check passed"
 
+      - name: Bug-class lint (gap 2 of the post-audit improvement plan)
+        run: |
+          python scripts/bug_class_lint.py --check --report core districts vectorcode/src run_vector.py
+          echo "✅ Bug-class lint blocking tier passed (advisory findings are reported, not blocking)"
+
       - name: Core module smoke tests
         run: |
           python core/city/agent_base.py

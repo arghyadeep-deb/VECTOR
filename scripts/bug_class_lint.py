@@ -243,7 +243,19 @@ def main(argv: list[str] | None = None) -> int:
     if not args.check and not args.report:
         args.check = True  # default to the safe, blocking-only tier
 
-    targets = [REPO_ROOT / t if not Path(t).is_absolute() else Path(t) for t in args.targets]
+    # Resolve relative targets against the current working directory, not a
+    # hardcoded REPO_ROOT -- this script is invoked from a caller's cwd
+    # (a pre-commit hook, CI, or a test harness using a different repo
+    # entirely), which standard CLI tools always honor. REPO_ROOT is used
+    # separately, only for the vendored-tree/grandfather-list checks, which
+    # are no-ops (correctly) for any file outside the real repo. .resolve()
+    # is required here: a target passed with ".." components (e.g. running
+    # from scripts/ as "../core") must be normalized before _relpath()'s
+    # relative_to(REPO_ROOT) can match it against the grandfather list.
+    targets = [
+        (Path(t) if Path(t).is_absolute() else Path.cwd() / t).resolve()
+        for t in args.targets
+    ]
     result = run(targets, check=args.check, report=args.report)
 
     if result.blocking:
