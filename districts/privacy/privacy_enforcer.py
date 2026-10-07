@@ -209,10 +209,19 @@ Return any additional PII found as JSON: {{additional_finds: [{{type, start, end
             if json_match:
                 add_data = json.loads(json_match.group(0))
                 for item in add_data.get("additional_finds", []):
-                    start = item.get("start", 0)
-                    end = item.get("end", start + 1)
+                    # Match by the LLM-reported `value` text, not its `start`/`end`
+                    # offsets: the LLM was only shown redacted_text[:300] (a
+                    # truncated PREVIEW), so any offset it returns is relative to
+                    # that preview, not this live string -- and applying several
+                    # items' offsets in sequence against a string that each
+                    # substitution itself mutates (placeholder length != matched
+                    # length) corrupts every offset after the first. Matching on
+                    # the reported value text is immune to both problems.
+                    value = item.get("value") or ""
+                    if not value or value not in redacted_text:
+                        continue
                     placeholder = f"[{item.get('type', 'PII').upper()}_REDACTED]"
-                    redacted_text = redacted_text[:start] + placeholder + redacted_text[end:]
+                    redacted_text = redacted_text.replace(value, placeholder)
         except (json.JSONDecodeError, TypeError, AttributeError, ValueError):
             logger.debug("[VECTOR][privacy] LLM PII review output unusable; pattern redaction only")
 
