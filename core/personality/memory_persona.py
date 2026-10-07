@@ -48,6 +48,24 @@ _FEEDBACK_NEUTRAL = {
 }
 
 
+def _phrase_pattern(phrase: str) -> re.Pattern[str]:
+    """Word-boundary regex for a feedback phrase.
+
+    A plain substring check (``phrase in lower``) false-positives constantly
+    on short, common phrases: "no" matches inside "know"/"now"/"not"/"noon",
+    "yes" matches inside "yesterday", "ok" matches inside "book"/"broken",
+    "sure" matches inside "ensure"/"assure". Every such match silently wrote
+    a wrong-polarity PersonalityLesson, corrupting the learned-preference
+    signal this engine uses to adapt VECTOR's responses.
+    """
+    return re.compile(r"\b" + re.escape(phrase) + r"\b")
+
+
+_FEEDBACK_NEGATIVE_PATTERNS = {p: _phrase_pattern(p) for p in _FEEDBACK_NEGATIVE}
+_FEEDBACK_POSITIVE_PATTERNS = {p: _phrase_pattern(p) for p in _FEEDBACK_POSITIVE}
+_FEEDBACK_NEUTRAL_PATTERNS = {p: _phrase_pattern(p) for p in _FEEDBACK_NEUTRAL}
+
+
 class MemoryPersona:
     def __init__(self, db_path: str | None = None):
         # Explicit db_path (tests) → private plain-sqlite connections.
@@ -90,15 +108,15 @@ class MemoryPersona:
 
     def detect_feedback(self, user_text: str) -> dict[str, Any] | None:
         lower = user_text.lower().strip()
-        for phrase in _FEEDBACK_NEGATIVE:
-            if phrase in lower:
+        for phrase, pattern in _FEEDBACK_NEGATIVE_PATTERNS.items():
+            if pattern.search(lower):
                 outcome = 0.2 if "too" in phrase or "be more" in phrase else 0.1
                 return {"response_type": self._infer_target(phrase), "outcome": outcome, "source": "explicit_feedback"}
-        for phrase in _FEEDBACK_POSITIVE:
-            if phrase in lower:
+        for phrase, pattern in _FEEDBACK_POSITIVE_PATTERNS.items():
+            if pattern.search(lower):
                 return {"response_type": self._infer_target(phrase), "outcome": 0.9, "source": "explicit_feedback"}
-        for phrase in _FEEDBACK_NEUTRAL:
-            if phrase in lower:
+        for phrase, pattern in _FEEDBACK_NEUTRAL_PATTERNS.items():
+            if pattern.search(lower):
                 return {"response_type": "neutral", "outcome": 0.6, "source": "explicit_feedback"}
         return None
 
