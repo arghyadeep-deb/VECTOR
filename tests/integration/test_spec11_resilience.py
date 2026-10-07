@@ -324,6 +324,7 @@ class TestChaosMonkey:
         from core.resilience.injectors.dependency_failure import DependencyFailureInjector
 
         cm = ChaosMonkey()
+        cm.enabled = True
         result = await cm.run_experiment(DependencyFailureInjector())
         assert result.injector_name == "dependency_failure"
         assert result.passed is True
@@ -334,6 +335,7 @@ class TestChaosMonkey:
         from core.resilience.injectors.dependency_failure import DependencyFailureInjector
 
         cm = ChaosMonkey()
+        cm.enabled = True
         fired = []
         cm.on_result(lambda r: fired.append(r))
         await cm.run_experiment(DependencyFailureInjector())
@@ -344,6 +346,7 @@ class TestChaosMonkey:
         from core.resilience.injectors.dependency_failure import DependencyFailureInjector
 
         cm = ChaosMonkey()
+        cm.enabled = True
         await cm.run_experiment(DependencyFailureInjector())
         await cm.run_experiment(DependencyFailureInjector())
         assert len(cm.results) == 2
@@ -353,6 +356,7 @@ class TestChaosMonkey:
         from core.resilience.injectors.dependency_failure import DependencyFailureInjector
 
         cm = ChaosMonkey()
+        cm.enabled = True
         await cm.run_experiment(DependencyFailureInjector())
         report = cm.generate_report()
         assert "Chaos Monkey Report" in report
@@ -370,6 +374,7 @@ class TestChaosMonkey:
         from core.resilience.injectors.dependency_failure import DependencyFailureInjector
 
         cm = ChaosMonkey()
+        cm.enabled = True
         cm.injectors = [DependencyFailureInjector()]
         result = await cm.run_random_experiment()
         assert result.passed is True

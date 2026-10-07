@@ -84,9 +84,16 @@ def test_configured_key_sends_bearer(phone, monkeypatch):
 
 # â”€â”€ local endpoint auth + wake-on-LAN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-def test_local_mutating_auth_allows_dev_blank_key(phone, monkeypatch):
+@pytest.mark.parametrize("key", ["", "short", "changeme", "change-me", "placeholder", "default", "test", "secret"])
+def test_local_mutating_auth_fails_closed_for_unusable_key(phone, monkeypatch, key):
+    monkeypatch.setattr(phone, "API_KEY", key)
+    assert phone._auth_ok(None) is False
+    assert phone._auth_ok(f"Bearer {key}") is False
+
+
+def test_local_mutating_auth_rejects_blank_key(phone, monkeypatch):
     monkeypatch.setattr(phone, "API_KEY", "")
-    assert phone._auth_ok(None) is True
+    assert phone._auth_ok(None) is False
 
 
 def test_local_mutating_auth_requires_matching_bearer(phone, monkeypatch):
@@ -94,6 +101,28 @@ def test_local_mutating_auth_requires_matching_bearer(phone, monkeypatch):
     assert phone._auth_ok(None) is False
     assert phone._auth_ok("Bearer wrong") is False
     assert phone._auth_ok("Bearer node-token") is True
+
+
+def test_server_warns_once_and_still_starts_with_mutating_routes_locked(phone, monkeypatch):
+    messages = []
+
+    class FakeServer:
+        def __init__(self, address, handler):
+            self.address = address
+            self.handler = handler
+
+        def serve_forever(self):
+            return None
+
+    monkeypatch.setattr(phone, "API_KEY", "changeme")
+    monkeypatch.setattr(phone, "HTTPServer", FakeServer)
+    monkeypatch.setattr(phone, "_log", messages.append)
+
+    phone._start_server()
+
+    warnings = [message for message in messages if "SECURITY WARNING" in message]
+    assert len(warnings) == 1
+    assert "mutating endpoints" in warnings[0]
 
 
 def test_phone_magic_packet_shape(phone):

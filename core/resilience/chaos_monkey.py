@@ -31,7 +31,10 @@ class ChaosMonkey:
         ]
         self._on_result: list[callable] = []
 
-    async def run_experiment(self, injector: FailureInjector) -> ChaosExperiment:
+    async def run_experiment(self, injector: FailureInjector) -> ChaosExperiment | None:
+        if not self.enabled:
+            logger.info("[ChaosMonkey] disabled — skipping experiment")
+            return None
         logger.info("[ChaosMonkey] Running: {} ({})", injector.name, injector.description)
         result = await injector.run()
         self.results.append(result)
@@ -44,11 +47,17 @@ class ChaosMonkey:
         logger.info("[ChaosMonkey] {}: {} (recovery={:.1f}s)", status, injector.name, result.recovery_time_s)
         return result
 
-    async def run_random_experiment(self) -> ChaosExperiment:
+    async def run_random_experiment(self) -> ChaosExperiment | None:
+        if not self.enabled:
+            logger.info("[ChaosMonkey] disabled — skipping random experiment")
+            return None
         injector = random.choice(self.injectors)
         return await self.run_experiment(injector)
 
     async def run_all_experiments(self) -> list[ChaosExperiment]:
+        if not self.enabled:
+            logger.info("[ChaosMonkey] disabled — skipping all experiments")
+            return []
         results = []
         for injector in self.injectors:
             result = await self.run_experiment(injector)

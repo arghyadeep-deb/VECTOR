@@ -164,10 +164,25 @@ def _can_send_upstream() -> bool:
     return bool(API_KEY)
 
 
+def _is_usable_key(key: str) -> bool:
+    """Return whether a key is strong enough to protect network mutations."""
+    candidate = (key or "").strip()
+    if len(candidate) < 8:
+        return False
+    return candidate.lower() not in {
+        "changeme",
+        "change-me",
+        "placeholder",
+        "default",
+        "test",
+        "secret",
+    }
+
+
 def _auth_ok(header_value: str | None) -> bool:
-    """Local mutating endpoints require bearer auth when VECTOR_API_KEY is set."""
-    if not API_KEY:
-        return True
+    """Fail closed unless local mutating endpoints have usable bearer auth."""
+    if not _is_usable_key(API_KEY):
+        return False
     return hmac.compare_digest(header_value or "", f"Bearer {API_KEY}")
 
 
@@ -462,6 +477,12 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def _start_server() -> None:
+    if not _is_usable_key(API_KEY):
+        _log(
+            "SECURITY WARNING: VECTOR_API_KEY is missing or unusable; "
+            "this server is network-reachable and all mutating endpoints are locked. "
+            "Configure a non-placeholder key before using them."
+        )
     server = HTTPServer(("0.0.0.0", LOCAL_PORT), _Handler)
     _log(f"HTTP server listening on :{LOCAL_PORT}")
     server.serve_forever()

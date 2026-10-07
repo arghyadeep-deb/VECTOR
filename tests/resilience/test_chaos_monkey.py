@@ -31,6 +31,7 @@ class FakeInjector(FailureInjector):
 @pytest.fixture
 def chaos():
     c = ChaosMonkey()
+    c.enabled = True
     c.injectors = [FakeInjector(should_pass=True)]
     return c
 
@@ -68,6 +69,23 @@ async def test_scheduled_disabled(chaos):
     with patch.object(chaos, "run_all_experiments", new_callable=AsyncMock) as mock_run:
         await chaos.run_scheduled()
         mock_run.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_all_public_execution_entry_points_are_inert_when_disabled(chaos):
+    chaos.enabled = False
+    injector = FakeInjector(should_pass=True)
+
+    direct_result = await chaos.run_experiment(injector)
+    random_result = await chaos.run_random_experiment()
+    all_results = await chaos.run_all_experiments()
+    scheduled_result = await chaos.run_scheduled()
+
+    assert direct_result is None
+    assert random_result is None
+    assert all_results == []
+    assert scheduled_result is None
+    assert chaos.results == []
 
 
 @pytest.mark.asyncio
@@ -136,6 +154,7 @@ async def test_experiment_error_handling():
             pass
 
     chaos = ChaosMonkey()
+    chaos.enabled = True
     chaos.injectors = [BrokenInjector()]
     result = await chaos.run_experiment(BrokenInjector())
     assert result.passed is False
