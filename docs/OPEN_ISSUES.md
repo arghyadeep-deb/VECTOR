@@ -6528,3 +6528,69 @@ isn't "proven in production" until you supply the service/device and run it live
      automatically on every tool call, so the blast radius is materially smaller. Worth a
      dedicated pass later, not urgent the way hooks were.
      **Commit status:** `14bdc164b`.
+
+133. **`.claude/skills/` owner-authored security scripts, first audit (2026-10-07) —**
+     closed item 132's flagged lower-priority tier. Confirmed provenance first:
+     `pdf/`, `mcp-builder/`, `skill-creator/`, `webapp-testing/` are licensed, stock
+     Anthropic skill templates (explicit "license:" header in `SKILL.md`) -- correctly
+     excluded, not touched. The 11 `analyzing-*` security-forensics skills plus
+     `vector-diagnostics-and-tooling` have no license header -- owner-authored, genuinely
+     unaudited. Audited by Codex (gpt-5.6-sol); reviewed, tested, and committed by Claude.
+     Note on process: Codex's own completion signal (process exit, log file settling) was
+     ambiguous mid-run on Windows -- `ps aux` inside the bash tool could not see the
+     native `codex.exe` process, so an early check raced its still-in-flight edits and
+     produced flickering/contradictory test results. Confirmed actual completion via
+     PowerShell `Get-Process` before trusting any result.
+     **Fixed with proof tests (1 commit, `e13293825`, 13 bugs across 9 files):**
+     - `analyzing-email-headers-for-phishing-investigation/agent.py` -- MIME attachment
+       filenames from an untrusted `.eml` were joined directly to `output_dir`: `../`,
+       backslash, drive, or rooted paths could write outside the evidence directory.
+       Fixed via basename reduction + `resolve()`+`normcase()`+`commonpath()` confinement
+       + exclusive (`"xb"`) writes with hash-prefixed collision handling.
+     - `analyzing-kubernetes-audit-logs/agent.py` -- malformed/non-object JSONL records
+       were silently discarded (corrupted or attacker-shaped evidence could produce a
+       clean-looking partial report); now raises `AuditLogParseError` with the exact line
+       number. Separately, events with `sourceIPs: []` crashed 4 detectors with
+       `IndexError` -- fixed via a shared safe first-source-IP helper.
+     - `analyzing-ethereum-smart-contract-vulnerabilities/agent.py` -- Slither/Mythril
+       nonzero exits, empty output, or malformed JSON became `{}`, then zero findings and
+       a PASS verdict -- a textbook phantom-success gate, on a security *audit* tool.
+       Now raises `AnalysisToolError` on any analyzer failure.
+     - `analyzing-cloud-storage-access-patterns/agent.py` -- a failed AWS CLI/CloudTrail
+       collection returned `[]`, producing a normal zero-event report (same
+       phantom-success class). Also: the new-source-IP detector used IPs from the
+       incident window itself as its own baseline, making every observed IP trivially
+       "known" and suppressing all new-IP alerts.
+     - `analyzing-linux-audit-logs-for-intrusion/agent.py` -- missing files returned an
+       error dict that `main()` silently converted into demo output with exit code 0;
+       malformed records were silently skipped; logs beyond `max_lines` were truncated
+       and then reported complete. All three now fail closed.
+     - `analyzing-indicators-of-compromise/agent.py` -- IPv4 IOCs were sent to
+       VirusTotal's *domain* endpoint instead of `/ip_addresses/`, silently returning
+       irrelevant/no enrichment data for every single IP lookup. Also used banned
+       `requests` and read API keys via bare `os.environ` -- migrated to httpx +
+       `core.security.secrets_manager.get_secret()`.
+     - `analyzing-apt-group-with-mitre-navigator/agent.py` -- banned `requests` import,
+       migrated to httpx.
+     - `analyzing-api-gateway-access-logs/agent.py` -- `detect_unusual_methods()` was
+       fully implemented but unreachable from both `--action` and `full_analysis` --
+       dangerous DELETE/PUT/PATCH activity was silently omitted from the "full" report.
+       Wired in.
+     - `vector-diagnostics-and-tooling/health_snapshot.py` -- the skill advertises
+       smoke-test status as part of its health snapshot but never actually executed the
+       smoke gate, so it could print "SNAPSHOT: OK" without ever running it. Now runs
+       `scripts/smoke_test.py` and folds its exit status into the aggregate result.
+     New tests: `tests/test_claude_skill_scripts_audit_regressions.py` (12), all
+     confirmed failing pre-fix. `compileall` clean on all 9 files. `health_snapshot.py`
+     executed end-to-end post-fix: exit 0, SNAPSHOT: OK. All independently re-verified
+     (diffs read, tests re-run after confirming genuine completion) by the parent session.
+     **Reviewed clean:** `analyzing-cyber-kill-chain/agent.py`,
+     `analyzing-dns-logs-for-exfiltration/agent.py`,
+     `analyzing-docker-container-forensics/agent.py`.
+     **Flagged for owner, not fixed:** several scripts (cyber-kill-chain, DNS, Docker,
+     email, IOC, APT) are demo/example CLIs with real helper functions left unwired, or
+     claim broader cloud-provider coverage (S3/GCS/Azure) than they implement (AWS-only)
+     -- scope/product decisions, not code bugs. Report writers in this scope remain
+     non-atomic by design (caller-selected CLI artifact paths, not durable gates) --
+     flagged as a hardening question, not promoted to a vulnerability.
+     **Commit status:** `e13293825`.
