@@ -5536,3 +5536,61 @@ isn't "proven in production" until you supply the service/device and run it live
      committed the main code/test batch as `b7b8d6a95` and the later capability-cache fallback
      plus updated prior regression as `5029a0ab5`; this issue entry alone remains uncommitted for
      parent review.
+
+111. **Top-level `vectorcode/` shims + hooks audit, complete (2026-10-07) —** first-ever audit of
+     32 Python files across 13 directories sitting directly under `vectorcode/` (NOT
+     `vectorcode/src/` -- a genuinely separate compatibility layer discovered mid-session). Two
+     prior Claude forks in this exact spot were each cut off by a session rate limit; this is the
+     third and final pass, completing the remaining ~30 files.
+     **Confirmed structure:** `acp/`, `context/`, `cron/` (see flag below), `engine/`, `gateway/`,
+     `mcp_client/`, `migrations/`, `plugins/`, `providers/`, `tools/`, `tui_gateway/` are thin,
+     unconditional legacy compatibility shims (`from vectorcode.src.X import *`, no try/except
+     fallback stub) -- verified each individually; all reviewed clean, no bug found. `hooks/` (8
+     files) is real, substantive code: the actual Claude Code hook implementations.
+     **Fixed with proof tests, 6 commits total across all three rounds in this slot:**
+     - `file_protection.py` (`04c649f2b`, round 1) -- malformed hook payload failed open (allowed
+       the write) instead of closed.
+     - `pre_write_check.py` (`0660cb01f`, completed by parent after round 1 died mid-write) --
+       `os.unlink(tmp_path)` only ran on the success path, never in the `PyCompileError` branch
+       (the hook's own primary purpose) -- every blocked write leaked a temp file.
+     - `pre_commit_gate.py` (`3653a78bb`) -- if `git diff --cached --name-only` itself failed
+       (non-zero exit or raised), the gate silently allowed the commit through unchecked, even
+       though the command was already confirmed to be a `git commit` -- the exact case this gate
+       exists to protect. Now fails closed.
+     - `auto_commit.py` (`f2633c40f`) -- the most severe finding this round: this hook commits
+       with `--no-verify`, bypassing `pre_commit_gate.py`'s staged-secret check entirely. It had
+       no filename check of its own, so editing a `.env`/credentials file would auto-stage-and
+       -commit the secret straight into git history with **no gate ever seeing it** -- confirmed
+       live in the regression test (the pre-fix hook actually committed a real `.env` file
+       containing `API_KEY=super-secret`). Also fixed a missing `--` separator on `git add
+       <file_path>` (git-argument-injection).
+     - `auto_screenshot.py`, `auto_test.py`, `lint_on_save.py`, `finish_notification.py`
+       (`2467cd176`) -- `exc_info=True` passed to loguru (silently ignored) converted to
+       `logger.opt(exception=True)`; `lint_on_save.py`'s ruff/pyflakes subprocess calls given a
+       `--` separator before the file path. `auto_screenshot.py` confirmed its screenshot save
+       path is NOT caller-controlled (fixed directory + timestamp filename) -- no CWE-22 issue.
+     **Flagged for owner decision, not fixed:** `cron/__init__.py`'s `stop_daemon() -> None: pass`
+     is a no-op stub, but `vectorcode/src/cli.py:968-969` has a real, live caller (`from
+     vectorcode.cron import stop_daemon; stop_daemon()` inside a `KeyboardInterrupt` handler for
+     a `cron start` CLI subcommand). However, that same subcommand first does `from cron import
+     start_daemon` (bare `cron`, not `vectorcode.cron`) and neither `vectorcode/cron/` nor
+     `vectorcode/src/cron/` define a `start_daemon` anywhere -- so in the CURRENT build, that
+     `except ImportError: print("not implemented"); return` branch always fires first, and
+     `stop_daemon()` is never actually reached in practice. `vectorcode/src/cron/__init__.py`'s
+     own docstring says scheduling is done via "the gateway daemon" (`vector gateway
+     install`/`vector gateway`), not a standalone cron daemon with its own start/stop lifecycle --
+     this strongly suggests `cmd_cron`'s "start"/Ctrl+C-to-stop code path in cli.py is leftover
+     from an abandoned design, not a live gap. Did not invent a daemon-lifecycle implementation
+     to guess-fix this; flagging for the owner to either wire a real implementation or delete the
+     dead branch in cli.py.
+     Also noted, not a bug: `providers/base.py` is a single-line docstring with zero other
+     content and zero callers anywhere in the repo (vectorcode/, core/, districts/, tests/,
+     scripts/) -- genuinely empty/unused, not broken.
+     New tests across the three rounds: `tests/test_vectorcode_hooks_file_protection_fail_closed.py`
+     (4), `tests/test_vectorcode_hooks_pre_write_check_temp_cleanup.py` (2),
+     `tests/test_vectorcode_hooks_pre_commit_gate_fail_closed.py` (2),
+     `tests/test_vectorcode_hooks_auto_commit_safety.py` (2),
+     `tests/test_vectorcode_hooks_minor_fixes.py` (2) -- 12 tests total, all passing.
+     **Commit status:** all 6 code commits already landed (self-committed by the forks, or by
+     the parent session completing fork-interrupted work) -- see hashes above. This OPEN_ISSUES
+     entry is the only remaining uncommitted piece, left for the parent session per instruction.
