@@ -120,7 +120,9 @@ def _add_ips(text: str, target: list[str]) -> None:
                     socket.inet_pton(socket.AF_INET6, part)
                     target.append(part)
                 except OSError:
-                    logger.warning("[VECTOR] suppressed exception (degraded mode)", exc_info=True)
+                    logger.opt(exception=True).warning(
+                        f"[VECTOR][node_router] _add_ips: {part!r} is neither a valid IPv4 nor IPv6 address"
+                    )
 
 
 # ---------------------------------------------------------------------------

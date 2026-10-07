@@ -16,7 +16,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from loguru import logger
+
 from core.control.phone_controller import PhoneController
+from core.control.security.node_router import _add_ips
 from core.loop.permission_gateway import PermissionGateway
 
 
@@ -59,6 +62,26 @@ def test_type_text_without_a_valid_control_token_is_refused(monkeypatch):
 
     assert ok is False
     assert captured == []
+
+
+def test_add_ips_logs_the_actual_parse_exception_not_a_dropped_kwarg():
+    """core/control/security/node_router.py:_add_ips() used
+    logger.warning(msg, exc_info=True) -- loguru's warning() treats unknown
+    kwargs as str.format() substitutions, not a stdlib-style exc_info flag,
+    so the exception traceback was silently dropped on every bad-IP line."""
+    sink_id = None
+    records: list[str] = []
+    try:
+        sink_id = logger.add(lambda m: records.append(m), format="{message}\n{exception}")
+        _add_ips("not-an-ip-address", [])
+    finally:
+        if sink_id is not None:
+            logger.remove(sink_id)
+
+    assert records, "expected a warning log record for the invalid IP"
+    assert "Traceback" in records[0] or "OSError" in records[0], (
+        f"exception context was dropped from the log record: {records[0]!r}"
+    )
 
 
 if __name__ == "__main__":
