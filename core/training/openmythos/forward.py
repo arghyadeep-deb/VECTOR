@@ -71,6 +71,14 @@ class WebhookForwarder:
         if not self.app:
             return
 
+        async def require_signature(request: Request) -> None:
+            if not self.config.get("require_signature", True):
+                return
+            signature = request.headers.get("X-Hub-Signature-256")
+            if not self._validate_signature(await request.body(), signature):
+                logger.warning("[OpenMythos] Invalid webhook signature")
+                raise HTTPException(status_code=401, detail="Invalid signature")
+
         @self.app.get("/")
         async def root():
             return {"status": "ok", "service": "V.E.C.T.O.R Webhook Forwarder", "version": "1.0.0"}
@@ -120,47 +128,59 @@ class WebhookForwarder:
         async def github_webhook(request: Request):
             """Dedicated GitHub webhook endpoint."""
             try:
+                await require_signature(request)
                 payload = await request.json()
                 event_type = request.headers.get("X-GitHub-Event", "push")
                 logger.info(f"[OpenMythos] GitHub webhook: {event_type}")
                 return await self._handle_github(event_type, payload)
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"[OpenMythos] GitHub webhook error: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Webhook processing failed")
 
         @self.app.post("/forward/gmail")
         async def gmail_webhook(request: Request):
             """Dedicated Gmail webhook endpoint."""
             try:
+                await require_signature(request)
                 payload = await request.json()
                 logger.info("[OpenMythos] Gmail webhook received")
                 return await self._handle_gmail(payload)
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"[OpenMythos] Gmail webhook error: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Webhook processing failed")
 
         @self.app.post("/forward/calendar")
         async def calendar_webhook(request: Request):
             """Dedicated Calendar webhook endpoint."""
             try:
+                await require_signature(request)
                 payload = await request.json()
                 logger.info("[OpenMythos] Calendar webhook received")
                 return await self._handle_calendar(payload)
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"[OpenMythos] Calendar webhook error: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Webhook processing failed")
 
         @self.app.post("/forward/custom")
         async def custom_webhook(request: Request):
             """Custom webhook endpoint for user-defined integrations."""
             try:
+                await require_signature(request)
                 payload = await request.json()
                 source = payload.get("source", "unknown")
                 logger.info(f"[OpenMythos] Custom webhook from: {source}")
                 return await self._handle_custom(source, payload)
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.error(f"[OpenMythos] Custom webhook error: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Webhook processing failed")
 
     def _validate_signature(self, body: bytes, signature: Optional[str]) -> bool:
         """Validate webhook signature using HMAC-SHA256."""

@@ -10,6 +10,7 @@ Multi-GPU:
 """
 
 import os
+import tempfile
 import math
 import time
 import torch
@@ -231,21 +232,33 @@ def save_checkpoint(
 
     if not master:
         return
+    if keep_last < 1:
+        raise ValueError("keep_last must be at least 1")
 
     os.makedirs(ckpt_dir, exist_ok=True)
     final_path = os.path.join(ckpt_dir, f"step_{step:07d}.pt")
-    tmp_path = final_path + ".tmp"
-    torch.save(
-        {
-            "step": step,
-            "model": model_state,
-            "optimizer": optim_state,
-            "cfg": cfg,
-            "vocab_size": vocab_size,
-        },
-        tmp_path,
-    )
-    os.replace(tmp_path, final_path)
+    fd, tmp_path = tempfile.mkstemp(prefix=f".{os.path.basename(final_path)}.", suffix=".tmp", dir=ckpt_dir)
+    try:
+        with os.fdopen(fd, "wb") as checkpoint_file:
+            torch.save(
+                {
+                    "step": step,
+                    "model": model_state,
+                    "optimizer": optim_state,
+                    "cfg": cfg,
+                    "vocab_size": vocab_size,
+                },
+                checkpoint_file,
+            )
+            checkpoint_file.flush()
+            os.fsync(checkpoint_file.fileno())
+        os.replace(tmp_path, final_path)
+    except BaseException:
+        try:
+            os.remove(tmp_path)
+        except FileNotFoundError:
+            pass
+        raise
 
     for old in _list_ckpts(ckpt_dir)[:-keep_last]:
         try:

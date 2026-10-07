@@ -179,7 +179,13 @@ class _ConfigurationLogic(ABC):
             "proxy": self._get_param(method_kwargs, "proxy", self._default_proxy),
             "proxy_auth": self._get_param(method_kwargs, "proxy_auth", self._default_proxy_auth),
             "timeout": self._get_param(method_kwargs, "timeout", self._default_timeout),
-            "allow_redirects": self._get_param(method_kwargs, "follow_redirects", self._default_follow_redirects),
+            # curl's CurlFollow.SAFE controls POST method rewriting; it does
+            # not validate redirect destinations for SSRF. Until redirects
+            # are followed one hop at a time through ensure_public_url(), the
+            # secure mode must refuse automatic redirects entirely.
+            "allow_redirects": False
+            if self._get_param(method_kwargs, "follow_redirects", self._default_follow_redirects) == "safe"
+            else self._get_param(method_kwargs, "follow_redirects", self._default_follow_redirects),
             "max_redirects": self._get_param(method_kwargs, "max_redirects", self._default_max_redirects),
             "verify": self._get_param(method_kwargs, "verify", self._default_verify),
             "cert": self._get_param(method_kwargs, "cert", self._default_cert),

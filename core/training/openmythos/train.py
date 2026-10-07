@@ -34,6 +34,7 @@ import shutil
 import asyncio
 from typing import Optional, Dict, List, Any
 from datetime import datetime
+from core.training.openmythos.export_to_ollama import _is_safe_model_name
 
 
 class OllamaModelfileTrainer:
@@ -157,9 +158,12 @@ class OllamaModelfileTrainer:
             Dict with training status, run_id, and details
         """
         run_id = f"train_{uuid.uuid4().hex[:12]}"
-        epochs = epochs or self.epochs
-        learning_rate = learning_rate or self.learning_rate
-        batch_size = batch_size or self.batch_size
+        epochs = self.epochs if epochs is None else epochs
+        learning_rate = self.learning_rate if learning_rate is None else learning_rate
+        batch_size = self.batch_size if batch_size is None else batch_size
+
+        if not _is_safe_model_name(output_name):
+            return {"success": False, "error": "Invalid output model name"}
 
         if not Path(dataset_path).exists():
             logger.error(f"[OpenMythos] Dataset not found: {dataset_path}")
@@ -241,7 +245,13 @@ class OllamaModelfileTrainer:
                     "model_name": export_result.get("model_name"),
                     "epochs": epochs,
                 }
-            return {"success": True, "run_id": run_id, "status": "completed", "export_pending": True}
+            self.training_runs[run_id]["status"] = "export_failed"
+            return {
+                "success": False,
+                "run_id": run_id,
+                "status": "export_failed",
+                "error": export_result.get("error", "Model export failed"),
+            }
 
         except Exception as e:
             logger.error(f"[OpenMythos] Training failed: {e}")
@@ -254,12 +264,14 @@ class OllamaModelfileTrainer:
         run = self.training_runs.get(run_id)
         if not run:
             return {"success": False, "error": "Training run not found"}
+        if not _is_safe_model_name(output_name):
+            return {"success": False, "error": "Invalid output model name"}
 
         model_dir = Path(self.model_dir) / output_name
         model_dir.mkdir(parents=True, exist_ok=True)
 
         config_file = model_dir / "config.json"
-        with open(config_file, "w") as f:
+        with open(config_file, "w", encoding="utf-8") as f:
             json.dump({
                 "model_name": output_name,
                 "base_model": run["base_model"],
@@ -280,6 +292,8 @@ class OllamaModelfileTrainer:
         Returns:
             Dict with export status and model details
         """
+        if not _is_safe_model_name(model_name):
+            return {"success": False, "error": "Invalid model name"}
         model_path = Path(self.model_dir) / model_name
         if not model_path.exists():
             logger.error(f"[OpenMythos] Model not found: {model_name}")
@@ -290,7 +304,7 @@ class OllamaModelfileTrainer:
 
             modelfile_path = model_path / "Modelfile"
             if not modelfile_path.exists():
-                with open(modelfile_path, "w") as f:
+                with open(modelfile_path, "w", encoding="utf-8") as f:
                     f.write(f"FROM {self.config.get('base_model', 'llama2')}\n")
                     f.write("PARAMETER temperature 0.7\n")
                     f.write("PARAMETER top_p 0.9\n")
@@ -309,7 +323,13 @@ class OllamaModelfileTrainer:
                     return {"success": True, "model_name": model_name}
                 except Exception as e:
                     logger.warning(f"[OpenMythos] Direct export failed, trying manual: {e}")
-                    return {"success": True, "model_name": model_name, "path": str(model_path)}
+                    return {
+                        "success": False,
+                        "model_name": model_name,
+                        "path": str(model_path),
+                        "error": str(e),
+                        "manual_export_available": True,
+                    }
 
         except Exception as e:
             logger.error(f"[OpenMythos] Export failed: {e}")

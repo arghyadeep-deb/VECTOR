@@ -157,21 +157,24 @@ class DataCollector:
         return formatted
 
     def deduplicate(self, examples: list[dict]) -> list[dict]:
-        seen = set()
+        seen_hashes: set[str] = set()
+        seen_word_sets: list[set[str]] = []
         deduped = []
         for ex in examples:
             text = ex.get("text", ex.get("output", ""))
             h = hashlib.md5(text.encode("utf-8")).hexdigest()
-            if h in seen:
+            if h in seen_hashes:
                 continue
             score = int(len(text) > 50)
-            for s in seen:
-                overlap = len(set(text.split()) & set(s.split())) / max(len(set(text.split()) | set(s.split())), 1)
+            words = set(text.split())
+            for previous_words in seen_word_sets:
+                overlap = len(words & previous_words) / max(len(words | previous_words), 1)
                 if overlap > 0.85:
                     score = 0
                     break
             if score:
-                seen.add(h)
+                seen_hashes.add(h)
+                seen_word_sets.append(words)
                 deduped.append(ex)
         removed = len(examples) - len(deduped)
         if removed:

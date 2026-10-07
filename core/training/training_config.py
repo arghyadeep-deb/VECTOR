@@ -12,7 +12,10 @@ from pydantic import BaseModel, Field
 
 
 class AdapterConfig(BaseModel):
-    name: str
+    # This value becomes a directory name below the configured adapters root.
+    # Reject separators, drive prefixes, and the special dot components before
+    # pathlib can interpret them and escape that root.
+    name: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
     base_model: str
     target_modules: list[str]
     rank: int = Field(default=16, ge=1, le=256)

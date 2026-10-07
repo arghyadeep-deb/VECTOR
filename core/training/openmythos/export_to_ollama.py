@@ -18,7 +18,15 @@ import ollama
 import json
 import shutil
 import os
+import re
 from typing import List, Dict, Any, Optional
+
+
+_SAFE_MODEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+
+def _is_safe_model_name(model_name: str) -> bool:
+    return isinstance(model_name, str) and _SAFE_MODEL_NAME.fullmatch(model_name) is not None
 
 
 class OllamaExporter:
@@ -47,6 +55,9 @@ class OllamaExporter:
             Dict with export status and path
         """
         src = Path(src_path)
+        if not _is_safe_model_name(model_name):
+            logger.error("[OpenMythos] Invalid model name")
+            return {"success": False, "error": "Invalid model name"}
         if not src.exists():
             logger.error(f"[OpenMythos] Source model not found: {src_path}")
             return {"success": False, "error": "Source not found"}
@@ -85,6 +96,9 @@ class OllamaExporter:
         Returns:
             Path to the created Modelfile
         """
+        if not _is_safe_model_name(model_name):
+            logger.error("[OpenMythos] Invalid model name")
+            return ""
         model_path = self.registry_path / model_name
         if not model_path.exists():
             logger.error(f"[OpenMythos] Model not found: {model_name}")
@@ -111,7 +125,8 @@ class OllamaExporter:
             }
 
             for param_name, config_key in param_mapping.items():
-                if config_value := parameters.get(config_key):
+                config_value = parameters.get(config_key)
+                if config_value is not None:
                     content += f"PARAMETER {param_name} {config_value}\n"
 
         with open(modelfile_path, "w", encoding="utf-8") as f:
@@ -130,6 +145,8 @@ class OllamaExporter:
         Returns:
             Dict with push status
         """
+        if not _is_safe_model_name(model_name):
+            return {"success": False, "error": "Invalid model name"}
         model_path = self.registry_path / model_name
         if not model_path.exists():
             logger.error(f"[OpenMythos] Model not found: {model_name}")
@@ -143,7 +160,7 @@ class OllamaExporter:
             with ollama.Client(self.ollama_host) as client:
                 modelfile_path = model_path / "Modelfile"
                 if modelfile_path.exists():
-                    with open(modelfile_path, "r") as f:
+                    with open(modelfile_path, "r", encoding="utf-8") as f:
                         modelfile_content = f.read()
 
                     logger.info(f"[OpenMythos] Creating model {model_name} from Modelfile")
@@ -229,9 +246,12 @@ class OllamaExporter:
             with ollama.Client(self.ollama_host) as client:
                 client.delete(model_name)
 
-            local_path = self.registry_path / model_name
-            if local_path.exists():
-                shutil.rmtree(local_path)
+            # Ollama names may legitimately contain namespaces/tags. Only map
+            # the name to a local directory when it is a single safe segment.
+            if _is_safe_model_name(model_name):
+                local_path = self.registry_path / model_name
+                if local_path.exists():
+                    shutil.rmtree(local_path)
 
             logger.info(f"[OpenMythos] Model {model_name} deleted")
             return {"success": True, "model_name": model_name}

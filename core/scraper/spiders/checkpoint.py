@@ -1,4 +1,6 @@
 import json
+import os
+import tempfile
 
 __all__ = [
     "CheckpointData",
@@ -52,23 +54,33 @@ class CheckpointManager:
         """Save checkpoint data to disk atomically as JSON."""
         await self.crawldir.mkdir(parents=True, exist_ok=True)
 
-        temp_path = self._checkpoint_path.with_suffix(".tmp")
-
         try:
             payload = {
                 "requests": [r.to_dict() for r in data.requests],
                 "seen": [s.hex() for s in data.seen],
             }
-            serialized = json.dumps(payload, indent=2, default=str).encode()
-            async with await anyio.open_file(temp_path, "wb") as f:
-                await f.write(serialized)
+            serialized = json.dumps(payload, indent=2, default=str).encode("utf-8")
+            target = Path(str(self._checkpoint_path))
 
-            await temp_path.replace(self._checkpoint_path)  # replace(): rename() fails on Windows if the target exists
+            def _write_atomically() -> None:
+                fd, temp_name = tempfile.mkstemp(prefix=f".{target.name}.", suffix=".tmp", dir=target.parent)
+                try:
+                    with os.fdopen(fd, "wb") as f:
+                        f.write(serialized)
+                        f.flush()
+                        os.fsync(f.fileno())
+                    os.replace(temp_name, target)
+                except BaseException:
+                    try:
+                        os.unlink(temp_name)
+                    except FileNotFoundError:
+                        pass
+                    raise
+
+            await anyio.to_thread.run_sync(_write_atomically)
 
             log.info(f"Checkpoint saved: {len(data.requests)} requests, {len(data.seen)} seen URLs")
         except Exception as e:
-            if await temp_path.exists():
-                await temp_path.unlink()
             log.error(f"Failed to save checkpoint: {e}")
             raise
 

@@ -45,6 +45,25 @@ _DATA_DIR.mkdir(parents=True, exist_ok=True)
 from loguru import logger
 
 
+def _format_tokenization_texts(examples: dict) -> list[str]:
+    """Convert a datasets batched mapping into instruction-tuning strings."""
+    return [
+        f"{instruction}\n{input_text}\n{output}"
+        for instruction, input_text, output in zip(
+            examples["instruction"],
+            examples["input"],
+            examples["output"],
+        )
+    ]
+
+
+def _ensure_vendor_import_path() -> None:
+    """Make the checked-in ``open_mythos`` package importable when not installed."""
+    vendor_path = str(_VENDOR_DIR.resolve())
+    if _VENDOR_DIR.is_dir() and vendor_path not in sys.path:
+        sys.path.insert(0, vendor_path)
+
+
 # ── Step 1: Export training data from VECTOR's reasoning chains ───────────────
 
 def export_training_data(min_reward: float = 0.7, limit: int = 10000) -> Path:
@@ -107,7 +126,9 @@ def train(data_path: Path, epochs: int = 3, output_dir: Path = None) -> Path:
         output_dir = _DATA_DIR / "vector_chairman_lora"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Add OpenMythos to path
+    # Prefer the vendored package; without this, check_setup() reports the
+    # vendor as present but the subsequent top-level import still fails.
+    _ensure_vendor_import_path()
 
     try:
         import torch
@@ -166,14 +187,7 @@ def train(data_path: Path, epochs: int = 3, output_dir: Path = None) -> Path:
         tokenizer = MythosTokenizer()
 
         def tokenize(examples):
-            texts = [
-                f"{ex['instruction']}\n{ex['input']}\n{ex['output']}"
-                for ex in zip(
-                    examples["instruction"],
-                    examples["input"],
-                    examples["output"],
-                )
-            ]
+            texts = _format_tokenization_texts(examples)
             # MythosTokenizer may not support batch __call__; encode one item at a time
             if hasattr(tokenizer, '__call__'):
                 try:

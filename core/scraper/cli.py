@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import urlsplit
 from loguru import logger
 
 __all__ = [
@@ -36,6 +37,16 @@ __OUTPUT_FILE_HELP__ = "The output file path can be an HTML file, a Markdown fil
 __PACKAGE_DIR__ = Path(__file__).parent
 
 
+def _safe_url_for_error(url: str) -> str:
+    """Strip userinfo/query/fragment so CLI errors cannot echo credentials."""
+    try:
+        parts = urlsplit(url)
+        port = f":{parts.port}" if parts.port else ""
+        return f"{parts.scheme}://{parts.hostname or ''}{port}{parts.path}"
+    except ValueError:
+        return "<unparseable url>"
+
+
 def __Execute(cmd: List[str], help_line: str) -> None:  # pragma: no cover
     logger.info(f"Installing {help_line}...")
 
@@ -51,7 +62,7 @@ def __ParseJSONData(json_string: Optional[str] = None) -> Optional[Dict[str, Any
     try:
         return json_loads(json_string)
     except JSONDecodeError as err:  # pragma: no cover
-        raise ValueError(f"Invalid JSON data '{json_string}': {err}")
+        raise ValueError(f"Invalid JSON data: {err}")
 
 
 def __Request_and_Save(
@@ -78,7 +89,10 @@ def __Request_and_Save(
     status = getattr(response, "status", 200)
     if isinstance(status, int) and status >= 400:
         # The error page is kept for inspection, but the command must not report success.
-        raise ClickException(f"Request to {url} failed with HTTP status {status} (response saved to '{output_path}')")
+        raise ClickException(
+            f"Request to {_safe_url_for_error(url)} failed with HTTP status {status} "
+            f"(response saved to '{output_path}')"
+        )
 
 
 def __ParseExtractArguments(
@@ -91,7 +105,7 @@ def __ParseExtractArguments(
             try:
                 parsed_cookies[key] = value
             except Exception as err:
-                raise ValueError(f"Could not parse cookies '{cookies}': {err}")
+                raise ValueError(f"Could not parse cookies: {err}")
 
     parsed_json = __ParseJSONData(json)
     parsed_params = {}

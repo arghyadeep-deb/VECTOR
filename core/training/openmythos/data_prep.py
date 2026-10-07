@@ -21,6 +21,7 @@ import re
 import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+from core.scraper.engines.static import aensure_public_url
 
 
 class DataPreparator:
@@ -298,15 +299,22 @@ class DataPreparator:
             Path to the downloaded file
         """
         try:
+            await aensure_public_url(url)
             response = await self._client.get(url)
             response.raise_for_status()
 
-            Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-            with open(output_path, "wb") as f:
+            output_root = Path(self.output_dir).resolve()
+            requested = Path(output_path)
+            target = requested.resolve() if requested.is_absolute() else (output_root / requested).resolve()
+            if not target.is_relative_to(output_root):
+                raise ValueError("Output path must stay within the configured training data directory")
+
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with open(target, "wb") as f:
                 f.write(response.content)
 
-            logger.info(f"[OpenMythos] Dataset downloaded to {output_path}")
-            return output_path
+            logger.info(f"[OpenMythos] Dataset downloaded to {target}")
+            return str(target)
         except Exception as e:
             logger.error(f"[OpenMythos] Download failed: {e}")
             return ""

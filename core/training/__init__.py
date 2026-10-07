@@ -26,4 +26,4 @@ __all__ = [
 ]
 from core.training.alignment_dataset import build_dpo_pairs, build_sft_examples, export_jsonl
 
-__all__ = ["build_dpo_pairs", "build_sft_examples", "export_jsonl"]
+__all__ += ["build_dpo_pairs", "build_sft_examples", "export_jsonl"]
