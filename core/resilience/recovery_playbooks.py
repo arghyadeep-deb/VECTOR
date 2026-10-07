@@ -197,10 +197,14 @@ class ProcessHangPlaybook(RecoveryPlaybook):
         start = time.time()
         actions = []
 
-        for proc in psutil.process_iter(["pid", "name", "cpu_percent", "memory_info"]):
+        current = psutil.Process()
+        candidates = current.children(recursive=True)
+
+        for proc in candidates:
             try:
-                if proc.info["cpu_percent"] and proc.info["cpu_percent"] > 90:
-                    actions.append(f"High CPU: {proc.info['name']} (PID {proc.info['pid']}) — restarting")
+                cpu_percent = proc.cpu_percent()
+                if cpu_percent and cpu_percent > 90:
+                    actions.append(f"High CPU: {proc.name()} (PID {proc.pid}) — restarting")
                     proc.kill()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 continue

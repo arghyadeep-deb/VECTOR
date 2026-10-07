@@ -120,7 +120,8 @@ async def test_gpu_failure_playbook_no_torch():
 @pytest.mark.asyncio
 async def test_process_hang_playbook():
     playbook = ProcessHangPlaybook()
-    with patch("psutil.process_iter", return_value=[]):
+    with patch("psutil.Process") as mock_process:
+        mock_process.return_value.children.return_value = []
         result = await playbook.run()
         assert result.success is True
 
