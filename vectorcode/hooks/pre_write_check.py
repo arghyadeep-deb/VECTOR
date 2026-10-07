@@ -27,16 +27,22 @@ if not file_path or not file_path.endswith(".py"):
 
 # If content is being written, validate it
 if new_content:
+    tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False) as tmp:
             tmp.write(new_content)
             tmp_path = tmp.name
         py_compile.compile(tmp_path, doraise=True)
-        os.unlink(tmp_path)
     except py_compile.PyCompileError as e:
         print(f"[VECTOR HOOK] Syntax error blocked write to {file_path}:\n{e}")
         sys.exit(2)
     except Exception:
-        logger.debug("[VECTOR] suppressed exception", exc_info=True)
+        logger.opt(exception=True).debug("[VECTOR] suppressed exception")
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 sys.exit(0)
