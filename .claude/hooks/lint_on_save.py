@@ -24,8 +24,8 @@ if not os.path.exists(file_path):
 
 # Try ruff first, fall back to pyflakes
 linters = [
-    ["ruff", "check", "--select=E,F,W", "--quiet", file_path],
-    ["python", "-m", "pyflakes", file_path],
+    ["ruff", "check", "--select=E,F,W", "--quiet", "--", file_path],
+    ["python", "-m", "pyflakes", "--", file_path],
 ]
 
 for cmd in linters:

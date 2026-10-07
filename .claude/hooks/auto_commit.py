@@ -5,6 +5,7 @@ Stages + commits every successful file change so you never lose work.
 Silent on failure — never blocks the session.
 """
 import json
+import os
 import subprocess
 import sys
 from datetime import datetime
@@ -25,10 +26,23 @@ SKIP_PATTERNS = [".png", ".jpg", ".log", ".tmp", ".pyc", "__pycache__", ".screen
 if any(s in file_path for s in SKIP_PATTERNS):
     sys.exit(0)
 
+# Never auto-stage/auto-commit secret-bearing files: auto_commit runs with
+# --no-verify, bypassing pre_commit_gate.py's own staged-secret check
+# entirely, so this hook needs its own denylist rather than relying on that
+# gate to ever see what it's about to commit.
+DANGEROUS_NAMES = {
+    ".env", ".env.local", ".env.production", ".env.hardened", ".env.development",
+    "google_credentials.json", "service_account.json", "credentials.json",
+}
+_basename = os.path.basename(file_path).replace("\\", "/").split("/")[-1].lower()
+if _basename in DANGEROUS_NAMES or _basename.endswith(".env"):
+    sys.exit(0)
+
 try:
-    # Stage the specific file (safer than -A)
+    # Stage the specific file (safer than -A). "--" stops git from treating a
+    # dash-prefixed file_path as an option.
     if file_path:
-        subprocess.run(["git", "add", file_path], capture_output=True, timeout=10)
+        subprocess.run(["git", "add", "--", file_path], capture_output=True, timeout=10)
     else:
         subprocess.run(["git", "add", "-A"], capture_output=True, timeout=10)
 

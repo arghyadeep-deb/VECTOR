@@ -11,7 +11,10 @@ import sys
 try:
     data = json.loads(sys.stdin.read() or "{}")
 except Exception:
-    sys.exit(0)
+    # Fail closed: an unparseable payload means the target file can't be
+    # verified safe, so block rather than silently allow.
+    print("[VECTOR GATE] BLOCKED — unparseable hook payload, failing closed.")
+    sys.exit(2)
 
 file_path = (
     data.get("file_path")

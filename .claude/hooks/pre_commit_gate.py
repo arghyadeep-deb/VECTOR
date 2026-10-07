@@ -36,9 +36,13 @@ try:
         ["git", "diff", "--cached", "--name-only"],
         capture_output=True, text=True, timeout=10
     )
+    if result.returncode != 0:
+        print("[VECTOR GATE] BLOCKED — could not verify staged files, failing closed.")
+        sys.exit(2)
     staged = result.stdout.strip().splitlines()
 except Exception:
-    sys.exit(0)
+    print("[VECTOR GATE] BLOCKED — could not verify staged files, failing closed.")
+    sys.exit(2)
 
 blocked = []
 for f in staged:
