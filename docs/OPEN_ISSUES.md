@@ -6358,3 +6358,59 @@ isn't "proven in production" until you supply the service/device and run it live
        externally influenced.
      **This closes the "NOT YET audited" gap item 127 flagged** -- both
      `core/sandbox/*.py` files (5 of 5) have now had real depth applied this cycle.
+
+129. **`vectorcode/src/` top-level "mentioned but never actually audited" tier, interrupted
+     by Codex usage limit (2026-10-07) —** after item 127, discovered a second gap in the
+     reconciliation method: several significant top-level files only ever appeared as
+     *passing references* inside OTHER files' audit writeups (e.g. "real caller: swarm.py's
+     SwarmAgent.start_task()") and were never themselves the actual audit target -- "mentioned
+     somewhere" is not the same as "audited." Re-reconciled properly: of 18 confirmed files in
+     this tier (`batch_runner.py`, `cli.py`, `claims.py`, `config.py`, `credentials.py`,
+     `errors.py`, `guidance.py`, `hybrid.py`, `insights.py`, `model_tools.py`,
+     `reasoning_bank.py`, `repl.py`, `rl_cli.py`, `router.py`, `run_agent.py` [already had a
+     real dedicated audit, item 60 -- excluded], `session.py`, `swarm.py`,
+     `trajectory_compressor.py` -- 17 remain after excluding `run_agent.py`), Codex (gpt-5.6-sol)
+     hit its own usage limit (resets 2:00 PM) partway through, after modifying 15 of 17 files
+     with real fixes but before writing its own summary/verification record. The parent session
+     reviewed every diff directly, independently re-confirmed 4 of the fixes failing pre-fix via
+     `git stash` (since no Codex-authored verification record existed), ran `compileall` +
+     sanity-imports on all 15 touched top-level modules, and committed in 3 batches.
+     **Fixed with proof tests (3 commits):**
+     - `credentials.py`, `swarm.py`, `guidance.py`, `reasoning_bank.py`, `session.py`,
+       `neural_training.py`, `hybrid.py` (commit `4aaba6579`) -- `credentials.py`'s
+       `PooledCredential.from_env()` read keys via bare `os.environ`, bypassing
+       `get_secret()`'s keyring-first lookup. `swarm.py`'s `SwarmCoordinator.assign_task()`
+       reported success and mutated agent state (`status="busy"`, `current_task` set) even
+       when the underlying `ClaimService.claim()` call returned `None` (claim rejected) -- a
+       phantom task assignment leaving coordinator state inconsistent with the real claim
+       outcome. `guidance.py`'s `CoherenceScheduler`'s `violation_component` was never reset
+       before accumulating a fresh event window, so repeated violations never drove the score
+       low enough to trigger a privilege-level downgrade -- the privilege-reduction safety
+       mechanism was silently inert (independently reproduced: `violation_component` stayed
+       at `0.9` instead of resetting to `0.0`). `reasoning_bank.py`/`session.py`/
+       `neural_training.py` had the established non-atomic-write bug in their persistence
+       methods, now routed through the shared `atomic_json_write()`. New tests:
+       `tests/test_vectorcode_remainder2_regressions.py` (7).
+     - `rl_cli.py` (commit `3d7d907f4`, parent-session-authored fix) -- found while
+       sanity-importing every touched module: `get_vector_home()` was called at line 42
+       (module load time) but its import (`from vector_constants import get_vector_home,
+       OPENROUTER_BASE_URL`) was 31 lines later, after that first use. **100% reproducible
+       `NameError` on every single import or script invocation** -- this CLI entry point was
+       not subtly buggy, it was completely broken. Fixed by moving the import above its first
+       use. Also fixed in the same file (Codex's audit): `check_requirements()`/`main()` read
+       `OPENROUTER_API_KEY` via bare `os.environ.get()`, bypassing `get_secret()`. New test:
+       `tests/test_rl_cli_import_order.py`, confirmed failing pre-fix via `git stash` (assert
+       `2637 < 1354` -- the import literally came after its own first use).
+     - `batch_runner.py`, `cli.py`, `config.py`, `model_tools.py`, `repl.py`, `router.py`,
+       `trajectory_compressor.py` (commit `51216bfed`) -- mechanical conversions to already-
+       established, already-tested shared helpers: non-atomic writes in `config.py`'s
+       `ModelRegistry._save()` and `router.py`'s `NeuralRouter`/`GNNRouter` weight persistence
+       routed through `atomic_json_write()`; `repl.py`'s provider-status display routed through
+       `get_secret()`; loguru `%`-style/`exc_info=True` misuse fixed across all 7 files. No new
+       tests needed (no new branching logic); `compileall` clean, sanity-imports verified.
+     **Not reached before the usage-limit hit (genuinely still unaudited, next round's
+     scope):** `insights.py`, `errors.py`, `claims.py` (the top-level monolith previously
+     flagged by item 43 as likely "now-dead"/superseded by the `claims/` package -- still
+     needs its own liveness check via direct repo-wide grep before being assumed dead, not
+     done this round since Codex never reached it).
+     **Commit status:** `4aaba6579`, `3d7d907f4`, `51216bfed`.
