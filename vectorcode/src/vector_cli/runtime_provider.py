@@ -92,19 +92,19 @@ def _auto_detect_local_model(base_url: str) -> str:
     if not base_url:
         return ""
     try:
-        import requests
+        import httpx
         url = base_url.rstrip("/")
         if not url.endswith("/v1"):
             url += "/v1"
-        resp = requests.get(url + "/models", timeout=5)
-        if resp.ok:
+        resp = httpx.get(url + "/models", timeout=5)
+        if resp.is_success:
             models = resp.json().get("data", [])
             if len(models) == 1:
                 model_id = models[0].get("id", "")
                 if model_id:
                     return model_id
     except Exception as _sve:
-        logger.debug("[VECTOR][vector_cli.runtime_provider] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][vector_cli.runtime_provider] suppressed Exception: {}", _sve)
     return ""
 
 

@@ -702,7 +702,7 @@ def _transcribe_xai(file_path: str, model_name: str) -> Dict[str, Any]:
     use_diarize = is_truthy_value(xai_config.get("diarize", False))
 
     try:
-        import requests
+        import httpx
         from tools.xai_http import vector_xai_user_agent
 
         data: Dict[str, str] = {}
@@ -714,7 +714,7 @@ def _transcribe_xai(file_path: str, model_name: str) -> Dict[str, Any]:
             data["diarize"] = "true"
 
         with open(file_path, "rb") as audio_file:
-            response = requests.post(
+            response = httpx.post(
                 f"{base_url}/stt",
                 headers={
                     "Authorization": f"Bearer {api_key}",
@@ -751,7 +751,7 @@ def _transcribe_xai(file_path: str, model_name: str) -> Dict[str, Any]:
             }
 
         logger.info(
-            "Transcribed %s via xAI Grok STT (lang=%s, %.1fs audio, %d chars)",
+            "Transcribed {} via xAI Grok STT (lang={}, {:.1f}s audio, {} chars)",
             Path(file_path).name,
             result.get("language", language),
             result.get("duration", 0),
@@ -763,7 +763,7 @@ def _transcribe_xai(file_path: str, model_name: str) -> Dict[str, Any]:
     except PermissionError:
         return {"success": False, "transcript": "", "error": f"Permission denied: {file_path}"}
     except Exception as e:
-        logger.error("xAI STT transcription failed: %s", e, exc_info=True)
+        logger.opt(exception=True).error("xAI STT transcription failed: {}", e)
         return {"success": False, "transcript": "", "error": f"xAI STT transcription failed: {e}"}
 
 

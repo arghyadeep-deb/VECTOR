@@ -415,7 +415,7 @@ def _generate_xai_tts(text: str, output_path: str, tts_config: Dict[str, Any]) -
     xAI exposes a dedicated /v1/tts endpoint instead of the OpenAI audio.speech
     API shape, so this is implemented as a separate backend.
     """
-    import requests
+    import httpx
 
     api_key = os.environ.get("XAI_API_KEY", "").strip()
     if not api_key:
@@ -452,7 +452,7 @@ def _generate_xai_tts(text: str, output_path: str, tts_config: Dict[str, Any]) -
             output_format["bit_rate"] = bit_rate
         payload["output_format"] = output_format
 
-    response = requests.post(
+    response = httpx.post(
         f"{base_url}/tts",
         headers={
             "Authorization": f"Bearer {api_key}",
@@ -488,7 +488,7 @@ def _generate_minimax_tts(text: str, output_path: str, tts_config: Dict[str, Any
     Returns:
         Path to the saved audio file.
     """
-    import requests
+    import httpx
 
     api_key = os.environ.get("MINIMAX_API_KEY", "")
     if not api_key:
@@ -533,7 +533,7 @@ def _generate_minimax_tts(text: str, output_path: str, tts_config: Dict[str, Any
         "Authorization": f"Bearer {api_key}",
     }
 
-    response = requests.post(base_url, json=payload, headers=headers, timeout=60)
+    response = httpx.post(base_url, json=payload, headers=headers, timeout=60)
     response.raise_for_status()
 
     result = response.json()
@@ -660,7 +660,7 @@ def _generate_gemini_tts(text: str, output_path: str, tts_config: Dict[str, Any]
     Returns:
         Path to the saved audio file.
     """
-    import requests
+    import httpx
 
     api_key = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or "").strip()
     if not api_key:
@@ -690,7 +690,7 @@ def _generate_gemini_tts(text: str, output_path: str, tts_config: Dict[str, Any]
     }
 
     endpoint = f"{base_url}/models/{model}:generateContent"
-    response = requests.post(
+    response = httpx.post(
         endpoint,
         params={"key": api_key},
         headers={"Content-Type": "application/json"},
