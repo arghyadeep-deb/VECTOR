@@ -5980,3 +5980,134 @@ isn't "proven in production" until you supply the service/device and run it live
      **Commit status:** `b3e0c8b42`, `20c5f8257`. **core/ audit scope: COMPLETE.** Next
      phase is `districts/` (~414 real-depth files excluding vendored `investment/` and
      `intelligence/shadowbroker_server/`), already underway in parallel (see items to follow).
+
+122. **`districts/` audit, round 1 -- intelligence+finance+governance+growth+communications+
+     agency+emergency+ops+news_trends+projects (2026-10-07) —** first-ever full-depth audit
+     of these districts (111 files assigned; `districts/intelligence/vector_social_sim/`, 37
+     files, correctly treated as vendored AGPL code per the standing owner decision on
+     `vector_social_sim` and skipped, not audited).
+     **Fixed with proof tests (3 commits):**
+     - `districts/governance/credential_manager.py` (commit `7cdb59531`) --
+       `scan_available_providers()`/`validate_key()` read provider API keys via bare
+       `os.getenv()`, never checking the OS keyring -- the same secret-storage-abstraction-
+       mismatch bug class fixed repeatedly this cycle. A key stored only in keyring was
+       reported "not_set"/invalid in the owner-facing provider status report. Fixed via
+       `core.security.secrets_manager.get_secret()`. New tests
+       `tests/test_credential_manager_keyring.py` (4).
+     - `core/config.py` (commit `b749876a8`, outside `districts/` but the only correct fix
+       point) -- discovered while auditing `districts/emergency/escalation.py`'s Pushover
+       path: `PUSHOVER_TOKEN`/`PUSHOVER_USER` are plain pydantic `SecretStr`/`str` fields
+       with NO keyring fallback, unlike sibling `SMTP_PASS`/`IMAP_PASS`.
+       `scripts/migrate_secrets_to_keyring.py` explicitly lists both as migration targets
+       and promises keyring fallback after migration -- a false promise that would have
+       silently killed Pushover delivery everywhere the moment the owner followed the
+       script's own documented workflow, including `core/loop/permission_gateway.py`'s
+       RED-tier human-approval flow. Fixed via `get_secret()` for both the `api_keys` dict
+       entry and the top-level alias. New tests `tests/test_config_pushover_keyring.py` (4).
+       **Flagged for owner, not fixed:** every other `SecretStr` field on `VectorSettings`
+       (`ANTHROPIC_KEY`, `GITHUB_TOKEN`, `SUPABASE_KEY`, `VIRUSTOTAL_KEY`, `NEWSAPI_KEY`,
+       `STRIPE_KEY`, `VECTOR_DB_KEY`, ...) has the same structural gap -- needs a per-field
+       owner decision on which are intentionally env-only vs. need the same fix.
+     - `districts/projects/experiment_tracker.py` (commit `189f46358`) --
+       `_save_experiments()` wrote the shared experiment registry via `write_text()`, not
+       atomically, even though `_load_experiments()` already defensively backs up an
+       unreadable file to `.corrupt.json` -- the write path did nothing to prevent causing
+       that corruption. Fixed via tempfile+fsync+os.replace. New tests
+       `tests/test_experiment_tracker_atomic_write.py` (2).
+     New tests total: 10, all confirmed failing pre-fix via `git stash`. Zero regressions in
+     `tests/test_ops_governance_audit_phase3.py`. All independently re-verified by the
+     parent session.
+     **Reviewed clean:** all of `emergency/` (`classifier.py`, `detector.py`, `log.py`,
+     `main.py`, `runbook.py` -- hash-chained tamper-evident log already mature; rate-limited
+     Pushover sender already sound); `ops/error_classifier.py` (prior-cycle fixes verified
+     intact); `agency/agency_specialists.py`'s `NotImplementedError` (false positive --
+     legitimate abstract template method, every subclass overrides it);
+     `communications/providers/whatsapp.py`, `communications/email_intelligence.py`.
+     **Flagged for owner, not fixed (lower priority, optional/niche integrations):**
+     `districts/emergency/detector.py`'s `process_heart_rate()`/`process_system_metrics()`
+     are dead code (zero callers anywhere in the repo -- `main.py` correctly calls
+     `process_signal()` directly instead) with a latent sync/async `asyncio.run()` bug
+     inside, but unreachable so no active fix warranted; `districts/intelligence/
+     vectorintel_agent.py` and `shadowbroker/sb_query.py` read `TELEGRAM_BOT_TOKEN`/
+     `SHADOWBROKER_DISCORD_WEBHOOK`/`VECTORINTEL_SECRET`/`SHADOWBROKER_HMAC_SECRET` via bare
+     `os.environ.get()` -- same bug class as the Pushover fix above, but these aren't in
+     `migrate_secrets_to_keyring.py`'s scope and are optional/niche integrations;
+     `districts/news_trends/social_miner.py`/`problem_clusterer.py` have a minor
+     non-atomic-snapshot-write pattern, lower severity since they write new timestamped
+     files each run with existing graceful-degradation on read failure.
+     **Remaining scope (not reached this pass, time-budgeted):** `districts/finance/` (9),
+     `districts/growth/` (7), `districts/communications/email_agent.py`/`person_model.py`/
+     `reply_forward.py`, `districts/agency/client_manager.py`/`content_strategist.py`/
+     `performance_tracker.py`/`proposal_strategist.py`/`sales_strategist.py`,
+     `districts/ops/agent.py`/`devops_automator.py`/`incident_commander.py`/
+     `ops_specialists.py`/`sre_monitor.py`, `districts/news_trends/ai_news_bot.py`/
+     `market_trends_bot.py`/`opportunity_spotter.py`/`venture_pipeline.py`,
+     `districts/intelligence/shadowbroker/sb_alerts.py`/`sb_briefing.py`/`sb_monitor.py`/
+     `sb_signatures.py`, `districts/intelligence/social_sim_agent.py`,
+     `districts/projects/deadline_watcher.py`/`doc_writer.py`/`progress_tracker.py`/
+     `project_planner.py`/`_safe.py`.
+     **Commit status:** `7cdb59531`, `b749876a8`, `189f46358`.
+
+123. **`districts/` audit, round 2 -- 22 small districts
+     (2026-10-07) —** first-ever full-depth audit of `home_assistant/`, `interview_prep/`,
+     `karpathy_lab/`, `languages/`, `memory_curator/`, `predictive_analytics/`, `startups/`,
+     `design/`, `data_analytics/`, `learning/`, `time_calendar/`, `skills/`, `reflection/`,
+     `personal_growth/`, `chief_of_staff/`, `calls/`, `legal_compliance/`,
+     `pattern_detective/`, `privacy/`, `relationships/`, `science/`, `self_dev/` (99 files
+     assigned).
+     **Fixed with proof tests (2 commits):**
+     - `districts/interview_prep/feedback_analyst.py` + `report_generator.py` +
+       `districts/data_analytics/performance_benchmarker.py` (commit `e1f0cd54f`) -- both
+       interview_prep files used `Path(__file__).parent.parent.parent.parent`, one `.parent`
+       too many for a `districts/<name>/<file>.py` location, silently walking past the repo
+       root into its sibling directory on disk. **Confirmed live:**
+       `V.E.C.T.O.R\data\interview_feedback.json` (341KB) and `...\data\interview_reports\`
+       already exist on disk at the wrong, stray location -- outside git and outside the
+       `VECTOR_DATA_DIR`/`VECTOR_TEST_DATA_DIR` override every other `data_path()` consumer
+       respects. Real accumulated interview-prep data has been silently misplaced. Fixed by
+       routing both through `core.runtime_paths.data_path()`. **Flagged for owner, not
+       touched:** the pre-existing stray data files at the old location are not migrated --
+       only the code path going forward is fixed; the owner should decide whether to
+       manually move the old file(s) into the repo's `data/` to preserve history. Same
+       commit also fixed the identical off-by-one in `performance_benchmarker.py`'s
+       `sys.path.insert`, but that one was dead code with no observable effect
+       (`ensure_paths()` already covers it) -- fixed as drive-by cleanup, not separately
+       tested. New tests `tests/test_districts_off_by_one_parent_paths.py` (2).
+     - `districts/privacy/privacy_enforcer.py` (commit `cf2d35d4f`) -- `redact_pii()`'s LLM
+       "catch what regex missed" pass applied reported `additional_finds` via `start`/`end`
+       character-offset slicing, broken two ways: the LLM only ever saw a 300-char truncated
+       preview (any offset it returns is relative to that preview, not the live string), and
+       applying multiple finds in sequence mutates the string each time (placeholder length
+       != match length), staling every later offset. **Confirmed live:** a crafted two-item
+       response left BOTH PII items completely unredacted ("Redacted 0 PII items") -- a real
+       fail-open in the privacy district's own redaction primitive, on the district whose
+       entire job is enforcing the cloud-vs-local privacy boundary. Fixed by matching on the
+       LLM's reported `value` text via `str.replace()` instead of trusting offsets. New test
+       `tests/test_privacy_enforcer_redact_pii_offset_corruption.py` (1).
+     New tests total: 3, all confirmed failing pre-fix via `git stash`. Zero regressions in
+     `tests/test_audit_phase3_interview_prep.py`, `tests/test_audit_phase3_privacy.py`,
+     `tests/test_interview_prep_run_wiring.py`. All independently re-verified by the parent
+     session.
+     **Reviewed clean** (several already mature/multi-round-hardened):
+     `home_assistant/connector.py`, `agent.py` (explicit 2026-09-23 permission-gateway
+     self-gate already in place), `entity_manager.py`, `voice_bridge.py`
+     (`automation_engine.py`'s ungated `evaluate_triggers()` is a pre-existing
+     latent/unwired item already tracked at `docs/OPEN_ISSUES.md` line 1110, not a new
+     finding); `calls/voice_responder.py` (CWE-22-confined `text_to_speech`),
+     `call_screener.py` (fail-closed whitelist logic; its `_save_contacts()` is non-atomic
+     but minor, not fixed given time budget); `pattern_detective/behavior_analyst.py`;
+     `memory_curator/memory_curator_specialists.py` and
+     `legal_compliance/legal_compliance_specialists.py` (both `NotImplementedError`/
+     `verified: True` instances are legitimate abstract-method/deterministic-recomputation
+     patterns, not regressions); `karpathy_lab/autoresearch_runner.py` (RED-gated per
+     explicit "58D remediation" history -- its git-branch-switching side effect during an
+     autonomous cycle could theoretically interfere with concurrent repo work, but this is
+     an already-reviewed, intentionally-gated design, not flagged as a new bug).
+     **Remaining scope (not reached this pass, time-budgeted):** `languages/`,
+     `startups/idea_validator.py` (revenue-gate logic -- worth prioritizing next round),
+     rest of `startups/`, `design/`, `learning/`, `time_calendar/`, `skills/`, `reflection/`,
+     `personal_growth/`, `chief_of_staff/`, `calls/transcription_bot.py`, `relationships/`,
+     `science/`, `self_dev/`, `predictive_analytics/` (beyond one latent falsy-zero spot-
+     check in `time_series_forecaster.py`, not fixed -- doesn't currently manifest with any
+     configured metric), `memory_curator/` (beyond `specialists.py`).
+     **Commit status:** `e1f0cd54f`, `cf2d35d4f`.
