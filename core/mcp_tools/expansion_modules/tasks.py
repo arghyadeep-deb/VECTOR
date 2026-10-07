@@ -52,9 +52,13 @@ def add_task_tools(mcp) -> None:
         def task_update(task_id: str, progress: float = 0.0) -> str:
             """Update task progress (0.0-1.0)."""
             tq = _get_tq()
-            if hasattr(tq, "update_progress"):
-                tq.update_progress(task_id, progress)
-            return _safe_json({"ok": True, "task_id": task_id, "progress": progress})
+            if not hasattr(tq, "update_progress"):
+                return _safe_json({"ok": False, "error": "progress updates are not available"})
+            if hasattr(tq, "status") and tq.status(task_id) is None:
+                return _safe_json({"ok": False, "error": f"Task {task_id} not found"})
+            tq.update_progress(task_id, progress)
+            applied = max(0.0, min(1.0, float(progress)))
+            return _safe_json({"ok": True, "task_id": task_id, "progress": applied})
 
         @mcp.tool
         def task_delete(task_id: str) -> str:

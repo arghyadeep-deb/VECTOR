@@ -674,7 +674,10 @@ def chat(
         local_only = _plan.local_only
         logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
     except Exception as e:
-        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
+        logger.warning(
+            "[VECTOR][vc_llm] route_policy unavailable; failing local-only: {}", e
+        )
+        local_only = True
 
     domain_local_only = False
     if domain:
@@ -847,7 +850,10 @@ async def achat(
         local_only = _plan.local_only
         logger.debug("[VECTOR][vc_llm] route: local_only={} ({})", local_only, _plan.reason)
     except Exception as e:
-        logger.debug(f"[VECTOR][vc_llm] route_policy unavailable: {e}")
+        logger.warning(
+            "[VECTOR][vc_llm] route_policy unavailable; failing local-only: {}", e
+        )
+        local_only = True
 
     domain_local_only = False
     if domain:

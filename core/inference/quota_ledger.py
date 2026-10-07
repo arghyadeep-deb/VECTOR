@@ -24,6 +24,8 @@ import sys
 import json
 import time
 import datetime
+import os
+import tempfile
 import threading
 from collections import deque
 from pathlib import Path
@@ -79,7 +81,28 @@ class QuotaLedger:
             return
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps(self._data), encoding="utf-8")
+            # A partial write would make the next process discard the entire
+            # ledger as malformed JSON and silently forget consumed quota.
+            # Flush a same-directory temporary file before atomic replacement.
+            temp_path: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    "w",
+                    encoding="utf-8",
+                    dir=self._path.parent,
+                    prefix=f".{self._path.name}.",
+                    suffix=".tmp",
+                    delete=False,
+                ) as handle:
+                    temp_path = Path(handle.name)
+                    json.dump(self._data, handle)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(temp_path, self._path)
+                temp_path = None
+            finally:
+                if temp_path is not None:
+                    temp_path.unlink(missing_ok=True)
             self._last_save = now
         except Exception as e:
             logger.debug(f"[VECTOR][quota] ledger save failed: {e}")

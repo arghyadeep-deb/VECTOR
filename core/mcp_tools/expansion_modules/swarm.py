@@ -42,7 +42,15 @@ def add_swarm_tools(mcp) -> None:
             p = _j.loads(params) if params else {}
             if not hasattr(orch, "dispatch"):
                 return _safe_json({"ok": False, "error": "orchestrator has no dispatch(); task NOT submitted"})
-            return _safe_json(orch.dispatch(task_type, p))
+            result = orch.dispatch(task_type, p)
+            if _inspect.isawaitable(result):
+                if hasattr(result, "close"):
+                    result.close()
+                return _safe_json({
+                    "ok": False,
+                    "error": "dispatch is async and was not run; task NOT submitted",
+                })
+            return _safe_json(result)
 
         @mcp.tool
         def swarm_execute(tasks: str = "[]") -> str:
@@ -103,8 +111,18 @@ def add_swarm_tools(mcp) -> None:
             swarm = swarms[swarm_name]
             if hasattr(swarm, "dispatch"):
                 result = swarm.dispatch(task)
+                if _inspect.isawaitable(result):
+                    if hasattr(result, "close"):
+                        result.close()
+                    return _safe_json({
+                        "ok": False,
+                        "error": "swarm dispatch is async and was not run; task NOT assigned",
+                    })
             else:
-                result = {"status": "assigned", "swarm": swarm_name}
+                return _safe_json({
+                    "ok": False,
+                    "error": f"Swarm '{swarm_name}' has no dispatch(); task NOT assigned",
+                })
             return _safe_json(result)
 
         @mcp.tool

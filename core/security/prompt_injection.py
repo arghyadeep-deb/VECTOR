@@ -200,15 +200,17 @@ class PromptInjectionScanner:
         return self.scan(text).clean
 
 
-# Singleton
-_scanner: PromptInjectionScanner | None = None
+# One singleton per policy.  A process that first requested the default
+# scanner previously received that same non-strict instance from a later
+# ``get_scanner(strict=True)`` call, silently weakening the caller's policy.
+_scanners: dict[bool, PromptInjectionScanner] = {}
 
 
 def get_scanner(strict: bool = False) -> PromptInjectionScanner:
-    global _scanner
-    if _scanner is None:
-        _scanner = PromptInjectionScanner(strict=strict)
-    return _scanner
+    policy = bool(strict)
+    if policy not in _scanners:
+        _scanners[policy] = PromptInjectionScanner(strict=policy)
+    return _scanners[policy]
 
 
 def scan_text(text: str, context: str = "") -> ScanResult:

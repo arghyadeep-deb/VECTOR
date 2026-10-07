@@ -376,7 +376,17 @@ class ProviderClient:
                 _plan.providers, _plan.tier, _plan.reason,
             )
         except Exception as _re:
-            logger.debug("[VECTOR][provider_client] route_policy unavailable: {}", _re)
+            # Privacy routing is a safety boundary, not an optional
+            # optimization.  If it cannot classify the payload, retaining an
+            # explicit/cloud provider here would fail open and could disclose
+            # a RED-tier or secret-bearing prompt.  Degrade to Ollama only.
+            logger.warning(
+                "[VECTOR][provider_client] route_policy unavailable; failing local-only: {}",
+                _re,
+            )
+            _route_order = ["ollama"]
+            provider = None
+            model = None
 
         # ── Cloud budget gate (C1) ─────────────────────────────────────────────
         # After route_policy decides providers, verify the cloud ones are within budget.
