@@ -17,6 +17,7 @@ from loguru import logger
 from core.config import CONFIG
 from core.city.agent_base import AgentBase
 from core.memory.episodic import EpisodicMemory
+from core.security.secrets_manager import get_secret
 
 _PROVIDERS = ["gemini", "anthropic", "openrouter", "bedrock"]
 
@@ -50,13 +51,24 @@ class CredentialManager(AgentBase):
         """Check which LLM providers have credentials configured."""
         status = {}
         for provider, env_var in _ENV_KEYS.items():
-            # dynamic provider env var — kept as os.getenv
-            key = os.getenv(env_var) or CONFIG.get("api_keys", {}).get(provider, "")
+            # keyring-first lookup: a key stored only in the OS keyring (not
+            # env/config) was previously reported "not_set" by this scan,
+            # even though every other call site in VECTOR would have found
+            # it fine via get_secret().
+            env_val = os.getenv(env_var, "")
+            key = env_val or get_secret(env_var) or CONFIG.get("api_keys", {}).get(provider, "")
             has_key = bool(key and len(key) > 8)
+            if env_val:
+                source = "env"
+            elif key and key == get_secret(env_var, allow_keyring=True):
+                source = "keyring"
+            elif has_key:
+                source = "config"
+            else:
+                source = "none"
             status[provider] = {
                 "available": has_key,
-                # dynamic provider env var — kept as os.getenv
-                "key_source": "env" if os.getenv(env_var) else ("config" if has_key else "none"),
+                "key_source": source,
                 "key_prefix": key[:8] + "..." if has_key else "not_set",
                 "cost_tier": "free" if provider == "gemini" else "paid",
             }
@@ -83,8 +95,7 @@ class CredentialManager(AgentBase):
 
     def validate_key(self, provider: str, key: str = "") -> dict:
         """Quick validation that a key format looks correct (no network call)."""
-        # dynamic provider env var — kept as os.getenv
-        key = key or os.getenv(_ENV_KEYS.get(provider, ""), "")
+        key = key or get_secret(_ENV_KEYS.get(provider, ""))
         patterns = {
             "anthropic": ("sk-ant-", 40),
             "openrouter": ("sk-or-", 30),
