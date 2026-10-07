@@ -5940,3 +5940,43 @@ isn't "proven in production" until you supply the service/device and run it live
      in passing, not in scope: `core/runtime/vector_runtime.js` is JavaScript, not Python --
      out of scope for this audit entirely, not merely deferred.)
      **Commit status:** `0f6673fa1`, `385038582`, `52be5d4c1`.
+
+121. **`core/`'s audit scope is now fully complete (2026-10-07) —** a Claude worker-fork
+     finished item 120's last ~30-file remainder (`mining/`, `persona/`, `personality/`,
+     `runtime/`, `sensing/`, `video/`, `collections/__init__.py`), closing out core/'s
+     real-depth audit entirely (started with 6 Codex batches + a 145-file Claude-fork round
+     + this follow-up chain -- see items 113-121).
+     **Fixed (1 commit, by the fork):**
+     - `core/personality/consistency.py` (commit `b3e0c8b42`) -- `_check_rules()` had two
+       unanchored substring/prefix matches, the same bug class already fixed in
+       `memory_persona.py` this cycle (item 120): (1) "use 'sir' at most once" counted the
+       bare substring "sir" anywhere in the response, false-flagging replies containing
+       "desirable", "siren", "elixir"; (2) "no greetings" matched `^(hi|hello|hey|greetings)`
+       with no trailing word boundary, false-flagging any response starting with "History",
+       "Hint", "Highway". Both reachable live via `validate_response()` from
+       `core/api/routers/voice.py`, `voice_ws.py`, and `core/personality/middleware.py`.
+       Fixed both with `\b` word-boundary regex. New test
+       `tests/personality/test_consistency_rule_false_positives.py` (5), 3 confirmed failing
+       pre-fix. Zero regressions in `tests/personality/` (76 passed) + `test_spec03_personality.py`.
+     **Reviewed clean by the fork, no bug found (29 files):** all 9 `mining/` files
+     (subprocess launchers confirmed to pass credentials via env vars not argv, matching
+     sibling files already audited); all 4 `persona/` files; `personality/character_card.py`,
+     `middleware.py`, `tone_adapter.py`, `__init__.py`; all 3 `runtime/` files; all 3
+     `sensing/` files (fail-closed neutral defaults throughout, never raises); all 5 `video/`
+     files (`workflow_resolver.py`'s path confinement already uses the correct
+     `resolve()`+`relative_to()` pattern, not a naive prefix check); `collections/__init__.py`.
+     **Fixed by the parent session directly (1 commit, flagged by the fork):** the fork
+     correctly identified a real bug in `core/runtime/doctor.py`'s caller rather than the
+     file itself -- `run_dependency_doctor()` does blocking file I/O + a blocking
+     `urllib.request.urlopen()` call, but was invoked synchronously (no `asyncio.to_thread`)
+     from three `async def` FastAPI endpoints in `core/api/routers/health.py`
+     (`/health/readiness`, `/health/hardened-readiness`, `/health/doctor`), starving the
+     event loop (other requests, the autonomous loop's own async tasks) for the full
+     duration of every readiness/doctor check. Fixed via `await asyncio.to_thread(...)`,
+     matching the pattern already used elsewhere in the same file. New test
+     `tests/test_core_api_health_doctor_async.py` (3) measures wall-clock concurrency with a
+     mocked blocking doctor call + a parallel ticker task; confirmed failing pre-fix via
+     `git stash` (0.67s observed vs ~0.3s expected once concurrent). Commit `20c5f8257`.
+     **Commit status:** `b3e0c8b42`, `20c5f8257`. **core/ audit scope: COMPLETE.** Next
+     phase is `districts/` (~414 real-depth files excluding vendored `investment/` and
+     `intelligence/shadowbroker_server/`), already underway in parallel (see items to follow).
