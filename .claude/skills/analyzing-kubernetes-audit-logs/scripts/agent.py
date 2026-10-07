@@ -7,18 +7,34 @@ from collections import defaultdict
 from datetime import datetime
 
 
+class AuditLogParseError(ValueError):
+    """The audit log contains a record that cannot be analyzed safely."""
+
+
+def _first_source_ip(event):
+    source_ips = event.get("sourceIPs", [])
+    return source_ips[0] if isinstance(source_ips, list) and source_ips else ""
+
+
 def parse_audit_log(log_path):
     """Parse Kubernetes audit log file (JSON lines format)."""
     events = []
-    with open(log_path) as f:
-        for line in f:
+    with open(log_path, encoding="utf-8") as f:
+        for line_number, line in enumerate(f, start=1):
             line = line.strip()
             if not line:
                 continue
             try:
-                events.append(json.loads(line))
-            except json.JSONDecodeError:
-                continue
+                event = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise AuditLogParseError(
+                    f"Malformed Kubernetes audit JSON at line {line_number}: {exc.msg}"
+                ) from exc
+            if not isinstance(event, dict):
+                raise AuditLogParseError(
+                    f"Kubernetes audit record at line {line_number} is not a JSON object"
+                )
+            events.append(event)
     return events
 
 
@@ -37,7 +53,7 @@ def detect_pod_exec(events):
                 "namespace": obj_ref.get("namespace", ""),
                 "pod": obj_ref.get("name", ""),
                 "subresource": subresource,
-                "source_ip": event.get("sourceIPs", [""])[0],
+                "source_ip": _first_source_ip(event),
                 "severity": "HIGH",
             })
     return findings
@@ -59,7 +75,7 @@ def detect_secret_access(events):
             "verb": verb,
             "namespace": obj_ref.get("namespace", ""),
             "secret_name": obj_ref.get("name", ""),
-            "source_ip": event.get("sourceIPs", [""])[0],
+            "source_ip": _first_source_ip(event),
             "severity": "HIGH" if verb in ("list", "delete") else "MEDIUM",
         })
     return findings
@@ -81,7 +97,7 @@ def detect_rbac_changes(events):
                 "resource": resource,
                 "name": obj_ref.get("name", ""),
                 "namespace": obj_ref.get("namespace", ""),
-                "source_ip": event.get("sourceIPs", [""])[0],
+                "source_ip": _first_source_ip(event),
                 "severity": "CRITICAL" if "cluster" in resource else "HIGH",
             })
     return findings
@@ -128,7 +144,7 @@ def detect_anonymous_access(events):
                     "user": user,
                     "verb": event.get("verb", ""),
                     "resource": event.get("objectRef", {}).get("resource", ""),
-                    "source_ip": event.get("sourceIPs", [""])[0],
+                    "source_ip": _first_source_ip(event),
                     "status_code": status_code,
                     "severity": "CRITICAL",
                 })

@@ -2,12 +2,13 @@
 """IOC analysis and enrichment agent using VirusTotal, AbuseIPDB, and MalwareBazaar APIs."""
 
 import re
-import os
 import json
 import datetime
 
+from core.security.secrets_manager import get_secret
+
 try:
-    import requests
+    import httpx
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -67,7 +68,7 @@ def is_private_ip(ip):
 def query_virustotal_hash(sha256, api_key):
     """Query VirusTotal for a file hash."""
     url = f"https://www.virustotal.com/api/v3/files/{sha256}"
-    resp = requests.get(url, headers={"x-apikey": api_key}, timeout=30)
+    resp = httpx.get(url, headers={"x-apikey": api_key}, timeout=30)
     if resp.status_code == 200:
         data = resp.json().get("data", {}).get("attributes", {})
         stats = data.get("last_analysis_stats", {})
@@ -86,7 +87,7 @@ def query_virustotal_hash(sha256, api_key):
 def query_virustotal_domain(domain, api_key):
     """Query VirusTotal for domain reputation."""
     url = f"https://www.virustotal.com/api/v3/domains/{domain}"
-    resp = requests.get(url, headers={"x-apikey": api_key}, timeout=30)
+    resp = httpx.get(url, headers={"x-apikey": api_key}, timeout=30)
     if resp.status_code == 200:
         data = resp.json().get("data", {}).get("attributes", {})
         stats = data.get("last_analysis_stats", {})
@@ -101,10 +102,28 @@ def query_virustotal_domain(domain, api_key):
     return None
 
 
+def query_virustotal_ip(ip, api_key):
+    """Query VirusTotal's IP-address endpoint for reputation data."""
+    url = f"https://www.virustotal.com/api/v3/ip_addresses/{ip}"
+    resp = httpx.get(url, headers={"x-apikey": api_key}, timeout=30)
+    if resp.status_code == 200:
+        data = resp.json().get("data", {}).get("attributes", {})
+        stats = data.get("last_analysis_stats", {})
+        return {
+            "ip": ip,
+            "malicious": stats.get("malicious", 0),
+            "suspicious": stats.get("suspicious", 0),
+            "reputation": data.get("reputation", 0),
+            "country": data.get("country", ""),
+            "as_owner": data.get("as_owner", ""),
+        }
+    return None
+
+
 def query_abuseipdb(ip, api_key, max_age_days=90):
     """Query AbuseIPDB for IP reputation."""
     url = "https://api.abuseipdb.com/api/v2/check"
-    resp = requests.get(url, headers={"Key": api_key, "Accept": "application/json"},
+    resp = httpx.get(url, headers={"Key": api_key, "Accept": "application/json"},
                         params={"ipAddress": ip, "maxAgeInDays": max_age_days}, timeout=30)
     if resp.status_code == 200:
         data = resp.json().get("data", {})
@@ -123,7 +142,7 @@ def query_abuseipdb(ip, api_key, max_age_days=90):
 def query_malwarebazaar(sha256):
     """Query MalwareBazaar for file hash information."""
     url = "https://mb-api.abuse.ch/api/v1/"
-    resp = requests.post(url, data={"query": "get_info", "hash": sha256}, timeout=30)
+    resp = httpx.post(url, data={"query": "get_info", "hash": sha256}, timeout=30)
     if resp.status_code == 200:
         result = resp.json()
         if result.get("query_status") == "ok" and result.get("data"):
@@ -187,7 +206,7 @@ def enrich_ioc(value, vt_key=None, abuse_key=None):
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
     }
     if not HAS_REQUESTS:
-        result["error"] = "requests library not installed"
+        result["error"] = "httpx library not installed"
         return result
     if ioc_type == "ipv4" and is_private_ip(value):
         result["note"] = "RFC 1918 private IP - skipping external enrichment"
@@ -199,7 +218,7 @@ def enrich_ioc(value, vt_key=None, abuse_key=None):
         if abuse_key:
             result["enrichment"]["abuseipdb"] = query_abuseipdb(value, abuse_key)
         if vt_key:
-            result["enrichment"]["virustotal"] = query_virustotal_domain(value, vt_key)
+            result["enrichment"]["virustotal"] = query_virustotal_ip(value, vt_key)
     elif ioc_type == "domain" and vt_key:
         result["enrichment"]["virustotal"] = query_virustotal_domain(value, vt_key)
 
@@ -235,8 +254,8 @@ if __name__ == "__main__":
         private = " (private)" if ioc_type == "ipv4" and is_private_ip(ioc) else ""
         print(f"  {ioc_type:8s} | {defanged}{private}")
 
-    vt_key = os.environ.get("VT_API_KEY")
-    abuse_key = os.environ.get("ABUSEIPDB_API_KEY")
+    vt_key = get_secret("VT_API_KEY")
+    abuse_key = get_secret("ABUSEIPDB_API_KEY")
 
     if vt_key or abuse_key:
         print("\n--- Enrichment (live API queries) ---")

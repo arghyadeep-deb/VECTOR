@@ -11,7 +11,7 @@ import sys
 from collections import Counter
 
 try:
-    import requests
+    import httpx
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False
@@ -48,7 +48,7 @@ def load_attack_data(filepath=None):
             return json.load(f)
     if HAS_REQUESTS:
         print("[*] Downloading ATT&CK Enterprise data...")
-        resp = requests.get(ATTACK_ENTERPRISE_URL, timeout=60)
+        resp = httpx.get(ATTACK_ENTERPRISE_URL, timeout=60)
         resp.raise_for_status()
         return resp.json()
     return None
@@ -192,7 +192,7 @@ if __name__ == "__main__":
 
     bundle = load_attack_data(attack_file)
     if not bundle:
-        print("\n[!] Cannot load ATT&CK data. Provide STIX bundle path or install requests.")
+        print("\n[!] Cannot load ATT&CK data. Provide STIX bundle path or install httpx.")
         print("[DEMO] Usage:")
         print("  python agent.py APT29 enterprise-attack.json")
         print("  python agent.py APT28   # downloads from GitHub")

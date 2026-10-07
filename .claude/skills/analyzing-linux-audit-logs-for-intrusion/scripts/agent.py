@@ -44,36 +44,42 @@ SUSPICIOUS_COMMANDS = [
 ]
 
 
+class AuditLogParseError(ValueError):
+    """The Linux audit log contains an unparseable record."""
+
+
 def parse_audit_log(log_path, max_lines=50000):
     """Parse raw audit.log file into structured events."""
+    if max_lines <= 0:
+        raise ValueError("max_lines must be greater than zero")
     events = []
     current = {}
-    try:
-        with open(log_path, "r") as f:
-            for i, line in enumerate(f):
-                if i >= max_lines:
-                    break
-                match = re.match(
-                    r"type=(\S+)\s+msg=audit\((\d+\.\d+):(\d+)\):\s*(.*)", line
+    with open(log_path, "r", encoding="utf-8") as f:
+        for i, line in enumerate(f):
+            if i >= max_lines:
+                raise AuditLogParseError(
+                    f"Audit log exceeds max_lines={max_lines}; refusing a partial clean result"
                 )
-                if not match:
-                    continue
-                event_type = match.group(1)
-                timestamp = float(match.group(2))
-                event_id = match.group(3)
-                data_str = match.group(4)
-                fields = dict(re.findall(r'(\w+)=("[^"]*"|\S+)', data_str))
-                for k, v in fields.items():
-                    fields[k] = v.strip('"')
-                event = {
-                    "type": event_type,
-                    "timestamp": datetime.datetime.fromtimestamp(timestamp).isoformat(),
-                    "event_id": event_id,
-                    **fields,
-                }
-                events.append(event)
-    except FileNotFoundError:
-        return {"error": f"Log file not found: {log_path}"}
+            match = re.match(
+                r"(?:node=\S+\s+)?type=(\S+)\s+msg=audit\((\d+\.\d+):(\d+)\):\s*(.*)",
+                line,
+            )
+            if not match:
+                raise AuditLogParseError(f"Malformed Linux audit record at line {i + 1}")
+            event_type = match.group(1)
+            timestamp = float(match.group(2))
+            event_id = match.group(3)
+            data_str = match.group(4)
+            fields = dict(re.findall(r'(\w+)=("[^"]*"|\S+)', data_str))
+            for k, v in fields.items():
+                fields[k] = v.strip('"')
+            event = {
+                "type": event_type,
+                "timestamp": datetime.datetime.fromtimestamp(timestamp).isoformat(),
+                "event_id": event_id,
+                **fields,
+            }
+            events.append(event)
     return events
 
 
@@ -191,12 +197,6 @@ def main():
         sys.exit(0)
 
     events = parse_audit_log(args.log_file, args.max_lines)
-    if isinstance(events, dict) and "error" in events:
-        print(f"[!] {events['error']}")
-        print("[DEMO] Specify a valid audit.log path or run on a Linux system")
-        print(json.dumps({"demo": True, "monitored_syscalls": len(SUSPICIOUS_SYSCALLS)}, indent=2))
-        sys.exit(0)
-
     findings = []
     findings.extend(detect_privilege_escalation(events))
     findings.extend(detect_file_access(events))

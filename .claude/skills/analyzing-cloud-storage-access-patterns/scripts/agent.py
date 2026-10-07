@@ -12,6 +12,10 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 
+class CollectionError(RuntimeError):
+    """CloudTrail evidence could not be collected or parsed."""
+
+
 def query_cloudtrail_s3_events(bucket_name, hours_back=24):
     """Query CloudTrail for S3 data events on a specific bucket."""
     start_time = (datetime.utcnow() - timedelta(hours=hours_back)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -23,9 +27,15 @@ def query_cloudtrail_s3_events(bucket_name, hours_back=24):
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     if result.returncode != 0:
-        logger.error("CloudTrail query failed: %s", result.stderr[:200])
-        return []
-    events = json.loads(result.stdout).get("Events", [])
+        detail = result.stderr.strip()[:200] or f"exit code {result.returncode}"
+        raise CollectionError(f"CloudTrail query failed: {detail}")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise CollectionError(f"CloudTrail returned malformed JSON: {exc}") from exc
+    if not isinstance(payload, dict) or not isinstance(payload.get("Events", []), list):
+        raise CollectionError("CloudTrail response has an invalid Events field")
+    events = payload.get("Events", [])
     s3_events = []
     for event in events:
         ct_event = json.loads(event.get("CloudTrailEvent", "{}"))
@@ -148,6 +158,16 @@ def build_access_baseline(events):
     }
 
 
+def known_ips_for_analysis(events, known_ips_file):
+    """Load the prior trusted IP baseline without learning from the incident window."""
+    del events  # Current evidence must not teach the detector that every source is known.
+    known_ips = set()
+    if known_ips_file:
+        with open(known_ips_file, encoding="utf-8") as handle:
+            known_ips.update(line.strip() for line in handle if line.strip())
+    return known_ips
+
+
 def generate_report(events, bulk_alerts, after_hours, new_ips, enum_alerts, baseline):
     """Generate cloud storage access analysis report."""
     report = {
@@ -180,10 +200,7 @@ def main():
 
     events = query_cloudtrail_s3_events(args.bucket, args.hours_back)
     baseline = build_access_baseline(events)
-    known_ips = set(baseline.get("known_ips", []))
-    if args.known_ips_file:
-        with open(args.known_ips_file) as f:
-            known_ips.update(line.strip() for line in f if line.strip())
+    known_ips = known_ips_for_analysis(events, args.known_ips_file)
 
     bulk_alerts = detect_bulk_downloads(events, args.bulk_threshold)
     after_hours = detect_after_hours_access(events)

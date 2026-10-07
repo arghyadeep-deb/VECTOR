@@ -138,7 +138,7 @@ def main():
     parser.add_argument("--log-file", required=True, help="API gateway log file")
     parser.add_argument("--output", default="api_gateway_report.json")
     parser.add_argument("--action", choices=[
-        "bola", "auth_scan", "injection", "rate_limit", "full_analysis"
+        "bola", "auth_scan", "injection", "rate_limit", "unusual", "full_analysis"
     ], default="full_analysis")
     args = parser.parse_args()
 
@@ -166,6 +166,11 @@ def main():
         findings = detect_rate_limit_bypass(df)
         report["findings"]["rate_limit_bypass"] = findings
         print(f"[+] Rate limit bypasses: {len(findings)}")
+
+    if args.action in ("unusual", "full_analysis"):
+        findings = detect_unusual_methods(df)
+        report["findings"]["unusual_methods"] = findings
+        print(f"[+] Unusual HTTP methods: {len(findings)}")
 
     with open(args.output, "w") as f:
         json.dump(report, f, indent=2, default=str)

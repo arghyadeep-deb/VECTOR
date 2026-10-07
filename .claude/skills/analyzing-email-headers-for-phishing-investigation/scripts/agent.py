@@ -9,6 +9,7 @@ import os
 import sys
 import subprocess
 from email import policy
+from pathlib import Path
 
 
 def parse_email_file(eml_path):
@@ -135,11 +136,21 @@ def extract_attachments(msg, output_dir=None):
                     "content_type": part.get_content_type(),
                 }
                 if output_dir:
-                    os.makedirs(output_dir, exist_ok=True)
-                    filepath = os.path.join(output_dir, filename)
-                    with open(filepath, "wb") as f:
+                    output_root = Path(output_dir).resolve()
+                    output_root.mkdir(parents=True, exist_ok=True)
+                    safe_name = os.path.basename(filename.replace("\\", "/"))
+                    if safe_name in ("", ".", ".."):
+                        safe_name = "unnamed_attachment"
+                    filepath = (output_root / safe_name).resolve()
+                    root_key = os.path.normcase(str(output_root))
+                    file_key = os.path.normcase(str(filepath))
+                    if os.path.commonpath((root_key, file_key)) != root_key:
+                        raise ValueError(f"Attachment path escapes output directory: {filename!r}")
+                    if filepath.exists():
+                        filepath = output_root / f"{sha256[:12]}_{safe_name}"
+                    with open(filepath, "xb") as f:
                         f.write(content)
-                    att_info["saved_to"] = filepath
+                    att_info["saved_to"] = str(filepath)
                 attachments.append(att_info)
     return attachments
 

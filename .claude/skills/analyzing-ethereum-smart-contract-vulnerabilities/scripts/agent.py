@@ -11,6 +11,25 @@ from datetime import datetime
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
+
+class AnalysisToolError(RuntimeError):
+    """A required contract analyzer did not produce a trustworthy result."""
+
+
+def _load_tool_output(tool_name, result):
+    if result.returncode != 0:
+        detail = result.stderr.strip()[:500] or f"exit code {result.returncode}"
+        raise AnalysisToolError(f"{tool_name} failed: {detail}")
+    if not result.stdout.strip():
+        raise AnalysisToolError(f"{tool_name} returned no JSON output")
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        raise AnalysisToolError(f"{tool_name} returned malformed JSON: {exc}") from exc
+    if not isinstance(payload, dict):
+        raise AnalysisToolError(f"{tool_name} returned a non-object JSON result")
+    return payload
+
 SWC_REGISTRY = {
     "SWC-101": "Integer Overflow and Underflow",
     "SWC-104": "Unchecked Call Return Value",
@@ -29,22 +48,14 @@ def run_slither(contract_path):
     """Run Slither static analysis on Solidity contract."""
     cmd = ["slither", contract_path, "--json", "-"]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-    try:
-        return json.loads(result.stdout) if result.stdout else {}
-    except json.JSONDecodeError:
-        logger.error("Slither JSON parse failed")
-        return {}
+    return _load_tool_output("Slither", result)
 
 
 def run_mythril(contract_path, timeout=300):
     """Run Mythril symbolic execution analysis."""
     cmd = ["myth", "analyze", contract_path, "--execution-timeout", str(timeout), "-o", "json"]
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 60)
-    try:
-        return json.loads(result.stdout) if result.stdout else {}
-    except json.JSONDecodeError:
-        logger.error("Mythril JSON parse failed")
-        return {}
+    return _load_tool_output("Mythril", result)
 
 
 def analyze_slither_results(slither_output):
