@@ -8,7 +8,7 @@ import urllib.request
 
 import pandas as pd
 import pytest
-import requests
+import httpx
 
 from core.trading.dataflows import (
     alpha_vantage_common as avc,
@@ -29,8 +29,11 @@ class _Resp:
 
     def raise_for_status(self):
         if self.status_code >= 400:
-            raise requests.HTTPError(
-                f"{self.status_code} Client Error for url: https://www.alphavantage.co/query?apikey={SECRET}"
+            raise httpx.HTTPStatusError(
+                f"{self.status_code} Client Error for url: "
+                f"https://www.alphavantage.co/query?apikey={SECRET}",
+                request=httpx.Request("GET", "https://www.alphavantage.co/query"),
+                response=httpx.Response(self.status_code),
             )
 
 
@@ -45,7 +48,7 @@ def av(monkeypatch):
             if exc:
                 raise exc
             return resp
-        monkeypatch.setattr(avc.requests, "get", fake_get)
+        monkeypatch.setattr(avc.httpx, "get", fake_get)
     return install
 
 
@@ -88,7 +91,7 @@ def test_av_http_error_does_not_leak_key(av):
 
 def test_av_connection_error_does_not_leak_key_and_has_timeout(av):
     seen = {}
-    av(exc=requests.ConnectionError(f"Max retries exceeded with url: /query?apikey={SECRET}"), seen=seen)
+    av(exc=httpx.ConnectError(f"Max retries exceeded with url: /query?apikey={SECRET}"), seen=seen)
     with pytest.raises(RuntimeError) as ei:
         avc._make_api_request("RSI", {"symbol": "IBM"})
     assert SECRET not in str(ei.value)
