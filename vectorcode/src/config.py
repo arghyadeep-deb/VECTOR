@@ -20,6 +20,7 @@ except ImportError:
 
 from loguru import logger
 from pathlib import Path
+from vectorcode.src.utils import atomic_json_write
 
 # ── Canonical paths ───────────────────────────────────────────────────────────
 
@@ -260,9 +261,7 @@ class ModelRegistry:
 
     def _save(self) -> None:
         GLOBAL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        MODEL_REGISTRY_PATH.write_text(
-            json.dumps(self._data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
+        atomic_json_write(MODEL_REGISTRY_PATH, self._data)
 
     def get(self, model_id: str) -> dict | None:
         return self._data.get(model_id)

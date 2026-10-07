@@ -269,7 +269,7 @@ def cmd_run(args):
             if not sys.stdin.isatty():
                 stdin_data = sys.stdin.read()
         except Exception as _sve:
-            logger.debug("[VECTOR][cli] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cli] suppressed Exception: {}", _sve)
         if stdin_data:
             task = stdin_data.strip()
 
@@ -335,7 +335,7 @@ def cmd_sessions(args):
                     print(f"{sid:<38}  {date:<20}  {model:<28}  {total_tok:>8,}  {cost}")
                 _printed_from_db = True
         except Exception as _sve:
-            logger.debug("[VECTOR][cli] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cli] suppressed Exception: {}", _sve)
 
         if not _printed_from_db:
             if not SESSION_DIR.exists():
@@ -405,7 +405,7 @@ def cmd_sessions(args):
                 print(json.dumps(msgs, indent=2, ensure_ascii=False))
                 _exported = True
         except Exception as _sve:
-            logger.debug("[VECTOR][cli] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cli] suppressed Exception: {}", _sve)
 
         if not _exported:
             # Fallback: JSON file export
@@ -1010,7 +1010,7 @@ def cmd_tools(args):
         try:
             discover_builtin_tools()
         except Exception as _sve:
-            logger.debug("[VECTOR][cli] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][cli] suppressed Exception: {}", _sve)
 
         names = sorted([e.name for e in registry._snapshot_entries()])
         print(f"Registered tools ({len(names)}):")
@@ -1330,5 +1330,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 

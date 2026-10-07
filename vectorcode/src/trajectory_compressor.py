@@ -1478,7 +1478,7 @@ def main(
                                 try:
                                     entries.append(json.loads(line))
                                 except json.JSONDecodeError as _sve:
-                                    logger.debug("[VECTOR][trajectory_compressor] suppressed json.JSONDecodeError: %s", _sve)
+                                    logger.debug("[VECTOR][trajectory_compressor] suppressed json.JSONDecodeError: {}", _sve)
                     
                     total_original += len(entries)
                     sample_size = max(1, int(len(entries) * sample_percent / 100))

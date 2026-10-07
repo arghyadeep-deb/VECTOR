@@ -154,14 +154,14 @@ try:
     from tools.mcp_tool import discover_mcp_tools
     discover_mcp_tools()
 except Exception as e:
-    logger.debug("MCP tool discovery failed: %s", e)
+    logger.debug("MCP tool discovery failed: {}", e)
 
 # Plugin tool discovery (user/project/pip plugins)
 try:
     from vector_cli.plugins import discover_plugins
     discover_plugins()
 except Exception as e:
-    logger.debug("Plugin discovery failed: %s", e)
+    logger.debug("Plugin discovery failed: {}", e)
 
 
 # =============================================================================
@@ -369,7 +369,7 @@ def get_tool_definitions(
         from tools.schema_sanitizer import sanitize_tool_schemas
         filtered_tools = sanitize_tool_schemas(filtered_tools)
     except Exception as e:  # pragma: no cover — defensive
-        logger.warning("Schema sanitization skipped: %s", e)
+        logger.warning("Schema sanitization skipped: {}", e)
 
     return filtered_tools
 
@@ -550,7 +550,7 @@ def handle_function_call(
                     tool_call_id=tool_call_id or "",
                 )
             except Exception as _sve:
-                logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][model_tools] suppressed Exception: {}", _sve)
 
             if block_message is not None:
                 return json.dumps({"error": block_message}, ensure_ascii=False)
@@ -568,7 +568,7 @@ def handle_function_call(
                     tool_call_id=tool_call_id or "",
                 )
             except Exception as _sve:
-                logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][model_tools] suppressed Exception: {}", _sve)
 
         # Notify the read-loop tracker when a non-read/search tool runs,
         # so the *consecutive* counter resets (reads after other work are fine).
@@ -618,7 +618,7 @@ def handle_function_call(
                 duration_ms=duration_ms,
             )
         except Exception as _sve:
-            logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][model_tools] suppressed Exception: {}", _sve)
 
         # Generic tool-result canonicalization seam: plugins receive the
         # final result string (JSON, usually) and may replace it by
@@ -643,7 +643,7 @@ def handle_function_call(
                     result = hook_result
                     break
         except Exception as _sve:
-            logger.debug("[VECTOR][model_tools] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][model_tools] suppressed Exception: {}", _sve)
 
         return result
 

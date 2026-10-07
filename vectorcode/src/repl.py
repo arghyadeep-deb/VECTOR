@@ -7,6 +7,7 @@ import itertools
 from pathlib import Path
 
 from loguru import logger
+from vectorcode.src.utils import atomic_json_write
 from session import VectorCodeSession
 from router import GNNRouter
 from gsd_loop import GSDLoop
@@ -94,7 +95,7 @@ def _load_soul() -> str:
         try:
             return _SOUL_PATH.read_text(encoding="utf-8").strip()
         except Exception as _sve:
-            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
     return _DEFAULT_SOUL
 
 def _build_system_prompt(skills_index: str = "", project_dir: "Path | None" = None,
@@ -112,7 +113,7 @@ def _build_system_prompt(skills_index: str = "", project_dir: "Path | None" = No
             if vmd_content:
                 parts.insert(0, vmd_content)
         except Exception as _sve:
-            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
     if skills_index:
         parts.append(f"\n<available_skills>\n{skills_index}\n</available_skills>")
     parts.append("\nPlatform: CLI terminal. Use plain text and markdown code fences. No MEDIA: tags.")
@@ -184,7 +185,7 @@ def _compress_history(history: list, model: str) -> list:
         )
         summary = resp["message"]["content"]
     except Exception as _sve:
-        logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
 
     compressed = system_msgs + [
         {"role": "assistant", "content": f"<context-summary>\n{summary}\n</context-summary>"}
@@ -213,7 +214,7 @@ def _save_session(history: list, model: str, mode: str = "repl",
         "cache_read_tokens": (token_usage or {}).get("cache_read_tokens", 0),
         "tool_calls": tool_calls or [],
     }
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    atomic_json_write(path, payload)
     return path
 
 def _load_last_session() -> dict | None:
@@ -260,7 +261,7 @@ def _list_sessions() -> list[dict]:
                 "tokens": data.get("tokens", 0),
             })
         except Exception as _sve:
-            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
     return sessions
 
 
@@ -453,7 +454,7 @@ class VectorREPL:
             try:
                 self._db.migrate_up()
             except Exception as _sve:
-                logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
             self._db.create_session(
                 self.session.session_id,
                 self.session.current_model,
@@ -512,7 +513,8 @@ class VectorREPL:
                     ("groq", "GROQ_API_KEY"),
                 ]
                 for name, env_var in cloud:
-                    val = os.environ.get(env_var, "")
+                    from core.security.secrets_manager import get_secret
+                    val = get_secret(env_var)
                     status = "[ON] " if val else "[OFF]"
                     lines.append(f"  {status} {name}  (env ${env_var} {'SET' if val else 'MISSING'})")
 
@@ -654,7 +656,7 @@ Runner: {cfg["runner"]}
                         try:
                             self.session.set_mode(data["mode"])
                         except Exception as _sve:
-                            logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                            logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
                     n_msgs = len(self._history) - 1
                     ts = datetime.datetime.fromtimestamp(data["ts"]).strftime("%Y-%m-%d %H:%M")
                     result = [f"\033[92mSession restored — {n_msgs} messages loaded\033[0m"]
@@ -978,7 +980,7 @@ Runner: {cfg["runner"]}
                         finish_reason="stop",
                     )
                 except Exception as _sve:
-                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
 
             return reply
 
@@ -1063,7 +1065,7 @@ Runner: {cfg["runner"]}
                         for w in ref_result.warnings:
                             print(f"  \033[93m⚠ {w}\033[0m")
                 except Exception as _sve:
-                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
 
                 # Prefetch memory context and inject as context
                 try:
@@ -1073,7 +1075,7 @@ Runner: {cfg["runner"]}
                     if mem_ctx:
                         expanded_input = f"[Memory context]\n{mem_ctx}\n\n{expanded_input}"
                 except Exception as _sve:
-                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
 
                 # ── Agent execution loop (Think→Act→Observe) ──────────────────
                 print()
@@ -1091,7 +1093,7 @@ Runner: {cfg["runner"]}
                     mm = get_memory_manager()
                     mm.sync_all(raw, reply, session_id=self.session.session_id)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
 
                 self.session.history.append({"role": "user", "content": raw})
 
@@ -1100,7 +1102,7 @@ Runner: {cfg["runner"]}
                 try:
                     self.router.learn(raw, model, reward=0.9, latency_ms=latency_ms)
                 except Exception as _sve:
-                    logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                    logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
 
             except (KeyboardInterrupt, EOFError):
                 print("\nExiting VECTOR.")
@@ -1123,12 +1125,12 @@ Runner: {cfg["runner"]}
                 )
                 _save_trajectory(self._history, self.session.current_model)
             except Exception as _sve:
-                logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
             try:
                 from context.session_memory import update_session_memory
                 update_session_memory(self._history)
             except Exception as _sve:
-                logger.debug("[VECTOR][repl] suppressed Exception: %s", _sve)
+                logger.debug("[VECTOR][repl] suppressed Exception: {}", _sve)
 
 
 # ── self-test ─────────────────────────────────────────────────────────────────

@@ -33,6 +33,7 @@ except ImportError:
     CONFIG = {}
 
 from loguru import logger
+from vectorcode.src.utils import atomic_json_write
 
 # ── Static routing table (Layer 3 fallback) ───────────────────────────────────
 _ROUTES = [
@@ -173,7 +174,7 @@ class NeuralRouter(SemanticRouter):
                 "weights": {"|||".join(k): v for k, v in self._weights.items()},
                 "latency": {m: v[-20:] for m, v in self._latency.items()},
             }
-            _WEIGHTS_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            atomic_json_write(_WEIGHTS_FILE, payload)
         except Exception as e:
             logger.warning(f"[VECTOR][router] weight save failed: {e}")
 
@@ -301,7 +302,7 @@ class GNNRouter(NeuralRouter):
                     for e in self._edges.values()
                 },
             }
-            _GNN_FILE.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            atomic_json_write(_GNN_FILE, payload)
         except Exception as e:
             logger.warning(f"[VECTOR][router] GNN save failed: {e}")
 
@@ -322,7 +323,7 @@ class GNNRouter(NeuralRouter):
                     del self._embed_cache[oldest]
                 return vec
         except Exception as _sve:
-            logger.debug("[VECTOR][router] suppressed Exception: %s", _sve)
+            logger.debug("[VECTOR][router] suppressed Exception: {}", _sve)
         return None
 
     # ── MoE Router (Layer 0) — expert-type → VECTOR model mapping ─────────────
@@ -351,7 +352,7 @@ class GNNRouter(NeuralRouter):
                 )[:384].astype(_np.float32) / 127.5 - 1.0
                 logger.info("[VECTOR][router] MoERouter loaded (Layer 0)")
             except Exception as _e:
-                logger.debug("[VECTOR][router] MoERouter unavailable: %s", _e)
+                logger.debug("[VECTOR][router] MoERouter unavailable: {}", _e)
                 self._moe_router = False  # sentinel: tried and failed
         return self._moe_router if self._moe_router is not False else None
 
@@ -373,7 +374,7 @@ class GNNRouter(NeuralRouter):
                         )
                         return mapped
             except Exception as _e:
-                logger.debug("[VECTOR][router] MoE route suppressed: %s", _e)
+                logger.debug("[VECTOR][router] MoE route suppressed: {}", _e)
 
         # Layer 1: GNN cosine similarity
         embedding = self._embed(task)

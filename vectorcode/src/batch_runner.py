@@ -955,7 +955,7 @@ class BatchRunner:
                             # Don't fail the run if checkpoint write fails
                             print(f"⚠️  Warning: Failed to save incremental checkpoint: {ckpt_err}")
                 except Exception as e:
-                    logger.error("Batch worker failed: %s", e, exc_info=True)
+                    logger.opt(exception=True).error("Batch worker failed: {}", e)
                     raise
                 finally:
                     root_logger.setLevel(original_level)
