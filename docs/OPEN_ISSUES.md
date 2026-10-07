@@ -6111,3 +6111,129 @@ isn't "proven in production" until you supply the service/device and run it live
      check in `time_series_forecaster.py`, not fixed -- doesn't currently manifest with any
      configured metric), `memory_curator/` (beyond `specialists.py`).
      **Commit status:** `e1f0cd54f`, `cf2d35d4f`.
+
+124. **`districts/coding/` audit, first full-depth pass (2026-10-07) —** 102 files, audited
+     by Codex (gpt-5.6-sol) via a correctly-scoped background batch, reviewed/tested/
+     committed by the parent session.
+     **Fixed with proof tests (1 commit, `63d7a6e44`):**
+     - `vector_mlops/backend/routes/auth.py` -- the OAuth callback accepted a stored CSRF
+       state after its 5-minute expiry, because expiry cleanup only ran when a *new* login
+       began, not on the callback itself. A state replayed after expiry (but before another
+       login started) was still accepted. Fixed to consume state exactly once and check
+       `expires_at` on every callback.
+     - 9 call sites read secrets via bare `os.environ`/`os.getenv`, bypassing
+       `core.security.secrets_manager.get_secret()`'s keyring-first lookup
+       (`OAUTH_CLIENT_SECRET`, `HF_TOKEN`, `HF_ADMIN_TOKEN`, `SLACK_BOT_TOKEN`,
+       `MONGODB_URI`, `GITHUB_TOKEN` x2, `S2_API_KEY`) -- the same bug class fixed
+       repeatedly across `core/` and `districts/` this cycle.
+     - 11 files used `Path.is_relative_to()` alone for repo/path confinement, not
+       Windows-case-insensitive. New shared `districts/coding/path_security.py`
+       (`resolve()`+`os.path.normcase()`+`os.path.commonpath()`) wired into all 11.
+     - `sandbox_client.py` -- a 200 response whose JSON omitted the `success` field was
+       treated as successful (phantom success); now requires an explicit `True`.
+     - `session.py` -- snapshot writes and `update_local_save_status()` wrote in place with
+       no fsync; a crash could leave the only session log empty or truncated. Fixed via
+       tempfile+fsync+os.replace.
+     - 9 files gained explicit UTF-8 encoding on text I/O.
+     New tests: `tests/test_districts_coding_audit_regressions.py` (14), confirmed failing
+     pre-fix. Zero regressions in `tests/test_coding_reviewer_path_confinement.py` +
+     `tests/test_mlops_agent_hf_hub_confinement_and_hydration.py` (9 passed). Full
+     `districts/coding` `compileall` clean. All independently re-verified by the parent
+     session.
+     **Reviewed clean:** the remaining ~65 files in scope, including all of
+     `vector_mlops/agent/core/` (`agent_loop.py`, `approval_policy.py`, `doom_loop.py`,
+     `redact.py`, etc.), `vector_mlops/agent/messaging/` (incl. `slack.py`),
+     `vector_mlops/backend/` (`main.py`, `models.py`, `kpis_scheduler.py`, etc.), and the
+     top-level reviewer/specialist agents (`git_bot.py`, `database_optimizer.py`,
+     `refactor_cleaner.py`, etc.).
+     **Owner design/policy questions:** none raised -- Codex explicitly confirmed no
+     NotImplementedError regression, OAuth state omission (beyond the one fixed), timing-
+     unsafe credential equality, BaseHTTPMiddleware WebSocket auth gap, shared-singleton
+     close bug, policy-insensitive singleton cache, or gate-output contract mismatch was
+     found in this scope.
+     **Commit status:** `63d7a6e44`.
+
+125. **`districts/{marketing,content,research,security,qa,health}/` audit, first full-depth
+     pass (2026-10-07) —** 101 files, audited by Codex (gpt-5.6-sol) via a correctly-scoped
+     background batch, reviewed/tested/committed by the parent session.
+     **Fixed with proof tests (1 commit, `80e6b5ba0`):**
+     - `health/metrics_store.py` -- `prune_old_data(retention_days=0)` used
+       `retention_days or self._retention_days`, silently discarding an explicit zero (the
+       established falsy-zero bug class). Fixed to default only when the argument is `None`.
+       Also removed a stray dead `import threading` inside `close()`.
+     - `health/trend_analyzer.py` -- `detect_anomalies(threshold=0.0)` had the identical
+       falsy-zero bug; same fix.
+     - `qa/api_tester.py`, `research/web_scout.py` -- `VECTOR_API_KEY`/`FIRECRAWL_API_KEY`
+       read via bare `os.environ`/`os.getenv`, bypassing `get_secret()`'s keyring-first
+       lookup.
+     - `marketing/ads/scripts/generate_image.py` -- provider API keys had the same
+       keyring-bypass bug; also imported the project-banned `requests` for
+       Stability/Replicate HTTP calls (migrated to `httpx` per CLAUDE.md policy), and
+       opened batch JSON without explicit UTF-8.
+     - `content/comfyui_adapter.py` -- ComfyUI-controlled filename/subfolder confinement
+       used `Path.is_relative_to()` only, not Windows case-insensitive; fixed via the same
+       `resolve()`+`os.path.normcase()`+`os.path.commonpath()` pattern established this
+       cycle. Downloaded output bytes were also written directly to the destination
+       (truncation risk on interruption) -- fixed via tempfile+fsync+os.replace.
+     New tests: `tests/test_districts_batch_b_regressions.py` (8), confirmed failing
+     pre-fix. All independently re-verified by the parent session.
+     **Reviewed clean:** the remaining ~95 files in scope across all 6 districts, including
+     all of `marketing/ads/scripts/` (except `generate_image.py`), all of `content/` (except
+     `comfyui_adapter.py`), all of `research/`, all of `security/` (incl.
+     `malware_hunter.py`, `siem_pipeline.py`, `threat_scout.py`), all of `qa/` (incl.
+     `accessibility_auditor.py`, `silent_failure_hunter.py`), and the remaining `health/`
+     files.
+     **Owner design/policy questions:** none raised -- the abstract
+     `SecuritySpecialist.evaluate()` `NotImplementedError` is confirmed an intentional
+     base-class contract with concrete implementations, not a regression; no OAuth,
+     BaseHTTPMiddleware WebSocket auth, timing-unsafe comparison, or shared-singleton-close
+     issue exists in this scope.
+     **Commit status:** `80e6b5ba0`.
+
+126. **`districts/` audit, round 3 -- the remaining scope after rounds 1+2 (2026-10-07) —**
+     105 files, audited by Codex (gpt-5.6-sol) via a correctly-scoped background batch,
+     reviewed/tested/committed by the parent session. Covers the leftover files from items
+     122-123: `finance/`, `growth/`, remaining `communications/`/`agency/`/`ops/`/
+     `news_trends/`/`projects/` files, `intelligence/shadowbroker/` (not
+     `shadowbroker_server/`), `intelligence/social_sim_agent.py`, `languages/`,
+     `startups/`, `design/`, `learning/`, `time_calendar/`, `skills/`, `reflection/`,
+     `personal_growth/`, `chief_of_staff/`, `calls/transcription_bot.py`,
+     `relationships/`, `science/`, `self_dev/`, remaining `predictive_analytics/` and
+     `memory_curator/` files. Confirmed: no files under `core/`,
+     `districts/intelligence/shadowbroker_server/`, or
+     `districts/intelligence/vector_social_sim/` were touched (all correctly out of scope).
+     **Fixed with proof tests (1 commit, `f4c06f588`):**
+     - `districts/intelligence/social_sim_agent.py` -- `_MIRO_DIR` was computed as
+       `<repo parent>/core/vector_social_sim` via one `.parent` hop too many -- a directory
+       that does not exist. Every deferred `from app.X` import used by the
+       ontology/graph/persona/report/interview/simulation paths failed at runtime. Fixed to
+       point at the actual sibling vendored tree, `districts/intelligence/vector_social_sim/`
+       (the vendored tree itself was not touched). Same off-by-one-`.parent` bug class as
+       item 123's `interview_prep` fix.
+     - `districts/news_trends/venture_pipeline.py` -- venture reports and their Obsidian
+       mirrors were written directly to final shared paths via `write_text()`; a process
+       interruption could leave a truncated report visible to readers. Fixed via
+       tempfile+fsync+os.replace.
+     New tests: `tests/test_districts_batch_c_regressions.py` (2), confirmed failing
+     pre-fix. All independently re-verified by the parent session.
+     **Reviewed clean:** all remaining files in every district listed above, including
+     `startups/idea_validator.py`'s revenue-velocity gate specifically (missing/non-numeric
+     revenue velocity fails closed to 0; a high aggregate score cannot retain STRONG/
+     PROMISING when the revenue score is below the gate) and all 4
+     `intelligence/shadowbroker/` files.
+     **Flagged for owner, not fixed (intentional fail-closed scaffolding, confirmed not
+     regressions):** `districts/growth/growth_orchestrator.py`'s `_next_validated_issue()`
+     always returns `None` by design, per its own comment ("staged for later wiring") --
+     the software arm never receives an issue as a result; `districts/growth/
+     software_arm.py`'s `_build`/`_review`/`_fix`/`_security_audit` stages deliberately
+     never invoke their imported agents (`RapidPrototyper`, reviewers,
+     `MinimalChangeEngineer`, `SecurityReviewer`), preventing phantom success but also
+     preventing completion. Activating either is an autonomous-build-policy decision for
+     the owner, not an audit-side guess.
+     **Commit status:** `f4c06f588`.
+
+     ---
+     **With items 122-126, the full `districts/` audit phase (~414 real-depth files,
+     excluding vendored `investment/` and `intelligence/shadowbroker_server/`/
+     `vector_social_sim/`) is now COMPLETE**, closing out Phase 3's entire whole-repo
+     scope alongside `core/` (item 121) and `vectorcode/`'s earlier rounds.
