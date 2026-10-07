@@ -105,8 +105,10 @@ class DecisionTrace:
             tag = "WINNER" if c.action_type == self.selected_action and not c.rejected else "rejected"
             lines.append(f"  [{tag:8}] {c.action_type:24} score={c.total_score:.4f}")
             for comp in c.score_components:
+                value = comp["value"]
+                rendered_value = f"{value:.3f}" if isinstance(value, (int, float)) else repr(value)
                 lines.append(
-                    f"              {comp['factor']:22} value={comp['value']:.3f} weight={comp['weight']}"
+                    f"              {comp['factor']:22} value={rendered_value} weight={comp['weight']}"
                 )
         if self.counterfactual_vetoed:
             lines.append(f"COUNTERFACTUAL VETO on '{self.selected_action}': {self.veto_reason}")
@@ -119,5 +121,6 @@ class DecisionTrace:
     def to_json(self, path: Optional[str | Path] = None) -> str:
         text = json.dumps(self.to_dict(), indent=2, sort_keys=False, default=str)
         if path is not None:
-            Path(path).write_text(text, encoding="utf-8")
+            from scenario import atomic_write_text
+            atomic_write_text(Path(path), text)
         return text

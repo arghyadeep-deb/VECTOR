@@ -13,7 +13,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from scenario import Scenario
+from scenario import Scenario, atomic_write_text
 from trace import DecisionTrace
 from twin import DigitalTwin
 
@@ -48,12 +48,14 @@ def record(scenario: Scenario, path: str | Path, twin: DigitalTwin | None = None
     (`scenario_001.json` etc.)."""
     twin = twin or DigitalTwin()
     trace = twin.run(scenario)
+    if trace.error:
+        raise RuntimeError(f"cannot record a failed twin run: {trace.error}")
     fp = _canonical_fingerprint(trace)
     payload = {
         "scenario": scenario.to_dict(),
         "expected": {"fingerprint": fp, "fingerprint_hash": _hash_fingerprint(fp)},
     }
-    Path(path).write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    atomic_write_text(Path(path), json.dumps(payload, indent=2, default=str))
     return trace
 
 
@@ -66,7 +68,17 @@ def replay(path: str | Path, twin: DigitalTwin | None = None) -> ReplayResult:
     expected_fp = payload["expected"]["fingerprint"]
     expected_hash = payload["expected"]["fingerprint_hash"]
 
+    if _hash_fingerprint(expected_fp) != expected_hash:
+        return ReplayResult(
+            False,
+            "stored fingerprint hash does not match the stored fingerprint",
+            expected_fp,
+            {},
+        )
+
     trace = twin.run(scenario)
+    if trace.error:
+        return ReplayResult(False, f"twin replay failed: {trace.error}", expected_fp, {})
     actual_fp = _canonical_fingerprint(trace)
     actual_hash = _hash_fingerprint(actual_fp)
 

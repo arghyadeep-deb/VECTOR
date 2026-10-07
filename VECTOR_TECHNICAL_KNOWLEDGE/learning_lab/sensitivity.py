@@ -77,7 +77,7 @@ def analyze_policy_history() -> FactorSensitivity:
 def analyze_epistemic_state() -> FactorSensitivity:
     low = _run(CandidateSpec(ACTION, PARAMS, confidence=0.5, urgency=0.5))  # unknown domain -> factor 1.0
     high = _run(CandidateSpec(ACTION, PARAMS, confidence=0.5, urgency=0.5),
-                epistemic_beliefs=[EpistemicBeliefSpec("action_domain:search", "v", confidence=0.9,
+                epistemic_beliefs=[EpistemicBeliefSpec("action_domain:search_web", "v", confidence=0.9,
                                                         ttl_hours=1, age_hours_override=500)])  # stale -> 0.70x
     return _mk("epistemic_factor", "post-score multiplier in [0.70, 1.0]", low, high,
                note="'high' here means MOST dampened (stale belief), since epistemic state can only "

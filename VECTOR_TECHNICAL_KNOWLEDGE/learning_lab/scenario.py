@@ -16,9 +16,28 @@ lab reproduce actual production behavior rather than a hand-picked toy case.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Any, Literal
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    """Durably replace a text artifact without exposing a partial file."""
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 @dataclass
@@ -65,8 +84,8 @@ class CounterfactualRejectionSpec:
 @dataclass
 class EpistemicBeliefSpec:
     """One `EpistemicTracker.update_belief()` call to replay before scoring.
-    `claim_id` must be `action_domain:<domain>` (domain = action_type split
-    on the first `_`) to actually influence `DecisionEngine._epistemic_penalty()`
+    `claim_id` must be `action_domain:<full_action_type>` to actually
+    influence `DecisionEngine._epistemic_penalty()`
     — see `epistemic_lab.py` for the experiment that PROVES a `belief:*`-
     namespaced claim, by contrast, has zero measured influence on scoring."""
     claim_id: str
@@ -134,7 +153,7 @@ class Scenario:
     def to_json(self, path: str | Path | None = None) -> str:
         text = json.dumps(self.to_dict(), indent=2, sort_keys=False, default=str)
         if path is not None:
-            Path(path).write_text(text, encoding="utf-8")
+            atomic_write_text(Path(path), text)
         return text
 
     @classmethod

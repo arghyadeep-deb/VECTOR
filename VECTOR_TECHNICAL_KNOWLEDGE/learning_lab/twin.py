@@ -187,12 +187,14 @@ def build_isolated_engine(env: IsolatedVectorEnv):
     from core.memory.episodic import EpisodicMemory
     from core.brain.goal_system import GoalSystem
     from core.brain.epistemic_tracker import EpistemicTracker
+    from core.runtime.plans import PlanStore
 
     engine = DecisionEngine()
     engine._policy = PolicyMemory()
     engine._memory = EpisodicMemory()
     engine._goals = GoalSystem()
     engine._epistemic = EpistemicTracker(db_path=env.paths.epistemic_db)
+    engine._plan_store = PlanStore(path=env.paths.plan_store)
     engine._reasoning_bank = False
     engine._neural_trainer = False
     engine._metacognition = False

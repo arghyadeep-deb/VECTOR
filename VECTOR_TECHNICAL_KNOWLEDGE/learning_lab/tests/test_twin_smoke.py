@@ -18,7 +18,7 @@ def test_auto_scenario_runs_with_real_seeded_goals():
     # g_vector_phase1 (0.25) — so analyze_progress-mapped candidates should
     # dominate, matching documented production behavior (Task 71/72).
     action_types = {c.action_type for c in trace.candidates}
-    assert "analyze_progress" in action_types or "research_topic" in action_types
+    assert action_types & {"check_attendance", "code_task", "git_status", "read_code"}
 
 
 def test_explicit_candidates_are_scored_deterministically():

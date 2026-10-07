@@ -10,6 +10,7 @@ measured in the two traces.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from numbers import Real
 
 from scenario import Scenario
 from trace import DecisionTrace
@@ -69,7 +70,11 @@ class ComparisonResult:
 def _components_by_action(trace: DecisionTrace) -> dict[str, dict[str, float]]:
     out: dict[str, dict[str, float]] = {}
     for c in trace.candidates:
-        out[c.action_type] = {comp["factor"]: comp["value"] for comp in c.score_components}
+        out[c.action_type] = {
+            comp["factor"]: float(comp["value"])
+            for comp in c.score_components
+            if isinstance(comp.get("value"), Real) and not isinstance(comp.get("value"), bool)
+        }
         out[c.action_type]["total_score"] = c.total_score
     return out
 

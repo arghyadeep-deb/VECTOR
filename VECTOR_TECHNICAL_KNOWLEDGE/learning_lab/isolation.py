@@ -53,6 +53,11 @@ class IsolatedPaths:
     episodic_db: Path        # goes to VECTOR_DB_PATH (drives Episodic+Policy+Goal)
     counterfactual_db: Path  # explicit CounterfactualMemory(db_path=...) arg
     epistemic_db: Path       # explicit EpistemicTracker(db_path=...) arg
+    memory_tree_dir: Path    # explicit VECTOR_MEMORY_TREE_PATH override
+    plan_store: Path         # explicit PlanStore(path=...) argument
+
+
+_active_env: "IsolatedVectorEnv | None" = None
 
 
 class IsolatedVectorEnv:
@@ -76,7 +81,20 @@ class IsolatedVectorEnv:
         self.paths: IsolatedPaths | None = None
 
     def __enter__(self) -> "IsolatedVectorEnv":
+        global _active_env
+        if _active_env is not None:
+            raise RuntimeError(
+                "An IsolatedVectorEnv is already active in this process; overlapping "
+                "contexts could redirect the process-global VECTOR_DB_PATH."
+            )
+
         root = self._base_dir or Path(tempfile.mkdtemp(prefix=f"vector_twin_{self.run_id}_"))
+        root = root.resolve()
+        temp_root = Path(tempfile.gettempdir()).resolve()
+        if not root.is_relative_to(temp_root) or not root.name.startswith("vector_twin_"):
+            raise ValueError(
+                f"IsolatedVectorEnv base_dir must be a run-scoped temporary directory: {root}"
+            )
         root.mkdir(parents=True, exist_ok=True)
         self.paths = IsolatedPaths(
             run_id=self.run_id,
@@ -84,37 +102,60 @@ class IsolatedVectorEnv:
             episodic_db=root / "episodic_policy_goals.db",
             counterfactual_db=root / "counterfactual.db",
             epistemic_db=root / "epistemic.db",
+            memory_tree_dir=root / "memory_tree",
+            plan_store=root / "plans.json",
         )
 
-        for key, value in (
-            ("VECTOR_DB_PATH", str(self.paths.episodic_db)),
-            ("VECTOR_DB_KEY", f"twin_lab_{self.run_id}"),
-        ):
-            self._prev_env[key] = os.environ.get(key)
-            os.environ[key] = value
+        # MemoryTree treats its environment-derived path as a production
+        # default and otherwise seeds it from the legacy live tree.  An empty
+        # file prevents that continuity migration from importing production
+        # memories into the experiment.
+        self.paths.memory_tree_dir.mkdir(parents=True, exist_ok=True)
+        tree_file = self.paths.memory_tree_dir / "memory_tree.json"
+        if not tree_file.exists():
+            tree_file.write_text("{}", encoding="utf-8")
 
-        # Drop any cached singleton connection from a PRIOR isolated (or real)
-        # session in this same Python process, exactly as the established test
-        # fixtures do, so the next get_db_connection() call opens fresh against
-        # the path we just set.
-        import core.memory.episodic as ep
-        ep.close_db_connection()
+        _active_env = self
+        try:
+            for key, value in (
+                ("VECTOR_DB_PATH", str(self.paths.episodic_db)),
+                ("VECTOR_DB_KEY", f"twin_lab_{self.run_id}"),
+                ("VECTOR_MEMORY_TREE_PATH", str(self.paths.memory_tree_dir)),
+            ):
+                self._prev_env[key] = os.environ.get(key)
+                os.environ[key] = value
+
+            # Drop any cached singleton connection from a PRIOR isolated (or real)
+            # session in this same Python process, exactly as the established test
+            # fixtures do, so the next get_db_connection() call opens fresh against
+            # the path we just set.
+            import core.memory.episodic as ep
+            ep.close_db_connection()
+        except Exception:
+            self._restore_environment()
+            _active_env = None
+            raise
 
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        global _active_env
         import core.memory.episodic as ep
         ep.close_db_connection()
 
+        self._restore_environment()
+
+        # Re-close (with the NEXT run's/real env's path) so a later import in
+        # the same process never accidentally reuses this run's connection.
+        ep.close_db_connection()
+        _active_env = None
+
+    def _restore_environment(self) -> None:
         for key, prev in self._prev_env.items():
             if prev is None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = prev
-
-        # Re-close (with the NEXT run's/real env's path) so a later import in
-        # the same process never accidentally reuses this run's connection.
-        ep.close_db_connection()
 
     def cleanup(self) -> None:
         """Delete this run's isolated directory. Call explicitly when the

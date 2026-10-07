@@ -3,7 +3,7 @@ VECTOR Digital Twin Lab — EpistemicTracker sensitivity lab (Task 78 Phase 8).
 
 Ground truth (`core/loop/decision_engine.py::_epistemic_penalty()`, read
 directly): the ONLY claim_id it ever looks up is
-`f"action_domain:{action_type.split('_')[0]}"`. It never reads a
+`f"action_domain:{action_type}"`. It never reads a
 `belief:*`-namespaced key. This module PROVES that empirically (not by
 citing the source) via a paired experiment, rather than assuming either
 namespace matters.
@@ -13,9 +13,9 @@ from __future__ import annotations
 from scenario import Scenario, CandidateSpec, EpistemicBeliefSpec
 from experiments import run_paired, ComparisonResult
 
-ACTION = "search_web"          # domain -> "search" -> claim_id "action_domain:search"
+ACTION = "search_web"
 PARAMS = {"q": "epistemic_probe"}
-DOMAIN_CLAIM = "action_domain:search"
+DOMAIN_CLAIM = "action_domain:search_web"
 
 
 def _candidate() -> CandidateSpec:

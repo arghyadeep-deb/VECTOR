@@ -7,9 +7,8 @@ learning systems here. This module does two different things:
 
 1. `run_domain_generalization_experiment()` — a REAL, working experiment
    against EXISTING production logic. It is not a mock: it tests whether
-   `DecisionEngine._epistemic_penalty()`'s domain-level bucketing
-   (`action_domain:<domain>`, domain = action_type.split("_")[0], see
-   twin.py's dependency map) constitutes an actual generalization channel
+   `DecisionEngine._epistemic_penalty()`'s exact-action bucketing
+   (`action_domain:<full_action_type>`) constitutes a generalization channel
    — i.e. whether an epistemic belief formed by ONE action_type can
    measurably affect the score of a DIFFERENT action_type that happens to
    share the same domain prefix. This is legitimate because it exercises
@@ -42,11 +41,11 @@ from twin import DigitalTwin
 # ── Level 5: does domain-level epistemic bucketing generalize? ──────────────
 
 def run_domain_generalization_experiment() -> ComparisonResult:
-    """search_web and search_arxiv share domain "search" (action_type.split
-    ("_")[0]). A belief recorded against action_domain:search should affect
+    """search_web and search_arxiv share a word prefix. A belief recorded
+    against action_domain:search_web should affect
     BOTH action_types' epistemic dampening if — and only if —
-    _epistemic_penalty() really does bucket by domain prefix rather than by
-    exact action_type. This is the one real generalization channel found in
+    _epistemic_penalty() buckets by prefix rather than by exact action type.
+    Current production uses exact action types, so no movement is expected;
     the traced pipeline; PolicyMemory itself (exact situation_hash keying)
     has none (see policy_lab.exp_different_situation_same_action)."""
     probe = CandidateSpec(action_type="search_arxiv", params={"q": "generalization_probe"},
@@ -56,10 +55,10 @@ def run_domain_generalization_experiment() -> ComparisonResult:
         label="stale belief recorded against a DIFFERENT search_* action_type",
         candidates=[probe],
         epistemic_beliefs=[EpistemicBeliefSpec(
-            "action_domain:search", "v", confidence=0.9, ttl_hours=1, age_hours_override=500,
+            "action_domain:search_web", "v", confidence=0.9, ttl_hours=1, age_hours_override=500,
         )],  # note: this claim_id is domain-level, never mentions search_arxiv specifically
     )
-    return run_paired("epistemic_domain_generalization_search_arxiv_vs_search_web_belief", a, b)
+    return run_paired("epistemic_exact_action_does_not_generalize_by_prefix", a, b)
 
 
 # ── Level 6: correction provenance — scaffold only, no real mechanism exists ─
