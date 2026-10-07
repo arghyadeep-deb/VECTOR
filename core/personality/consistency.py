@@ -139,11 +139,11 @@ class ConsistencyEnforcer:
                 if re.search(r"[\U0001F300-\U0001FAFF]", response):
                     violated.append(rule)
             if "use 'sir' at most once" in rule_lower:
-                count = response.lower().count("sir")
+                count = len(re.findall(r"\bsir\b", response.lower()))
                 if count > 1:
                     violated.append(rule)
             if "no greetings" in rule_lower:
-                if re.match(r"^(hi|hello|hey|greetings)", response.lower()):
+                if re.match(r"^(hi|hello|hey|greetings)\b", response.lower()):
                     violated.append(rule)
             if "one sentence maximum" in rule_lower:
                 sentences = len(re.findall(r'[.!?]+', response))
