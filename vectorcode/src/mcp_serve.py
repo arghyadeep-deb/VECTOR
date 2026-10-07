@@ -283,21 +283,19 @@ class EventBridge:
             )
 
     def respond_to_approval(self, approval_id: str, decision: str) -> dict:
-        """Resolve a pending approval (best-effort without gateway IPC)."""
+        """Fail closed until authoritative gateway approval IPC is wired."""
         with self._lock:
-            approval = self._pending_approvals.pop(approval_id, None)
+            approval = self._pending_approvals.get(approval_id)
 
         if not approval:
             return {"error": f"Approval not found: {approval_id}"}
 
-        self._enqueue(QueueEvent(
-            cursor=0,  # Will be set by _enqueue
-            type="approval_resolved",
-            session_key=approval.get("session_key", ""),
-            data={"approval_id": approval_id, "decision": decision},
-        ))
-
-        return {"resolved": True, "approval_id": approval_id, "decision": decision}
+        return {
+            "error": "Approval gateway integration is unavailable; decision was not applied",
+            "error_type": "approval_gateway_unavailable",
+            "approval_id": approval_id,
+            "decision": decision,
+        }
 
     def _enqueue(self, event: QueueEvent) -> None:
         """Add an event to the queue and wake any waiters."""

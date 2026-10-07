@@ -57,7 +57,7 @@ def _resolve_timezone_name() -> str:
             if isinstance(tz_cfg, str) and tz_cfg.strip():
                 return tz_cfg.strip()
     except Exception as _sve:
-        logger.debug("[VECTOR][vector_time] suppressed Exception: %s", _sve)
+        logger.debug("[VECTOR][vector_time] suppressed Exception: {}", _sve)
 
     return ""
 
@@ -70,7 +70,7 @@ def _get_zoneinfo(name: str) -> Optional[ZoneInfo]:
         return ZoneInfo(name)
     except (KeyError, Exception) as exc:
         logger.warning(
-            "Invalid timezone '%s': %s. Falling back to server local time.",
+            "Invalid timezone '{}': {}. Falling back to server local time.",
             name, exc,
         )
         return None

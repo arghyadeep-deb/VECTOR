@@ -171,6 +171,7 @@ class SessionDB:
 
     def close(self) -> None:
         """Close the database connection after a best-effort checkpoint."""
+        global _db
         with self._lock:
             if self._conn:
                 try:
@@ -179,6 +180,9 @@ class SessionDB:
                     logger.debug("[VECTOR][session_db] suppressed Exception: %s", _sve)
                 self._conn.close()
                 self._conn = None  # type: ignore[assignment]
+        with _db_lock:
+            if _db is self:
+                _db = None
 
     # ── Schema init ──────────────────────────────────────────────────────────
 

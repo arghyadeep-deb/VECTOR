@@ -56,9 +56,14 @@ class RemovalStep:
 
 def atomic_json_write(path: Path, data: dict) -> None:
     """Write JSON atomically using a temp file + os.replace()."""
-    tmp = path.with_suffix(".tmp")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    tmp = Path(tmp_name)
     try:
-        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(data, handle, indent=2, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
         os.replace(tmp, path)
     except Exception as _sve:
         # If temp write failed, clean up leftover .tmp

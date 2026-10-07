@@ -22,6 +22,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 from loguru import logger
+from vectorcode.src.utils import atomic_json_write
 
 
 # ---------------------------------------------------------------------------
@@ -375,7 +376,7 @@ class MoERouter:
                 "load_balance_coef": self.config.load_balance_coef,
             },
         }
-        save_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        atomic_json_write(save_path, payload)
         logger.debug(f"[VECTOR][moe_router] saved weights to {save_path}")
 
     def load(self, path: Optional[Path | str] = None) -> None:

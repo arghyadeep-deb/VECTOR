@@ -39,7 +39,7 @@ class MemoryHandle:
             try:
                 from vectorcode.src.tools.storage.sqlite import SQLiteMemory  # noqa: F401
             except ImportError:
-                logger.debug("[VECTOR] suppressed exception", exc_info=True)
+                logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         if not MemoryRegistry.contains(key):
             raise RuntimeError(f"Memory backend '{key}' not available")
@@ -181,7 +181,7 @@ class VectorAgent:
                 self._telem_store = TelemetryStore(self._config.telemetry.db_path)
                 self._telem_store.subscribe_to_bus(self._bus)
             except Exception as exc:
-                logger.warning("Failed to initialize telemetry store: %s", exc)
+                logger.warning("Failed to initialize telemetry store: {}", exc)
 
     @property
     def config(self) -> VectorConfig:
@@ -202,7 +202,7 @@ class VectorAgent:
         try:
             import vectorcode.src.engine  # noqa: F401
         except ImportError:
-            logger.debug("[VECTOR] suppressed exception", exc_info=True)
+            logger.opt(exception=True).debug("[VECTOR] suppressed exception")
 
         pref = self._config.intelligence.preferred_engine
         engine_key = self._engine_key or pref or None
@@ -232,7 +232,7 @@ class VectorAgent:
                     prefer_vendor=self._config.telemetry.energy_vendor or None,
                 )
             except Exception as exc:
-                logger.debug("Failed to create energy monitor: %s", exc)
+                logger.debug("Failed to create energy monitor: {}", exc)
         self._energy_monitor = energy_monitor
         self._engine = InstrumentedEngine(
             engine,
@@ -434,7 +434,7 @@ class VectorAgent:
             if models:
                 return models[0]
         except Exception as exc:
-            logger.warning("Failed to list models from engine: %s", exc)
+            logger.warning("Failed to list models from engine: {}", exc)
         return self._config.intelligence.fallback_model or None
 
     def _run_agent(
@@ -544,7 +544,7 @@ class VectorAgent:
                     for msg in context_messages:
                         ctx.conversation.add(msg)
             except Exception as exc:
-                logger.warning("Failed to inject memory context for agent: %s", exc)
+                logger.warning("Failed to inject memory context for agent: {}", exc)
 
         result = agent_obj.run(query, context=ctx)
         return {
@@ -582,7 +582,7 @@ class VectorAgent:
                 )
                 return inject_context(query, messages, backend, config=ctx_cfg)
         except Exception as exc:
-            logger.warning("Failed to inject memory context: %s", exc)
+            logger.warning("Failed to inject memory context: {}", exc)
         return messages
 
     def list_models(self) -> List[str]:
@@ -603,19 +603,19 @@ class VectorAgent:
             try:
                 self._energy_monitor.close()
             except Exception as exc:
-                logger.debug("Error closing energy monitor: %s", exc)
+                logger.debug("Error closing energy monitor: {}", exc)
             self._energy_monitor = None
         if self._telem_store is not None:
             try:
                 self._telem_store.close()
             except Exception as exc:
-                logger.debug("Error closing telemetry store: %s", exc)
+                logger.debug("Error closing telemetry store: {}", exc)
             self._telem_store = None
         if self._audit_logger is not None:
             try:
                 self._audit_logger.close()
             except Exception as exc:
-                logger.debug("Error closing audit logger: %s", exc)
+                logger.debug("Error closing audit logger: {}", exc)
             self._audit_logger = None
         self._engine = None
 

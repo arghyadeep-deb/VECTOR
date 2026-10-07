@@ -42,7 +42,7 @@ def get_vector_home() -> Path:
             # to stay import-safe (this function is called from module scope
             # in 30+ files; we cannot afford to trigger logging setup here).
             active_path = (Path.home() / ".vector" / "active_profile")
-            active = active_path.read_text().strip() if active_path.exists() else ""
+            active = active_path.read_text(encoding="utf-8").strip() if active_path.exists() else ""
         except (UnicodeDecodeError, OSError):
             active = ""
         if active and active != "default":
