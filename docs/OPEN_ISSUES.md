@@ -6660,3 +6660,64 @@ isn't "proven in production" until you supply the service/device and run it live
      audit targets per standing policy), vendored/third-party trees (~5,100 files,
      wiring-check tier only per standing policy), and stock Anthropic `.claude/skills/`
      templates (licensed, not VECTOR's code).
+
+135. **Post-audit improvement plan execution begins (2026-10-07) —** owner authorized
+     executing the 10-gap plan from `docs/plans/2026-10-07-improvement-debate.md`
+     (Claude vs. Codex 3-round devil's-advocate debate). Honest framing: every gap gets
+     an explicit disposition (**eliminated** / **controlled** / **accepted**), not a
+     promise that zero gaps remain. Four gaps closed this round:
+     - **Gap 10 (hook-tree reconciliation): ELIMINATED, commit `db1daf1d5`.** Confirmed
+       `vectorcode/hooks/` is a one-time historical snapshot from VECTOR's own "Wave 9"
+       self-archiving (`vectorcode/docs/absorption/09-wave-9-claude-ecosystem.md`), zero
+       real callers. Added `vectorcode/hooks/README.md` + a new regression test
+       (`tests/test_claude_settings_hooks_point_at_live_dir.py`) that parses the real
+       `.claude/settings.json` and fails if any hook ever stops pointing at
+       `.claude/hooks/` — the guard that would have caught the original divergence
+       immediately.
+     - **Gap 7 (enforcement integrity): PARTIALLY CONTROLLED, commit `d003aba53`.**
+       Fixed two concrete bypass paths: `.claude/hooks/pre_commit_gate.py`'s syntax-gate
+       subprocess call now fails closed instead of printing "skipped" and allowing;
+       `.claude/hooks/auto_commit.py` no longer passes `--no-verify` (traced and
+       confirmed this bypassed the real git-native `.git/hooks/pre-commit` →
+       `scripts/precommit_syntax_gate.py`, not `pre_commit_gate.py`, which never sees
+       this commit at all). 3 new tests, confirmed failing pre-fix (proved the old hook
+       would auto-commit `def broken(:\n`). **Remaining, unverified:** whether GitHub
+       branch protection is actually configured on `main` — `gh` CLI unavailable in this
+       environment, flagged for next session rather than guessed at.
+     - **Gap 2 (recurring bug classes → static enforcement): CONTROLLED (not
+       eliminated), commits `f0ee1dfb8` + `089bf8057`.** Checked real violation counts
+       before writing anything (flask=0, pickle=0, requests=9, threading.Thread/Timer=80,
+       os.environ-secret-pattern=150+, loguru-exc_info=90) and built
+       `scripts/bug_class_lint.py` with two tiers: BLOCKING (flask/pickle fully,
+       requests with a 9-file reviewed grandfather list) wired into
+       `pre_commit_gate.py` + CI, and ADVISORY (threading/env-secret/loguru — report-only,
+       too large a surface to responsibly grandfather in one sitting) in CI only.
+       Running the new linter found **4 more genuine `requests` violations** missed by
+       an earlier manual grep (imports nested inside function bodies, invisible to a
+       line-anchored grep) — fixed all 4, migrated to httpx:
+       `vectorcode/src/vector_cli/runtime_provider.py`,
+       `vectorcode/src/scripts/discord-voice-doctor.py`,
+       `vectorcode/src/tools/transcription_tools.py`, `vectorcode/src/tools/tts_tool.py`.
+       Also found+fixed 2 bugs in the linter's own code within minutes of writing it
+       (wrong path-resolution base; unresolved `..` segments), both caught by its own
+       integration test before committing.
+     - **Gap 3 (safety-gate fault-injection suite): CONTROLLED, commit `88586ac00` —
+       the most severe finding of this execution round.** Fault-injection-testing
+       `permission_gateway.py`/`autonomous_loop.py`/`red_team_agent.py`/`core/sandbox/`
+       found a SECOND wave of the "gateway isn't actually a gate" bug class (the first
+       wave was item 118's red-team-defaults-to-APPROVED fix): (1) **a genuine
+       Permission Gateway bypass** — when `_get_gateway()` returned `None`, three
+       execution paths in `autonomous_loop.py` (general governor-dispatch, matched-skill,
+       VectorCode bridge) proceeded to execute anyway instead of stopping, proven by a
+       test showing `governor.dispatch()` was actually awaited despite the gateway being
+       unavailable; (2) red-team review timeout/exception caused the loop to proceed
+       instead of blocking, and any non-"BLOCKED" verdict string was treated as approved
+       (garbled verdicts silently approved RED actions); (3) `_classify()` crashed with
+       `AttributeError` on a non-string/empty `action_type` instead of failing safely;
+       (4) a durable audit-log write failure was silently swallowed and the gated action
+       proceeded anyway. All fixed fail-closed. 14 new tests, 6 independently
+       re-confirmed failing pre-fix via `git stash` by the parent session. Zero
+       regressions in `test_permission_gateway.py` + `test_r26_cognitive_integration.py`
+       (38 passed). Sandbox mount confinement and the live hooks secret-commit gate
+       already failed closed correctly — no change needed there.
+     **Commit status:** `db1daf1d5`, `d003aba53`, `f0ee1dfb8`, `089bf8057`, `88586ac00`.
