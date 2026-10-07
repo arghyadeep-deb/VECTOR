@@ -212,7 +212,13 @@ class MultiDBManager:
             logger.error(f"[VECTOR][multi_db] local write failed: {e}")
             return False
 
-    async def write_cloud(self, table: str, record: dict) -> dict:
+    async def write_cloud(
+        self,
+        table: str,
+        record: dict,
+        *,
+        queue_on_failure: bool = True,
+    ) -> dict:
         """Write to cloud DBs. Falls back to queue on failure."""
         results = {"supabase": False, "turso": False, "d1": False}
 
@@ -227,8 +233,9 @@ class MultiDBManager:
             return results
 
         # Queue for later
-        self.queue_sync({"table": table, "record": record, "attempt": 0})
-        logger.warning(f"[VECTOR][multi_db] Cloud write failed — queued for retry")
+        if queue_on_failure:
+            self.queue_sync({"table": table, "record": record, "attempt": 0})
+            logger.warning("[VECTOR][multi_db] Cloud write failed — queued for retry")
         return results
 
     async def write_all(self, table: str, record: dict, tier: str | None = None) -> dict:
@@ -261,7 +268,7 @@ class MultiDBManager:
 
     # â”€â”€â”€ Sync Operations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    async def _push_local_to_cloud(self, since_ts: str) -> int:
+    async def _push_local_to_cloud(self, since_ts: str) -> int | None:
         """Bulk-push local SQLite rows newer than since_ts to Supabase + Turso.
 
         Reads each of the 6 allowed tables from the encrypted local DB, filters
@@ -270,7 +277,7 @@ class MultiDBManager:
         upserts them to any non-quarantined cloud backend.  Returns total rows sent.
         """
         if not httpx:
-            return 0
+            return None
 
         total = 0
         conn = self._get_local().conn
@@ -284,7 +291,9 @@ class MultiDBManager:
         turso_ok = bool(turso_url and turso_token and "turso" not in self._quarantined)
 
         if not supabase_ok and not turso_ok:
-            return 0
+            return None
+
+        all_succeeded = True
 
         for table, spec in self._TABLE_SPEC.items():
             ts_col = spec["ts"]
@@ -320,7 +329,10 @@ class MultiDBManager:
                         if resp.status_code in (200, 201):
                             total += len(records)
                             logger.debug(f"[VECTOR][multi_db] push Supabase {table}: {len(records)} rows")
+                        else:
+                            all_succeeded = False
                 except Exception as e:
+                    all_succeeded = False
                     logger.debug(f"[VECTOR][multi_db] push Supabase {table} failed: {e}")
 
             # Turso batch upsert — INSERT OR REPLACE per row
@@ -343,10 +355,13 @@ class MultiDBManager:
                         )
                         if resp.status_code in (200, 201):
                             logger.debug(f"[VECTOR][multi_db] push Turso {table}: {len(records)} rows")
+                        else:
+                            all_succeeded = False
                 except Exception as e:
+                    all_succeeded = False
                     logger.debug(f"[VECTOR][multi_db] push Turso {table} failed: {e}")
 
-        return total
+        return total if all_succeeded else None
 
     async def sync_all(self) -> dict:
         """Full 24h sync: push new local rows → drain retry queue → pull from cloud.
@@ -360,9 +375,12 @@ class MultiDBManager:
         #    directly to SQLite via episodic.py, bypassing write_all — this closes
         #    that gap so every row eventually reaches cloud).
         since = self._last_sync.get("local") or "1970-01-01T00:00:00+00:00"
+        local_push_completed = False
         try:
             pushed_local = await self._push_local_to_cloud(since)
-            results["pushed_local"] = pushed_local
+            if pushed_local is not None:
+                local_push_completed = True
+                results["pushed_local"] = pushed_local
         except Exception as e:
             logger.warning(f"[VECTOR][multi_db] bulk push skipped: {e}")
 
@@ -370,7 +388,9 @@ class MultiDBManager:
         queued = len(self._sync_queue)
         results["queued"] = queued
 
-        while self._sync_queue:
+        # Process only the snapshot present at entry. Failed items stay queued
+        # for the next scheduler tick instead of feeding this same loop forever.
+        for _ in range(queued):
             item = self._sync_queue.popleft()
             attempt = item.get("attempt", 0)
             if attempt >= 3:
@@ -381,31 +401,35 @@ class MultiDBManager:
             table = item["table"]
             record = item["record"]
 
-            cloud = await self.write_cloud(table, record)
+            cloud = await self.write_cloud(table, record, queue_on_failure=False)
             if cloud.get("supabase") or cloud.get("turso"):
                 results["pushed"] += 1
             else:
                 self._sync_queue.append(item)
 
         # 2. Pull latest from cloud DBs
+        supabase_pulled = False
         try:
-            await self._pull_supabase()
-            results["pulled"] += 1
+            supabase_pulled = await self._pull_supabase()
+            if supabase_pulled:
+                results["pulled"] += 1
         except Exception as e:
             logger.warning(f"[VECTOR][multi_db] Supabase pull failed: {e}")
 
+        turso_pulled = False
         try:
-            await self._pull_turso()
-            results["pulled"] += 1
+            turso_pulled = await self._pull_turso()
+            if turso_pulled:
+                results["pulled"] += 1
         except Exception as e:
             logger.warning(f"[VECTOR][multi_db] Turso pull failed: {e}")
 
         # 3. Update sync timestamps
         now = datetime.datetime.now(datetime.timezone.utc).isoformat()
         self._last_sync = {
-            "local": now,
-            "supabase": now if results["pulled"] > 0 else self._last_sync["supabase"],
-            "turso": now if results["pulled"] > 1 else self._last_sync["turso"],
+            "local": now if local_push_completed else self._last_sync["local"],
+            "supabase": now if supabase_pulled else self._last_sync["supabase"],
+            "turso": now if turso_pulled else self._last_sync["turso"],
             "d1": now if results.get("d1") else self._last_sync["d1"],
         }
 
@@ -548,17 +572,18 @@ class MultiDBManager:
             logger.warning(f"[VECTOR][multi_db] Turso write failed: {e}")
             return False
 
-    async def _pull_supabase(self) -> None:
+    async def _pull_supabase(self) -> bool:
         """Pull all 6 memory tables from Supabase and merge (last-write-wins)."""
         url = self._get_config("supabase_url")
         key = self._get_config("supabase_key")
         if not url or not key or not httpx:
-            return
+            return False
         if "supabase" in self._quarantined:
             logger.info("[VECTOR][multi_db] Supabase quarantined — pull skipped")
-            return
+            return False
         headers = {"apikey": key, "Authorization": f"Bearer {key}"}
         total = 0
+        request_succeeded = False
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 for table, spec in self._TABLE_SPEC.items():
@@ -571,6 +596,7 @@ class MultiDBManager:
                         )
                         if resp.status_code != 200:
                             continue
+                        request_succeeded = True
                         merged = self._merge_rows(table, resp.json())
                         total += merged
                     except Exception as e:
@@ -578,17 +604,20 @@ class MultiDBManager:
             logger.info(f"[VECTOR][multi_db] Supabase pull: {total} rows merged across 6 tables")
         except Exception as e:
             logger.warning(f"[VECTOR][multi_db] Supabase pull failed: {e}")
+            return False
+        return request_succeeded
 
-    async def _pull_turso(self) -> None:
+    async def _pull_turso(self) -> bool:
         """Pull all 6 memory tables from Turso and merge (last-write-wins)."""
         url = self._get_config("turso_url")
         token = self._get_config("turso_token")
         if not url or not token or not httpx:
-            return
+            return False
         if "turso" in self._quarantined:
             logger.info("[VECTOR][multi_db] Turso quarantined — pull skipped")
-            return
+            return False
         total = 0
+        request_succeeded = False
         try:
             async with httpx.AsyncClient(timeout=15.0) as client:
                 for table, spec in self._TABLE_SPEC.items():
@@ -604,6 +633,7 @@ class MultiDBManager:
                         )
                         if resp.status_code != 200:
                             continue
+                        request_succeeded = True
                         results = resp.json().get("results", [{}])[0]
                         cols = [c["name"] for c in results.get("columns", [])]
                         rows = [dict(zip(cols, vals)) for vals in results.get("rows", [])]
@@ -613,6 +643,8 @@ class MultiDBManager:
             logger.info(f"[VECTOR][multi_db] Turso pull: {total} rows merged across 6 tables")
         except Exception as e:
             logger.warning(f"[VECTOR][multi_db] Turso pull failed: {e}")
+            return False
+        return request_succeeded
 
     async def _ping_url(self, url: str) -> Optional[int]:
         """Ping a URL and return latency in ms."""

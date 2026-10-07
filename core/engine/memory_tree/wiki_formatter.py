@@ -1,10 +1,45 @@
 """VECTOR Wiki Formatter — converts Memory Tree to Obsidian-compatible markdown."""
 from __future__ import annotations
 
+import os
+import re
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from core.engine.memory_tree.tree_builder import MemoryTree
+
+
+def _safe_page_name(key: str, max_length: int) -> str:
+    """Return a portable single-component filename for an untrusted tree key."""
+    safe = re.sub(r"[^\w.-]", "_", key, flags=re.UNICODE).strip(" .")
+    safe = safe[:max_length].rstrip(" .") or "memory"
+    # Windows device names remain special even with an extension.
+    if safe.upper().split(".", 1)[0] in {
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5",
+        "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5",
+        "LPT6", "LPT7", "LPT8", "LPT9",
+    }:
+        safe = f"_{safe}"
+    return safe
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    """Durably replace *path* without exposing a partially written page."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 class WikiFormatter:
@@ -34,7 +69,7 @@ class WikiFormatter:
         ]
         for key, source in self._tree._sources.items():
             chunk_count = sum(n.chunk_count() for n in source.nodes.values())
-            safe = key.replace(":", "_").replace("/", "_")[:40]
+            safe = _safe_page_name(key, 40)
             lines.append(f"- [[{safe}]] — {source.source_kind} · {chunk_count} chunks")
 
         lines += ["", "## Topics", ""]
@@ -50,15 +85,15 @@ class WikiFormatter:
 
         # MOC
         moc_path = out / "MOC.md"
-        moc_path.write_text(self.format_moc(), encoding="utf-8")
+        _atomic_write_text(moc_path, self.format_moc())
         paths.append(moc_path)
 
         # One file per source
         for key, source in self._tree._sources.items():
             wiki = self.format_source(source.source_kind, source.source_id)
-            safe = key.replace(":", "_").replace("/", "_")[:50]
+            safe = _safe_page_name(key, 50)
             p = out / f"{safe}.md"
-            p.write_text(wiki, encoding="utf-8")
+            _atomic_write_text(p, wiki)
             paths.append(p)
 
         return paths

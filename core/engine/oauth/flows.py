@@ -19,6 +19,7 @@ __all__ = [
 import json
 import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -140,8 +141,28 @@ class OAuthFlowManager:
         if _KEYRING_AVAILABLE:
             keyring.set_password("VECTOR", f"oauth:{slug}", json.dumps(token.to_dict()))
         else:
-            path.write_text(json.dumps(token.to_dict(), indent=2), encoding="utf-8")
-            path.chmod(0o600)
+            fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+            try:
+                try:
+                    os.chmod(tmp_name, 0o600)
+                except OSError:
+                    # Windows ACLs do not implement POSIX modes consistently.
+                    pass
+                with os.fdopen(fd, "w", encoding="utf-8", newline="") as handle:
+                    json.dump(token.to_dict(), handle, indent=2)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(tmp_name, path)
+            except Exception:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
+                try:
+                    os.unlink(tmp_name)
+                except FileNotFoundError:
+                    pass
+                raise
         logger.info("[VECTOR][oauth] token stored for {}", slug)
 
     def _load_raw(self, slug: str) -> OAuthToken | None:

@@ -112,11 +112,16 @@ class SubagentRunner:
                                    result="", success=False, error=str(e), task_id=task_id)
 
     def _build_system_prompt(self, options: SubagentOptions) -> str:
+        from core.loop.context_engine import ContextEngine
+
         role_prompt = get_agent_prompt(options.agent_name)
         if not role_prompt:
             role_prompt = f"You are VECTOR's {options.agent_name} sub-agent."
 
-        parts = [role_prompt]
+        # Rule 1: every LLM call receives the live session hydration before
+        # its purpose-built role instructions. This also applies when callers
+        # inject an alternate LLM callable into the runner.
+        parts = [ContextEngine().session_hydration_prompt(), role_prompt]
 
         if options.allowed_tools:
             parts.append(f"\nYou have access to these tools: {', '.join(options.allowed_tools)}")
@@ -148,7 +153,7 @@ class SubagentRunner:
             )
         except Exception as e:
             logger.warning("[VECTOR][subagent_runner] Ollama unavailable: {}", e)
-            return f"[unavailable] Sub-agent could not complete: {message[:80]}"
+            raise RuntimeError("Sub-agent LLM is unavailable") from e
 
 
 async def run_subagent(

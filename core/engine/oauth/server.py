@@ -332,10 +332,14 @@ if _FASTAPI_AVAILABLE:
                     headers={"Accept": "application/json",
                              "Content-Type": "application/x-www-form-urlencoded"},
                 )
+            resp.raise_for_status()
             data = resp.json()
+            access_token = data.get("access_token")
+            if not isinstance(access_token, str) or not access_token.strip():
+                raise ValueError("refresh response did not contain a valid access_token")
             new_token = OAuthToken(
                 slug=slug,
-                access_token=data.get("access_token", token.access_token),
+                access_token=access_token,
                 refresh_token=data.get("refresh_token", token.refresh_token),
                 expires_at=_expires_at_from_seconds(data.get("expires_in")),
                 scope=data.get("scope", token.scope),

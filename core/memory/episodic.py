@@ -1431,8 +1431,15 @@ class EpisodicMemory:
             logger.debug("[VECTOR][episodic] embedding backfill error: {}", e)
 
     def close(self):
-        self.conn.close()
-        logger.info("Episodic memory connection closed")
+        """Release this wrapper without closing the process-wide connection.
+
+        ``EpisodicMemory`` instances all share ``get_db_connection()``.  A
+        routine caller therefore cannot own that connection and must not close
+        it out from under other wrappers.  Process shutdown and test isolation
+        use :func:`close_db_connection`, which also clears the singleton and
+        resets its related state.
+        """
+        logger.debug("[VECTOR][episodic] wrapper released; shared connection remains open")
 
 if __name__ == '__main__':
     import tempfile
@@ -1484,5 +1491,5 @@ if __name__ == '__main__':
     training = mem.get_training_data()
     assert len(training) >= 1, 'training data failed'
     stats = mem.get_stats()
-    mem.close()
+    close_db_connection()
     print(f"✅ episodic.py OK — {stats}")
