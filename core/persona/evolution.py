@@ -44,12 +44,13 @@ class PersonaEvolution:
     def record_signal(self, signal_type: str, metadata: dict | None = None) -> None:
         import json
         now = datetime.now(timezone.utc).isoformat()
-        self._conn.execute(
-            "INSERT INTO evolution_signals (signal_type, metadata, recorded_at) VALUES (?,?,?)",
-            (signal_type, json.dumps(metadata or {}), now),
-        )
-        self._conn.commit()
-        self._adjust_trait_from_signal(signal_type)
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO evolution_signals (signal_type, metadata, recorded_at) VALUES (?,?,?)",
+                (signal_type, json.dumps(metadata or {}), now),
+            )
+            self._conn.commit()
+            self._adjust_trait_from_signal(signal_type)
         logger.debug("[VECTOR][persona_evolution] signal recorded: {}", signal_type)
 
     def get_evolved_traits(self) -> dict[str, float]:
