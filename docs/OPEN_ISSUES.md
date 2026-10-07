@@ -6414,3 +6414,40 @@ isn't "proven in production" until you supply the service/device and run it live
      needs its own liveness check via direct repo-wide grep before being assumed dead, not
      done this round since Codex never reached it).
      **Commit status:** `4aaba6579`, `3d7d907f4`, `51216bfed`.
+
+130. **`claims.py`, `errors.py`, `insights.py` -- item 129's "not reached" list, closed out
+     by the parent session directly (2026-10-07) —** no Codex/fork needed, since no bugs
+     survived the liveness check for any of the 3 files. No commit.
+     - `claims.py` (1,707 lines) -- initially looked LIVE via a repo-wide grep for
+       `vectorcode.src.claims` importers (`core/loop/autonomous_loop.py`,
+       `core/mcp_tools/coordination.py`, `vectorcode/src/swarm.py`, 2 scripts), which
+       appeared to contradict item 43's "now-dead" note and an existing test's
+       "import-shadowed" claim. **Resolved empirically, not by assumption:** `python -c
+       "import vectorcode.src.claims as m; print(m.__file__)"` proves the dotted path
+       `vectorcode.src.claims` resolves to the PACKAGE (`vectorcode/src/claims/__init__.py`,
+       already fully audited and fixed this cycle), not the top-level monolith file --
+       Python's import system always prefers a package directory over a same-named `.py`
+       module in the same parent. Every one of those "importers" is actually importing the
+       already-fixed package, not this file. The monolith is genuinely unreachable dead
+       code, confirmed both empirically and by the pre-existing test's docstring. A fix was
+       applied to its `claim()` method's duplicate-claim-guard (mirroring item 43's real
+       fix) and then **reverted** once this was confirmed, since fixing unreachable code
+       serves no purpose and the project discipline is "fix genuine bugs, don't do
+       pointless work." Flagged for the owner: this 1,707-line dead duplicate should
+       probably be deleted to prevent exactly the confusion it just caused mid-audit.
+     - `errors.py` (191 lines) -- confirmed zero importers anywhere in the repo via grep
+       (both dotted-path and bare-import styles). A near-duplicate API error classifier
+       already exists, live, in 2 other places: `vectorcode/src/agent/error_classifier.py`
+       and `vectorcode/src/providers/error_classifier.py` (both already audited this
+       cycle). This top-level file is the 3rd copy of the same `FailoverReason`/
+       `ClassifiedError`/`classify_error()` logic, unreachable in production. Read in full;
+       no bug (the logic itself is sound pattern-matching with no I/O/secrets/writes) --
+       flagged as a 3-way duplication worth consolidating, not touched since it has zero
+       runtime effect either way.
+     - `insights.py` (322 lines) -- confirmed zero importers anywhere in the repo. Read the
+       core logic (pricing table, timestamp parsing, ASCII bar chart helper,
+       `InsightsEngine` reading `~/.vector/sessions.db`); no bug found in what was read --
+       dead code, no fix needed.
+     **With this, every file in items 127/129's full "mentioned but never audited" +
+     "never mentioned at all" reconciliation is now accounted for** -- either fixed with a
+     proof test, or confirmed genuinely dead/unreachable and flagged rather than guessed at.
