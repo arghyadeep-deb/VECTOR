@@ -359,7 +359,7 @@ if __name__ == "__main__":
         tmp = f.name
     result = apply_search_replace(tmp, "x = 1", "x = 42")
     assert result["success"], result
-    assert Path(tmp).read_text() == "x = 42\ny = 2\n"
+    assert Path(tmp).read_text(encoding="utf-8") == "x = 42\ny = 2\n"
     os.unlink(tmp)
     print("OK  apply_search_replace")
 

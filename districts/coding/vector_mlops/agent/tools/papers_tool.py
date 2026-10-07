@@ -16,6 +16,7 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 
 from agent.tools.types import ToolResult
+from core.security.secrets_manager import get_secret
 
 HF_API = "https://huggingface.co/api"
 ARXIV_HTML = "https://arxiv.org/html"
@@ -38,7 +39,7 @@ SORT_MAP = {
 # ---------------------------------------------------------------------------
 
 S2_API = "https://api.semanticscholar.org"
-S2_API_KEY = os.environ.get("S2_API_KEY")
+S2_API_KEY = get_secret("S2_API_KEY")
 S2_HEADERS: dict[str, str] = {"x-api-key": S2_API_KEY} if S2_API_KEY else {}
 S2_TIMEOUT = 12
 _s2_last_request: float = 0.0

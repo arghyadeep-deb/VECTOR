@@ -5,6 +5,7 @@ District: coding
 """
 import asyncio
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent
@@ -52,7 +53,7 @@ class AddyCodeReviewer(PromptAgent):
         # Same confinement core/mcp_tools/builtins.py's review_code MCP tool
         # already applies for a different reviewer class.
         resolved = Path(filepath).resolve()
-        if not resolved.is_relative_to(_ROOT) or resolved.suffix != ".py":
+        if not is_path_within(resolved, _ROOT) or resolved.suffix != ".py":
             return {"status": "error", "error": "Path must be a .py file inside the VECTOR repo"}
         try:
             content = resolved.read_text(encoding="utf-8", errors="ignore")

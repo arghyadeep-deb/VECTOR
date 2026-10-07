@@ -15,6 +15,7 @@ from typing import Any
 from bson import BSON
 from pymongo import AsyncMongoClient, DeleteMany, ReturnDocument, UpdateOne
 from pymongo.errors import DuplicateKeyError, InvalidDocument, PyMongoError
+from core.security.secrets_manager import get_secret
 
 logger = logging.getLogger(__name__)
 
@@ -496,7 +497,7 @@ _store: NoopSessionStore | MongoSessionStore | None = None
 def get_session_store() -> NoopSessionStore | MongoSessionStore:
     global _store
     if _store is None:
-        uri = os.environ.get("MONGODB_URI")
+        uri = get_secret("MONGODB_URI")
         db_name = os.environ.get("MONGODB_DB", "vector-ml-engineer")
         _store = MongoSessionStore(uri, db_name) if uri else NoopSessionStore()
     return _store

@@ -16,6 +16,7 @@ from agent.core.session import Event, OpType, Session
 from agent.core.session_persistence import get_session_store
 from agent.core.tools import ToolRouter
 from agent.messaging.gateway import NotificationGateway
+from core.security.secrets_manager import get_secret
 
 # Get project root (parent of backend directory)
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -442,7 +443,7 @@ class SessionManager:
         seen: set[str] = set()
         for label, token in (
             ("user", hf_token),
-            ("admin", os.environ.get("HF_ADMIN_TOKEN")),
+            ("admin", get_secret("HF_ADMIN_TOKEN")),
         ):
             if token and token not in seen:
                 tokens.append((label, token))

@@ -106,7 +106,7 @@ class VectorCodeBridge:
             log_dir = Path(os.path.expanduser("~")) / ".vector_ca" / "logs"
             log_dir.mkdir(parents=True, exist_ok=True)
             log_path = log_dir / "mcp_server.log"
-            stderr_log = open(log_path, "a")
+            stderr_log = open(log_path, "a", encoding="utf-8")
             proc = subprocess.Popen(
                 [sys.executable, str(_VC_ENTRY), "mcp", "--sse", "--port", str(port)],
                 cwd=str(_VC_ROOT),

@@ -8,6 +8,7 @@ import sys
 import asyncio
 import os
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
@@ -313,7 +314,7 @@ class FastAPIReviewer(AgentBase):
         if not code and filename:
             try:
                 fpath = Path(filename).resolve()
-                if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+                if not is_path_within(fpath, _ROOT) or fpath.suffix != ".py":
                     return {"agent": self.name, "error": f"Cannot read file: path outside repo or not a .py file", "issues": [], "issue_count": 0}
                 code = fpath.read_text(encoding="utf-8", errors="replace")
             except Exception as e:

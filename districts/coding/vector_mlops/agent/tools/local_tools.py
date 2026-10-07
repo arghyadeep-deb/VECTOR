@@ -80,7 +80,8 @@ def _truncate_output(
     spill_path = None
     try:
         with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", prefix="bash_output_", delete=False
+            mode="w", suffix=".txt", prefix="bash_output_", delete=False,
+            encoding="utf-8",
         ) as f:
             f.write(output)
             spill_path = f.name
@@ -168,7 +169,7 @@ async def _read_handler(args: dict[str, Any], **_kw) -> tuple[str, bool]:
     if p.is_dir():
         return "Cannot read a directory. Use bash with 'ls' instead.", False
     try:
-        raw_content = p.read_text()
+        raw_content = p.read_text(encoding="utf-8")
     except Exception as e:
         return f"read error: {e}", False
 
@@ -241,7 +242,7 @@ async def _edit_handler(args: dict[str, Any], **_kw) -> tuple[str, bool]:
         ), False
 
     try:
-        text = p.read_text()
+        text = p.read_text(encoding="utf-8")
     except Exception as e:
         return f"edit read error: {e}", False
 

@@ -5,6 +5,7 @@ import re
 import json
 import subprocess
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 from typing import Optional
 
 from loguru import logger
@@ -99,7 +100,7 @@ class TestWriter(AgentBase):
         Generates comprehensive tests using AST analysis and LLM suggestions.
         """
         source_path = Path(filepath).resolve()
-        if not source_path.is_relative_to(_ROOT) or source_path.suffix != ".py":
+        if not is_path_within(source_path, _ROOT) or source_path.suffix != ".py":
             raise ValueError(f"Path outside repo or not .py: {filepath}")
         if not source_path.exists():
             raise FileNotFoundError(f"Source file not found: {filepath}")
@@ -365,7 +366,7 @@ Return pytest code only, no explanations.
             coverage_file = Path("coverage.json")
             coverage_data = {}
             if coverage_file.exists():
-                coverage_data = json.loads(coverage_file.read_text())
+                coverage_data = json.loads(coverage_file.read_text(encoding="utf-8"))
 
             return {
                 "passed": result.returncode == 0,

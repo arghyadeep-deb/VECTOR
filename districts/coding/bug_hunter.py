@@ -5,6 +5,7 @@ import re
 import hashlib
 import subprocess
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 from typing import Optional
 
 from loguru import logger
@@ -29,7 +30,7 @@ def _confine_py_path(filepath: str) -> Path:
     find_pattern_issues()/analyze_with_llm() already raise for a missing
     file) so existing callers' error handling is unaffected."""
     resolved = Path(filepath).resolve()
-    if not resolved.is_relative_to(_ROOT) or resolved.suffix != ".py":
+    if not is_path_within(resolved, _ROOT) or resolved.suffix != ".py":
         raise FileNotFoundError(f"Path outside repo or not a .py file: {filepath}")
     return resolved
 

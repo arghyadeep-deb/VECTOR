@@ -16,6 +16,7 @@ from nbconvert import MarkdownExporter
 from nbconvert.preprocessors import ClearOutputPreprocessor, TagRemovePreprocessor
 
 from agent.tools.types import ToolResult
+from core.security.secrets_manager import get_secret
 
 
 def _convert_ipynb_to_markdown(content: str) -> str:
@@ -85,7 +86,7 @@ def read_file(
     Returns:
         ToolResult with file contents and metadata
     """
-    token = os.environ.get("GITHUB_TOKEN")
+    token = get_secret("GITHUB_TOKEN")
     if not token:
         return {
             "formatted": "Error: GITHUB_TOKEN environment variable is required",

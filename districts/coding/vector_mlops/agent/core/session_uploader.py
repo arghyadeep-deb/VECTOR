@@ -277,7 +277,7 @@ def _write_row_payload(data: dict, tmp_path: str) -> None:
         "tools": json.dumps(scrubbed["tools"]),
     }
 
-    with open(tmp_path, "w") as tmp:
+    with open(tmp_path, "w", encoding="utf-8") as tmp:
         json.dump(session_row, tmp)
 
 
@@ -286,7 +286,7 @@ def _write_claude_code_payload(data: dict, tmp_path: str) -> None:
     # Scrub before conversion so secrets never reach the upload temp file.
     scrubbed = _scrub_session_for_upload(data)
     events = to_claude_code_jsonl(scrubbed)
-    with open(tmp_path, "w") as tmp:
+    with open(tmp_path, "w", encoding="utf-8") as tmp:
         for event in events:
             tmp.write(json.dumps(event))
             tmp.write("\n")
@@ -305,7 +305,7 @@ def _read_session_file(session_file: str) -> dict:
     """Read a local session file while respecting uploader file locks."""
     import fcntl
 
-    with open(session_file, "r") as f:
+    with open(session_file, "r", encoding="utf-8") as f:
         fcntl.flock(f, fcntl.LOCK_SH)
         try:
             return json.load(f)
@@ -328,7 +328,7 @@ def _update_upload_status(
     """
     import fcntl
 
-    with open(session_file, "r+") as f:
+    with open(session_file, "r+", encoding="utf-8") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
         try:
             data = json.load(f)

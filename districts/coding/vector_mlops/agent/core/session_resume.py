@@ -75,7 +75,7 @@ def list_session_logs(
     entries: list[SessionLogEntry] = []
     for path in directory.glob("*.json"):
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
         except Exception:
             continue
@@ -192,7 +192,7 @@ def restore_session_from_log(session: Any, path: Path) -> dict[str, Any]:
 
     Returns metadata for the ``resume_complete`` event.
     """
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
 
     raw_messages = data.get("messages")

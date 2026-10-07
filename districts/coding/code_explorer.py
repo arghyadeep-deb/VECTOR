@@ -6,6 +6,7 @@ District: coding
 import asyncio
 import ast
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 
 from loguru import logger
 from core.city.prompt_agent import PromptAgent
@@ -20,7 +21,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 
 def _confine_py_path(filepath: str) -> Path:
     resolved = Path(filepath).resolve()
-    if not resolved.is_relative_to(_ROOT) or resolved.suffix != ".py":
+    if not is_path_within(resolved, _ROOT) or resolved.suffix != ".py":
         raise FileNotFoundError(f"Path outside repo or not a .py file: {filepath}")
     return resolved
 

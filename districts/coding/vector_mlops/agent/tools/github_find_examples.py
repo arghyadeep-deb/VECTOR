@@ -11,6 +11,7 @@ import requests
 from thefuzz import fuzz
 
 from agent.tools.types import ToolResult
+from core.security.secrets_manager import get_secret
 
 # In order of priority (lower index = higher priority for sorting)
 EXAMPLE_PATTERNS = [
@@ -284,7 +285,7 @@ def find_examples(
     Returns:
         ToolResult with matching files, or similar repos if repo not found
     """
-    token = os.environ.get("GITHUB_TOKEN")
+    token = get_secret("GITHUB_TOKEN")
     if not token:
         return {
             "formatted": "Error: GITHUB_TOKEN environment variable is required",

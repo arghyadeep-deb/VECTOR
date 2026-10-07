@@ -27,6 +27,7 @@ import contextlib
 import threading
 import uuid
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
@@ -303,7 +304,7 @@ class MLOpsAgent(AgentBase):
                             "files": list(files)}
                 elif action == "upload" and local_path and path_in_repo:
                     resolved = Path(local_path).resolve()
-                    if not resolved.is_relative_to(_ROOT):
+                    if not is_path_within(resolved, _ROOT):
                         return {"status": "error",
                                 "error": f"local_path outside repo root: {local_path}"}
                     api.upload_file(

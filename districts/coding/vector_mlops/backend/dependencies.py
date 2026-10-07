@@ -12,6 +12,7 @@ from hashlib import sha256
 from typing import Any
 
 import httpx
+from core.security.secrets_manager import get_secret
 from fastapi import HTTPException, Request, status
 
 from agent.core.hf_tokens import bearer_token_from_header, clean_hf_token
@@ -190,7 +191,7 @@ async def _dev_user_from_env() -> dict[str, Any]:
     real HF namespace. Deriving the dev user from HF_TOKEN keeps local uploads
     pointed at the token owner's dataset instead of dev/vector-ml-engineer-sessions.
     """
-    token = clean_hf_token(os.environ.get("HF_TOKEN", ""))
+    token = clean_hf_token(get_secret("HF_TOKEN"))
     if not token:
         return dict(DEV_USER)
 

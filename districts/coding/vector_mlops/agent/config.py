@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from typing import Any, Literal, Union
 
+from core.security.secrets_manager import get_secret
+
 # VECTOR env-var aliases: map VECTOR's standard API keys into the names
 # that litellm and the HF ecosystem expect, without touching any other file.
 _VECTOR_ALIASES = {
@@ -142,7 +144,7 @@ def apply_slack_user_defaults(raw_config: dict[str, Any]) -> dict[str, Any]:
     if not _env_bool("ML_INTERN_SLACK_NOTIFICATIONS", True):
         return raw_config
 
-    token = os.environ.get("SLACK_BOT_TOKEN")
+    token = get_secret("SLACK_BOT_TOKEN")
     channel = os.environ.get("SLACK_CHANNEL_ID") or os.environ.get("SLACK_CHANNEL")
     if not token or not channel:
         return raw_config

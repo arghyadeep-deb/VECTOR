@@ -448,7 +448,7 @@ def read(req: ReadReq):
             return {"success": False, "output": "", "error": f"File not found: {req.path}"}
         if p.is_dir():
             return {"success": False, "output": "", "error": f"Is a directory: {req.path}"}
-        lines = p.read_text().splitlines()
+        lines = p.read_text(encoding="utf-8").splitlines()
         start = (req.offset or 1) - 1
         end = start + (req.limit or len(lines))
         selected = lines[start:end]
@@ -477,7 +477,7 @@ def edit(req: EditReq):
         p = pathlib.Path(req.path)
         if not p.exists():
             return {"success": False, "output": "", "error": f"File not found: {req.path}"}
-        content = p.read_text()
+        content = p.read_text(encoding="utf-8")
         if req.old_str == req.new_str:
             return {"success": False, "output": "", "error": "old_str and new_str must differ."}
         try:
@@ -880,7 +880,9 @@ class Sandbox:
 
                 if resp.status_code == 200:
                     return ToolResult(
-                        success=data.get("success", True),
+                        # A 200 transport response is not proof that the tool
+                        # operation succeeded. Require an explicit boolean.
+                        success=data.get("success") is True,
                         output=data.get("output", ""),
                         error=data.get("error", ""),
                     )

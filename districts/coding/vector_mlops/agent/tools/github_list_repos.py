@@ -11,6 +11,7 @@ from typing import Any, Dict, Literal, Optional
 import requests
 
 from agent.tools.types import ToolResult
+from core.security.secrets_manager import get_secret
 
 
 def list_repos(
@@ -33,7 +34,7 @@ def list_repos(
     Returns:
         ToolResult with repository information
     """
-    token = os.environ.get("GITHUB_TOKEN")
+    token = get_secret("GITHUB_TOKEN")
     if not token:
         return {
             "formatted": "Error: GITHUB_TOKEN environment variable is required",

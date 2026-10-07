@@ -11,6 +11,7 @@ import time
 from urllib.parse import urlencode
 
 import httpx
+from core.security.secrets_manager import get_secret
 from dependencies import (
     AUTH_ENABLED,
     OAUTH_SCOPE_COOKIE,
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 # OAuth configuration from environment
 OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "")
-OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "")
+OAUTH_CLIENT_SECRET = get_secret("OAUTH_CLIENT_SECRET")
 OPENID_PROVIDER_URL = os.environ.get("OPENID_PROVIDER_URL", "https://huggingface.co")
 OAUTH_SCOPES = configured_oauth_scopes()
 
@@ -102,11 +103,14 @@ async def oauth_callback(
     request: Request, code: str = "", state: str = ""
 ) -> RedirectResponse:
     """Handle OAuth callback."""
-    # Verify state
-    if state not in oauth_states:
-        raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-    stored_state = oauth_states.pop(state)
+    # Consume state exactly once and enforce its advertised lifetime here.
+    # Cleanup during /login only bounds memory; it cannot protect a callback
+    # that arrives after the state expired but before another login occurs.
+    stored_state = oauth_states.pop(state, None)
+    if not stored_state or time.time() > stored_state.get("expires_at", 0):
+        raise HTTPException(
+            status_code=400, detail="Invalid or expired state parameter"
+        )
     redirect_uri = stored_state["redirect_uri"]
 
     if not code:

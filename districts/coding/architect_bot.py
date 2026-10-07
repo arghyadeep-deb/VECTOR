@@ -4,6 +4,7 @@ import ast
 import asyncio
 import uuid
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
@@ -181,7 +182,7 @@ class ArchitectBot(AgentBase):
         """
         try:
             fpath = Path(file_path).resolve()
-            if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+            if not is_path_within(fpath, _ROOT) or fpath.suffix != ".py":
                 logger.error(f"[VECTOR][architect_bot] Path outside repo or not .py: {file_path}")
                 return f"Error: Path outside repo or not a .py file — {file_path}"
             if not fpath.exists():

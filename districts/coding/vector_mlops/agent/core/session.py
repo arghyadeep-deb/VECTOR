@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import sys
+import tempfile
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -24,6 +25,28 @@ _DEFAULT_MAX_TOKENS = 200_000
 _TURN_COMPLETE_NOTIFICATION_CHARS = 39000
 
 DEFAULT_SESSION_LOG_DIR = Path("session_logs")
+
+
+def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
+    """Durably publish JSON without exposing a partial destination file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            fd = -1
+            json.dump(data, handle, indent=2)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp_name, path)
+        tmp_name = ""
+    finally:
+        if fd >= 0:
+            os.close(fd)
+        if tmp_name:
+            try:
+                os.unlink(tmp_name)
+            except FileNotFoundError:
+                pass
 
 
 def _get_max_tokens_safe(model_name: str) -> int:
@@ -554,12 +577,7 @@ class Session:
                 filepath = log_dir / filename
                 self._local_save_path = str(filepath)
 
-            # Atomic-ish write: stage to .tmp then rename so a crash mid-write
-            # doesn't leave a truncated JSON that breaks the retry scanner.
-            tmp_path = filepath.with_suffix(filepath.suffix + ".tmp")
-            with open(tmp_path, "w") as f:
-                json.dump(trajectory, f, indent=2)
-            tmp_path.replace(filepath)
+            _atomic_write_json(filepath, trajectory)
 
             return str(filepath)
         except Exception as e:
@@ -571,15 +589,14 @@ class Session:
     ) -> bool:
         """Update the upload status of an existing local save file"""
         try:
-            with open(filepath, "r") as f:
+            with open(filepath, "r", encoding="utf-8") as f:
                 data = json.load(f)
 
             data["upload_status"] = upload_status
             data["upload_url"] = dataset_url
             data["last_save_time"] = datetime.now().isoformat()
 
-            with open(filepath, "w") as f:
-                json.dump(data, f, indent=2)
+            _atomic_write_json(Path(filepath), data)
 
             return True
         except Exception as e:

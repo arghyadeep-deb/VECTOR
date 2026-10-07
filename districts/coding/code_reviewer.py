@@ -4,6 +4,7 @@ import ast
 import uuid
 import asyncio
 from pathlib import Path
+from districts.coding.path_security import is_path_within
 
 from vectorcode.src.bootstrap import ensure_paths
 ensure_paths()
@@ -257,7 +258,7 @@ class CodeReviewer(AgentBase):
             # bypassing that one gated tool could read any file on disk and
             # have its contents sent to an LLM. Same confinement pattern as
             # that MCP tool (repo root + .py suffix).
-            if not fpath.is_relative_to(_ROOT) or fpath.suffix != ".py":
+            if not is_path_within(fpath, _ROOT) or fpath.suffix != ".py":
                 logger.warning(f"[VECTOR][code_reviewer] review_with_llm refused out-of-repo/non-.py path: {file_path}")
                 return {"error": "Path must be a .py file inside the VECTOR repo"}
             if not fpath.exists():
