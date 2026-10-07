@@ -6594,3 +6594,69 @@ isn't "proven in production" until you supply the service/device and run it live
      non-atomic by design (caller-selected CLI artifact paths, not durable gates) --
      flagged as a hardening question, not promoted to a vulnerability.
      **Commit status:** `e13293825`.
+
+134. **`VECTOR_TECHNICAL_KNOWLEDGE/learning_lab/` -- the research sandbox was NOT fully
+     isolated from production (2026-10-07, final batch of the whole-repo audit) —** a
+     "Digital Twin Lab" harness (17 files) wrapping VECTOR's real production classes
+     (`DecisionEngine`, `PolicyMemory`, `EpisodicMemory`, `GoalSystem`,
+     `EpistemicTracker`, `CounterfactualMemory`) inside what is supposed to be an
+     isolated sandbox for experimentation. Zero production callers (confirmed via grep --
+     not run by VECTOR's own autonomous loop). Audited by Codex (gpt-5.6-sol);
+     reviewed/tested/committed by Claude.
+     **Most severe finding -- the isolation itself had real gaps (commit `f6419dbdb`):**
+     - `isolation.py`/`twin.py` -- `DecisionEngine` also reads the live global
+       `PlanStore` (not redirected), and `EpisodicMemory` writes construct `MemoryTree`
+       through its default path, whose continuity migration copies the **legacy
+       production memory tree** into the lab directory -- directly observed in pre-fix
+       test logs copying `~/.vector_ca/memory_tree/memory_tree.json` into a
+       `vector_twin_*` directory. Fixed by injecting an explicit `PlanStore` path,
+       setting `VECTOR_MEMORY_TREE_PATH`, and seeding an empty isolated tree before
+       `MemoryTree`'s migration can run.
+     - `isolation.py` -- overlapping/nested `IsolatedVectorEnv` contexts in the same
+       process could interleave restoration of the process-global
+       `VECTOR_DB_PATH`/`VECTOR_DB_KEY` env vars and the shared episodic singleton's
+       close/reopen -- one context could restore the **real production path** while
+       another lab run was still active, after which the next `get_db_connection()`
+       call would hit the production DB. Fixed by rejecting a second concurrent context
+       in the same process.
+     - `isolation.py` -- `base_dir` was caller-controlled with no confinement -- passing
+       the real production data directory would construct real
+       `counterfactual.db`/`epistemic.db` filenames there. The existing
+       `assert_isolated()` was test-only, unused, and name-based rather than
+       path-canonical. Fixed by requiring `base_dir` to resolve under the OS temp root
+       as a generated `vector_twin_*` directory.
+     **Also fixed (correctness, not isolation):** `experiments.py`/`trace.py` crashed on
+     the production `DecisionEngine`'s now-mixed numeric/string score components (e.g.
+     `self_model_capability="no_capable_agent"`); `epistemic_lab.py`/`sensitivity.py`/
+     `scenario.py`/`scaffold_l5_l6.py` still targeted a stale `action_domain:search` key
+     after production changed epistemic identity to the full action type
+     (`action_domain:search_web` vs `search_arxiv` no longer share a prefix);
+     `replay.py` compared only the hash without first validating the stored fingerprint
+     matched it, so an edited fingerprint with a stale hash could still report
+     `matched=True`; `scenario.py`/`trace.py`/`replay.py` wrote JSON artifacts directly
+     to their final path (the established non-atomic-write bug class) -- added one
+     shared atomic UTF-8 writer; `generate_example_scenarios.py` ran four real
+     experiments and overwrote fixture files as an **import side effect**.
+     New tests: `VECTOR_TECHNICAL_KNOWLEDGE/learning_lab/tests/test_audit_regressions.py`
+     (8), independently re-confirmed failing pre-fix via `git stash` (the 3 isolation
+     tests specifically). Full pre-existing learning_lab test suite: 38 passed, zero
+     regressions. `compileall` clean.
+     **Reviewed clean:** `controls.py`, `counterfactual_lab.py`, `evolution.py`,
+     `level4_experiment.py`, `policy_lab.py`, `regression.py`, `scorecard.py`.
+     **Flagged for owner:** `IsolatedVectorEnv` now deliberately prohibits same-process
+     overlap (production dependencies use process-global env vars + a shared singleton)
+     -- same-process parallelism would need dependency-injected connections instead of
+     global overrides, a larger architectural change. Level 5's epistemic
+     generalization experiment correctly reports FAIL under production's current
+     (intentional) non-generalizing design -- not a bug.
+     **Commit status:** `f6419dbdb`.
+
+     ---
+     **With item 134, every realistically in-scope tree in the whole-repo audit --
+     `core/`, `districts/`, `vectorcode/`, `scripts/`, `run_vector.py`,
+     `.claude/hooks/`, `.claude/skills/` (owner-authored), and
+     `VECTOR_TECHNICAL_KNOWLEDGE/learning_lab/` -- is now fully audited.** Remaining
+     excluded by design: `tests/` and `vectorcode/python/tests/legacy_ported/` (not
+     audit targets per standing policy), vendored/third-party trees (~5,100 files,
+     wiring-check tier only per standing policy), and stock Anthropic `.claude/skills/`
+     templates (licensed, not VECTOR's code).
