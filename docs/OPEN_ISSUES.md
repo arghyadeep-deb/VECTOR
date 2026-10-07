@@ -6451,3 +6451,29 @@ isn't "proven in production" until you supply the service/device and run it live
      **With this, every file in items 127/129's full "mentioned but never audited" +
      "never mentioned at all" reconciliation is now accounted for** -- either fixed with a
      proof test, or confirmed genuinely dead/unreachable and flagged rather than guessed at.
+
+131. **`run_vector.py` first dedicated audit (2026-10-07) —** the main launcher/entry
+     point (597 lines) had no prior dedicated OPEN_ISSUES.md item despite 130 items this
+     cycle -- closes a real gap noticed while answering an owner status question about
+     overall completion percentage.
+     **Fixed with a proof test (1 commit, `944ec41f4`):** `_start_sidecars()`'s
+     `shadowbroker` entry launched via a bare `"python"` argv[0]; every other sidecar
+     resolves an explicit interpreter (`_venv_python()` for its own isolated `.venv`, or
+     `npx`). shadowbroker has no isolated `.venv` of its own -- it is meant to run under
+     the exact same interpreter as the main VECTOR process. A bare `"python"` on PATH can
+     silently resolve to a different Python installation (or nothing at all); since
+     sidecar stdout/stderr are `DEVNULL`'d, the resulting launch failure would be
+     completely invisible. Fixed via `sys.executable`. New test
+     `tests/test_run_vector_shadowbroker_interpreter.py`, confirmed failing pre-fix via
+     `git stash`. Zero regressions in `tests/test_run_vector_logging.py` +
+     `tests/test_media_sidecars_probe.py`.
+     **Reviewed clean:** signal handling (`_setup_signal_handlers`/`_graceful_shutdown`),
+     `bootstrap_agents()`, `smoke_test()`, CLI arg parsing, the `VECTOR_API_RUN_LOOP`
+     default-setting logic. Several past bugs are already fixed with explanatory comments
+     left in place by prior sessions (the `VECTOR_API_RUN_LOOP` default, TLS kwarg wiring,
+     the Windows Ctrl+C shutdown-drain's `AutonomousLoop.get_instance()` lookup).
+     **Noted, not fixed:** `_check_sidecar_health()` uses banned stdlib
+     `threading.Thread` for a fire-and-forget delayed health check, called from a
+     synchronous bootstrap function with no running event loop to attach an asyncio task
+     to -- an architectural tension with the project's asyncio-only rule, not a narrow fix.
+     **Commit status:** `944ec41f4`.
