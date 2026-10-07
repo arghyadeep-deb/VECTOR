@@ -26,10 +26,11 @@ SKIP_PATTERNS = [".png", ".jpg", ".log", ".tmp", ".pyc", "__pycache__", ".screen
 if any(s in file_path for s in SKIP_PATTERNS):
     sys.exit(0)
 
-# Never auto-stage/auto-commit secret-bearing files: auto_commit runs with
-# --no-verify, bypassing pre_commit_gate.py's own staged-secret check
-# entirely, so this hook needs its own denylist rather than relying on that
-# gate to ever see what it's about to commit.
+# Never auto-stage/auto-commit secret-bearing files. This hook commits via
+# a raw subprocess call, not Claude's Bash tool, so .claude/hooks/
+# pre_commit_gate.py (a PreToolUse-on-Bash hook) never sees this commit
+# regardless of --no-verify -- it needs its own denylist rather than
+# relying on that gate to ever run here.
 DANGEROUS_NAMES = {
     ".env", ".env.local", ".env.production", ".env.hardened", ".env.development",
     "google_credentials.json", "service_account.json", "credentials.json",
@@ -54,9 +55,15 @@ try:
     if diff_check.returncode != 0:
         ts = datetime.now().strftime("%H:%M:%S")
         msg = f"auto: {file_path.split('/')[-1].split(chr(92))[-1] or 'changes'} [{ts}]"
+        # No --no-verify: this lets the real git-native pre-commit hook
+        # (scripts/precommit_syntax_gate.py, installed at .git/hooks/
+        # pre-commit) actually run and block an unparseable py/js/json/yaml
+        # file or another dangerous-named file from being committed. A
+        # rejected commit here just leaves the change staged, uncommitted --
+        # consistent with "silent on failure, never blocks the session."
         subprocess.run(
-            ["git", "commit", "-m", msg, "--no-verify"],
-            capture_output=True, timeout=15
+            ["git", "commit", "-m", msg],
+            capture_output=True, timeout=30
         )
 except Exception as exc:
     print(f"[VECTOR AUTO-COMMIT] skipped: {exc}", file=sys.stderr)

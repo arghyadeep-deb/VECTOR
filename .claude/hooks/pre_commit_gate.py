@@ -62,16 +62,24 @@ if blocked:
     sys.exit(2)
 
 # Syntax gate: block commits that stage unparseable py/js/json/yaml files.
+# Fails CLOSED: if the gate script is missing or cannot run, that means the
+# commit's syntax has NOT been verified -- treat that the same as a failed
+# verification, not as "nothing to check." A silently-skipped syntax gate
+# is exactly the kind of control-path weakness that lets a bad commit
+# through unnoticed.
 _gate = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                      "scripts", "precommit_syntax_gate.py")
-if os.path.exists(_gate):
-    try:
-        r = subprocess.run([sys.executable, _gate], capture_output=True, text=True, timeout=120)
-        if r.returncode != 0:
-            print("[VECTOR GATE] BLOCKED: syntax gate failed:")
-            print((r.stdout or "") + (r.stderr or ""))
-            sys.exit(2)
-    except Exception as exc:
-        print(f"[VECTOR GATE] syntax gate skipped: {exc}", file=sys.stderr)
+if not os.path.exists(_gate):
+    print(f"[VECTOR GATE] BLOCKED: syntax gate script not found at {_gate} -- cannot verify commit.")
+    sys.exit(2)
+try:
+    r = subprocess.run([sys.executable, _gate], capture_output=True, text=True, timeout=120)
+except Exception as exc:
+    print(f"[VECTOR GATE] BLOCKED: syntax gate could not run ({exc}) -- failing closed.", file=sys.stderr)
+    sys.exit(2)
+if r.returncode != 0:
+    print("[VECTOR GATE] BLOCKED: syntax gate failed:")
+    print((r.stdout or "") + (r.stderr or ""))
+    sys.exit(2)
 
 sys.exit(0)
