@@ -145,7 +145,7 @@ async def readiness():
     """Core runtime readiness for local production-style operation."""
     from core.runtime.doctor import run_dependency_doctor
 
-    report = run_dependency_doctor(include_optional=False).to_dict()
+    report = (await asyncio.to_thread(run_dependency_doctor, include_optional=False)).to_dict()
     if report["required_failed"]:
         raise HTTPException(status_code=503, detail=report)
     return report
@@ -156,7 +156,7 @@ async def hardened_readiness():
     """Strict readiness in hardened mode: secrets, approval, encryption, and sidecars."""
     from core.runtime.doctor import run_dependency_doctor
 
-    report = run_dependency_doctor(include_optional=True, hardened=True).to_dict()
+    report = (await asyncio.to_thread(run_dependency_doctor, include_optional=True, hardened=True)).to_dict()
     if report["required_failed"]:
         raise HTTPException(status_code=503, detail=report)
     return report
@@ -167,7 +167,7 @@ async def doctor():
     """Full offline-safe dependency doctor, including optional warning checks."""
     from core.runtime.doctor import run_dependency_doctor
 
-    report = run_dependency_doctor(include_optional=True).to_dict()
+    report = (await asyncio.to_thread(run_dependency_doctor, include_optional=True)).to_dict()
     if report["required_failed"]:
         raise HTTPException(status_code=503, detail=report)
     return report
