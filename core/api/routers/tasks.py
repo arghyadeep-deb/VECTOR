@@ -46,11 +46,10 @@ def _check_rate(authorization: str | None) -> None:
 # External callers (phone, cloud, ESP32) POST to /api/v1/tasks with
 # Authorization: Bearer <key>. Validated through permission gateway.
 
-_TASK_API_KEY = os.environ.get("VECTOR_TASK_API_KEY", "")
-
-
 def _check_api_key(authorization: str | None) -> None:
-    if not _TASK_API_KEY:
+    from core.security.secrets_manager import get_secret
+    task_api_key = get_secret("VECTOR_TASK_API_KEY")
+    if not task_api_key:
         # Fail-closed: require explicit opt-in to open mode (Phase 1B)
         if os.environ.get("VECTOR_ALLOW_OPEN_TASK_API") != "1":
             raise HTTPException(
@@ -64,7 +63,7 @@ def _check_api_key(authorization: str | None) -> None:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     token = authorization.removeprefix("Bearer ").strip()
-    if not secrets.compare_digest(token, _TASK_API_KEY):
+    if not secrets.compare_digest(token, task_api_key):
         raise HTTPException(status_code=403, detail="Invalid API key")
 
 
@@ -97,6 +96,14 @@ async def ingest_external_task(
         priority=req.priority,
     )
     result = await gw.execute(action)
+
+    if not result.approved:
+        return {
+            "accepted": False,
+            "source": req.source,
+            "gateway_level": result.level,
+            "message": result.reason or "Task blocked by Permission Gateway.",
+        }
 
     # Inject into the autonomous loop's pending voice intent so it gets
     # processed immediately (event-driven wake — no 10s poll wait).
@@ -188,11 +195,13 @@ async def submit_task(req: SubmitRequest):
             from core.inference.ollama_safe import chat
             from core.loop.context_engine import ContextEngine
             hydration = ContextEngine().session_hydration_prompt()
-            return chat(
+            import asyncio
+            return await asyncio.to_thread(
+                chat,
                 model="vector-deep",
                 messages=[
                     {"role": "system", "content": hydration},
-                    {"role": "user",   "content": req.query},
+                    {"role": "user", "content": req.query},
                 ],
                 timeout=300.0,
                 caller_id="api_tasks_submit",

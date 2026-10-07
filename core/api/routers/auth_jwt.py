@@ -132,7 +132,8 @@ def _get_jwt_manager() -> JWTManager:
 
 def _verify_api_key(provided_key: str) -> bool:
     """Verify against VECTOR_API_KEY using constant-time comparison."""
-    expected = os.environ.get("VECTOR_API_KEY", "")
+    from core.security.secrets_manager import get_secret
+    expected = get_secret("VECTOR_API_KEY")
     if not expected:
         return False
     return hmac.compare_digest(provided_key, expected)
@@ -223,7 +224,7 @@ async def login(body: LoginRequest, request: Request):
         auth_method = "password"
 
     # If no API key is configured, allow localhost login (trust the network)
-    elif not os.environ.get("VECTOR_API_KEY") and not os.environ.get("VECTOR_OWNER_PASSWORD_HASH"):
+    elif not _configured_owner_credentials():
         client_ip = request.client.host if request.client else ""
         if client_ip in ("127.0.0.1", "::1", "localhost", "testclient"):
             authenticated = True
@@ -291,6 +292,12 @@ async def login(body: LoginRequest, request: Request):
         refresh_expires_in=jwt_mgr.refresh_ttl,
         device=device,
     )
+
+
+def _configured_owner_credentials() -> bool:
+    """Whether any owner login credential exists, including keyring secrets."""
+    from core.security.secrets_manager import get_secret
+    return bool(get_secret("VECTOR_API_KEY") or os.environ.get("VECTOR_OWNER_PASSWORD_HASH"))
 
 
 @router.post("/refresh", response_model=TokenResponse)

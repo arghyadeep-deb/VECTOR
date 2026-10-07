@@ -2,10 +2,25 @@
 
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, field_validator
 from loguru import logger
 
 router = APIRouter(prefix="/ads", tags=["ads"])
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _confined_output(value: str, subdirectory: str, *, directory: bool) -> str:
+    base = (_PROJECT_ROOT / "output" / subdirectory).resolve()
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = _PROJECT_ROOT / candidate
+    candidate = candidate.resolve()
+    if candidate != base and not candidate.is_relative_to(base):
+        kind = "directory" if directory else "path"
+        raise ValueError(f"Output {kind} must remain under {base}")
+    return str(candidate)
 
 _ads_agent = None
 
@@ -57,17 +72,38 @@ class AdsCreateRequest(BaseModel):
     brand_data: str = ""
 
 class AdsGenerateRequest(BaseModel):
+    model_config = ConfigDict(validate_default=True)
+
     prompt: str
     aspect_ratio: str = "1:1"
     output_dir: str = "output/ads_screenshots"
+
+    @field_validator("prompt")
+    @classmethod
+    def _safe_positional_prompt(cls, value: str) -> str:
+        if value.startswith("-"):
+            raise ValueError("Prompt may not begin with '-' because it is passed as a CLI positional argument")
+        return value
+
+    @field_validator("output_dir")
+    @classmethod
+    def _safe_output_dir(cls, value: str) -> str:
+        return _confined_output(value, "ads_screenshots", directory=True)
 
 class AdsPhotoshootRequest(BaseModel):
     product: str
     style: str = "studio"
 
 class AdsReportRequest(BaseModel):
+    model_config = ConfigDict(validate_default=True)
+
     audit_markdown: str
     output_path: str = "output/ads_reports/audit_report.pdf"
+
+    @field_validator("output_path")
+    @classmethod
+    def _safe_output_path(cls, value: str) -> str:
+        return _confined_output(value, "ads_reports", directory=False)
 
 
 #  --  Endpoints  -- 

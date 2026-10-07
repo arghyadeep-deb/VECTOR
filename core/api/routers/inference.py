@@ -13,6 +13,7 @@ __all__ = [
 from fastapi import APIRouter
 from loguru import logger
 import httpx
+import asyncio
 
 from core.api.schemas import InferenceStatsResponse
 from core.config import CONFIG
@@ -56,11 +57,16 @@ async def inference_run(model: str, prompt: str, system: str = ""):
     """Run a one-shot inference against a local Ollama model."""
     try:
         from core.inference.ollama_safe import chat
-        messages = []
+        from core.loop.context_engine import ContextEngine
+        hydration = ContextEngine().session_hydration_prompt()
+        messages = [{"role": "system", "content": hydration}]
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        response = chat(model=model, messages=messages, timeout=60.0, caller_id="api_inference_run")
+        response = await asyncio.to_thread(
+            chat, model=model, messages=messages, timeout=60.0,
+            caller_id="api_inference_run",
+        )
         if not response:
             return {"status": "error", "error": "Model returned empty response — check Ollama status"}
         return {"status": "ok", "model": model, "response": response}

@@ -10,14 +10,14 @@ __all__ = [
 
 import os
 from fastapi import APIRouter, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/v1/tasks", tags=["tasks"])
 
 
 class TaskSubmission(BaseModel):
     action_type: str
-    params: dict = {}
+    params: dict = Field(default_factory=dict)
     source: str = "external"
     priority: str = "normal"
 
@@ -54,7 +54,16 @@ async def submit_task(
     # gateway evaluation side-effect when the loop isn't running.
     loop = AutonomousLoop.get_instance()
     gateway = (loop or AutonomousLoop())._get_gateway()
-    await gateway.evaluate_external(task.action_type, task.params, task.source)
+    gateway_result = await gateway.evaluate_external(
+        task.action_type, task.params, task.source,
+    )
+    if not gateway_result.approved:
+        return {
+            "status": "blocked",
+            "source": task.source,
+            "reason": gateway_result.reason,
+            "level": gateway_result.level,
+        }
     if loop is not None:
         loop._pending_voice = {
             "intent": task.action_type,

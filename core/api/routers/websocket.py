@@ -57,6 +57,9 @@ router = APIRouter(prefix="/ws", tags=["websocket"])
 # accepted -- the two auth gates were never actually equivalent in
 # practice despite the comment above claiming so).
 from core.security.secrets_manager import get_secret
+# Compatibility export for callers/tests that use the configured static key.
+# Authentication itself reads the secret at handshake time so key rotation and
+# test-time configuration do not leave a stale import-time credential behind.
 WS_API_KEY = get_secret("VECTOR_API_KEY")
 
 
@@ -67,9 +70,15 @@ async def require_auth_handshake(websocket: WebSocket) -> bool:
     socket if auth is required but the handshake fails or times out.
     Token must NOT be in the URL query string (leaks to server logs / proxies).
     """
-    if not WS_API_KEY:
-        # No auth required in dev mode
-        return True
+    api_key = get_secret("VECTOR_API_KEY")
+    if not api_key:
+        # Match HTTP middleware's fail-closed posture: keyless development mode
+        # is local-only, not remotely unauthenticated.
+        client_host = websocket.client.host if websocket.client else ""
+        if client_host in {"127.0.0.1", "::1", "localhost", "testclient"}:
+            return True
+        await websocket.close(code=1008, reason="Remote access requires VECTOR_API_KEY")
+        return False
     try:
         auth_msg = await asyncio.wait_for(websocket.receive_json(), timeout=5.0)
         token = auth_msg.get("auth", "").replace("Bearer ", "").strip()
@@ -80,7 +89,10 @@ async def require_auth_handshake(websocket: WebSocket) -> bool:
     # information about WS_API_KEY over repeated connection attempts,
     # the same class of gap already fixed for the HTTP-side token checks
     # (core/api/tasks.py, core/api/routers/tasks.py) this cycle.
-    if not secrets.compare_digest(token, WS_API_KEY):
+    from core.api.middleware import _verify_jwt_access_token, _verify_webauthn_jwt
+    key_matches = secrets.compare_digest(token, api_key)
+    jwt_valid = _verify_jwt_access_token(token) or _verify_webauthn_jwt(token)
+    if not key_matches and not jwt_valid:
         await websocket.close(code=1008, reason="Unauthorized")
         return False
     return True
@@ -340,6 +352,9 @@ async def vector_ws_state(websocket: WebSocket):
     state_event JSON frame to the connected client.  Never raises (RULE 2).
     """
     await manager.connect(websocket)
+    if not await require_auth_handshake(websocket):
+        manager.disconnect(websocket)
+        return
     bus = None
     subs = []
     try:

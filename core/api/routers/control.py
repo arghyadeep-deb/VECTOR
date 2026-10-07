@@ -66,7 +66,7 @@ async def pc_screenshot():
     try:
         return await _dispatch_pc_action("pc_screenshot", {})
     except Exception as e:
-        logger.error("[VECTOR][control] pc_screenshot failed: %s", e)
+        logger.error("[VECTOR][control] pc_screenshot failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class PcTypeReq(BaseModel):
@@ -79,7 +79,7 @@ async def pc_type(body: PcTypeReq):
     try:
         return await _dispatch_pc_action("pc_type", body.model_dump())
     except Exception as e:
-        logger.error("[VECTOR][control] pc_type failed: %s", e)
+        logger.error("[VECTOR][control] pc_type failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class PcClickReq(BaseModel):
@@ -93,7 +93,7 @@ async def pc_click(body: PcClickReq):
     try:
         return await _dispatch_pc_action("pc_click", body.model_dump())
     except Exception as e:
-        logger.error("[VECTOR][control] pc_click failed: %s", e)
+        logger.error("[VECTOR][control] pc_click failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class PcLaunchAppReq(BaseModel):
@@ -106,7 +106,7 @@ async def pc_launch_app(body: PcLaunchAppReq):
     try:
         return await _dispatch_pc_action("pc_launch_app", body.model_dump())
     except Exception as e:
-        logger.error("[VECTOR][control] pc_launch_app failed: %s", e)
+        logger.error("[VECTOR][control] pc_launch_app failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/phone/status")
@@ -136,7 +136,7 @@ async def phone_status():
             result["debug"] = {"adb_path": pc._adb_path, "run_ok": ok, "raw": raw}
         return result
     except Exception as e:
-        logger.error("[VECTOR][control] phone_status failed: %s", e)
+        logger.error("[VECTOR][control] phone_status failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/phone/notifications")
@@ -151,7 +151,7 @@ async def phone_notifications():
         notes = await asyncio.to_thread(pc.get_notifications)
         return {"status": "ok", "notifications": notes}
     except Exception as e:
-        logger.error("[VECTOR][control] phone_notifications failed: %s", e)
+        logger.error("[VECTOR][control] phone_notifications failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/phone/screenshot")
@@ -167,6 +167,6 @@ async def phone_screenshot():
         ok = await asyncio.to_thread(pc.take_screenshot, path)
         return {"status": "ok" if ok else "error", "path": path if ok else None}
     except Exception as e:
-        logger.error("[VECTOR][control] phone_screenshot failed: %s", e)
+        logger.error("[VECTOR][control] phone_screenshot failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 # end of phone endpoints (2026-07-19 direct PhoneController wiring)

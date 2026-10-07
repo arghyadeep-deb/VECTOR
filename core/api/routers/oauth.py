@@ -1,6 +1,8 @@
 """OAuth router — /oauth/integrations."""
 
 import sys
+import secrets
+import time
 
 __all__ = [
     "oauth_integrations",
@@ -12,6 +14,25 @@ from fastapi import APIRouter
 from loguru import logger
 
 router = APIRouter(prefix="/oauth", tags=["oauth"])
+
+_OAUTH_STATE_TTL_SEC = 600
+_pending_google_states: dict[str, float] = {}
+
+
+def _new_google_state() -> str:
+    now = time.monotonic()
+    expired = [state for state, created in _pending_google_states.items()
+               if now - created > _OAUTH_STATE_TTL_SEC]
+    for state in expired:
+        _pending_google_states.pop(state, None)
+    state = secrets.token_urlsafe(32)
+    _pending_google_states[state] = now
+    return state
+
+
+def _consume_google_state(state: str) -> bool:
+    created = _pending_google_states.pop(state, None)
+    return created is not None and time.monotonic() - created <= _OAUTH_STATE_TTL_SEC
 
 
 @router.get("/connect/google-calendar")
@@ -31,6 +52,7 @@ async def google_calendar_connect():
             "scope": "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events",
             "access_type": "offline",
             "prompt": "consent",
+            "state": _new_google_state(),
         }
         auth_url = "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params)
         return {"auth_url": auth_url, "instructions": "Open auth_url in browser, then /oauth/callback/google will receive the code"}
@@ -40,10 +62,12 @@ async def google_calendar_connect():
 
 
 @router.get("/callback/google")
-async def google_calendar_callback(code: str = "", error: str = ""):
+async def google_calendar_callback(code: str = "", state: str = "", error: str = ""):
     """Exchange Google OAuth code for tokens and store in collections DB."""
     if error:
         return {"error": error}
+    if not state or not _consume_google_state(state):
+        return {"error": "invalid or expired OAuth state"}
     if not code:
         return {"error": "no code provided"}
     try:
@@ -82,8 +106,8 @@ async def google_calendar_callback(code: str = "", error: str = ""):
             else:
                 _engine.create_record("google_calendar_tokens", _record_data)
         except Exception as _store_err:
-            logger.warning(f"[VECTOR][oauth] token store failed: {_store_err}")
-            # Non-fatal: token still returned in response
+            logger.error(f"[VECTOR][oauth] token store failed: {_store_err}")
+            return {"error": "Google authorized VECTOR, but token storage failed"}
         logger.info("[VECTOR][oauth] Google Calendar tokens stored in collections DB")
         return {"status": "ok", "message": "Google Calendar connected. VECTOR can now read/write your calendar."}
     except Exception as e:

@@ -34,7 +34,7 @@ async def code_review(body: CodeReviewReq):
     try:
         return await gov.dispatch({"type": "code_review", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][coding] code_review failed: %s", e)
+        logger.error("[VECTOR][coding] code_review failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class ArchitectAdviceReq(BaseModel):
@@ -49,7 +49,7 @@ async def architect_advice(body: ArchitectAdviceReq):
     try:
         return await gov.dispatch({"type": "architect_advice", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][coding] architect_advice failed: %s", e)
+        logger.error("[VECTOR][coding] architect_advice failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class RapidPrototypeReq(BaseModel):
@@ -64,7 +64,7 @@ async def rapid_prototype(body: RapidPrototypeReq):
     try:
         return await gov.dispatch({"type": "rapid_prototype", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][coding] rapid_prototype failed: %s", e)
+        logger.error("[VECTOR][coding] rapid_prototype failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class DbOptimizeReq(BaseModel):
@@ -79,7 +79,7 @@ async def db_optimize(body: DbOptimizeReq):
     try:
         return await gov.dispatch({"type": "db_optimize", "params": body.model_dump(by_alias=True)})
     except Exception as e:
-        logger.error("[VECTOR][coding] db_optimize failed: %s", e)
+        logger.error("[VECTOR][coding] db_optimize failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class WriteTestsReq(BaseModel):
@@ -94,5 +94,5 @@ async def write_tests(body: WriteTestsReq):
     try:
         return await gov.dispatch({"type": "write_tests", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][coding] write_tests failed: %s", e)
+        logger.error("[VECTOR][coding] write_tests failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

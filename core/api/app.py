@@ -603,7 +603,7 @@ def create_app() -> FastAPI:
             try:
                 file_path = file_path.resolve()
                 _hud_dir.resolve()
-                if not str(file_path).startswith(str(_hud_dir.resolve())):
+                if not file_path.is_relative_to(_hud_dir.resolve()):
                     return JSONResponse({"error": "Forbidden"}, status_code=403)
             except Exception:
                 return JSONResponse({"error": "Forbidden"}, status_code=403)

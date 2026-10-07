@@ -450,6 +450,8 @@ async def _stream_respond(websocket, text: str, orb) -> tuple[str, float]:
     pe = _get_personality()
     prompt = text
     system_prompt = ""
+    from core.loop.context_engine import ContextEngine
+    hydration = ContextEngine().session_hydration_prompt()
     if pe is not None:
         try:
             result = pe.process(text)
@@ -458,7 +460,7 @@ async def _stream_respond(websocket, text: str, orb) -> tuple[str, float]:
             if tone:
                 speed = tone.speed
             if system_prompt:
-                prompt = f"{system_prompt}\n\nUser: {text}"
+                prompt = f"{hydration}\n\n{system_prompt}\n\nUser: {text}"
         except Exception as e:
             logger.debug(f"[VECTOR][voice_ws] personality process skipped: {e}")
     # 2026-07-29 CORRECTION (issue #37): `core.personality` DOES exist and
@@ -481,7 +483,7 @@ async def _stream_respond(websocket, text: str, orb) -> tuple[str, float]:
                 "text-to-speech — plain natural spoken sentences only, no "
                 "markdown, no spelled-out punctuation names."
             )
-        prompt = f"{system_prompt}\n\nUser: {text}"
+        prompt = f"{hydration}\n\n{system_prompt}\n\nUser: {text}"
 
     loop = asyncio.get_event_loop()
     full_text = ""
@@ -595,6 +597,9 @@ def _llm_respond_with_personality(text: str) -> tuple[str, float]:
                     "markdown, no spelled-out punctuation names."
                 )
         prompt = f"{system_prompt}\n\nUser: {text}" if system_prompt else text
+        from core.loop.context_engine import ContextEngine
+        hydration = ContextEngine().session_hydration_prompt()
+        prompt = f"{hydration}\n\n{prompt}"
 
         r = httpx.post(
             f"{ollama_host}/api/generate",

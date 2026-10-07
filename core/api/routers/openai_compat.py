@@ -72,10 +72,16 @@ async def chat_completions(payload: dict[str, Any]):
     messages = payload.get("messages")
     if not isinstance(messages, list) or not messages:
         raise HTTPException(status_code=400, detail="messages must be a non-empty list")
+    from core.loop.context_engine import ContextEngine
+    hydration = ContextEngine().session_hydration_prompt()
+    hydrated_messages = [
+        {"role": "system", "content": hydration},
+        *messages,
+    ]
     model = payload.get("model")
     client = ProviderClient()
     result = await client.chat(
-        messages=messages,
+        messages=hydrated_messages,
         model=model,
         temperature=float(payload.get("temperature", 0.7)),
         max_tokens=int(payload.get("max_tokens", 4096)),

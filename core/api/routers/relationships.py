@@ -53,7 +53,7 @@ async def list_contacts():
             "source": "contacts.db",
         }
     except Exception as e:
-        logger.error("[VECTOR][relationships] list_contacts failed: %s", e)
+        logger.error("[VECTOR][relationships] list_contacts failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class AddContactReq(BaseModel):
@@ -69,7 +69,7 @@ async def add_contact(body: AddContactReq):
     try:
         return await gov.dispatch({"type": "add_contact", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][relationships] add_contact failed: %s", e)
+        logger.error("[VECTOR][relationships] add_contact failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class CommunicationStyleReq(BaseModel):
@@ -84,7 +84,7 @@ async def communication_style(body: CommunicationStyleReq):
     try:
         return await gov.dispatch({"type": "communication_style", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][relationships] communication_style failed: %s", e)
+        logger.error("[VECTOR][relationships] communication_style failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 class OutreachPlanReq(BaseModel):
@@ -99,5 +99,5 @@ async def outreach_plan(body: OutreachPlanReq):
     try:
         return await gov.dispatch({"type": "outreach_plan", "params": body.model_dump()})
     except Exception as e:
-        logger.error("[VECTOR][relationships] outreach_plan failed: %s", e)
+        logger.error("[VECTOR][relationships] outreach_plan failed: {}", e)
         raise HTTPException(status_code=500, detail=str(e))

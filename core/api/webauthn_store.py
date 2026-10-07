@@ -60,7 +60,9 @@ def _write_raw(data: dict[str, Any]) -> None:
     tmp = path.with_suffix(".json.tmp")
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-    tmp.replace(path)  # atomic on both Windows and POSIX
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)  # atomic on both Windows and POSIX
 
 
 def load_credentials() -> dict[str, dict[str, Any]]:
