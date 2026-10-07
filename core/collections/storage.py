@@ -25,7 +25,9 @@ from pathlib import Path
 import io
 import json
 import mimetypes
+import os
 import re
+import tempfile
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 
@@ -99,17 +101,36 @@ class LocalDriver(StorageDriver):
             raise StorageError(f"resolved path escapes storage root: {key!r}")
         return p
 
+    @staticmethod
+    def _atomic_write(path: Path, data: bytes) -> None:
+        """Write `data` to `path` via tempfile+fsync+os.replace so a crash mid-write
+        (OOM, process kill, power loss) can never leave a truncated file at `path`
+        that exists()/get() would still report and serve as complete."""
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+        try:
+            with os.fdopen(fd, "wb") as tmp:
+                tmp.write(data)
+                tmp.flush()
+                os.fsync(tmp.fileno())
+            os.replace(tmp_name, path)
+        except BaseException:
+            try:
+                os.unlink(tmp_name)
+            except OSError:
+                pass
+            raise
+
     def put(self, key: str, data: bytes, content_type: str | None = None) -> dict:
         p = self._path(key)
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_bytes(data)
+        self._atomic_write(p, data)
         meta = {
             "key": safe_key(key),
             "size": len(data),
             "content_type": content_type or _guess_type(key),
             "created": _now(),
         }
-        p.with_suffix(p.suffix + ".meta.json").write_text(json.dumps(meta), encoding="utf-8")
+        self._atomic_write(p.with_suffix(p.suffix + ".meta.json"), json.dumps(meta).encode("utf-8"))
         logger.debug(f"[VECTOR][storage] put local {meta['key']} ({meta['size']}B)")
         return meta
 
