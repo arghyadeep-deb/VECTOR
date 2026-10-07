@@ -317,6 +317,13 @@ class PhoneController:
             return False
         if not self._connected:
             return False
+        # `input text` can't represent newlines anyway (see docstring) -- strip them
+        # rather than let them survive into the adb shell command line, where adb
+        # joins "shell" args into one string executed by the device's /system/bin/sh,
+        # and an embedded literal newline acts as a statement separator (command
+        # injection), unlike the other shell metacharacters escaped below.
+        import re
+        text = re.sub(r"[\r\n]", "", text)
         # `input text` treats spaces specially: encode as %s, escape shell-risky chars.
         safe = text.replace(" ", "%s")
         for ch in ("&", "<", ">", "|", ";", "(", ")", "`", '"', "'"):
