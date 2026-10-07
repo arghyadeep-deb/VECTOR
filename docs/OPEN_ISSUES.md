@@ -6331,3 +6331,30 @@ isn't "proven in production" until you supply the service/device and run it live
      directory had severe bugs, these two should be prioritized next, not assumed clean by
      association.
      **Commit status:** `20d1879c7`, `3d4887d2d`.
+
+128. **`core/sandbox/{skill_sandbox,vector_sandbox}.py` follow-up, closing item 127's
+     flagged gap (2026-10-07) —** read both files directly (388 lines total). No new
+     narrow bug found; no commit needed.
+     - `vector_sandbox.py`'s `VectorSandbox` class already carries a detailed, dated
+       owner-decision flag directly in its own class docstring from the 2026-10-01 audit
+       pass: `execute_code`'s RED-tier action handler runs real caller-supplied code
+       through this class's scrubbed-env+timeout isolation, NOT the real container-based
+       `ContainerRunner` (network=none, read-only mounts, mount allowlist) that already
+       exists in the same package -- the approval gate bounds WHO can trigger it, but once
+       approved the code runs with the main VECTOR process's own filesystem/network
+       access, no real OS-level isolation on Windows. This is already the single most
+       important fact about this file and was already correctly recorded as an
+       architectural owner decision, not a narrow fix -- re-confirmed still accurate, nothing
+       to add.
+     - `skill_sandbox.py`'s `SkillSandboxRunner` never executes caller-supplied code --
+       only VECTOR's own fixed verification script (`_build_skill_verification_code()`),
+       which just checks a `SKILL.md` file's existence/size/triggers via stdlib, no
+       `eval`/`exec`/dynamic import. `skill_md_path` is joined under `_project_root`
+       without a `commonpath()`-style confinement check, but the worst case if an
+       untrusted path were ever supplied is read-only info disclosure (file existence/
+       size/first-200-bytes-of-text), not code execution, and the field's real caller
+       (the skills manifest loader) does not expose it to untrusted input today -- not
+       treated as a live bug, but worth keeping in mind if `skill_md_path` ever becomes
+       externally influenced.
+     **This closes the "NOT YET audited" gap item 127 flagged** -- both
+     `core/sandbox/*.py` files (5 of 5) have now had real depth applied this cycle.
