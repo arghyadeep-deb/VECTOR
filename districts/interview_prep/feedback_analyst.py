@@ -60,7 +60,8 @@ class FeedbackAnalyst(AgentBase):
         self._feedback_entries: list[dict] = []
         self._improvement_tracking: dict[str, list[dict]] = {cat: [] for cat in self.IMPROVEMENT_CATEGORIES}
         self._episodic = EpisodicMemory()
-        self._data_file = Path(__file__).parent.parent.parent.parent / "data" / "interview_feedback.json"
+        from core.runtime_paths import data_path
+        self._data_file = data_path("interview_feedback.json")
         self._load_data()
         logger.info(f"[VECTOR][feedback_analyst] FeedbackAnalyst initialized")
 

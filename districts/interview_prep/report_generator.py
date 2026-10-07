@@ -40,7 +40,8 @@ class ReportGenerator(AgentBase):
 
         self._report_templates = {}
         self._generated_reports: list[dict] = []
-        self._reports_dir = Path(__file__).parent.parent.parent.parent / "data" / "interview_reports"
+        from core.runtime_paths import data_path
+        self._reports_dir = data_path("interview_reports")
         self._reports_dir.mkdir(parents=True, exist_ok=True)
         logger.info("[VECTOR][report_generator] ReportGenerator initialized")
 
