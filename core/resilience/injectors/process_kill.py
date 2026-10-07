@@ -13,14 +13,24 @@ import asyncio
 
 class ProcessKillInjector(FailureInjector):
     name = "process_kill"
-    description = "Kill a critical process (Ollama, voice worker) and verify auto-restart"
+    description = "Kill a critical process (Ollama) and verify auto-restart"
     risk_level = "medium"
 
     def __init__(self):
         self._target: str | None = None
+        # "voice_ws" used to map here to the bare image name "python" --
+        # `taskkill /F /IM python` (no .exe) happened to silently fail to
+        # match anything on Windows (the real image name is "python.exe"),
+        # which is the ONLY reason this never did real damage. voice_ws is
+        # an in-process FastAPI WebSocket route (core/api/routers/voice_ws.py),
+        # not a separate OS process -- there is no isolated "voice worker" to
+        # safely target here, and "python.exe" is not specific to it: every
+        # VECTOR Python process (the autonomous loop, the API server this
+        # injector itself may be running inside of) shares that same image
+        # name, so a corrected ".exe" suffix would turn an accidental no-op
+        # into `taskkill /F /IM python.exe` mass-killing all of them at once.
         self._targets = {
             "ollama": "ollama.exe",
-            "voice_ws": "python",
         }
 
     async def verify_healthy(self) -> bool:
