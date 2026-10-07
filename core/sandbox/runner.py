@@ -19,7 +19,6 @@ __all__ = [
 
 
 import json
-import logging
 import shutil
 import subprocess
 import uuid
@@ -42,7 +41,7 @@ try:
 except ImportError:
     InferenceEngine = None
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 # Sentinel markers (same as ClaudeCodeAgent)
 _OUTPUT_START = "---VECTOR_OUTPUT_START---"
@@ -221,7 +220,7 @@ class ContainerRunner:
         if proc.returncode != 0:
             stderr = proc.stderr.strip() if proc.stderr else ""
             logger.error(
-                "Container %s exited %d: %s",
+                "Container {} exited {}: {}",
                 container_name,
                 proc.returncode,
                 stderr,
@@ -241,7 +240,11 @@ class ContainerRunner:
         end = stdout.find(_OUTPUT_END)
 
         if start == -1 or end == -1:
-            return {"content": stdout.strip()}
+            return {
+                "content": stdout.strip(),
+                "error": True,
+                "error_type": "protocol",
+            }
 
         json_str = stdout[start + len(_OUTPUT_START) : end].strip()
         try:
@@ -260,9 +263,7 @@ class ContainerRunner:
             )
         except Exception:
             logger.debug(
-                "Failed to stop container %s",
-                container_name,
-                exc_info=True,
+                "Failed to stop container {}", container_name
             )
 
     def cleanup_orphans(self) -> None:
@@ -289,14 +290,11 @@ class ContainerRunner:
                     timeout=30,
                 )
                 logger.info(
-                    "Cleaned up %d orphaned containers",
+                    "Cleaned up {} orphaned containers",
                     len(container_ids),
                 )
         except Exception:
-            logger.debug(
-                "Orphan cleanup failed",
-                exc_info=True,
-            )
+            logger.opt(exception=True).debug("Orphan cleanup failed")
 
 if BaseAgent is not None:
 

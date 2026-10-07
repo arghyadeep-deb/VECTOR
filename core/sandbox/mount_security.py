@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -87,7 +88,7 @@ def load_mount_allowlist(path: str) -> MountAllowlist:
     If ``blocked_patterns`` is omitted, :data:`DEFAULT_BLOCKED_PATTERNS`
     is used.
     """
-    raw = Path(path).read_text()
+    raw = Path(path).read_text(encoding="utf-8")
     data = json.loads(raw)
 
     roots = [
@@ -104,16 +105,22 @@ def load_mount_allowlist(path: str) -> MountAllowlist:
 def _is_blocked(mount_path: str, patterns: List[str]) -> bool:
     """Check whether any component of *mount_path* matches a block pattern."""
     resolved = Path(mount_path).resolve()
-    parts = resolved.parts
-    name = resolved.name
+    normalized_path = os.path.normcase(os.path.normpath(str(resolved)))
+    parts = tuple(os.path.normcase(part) for part in resolved.parts)
+    name = os.path.normcase(resolved.name)
 
     for pattern in patterns:
-        # Match against final component (filename)
-        if fnmatch.fnmatch(name, pattern):
+        normalized_pattern = os.path.normcase(
+            os.path.normpath(pattern.replace("/", os.sep).replace("\\", os.sep))
+        )
+        if fnmatch.fnmatch(name, normalized_pattern):
             return True
-        # Match against any path component
+        # Multi-component patterns (for example ``.git/config``) must match
+        # path suffixes as well as a complete relative path.
+        if fnmatch.fnmatch(normalized_path, f"*{os.sep}{normalized_pattern}"):
+            return True
         for part in parts:
-            if fnmatch.fnmatch(part, pattern):
+            if fnmatch.fnmatch(part, normalized_pattern):
                 return True
     return False
 
@@ -123,14 +130,16 @@ def _is_under_allowed_root(
 ) -> bool:
     """Check whether *mount_path* is under any allowed root."""
     if not roots:
-        return True  # No roots configured = allow all non-blocked
+        return False
 
     resolved = Path(mount_path).resolve()
     for root in roots:
         root_resolved = Path(root.path).resolve()
+        candidate = os.path.normcase(str(resolved))
+        root_candidate = os.path.normcase(str(root_resolved))
         try:
-            resolved.relative_to(root_resolved)
-            return True
+            if os.path.commonpath((candidate, root_candidate)) == root_candidate:
+                return True
         except ValueError:
             continue
     return False
@@ -174,7 +183,9 @@ def validate_mounts(
         if _is_blocked(mount, allowlist.blocked_patterns):
             raise ValueError(f"Mount path blocked by security policy: {mount}")
         if _is_under_allowed_root(mount, allowlist.roots):
-            valid.append(mount)
+            # Pass the exact canonical object that was validated to the
+            # container runtime, avoiding a second resolution of a symlink.
+            valid.append(str(Path(mount).resolve()))
         else:
             raise ValueError(f"Mount path not under any allowed root: {mount}")
     return valid

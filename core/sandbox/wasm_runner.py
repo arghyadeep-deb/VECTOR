@@ -103,6 +103,12 @@ class WasmRunner:
             start_func = instance.exports(store).get("_start")
             if start_func and isinstance(start_func, wasmtime.Func):
                 start_func(store)
+            else:
+                return WasmResult(
+                    success=False,
+                    output="WASM execution error: module has no supported entry point (_start).",
+                    duration_seconds=time.time() - t0,
+                )
 
             fuel_remaining = store.get_fuel()
             fuel_consumed = self._fuel_limit - fuel_remaining
