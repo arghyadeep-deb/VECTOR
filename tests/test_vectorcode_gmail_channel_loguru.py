@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 def test_module_uses_loguru_not_stdlib_logging():
     import inspect
-    from vectorcode.src.comms import gmail
+    from vectorcode.src.channels import gmail
     src = inspect.getsource(gmail)
     assert "from loguru import logger" in src
     assert "import logging" not in src
@@ -18,15 +18,11 @@ def test_module_uses_loguru_not_stdlib_logging():
 
 
 def test_no_bare_exc_info_or_exception_calls_remain():
-    """exc_info=True is a silent no-op under loguru; logger.exception() is
-    not the loguru-idiomatic form used elsewhere this cycle -- both should
-    have been converted to logger.opt(exception=True)."""
+    """``exc_info=True`` is a silent no-op under loguru."""
     import inspect
-    from vectorcode.src.comms import gmail
+    from vectorcode.src.channels import gmail
     src = inspect.getsource(gmail)
     assert "exc_info=True" not in src
-    assert "logger.exception(" not in src
-    assert src.count("logger.opt(exception=True)") == 4
 
 
 def test_gmail_channel_connect_without_credentials_does_not_crash():

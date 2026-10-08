@@ -53,6 +53,10 @@ class TwilioSMSChannel(BaseChannel):
         self._status = ChannelStatus.DISCONNECTED
 
     def connect(self) -> None:
+        if not self._account_sid or not self._auth_token or not self._phone_number:
+            logger.warning("Twilio account SID, auth token, and phone number are required")
+            self._status = ChannelStatus.ERROR
+            return
         try:
             self._client = _create_twilio_client(self._account_sid, self._auth_token)
             self._status = ChannelStatus.CONNECTED
@@ -110,7 +114,10 @@ class TwilioSMSChannel(BaseChannel):
             message_id=message_sid,
         )
         for handler in self._handlers:
-            handler(msg)
+            try:
+                handler(msg)
+            except Exception:
+                logger.exception("Twilio message handler failed")
         if self._bus:
             self._bus.publish(
                 EventType.CHANNEL_MESSAGE_RECEIVED,

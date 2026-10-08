@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 
 import pytest
 
+from vectorcode.src.channels import signal_channel as canonical_signal_channel
 from vectorcode.src.comms import signal_channel, yuanbao_media
 from vectorcode.src.comms._abc import ChannelStatus
 from vectorcode.src.comms.session_manager import SessionManager
@@ -29,9 +30,8 @@ def _crypto() -> WXBizMsgCrypt:
     return WXBizMsgCrypt(_TOKEN, aes_key, _CORP_ID)
 
 
-def test_signal_channel_uses_comms_registry_and_event_types() -> None:
-    assert signal_channel.BaseChannel.__module__ == "vectorcode.src.comms._abc"
-    assert signal_channel.ChannelRegistry.__module__ == "vectorcode.src.vc_core.registry"
+def test_signal_comms_module_reexports_canonical_channel() -> None:
+    assert signal_channel.SignalChannel is canonical_signal_channel.SignalChannel
 
 
 def test_channels_do_not_report_connected_with_incomplete_credentials(

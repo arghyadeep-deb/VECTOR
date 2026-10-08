@@ -64,7 +64,7 @@ class WebChatChannel(BaseChannel):
         """Append a message to the in-memory queue."""
         msg = ChannelMessage(
             channel=channel,
-            sender="jarvis",
+            sender="vector",
             content=content,
             conversation_id=conversation_id,
             metadata=metadata or {},

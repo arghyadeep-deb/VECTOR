@@ -112,7 +112,7 @@ class ZulipChannel(BaseChannel):
 
             meta = metadata or {}
             msg_type = meta.get("type", "stream")
-            topic = meta.get("topic", "OpenVector")
+            topic = meta.get("topic", "VECTOR")
 
             request: Dict[str, Any] = {
                 "type": msg_type,

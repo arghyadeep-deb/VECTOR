@@ -64,8 +64,8 @@ class TwitchChannel(BaseChannel):
 
     def connect(self) -> None:
         """Validate credentials and mark as connected."""
-        if not self._access_token:
-            logger.warning("No Twitch access_token configured")
+        if not self._access_token or not self._client_id or not self._nick:
+            logger.warning("Twitch access_token, client_id, and sender ID are required")
             self._status = ChannelStatus.ERROR
             return
         try:
@@ -104,7 +104,7 @@ class TwitchChannel(BaseChannel):
         For send-only usage this uses the Twitch Helix API to send a chat
         message.  A full interactive bot would use the twitchio event loop.
         """
-        if not self._access_token:
+        if not self._access_token or not self._client_id or not self._nick:
             logger.warning("Cannot send: no Twitch credentials configured")
             return False
 

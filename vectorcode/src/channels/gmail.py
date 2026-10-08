@@ -149,7 +149,7 @@ class GmailChannel(BaseChannel):
         except ImportError:
             logger.warning(
                 "Google API libraries not installed; "
-                "install with: pip install openjarvis[channel-gmail]",
+                "install with: pip install vector[channel-gmail]",
             )
             self._status = ChannelStatus.ERROR
         except Exception as _e:
@@ -189,7 +189,7 @@ class GmailChannel(BaseChannel):
             msg["From"] = self._user_id
             msg["Subject"] = (metadata or {}).get(
                 "subject",
-                "Message from OpenVector",
+                "Message from VECTOR",
             )
 
             raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")

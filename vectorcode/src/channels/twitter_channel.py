@@ -176,8 +176,8 @@ class TwitterChannel(BaseChannel):
 
     def connect(self) -> None:
         """Validate credentials and start mention polling."""
-        if not self._bearer:
-            logger.warning("No Twitter bearer token configured")
+        if not self._bearer or not self._bot_user_id:
+            logger.warning("Twitter bearer token and bot user ID are required")
             self._status = ChannelStatus.ERROR
             return
 
@@ -215,7 +215,7 @@ class TwitterChannel(BaseChannel):
         *conversation_id* is used as ``reply.in_reply_to_tweet_id`` when set.
         Content is truncated to 280 characters.
         """
-        if not self._api_key:
+        if not all((self._api_key, self._api_secret, self._access_token, self._access_secret)):
             logger.warning("Cannot send: no Twitter OAuth credentials")
             return False
 
