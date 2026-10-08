@@ -34,6 +34,10 @@ except ImportError:
     CONFIG = {}
 
 _VERSION = "1.0.0"
+_EXECUTION_UNAVAILABLE = (
+    "Agent execution is not available: the standalone gateway runner is not "
+    "integrated with VECTOR's Permission Gateway."
+)
 
 # ── Request / Response dataclasses ────────────────────────────────────────────
 
@@ -94,7 +98,7 @@ class GatewayServer:
         try:
             from fastapi import FastAPI, HTTPException
             from fastapi.middleware.cors import CORSMiddleware
-            from fastapi.responses import JSONResponse, StreamingResponse
+            from fastapi.responses import JSONResponse
         except ImportError as exc:
             logger.error("[VECTOR][gateway] FastAPI not installed: {}", exc)
             raise RuntimeError(
@@ -231,140 +235,19 @@ class GatewayServer:
         # ── POST /run ──────────────────────────────────────────────────────────
 
         @app.post("/run")
-        async def run(req: RunRequestModel):
-            session_id = req.session_id or str(uuid.uuid4())
-            model = req.model or "ollama/vector-focus"
-
-            if session_id not in server_ref._sessions:
-                server_ref._sessions[session_id] = _new_session_record(
-                    session_id, model, req.project_dir
-                )
-
-            sess = server_ref._sessions[session_id]
-            sess["status"] = "running"
-            sess["last_active"] = time.time()
-
-            try:
-                run_req = RunRequest(
-                    input=req.input,
-                    model=model,
-                    session_id=session_id,
-                    project_dir=req.project_dir,
-                    mode=req.mode,
-                    metadata=req.metadata,
-                )
-                result = await server_ref._run_task(session_id, run_req)
-                sess["status"] = result.status
-                sess["result"] = result
-                return {
-                    "session_id":     result.session_id,
-                    "response":       result.response,
-                    "tool_calls_made": result.tool_calls_made,
-                    "iterations_used": result.iterations_used,
-                    "model":          result.model,
-                    "status":         result.status,
-                }
-            except asyncio.CancelledError:
-                sess["status"] = "cancelled"
-                return JSONResponse(
-                    status_code=200,
-                    content={"session_id": session_id, "status": "cancelled", "response": ""}
-                )
-            except Exception as exc:
-                sess["status"] = "error"
-                logger.error("[VECTOR][gateway] /run error session={}: {}", session_id, exc)
-                raise HTTPException(status_code=500, detail=str(exc))
+        async def run(_req: RunRequestModel):
+            # Fail closed. The lightweight engine's Permission Gateway field is
+            # not consulted by its tool-dispatch loop, so constructing an agent
+            # here would expose an ungoverned action path.
+            raise HTTPException(status_code=503, detail=_EXECUTION_UNAVAILABLE)
 
         # ── POST /stream ───────────────────────────────────────────────────────
 
         @app.post("/stream")
-        async def stream(req: RunRequestModel):
-            session_id = req.session_id or str(uuid.uuid4())
-            model = req.model or "ollama/vector-focus"
-
-            if session_id not in server_ref._sessions:
-                server_ref._sessions[session_id] = _new_session_record(
-                    session_id, model, req.project_dir
-                )
-
-            sess = server_ref._sessions[session_id]
-            sess["status"] = "running"
-            sess["last_active"] = time.time()
-
-            async def event_generator():
-                import json as _json
-
-                # Start event
-                yield f"data: {_json.dumps({'type': 'start', 'session_id': session_id})}\n\n"
-
-                run_req = RunRequest(
-                    input=req.input,
-                    model=model,
-                    session_id=session_id,
-                    project_dir=req.project_dir,
-                    mode=req.mode,
-                    metadata=req.metadata,
-                )
-
-                try:
-                    # Run the agent in a thread executor (currently synchronous)
-                    loop = asyncio.get_event_loop()
-                    result: RunResponse = await loop.run_in_executor(
-                        None, server_ref._run_task_sync, session_id, run_req
-                    )
-
-                    if sess.get("cancelled"):
-                        yield f"data: {_json.dumps({'type': 'cancelled', 'session_id': session_id})}\n\n"
-                        return
-
-                    # Stream tool calls
-                    if result.tool_calls_made > 0:
-                        raw = sess.get("_last_tool_calls", [])
-                        for tc in raw:
-                            yield (
-                                f"data: {_json.dumps({'type': 'tool_call', 'name': tc.get('name', ''), 'args': {}})}\n\n"
-                            )
-                            await asyncio.sleep(0)
-
-                    # Stream response in 50-char chunks
-                    response_text = result.response or ""
-                    chunk_size = 50
-                    for i in range(0, len(response_text), chunk_size):
-                        if sess.get("cancelled"):
-                            break
-                        chunk = response_text[i: i + chunk_size]
-                        yield f"data: {_json.dumps({'type': 'token', 'content': chunk})}\n\n"
-                        await asyncio.sleep(0)
-
-                    # Done event
-                    yield (
-                        f"data: {_json.dumps({'type': 'done', 'response': response_text, 'iterations': result.iterations_used})}\n\n"
-                    )
-                    sess["status"] = "complete"
-
-                except asyncio.CancelledError:
-                    sess["status"] = "cancelled"
-                    yield f"data: {_json.dumps({'type': 'cancelled', 'session_id': session_id})}\n\n"
-                except Exception as exc:
-                    sess["status"] = "error"
-                    logger.error("[VECTOR][gateway] /stream error session={}: {}", session_id, exc)
-                    yield f"data: {_json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
-
-            # Prefer sse-starlette for proper SSE; fall back to StreamingResponse
-            try:
-                from sse_starlette.sse import EventSourceResponse
-                return EventSourceResponse(event_generator())
-            except ImportError:
-                logger.debug("[VECTOR][gateway] sse-starlette not installed — using StreamingResponse")
-                return StreamingResponse(
-                    event_generator(),
-                    media_type="text/event-stream",
-                    headers={
-                        "Cache-Control": "no-cache",
-                        "Connection": "keep-alive",
-                        "X-Accel-Buffering": "no",
-                    },
-                )
+        async def stream(_req: RunRequestModel):
+            # Streaming must enforce the same boundary as /run; do not create a
+            # session or start an executor while governance is unavailable.
+            raise HTTPException(status_code=503, detail=_EXECUTION_UNAVAILABLE)
 
         # ── POST /compact ──────────────────────────────────────────────────────
 
