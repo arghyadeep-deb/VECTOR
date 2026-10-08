@@ -5,7 +5,11 @@ from pathlib import Path
 from loguru import logger
 
 from core.config import CONFIG
-from core.mcp_tools.expansion_modules import is_protected_write_path, resolve_in_root
+from core.mcp_tools.expansion_modules import (
+    evaluate_destructive_action,
+    is_protected_write_path,
+    resolve_in_root,
+)
 from core.mcp_tools.error_handling import safe_json as _safe_json
 from core.mcp_tools.error_handling import register_stub_tool as _reg
 from core.mcp_tools.memory_safety import (
@@ -105,8 +109,14 @@ def add_worker_tools(mcp) -> None:
             return _safe_json({"status": "redirect", "message": "Use task_create with district parameter"})
 
         @mcp.tool
-        def worker_reset() -> str:
+        async def worker_reset() -> str:
             """Reset all workers to initial state."""
+            gate = await evaluate_destructive_action("worker_reset", {}, "mcp_workers")
+            if not gate.approved:
+                return _safe_json({
+                    "error": "permission denied", "status": "blocked",
+                    "reason": gate.reason, "level": gate.level, "ok": False,
+                })
             tq = _get_wtq()
             if hasattr(tq, "_tasks"):
                 tq._tasks.clear()

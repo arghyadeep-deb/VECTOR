@@ -11,6 +11,7 @@ from core.mcp_tools.memory_safety import (
     MEMORY_CLEAR_CONFIRM as _MEMORY_CLEAR_CONFIRM,
     resolve_memory_path as _resolve_memory_path,
 )
+from core.mcp_tools.expansion_modules import evaluate_destructive_action
 
 
 def add_task_tools(mcp) -> None:
@@ -61,11 +62,19 @@ def add_task_tools(mcp) -> None:
             return _safe_json({"ok": True, "task_id": task_id, "progress": applied})
 
         @mcp.tool
-        def task_delete(task_id: str) -> str:
+        async def task_delete(task_id: str) -> str:
             """Cancel/delete a task from the queue."""
             tq = _get_tq()
             if not hasattr(tq, "cancel"):
                 return _safe_json({"ok": False, "error": "cancel not available"})
+            gate = await evaluate_destructive_action(
+                "task_delete", {"task_id": task_id}, "mcp_tasks",
+            )
+            if not gate.approved:
+                return _safe_json({
+                    "error": "permission denied", "status": "blocked",
+                    "reason": gate.reason, "level": gate.level, "ok": False,
+                })
             return _safe_json({"ok": bool(tq.cancel(task_id)), "task_id": task_id})
 
         @mcp.tool

@@ -581,6 +581,10 @@ class PermissionConfig(BaseModel):
         "send_email", "delete_files", "execute_code",
         "financial_transaction", "push_github", "deploy_production",
         "overwrite_note_personal",
+        # OD-22/OD-24/OD-25 (owner decision 2026-10-08): destructive
+        # MCP/API operations require explicit owner approval before mutation.
+        "memory_clear", "file_delete", "task_delete", "config_reset",
+        "worker_reset", "agent_hp_award", "memory_restore",
         # Hand Execution Engine — Hands with requires_approval=True
         # (browser: purchases/forms; content: publishing; clip: upload).
         "hand_browser", "hand_content", "hand_clip",

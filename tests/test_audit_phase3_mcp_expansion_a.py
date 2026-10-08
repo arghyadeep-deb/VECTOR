@@ -3,6 +3,8 @@ secret redaction and failure-reported-as-success. tmp_path only, never the real 
 from __future__ import annotations
 
 import json
+import asyncio
+import inspect
 import subprocess
 import sys
 from pathlib import Path
@@ -42,7 +44,19 @@ def load(module, adder, root: Path | None = None, monkeypatch=None):
 
 
 def call(fn, *a, **k):
-    return json.loads(fn(*a, **k))
+    result = fn(*a, **k)
+    if inspect.isawaitable(result):
+        result = asyncio.run(result)
+    return json.loads(result)
+
+
+@pytest.fixture(autouse=True)
+def approve_destructive_tool_gates(monkeypatch):
+    async def approve(*_args, **_kwargs):
+        return SimpleNamespace(approved=True, level="RED", reason="approved")
+
+    for module in (m_config, m_files, m_tasks, m_workers):
+        monkeypatch.setattr(module, "evaluate_destructive_action", approve)
 
 
 # ---------------------------------------------------------------- git

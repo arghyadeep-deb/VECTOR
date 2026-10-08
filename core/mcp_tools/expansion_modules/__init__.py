@@ -53,3 +53,15 @@ def is_protected_write_path(root: Path, p: Path) -> bool:
         return True
     rel = (root / p).resolve().relative_to(root.resolve()).as_posix().lower()
     return any(rel == q or rel.startswith(q + "/") for q in _PROTECTED_WRITE)
+
+
+async def evaluate_destructive_action(action_type: str, params: dict, source: str):
+    """Evaluate an MCP mutation through the running loop's permission gate."""
+    from core.loop.autonomous_loop import AutonomousLoop
+
+    # Match core/api/tasks.py: use the running singleton so approval state is
+    # shared; fall back to a throwaway instance only for gateway evaluation
+    # when the autonomous loop is not running.
+    loop = AutonomousLoop.get_instance()
+    gateway = (loop or AutonomousLoop())._get_gateway()
+    return await gateway.evaluate_external(action_type, params, source)

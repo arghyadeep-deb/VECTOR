@@ -5,7 +5,12 @@ from pathlib import Path
 from loguru import logger
 
 from core.config import CONFIG
-from core.mcp_tools.expansion_modules import is_protected_write_path, is_secret_path, resolve_in_root
+from core.mcp_tools.expansion_modules import (
+    evaluate_destructive_action,
+    is_protected_write_path,
+    is_secret_path,
+    resolve_in_root,
+)
 from core.mcp_tools.error_handling import safe_json as _safe_json
 from core.mcp_tools.error_handling import register_stub_tool as _reg
 from core.mcp_tools.memory_safety import (
@@ -167,7 +172,7 @@ def add_file_tools(mcp) -> None:
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def file_delete(file_path: str) -> str:
+        async def file_delete(file_path: str) -> str:
             """Delete a file (RED gate — requires confirmation)."""
             denied = _need_grant("file_delete")
             if denied:
@@ -175,6 +180,14 @@ def add_file_tools(mcp) -> None:
             resolved, err = _confine(file_path, write=True)
             if err:
                 return err
+            gate = await evaluate_destructive_action(
+                "file_delete", {"file_path": file_path}, "mcp_files",
+            )
+            if not gate.approved:
+                return _safe_json({
+                    "error": "permission denied", "status": "blocked",
+                    "reason": gate.reason, "level": gate.level, "ok": False,
+                })
             try:
                 resolved.unlink()
                 return _safe_json({"ok": True, "deleted": file_path})

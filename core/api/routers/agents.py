@@ -51,6 +51,23 @@ async def get_agent_endpoint(agent_id: str):
 
 
 async def _do_award(body: AgentAwardRequest) -> AgentAwardResponse:
+    from core.loop.autonomous_loop import AutonomousLoop
+
+    # Match core/api/tasks.py: use the running singleton; fall back to a
+    # throwaway instance only for gateway evaluation when no loop is running.
+    loop = AutonomousLoop.get_instance()
+    gateway = (loop or AutonomousLoop())._get_gateway()
+    source = "api_agents_award"
+    gateway_result = await gateway.evaluate_external(
+        "agent_hp_award",
+        {"agent_id": body.agent_id, "points": body.points, "reason": body.reason},
+        source,
+    )
+    if not gateway_result.approved:
+        raise HTTPException(status_code=403, detail={
+            "status": "blocked", "source": source,
+            "reason": gateway_result.reason, "level": gateway_result.level,
+        })
     agents_cache.invalidate()  # HP changed — next list_agents call will re-fetch
     result = award_agent(body.agent_id, body.points, body.reason)
     if result.get("status") == "not_found":

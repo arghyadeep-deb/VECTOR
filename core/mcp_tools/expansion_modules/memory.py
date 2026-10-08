@@ -11,6 +11,7 @@ from core.mcp_tools.memory_safety import (
     MEMORY_CLEAR_CONFIRM as _MEMORY_CLEAR_CONFIRM,
     resolve_memory_path as _resolve_memory_path,
 )
+from core.mcp_tools.expansion_modules import evaluate_destructive_action
 
 
 def add_memory_tools(mcp) -> None:
@@ -120,7 +121,7 @@ def add_memory_tools(mcp) -> None:
                 return _safe_json({"error": str(e)})
 
         @mcp.tool
-        def memory_clear(confirm: str = "") -> str:
+        async def memory_clear(confirm: str = "") -> str:
             """Delete ALL entries from episodic memory. Destructive and
             irreversible — requires confirm="CONFIRM_CLEAR_MEMORY"."""
             if confirm != _MEMORY_CLEAR_CONFIRM:
@@ -128,6 +129,14 @@ def add_memory_tools(mcp) -> None:
                     "error": "confirmation required",
                     "message": f'memory_clear deletes all episodic memory; call again with confirm="{_MEMORY_CLEAR_CONFIRM}"',
                     "cleared": False,
+                })
+            gate = await evaluate_destructive_action(
+                "memory_clear", {"confirm": confirm}, "mcp_memory",
+            )
+            if not gate.approved:
+                return _safe_json({
+                    "error": "permission denied", "status": "blocked",
+                    "reason": gate.reason, "level": gate.level, "cleared": False,
                 })
             try:
                 with get_temp_cursor() as cur:

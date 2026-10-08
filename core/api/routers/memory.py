@@ -105,6 +105,23 @@ async def backup_memory():
 async def restore_memory(backup_path: str, overwrite: bool = False):
     """Restore the local SQLite database from a JSON backup file."""
     try:
+        from core.loop.autonomous_loop import AutonomousLoop
+
+        # Match core/api/tasks.py: use the running singleton; fall back to a
+        # throwaway instance only for gateway evaluation when no loop is running.
+        loop = AutonomousLoop.get_instance()
+        gateway = (loop or AutonomousLoop())._get_gateway()
+        source = "api_memory_restore"
+        gateway_result = await gateway.evaluate_external(
+            "memory_restore",
+            {"backup_path": backup_path, "overwrite": overwrite},
+            source,
+        )
+        if not gateway_result.approved:
+            return {
+                "status": "blocked", "source": source,
+                "reason": gateway_result.reason, "level": gateway_result.level,
+            }
         from core.memory.multi_db_manager import get_manager
         result = get_manager().restore(backup_path, overwrite=overwrite)
         return {"status": "ok", **result}

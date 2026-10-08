@@ -122,8 +122,14 @@ def test_memory_clear_without_confirmation_keeps_rows(isolated_memory):
     assert _count(ep) == 3  # nothing deleted
 
 
-def test_memory_clear_with_confirmation_deletes(isolated_memory):
+def test_memory_clear_with_confirmation_deletes(isolated_memory, monkeypatch):
     ep = isolated_memory
+    from core.mcp_tools.expansion_modules import memory as memory_tools
+
+    async def approve(*_args, **_kwargs):
+        return type("Gate", (), {"approved": True, "level": "RED", "reason": "approved"})()
+
+    monkeypatch.setattr(memory_tools, "evaluate_destructive_action", approve)
     _seed(ep, 3)
     server = _build_server()
     assert _count(ep) == 3

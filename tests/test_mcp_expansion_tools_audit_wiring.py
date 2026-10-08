@@ -140,6 +140,7 @@ def test_allowed_call_executes_underlying_memory_clear(monkeypatch, tmp_path):
     from fastmcp import FastMCP
     from core.mcp_tools import security as mcp_security
     from core.mcp_tools.expansion import add_expansion_tools
+    from core.mcp_tools.expansion_modules import memory as memory_tools
 
     episodic = _isolated_memory(monkeypatch, tmp_path)
     memory = episodic.EpisodicMemory()
@@ -150,7 +151,11 @@ def test_allowed_call_executes_underlying_memory_clear(monkeypatch, tmp_path):
         calls.append((tool_name, district, params))
         return True
 
+    async def approve(*_args, **_kwargs):
+        return type("Gate", (), {"approved": True, "level": "RED", "reason": "approved"})()
+
     monkeypatch.setattr(mcp_security, "mcp_secure_call", allow)
+    monkeypatch.setattr(memory_tools, "evaluate_destructive_action", approve)
     server = FastMCP("expansion-audit-allowed")
     add_expansion_tools(server)
     result = _result_json(_run(server.call_tool(

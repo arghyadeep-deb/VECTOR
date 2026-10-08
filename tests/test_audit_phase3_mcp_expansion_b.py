@@ -549,6 +549,10 @@ def mem_tools(monkeypatch):
     monkeypatch.setattr("core.memory.episodic.get_temp_cursor", _cursor)
     monkeypatch.setattr("core.memory.episodic.EpisodicMemory", _FakeEpi)
     monkeypatch.setattr("core.memory.reasoning_memory.ReasoningMemory", _FakeRM)
+    async def approve(*_args, **_kwargs):
+        return SimpleNamespace(approved=True, level="RED", reason="approved")
+
+    monkeypatch.setattr(memory_mod, "evaluate_destructive_action", approve)
     mcp = _FakeMCP()
     memory_mod.add_memory_tools(mcp)
     return SimpleNamespace(tools=mcp.tools, conn=conn, chain_calls=chain_calls, epi=_FakeEpi)

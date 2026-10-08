@@ -5,7 +5,12 @@ from pathlib import Path
 from loguru import logger
 
 from core.config import CONFIG
-from core.mcp_tools.expansion_modules import is_sensitive_name, redact, resolve_in_root
+from core.mcp_tools.expansion_modules import (
+    evaluate_destructive_action,
+    is_sensitive_name,
+    redact,
+    resolve_in_root,
+)
 from core.mcp_tools.error_handling import safe_json as _safe_json
 from core.mcp_tools.error_handling import register_stub_tool as _reg
 from core.mcp_tools.memory_safety import (
@@ -136,8 +141,14 @@ def add_config_tools(mcp) -> None:
             return _safe_json({"cost": redact(cost), "council": redact(council)})
 
         @mcp.tool
-        def config_reset() -> str:
+        async def config_reset() -> str:
             """Reset config to defaults."""
+            gate = await evaluate_destructive_action("config_reset", {}, "mcp_config")
+            if not gate.approved:
+                return _safe_json({
+                    "error": "permission denied", "status": "blocked",
+                    "reason": gate.reason, "level": gate.level, "ok": False,
+                })
             defaults = _VectorSettings()
             return _safe_json({"status": "defaults_shown", "note": "Config is read-only at runtime — update .env file to persist changes"})
 
