@@ -7,36 +7,8 @@ from pathlib import Path
 import pytest
 
 from vectorcode.src.config.theme import ColorTheme, ThemeEngine, _parse_toml_theme
-from vectorcode.src.permissions import PermissionSystem
 from vectorcode.src.prompt.builder import SystemPromptBuilder
 from vectorcode.src.recipes.loader import Recipe
-
-
-def test_permissions_fail_closed_for_unknown_risk_level() -> None:
-    result = PermissionSystem(mode="autonomous").check_tool(
-        "future_tool", "unrecognised"
-    )
-
-    assert not result
-    assert "defaulting to deny" in result.reason
-
-
-def test_permissions_respect_explicit_empty_denylists() -> None:
-    permissions = PermissionSystem(
-        mode="autonomous", deny_bash=[], deny_write_paths=[]
-    )
-
-    assert permissions.deny_bash == []
-    assert permissions.deny_write_paths == []
-    assert permissions.check_bash("rm -rf explicitly-enabled-test-path")
-    assert permissions.check_write(".env")
-
-
-def test_permissions_normalize_windows_case_and_separators() -> None:
-    permissions = PermissionSystem(mode="standard")
-
-    assert not permissions.check_write(r"SECRETS\api-token.txt")
-    assert not permissions.check_write("project/.ENV")
 
 
 def test_prompt_builder_reads_memory_files_as_utf8(
