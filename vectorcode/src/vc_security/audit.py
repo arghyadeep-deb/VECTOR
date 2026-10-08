@@ -12,7 +12,6 @@ import hashlib
 import json
 import os
 import shutil
-import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,9 +38,9 @@ except ImportError:
     except ImportError:
         sqlcipher = None
         _USE_SQLCIPHER = False
-        logger.warning(
-            "[VECTOR][security_audit] SQLCipher not available -- matched secrets, "
-            "PII, and content previews will be stored UNENCRYPTED. Install sqlcipher3."
+        logger.error(
+            "[VECTOR][security_audit] SQLCipher unavailable; persistent security "
+            "audit logging is disabled and startup will fail closed"
         )
 
 
@@ -97,7 +96,9 @@ def _migrate_plaintext_audit_db_to_sqlcipher(path: Path):
     try:
         _configure_sqlcipher_connection(conn)
         AuditLogger._create_table_on(conn)
-        plain_conn = sqlite3.connect(str(backup_path), check_same_thread=False)
+        # An unkeyed SQLCipher connection reads the legacy plaintext SQLite
+        # backup without importing or falling back to stdlib sqlite3.
+        plain_conn = sqlcipher.connect(str(backup_path), check_same_thread=False)
         try:
             columns = [
                 row[1]
@@ -150,21 +151,21 @@ class AuditLogger:
         db_path: Union[str, Path] = DEFAULT_CONFIG_DIR / "audit.db",
         bus: Optional[EventBus] = None,
     ) -> None:
+        if not _USE_SQLCIPHER or sqlcipher is None:
+            raise RuntimeError(
+                "SQLCipher is required for the security audit store; "
+                "plaintext fallback is forbidden"
+            )
         self._db_path = Path(db_path)
         self._lock = threading.RLock()
         from vectorcode.src.vc_security.file_utils import secure_create
 
         secure_create(self._db_path)
-        if _USE_SQLCIPHER:
-            if _looks_like_plaintext_sqlite(self._db_path):
-                self._conn = _migrate_plaintext_audit_db_to_sqlcipher(self._db_path)
-            else:
-                self._conn = _open_sqlcipher_connection(self._db_path)
-            self._conn.row_factory = sqlcipher.Row
+        if _looks_like_plaintext_sqlite(self._db_path):
+            self._conn = _migrate_plaintext_audit_db_to_sqlcipher(self._db_path)
         else:
-            self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-            apply_pragmas(self._conn)
-            self._conn.row_factory = sqlite3.Row
+            self._conn = _open_sqlcipher_connection(self._db_path)
+        self._conn.row_factory = sqlcipher.Row
         with self._lock:
             self._create_table_on(self._conn)
             self._migrate_schema()

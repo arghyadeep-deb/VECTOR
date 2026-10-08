@@ -40,6 +40,19 @@ class SecurityContext:
     capability_policy: Any = None
     audit_logger: Any = None
 
+
+class SecurityInitializationError(RuntimeError):
+    """Raised when an enabled security control cannot be initialized."""
+
+
+def _initialization_error(control: str, exc: Exception) -> SecurityInitializationError:
+    logger.opt(exception=True).critical(
+        "[VECTOR][security] Mandatory {} initialization failed", control
+    )
+    return SecurityInitializationError(
+        f"Security startup refused: mandatory {control} initialization failed"
+    )
+
 def setup_security(
     config: Any,
     engine: Any,
@@ -52,7 +65,8 @@ def setup_security(
     if not config.security.enabled:
         return SecurityContext(engine=engine)
 
-    # Scanners + engine wrapping
+    # Scanner controls are mandatory when either scanner is configured on.
+    # An individually disabled scanner is optional by explicit configuration.
     try:
         scanners: list[BaseScanner] = []
         if config.security.secret_scanner:
@@ -71,29 +85,31 @@ def setup_security(
                 bus=bus,
             )
     except Exception as exc:
-        logger.debug("Failed to set up security scanners: {}", exc)
+        raise _initialization_error("scanner controls", exc) from exc
 
     # Capability policy
     cap_policy = None
+    # Capability enforcement is mandatory only when explicitly enabled.
     if config.security.capabilities.enabled:
         try:
             from vectorcode.src.vc_security.capabilities import CapabilityPolicy
 
             cap_policy = CapabilityPolicy(
                 policy_path=config.security.capabilities.policy_path or None,
+                default_deny=True,
             )
         except Exception as exc:
-            logger.debug("Failed to set up capability policy: {}", exc)
+            raise _initialization_error("capability policy", exc) from exc
 
-    # Audit logger
-    audit = None
+    # Audit is mandatory whenever the security subsystem is enabled. There is
+    # currently no separate config switch declaring audit optional.
     try:
         audit = AuditLogger(
             db_path=config.security.audit_log_path,
             bus=bus,
         )
     except Exception as exc:
-        logger.debug("Failed to set up audit logger: {}", exc)
+        raise _initialization_error("audit control", exc) from exc
 
     return SecurityContext(
         engine=engine,
@@ -113,6 +129,7 @@ __all__ = [
     "SecretScanner",
     "SecurityBlockError",
     "SecurityContext",
+    "SecurityInitializationError",
     "SecurityEvent",
     "SecurityEventType",
     "ThreatLevel",

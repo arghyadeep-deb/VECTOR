@@ -14,8 +14,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from loguru import logger
-
 class Capability(str, Enum):
     """Fine-grained capability labels."""
 
@@ -51,16 +49,15 @@ class CapabilityPolicy:
     Checks whether an agent has the required capability to invoke a tool.
     Policy can be loaded from a JSON file or configured programmatically.
 
-    Default policy: if no explicit policy exists for an agent, all
-    capabilities are granted (open by default). Set ``default_deny=True``
-    to flip to deny-by-default.
+    Policies deny by default. Callers that deliberately need legacy open
+    behavior must opt into it explicitly with ``default_deny=False``.
     """
 
     def __init__(
         self,
         *,
         policy_path: Optional[str] = None,
-        default_deny: bool = False,
+        default_deny: bool = True,
     ) -> None:
         self._policies: Dict[str, AgentPolicy] = {}
         self._default_deny = default_deny
@@ -152,23 +149,33 @@ class CapabilityPolicy:
         return list(self._policies.keys())
 
     def _load_file(self, path: Path) -> None:
-        """Load policy from a JSON file."""
+        """Load a configured policy file, rejecting missing/malformed input."""
         if not path.exists():
-            return
+            raise FileNotFoundError(f"Capability policy file does not exist: {path}")
         try:
             data = json.loads(path.read_text())
-            for agent_data in data.get("agents", []):
+            if not isinstance(data, dict) or not isinstance(data.get("agents"), list):
+                raise ValueError("capability policy must contain an 'agents' list")
+            for agent_data in data["agents"]:
+                if not isinstance(agent_data, dict):
+                    raise ValueError("each capability policy agent must be an object")
                 agent_id = agent_data["agent_id"]
+                if not isinstance(agent_id, str) or not agent_id:
+                    raise ValueError("capability policy agent_id must be non-empty")
                 for grant_data in agent_data.get("grants", []):
+                    if not isinstance(grant_data, dict):
+                        raise ValueError("capability grants must be objects")
                     self.grant(
                         agent_id,
                         grant_data["capability"],
                         grant_data.get("pattern", "*"),
                     )
                 for denied in agent_data.get("deny", []):
+                    if not isinstance(denied, str):
+                        raise ValueError("capability denials must be strings")
                     self.deny(agent_id, denied)
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            logger.warning("Failed to parse capability policy: {}", exc)
+        except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"Malformed capability policy file {path}: {exc}") from exc
 
     def save(self, path: Path) -> None:
         """Save policy to a JSON file."""

@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from loguru import logger
 
@@ -69,11 +69,37 @@ class MCPServer:
     SERVER_VERSION = "0.1.0"
     PROTOCOL_VERSION = "2025-11-25"
 
-    def __init__(self, tools: Optional[List[BaseTool]] = None) -> None:
+    def __init__(
+        self,
+        tools: Optional[List[BaseTool]] = None,
+        *,
+        capability_policy: Any = None,
+        boundary_guard: Any = None,
+        authorize_action: Optional[Callable[[str, Dict[str, Any]], bool]] = None,
+        agent_id: str = "mcp-unauthenticated",
+    ) -> None:
         if tools is None:
             tools = self._auto_discover_tools()
+        if capability_policy is None:
+            from vectorcode.src.vc_security.capabilities import CapabilityPolicy
+
+            capability_policy = CapabilityPolicy(default_deny=True)
+        if boundary_guard is None:
+            from vectorcode.src.vc_security.boundary import BoundaryGuard
+            from vectorcode.src.vc_security.scanner import PIIScanner, SecretScanner
+
+            boundary_guard = BoundaryGuard(
+                mode="block", scanners=[SecretScanner(), PIIScanner()]
+            )
         self._tools: Dict[str, BaseTool] = {t.spec.name: t for t in tools}
-        self._executor = ToolExecutor(tools)
+        self._authorize_action = authorize_action
+        self._agent_id = agent_id
+        self._executor = ToolExecutor(
+            tools,
+            capability_policy=capability_policy,
+            agent_id=agent_id,
+            boundary_guard=boundary_guard,
+        )
 
     @staticmethod
     def _auto_discover_tools() -> List[BaseTool]:
@@ -274,6 +300,39 @@ class MCPServer:
                 INVALID_PARAMS,
                 f"Unknown tool: {tool_name}",
             )
+
+        tool = self._tools[tool_name]
+        annotation = _TOOL_ANNOTATIONS.get(tool_name, {})
+        consequential = bool(tool.spec.required_capabilities) or not annotation.get(
+            "readOnlyHint", False
+        )
+        if consequential:
+            if self._authorize_action is None:
+                logger.warning(
+                    "[VECTOR][mcp] Refused consequential tool {} for {}: "
+                    "Permission Gateway authorization is not configured",
+                    tool_name,
+                    self._agent_id,
+                )
+                return MCPResponse.error_response(
+                    req.id,
+                    INVALID_PARAMS,
+                    "Tool authorization unavailable; request refused",
+                )
+            try:
+                authorized = self._authorize_action(tool_name, arguments)
+            except Exception:
+                logger.opt(exception=True).error(
+                    "[VECTOR][mcp] Permission Gateway authorization failed for {}",
+                    tool_name,
+                )
+                authorized = False
+            if not authorized:
+                return MCPResponse.error_response(
+                    req.id,
+                    INVALID_PARAMS,
+                    "Tool authorization denied",
+                )
 
         try:
             import json
