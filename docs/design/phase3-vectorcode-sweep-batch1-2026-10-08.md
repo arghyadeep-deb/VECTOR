@@ -1,5 +1,14 @@
 # Phase 3 Vectorcode Sweep — Batch 1 — 2026-10-08
 
+**STATUS: all 18 findings fixed 2026-10-09** (overnight, owner asleep).
+Commits: `a9dcee09f` (SEC-1/2/3, SANDBOX-1), `f89cd7aa3` (VCSEC-1/3/4,
+VCMCP-1 — the critical fail-open-security-init and ungated-MCP-executor
+findings), `9e449d150` (VCMCP-2/3/4/5, VCSEC-2/5/6/7 — SSRF+DNS-pinning,
+stdio hang, streaming scan-before-release, and the rest). Every fix was
+independently re-verified via direct diff review, real test runs, and a
+genuine git-stash pre-fix/post-fix check before committing — not just
+Codex's own report. See each commit message for full detail.
+
 ## Scope and method
 
 This was a read-only, full-depth review of the cache-free Python source in:
