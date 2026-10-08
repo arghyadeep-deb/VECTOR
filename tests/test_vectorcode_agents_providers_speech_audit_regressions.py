@@ -13,11 +13,16 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(VECTORCODE_SRC))
 
 
+class _ApprovingWorkflowGateway:
+    async def evaluate_external(self, action_type, params, source):
+        return SimpleNamespace(approved=True, level="RED", reason="Owner confirmed")
+
+
 async def test_workflow_nonzero_command_is_not_reported_as_success():
     from agents.workflow_engine import WorkflowEngine
 
     command = [sys.executable, "-c", "raise SystemExit(7)"]
-    result = await WorkflowEngine().execute(
+    result = await WorkflowEngine(permission_gateway=_ApprovingWorkflowGateway()).execute(
         {"id": "nonzero", "steps": [{"action": "bash", "command": command}]}
     )
 

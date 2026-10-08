@@ -585,6 +585,7 @@ class PermissionConfig(BaseModel):
         # MCP/API operations require explicit owner approval before mutation.
         "memory_clear", "file_delete", "task_delete", "config_reset",
         "worker_reset", "agent_hp_award", "memory_restore",
+        "workflow_bash_execute",
         # Hand Execution Engine — Hands with requires_approval=True
         # (browser: purchases/forms; content: publishing; clip: upload).
         "hand_browser", "hand_content", "hand_clip",
