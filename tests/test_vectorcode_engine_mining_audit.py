@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -146,6 +148,53 @@ async def test_collector_missing_sidecar_reports_error_state(tmp_path: Path) -> 
 
     assert stats.provider_id == "unknown"
     assert stats.last_error == "mining sidecar unavailable"
+
+
+async def test_gateway_registers_and_invokes_mining_telemetry_collector(
+    monkeypatch,
+) -> None:
+    from gateway.run import GatewayRunner
+
+    invoked = asyncio.Event()
+
+    class Collector:
+        def __init__(self, sidecar_path, telemetry_store) -> None:
+            self.sidecar_path = sidecar_path
+            self.telemetry_store = telemetry_store
+
+        async def run(self) -> None:
+            invoked.set()
+
+    class Store:
+        closed = False
+
+        def __init__(self, db_path) -> None:
+            self.db_path = db_path
+
+        def close(self) -> None:
+            self.closed = True
+
+    runner = object.__new__(GatewayRunner)
+    runner._background_tasks = set()
+
+    monkeypatch.setattr(
+        "vectorcode.src.vc_core.config.load_config",
+        lambda: SimpleNamespace(
+            telemetry=SimpleNamespace(enabled=True, db_path="telemetry.db")
+        ),
+    )
+    monkeypatch.setattr("vectorcode.src.telemetry.store.TelemetryStore", Store)
+    monkeypatch.setattr("vectorcode.src.mining._collector.MiningTelemetryCollector", Collector)
+
+    runner._register_mining_telemetry_collector()
+    registered_tasks = tuple(runner._background_tasks)
+    await invoked.wait()
+
+    assert "self._register_mining_telemetry_collector()" in inspect.getsource(
+        GatewayRunner.start
+    )
+    assert len(registered_tasks) == 1
+    await registered_tasks[0]
 
 
 def test_pearl_git_ref_is_not_the_docker_image_tag() -> None:

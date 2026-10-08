@@ -1,156 +1,198 @@
 # VECTOR module — ported from VectorCode
 # Personalized for VECTOR runtime.
 # Owner: Arghyadeep Deb
-# Ingested: 2026-05-15T02:57:36+00:00
 
-"""ChannelAgent — bridge between messaging channels and AI agents.
-
-Routes incoming :class:`~vector.channels._abc.ChannelMessage` objects
-to an agent, classifies queries as "quick" or "deep", and delivers responses
-either inline or as a preview with an escalation link to a full report.
-"""
+"""Async bridge between messaging channels and governed VECTOR agents."""
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import re
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any, Optional
 
 from loguru import logger
 
 from vectorcode.src.channels._abc import BaseChannel, ChannelMessage
-
-# ---------------------------------------------------------------------------
-# Query classifier
-# ---------------------------------------------------------------------------
-
-_QUICK_PREFIXES = re.compile(
-    r"^(when\b|where\b|find\b|who\b|what's\b)",
-    re.IGNORECASE,
-)
+from vectorcode.src.vc_agents._abc import AgentResult
 
 _DEEP_KEYWORDS = re.compile(
     r"\b(summarize|research|context|compare|analyze|overview|timeline|history)\b",
     re.IGNORECASE,
 )
-
-_TIME_RANGE = re.compile(
-    r"\blast\s+(week|month|quarter|year)\b",
-    re.IGNORECASE,
+_TIME_RANGE = re.compile(r"\blast\s+(week|month|quarter|year)\b", re.IGNORECASE)
+_AGENT_COMMAND = re.compile(
+    r"^/agent\s+(?P<target>\S+)\s+(?P<task_type>\S+)\s+(?P<query>.+)$",
+    re.DOTALL,
 )
+_AGENT_USAGE = "Usage: /agent <agent-id-or-name> <task-type> <request>"
+_ESCALATION_TEMPLATE = (
+    "{preview}...\n\n---\nFull report ready — open in VectorCode:\n"
+    "vector://research/{session_id}"
+)
+_LONG_RESPONSE_THRESHOLD = 500
+
 
 def classify_query(text: str) -> str:
-    """Return ``'quick'`` or ``'deep'`` based on heuristics.
-
-    Deep signals take priority over quick signals.  A query is classified as
-    deep if it contains deep keywords, a time-range phrase, or is longer than
-    20 words.  Otherwise it is quick.
-    """
-    words = text.split()
-    if _DEEP_KEYWORDS.search(text):
+    """Return ``quick`` or ``deep`` using the established heuristics."""
+    if _DEEP_KEYWORDS.search(text) or _TIME_RANGE.search(text):
         return "deep"
-    if _TIME_RANGE.search(text):
-        return "deep"
-    if len(words) > 20:
+    if len(text.split()) > 20:
         return "deep"
     return "quick"
 
-# ---------------------------------------------------------------------------
-# ChannelAgent
-# ---------------------------------------------------------------------------
 
-_ESCALATION_TEMPLATE = "{preview}...\n\n---\nFull report ready — open in VectorCode:\nvector://research/{session_id}"
-_LONG_RESPONSE_THRESHOLD = 500
+@dataclass(frozen=True, slots=True)
+class AgentCommand:
+    target: str
+    task_type: str
+    query: str
+
+
+def parse_agent_command(text: str) -> AgentCommand | None:
+    """Parse the explicit production trigger, returning ``None`` if unmatched."""
+    match = _AGENT_COMMAND.fullmatch((text or "").strip())
+    if match is None:
+        return None
+    return AgentCommand(**{key: value.strip() for key, value in match.groupdict().items()})
+
+
+class GovernedAgentInvoker:
+    """Resolve a named city agent and deliver only through A2A → Governor."""
+
+    async def run(self, content: str) -> AgentResult:
+        command = parse_agent_command(content)
+        if command is None:
+            return AgentResult(content=_AGENT_USAGE)
+
+        from core.city.a2a_bus import get_bus
+
+        reply = await get_bus().ask(
+            "owner_channel",
+            command.task_type,
+            {"query": command.query, "content": command.query},
+            to=command.target,
+            origin="external",
+        )
+        if reply.delivered:
+            result = reply.result
+            response = result.get("response") or result.get("content")
+            if response is None:
+                response = str(result)
+        else:
+            response = reply.refused or reply.error or reply.status
+        return AgentResult(content=str(response), metadata={"a2a": reply.to_dict()})
+
 
 class ChannelAgent:
-    """Bridge between a :class:`BaseChannel` and an agent.
+    """Bridge channel messages to an agent using asyncio-owned tasks.
 
-    On each incoming message the agent is invoked in a background thread so
-    that :meth:`_handle_message` never blocks the channel's event loop.
-    Quick queries with short responses are delivered inline; deep queries or
-    long responses trigger a preview + escalation link.
-
-    Parameters
-    ----------
-    channel:
-        A connected :class:`BaseChannel` instance.
-    agent:
-        Any object that exposes a ``run(input: str) -> AgentResult``-compatible
-        method (typically a :class:`~vector.agents._abc.BaseAgent`
-        subclass).
-    max_workers:
-        Size of the background :class:`~concurrent.futures.ThreadPoolExecutor`.
+    ``channel`` may be ``None`` for gateways that return the response through
+    their own delivery pipeline. Traditional ``BaseChannel`` instances keep
+    the original callback registration shape.
     """
 
     def __init__(
         self,
-        channel: BaseChannel,
+        channel: BaseChannel | None,
         agent: Any,
         *,
         max_workers: int = 2,
     ) -> None:
-        # OWNER DECISION: this fully implemented bridge currently has no
-        # production caller. Decide whether it should be wired into channel
-        # startup or removed; until then its thread-pool lifecycle is dormant.
+        # ``max_workers`` remains accepted for source compatibility. Asyncio
+        # task ownership replaces the old private ThreadPoolExecutor.
+        del max_workers
         self._channel = channel
         self._agent = agent
-        self._pool = ThreadPoolExecutor(max_workers=max_workers)
-        channel.on_message(self._handle_message)
+        self._tasks: set[asyncio.Task[str]] = set()
+        if channel is not None:
+            channel.on_message(self._handle_message)
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
+    @property
+    def pending_tasks(self) -> tuple[asyncio.Task[str], ...]:
+        return tuple(self._tasks)
 
     def _handle_message(self, msg: ChannelMessage) -> Optional[str]:
-        """Submit *msg* to the background pool and return ``None`` immediately."""
-        self._pool.submit(self._process_message, msg)
+        """Schedule a callback-delivered message and return immediately."""
+        self.submit_message(msg)
         return None
 
-    def _process_message(self, msg: ChannelMessage) -> None:
-        """Classify, run the agent, and reply to the channel."""
+    def submit_text(self, content: str) -> asyncio.Task[str]:
+        """Schedule text on the running event loop and return the owned task."""
+        return self.submit_message(ChannelMessage("chat", "owner", content))
+
+    def submit_message(self, msg: ChannelMessage) -> asyncio.Task[str]:
+        task = asyncio.get_running_loop().create_task(self._process_message(msg))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
+        return task
+
+    async def process_text(self, content: str) -> str:
+        """Run one message inline for an asyncio-native caller such as GatewayRunner."""
+        return await self._process_message(ChannelMessage("chat", "owner", content), send=False)
+
+    async def _process_message(self, msg: ChannelMessage, *, send: bool = True) -> str:
+        """Classify, await the agent if needed, and optionally reply."""
         query_type = classify_query(msg.content)
         session_id = msg.session_id or uuid.uuid4().hex[:16]
 
         try:
             result = self._agent.run(msg.content)
+            if inspect.isawaitable(result):
+                result = await result
             content = getattr(result, "content", None)
             response_text = str(result) if content is None else str(content)
         except Exception:  # noqa: BLE001
             logger.opt(exception=True).error(
                 "[VECTOR][vc_agents.channel_agent] agent processing failed"
             )
-            friendly = "Sorry, I ran into an error while processing your request."
-            self._channel.send(
-                msg.channel,
-                friendly,
-                conversation_id=msg.conversation_id,
-            )
-            return
+            response_text = "Sorry, I ran into an error while processing your request."
+            query_type = "quick"
 
-        is_long = len(response_text) > _LONG_RESPONSE_THRESHOLD
-
-        if query_type == "deep" or is_long:
-            preview = response_text[:_LONG_RESPONSE_THRESHOLD]
-            reply = _ESCALATION_TEMPLATE.format(
-                preview=preview,
+        if query_type == "deep" or len(response_text) > _LONG_RESPONSE_THRESHOLD:
+            response_text = _ESCALATION_TEMPLATE.format(
+                preview=response_text[:_LONG_RESPONSE_THRESHOLD],
                 session_id=session_id,
             )
-        else:
-            reply = response_text
 
-        self._channel.send(
-            msg.channel,
-            reply,
-            conversation_id=msg.conversation_id,
-        )
+        if send and self._channel is not None:
+            sent = self._channel.send(
+                msg.channel,
+                response_text,
+                conversation_id=msg.conversation_id,
+            )
+            if inspect.isawaitable(sent):
+                await sent
+        return response_text
 
-    # ------------------------------------------------------------------
-    # Lifecycle
-    # ------------------------------------------------------------------
+    async def shutdown(self) -> None:
+        """Cancel and await all asyncio tasks owned by this bridge."""
+        tasks = tuple(self._tasks)
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._tasks.clear()
 
-    def shutdown(self) -> None:
-        """Shut down the background thread pool."""
-        self._pool.shutdown(wait=True)
 
-__all__ = ["ChannelAgent", "classify_query"]
+__all__ = [
+    "AgentCommand",
+    "ChannelAgent",
+    "GovernedAgentInvoker",
+    "classify_query",
+    "parse_agent_command",
+]
+
+
+if __name__ == "__main__":
+    async def _smoke() -> bool:
+        class _Agent:
+            async def run(self, content: str) -> str:
+                return content
+
+        bridge = ChannelAgent(None, _Agent())
+        return await bridge.process_text("hello") == "hello"
+
+    raise SystemExit(0 if asyncio.run(_smoke()) else 1)

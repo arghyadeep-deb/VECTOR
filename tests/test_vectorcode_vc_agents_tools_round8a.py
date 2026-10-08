@@ -15,7 +15,8 @@ def test_calculator_uses_python_fallback_when_rust_module_is_absent(monkeypatch)
     assert safe_eval("2^3 + sqrt(16)") == 12.0
 
 
-def test_channel_agent_does_not_eagerly_stringify_result_with_content():
+@pytest.mark.asyncio
+async def test_channel_agent_does_not_eagerly_stringify_result_with_content():
     from vectorcode.src.channels._abc import ChannelMessage
     from vectorcode.src.vc_agents.channel_agent import ChannelAgent
 
@@ -43,9 +44,9 @@ def test_channel_agent_does_not_eagerly_stringify_result_with_content():
     channel = Channel()
     agent = ChannelAgent(channel, Agent())
     try:
-        agent._process_message(ChannelMessage("chat", "owner", "hello"))
+        await agent._process_message(ChannelMessage("chat", "owner", "hello"))
     finally:
-        agent.shutdown()
+        await agent.shutdown()
 
     assert channel.sent == [("chat", "valid response")]
 

@@ -671,6 +671,11 @@ class GatewayRunner:
             has_active_processes_fn=lambda key: process_registry.has_active_for_session(key),
         )
         self.delivery_router = DeliveryRouter(self.config)
+        # User-facing convention: `/agent <agent-id-or-name> <task-type> <request>`.
+        # The explicit task type lets the city Permission Gateway classify the
+        # requested action before A2A pins and runs the named agent.
+        from vectorcode.src.vc_agents.channel_agent import ChannelAgent, GovernedAgentInvoker
+        self._channel_agent = ChannelAgent(None, GovernedAgentInvoker())
         self._running = False
         self._shutdown_event = asyncio.Event()
         self._exit_cleanly = False
@@ -804,6 +809,41 @@ class GatewayRunner:
 
         # Track background tasks to prevent garbage collection mid-execution
         self._background_tasks: set = set()
+
+
+    def _register_mining_telemetry_collector(self) -> None:
+        """Start the mining telemetry poller in the gateway task lifecycle."""
+        try:
+            from vectorcode.src.mining._collector import MiningTelemetryCollector
+            from vectorcode.src.mining._constants import SIDECAR_PATH
+            from vectorcode.src.telemetry.store import TelemetryStore
+            from vectorcode.src.vc_core.config import load_config
+
+            telemetry_config = load_config().telemetry
+            if not telemetry_config.enabled:
+                return
+
+            db_path = Path(telemetry_config.db_path).expanduser()
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            store = TelemetryStore(db_path)
+            collector = MiningTelemetryCollector(SIDECAR_PATH, store)
+            task = asyncio.create_task(
+                collector.run(),
+                name="mining-telemetry-collector",
+            )
+            self._background_tasks.add(task)
+
+            def _collector_done(done_task: asyncio.Task) -> None:
+                self._background_tasks.discard(done_task)
+                try:
+                    store.close()
+                except Exception as exc:  # noqa: BLE001 - cleanup must not crash daemon
+                    logger.debug("Mining telemetry store close error: %s", exc)
+
+            task.add_done_callback(_collector_done)
+            logger.info("Mining telemetry collector registered")
+        except Exception as exc:  # noqa: BLE001 - optional collector must not crash daemon
+            logger.warning("Mining telemetry collector registration failed: %s", exc)
 
 
     def _warn_if_docker_media_delivery_is_risky(self) -> None:
@@ -2414,6 +2454,7 @@ class GatewayRunner:
         
         self._running = True
         self._update_runtime_status("running")
+        self._register_mining_telemetry_collector()
         
         # Emit gateway:startup hook
         hook_count = len(self.hooks.loaded_hooks)
@@ -2894,6 +2935,10 @@ class GatewayRunner:
                     logger.error("Failed to launch detached gateway restart: %s", e)
 
             self._finalize_shutdown_agents(active_agents)
+
+            _channel_agent = getattr(self, "_channel_agent", None)
+            if _channel_agent is not None:
+                await _channel_agent.shutdown()
 
             # Also shut down memory providers on idle cached agents.
             # _finalize_shutdown_agents only handles agents that were
@@ -3387,6 +3432,13 @@ class GatewayRunner:
 
         return "pair"
     
+    async def _handle_channel_agent_message(self, text: str) -> Optional[str]:
+        """Handle the explicit named-agent command or leave normal chat alone."""
+        stripped = (text or "").strip()
+        if not (stripped == "/agent" or stripped.startswith("/agent ")):
+            return None
+        return await self._channel_agent.process_text(stripped)
+
     async def _handle_message(self, event: MessageEvent) -> Optional[str]:
         """
         Handle an incoming message from any platform.
@@ -3490,6 +3542,10 @@ class GatewayRunner:
                     # Record rate limit so subsequent messages are silently ignored
                     self.pairing_store._record_rate_limit(platform_name, source.user_id)
             return None
+
+        channel_agent_response = await self._handle_channel_agent_message(event.text or "")
+        if channel_agent_response is not None:
+            return channel_agent_response
         
         # Intercept messages that are responses to a pending /update prompt.
         # The update process (detached) wrote .update_prompt.json; the watcher
