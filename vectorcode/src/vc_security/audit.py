@@ -13,6 +13,7 @@ import json
 import os
 import shutil
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple, Union
@@ -256,6 +257,32 @@ class AuditLogger:
                 ),
             )
             self._conn.commit()
+
+    def log_declassification(
+        self,
+        *,
+        actor: str,
+        label: str,
+        reason: str,
+        source: str,
+        destination: str,
+    ) -> None:
+        """Atomically append an attributable taint-declassification event."""
+        details = {
+            "actor": actor,
+            "label": label,
+            "reason": reason,
+            "source": source,
+            "destination": destination,
+        }
+        self.log(
+            SecurityEvent(
+                event_type=SecurityEventType.DECLASSIFICATION,
+                timestamp=time.time(),
+                content_preview=source,
+                action_taken=json.dumps(details, sort_keys=True),
+            )
+        )
 
     def query(
         self,

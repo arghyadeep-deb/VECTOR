@@ -6,9 +6,7 @@
 """Rate limiter -- token bucket algorithm for per-agent/per-tool throttling."""
 
 from __future__ import annotations
-from loguru import logger
-
-import threading
+import asyncio
 import time
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
@@ -24,18 +22,18 @@ class RateLimitConfig:
     enabled: bool = True
 
 class TokenBucket:
-    """Thread-safe token bucket for rate limiting."""
+    """Asyncio-safe token bucket for rate limiting."""
 
     def __init__(self, rate: float, capacity: int) -> None:
         self._rate = rate  # tokens per second
         self._capacity = capacity
         self._tokens = float(capacity)
         self._last_refill = time.monotonic()
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
-    def consume(self, tokens: int = 1) -> Tuple[bool, float]:
+    async def consume(self, tokens: int = 1) -> Tuple[bool, float]:
         """Try to consume tokens. Returns (allowed, wait_seconds)."""
-        with self._lock:
+        async with self._lock:
             now = time.monotonic()
             elapsed = now - self._last_refill
             self._tokens = min(
@@ -51,10 +49,9 @@ class TokenBucket:
                 wait = (tokens - self._tokens) / self._rate
                 return False, wait
 
-    @property
-    def available(self) -> float:
+    async def available(self) -> float:
         """Current available tokens (approximate)."""
-        with self._lock:
+        async with self._lock:
             now = time.monotonic()
             elapsed = now - self._last_refill
             return min(self._capacity, self._tokens + elapsed * self._rate)
@@ -68,7 +65,7 @@ class RateLimiter:
     def __init__(self, config: Optional[RateLimitConfig] = None) -> None:
         self._config = config or RateLimitConfig()
         self._buckets: Dict[str, TokenBucket] = {}
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()
 
         # Previously called get_rust_module().RateLimiter(...) unconditionally
         # -- when the Rust extension isn't built, get_rust_module() returns
@@ -92,7 +89,7 @@ class RateLimiter:
             else None
         )
 
-    def check(self, key: str) -> Tuple[bool, float]:
+    async def check(self, key: str) -> Tuple[bool, float]:
         """Check if request is allowed for key.
 
         Prefers the Rust backend when available; falls back to the
@@ -102,11 +99,12 @@ class RateLimiter:
             return True, 0.0
         if self._rust_impl is not None:
             return self._rust_impl.check(key)
-        return self._get_bucket(key).consume()
+        bucket = await self._get_bucket(key)
+        return await bucket.consume()
 
-    def _get_bucket(self, key: str) -> TokenBucket:
+    async def _get_bucket(self, key: str) -> TokenBucket:
         """Get or create a bucket for the given key."""
-        with self._lock:
+        async with self._lock:
             if key not in self._buckets:
                 rate = self._config.requests_per_minute / 60.0
                 self._buckets[key] = TokenBucket(
@@ -115,12 +113,12 @@ class RateLimiter:
                 )
             return self._buckets[key]
 
-    def reset(self, key: Optional[str] = None) -> None:
+    async def reset(self, key: Optional[str] = None) -> None:
         """Reset rate limit state for a key or all keys."""
         if self._rust_impl is not None:
             self._rust_impl.reset(key)
             return
-        with self._lock:
+        async with self._lock:
             if key:
                 self._buckets.pop(key, None)
             else:

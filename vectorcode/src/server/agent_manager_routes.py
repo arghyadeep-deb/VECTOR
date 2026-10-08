@@ -4,6 +4,7 @@ from __future__ import annotations
 from loguru import logger
 
 import logging
+import asyncio
 import re as _re
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -496,7 +497,10 @@ def _get_mcp_tools(app_state: Any) -> Tuple[List[Dict[str, Any]], Dict[str, Any]
 
         try:
             if url:
-                transport = StreamableHTTPTransport(url=url)
+                transport = StreamableHTTPTransport(
+                    url=url,
+                    bearer_token=StreamableHTTPTransport.bearer_token_from_config(cfg),
+                )
             elif command:
                 transport = StdioTransport(command=[command] + args)
             else:
@@ -944,7 +948,9 @@ async def _stream_managed_agent(
     mcp_adapters: Dict[str, Any] = {}
     if app_state is not None:
         try:
-            mcp_openai_tools, mcp_adapters = _get_mcp_tools(app_state)
+            mcp_openai_tools, mcp_adapters = await asyncio.to_thread(
+                _get_mcp_tools, app_state
+            )
             if mcp_openai_tools:
                 existing_tools = stream_kwargs.get("tools", [])
                 stream_kwargs["tools"] = existing_tools + mcp_openai_tools

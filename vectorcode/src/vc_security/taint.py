@@ -13,7 +13,10 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, FrozenSet, Optional, Set
+from typing import TYPE_CHECKING, Dict, FrozenSet, Optional, Set
+
+if TYPE_CHECKING:
+    from vectorcode.src.vc_security.audit import AuditLogger
 
 class TaintLabel(str, Enum):
     """Labels for tainted data."""
@@ -88,12 +91,34 @@ def check_taint(tool_name: str, taint: TaintSet) -> Optional[str]:
         return f"Data with labels [{labels_str}] cannot be sent to '{tool_name}'."
     return None
 
-def declassify(taint: TaintSet, remove: TaintLabel, reason: str) -> TaintSet:
-    """Remove a taint label with an explicit reason (for audit).
-
-    The *reason* is not stored on the TaintSet itself but should be
-    logged externally for accountability.
-    """
+def declassify(
+    taint: TaintSet,
+    remove: TaintLabel,
+    reason: str,
+    *,
+    actor: str,
+    source: str,
+    destination: str,
+    audit: AuditLogger,
+) -> TaintSet:
+    """Audit an attributable declassification before removing a label."""
+    for field_name, value in {
+        "reason": reason,
+        "actor": actor,
+        "source": source,
+        "destination": destination,
+    }.items():
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Declassification {field_name} must be non-empty")
+    if remove not in taint.labels:
+        return taint
+    audit.log_declassification(
+        actor=actor.strip(),
+        label=remove.value,
+        reason=reason.strip(),
+        source=source.strip(),
+        destination=destination.strip(),
+    )
     return TaintSet(labels=taint.labels - {remove})
 
 def auto_detect_taint(text: str) -> TaintSet:

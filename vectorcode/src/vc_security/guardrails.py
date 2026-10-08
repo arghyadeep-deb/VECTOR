@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from typing import Any, Dict, List, Optional, Sequence
 
 from vectorcode.src.vc_core.events import EventBus, EventType
@@ -50,6 +51,7 @@ class GuardrailsEngine(InferenceEngine):
         mode: RedactionMode = RedactionMode.WARN,
         scan_input: bool = True,
         scan_output: bool = True,
+        max_stream_buffer_chars: int = 1_048_576,
         bus: Optional[EventBus] = None,
     ) -> None:
         self._engine = engine
@@ -64,6 +66,9 @@ class GuardrailsEngine(InferenceEngine):
         self._mode = mode
         self._scan_input = scan_input
         self._scan_output = scan_output
+        if max_stream_buffer_chars < 1:
+            raise ValueError("max_stream_buffer_chars must be positive")
+        self._max_stream_buffer_chars = max_stream_buffer_chars
         self._bus = bus
 
     # -- properties ----------------------------------------------------------
@@ -167,6 +172,34 @@ class GuardrailsEngine(InferenceEngine):
 
     # -- InferenceEngine interface -------------------------------------------
 
+    def _process_input_messages(
+        self, messages: Sequence[Message]
+    ) -> Sequence[Message]:
+        """Scan input before any wrapped-engine call."""
+        if not self._scan_input:
+            return messages
+        processed = list(messages)
+        for i, msg in enumerate(processed):
+            if not msg.content:
+                continue
+            result = self._scan_text(msg.content)
+            if not result.clean:
+                processed[i] = Message(
+                    role=msg.role,
+                    content=self._handle_findings(msg.content, result, "input"),
+                    name=msg.name,
+                    tool_calls=msg.tool_calls,
+                    tool_call_id=msg.tool_call_id,
+                    metadata=msg.metadata,
+                )
+        return processed
+
+    def _check_stream_buffer_size(self, size: int) -> None:
+        if size > self._max_stream_buffer_chars:
+            raise SecurityBlockError(
+                "Security scan blocked output: stream buffer limit exceeded"
+            )
+
     def generate(
         self,
         messages: Sequence[Message],
@@ -177,26 +210,7 @@ class GuardrailsEngine(InferenceEngine):
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Scan input, call wrapped engine, scan output."""
-        # Scan input messages
-        if self._scan_input:
-            processed = list(messages)
-            for i, msg in enumerate(processed):
-                if msg.content:
-                    result = self._scan_text(msg.content)
-                    if not result.clean:
-                        processed[i] = Message(
-                            role=msg.role,
-                            content=self._handle_findings(
-                                msg.content,
-                                result,
-                                "input",
-                            ),
-                            name=msg.name,
-                            tool_calls=msg.tool_calls,
-                            tool_call_id=msg.tool_call_id,
-                            metadata=msg.metadata,
-                        )
-            messages = processed
+        messages = self._process_input_messages(messages)
 
         # Call wrapped engine
         response = self._engine.generate(
@@ -228,8 +242,14 @@ class GuardrailsEngine(InferenceEngine):
         max_tokens: int = 1024,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
-        """Yield tokens in real-time, scan accumulated output post-hoc."""
-        accumulated = []
+        """Enforce output scanning before release in REDACT/BLOCK modes."""
+        messages = self._process_input_messages(messages)
+        accumulated: list[str] = []
+        buffered_size = 0
+        enforce_before_release = self._scan_output and self._mode in {
+            RedactionMode.REDACT,
+            RedactionMode.BLOCK,
+        }
         async for token in self._engine.stream(
             messages,
             model=model,
@@ -238,30 +258,23 @@ class GuardrailsEngine(InferenceEngine):
             **kwargs,
         ):
             accumulated.append(token)
-            yield token
+            buffered_size += len(token)
+            if enforce_before_release:
+                self._check_stream_buffer_size(buffered_size)
+            else:
+                yield token
 
-        # Post-hoc scan of accumulated output for logging only
         if self._scan_output:
             full_output = "".join(accumulated)
             if full_output:
                 result = self._scan_text(full_output)
-                if not result.clean and self._bus:
-                    finding_dicts = [
-                        {
-                            "pattern": f.pattern_name,
-                            "threat": f.threat_level.value,
-                            "description": f.description,
-                        }
-                        for f in result.findings
-                    ]
-                    self._bus.publish(
-                        EventType.SECURITY_ALERT,
-                        {
-                            "direction": "output",
-                            "findings": finding_dicts,
-                            "mode": "stream_post_hoc",
-                        },
-                    )
+                if not result.clean:
+                    processed = self._handle_findings(full_output, result, "output")
+                    if enforce_before_release:
+                        yield processed
+                elif enforce_before_release:
+                    for token in accumulated:
+                        yield token
 
     async def stream_full(
         self,
@@ -272,8 +285,15 @@ class GuardrailsEngine(InferenceEngine):
         max_tokens: int = 1024,
         **kwargs: Any,
     ) -> AsyncIterator["StreamChunk"]:
-        """Delegate to wrapped engine, scan accumulated output post-hoc."""
+        """Enforce output scanning before releasing rich stream chunks."""
+        messages = self._process_input_messages(messages)
         accumulated: list[str] = []
+        chunks: list[StreamChunk] = []
+        buffered_size = 0
+        enforce_before_release = self._scan_output and self._mode in {
+            RedactionMode.REDACT,
+            RedactionMode.BLOCK,
+        }
         async for chunk in self._engine.stream_full(
             messages,
             model=model,
@@ -281,32 +301,37 @@ class GuardrailsEngine(InferenceEngine):
             max_tokens=max_tokens,
             **kwargs,
         ):
+            chunks.append(chunk)
             if chunk.content:
                 accumulated.append(chunk.content)
-            yield chunk
+                buffered_size += len(chunk.content)
+                if enforce_before_release:
+                    self._check_stream_buffer_size(buffered_size)
+            if not enforce_before_release:
+                yield chunk
 
-        # Post-hoc scan of accumulated output
         if self._scan_output:
             full_output = "".join(accumulated)
             if full_output:
                 result = self._scan_text(full_output)
-                if not result.clean and self._bus:
-                    finding_dicts = [
-                        {
-                            "pattern": f.pattern_name,
-                            "threat": f.threat_level.value,
-                            "description": f.description,
-                        }
-                        for f in result.findings
-                    ]
-                    self._bus.publish(
-                        EventType.SECURITY_ALERT,
-                        {
-                            "direction": "output",
-                            "findings": finding_dicts,
-                            "mode": "stream_full_post_hoc",
-                        },
-                    )
+                if not result.clean:
+                    processed = self._handle_findings(full_output, result, "output")
+                    if enforce_before_release:
+                        content_replaced = False
+                        for chunk in chunks:
+                            if chunk.content and not content_replaced:
+                                yield replace(chunk, content=processed)
+                                content_replaced = True
+                            elif chunk.content:
+                                yield replace(chunk, content=None)
+                            else:
+                                yield chunk
+                elif enforce_before_release:
+                    for chunk in chunks:
+                        yield chunk
+            elif enforce_before_release:
+                for chunk in chunks:
+                    yield chunk
 
     def list_models(self) -> List[str]:
         """Delegate to wrapped engine."""

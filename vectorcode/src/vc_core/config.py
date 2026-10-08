@@ -1014,6 +1014,7 @@ class SecurityConfig:
     mode: str = "redact"  # "redact" | "warn" | "block"
     secret_scanner: bool = True
     pii_scanner: bool = True
+    max_stream_buffer_chars: int = 1_048_576
     audit_log_path: str = str(DEFAULT_CONFIG_DIR / "audit.db")
     enforce_tool_confirmation: bool = True
     merkle_audit: bool = True

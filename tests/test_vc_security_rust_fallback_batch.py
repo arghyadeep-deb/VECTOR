@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from vectorcode.src.vc_security.capabilities import CapabilityPolicy
 from vectorcode.src.vc_security.rate_limiter import RateLimitConfig, RateLimiter
 from vectorcode.src.vc_security.scanner import PIIScanner, SecretScanner
@@ -45,26 +47,28 @@ def test_capability_policy_explicit_deny_overrides_grant_without_rust():
         assert policy.check("agent1", "file:read") is True
 
 
-def test_rate_limiter_enforces_burst_limit_without_rust():
+@pytest.mark.asyncio
+async def test_rate_limiter_enforces_burst_limit_without_rust():
     with _no_rust():
         limiter = RateLimiter(RateLimitConfig(requests_per_minute=60, burst_size=2))
-        allowed1, _ = limiter.check("k1")
-        allowed2, _ = limiter.check("k1")
-        allowed3, wait = limiter.check("k1")
+        allowed1, _ = await limiter.check("k1")
+        allowed2, _ = await limiter.check("k1")
+        allowed3, wait = await limiter.check("k1")
     assert allowed1 is True
     assert allowed2 is True
     assert allowed3 is False
     assert wait > 0
 
 
-def test_rate_limiter_reset_clears_bucket_without_rust():
+@pytest.mark.asyncio
+async def test_rate_limiter_reset_clears_bucket_without_rust():
     with _no_rust():
         limiter = RateLimiter(RateLimitConfig(requests_per_minute=60, burst_size=1))
-        limiter.check("k1")
-        blocked, _ = limiter.check("k1")
+        await limiter.check("k1")
+        blocked, _ = await limiter.check("k1")
         assert blocked is False
-        limiter.reset("k1")
-        allowed_after_reset, _ = limiter.check("k1")
+        await limiter.reset("k1")
+        allowed_after_reset, _ = await limiter.check("k1")
     assert allowed_after_reset is True
 
 

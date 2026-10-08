@@ -588,7 +588,10 @@ class SystemBuilder:
         args = cfg.get("args", [])
 
         if url:
-            transport = StreamableHTTPTransport(url=url)
+            transport = StreamableHTTPTransport(
+                url=url,
+                bearer_token=StreamableHTTPTransport.bearer_token_from_config(cfg),
+            )
         elif command:
             transport = StdioTransport(command=[command] + args)
         else:

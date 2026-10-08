@@ -52,12 +52,30 @@ class MCPRequest:
     @classmethod
     def from_json(cls, data: str) -> MCPRequest:
         """Deserialize from JSON string."""
-        parsed = json.loads(data)
+        try:
+            parsed = json.loads(data)
+        except json.JSONDecodeError as exc:
+            raise MCPError(PARSE_ERROR, "Invalid JSON") from exc
+        if not isinstance(parsed, dict):
+            raise MCPError(INVALID_REQUEST, "JSON-RPC request must be an object")
+        if parsed.get("jsonrpc") != "2.0":
+            raise MCPError(INVALID_REQUEST, "jsonrpc must be '2.0'")
+        method = parsed.get("method")
+        if not isinstance(method, str) or not method:
+            raise MCPError(INVALID_REQUEST, "method must be a non-empty string")
+        params = parsed.get("params", {})
+        if not isinstance(params, dict):
+            raise MCPError(INVALID_PARAMS, "params must be an object")
+        request_id = parsed.get("id")
+        if request_id is not None and (
+            isinstance(request_id, bool) or not isinstance(request_id, (int, str))
+        ):
+            raise MCPError(INVALID_REQUEST, "id must be a string, integer, or null")
         return cls(
-            method=parsed["method"],
-            params=parsed.get("params", {}),
-            id=parsed.get("id", 0),
-            jsonrpc=parsed.get("jsonrpc", "2.0"),
+            method=method,
+            params=params,
+            id=request_id,
+            jsonrpc="2.0",
         )
 
 @dataclass
@@ -66,7 +84,7 @@ class MCPResponse:
 
     result: Any = None
     error: Optional[Dict[str, Any]] = None
-    id: int | str = 0
+    id: int | str | None = 0
     jsonrpc: str = "2.0"
 
     def to_json(self) -> str:
@@ -92,7 +110,7 @@ class MCPResponse:
     @classmethod
     def error_response(
         cls,
-        id: int | str,
+        id: int | str | None,
         code: int,
         message: str,
         data: Any = None,

@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Any, Callable, Dict, List, Optional
 
 from loguru import logger
@@ -233,8 +234,11 @@ class MCPServer:
         """Return all tool instances (for use by SystemBuilder)."""
         return list(self._tools.values())
 
-    def handle(self, request: MCPRequest) -> MCPResponse:
+    def handle(self, request: MCPRequest) -> Optional[MCPResponse]:
         """Dispatch an MCP request and return a response."""
+        if request.id is None:
+            self._handle_notification(request)
+            return None
         if request.method == "initialize":
             return self._handle_initialize(request)
         elif request.method == "tools/list":
@@ -247,6 +251,12 @@ class MCPServer:
                 METHOD_NOT_FOUND,
                 f"Unknown method: {request.method}",
             )
+
+    def _handle_notification(self, request: MCPRequest) -> None:
+        """Process supported notifications without ever creating a response."""
+        if request.method == "notifications/initialized":
+            return
+        logger.debug("[VECTOR][mcp] Ignoring unknown notification {}", request.method)
 
     def _handle_initialize(self, req: MCPRequest) -> MCPResponse:
         """Handle the initialize handshake."""
@@ -343,6 +353,23 @@ class MCPServer:
                 arguments=json.dumps(arguments),
             )
             result = self._executor.execute(tool_call)
+            if not result.success:
+                from vectorcode.src.utils.redact import redact
+
+                correlation_id = uuid.uuid4().hex
+                logger.error(
+                    "[VECTOR][mcp] Tool returned failure correlation_id={} error={}",
+                    correlation_id,
+                    redact(result.content, preserve_urls=False, preserve_emails=False),
+                )
+                return MCPResponse(
+                    result={
+                        "content": [{"type": "text", "text": "Tool execution failed"}],
+                        "isError": True,
+                        "correlation_id": correlation_id,
+                    },
+                    id=req.id,
+                )
             return MCPResponse(
                 result={
                     "content": [
@@ -353,10 +380,19 @@ class MCPServer:
                 id=req.id,
             )
         except Exception as exc:
+            from vectorcode.src.utils.redact import redact
+
+            correlation_id = uuid.uuid4().hex
+            logger.error(
+                "[VECTOR][mcp] Tool execution failed correlation_id={} error={}",
+                correlation_id,
+                redact(str(exc), preserve_urls=False, preserve_emails=False),
+            )
             return MCPResponse.error_response(
                 req.id,
                 INTERNAL_ERROR,
-                f"Tool execution error: {exc}",
+                "Tool execution failed",
+                data={"correlation_id": correlation_id},
             )
 
 __all__ = ["MCPServer"]

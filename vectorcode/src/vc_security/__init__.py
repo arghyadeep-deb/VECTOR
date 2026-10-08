@@ -82,6 +82,9 @@ def setup_security(
                 mode=mode,
                 scan_input=config.security.scan_input,
                 scan_output=config.security.scan_output,
+                max_stream_buffer_chars=getattr(
+                    config.security, "max_stream_buffer_chars", 1_048_576
+                ),
                 bus=bus,
             )
     except Exception as exc:

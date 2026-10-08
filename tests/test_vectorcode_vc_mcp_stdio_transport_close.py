@@ -8,7 +8,7 @@ object rather than being cleared.
 """
 from __future__ import annotations
 
-import subprocess
+import asyncio
 
 import pytest
 
@@ -22,6 +22,7 @@ class _FakeProcess:
         self.killed = False
         self.stdin = None
         self.stdout = None
+        self.returncode = None
 
     def terminate(self) -> None:
         self.terminated = True
@@ -29,9 +30,10 @@ class _FakeProcess:
     def kill(self) -> None:
         self.killed = True
 
-    def wait(self, timeout: float | None = None) -> int:
+    async def wait(self) -> int:
         if self._hangs and not self.killed:
-            raise subprocess.TimeoutExpired(cmd="fake", timeout=timeout or 0)
+            await asyncio.sleep(60)
+        self.returncode = -9 if self.killed else 0
         return 0
 
 
@@ -39,6 +41,9 @@ def _make_transport(proc: _FakeProcess) -> StdioTransport:
     transport = StdioTransport.__new__(StdioTransport)
     transport._command = ["fake"]
     transport._process = proc
+    transport._stderr_task = None
+    loop_factory = getattr(asyncio, "ProactorEventLoop", None)
+    transport._runner = asyncio.Runner(loop_factory=loop_factory)
     return transport
 
 
