@@ -1,12 +1,11 @@
 """Append-only markdown decision log for VectorTrading."""
 
 from typing import List, Optional
-import os
 from pathlib import Path
 import re
-import tempfile
 
 from core.trading.agents.utils.rating import parse_rating
+from core.trading.storage_crypto import atomic_write_encrypted_text, read_encrypted_text
 
 
 class TradingMemoryLog:
@@ -31,29 +30,12 @@ class TradingMemoryLog:
     # --- Write path (Phase A) ---
 
     def _atomic_write(self, text: str) -> None:
-        """Durably replace the log with ``text`` using a unique sibling temp file."""
+        """Durably replace the log with AES-GCM ciphertext."""
         if self._log_path is None:
             return
         # Clean up the deterministic temp filename used by older releases.
         self._log_path.with_suffix(".tmp").unlink(missing_ok=True)
-        tmp_path: Path | None = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                encoding="utf-8",
-                dir=self._log_path.parent,
-                prefix=f".{self._log_path.name}.",
-                suffix=".tmp",
-                delete=False,
-            ) as tmp:
-                tmp.write(text)
-                tmp.flush()
-                os.fsync(tmp.fileno())
-                tmp_path = Path(tmp.name)
-            os.replace(tmp_path, self._log_path)
-        finally:
-            if tmp_path is not None:
-                tmp_path.unlink(missing_ok=True)
+        atomic_write_encrypted_text(self._log_path, text)
 
     def store_decision(
         self,
@@ -76,15 +58,15 @@ class TradingMemoryLog:
         )
         # Idempotency guard: fast raw-text scan instead of full parse
         if self._log_path.exists():
-            raw = self._log_path.read_text(encoding="utf-8")
+            raw = read_encrypted_text(self._log_path)
             for line in raw.splitlines():
                 if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("| pending]"):
                     return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
         entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"
-        with open(self._log_path, "a", encoding="utf-8") as f:
-            f.write(entry)
+        existing = read_encrypted_text(self._log_path) if self._log_path.exists() else ""
+        self._atomic_write(existing + entry)
 
     # --- Read path (Phase A) ---
 
@@ -92,7 +74,7 @@ class TradingMemoryLog:
         """Parse all entries from log. Returns list of dicts."""
         if not self._log_path or not self._log_path.exists():
             return []
-        text = self._log_path.read_text(encoding="utf-8")
+        text = read_encrypted_text(self._log_path)
         raw_entries = [e.strip() for e in text.split(self._SEPARATOR) if e.strip()]
         entries = []
         for raw in raw_entries:
@@ -152,7 +134,7 @@ class TradingMemoryLog:
         if not self._log_path or not self._log_path.exists():
             return
 
-        text = self._log_path.read_text(encoding="utf-8")
+        text = read_encrypted_text(self._log_path)
         blocks = text.split(self._SEPARATOR)
 
         pending_prefix = f"[{trade_date} | {ticker} |"
@@ -206,7 +188,7 @@ class TradingMemoryLog:
         if not self._log_path or not self._log_path.exists() or not updates:
             return
 
-        text = self._log_path.read_text(encoding="utf-8")
+        text = read_encrypted_text(self._log_path)
         blocks = text.split(self._SEPARATOR)
 
         # Build lookup keyed by (trade_date, ticker) for O(1) dispatch

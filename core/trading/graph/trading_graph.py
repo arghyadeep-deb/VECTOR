@@ -32,6 +32,7 @@ from core.trading.agents import (
 from core.trading.config import DEFAULT_CONFIG
 from core.trading.agents.utils.memory import TradingMemoryLog
 from core.trading.dataflows.utils import safe_ticker_component
+from core.trading.storage_crypto import atomic_write_encrypted_text
 from core.trading.agents.utils.agent_states import (
     AgentState,
     InvestDebateState,
@@ -477,8 +478,10 @@ class VectorTradingGraph:
         directory.mkdir(parents=True, exist_ok=True)
 
         log_path = directory / f"full_states_log_{trade_date}.json"
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump(self.log_states_dict[str(trade_date)], f, indent=4)
+        atomic_write_encrypted_text(
+            log_path,
+            json.dumps(self.log_states_dict[str(trade_date)], indent=4),
+        )
 
     def process_signal(self, full_signal):
         """Process a signal to extract the core decision."""

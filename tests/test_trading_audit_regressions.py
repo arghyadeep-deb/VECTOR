@@ -7,6 +7,7 @@ from unittest.mock import Mock, patch
 from core.trading.cli import announcements
 from core.trading.cli.main import MessageBuffer, _atomic_write_text
 from core.trading.agents.utils.memory import TradingMemoryLog
+from core.trading.storage_crypto import read_encrypted_text
 
 
 def test_announcements_preserves_explicit_zero_timeout() -> None:
@@ -36,11 +37,11 @@ def test_message_buffer_wrappers_unwrap_to_original_bound_method() -> None:
 def test_memory_atomic_write_flushes_and_fsyncs_before_replace(tmp_path) -> None:
     log = TradingMemoryLog({"memory_log_path": str(tmp_path / "memory.md")})
 
-    with patch("core.trading.agents.utils.memory.os.fsync") as fsync:
+    with patch("core.trading.storage_crypto.os.fsync") as fsync:
         log._atomic_write("durable")
 
     fsync.assert_called_once()
-    assert (tmp_path / "memory.md").read_text(encoding="utf-8") == "durable"
+    assert read_encrypted_text(tmp_path / "memory.md") == "durable"
     assert list(tmp_path.glob(".memory.md.*.tmp")) == []
 
 

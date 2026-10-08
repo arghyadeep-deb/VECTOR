@@ -18,9 +18,12 @@ __all__ = [
 
 
 import hashlib
+import os
+import shutil
 import sqlite3
 import threading
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Generator
 
@@ -29,6 +32,112 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from core.trading.dataflows.utils import safe_ticker_component
 
 _lock = threading.RLock()
+
+try:
+    import sqlcipher3 as sqlcipher
+except ImportError:
+    try:
+        from pysqlcipher3 import dbapi2 as sqlcipher
+    except ImportError:
+        sqlcipher = None
+
+
+def _sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _get_db_key() -> str:
+    from core.memory.episodic import _get_db_key as _episodic_get_db_key
+
+    key = _episodic_get_db_key()
+    if not key:
+        raise RuntimeError("[VECTOR][trading_checkpoint] encryption key unavailable")
+    return key
+
+
+def _require_sqlcipher() -> None:
+    if sqlcipher is None:
+        raise RuntimeError(
+            "[VECTOR][trading_checkpoint] SQLCipher unavailable; refusing plaintext checkpoint storage"
+        )
+
+
+def _looks_like_plaintext_sqlite(path: Path) -> bool:
+    try:
+        return path.read_bytes()[:16] == b"SQLite format 3\x00"
+    except OSError:
+        return False
+
+
+def _configure_connection(conn) -> None:
+    conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+    conn.execute("PRAGMA cipher_page_size = 4096")
+    apply_pragmas(conn)
+
+
+def _open_sqlcipher_connection(path: Path):
+    _require_sqlcipher()
+    conn = sqlcipher.connect(str(path), check_same_thread=False)
+    try:
+        _configure_connection(conn)
+        conn.execute("SELECT count(*) FROM sqlite_master")
+        conn.row_factory = sqlcipher.Row
+        return conn
+    except Exception:
+        conn.close()
+        raise
+
+
+def _copy_langgraph_tables(plain_path: Path, encrypted_conn) -> None:
+    plain_conn = sqlite3.connect(str(plain_path), check_same_thread=False)
+    try:
+        existing = {
+            row[0]
+            for row in plain_conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        for table in ("checkpoints", "writes"):
+            if table not in existing:
+                continue
+            columns = [
+                row[1]
+                for row in plain_conn.execute(f'PRAGMA table_info("{table}")').fetchall()
+            ]
+            if not columns:
+                continue
+            quoted = ", ".join(f'"{column}"' for column in columns)
+            placeholders = ", ".join("?" for _ in columns)
+            rows = plain_conn.execute(f'SELECT {quoted} FROM "{table}"').fetchall()
+            if rows:
+                encrypted_conn.executemany(
+                    f'INSERT OR REPLACE INTO "{table}" ({quoted}) VALUES ({placeholders})',
+                    rows,
+                )
+        encrypted_conn.commit()
+    finally:
+        plain_conn.close()
+
+
+def _migrate_plaintext_checkpoint(path: Path):
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%f")
+    backup = Path(f"{path}.plaintext.bak.{stamp}")
+    shutil.copy2(path, backup)
+    os.remove(path)
+    logger.warning(
+        "[VECTOR][trading_checkpoint] migrating plaintext DB; backup kept at {}",
+        backup,
+    )
+    conn = _open_sqlcipher_connection(path)
+    try:
+        SqliteSaver(conn).setup()
+        _copy_langgraph_tables(backup, conn)
+        return conn
+    except Exception:
+        conn.close()
+        path.unlink(missing_ok=True)
+        shutil.copy2(backup, path)
+        raise
 
 
 def _db_path(data_dir: str | Path, ticker: str) -> Path:
@@ -49,8 +158,11 @@ def thread_id(ticker: str, date: str) -> str:
 def get_checkpointer(data_dir: str | Path, ticker: str) -> Generator[SqliteSaver, None, None]:
     """Context manager yielding a SqliteSaver backed by a per-ticker DB."""
     db = _db_path(data_dir, ticker)
-    conn = sqlite3.connect(str(db), check_same_thread=False)
-    apply_pragmas(conn)
+    conn = (
+        _migrate_plaintext_checkpoint(db)
+        if db.exists() and _looks_like_plaintext_sqlite(db)
+        else _open_sqlcipher_connection(db)
+    )
     try:
         saver = SqliteSaver(conn)
         saver.setup()
@@ -100,12 +212,12 @@ def clear_checkpoint(data_dir: str | Path, ticker: str, date: str) -> None:
         return
     tid = thread_id(ticker, date)
     with _lock:
-        conn = sqlite3.connect(str(db), check_same_thread=False)
+        conn = _open_sqlcipher_connection(db)
         try:
             for table in ("writes", "checkpoints"):
                 conn.execute(f"DELETE FROM {table} WHERE thread_id = ?", (tid,))
             conn.commit()
-        except sqlite3.OperationalError as e:
+        except Exception as e:
             logger.warning(
                 "[VECTOR][trading_checkpoint] could not clear checkpoint for {} on {}: {}",
                 ticker, date, e,

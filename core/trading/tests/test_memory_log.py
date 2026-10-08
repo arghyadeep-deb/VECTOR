@@ -5,6 +5,7 @@ import pandas as pd
 from unittest.mock import MagicMock, patch
 
 from core.trading.agents.utils.memory import TradingMemoryLog
+from core.trading.storage_crypto import read_encrypted_text
 from core.trading.agents.schemas import PortfolioDecision, PortfolioRating
 from core.trading.graph.reflection import Reflector
 from core.trading.graph.trading_graph import VectorTradingGraph
@@ -155,7 +156,7 @@ class TestTradingMemoryLogCore:
     def test_pending_tag_format(self, tmp_path):
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
-        text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+        text = read_encrypted_text(tmp_path / "trading_memory.md")
         assert "[2026-01-10 | NVDA | Buy | pending]" in text
 
     # Rating parsing
@@ -391,7 +392,7 @@ class TestDeferredReflection:
         log = make_log(tmp_path)
         log.store_decision("NVDA", "2026-01-10", DECISION_BUY)
         log.update_with_outcome("NVDA", "2026-01-10", 0.042, 0.021, 5, "Momentum confirmed.")
-        text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+        text = read_encrypted_text(tmp_path / "trading_memory.md")
         assert "[2026-01-10 | NVDA | Buy | pending]" not in text
         assert "+4.2%" in text
         assert "+2.1%" in text
@@ -454,7 +455,7 @@ class TestDeferredReflection:
         assert e["raw"] == "+4.2%"
         assert e["alpha"] == "+2.1%"
         assert e["holding"] == "5d"
-        raw_text = (tmp_path / "trading_memory.md").read_text(encoding="utf-8")
+        raw_text = read_encrypted_text(tmp_path / "trading_memory.md")
         assert "[2026-01-10 | NVDA | Buy | +4.2% | +2.1% | 5d]\n\nDECISION:" in raw_text
 
     # Reflector.reflect_on_final_decision
