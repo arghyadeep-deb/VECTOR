@@ -1,11 +1,9 @@
 """Skill execution sandbox — runs VECTOR skills via VectorSandbox with gateway oversight.
 
 Each skill is classified by the PermissionGateway before execution.
-Skills run in a subprocess (VectorSandbox) with a scrubbed environment and a
-timeout -- NOT a real security sandbox (no filesystem/network/resource
-isolation on win32, VECTOR's actual deployment platform; see
-core/sandbox/vector_sandbox.py's class docstring). Safe here only because
-this runner always executes VECTOR's own fixed verification script
+Skills run through VectorSandbox, which uses an isolated container when
+available and otherwise falls back to a subprocess. Safe here because this
+runner always executes VECTOR's own fixed verification script
 (_build_skill_verification_code), never caller-supplied skill content.
 
 Usage:
@@ -81,7 +79,7 @@ class SkillSandboxRunner:
         """Run a skill entry from the skills manifest inside VectorSandbox.
 
         The skill code is a minimal Python script that:
-        1. Verifies the SKILL.md path is readable
+        1. Receives host-read SKILL.md data
         2. Extracts name, description, triggers
         3. Returns a JSON summary
 
@@ -112,13 +110,27 @@ class SkillSandboxRunner:
 
         approved = level in ("GREEN", "YELLOW")
 
-        # Resolve skill_md_path to an absolute path so the subprocess can find it
-        # regardless of its working directory (sandbox uses a temp dir by default).
+        # Resolve and read the trusted manifest file on the host. An isolated
+        # container cannot and should not resolve arbitrary host paths.
         _project_root = Path(__file__).parent.parent.parent
         abs_md_path = str(_project_root / skill_md_path) if skill_md_path else ""
+        md_path = Path(abs_md_path) if abs_md_path else None
+        md_exists = md_path is not None and md_path.exists()
+        md_content = (
+            md_path.read_text(encoding="utf-8", errors="replace")
+            if md_exists
+            else ""
+        )
+        md_size = md_path.stat().st_size if md_exists else 0
 
         # Build the sandboxed script — uses only stdlib, no network, no LLM
-        safe_code = _build_skill_verification_code(skill_id, category, abs_md_path)
+        safe_code = _build_skill_verification_code(
+            skill_id,
+            category,
+            md_exists,
+            md_size,
+            md_content,
+        )
 
         sandbox_result = await self._sandbox.run_code_safe(safe_code, timeout=15.0)
 
@@ -137,29 +149,33 @@ class SkillSandboxRunner:
 # Internal helpers
 # ------------------------------------------------------------------
 
-def _build_skill_verification_code(skill_id: str, category: str, skill_md_path: str) -> str:
+def _build_skill_verification_code(
+    skill_id: str,
+    category: str,
+    md_exists: bool,
+    md_size: int,
+    md_content: str,
+) -> str:
     """Return Python source that verifies a skill manifest entry inside the sandbox."""
-    safe_path = skill_md_path.replace("\\", "\\\\").replace('"', '\\"')
-    safe_id = skill_id.replace('"', '\\"')
-    safe_cat = category.replace('"', '\\"')
+    encoded_content = json.dumps(md_content)
     return f"""\
 import json, sys
-from pathlib import Path
 
-skill_id = "{safe_id}"
-category = "{safe_cat}"
-md_path = Path(r"{safe_path}")
+skill_id = {json.dumps(skill_id)}
+category = {json.dumps(category)}
+md_exists = {md_exists!r}
+md_size = {md_size!r}
+text = json.loads({json.dumps(encoded_content)})
 
 result = {{
     "skill_id": skill_id,
     "category": category,
-    "md_exists": md_path.exists(),
-    "md_size": md_path.stat().st_size if md_path.exists() else 0,
+    "md_exists": md_exists,
+    "md_size": md_size,
     "status": "verified",
 }}
 
-if md_path.exists():
-    text = md_path.read_text(encoding="utf-8", errors="replace")
+if md_exists:
     # Extract first trigger line as smoke test
     triggers = [ln.strip() for ln in text.splitlines() if ln.strip().startswith("-")]
     result["trigger_count"] = len(triggers)

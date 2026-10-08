@@ -7,9 +7,82 @@ __all__ = [
     "VectorSandbox",
 ]
 
-import asyncio, os, subprocess, sys, tempfile, time
+import asyncio, os, shutil, subprocess, sys, tempfile, time
 from dataclasses import dataclass, field
+from functools import lru_cache
 from loguru import logger
+
+from core.sandbox.runner import ContainerRunner
+
+
+_CONTAINER_IMAGE = "vector-sandbox:latest"
+_container_runtime_name: str | None = None
+_container_unavailable_reason = "container availability has not been checked"
+_fallback_warning_emitted = False
+
+
+@lru_cache(maxsize=1)
+def _container_runtime_status() -> tuple[str | None, str]:
+    """Return an available runtime name and a human-readable status.
+
+    Detection is cached because probing an image invokes the runtime CLI. All
+    failures are converted to an unavailable status so sandbox callers never
+    fail merely because Docker or Podman is unhealthy.
+    """
+    found_runtime = False
+    failure_reasons: list[str] = []
+    for runtime in ("docker", "podman"):
+        try:
+            executable = shutil.which(runtime)
+            if executable is None:
+                continue
+            found_runtime = True
+            inspected = subprocess.run(
+                [executable, "image", "inspect", _CONTAINER_IMAGE],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if inspected.returncode == 0:
+                return runtime, f"{runtime} and {_CONTAINER_IMAGE} are available"
+
+            detail = (inspected.stderr or inspected.stdout or "").strip().lower()
+            if "permission denied" in detail or "access is denied" in detail:
+                failure_reasons.append(f"{runtime} access was denied")
+            elif "daemon" in detail or "cannot connect" in detail:
+                failure_reasons.append(f"{runtime} daemon is unavailable")
+            else:
+                failure_reasons.append(
+                    f"{_CONTAINER_IMAGE} was not found locally via {runtime}"
+                )
+        except Exception as exc:
+            failure_reasons.append(f"{runtime} probe failed: {type(exc).__name__}")
+
+    if not found_runtime:
+        return None, "Docker/Podman runtime binary was not found"
+    return None, "; ".join(failure_reasons) or "container runtime probe failed"
+
+
+def _container_runtime_available() -> bool:
+    """Check once whether a supported runtime and sandbox image are usable."""
+    global _container_runtime_name, _container_unavailable_reason
+    runtime, reason = _container_runtime_status()
+    _container_runtime_name = runtime
+    _container_unavailable_reason = reason
+    return runtime is not None
+
+
+def _warn_about_subprocess_fallback() -> None:
+    """Log the weaker isolation warning once per process."""
+    global _fallback_warning_emitted
+    if _fallback_warning_emitted:
+        return
+    _fallback_warning_emitted = True
+    logger.warning(
+        "[VECTOR][sandbox] RED-tier/sandboxed code is executing without "
+        "container isolation: {}. Falling back to the local subprocess sandbox.",
+        _container_unavailable_reason,
+    )
 
 @dataclass
 class SandboxConfig:
@@ -39,12 +112,19 @@ class SandboxResult:
         return self.stdout.strip() or self.stderr.strip()
 
 class VectorSandbox:
-    """Runs code/commands in a subprocess with a timeout, output cap, and a
-    scrubbed environment -- NOT a real security sandbox. On POSIX, RLIMIT_AS/
-    RLIMIT_CPU cap memory/CPU (best-effort; silently skipped on any error).
-    On win32 (VECTOR's actual deployment platform) there is no resource
-    limiting, filesystem confinement, or network isolation at all: _run()
-    takes the Windows branch straight to a bare subprocess.Popen.
+    """Runs code/commands in an isolated container when one is available.
+
+    Docker or Podman execution uses ``vector-sandbox:latest`` through
+    :class:`ContainerRunner`: the container has no network, receives one
+    scrubbed JSON request on stdin, and returns one sentinel-wrapped JSON
+    result on stdout. No host paths are mounted for code or shell execution.
+
+    If neither a supported runtime nor the image is available, execution
+    falls back to the original local subprocess implementation with a
+    one-time warning. That fallback has a scrubbed environment, timeout, and
+    output cap; POSIX also gets best-effort RLIMIT_AS/RLIMIT_CPU limits. It is
+    not a real security boundary. In particular, the win32 fallback has no
+    resource limiting, filesystem confinement, or network isolation.
 
     This IS live, not just a theoretical risk if wired up later:
     core/loop/permission_gateway.py's RED-tier "execute_code" action handler
@@ -52,14 +132,9 @@ class VectorSandbox:
     run_code_safe()/run_shell()) after council/owner approval -- the approval
     gate bounds WHO can trigger it, but once approved the code runs with full
     filesystem/network/environment access the main VECTOR process itself
-    has, no real isolation beyond the scrubbed env + timeout. A real
-    container-based sandbox already exists in this same package
-    (core/sandbox/runner.py's ContainerRunner -- network=none, read-only
-    mounts, mount allowlist) but execute_code does not use it. FLAG-FOR-OWNER
-    (Phase 3 audit, 2026-10-01): switching execute_code to ContainerRunner
-    when a container runtime is available, or adding real OS-level isolation
-    for the Windows fallback, needs an explicit decision -- not a narrow
-    same-session patch.
+    has. OD-59 now routes self-contained Python and shell commands through
+    ContainerRunner when possible; only the explicitly warned fallback keeps
+    the weaker behavior.
 
     Separately, districts/coding/coding_tools.py::run_code_safely() is also
     documented to run untrusted/LLM-generated code through this class but
@@ -70,20 +145,34 @@ class VectorSandbox:
         self._config = config or SandboxConfig()
 
     async def run_python(self, code: str, timeout: float | None = None, extra_env: dict | None = None) -> SandboxResult:
+        effective_timeout = timeout or self._config.timeout_secs
+        if _container_runtime_available():
+            return await self._run(["python3", "-c", code], effective_timeout, extra_env)
         with tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False, encoding="utf-8") as f:
             f.write(code); script = f.name
         try:
-            return await self._run([self._config.python_executable, script], timeout or self._config.timeout_secs, extra_env)
+            return await self._run([self._config.python_executable, script], effective_timeout, extra_env)
         finally:
             try: os.unlink(script)
             except OSError: pass
 
     async def run_shell(self, command: str, timeout: float | None = None, extra_env: dict | None = None) -> SandboxResult:
-        cmd = ["cmd.exe","/c",command] if sys.platform=="win32" else ["/bin/sh","-c",command]
+        if _container_runtime_available():
+            cmd = ["/bin/sh", "-c", command]
+        else:
+            cmd = ["cmd.exe","/c",command] if sys.platform=="win32" else ["/bin/sh","-c",command]
         return await self._run(cmd, timeout or self._config.timeout_secs, extra_env)
 
     async def run_file(self, path: str, args: list[str] | None = None, timeout: float | None = None, extra_env: dict | None = None) -> SandboxResult:
-        return await self._run([self._config.python_executable, path] + (args or []), timeout or self._config.timeout_secs, extra_env)
+        # ContainerRunner's default mount allowlist has no roots. Keep file
+        # execution on the host until an explicit, reviewed allowlist exists;
+        # silently mounting the containing directory would weaken isolation.
+        return await self._run(
+            [self._config.python_executable, path] + (args or []),
+            timeout or self._config.timeout_secs,
+            extra_env,
+            allow_container=False,
+        )
 
     async def run_code_safe(self, code: str, timeout: float | None = None) -> SandboxResult:
         parts = ["import sys, traceback", "try:"]
@@ -93,7 +182,18 @@ class VectorSandbox:
         joined = chr(10).join(parts)
         return await self.run_python(joined, timeout=timeout)
 
-    async def _run(self, cmd: list[str], timeout: float, extra_env: dict | None) -> SandboxResult:
+    async def _run(
+        self,
+        cmd: list[str],
+        timeout: float,
+        extra_env: dict | None,
+        *,
+        allow_container: bool = True,
+    ) -> SandboxResult:
+        if allow_container and _container_runtime_available():
+            return await self._run_container(cmd, timeout, dict(extra_env or {}))
+        if allow_container:
+            _warn_about_subprocess_fallback()
         env = self._build_env(extra_env)
         work_dir = self._config.work_dir or tempfile.mkdtemp(prefix="vector_sandbox_")
         if sys.platform == "win32":
@@ -133,6 +233,54 @@ class VectorSandbox:
         exit_code = proc.returncode if not timed_out else -1
         logger.debug("[VECTOR][sandbox] exit={} elapsed={:.2f}s", exit_code, elapsed)
         return SandboxResult(exit_code==0 and not timed_out, stdout, stderr, exit_code, elapsed, timed_out, truncated)
+
+    async def _run_container(
+        self,
+        cmd: list[str],
+        timeout: float,
+        env: dict[str, str],
+    ) -> SandboxResult:
+        """Execute *cmd* through ContainerRunner and normalize its result."""
+        started = time.monotonic()
+        try:
+            runner = ContainerRunner(
+                timeout=int(timeout),
+                runtime=_container_runtime_name or "docker",
+            )
+            raw = await asyncio.to_thread(
+                runner.run,
+                {"cmd": cmd, "timeout": timeout},
+                mounts=None,
+                env=env,
+            )
+        except Exception as exc:
+            logger.opt(exception=True).error(
+                "[VECTOR][sandbox] container execution failed: {}",
+                exc,
+            )
+            return SandboxResult(False, "", str(exc), -1, time.monotonic() - started)
+
+        if raw.get("error") or "success" not in raw:
+            error_type = str(raw.get("error_type", ""))
+            return SandboxResult(
+                success=False,
+                stdout="",
+                stderr=str(raw.get("content", "Container execution failed")),
+                exit_code=-1,
+                elapsed_secs=time.monotonic() - started,
+                timed_out=error_type == "timeout",
+                truncated=False,
+            )
+
+        return SandboxResult(
+            success=bool(raw.get("success", False)),
+            stdout=str(raw.get("stdout", "")),
+            stderr=str(raw.get("stderr", "")),
+            exit_code=int(raw.get("exit_code", -1)),
+            elapsed_secs=float(raw.get("elapsed_secs", time.monotonic() - started)),
+            timed_out=bool(raw.get("timed_out", False)),
+            truncated=bool(raw.get("truncated", False)),
+        )
 
     def _run_subprocess_sync(self, cmd: list[str], timeout: float, env: dict, work_dir: str) -> SandboxResult:
         t0 = time.monotonic()
