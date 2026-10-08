@@ -585,7 +585,7 @@ class PermissionConfig(BaseModel):
         # MCP/API operations require explicit owner approval before mutation.
         "memory_clear", "file_delete", "task_delete", "config_reset",
         "worker_reset", "agent_hp_award", "memory_restore",
-        "workflow_bash_execute",
+        "workflow_bash_execute", "lora_finetune_execute",
         # Hand Execution Engine — Hands with requires_approval=True
         # (browser: purchases/forms; content: publishing; clip: upload).
         "hand_browser", "hand_content", "hand_clip",
@@ -996,6 +996,17 @@ class SensingConfig(BaseModel):
     fatigue_check_interval_sec: int = Field(30, ge=5, le=3600)
     screen_enabled: bool = False
     camera_enabled: bool = False
+    # OD-58 owner-approved default: ambient sound classification is on, with
+    # an explicit switch so the owner can disable microphone sampling later.
+    # Frames are classified in memory and are never persisted by this sensor.
+    sound_enabled: bool = True
+    sound_model_path: str = ""
+    # One minute catches a sustained incident without turning music/appliance
+    # noise into an alert storm. The cooldown is per alert label.
+    sound_alert_cooldown_sec: float = Field(60.0, ge=1.0, le=3600.0)
+    # Hardware failures back off for 30s: visible promptly, but never a 0.5s
+    # retry spin that could monopolize logs or the default audio device.
+    sound_retry_backoff_sec: float = Field(30.0, ge=1.0, le=3600.0)
     # Task B.2 (governor-wiring-and-ambient-perception.md): ADB-phone observe
     # source. Defaults off — owner-hardware-dependent (needs a connected
     # Android device + adb on PATH). PhoneController already degrades

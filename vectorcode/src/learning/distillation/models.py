@@ -273,6 +273,7 @@ class BenchmarkSnapshot(BaseModel):
 
 EditOutcomeStatus = Literal[
     "applied",
+    "blocked",
     "rejected_by_gate",
     "pending_review",
     "rejected_by_user",

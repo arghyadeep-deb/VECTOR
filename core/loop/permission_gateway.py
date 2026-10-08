@@ -160,6 +160,7 @@ OWNER_APPROVAL_ONLY = {
     'financial_transaction', 'solana_swap_execute',
     'push_github', 'deploy_production', 'delete_files',
     'content_publish', 'hand_browser', 'hand_content', 'hand_clip',
+    'lora_finetune_execute',
 }
 
 # 2026-08-04 (review of the RED_INTERACTIVE_TOOLS hardening below): these two

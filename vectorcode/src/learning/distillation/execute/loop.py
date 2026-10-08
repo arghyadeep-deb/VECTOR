@@ -13,8 +13,11 @@ See spec §7.2.
 
 from __future__ import annotations
 
+import asyncio
 from loguru import logger
 from datetime import datetime, timezone
+
+from core.loop.permission_gateway import PermissionGateway
 
 from vectorcode.src.learning.distillation.execute.appliers.agent import (
     EditFewShotExemplarsApplier,
@@ -43,6 +46,7 @@ from vectorcode.src.learning.distillation.models import (
     AutonomyMode,
     Edit,
     EditOutcome,
+    EditOp,
     EditRiskTier,
 )
 
@@ -69,6 +73,7 @@ def execute_edits(
     ctx: ApplyContext,
     autonomy_mode: AutonomyMode,
     registry: EditApplierRegistry | None = None,
+    permission_gateway: PermissionGateway | None = None,
 ) -> list[EditOutcome]:
     """Execute a list of edits, returning outcomes for each.
 
@@ -88,6 +93,8 @@ def execute_edits(
     """
     if registry is None:
         registry = _build_registry()
+    if permission_gateway is None:
+        permission_gateway = PermissionGateway.get_shared()
 
     outcomes: list[EditOutcome] = []
 
@@ -106,19 +113,67 @@ def execute_edits(
             )
             continue
 
-        # Manual tier: always skip
+        # LoRA stays MANUAL, but an explicit RED owner approval can authorize
+        # this one high-impact operation. No other MANUAL edit is changed.
         if edit.risk_tier == EditRiskTier.MANUAL:
-            outcomes.append(
-                EditOutcome(
-                    edit_id=edit.id,
-                    status="skipped",
-                    benchmark_delta=None,
-                    cluster_deltas={},
-                    error="manual tier, requires explicit approval",
-                    applied_at=None,
+            if edit.op == EditOp.LORA_FINETUNE:
+                gateway_params = {
+                    "edit_id": edit.id,
+                    "op": edit.op.value,
+                    "target": edit.target,
+                    "base_model": (edit.payload or {}).get("base_model"),
+                    "training_sample_count": len(
+                        (edit.payload or {}).get("training_data", [])
+                    ),
+                    "session_id": ctx.session_id,
+                }
+                try:
+                    asyncio.get_running_loop()
+                except RuntimeError:
+                    try:
+                        gateway_result = asyncio.run(
+                            permission_gateway.evaluate_external(
+                                "lora_finetune_execute",
+                                gateway_params,
+                                "distillation_execute_loop",
+                            )
+                        )
+                    except Exception as exc:
+                        reason = f"Permission Gateway unavailable: {exc}"
+                    else:
+                        reason = gateway_result.reason
+                        if gateway_result.approved:
+                            reason = ""
+                else:
+                    reason = (
+                        "Permission Gateway unavailable: synchronous distillation "
+                        "execution cannot request approval inside a running event loop"
+                    )
+
+                if reason:
+                    outcomes.append(
+                        EditOutcome(
+                            edit_id=edit.id,
+                            status="blocked",
+                            benchmark_delta=None,
+                            cluster_deltas={},
+                            error=reason,
+                            applied_at=None,
+                        )
+                    )
+                    continue
+            else:
+                outcomes.append(
+                    EditOutcome(
+                        edit_id=edit.id,
+                        status="skipped",
+                        benchmark_delta=None,
+                        cluster_deltas={},
+                        error="manual tier, requires explicit approval",
+                        applied_at=None,
+                    )
                 )
-            )
-            continue
+                continue
 
         # Review tier in tiered mode: route to pending
         if (

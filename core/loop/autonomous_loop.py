@@ -148,6 +148,7 @@ class AutonomousLoop:
         self._governor = None
         self._memory = None
         self._ambient = None
+        self._sound_classifier = None
         self._policy = None
         self._red_team = None
         self._hypothesis_engine = None
@@ -758,6 +759,23 @@ class AutonomousLoop:
         result = None
         if self._ambient:
             result = await self._ambient.listen_tick()
+        if CONFIG.get("sensing", {}).get("sound_enabled", True):
+            try:
+                if self._sound_classifier is None:
+                    from core.sensing.sound_classifier import SoundClassifier
+                    self._sound_classifier = SoundClassifier()
+                # OD-58: sample one in-memory frame per observe tick. Capture
+                # and optional ONNX inference are blocking, so follow the
+                # camera/screen convention and move them off the event loop.
+                # Wake-word/STT also use the default mic and no shared broker
+                # exists; independent-stream failures use classifier backoff.
+                await asyncio.to_thread(self._sound_classifier.sample_and_classify)
+            except Exception as _sound_err:
+                # RULE 2: sensor construction/capture never kills observation.
+                logger.warning(
+                    "[VECTOR][observe] sound classification unavailable: {}",
+                    _sound_err,
+                )
         # FIX #8: Validate ambient listener output before it enters think→act pipeline
         if result is not None:
             if not isinstance(result, dict):

@@ -13,6 +13,7 @@ records the requested edit to a queue artifact instead of raising.
 from __future__ import annotations
 
 import json
+import shutil
 import uuid
 from pathlib import Path
 
@@ -70,6 +71,35 @@ def _queue_edit(edit: Edit, ctx: ApplyContext) -> Path:
     return path
 
 
+def _snapshot_adapter_state(edit: Edit, ctx: ApplyContext) -> Path:
+    """Persist the restorable adapter state before training starts."""
+    rollback_root = ctx.vector_home / "lora_rollbacks"
+    rollback_root.mkdir(parents=True, exist_ok=True)
+    snapshot_dir = _edit_path(rollback_root, edit.id)
+    manifest_path = snapshot_dir / "manifest.json"
+    if manifest_path.exists():
+        return snapshot_dir
+
+    adapter_dir = _edit_path(ctx.vector_home / "lora_adapters", edit.id)
+    snapshot_dir.mkdir()
+    had_adapter = adapter_dir.is_dir()
+    if had_adapter:
+        shutil.copytree(adapter_dir, snapshot_dir / "pre_training_adapter")
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "edit_id": edit.id,
+                "had_adapter": had_adapter,
+                "session_id": ctx.session_id,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    logger.info(f"[LoRA] Pre-training rollback snapshot saved at {snapshot_dir}")
+    return snapshot_dir
+
+
 # --- Main applier ------------------------------------------------------------
 
 class LoraStubApplier(EditApplier):
@@ -116,7 +146,12 @@ class LoraStubApplier(EditApplier):
             )
             return ApplyResult(changed_files=[str(queue_path)])
 
-        return _run_lora_finetune(edit, ctx)
+        _snapshot_adapter_state(edit, ctx)
+        try:
+            return _run_lora_finetune(edit, ctx)
+        except Exception:
+            self.rollback(edit, ctx)
+            raise
 
     def rollback(self, edit: Edit, ctx: ApplyContext) -> None:
         # Remove queue artifact if it exists
@@ -124,10 +159,19 @@ class LoraStubApplier(EditApplier):
         if queue_path.exists():
             queue_path.unlink()
             logger.info(f"[LoRA] Rolled back queued edit {edit.id}")
-        # If a real adapter was written, remove it
         adapter_dir = _edit_path(ctx.vector_home / "lora_adapters", edit.id)
-        if adapter_dir.exists():
-            import shutil
+        snapshot_dir = _edit_path(ctx.vector_home / "lora_rollbacks", edit.id)
+        manifest_path = snapshot_dir / "manifest.json"
+        if manifest_path.exists():
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if adapter_dir.exists():
+                shutil.rmtree(adapter_dir)
+            if manifest.get("had_adapter"):
+                shutil.copytree(snapshot_dir / "pre_training_adapter", adapter_dir)
+                logger.info(f"[LoRA] Restored pre-training adapter at {adapter_dir}")
+            else:
+                logger.info(f"[LoRA] Removed post-training adapter at {adapter_dir}")
+        elif adapter_dir.exists():
             shutil.rmtree(adapter_dir)
             logger.info(f"[LoRA] Removed adapter at {adapter_dir}")
 

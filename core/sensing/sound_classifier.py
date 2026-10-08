@@ -6,6 +6,7 @@ Labels: silence / speech / music / alert / background / unknown
 """
 
 import sys
+import time
 
 import numpy as np
 from loguru import logger
@@ -34,6 +35,7 @@ class SoundClassifier:
     LABELS: list[str] = ["silence", "speech", "music", "alert", "background"]
 
     def __init__(self) -> None:
+        sensing_cfg = CONFIG.get("sensing", {})
         self._sample_rate: int = int(
             CONFIG.get("voice", {}).get("sample_rate", 16000)
         )
@@ -41,6 +43,18 @@ class SoundClassifier:
         self._sd = None                          # sounddevice, lazy
         self._onnx_session = None                # optional YAMNet ONNX session
         self._onnx_checked = False
+        self._alert_cooldown_sec = float(
+            sensing_cfg.get("sound_alert_cooldown_sec", 60.0)
+        )
+        self._retry_backoff_sec = float(
+            sensing_cfg.get("sound_retry_backoff_sec", 30.0)
+        )
+        self._last_alert_at: dict[str, float] = {}
+        self._retry_after = 0.0
+        self._capture_warning_logged = False
+        self._active_log_emitted = False
+        self.is_active = False
+        self.last_label = "unknown"
         self._try_load_onnx()
 
     # â"€â"€ private helpers â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
@@ -53,11 +67,22 @@ class SoundClassifier:
                 self._sd = sd
             return True
         except ImportError as exc:
-            logger.warning(f"[VECTOR][sound] sounddevice unavailable: {exc}")
+            self._warn_capture_once(f"sounddevice unavailable: {exc}")
             return False
         except Exception as exc:
-            logger.warning(f"[VECTOR][sound] sounddevice init error: {exc}")
+            self._warn_capture_once(f"sounddevice init error: {exc}")
             return False
+
+    def _warn_capture_once(self, reason: str) -> None:
+        """Warn once and defer retries so absent hardware cannot spin the loop."""
+        self._retry_after = time.monotonic() + self._retry_backoff_sec
+        if not self._capture_warning_logged:
+            logger.warning(
+                "[VECTOR][sound] ambient microphone unavailable; retrying in {}s: {}",
+                self._retry_backoff_sec,
+                reason,
+            )
+            self._capture_warning_logged = True
 
     @staticmethod
     def _rms(audio: np.ndarray) -> float:
@@ -99,7 +124,12 @@ class SoundClassifier:
         if self._onnx_checked:
             return
         self._onnx_checked = True
-        model_path = CONFIG.get("sound_model_path", "")
+        # SENSING__SOUND_MODEL_PATH is the production setting; retain the
+        # legacy top-level lookup so existing callers remain compatible.
+        model_path = (
+            CONFIG.get("sensing", {}).get("sound_model_path", "")
+            or CONFIG.get("sound_model_path", "")
+        )
         if not model_path:
             return
         try:
@@ -109,6 +139,12 @@ class SoundClassifier:
             if p.exists():
                 self._onnx_session = ort.InferenceSession(str(p))
                 logger.info("[VECTOR][sound] YAMNet ONNX loaded: {}", model_path)
+            else:
+                # Missing optional weights retain the local heuristic fallback.
+                logger.warning(
+                    "[VECTOR][sound] ONNX model not found at {}; using heuristics",
+                    model_path,
+                )
         except ImportError:
             logger.debug("[VECTOR][sound] onnxruntime not installed — using heuristics")
         except Exception as e:
@@ -143,7 +179,15 @@ class SoundClassifier:
             if rms < 0.01:
                 return "silence"
             if rms > 0.30:
-                self._emit_emergency_signal()
+                # Default 60s per-label cooldown suppresses sustained noise
+                # without hiding a later, distinct incident from the owner.
+                now = time.monotonic()
+                last_alert = self._last_alert_at.get("alert", float("-inf"))
+                if now - last_alert >= self._alert_cooldown_sec:
+                    self._last_alert_at["alert"] = now
+                    self._emit_emergency_signal()
+                else:
+                    logger.debug("[VECTOR][sound] duplicate alert suppressed by cooldown")
                 return "alert"
             if zcr > 0.20:
                 return "speech"
@@ -159,26 +203,44 @@ class SoundClassifier:
     def sample_and_classify(self) -> str:
         """Record a short audio frame from the default microphone and classify it.
 
-        Returns "unknown" gracefully if no microphone is available.
+        Returns "unknown" gracefully if no microphone is available. The frame
+        exists only in memory for classification; raw audio is never written.
         """
+        if time.monotonic() < self._retry_after:
+            return "unknown"
         try:
             if not self._ensure_sounddevice():
                 return "unknown"
 
             n_samples = int(self._sample_rate * self._frame_duration)
-            recording = self._sd.rec(
-                n_samples,
-                samplerate=self._sample_rate,
-                channels=1,
-                dtype="float32",
-                blocking=True,
-            )
-            label = self.classify_frame(recording)
+            if not self._active_log_emitted:
+                # Cheap transparency indicator for logs/status inspection. The
+                # boolean is public for a future HUD consumer without capture.
+                logger.info(
+                    "[VECTOR][sound] ambient microphone sampling ACTIVE "
+                    "(classification only; raw audio is not stored)"
+                )
+                self._active_log_emitted = True
+            self.is_active = True
+            try:
+                recording = self._sd.rec(
+                    n_samples,
+                    samplerate=self._sample_rate,
+                    channels=1,
+                    dtype="float32",
+                    blocking=True,
+                )
+                label = self.classify_frame(recording)
+            finally:
+                self.is_active = False
+            self.last_label = label
             logger.debug(f"[VECTOR][sound] sample_and_classify → {label}")
             return label
 
         except Exception as exc:
-            logger.error(f"[VECTOR][sound] sample_and_classify error: {exc}")
+            self.is_active = False
+            self.last_label = "unknown"
+            self._warn_capture_once(str(exc))
             return "unknown"
 
     def is_speech_active(self) -> bool:
