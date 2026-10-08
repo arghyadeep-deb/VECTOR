@@ -1,2 +1,0 @@
-"""Skills compatibility package."""
-

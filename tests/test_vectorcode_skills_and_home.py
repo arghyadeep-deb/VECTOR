@@ -1,8 +1,7 @@
-"""vectorcode skill library visibility + home helper.
+"""Curated VectorCode skill library visibility + home helper.
 
-2026-09-24 findings: `skills_list` returned nothing although 4,000+ SKILL.md files ship under vectorcode/skills
-(the tool only scanned ~/.vector/skills plus hand-configured external dirs), and tui_gateway imported a
-`get_vectorcode_home` that did not exist. Child process: bare imports need vectorcode/src on sys.path.
+The tool scans the curated ``vectorcode/src/skills`` tree in addition to local and
+configured external directories. Child process: bare imports need vectorcode/src on sys.path.
 """
 from __future__ import annotations
 
@@ -66,11 +65,13 @@ def result():
 
 
 def test_shipped_skill_library_is_a_default_skills_dir(result):
-    assert any(d.replace("\\", "/").endswith("vectorcode/skills") for d in result["dirs"])
+    normalized = [d.replace("\\", "/") for d in result["dirs"]]
+    assert any(d.endswith("vectorcode/src/skills") for d in normalized)
+    assert not any(d.endswith("vectorcode/skills") for d in normalized)
 
 
 def test_skills_list_returns_the_shipped_skills(result):
-    assert result["success"] and result["count"] > 1000
+    assert result["success"] and result["count"] > 50
 
 
 def test_get_vectorcode_home_alias_exists(result):

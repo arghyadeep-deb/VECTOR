@@ -178,19 +178,19 @@ if __name__ == "__main__":
         runner = SkillSandboxRunner()
         entries = [
             {
-                "skill_id": "vc-sec-analyzing-api-gateway-access-logs",
+                "skill_id": "sherlock",
                 "category": "security",
-                "skill_md_path": "vectorcode/skills/vc-sec-analyzing-api-gateway-access-logs/SKILL.md",
+                "skill_md_path": "vectorcode/src/skills/optional/security/sherlock/SKILL.md",
             },
             {
-                "skill_id": "vc-gs-benchmark",
+                "skill_id": "dogfood",
                 "category": "general",
-                "skill_md_path": "vectorcode/skills/vc-gs-benchmark/SKILL.md",
+                "skill_md_path": "vectorcode/src/skills/dogfood/SKILL.md",
             },
             {
-                "skill_id": "vc-ec-accessibility",
+                "skill_id": "systematic-debugging",
                 "category": "execution",
-                "skill_md_path": "vectorcode/skills/vc-ec-accessibility/SKILL.md",
+                "skill_md_path": "vectorcode/src/skills/software-development/systematic-debugging/SKILL.md",
             },
         ]
         for entry in entries:

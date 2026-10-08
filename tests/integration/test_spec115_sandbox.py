@@ -3,10 +3,10 @@
 Verifies:
 - VectorSandbox isolates and executes Python safely
 - PermissionGateway classifies skill action types correctly
-- SkillSandboxRunner executes the 3 representative skills end-to-end:
-    vc-sec-*  (security / GREEN)
-    vc-gs-*   (general / GREEN)
-    vc-ec-*   (execution / YELLOW)
+- SkillSandboxRunner executes 3 curated representative skills end-to-end:
+    sherlock              (security / GREEN)
+    dogfood               (general / GREEN)
+    systematic-debugging  (execution / YELLOW)
 - Forbidden and RED actions are blocked before sandbox runs
 - Results are fully captured (stdout, exit code, elapsed time)
 """
@@ -33,24 +33,24 @@ def _run(coro):
 # ---------------------------------------------------------------------------
 
 _SEC_SKILL = {
-    "skill_id": "vc-sec-analyzing-api-gateway-access-logs",
+    "skill_id": "sherlock",
     "category": "security",
-    "skill_md_path": "vectorcode/skills/vc-sec-analyzing-api-gateway-access-logs/SKILL.md",
-    "name": "Analyzing API Gateway Access Logs",
+    "skill_md_path": "vectorcode/src/skills/optional/security/sherlock/SKILL.md",
+    "name": "Sherlock",
 }
 
 _GS_SKILL = {
-    "skill_id": "vc-gs-benchmark",
+    "skill_id": "dogfood",
     "category": "general",
-    "skill_md_path": "vectorcode/skills/vc-gs-benchmark/SKILL.md",
-    "name": "Benchmark",
+    "skill_md_path": "vectorcode/src/skills/dogfood/SKILL.md",
+    "name": "Dogfood",
 }
 
 _EC_SKILL = {
-    "skill_id": "vc-ec-accessibility",
+    "skill_id": "systematic-debugging",
     "category": "execution",
-    "skill_md_path": "vectorcode/skills/vc-ec-accessibility/SKILL.md",
-    "name": "Accessibility (WCAG 2.2)",
+    "skill_md_path": "vectorcode/src/skills/software-development/systematic-debugging/SKILL.md",
+    "name": "Systematic Debugging",
 }
 
 _UNKNOWN_SKILL = {
@@ -208,7 +208,7 @@ class TestSecuritySkillExecution(unittest.TestCase):
     def test_sec_skill_stdout_is_valid_json(self):
         result = _run(self.runner.execute_skill(_SEC_SKILL))
         data = json.loads(result.sandbox_result.stdout.strip())
-        self.assertEqual(data["skill_id"], "vc-sec-analyzing-api-gateway-access-logs")
+        self.assertEqual(data["skill_id"], "sherlock")
         self.assertEqual(data["category"], "security")
         self.assertEqual(data["status"], "verified")
 
@@ -240,7 +240,7 @@ class TestGeneralSkillExecution(unittest.TestCase):
     def test_gs_skill_stdout_is_valid_json(self):
         result = _run(self.runner.execute_skill(_GS_SKILL))
         data = json.loads(result.sandbox_result.stdout.strip())
-        self.assertEqual(data["skill_id"], "vc-gs-benchmark")
+        self.assertEqual(data["skill_id"], "dogfood")
         self.assertEqual(data["status"], "verified")
 
     def test_gs_skill_md_exists_true(self):
@@ -279,7 +279,7 @@ class TestExecutionSkillExecution(unittest.TestCase):
     def test_ec_skill_stdout_is_valid_json(self):
         result = _run(self.runner.execute_skill(_EC_SKILL))
         data = json.loads(result.sandbox_result.stdout.strip())
-        self.assertEqual(data["skill_id"], "vc-ec-accessibility")
+        self.assertEqual(data["skill_id"], "systematic-debugging")
         self.assertEqual(data["category"], "execution")
         self.assertEqual(data["status"], "verified")
 
@@ -351,9 +351,9 @@ class TestBatchExecution(unittest.TestCase):
     def test_batch_results_have_correct_skill_ids(self):
         results = _run(self.runner.execute_batch([_SEC_SKILL, _GS_SKILL, _EC_SKILL]))
         ids = {r.skill_id for r in results}
-        self.assertIn("vc-sec-analyzing-api-gateway-access-logs", ids)
-        self.assertIn("vc-gs-benchmark", ids)
-        self.assertIn("vc-ec-accessibility", ids)
+        self.assertIn("sherlock", ids)
+        self.assertIn("dogfood", ids)
+        self.assertIn("systematic-debugging", ids)
 
     def test_batch_results_json_parseable(self):
         results = _run(self.runner.execute_batch([_SEC_SKILL, _GS_SKILL, _EC_SKILL]))

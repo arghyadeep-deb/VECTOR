@@ -173,13 +173,13 @@ def _normalize_string_set(values) -> Set[str]:
 
 
 def _shipped_skills_dir() -> Optional[Path]:
-    """vectorcode/skills -- the skill library that ships with VectorCode (thousands of SKILL.md files)."""
-    d = Path(__file__).resolve().parents[2] / "skills"
+    """Return the curated skill library shipped under ``vectorcode/src/skills``."""
+    d = Path(__file__).resolve().parents[1] / "skills"
     return d if d.is_dir() else None
 
 
 def get_external_skills_dirs() -> List[Path]:
-    """Shipped skill library first, then whatever ``skills.external_dirs`` configures.
+    """Curated shipped skills first, then ``skills.external_dirs`` entries.
 
     `skills_list` used to return nothing because the shipped library was only reachable if the owner had
     hand-configured it. Set ``skills.include_shipped: false`` in config.yaml to opt out.
