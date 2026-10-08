@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
+from core.runtime_paths import get_data_root, get_project_root
 from vectorcode.src.vc_core.types import ToolCall
 from vectorcode.src.vc_mcp.protocol import (
     INTERNAL_ERROR,
@@ -20,6 +21,8 @@ from vectorcode.src.vc_mcp.protocol import (
     MCPResponse,
 )
 from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
+from vectorcode.src.vc_tools.file_read import FileReadTool
+from vectorcode.src.vc_tools.file_write import FileWriteTool
 
 # Tool annotation hints per MCP spec 2025-11-25
 _TOOL_ANNOTATIONS: Dict[str, Dict[str, Any]] = {
@@ -39,6 +42,17 @@ _TOOL_ANNOTATIONS: Dict[str, Dict[str, Any]] = {
     "channel_list": {"readOnlyHint": True, "destructiveHint": False},
     "channel_status": {"readOnlyHint": True, "destructiveHint": False},
 }
+
+
+def _inject_file_tool_allowed_dirs(tool: BaseTool) -> BaseTool:
+    """Confine production file tools without changing generic constructors."""
+    if isinstance(tool, (FileReadTool, FileWriteTool)):
+        tool._allowed_dirs = [
+            get_project_root().resolve(),
+            get_data_root().resolve(),
+        ]
+    return tool
+
 
 class MCPServer:
     """MCP server that exposes VectorCode tools via JSON-RPC.
@@ -164,7 +178,9 @@ class MCPServer:
 
         for cls in _tool_classes:
             try:
-                tools.append(cls())
+                tool = cls()
+                if isinstance(tool, BaseTool):
+                    tools.append(_inject_file_tool_allowed_dirs(tool))
             except Exception as exc:
                 logger.warning("Failed to instantiate tool from {!r}: {}", cls, exc)
 
@@ -178,7 +194,7 @@ class MCPServer:
                     try:
                         tool = ToolRegistry.create(key)
                         if isinstance(tool, BaseTool):
-                            tools.append(tool)
+                            tools.append(_inject_file_tool_allowed_dirs(tool))
                     except Exception as exc:
                         logger.warning("Failed to register user tool: {}", exc)
         except Exception as exc:

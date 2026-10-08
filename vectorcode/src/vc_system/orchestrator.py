@@ -11,8 +11,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from loguru import logger
 
+from core.runtime_paths import get_data_root, get_project_root
 from vectorcode.src.vc_core.types import Message, Role
 from vectorcode.src.vc_tools._abc import BaseTool
+from vectorcode.src.vc_tools.file_read import FileReadTool
+from vectorcode.src.vc_tools.file_write import FileWriteTool
 
 if TYPE_CHECKING:
     from vectorcode.src.vc_system.protocols import OrchestratorDeps
@@ -311,7 +314,13 @@ class QueryOrchestrator:
 
                     tools.append(LLMTool(s.engine, model=s.model))
                 elif ToolRegistry.contains(name):
-                    tools.append(ToolRegistry.create(name))
+                    tool = ToolRegistry.create(name)
+                    if isinstance(tool, (FileReadTool, FileWriteTool)):
+                        tool._allowed_dirs = [
+                            get_project_root().resolve(),
+                            get_data_root().resolve(),
+                        ]
+                    tools.append(tool)
             except Exception as exc:
                 logger.warning("Failed to build tool {!r}: {}", name, exc)
         return tools

@@ -27,19 +27,9 @@ class FileReadTool(BaseTool):
         self,
         allowed_dirs: Optional[List[str]] = None,
     ) -> None:
-        # FLAGGED (not fixed -- owner decision on the right default, not a
-        # narrow patch): both real call sites (vc_mcp/server.py,
-        # vc_system/orchestrator.py) do `ToolRegistry.create(key)` with no
-        # extra args, so allowed_dirs is always None here in production --
-        # _is_path_allowed() always returns True and this directory
-        # allowlist provides zero actual confinement today. Only
-        # is_sensitive_file()'s blocklist (secrets/credentials/keys) is
-        # really enforced below, so an agent can read any non-"sensitive"
-        # file the OS process can read, anywhere on the filesystem. Same
-        # shape in file_write.py (there it's a write primitive, worse).
-        # Whether real-world confinement is meant to come from this
-        # parameter (needs wiring at the two call sites) or from a
-        # higher-level permission-gateway tier is a design decision.
+        # Production MCP/orchestrator builders replace this list with the
+        # resolved repository and runtime-data roots after generic creation.
+        # Direct callers can still provide explicit roots when needed.
         self._allowed_dirs = [Path(d).resolve() for d in (allowed_dirs or [])]
 
     @property

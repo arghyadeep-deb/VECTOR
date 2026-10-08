@@ -7,6 +7,11 @@ from pathlib import Path
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
+def get_project_root() -> Path:
+    """Return the resolved VECTOR repository root."""
+    return _PROJECT_ROOT
+
+
 def get_data_root() -> Path:
     """Return VECTOR's runtime data root.
 
