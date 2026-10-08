@@ -99,42 +99,6 @@ async def test_oauth_refresh_endpoint_does_not_report_success_for_http_error(mon
     assert exc_info.value.detail != "refreshed"
 
 
-@pytest.mark.asyncio
-async def test_subagent_default_llm_failure_is_not_reported_as_success(monkeypatch):
-    from core.engine.agents.subagent_runner import SubagentOptions, SubagentRunner
-    import core.inference.ollama_safe as ollama_safe
-
-    monkeypatch.setattr(
-        ollama_safe,
-        "chat",
-        lambda **kwargs: (_ for _ in ()).throw(ConnectionError("offline")),
-    )
-    monkeypatch.setattr(
-        SubagentRunner,
-        "_build_system_prompt",
-        lambda self, options: "hydrated test prompt",
-    )
-
-    outcome = await SubagentRunner().run(SubagentOptions(agent_name="researcher", task="audit"))
-
-    assert outcome.success is False
-    assert outcome.result == ""
-    assert "unavailable" in (outcome.error or "").lower()
-
-
-def test_subagent_prompt_includes_session_hydration(monkeypatch):
-    from core.engine.agents.subagent_runner import SubagentOptions, SubagentRunner
-    from core.loop.context_engine import ContextEngine
-
-    monkeypatch.setattr(ContextEngine, "session_hydration_prompt", lambda self: "LIVE HYDRATION")
-
-    prompt = SubagentRunner()._build_system_prompt(
-        SubagentOptions(agent_name="researcher", task="audit")
-    )
-
-    assert prompt.startswith("LIVE HYDRATION")
-
-
 async def _async_value(value):
     return value
 

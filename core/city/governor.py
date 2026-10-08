@@ -1920,8 +1920,8 @@ async def classify_chat_intent(text: str) -> dict:
         #
         # POST-RGC2 REPAIR (2026-09-17, F-C2-1): the 12s ceiling set here
         # predates (2026-07-21) the "JARVIS-parity latency pass" (2026-07-23,
-        # see ReliableProvider.__init__'s own comment on this file's sibling
-        # `_answer_conversationally()`) that properly characterized this
+        # see this file's sibling `_answer_conversationally()`) that properly
+        # characterized this
         # exact call shape's real worst-case latency — a single slow-but-
         # not-erroring provider inside provider_client.chat()'s own
         # multi-provider fallback chain (up to 3 retries x up to 60s/attempt

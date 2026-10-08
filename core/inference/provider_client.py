@@ -73,6 +73,27 @@ _OLLAMA_ASYNC_SEMAPHORE = asyncio.Semaphore(CONFIG["ollama_max_concurrent"])
 _PAID_ANTHROPIC_OPENAI_SLUGS = frozenset({"anthropic", "openai"})
 
 
+def is_non_retryable(error: str) -> bool:
+    """4xx client errors except 429 (rate limit) and 408 (timeout)."""
+    low = error.lower()
+    for code in ("400", "401", "403", "404", "422"):
+        if code in low:
+            return True
+    return False
+
+
+def is_rate_limited(error: str) -> bool:
+    return "429" in error or "rate limit" in error.lower()
+
+
+def parse_retry_after_ms(error: str) -> int | None:
+    """Extract Retry-After seconds from error message, return as ms."""
+    m = re.search(r"retry.?after[:\s]+(\d+(?:\.\d+)?)", error, re.IGNORECASE)
+    if m:
+        return int(float(m.group(1)) * 1000)
+    return None
+
+
 @asynccontextmanager
 async def _ollama_async_bound(prov: "LLMProvider"):
     """No-op for every provider except "ollama" — cloud APIs don't share
@@ -289,7 +310,7 @@ class ProviderClient:
           0. (optional) Personality injection -- sentiment-aware system prompt
           1. Rate-limit check (GCRA, 500 tokens/min per caller)
           2. ModelRouter resolves tier -> model
-          3. ReliableProvider wraps call with retry + backoff
+          3. _call_with_retry wraps calls with retry + backoff
           4. Tries providers in order until one succeeds
           5. (optional) Consistency enforcement -- rewrite off-character responses
         """
@@ -430,7 +451,7 @@ class ProviderClient:
             if not providers_to_try:
                 providers_to_try = [PROVIDERS["ollama"]]
 
-        # â"€â"€ ReliableProvider retry loop â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+        # â”€â”€ Provider retry loop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         # ── Build (provider, model_string) pairs ──────────────────────────────
         # When `model` is a logical alias (e.g. "kimi-k2.7-code"), model_pool
         # expands it to ordered (provider, actual_model_id) pairs across all
@@ -684,15 +705,8 @@ class ProviderClient:
         tools: list[dict] | None,
         max_retries: int = 3,
     ):
-        """Wrap _call() with ReliableProvider retry + exponential backoff."""
+        """Wrap _call() with retry + exponential backoff."""
         import asyncio
-        try:
-            from core.engine.providers.reliable_provider import (
-                is_non_retryable, is_rate_limited, parse_retry_after_ms
-            )
-            use_reliable = True
-        except ImportError:
-            use_reliable = False
 
         from core.inference.key_pool import get_pool
         pool = get_pool(prov.api_key_env)
@@ -721,7 +735,7 @@ class ProviderClient:
                 is_key_err = (
                     "401" in err or "403" in err or "429" in err
                     or "invalid api key" in low or "unauthorized" in low
-                    or (use_reliable and is_rate_limited(err))
+                    or is_rate_limited(err)
                 )
                 if key and is_key_err:
                     pool.mark_failed(key)  # bench this key; next attempt rotates to another
@@ -735,7 +749,7 @@ class ProviderClient:
                     or "rate limit" in low
                     or "insufficient balance" in low
                     or "too many requests" in low
-                    or (use_reliable and is_rate_limited(err))
+                    or is_rate_limited(err)
                 )
                 if is_rl:
                     pool_size = getattr(pool, "size", 1)
@@ -772,15 +786,14 @@ class ProviderClient:
                     raise
 
                 # auth error on a multi-key pool → try the next key instead of bailing
-                if use_reliable and is_non_retryable(err) and not (is_key_err and pool.size > 1):
+                if is_non_retryable(err) and not (is_key_err and pool.size > 1):
                     raise
                 if attempt == max_retries - 1:
                     raise
                 wait = backoff
-                if use_reliable:
-                    retry_after = parse_retry_after_ms(err)
-                    if retry_after:
-                        wait = retry_after / 1000
+                retry_after = parse_retry_after_ms(err)
+                if retry_after:
+                    wait = retry_after / 1000
                 logger.warning(
                     "[VECTOR][provider_client] attempt {}/{} failed -- retrying in {:.1f}s",
                     attempt + 1, max_retries, wait,
@@ -820,7 +833,7 @@ class ProviderClient:
             #
             # 2026-09-23 round 2 (independent review correction): an
             # earlier version of this fix put "403" in the message so
-            # reliable_provider.is_non_retryable() would treat this as
+            # is_non_retryable() would treat this as
             # non-retryable and fail over immediately instead of retrying a
             # deterministic policy block 3x with backoff. That collided
             # with _call_with_retry()'s OWN "403" check for is_key_err --

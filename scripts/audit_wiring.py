@@ -16,7 +16,6 @@ files = [
     "core/scraper/vector_scraper.py",
     "districts/research/web_scout.py",
     "districts/coding/coding_tools.py",
-    "core/engine/agents/subagent_runner.py",
     "core/engine/channels/runtime.py",
     "core/engine/agents/roles.py",
     "run_vector.py",
@@ -29,14 +28,14 @@ for f in files:
         fail(f"syntax: {f}: {e}")
 print()
 
-print("GROUP 2 -- ProviderClient: RateLimiter + ModelRouter + ReliableProvider")
+print("GROUP 2 -- ProviderClient: RateLimiter + ModelRouter + retry")
 with open("core/inference/provider_client.py", encoding="utf-8") as f: src = f.read()
 assert "from core.metering.rate_limiter import get_rate_limiter" in src
 assert "_call_with_retry" in src
 assert "ModelRouter" in src
 assert "is_non_retryable" in src
 assert "exponential backoff" in src or "backoff" in src
-ok("ProviderClient.chat(): RateLimiter + ModelRouter + ReliableProvider retry wired")
+ok("ProviderClient.chat(): RateLimiter + ModelRouter + retry wired")
 print()
 
 print("GROUP 3 -- TokenJuice in ContextEngine")
@@ -94,13 +93,6 @@ with open("districts/coding/coding_tools.py", encoding="utf-8") as f: src = f.re
 assert "run_code_safely" in src
 assert "VectorSandbox" in src
 ok("coding_tools: run_code_safely() wraps VectorSandbox for isolated code execution")
-print()
-
-print("GROUP 10 -- SubagentRunner uses Ollama")
-with open("core/engine/agents/subagent_runner.py", encoding="utf-8") as f: src = f.read()
-assert "from core.inference.ollama_safe import chat" in src
-assert "vector-focus" in src
-ok("SubagentRunner._default_llm() routes through VECTOR Ollama (vector-focus)")
 print()
 
 print("GROUP 11 -- ChannelRuntime dispatches via Governor")
@@ -191,13 +183,6 @@ try:
     ok("parallel_researcher: ParallelResearcher instantiates OK")
 except Exception as e:
     fail(f"parallel_researcher: {e}")
-
-try:
-    from core.engine.agents.subagent_runner import SubagentRunner, SubagentOptions, run_subagent
-    runner = SubagentRunner()
-    ok("subagent_runner: SubagentRunner instantiates, _default_llm uses Ollama")
-except Exception as e:
-    fail(f"subagent_runner: {e}")
 
 try:
     from core.engine.channels.runtime import ChannelRuntime, ChannelMessage, select_ack_reaction
