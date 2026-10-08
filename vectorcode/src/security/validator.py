@@ -2,6 +2,7 @@ from pathlib import Path
 from core.config import CONFIG
 
 from typing import Any
+from uuid import uuid4
 from pydantic import BaseModel, field_validator
 from loguru import logger
 
@@ -91,6 +92,14 @@ _TOOL_MODELS: dict = {
 }
 
 
+def _value_length(value: Any) -> int:
+    """Return a non-sensitive size metric for validation audit logs."""
+    try:
+        return len(value)
+    except TypeError:
+        return len(str(value))
+
+
 # ── PathValidator ─────────────────────────────────────────────────────────────
 
 class PathValidator:
@@ -139,7 +148,16 @@ class InputValidator:
         except Exception as exc:
             raise ValueError(f"Invalid params for tool '{tool}': {exc}") from exc
         result = validated.model_dump()
-        logger.debug(f"[VECTOR][validator] tool_call validated: tool={tool} params={result}")
+        field_names = sorted(result)
+        fields = ",".join(field_names)
+        lengths = ",".join(
+            f"{field}:{_value_length(result[field])}" for field in field_names
+        )
+        logger.debug(
+            "[VECTOR][validator] tool_call validated: "
+            f"tool={tool} fields={fields} lengths={lengths} "
+            f"correlation_id={uuid4().hex}"
+        )
         return result
 
 

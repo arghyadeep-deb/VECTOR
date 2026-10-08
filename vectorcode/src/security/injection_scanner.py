@@ -1,5 +1,8 @@
-"""Injection scanner shim — re-exports from vc_security.injection_scanner."""
-from vectorcode.src.vc_security.injection_scanner import *
-from vectorcode.src.vc_security.injection_scanner import InjectionScanner
+"""Compatibility shim; ``vectorcode.src.vc_security`` is canonical."""
 
-from vectorcode.src.security.types import InjectionScanResult
+from vectorcode.src.vc_security.injection_scanner import (
+    InjectionScanner,
+    InjectionScanResult,
+)
+
+__all__ = ["InjectionScanner", "InjectionScanResult"]
