@@ -183,6 +183,15 @@ class ApplyPatchTool(BaseTool):
 
     tool_id = "apply_patch"
 
+    def __init__(
+        self,
+        allowed_dirs: Optional[List[str]] = None,
+    ) -> None:
+        # Production MCP/orchestrator builders replace this list with the
+        # resolved repository and runtime-data roots after generic creation.
+        # Direct callers can still provide explicit roots when needed.
+        self._allowed_dirs = [Path(d).resolve() for d in (allowed_dirs or [])]
+
     @property
     def spec(self) -> ToolSpec:
         return ToolSpec(
@@ -219,6 +228,15 @@ class ApplyPatchTool(BaseTool):
             required_capabilities=["file:write"],
         )
 
+    def _is_path_allowed(self, path: Path) -> bool:
+        """Check if path is within allowed directories."""
+        if not self._allowed_dirs:
+            return True
+        resolved = path.resolve()
+        return any(
+            resolved == d or resolved.is_relative_to(d) for d in self._allowed_dirs
+        )
+
     def execute(self, **params: Any) -> ToolResult:
         patch_text = params.get("patch", "")
         if not patch_text:
@@ -251,6 +269,13 @@ class ApplyPatchTool(BaseTool):
             )
 
         path = Path(target)
+
+        if not self._is_path_allowed(path):
+            return ToolResult(
+                tool_name="apply_patch",
+                content=f"Access denied: {target} is outside allowed directories.",
+                success=False,
+            )
 
         # Block sensitive files
         from vectorcode.src.vc_security.file_policy import is_sensitive_file

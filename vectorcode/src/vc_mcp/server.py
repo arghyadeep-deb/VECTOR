@@ -21,6 +21,7 @@ from vectorcode.src.vc_mcp.protocol import (
     MCPResponse,
 )
 from vectorcode.src.vc_tools._abc import BaseTool, ToolExecutor
+from vectorcode.src.vc_tools.apply_patch import ApplyPatchTool
 from vectorcode.src.vc_tools.file_read import FileReadTool
 from vectorcode.src.vc_tools.file_write import FileWriteTool
 
@@ -46,7 +47,7 @@ _TOOL_ANNOTATIONS: Dict[str, Dict[str, Any]] = {
 
 def _inject_file_tool_allowed_dirs(tool: BaseTool) -> BaseTool:
     """Confine production file tools without changing generic constructors."""
-    if isinstance(tool, (FileReadTool, FileWriteTool)):
+    if isinstance(tool, (ApplyPatchTool, FileReadTool, FileWriteTool)):
         tool._allowed_dirs = [
             get_project_root().resolve(),
             get_data_root().resolve(),
