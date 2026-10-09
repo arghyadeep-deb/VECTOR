@@ -124,26 +124,26 @@ class TestJsonParseFailure:
 # Operational failures + fail_open
 # ---------------------------------------------------------------------------
 
-class TestOSErrorFailOpen:
+class TestOSErrorFailClosed:
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
-    def test_file_not_found_fail_open(self, mock_cfg, mock_run):
+    def test_file_not_found_fail_closed(self, mock_cfg, mock_run):
         mock_cfg.return_value = {"tirith_enabled": True, "tirith_path": "tirith",
                                  "tirith_timeout": 5, "tirith_fail_open": True}
         mock_run.side_effect = FileNotFoundError("No such file: tirith")
         result = check_command_security("echo hi")
-        assert result["action"] == "allow"
-        assert "unavailable" in result["summary"]
+        assert result["action"] == "block"
+        assert "fail-closed" in result["summary"]
 
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
-    def test_permission_error_fail_open(self, mock_cfg, mock_run):
+    def test_permission_error_fail_closed(self, mock_cfg, mock_run):
         mock_cfg.return_value = {"tirith_enabled": True, "tirith_path": "tirith",
                                  "tirith_timeout": 5, "tirith_fail_open": True}
         mock_run.side_effect = PermissionError("Permission denied")
         result = check_command_security("echo hi")
-        assert result["action"] == "allow"
-        assert "unavailable" in result["summary"]
+        assert result["action"] == "block"
+        assert "fail-closed" in result["summary"]
 
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
@@ -156,16 +156,16 @@ class TestOSErrorFailOpen:
         assert "fail-closed" in result["summary"]
 
 
-class TestTimeoutFailOpen:
+class TestTimeoutFailClosed:
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
-    def test_timeout_fail_open(self, mock_cfg, mock_run):
+    def test_timeout_fail_closed_with_legacy_override(self, mock_cfg, mock_run):
         mock_cfg.return_value = {"tirith_enabled": True, "tirith_path": "tirith",
                                  "tirith_timeout": 5, "tirith_fail_open": True}
         mock_run.side_effect = subprocess.TimeoutExpired(cmd="tirith", timeout=5)
         result = check_command_security("slow command")
-        assert result["action"] == "allow"
-        assert "timed out" in result["summary"]
+        assert result["action"] == "block"
+        assert "fail-closed" in result["summary"]
 
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
@@ -181,13 +181,13 @@ class TestTimeoutFailOpen:
 class TestUnknownExitCode:
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
-    def test_unknown_exit_code_fail_open(self, mock_cfg, mock_run):
+    def test_unknown_exit_code_fail_closed_with_legacy_override(self, mock_cfg, mock_run):
         mock_cfg.return_value = {"tirith_enabled": True, "tirith_path": "tirith",
                                  "tirith_timeout": 5, "tirith_fail_open": True}
         mock_run.return_value = _mock_run(99, "")
         result = check_command_security("cmd")
-        assert result["action"] == "allow"
-        assert "exit code 99" in result["summary"]
+        assert result["action"] == "block"
+        assert "fail-closed" in result["summary"]
 
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
@@ -366,7 +366,7 @@ class TestFailedDownloadCaching:
     @patch("tools.tirith_security.shutil.which", return_value=None)
     @patch("tools.tirith_security.subprocess.run")
     @patch("tools.tirith_security._load_security_config")
-    def test_failed_install_scan_uses_fail_open(self, mock_cfg, mock_run,
+    def test_failed_install_scan_fails_closed(self, mock_cfg, mock_run,
                                                  mock_which, mock_install,
                                                  mock_disk_check, mock_mark):
         """After cached miss, check_command_security hits OSError → fail_open."""
@@ -376,12 +376,12 @@ class TestFailedDownloadCaching:
         mock_run.side_effect = FileNotFoundError("No such file: tirith")
         # First command triggers install attempt + cached miss + scan
         result = check_command_security("echo hello")
-        assert result["action"] == "allow"
+        assert result["action"] == "block"
         assert mock_install.call_count == 1
 
         # Second command: no install retry, just hits OSError → allow
         result = check_command_security("echo world")
-        assert result["action"] == "allow"
+        assert result["action"] == "block"
         assert mock_install.call_count == 1  # still 1
 
         _tirith_mod._resolved_path = None
@@ -988,7 +988,7 @@ class TestVectorCodeHomeIsolation:
         from tools.tirith_security import _failure_marker_path
         with patch.dict(os.environ, {"VECTOR_HOME": "/custom/vector"}):
             result = _failure_marker_path()
-        assert result == "/custom/vector/.tirith-install-failed"
+        assert os.path.normpath(result) == os.path.normpath("/custom/vector/.tirith-install-failed")
 
     def test_conftest_isolation_prevents_real_home_writes(self):
         """The conftest autouse fixture sets VECTOR_HOME; verify it's active."""
@@ -999,7 +999,7 @@ class TestVectorCodeHomeIsolation:
     def test_get_vector_home_fallback(self):
         """Without VECTOR_HOME set, falls back to ~/.vector."""
         from tools.tirith_security import _get_vector_home
-        with patch.dict(os.environ, {}, clear=True):
+        with patch.dict(os.environ, {"USERPROFILE": os.path.expanduser("~")}, clear=True):
             # Remove VECTOR_HOME entirely
             os.environ.pop("VECTOR_HOME", None)
             result = _get_vector_home()

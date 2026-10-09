@@ -744,13 +744,13 @@ class GatewayRunner:
         # per-message AIAgent instances.
 
 
-        # Ensure tirith security scanner is available (downloads if needed)
+        # Command-capable tools require a healthy scanner before startup.
         try:
-            from tools.tirith_security import ensure_installed
-            ensure_installed(log_failures=False)
+            from tools.tirith_security import require_installed
+            require_installed(log_failures=False)
         except Exception:
-            logger.exception("[VECTOR] silent swallow")
-            pass  # Non-fatal — fail-open at scan time if unavailable
+            logger.exception("Tirith startup prerequisite failed")
+            raise
         
         # Initialize session database for session_search tool support
         self._session_db = None

@@ -29,39 +29,104 @@ from loguru import logger
 from vector_constants import get_vector_dir
 
 
-def _kill_port_process(port: int) -> None:
-    """Kill any process listening on the given TCP port."""
+class WhatsAppPortCollisionError(RuntimeError):
+    """Raised when the bridge port belongs to an unverified process."""
+
+
+def _normalized_process_path(value: str) -> str:
+    return os.path.normcase(os.path.abspath(value))
+
+
+def _owned_process_matches(owned: dict, current: dict) -> bool:
+    """Verify PID, process birth time, and bridge script identity."""
     try:
-        if _IS_WINDOWS:
-            # Use netstat to find the PID bound to this port, then taskkill
-            result = subprocess.run(
-                ["netstat", "-ano", "-p", "TCP"],
-                capture_output=True, text=True, timeout=5,
-            )
-            for line in result.stdout.splitlines():
-                parts = line.split()
-                if len(parts) >= 5 and parts[3] == "LISTENING":
-                    local_addr = parts[1]
-                    if local_addr.endswith(f":{port}"):
-                        try:
-                            subprocess.run(
-                                ["taskkill", "/PID", parts[4], "/F"],
-                                capture_output=True, timeout=5,
-                            )
-                        except subprocess.SubprocessError as _sve:
-                            logger.debug("[VECTOR][gateway.platforms.whatsapp] suppressed subprocess.SubprocessError: {}", _sve)
-        else:
-            result = subprocess.run(
-                ["fuser", f"{port}/tcp"],
-                capture_output=True, timeout=5,
-            )
-            if result.returncode == 0:
-                subprocess.run(
-                    ["fuser", "-k", f"{port}/tcp"],
-                    capture_output=True, timeout=5,
-                )
-    except Exception as _sve:
-        logger.debug("[VECTOR][gateway.platforms.whatsapp] suppressed Exception: {}", _sve)
+        if int(owned["pid"]) != int(current["pid"]):
+            return False
+        if abs(float(owned["create_time"]) - float(current["create_time"])) > 0.01:
+            return False
+        expected_script = _normalized_process_path(str(owned["bridge_script"]))
+        command_paths = {
+            _normalized_process_path(str(arg))
+            for arg in current.get("cmdline", [])
+            if str(arg).strip()
+        }
+        return expected_script in command_paths
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _require_owned_process(port: int, owned: Optional[dict], current: dict) -> None:
+    """Reject a listener unless its persisted and live identities match."""
+    if owned is None or not _owned_process_matches(owned, current):
+        raise WhatsAppPortCollisionError(
+            f"Port {port} is occupied by PID {current['pid']} not owned by VECTOR"
+        )
+
+
+def _port_owner_identity(port: int) -> Optional[dict]:
+    """Return the identity of the TCP listener on ``port``, if any."""
+    import psutil
+
+    for connection in psutil.net_connections(kind="tcp"):
+        if not connection.laddr or connection.laddr.port != port:
+            continue
+        if connection.status != psutil.CONN_LISTEN or connection.pid is None:
+            continue
+        process = psutil.Process(connection.pid)
+        return {
+            "pid": process.pid,
+            "create_time": process.create_time(),
+            "cmdline": process.cmdline(),
+        }
+    return None
+
+
+def _load_owned_process_record(record_path: Path) -> Optional[dict]:
+    try:
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        return record if isinstance(record, dict) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _write_owned_process_record(record_path: Path, process: subprocess.Popen, bridge_script: Path) -> None:
+    """Atomically persist the identity of a bridge child VECTOR started."""
+    import psutil
+
+    identity = {
+        "pid": process.pid,
+        "create_time": psutil.Process(process.pid).create_time(),
+        "bridge_script": str(bridge_script.resolve()),
+    }
+    record_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = record_path.with_name(f".{record_path.name}.{process.pid}.tmp")
+    temporary.write_text(json.dumps(identity, sort_keys=True), encoding="utf-8")
+    os.replace(temporary, record_path)
+
+
+def _terminate_owned_port_process(port: int, record_path: Path) -> bool:
+    """Terminate only a listener proven to be VECTOR's recorded bridge."""
+    current = _port_owner_identity(port)
+    if current is None:
+        return False
+
+    owned = _load_owned_process_record(record_path)
+    _require_owned_process(port, owned, current)
+
+    import psutil
+
+    process = psutil.Process(current["pid"])
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except psutil.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+    try:
+        record_path.unlink()
+    except FileNotFoundError:
+        pass
+    return True
 
 
 def _terminate_bridge_process(proc, *, force: bool = False) -> None:
@@ -169,6 +234,7 @@ class WhatsAppAdapter(BasePlatformAdapter):
             "session_path",
             get_vector_dir("platforms/whatsapp/session", "whatsapp/session")
         ))
+        self._bridge_process_record = self._session_path.parent / "bridge-process.json"
         self._reply_prefix: Optional[str] = config.extra.get("reply_prefix")
         self._dm_policy = str(config.extra.get("dm_policy") or os.environ.get("WHATSAPP_DM_POLICY", "open")).strip().lower()
         self._allow_from = self._coerce_allow_list(config.extra.get("allow_from") or config.extra.get("allowFrom"))
@@ -418,9 +484,18 @@ class WhatsAppAdapter(BasePlatformAdapter):
                 logger.exception("[VECTOR] silent swallow")
                 pass  # Bridge not running, start a new one
             
-            # Kill any orphaned bridge from a previous gateway run
-            _kill_port_process(self._bridge_port)
-            await asyncio.sleep(1)
+            # Stop only a prior bridge whose persisted identity still matches.
+            try:
+                terminated = await asyncio.to_thread(
+                    _terminate_owned_port_process,
+                    self._bridge_port,
+                    self._bridge_process_record,
+                )
+            except WhatsAppPortCollisionError as exc:
+                logger.error("[{}] {}", self.name, exc)
+                return False
+            if terminated:
+                await asyncio.sleep(1)
             
             # Start the bridge process in its own process group.
             # Route output to a log file so QR codes, errors, and reconnection
@@ -450,6 +525,16 @@ class WhatsAppAdapter(BasePlatformAdapter):
                 preexec_fn=None if _IS_WINDOWS else os.setsid,
                 env=bridge_env,
             )
+            try:
+                _write_owned_process_record(
+                    self._bridge_process_record,
+                    self._bridge_process,
+                    bridge_path,
+                )
+            except Exception:
+                _terminate_bridge_process(self._bridge_process, force=True)
+                self._bridge_process = None
+                raise
             
             # Wait for the bridge to connect to WhatsApp.
             # Phase 1: wait for the HTTP server to come up (up to 15s).
@@ -598,6 +683,11 @@ class WhatsAppAdapter(BasePlatformAdapter):
         self._release_platform_lock()
 
         self._mark_disconnected()
+        if self._bridge_process is not None and self._bridge_process.poll() is not None:
+            try:
+                self._bridge_process_record.unlink()
+            except FileNotFoundError:
+                pass
         self._bridge_process = None
         self._close_bridge_log()
         logger.info(f"[{self.name}] Disconnected")

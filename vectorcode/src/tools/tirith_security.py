@@ -8,8 +8,8 @@ Exit code is the verdict source of truth:
   0 = allow, 1 = block, 2 = warn
 
 JSON stdout enriches findings/summary but never overrides the verdict.
-Operational failures (spawn error, timeout, unknown exit code) respect
-the fail_open config setting. Programming errors propagate.
+Operational failures (spawn error, timeout, unknown exit code) always block.
+Programming errors propagate.
 
 Auto-install: if tirith is not found on PATH or at the configured path,
 it is automatically downloaded from GitHub releases to $VECTOR_HOME/bin/tirith.
@@ -71,7 +71,7 @@ def _load_security_config() -> dict:
         "tirith_enabled": True,
         "tirith_path": "tirith",
         "tirith_timeout": 5,
-        "tirith_fail_open": True,
+        "tirith_fail_open": False,
     }
     try:
         from vector_cli.config import load_config
@@ -96,6 +96,7 @@ def _load_security_config() -> dict:
 _resolved_path: str | None | bool = None
 _INSTALL_FAILED = False  # sentinel: distinct from "not yet tried"
 _install_failure_reason: str = ""  # reason tag when _resolved_path is _INSTALL_FAILED
+_scanner_health = {"status": "unknown", "reason": "not_checked"}
 
 # Background install thread coordination
 _install_lock = threading.Lock()
@@ -461,9 +462,8 @@ def _resolve_tirith_path(configured_path: str) -> str:
         else:
             return expanded
 
-    # If a background install thread is running, don't start a parallel one —
-    # return the configured path; the OSError handler in check_command_security
-    # will apply fail_open until the thread finishes.
+    # If a background install thread is running, don't start a parallel one.
+    # Command scans remain fail-closed until installation finishes.
     if _install_thread is not None and _install_thread.is_alive():
         return expanded
 
@@ -601,7 +601,52 @@ def ensure_installed(*, log_failures: bool = True):
         )
         _install_thread.start()
 
-    return None  # Not available yet; commands will fail-open until ready
+    return None
+
+
+class TirithUnavailableError(RuntimeError):
+    """Raised when command scanning cannot be guaranteed at startup."""
+
+
+def get_scanner_health() -> dict[str, str]:
+    """Return a copy of the scanner's explicit startup health state."""
+    return dict(_scanner_health)
+
+
+def require_installed(*, log_failures: bool = True) -> str:
+    """Synchronously require an executable Tirith binary for command tools."""
+    global _scanner_health
+
+    cfg = _load_security_config()
+    if not cfg["tirith_enabled"]:
+        _scanner_health = {"status": "unhealthy", "reason": "scanner_disabled"}
+        raise TirithUnavailableError(
+            "Tirith command scanner is disabled; command-capable gateway startup denied"
+        )
+
+    try:
+        path = _resolve_tirith_path(cfg["tirith_path"])
+    except Exception:
+        _scanner_health = {"status": "unhealthy", "reason": "initialization_failed"}
+        if log_failures:
+            logger.exception("Tirith command scanner initialization failed")
+        raise TirithUnavailableError("Tirith command scanner initialization failed") from None
+
+    executable = bool(
+        path
+        and (
+            (os.path.isfile(path) and os.access(path, os.X_OK))
+            or shutil.which(path)
+        )
+    )
+    if not executable:
+        _scanner_health = {"status": "unhealthy", "reason": "binary_unavailable"}
+        raise TirithUnavailableError(
+            "Tirith command scanner binary unavailable; command-capable gateway startup denied"
+        )
+
+    _scanner_health = {"status": "healthy", "reason": ""}
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -616,7 +661,7 @@ def check_command_security(command: str) -> dict:
     """Run tirith security scan on a command.
 
     Exit code determines action (0=allow, 1=block, 2=warn). JSON enriches
-    findings/summary. Spawn failures and timeouts respect fail_open config.
+    findings/summary. Operational failures always fail closed.
     Programming errors propagate.
 
     Returns:
@@ -629,12 +674,8 @@ def check_command_security(command: str) -> dict:
 
     tirith_path = _resolve_tirith_path(cfg["tirith_path"])
     timeout = cfg["tirith_timeout"]
-    fail_open = cfg["tirith_fail_open"]
-
     if tirith_path is None:
-        logger.warning("tirith path resolved to None; scanning disabled")
-        if fail_open:
-            return {"action": "allow", "findings": [], "summary": "tirith path unavailable"}
+        logger.error("tirith path resolved to None; blocking command")
         return {"action": "block", "findings": [], "summary": "tirith path unavailable (fail-closed)"}
 
     try:
@@ -648,13 +689,9 @@ def check_command_security(command: str) -> dict:
     except OSError as exc:
         # Covers FileNotFoundError, PermissionError, exec format error
         logger.warning("tirith spawn failed: {}", exc)
-        if fail_open:
-            return {"action": "allow", "findings": [], "summary": f"tirith unavailable: {exc}"}
         return {"action": "block", "findings": [], "summary": f"tirith spawn failed (fail-closed): {exc}"}
     except subprocess.TimeoutExpired:
         logger.warning("tirith timed out after {}s", timeout)
-        if fail_open:
-            return {"action": "allow", "findings": [], "summary": f"tirith timed out ({timeout}s)"}
         return {"action": "block", "findings": [], "summary": "tirith timed out (fail-closed)"}
 
     # Map exit code to action
@@ -666,10 +703,8 @@ def check_command_security(command: str) -> dict:
     elif exit_code == 2:
         action = "warn"
     else:
-        # Unknown exit code — respect fail_open
+        # Unknown exit codes are operational failures and fail closed.
         logger.warning("tirith returned unexpected exit code {}", exit_code)
-        if fail_open:
-            return {"action": "allow", "findings": [], "summary": f"tirith exit code {exit_code} (fail-open)"}
         return {"action": "block", "findings": [], "summary": f"tirith exit code {exit_code} (fail-closed)"}
 
     # Parse JSON for enrichment (never overrides the exit code verdict)
