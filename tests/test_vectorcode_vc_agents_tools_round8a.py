@@ -119,9 +119,11 @@ def test_image_save_declares_file_write_capability():
     ]
 
 
-def test_audio_transcribe_rejects_sensitive_resolved_target(tmp_path):
+def test_audio_transcribe_rejects_sensitive_resolved_target(monkeypatch, tmp_path):
+    from core.config import CONFIG
     from vectorcode.src.vc_tools.audio_tool import AudioTranscribeTool
 
+    monkeypatch.setitem(CONFIG["media"], "allowed_root", str(tmp_path))
     sensitive = tmp_path / "credentials.wav"
     sensitive.write_bytes(b"not audio")
 
@@ -131,9 +133,11 @@ def test_audio_transcribe_rejects_sensitive_resolved_target(tmp_path):
     assert "sensitive" in result.content
 
 
-def test_image_generate_rejects_sensitive_output_before_provider_call(tmp_path):
+def test_image_generate_rejects_sensitive_output_before_provider_call(monkeypatch, tmp_path):
+    from core.config import CONFIG
     from vectorcode.src.vc_tools.image_tool import ImageGenerateTool
 
+    monkeypatch.setitem(CONFIG["media"], "allowed_root", str(tmp_path))
     result = ImageGenerateTool().execute(
         prompt="test",
         output_path=str(tmp_path / "credentials.png"),
@@ -143,40 +147,21 @@ def test_image_generate_rejects_sensitive_output_before_provider_call(tmp_path):
     assert "sensitive" in result.content
 
 
-def test_image_generate_saves_via_atomic_replace(monkeypatch, tmp_path):
-    import vectorcode.src.vc_tools.image_tool as image_tool
+def test_image_generate_paid_provider_is_disabled(monkeypatch):
+    from vectorcode.src.vc_tools.image_tool import ImageGenerateTool
 
-    class Images:
-        def generate(self, **_kwargs):
-            return SimpleNamespace(data=[SimpleNamespace(url="https://example.com/i")])
-
-    fake_openai = SimpleNamespace(OpenAI=lambda: SimpleNamespace(images=Images()))
-    fake_response = SimpleNamespace(
-        content=b"image bytes",
-        raise_for_status=lambda: None,
-    )
-    monkeypatch.setitem(sys.modules, "openai", fake_openai)
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
-    monkeypatch.setattr("httpx.get", lambda *_args, **_kwargs: fake_response)
-    replacements = []
-    real_replace = image_tool.os.replace
-
-    def record_replace(source, target):
-        replacements.append((source, target))
-        real_replace(source, target)
-
-    monkeypatch.setattr(image_tool.os, "replace", record_replace)
-    output = tmp_path / "generated.png"
-
-    result = image_tool.ImageGenerateTool().execute(
-        prompt="test",
-        output_path=str(output),
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setitem(
+        sys.modules,
+        "openai",
+        SimpleNamespace(OpenAI=lambda: pytest.fail("must not construct paid client")),
     )
 
-    assert result.success is True
-    assert output.read_bytes() == b"image bytes"
-    assert len(replacements) == 1
-    assert replacements[0][1] == output
+    result = ImageGenerateTool().execute(prompt="test")
+
+    assert result.success is False
+    assert "disabled" in result.content.lower()
+    assert "free-tier" in result.content.lower()
 
 
 def test_llm_tool_hydrates_before_calling_engine(monkeypatch):

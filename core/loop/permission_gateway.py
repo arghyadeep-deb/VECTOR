@@ -1218,6 +1218,11 @@ class PermissionGateway:
             }
             required = mapping.get(action.action_type, 'generic.run')
 
+            # Owner decision 2026-10-11: authenticated local API callers are
+            # trusted only for the generic PC-control fallback capability.
+            if action.proposed_by.startswith('api_') and required == 'generic.run':
+                policy.grant(action.proposed_by, 'generic.run')
+
             if policy.check(action.proposed_by, required):
                 return True, f'{action.proposed_by} has {required}'
             return False, f'{action.proposed_by} lacks {required}'

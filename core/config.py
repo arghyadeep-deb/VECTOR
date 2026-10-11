@@ -1703,6 +1703,7 @@ CONFIG: dict = {
         "wan2gp_url": _s.WAN2GP_URL,
         "use_lipsync_avatar": False,
         "portrait_image": "",   # set to a portrait photo path to enable lipsync avatar
+        "allowed_root": str(Path.home() / ".vector" / "media"),
     },
     "content_niche": _s.CONTENT_NICHE,
     "video_upload_delay_minutes": _s.VIDEO_UPLOAD_DELAY_MINUTES,

@@ -7,7 +7,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Any
 
@@ -69,16 +68,22 @@ class AudioTranscribeTool(BaseTool):
 
         path = Path(file_path)
 
-        # OWNER DECISION: this tool has no configured allowed-root policy, so
-        # any non-sensitive audio file readable by the process can be uploaded
-        # to the selected provider. Align its root confinement with the open
-        # file_read/file_write policy decision rather than inventing a new root.
         try:
             resolved_path = path.resolve(strict=True)
         except OSError as exc:
             return ToolResult(
                 tool_name="audio_transcribe",
                 content=f"Cannot resolve file: {exc}",
+                success=False,
+            )
+
+        from core.config import CONFIG
+
+        allowed_root = Path(CONFIG["media"]["allowed_root"]).resolve()
+        if resolved_path != allowed_root and not resolved_path.is_relative_to(allowed_root):
+            return ToolResult(
+                tool_name="audio_transcribe",
+                content="Path is outside the allowed media directory.",
                 success=False,
             )
 
@@ -133,7 +138,6 @@ class AudioTranscribeTool(BaseTool):
             )
 
         provider = params.get("provider", "openai")
-        language = params.get("language")
 
         if provider == "local":
             return ToolResult(
@@ -151,60 +155,15 @@ class AudioTranscribeTool(BaseTool):
                 success=False,
             )
 
-        # OWNER DECISION: direct OpenAI Whisper billing conflicts with VECTOR's
-        # free-tier-only runtime rule. Decide whether to disable this legacy
-        # provider or route transcription through the approved local/free stack.
-        # OpenAI Whisper provider
-        try:
-            import openai
-        except ImportError:
-            return ToolResult(
-                tool_name="audio_transcribe",
-                content=(
-                    "openai package not installed. Install with: pip install openai"
-                ),
-                success=False,
-            )
-
-        api_key = os.environ.get("OPENAI_API_KEY")
-        if not api_key:
-            return ToolResult(
-                tool_name="audio_transcribe",
-                content="No API key configured. Set OPENAI_API_KEY.",
-                success=False,
-            )
-
-        try:
-            client = openai.OpenAI()
-            kwargs: dict[str, Any] = {"model": "whisper-1"}
-            if language:
-                kwargs["language"] = language
-
-            with path.open("rb") as f:
-                kwargs["file"] = f
-                transcription = client.audio.transcriptions.create(**kwargs)
-
-            text = transcription.text
-            metadata: dict[str, Any] = {
-                "file_path": str(path.resolve()),
-                "provider": provider,
-            }
-            if language:
-                metadata["language"] = language
-            if hasattr(transcription, "duration"):
-                metadata["duration_ms"] = int(transcription.duration * 1000)
-
-            return ToolResult(
-                tool_name="audio_transcribe",
-                content=text,
-                success=True,
-                metadata=metadata,
-            )
-        except Exception as exc:
-            return ToolResult(
-                tool_name="audio_transcribe",
-                content=f"Transcription error: {exc}",
-                success=False,
-            )
+        # Disabled by owner decision 2026-10-11: paid APIs conflict with the
+        # free-tier-only VECTOR runtime rule.
+        return ToolResult(
+            tool_name="audio_transcribe",
+            content=(
+                "OpenAI Whisper is disabled because it requires a paid API, "
+                "which conflicts with VECTOR's free-tier-only runtime rule."
+            ),
+            success=False,
+        )
 
 __all__ = ["AudioTranscribeTool"]
