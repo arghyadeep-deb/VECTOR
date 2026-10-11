@@ -62,6 +62,14 @@ class EmergencyDetector:
         self.add_rule("battery", "battery_critical", lambda v: v is not None and v < 10, "Battery level critical", dedup_window=60.0)
         self.add_rule("battery", "battery_low", lambda v: v is not None and v < 20, "Battery level low", dedup_window=120.0)
 
+        # FL-029: core/sensing/sound_classifier.py emits domain="environment",
+        # signal_name="alert_sound" on a loud transient, but no rule existed
+        # for it, so process_signal() always returned None -- the alert never
+        # reached a real escalation regardless of subscription. dedup_window
+        # matches the classifier's own 60s alert cooldown (OD-58) so the two
+        # debounce layers agree instead of one masking the other.
+        self.add_rule("environment", "alert_sound", lambda v: v is True, "Loud/alert sound detected", dedup_window=60.0)
+
     def add_rule(self, domain: str, signal_name: str, check_fn: Callable, message: str, severity_score: float | None = None, dedup_window: float = 60.0) -> None:
         self._rules.append({
             "domain": domain,

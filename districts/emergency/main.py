@@ -50,7 +50,10 @@ class EmergencyResponseSystem(AgentBase):
     async def start(self) -> None:
         self._running = True
         set_instance(self)
-        for domain in ("health", "security", "system", "network", "disk", "battery"):
+        # FL-029: "environment" added so the sound classifier's alert_sound
+        # signal (domain="environment") is actually drained and escalated,
+        # not just matched against a rule and then dropped unconsumed.
+        for domain in ("health", "security", "system", "network", "disk", "battery", "environment"):
             queue = self._detector.subscribe_signal(domain)
             self._tasks.append(asyncio.create_task(
                 self._process_queue(domain, queue),
