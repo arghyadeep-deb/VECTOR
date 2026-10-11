@@ -110,9 +110,25 @@ async def test_camera_and_gesture_reject_an_invalid_auth_handshake(monkeypatch, 
     assert ws.closed[0] == 1008 and ws.sent == []
 
 
-def test_the_switches_and_their_status_endpoints():
+def test_the_switches_and_their_status_endpoints(monkeypatch):
     import httpx
     from fastapi import FastAPI
+
+    # FL-031: camera start/stop now route through the real PermissionGateway
+    # (YELLOW tier). Approve both decisions here so this test can still
+    # verify the toggle+status wiring end-to-end; the denied-decision path
+    # is covered separately by test_camera_activation_gateway_gating.py.
+    from core.loop.autonomous_loop import AutonomousLoop
+
+    class _ApprovingGateway:
+        async def evaluate_external(self, action_type, params, source):
+            from core.loop.permission_gateway import GatewayResult
+            return GatewayResult(True, "YELLOW", False, {}, "approved for test")
+
+    monkeypatch.setattr(
+        AutonomousLoop, "get_instance",
+        staticmethod(lambda: SimpleNamespace(_get_gateway=lambda: _ApprovingGateway())),
+    )
 
     app = FastAPI()
     app.include_router(cam.router)
@@ -128,6 +144,27 @@ def test_the_switches_and_their_status_endpoints():
             await c.post("/camera/start")
             assert (await c.get("/camera/status")).json()["active"] is True
             await c.post("/camera/stop")
+            assert (await c.get("/camera/status")).json()["active"] is False
+
+    asyncio.run(go())
+
+
+def test_camera_start_is_blocked_without_a_gateway_grant(monkeypatch):
+    """FL-031: with the real, unmocked PermissionGateway and no capability
+    grant for the api_camera source (FL-032, still open/blocked), the
+    camera must stay off rather than silently activating."""
+    import httpx
+    from fastapi import FastAPI
+
+    monkeypatch.setattr(cam, "_camera_active", False)
+
+    app = FastAPI()
+    app.include_router(cam.router)
+
+    async def go():
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+            resp = (await c.post("/camera/start")).json()
+            assert resp["status"] == "blocked"
             assert (await c.get("/camera/status")).json()["active"] is False
 
     asyncio.run(go())

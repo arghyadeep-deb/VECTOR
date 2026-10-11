@@ -1,6 +1,15 @@
 """
 VC-2 Memory Layer tests — FAISSIndex, PatternStore, AutoMemoryBridge.
 Plan: docs/superpowers/specs/plan-vc2-memory-layer.md
+
+FL-022 (fixed): this file used to live at
+vectorcode/python/tests/test_vectorcode_vc2.py, outside pytest.ini's
+`testpaths = tests` collection scope, and its four PatternStore/
+AutoMemoryBridge tests patched legacy `vectorcode.memory.*` import paths
+that have never existed in the live package (which is
+`vectorcode.src.memory.*`) -- they all failed with AttributeError. Moved
+into tests/ and retargeted to the live module paths, where FAISSIndex and
+EpisodicMemory are both real module-level names.
 """
 
 from unittest.mock import patch, MagicMock
@@ -44,7 +53,7 @@ from vectorcode.src.memory.pattern_store import PatternStore
 
 
 def test_pattern_store_save_and_recall(tmp_path):
-    with patch("vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
+    with patch("vectorcode.src.memory.pattern_store.FAISSIndex") as MockFAISS:
         mock_idx = MagicMock()
         mock_idx.search.return_value = [{"id": "p1", "score": 0.95, "meta": {"plan": "step1,step2", "outcome": "success"}}]
         MockFAISS.return_value = mock_idx
@@ -56,7 +65,7 @@ def test_pattern_store_save_and_recall(tmp_path):
 
 
 def test_pattern_store_skip_below_threshold(tmp_path):
-    with patch("vectorcode.memory.pattern_store.FAISSIndex") as MockFAISS:
+    with patch("vectorcode.src.memory.pattern_store.FAISSIndex") as MockFAISS:
         mock_idx = MagicMock()
         mock_idx.search.return_value = [{"id": "p1", "score": 0.3, "meta": {"plan": "x"}}]
         MockFAISS.return_value = mock_idx
@@ -66,8 +75,8 @@ def test_pattern_store_skip_below_threshold(tmp_path):
 
 
 def test_pattern_store_reward_updates_policy(tmp_path):
-    with patch("vectorcode.memory.pattern_store.FAISSIndex"):
-        with patch("vectorcode.memory.pattern_store.EpisodicMemory") as MockMem:
+    with patch("vectorcode.src.memory.pattern_store.FAISSIndex"):
+        with patch("vectorcode.src.memory.pattern_store.EpisodicMemory") as MockMem:
             mock_mem = MagicMock()
             MockMem.return_value = mock_mem
             ps = PatternStore(index_path=str(tmp_path / "patterns"))
@@ -81,8 +90,8 @@ from vectorcode.src.memory.auto_bridge import AutoMemoryBridge
 
 
 def test_bridge_sync_reads_episodic(tmp_path):
-    with patch("vectorcode.memory.auto_bridge.EpisodicMemory") as MockMem:
-        with patch("vectorcode.memory.auto_bridge.FAISSIndex") as MockFAISS:
+    with patch("vectorcode.src.memory.auto_bridge.EpisodicMemory") as MockMem:
+        with patch("vectorcode.src.memory.auto_bridge.FAISSIndex") as MockFAISS:
             mock_mem = MagicMock()
             mock_mem.recall.return_value = [{"content": "learned pattern", "tags": ["code"]}]
             MockMem.return_value = mock_mem
@@ -101,5 +110,3 @@ def test_bridge_sync_interval():
 def test_bridge_insight_categories():
     expected = {"patterns", "debugging", "architecture", "performance", "security", "preferences"}
     assert set(AutoMemoryBridge.INSIGHT_CATEGORIES) == expected
-
-

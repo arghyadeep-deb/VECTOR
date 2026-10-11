@@ -78,12 +78,21 @@ class Experiment:
 
     def assign(self, subject_id: str) -> str:
         """Deterministically assign a variant to a subject (hash-based, no randomness)."""
+        if not self.variants:
+            raise ValueError(f"experiment '{self.name}' has no variants to assign")
         h = int(hashlib.sha256(f"{self.name}:{subject_id}".encode()).hexdigest(), 16)
         return self.variants[h % len(self.variants)]
 
     def record(self, subject_id: str, variant: str, metric: str, value: float,
                metadata: dict | None = None) -> None:
         """Record a metric observation for a variant."""
+        if not self.active:
+            raise ValueError(f"experiment '{self.name}' is not active; cannot record results")
+        if variant not in self.variants:
+            raise ValueError(
+                f"variant {variant!r} is not one of experiment '{self.name}'s "
+                f"variants {self.variants!r}"
+            )
         conn, private = _get_conn(self._db)
         try:
             conn.execute("""
@@ -233,26 +242,33 @@ class ExperimentRegistry:
                 conn.close()
 
     def create(self, name: str, variants: list[str], description: str = "") -> Experiment:
-        """Create or retrieve an experiment by name."""
-        conn, private = self._conn()
-        try:
-            existing = conn.execute(
-                "SELECT * FROM experiments WHERE name = ?", (name,)
-            ).fetchone()
-            if existing:
-                return self._row_to_exp(existing)
-            cur = conn.execute(
-                "INSERT INTO experiments (name, variants, description, active, created_at) "
-                "VALUES (?, ?, ?, 1, ?)",
-                (name, json.dumps(variants), description, time.time()),
-            )
-            conn.commit()
-            row = conn.execute(
-                "SELECT * FROM experiments WHERE id = ?", (cur.lastrowid,)
-            ).fetchone()
-        finally:
-            if private:
-                conn.close()
+        """Create or retrieve an experiment by name.
+
+        Guarded by self._lock: the check-then-insert below is a
+        check-then-act race if two threads in this process call create()
+        for the same new name concurrently (the lock was previously
+        declared but never actually used anywhere).
+        """
+        with self._lock:
+            conn, private = self._conn()
+            try:
+                existing = conn.execute(
+                    "SELECT * FROM experiments WHERE name = ?", (name,)
+                ).fetchone()
+                if existing:
+                    return self._row_to_exp(existing)
+                cur = conn.execute(
+                    "INSERT INTO experiments (name, variants, description, active, created_at) "
+                    "VALUES (?, ?, ?, 1, ?)",
+                    (name, json.dumps(variants), description, time.time()),
+                )
+                conn.commit()
+                row = conn.execute(
+                    "SELECT * FROM experiments WHERE id = ?", (cur.lastrowid,)
+                ).fetchone()
+            finally:
+                if private:
+                    conn.close()
         logger.info(f"[VECTOR][exp] created experiment '{name}' variants={variants}")
         return self._row_to_exp(row)
 
@@ -279,13 +295,14 @@ class ExperimentRegistry:
         return [self._row_to_exp(r) for r in rows]
 
     def deactivate(self, name: str) -> None:
-        conn, private = self._conn()
-        try:
-            conn.execute("UPDATE experiments SET active = 0 WHERE name = ?", (name,))
-            conn.commit()
-        finally:
-            if private:
-                conn.close()
+        with self._lock:
+            conn, private = self._conn()
+            try:
+                conn.execute("UPDATE experiments SET active = 0 WHERE name = ?", (name,))
+                conn.commit()
+            finally:
+                if private:
+                    conn.close()
 
     def _row_to_exp(self, row: Any) -> Experiment:
         return Experiment(

@@ -501,6 +501,12 @@ class PermissionConfig(BaseModel):
         "create_calendar_event", "commit_code",
         "set_reminder", "write_note_personal",
         "pc_screenshot",
+        # FL-031 (flaw ledger 2026-10-11): camera on/off previously flipped
+        # _camera_active directly with no Gateway decision at all. Privacy-
+        # sensitive like pc_screenshot above, but a discrete, owner-facing
+        # HUD toggle (not continuous ambient capture like the microphone's
+        # separate consent-flag gate), so YELLOW rather than RED.
+        "camera_activate", "camera_deactivate",
         "monthly_report", "finance_report", "journal", "weekly_journal",
         "create_project", "add_deadline", "log_exercise",
         # VectorCode read/verify action — low blast radius (runs the test

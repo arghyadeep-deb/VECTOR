@@ -21,10 +21,28 @@ _camera_active = False
 _camera_index = 0
 
 
+async def _gateway_decision(action_type: str, params: dict):
+    """Route a camera state transition through the real PermissionGateway.
+
+    FL-031: start_camera()/stop_camera() used to flip _camera_active
+    directly -- the route had auth, but no governance decision gated the
+    actual hardware activation. Matches the convention in
+    core/api/routers/memory.py's restore_memory().
+    """
+    from core.loop.autonomous_loop import AutonomousLoop
+
+    loop = AutonomousLoop.get_instance()
+    gateway = (loop or AutonomousLoop())._get_gateway()
+    return await gateway.evaluate_external(action_type, params, "api_camera")
+
+
 @router.post("/start")
 async def start_camera(index: int = 0):
-    """Activate the webcam."""
+    """Activate the webcam, gated by the PermissionGateway."""
     global _camera_active, _camera_index
+    decision = await _gateway_decision("camera_activate", {"index": index})
+    if not decision.approved:
+        return {"status": "blocked", "reason": decision.reason, "level": decision.level}
     _camera_active = True
     _camera_index = index
     logger.info(f"[VECTOR][camera] Camera {index} activated")
@@ -33,8 +51,11 @@ async def start_camera(index: int = 0):
 
 @router.post("/stop")
 async def stop_camera():
-    """Deactivate the webcam."""
+    """Deactivate the webcam, gated by the PermissionGateway."""
     global _camera_active
+    decision = await _gateway_decision("camera_deactivate", {})
+    if not decision.approved:
+        return {"status": "blocked", "reason": decision.reason, "level": decision.level}
     _camera_active = False
     logger.info("[VECTOR][camera] Camera stopped")
     return {"status": "stopped"}

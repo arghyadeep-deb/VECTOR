@@ -40,7 +40,7 @@ class SoftwareArm:
                 return {"status": "error", "approved": False, "escalated": False,
                         "release_ready": False, "reason": "build_failed"}
             review = await self._review_fix_loop(code)
-            security = self._security_audit(review["code"])
+            security = await self._security_audit(review["code"])
             return {
                 "status": "beta_candidate",          # never "secure product"
                 "approved": review["approved"],
@@ -116,12 +116,35 @@ class SoftwareArm:
         except Exception:
             return code
 
-    def _security_audit(self, code) -> dict:
+    async def _security_audit(self, code) -> dict:
+        """Run the real SecurityReviewer and report its observed result.
+
+        `reviewed` is only True when a scan actually executed (even in
+        degraded static-only mode); `passed` reflects the reviewer's
+        findings instead of a hardcoded value. A human security review is
+        still required before release regardless of this result.
+        """
         try:
             from districts.coding.security_reviewer import SecurityReviewer  # reuse
-            return {"passed": False, "reviewed": True}  # human security review still required
-        except Exception:
+        except Exception as exc:
+            logger.warning("[VECTOR][growth][armB] security_reviewer unavailable: {}", exc)
             return {"passed": False, "reviewed": False}
+
+        code_text = code.get("code", "") if isinstance(code, dict) else str(code or "")
+        try:
+            result = await SecurityReviewer().review(code_text, filename="armb_beta_candidate")
+        except Exception as exc:
+            logger.error("[VECTOR][growth][armB] security review raised: {}", exc)
+            return {"passed": False, "reviewed": False, "error": str(exc)}
+
+        issue_count = result.get("issue_count")
+        return {
+            "passed": issue_count == 0,
+            "reviewed": True,
+            "issue_count": issue_count,
+            "critical_count": result.get("critical_count"),
+            "degraded": result.get("degraded", False),
+        }
 
 
 if __name__ == "__main__":

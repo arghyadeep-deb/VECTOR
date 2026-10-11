@@ -17,19 +17,13 @@ these files, but a real `import` did not.
    no underscore, does). The function detect_for_engine_model is real and
    exists there. Fixed the import path.
 
-   NOTE: vllm_pearl.py also does `from core.mining._docker import
-   PearlDockerLauncher`, and core/mining/_docker.py has never existed in
-   git history at all (confirmed: `git log --all --diff-filter=D` finds no
-   deletion). The real PearlDockerLauncher class only exists in the
-   parallel vectorcode/src/mining/_docker.py tree, which was apparently
-   never ported to core/mining/ despite vllm_pearl.py itself having been.
-   This is NOT fixed here -- porting a class across trees (or redesigning
-   the import boundary) is a bigger, more interpretive change than this
-   narrow-bug-fix pass covers; flagged in docs/OPEN_ISSUES.md for an owner
-   decision instead. This test therefore checks the specific import this
-   pass fixed (core.mining.discovery), not a full `import
-   core.mining.vllm_pearl`, which still fails for the separate _docker
-   reason.
+   FL-034 (fixed): vllm_pearl.py also does `from core.mining._docker import
+   PearlDockerLauncher`, and core/mining/_docker.py had never existed in git
+   history at all. The real PearlDockerLauncher class previously only existed
+   in the parallel vectorcode/src/mining/_docker.py tree. Ported it into
+   core/mining/_docker.py with imports retargeted to core.mining._constants
+   and core.mining._abc (both of which already export everything the ported
+   class needs), so `import core.mining.vllm_pearl` now succeeds.
 """
 from __future__ import annotations
 
@@ -67,15 +61,28 @@ def test_mining_discovery_import_path_is_correct():
 
 
 def test_vllm_pearl_no_longer_references_nonexistent_discovery_module():
-    # Read the source directly rather than importing the module: it still
-    # fails to import for the separate, unfixed core.mining._docker reason
-    # documented above, which this test is not about.
     vllm_pearl_path = (
         Path(__file__).parent.parent / "core" / "mining" / "vllm_pearl.py"
     )
     src = vllm_pearl_path.read_text(encoding="utf-8")
     assert "from core.mining._discovery import" not in src
     assert "from core.mining.discovery import" in src
+
+
+def test_vllm_pearl_module_imports_successfully():
+    # FL-034: core.mining._docker now exists (ported from
+    # vectorcode/src/mining/_docker.py), so the whole module import chain
+    # that vllm_pearl.py depends on succeeds.
+    import core.mining.vllm_pearl as vllm_pearl
+
+    assert hasattr(vllm_pearl, "PearlDockerLauncher")
+
+
+def test_core_mining_docker_exports_pearl_docker_launcher():
+    from core.mining._docker import PearlDockerLauncher
+
+    launcher = PearlDockerLauncher(client=object())
+    assert launcher is not None
 
 
 if __name__ == "__main__":
