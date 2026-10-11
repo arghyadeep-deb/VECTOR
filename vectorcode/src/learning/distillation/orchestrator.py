@@ -13,12 +13,14 @@ See spec §3, §7.2, §7.7.
 
 from __future__ import annotations
 
+import asyncio
 from loguru import logger
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
+from core.loop.permission_gateway import PermissionGateway
 from vectorcode.src.learning.distillation.diagnose.runner import DiagnosisRunner
 from vectorcode.src.learning.distillation.execute.base import ApplyContext
 from vectorcode.src.learning.distillation.execute.loop import _build_registry
@@ -27,6 +29,7 @@ from vectorcode.src.learning.distillation.gate.cold_start import check_readiness
 from vectorcode.src.learning.distillation.models import (
     AutonomyMode,
     BenchmarkSnapshot,
+    EditOp,
     EditOutcome,
     EditRiskTier,
     LearningSession,
@@ -228,19 +231,45 @@ class DistillationOrchestrator:
                     )
                     continue
 
-                # Manual risk tier: always skip
+                # Manual risk tier: skipped by default, EXCEPT LoRA_FINETUNE
+                # may be authorized by an explicit RED owner approval through
+                # the PermissionGateway -- this must mirror
+                # execute/loop.py's execute_edits(), which already implements
+                # and tests this exact routing. FL-025: this orchestrator
+                # used to reimplement the MANUAL-tier loop without that
+                # branch at all, so every LoRA edit was silently skipped
+                # before it ever reached the tested approval/queue path.
                 if edit.risk_tier == EditRiskTier.MANUAL:
-                    outcomes.append(
-                        EditOutcome(
-                            edit_id=edit.id,
-                            status="skipped",
-                            benchmark_delta=None,
-                            cluster_deltas={},
-                            error="manual tier, requires explicit approval",
-                            applied_at=None,
+                    if edit.op == EditOp.LORA_FINETUNE:
+                        reason = self._lora_finetune_gateway_reason(edit, session_id)
+                        if not reason:
+                            # Approved -- fall through to validate/apply below,
+                            # same as any other non-MANUAL edit.
+                            pass
+                        else:
+                            outcomes.append(
+                                EditOutcome(
+                                    edit_id=edit.id,
+                                    status="blocked",
+                                    benchmark_delta=None,
+                                    cluster_deltas={},
+                                    error=reason,
+                                    applied_at=None,
+                                )
+                            )
+                            continue
+                    else:
+                        outcomes.append(
+                            EditOutcome(
+                                edit_id=edit.id,
+                                status="skipped",
+                                benchmark_delta=None,
+                                cluster_deltas={},
+                                error="manual tier, requires explicit approval",
+                                applied_at=None,
+                            )
                         )
-                    )
-                    continue
+                        continue
 
                 # Review tier in tiered mode: route to pending
                 if (
@@ -409,6 +438,41 @@ class DistillationOrchestrator:
         artifact_path.write_text(session.model_dump_json(indent=2), encoding="utf-8")
 
         return session
+
+    @staticmethod
+    def _lora_finetune_gateway_reason(edit: Any, session_id: str) -> str:
+        """Request PermissionGateway approval for a MANUAL LORA_FINETUNE edit.
+
+        Returns "" if approved, else a human-readable block reason. Mirrors
+        execute/loop.py's execute_edits() MANUAL/LORA_FINETUNE branch exactly
+        (same action_type, same param shape, same event-loop handling) so
+        this orchestrator can no longer silently bypass that tested path.
+        """
+        gateway = PermissionGateway.get_shared()
+        gateway_params = {
+            "edit_id": edit.id,
+            "op": edit.op.value,
+            "target": edit.target,
+            "base_model": (edit.payload or {}).get("base_model"),
+            "training_sample_count": len((edit.payload or {}).get("training_data", [])),
+            "session_id": session_id,
+        }
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            try:
+                gateway_result = asyncio.run(
+                    gateway.evaluate_external(
+                        "lora_finetune_execute", gateway_params, "distillation_orchestrator"
+                    )
+                )
+            except Exception as exc:
+                return f"Permission Gateway unavailable: {exc}"
+            return "" if gateway_result.approved else gateway_result.reason
+        return (
+            "Permission Gateway unavailable: synchronous distillation "
+            "execution cannot request approval inside a running event loop"
+        )
 
     def _read_prompt(self, target: str) -> str:
         """Read a prompt file from the config tree.
