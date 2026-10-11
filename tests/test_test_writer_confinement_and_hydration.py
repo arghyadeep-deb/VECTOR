@@ -23,7 +23,7 @@ from districts.coding.test_writer import TestWriter
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_write_tests_for_file_rejects_path_outside_repo(tmp_path):

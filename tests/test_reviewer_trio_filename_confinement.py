@@ -19,7 +19,7 @@ from districts.coding.security_reviewer import SecurityReviewer
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_fastapi_reviewer_rejects_path_outside_repo(tmp_path):

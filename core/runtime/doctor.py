@@ -25,6 +25,7 @@ class DependencyCheck:
     required: bool
     detail: str = ""
     remediation: str = ""
+    capability_status: str = ""
 
     @property
     def ok(self) -> bool:
@@ -50,15 +51,23 @@ def _check(
     required: bool,
     detail: str = "",
     remediation: str = "",
+    capability_status: str = "",
 ) -> DependencyCheck:
     if ok:
-        return DependencyCheck(name=name, status="ok", required=required, detail=detail)
+        return DependencyCheck(
+            name=name,
+            status="ok",
+            required=required,
+            detail=detail,
+            capability_status=capability_status,
+        )
     return DependencyCheck(
         name=name,
         status="fail" if required else "warn",
         required=required,
         detail=detail,
         remediation=remediation,
+        capability_status=capability_status,
     )
 
 
@@ -96,6 +105,24 @@ def _check_modules(modules: Iterable[tuple[str, bool]]) -> list[DependencyCheck]
             )
         )
     return checks
+
+
+def _check_optional_capability(
+    capability: str,
+    module: str,
+    package: str,
+) -> DependencyCheck:
+    available = _module_exists(module)
+    return _check(
+        f"capability:{capability}",
+        available,
+        False,
+        f"{module} importable; optional backend is available"
+        if available
+        else f"{module} is not installed; optional backend is unavailable",
+        f"install {package} to enable the {capability.replace('_', ' ')} capability",
+        capability_status="LIVE" if available else "NEEDS_CONFIG",
+    )
 
 
 def _check_writable_dir(path: Path, name: str, required: bool = True) -> DependencyCheck:
@@ -242,6 +269,12 @@ def run_dependency_doctor(
                 ("playwright", False),
             ]
         )
+    )
+    checks.extend(
+        [
+            _check_optional_capability("faiss_backend", "faiss", "faiss-cpu"),
+            _check_optional_capability("colbert_backend", "colbert", "colbert-ai"),
+        ]
     )
     if hardened_mode and not _sqlcipher_available():
         checks.append(

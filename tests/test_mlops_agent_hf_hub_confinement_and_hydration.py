@@ -24,7 +24,7 @@ from districts.coding.mlops_agent import MLOpsAgent
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_hf_hub_upload_rejects_path_outside_repo(tmp_path):

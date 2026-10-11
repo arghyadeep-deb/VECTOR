@@ -539,10 +539,13 @@ def main() -> int:
         return 0
 
     if args.mode == "smoke":
-        os.environ.setdefault(
-            "VECTOR_TEST_DATA_DIR",
-            str(Path(tempfile.gettempdir()) / "vector_smoke_data"),
-        )
+        _smoke_root = Path(tempfile.mkdtemp(prefix="vector_smoke_data_"))
+        os.environ.setdefault("VECTOR_TEST_DATA_DIR", str(_smoke_root))
+        # Smoke exercises both EpisodicMemory and the claims/swarm store. The
+        # data-root override isolates claims; the explicit DB override keeps
+        # the main memory database isolated even when CONFIG was loaded from
+        # .env before this mode was selected.
+        os.environ.setdefault("VECTOR_DB_PATH", str(_smoke_root / "vector_memory.db"))
         result = asyncio.run(smoke_test())
         print(result)
         return 0 if result.get("status") == "ok" else 1

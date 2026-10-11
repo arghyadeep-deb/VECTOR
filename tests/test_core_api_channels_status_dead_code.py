@@ -31,7 +31,7 @@ from core.api.routers.channels import channels_status
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_channels_status_does_not_raise():

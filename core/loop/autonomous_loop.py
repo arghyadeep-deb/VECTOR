@@ -753,29 +753,30 @@ class AutonomousLoop:
     async def _observe_tick(self):
         if self._degradation.current_tier <= ServiceTier.EMERGENCY:
             return
-        if self._ambient is None and self._degradation.current_tier >= ServiceTier.DEGRADED:
-            from core.voice.ambient_listener import AmbientListener
-            self._ambient = AmbientListener()
         result = None
-        if self._ambient:
-            result = await self._ambient.listen_tick()
-        if CONFIG.get("sensing", {}).get("sound_enabled", True):
-            try:
-                if self._sound_classifier is None:
-                    from core.sensing.sound_classifier import SoundClassifier
-                    self._sound_classifier = SoundClassifier()
-                # OD-58: sample one in-memory frame per observe tick. Capture
-                # and optional ONNX inference are blocking, so follow the
-                # camera/screen convention and move them off the event loop.
-                # Wake-word/STT also use the default mic and no shared broker
-                # exists; independent-stream failures use classifier backoff.
-                await asyncio.to_thread(self._sound_classifier.sample_and_classify)
-            except Exception as _sound_err:
-                # RULE 2: sensor construction/capture never kills observation.
-                logger.warning(
-                    "[VECTOR][observe] sound classification unavailable: {}",
-                    _sound_err,
-                )
+        if self._ambient_capture_allowed():
+            if self._ambient is None and self._degradation.current_tier >= ServiceTier.DEGRADED:
+                from core.voice.ambient_listener import AmbientListener
+                self._ambient = AmbientListener()
+            if self._ambient:
+                result = await self._ambient.listen_tick()
+            if CONFIG.get("sensing", {}).get("sound_enabled", True):
+                try:
+                    if self._sound_classifier is None:
+                        from core.sensing.sound_classifier import SoundClassifier
+                        self._sound_classifier = SoundClassifier()
+                    # OD-58: sample one in-memory frame per observe tick. Capture
+                    # and optional ONNX inference are blocking, so follow the
+                    # camera/screen convention and move them off the event loop.
+                    # Wake-word/STT also use the default mic and no shared broker
+                    # exists; independent-stream failures use classifier backoff.
+                    await asyncio.to_thread(self._sound_classifier.sample_and_classify)
+                except Exception as _sound_err:
+                    # RULE 2: sensor construction/capture never kills observation.
+                    logger.warning(
+                        "[VECTOR][observe] sound classification unavailable: {}",
+                        _sound_err,
+                    )
         # FIX #8: Validate ambient listener output before it enters think→act pipeline
         if result is not None:
             if not isinstance(result, dict):
@@ -808,6 +809,21 @@ class AutonomousLoop:
                 self._avatar.on_observe(result if isinstance(result, dict) else {})
             except Exception as _av_obs_err:
                 logger.debug("[VECTOR][observe] avatar on_observe suppressed: {}", _av_obs_err)
+
+    def _ambient_capture_allowed(self) -> bool:
+        """Return whether microphone-backed observe work has explicit consent."""
+        if not CONFIG.get("voice", {}).get("ambient_enabled", False):
+            return False
+        try:
+            from core.voice.ambient_listener import _load_consent
+
+            granted = bool(_load_consent())
+        except Exception as exc:
+            logger.warning("[VECTOR][observe] ambient consent check unavailable: {}", exc)
+            granted = False
+        if self._ambient is not None:
+            self._ambient._consent_given = granted
+        return granted
 
     async def _publish_event(self, event_type: EventType, data: dict | None = None) -> None:
         if self._event_bus is None:

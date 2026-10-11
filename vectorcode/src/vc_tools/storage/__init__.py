@@ -15,27 +15,27 @@ import vectorcode.src.vc_tools.storage.sqlite  # noqa: F401
 try:
     import vectorcode.src.vc_tools.storage.bm25  # noqa: F401
 except ImportError:
-    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
+    logger.debug("[VECTOR] optional storage backend unavailable: bm25")
 
 try:
     import vectorcode.src.vc_tools.storage.faiss_backend  # noqa: F401
 except ImportError:
-    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
+    logger.debug("[VECTOR] optional storage backend unavailable: faiss")
 
 try:
     import vectorcode.src.vc_tools.storage.colbert_backend  # noqa: F401
 except ImportError:
-    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
+    logger.debug("[VECTOR] optional storage backend unavailable: colbert")
 
 try:
     import vectorcode.src.vc_tools.storage.hybrid  # noqa: F401
 except ImportError:
-    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
+    logger.debug("[VECTOR] optional storage backend unavailable: hybrid")
 
 try:
     import vectorcode.src.vc_tools.storage.dense  # noqa: F401
 except ImportError:
-    logger.opt(exception=True).debug("[VECTOR] suppressed exception")
+    logger.debug("[VECTOR] optional storage backend unavailable: dense")
 
 from vectorcode.src.vc_tools.storage._abc import MemoryBackend, RetrievalResult
 from vectorcode.src.vc_tools.storage.chunking import Chunk, ChunkConfig, chunk_text

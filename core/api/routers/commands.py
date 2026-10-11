@@ -1073,7 +1073,7 @@ _HANDLER_DID_NOT_RUN = (
     # branch reports "unknown" when there's no "status" key AND no real
     # success evidence either -- see core/runtime/executor.py's
     # TERMINAL_STATUSES for the full explanation.
-    "unknown",
+    "unknown", "unavailable", "needs_config", "incomplete",
 )
 
 

@@ -22,7 +22,7 @@ from core.vision_control.browser_controller import BrowserController
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def _fake_page(url="https://example.com"):

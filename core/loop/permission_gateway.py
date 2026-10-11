@@ -1267,6 +1267,8 @@ class PermissionGateway:
                 except Exception as _se:
                     result["results"] = []
                     result["search_error"] = str(_se) or type(_se).__name__
+                    result["status"] = "unavailable"
+                    result["error"] = result["search_error"]
                 _limit = CONFIG.get("search_response_limit", 500)
                 result["response"] = " | ".join(
                     f"{r['title']}: {r['snippet']}" for r in result["results"])[:_limit]
@@ -1311,17 +1313,30 @@ class PermissionGateway:
                     result["status"] = "error"
                     result["error"] = str(_we)
             elif action.action_type == "check_attendance":
+                _scraper = None
                 try:
                     from districts.time_calendar.kiit_scraper import KIITScraper
-                    data = KIITScraper().get_cached_schedule() or {}
-                    result["status"] = "ok"
-                    result["checked"] = True
+                    _scraper = KIITScraper()
+                    data = await _scraper.scrape_all()
+                    errors = data.get("errors") or {}
+                    result["status"] = "unavailable" if errors else "ok"
+                    result["checked"] = not bool(errors)
                     result["attendance"] = data.get("attendance", [])
                     result["at_risk"] = data.get("at_risk_subjects", [])
+                    if errors:
+                        result["error"] = "; ".join(
+                            f"{key}: {value}" for key, value in errors.items()
+                        )
                 except Exception as _e:
-                    result["status"] = "ok"
-                    result["checked"] = False  # scraper failed — data not fetched
-                    result["note"] = f"KIIT scraper unavailable: {_e}"
+                    result["status"] = "unavailable"
+                    result["checked"] = False
+                    result["error"] = f"KIIT scraper unavailable: {_e}"
+                finally:
+                    if _scraper is not None:
+                        try:
+                            await _scraper.close()
+                        except Exception as _close_error:
+                            logger.debug("[VECTOR][gateway] KIIT scraper close failed: {}", _close_error)
             elif action.action_type == "commit_code":
                 # Use gitpython directly — NOT GitBot.commit() which would
                 # call back to gateway.execute("commit_code") causing recursion.
@@ -1392,8 +1407,12 @@ class PermissionGateway:
                         result["status"] = "error"
                         result["error"] = f"refused: note name escapes the configured vault ({note_name!r})"
                     else:
-                        result["status"] = "ok"
-                        result["note"] = "vault not configured or no content"
+                        result["status"] = "needs_config" if not vault else "rejected"
+                        result["error"] = (
+                            "vault not configured — note not written"
+                            if not vault
+                            else "note content is empty — note not written"
+                        )
                 except Exception as _e:
                     result["status"] = "error"
                     result["error"] = str(_e)
@@ -1424,7 +1443,8 @@ class PermissionGateway:
                         subject=action.params.get("subject", "(no subject)"),
                         body=action.params.get("body", action.params.get("content", "")),
                     )
-                    result["status"] = "ok"
+                    result["status"] = "incomplete"
+                    result["drafted_only"] = True
                     result["draft_id"] = _draft.get("draft_id", "")
                     result["note"] = "email drafted — send via email client to deliver"
                 except Exception as _e:
@@ -1479,8 +1499,9 @@ class PermissionGateway:
                         tags=["calendar", "reminder"],
                         source="permission_gateway",
                     )
-                    result["status"] = "ok"
-                    result["note"] = "stored as reminder — wire Google Calendar token to persist to calendar"
+                    result["status"] = "incomplete"
+                    result["local_only"] = True
+                    result["note"] = "stored as local reminder — Google Calendar is not configured"
                 except Exception as _e:
                     result["status"] = "error"
                     result["error"] = str(_e)
@@ -1564,6 +1585,19 @@ class PermissionGateway:
                 if not code:
                     result["status"] = "rejected"
                     result["reason"] = "no code provided"
+                elif any(
+                    marker in str(code).lower()
+                    for marker in (
+                        "godmode_race.py",
+                        "load_godmode.py",
+                        "auto_jailbreak.py",
+                        "red-teaming/godmode",
+                        "red_teaming/godmode",
+                    )
+                ):
+                    result["status"] = "rejected"
+                    result["quarantine"] = "godmode"
+                    result["reason"] = "Godmode jailbreak tooling is quarantined and cannot be executed"
                 else:
                     try:
                         from core.sandbox import get_sandbox, SandboxConfig

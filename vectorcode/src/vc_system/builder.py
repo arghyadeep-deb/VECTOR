@@ -199,6 +199,7 @@ class SystemBuilder:
         agent_name = self._agent_name or config.agent.default_agent
         container_runner = self._setup_sandbox(config)
         scheduler_store, task_scheduler = self._setup_scheduler(config, bus)
+        self._inject_scheduler_deps(tool_list, task_scheduler)
         workflow_engine = self._setup_workflow(config, bus)
         session_store = self._setup_sessions(config)
 
@@ -448,6 +449,23 @@ class SystemBuilder:
             "cancel_scheduled_task",
         ):
             pass  # scheduler injection handled post-build
+
+    @staticmethod
+    def _inject_scheduler_deps(tools, scheduler) -> None:
+        """Attach the one runtime scheduler to all scheduler MCP tools."""
+        scheduler_tool_names = {
+            "schedule_task",
+            "list_scheduled_tasks",
+            "pause_scheduled_task",
+            "resume_scheduled_task",
+            "cancel_scheduled_task",
+        }
+        for tool in tools or []:
+            try:
+                if getattr(tool.spec, "name", None) in scheduler_tool_names:
+                    tool._scheduler = scheduler
+            except Exception as exc:
+                logger.debug("Failed to inject scheduler dependency: {}", exc)
 
     def _setup_sandbox(self, config):
         sandbox_enabled = (

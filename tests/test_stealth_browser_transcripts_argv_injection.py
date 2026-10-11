@@ -21,7 +21,7 @@ from core.stealth_browser.transcripts import _extract_via_ytdlp, get_youtube_tra
 
 def _run(coro):
     import asyncio
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_option_like_url_rejected_before_subprocess():

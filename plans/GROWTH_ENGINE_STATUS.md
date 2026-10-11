@@ -15,7 +15,7 @@ tests pass**, smoke 38/38, integration 51/51, no regression.
 | Orchestrator | `districts/growth/growth_orchestrator.py` (2 never-die arms) | `test_growth_orchestrator.py` ✅ |
 
 ## Guardrails verified in code
-- `CONFIG.growth.enabled = False` and `auto_publish = False` → orchestrator idles, no auto-post.
+- **Current checkout:** `CONFIG.growth.enabled = True` and `auto_publish = False`. The local content arm may run, while external publication remains owner-gated through the existing approval path.
 - Instagram default `instagram_mode = "manual"` → `_notify_owner_to_post`; **`instagrapi` is never called** (test asserts this).
 - Beta-signup `active = False` by default; `activate()` raises `PermissionError` without owner approval (same gate as release); consent required; privacy-checked; SQLCipher-encrypted store.
 - Public signup path auth+CSRF-exempt but **gated by `BetaSignup`** (POST → 403 while inactive).
@@ -28,8 +28,8 @@ tests pass**, smoke 38/38, integration 51/51, no regression.
 `districts/startups/*`, `districts/research/*`, `districts/privacy/*`, `core/collections/*`,
 `core/loop/permission_gateway.py`.
 
-## Owner-action prerequisites (before anything goes live)
-1. **Flip the switches:** `CONFIG.growth.enabled = True` and (only when ready) `auto_publish = True`.
+## Owner-action prerequisites (before any external publication)
+1. **Keep publication gated:** `auto_publish` must remain `False` until the owner has reviewed a real daily media run and explicitly accepts the upload path. `growth.enabled` already enables the local content arm in the current checkout.
 2. **Instagram:** stay `manual` (VECTOR renders + Pushovers you to post), or set up a
    Business/Creator account + Facebook app review and set `instagram_mode = "graph_api"`.
    Do NOT route IG through `instagrapi` (ToS/ban risk).
@@ -40,10 +40,10 @@ tests pass**, smoke 38/38, integration 51/51, no regression.
 5. **Release/signup gate:** only call `BetaSignup.activate(owner_approved=True)` after a
    human security review of the ARM B output.
 
-## Deferred (not built — explicitly out of v1 scope)
+## Deferred or still fail-closed (not accepted as autonomous product building)
 - Real wiring of the gateway approval → actual upload firing (uploads are log-only no-ops now).
-- Launching `run_forever()` from `autonomous_loop` (inert until `enabled`, so safe to defer).
 - Real `_next_validated_issue()` feed from market_scanner/idea_validator output.
+- ARM B build/review/fix/security stages remain scaffolds and do not select, build, or ship products.
 - Frame-accurate audio↔video sync (v1 is narration-over-broll by design).
 
 **Net:** the conductor + the one new media component + the gated signup flow are built,

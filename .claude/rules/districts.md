@@ -1,6 +1,6 @@
 # Districts
 
-> This is the ORIGINAL 25-district build plan. What exists now: 38 district directories and 39 districts / 170 agents in `config/agent_manifest.yaml` (extra districts include calls, ops, data_analytics, personal_growth, qa, chief_of_staff, marketing, design, science, emergency, home_assistant, predictive_analytics; `documentation` is in the manifest but has no directory). Treat `districts/` and the manifest as the source of truth.
+> This is the ORIGINAL 25-district build plan. The current manifest is the source of truth: 274 agents across 41 configured districts. Treat runtime inventory evidence from `ManifestLoader.inventory()` as canonical rather than stale prose counts.
 
 ## Phase 1 — Build These First (Days 1-25)
 ```

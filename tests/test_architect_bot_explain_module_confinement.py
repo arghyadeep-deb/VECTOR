@@ -14,7 +14,7 @@ from districts.coding.architect_bot import ArchitectBot
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_explain_module_rejects_path_outside_repo(tmp_path):

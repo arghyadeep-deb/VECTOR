@@ -26,7 +26,7 @@ def test_fallback_skips_error_dict_and_tries_next_swarm():
 
     orch._swarms = {"failing": failing_swarm, "working": working_swarm}
 
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         orch.dispatch("totally_unknown_task_type", {"query": "x"})
     )
 
@@ -46,7 +46,7 @@ def test_fallback_returns_last_error_if_every_swarm_fails():
 
     orch._swarms = {"a": swarm_a, "b": swarm_b}
 
-    result = asyncio.get_event_loop().run_until_complete(
+    result = asyncio.run(
         orch.dispatch("totally_unknown_task_type", {"query": "x"})
     )
 

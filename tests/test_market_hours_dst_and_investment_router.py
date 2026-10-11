@@ -66,7 +66,7 @@ def test_market_status_endpoint_delegates_to_market_hours(monkeypatch):
     assert "def _market_open" not in Path(investment_mod.__file__).read_text(encoding="utf-8")
 
     import asyncio
-    result = asyncio.get_event_loop().run_until_complete(investment_mod.get_market_status())
+    result = asyncio.run(investment_mod.get_market_status())
     assert result["us"]["open"] == market_hours_mod.is_market_open("us-stock")
     assert result["india"]["open"] == market_hours_mod.is_market_open("india-stock")
     assert result["crypto"]["open"] is True

@@ -37,6 +37,47 @@ def test_dependency_doctor_required_core_checks_pass(monkeypatch) -> None:
     assert "frontend:VECTOR.prod.html" not in names
 
 
+def test_dependency_doctor_classifies_optional_vector_backends(monkeypatch) -> None:
+    from core.runtime import doctor as doctor_module
+
+    real_module_exists = doctor_module._module_exists
+
+    def module_exists(module: str) -> bool:
+        if module in {"faiss", "colbert"}:
+            return False
+        return real_module_exists(module)
+
+    monkeypatch.setattr(doctor_module, "_module_exists", module_exists)
+    payload = doctor_module.run_dependency_doctor(include_optional=False).to_dict()
+    checks = {check["name"]: check for check in payload["checks"]}
+
+    for backend, package in (
+        ("faiss_backend", "faiss-cpu"),
+        ("colbert_backend", "colbert-ai"),
+    ):
+        check = checks[f"capability:{backend}"]
+        assert check["status"] == "warn"
+        assert check["required"] is False
+        assert check["capability_status"] == "NEEDS_CONFIG"
+        assert package in check["remediation"]
+
+
+def test_readiness_cli_does_not_emit_optional_backend_tracebacks() -> None:
+    proc = subprocess.run(
+        [sys.executable, "run_vector.py", "readiness-check"],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    output = proc.stdout + proc.stderr
+    assert "Traceback" not in output
+    assert '"name": "capability:faiss_backend"' in output
+    assert '"name": "capability:colbert_backend"' in output
+
+
 def test_dependency_doctor_marks_production_config_required(monkeypatch) -> None:
     from core.runtime.doctor import run_dependency_doctor
 

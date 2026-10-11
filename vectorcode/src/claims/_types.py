@@ -11,7 +11,17 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Optional
 
+# Retained as a compatibility export for callers that display the historical
+# default. New repositories must resolve their path at construction time via
+# ``default_claims_db_path()`` so test/smoke runtime roots are honored.
 DEFAULT_DB_PATH = Path.home() / ".vector" / "claims.db"
+
+
+def default_claims_db_path() -> Path:
+    """Return the claims store under VECTOR's active runtime data root."""
+    from core.runtime_paths import get_data_root
+
+    return get_data_root() / "claims.db"
 
 
 class ClaimStatus(str, Enum):

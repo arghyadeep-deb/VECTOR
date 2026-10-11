@@ -842,7 +842,7 @@ class TestVoiceResponder:
         """text_to_speech returns error when TTS is not available."""
         import asyncio
         responder = self._make_responder()
-        result = asyncio.get_event_loop().run_until_complete(responder.text_to_speech("Hello world"))
+        result = asyncio.run(responder.text_to_speech("Hello world"))
         assert result["status"] == "error"
         assert "TTS not available" in result["message"]
 

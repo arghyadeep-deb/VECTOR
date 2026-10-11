@@ -17,15 +17,18 @@ from loguru import logger
 
 from ._types import (
     AgentType, ClaimStatus, IssueClaim,
-    DEFAULT_DB_PATH, _ACTIVE_STATUSES,
+    _ACTIVE_STATUSES, default_claims_db_path,
 )
 
 
 class ClaimRepository:
     """SQLite-backed persistence for VECTOR task claims."""
 
-    def __init__(self, db_path: Path | str = DEFAULT_DB_PATH) -> None:
-        self.db_path = Path(db_path)
+    def __init__(self, db_path: Path | str | None = None) -> None:
+        # Resolve at construction time, not function-definition/import time.
+        # VECTOR_TEST_DATA_DIR is deliberately set after some modules import
+        # this package, and must still isolate every newly-created repository.
+        self.db_path = Path(db_path) if db_path is not None else default_claims_db_path()
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._init_db()

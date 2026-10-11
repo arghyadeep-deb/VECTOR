@@ -266,8 +266,37 @@ def _check_tls_config() -> Check:
     return Check("api_tls", status, config.detail, evidence)
 
 
+def _check_agent_manifest() -> Check:
+    """Verify the canonical manifest has no empty or duplicate entries."""
+    try:
+        from core.runtime.manifest_inventory import load_manifest_inventory
+
+        inventory = load_manifest_inventory()
+    except Exception as exc:
+        return Check("agent_manifest", "fail", f"Agent manifest could not be loaded: {exc}")
+
+    problems = []
+    if inventory["agent_count"] <= 0:
+        problems.append("no agents")
+    if inventory["district_count"] <= 0:
+        problems.append("no districts")
+    if inventory["empty_districts"]:
+        problems.append(f"empty districts: {inventory['empty_districts']}")
+    if inventory["duplicate_agent_names"]:
+        problems.append(f"duplicate agents: {inventory['duplicate_agent_names']}")
+    if problems:
+        return Check("agent_manifest", "fail", "; ".join(problems), inventory)
+    return Check(
+        "agent_manifest",
+        "ok",
+        f"{inventory['agent_count']} agents across {inventory['district_count']} districts.",
+        inventory,
+    )
+
+
 def run_readiness_check() -> dict[str, Any]:
     checks = [
+        _check_agent_manifest(),
         _check_dependencies(),
         _check_memory_encryption(),
         _check_memory_db_open(),

@@ -27,6 +27,10 @@ record of how it got there. If the two ever disagree, trust whichever has
 the more recent, more specific proof artifact (a commit hash + passing
 test), not whichever sounds more confident.
 
+The broader per-capability closure statuses live in
+`docs/design/capability-closure-matrix.md`; this register remains the gap-level
+proof index.
+
 | ID | Gap | Owner | Closure Type | Proof Artifact | Date | Review/Expiry | Reopening Condition |
 |---|---|---|---|---|---|---|---|
 | G1 | Reasoning ceiling (free-tier-only runtime policy) | Owner (policy) | **Accepted** | `docs/design/reasoning-ceiling-analysis.md` (commit `39a54b973`) — owner reviewed 2026-10-08 and explicitly reaffirmed: stay free-tier-only, no paid keys | 2026-10-08 (owner reviewed and reaffirmed) | Reviewed and closed — no further action unless the owner revisits | Owner explicitly changes the policy in a future session |

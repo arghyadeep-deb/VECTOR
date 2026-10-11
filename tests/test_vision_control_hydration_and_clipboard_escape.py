@@ -27,7 +27,7 @@ from core.vision_control.vision_operator import VisionOperator
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_call_vlm_hydrates_before_chat():

@@ -190,7 +190,12 @@ def test_file_symlink_escape_denied(tmp_path, monkeypatch):
     root.mkdir()
     outside = tmp_path / "secret.txt"
     outside.write_text("s")
-    (root / "lnk").symlink_to(outside)
+    try:
+        (root / "lnk").symlink_to(outside)
+    except OSError as exc:
+        if sys.platform == "win32" and getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows symlink creation requires Developer Mode or SeCreateSymbolicLinkPrivilege")
+        raise
     tools = load(m_files, m_files.add_file_tools, root, monkeypatch)
     assert call(tools["file_read"], "lnk")["error"] == "Path traversal denied"
 

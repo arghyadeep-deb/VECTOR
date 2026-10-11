@@ -98,3 +98,23 @@ record rather than adding another audit finding.
 **Dormant-feature pile re-verified 2026-10-08** (OD-21/31/34/37/40/43/49/55/56/58; full detail in `docs/design/dormant-feature-pile-2026-10-08.md`): OD-34 confirmed genuinely dead and deleted. OD-40 (`godmode_race.py`), OD-49 (plugins cluster), and OD-55 (mining/engine tree) turned out to be stale "dormant" claims — each had real callers the original backlog missed; records corrected above. **OD-40 is the standout finding and needs the owner's direct attention**: it is not just unwired/ungoverned code, it is a ported jailbreak tool (elder-plinius/G0DM0D3) that races ~55 third-party models via OpenRouter to find the least-filtered answer, invokable by VECTOR's own `execute_code` tool via a documented skill. OD-56 reconfirmed a genuine safety-sensitive finding (an unauthenticated `bash` action branch in a compatibility `WorkflowEngine`, currently dormant/no production caller). OD-21/31/37/43/58 confirmed as genuine owner capability decisions (not dead code) — each is tested-but-unwired, not reference-free.
 - **Cleanup batch** (OD-4/10/11/13): **DELETED 2026-10-07**, confirmed-dead code removed, zero test impact. OD-3 (`vectorcode/src/permissions/`) was in this batch but is NOT deleted — a live test exercises it directly, making it a wire-or-retire disposition question rather than pure dead code.
 - ~~OD-41 (patch-write confinement + 3 plaintext stores)~~ **encryption half FIXED 2026-10-07, filesystem-confinement half still open (same owner decision as OD-38)**. OD-38 itself remains open — a previous session already flagged it as an owner design decision, not re-attempted.
+
+## Reconciliation addendum — 2026-10-11
+
+The historical rows above preserve the findings as originally recorded. The
+current runtime truth and dispositions are maintained in
+`docs/design/capability-closure-matrix.md` and `docs/design/flaw-ledger.md`.
+This addendum prevents older descriptions from being mistaken for current
+wiring evidence:
+
+- The growth content arm is enabled in the current checkout with
+  `auto_publish=False`; the software arm remains deliberately fail-closed.
+- `ChannelAgent` now has a governed production construction site in
+  `GatewayRunner`; its deep-response `vector://research/<session_id>` branch
+  still lacks a producer/consumer and remains a fix-queue item.
+- Sound classification is connected to the observe loop, but microphone-backed
+  work now requires both `voice.ambient_enabled` and persisted ambient consent.
+  Sound-alert routing to the real emergency detector is still incomplete.
+- The current closure pass also records the open Google Tasks token-refresh,
+  VLLM/Pearl package-boundary, camera Gateway-governance, PC-control grant, and
+  media-root/provider-governance findings in the flaw ledger.

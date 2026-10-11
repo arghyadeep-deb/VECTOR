@@ -15,7 +15,7 @@ from districts.coding.code_explorer import CodeExplorer
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_get_imports_returns_empty_for_path_outside_repo(tmp_path):

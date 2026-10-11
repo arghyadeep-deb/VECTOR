@@ -22,7 +22,7 @@ def test_fallback_hydrates_before_chat():
     swarm.name = "GovernanceSwarm"
 
     with patch("core.inference.vectorcode_llm.chat", new=AsyncMock(return_value="answer")) as mock_chat:
-        asyncio.get_event_loop().run_until_complete(
+        asyncio.run(
             swarm._fallback("unknown_task", {"query": "what is the status?"})
         )
     messages = mock_chat.call_args.kwargs["messages"]

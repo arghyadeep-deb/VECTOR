@@ -23,7 +23,7 @@ def test_disconnect_logs_real_exception_not_placeholder():
     client._transports = {"bad": bad_transport}
 
     with patch("core.mcp.client.logger") as mock_logger:
-        asyncio.get_event_loop().run_until_complete(client.disconnect())
+        asyncio.run(client.disconnect())
 
     assert mock_logger.warning.called
     args = mock_logger.warning.call_args[0]

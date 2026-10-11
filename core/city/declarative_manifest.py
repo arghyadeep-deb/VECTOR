@@ -29,6 +29,9 @@ _PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 class ManifestLoader:
     """Load agent definitions from config/agent_manifest.yaml."""
 
+    def __init__(self) -> None:
+        self._district_names: tuple[str, ...] = ()
+
     def load(self, path: str | Path | None = None) -> list[dict]:
         """Load and validate the agent manifest YAML.
 
@@ -46,6 +49,7 @@ class ManifestLoader:
 
         raw = yaml.safe_load(manifest_path.read_text(encoding="utf-8"))
         self.validate(raw)
+        self._district_names = tuple(sorted(raw.get("districts", {}).keys()))
 
         agents: list[dict] = []
         for district_name, district_agents in raw.get("districts", {}).items():
@@ -66,6 +70,20 @@ class ManifestLoader:
             manifest_path.name,
         )
         return agents
+
+    def inventory(self, path: str | Path | None = None) -> dict:
+        """Return canonical agent/district counts from the loaded manifest."""
+        agents = self.load(path)
+        return self.summarize(agents, district_names=self._district_names)
+
+    @staticmethod
+    def summarize(
+        agents: list[dict], *, district_names: tuple[str, ...] = ()
+    ) -> dict:
+        """Summarize a flat manifest without instantiating agents."""
+        from core.runtime.manifest_inventory import summarize_agents
+
+        return summarize_agents(agents, district_names=district_names)
 
     def validate(self, raw: dict) -> None:
         """Raise ValueError on malformed manifest."""

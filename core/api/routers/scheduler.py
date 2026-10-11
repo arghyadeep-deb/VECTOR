@@ -21,7 +21,9 @@ router = APIRouter(prefix="/scheduler", tags=["scheduler"])
 async def scheduler_jobs():
     try:
         from core.scheduler.store import SchedulerStore
-        store = SchedulerStore(Path.home() / ".vector" / "scheduler.db")
+        from core.runtime_paths import data_path
+
+        store = SchedulerStore(data_path("scheduler.db"))
         all_tasks = store.list_tasks()
         active_tasks = store.list_tasks(status="active")
         return SchedulerJobsResponse(

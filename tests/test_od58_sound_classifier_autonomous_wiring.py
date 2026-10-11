@@ -15,6 +15,7 @@ async def test_observe_tick_samples_with_real_classifier_each_tick(monkeypatch):
     """The observe hook must execute the classifier, not stop at a mocked hook."""
     from core.config import CONFIG
     from core.loop.autonomous_loop import AutonomousLoop
+    from core.voice import ambient_listener
 
     calls: list[int] = []
 
@@ -22,7 +23,9 @@ async def test_observe_tick_samples_with_real_classifier_each_tick(monkeypatch):
         calls.append(samples)
         return np.zeros((samples, 1), dtype=np.float32)
 
+    monkeypatch.setitem(CONFIG["voice"], "ambient_enabled", True)
     monkeypatch.setitem(CONFIG["sensing"], "sound_enabled", True)
+    monkeypatch.setattr(ambient_listener, "_load_consent", lambda: True)
     monkeypatch.setitem(
         sys.modules,
         "sounddevice",
@@ -30,13 +33,51 @@ async def test_observe_tick_samples_with_real_classifier_each_tick(monkeypatch):
     )
 
     loop = AutonomousLoop()
-    loop._ambient = SimpleNamespace(listen_tick=lambda: asyncio.sleep(0, result=None))
+    loop._ambient = SimpleNamespace(
+        _consent_given=True,
+        listen_tick=lambda: asyncio.sleep(0, result=None),
+    )
 
     await loop._observe_tick()
     await loop._observe_tick()
 
     assert len(calls) == 2
     assert loop._sound_classifier.last_label == "silence"
+
+
+@pytest.mark.asyncio
+async def test_observe_tick_does_not_capture_without_ambient_consent(monkeypatch):
+    """The autonomous observer must honor the same consent gate as launcher startup."""
+    from core.config import CONFIG
+    from core.loop.autonomous_loop import AutonomousLoop
+    from core.voice import ambient_listener
+
+    ambient_calls: list[str] = []
+    sound_calls: list[str] = []
+
+    class _Ambient:
+        _consent_given = False
+
+        async def listen_tick(self):
+            ambient_calls.append("listen")
+            return None
+
+    class _Sound:
+        def sample_and_classify(self):
+            sound_calls.append("sample")
+
+    monkeypatch.setitem(CONFIG["voice"], "ambient_enabled", True)
+    monkeypatch.setitem(CONFIG["sensing"], "sound_enabled", True)
+    monkeypatch.setattr(ambient_listener, "_load_consent", lambda: False)
+
+    loop = AutonomousLoop()
+    loop._ambient = _Ambient()
+    loop._sound_classifier = _Sound()
+
+    await loop._observe_tick()
+
+    assert ambient_calls == []
+    assert sound_calls == []
 
 
 @pytest.mark.asyncio

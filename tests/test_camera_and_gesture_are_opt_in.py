@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -25,6 +26,7 @@ class FakeWS:
     def __init__(self, disconnect_after=None, leave_after_s=None):
         self.sent, self.disconnect_after, self._start = [], disconnect_after, asyncio.get_event_loop().time()
         self.leave_after_s = leave_after_s
+        self.client = SimpleNamespace(host="testclient")
 
     async def accept(self):
         pass
@@ -100,7 +102,7 @@ async def _auth_message(token):
 async def test_camera_and_gesture_reject_an_invalid_auth_handshake(monkeypatch, handler, module):
     from core.api.routers import websocket
 
-    monkeypatch.setattr(websocket, "WS_API_KEY", "expected-secret")
+    monkeypatch.setattr(websocket, "get_secret", lambda _name: "expected-secret")
     monkeypatch.setattr(module, "_camera_active" if module is cam else "_gesture_active", False)
     ws = FakeWS(leave_after_s=0.1)
     ws.receive_json = lambda: _auth_message("wrong-secret")

@@ -1,9 +1,10 @@
 """Full cross-repo wiring audit — all absorbed modules vs all codebase files."""
 from loguru import logger
 import sys, os, re
+from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 
-CODEBASE = r"C:\Users\Arghyadeep\Desktop\V.E.C.T.O.R\V.E.C.T.O.R. Codebase"
+CODEBASE = Path(__file__).resolve().parents[1]
 os.chdir(CODEBASE)
 
 # Load all Python source files
@@ -25,6 +26,9 @@ for root, dirs, files in os.walk(CODEBASE):
 def is_wired(module_rel: str, symbol: str) -> tuple[bool, list[str]]:
     """Return (wired, [files that import/use it])."""
     callers = []
+    module_source = all_source.get(module_rel, "")
+    if module_rel.endswith("/__init__.py") and "__getattr__" in module_source and symbol in module_source:
+        callers.append(f"{module_rel} (lazy export)")
     # Build import patterns
     mod_dotted = module_rel.replace("/", ".").replace(".py", "")
     # Also check short name (last segment)
@@ -116,8 +120,6 @@ check("core/video/vector_composer.py",      "VectorComposer")
 check("core/video/website_to_video.py",     "WebsiteToVideo")
 check("core/video/composition_linter.py",   "lint_composition")
 check("core/video/studio_server.py",        "start_studio_server")
-check("core/video/runtime/vector_runtime.js","__vector",)  # JS checked separately
-
 # JS runtime - special case
 js_wired = "_RUNTIME_JS" in all_source.get("core/video/html_renderer.py", "")
 results.append(("WIRED" if js_wired else "UNWIRED", "core/video/runtime/vector_runtime.js", "__vector", ""))

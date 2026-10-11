@@ -1,4 +1,4 @@
-# VECTOR Agent Manifest — declarative registry of all 57+ district agents
+# VECTOR Agent Manifest — declarative registry of 274 agents across 41 districts
 # Format: each agent maps to a Python class via its fully-qualified import path.
 # ManifestLoader in core/city/declarative_manifest.py reads this file.
 version: "1.0"

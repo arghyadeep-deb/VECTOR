@@ -15,7 +15,7 @@ from districts.coding.code_conductor_agent import CodeConductorAgent
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_write_file_explicit_null_cwd_still_confined_to_agent_workspace(tmp_path):

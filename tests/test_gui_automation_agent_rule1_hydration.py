@@ -14,7 +14,7 @@ from districts.coding.gui_automation_agent import GUIAutomationAgent
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    return asyncio.run(coro)
 
 
 def test_answer_query_hydrates_before_chat():

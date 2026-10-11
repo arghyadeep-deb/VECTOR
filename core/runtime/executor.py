@@ -58,6 +58,9 @@ TERMINAL_STATUSES = {
     # either (no "branch", no non-empty "commits") -- indistinguishable
     # from a real internal failure, per that handler's own docstring.
     "unknown",
+    # Explicit capability-state outcomes are terminal for completion
+    # accounting: the requested real-world effect did not complete.
+    "unavailable", "needs_config", "incomplete",
 }
 
 
