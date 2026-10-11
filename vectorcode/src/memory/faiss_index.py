@@ -100,9 +100,10 @@ class FAISSIndex:
         searched via cosine similarity (O(n) scan). A single warning is emitted.
     """
 
-    def __init__(self, index_path: str, dim: int = 768) -> None:
+    def __init__(self, index_path: str, dim: int = 768, encrypted: bool = False) -> None:
         self._path = str(index_path)
         self._dim = dim
+        self._encrypted = encrypted
         self._faiss_path = f"{self._path}.faiss"
         self._meta_path = f"{self._path}.meta.db"
         self._lock = threading.RLock()
@@ -126,9 +127,8 @@ class FAISSIndex:
 
     # ── SQLite metadata ───────────────────────────────────────────────────────
 
-    def _init_meta_db(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._meta_path, check_same_thread=False)
-        apply_pragmas(conn)
+    def _init_meta_db(self):
+        conn = self._open_encrypted_meta_db() if self._encrypted else self._open_plain_meta_db()
         conn.execute("""
             CREATE TABLE IF NOT EXISTS vectors (
                 id       TEXT PRIMARY KEY,
@@ -137,6 +137,43 @@ class FAISSIndex:
             )
         """)
         conn.commit()
+        return conn
+
+    def _open_plain_meta_db(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(self._meta_path, check_same_thread=False)
+        apply_pragmas(conn)
+        return conn
+
+    def _open_encrypted_meta_db(self):
+        """AES-256 (SQLCipher) connection, reusing episodic memory's shared
+        key derivation (FL-023: callers that want "the same encryption
+        VECTOR's other memory already uses" get exactly that, not a
+        second, separate key). Fails closed -- raises rather than silently
+        falling back to plaintext -- if SQLCipher isn't installed."""
+        try:
+            import sqlcipher3 as sqlcipher
+        except ImportError:
+            try:
+                from pysqlcipher3 import dbapi2 as sqlcipher
+            except ImportError as exc:
+                raise RuntimeError(
+                    "FAISSIndex(encrypted=True) requires sqlcipher3 or pysqlcipher3; "
+                    "neither is installed. Install one of them or construct with "
+                    "encrypted=False."
+                ) from exc
+
+        from core.memory.episodic import _get_db_key, _sql_literal
+
+        conn = sqlcipher.connect(self._meta_path, check_same_thread=False)
+        try:
+            conn.execute("PRAGMA key = " + _sql_literal(_get_db_key()))
+            conn.execute("PRAGMA cipher_page_size = 4096")
+            conn.execute("PRAGMA busy_timeout = 5000")
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("SELECT count(*) FROM sqlite_master")
+        except Exception:
+            conn.close()
+            raise
         return conn
 
     def _meta_insert(self, doc_id: str, metadata: dict) -> None:
@@ -317,6 +354,10 @@ class FAISSIndex:
                 self._pos_to_id[pos] = f"__deleted__{doc_id}"
         self._meta_delete(doc_id)
         logger.debug(f"[VECTOR][faiss_index] deleted id={doc_id}")
+
+    def contains(self, doc_id: str) -> bool:
+        """Return True if doc_id is currently present (added and not deleted)."""
+        return doc_id in self._np_store or doc_id in self._id_to_pos
 
     def size(self) -> int:
         """Return number of live (non-deleted) vectors."""

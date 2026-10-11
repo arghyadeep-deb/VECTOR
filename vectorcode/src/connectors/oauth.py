@@ -325,6 +325,33 @@ def exchange_google_token(
     resp.raise_for_status()
     return resp.json()
 
+def refresh_google_token(
+    client_id: str, client_secret: str, refresh_token: str
+) -> Dict[str, Any]:
+    """Refresh an expired Google OAuth2 access token.
+
+    FL-033: shared across every Google-based connector (Tasks, Gmail,
+    Calendar, Contacts, Drive) -- Google's refresh endpoint and grant
+    shape are identical no matter which connector's scopes were
+    originally granted, so this is a single reusable helper rather than
+    a per-connector copy (mirrors exchange_google_token() just above,
+    which is the same "authorization_code" counterpart).
+    """
+    import httpx
+
+    resp = httpx.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        },
+        timeout=30.0,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
 def run_oauth_flow(
     client_id: str,
     client_secret: str,
@@ -472,12 +499,18 @@ def run_oauth_flow(
         redirect_uri=redirect_uri,
     )
 
-    # Persist tokens together with client credentials (needed for refresh)
+    # Persist tokens together with client credentials (needed for refresh).
+    # FL-033: expires_at (absolute) is what the per-connector refresh logic
+    # actually checks against -- Google's token endpoint only ever returns
+    # expires_in (relative seconds), so convert it once here at save time
+    # rather than leaving every caller to redo the conversion from a raw
+    # expires_in with no fixed reference point.
     token_payload = {
         "access_token": tokens.get("access_token", ""),
         "refresh_token": tokens.get("refresh_token", ""),
         "token_type": tokens.get("token_type", "Bearer"),
         "expires_in": tokens.get("expires_in", 3600),
+        "expires_at": time.time() + float(tokens.get("expires_in", 3600)),
         "client_id": client_id,
         "client_secret": client_secret,
     }

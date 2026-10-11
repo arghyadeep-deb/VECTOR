@@ -10,6 +10,7 @@ Uses OAuth2 tokens via the shared Google OAuth helper module.
 
 from __future__ import annotations
 
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, Optional
@@ -17,7 +18,12 @@ from typing import Any, Dict, Iterator, Optional
 import httpx
 
 from vectorcode.src.connectors._abc import BaseConnector, Document, SyncStatus
-from vectorcode.src.connectors.oauth import load_tokens, resolve_google_credentials
+from vectorcode.src.connectors.oauth import (
+    load_tokens,
+    refresh_google_token,
+    resolve_google_credentials,
+    save_tokens,
+)
 from vectorcode.src.vc_core.config import DEFAULT_CONFIG_DIR
 from vectorcode.src.vc_core.registry import ConnectorRegistry
 
@@ -51,20 +57,61 @@ class GoogleTasksConnector(BaseConnector):
         )
         self._status = SyncStatus()
 
-    def _get_access_token(self) -> str:
-        # DESIGN NOTE: no expiry check or refresh here -- oauth.load_tokens()
-        # is a dumb JSON reader with no refresh logic, and this connector
-        # doesn't persist a refresh_token/client_secret pair the way
-        # strava.py does. Google OAuth access tokens are short-lived
-        # (~1h), so sync() will start failing with a 401 after that point
-        # until the user re-authenticates. Same gap gmail.py's
-        # is_connected() already self-documents ("simplified: real impl
-        # would also check expiry / refresh token") -- flagging here too
-        # rather than guessing at a fix, since the right design (per-
-        # connector refresh vs. a shared helper in oauth.py) is an owner
-        # decision, not a narrow patch.
-        tokens = load_tokens(str(self._credentials_path))
-        return tokens.get("access_token") or tokens.get("token", "")
+    def _get_access_token(self, *, force_refresh: bool = False) -> str:
+        """Return a valid access token, refreshing it first if it has
+        expired (or if force_refresh is requested after a real 401).
+
+        FL-033 (owner decision 2026-10-11, full build): mirrors
+        strava.py's proactive-refresh-with-60s-margin pattern, using the
+        shared refresh_google_token() helper (identical grant shape for
+        every Google-based connector). Previously there was no expiry
+        check or refresh at all, so sync() started failing with a 401
+        after ~1h until the owner manually re-authenticated.
+        """
+        tokens = load_tokens(str(self._credentials_path)) or {}
+        access_token = tokens.get("access_token") or tokens.get("token", "")
+        expires_at = tokens.get("expires_at")
+
+        needs_refresh = (
+            force_refresh or expires_at is None or float(expires_at) <= time.time() + 60
+        )
+        if not needs_refresh:
+            return access_token
+
+        client_id = tokens.get("client_id")
+        client_secret = tokens.get("client_secret")
+        refresh_token = tokens.get("refresh_token")
+        if not (client_id and client_secret and refresh_token):
+            # No way to refresh (e.g. a pre-fix credentials file, or one
+            # written by a flow that never persisted a refresh pair) --
+            # fall back to whatever access_token is on disk and let the
+            # API call itself raise if it's actually expired.
+            return access_token
+
+        refreshed = refresh_google_token(client_id, client_secret, refresh_token)
+        tokens["access_token"] = refreshed.get("access_token", access_token)
+        tokens["refresh_token"] = refreshed.get("refresh_token", refresh_token)
+        if "expires_in" in refreshed:
+            tokens["expires_at"] = time.time() + float(refreshed["expires_in"])
+        save_tokens(str(self._credentials_path), tokens)
+        return tokens["access_token"]
+
+    def _api_get_with_retry(
+        self, endpoint: str, params: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
+        """Call the Tasks API, retrying exactly once with a forced token
+        refresh on a real 401 (FL-033's "retry behavior" -- covers the
+        case where the proactive expiry check above said the token was
+        still fresh, but Google rejected it anyway: clock skew, early
+        manual revocation, etc.)."""
+        token = self._get_access_token()
+        try:
+            return _tasks_api_get(token, endpoint, params=params or {})
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code != 401:
+                raise
+            token = self._get_access_token(force_refresh=True)
+            return _tasks_api_get(token, endpoint, params=params or {})
 
     def is_connected(self) -> bool:
         return self._credentials_path.exists()
@@ -78,8 +125,7 @@ class GoogleTasksConnector(BaseConnector):
     ) -> Iterator[Document]:
         self._status = SyncStatus(state="syncing")
         try:
-            token = self._get_access_token()
-            task_lists = _tasks_api_get(token, "users/@me/lists")
+            task_lists = self._api_get_with_retry("users/@me/lists")
         except Exception as exc:
             self._status.state = "error"
             self._status.error = str(exc)
@@ -103,7 +149,7 @@ class GoogleTasksConnector(BaseConnector):
                 params["updatedMin"] = since_utc.isoformat().replace("+00:00", "Z")
 
             try:
-                tasks = _tasks_api_get(token, f"lists/{tl_id}/tasks", params=params)
+                tasks = self._api_get_with_retry(f"lists/{tl_id}/tasks", params=params)
             except Exception as exc:
                 self._status.state = "error"
                 self._status.error = str(exc)
