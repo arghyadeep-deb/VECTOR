@@ -741,8 +741,8 @@ VECTOR builds upon and is inspired by:
 
 *VECTOR: Building the future of autonomous AI civilization through structured evolution, principled governance, and continuous learning.*
 
-**Current Version**: 0.1.0-alpha (Phase 1 Development)  
-**Last Updated**: May 2026  
+**Status**: 274 manifest-registered agents across 41 configured districts (well past the original Phase 1 plan) — see `docs/OPEN_ISSUES.md` for the authoritative, dated status  
+**Last checked against the code**: 2026-10-12  
 **Developed by**: Arghyadeep Deb | KIIT CSE 2023-27  
 **Hardware Platform**: Legion Pro 5 | RTX 5070 Ti 12GB | 32GB RAM  
 
