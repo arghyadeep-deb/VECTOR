@@ -22,12 +22,13 @@ and `scripts/absorb_coding_assistant.py` did exactly that and are now retired
 | `districts/investment/alpha_zoo/` | factor library; 154 file headers say "Apache-2.0, Copyright (c) Microsoft Corporation" (looks Qlib-derived — upstream repo not confirmed) | Apache-2.0 | Microsoft Corporation (per file headers) | `districts/investment/alpha_zoo/LICENSE` |
 | `districts/investment/vector_finagent/` | Fincept Terminal | **Mixed — see copyleft below** | Fincept Corporation | `districts/investment/vector_finagent/LICENSE-AGPL-3.0.txt` |
 | `districts/intelligence/vector_social_sim/` | MiroFish (`mirofish-backend`) | **AGPL-3.0** | (see copyleft below) | not present locally; standard AGPL-3.0 text, restore from upstream |
+| `core/mining/` | OpenJarvis (per the 2026-05-15 absorption commit `5655db625`, "100% parity achieved") | Apache-2.0 | 2025 The OpenJarvis Authors | `vectorcode/LICENSES/Apache-2.0-OpenJarvis.txt` |
 
 Per-tree `NOTICE.md` files (written by an earlier audit, deliberately not
 asserting upstream names they could not confirm) also exist in:
 `core/research_engine/`, `core/coding_assistant/`, `districts/coding/vector_mlops/`,
 `districts/intelligence/shadowbroker_server/`, `districts/investment/{alpha_zoo,vector_backtest,vector_finagent}/`,
-`districts/intelligence/vector_social_sim/`.
+`districts/intelligence/vector_social_sim/`, `core/mining/`.
 
 ## Copyleft flags (need owner awareness)
 
@@ -45,11 +46,12 @@ asserting upstream names they could not confirm) also exist in:
 2. **`vector_social_sim` — AGPL-3.0 (MiroFish).** Owner decision 2026-09-24
    (recorded in its `NOTICE.md`): keep using as-is; single-owner, no network
    exposure to other users. Revisit if VECTOR is ever exposed to other users.
-3. **Not checked:** `core/mining/` (Pearl miner modules), `districts/intelligence/shadowbroker_server/`,
+3. **Not checked:** `districts/intelligence/shadowbroker_server/`,
    `districts/investment/vector_backtest/`, `districts/investment/vector_hedgebot/`,
    `districts/coding/vector_mlops/` — no upstream project or license is declared inside these
    trees (see their `NOTICE.md`). Their licenses are unknown, so treat them as
-   all-rights-reserved until identified.
+   all-rights-reserved until identified. (`core/mining/` was in this list; moved to
+   the main table above 2026-10-12 once the OpenJarvis/Apache-2.0 provenance was confirmed.)
 
 ## Reimplementations (no code copied, per project docs)
 

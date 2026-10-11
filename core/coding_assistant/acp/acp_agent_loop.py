@@ -32,7 +32,6 @@ try:
         LoadSessionResponse,
         NewSessionResponse,
         PromptResponse,
-        SetSessionModelResponse,
         SetSessionModeResponse,
         run_agent,
     )
@@ -84,8 +83,8 @@ except (ImportError, AttributeError):
     _ACP_AVAILABLE = False
     PROTOCOL_VERSION = "unknown"
     AcpAgent = Client = InitializeResponse = LoadSessionResponse = None
-    NewSessionResponse = PromptResponse = SetSessionModelResponse = None
-    SetSessionModeResponse = run_agent = ContentBlock = SessionUpdate = None
+    NewSessionResponse = PromptResponse = SetSessionModeResponse = None
+    run_agent = ContentBlock = SessionUpdate = None
     update_available_commands = AgentCapabilities = AgentMessageChunk = None
     AgentThoughtChunk = AllowedOutcome = AuthenticateResponse = None
     AuthMethodAgent = AvailableCommand = AvailableCommandInput = None
@@ -764,17 +763,6 @@ class VibeAcpAgentLoop(_AcpAgentBase):  # type: ignore[misc]
             return None
 
         return SetSessionModeResponse()
-
-    @override
-    async def set_session_model(
-        self, model_id: str, session_id: str, **kwargs: Any
-    ) -> SetSessionModelResponse | None:
-        session = self._get_session(session_id)
-
-        if not await self._apply_model_change(session, model_id):
-            return None
-
-        return SetSessionModelResponse()
 
     @override
     async def set_config_option(
