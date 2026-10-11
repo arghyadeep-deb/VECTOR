@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import inspect
 import re
-import uuid
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -28,9 +27,13 @@ _AGENT_COMMAND = re.compile(
     re.DOTALL,
 )
 _AGENT_USAGE = "Usage: /agent <agent-id-or-name> <task-type> <request>"
+# FL-027: this used to promise a "vector://research/{session_id}" URI with
+# no producer, store, or consumer anywhere in the repo -- a dead-end link.
+# Truncate truthfully instead of claiming a retrievable full report exists.
 _ESCALATION_TEMPLATE = (
-    "{preview}...\n\n---\nFull report ready — open in VectorCode:\n"
-    "vector://research/{session_id}"
+    "{preview}...\n\n"
+    "[Response truncated -- the full report isn't retrievable through "
+    "this channel yet.]"
 )
 _LONG_RESPONSE_THRESHOLD = 500
 
@@ -136,7 +139,6 @@ class ChannelAgent:
     async def _process_message(self, msg: ChannelMessage, *, send: bool = True) -> str:
         """Classify, await the agent if needed, and optionally reply."""
         query_type = classify_query(msg.content)
-        session_id = msg.session_id or uuid.uuid4().hex[:16]
 
         try:
             result = self._agent.run(msg.content)
@@ -154,7 +156,6 @@ class ChannelAgent:
         if query_type == "deep" or len(response_text) > _LONG_RESPONSE_THRESHOLD:
             response_text = _ESCALATION_TEMPLATE.format(
                 preview=response_text[:_LONG_RESPONSE_THRESHOLD],
-                session_id=session_id,
             )
 
         if send and self._channel is not None:
