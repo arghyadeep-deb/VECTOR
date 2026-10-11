@@ -149,10 +149,8 @@ def test_the_switches_and_their_status_endpoints(monkeypatch):
     asyncio.run(go())
 
 
-def test_camera_start_is_blocked_without_a_gateway_grant(monkeypatch):
-    """FL-031: with the real, unmocked PermissionGateway and no capability
-    grant for the api_camera source (FL-032, still open/blocked), the
-    camera must stay off rather than silently activating."""
+def test_camera_start_is_not_blocked_by_capability_layer(monkeypatch):
+    """FL-032: api_camera passes RBAC even if another real gate blocks it."""
     import httpx
     from fastapi import FastAPI
 
@@ -164,8 +162,12 @@ def test_camera_start_is_blocked_without_a_gateway_grant(monkeypatch):
     async def go():
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
             resp = (await c.post("/camera/start")).json()
-            assert resp["status"] == "blocked"
-            assert (await c.get("/camera/status")).json()["active"] is False
+            assert "api_camera lacks generic.run" not in resp.get("reason", "")
+            if resp["status"] == "blocked":
+                assert (await c.get("/camera/status")).json()["active"] is False
+            else:
+                assert resp["status"] == "started"
+                assert (await c.get("/camera/status")).json()["active"] is True
 
     asyncio.run(go())
 

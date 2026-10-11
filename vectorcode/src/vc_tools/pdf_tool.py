@@ -107,6 +107,17 @@ class PDFExtractTool(BaseTool):
                 success=False,
             )
 
+        path = path.resolve()
+        from core.config import CONFIG
+
+        allowed_root = Path(CONFIG["media"]["allowed_root"]).resolve()
+        if path != allowed_root and not path.is_relative_to(allowed_root):
+            return ToolResult(
+                tool_name="pdf_extract",
+                content="Path is outside the allowed media directory.",
+                success=False,
+            )
+
         # Check sensitive file policy
         from vectorcode.src.vc_security.file_policy import is_sensitive_file
 
