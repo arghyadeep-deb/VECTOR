@@ -553,10 +553,16 @@ PROVIDERS: dict[str, LLMProvider] = {p.slug: p for p in [
     # ── GitHub Models (free, needs GitHub Personal Access Token) ──────────────
     # Catalog: GPT-5, o3, o4-mini, GPT-4o, Phi-4 series — all free with GitHub account
     # Rate limit: ~15 RPM, ~150 requests/day for most models (use for high-value tasks)
+    # 2026-10-12 (live FL-012 provider acceptance run): models.inference.ai.azure.com
+    # is a dead domain (confirmed NXDOMAIN) -- GitHub Models moved off the Azure AI
+    # Inference preview to its own first-party host. _call_openai_compat() appends
+    # "/chat/completions" to base_url, so this must stop at ".../inference" (verified
+    # both bare "gpt-4o-mini" and publisher-prefixed "openai/gpt-4o-mini" model ids
+    # return 200 against the real endpoint from a network that isn't filtering it).
     LLMProvider(
         slug="github_models",
         name="GitHub Models",
-        base_url="https://models.inference.ai.azure.com",
+        base_url="https://models.github.ai/inference",
         api_key_env="GITHUB_TOKEN",
         driver="openai_compat",
         default_model="gpt-4o",

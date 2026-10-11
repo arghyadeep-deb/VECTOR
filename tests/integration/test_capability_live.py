@@ -213,3 +213,64 @@ def test_web_scout_reaches_vector_scraper_and_returns_real_data():
     assert content, "web_scout.fetch_page() returned empty content"
     assert len(content) > 50
     assert "Example Domain" in content
+
+
+# ── FL-012: live provider acceptance (owner decision 2026-10-12) ────────────
+# Real free-tier keys now exist in .env (Groq, Cerebras, Gemini, Mistral,
+# DeepSeek, Cohere, NVIDIA, OpenRouter, GitHub Models, Cloudflare, Ollama
+# Cloud, ZAI) -- these prove the real auto-route and the documented
+# cloud-exhaustion -> Ollama fallback actually work end-to-end, not just in
+# a mocked unit test.
+
+_CLOUD_KEY_ENV_VARS = (
+    "GROQ_API_KEY", "CEREBRAS_API_KEY", "GEMINI_API_KEY", "MISTRAL_API_KEY",
+    "DEEPSEEK_API_KEY", "COHERE_API_KEY", "NVIDIA_API_KEY", "OPENROUTER_API_KEY",
+    "GITHUB_TOKEN", "CLOUDFLARE_API_KEY", "OLLAMA_CLOUD_API_KEY", "ZAI_API_KEY",
+    "OPENCODE_API_KEY", "LLM7_API_KEY",
+)
+
+
+@pytest.mark.live
+@live_only
+def test_provider_client_auto_route_reaches_a_real_provider():
+    """Auto-routed (no explicit provider=) call must reach some real
+    provider -- cloud or Ollama -- and return real, non-empty content."""
+    from core.inference.provider_client import ProviderClient
+
+    async def _run():
+        client = ProviderClient()
+        return await client.complete("Reply with exactly the word: pong", tier="simple")
+
+    result = asyncio.run(_run())
+    assert result.content.strip(), "auto-routed call returned empty content"
+    assert result.provider, "result did not record which provider served it"
+
+
+@pytest.mark.live
+@live_only
+def test_provider_client_falls_back_to_ollama_when_every_cloud_key_is_invalid(monkeypatch):
+    """Simulates the documented 'cloud budget exhausted -> automatic
+    ollama-only' path (core/inference/route_policy.py) by invalidating every
+    real cloud key this session has, then confirming the auto-routed call
+    still succeeds and is actually served by the local Ollama fallback, not
+    silently empty/crashed."""
+    from core.inference import key_pool
+    from core.inference.provider_client import ProviderClient
+
+    for var in _CLOUD_KEY_ENV_VARS:
+        monkeypatch.setenv(var, "invalid-test-key-does-not-work")
+    key_pool.reset_pools()
+
+    async def _run():
+        client = ProviderClient()
+        return await client.complete("Reply with exactly the word: pong", tier="simple")
+
+    try:
+        result = asyncio.run(_run())
+    finally:
+        key_pool.reset_pools()
+
+    assert result.content.strip(), "ollama-fallback call returned empty content"
+    assert result.provider == "ollama", (
+        f"expected fallback to terminate on ollama, got provider={result.provider!r}"
+    )
